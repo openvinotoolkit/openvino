@@ -1,0 +1,10 @@
+set(IE_WIN_LIBS ${CMAKE_ARGV3})
+set(IE_LIBS ${CMAKE_ARGV4})
+
+if (WIN32)
+    file( GLOB IE_LIBS "${IE_WIN_LIBS}/*.dll")
+    file( COPY ${IE_LIBS} DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
+else()
+    file( GLOB IE_LIBS "${IE_LIBS}/*.so")
+    file( COPY ${IE_LIBS} DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
+endif()

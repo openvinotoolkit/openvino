@@ -1,0 +1,39 @@
+--fmt=nchw # ref
+
+--dir=FWD_D
+--flags=SR --batch=bnorm_lgmb
+--flags=GS --batch=bnorm_lgmb
+--flags=S  --batch=bnorm_lgmb
+
+--attr=post_ops='relu'
+--flags=GS --batch=bnorm_lgmb
+--flags=S  --batch=bnorm_lgmb
+--attr=
+
+--dir=BWD_DW
+--flags=SR --batch=bnorm_lgmb
+--flags=GS --batch=bnorm_lgmb
+--flags=S  --batch=bnorm_lgmb
+
+--dir=BWD_D
+--flags=   --batch=bnorm_lgmb
+
+--fmt=nChw16c # avx512
+
+--dir=FWD_D
+--flags=SR --batch=bnorm_lgmb
+--flags=GS --batch=bnorm_lgmb
+--flags=S  --batch=bnorm_lgmb
+
+--attr=post_ops='relu'
+--flags=GS --batch=bnorm_lgmb
+--flags=S  --batch=bnorm_lgmb
+--attr=
+
+--dir=BWD_DW
+--flags=SR --batch=bnorm_lgmb
+--flags=GS --batch=bnorm_lgmb
+--flags=S  --batch=bnorm_lgmb
+
+--dir=BWD_D
+--flags=   --batch=bnorm_lgmb
