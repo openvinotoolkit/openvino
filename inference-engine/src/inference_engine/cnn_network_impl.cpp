@@ -1,0 +1,225 @@
+// Copyright (C) 2018 Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <ie_common.h>
+#include "cnn_network_impl.hpp"
+#include <memory>
+#include <map>
+#include <set>
+#include <string>
+#include <cassert>
+#include <shape_infer/ie_reshaper.hpp>
+#include "debug.h"
+#include "graph_tools.hpp"
+#include <vector>
+
+using namespace std;
+using namespace InferenceEngine;
+using namespace InferenceEngine::details;
+
+CNNNetworkImpl::CNNNetworkImpl() : _targetDevice(TargetDevice::eDefault) {
+}
+
+void CNNNetworkImpl::getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept {
+    out = _outputData;
+}
+
+void CNNNetworkImpl::getInputsInfo(InputsDataMap& inputs) const noexcept {
+    inputs = _inputData;
+}
+
+void CNNNetworkImpl::addLayer(const CNNLayerPtr& layer) noexcept {
+    _layers[layer->name] = layer;
+}
+
+void CNNNetworkImpl::validate(int version) {
+    if (version != 1) {
+        std::set<std::string> layerNames;
+        std::set<std::string> dataNames;
+
+        InputsDataMap inputs;
+        this->getInputsInfo(inputs);
+        if (inputs.empty()) {
+            THROW_IE_EXCEPTION << "No input layers";
+        }
+
+        bool res = CNNNetForestDFS(CNNNetGetAllInputLayers(*this), [&](CNNLayerPtr layer) {
+            std::string layerName = layer->name;
+
+            for (auto i : layer->insData) {
+                auto data = i.lock();
+                if (data) {
+                    auto inputTo = data->getInputTo();
+                    auto iter = inputTo.find(layerName);
+                    auto dataName = data->name;
+                    if (iter == inputTo.end()) {
+                        THROW_IE_EXCEPTION << "Data " << data->getName() << " which inserted into the layer "
+                                           << layerName
+                                           << " does not point at this layer";
+                    }
+                    if (!data->getCreatorLayer().lock()) {
+                        THROW_IE_EXCEPTION << "Data " << dataName << " has no creator layer";
+                    }
+                } else {
+                    THROW_IE_EXCEPTION << "Data which inserted into the layer " << layerName << " is nullptr";
+                }
+            }
+            for (auto data : layer->outData) {
+                auto inputTo = data->getInputTo();
+                std::string dataName = data->getName();
+                for (auto layerIter : inputTo) {
+                    CNNLayerPtr layerInData = layerIter.second;
+                    if (!layerInData) {
+                        THROW_IE_EXCEPTION << "Layer which takes data " << dataName << " is nullptr";
+                    }
+                    auto insertedDatas = layerInData->insData;
+
+                    auto it = std::find_if(insertedDatas.begin(), insertedDatas.end(),
+                                           [&](InferenceEngine::DataWeakPtr& d) {
+                                               return d.lock() == data;
+                                           });
+                    if (it == insertedDatas.end()) {
+                        THROW_IE_EXCEPTION << "Layer " << layerInData->name << " which takes data " << dataName
+                                           << " does not point at this data";
+                    }
+                }
+                auto dataNameSetPair = dataNames.insert(dataName);
+                if (!dataNameSetPair.second) {
+                    THROW_IE_EXCEPTION << "Data name " << dataName << " is not unique";
+                }
+            }
+            auto layerSetPair = layerNames.insert(layerName);
+            if (!layerSetPair.second) {
+                THROW_IE_EXCEPTION << "Layer name " << layerName << " is not unique";
+            }
+        }, false);
+
+
+        std::string inputType = "Input";
+        for (auto i : inputs) {
+            CNNLayerPtr layer = i.second->getInputData()->creatorLayer.lock();
+            if (!equal(layer->type, inputType)) {
+                THROW_IE_EXCEPTION << "Input layer " << layer->name
+                                   << " should have Input type but actually its type is " << layer->type;
+            }
+        }
+
+        if (!res) {
+            THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
+        }
+    }
+}
+
+StatusCode CNNNetworkImpl::getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept {
+    auto it = _layers.find(layerName);
+    if (it == _layers.end())
+        return DescriptionBuffer(NOT_FOUND, resp) << "Layer " << layerName << " not found in network";
+    out = it->second;
+    return OK;
+}
+
+StatusCode CNNNetworkImpl::addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept {
+    CNNLayerPtr outLayer;
+    auto rc = getLayerByName(layerName.c_str(), outLayer, resp);
+    if (rc != OK) return rc;
+
+    if (outputIndex >= outLayer->outData.size())
+        return DescriptionBuffer(OUT_OF_BOUNDS, resp) << "port index " << outputIndex
+                                                      << " exceeds layer's outputs which is "
+                                                      << outLayer->outData.size();
+    shared_ptr<Data> outData = outLayer->outData[outputIndex];
+    _outputData[outData->getName()] = outData;
+    return OK;
+}
+
+void CNNNetworkImpl::resolveOutput() {
+    // check orphan nodes...
+    for (auto kvp : _data) {
+        if (!kvp.second->isInitialized())
+            THROW_IE_EXCEPTION << "data name [" << kvp.first << "] dimensions is not known";
+
+        // data nodes not going to any layer are basically graph output...
+        if (kvp.second->getInputTo().empty()) {
+            _outputData[kvp.first] = kvp.second;
+        }
+    }
+}
+
+void CNNNetworkImpl::addOutput(const string& dataName) {
+    auto it = _data.find(dataName);
+    if (it == _data.end()) {
+        THROW_IE_EXCEPTION << "data [" << dataName << "] doesn't exist";
+    }
+    auto data = it->second;
+    assert(data->getName() == dataName);
+    _outputData[dataName] = data;
+}
+
+StatusCode CNNNetworkImpl::setBatchSize(const size_t size) noexcept {
+    return setBatchSize(size, nullptr);
+}
+
+size_t CNNNetworkImpl::getBatchSize() const noexcept {
+    if (!_inputData.size())
+        return 0;
+    // currently CNNNetworkImpl::setBatchSize set the same values
+    // for the latest dim as a batch, we can take the first input
+    // and return batch size for it
+    SizeVector dims = _inputData.cbegin()->second->getDims();
+    return dims.at(dims.size() - 1);
+}
+
+StatusCode
+CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+                        ResponseDesc* responseDesc) noexcept {
+    try {
+        ShapeInfer::Reshaper reshaper(*this);
+        reshaper.run(inputShapes);
+    } catch (const InferenceEngineException& e) {
+        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, responseDesc);
+    }
+    return OK;
+}
+
+StatusCode
+CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
+                             InferenceEngine::ResponseDesc* resp) noexcept {
+    _shapeInferExts.push_back(extension);
+    return OK;
+}
+
+StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
+    auto originalBatchSize = getBatchSize();
+    if (originalBatchSize == size)
+        return OK;
+    for (auto layer : _data) {
+        SizeVector dims = layer.second->getDims();
+        // Calculates original size for batch = 1
+        size_t diff = dims.at(0) / originalBatchSize;
+        dims.at(0) = size * diff;
+        layer.second->setDims(dims);
+    }
+    return OK;
+}
+
+StatusCode CNNNetworkImpl::setBatchSizeReshape(size_t size, ResponseDesc* responseDesc) noexcept {
+    InputShapes inputShapes;
+    for (const auto& pair : _inputData) {
+        auto info = pair.second;
+        if (info) {
+            auto data = info->getInputData();
+            if (data) {
+                auto dims = data->getTensorDesc().getDims();
+                dims[0] = size;
+                inputShapes[data->name] = dims;
+            }
+        }
+    }
+    return reshape(inputShapes, responseDesc);
+}

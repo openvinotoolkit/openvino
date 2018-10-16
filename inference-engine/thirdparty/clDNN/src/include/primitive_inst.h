@@ -1,0 +1,300 @@
+/*
+// Copyright (c) 2016 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma once
+
+#include "api/CPP/primitive.hpp"
+#include "api/CPP/concatenation.hpp"
+
+#include "event_impl.h"
+#include "program_impl.h"
+#include "memory_impl.h"
+#include "meta_utils.h"
+#include "kernel_selector_helper.h"
+#include "network_impl.h"
+#include "program_node.h"
+
+#include <memory>
+#include <vector>
+#include <boost/optional.hpp>
+
+namespace cldnn
+{
+
+struct network_impl;
+class primitive_inst;
+
+template <class PType>
+class typed_primitive_inst;
+
+/*
+    Base class for all implementations.
+*/
+struct primitive_impl
+{
+    // NOTE: This constuctor in necessary since the spec says:
+    //   A defaulted default constructor for class X is defined as deleted if: [...] any non-variant non-static data
+    //   member of const-qualified type (or array thereof) with no brace-orequal-initializer does not have a
+    //   user-provided default constructor.
+    // and the classes with only declared brace-orequal-initializer on members are not considered to have user-provided
+    // default constructor:
+    //   A special member function is user-provided if it is user-declared and not explicitly defaulted or deleted
+    //   on its first declaration.
+    primitive_impl() : _weights_reorder_params() {}
+    primitive_impl(const kernel_selector::weights_reorder_params& params, std::string kernel_name = "") : _weights_reorder_params(params), kernel_name(kernel_name) {}
+    virtual ~primitive_impl() = default;
+
+    virtual event_impl::ptr execute(const std::vector<event_impl::ptr>& events, primitive_inst& instance) = 0;
+
+	std::string get_kernel_name() { return kernel_name; };
+
+    // TODO: added a derived class for weights reordering (maybe for all static data reordering)
+    const kernel_selector::weights_reorder_params _weights_reorder_params;
+private:
+	std::string kernel_name;
+};
+
+/*
+    Base class for all primitive instances.
+    It's main responsibility is to allocate memory required to run single, specified in ctor,
+    program_node. It also contains informations about it's predecessor in network graph and checks (<<-- TODO)
+    if output should be recalculated between network runs.
+*/
+class primitive_inst
+{
+    template <class PType>
+    friend class typed_primitive_inst;
+
+public:
+    virtual ~primitive_inst() = default;
+
+    const std::vector<std::shared_ptr<const primitive_inst>>& dependencies() const
+    { 
+        return reinterpret_cast<std::vector<std::shared_ptr<const primitive_inst>> const&>(_deps);
+    }
+
+    memory_impl& dep_memory(size_t index) const { return dependencies().at(index)->output_memory(); }
+    memory_impl& output_memory() const { return *_output; }
+    size_t inputs_memory_count() const { return _node.get_primitive()->input.size(); }
+    primitive_type_id type() const { return _node.type(); }
+    primitive_id id() const { return _node.id(); }
+    primitive_id org_id() const { return _node.get_org_primitive_id(); }
+    bool can_be_optimized() const { return _node.can_be_optimized(); }
+    const auto desc() const { return _node.get_primitive(); }
+    network_impl& get_network() const { return _network; }
+    uint32_t get_network_id() const { return _network.get_id(); }
+
+    //return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
+    const auto get_impl() const { return _impl.get(); }
+
+    memory_impl& input_memory(size_t index = 0)  const 
+    { 
+        if (index >= inputs_memory_count())
+            throw std::range_error("input offset too big");
+        return dep_memory(index); 
+    }
+
+    event_impl::ptr execute(const std::vector<event_impl::ptr>& events);
+
+    auto output_changed() const { return _output_changed; }
+    void reset_output_change() { _output_changed = false; }
+
+    void build_deps()
+    {
+        if (_deps.empty() && !_node.get_dependencies().empty())
+        {
+             _deps = _network.get_primitives(_node.get_dependencies());
+             _exec_deps = build_exec_deps(_deps);
+        }
+    }
+
+protected:
+    primitive_inst(network_impl& network, program_node const& node, bool allocate_memory);
+
+    network_impl& _network;
+    program_node const& _node;
+
+    std::shared_ptr<primitive_impl> _impl;
+
+    //this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one, it should be added to this set
+    std::vector<std::shared_ptr<primitive_inst>> _deps;
+
+    //this is a set of dependencies in terms of execution
+    // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
+    // will be valid when executing this primitive. Most of the time this set will be equal to the _deps minus all cldnn::data (which don't need to be execued) -- this is default,
+    // but it is also possible to have, for example, only one fused primitive which will calculate multiple outputs (for example device enqueue can work in such manner)
+    // in general - this member is introduced to relax logical connection between primitives which have to be executed and memories which are used by this primitive
+    std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
+
+    //_output is optional because its initialization might be postponed (reshape_inst may either allocate it's own buffer or attach input as output
+    // depending on reshape_node.is_in_place())
+    memory_impl::ptr _output;
+
+    bool _output_changed; //todo: implement output reuse if neither of inputs has changed
+    bool _has_valid_input = true; //by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
+
+    memory_impl::ptr allocate_output();
+    static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
+
+    //event function called by primitive_inst::execute after checking if primitive should rerun and before calling _impl->execute()
+    //mainly for reshape (to update output memory if reshape_node.is_in_place() == true)
+    virtual void on_execute() {}
+
+    static std::string generic_to_string(program_node const& node, const char* type_name);
+};
+
+/*
+Base class for all implementation of specified primitive type.
+For example, all convolution implementations should derive from typed_primitive_impl<convolution>.
+*/
+template <class PType>
+struct typed_primitive_impl : public primitive_impl
+{
+    static_assert(meta::is_primitive_v<PType>, "PType should be a non-const, non-volatile class derived from primitive");
+
+    using primitive_impl::primitive_impl;
+
+private:
+    event_impl::ptr execute(const std::vector<refcounted_obj_ptr<event_impl>>& event, primitive_inst& instance) override
+    {
+        if (instance.type() != PType::type_id())
+            throw std::invalid_argument("Implementation type does not match primitive type");
+        if (instance.get_impl() != this)
+            throw std::invalid_argument("Trying to execute primitive implementation with mismatching primitive instance");
+
+        return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
+    }
+
+    virtual event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& event, typed_primitive_inst<PType>& instance) = 0;
+};
+
+namespace details
+{
+    template<class PType>
+    class api_typed_primitive_inst_base : public primitive_inst
+    {
+        static_assert(meta::is_api_primitive_v<PType>, "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from cldnn::internal_primitive");
+
+    public:
+        using typed_node = typed_program_node<PType>;
+        using typed_impl = typed_primitive_impl<PType>;
+
+        const typed_node& node;
+        const PType& argument;
+
+        api_typed_primitive_inst_base(network_impl& network, typed_node const& node)
+            : api_typed_primitive_inst_base(network, node, do_allocate_memory(node))
+        {}
+
+    protected:
+        api_typed_primitive_inst_base(network_impl& network, typed_node const& node, bool allocate_memory)
+            : primitive_inst(network, node, allocate_memory)
+            , node(_node)
+            , argument(*node.get_primitive())
+        {}
+
+        api_typed_primitive_inst_base(network_impl& network, typed_node const& node, memory_impl& buffer)
+            : api_typed_primitive_inst_base(network, node, false)
+        {
+            _output = &buffer;
+        }
+
+    private:
+        bool do_allocate_memory(typed_node const& typ_node)
+        {
+            if (typ_node.template have_user_with_type<concatenation>() &&
+                typ_node.get_users().size() == 1 &&
+                typ_node.get_users().front()->can_be_optimized()) //check if the only user is concat
+            {
+                return false;
+            }
+            return true;
+        }
+    };
+
+    template<class PType>
+    class internal_typed_primitive_inst_base : public primitive_inst
+    {
+        static_assert(meta::is_internal_primitive_v<PType>, "PType should name a non-const, non-volatile type derived from cldnn::internal_primitive");
+
+    public:
+        using typed_node = typed_program_node<PType>;
+        using typed_impl = typed_primitive_impl<PType>;
+
+        const typed_node& node;
+
+        internal_typed_primitive_inst_base(network_impl& network, typed_node const& node)
+            : internal_typed_primitive_inst_base(network, node, false) //by default, do not allocate output buffer automatically for internal primitives
+        {}
+
+        template <class... Guard>
+        [[noreturn]]
+        void desc(Guard&&...) const
+        {
+            static_assert(meta::always_false_v<meta::pack<Guard...>>, "Trying to get primitive from internal node");
+        }
+
+    protected:
+        internal_typed_primitive_inst_base(network_impl& network, typed_node const& node, bool allocate_memory)
+            : primitive_inst(network, node, allocate_memory)
+            , node(_node)
+        {}
+
+        internal_typed_primitive_inst_base(network_impl& network, typed_node const& node, memory_impl::ptr buffer)
+            : internal_typed_primitive_inst_base(network, node, false)
+        {
+            _output = buffer;
+        }
+    };
+}
+
+/*
+    Base class for all concrete primitive instances.
+*/
+template <class PType>
+using typed_primitive_inst_base = std::conditional_t<meta::is_api_primitive_v<PType>, details::api_typed_primitive_inst_base<PType>, details::internal_typed_primitive_inst_base<PType>>;
+
+/*
+    Template class which represents instance of primitive 'PType'.
+    Each new primitive should explicitly specialize this class.
+    The pattern is as follows:
+        struct new_primitive {}; // C++ API layer
+        template <>
+        class typed_primitive_inst<new_primitive> : public typed_primitive_inst_base<new_primitive> {}; // network instance specialization
+        using new_primitive_inst = typed_primitive_inst<new_primitive>; //to simplify usage
+
+    Using template specialization instead of dedicated classes for each primitive comes in hand
+    when writing other template methods/classes which would like to use primitive_inst.
+    As alternative to this, one could use some kind of type traits to translate primitive type
+    to related primitive_inst implementation but this approach does the same with less code/classes.
+*/
+template <class PType>
+class typed_primitive_inst : public typed_primitive_inst_base<PType>
+{ 
+    static_assert(meta::always_false_v<PType>, "Missing typed_primitive_inst specialization");
+};
+
+#define CLDNN_DEFINE_SIMPLE_PRIM_INST(PType) \
+    template <> \
+    struct typed_primitive_inst<PType> : public typed_primitive_inst_base<PType> \
+    { \
+        using typed_primitive_inst_base<PType>::typed_primitive_inst_base; \
+        static std::string to_string(PType##_node const& arg) { return primitive_inst::generic_to_string(arg, #PType); } \
+    }; \
+    using PType##_inst = typed_primitive_inst<PType>;
+
+}

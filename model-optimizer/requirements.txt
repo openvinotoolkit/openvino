@@ -1,0 +1,6 @@
+tensorflow==1.9.0
+mxnet==1.0.0
+networkx>=1.11
+numpy>=1.12.0
+protobuf==3.5.1
+onnx>=1.1.2

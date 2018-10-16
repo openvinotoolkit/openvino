@@ -1,0 +1,38 @@
+# MKLDNN-537
+--reset
+--cfg=f32
+--dir=FWD_D mb2ic16ih7oc16oh7kh5ph2
+--dir=FWD_D mb2ic16ih29oc16oh29kh5ph2
+--cfg=s16s16s32s32
+--dir=FWD_D mb2ic16ih7oc16oh7kh5ph2
+--dir=FWD_D mb2ic16ih29oc16oh29kh5ph2
+
+# MKLDNN-6111
+--reset --cfg=f32
+--dir=FWD_D mb1ic64ih150iw200oc256oh150ow200kh1kw1ph0pw0sh1sw1n"rfcn-resnet50-res2a_branch1"
+--dir=FWD_B --attr=post_ops='relu' mb1ic64ih150iw200oc256oh150ow200kh1kw1ph0pw0sh1sw1n"rfcn-resnet50-res2a_branch1" 
+--attr=
+--dir=BWD_W mb1ic256ih150iw200oc64oh150ow200kh1kw1ph0pw0sh1sw1n"rfcn-resnet50-res2a_branch1"
+
+# DS2 (stride_h != stride_w)
+--reset --cfg=f32 --skip-impl="ref:gemm"
+--dir=FWD_B  mb2_ic32oc32_ih41oh16kh10sh2ph0_iw79ow75kw5sw1pw0n"ds2" mb2_ic32oc32_iw79ow75kw5sw1pw0_ih41oh16kh10sh2ph0n"ds2-swap"
+--dir=BWD_D  mb2_ic32oc32_ih41oh16kh10sh2ph0_iw79ow75kw5sw1pw0n"ds2" mb2_ic32oc32_iw79ow75kw5sw1pw0_ih41oh16kh10sh2ph0n"ds2-swap"
+--dir=BWD_WB mb2_ic32oc32_ih41oh16kh10sh2ph0_iw79ow75kw5sw1pw0n"ds2" mb2_ic32oc32_iw79ow75kw5sw1pw0_ih41oh16kh10sh2ph0n"ds2-swap"
+
+# github #174
+--reset --cfg=f32
+--dir=FWD_B --attr=post_ops='sum:1' mb1_ic4oc4_ih13oh13kh3ph1_n"gemm_acc"
+--dir=FWD_D --attr=post_ops='sum:1' mb1_ic4oc4_ih13oh13kh3ph1_n"gemm_acc"
+--dir=FWD_B --attr=post_ops='sum:1;relu' mb1_ic4oc4_ih13oh13kh3ph1_n"gemm_acc"
+--dir=FWD_D --attr=post_ops='sum:1;relu' mb1_ic4oc4_ih13oh13kh3ph1_n"gemm_acc"
+
+# MKLDNN-623
+--reset --cfg=u8s8u8s32 --dir=FWD_D --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
+--reset --cfg=s16s16s32s32 --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
+--reset --cfg=s16s16s32s32 --dir=BWD_D --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
+--reset --cfg=s16s16s32s32 --dir=BWD_WB --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
+--reset --cfg=f32 --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
+--reset --cfg=f32 --dir=BWD_D --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
+--reset --cfg=f32 --dir=BWD_WB --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
+

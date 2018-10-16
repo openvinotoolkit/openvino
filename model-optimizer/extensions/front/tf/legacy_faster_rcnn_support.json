@@ -1,0 +1,110 @@
+[
+    {
+        "custom_attributes": {
+        },
+        "id": "PreprocessorReplacement",
+        "inputs": [
+            [
+                {
+                    "node": "map/Shape$",
+                    "port": 0
+                },
+                {
+                    "node": "map/TensorArrayUnstack/Shape$",
+                    "port": 0
+                },
+                {
+                    "node": "map/TensorArrayUnstack/TensorArrayScatter/TensorArrayScatterV3$",
+                    "port": 2
+                }
+            ]
+        ],
+        "instances": [
+            ".*Preprocessor/"
+        ],
+        "match_kind": "scope",
+        "outputs": [
+            {
+                "node": "sub$",
+                "port": 0
+            },
+            {
+                "node": "map/TensorArrayStack_1/TensorArrayGatherV3$",
+                "port": 0
+            }
+        ]
+    },
+    {
+        "custom_attributes": {
+            "nms_threshold": 0.7,
+            "feat_stride": 16,
+            "max_proposals": 100,
+            "anchor_base_size": 256,
+            "anchor_scales": [0.25, 0.5, 1.0, 2.0],
+            "anchor_aspect_ratios": [0.5, 1.0, 2.0],
+            "roi_spatial_scale": 0.0625
+        },
+        "id": "TFObjectDetectionAPIFasterRCNNProposalAndROIPooling",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "CropAndResize",
+                "map_1/TensorArrayStack/TensorArrayGatherV3",
+                "map_1/while/strided_slice/Enter",
+                "BatchMultiClassNonMaxSuppression/map/TensorArrayStack_4/TensorArrayGatherV3"
+            ],
+            "start_points": [
+                "FirstStageBoxPredictor/concat",
+                "FirstStageBoxPredictor/concat_1",
+                "GridAnchorGenerator/Identity",
+                "Shape",
+                "CropAndResize"
+            ]
+        },
+        "match_kind": "points"
+    },
+    {
+        "custom_attributes": {
+            "code_type": "caffe.PriorBoxParameter.CENTER_SIZE",
+            "confidence_threshold": 0.01,
+            "keep_top_k": 300,
+            "nms_threshold": 0.6,
+            "pad_mode": "caffe.ResizeParameter.CONSTANT",
+            "resize_mode": "caffe.ResizeParameter.WARP",
+            "max_detections_per_class": 100,
+            "num_classes": 90
+        },
+        "id": "SecondStagePostprocessorReplacement",
+        "inputs": [
+            [
+                {
+                    "node": "Reshape$",
+                    "port": 0
+                }
+            ],
+            [
+                {
+                    "node": "Reshape_1$",
+                    "port": 0
+                }
+            ],
+            [
+                {
+                    "node": "ExpandDims$",
+                    "port": 0
+                }
+            ]
+        ],
+        "instances": [
+            ".*SecondStagePostprocessor/"
+        ],
+        "match_kind": "scope",
+        "outputs": [
+            {
+                "node": "BatchMultiClassNonMaxSuppression/map/TensorArrayStack/TensorArrayGatherV3$",
+                "port": 0
+            }
+        ]
+    }
+]
