@@ -1,0 +1,49 @@
+// Copyright (C) 2018 Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <ie_common.h>
+#include <mkldnn_node.h>
+#include <string>
+#include <memory>
+#include <vector>
+
+namespace MKLDNNPlugin {
+
+class MKLDNNReorderNode : public MKLDNNNode {
+public:
+    MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    ~MKLDNNReorderNode() override = default;
+
+    void getSupportedDescriptors() override;
+    void initSupportedPrimitiveDescriptors() override;
+    void createPrimitive() override;
+    void execute(mkldnn::stream strm) override;
+    bool created() const override;
+    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+
+    void setDescs(const InferenceEngine::TensorDesc& input, const InferenceEngine::TensorDesc& output) {
+        this->input = input;
+        this->output = output;
+    }
+
+    void setDynamicBatchLim(int lim) override;
+
+    bool canBeInPlace() const override {
+        return false;
+    }
+
+private:
+    static Register<MKLDNNReorderNode> reg;
+    InferenceEngine::TensorDesc input;
+    InferenceEngine::TensorDesc output;
+
+    MKLDNNMemoryPtr dst_blocked;
+    MKLDNNMemoryPtr src_blocked;
+};
+
+}  // namespace MKLDNNPlugin
+

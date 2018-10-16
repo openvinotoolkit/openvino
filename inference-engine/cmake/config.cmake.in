@@ -1,0 +1,11 @@
+# Copyright (C) 2018 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+if(DEFINED IE_MAIN_SOURCE_DIR AND TARGET inference_engine)
+    set(InferenceEngine_INCLUDE_DIRS ${IE_MAIN_SOURCE_DIR}/include)
+    set(InferenceEngine_LIBRARIES inference_engine)
+else()
+    include("${CMAKE_CURRENT_LIST_DIR}/targets.cmake")
+    get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
+    set(InferenceEngine_LIBRARIES IE::inference_engine)
+endif()

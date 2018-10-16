@@ -1,0 +1,132 @@
+[
+     {
+        "custom_attributes": {
+        },
+        "id": "PreprocessorReplacement",
+        "inputs": [
+            [
+                {
+                    "node": "map/Shape$",
+                    "port": 0
+                },
+                {
+                    "node": "map/TensorArrayUnstack/Shape$",
+                    "port": 0
+                },
+                {
+                    "node": "map/TensorArrayUnstack/TensorArrayScatter/TensorArrayScatterV3$",
+                    "port": 2
+                }
+            ]
+        ],
+        "instances": [
+            ".*Preprocessor/"
+        ],
+        "match_kind": "scope",
+        "outputs": [
+            {
+                "node": "sub$",
+                "port": 0
+            },
+            {
+                "node": "map/TensorArrayStack_1/TensorArrayGatherV3$",
+                "port": 0
+            }
+        ]
+    },
+    {
+        "custom_attributes": {
+            "input_height": 800,
+            "input_width": 800,
+            "nms_threshold": 0.7,
+            "feat_stride": 16,
+            "max_proposals": 100,
+            "anchor_base_size": 256,
+            "anchor_scales": [0.25, 0.5, 1.0, 2.0],
+            "anchor_aspect_ratios": [0.5, 1.0, 2.0],
+            "roi_spatial_scale": 0.0625
+        },
+        "id": "TFObjectDetectionAPIMaskRCNNProposalAndROIPooling",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "CropAndResize",
+                "map_1/TensorArrayStack/TensorArrayGatherV3",
+                "BatchMultiClassNonMaxSuppression/map/TensorArrayStack_4/TensorArrayGatherV3",
+                "map_1/Shape"
+            ],
+            "start_points": [
+                "FirstStageBoxPredictor/concat",
+                "FirstStageBoxPredictor/concat_1",
+                "GridAnchorGenerator/Identity",
+                "Shape",
+                "CropAndResize"
+            ]
+        },
+        "match_kind": "points"
+    },
+    {
+       "custom_attributes": {
+            "code_type": "caffe.PriorBoxParameter.CENTER_SIZE",
+            "confidence_threshold": 0.01,
+            "keep_top_k": 100,
+            "input_height": 800,
+            "input_width": 800,
+            "nms_threshold": 0.6,
+            "pad_mode": "caffe.ResizeParameter.CONSTANT",
+            "resize_mode": "caffe.ResizeParameter.WARP",
+            "max_detections_per_class": 100,
+            "num_classes": 90
+        },
+        "id": "TFObjectDetectionAPIMaskRCNNDetectionOutput",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "BatchMultiClassNonMaxSuppression_1/map/TensorArrayStack_2/TensorArrayGatherV3",
+                "BatchMultiClassNonMaxSuppression_1/map/TensorArrayStack/TensorArrayGatherV3"
+            ],
+            "start_points": [
+                "SecondStageBoxPredictor/Reshape",
+                "SecondStageBoxPredictor/Reshape_1",
+                "ExpandDims_7",
+                "ToFloat_6"
+            ]
+        },
+        "match_kind": "points"
+    },
+    {
+        "custom_attributes": {
+            "roi_spatial_scale": 1.0
+        },
+        "id": "TFObjectDetectionAPIMaskRCNNROIPoolingSecond",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "CropAndResize_1"
+            ],
+            "start_points": [
+                "CropAndResize_1"
+            ]
+        },
+        "match_kind": "points"
+    },
+    {
+       "custom_attributes": {
+        },
+        "id": "TFObjectDetectionAPIMaskRCNNSigmoid",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "SecondStageBoxPredictor_1/Conv_1/BiasAdd"
+            ],
+            "start_points": [
+                "SecondStageBoxPredictor_1/Conv_1/BiasAdd"
+            ]
+        },
+        "match_kind": "points"
+    }
+]

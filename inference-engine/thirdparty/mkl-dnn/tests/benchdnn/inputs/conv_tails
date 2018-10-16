@@ -1,0 +1,22 @@
+# ic/oc is not multiple of simd width
+# simd width is 16 so far (avx512+)
+
+ic13oc14_ih13oh13kh3ph1_n"tails_conv:1"
+ic13oc14_ih13oh13kh1ph0_n"tails_conv:2"
+ic13oc16_ih13oh13kh3ph1_n"tails_conv:3"
+ic13oc16_ih13oh13kh1ph0_n"tails_conv:4"
+ic16oc13_ih13oh13kh3ph1_n"tails_conv:5"
+ic16oc13_ih13oh13kh1ph0_n"tails_conv:6"
+ic23oc25_ih13oh13kh3ph1_n"tails_conv:7"
+ic23oc25_ih13oh13kh1ph0_n"tails_conv:8"
+ic23oc25_ih13oh13kh3ph1_iw7ow5kw3pw0_n"tails_conv:9"
+ic23oc25_ih13oh13kh1ph0_iw7ow7kw1pw0_n"tails_conv:10"
+
+ic223oc125_ih13oh13kh3ph1_n"tails_conv:11"
+ic223oc125_ih13oh13kh1ph0_n"tails_conv:12"
+ic223oc125_ih13oh13kh3ph1_iw7ow5kw3pw0_n"tails_conv:13"
+ic223oc125_ih13oh13kh1ph0_iw7ow7kw1pw0_n"tails_conv:14"
+
+g13ic13oc13_ih13oh13kh3ph1_n"tails_conv:15"
+g125ic125oc125_ih13oh13kh3ph1_n"tails_conv:16"
+g125ic125oc125_ih13oh13kh3ph1_iw7ow5kw3pw0_n"tails_conv:17"

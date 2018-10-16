@@ -1,0 +1,12 @@
+# f32 (full)
+--reset --cfg=f32_full
+--dir=FWD_B --batch=conv_dilated
+--dir=BWD_D --batch=conv_dilated
+--dir=BWD_WB --batch=conv_dilated
+
+# f32 (full)
+--dir=FWD_D --batch=conv_dilated_rfcn
+
+# int8 (full)
+--reset --cfg=u8s8u8s32
+--dir=FWD_D --batch=conv_dilated_rfcn

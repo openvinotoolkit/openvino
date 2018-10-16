@@ -1,0 +1,13 @@
+# f32
+--reset --cfg=f32
+--dir=FWD_B  --batch=conv_tails
+--dir=BWD_D  --batch=conv_tails
+--dir=BWD_WB --batch=conv_tails
+
+# f32 wino
+--reset --cfg=f32_wino --alg=wino
+--allow-unimpl=true         # allow unimplemented for groups > 1
+--match=.*kh3[^0-9].*       # only 3x3 convolutions so far
+--dir=FWD_B  --batch=conv_tails
+--dir=BWD_D  --batch=conv_tails
+--dir=BWD_WB --batch=conv_tails

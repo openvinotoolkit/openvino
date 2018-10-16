@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+
+"""
+ Copyright (c) 2018 Intel Corporation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+
+import argparse
+import logging as log
+import os
+import sys
+
+from mo.main import main
+from mo.utils.cli_parser import get_caffe_legacy_cli_parser
+from mo.utils.version import get_version
+from mo.utils.versions_checker import check_python_version
+
+
+def fill_missed(argv: argparse.Namespace):
+    missed_in_old = {
+        'log_level': 'INFO',  # could not be specified with legacy Model Optimizer
+        'output': '',
+        'input': '',
+        'input_shape': '',
+        'model_name': '',
+        'reverse_input_channels': False,
+        'silent': False
+    }
+
+    for (new_opt, val) in missed_in_old.items():
+        setattr(argv, new_opt, val)
+
+
+def fill_supported(argv: argparse.Namespace):
+    setattr(argv, 'scale_values', argv.scale)
+    setattr(argv, 'scale', argv.f)
+
+    mapping_dic = {
+        'version': 'version',
+        'framework': 'framework',
+        'input_proto': 'd',
+        'input_model': 'w',
+        'output_dir': 'o',
+        'batch': 'b',
+        'mean_values': 'ms',
+        'mean_file': 'mf',
+        'mean_file_offsets': 'mo',
+        'data_type': 'p',
+        'disable_fusing': 'fuse',  # special case - should be handled differently
+        'custom_mapping_file': 'k'
+    }
+
+    for (new_opt, old_opt) in mapping_dic.items():
+        setattr(argv, new_opt, getattr(argv, old_opt, 'NONE'))
+
+    # Old MO rule for fuse: ("0"|"false" to disable, "1"|"true" to enable)
+    argv.disable_fusing = argv.fuse == '0' or argv.fuse == 'false'
+
+    # mean file has higher priority
+    argv.mean_values = argv.mean_values or ()
+    if argv.mean_file and argv.mean_values:
+        argv.mean_values = ()
+
+    if argv.mean_values:
+        argv.mean_values = '({})'.format(argv.mean_values)
+
+    if argv.mean_file_offsets:
+        argv.mean_file_offsets = '({})'.format(argv.mean_file_offsets)
+
+    if argv.k:
+        argv.k = os.path.join(argv.k, 'CustomLayersMapping.xml')
+
+
+def process_legacy_params(argv: argparse.Namespace):
+    fill_supported(argv)
+    fill_missed(argv)
+
+    argv.framework = 'caffe'
+    argv.log_level = 'INFO'
+
+    if argv.version:
+        print('Version of Model Optimizer is: {}'.format(get_version()))
+        sys.exit(1)
+    elif not argv.w:
+        log.error('Path to binary weights file (.caffemodel) is required')
+        sys.exit(1)
+    elif not argv.d:
+        log.error('Path to model proto file (.prototxt) is required')
+        sys.exit(1)
+
+    sys.exit(main(argv))
+
+
+if __name__ == "__main__":
+    ret_code = check_python_version()
+    if ret_code:
+        sys.exit(ret_code)
+
+    argv = get_caffe_legacy_cli_parser().parse_args()
+
+    forever_legacy_group = [
+        '-ListA', '-ListF', '-ListN', '--network',  # general
+        '-l', '-nl',  # Learning phase
+        '-v', '-nv',  # Feedback phase
+        '-dm', '-dr', '-ds',  # Dumping files
+        '-q',  # Quantization
+        '-c', '--code-cfg',  # OVX specifics
+        '--hfuse',  # Fusing
+        '-mx'  # mixed precision
+    ]
+
+    print('[ WARNING ] The following options are ignored as legacy ones and not supported: {}'.
+          format(', '.join(['"{}"'.format(arg) for arg in forever_legacy_group])))
+
+    process_legacy_params(argv)

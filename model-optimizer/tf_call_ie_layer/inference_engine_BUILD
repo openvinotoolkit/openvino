@@ -1,0 +1,6 @@
+cc_library(
+    name = "inference_engine",
+    hdrs = glob(["include/**/*.h", "include/**/*.hpp"]),
+    visibility = ["//visibility:public"],
+    licenses = ["permissive"]
+)

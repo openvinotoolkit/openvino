@@ -1,0 +1,3 @@
+onnx>=1.1.2
+networkx>=1.11
+numpy>=1.12.0
