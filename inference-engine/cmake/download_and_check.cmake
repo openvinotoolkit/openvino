@@ -25,7 +25,7 @@ function (DownloadAndCheck from to fatal result)
           list(GET output 0 status_code)
         else()
           message(STATUS "${WGET_EXECUTABLE} --no-cache ${from}")
-          execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache" "${from}" "-O" "${to}"
+          execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache" "--no-check-certificate" "${from}" "-O" "${to}"
             TIMEOUT 2000
             RESULT_VARIABLE status_code)
         endif()
