@@ -1,0 +1,63 @@
+cc_library_headers {
+    name: "libmkldnn_headers",
+    host_supported: false,
+    vendor: true,
+    export_include_dirs: [
+        "include",
+        "src/",
+        "src/common/",
+        "src/cpu/gemm/",
+        "src/cpu/xbyak/",
+    ],
+}
+
+
+cc_library_static {
+    name: "libmkldnn",
+    vendor: true,
+
+    srcs: [
+        "src/cpu/*.cpp",
+        "src/cpu/gemm/*.cpp",
+        "src/common/*.cpp",
+    ],
+
+    cflags: [
+        "-std=c++11",
+        "-fvisibility=internal",
+        "-fvisibility-inlines-hidden",
+        "-Wall",
+        "-Werror",
+        "-Wno-pass-failed",
+        "-Wno-error=unused-private-field",
+        "-Wno-unknown-pragmas",
+        "-Wno-strict-overflow",
+        "-fPIC",
+        "-fPIE",
+        "-Wformat",
+        "-Wformat-security",
+        "-fstack-protector-all",
+        "-O3",
+        "-DNDEBUG",
+        "-D_FORTIFY_SOURCE=2",
+        "-Wno-unused-variable",
+        "-Wno-unused-parameter",
+        "-Wno-non-virtual-dtor",
+        "-Wno-missing-field-initializers",
+        "-Wno-shift-count-overflow",
+        "-fexceptions",
+        "-DMKLDNN_DLL",
+        "-DMKLDNN_DLL_EXPORTS",
+        "-D__STDC_CONSTANT_MACROS",
+        "-D__STDC_LIMIT_MACROS",
+        "-Dmkldnn_EXPORTS",
+    ],
+
+    header_libs: [
+        "libmkldnn_headers",
+    ],
+
+    openmp: true,
+    rtti: true,
+}
+

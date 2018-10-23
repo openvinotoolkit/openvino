@@ -84,11 +84,14 @@ public:
     explicit CNNLayer(const LayerParams &prms) : name(prms.name), type(prms.type),
                                                  precision(prms.precision), userValue({0}) {
     }
-
+#if defined(__ANDROID__)
+    virtual ~CNNLayer();
+#else
     /**
      * @brief A virtual destructor
      */
     virtual ~CNNLayer() = default;
+#endif
 
     /**
      * @brief Sets a layer to be fused with
@@ -443,6 +446,9 @@ public:
      * @param prms Initial layer parameters
      */
     explicit WeightableLayer(const LayerParams &prms) : CNNLayer(prms) {}
+#if defined(__ANDROID__)
+    virtual ~WeightableLayer();
+#endif
 
     /**
      * @brief A pointer to a weights blob
@@ -464,6 +470,10 @@ public:
  */
 class ConvolutionLayer : public WeightableLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~ConvolutionLayer();
+#endif
+
     /**
      * @brief A convolution kernel width
      */
@@ -516,6 +526,10 @@ public:
  */
 class DeconvolutionLayer : public WeightableLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~DeconvolutionLayer();
+#endif
+
     /**
      * @brief Deconvolution kernel width
      */
@@ -568,6 +582,10 @@ public:
  */
 class PoolingLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~PoolingLayer();
+#endif
+
     /**
      * @brief Pooling kernel width
      */
@@ -626,6 +644,10 @@ public:
  */
 class FullyConnectedLayer : public WeightableLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~FullyConnectedLayer();
+#endif
+
     /**
      * @brief A size of output
      */
@@ -643,6 +665,10 @@ public:
  */
 class ConcatLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~ConcatLayer();
+#endif
+
     /**
      * @brief An axis on which concatenation operation is performed
      */
@@ -661,6 +687,10 @@ public:
  */
 class SplitLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~SplitLayer();
+#endif
+
     /**
      * @brief An axis on which split operation is performed
      */
@@ -677,6 +707,10 @@ public:
  */
 class NormLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~NormLayer();
+#endif
+
     /**
      * @brief Response size
      */
@@ -709,6 +743,10 @@ public:
  */
 class SoftMaxLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~SoftMaxLayer();
+#endif
+
     /**
      * @brief Axis number for a softmax operation
      */
@@ -725,6 +763,10 @@ public:
  */
 class GRNLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~GRNLayer();
+#endif
+
     /**
     * @brief A default constructor. Creates a new GRNLayer instance and initializes layer parameters with the given values.
     * @param prms Initial layer parameters
@@ -748,6 +790,9 @@ public:
     * @param prms Initial layer parameters
     */
     explicit MVNLayer(const LayerParams &prms) : CNNLayer(prms), across_channels(0), normalize(1) {}
+#if defined(__ANDROID__)
+    virtual ~MVNLayer();
+#endif
 
     /**
      * @brief Indicate that mean value is calculated across channels
@@ -765,6 +810,10 @@ public:
  */
 class ReLULayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~ReLULayer();
+#endif
+
     /**
      * @brief Negative slope is used to takle negative inputs instead of setting them to 0
      */
@@ -782,6 +831,10 @@ public:
  */
 class ClampLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~ClampLayer();
+#endif
+
     /**
      * @brief A minimum value
      */
@@ -802,6 +855,10 @@ public:
  */
 class EltwiseLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~EltwiseLayer();
+#endif
+
     /**
      * @enum eOperation
      * @brief Defines possible operations that can be used
@@ -831,6 +888,10 @@ public:
  */
 class CropLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~CropLayer();
+#endif
+
     /**
      * @brief A vector of dimensions for cropping
      */
@@ -856,6 +917,10 @@ public:
  */
 class ReshapeLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~ReshapeLayer();
+#endif
+
     /**
      * @brief A vector of sizes of the shape
      */
@@ -880,6 +945,10 @@ public:
  */
 class TileLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~TileLayer();
+#endif
+
     /**
      * @brief An index of the axis to tile
      */
@@ -901,6 +970,10 @@ public:
  */
 class ScaleShiftLayer : public WeightableLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~ScaleShiftLayer();
+#endif
+
     /**
      * @brief A flag that indicates if the same value is used for all the features. If false, the value is used pixel wise
      */
@@ -929,6 +1002,10 @@ public:
     * @param prms Initial layer parameters
     */
     explicit PReLULayer(const LayerParams &prms) : WeightableLayer(prms), _channel_shared(false) {}
+#if defined(__ANDROID__)
+    virtual ~PReLULayer();
+#endif
+
 };
 
 /**
@@ -937,6 +1014,10 @@ public:
  */
 class PowerLayer : public CNNLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~PowerLayer();
+#endif
+
     /**
      * @brief An exponent value
      */
@@ -961,6 +1042,10 @@ public:
  */
 class BatchNormalizationLayer : public WeightableLayer {
 public:
+#if defined(__ANDROID__)
+    virtual ~BatchNormalizationLayer();
+#endif
+
     /**
      * @brief A small value to add to the variance estimate to avoid division by zero
      */
