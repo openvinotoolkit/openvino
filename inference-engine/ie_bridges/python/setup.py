@@ -1,5 +1,5 @@
 import subprocess
-from pathlib import Path
+import os
 import platform
 import sys
 from itertools import chain
@@ -18,7 +18,7 @@ IS_LINUX = (platform.system() == 'Linux')
 REQUIREMENTS_FILE = 'requirements.txt'
 PACKAGE_NAME = 'inference_engine'
 
-PACKAGE = Path(PACKAGE_NAME)
+PACKAGE = PACKAGE_NAME
 C_LIB_NAME = '{}._C'.format(PACKAGE_NAME)
 
 _build_cmd = ['cmake', '--build', '.']
@@ -92,45 +92,10 @@ class build_ext(_build_ext):
         super().run()
 
     def _build_cmake(self):
-        print("Building C++ extension")
-        if Path.cwd().joinpath("Makefile").is_file():
-            # in build directory, run make only
-            subprocess.call(_build_cmd)
-        else:
-            # compile extension library and
-            self.build_cmake_lib()
-        print("Built C++ extension")
+        pass
 
     def build_cmake_lib(self):
-        def save_call(*args, error_msg=None, **kwargs):
-            if subprocess.call(*args, **kwargs) != 0:
-                if error_msg:
-                    print(error_msg)
-                shutil.rmtree(tmp_build_dir.as_posix(), ignore_errors=True)
-                sys.exit(1)
-
-        tmp_build_dir = Path("tmp_build")
-        destination = Path(self.build_lib) / PACKAGE_NAME if not self.inplace else Path(PACKAGE_NAME)
-        tmp_build_dir.mkdir(exist_ok=False)
-
-        _python_executable_opt = ['-DPYTHON_EXECUTABLE={}'.format(sys.executable)]
-        _build_type_opt = ['-DCMAKE_BUILD_TYPE=Release']
-        _generator_opt = ['-G', 'NMake Makefiles' if IS_WINDOWS else "Unix Makefiles"]
-
-        _optional = []
-        if BUNDLE_INFERENCE_ENGINE:
-            _optional.append('-DCOPY_IE_LIBS=ON')
-
-        if INFERENCE_ENGINE_DIR:
-            _optional.append('-DInferenceEngine_DIR={}'.format(INFERENCE_ENGINE_DIR))
-
-        _cmake_cmd = list(chain(['cmake'], _generator_opt, _build_type_opt, _python_executable_opt, _optional, ['..']))
-
-        save_call(_cmake_cmd, cwd=tmp_build_dir.as_posix(), error_msg="Cmake generator failed")
-        save_call(_build_cmd, cwd=tmp_build_dir.as_posix(), error_msg="Build command failed")
-
-        build_ext.copy_compiled_libs(tmp_build_dir / PACKAGE_NAME, destination)
-        shutil.rmtree(tmp_build_dir.as_posix(), ignore_errors=False)
+        pass
 
     @staticmethod
     def copy_compiled_libs(source_dir, destination):
@@ -141,10 +106,6 @@ class build_ext(_build_ext):
 
 class clean(_clean):
     def run(self):
-        shutil.rmtree("tmp_build", ignore_errors=True)
-        extensions = ['so', 'dll', 'pyd']
-        for path in chain.from_iterable(PACKAGE.glob("*.%s" % ext) for ext in extensions):
-            path.unlink()
         super().run()
 
 
@@ -155,28 +116,11 @@ def paths_to_str(paths):
 with open(REQUIREMENTS_FILE) as reqs:
     requirements = set(reqs.read().splitlines())
 
-# do not spoil pre-installed opencv (in case it was built from source)
-_opencv_package = "opencv-python"
-try:
-    import cv2
-
-    if _opencv_package in requirements:
-        requirements.remove(_opencv_package)
-except ImportError:
-    requirements.add(_opencv_package)
-
 
 c_sources = [
-    PACKAGE / 'ie_driver.cpp',
-    PACKAGE / 'ie_driver.hpp',
-
-    PACKAGE / 'c_ie_driver.pxd',
-    PACKAGE / 'ie_driver.pyx',
-    PACKAGE / 'ie_driver.pxd',
 ]
 
 extensions = [
-    Extension(C_LIB_NAME, paths_to_str(c_sources))
 ]
 
 cmdclass = {

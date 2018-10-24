@@ -127,6 +127,16 @@ endif(UNIX)
 add_subdirectory(src)
 add_subdirectory(tests)
 add_subdirectory(thirdparty)
+
+option(ENABLE_PYTHON_BINDINGS "Build python bindings." OFF)
+if (ENABLE_PYTHON_BINDINGS)
+    set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
+
+    #to be able to link
+    set (LIB_FOLDER ${IE_MAIN_SOURCE_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
+    add_subdirectory(ie_bridges/python)
+endif()
+
 if (ENABLE_SAMPLES_CORE)
     set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
 

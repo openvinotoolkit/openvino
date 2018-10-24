@@ -1,3 +1,2 @@
-opencv-python
 numpy
 cython

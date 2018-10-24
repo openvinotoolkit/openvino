@@ -57,7 +57,7 @@ else()
             set(_OS_PATH "")
         else()
            if (NOT EXISTS "/etc/lsb-release")
-                execute_process(COMMAND find /etc/ -maxdepth 1 -type f -name *-release -exec cat {} \;
+                execute_process(COMMAND find /usr/lib/ -maxdepth 1 -type f -name *-release -exec cat {} \;
                             OUTPUT_VARIABLE release_data RESULT_VARIABLE result)
                 set(name_regex "NAME=\"([^ \"\n]*).*\"\n")
                 set(version_regex "VERSION=\"([0-9]+(\\.[0-9]+)?)[^\n]*\"")

@@ -13,6 +13,8 @@ set (IE_DEFAULT_PATH computer_vision_sdk/deployment_tools/inference_engine/share
 
 find_package(InferenceEngine REQUIRED PATHS /opt/intel/${IE_DEFAULT_PATH} $ENV{HOME}/intel/${IE_DEFAULT_PATH})
 
+link_directories(${LIB_FOLDER})
+
 # Make the scripts available in the 'cmake' directory available for the
 # 'include()' command, 'find_package()' command.
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR}/cmake )
@@ -36,7 +38,11 @@ add_custom_target( CopyIeLibs ${CMAKE_COMMAND} -P
   ${IE_ROOT_DIR}/bin/${_ARCH}/Release ${_IE_ROOT_LIBRARY}
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ie_driver )
 
-include_directories( IE::inference_engine )
+if(NOT(UNIX))
+    include_directories( IE::inference_engine )
+else()
+    include_directories( ${IE_MAIN_SOURCE_DIR}/include )
+endif()
 
 # Process the CMakeLists.txt in the 'src' and 'bin' directory.
 add_subdirectory( inference_engine )

@@ -33,7 +33,12 @@ cython_add_module(
     ie_api.pyx
 )
 
-target_link_libraries(ie_api PRIVATE IE::inference_engine)
+if(NOT(UNIX))
+    target_link_libraries(ie_api PRIVATE IE::inference_engine)
+else()
+    target_link_libraries(ie_api PRIVATE inference_engine)
+endif()
+
 set_target_properties(ie_api PROPERTIES CXX_STANDARD 11 LINKER_LANGUAGE CXX)
 
 #if (NOT UNIX AND ${PYTHON_VERSION_STRING} MATCHES "^1.4")

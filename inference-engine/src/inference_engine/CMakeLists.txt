@@ -61,7 +61,7 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ade/ade/include")
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ade/common/include")
 
-set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME} SOVERSION 1)
 
 # Static library used for unit tests which are always built
 
@@ -81,7 +81,7 @@ target_include_directories(${TARGET_NAME}_s SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC -DUSE_STATIC_IE)
 
-set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
+set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s SOVERSION 1)
 
 # export targets
 
@@ -96,3 +96,10 @@ configure_file(
     "${CMAKE_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake"
     "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
     COPYONLY)
+
+install(TARGETS ${TARGET_NAME} LIBRARY DESTINATION lib64)
+install(FILES ${PUBLIC_HEADERS} DESTINATION include/${TARGET_NAME})
+install(FILES
+    "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
+    "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/share/cmake/Modules)

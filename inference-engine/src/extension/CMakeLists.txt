@@ -9,6 +9,7 @@ file(GLOB_RECURSE HDR *.hpp)
 if(WIN32)
     add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_API)
 endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp ")
 
 include_directories (PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/common
