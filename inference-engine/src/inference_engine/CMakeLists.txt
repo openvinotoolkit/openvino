@@ -53,7 +53,9 @@ add_library(${TARGET_NAME} SHARED
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml ade ${CMAKE_DL_LIBS} ${INTEL_ITT_LIBS})
 
 # Properties->C/C++->General->Additional Include Directories
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
+target_include_directories(${TARGET_NAME} PUBLIC
+                                          $<BUILD_INTERFACE:${IE_MAIN_SOURCE_DIR}/include>
+                                          $<INSTALL_INTERFACE:include/${TARGET_NAME}>
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                   "${IE_MAIN_SOURCE_DIR}/src/dumper")
 
@@ -71,7 +73,9 @@ add_library(${TARGET_NAME}_s STATIC
             ${PUBLIC_HEADERS})
 
 # Properties->C/C++->General->Additional Include Directories
-target_include_directories(${TARGET_NAME}_s PUBLIC ${PUBLIC_HEADERS_DIR}
+target_include_directories(${TARGET_NAME}_s PUBLIC
+                                          $<BUILD_INTERFACE:${IE_MAIN_SOURCE_DIR}/include>
+                                          $<INSTALL_INTERFACE:include/${TARGET_NAME}>
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                   "${IE_MAIN_SOURCE_DIR}/src/dumper")
 
@@ -97,9 +101,11 @@ configure_file(
     "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
     COPYONLY)
 
-install(TARGETS ${TARGET_NAME} LIBRARY DESTINATION lib64)
+set(ConfigPackageLocation lib64/cmake/InferenceEngine)
+install(TARGETS ${TARGET_NAME} EXPORT ${TARGET_NAME} LIBRARY DESTINATION lib64)
+install(EXPORT ${TARGET_NAME} DESTINATION ${ConfigPackageLocation} NAMESPACE IE:: FILE targets.cmake)
 install(FILES ${PUBLIC_HEADERS} DESTINATION include/${TARGET_NAME})
 install(FILES
     "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
     "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/share/cmake/Modules)
+    DESTINATION ${ConfigPackageLocation})
