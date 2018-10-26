@@ -104,7 +104,7 @@ configure_file(
 set(ConfigPackageLocation lib64/cmake/InferenceEngine)
 install(TARGETS ${TARGET_NAME} EXPORT ${TARGET_NAME} LIBRARY DESTINATION lib64)
 install(EXPORT ${TARGET_NAME} DESTINATION ${ConfigPackageLocation} NAMESPACE IE:: FILE targets.cmake)
-install(FILES ${PUBLIC_HEADERS} DESTINATION include/${TARGET_NAME})
+install(DIRECTORY ${PUBLIC_HEADERS_DIR}/ DESTINATION include/${TARGET_NAME} FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 install(FILES
     "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
     "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
