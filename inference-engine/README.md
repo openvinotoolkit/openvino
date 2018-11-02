@@ -12,7 +12,7 @@ The software was validated on:
 - OpenBLAS\*
 
 ### Build Steps
-1. Install OpenBLAS and other dependencies using the `install_dependencies.sh` script in the project root folder.
+1. Install OpenBLAS and other dependencies using the `install_dependencies_1604.sh`[ubuntu 16.4] or `install_dependencies_1804.sh`[ubuntu 18.04] script in the project root folder.
 2. Create a build folder:
 ```sh
   mkdir build
