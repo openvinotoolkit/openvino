@@ -3,11 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-system_ver=`lsb_release -r | cut -d ":" -f2 | sed 's/^[\t]*//g'`
-
 # install dependencies
 if [[ -f /etc/lsb-release ]]; then
     # Ubuntu
+    system_ver=`cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2`
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
