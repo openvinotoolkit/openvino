@@ -33,7 +33,7 @@ include_directories (
         ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Create library file from sources.
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${LIBRARY_HEADERS})
+add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${LIBRARY_HEADERS})
 target_link_libraries(${TARGET_NAME} ${OpenCV_LIBRARIES})
 
 set_target_properties(${TARGET_NAME} PROPERTIES "CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS} -fPIE"
