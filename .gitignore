@@ -282,7 +282,6 @@ report/
 /CMakeCache.txt
 .vimprj/
 build_IA32/
-doc/
 .dir-locals.el
 GTAGS
 GPATH
