@@ -293,7 +293,7 @@ cdef class IEPlugin:
         version = bytes(self.impl.version)
         return version.decode()
 
-    cpdef void add_cpu_extension(self, extension_path: str) except *:
+    cpdef void add_cpu_extension(self, str extension_path) except *:
         if self.device.find("CPU") == -1:
             raise RuntimeError("add_cpu_extension method applicable only for CPU or HETERO devices")
         cdef string extension_str = extension_path.encode()
