@@ -1,0 +1,3 @@
+[submodule "inference-engine/thirdparty/ade"]
+	path = inference-engine/thirdparty/ade
+	url = https://github.com/opencv/ade.git
