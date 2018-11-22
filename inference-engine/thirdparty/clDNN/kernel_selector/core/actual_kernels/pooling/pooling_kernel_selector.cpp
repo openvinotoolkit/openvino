@@ -22,6 +22,7 @@
 #include "pooling_kernel_gpu_byxf_padding_opt.h"
 #include "pooling_kernel_gpu_byxf_af32.h"
 #include "pooling_kernel_gpu_int8_ref.h"
+#include "pooling_kernel_gpu_fs_bs_yx_bsv4_fsv32.h"
 
 namespace kernel_selector {
 
@@ -34,6 +35,7 @@ namespace kernel_selector {
         Attach<PoolingKernelGPUByxfPaddingOpt>();
         Attach<PoolingKernelGPUInt8Ref>();
         Attach<PoolingKerneGPU_byxf_af32>();
+        Attach<PoolingKerneGPU_fs_bs_yx_bsv4_fsv32>();
     }
 
     KernelsData pooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const

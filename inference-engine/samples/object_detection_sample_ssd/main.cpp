@@ -1,18 +1,7 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// SPDX-License-Identifier: Apache-2.0
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include <gflags/gflags.h>
 #include <functional>
@@ -38,15 +27,17 @@
 
 using namespace InferenceEngine;
 
+ConsoleErrorListener error_listener;
+
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
-    slog::info << "Parsing input parameters" << slog::endl;
-
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
         return false;
     }
+
+    slog::info << "Parsing input parameters" << slog::endl;
 
     if (FLAGS_ni < 1) {
         throw std::logic_error("Parameter -ni should be greater than 0 (default: 1)");
@@ -82,13 +73,16 @@ int main(int argc, char *argv[]) {
         // --------------------------- 2. Read input -----------------------------------------------------------
         /** This vector stores paths to the processed images **/
         std::vector<std::string> images;
-        parseImagesArguments(images);
+        parseInputFilesArguments(images);
         if (images.empty()) throw std::logic_error("No suitable images were found");
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Load Plugin for inference engine -------------------------------------
         slog::info << "Loading plugin" << slog::endl;
         InferencePlugin plugin = PluginDispatcher({ FLAGS_pp, "../../../lib/intel64" , "" }).getPluginByDevice(FLAGS_d);
+        if (FLAGS_p_msg) {
+            static_cast<InferenceEngine::InferenceEnginePluginPtr>(plugin)->SetLogCallback(error_listener);
+        }
 
         /*If CPU device, load default library with extensions that comes with the product*/
         if (FLAGS_d.find("CPU") != std::string::npos) {
@@ -222,6 +216,7 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 7. Loading model to the plugin ------------------------------------------
         slog::info << "Loading model to the plugin" << slog::endl;
+
         ExecutableNetwork executable_network = plugin.LoadNetwork(network, {});
         // -----------------------------------------------------------------------------------------------------
 
@@ -256,9 +251,8 @@ int main(int argc, char *argv[]) {
         if (batchSize != imagesData.size()) {
             slog::warn << "Number of images " + std::to_string(imagesData.size()) + \
                 " doesn't match batch size " + std::to_string(batchSize) << slog::endl;
-            slog::warn << std::to_string(std::min(imagesData.size(), batchSize)) + \
-                " images will be processed" << slog::endl;
             batchSize = std::min(batchSize, imagesData.size());
+            slog::warn << "Number of images to be processed is "<< std::to_string(batchSize) << slog::endl;
         }
 
         /** Creating input blob **/
@@ -330,13 +324,12 @@ int main(int argc, char *argv[]) {
         /* Each detection has image_id that denotes processed image */
         for (int curProposal = 0; curProposal < maxProposalCount; curProposal++) {
             float image_id = detection[curProposal * objectSize + 0];
-            float label = detection[curProposal * objectSize + 1];
-            float confidence = detection[curProposal * objectSize + 2];
-            /* CPU and GPU plugins have difference in DetectionOutput layer, so we need both checks */
-            if (image_id < 0 || confidence == 0) {
-                continue;
+            if (image_id < 0) {
+                break;
             }
 
+            float label = detection[curProposal * objectSize + 1];
+            float confidence = detection[curProposal * objectSize + 2];
             float xmin = detection[curProposal * objectSize + 3] * imageWidths[image_id];
             float ymin = detection[curProposal * objectSize + 4] * imageHeights[image_id];
             float xmax = detection[curProposal * objectSize + 5] * imageWidths[image_id];
@@ -358,7 +351,8 @@ int main(int argc, char *argv[]) {
         }
 
         for (size_t batch_id = 0; batch_id < batchSize; ++batch_id) {
-            addRectangles(originalImagesData[batch_id].get(), imageHeights[batch_id], imageWidths[batch_id], boxes[batch_id], classes[batch_id]);
+            addRectangles(originalImagesData[batch_id].get(), imageHeights[batch_id], imageWidths[batch_id], boxes[batch_id], classes[batch_id],
+                          BBOX_THICKNESS);
             const std::string image_path = "out_" + std::to_string(batch_id) + ".bmp";
             if (writeOutputBmp(image_path, originalImagesData[batch_id].get(), imageHeights[batch_id], imageWidths[batch_id])) {
                 slog::info << "Image " + image_path + " created!" << slog::endl;

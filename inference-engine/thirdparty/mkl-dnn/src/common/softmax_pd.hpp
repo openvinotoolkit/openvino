@@ -94,10 +94,13 @@ struct softmax_bwd_pd_t: public primitive_desc_t {
     { return reinterpret_cast<const op_desc_t *>(this->desc()); }
     virtual void init_info() override { init_info_softmax(this, this->info_); }
 
-    virtual const memory_pd_t *input_pd(int index = 0) const override
-    { return index == 0 ? src_pd() : nullptr; }
+    virtual const memory_pd_t *input_pd(int index = 0) const override {
+        if (index == 0) return dst_pd();
+        if (index == 1) return diff_dst_pd();
+        return nullptr;
+    }
     virtual const memory_pd_t *output_pd(int index = 0) const override
-    { return index == 0 ? dst_pd() : nullptr; }
+    { return index == 0 ? diff_src_pd() : nullptr; }
 
     virtual int n_inputs() const override { return 2; }
     virtual int n_outputs() const override

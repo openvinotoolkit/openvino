@@ -26,6 +26,7 @@
 //  - RELU                  - [0/1] Indicates that ReLU activation function should be used on output.
 //  - NEGATIVE_SLOPE        - [float] Factor for negative output values (required when ReLU is specified).
 
+#define ACC_TYPE float
 
 __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL (fully_connected_gpu_bf_io_input_spatial)(
@@ -42,7 +43,7 @@ KERNEL (fully_connected_gpu_bf_io_input_spatial)(
     const uint batch_id = get_global_id(1);
 
     const uint outXIdx = batch_id * FILTER_OFM_NUM + x;
-    UNIT_TYPE result = UNIT_VAL_ZERO;
+    ACC_TYPE result = UNIT_VAL_ZERO;
 
     uint input_idx = batch_id * INPUT0_ELEMENTS_COUNT + get_sub_group_local_id();
     input_idx = MULTIPLY_OFFSET(UNIT_TYPE, input_idx);
@@ -66,7 +67,7 @@ KERNEL (fully_connected_gpu_bf_io_input_spatial)(
         s_w_idx += MULTIPLY_OFFSET(UNIT_TYPE, FILTER_OFM_NUM * 16);
     }
     input_idx -=  MULTIPLY_OFFSET(UNIT_TYPE, get_sub_group_local_id());
-    weight_idx += MULTIPLY_OFFSET(UNIT_TYPE, input_slices * FILTER_OFM_NUM); 
+    weight_idx += MULTIPLY_OFFSET(UNIT_TYPE, input_slices * FILTER_OFM_NUM);
     for (uint i = 0; i < INPUT0_ELEMENTS_COUNT % 16; i++)
     {
         UNIT_TYPE _in = *OFFSET_GLOBAL_PTR(UNIT_TYPE, input, input_idx);
@@ -81,7 +82,7 @@ KERNEL (fully_connected_gpu_bf_io_input_spatial)(
 #endif
     if(x < FILTER_OFM_NUM)
     {
-        output[x] = ACTIVATION(result, NL_M, NL_N);
+        output[x] = ACTIVATION((UNIT_TYPE)(result), NL_M, NL_N);
     }
 }
 

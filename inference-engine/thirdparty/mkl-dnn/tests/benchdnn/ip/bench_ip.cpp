@@ -27,30 +27,74 @@
 #include "ip/ip.hpp"
 
 namespace ip {
+const dt_conf_t *cfg = conf_f32;
+dir_t dir = FWD_B;
+int mb = 0;
+attr_t attr;
+bool allow_unimpl = false;
+const char *perf_template = "perf,%D,%n,%z,%q,%-t,%-Gp,%0t,%0Gp";
 
-int bench(int argc, char **argv) {
-    ip::prb_t ipps[] = {
-        { FWD_B, 16, 8, 1, 1, 32, mkldnn_u8, mkldnn_s8, mkldnn_s32, mkldnn_u8 },
-    };
+void reset_parameters() {
+    cfg = conf_f32;
+    dir = FWD_B;
+    mb = 0;
+    attr = attr_t();
+    allow_unimpl = false;
+}
 
-    const int ip_num = sizeof(ipps) / sizeof(ipps[0]);
-    int ip_fails = 0;
+void check_correctness(const desc_t *c) {
+    const prb_t p(*c, mb, dir, cfg, attr);
+    char pstr[max_prb_len];
+    prb2str(&p, pstr);
 
-    for (int id = 0; id < ip_num; ++id) {
-        res_t res{};
-        ip::doit(&ipps[id], &res);
-        if (res.errors) {
-            printf("[%3d] FAILED (errs: %lu out of %lu)\n", id,
-                    (unsigned long)res.errors, (unsigned long)res.total);
+    res_t res{};
+    const int status = ip::doit(&p, &res);
+
+    bool want_perf_report = false;
+
+    parse_result(res, want_perf_report, allow_unimpl, status, pstr);
+
+    if (want_perf_report && bench_mode & PERF)
+        perf_report(&p, &res, pstr);
+
+    benchdnn_stat.tests++;
+}
+
+int bench(int argc, char **argv, bool main_bench) {
+    for (int arg = 0; arg < argc; ++arg) {
+        if (!strncmp("--batch=", argv[arg], 8))
+            SAFE(batch(argv[arg] + 8, bench), CRIT);
+        else if (!strncmp("--cfg=", argv[arg], 6))
+            cfg = str2cfg(argv[arg] + 6);
+        else if (!strncmp("--mb=", argv[arg], 5))
+            mb = atoi(argv[arg] + 5);
+        else if (!strncmp("--dir=", argv[arg], 6))
+            dir = str2dir(argv[arg] + 6);
+        else if (!strncmp("--attr=", argv[arg], 7))
+            SAFE(str2attr(&attr, argv[arg] + 7), CRIT);
+        else if (!strncmp("--allow-unimpl=", argv[arg], 15))
+            allow_unimpl = str2bool(argv[arg] + 15);
+        else if (!strncmp("--perf-template=", argv[arg], 16))
+            perf_template = argv[arg] + 16;
+        else if (!strcmp("--reset", argv[arg]))
+            reset_parameters();
+        else if (!strncmp("--mode=", argv[0], 7))
+            bench_mode = str2bench_mode(argv[0] + 7);
+        else if (!strncmp("-v", argv[arg], 2))
+            verbose = atoi(argv[arg] + 2);
+        else if (!strncmp("--verbose=", argv[arg], 10))
+            verbose = atoi(argv[arg] + 10);
+        else {
+            desc_t c;
+            if (str2desc(&c, argv[arg]) == FAIL) {
+                fprintf(stderr, "driver: unknown option: `%s`, exiting...\n",
+                        argv[arg]);
+                exit(2);
+            }
+            check_correctness(&c);
         }
-        ip_fails += res.errors != 0;
     }
-
-
-    benchdnn_stat.failed = ip_fails;
-    benchdnn_stat.tests = ip_num;
 
     return OK;
 }
-
 }

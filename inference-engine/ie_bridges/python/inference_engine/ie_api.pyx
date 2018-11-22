@@ -14,6 +14,7 @@ from libcpp.memory cimport unique_ptr
 from libc.stdint cimport int64_t
 import os
 import numpy as np
+from copy import deepcopy
 
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[C.IEExecNetwork] move(unique_ptr[C.IEExecNetwork])
@@ -32,7 +33,8 @@ cdef dict_to_c_map(py_dict):
         c_map[k.encode()] = v.encode()
     return c_map
 
-supported_precisions = ["fp32", "fp16", "q78", "i32", "i16", "i8", "u32", "u16"]
+supported_precisions = ["FP32", "FP16", "Q78", "I32", "I16", "I8", "U32", "U16"]
+supported_layouts = ["NCHW", "NHWC", "OIHW", "C", "CHW", "HW", "NC", "CN", "BLOCKED"]
 known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO']
 
 def get_version():
@@ -62,6 +64,7 @@ cdef class IENetLayer:
             weights_buffer.reset(weights.second)
             weights_map[weights.first.decode()] = weights_buffer.to_numpy()
         return weights_map
+
     @property
     def params(self):
         return {k.decode(): v.decode() for k, v in self.impl.params}
@@ -73,6 +76,56 @@ cdef class IENetLayer:
     def params(self, params_map):
         self.impl.setParams(dict_to_c_map(params_map))
 
+    @precision.setter
+    def precision(self, precision: str):
+        self.impl.setPrecision(precision.upper().encode())
+
+
+cdef class InputInfo:
+    @property
+    def precision(self):
+        return self.impl.precision.decode()
+    @property
+    def layout(self):
+        return self.impl.layout.decode()
+    @property
+    def shape(self):
+        return self.impl.dims
+
+    @precision.setter
+    def precision(self, precision):
+        if precision.upper() not in supported_precisions:
+            raise AttributeError(
+                "Unsupported precision {}! List of supported precisions: {}".format(precision, supported_precisions))
+        self.impl.setPrecision(precision.encode())
+    @layout.setter
+    def layout(self, layout):
+        if layout.upper() not in supported_layouts:
+            raise AttributeError(
+                "Unsupported layout {}! List of supported layouts: {}".format(layout, supported_layouts))
+        self.impl.setLayout(layout.encode())
+
+
+cdef class OutputInfo:
+    @property
+    def precision(self):
+        return self.impl.precision.decode()
+    @property
+    def layout(self):
+        return self.impl.layout.decode()
+    @property
+    def shape(self):
+        return self.impl.dims
+    @precision.setter
+    def precision(self, precision):
+        if precision.upper() not in supported_precisions:
+            raise AttributeError(
+                "Unsupported precision {}! List of supported precisions: {}".format(precision, supported_precisions))
+        self.impl.setPrecision(precision.encode())
+    # @layout.setter
+    # def layout(self, layout):
+    #     self.impl.setLayout(layout.encode())
+
 cdef class ExecutableNetwork:
     def __init__(self):
         self._requests = []
@@ -80,8 +133,8 @@ cdef class ExecutableNetwork:
     def infer(self, inputs=None):
         current_request = self.requests[0]
         current_request.infer(inputs)
-        if inputs is not None:
-            return {k: v for k, v in current_request.outputs.items()}
+        return deepcopy(current_request.outputs)
+
 
     def start_async(self, request_id, inputs=None):
         if request_id not in list(range(len(self.requests))):
@@ -147,7 +200,7 @@ cdef class InferRequest:
 
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
-            self.inputs[k][:] = v
+            self._inputs[k][:] = v
 
 cdef class IENetwork:
     @property
@@ -157,11 +210,25 @@ cdef class IENetwork:
 
     @property
     def inputs(self):
-        return {k.decode(): v for k, v in self.impl.inputs}
+        cdef map[string, C.InputInfo] c_inputs = self.impl.getInputs()
+        inputs = {}
+        cdef InputInfo in_info
+        for input in  c_inputs:
+            in_info = InputInfo()
+            in_info.impl = input.second
+            inputs[input.first.decode()] = in_info
+        return inputs
 
     @property
     def outputs(self):
-        return [k.decode() for k in self.impl.outputs]
+        cdef map[string, C.OutputInfo] c_outputs = self.impl.getOutputs()
+        outputs = {}
+        cdef OutputInfo out_info
+        for out in  c_outputs:
+            out_info = OutputInfo()
+            out_info.impl = out.second
+            outputs[out.first.decode()] = out_info
+        return outputs
 
     @property
     def batch_size(self):
@@ -176,7 +243,7 @@ cdef class IENetwork:
 
     @property
     def layers(self):
-        cdef map[string, C.IENetLayer] c_layers = <map[string, C.IENetLayer]>self.impl.getLayers()
+        cdef map[string, C.IENetLayer] c_layers = <map[string, C.IENetLayer]> self.impl.getLayers()
         layers = {}
         cdef IENetLayer net_l = IENetLayer()
         for l in c_layers:
@@ -188,22 +255,23 @@ cdef class IENetwork:
     @classmethod
     def from_ir(cls, model: str, weights: str):
         if not os.path.isfile(model):
-            raise FileNotFoundError("Path to the model {} doesn't exists or it's a directory".format(model))
+            raise Exception("Path to the model {} doesn't exists or it's a directory".format(model))
         if not os.path.isfile(weights):
-            raise FileNotFoundError("Path to the weights {} doesn't exists or it's a directory".format(weights))
+            raise Exception("Path to the weights {} doesn't exists or it's a directory".format(weights))
         net_reader = IENetReader()
         return net_reader.read(model, weights)
 
     # TODO: Use enum with precision type instead of srting parameter when python2 support will not be required.
     def add_outputs(self, outputs, precision="FP32"):
-        if precision.lower() not in supported_precisions:
-            raise AttributeError("Unsupported precision {}! List of supported precisions: {}".format(precision, supported_precisions))
+        if precision.upper() not in supported_precisions:
+            raise AttributeError(
+                "Unsupported precision {}! List of supported precisions: {}".format(precision, supported_precisions))
         if not isinstance(outputs, list):
             outputs = [outputs]
         cdef vector[string] _outputs
         for l in outputs:
             _outputs.push_back(l.encode())
-        self.impl.addOutputs(_outputs, precision.lower().encode())
+        self.impl.addOutputs(_outputs, precision.upper().encode())
 
     def reshape(self, input_shapes: dict):
         cdef map[string, vector[size_t]] c_input_shapes;
@@ -241,7 +309,8 @@ cdef class IEPlugin:
 
     cpdef ExecutableNetwork load(self, IENetwork network, int num_requests=1, config=None):
         if num_requests <= 0:
-            raise ValueError("Incorrect number of requests specified: {}. Expected positive integer number.".format(num_requests))
+            raise ValueError(
+                "Incorrect number of requests specified: {}. Expected positive integer number.".format(num_requests))
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef vector[string] inputs_list
         cdef vector[string] outputs_list
@@ -275,13 +344,13 @@ cdef class IEPlugin:
 
         return exec_net
 
-    cpdef void set_initial_affinity(self,IENetwork net) except *:
+    cpdef void set_initial_affinity(self, IENetwork net) except *:
         if self.device.find("HETERO") == -1:
             raise RuntimeError("set_initial_affinity method applicable only for HETERO device")
         self.impl.setInitialAffinity(net.impl)
 
-    cpdef set get_supported_layers(self,IENetwork net):
-        return set([l.decode() for l in  self.impl.queryNetwork(net.impl)])
+    cpdef set get_supported_layers(self, IENetwork net):
+        return set([l.decode() for l in self.impl.queryNetwork(net.impl)])
 
     @property
     def device(self):
@@ -293,7 +362,7 @@ cdef class IEPlugin:
         version = bytes(self.impl.version)
         return version.decode()
 
-    cpdef void add_cpu_extension(self, extension_path: str) except *:
+    cpdef void add_cpu_extension(self, str extension_path) except *:
         if self.device.find("CPU") == -1:
             raise RuntimeError("add_cpu_extension method applicable only for CPU or HETERO devices")
         cdef string extension_str = extension_path.encode()
@@ -304,8 +373,6 @@ cdef class IEPlugin:
         for k, v in config.items():
             c_config[to_std_string(k)] = to_std_string(v)
         self.impl.setConfig(c_config)
-
-
 
 cdef class IENetReader:
     def read(self, model: str, weights: str) -> IENetwork:
@@ -348,7 +415,6 @@ cdef class BlobBuffer:
         buffer.shape = self.shape.data()
         buffer.strides = self.strides.data()
         buffer.suboffsets = NULL
-
 
     cdef char*_get_blob_format(self, const TensorDesc & desc):
         cdef Precision precision = desc.getPrecision()

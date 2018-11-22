@@ -28,6 +28,8 @@ public:
 private:
     static Register<MKLDNNConcatNode> reg;
     size_t axis = 0;
+
+    size_t inverseOrder(const InferenceEngine::SizeVector& order, size_t axis);
 };
 
 }  // namespace MKLDNNPlugin

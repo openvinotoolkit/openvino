@@ -19,17 +19,17 @@ import logging as log
 import numpy as np
 
 from extensions.front.freeze_placeholder_value import FreezePlaceholderValue
-from mo.front.caffe import custom_layers_mapping
-from mo.front.caffe import loader
+from extensions.middle.FusePermutesSequence import FusePermutesSequence
+from mo.front.caffe import custom_layers_mapping, loader
 from mo.front.caffe.extractor import caffe_extractor, common_caffe_fields, caffe_type_extractors
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.extractor import extract_node_attrs, add_output_ops, create_tensor_nodes, remove_output_ops, \
     add_input_ops, user_data_repack
-from mo.graph.graph import print_graph_stat
+from mo.graph.graph import print_graph_stat, check_empty_graph
 from mo.middle.passes.conv import convert_muladd_to_scaleshift_or_power, \
-    convert_matmul_to_fully_connected, batch_norm_fuse, convert_bias, convert_add_to_scaleshift, \
+    convert_matmul_to_fully_connected, batch_norm_fuse, convert_add_to_scaleshift, \
     convert_mul_to_scaleshift, \
     convert_multi_input_conv
 from mo.middle.passes.eliminate import graph_clean_up, remove_op_nodes
@@ -49,6 +49,7 @@ from mo.utils import class_registration
 from mo.utils.error import Error
 from mo.utils.find_inputs import find_inputs
 from mo.utils.utils import refer_to_faq_msg
+from mo.utils.cli_parser import get_meta_info
 
 
 def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str, output_model_name: str, outputs: list,
@@ -57,6 +58,10 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
            user_shapes: [None, list, np.array] = None, mean_scale_values: [dict, list] = (), mean_file: str = "",
            mean_file_offsets: tuple = None,
            custom_layers_mapping_path: str = None):
+    meta_info = get_meta_info(argv)
+
+    FusePermutesSequence.enabled = False
+
     try:
         proto, model = loader.load_caffe_proto_model(proto_file_name, model_file_name)
     except Error as e:
@@ -86,6 +91,7 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
 
     log.debug("After caffe_pb_to_nx")
     print_graph_stat(graph)
+    check_empty_graph(graph, 'load_caffe_proto_model')
 
     graph.__setattr__('proto_path', proto_file_name)
     graph.__setattr__('caffemodel_path', model_file_name)
@@ -93,6 +99,7 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     graph.graph['layout'] = 'NCHW'
     graph.graph['cmd_params'] = argv
     graph.graph['fw'] = 'caffe'
+    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 3
 
     extract_node_attrs(graph, lambda node: (True, common_caffe_fields(node)))
 
@@ -112,17 +119,17 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     log.debug("After extract_node_attr")
     print_graph_stat(graph)
 
-    user_shapes, outputs, _ = user_data_repack(graph, user_shapes, outputs, None)
+    packed_user_shapes, packed_outputs, freeze_placeholder = user_data_repack(graph, user_shapes, outputs, argv.freeze_placeholder_with_value)
     if argv.freeze_placeholder_with_value is not None:
         FreezePlaceholderValue.enabled = True
-        FreezePlaceholderValue.replacement_dict = argv.freeze_placeholder_with_value
+        FreezePlaceholderValue.replacement_dict = freeze_placeholder
         class_registration.update_registration([FrontReplacementSubgraph])
-    graph, output_op_nodes = add_output_ops(graph, outputs)
-    graph, input_op_nodes = add_input_ops(graph, user_shapes, True)
-    override_placeholder_shapes(graph, user_shapes)
+    output_op_nodes = add_output_ops(graph, packed_outputs)
+    input_op_nodes = add_input_ops(graph, packed_user_shapes, True)
+    override_placeholder_shapes(graph, packed_user_shapes)
     override_batch(graph, argv.batch)
     graph_clean_up(graph)
-
+    check_empty_graph(graph, 'add_output_ops and add_input_ops')
     class_registration.apply_replacements(graph, class_registration.ClassType.FRONT_REPLACER)
 
     graph = create_tensor_nodes(graph)
@@ -147,12 +154,12 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     graph = partial_infer(graph)
     log.debug("After partial_infer")
     print_graph_stat(graph)
-
+    check_empty_graph(graph, 'partial_infer')
     duplicate_shared_weights(graph)
 
-    graph, input_op_nodes = add_input_ops(graph, user_shapes, False)
+    input_op_nodes = add_input_ops(graph, packed_user_shapes, False)
     graph_clean_up(graph)
-
+    check_empty_graph(graph, 'add_input_ops')
     scale_input(graph, scale)
 
     add_mean_scale_values(graph, mean_scale_values)
@@ -195,7 +202,6 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     convert_matmul_to_fully_connected(graph)
     batch_norm_fuse(graph)
     convert_mul_add_to_power(graph)
-    convert_bias(graph)
     convert_add_to_scaleshift(graph)  # scale = 1
     convert_mul_to_scaleshift(graph)  # biases = 0
 
@@ -228,5 +234,6 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
 
     prepare_emit_ir(graph=graph, data_type=argv.data_type, output_dir=output_dir, output_model_name=output_model_name,
                     mean_data=mf,
-                    input_names=input_names)
+                    input_names=input_names,
+                    meta_info=meta_info)
     return 0

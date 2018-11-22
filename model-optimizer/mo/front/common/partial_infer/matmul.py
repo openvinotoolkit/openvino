@@ -18,6 +18,8 @@ import logging as log
 
 import numpy as np
 
+from mo.utils.error import Error
+
 
 def tf_matmul_infer(node):
     assert (len(node.in_nodes()) == 2)
@@ -43,8 +45,9 @@ def tf_matmul_infer(node):
 
     log.debug('shape_tuple: {}'.format(shape_tuple))
     node.out_node().shape = np.concatenate(shape_tuple)
-    node.channel_dims = node.out_node().shape.size - 1
+    node['channel_dims'] = node.out_node().shape.size - 1
     log.debug('matmul shape: {}'.format(node.out_node().shape))
+
 
 
 def onnx_gemm_infer(node):
@@ -53,7 +56,11 @@ def onnx_gemm_infer(node):
     shapeB = node.in_node(1).shape
     shapeC = node.in_node(2).shape
 
-    assert shapeA.size == 2 and shapeB.size == 2 and shapeC.size in [1, 2]
+    assert shapeA.size >= 2 and shapeB.size == 2 and shapeC.size in [1, 2]
+
+    if shapeA.size > 2 and node.transpose_a:
+        raise Error(
+            'ONNX Gemm operation do not support {}dimensional input with set transA key'.format(shapeA.size))
 
     # apply transposes and broadcasts
     if node.transpose_a:

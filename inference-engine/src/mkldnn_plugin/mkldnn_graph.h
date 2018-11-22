@@ -77,6 +77,10 @@ public:
 
     void GetPerfData(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const;
 
+    void RemoveDroppedNodes();
+    void RemoveDroppedEdges();
+    void DropNode(const MKLDNNNodePtr& node);
+
 protected:
     MKLDNNNodePtr FindNodeWithName(const std::string& name) const;
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
@@ -111,6 +115,10 @@ protected:
     void Allocate();
     void AllocateWithReuse();
     void CreatePrimitives();
+
+    void BreakEdgeInsertScaleShift(MKLDNNPlugin::MKLDNNEdgePtr edgeToBreak,
+                                   InferenceEngine::CNNLayerPtr ssCnnLayer);
+    void AddScaleShiftBeforeAndAfterInt8(InferenceEngine::CNNNetwork& net);
 
     friend class MKLDNNInferRequest;
 

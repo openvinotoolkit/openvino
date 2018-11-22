@@ -17,6 +17,7 @@
 import networkx as nx
 import numpy as np
 
+from mo.front.common.layout import get_width_dim, get_height_dim
 from mo.front.extractor import attr_getter
 from mo.graph.graph import Node
 from mo.ops.op import Op
@@ -68,7 +69,8 @@ class PriorBoxOp(Op):
 
     @staticmethod
     def priorbox_infer(node: Node):
+        layout = node.graph.graph['layout']
         data_shape = node.in_node(0).shape
         num_ratios = ((node.flip + 1) * len(node.aspect_ratio) + 1) * len(node.min_size) + len(node.max_size)
-        res_prod = data_shape[2] * data_shape[3] * num_ratios * 4
+        res_prod = data_shape[get_height_dim(layout, 4)] * data_shape[get_width_dim(layout, 4)] * num_ratios * 4
         node.out_node(0).shape = np.array([1, 2, res_prod], dtype=np.int64)

@@ -9,12 +9,12 @@
 #include <algorithm>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "ie_parallel.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 
 MKLDNNReorderNode::MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {
-    int i = 0;
 }
 
 void MKLDNNReorderNode::getSupportedDescriptors() {
@@ -23,9 +23,9 @@ void MKLDNNReorderNode::getSupportedDescriptors() {
     if (inDims.empty() && input.getLayout() != InferenceEngine::Layout::ANY)
         inDims.push_back(MKLDNNDims(input.getDims()));
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 }
 
 void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
@@ -71,11 +71,40 @@ void MKLDNNReorderNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
 
+    mkldnn::primitive_attr attr;
+
+    if (_scales) {
+        std::vector<float> scales;
+
+        float* scaleData = static_cast<float*>(_scales->buffer());
+
+        for (size_t i = 0; i < _scales->size(); i++) {
+            scales.push_back(scaleData[i]);
+        }
+
+        int mask = 0;
+        int oc_dim_id = 1;
+        mask = 1 << oc_dim_id;
+
+        attr.set_output_scales(mask, scales);
+        attr.set_int_output_round_mode(round_nearest);
+    }
+
     if (srcMemPtr->GetSize() == dstMemPtr->GetSize()) {
-        try {
-            // No autoblocking. Reorder can be applied as is
-            prim.reset(new mkldnn::reorder(srcMemPtr->GetPrimitive(), dstMemPtr->GetPrimitive()));
-        } catch (...) {}
+        InferenceEngine::Precision dstPrec = getChildEdgeAt(0)->getDesc().getPrecision();
+        InferenceEngine::Precision srcPrec = getParentEdgeAt(0)->getDesc().getPrecision();
+
+        if ((srcPrec == InferenceEngine::Precision::I8 && dstPrec == InferenceEngine::Precision::U8)) {
+            // This reorder actually does nothing so we declare it in-place.
+            dstMemPtr->GetPrimitive().set_data_handle(srcMemPtr->GetPrimitive().get_data_handle());
+        } else {
+            try {
+                // No autoblocking. Reorder can be applied as is
+
+                reorder::primitive_desc pd = reorder::primitive_desc(srcMemPtr->GetPrimitiveDescriptor(), dstMemPtr->GetPrimitiveDescriptor(), attr);
+                prim.reset(new mkldnn::reorder(srcMemPtr->GetPrimitive(), dstMemPtr->GetPrimitive()));
+            } catch (...) {}
+        }
     } else {
         // Autoblocking case. nchw<=>nChw8c are only supported, but memory descriptor
         // should be with strides. Prepare it from enlarged blob
@@ -103,7 +132,9 @@ void MKLDNNReorderNode::createPrimitive() {
         // output blob should be zeroed. NaN value can occur in untouched place.
         dstMemPtr->FillZero();
 
-        prim.reset(new mkldnn::reorder(src_blocked->GetPrimitive(), dst_blocked->GetPrimitive()));
+        reorder::primitive_desc pd = reorder::primitive_desc(src_blocked->GetPrimitiveDescriptor(), dst_blocked->GetPrimitiveDescriptor(), attr);
+
+        prim.reset(new mkldnn::reorder(pd, src_blocked->GetPrimitive(), dst_blocked->GetPrimitive()));
     }
 }
 
@@ -124,18 +155,23 @@ void MKLDNNReorderNode::execute(mkldnn::stream strm) {
             dst_blocked->GetPrimitivePtr()->set_data_handle(getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
         MKLDNNNode::execute(strm);
     } else {
-        auto srcBlbPtr = getParentEdgeAt(0)->getBlob();
-        auto dstBlbPtr = getChildEdgeAt(0)->getBlob();
+        InferenceEngine::Precision dstPrec = getChildEdgeAt(0)->getDesc().getPrecision();
+        InferenceEngine::Precision srcPrec = getParentEdgeAt(0)->getDesc().getPrecision();
+        if ((srcPrec == InferenceEngine::Precision::I8 && dstPrec == InferenceEngine::Precision::U8)) {
+            // Do nothing here
+        } else {
+            auto srcBlbPtr = getParentEdgeAt(0)->getBlob();
+            auto dstBlbPtr = getChildEdgeAt(0)->getBlob();
 
-        assert(srcBlbPtr->size() == dstBlbPtr->size());
-        size_t data_size = srcBlbPtr->size();
+            assert(srcBlbPtr->size() == dstBlbPtr->size());
+            int data_size = srcBlbPtr->size();
 
-        const auto* src_data = srcBlbPtr->cbuffer().as<const float *>();
-        auto* dst_data = dstBlbPtr->buffer().as<float *>();
+            const auto* src_data = srcBlbPtr->cbuffer().as<const float *>();
+            auto* dst_data = dstBlbPtr->buffer().as<float *>();
 
-#   pragma omp parallel for
-        for (size_t i = 0; i < data_size; i++) {
-            dst_data[dstBlbPtr->getTensorDesc().offset(i)] = src_data[srcBlbPtr->getTensorDesc().offset(i)];
+            InferenceEngine::parallel_for(data_size, [&](int i) {
+                dst_data[dstBlbPtr->getTensorDesc().offset(i)] = src_data[srcBlbPtr->getTensorDesc().offset(i)];
+            });
         }
     }
 }

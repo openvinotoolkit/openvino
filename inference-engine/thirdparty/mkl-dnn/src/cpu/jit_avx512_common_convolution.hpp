@@ -55,6 +55,7 @@ struct _jit_avx512_common_convolution_fwd_t : public cpu_primitive_t {
                     && utils::one_of(this->cdesc_().prop_kind, forward_training,
                                forward_inference)
                     && this->cdesc_().alg_kind == alg_kind::convolution_direct
+                    && !this->has_zero_dim_memory()
                     && this->cdesc_().src_desc.data_type == src_type
                     && this->cdesc_().weights_desc.data_type == wei_type
                     && this->cdesc_().dst_desc.data_type == dst_type
@@ -70,7 +71,7 @@ struct _jit_avx512_common_convolution_fwd_t : public cpu_primitive_t {
             return jit_avx512_common_conv_fwd_kernel::init_conf(
                     jcp_, this->cdesc_(), this->src_pd_, this->weights_pd_,
                     this->dst_pd_,this->bias_pd_, *this->attr(),
-                    omp_get_max_threads(), with_relu, this->negative_slope());
+                    mkldnn_get_max_threads(), with_relu, this->negative_slope());
         }
 
         inline int ndims() { return this->cdesc_().src_desc.ndims; }
@@ -151,6 +152,7 @@ struct jit_avx512_common_convolution_bwd_data_t: public cpu_primitive_t {
             bool ok = true
                 && this->set_default_params() == status::success
                 && utils::one_of(this->desc()->prop_kind, backward_data) // XXX (this->!)
+                && !this->has_zero_dim_memory()
                 && this->desc()->alg_kind == alg_kind::convolution_direct
                 && this->desc()->diff_dst_desc.data_type == diff_dst_type
                 && this->desc()->weights_desc.data_type == wei_type
@@ -250,6 +252,7 @@ struct jit_avx512_common_convolution_bwd_weights_t: public cpu_primitive_t {
             bool ok = true
                 && this->desc()->prop_kind == prop_kind::backward_weights
                 && this->desc()->alg_kind == alg_kind::convolution_direct
+                && !this->has_zero_dim_memory()
                 && this->desc()->src_desc.data_type == src_type
                 && this->desc()->diff_dst_desc.data_type == diff_dst_type
                 && this->desc()->diff_weights_desc.data_type

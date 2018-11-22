@@ -25,7 +25,7 @@ namespace kernel_selector
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     struct eltwise_params : public base_params
     {
-        eltwise_params() : base_params(KernelType::ELTWISE), eltwiseParams() {}
+        eltwise_params() : base_params(KernelType::ELTWISE) {}
 
         struct InputType
         {
@@ -87,35 +87,17 @@ namespace kernel_selector
             uint32_t tmpId;
         };
 
-        struct DedicatedParams
-        {
-            std::vector<eltwise_params::Node> operations;
-            std::vector<float> coefficients;
-            std::vector<UpdateInputData> updateInputIds;
-            bool layoutBased = false;
-            bool     int8_quantization = false;
-            bool     output_calibration = false;
-            float    output_quantization_factor = 1.0f;
-        };
-
-        DedicatedParams eltwiseParams;
+        std::vector<eltwise_params::Node> operations;
+        std::vector<float> coefficients;
+        std::vector<UpdateInputData> updateInputIds;
+ 
+        bool  layoutBased = false;
+        bool  int8_quantization = false;
+        bool  output_calibration = false;
+        float output_quantization_factor = 1.0f;
+        
         MultiDataTensor output_calibration_factors;
-
-        virtual ParamsKey GetParamsKey() const
-        {
-            ParamsKey k = base_params::GetParamsKey();
-            if (eltwiseParams.int8_quantization)
-            {
-                k.EnableInt8Quantization();
-            }
-
-            if (eltwiseParams.output_calibration)
-            {
-                k.EnableOutputCalibration();
-            }
-
-            return k;
-        }
+        virtual ParamsKey GetParamsKey() const;
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,6 +123,7 @@ namespace kernel_selector
     protected:
         virtual bool Validate(const Params& p, const optional_params& o) const override;
         virtual JitConstants GetJitConstants(const eltwise_params& params) const;
+        virtual DispatchData SetDefault(const eltwise_params& params) const;
         KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
     };
 }

@@ -48,8 +48,8 @@ std::string fully_connected_grad_weights_inst::to_string(fully_connected_grad_we
     fc_info.add("weights id", weights_id);
     fc_info.add("bias id", bias_id);
 
-    node_info.add("fully connected grad weights info", fc_info);
-    node_info.dump(primitive_description);
+    node_info->add("fully connected grad weights info", fc_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

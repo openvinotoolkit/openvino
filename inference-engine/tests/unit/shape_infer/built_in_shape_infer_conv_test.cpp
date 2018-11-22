@@ -49,12 +49,28 @@ protected:
                 {"pad-y",      std::to_string(pad.y)},
                 {"output",     std::to_string(out_channels)},
                 {"group",      std::to_string(group)},
-                {"dilation-x", std::to_string(dilation_factor)},
-                {"dilation-y", std::to_string(dilation_factor)}
+                {"dilation-x", std::to_string(dilation_factor.x)},
+                {"dilation-y", std::to_string(dilation_factor.y)}
         };
         if (!auto_pad.empty()) params["auto_pad"] = auto_pad;
         if (padrb.x) params["pad-r"] = std::to_string(padrb.x);
         if (padrb.y) params["pad-b"] = std::to_string(padrb.y);
+        return params;
+    }
+
+    std::map<std::string, std::string> getMapParams_IRv3() {
+        std::map<std::string, std::string> params = {
+                {"kernel",     kernel.toSeparetedRow(",")},
+                {"strides",    stride.toSeparetedRow(",")},
+                {"pads_begin", pad.toSeparetedRow(",")},
+                {"output",     std::to_string(out_channels)},
+                {"group",      std::to_string(group)},
+                {"dilations",  dilation_factor.toSeparetedRow(",")}
+        };
+        if (!auto_pad.empty()) params["auto_pad"] = auto_pad;
+        if (padrb.x != 0 && padrb.y != 0) {
+            params["pads_end"] = padrb.toSeparetedRow(",");
+        }
         return params;
     }
 
@@ -67,16 +83,17 @@ protected:
     param_size stride{};
     param_size pad{};
     param_size padrb{};
+    param_size dilation_factor{};
     std::string auto_pad;
     unsigned out_channels{};
     unsigned group{};
-    unsigned dilation_factor{};
     bool canInfer;
     bool isTransposed;
 };
 
 
 TEST_P(BuiltInShapeInferConvImplTest, impl) {
+    InferenceEngine::details::BaseCreator::version_ = 2;
     auto impl = getShapeInferImpl(type);
     ASSERT_NE(nullptr, impl);
     if (!group) group = 1;
@@ -89,7 +106,7 @@ TEST_P(BuiltInShapeInferConvImplTest, impl) {
 
 TEST_P(BuiltInShapeInferConvImplTest, batch) {
     auto layerParams = getMapParams();
-    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, dataName);
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, dataName, 2);
     auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
     sts = cnnNetworkImplPtr->setBatchSizeReshape(BATCH, &resp);
     ASSERT_EQ((int) OK, sts) << resp.msg;
@@ -99,6 +116,37 @@ TEST_P(BuiltInShapeInferConvImplTest, batch) {
 
 TEST_P(BuiltInShapeInferConvImplTest, reshaper) {
     auto layerParams = getMapParams();
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, dataName, 2);
+    auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
+    auto inputShapes = setInputShapes(*cnnNetworkImplPtr, newInOutShapes.inDims);
+    reshaper->run(inputShapes);
+    checkNetworkInOut(*cnnNetworkImplPtr, newInOutShapes);
+}
+
+TEST_P(BuiltInShapeInferConvImplTest, impl_IRv3) {
+    InferenceEngine::details::BaseCreator::version_ = 3;
+    auto impl = getShapeInferImpl(type);
+    ASSERT_NE(nullptr, impl);
+    if (!group) group = 1;
+    SizeVector weightsDim{kernel.x * kernel.y * out_channels * inOutShapes.inDims[0][1] / group};
+    blobs["weights"] = make_shared_blob(Precision::UNSPECIFIED, weightsDim);
+    ASSERT_NO_THROW(sts = impl->inferShapes(inOutShapes.inDims, getMapParams_IRv3(), blobs, outShapes, &resp));
+    ASSERT_EQ(int(OK), sts) << resp.msg;
+    ASSERT_EQ(inOutShapes.outDims, outShapes);
+}
+
+TEST_P(BuiltInShapeInferConvImplTest, batch_IRv3) {
+    auto layerParams = getMapParams_IRv3();
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, dataName);
+    auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
+    sts = cnnNetworkImplPtr->setBatchSizeReshape(BATCH, &resp);
+    ASSERT_EQ((int) OK, sts) << resp.msg;
+    inOutShapes.inDims[0][0] = inOutShapes.outDims[0][0] = BATCH;
+    checkNetworkInOut(*cnnNetworkImplPtr, inOutShapes);
+}
+
+TEST_P(BuiltInShapeInferConvImplTest, reshaper_IRv3) {
+    auto layerParams = getMapParams_IRv3();
     auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, dataName);
     auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
     auto inputShapes = setInputShapes(*cnnNetworkImplPtr, newInOutShapes.inDims);
@@ -112,42 +160,42 @@ INSTANTIATE_TEST_CASE_P(
                 // fixate pad
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 229, 115}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor(0),
+                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 229, 115}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(false)),
                 // fixate pad + dilation
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 225, 109}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor(5),
+                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor({5, 5}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 225, 109}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(false)),
                 // fixate pad + right/bottom
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 230, 115}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor(0),
+                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 230, 115}}}),
                                       CanInfer(true), padrb({3, 2}), IsTransposed(false)),
                 // valid + empty paddings
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 227, 113}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({0, 0}), auto_pad("valid"), out_channels(64), group(1), dilation_factor(0),
+                                      pad({0, 0}), auto_pad("valid"), out_channels(64), group(1), dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 227, 113}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(false)),
                 // valid + dilation
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 223, 107}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({0, 0}), auto_pad("valid"), out_channels(64), group(1), dilation_factor(5),
+                                      pad({0, 0}), auto_pad("valid"), out_channels(64), group(1), dilation_factor({5, 5}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 223, 107}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(false)),
                 // valid + fixated paddings (shouldn't affect)
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 227, 113}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({2, 4}), auto_pad("valid"), out_channels(64), group(1), dilation_factor(0),
+                                      pad({2, 4}), auto_pad("valid"), out_channels(64), group(1), dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 227, 113}}}),
                                       CanInfer(true), padrb({3, 2}), IsTransposed(false)),
@@ -155,7 +203,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 114}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({0, 0}), auto_pad("same_upper"), out_channels(64), group(1),
-                                      dilation_factor(0),
+                                      dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 114}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(false)),
@@ -163,7 +211,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 114}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({0, 0}), auto_pad("same_upper"), out_channels(64), group(1),
-                                      dilation_factor(5),
+                                      dilation_factor({5, 5}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 114}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(false)),
@@ -171,7 +219,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 114}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({2, 4}), auto_pad("same_upper"), out_channels(64), group(1),
-                                      dilation_factor(0),
+                                      dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 114}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(false)),
@@ -179,7 +227,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 113}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({0, 0}), auto_pad("same_lower"), out_channels(64), group(1),
-                                      dilation_factor(0),
+                                      dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 113}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(false)),
@@ -187,7 +235,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 113}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({0, 0}), auto_pad("same_lower"), out_channels(64), group(1),
-                                      dilation_factor(0),
+                                      dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 113}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(false)),
@@ -195,7 +243,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 113}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({2, 4}), auto_pad("same_lower"), out_channels(64), group(1),
-                                      dilation_factor(0),
+                                      dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 113}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(false))
@@ -208,42 +256,42 @@ INSTANTIATE_TEST_CASE_P(
                 // fixate pad
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 227, 454}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor(0),
+                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 227, 454}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(true)),
                 // fixate pad + dilation
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 231, 466}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor(5),
+                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor({5, 5}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 231, 466}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(true)),
                 // fixate pad + right/bottom
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 226, 453}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor(0),
+                                      pad({2, 1}), auto_pad(""), out_channels(64), group(1), dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 226, 453}}}),
                                       CanInfer(true), padrb({3, 2}), IsTransposed(true)),
                 // valid + empty paddings
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 229, 459}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({0, 0}), auto_pad("valid"), out_channels(64), group(1), dilation_factor(0),
+                                      pad({0, 0}), auto_pad("valid"), out_channels(64), group(1), dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 229, 459}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(true)),
                 // valid + dilation
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 233, 471}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({0, 0}), auto_pad("valid"), out_channels(64), group(1), dilation_factor(5),
+                                      pad({0, 0}), auto_pad("valid"), out_channels(64), group(1), dilation_factor({5, 5}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 233, 471}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(true)),
                 // valid + fixated paddings (shouldn't affect)
                 ::testing::make_tuple(InOutShapes({{{4, 3,  228, 228}},
                                                    {{4, 64, 233, 471}}}), kernel({4, 2}), stride({2, 1}),
-                                      pad({2, 4}), auto_pad("valid"), out_channels(64), group(1), dilation_factor(5),
+                                      pad({2, 4}), auto_pad("valid"), out_channels(64), group(1), dilation_factor({5, 5}),
                                       NewInOutShapes({{{1, 3,  228, 228}},
                                                       {{1, 64, 233, 471}}}),
                                       CanInfer(true), padrb({3, 2}), IsTransposed(true)),
@@ -251,7 +299,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 454}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({0, 0}), auto_pad("same_upper"), out_channels(64), group(1),
-                                      dilation_factor(0),
+                                      dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 454}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(true)),
@@ -259,7 +307,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 454}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({0, 0}), auto_pad("same_upper"), out_channels(64), group(1),
-                                      dilation_factor(5),
+                                      dilation_factor({5, 5}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 454}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(true)),
@@ -267,7 +315,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 454}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({2, 4}), auto_pad("same_upper"), out_channels(64), group(1),
-                                      dilation_factor(0),
+                                      dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 454}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(true)),
@@ -275,7 +323,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 454}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({0, 0}), auto_pad("same_lower"), out_channels(64), group(1),
-                                      dilation_factor(0),
+                                      dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 454}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(true)),
@@ -283,7 +331,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 454}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({0, 0}), auto_pad("same_lower"), out_channels(64), group(1),
-                                      dilation_factor(0),
+                                      dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 454}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(true)),
@@ -291,7 +339,7 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::make_tuple(InOutShapes({{{4, 3,  227, 227}},
                                                    {{4, 64, 227, 454}}}), kernel({4, 2}), stride({2, 1}),
                                       pad({2, 4}), auto_pad("same_lower"), out_channels(64), group(1),
-                                      dilation_factor(0),
+                                      dilation_factor({0, 0}),
                                       NewInOutShapes({{{1, 3,  227, 227}},
                                                       {{1, 64, 227, 454}}}),
                                       CanInfer(true), padrb({0, 0}), IsTransposed(true))

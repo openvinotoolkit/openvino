@@ -17,6 +17,8 @@
 #ifndef _REORDER_HPP
 #define _REORDER_HPP
 
+#include <vector>
+
 #include "mkldnn.h"
 
 #include "common.hpp"
@@ -26,21 +28,23 @@
 
 namespace reorder {
 
-struct dt_conf_t {
+using dims_t = std::vector<int>;
+
+struct dt_conf_s {
     mkldnn_data_type_t dt;
     int min;
     int range;
 };
+typedef const dt_conf_s *dt_conf_t;
 
 struct reorder_conf_t {
-    int ndims;
-    mkldnn_dims_t dims;
+    dims_t dims;
     mkldnn_memory_format_t fmt_in, fmt_out;
 };
 
 struct q10n_conf_t {
-    const dt_conf_t &conf_in;
-    const dt_conf_t &conf_out;
+    dt_conf_t conf_in;
+    dt_conf_t conf_out;
     /* TODO: add attrs */
     attr_t::round_mode_t irmode;
     attr_t::scale_t::policy_t policy;
@@ -48,47 +52,42 @@ struct q10n_conf_t {
 };
 
 struct prb_t {
-    prb_t(const reorder_conf_t *r, const q10n_conf_t *q)
-        : reorder(r), conf_in(q->conf_in), conf_out(q->conf_out) {
-            attr.irmode = q->irmode;
-            attr.oscale.policy = q->policy;
-            attr.oscale.scale = q->scale;
-        }
+    prb_t(const reorder_conf_t &r, const dt_conf_t &conf_in,
+            const dt_conf_t &conf_out, const attr_t &attr, float scale = 0.f)
+        : reorder(r), conf_in(conf_in), conf_out(conf_out), attr(attr) {
+        if (scale != 0.f) this->attr.oscale.scale = scale;
+    }
 
-    const reorder_conf_t *reorder;
-    const dt_conf_t &conf_in;
-    const dt_conf_t &conf_out;
+    const reorder_conf_t reorder;
+    dt_conf_t conf_in;
+    dt_conf_t conf_out;
     attr_t attr;
 };
 
-const size_t max_prb_len = 392;
-void prb2str(const prb_t *p, const res_t *res, char *buffer);
+extern const char *perf_template; /* performance output template */
 
-inline size_t data_off_f(const prb_t *p, int mb, int ic, int ih, int iw)
-{
-    const auto &dims = p->reorder->dims;
+extern const dt_conf_t conf_f32;
+extern const dt_conf_t conf_s8;
+extern const dt_conf_t conf_u8;
+extern const dt_conf_t conf_s16;
+extern const dt_conf_t conf_s32;
+dt_conf_t dt2cfg(mkldnn_data_type_t dt);
+mkldnn_data_type_t cfg2dt(dt_conf_t cfg);
+
+const size_t max_dims_len = 20;
+const size_t max_prb_len = 392;
+dims_t str2dims(const char *str);
+void dims2str(const dims_t &dims, char *buffer);
+void prb2str(const prb_t *p, const res_t *res, char *buffer);
+void perf_report(const prb_t *p, const res_t *r, const char *pstr);
+
+inline size_t data_off_f(const prb_t *p, int mb, int ic, int ih, int iw) {
+    const auto &dims = p->reorder.dims;
     return ((mb * dims[1] + ic) * dims[2] + ih) * dims[3] + iw;
 }
 
-void check(const prb_t *p);
-int bench(int argc, char **argv);
 int doit(const prb_t *p, res_t *res);
-int check_reorder(const prb_t *p, res_t *r);
-int get_scale_mask(const mkldnn_memory_desc_t &md, const attr_t &attr);
-int scales_count(int *count, int *mask, const dnn_mem_t &memory,
-        const attr_t &attr);
-int fill_scales(const prb_t *p, float *scales, int count);
-int fill_memory(const prb_t *p, dnn_mem_t &src, const float *scales,
-        const attr_t &attr);
-int reorder(const prb_t *p, dnn_mem_t &dst, const dnn_mem_t &src,
-        const float *scales);
-int compare(const prb_t *p, dnn_mem_t &mem_expected, dnn_mem_t &mem_computed,
-        const float *scale, int count, res_t *r);
-
-void perf_report(const prb_t *p, const res_t *r, const char *pstr);
-
-int dims2str(int ndims, const mkldnn_dims_t dims, char **_buffer, int rem_len);
-void prb2str(const prb_t *p, const res_t *res, char *buffer);
+int bench(int argc, char **argv, bool main_bench = true);
 
 }
 

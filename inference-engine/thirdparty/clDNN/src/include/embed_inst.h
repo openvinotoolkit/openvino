@@ -29,9 +29,9 @@ namespace cldnn
 	public:
 		using parent::parent;
 
-		decltype(auto) input() const { return get_dependency(0); }
-		decltype(auto) weights() const { return get_dependency(1); }
-		decltype(auto) bias() const { return get_dependency(2); }
+		program_node& input() const { return get_dependency(0); }
+		program_node& weights() const { return get_dependency(1); }
+		program_node& bias() const { return get_dependency(2); }
 		bool bias_term() const { return !get_primitive()->bias.empty(); }
 	};
 
@@ -48,8 +48,8 @@ namespace cldnn
 
 	public:
 		typed_primitive_inst(network_impl& network, embed_node const& node);
-		decltype(auto) weights_memory() const { return dep_memory(1); }
-		decltype(auto) bias_memory() const { return dep_memory(2); }
+		memory_impl& weights_memory() const { return dep_memory(1); }
+		memory_impl& bias_memory() const { return dep_memory(2); }
 		bool bias_term() const { return !argument.bias.empty(); }
 	};
 

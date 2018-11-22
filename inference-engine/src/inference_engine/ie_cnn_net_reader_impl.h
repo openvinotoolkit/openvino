@@ -65,11 +65,16 @@ public:
     }
 
     int getVersion(ResponseDesc * resp) noexcept override {
-        return version;
+        return _version;
     }
 
     void Release() noexcept override {
         delete this;
+    }
+
+    StatusCode ReadSubNetwork(pugi::xml_node &xmlRoot);
+    void CopyBlobs(void* layerParsePrms, std::string name) {
+        _parser->CopyBlobsByName(layerParsePrms, name);
     }
 
 private:
@@ -83,7 +88,7 @@ private:
     std::string name;
     InferenceEngine::details::CNNNetworkImplPtr network;
     bool parseSuccess;
-    int version;
+    int _version;
     FormatParserCreator::Ptr parserCreator;
 };
 }  // namespace details

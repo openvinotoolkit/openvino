@@ -26,13 +26,14 @@
 #include "test_utils.h"
 #include "float16.h"
 #include "instrumentation.h"
-#include <boost/filesystem.hpp>
 #include <iostream>
 
 using namespace cldnn;
 
 namespace tests 
 {
+    const std::string graph_dump_dir = DUMP_DIRECTORY;
+
     generic_test::generic_test() : generic_params(std::get<0>(GetParam())), layer_params(std::get<1>(GetParam())), max_ulps_diff_allowed(4), random_values(true), dump_graphs(false), dump_memory(false)
     {
     }
@@ -41,16 +42,7 @@ namespace tests
         assert((generic_params->data_type == data_types::f32) || (generic_params->data_type == data_types::f16));
         if (dump_graphs)
         {
-            std::string err = "";
-            auto graphs_dump_dir = test_info.create_dump_graph_dir(err);
-            if (err.empty())
-            {
-                generic_params->network_build_options.set_option(cldnn::build_option::graph_dumps_dir(graphs_dump_dir));
-            }
-            else
-            {
-                std::cout << err << std::endl;
-            }
+            generic_params->network_build_options.set_option(cldnn::build_option::graph_dumps_dir(DUMP_DIRECTORY));
         }
         topology topology;               
         topology.add(*layer_params);
@@ -284,7 +276,7 @@ namespace tests
         return{ p, calc_offfset(layout, p) };
     }
 
-    size_t generic_test::get_linear_index(const layout & layout, int b, int f, int y, int x, const memory_desc& desc)
+    size_t generic_test::get_linear_index(const layout & layout, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc)
     {
         return 
             desc.offset + 
@@ -294,7 +286,7 @@ namespace tests
             x*desc.pitch.x;
     }
 
-    size_t generic_test::get_linear_index_with_broadcast(const layout& in_layout, int b, int f, int y, int x, const memory_desc& desc)
+    size_t generic_test::get_linear_index_with_broadcast(const layout& in_layout, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc)
     {
         return
             desc.offset +
@@ -353,20 +345,6 @@ namespace tests
         }
         std::string temp = test_case_name_str.substr(pos);
         return temp;
-    }
-
-    const std::string test_dump::create_dump_graph_dir(std::string& str_err) const
-    {
-        const std::string dump_dir = graph_dump_dir + "/" + test_case_name() + "/" + name();
-        try
-        {
-            boost::filesystem::create_directories(dump_dir);
-        }
-        catch (boost::filesystem::filesystem_error const& err)
-        {
-            str_err = err.what();
-        }
-        return dump_dir;
     }
 
     std::string test_params::print_tensor(cldnn::tensor t)

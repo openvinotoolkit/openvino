@@ -86,6 +86,11 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
                 float scale, alpha, beta;
             } eltwise;
             struct {
+                mkldnn::impl::alg_kind_t alg;
+                const float* weights_data;
+                const float* biases_data;
+            } depthwise;
+            struct {
                 int in_h;
                 int in_w;
                 int ker_h;
@@ -110,13 +115,15 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
             return kind == primitive_kind::sum
                 && utils::implication(require_scale_one, sum.scale == 1.f);
         }
-
         bool is_eltwise(bool require_scale_one = true) const {
             using namespace mkldnn::impl;
             return kind == primitive_kind::eltwise
                    && utils::implication(require_scale_one, eltwise.scale == 1.f);
         }
-
+        bool is_depthwise() const {
+            using namespace mkldnn::impl;
+            return kind == primitive_kind::depthwise;
+        }
         bool is_dw_conv() const {
             using namespace mkldnn::impl;
             return kind == primitive_kind::convolution;
@@ -128,6 +135,8 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
     mkldnn::impl::status_t append_sum(float scale);
     mkldnn::impl::status_t append_eltwise(float scale,
             mkldnn::impl::alg_kind_t alg, float alpha, float beta);
+    mkldnn::impl::status_t append_depthwise(mkldnn::impl::alg_kind_t alg,
+            const float* weights_data, const float* biases_data);
     mkldnn::impl::status_t append_dw_conv(int in_h, int in_w, int ker_h, int ker_w, int str_h, int str_w,
                                           const float* weights_data,
                                           const float* biases_data);

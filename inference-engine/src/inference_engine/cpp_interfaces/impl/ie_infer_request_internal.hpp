@@ -94,23 +94,19 @@ public:
         DataPtr foundOutput;
         size_t dataSize = data->size();
         if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-            // Only precision is checked for an input with ROI inside (resize algorithm was set for the input).
+            if (foundInput->getInputPrecision() != data->precision()) {
+                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                                   << "Failed to set Blob with precision not corresponding to user input precision";
+            }
+
             if (foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE) {
-                if (foundInput->getInputPrecision() != data->precision()) {
-                    THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
-                                       << "Failed to set Blob with precision not corresponding to user input precision";
-                }
-                // Stores the given blob as ROI blob. It will be used to fill in a network input during pre-processing.
+                // Stores the given blob as ROI blob. It will be used to fill in network input during pre-processing.
                 _preProcData[name].setRoiBlob(data);
             } else {
                 size_t inputSize = details::product(foundInput->getDims());
                 if (dataSize != inputSize) {
                     THROW_IE_EXCEPTION << "Input blob size is not equal network input size ("
                                        << dataSize << "!=" << inputSize << ").";
-                }
-                if (foundInput->getInputPrecision() != data->precision()) {
-                    THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
-                                       << "Failed to set Blob with precision not corresponding to user input precision";
                 }
                 _inputs[name] = data;
             }
@@ -172,8 +168,8 @@ public:
     /**
      * @brief Checks and executes input data pre-processing if needed.
      */
-    void execDataPreprocessing() {
-        for (auto &input : _inputs) {
+    void execDataPreprocessing(InferenceEngine::BlobMap& inputs) {
+        for (auto &input : inputs) {
             // If there is a pre-process entry for an input then it must be pre-processed
             // using preconfigured resize algorithm.
             auto it = _preProcData.find(input.first);

@@ -23,7 +23,7 @@
 #include "jit_primitive_conf.hpp"
 #include "gemm_convolution_utils.hpp"
 
-#include "os_blas.hpp"
+#include "gemm/os_blas.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -56,6 +56,7 @@ struct _gemm_u8s8s32x_convolution_fwd_t: public cpu_primitive_t {
                         prop_kind::forward_training,
                         prop_kind::forward_inference)
                 && this->cdesc_().alg_kind == alg_kind::convolution_direct
+                && !this->has_zero_dim_memory()
                 && this->cdesc_().src_desc.data_type == u8
                 && this->cdesc_().dst_desc.data_type == dst_type
                 && this->cdesc_().weights_desc.data_type == s8
@@ -109,28 +110,24 @@ struct _gemm_u8s8s32x_convolution_fwd_t: public cpu_primitive_t {
 
     _gemm_u8s8s32x_convolution_fwd_t(const pd_t *pd, const input_vector &inputs,
            const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), col_(nullptr)
-        , acc_(nullptr)
+        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd)
+        , scratchpad_(nullptr)
     {
         jit_gemm_convolution_utils::init_conf(conf_.jcp_,
-            *(conf_.cdesc()), conf_.src_pd(), conf_.weights_pd(0),
-            conf_.dst_pd(), with_relu, conf_.negative_slope());
+            *conf_.cdesc(), conf_.src_pd(), conf_.weights_pd(0),
+            conf_.dst_pd(), mkldnn_get_max_threads(), with_relu, conf_.negative_slope());
 
-        nthr_ = omp_get_max_threads();
-        if (!(utils::everyone_is(1, conf_.jcp_.ic, conf_.jcp_.oc)
-                    && conf_.jcp_.ngroups != 1)
-                && !(conf_.jcp_.os / nthr_ < 64 && conf_.jcp_.mb != 1))
-            nthr_ = 1;
+        size_t col_size = (size_t)conf_.jcp_.im2col_sz * sizeof(src_data_t);
+        size_t acc_size = (size_t)conf_.jcp_.os * conf_.jcp_.oc
+                            * sizeof(acc_data_t);
+        size_t size = col_size + acc_size;
 
-        jit_gemm_convolution_utils::prepare_ws_col<src_data_t>(
-                this->conf_.jcp_, &this->col_, nthr_);
-        jit_gemm_convolution_utils::prepare_ws_acc<acc_data_t>(
-                this->conf_.jcp_, &this->acc_, nthr_);
+        jit_gemm_convolution_utils::prepare_scratchpad(this->conf_.jcp_,
+                &this->scratchpad_, size, this->conf_.jcp_.nthr);
     }
 
     ~_gemm_u8s8s32x_convolution_fwd_t() {
-        free(this->col_);
-        free(this->acc_);
+        delete this->scratchpad_;
     };
 
     typedef typename prec_traits<data_type::u8>::type src_data_t;
@@ -145,10 +142,119 @@ struct _gemm_u8s8s32x_convolution_fwd_t: public cpu_primitive_t {
 
 private:
     void execute_forward();
+    void execute_forward_thr(const int ithr, const int nthr,
+            const src_data_t *src_base, const wei_data_t *wei_base,
+            const char *bia_base, dst_data_t *dst_base,
+            char *scratchpad);
     pd_t conf_;
-    src_data_t *col_;
-    acc_data_t *acc_;
+    scratchpad_t *scratchpad_;
     int nthr_;
+};
+
+template <data_type_t dst_type>
+struct _gemm_u8s8s32x_convolution_bwd_data_t: public cpu_primitive_t {
+    struct pd_t: public cpu_convolution_bwd_data_pd_t{
+        pd_t(engine_t *engine,
+                const convolution_desc_t *adesc,
+                const primitive_attr_t *attr,
+                const convolution_fwd_pd_t *hint_fwd_pd)
+            : cpu_convolution_bwd_data_pd_t(engine, adesc, attr, hint_fwd_pd)
+            , jcp_()
+        {}
+
+        DECLARE_COMMON_PD_T("gemm:blas",
+                _gemm_u8s8s32x_convolution_bwd_data_t<dst_type>);
+
+        virtual status_t init() override {
+            using namespace data_type;
+            using namespace memory_format;
+
+            assert(this->engine()->kind() == engine_kind::cpu);
+
+            bool ok = true
+#if !USE_MKL_IGEMM
+                && false
+#endif
+                && this->set_default_params() == status::success
+                && this->desc()->prop_kind == prop_kind::backward_data
+                && this->desc()->alg_kind == alg_kind::convolution_direct
+                && !this->has_zero_dim_memory()
+                && this->desc()->diff_src_desc.data_type == dst_type
+                && this->desc()->diff_dst_desc.data_type == u8
+                && this->desc()->weights_desc.data_type == s8
+                && utils::implication(this->with_bias(), utils::one_of(
+                            this->desc()->bias_desc.data_type, f32, s32, s8,
+                            u8))
+                && this->desc()->accum_data_type == data_type::s32
+                && utils::everyone_is(nhwc, this->diff_src_pd_.desc()->format,
+                        this->diff_dst_pd_.desc()->format)
+                && this->weights_pd_.desc()->format == (this->with_groups()
+                        ? hwigo : hwio)
+                && attr()->post_ops_.has_default_values();
+
+            return ok ? status::success : status::unimplemented;
+        }
+
+        virtual bool support_bias() const override { return true; }
+
+        jit_gemm_conv_conf_t jcp_;
+
+    protected:
+        virtual status_t set_default_params() override {
+            using namespace memory_format;
+            if (this->diff_src_pd_.desc()->format == any)
+                CHECK(this->diff_src_pd_.set_format(nhwc));
+            if (this->diff_dst_pd_.desc()->format == any)
+                CHECK(this->diff_dst_pd_.set_format(nhwc));
+            if (this->weights_pd_.desc()->format == any)
+                CHECK(this->weights_pd_.set_format(this->with_groups()
+                            ? hwigo : hwio));
+            if (bias_pd_.desc()->format == any)
+                CHECK(bias_pd_.set_format(x));
+             return status::success;
+        }
+    };
+
+    _gemm_u8s8s32x_convolution_bwd_data_t(const pd_t *pd, const input_vector &inputs,
+           const output_vector &outputs)
+        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd)
+        , scratchpad_(nullptr)
+    {
+        jit_gemm_convolution_utils::init_conf(conf_.jcp_,
+            *conf_.desc(), conf_.diff_src_pd(), conf_.weights_pd(0),
+            conf_.diff_dst_pd(), mkldnn_get_max_threads());
+
+        size_t col_size = (size_t)conf_.jcp_.im2col_sz * sizeof(acc_data_t);
+        size_t acc_size = (size_t)conf_.jcp_.is * conf_.jcp_.ic
+                            * sizeof(acc_data_t);
+        size_t size = col_size + acc_size;
+
+        jit_gemm_convolution_utils::prepare_scratchpad(this->conf_.jcp_,
+                &this->scratchpad_, size, this->conf_.jcp_.nthr);
+    }
+
+    ~_gemm_u8s8s32x_convolution_bwd_data_t() {
+        delete this->scratchpad_;
+    };
+
+    typedef typename prec_traits<data_type::u8>::type diff_dst_data_t;
+    typedef typename prec_traits<data_type::s8>::type wei_data_t;
+    typedef typename prec_traits<dst_type>::type diff_src_data_t;
+    typedef typename prec_traits<data_type::s32>::type acc_data_t;
+
+    virtual void execute(event_t *e) {
+        execute_backward_data();
+        e->set_state(event_t::ready);
+    }
+
+private:
+    void execute_backward_data();
+    void execute_backward_data_thr(const int ithr, const int nthr,
+            const diff_dst_data_t *diff_dst_base, const wei_data_t *wei_base,
+            const char *bia_base, diff_src_data_t *diff_src_base,
+            char *scratchpad);
+    pd_t conf_;
+    scratchpad_t *scratchpad_;
 };
 
 }

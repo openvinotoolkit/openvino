@@ -11,10 +11,6 @@ mkldnn::primitive_desc_iterator MKLDNNDescriptor::createPrimitiveDescriptorItera
     return desc->createPrimitiveDescriptorIterator(attr, engine);
 }
 
-mkldnn::primitive_desc_iterator *MKLDNNDescriptor::createPrimitiveDescriptorIteratorPtr(const mkldnn::engine &engine) const {
-    return desc->createPrimitiveDescriptorIteratorPtr(engine);
-}
-
 MKLDNNDescriptor::operator bool() {
     return desc.get() != nullptr;
 }
@@ -183,6 +179,19 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::depthwise_forward::de
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::depthwise_forward::desc>() {
     DescFwdImpl<mkldnn::depthwise_forward::desc> *typeDesc =
             dynamic_cast<DescFwdImpl<mkldnn::depthwise_forward::desc> *>(desc.get());
+    if (typeDesc == nullptr) {
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::rnn_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::rnn_forward::desc>(desc));
+}
+
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::rnn_forward::desc>() {
+    DescFwdImpl<mkldnn::rnn_forward::desc> *typeDesc =
+            dynamic_cast<DescFwdImpl<mkldnn::rnn_forward::desc> *>(desc.get());
     if (typeDesc == nullptr) {
         THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }

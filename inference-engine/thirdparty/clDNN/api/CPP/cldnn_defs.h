@@ -96,8 +96,7 @@
 *  * priorbox is primitive that is executed during network compilation. Node is removed from a network execution.
 * * <B> Stage 2: Graph analysis:</B>
 *  * mark constatns
-*  * mark data flow 
-*  * mark dominators
+*  * mark data flow
 * * <B> Stage 3: Trimming:</B>
 *  * apply backward bfs on each output to find unnecessary nodes/branches, then remove those. 
 * * <B> Stage 4: Inputs and biases:</B>

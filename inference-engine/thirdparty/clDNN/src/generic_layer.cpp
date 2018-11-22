@@ -18,6 +18,8 @@
 #include "generic_layer_inst.h"
 #include "primitive_type_base.h"
 
+#include "json_object.h"
+
 #include <algorithm>
 
 namespace cldnn
@@ -40,7 +42,7 @@ std::string generic_layer_inst::to_string(generic_layer_node const& node)
 
     std::stringstream primitive_description;
 
-    node_info.dump(primitive_description);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

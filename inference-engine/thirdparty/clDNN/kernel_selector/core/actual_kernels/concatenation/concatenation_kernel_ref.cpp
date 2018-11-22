@@ -26,9 +26,13 @@ namespace kernel_selector
         k.EnableInputDataType(Datatype::F16);
         k.EnableInputDataType(Datatype::F32);
         k.EnableInputDataType(Datatype::INT8);
+        k.EnableInputDataType(Datatype::INT32);
+        k.EnableInputDataType(Datatype::INT64);
         k.EnableOutputDataType(Datatype::F16);
         k.EnableOutputDataType(Datatype::F32);
         k.EnableOutputDataType(Datatype::INT8);
+        k.EnableOutputDataType(Datatype::INT32);
+        k.EnableOutputDataType(Datatype::INT64);
         k.EnableAllInputLayout();
         k.EnableAllOutputLayout();
         k.EnableTensorOffset();
@@ -60,10 +64,20 @@ namespace kernel_selector
         //case for input == bfyx, output == yxfb and input == yxfb, output == bfyx
         if (input_format != output_format)
         {
-            dim_index[0] = 3;
-            dim_index[1] = 2;
-            dim_index[2] = 0;
-            dim_index[3] = 1;
+            if (input_format == kernel_selector::Tensor::DataLayout::yxfb)
+            {
+                dim_index[0] = 2;
+                dim_index[1] = 3;
+                dim_index[2] = 1;
+                dim_index[3] = 0;
+            }
+            else
+            {
+                dim_index[0] = 3;
+                dim_index[1] = 2;
+                dim_index[2] = 0;
+                dim_index[3] = 1;
+            }
         }
 
         cldnnJit.AddConstant(MakeJitConstant("INPUT_DIM_0", dim_index[0]));

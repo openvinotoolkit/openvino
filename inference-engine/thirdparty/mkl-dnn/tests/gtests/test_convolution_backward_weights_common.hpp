@@ -38,24 +38,21 @@ void compute_ref_conv_bwd_bias(const test_convolution_sizes_t &c,
 
     size_t padded_oc = dst_d.data.layout_desc.blocking.padding_dims[1];
 
-#   pragma omp parallel for collapse(2) schedule(static)
-    for (int g = 0; g < c.ng; ++g) {
-        for (int oc = 0; oc < c.oc / c.ng; ++oc) {
-            size_t bidx = g * padded_oc / c.ng + oc;
-            diff_bias_data[map_index(bias_d, bidx)] = 0.0;
-            for (int mb = 0; mb < c.mb; ++mb) {
-                for (int oh = 0; oh < c.oh; ++oh) {
-                    for (int ow = 0; ow < c.ow; ++ow) {
-                        size_t oidx = mb * padded_oc * c.oh * c.ow
-                                + g * padded_oc / c.ng * c.oh * c.ow
-                                + oc * c.oh * c.ow + oh * c.ow + ow;
-                        diff_bias_data[map_index(bias_d, bidx)]
-                            += diff_dst_data[map_index(dst_d, oidx)];
-                    }
+    mkldnn::impl::parallel_nd(c.ng, c.oc / c.ng, [&](int g, int oc) {
+        size_t bidx = g * padded_oc / c.ng + oc;
+        diff_bias_data[map_index(bias_d, bidx)] = 0.0;
+        for (int mb = 0; mb < c.mb; ++mb) {
+            for (int oh = 0; oh < c.oh; ++oh) {
+                for (int ow = 0; ow < c.ow; ++ow) {
+                    size_t oidx = mb * padded_oc * c.oh * c.ow
+                            + g * padded_oc / c.ng * c.oh * c.ow
+                            + oc * c.oh * c.ow + oh * c.ow + ow;
+                    diff_bias_data[map_index(bias_d, bidx)]
+                        += diff_dst_data[map_index(dst_d, oidx)];
                 }
             }
         }
-    }
+    });
 }
 
 template <typename data_t_src, typename data_t_diff_dst,
@@ -76,52 +73,39 @@ void compute_ref_conv_bwd_weights(const test_convolution_sizes_t &c,
     size_t padded_ic = src_d.data.layout_desc.blocking.padding_dims[1];
     size_t padded_oc = dst_d.data.layout_desc.blocking.padding_dims[1];
 
-#   pragma omp parallel for collapse(5) schedule(static)
-    for (int g = 0; g < c.ng; ++g) {
-        for (int oc = 0; oc < c.oc / c.ng; oc++) {
-            for (int ic = 0; ic < c.ic / c.ng; ++ic) {
-                for (int kh = 0; kh < c.kh; kh++) {
-                    for (int kw = 0; kw < c.kw; kw++) {
-                        size_t widx = g * padded_oc / c.ng * padded_ic / c.ng *
-                                c.kh * c.kw
-                                + oc * padded_ic / c.ng * c.kh * c.kw
-                                + ic * c.kh * c.kw + kh * c.kw + kw;
-                        diff_weights_data[map_index(weights_d, widx)] = 0.0;
-                        for (int mb = 0; mb < c.mb; ++mb) {
-                            for (int oh = 0; oh < c.oh; ++oh) {
-                                for (int ow = 0; ow < c.ow; ++ow) {
-                                    if (ow*c.strw + kw *
-                                        (1 + c.dilw) < c.padw ||
-                                        oh*c.strh + kh *
-                                        (1 + c.dilh) < c.padh ||
-                                        ow*c.strw + kw *
-                                        (1 + c.dilw) >= c.iw + c.padw ||
-                                        oh*c.strh + kh *
-                                        (1 + c.dilh)>= c.ih + c.padh)
-                                        continue;
+    mkldnn::impl::parallel_nd(c.ng, c.oc / c.ng, c.ic / c.ng, c.kh, c.kw,
+        [&](int g, int oc, int ic, int kh, int kw) {
+        size_t widx = g * padded_oc / c.ng * padded_ic / c.ng * c.kh * c.kw
+                + oc * padded_ic / c.ng * c.kh * c.kw
+                + ic * c.kh * c.kw + kh * c.kw + kw;
+        diff_weights_data[map_index(weights_d, widx)] = 0.0;
+        for (int mb = 0; mb < c.mb; ++mb) {
+            for (int oh = 0; oh < c.oh; ++oh) {
+                for (int ow = 0; ow < c.ow; ++ow) {
+                    if (ow*c.strw + kw * (1 + c.dilw) < c.padw ||
+                        oh*c.strh + kh * (1 + c.dilh) < c.padh ||
+                        ow*c.strw + kw * (1 + c.dilw) >= c.iw + c.padw ||
+                        oh*c.strh + kh * (1 + c.dilh)>= c.ih + c.padh)
+                        continue;
 
-                                    int ih = oh * c.strh - c.padh + kh
-                                            * (1 + c.dilh);
-                                    int iw = ow * c.strw - c.padw + kw
-                                            * (1 + c.dilw);
-                                    size_t sidx = mb * padded_ic * c.ih * c.iw
-                                        + g * padded_ic / c.ng * c.ih * c.iw
-                                        + ic * c.ih * c.iw + ih * c.iw + iw;
-                                    size_t didx = mb * padded_oc * c.oh * c.ow
-                                        + g * padded_oc / c.ng * c.oh * c.ow
-                                        + oc * c.oh * c.ow + oh * c.ow + ow;
+                    int ih = oh * c.strh - c.padh + kh
+                            * (1 + c.dilh);
+                    int iw = ow * c.strw - c.padw + kw
+                            * (1 + c.dilw);
+                    size_t sidx = mb * padded_ic * c.ih * c.iw
+                        + g * padded_ic / c.ng * c.ih * c.iw
+                        + ic * c.ih * c.iw + ih * c.iw + iw;
+                    size_t didx = mb * padded_oc * c.oh * c.ow
+                        + g * padded_oc / c.ng * c.oh * c.ow
+                        + oc * c.oh * c.ow + oh * c.ow + ow;
 
-                                    diff_weights_data[map_index(weights_d, widx)]
-                                        += src_data[map_index(src_d, sidx)]
-                                        * diff_dst_data[map_index(dst_d, didx)];
-                                }
-                            }
-                        }
-                    }
+                    diff_weights_data[map_index(weights_d, widx)]
+                        += src_data[map_index(src_d, sidx)]
+                        * diff_dst_data[map_index(dst_d, didx)];
                 }
             }
         }
-    }
+    });
 }
 
 template <typename data_t_src, typename data_t_diff_dst,

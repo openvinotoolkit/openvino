@@ -156,11 +156,17 @@ class SimpleProtoParser(object):
             if line.startswith('#'):  # skip comments
                 continue
             for char in line:
-                if char == '"':
-                    if string_started:  # string ended
+                if string_started:
+                    if char == '"':  # string ended
                         self._add_non_empty_token(cur_token)
+                        cur_token = ''  # start of a new string
+                        string_started = False
+                    else:
+                        cur_token += char
+                elif char == '"':
+                    self._add_non_empty_token(cur_token)
                     cur_token = ''  # start of a new string
-                    string_started = not string_started
+                    string_started = True
                 elif (char == " " and not string_started) or char == '\n':
                     self._add_non_empty_token(cur_token)
                     cur_token = ''

@@ -23,7 +23,6 @@
 #include "data_inst.h"
 #include "reorder_inst.h"
 #include "generic_layer.hpp"
-#include <boost/filesystem.hpp>
 #include <sstream>
 
 #include "eltwise_inst.h"
@@ -45,7 +44,7 @@ namespace {
             || (output_size_handling_enabled && prim->with_output_size) //no support for convolutions with user-specified output size
             || (input_layout.count() > 3000000)             //limit max input size as winograd consumes more memory
             || (input_layout.count() < 50000)               //limit min input size as winograd is not effective for small input
-            || (input_layout.size.spatial[0] < 8 && input_layout.size.spatial[0] < 8)) //disable winograd for small spatials as perf is poor
+            || (input_layout.size.spatial[0] < 8 && input_layout.size.spatial[1] < 8)) //disable winograd for small spatials as perf is poor
         {
             return false;
         }
@@ -196,6 +195,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout, data_
             //TODO: remove this condition when yxfb optimizations will be disabled
             current_layout.format != cldnn::format::yxfb &&
             current_layout.size.batch[0] == 1 &&
+            prim->dilation == tensor{ 1 } &&
             !node.get_transposed())
         {
             expected_tensor = current_layout.size;

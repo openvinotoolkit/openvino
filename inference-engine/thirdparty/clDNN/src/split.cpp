@@ -69,8 +69,8 @@ std::string split_inst::to_string(split_node const& node)
     split_info.add("output ids count", output_ids.size());
     split_info.add("offset count", output_offsets.size());
     
-    node_info.add("split info", split_info);
-    node_info.dump(primitive_description);
+    node_info->add("split info", split_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

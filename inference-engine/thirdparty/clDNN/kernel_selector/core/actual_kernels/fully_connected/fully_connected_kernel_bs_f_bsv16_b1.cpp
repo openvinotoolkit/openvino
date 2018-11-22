@@ -60,7 +60,7 @@ namespace kernel_selector
 
     std::unique_ptr<FullyConnected_bs_f_bsv16_b1::FullyConnectedKernelBase::DispatchData> FullyConnected_bs_f_bsv16_b1::SetDefault(const fully_connected_params& arg) const
     {
-        auto run_info = std::make_unique<DispatchData>(*FullyConnectedKernelBase::SetDefault(arg).get());
+        auto run_info = std::unique_ptr<DispatchData>(new DispatchData(*FullyConnectedKernelBase::SetDefault(arg)));
 
         // Properties of chunk and unit.
         const     char*    chunk_type           = "uint";

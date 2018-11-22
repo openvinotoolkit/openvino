@@ -29,9 +29,8 @@ class RemoveLastSoftMaxPattern(BackReplacementPattern):
             nodes=[
                 ('softmax_node', dict(kind='op', op='SoftMax'))
             ],
-            edges=[],
-            node_attrs=['op'],
-            edge_attrs=[])
+            edges=[]
+        )
 
     @staticmethod
     def replace_pattern(graph: nx.MultiDiGraph, match: dict):

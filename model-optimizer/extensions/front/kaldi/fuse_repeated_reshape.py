@@ -34,9 +34,8 @@ class FuseRepeatedReshapes(FrontReplacementPattern):
             edges=[
                 ('reshape_1', 'data_node', {'out': 0}),
                 ('data_node', 'reshape_2', {'in': 0})
-            ],
-            node_attrs=['kind', 'op'],
-            edge_attrs=['in', 'out'])
+            ]
+        )
 
     @staticmethod
     def replace_pattern(graph: nx.MultiDiGraph, match: dict):

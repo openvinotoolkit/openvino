@@ -23,7 +23,7 @@
 #include "topology_impl.h"
 
 #include <memory>
-#include <sstream>
+
 namespace cldnn {
     struct network_impl;
     struct engine_impl;

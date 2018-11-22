@@ -17,9 +17,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
-#include <map>
-#include <algorithm>
-#include <iostream>
+#include <ostream>
 #include <memory>
 
 namespace cldnn
@@ -33,6 +31,7 @@ namespace cldnn
     {
     public:
         virtual void dump(std::ostream& out, int offset) = 0;
+        virtual ~json_base() = default;
     };
 
     template<class Type>

@@ -17,9 +17,11 @@
 import logging as log
 
 import networkx as nx
-from mo.graph.graph import replace_node
+
+from extensions.front.sub import Sub
 from extensions.ops.prelu import PreluOp
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.graph.graph import replace_node
 from mo.middle.pattern_match import check_node_usages_out_of_match
 
 
@@ -43,21 +45,59 @@ class PReLU(FrontReplacementSubgraph):
                 ('neg', 'neg_relu'),
                 ('neg_relu', 'neg_1'),
                 ('neg_1', 'mul'),
-                ('mul', 'add'),
-            ],
-            node_attrs=['kind', 'op'],
-            edge_attrs=[])
+                ('mul', 'add')
+            ]
+        )
 
     def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
         consumers = [n for n in match if n not in ['mul', 'op', 'add'] and not check_node_usages_out_of_match(match, n)]
         if consumers:
-            log.warning('PReLU pattern was detected. Non pattern consumers of nodes: \'{}\' were found. Won\'t replace'
+            log.warning('PReLU pattern was detected. Non pattern consumers of nodes: "{}" were found. Won\'t replace'
                         ''.format(', '.join([match[n].id for n in consumers])))
             return
         gamma = match['mul'].in_node(0) if match['mul'].in_node(1).id == match['neg_1'].id else match['mul'].in_node(1)
-        prelu_op = PreluOp(graph, {'name': '{}/PReLU'.format(match['add'].id)}).create_node([match['op'], gamma])
-        if match['add'].has_valid('is_output') and match['add'].is_output:
-            match['add'].is_output = False
-            prelu_op['is_output'] = True
-        replace_node(match['add'], prelu_op)
-        log.debug('PReLU pattern starting from \'{}\' was collapsed to \'{}\''.format(match['op'].id, prelu_op.id))
+        prelu_node = PreluOp(graph, {'name': '{}/PReLU'.format(match['add'].id)}).create_node([match['op'], gamma])
+        replace_node(match['add'], prelu_node)
+        log.debug('PReLU pattern starting from "{}" was collapsed to "{}"'.format(match['op'].id, prelu_node.id))
+
+
+class PReLUWithAbs(FrontReplacementSubgraph):
+    enabled = True
+
+    def run_before(self):
+        return [Sub]
+
+    def pattern(self):
+        return dict(
+            nodes=[('op', dict(kind='op')),
+                   ('relu', dict(kind='op', op='Relu')),
+                   ('abs', dict(kind='op', op='Abs')),
+                   ('sub', dict(kind='op', op='Sub')),
+                   ('mul', dict(kind='op', op='Mul')),
+                   ('mul_1', dict(kind='op', op='Mul')),
+                   ('add', dict(kind='op', op='Add')),
+                   ],
+            edges=[
+                ('op', 'relu'),
+                ('op', 'abs'),
+                ('op', 'sub'),
+                ('abs', 'sub'),
+                ('sub', 'mul'),
+                ('mul', 'mul_1'),
+                ('relu', 'add'),
+                ('mul_1', 'add'),
+            ]
+        )
+
+    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+        consumers = [n for n in match if
+                     n not in ['mul', 'mul_1', 'op', 'add', 'abs', 'sub'] and not check_node_usages_out_of_match(match,
+                                                                                                                 n)]
+        if consumers:
+            log.warning('PReLUWithAbs pattern was detected. Non pattern consumers of nodes: "{}" were found. Won\'t '
+                        'replace '.format(', '.join([match[n].id for n in consumers])))
+            return
+        gamma = match['mul'].in_node(0) if match['mul'].in_node(1).id == match['sub'].id else match['mul'].in_node(1)
+        prelu_node = PreluOp(graph, {'name': '{}/PReLU'.format(match['add'].id)}).create_node([match['op'], gamma])
+        replace_node(match['add'], prelu_node)
+        log.debug('PReLUWithAbs pattern starting from "{}" was collapsed to "{}"'.format(match['op'].id, prelu_node.id))

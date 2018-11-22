@@ -17,7 +17,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.squeeze import tf_squeeze_infer
-from mo.ops.op import Op
+from mo.ops.op import Op, PermuteAttrs
 
 
 class Unsqueeze(Op):
@@ -47,6 +47,8 @@ class Unsqueeze(Op):
             shape = np.insert(shape, dim, 1)
 
         node.out_node().shape = np.array(shape)
+        node['dim'] = shape
+        PermuteAttrs.create_permute_attrs(node, attrs=[('dim', 'output:0')])
 
         if value is not None:
             value = np.reshape(value, shape)

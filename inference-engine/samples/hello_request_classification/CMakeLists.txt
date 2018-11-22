@@ -26,9 +26,7 @@ file (GLOB SRC
 
 # Find OpenCV libray if exists
 find_package(OpenCV)
-if(OpenCV_FOUND)
-    include_directories(${OpenCV_INCLUDE_DIRS})
-else()
+if(NOT(OpenCV_FOUND))
     message(STATUS "OPENCV is disabled or not found, " ${TARGET_NAME} " skiped")
     return()
 endif()
@@ -36,6 +34,8 @@ endif()
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 source_group("src" FILES ${SRC})
+
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 link_directories(${LIB_FOLDER})
 

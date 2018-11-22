@@ -126,6 +126,7 @@ struct device_info
     std::string code;
 };
 
+#include "mode.inc"
 
 const device_info& get_device_info(int device_id)
 {
@@ -136,7 +137,6 @@ const device_info& get_device_info(int device_id)
     };
 #undef GEN_DEVICE
     
-    #include "mode.inc"
     auto it = device_map.find(device_id);
     if (it == device_map.end())
     {
@@ -171,6 +171,10 @@ engine_info_internal::engine_info_internal(const gpu_toolkit& context)
     core_frequency = static_cast<uint32_t>(context.device().getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>());
 
     max_work_group_size = static_cast<uint64_t>(context.device().getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>());
+
+	if (max_work_group_size > 256)
+		max_work_group_size = 256;
+
     max_local_mem_size = static_cast<uint64_t>(context.device().getInfo<CL_DEVICE_LOCAL_MEM_SIZE>());
     max_global_mem_size = static_cast<uint64_t>(context.device().getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>());
     max_alloc_mem_size = static_cast<uint64_t>(context.device().getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>());
@@ -187,5 +191,8 @@ engine_info_internal::engine_info_internal(const gpu_toolkit& context)
     supports_fp16_denorms = supports_fp16 && (context.device().getInfo<CL_DEVICE_HALF_FP_CONFIG>() & CL_FP_DENORM) != 0;
 
     supports_subgroups_short = extensions.find("cl_intel_subgroups_short") != std::string::npos;
+
+    supports_imad = is_imad_supported(device_id);
+    supports_immad = is_immad_supported(device_id);
 }
 }}

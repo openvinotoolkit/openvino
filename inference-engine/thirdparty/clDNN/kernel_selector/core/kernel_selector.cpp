@@ -14,10 +14,10 @@
 // limitations under the License.
 */
 
+#include "kernel_base.h"
 #include "kernel_selector_common.h"
 #include "kernel_selector.h"
 #include <type_traits>
-#include <iostream>
 #include <sstream>
 #include <fstream>
 
@@ -150,7 +150,7 @@ namespace kernel_selector {
         if (params.GetType() == kType &&
             options.GetType() == kType)
         {
-            std::string hash = std::to_string(std::hash<std::string>{}(params.to_string()));
+            std::string hash = std::to_string(create_hash(params.to_string()));
             ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
             
             std::tuple<std::string, int> cachedKernelConfig;
@@ -232,7 +232,39 @@ namespace kernel_selector {
                         // we have to handle it in order to avoid exception in KernelSelector as much we can
                     }
                 }
+            }
 
+            //try to fallback to reference kernels if no optimized were found during tuning
+            if (!kernelsData.size())
+            {
+                for (const auto& implementation : implementations)
+                {
+
+                    const ParamsKey implKey = implementation->GetSupportedKey();
+                    //this time, check only implementations that have disabled tuning
+                    if (implKey.Support(requireKey) && !implKey.TuningSupport())
+                    {
+                        try
+                        {
+                            KernelsData kds = implementation->GetKernelsDataForAutoTune(params, options);
+                            std::vector<uint64_t> runTimes = options.tuningParams.runner->run_kernels(kds);
+
+                            for (size_t i = 0; i < kds.size(); i++)
+                            {
+                                kds[i].runTime = runTimes[i];
+                                if (kernelsData.size() == 0 || kds[i].runTime < kernelsData[0].runTime)
+                                {
+                                    kernelsData = { kds[i] };
+                                    kernelName = implementation->GetName();
+                                }
+                            }
+                        }
+                        catch (std::runtime_error&)
+                        {
+                            // we have to handle it in order to avoid exception in KernelSelector as much we can
+                        }
+                    }
+                }
             }
 
             if (kernelsData.size())

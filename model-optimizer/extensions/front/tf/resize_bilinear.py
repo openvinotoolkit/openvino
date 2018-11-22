@@ -26,6 +26,7 @@ class ResizeBilinearFrontExtractor(FrontExtractorOp):
         mapping_rule = {
             'pad_end': 0,
             'pad_beg': 0,
+            'align_corners': int(node.pb.attr['align_corners'].b)
         }
         InterpOp.update_node_stat(node, mapping_rule)
         return __class__.enabled

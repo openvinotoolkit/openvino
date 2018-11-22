@@ -51,4 +51,42 @@ public:
     void execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm);
 };
 
+//----------------------------------------------------------------------
+//
+// Implementation-internal types and functions and macros
+//
+//----------------------------------------------------------------------
+
+namespace Resize {
+
+static inline uint8_t saturateU32toU8(uint32_t v) {
+    return static_cast<uint8_t>(v > UINT8_MAX ? UINT8_MAX : v);
+}
+
+void resize_bilinear_u8(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer);
+
+void resize_area_u8_downscale(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer);
+
+int getResizeAreaTabSize(int dst_go, int ssize, int dsize, float scale);
+
+void computeResizeAreaTab(int src_go, int dst_go, int ssize, int dsize, float scale,
+                          uint16_t* si, uint16_t* alpha, int max_count);
+
+void generate_alpha_and_id_arrays(int x_max_count, int dcols, const uint16_t* xalpha, uint16_t* xsi,
+                                  uint16_t** alpha, uint16_t** sxid);
+
+enum BorderType {
+    BORDER_CONSTANT  =  0,
+    BORDER_REPLICATE =  1,
+};
+
+struct Border {
+    BorderType  type;
+    int32_t     value;
+};
+
+}  // namespace Resize
+
+//----------------------------------------------------------------------
+
 }  // namespace InferenceEngine

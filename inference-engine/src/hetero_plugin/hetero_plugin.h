@@ -7,6 +7,7 @@
 #include "inference_engine.hpp"
 #include "ie_ihetero_plugin.hpp"
 #include "description_buffer.hpp"
+#include "ie_error.hpp"
 #include <memory>
 #include <string>
 #include <map>
@@ -32,9 +33,11 @@ public:
 
     void AddExtension(InferenceEngine::IExtensionPtr extension)override;
 
+    void SetLogCallback(InferenceEngine::IErrorListener &listener) override;
 private:
     std::vector<InferenceEngine::IExtensionPtr> _extensions;
     InferenceEngine::MapDeviceLoaders _deviceLoaders;
+    InferenceEngine::IErrorListener* error_listener = nullptr;
 };
 
 }  // namespace HeteroPlugin

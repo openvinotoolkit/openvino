@@ -1,8 +1,8 @@
 cc_binary(
     name = "libtensorflow_call_layer.so",
     srcs = [
-            "sample_extension.cpp",
-            "sample_extension.h",
+            "extension.cpp",
+            "extension.h",
             "tensorflow_layer.cpp",
             "tensorflow_layer.h"],
     copts = ["-Ithird_party/inference_engine/include"],

@@ -126,11 +126,8 @@ void nhwc_pooling_fwd_t<data_type>::execute_forward() {
         return (index > offset) ? index - offset : 0;
     };
 
-#pragma omp parallel for collapse(4) schedule(static)
-    for (int mb = 0; mb < MB; ++mb)
-    for (int od = 0; od < OD; ++od)
-    for (int oh = 0; oh < OH; ++oh)
-    for (int ow = 0; ow < OW; ++ow) {
+    parallel_nd(MB, OD, OH, OW,
+        [&](int mb, int od, int oh, int ow) {
         size_t dst_offset_init = strided_offset(mb, dst_n_stride,
                                                 od, dst_d_stride,
                                                 oh, dst_h_stride,
@@ -233,7 +230,7 @@ void nhwc_pooling_fwd_t<data_type>::execute_forward() {
             // for GCC 4.8.5 to vectorize
             array_div_by_const(OC, d, num_summands, d);
         }
-    }
+    });
 }
 
 template <impl::data_type_t data_type>
@@ -279,11 +276,8 @@ void nhwc_pooling_bwd_t<data_type>::execute_backward() {
 
     const int MB = conf_.MB();
 
-#pragma omp parallel for collapse(4) schedule(static)
-    for (int mb = 0; mb < MB; ++mb)
-    for (int id = 0; id < ID; ++id)
-    for (int ih = 0; ih < IH; ++ih)
-    for (int iw = 0; iw < IW; ++iw) {
+    parallel_nd(MB, ID, IH, IW,
+        [&](int mb, int id, int ih, int iw) {
         size_t src_offset_init = strided_offset(mb, diff_src_n_stride,
                                                 id, diff_src_d_stride,
                                                 ih, diff_src_h_stride,
@@ -388,7 +382,7 @@ void nhwc_pooling_bwd_t<data_type>::execute_backward() {
                 }
             }
         }
-    }
+    });
 }
 
 template struct nhwc_pooling_fwd_t<data_type::f32>;

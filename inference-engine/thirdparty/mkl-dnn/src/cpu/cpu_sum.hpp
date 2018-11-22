@@ -41,18 +41,18 @@ namespace cpu {
     virtual status_t create_primitive(primitive_t **primitive, \
             const primitive_at_t *inputs, \
             const primitive_t **outputs) const override { \
-        double ms = get_msec();				    \
+        double ms = get_msec(); \
         primitive_t::input_vector ins(inputs, inputs + n_); \
         primitive_t::output_vector outs(outputs, outputs + 1); \
         auto ret = safe_ptr_assign<primitive_t>(*primitive, \
                 new (__VA_ARGS__)(this, ins, outs)); \
-	ms = get_msec() - ms; \
-	if (mkldnn_verbose()->level >= 2) { \
-	    printf("mkldnn_verbose,create,%s,%g\n", this->info(), ms);	\
-	    fflush(0);							\
-	}								\
-	return ret;							\
-    }									\
+        ms = get_msec() - ms; \
+        if (mkldnn_verbose()->level >= 2) { \
+            printf("mkldnn_verbose,create,%s,%g\n", this->info(), ms); \
+            fflush(0); \
+        } \
+        return ret; \
+    } \
     virtual pd_t *clone() const override { return nullptr; } \
     virtual const char *name() const override { return impl_name; }
 #define DECLARE_CPU_SUM_PD_T(impl_name, ...) \

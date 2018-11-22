@@ -14,25 +14,22 @@
  limitations under the License.
 """
 
-import numpy as np
 from mo.graph.graph import Node
+from mo.utils.error import Error
 
 
 def onnx_attr(node: Node, name: str, field: str, default=None, dst_type=None):
-    ''' Retrieves ONNX attribute with name `name` from ONNX protobuf `node.pb`.
+    """ Retrieves ONNX attribute with name `name` from ONNX protobuf `node.pb`.
         The final value is casted to dst_type if attribute really exists.
         The function returns `default` otherwise.
-    '''
+    """
     attrs = [a for a in node.pb.attribute if a.name == name]
     if len(attrs) == 0:
         # there is no requested attribute in the protobuf message
         return default
     elif len(attrs) > 1:
-        raise Error(
-            'Found multiple entries for attribute name {} when at most one is expected. Protobuf message with the issue: {}.',
-            name,
-            node.pb
-        )
+        raise Error('Found multiple entries for attribute name {} when at most one is expected. Protobuf message with '
+                    'the issue: {}.', name, node.pb)
     else:
         res = getattr(attrs[0], field)
         if dst_type is not None:
@@ -40,3 +37,13 @@ def onnx_attr(node: Node, name: str, field: str, default=None, dst_type=None):
         else:
             return res
 
+
+def get_backend_pad(pads, spatial_dims, axis):
+    return [x[axis] for x in pads[spatial_dims]]
+
+
+def get_onnx_autopad(auto_pad):
+    auto_pad = auto_pad.decode().lower()
+    if auto_pad == 'notset':
+        auto_pad = None
+    return auto_pad

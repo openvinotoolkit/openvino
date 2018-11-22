@@ -1,4 +1,4 @@
-﻿/*
+/*
 // Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -125,6 +125,12 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
         activation_square,
         activation_sqrt,
         activation_elu,
+        activation_sin,
+        activation_sinh,
+        activation_cos,
+        activation_cosh,
+        activation_exp,
+		activation_log2,
     };
 
     cldnn_activation_additional_params params = { 0.5f, 2.5f };
@@ -208,9 +214,93 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
                     EXPECT_FLOAT_EQ(std::fmax((float)input_ptr[i], 0.0f) +
                                     params.a*(std::exp(std::fmin((float)input_ptr[i], 0.0f)) - 1), output_ptr[i]);
                     break;
+                case activation_sin:
+                    EXPECT_FLOAT_EQ(std::sin((float)input_ptr[i]), output_ptr[i]);
+                    break;
+                case activation_sinh:
+                    EXPECT_FLOAT_EQ(std::sinh((float)input_ptr[i]), output_ptr[i]);
+                    break;
+                case activation_cos:
+                    EXPECT_FLOAT_EQ(std::cos((float)input_ptr[i]), output_ptr[i]);
+                    break;
+                case activation_cosh:
+                    EXPECT_FLOAT_EQ(std::cosh((float)input_ptr[i]), output_ptr[i]);
+                    break;
+                case activation_exp:
+                    EXPECT_FLOAT_EQ(std::exp((float)input_ptr[i]), output_ptr[i]);
+                    break;
+                case activation_log2:
+                    if (input_ptr[i] > 0) //logarithm exist only for positive real values
+                    {
+                        EXPECT_FLOAT_EQ(std::log2((float)input_ptr[i]), output_ptr[i]);
+                    }
+                    break;
                 default:
                     break;
                 }
+            }
+        }
+    }
+}
+
+TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log)
+{
+    engine engine;
+
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 4 } });
+    set_values(input, { 0.12f, 0.56f, 0.45f, 0.789f, 0.546f, 0.999f, 0.7899f, 0.6677f});
+
+    std::vector<cldnn_activation_func> funcs = {
+        activation_asin,
+        activation_acos,
+        activation_log,
+		activation_log2
+    };
+
+    for (auto func : funcs)
+    {
+        topology topology(input_layout("input", input.get_layout()));
+        topology.add(activation("activation", "input", func));
+
+        network network(engine, topology);
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+        EXPECT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "activation");
+
+        auto output_memory = outputs.at("activation").get_memory();
+        auto output_layout = output_memory.get_layout();
+        auto output_ptr = output_memory.pointer<float>();
+        auto input_ptr = input.pointer<float>();
+
+        int y_size = output_layout.size.spatial[1];
+        int x_size = output_layout.size.spatial[0];
+        int f_size = output_layout.size.feature[0];
+        int b_size = output_layout.size.batch[0];
+        EXPECT_EQ(output_layout.format, format::yxfb);
+        EXPECT_EQ(y_size, 4);
+        EXPECT_EQ(x_size, 2);
+        EXPECT_EQ(f_size, 1);
+        EXPECT_EQ(b_size, 1);
+
+        for (size_t i = 0; i < output_layout.get_linear_size(); ++i)
+        {
+            switch (func)
+            {
+            case activation_asin:
+                EXPECT_FLOAT_EQ(std::asin((float)input_ptr[i]), output_ptr[i]);
+                break;
+            case activation_acos:
+                EXPECT_FLOAT_EQ(std::acos((float)input_ptr[i]), output_ptr[i]);
+                break;
+            case activation_log:
+                EXPECT_FLOAT_EQ(std::log((float)input_ptr[i]), output_ptr[i]);
+                break;
+			case activation_log2:
+				EXPECT_FLOAT_EQ(std::log2((float)input_ptr[i]), output_ptr[i]);
+				break;
+            default:
+                break;
             }
         }
     }

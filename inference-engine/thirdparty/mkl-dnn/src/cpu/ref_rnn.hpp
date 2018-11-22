@@ -26,7 +26,7 @@
 #include "type_helpers.hpp"
 #include "utils.hpp"
 
-#include "os_blas.hpp"
+#include "gemm/os_blas.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -115,9 +115,6 @@ struct _ref_rnn_common_t : public cpu_primitive_t {
             const alg_kind_t cell_kind = this->desc()->cell_desc.cell_kind;
 
             bool ok = true
-#if !defined(USE_CBLAS)
-                    && false
-#endif
                     && one_of(cell_kind, alg_kind::vanilla_rnn,
                                alg_kind::vanilla_lstm, alg_kind::vanilla_gru,
                                alg_kind::gru_linear_before_reset)
@@ -171,15 +168,15 @@ struct _ref_rnn_common_t : public cpu_primitive_t {
                     && (this->SIC() == this->DIC() || (this->T() == 1));
 
             // initialize the workspace_pd if needed
-	    if (this->desc()->prop_kind != forward_inference){
-	        dims_t ws_dims = { (dim_t)this->get_ws_size() };
-	        memory_desc_t ws_d;
-	        mkldnn_memory_desc_init(
+            if (this->desc()->prop_kind != forward_inference){
+                dims_t ws_dims = { (dim_t)this->get_ws_size() };
+                memory_desc_t ws_d;
+                mkldnn_memory_desc_init(
                         &ws_d, 1, ws_dims, impl::data_type::f32, memory_format::x);
                 this->ws_pd_ = cpu_memory_t::pd_t(this->engine(), &ws_d);
-	    }
+            }
 
-	    return ok ? status::success : status::unimplemented;
+            return ok ? status::success : status::unimplemented;
         }
     };
 
@@ -212,7 +209,6 @@ struct _ref_rnn_common_t : public cpu_primitive_t {
         const bool weights_pack_cond = USE_MKL_PACKED_GEMM && conf_.T() > 1;
         const bool is_weights_state_packed = USE_MKL_PACKED_GEMM
                 && conf_.desc()->weights_iter_desc.format == packed_format;
-
         set_pack_funcs(weights_pack_cond || is_weights_state_packed,
                 gemm_state_func, weights_pack_cond && !is_weights_state_packed,
                 weights_state_pack_func, weights_state_free_packed_func);
@@ -292,7 +288,7 @@ struct _ref_rnn_common_t : public cpu_primitive_t {
         //   = TODO: allocate only n_layer_wav * batch * n_gates * dic for
         //   wavefront execution (inference)
 
-	use_scratchpad_for_ws_ = (conf_.desc()->prop_kind == prop_kind::forward_inference);
+        use_scratchpad_for_ws_ = (conf_.desc()->prop_kind == prop_kind::forward_inference);
         use_scratchpad_ = use_scratchpad_for_ws_ || conf_.is_lbr();
         if (use_scratchpad_)
             scratchpad_ =

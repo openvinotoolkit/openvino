@@ -57,68 +57,63 @@ void check_pool_fwd(const pool_bwd_test_params &p, const memory &src,
     };
     size_t padded_c = src_d.data.layout_desc.blocking.padding_dims[1];
 
-#pragma omp parallel for collapse(4) schedule(static)
-    for (int n = 0; n < pd.mb; n++) {
-        for (int c = 0; c < pd.c; c++) {
-            for (int od = 0; od < pd.od; od++)
-            for (int oh = 0; oh < pd.oh; oh++)
-            for (int ow = 0; ow < pd.ow; ow++) {
-                size_t oidx = (size_t)n * padded_c * pd.od * pd.oh * pd.ow
-                        + (size_t)c * pd.od * pd.oh * pd.ow
-                        + (size_t)od * pd.oh * pd.ow + (size_t)oh * pd.ow + ow;
-                data_t out = dst_data[map_index(dst_d, oidx)];
+    mkldnn::impl::parallel_nd(pd.mb, pd.c, pd.od, pd.oh, pd.ow,
+        [&](int n, int c, int od, int oh, int ow) {
+            size_t oidx = (size_t)n * padded_c * pd.od * pd.oh * pd.ow
+                    + (size_t)c * pd.od * pd.oh * pd.ow
+                    + (size_t)od * pd.oh * pd.ow + (size_t)oh * pd.ow + ow;
+            data_t out = dst_data[map_index(dst_d, oidx)];
 
-                // match implementation for pooling_max: padding
-                // is done with lowest value and not zero, it
-                // affects the case when kernel slips into
-                // the padding area entirely
-                data_t out_ref = (p.aalgorithm == pooling_max) ?
-                        std::numeric_limits<data_t>::lowest() :
-                        data_t(0);
-                bool is_initialized = false;
+            // match implementation for pooling_max: padding
+            // is done with lowest value and not zero, it
+            // affects the case when kernel slips into
+            // the padding area entirely
+            data_t out_ref = (p.aalgorithm == pooling_max) ?
+                    std::numeric_limits<data_t>::lowest() :
+                    data_t(0);
+            bool is_initialized = false;
 
-                auto id_start = apply_offset(od*pd.strd, pd.padf);
-                auto ih_start = apply_offset(oh*pd.strh, pd.padt);
-                auto iw_start = apply_offset(ow*pd.strw, pd.padl);
-                auto id_end = std::min(od*pd.strd - pd.padf + pd.kd, pd.id);
-                auto ih_end = std::min(oh*pd.strh - pd.padt + pd.kh, pd.ih);
-                auto iw_end = std::min(ow*pd.strw - pd.padl + pd.kw, pd.iw);
+            auto id_start = apply_offset(od*pd.strd, pd.padf);
+            auto ih_start = apply_offset(oh*pd.strh, pd.padt);
+            auto iw_start = apply_offset(ow*pd.strw, pd.padl);
+            auto id_end = std::min(od*pd.strd - pd.padf + pd.kd, pd.id);
+            auto ih_end = std::min(oh*pd.strh - pd.padt + pd.kh, pd.ih);
+            auto iw_end = std::min(ow*pd.strw - pd.padl + pd.kw, pd.iw);
 
-                auto num_summands = p.aalgorithm != pooling_avg_exclude_padding
-                    ? pd.kw*pd.kh*pd.kd
-                    : (ih_end - ih_start) * (iw_end - iw_start)
-                        * (id_end - id_start);
+            auto num_summands = p.aalgorithm != pooling_avg_exclude_padding
+                ? pd.kw*pd.kh*pd.kd
+                : (ih_end - ih_start) * (iw_end - iw_start)
+                    * (id_end - id_start);
 
-                    for (int id = id_start; id < id_end; ++id)
-                    for (int ih = ih_start; ih < ih_end; ++ih)
-                    for (int iw = iw_start; iw < iw_end; ++iw) {
-                        size_t iidx = (size_t)n * padded_c * pd.id * pd.ih * pd.iw
-                                + (size_t)c * pd.id * pd.ih * pd.iw
-                                + (size_t)id * pd.ih * pd.iw
-                                + (size_t)ih * pd.iw + iw;
+            for (int id = id_start; id < id_end; ++id)
+            for (int ih = ih_start; ih < ih_end; ++ih)
+            for (int iw = iw_start; iw < iw_end; ++iw) {
+                size_t iidx = (size_t)n * padded_c * pd.id * pd.ih * pd.iw
+                        + (size_t)c * pd.id * pd.ih * pd.iw
+                        + (size_t)id * pd.ih * pd.iw
+                        + (size_t)ih * pd.iw + iw;
 
-                        data_t d = src_data[map_index(src_d, iidx)];
-                        if (p.aalgorithm == pooling_max) {
-                            if (!is_initialized) {
-                                out_ref = d;
-                                is_initialized = true;
-                            } else {
-                                if (out_ref < d) out_ref = d;
-                            }
-                        } else if (p.aalgorithm == pooling_avg_include_padding
-                            || p.aalgorithm == pooling_avg_exclude_padding) {
-                            out_ref += d;
-                        }
+                data_t d = src_data[map_index(src_d, iidx)];
+                if (p.aalgorithm == pooling_max) {
+                    if (!is_initialized) {
+                        out_ref = d;
+                        is_initialized = true;
+                    } else {
+                        if (out_ref < d) out_ref = d;
                     }
-
-                    if (p.aalgorithm == pooling_avg_include_padding ||
-                        p.aalgorithm == pooling_avg_exclude_padding) {
-                        out_ref /= num_summands;
-                    }
-                    EXPECT_NEAR(out, out_ref, 1e-6f);
+                } else if (p.aalgorithm == pooling_avg_include_padding
+                    || p.aalgorithm == pooling_avg_exclude_padding) {
+                    out_ref += d;
                 }
             }
-    }
+
+            if (p.aalgorithm == pooling_avg_include_padding ||
+                p.aalgorithm == pooling_avg_exclude_padding) {
+                out_ref /= num_summands;
+            }
+            EXPECT_NEAR(out, out_ref, 1e-6f);
+        }
+    );
 }
 
 template <typename data_t>
@@ -149,102 +144,78 @@ void check_pool_bwd(const pool_bwd_test_params &p, const memory &diff_src,
         return (index > offset) ? index - offset : 0;
     };
 
-#pragma omp parallel for collapse(4) schedule(static)
-    for (int n = 0; n < pd.mb; n++) {
-        for (int c = 0; c < pd.c; c++) {
-            for (int id = 0; id < pd.id; id++) {
-                for (int ih = 0; ih < pd.ih; ih++) {
-                    for (int iw = 0; iw < pd.iw; iw++) {
-                        size_t iidx = (size_t)n * pd.c * pd.id * pd.ih * pd.iw
-                                + (size_t)c * pd.id * pd.ih * pd.iw
-                                + (size_t)id * pd.ih * pd.iw
-                                + (size_t)ih * pd.iw + iw;
-                        ref_diff_src[iidx] = 0.;
-                    }
+    mkldnn::impl::parallel_nd((size_t)pd.mb * pd.c * pd.id * pd.ih * pd.iw,
+        [&](size_t i) { ref_diff_src[i] = 0.; }
+    );
+
+    mkldnn::impl::parallel_nd(pd.mb, pd.c, [&](int n, int c) {
+        for (int od = 0; od < pd.od; od++)
+        for (int oh = 0; oh < pd.oh; oh++)
+        for (int ow = 0; ow < pd.ow; ow++) {
+            size_t oidx = (size_t)n * pd.c * pd.od * pd.oh * pd.ow
+                    + (size_t)c * pd.od * pd.oh * pd.ow
+                    + (size_t)od * pd.oh * pd.ow + (size_t)oh * pd.ow + ow;
+            data_t diff_dst = diff_dst_data[map_index(diff_dst_d, oidx)];
+            if (p.aalgorithm == pooling_max) {
+                int kw_max = ws_data(map_index(ws_d, oidx)) % pd.kw;
+                int kh_max = (ws_data(map_index(ws_d, oidx)) / pd.kw) % pd.kh;
+                int kd_max = (ws_data(map_index(ws_d, oidx)) / pd.kw) / pd.kh;
+                for (int kd = 0; kd < pd.kd; kd++)
+                for (int kh = 0; kh < pd.kh; kh++)
+                for (int kw = 0; kw < pd.kw; kw++) {
+                    int iw = ow * pd.strw - pd.padl + kw;
+                    int ih = oh * pd.strh - pd.padt + kh;
+                    int id = od * pd.strd - pd.padf + kd;
+                    if (iw < 0 || iw >= pd.iw) continue;
+                    if (ih < 0 || ih >= pd.ih) continue;
+                    if (id < 0 || id >= pd.id) continue;
+                    size_t iidx = (size_t)n * pd.c * pd.id * pd.ih * pd.iw
+                            + (size_t)c * pd.id * pd.ih * pd.iw
+                            + (size_t)id * pd.ih * pd.iw
+                            + (size_t)ih * pd.iw + iw;
+
+                    if (kh == kh_max && kw == kw_max && kd == kd_max)
+                        ref_diff_src[iidx] += diff_dst;
                 }
-            }
-        }
-    }
+            } else if (p.aalgorithm == pooling_avg_include_padding
+                || p.aalgorithm == pooling_avg_exclude_padding) {
+                auto id_start = apply_offset(od*pd.strd, pd.padf);
+                auto ih_start = apply_offset(oh*pd.strh, pd.padt);
+                auto iw_start = apply_offset(ow*pd.strw, pd.padl);
+                auto id_end =
+                    std::min(od*pd.strd - pd.padf + pd.kd, pd.id);
+                auto ih_end =
+                    std::min(oh*pd.strh - pd.padt + pd.kh, pd.ih);
+                auto iw_end =
+                    std::min(ow*pd.strw - pd.padl + pd.kw, pd.iw);
 
-#pragma omp parallel for collapse(2) schedule(static)
-    for (int n = 0; n < pd.mb; n++) {
-        for (int c = 0; c < pd.c; c++) {
-            for (int od = 0; od < pd.od; od++)
-            for (int oh = 0; oh < pd.oh; oh++)
-            for (int ow = 0; ow < pd.ow; ow++) {
-                size_t oidx = (size_t)n * pd.c * pd.od * pd.oh * pd.ow
-                        + (size_t)c * pd.od * pd.oh * pd.ow
-                        + (size_t)od * pd.oh * pd.ow + (size_t)oh * pd.ow + ow;
-                data_t diff_dst = diff_dst_data[map_index(diff_dst_d, oidx)];
-                if (p.aalgorithm == pooling_max) {
-                    int kw_max = ws_data(map_index(ws_d, oidx)) % pd.kw;
-                    int kh_max = (ws_data(map_index(ws_d, oidx)) / pd.kw) % pd.kh;
-                    int kd_max = (ws_data(map_index(ws_d, oidx)) / pd.kw) / pd.kh;
-                    for (int kd = 0; kd < pd.kd; kd++)
-                    for (int kh = 0; kh < pd.kh; kh++)
-                    for (int kw = 0; kw < pd.kw; kw++) {
-                        int iw = ow * pd.strw - pd.padl + kw;
-                        int ih = oh * pd.strh - pd.padt + kh;
-                        int id = od * pd.strd - pd.padf + kd;
-                        if (iw < 0 || iw >= pd.iw) continue;
-                        if (ih < 0 || ih >= pd.ih) continue;
-                        if (id < 0 || id >= pd.id) continue;
-                        size_t iidx = (size_t)n * pd.c * pd.id * pd.ih * pd.iw
-                                + (size_t)c * pd.id * pd.ih * pd.iw
-                                + (size_t)id * pd.ih * pd.iw
-                                + (size_t)ih * pd.iw + iw;
+                auto num_summands = (p.aalgorithm != pooling_avg_exclude_padding)
+                    ? pd.kw*pd.kh*pd.kd
+                    : (ih_end - ih_start) * (iw_end - iw_start)
+                        * (id_end - id_start);
 
-                        if (kh == kh_max && kw == kw_max && kd == kd_max)
-                            ref_diff_src[iidx] += diff_dst;
-                    }
-                } else if (p.aalgorithm == pooling_avg_include_padding
-                    || p.aalgorithm == pooling_avg_exclude_padding) {
-                    auto id_start = apply_offset(od*pd.strd, pd.padf);
-                    auto ih_start = apply_offset(oh*pd.strh, pd.padt);
-                    auto iw_start = apply_offset(ow*pd.strw, pd.padl);
-                    auto id_end =
-                        std::min(od*pd.strd - pd.padf + pd.kd, pd.id);
-                    auto ih_end =
-                        std::min(oh*pd.strh - pd.padt + pd.kh, pd.ih);
-                    auto iw_end =
-                        std::min(ow*pd.strw - pd.padl + pd.kw, pd.iw);
-
-                    auto num_summands = (p.aalgorithm != pooling_avg_exclude_padding)
-                        ? pd.kw*pd.kh*pd.kd
-                        : (ih_end - ih_start) * (iw_end - iw_start)
-                            * (id_end - id_start);
-
-                    for (int id = id_start; id < id_end; id++) {
-                        for (int ih = ih_start; ih < ih_end; ih++) {
-                            for (int iw = iw_start; iw < iw_end; iw++) {
-                                size_t iidx = (size_t)n * pd.c * pd.id * pd.ih
-                                                * pd.iw
-                                        + (size_t)c * pd.id * pd.ih * pd.iw
-                                        + (size_t)id * pd.ih * pd.iw
-                                        + (size_t)ih * pd.iw + iw;
-                                ref_diff_src[iidx] += diff_dst / num_summands;
-                            }
+                for (int id = id_start; id < id_end; id++) {
+                    for (int ih = ih_start; ih < ih_end; ih++) {
+                        for (int iw = iw_start; iw < iw_end; iw++) {
+                            size_t iidx = (size_t)n * pd.c * pd.id * pd.ih
+                                            * pd.iw
+                                    + (size_t)c * pd.id * pd.ih * pd.iw
+                                    + (size_t)id * pd.ih * pd.iw
+                                    + (size_t)ih * pd.iw + iw;
+                            ref_diff_src[iidx] += diff_dst / num_summands;
                         }
                     }
                 }
             }
         }
-    }
+    });
 
-#pragma omp parallel for collapse(4) schedule(static)
-    for (auto n = 0; n < pd.mb; n++)
-        for (auto c = 0; c < pd.c; c++)
-            for (auto id = 0; id < pd.id; id++)
-                for (auto ih = 0; ih < pd.ih; ih++)
-                    for (auto iw = 0; iw < pd.iw; iw++) {
-                        size_t iidx = (size_t)n * pd.c * pd.id * pd.ih * pd.iw
-                                + (size_t)c * pd.id * pd.ih * pd.iw
-                                + (size_t)id * pd.ih * pd.iw
-                                + (size_t)ih * pd.iw + iw;
-                        EXPECT_NEAR(ref_diff_src[iidx],
-                        diff_src_data[map_index(diff_src_d, iidx)],
-                        1e-5f);
-                    }
+    mkldnn::impl::parallel_nd((size_t)pd.mb * pd.c * pd.id * pd.ih * pd.iw,
+        [&](size_t i) {
+            EXPECT_NEAR(ref_diff_src[i],
+                    diff_src_data[map_index(diff_src_d, i)], 1e-5f);
+        }
+    );
 }
 
 template <typename data_t>
@@ -412,6 +383,35 @@ TEST_P(pooling_bwd_test_float, TestsPoolingBackward)
 }
 
 INSTANTIATE_TEST_CASE_P(
+        TestPoolingBackwardZeroDim, pooling_bwd_test_float, ::testing::Values(
+            pool_bwd_test_params_float{ engine::kind::cpu,
+            pooling_max, memory::format::nchw,
+            memory::format::nchw, EXPAND_SIZES_2D( 2, 0, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 )},
+            pool_bwd_test_params_float{ engine::kind::cpu,
+            pooling_max, memory::format::nchw,
+            memory::format::nchw, EXPAND_SIZES_2D( 0, 4, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 )},
+            pool_bwd_test_params_float{ engine::kind::cpu,
+            pooling_max, memory::format::nchw,
+            memory::format::nchw, EXPAND_SIZES_2D( 2, 4, 0, 4, 4, 4, 3, 3, 1, 1, 1, 1 )}
+            ));
+
+INSTANTIATE_TEST_CASE_P(
+        TestPoolingBackwardEF, pooling_bwd_test_float, ::testing::Values(
+            pool_bwd_test_params_float{ engine::kind::cpu,
+            pooling_max, memory::format::nchw,
+            memory::format::nchw, EXPAND_SIZES_2D( 2, -4, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
+            true, mkldnn_invalid_arguments},
+            pool_bwd_test_params_float{ engine::kind::cpu,
+            pooling_max, memory::format::nchw,
+            memory::format::nchw, EXPAND_SIZES_2D( -2, 4, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
+            true, mkldnn_invalid_arguments},
+            pool_bwd_test_params_float{ engine::kind::cpu,
+            eltwise_square, memory::format::nchw,
+            memory::format::nchw, EXPAND_SIZES_2D( 2, 4, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
+            true, mkldnn_invalid_arguments}
+            ));
+
+INSTANTIATE_TEST_CASE_P(
         TestPooling_nChw16c_padded, pooling_bwd_test_float, ::testing::Values(
             pool_bwd_test_params_float{
             engine::kind::cpu, pooling_max, memory::format::nChw16c,
@@ -431,6 +431,28 @@ INSTANTIATE_TEST_CASE_P(
             pool_bwd_test_params_float{
             engine::kind::cpu, pooling_avg_include_padding, memory::format::nChw16c,
             memory::format::nChw16c, EXPAND_SIZES_2D(4, 28, 60, 60, 31, 31, 4, 2, 1, 1, 2, 2) }
+            ));
+
+INSTANTIATE_TEST_CASE_P(
+        TestPooling_nChw8c_padded, pooling_bwd_test_float, ::testing::Values(
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_max, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 5,  6,  6,  7,  7, 2, 2, 1, 1, 1, 1) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_exclude_padding, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 23, 60, 60, 31, 31, 3, 4, 1, 1, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_include_padding, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 14, 60, 60, 31, 31, 3, 2, 1, 1, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_max, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 17, 60, 60, 31, 31, 4, 3, 1, 1, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_exclude_padding, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 14, 60, 60, 31, 31, 2, 3, 1, 1, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_include_padding, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 28, 60, 60, 31, 31, 4, 2, 1, 1, 2, 2) }
             ));
 
 INSTANTIATE_TEST_CASE_P(
@@ -472,6 +494,72 @@ INSTANTIATE_TEST_CASE_P(
             ));
 
 INSTANTIATE_TEST_CASE_P(
+        TestPooling3D_ncdhw, pooling_bwd_test_float, ::testing::Values(
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_max, memory::format::ncdhw,
+            memory::format::ncdhw, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 31, 30, 30, 2, 3, 4, 1, 1, 1, 2, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_exclude_padding, memory::format::ncdhw,
+            memory::format::ncdhw, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 30, 30, 31, 4, 3, 2, 1, 1, 1, 2, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_include_padding, memory::format::ncdhw,
+            memory::format::ncdhw, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 30, 31, 30, 4, 2, 3, 1, 1, 1, 2, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_max, memory::format::ncdhw,
+            memory::format::ncdhw, EXPAND_SIZES_3D(2, 32, 30, 30, 30, 30, 30, 30, 3, 3, 3, 1, 1, 1, 1, 1, 1) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_exclude_padding, memory::format::ncdhw,
+            memory::format::ncdhw, EXPAND_SIZES_3D(2, 32, 30, 30, 30, 30, 30, 30, 3, 3, 3, 1, 1, 1, 1, 1, 1) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_include_padding, memory::format::ncdhw,
+            memory::format::ncdhw, EXPAND_SIZES_3D(2, 32, 30, 30, 30, 30, 30, 30, 3, 3, 3, 1, 1, 1, 1, 1, 1) }
+            ));
+
+INSTANTIATE_TEST_CASE_P(
+        TestPooling3D_ndhwc, pooling_bwd_test_float, ::testing::Values(
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_max, memory::format::ndhwc,
+            memory::format::ndhwc, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 31, 30, 30, 2, 3, 4, 1, 1, 1, 2, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_exclude_padding, memory::format::ndhwc,
+            memory::format::ndhwc, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 30, 30, 31, 4, 3, 2, 1, 1, 1, 2, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_include_padding, memory::format::ndhwc,
+            memory::format::ndhwc, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 30, 31, 30, 4, 2, 3, 1, 1, 1, 2, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_max, memory::format::ndhwc,
+            memory::format::ndhwc, EXPAND_SIZES_3D(2, 32, 30, 30, 30, 30, 30, 30, 3, 3, 3, 1, 1, 1, 1, 1, 1) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_exclude_padding, memory::format::ndhwc,
+            memory::format::ndhwc, EXPAND_SIZES_3D(2, 32, 30, 30, 30, 30, 30, 30, 3, 3, 3, 1, 1, 1, 1, 1, 1) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_include_padding, memory::format::ndhwc,
+            memory::format::ndhwc, EXPAND_SIZES_3D(2, 32, 30, 30, 30, 30, 30, 30, 3, 3, 3, 1, 1, 1, 1, 1, 1) }
+            ));
+
+INSTANTIATE_TEST_CASE_P(
+        TestPooling3D_nCdhw8c, pooling_bwd_test_float, ::testing::Values(
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_max, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 31, 30, 30, 2, 3, 4, 1, 1, 1, 2, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_exclude_padding, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 30, 30, 31, 4, 3, 2, 1, 1, 1, 2, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_include_padding, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 30, 31, 30, 4, 2, 3, 1, 1, 1, 2, 2, 2) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_max, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 30, 30, 30, 30, 30, 30, 3, 3, 3, 1, 1, 1, 1, 1, 1) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_exclude_padding, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 30, 30, 30, 30, 30, 30, 3, 3, 3, 1, 1, 1, 1, 1, 1) },
+            pool_bwd_test_params_float{
+            engine::kind::cpu, pooling_avg_include_padding, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 30, 30, 30, 30, 30, 30, 3, 3, 3, 1, 1, 1, 1, 1, 1) }
+            ));
+
+INSTANTIATE_TEST_CASE_P(
         TestPoolingBackwardMax3DunetNCDHW, pooling_bwd_test_float, ::testing::Values(
             pool_bwd_test_params_float{ engine::kind::cpu,
             pooling_max, memory::format::ncdhw,
@@ -485,19 +573,16 @@ INSTANTIATE_TEST_CASE_P(
             ));
 
 INSTANTIATE_TEST_CASE_P(
-        TestPoolingBackwardEF, pooling_bwd_test_float, ::testing::Values(
+        TestPoolingBackwardMax3DunetNDHWC, pooling_bwd_test_float, ::testing::Values(
             pool_bwd_test_params_float{ engine::kind::cpu,
-            pooling_max, memory::format::nchw,
-            memory::format::nchw, EXPAND_SIZES_2D( 2, 0, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
-            true, mkldnn_invalid_arguments},
+            pooling_max, memory::format::ndhwc,
+            memory::format::ndhwc, EXPAND_SIZES_3D(1, 64,  64, 64, 64, 64, 64, 64, 2, 2, 2, 0, 0, 0, 1, 1, 1) },
             pool_bwd_test_params_float{ engine::kind::cpu,
-            pooling_max, memory::format::nchw,
-            memory::format::nchw, EXPAND_SIZES_2D( 0, 4, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
-            true, mkldnn_invalid_arguments},
+            pooling_max, memory::format::ndhwc,
+            memory::format::ndhwc, EXPAND_SIZES_3D(1, 128, 28, 28, 28, 28, 28, 28, 2, 2, 2, 0, 0, 0, 1, 1, 1) },
             pool_bwd_test_params_float{ engine::kind::cpu,
-            pooling_max, memory::format::nchw,
-            memory::format::nchw, EXPAND_SIZES_2D( 2, 4, 0, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
-            true, mkldnn_invalid_arguments}
+            pooling_max, memory::format::ndhwc,
+            memory::format::ndhwc, EXPAND_SIZES_3D(1, 256, 12, 12, 12, 12, 12, 12, 2, 2, 2, 0, 0, 0, 1, 1, 1) }
             ));
 
 INSTANTIATE_TEST_CASE_P(

@@ -110,8 +110,8 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node)
         ud_out_size_info.add("size", desc->output_size.to_string());
         deconv_info.add("with_user_defined_output_size", ud_out_size_info);
     }
-    node_info.add("deconvolution info", deconv_info);
-    node_info.dump(primitive_description);
+    node_info->add("deconvolution info", deconv_info);
+    node_info->dump(primitive_description);
     return primitive_description.str();
 }
 
@@ -149,7 +149,14 @@ deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_no
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Output batch size", output_size.batch.size(), "expected output batch size", 1, "Only one-dimensional features are supported");
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Weights spatial size", filter_inst.size.spatial.size(), "expected deconvolution weights spatial size", 2, "Weights have to have 2 dimensions in spatial domain.");
 
-        CLDNN_ERROR_LESS_THAN(node.id(), "Weights feature maps number", (input_inst.size.feature[0] - input_offset.feature[0]) / split, "input feature maps number", filter_inst.size.feature[0], "Weights/ifm mimsmatch");
-    }
+        if (node.get_primitive()->gradient())
+        {
+            CLDNN_ERROR_LESS_THAN(node.id(), "Weights feature maps number", (input_inst.size.feature[0] - input_offset.feature[0]) / split, "input feature maps number", filter_inst.size.batch[0], "Weights/ifm mimsmatch");
+        }
+        else
+        {
+            CLDNN_ERROR_LESS_THAN(node.id(), "Weights feature maps number", (input_inst.size.feature[0] - input_offset.feature[0]) / split, "input feature maps number", filter_inst.size.feature[0], "Weights/ifm mimsmatch");
+        }
+     }
 }
 }

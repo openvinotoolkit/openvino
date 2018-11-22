@@ -2,17 +2,15 @@
 
 The software was validated on:
 - Ubuntu\* 16.04 with default GCC\* 5.4.0
-- CentOS\* 7.4 with default GCC\* 4.8.5 (using clDNN library built separately with GCC\* 5.2)
+- CentOS\* 7.4 with default GCC\* 4.8.5
 - [Intel® Graphics Compute Runtime for OpenCL™ Driver package 18.28.11080](https://github.com/intel/compute-runtime/releases/tag/18.28.11080).
 
 ### Software Requirements
 - [CMake\*](https://cmake.org/download/) 3.9 or higher
 - GCC\* 4.8 or higher to build the Inference Engine
-- GCC\* 5.2 or higher to build the Compute Library for Deep Neural Networks (clDNN library)
-- OpenBLAS\*
 
 ### Build Steps
-1. Install OpenBLAS and other dependencies using the `install_dependencies.sh` script in the project root folder.
+1. Install build dependencies using the `install_dependencies.sh` script in the project root folder.
 2. Create a build folder:
 ```sh
   mkdir build
@@ -23,8 +21,9 @@ The software was validated on:
   make -j16
 ```
 You can use the following additional build options:
-- Use `BLAS_INCLUDE_DIRS` and `BLAS_LIBRARIES` cmake options to specify path to OpenBLAS headers and library, for example use the following options on CentOS\*: `-DBLAS_INCLUDE_DIRS=/usr/include/openblas -DBLAS_LIBRARIES=/usr/lib64/libopenblas.so.0`
-- To build clDNN from sources, please specify the `-DENABLE_CLDNN_BUILD=ON` option for `cmake`. By default pre-built version of the clDNN library is used. 
+- Internal JIT GEMM implementation is used by default.
+- To switch to OpenBLAS\* implementation, use `GEMM=OPENBLAS` option and `BLAS_INCLUDE_DIRS` and `BLAS_LIBRARIES` cmake options to specify path to OpenBLAS headers and library, for example use the following options on CentOS\*: `-DGEMM=OPENBLAS -DBLAS_INCLUDE_DIRS=/usr/include/openblas -DBLAS_LIBRARIES=/usr/lib64/libopenblas.so.0`
+- To switch to optimized MKL-ML\* GEMM implementation, use `GEMM=MKL` and `MKLROOT` cmake options to specify path to unpacked MKL-ML with `include` and `lib` folders, for example use the following options: `-DGEMM=MKL -DMKLROOT=<path_to_MKL>`. MKL-ML\* package can be downloaded [here](https://github.com/intel/mkl-dnn/releases/download/v0.17/mklml_lnx_2019.0.1.20180928.tgz)
 - To switch on/off the CPU and GPU plugins, use `cmake` options `-DENABLE_MKL_DNN=ON/OFF` and `-DENABLE_CLDNN=ON/OFF`.
 
 ## Build on Windows\* Systems:
@@ -51,13 +50,14 @@ The software was validated on:
 ```sh
 cd build
 cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" -DOS_FOLDER=ON ^
-    -DBLAS_INCLUDE_DIRS=<OPENBLAS_DIR>\include ^
-    -DBLAS_LIBRARIES=<OPENBLAS_DIR>\lib\libopenblas.dll.a ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DICCLIB="C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\compiler\lib" ..
 ```
 
-5. Build generated solution in Visual Studio 2017 or run `cmake --build .` to build from the command line.
+- To switch to OpenBLAS GEMM implementation, use -DGEMM=OPENBLAS cmake option and specify path to OpenBLAS using `-DBLAS_INCLUDE_DIRS=<OPENBLAS_DIR>\include` and `-DBLAS_LIBRARIES=<OPENBLAS_DIR>\lib\libopenblas.dll.a` options. Prebuilt OpenBLAS\* package can be downloaded [here](https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download), mingw64* runtime dependencies [here](https://sourceforge.net/projects/openblas/files/v0.2.14/mingw64_dll.zip/download)
+- To switch to optimized MKL-ML GEMM implementation, use `GEMM=MKL` and `MKLROOT` cmake options to specify path to unpacked MKL-ML with `include` and `lib` folders, for example use the following options: `-DGEMM=MKL -DMKLROOT=<path_to_MKL>`. MKL-ML\* package can be downloaded [here](https://github.com/intel/mkl-dnn/releases/download/v0.17/mklml_win_2019.0.1.20180928.zip)
+
+5. Build generated solution in Visual Studio 2017 or run `cmake --build . --config Release` to build from the command line.
 
 ---
 \* Other names and brands may be claimed as the property of others.

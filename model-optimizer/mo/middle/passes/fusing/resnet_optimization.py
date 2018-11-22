@@ -1,17 +1,28 @@
+"""
+ Copyright (c) 2018 Intel Corporation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+
 import logging as log
 
 import networkx as nx
 import numpy as np
 
-from mo.front.extractor import add_attrs_props
-from mo.graph.graph import Node, unique_id, dump_graph_for_graphviz
-from mo.middle.pattern_match import apply_pattern
-from mo.front.extractor import update_ie_fields
-from mo.middle.passes.fusing.helpers import backward_bfs, get_next_operation
-from mo.utils.graph import pseudo_topological_sort
-from mo.middle.passes.infer import partial_infer
-from mo.front.common.partial_infer.pooling import pool_explicit_padding_infer
+from mo.graph.graph import Node
+from mo.middle.passes.fusing.helpers import get_next_operation
 from mo.ops.pooling import Pooling
+from mo.utils.graph import pseudo_topological_sort
 
 
 def _clean_fw_tensor_attrs(node: Node):
@@ -34,7 +45,7 @@ def _insert_pooling(graph: nx.MultiDiGraph, first_node: Node, second_node: Node,
     pooling = Pooling(graph, dict(name='Pooling_', spatial_dims=spatial_dims, window=np.array([1, 1, 1, 1]),
                                   output_spatial_shape=None,
                                   stride=np.array(stride_prop), pad_spatial_shape=np.array([[0, 0], [0, 0]]),
-                                  pad=np.array([[0, 0], [0, 0], [0, 0], [0, 0]]), pool_method='avg',
+                                  pad=np.array([[0, 0], [0, 0], [0, 0], [0, 0]]), pool_method='max',
                                   is_partial_inferred=False))
     pooling_data = pooling.create_node_with_data([first_node])
 
@@ -113,6 +124,7 @@ def _conv_stride_prop(graph: nx.MultiDiGraph, node: Node, spatial_dims, supporte
             if op.soft_get('has_stride') == True:
                 op.stride = np.array([1, 1, 1, 1])
         node['is_partial_inferred'] = False
+        node['output_spatial_shape'] = False
         _clean_fw_tensor_attrs(node.out_node())
 
     # If Convolution is valid then set `stride_prop` to Convolution stride

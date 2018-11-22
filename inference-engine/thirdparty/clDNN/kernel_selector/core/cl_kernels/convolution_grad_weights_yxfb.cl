@@ -57,20 +57,20 @@ KERNEL(convolution_grad_weights_gpu_ref)(
     for(int y = 0; y < INPUT0_SIZE_Y; y++)
     {
         const int input_offset_y = in_y + y * STRIDE_SIZE_Y;
-	    const bool zero_y = input_offset_y >= INPUT1_SIZE_Y || input_offset_y < 0;
+        const bool zero_y = input_offset_y >= INPUT1_SIZE_Y || input_offset_y < 0;
         for (uint x = 0; x < INPUT0_SIZE_X; x++)
         {
             const int input_offset_x = in_x + x * STRIDE_SIZE_X;
-			const bool zero_x = input_offset_x >= INPUT1_SIZE_X || input_offset_x < 0;
+            const bool zero_x = input_offset_x >= INPUT1_SIZE_X || input_offset_x < 0;
             for (uint b = 0; b < INPUT0_BATCH_NUM / 16; b++)
             {
 #if BIAS_TERM
                 uint input_grad_idx = grad_split_offset + b*16*INPUT0_BATCH_PITCH + ofm*INPUT0_FEATURE_PITCH + x*INPUT0_X_PITCH + y*INPUT0_Y_PITCH;
                 UNIT_TYPE grad = as_float(intel_sub_group_block_read((const __global uint*)(input_grad + input_grad_idx)));
-				grad_b += grad;
+                grad_b += grad;
 #endif
-				if(!zero_x && !zero_y)
-				{
+                if(!zero_x && !zero_y)
+                {
                 uint input_idx = in_split_offset + b*16*INPUT1_BATCH_PITCH + ifm*INPUT1_FEATURE_PITCH + (uint)input_offset_x*INPUT1_X_PITCH + (uint)input_offset_y*INPUT1_Y_PITCH;
 #if BIAS_TERM
                 grad_w = fma(as_float(intel_sub_group_block_read((const __global uint*)(input + input_idx))), grad, grad_w);
@@ -78,8 +78,8 @@ KERNEL(convolution_grad_weights_gpu_ref)(
                 uint input_grad_idx = grad_split_offset + b*16*INPUT0_BATCH_PITCH + ofm*INPUT0_FEATURE_PITCH + x*INPUT0_X_PITCH + y*INPUT0_Y_PITCH;
                 grad_w = fma(as_float(intel_sub_group_block_read((const __global uint*)(input + input_idx))), as_float(intel_sub_group_block_read((const __global uint*)(input_grad + input_grad_idx))), grad_w);
 #endif
-				}
-			}
+                }
+            }
         }
     }
 

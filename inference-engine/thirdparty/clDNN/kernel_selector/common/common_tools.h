@@ -38,6 +38,8 @@ namespace kernel_selector
         case Datatype::INT32:
         case Datatype::UINT32:
             return 4;
+        case Datatype::INT64:
+            return 8;
         default:
             return 0;
         }

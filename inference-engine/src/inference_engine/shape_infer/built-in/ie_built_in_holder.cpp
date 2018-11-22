@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impl_register.hpp"
 #include "ie_built_in_holder.hpp"
 #include "ie_conv_shape_infer.hpp"
 #include "ie_deconv_shape_infer.hpp"
@@ -24,7 +25,7 @@
 #include "ie_roi_pooling_shape_infer.hpp"
 #include "ie_psroi_pooling_shape_infer.hpp"
 #include "ie_detection_output_shape_infer.hpp"
-#include "ie_priorbox_clastered_shape_infer.hpp"
+#include "ie_priorbox_clustered_shape_infer.hpp"
 #include "ie_ctc_greedy_decoder_shape_infer.hpp"
 #include "ie_spatial_transformer_shape_infer.hpp"
 #include "ie_inner_product_shape_infer.hpp"
@@ -50,7 +51,7 @@ void BuiltInShapeInferHolder::AddImpl(const std::string& name, const IShapeInfer
     GetImplsHolder()->list[name] = impl;
 }
 
-StatusCode BuiltInShapeInferHolder::getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
+StatusCode BuiltInShapeInferHolder::getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
     auto& factories = GetImplsHolder()->list;
     types = new char* [factories.size()];
     size = 0;
@@ -131,7 +132,6 @@ REG_SHAPE_INFER_FOR_TYPE(CTCGreedyDecoderShapeProp, CTCGreedyDecoder);
 REG_SHAPE_INFER_FOR_TYPE(ProposalShapeProp, Proposal);
 REG_SHAPE_INFER_FOR_TYPE(ReorgYoloShapeProp, ReorgYolo);
 REG_SHAPE_INFER_FOR_TYPE(RegionYoloShapeProp, RegionYolo);
-REG_SHAPE_INFER_FOR_TYPE(SpatialTransformerShapeProp, SpatialTransformer);
 REG_SHAPE_INFER_FOR_TYPE(ArgMaxShapeProp, ArgMax);
 
 }  // namespace ShapeInfer

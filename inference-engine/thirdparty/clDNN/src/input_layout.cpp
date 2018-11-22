@@ -19,6 +19,7 @@
 #include "primitive_type_base.h"
 #include "memory_impl.h"
 #include "error_handler.h"
+#include "json_object.h"
 
 namespace cldnn
 {
@@ -60,7 +61,7 @@ std::string input_layout_inst::to_string(input_layout_node const& node)
 
     std::stringstream primitive_description;
 
-    node_info.dump(primitive_description);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

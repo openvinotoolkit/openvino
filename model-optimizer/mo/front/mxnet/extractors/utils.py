@@ -47,8 +47,6 @@ class AttrDictionary(object):
                 raise ValueError("Missing required parameter: " + key)
         if key in self._dict:
             return self._dict[key]
-        if default is None:
-            raise ValueError("Missing required parameter: " + key)
         return default
 
     def bool(self, key, default=None):
@@ -68,6 +66,8 @@ class AttrDictionary(object):
 
     def tuple(self, key, valtype=str, default=None):
         attr = self.str(key, default)
+        if attr is None:
+            return default
         if isinstance(attr, str):
             if (not attr) or (not attr[1:-1].split(',')[0]):
                 return tuple([valtype(x) for x in default])

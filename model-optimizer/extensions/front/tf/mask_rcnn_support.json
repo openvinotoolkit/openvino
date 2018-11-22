@@ -37,31 +37,27 @@
     {
         "custom_attributes": {
         },
-        "id": "ObjectDetectionAPIProposalAndROIPoolingReplacement",
+        "id": "ObjectDetectionAPIProposalReplacement",
         "include_inputs_to_sub_graph": true,
         "include_outputs_to_sub_graph": true,
         "instances": {
             "end_points": [
-                "CropAndResize",
+                "map/TensorArrayStack/TensorArrayGatherV3",
                 "map_1/TensorArrayStack/TensorArrayGatherV3",
-                "BatchMultiClassNonMaxSuppression/map/TensorArrayStack_4/TensorArrayGatherV3",
-                "map_1/Shape"
+                "BatchMultiClassNonMaxSuppression/map/TensorArrayStack_4/TensorArrayGatherV3"
             ],
             "start_points": [
-                "FirstStageBoxPredictor/concat",
-                "FirstStageBoxPredictor/concat_1",
+                "FirstStageBoxPredictor/Reshape",
+                "FirstStageBoxPredictor/Reshape_1",
                 "GridAnchorGenerator/Identity",
-                "Shape",
-                "CropAndResize"
+                "Shape"
             ]
         },
         "match_kind": "points"
     },
     {
        "custom_attributes": {
-            "code_type": "caffe.PriorBoxParameter.CENTER_SIZE",
-            "pad_mode": "caffe.ResizeParameter.CONSTANT",
-            "resize_mode": "caffe.ResizeParameter.WARP"
+            "coordinates_swap_method": "swap_weights"
         },
         "id": "ObjectDetectionAPIDetectionOutputReplacement",
         "include_inputs_to_sub_graph": true,

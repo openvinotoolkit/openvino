@@ -167,7 +167,7 @@ def is_connected_component(graph: nx.MultiDiGraph, node_names: list):
     return set(node_names).issubset(visited)
 
 
-def sub_graph_between_nodes(graph: nx.MultiDiGraph, start_nodes: list, end_nodes: list):
+def sub_graph_between_nodes(graph: nx.MultiDiGraph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None):
     """
     Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. Input nodes for the sub-graph nodes are also
     added to the sub-graph. Constant inputs of the 'start_nodes' are also added to the sub-graph.
@@ -179,6 +179,7 @@ def sub_graph_between_nodes(graph: nx.MultiDiGraph, start_nodes: list, end_nodes
     sub_graph_nodes = list()
     visited = set(start_nodes)
     d = deque(start_nodes)
+    extra_start_nodes = []
 
     nx.set_node_attributes(graph, name='prev', values=None)
     while len(d) != 0:
@@ -194,9 +195,12 @@ def sub_graph_between_nodes(graph: nx.MultiDiGraph, start_nodes: list, end_nodes
         for src_node_name, _ in graph.in_edges(cur_node_name):
             # add input nodes for the non-start_nodes
             if cur_node_name not in start_nodes and src_node_name not in visited:
-                d.append(src_node_name)
-                graph.node[src_node_name]['prev'] = cur_node_name
-                visited.add(src_node_name)
+                if detect_extra_start_node is not None and detect_extra_start_node(Node(graph, cur_node_name)):
+                    extra_start_nodes.append(cur_node_name)
+                else:
+                    d.append(src_node_name)
+                    graph.node[src_node_name]['prev'] = cur_node_name
+                    visited.add(src_node_name)
 
     # use forward dfs to check that all end nodes are reachable from at least one of input nodes
     forward_visited = set()
@@ -216,9 +220,12 @@ def sub_graph_between_nodes(graph: nx.MultiDiGraph, start_nodes: list, end_nodes
                 path.append(str(cur_node))
                 cur_node = graph.node[cur_node]['prev']
             log.debug("The path from input node is the following: {}".format('\n'.join(path)))
-            raise Error('Sub-graph contains network input node "{}". '.format(node_name) +
+            raise Error('The matched sub-graph contains network input node "{}". '.format(node_name) +
                         refer_to_faq_msg(75))
-    return sub_graph_nodes
+    if detect_extra_start_node is None:
+        return sub_graph_nodes
+    else:
+        return sub_graph_nodes, extra_start_nodes
 
 
 def node_neighbourhood(node_name: str, depth: int, next_node_fn):

@@ -14,7 +14,8 @@
 // limitations under the License.
 */
 
-#include "include/include_all.cl"
+#include "include/common.cl"
+#include "include/data_types.cl"
 
 KERNEL(activation)(
 #if GRADIENT

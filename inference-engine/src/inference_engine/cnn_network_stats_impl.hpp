@@ -22,24 +22,11 @@ namespace InferenceEngine {
 namespace details {
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkStatsImpl) : public ICNNNetworkStats {
 public:
-    CNNNetworkStatsImpl(const std::map<std::string, NetworkNodeStatsPtr>& netNodesStats) : netNodesStats(netNodesStats) { }
-    CNNNetworkStatsImpl(const std::string& xmlPath, const std::string& binPath) {
-        LoadFromFile(xmlPath, binPath);
-    }
-    CNNNetworkStatsImpl() {
-    }
-
+    CNNNetworkStatsImpl() = default;
+    virtual ~CNNNetworkStatsImpl();
 public:
-    const std::map<std::string, NetworkNodeStatsPtr>& getNodesStats() const {
-        return netNodesStats;
-    }
-    void setNodesStats(const std::map<std::string, NetworkNodeStatsPtr>& newStats) {
-        netNodesStats = newStats;
-    }
-
-    void SaveToFile(const std::string& xmlPath, const std::string& binPath) const override;
-    void LoadFromFile(const std::string& xmlPath, const std::string& binPath) override;
-
+    const NetworkStatsMap& getNodesStats() const override;
+    void setNodesStats(const NetworkStatsMap& stats)override;
     bool isEmpty() const override { return netNodesStats.empty(); }
 
     void Release() noexcept override {

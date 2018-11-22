@@ -10,6 +10,7 @@
 #include <gmock/gmock-more-actions.h>
 #include "mock_icnn_network.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "details/ie_cnn_network_tools.h"
 
 namespace GraphTest {
 
@@ -40,25 +41,30 @@ class GraphTestsBase : public ::testing::Test {
     std::unordered_set<CNNLayerPtr> rhsLayers;
 
     virtual void prepareInputs(InputsDataMap &inputsMap, int batchSize = 1) {
-        for (auto layer = lhsLayers.begin(); layer != lhsLayers.end(); layer++) {
-            if ((*layer)->insData.empty()) {
-                auto info = make_shared<InputInfo>();
-                auto data = make_shared<Data>((*layer)->name, Precision::FP32, Layout::C);
-                SizeVector dims = data->getDims();
-                dims.push_back(batchSize);
-                data->setDims(dims);
-                for (auto output : (*layer)->outData) {
-                    data->getInputTo() = output->inputTo;
+        auto prepareInputsInternal = [&inputsMap, &batchSize](std::unordered_set<CNNLayerPtr> & layersSet) {
+            for (auto layer = layersSet.begin(); layer != layersSet.end(); layer++) {
+                if ((*layer)->insData.empty()) {
+                    auto info = make_shared<InputInfo>();
+                    auto data = make_shared<Data>((*layer)->name, Precision::FP32, Layout::NC);
+                    SizeVector dims = data->getDims();
+                    dims.push_back(batchSize);
+                    dims.push_back(batchSize);
+                    data->setDims(dims);
+                    for (auto output : (*layer)->outData) {
+                        data->getInputTo() = output->inputTo;
+                    }
+                    data->creatorLayer = (*layer);
+                    info->setInputData(data);
+                    inputsMap[(*layer)->name] = info;
                 }
-                data->creatorLayer = (*layer);
-                info->setInputData(data);
-                inputsMap[(*layer)->name] = info;
             }
-        }
+        };
+        prepareInputsInternal(lhsLayers);
+        prepareInputsInternal(rhsLayers);
     }
 
     CNNLayerPtr layerByName(std::string name) {
-        auto sorted = CNNNetSortTopologically(mockNet);
+        auto sorted = InferenceEngine::details::CNNNetSortTopologically(mockNet);
 
         auto i = std::find_if(sorted.begin(), sorted.end(), [&](CNNLayerPtr l){
             return l->name == name;
@@ -70,6 +76,14 @@ class GraphTestsBase : public ::testing::Test {
     }
     #define ASSERT_CONNECTION(a, b) \
         ASSERT_TRUE(assertConnection(#a, #b));
+
+    void ASSERT_DIMS(int x, const SizeVector & dims) {
+
+        ASSERT_EQ(datas[x].front()->getDims().size(), dims.size());
+        for(size_t i = 0; i != dims.size(); i++) {
+            ASSERT_EQ(datas[x].front()->getDims()[i], dims[i]);
+        }
+    }
 
     bool assertConnection(std::string a, std::string b) {
 
@@ -121,8 +135,9 @@ class GraphTestsBase : public ::testing::Test {
                 if (isMarked == end(inputLayers))
                     continue;
                 auto info = make_shared<InputInfo>();
-                auto data = make_shared<Data>((*layer)->name, Precision::FP32, Layout::C);
+                auto data = make_shared<Data>((*layer)->name, Precision::FP32, Layout::NC);
                 SizeVector dims = data->getDims();
+                dims.push_back(batchSize);
                 dims.push_back(batchSize);
                 data->setDims(dims);
                 for (auto output : (*layer)->outData) {
@@ -158,15 +173,17 @@ class GraphTestsBase : public ::testing::Test {
      * Data corresponding to each layer sets up in outData
      * Likewise creator layer sets up for data in getCreatorLayer
      */
+    int _batchSize = 1;
     void SetUp() override {
         datas.resize(10);
         for (int i = 0; i < 10; i++) {
             layers.push_back(make_shared<CNNLayer>(LayerParams({std::to_string(i)})));
-            datas[i].push_back(make_shared<Data>(std::to_string(i), Precision::FP32, Layout::C));
+            datas[i].push_back(make_shared<Data>(std::to_string(i), Precision::FP32, Layout::NC));
             datas[i].back()->getCreatorLayer() = layers[i];
 
             SizeVector dims = datas[i].back()->getDims();
-            dims.push_back(1);
+            dims.push_back(_batchSize);
+            dims.push_back(_batchSize);
             datas[i].back()->setDims(dims);
 
             layers.back()->outData.push_back(datas[i].back());
@@ -198,11 +215,12 @@ class GraphTestsBase : public ::testing::Test {
 
     void CONNECT_FROM_PORT(int x, int port, int y) {
         if (datas[x].size() <= port) {
-            datas[x].push_back(make_shared<Data>(std::string("split_") + std::to_string(datas[x].size()), Precision::FP32, Layout::C));
+            datas[x].push_back(make_shared<Data>(std::string("split_") + std::to_string(datas[x].size()), Precision::FP32, Layout::NC));
             datas[x].back()->getCreatorLayer() = layers[x];
 
             SizeVector dims = datas[x].back()->getDims();
-            dims.push_back(1);
+            dims.push_back(_batchSize);
+            dims.push_back(_batchSize);
             datas[x].back()->setDims(dims);
             layers[x]->outData.push_back(datas[x].back());
         }
@@ -210,6 +228,14 @@ class GraphTestsBase : public ::testing::Test {
         layers[y]->insData.push_back(datas[x][port]);
         lhsLayers.insert(layers[x]);
         rhsLayers.insert(layers[y]);
+    }
+
+    void SET_DIMS(int x, const SizeVector & dims) {
+        datas[x].front()->setDims(dims);
+    }
+
+    void SET_TYPE(int x, std::string name) {
+        layers[x]->type = name;
     }
 };
 

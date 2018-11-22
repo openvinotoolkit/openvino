@@ -1,8 +1,8 @@
 # Copyright (C) 2018 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 set (TARGET_NAME "inference_engine")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
 
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -21,6 +21,21 @@ file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/impl/*.hpp
        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/interface/*.hpp
       )
+
+if( (NOT DEFINED ENABLE_SSE42) OR ENABLE_SSE42)
+    file (GLOB LIBRARY_SRC
+           ${LIBRARY_SRC}
+           ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.cpp
+          )
+    file (GLOB LIBRARY_HEADERS
+           ${LIBRARY_HEADERS}
+           ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.hpp
+          )
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/blob_transform_sse42.cpp PROPERTIES COMPILE_FLAGS -msse4.2)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_data_sse42.cpp PROPERTIES COMPILE_FLAGS -msse4.2)
+    add_definitions(-DHAVE_SSE=1)
+endif()
 
 addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
 
@@ -58,8 +73,10 @@ target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
                                                   "${IE_MAIN_SOURCE_DIR}/src/dumper")
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src")
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ade/ade/include")
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ade/common/include")
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ade/sources/ade/include")
+if(ENABLE_MKL_DNN)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak")
+endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 
@@ -76,8 +93,10 @@ target_include_directories(${TARGET_NAME}_s PUBLIC ${PUBLIC_HEADERS_DIR}
                                                   "${IE_MAIN_SOURCE_DIR}/src/dumper")
 
 target_include_directories(${TARGET_NAME}_s SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src")
-target_include_directories(${TARGET_NAME}_s SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ade/ade/include")
-target_include_directories(${TARGET_NAME}_s SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ade/common/include")
+target_include_directories(${TARGET_NAME}_s SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ade/sources/ade/include")
+if(ENABLE_MKL_DNN)
+  target_include_directories(${TARGET_NAME}_s SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak")
+endif()
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC -DUSE_STATIC_IE)
 

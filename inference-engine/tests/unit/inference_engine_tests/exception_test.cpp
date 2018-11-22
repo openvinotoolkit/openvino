@@ -102,12 +102,24 @@ TEST_F(ExceptionTests, statusCodeNotAppearInMessageAfterCatch) {
     std::string message = "Exception message!";
     std::string strStatusCode = std::to_string(StatusCode::NETWORK_NOT_LOADED);
     try {
-        THROW_IE_EXCEPTION<< InferenceEngine::details::as_status <<
-        InferenceEngine::StatusCode::NETWORK_NOT_LOADED << message;
+        THROW_IE_EXCEPTION<< "<unique--" << InferenceEngine::details::as_status  <<
+        InferenceEngine::StatusCode::NETWORK_NOT_LOADED << "--unique>" << message;
     }
     catch (const InferenceEngine::details::InferenceEngineException &iex) {
         ASSERT_STR_CONTAINS(iex.what(), message);
-        ASSERT_STR_DOES_NOT_CONTAIN(iex.what(), strStatusCode);
+        ASSERT_STR_DOES_NOT_CONTAIN(iex.what(), "<unique--" + strStatusCode + "--unique>");
+    }
+}
+
+TEST_F(ExceptionTests, statusCodeAppearInMessageAfterCatch) {
+    std::string message = "Exception message!";
+    std::string strStatusCode = std::to_string(StatusCode::NETWORK_NOT_LOADED);
+    try {
+        THROW_IE_EXCEPTION<< "<unique--" << InferenceEngine::StatusCode::NETWORK_NOT_LOADED << "--unique>" << message;
+    }
+    catch (const InferenceEngine::details::InferenceEngineException &iex) {
+        ASSERT_STR_CONTAINS(iex.what(), message);
+        ASSERT_STR_CONTAINS(iex.what(), "<unique--" + strStatusCode + "--unique>");
     }
 }
 

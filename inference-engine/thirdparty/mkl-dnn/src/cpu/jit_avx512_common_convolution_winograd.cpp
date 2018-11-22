@@ -1131,86 +1131,66 @@ void _jit_avx512_common_convolution_winograd_t<is_fwd>::_execute_data_W_S_G_D(
 
 #pragma omp parallel
     {
-#pragma omp for nowait collapse(3)
-        for (int img = 0; img < MB; img++) {
-            for (int K_blk1 = 0; K_blk1 < jcp.dimK_nb_block; K_blk1++) {
-                for (int K_blk2 = 0; K_blk2 < jcp.dimK_block; K_blk2++) {
-                    input_transform_data<is_fwd>(img, jcp,
-                            &(input(img, K_blk1 * jcp.dimK_block + K_blk2,
-                                    0, 0, 0)),
-                            &(V(0, 0, 0, 0, K_blk1, K_blk2, 0, 0)), V_streamout);
-                }
-            }
-        }
+        parallel_nd_in_omp(MB, jcp.dimK_nb_block, jcp.dimK_block,
+            [&](int img, int K_blk1, int K_blk2) {
+            input_transform_data<is_fwd>(img, jcp,
+                &(input(img, K_blk1 * jcp.dimK_block + K_blk2, 0, 0, 0)),
+                &(V(0, 0, 0, 0, K_blk1, K_blk2, 0, 0)), V_streamout);
+        });
 
-#pragma omp for nowait collapse(4) schedule(static)
-    for (int ofm1 = 0; ofm1 < jcp.nb_oc; ofm1++) {
-        for (int ifm1 = 0; ifm1 < jcp.nb_ic; ifm1++) {
-            for (int ofm2 = 0; ofm2 < jcp.oc_block; ofm2++) {
-                for (int ifm2 = 0; ifm2 < jcp.ic_block; ifm2++) {
-                    float *U_base_ptr = is_fwd
-                                      ? &(U(ofm1, 0, 0, ifm1, ofm2, ifm2, 0, 0))
-                                      : &(U(ifm1, 0, 0, ofm1, ifm2, ofm2, 0, 0));
-                    weight_transform_data<is_fwd>(jcp,
-                            &(weights(ofm1 * jcp.oc_block + ofm2,
-                                    ifm1 * jcp.ic_block + ifm2,
-                                    0, 0, 0, 0)),
-                            U_base_ptr);
-                }
-            }
-        }
-    }
+        parallel_nd_in_omp(jcp.nb_oc, jcp.nb_ic, jcp.oc_block, jcp.ic_block,
+            [&](int ofm1, int ifm1, int ofm2, int ifm2) {
+            float *U_base_ptr = is_fwd
+                ? &(U(ofm1, 0, 0, ifm1, ofm2, ifm2, 0, 0))
+                : &(U(ifm1, 0, 0, ofm1, ifm2, ofm2, 0, 0));
+            weight_transform_data<is_fwd>(jcp,
+                &(weights(ofm1 * jcp.oc_block + ofm2,
+                ifm1 * jcp.ic_block + ifm2, 0, 0, 0, 0)), U_base_ptr);
+        });
 
 #pragma omp barrier
-#pragma omp for collapse(5) nowait schedule(static)
-        for (int N_blk1 = 0; N_blk1 < jcp.dimN_nb_block; N_blk1++) {
-            for (int oj = 0; oj < alpha; oj++) {
-                for (int oi = 0; oi < alpha; oi++) {
-                    for (int M_blk1 = 0; M_blk1 < jcp.dimM_nb_block; M_blk1++) {
-                        for (int N_blk2 = 0;
-                                N_blk2 < jcp.dimN_block;
-                                N_blk2++) {
-                            kernel_->gemm_loop_ker_first_iter(
-                                    (float *)&(M(N_blk1, M_blk1, oj, oi,
-                                            N_blk2, 0, 0, 0)),
-                                    (const float *)&(U(M_blk1, oj, oi,
-                                            0, 0, 0, 0, 0)),
-                                    (const float *)&(V(N_blk1, oj, oi,
-                                            N_blk2, 0, 0, 0, 0)));
-                            for (int K_blk1 = 1; K_blk1 < jcp.dimK_nb_block; K_blk1++) {
-                                kernel_->gemm_loop_ker(
-                                        (float *)&(M(N_blk1, M_blk1, oj, oi,
-                                                N_blk2, 0, 0, 0)),
-                                        (const float *)&(U(M_blk1, oj, oi,
-                                                K_blk1, 0, 0, 0, 0)),
-                                        (const float *)&(V(N_blk1, oj, oi,
-                                                N_blk2, K_blk1,
-                                                0, 0, 0)));
-                            }
-                        }
-                    }
-                }
+
+        parallel_nd_in_omp(jcp.dimN_nb_block, alpha, alpha, jcp.dimM_nb_block, jcp.dimN_block,
+            [&](int N_blk1, int oj, int oi, int M_blk1, int N_blk2) {
+
+            kernel_->gemm_loop_ker_first_iter(
+                    (float *)&(M(N_blk1, M_blk1, oj, oi,
+                            N_blk2, 0, 0, 0)),
+                    (const float *)&(U(M_blk1, oj, oi,
+                            0, 0, 0, 0, 0)),
+                    (const float *)&(V(N_blk1, oj, oi,
+                            N_blk2, 0, 0, 0, 0)));
+            for (int K_blk1 = 1; K_blk1 < jcp.dimK_nb_block; K_blk1++) {
+                kernel_->gemm_loop_ker(
+                        (float *)&(M(N_blk1, M_blk1, oj, oi,
+                                N_blk2, 0, 0, 0)),
+                        (const float *)&(U(M_blk1, oj, oi,
+                                K_blk1, 0, 0, 0, 0)),
+                        (const float *)&(V(N_blk1, oj, oi,
+                                N_blk2, K_blk1,
+                                0, 0, 0)));
             }
-        }
+
+        });
+
 
 #pragma omp barrier
-#pragma omp for collapse(3)
-        for (int img = 0; img < MB; img++) {
-            for (int M_blk1 = 0; M_blk1 < jcp.dimM_nb_block; M_blk1++) {
-                for (int M_blk2 = 0; M_blk2 < jcp.dimM_block; M_blk2++) {
-                    const int M_blk = M_blk1 * jcp.dimM_block + M_blk2;
 
-                    float *bias_ptr = want_padded_bias
-                        && M_blk == jcp.dimM / jcp.dimM_simd_block - 1
-                        ? last_slice_bias : &bias(M_blk, 0);
+        parallel_nd_in_omp(MB, jcp.dimM_nb_block, jcp.dimM_block,
+                    [&](int img, int M_blk1, int M_blk2) {
 
-                    output_transform(img, jcp, p_ops,
-                            &(M(0, M_blk1, 0, 0, 0, M_blk2, 0, 0)),
-                            &(output(img, M_blk, 0, 0, 0)),
-                            bias_ptr, output_is_aligned);
-                }
-            }
-        }
+            const int M_blk = M_blk1 * jcp.dimM_block + M_blk2;
+
+            float *bias_ptr = want_padded_bias
+                && M_blk == jcp.dimM / jcp.dimM_simd_block - 1
+                ? last_slice_bias : &bias(M_blk, 0);
+
+            output_transform(img, jcp, p_ops,
+                    &(M(0, M_blk1, 0, 0, 0, M_blk2, 0, 0)),
+                    &(output(img, M_blk, 0, 0, 0)),
+                    bias_ptr, output_is_aligned);
+
+       });
     }
 }
 
@@ -1296,25 +1276,22 @@ void _jit_avx512_common_convolution_winograd_t<is_fwd>::_execute_data_W_SGD(
 
 #pragma omp parallel
     {
-#pragma omp for collapse(4) schedule(static)
-    for (int ofm1 = 0; ofm1 < jcp.nb_oc; ofm1++) {
-        for (int ifm1 = 0; ifm1 < jcp.nb_ic; ifm1++) {
-            for (int ofm2 = 0; ofm2 < jcp.oc_block; ofm2++) {
-                for (int ifm2 = 0; ifm2 < jcp.ic_block; ifm2++) {
-                    float *U_base_ptr = is_fwd
-                                      ? &(U(ofm1, 0, 0, ifm1, ofm2, ifm2, 0, 0))
-                                      : &(U(ifm1, 0, 0, ofm1, ifm2, ofm2, 0, 0));
-                    weight_transform_data<is_fwd>(jcp,
-                            &(weights(ofm1 * jcp.oc_block + ofm2,
-                                    ifm1 * jcp.ic_block + ifm2,
-                                    0, 0, 0, 0)),
-                            U_base_ptr);
-                }
-            }
-        }
-    }
+        parallel_nd_in_omp(jcp.nb_oc, jcp.nb_ic, jcp.oc_block, jcp.ic_block,
+            [&](int ofm1, int ifm1, int ofm2, int ifm2) {
 
-    int ithr = omp_get_thread_num();
+            float *U_base_ptr = is_fwd
+                              ? &(U(ofm1, 0, 0, ifm1, ofm2, ifm2, 0, 0))
+                              : &(U(ifm1, 0, 0, ofm1, ifm2, ofm2, 0, 0));
+            weight_transform_data<is_fwd>(jcp,
+                    &(weights(ofm1 * jcp.oc_block + ofm2,
+                            ifm1 * jcp.ic_block + ifm2,
+                            0, 0, 0, 0)),
+                    U_base_ptr);
+        });
+
+#pragma omp barrier
+
+    int ithr = mkldnn_get_thread_num();
 
 #pragma omp for schedule(static)
     for (int tile_block = 0; tile_block < jcp.tile_block; tile_block++) {
@@ -1438,18 +1415,15 @@ _execute_backward_weights_S_D_G_W()
 
     array_offset_calculator<float, 2> diff_bias_prv(
             (float *)(scratchpad_->bias_ptr()),
-            omp_get_max_threads(),
+            mkldnn_get_max_threads(),
             jcp.oc);
 
 #pragma omp parallel num_threads(nthreads)
     {
         if (jcp.with_bias) {
-#pragma omp for nowait collapse(2)
-            for (int ithr = 0; ithr < nthreads; ithr++) {
-                for (int ofm = 0; ofm < jcp.oc; ofm++) {
-                    diff_bias_prv(ithr, ofm) = 0.0f;
-                }
-            }
+            parallel_nd_in_omp(nthreads, jcp.oc, [&](int ithr, int ofm) {
+                diff_bias_prv(ithr, ofm) = 0.0f;
+            });
 
 #pragma omp for nowait
             for (int bofm = 0; bofm < jcp.oc / simd_w; bofm++) {
@@ -1459,87 +1433,68 @@ _execute_backward_weights_S_D_G_W()
             }
         }
 
-        const int ithread = omp_get_thread_num();
-#pragma omp for nowait collapse(3)
-        for (int img = 0; img < jcp.mb; img++) {
-            for (int ifm1 = 0; ifm1 < jcp.nb_ic; ++ifm1) {
-                for (int ifm2 = 0; ifm2 < jcp.ic_block; ++ifm2) {
-                    float *transb = jcp.ver == ver_4fma
-                                  ? &(trans_buffer(ithread, 0))
-                                  : NULL;
-                    diff_src_transform_bwd_weights_ver(img, jcp,
-                            &(diff_src(img, ifm1 * jcp.ic_block + ifm2,
-                                    0, 0, 0)),
-                            &(V(ifm1, 0, 0, 0, ifm2, 0, 0, 0)),
-                            transb,
-                            kernel_->transpose_4fma_ker);
-                }
-            }
-        }
+        const int ithread = mkldnn_get_thread_num();
 
-#pragma omp for nowait collapse(3)
-        for (int img = 0; img < jcp.mb; img++) {
-            for (int ofm1 = 0; ofm1 < jcp.nb_oc; ofm1++) {
-                for (int ofm2 = 0; ofm2 < jcp.oc_block; ofm2++) {
-                    float *dbias = jcp.with_bias
-                           ? &(diff_bias_prv(ithread,
-                                       simd_w * (ofm1 * jcp.oc_block + ofm2)))
-                           : NULL;
-                    diff_dst_transform_bwd_weights_ver(img, jcp,
-                            &(diff_dst(img, ofm1 * jcp.oc_block + ofm2,
-                                    0, 0, 0)),
-                            &(M(ofm1, 0, 0, 0, ofm2, 0, 0, 0)),
-                            dbias);
-                }
-            }
-        }
+        parallel_nd_in_omp(jcp.mb, jcp.nb_ic, jcp.ic_block,
+            [&](int img, int ifm1, int ifm2) {
+            float *transb = jcp.ver == ver_4fma
+               ? &(trans_buffer(ithread, 0))
+               : NULL;
+            diff_src_transform_bwd_weights_ver(img, jcp,
+               &(diff_src(img, ifm1 * jcp.ic_block + ifm2,
+                       0, 0, 0)),
+               &(V(ifm1, 0, 0, 0, ifm2, 0, 0, 0)),
+               transb,
+               kernel_->transpose_4fma_ker);
+        });
+
+        parallel_nd_in_omp(jcp.mb, jcp.nb_oc, jcp.oc_block,
+            [&](int img, int ofm1, int ofm2) {
+            float *dbias = jcp.with_bias
+                   ? &(diff_bias_prv(ithread,
+                               simd_w * (ofm1 * jcp.oc_block + ofm2)))
+                   : NULL;
+            diff_dst_transform_bwd_weights_ver(img, jcp,
+                    &(diff_dst(img, ofm1 * jcp.oc_block + ofm2,
+                            0, 0, 0)),
+                    &(M(ofm1, 0, 0, 0, ofm2, 0, 0, 0)),
+                    dbias);
+        });
 
 #pragma omp barrier
 
         for (int ifm1 = 0; ifm1 < jcp.nb_ic; ifm1++) {
-#pragma omp for nowait collapse(3) schedule(static)
-            for (int oj = 0; oj < alpha; oj++) {
-                for (int oi = 0; oi < alpha; oi++) {
-                    for (int ofm1 = 0; ofm1 < jcp.nb_oc; ofm1++) {
-                        kernel_->gemm_loop_ker_first_iter(
-                                (float *)&(U(ifm1, ofm1,
-                                        oj, oi,
-                                        0, 0, 0, 0)),
-                                (const float *)&(M(ofm1, oj, oi,
-                                        0, 0, 0, 0, 0)),
-                                (const float *)&(V(ifm1, oj, oi,
-                                        0, 0, 0, 0, 0)));
-                        for (int tile_block = 1; tile_block < jcp.tile_block;
-                                tile_block++) {
-                            kernel_->gemm_loop_ker((float *)&(U(ifm1, ofm1,
-                                            oj, oi,
-                                            0, 0, 0, 0)),
-                                    (const float *)&(M(ofm1, oj, oi, tile_block,
-                                            0, 0, 0, 0)),
-                                    (const float *)&(V(ifm1, oj, oi, tile_block,
-                                            0, 0, 0, 0)));
-                        }
-                    }
+            parallel_nd_in_omp(alpha, alpha, jcp.nb_oc,
+                [&](int oj, int oi, int ofm1) {
+                kernel_->gemm_loop_ker_first_iter(
+                    (float *)&(U(ifm1, ofm1, oj, oi,
+                            0, 0, 0, 0)),
+                    (const float *)&(M(ofm1, oj, oi,
+                            0, 0, 0, 0, 0)),
+                    (const float *)&(V(ifm1, oj, oi,
+                            0, 0, 0, 0, 0)));
+                for (int tile_block = 1; tile_block < jcp.tile_block;
+                     tile_block++) {
+                    kernel_->gemm_loop_ker((float *)&(U(ifm1, ofm1,
+                                oj, oi,
+                                0, 0, 0, 0)),
+                        (const float *)&(M(ofm1, oj, oi, tile_block,
+                                0, 0, 0, 0)),
+                        (const float *)&(V(ifm1, oj, oi, tile_block,
+                                0, 0, 0, 0)));
                 }
-            }
+            });
         }
 
 #pragma omp barrier
 
-#pragma omp for nowait collapse(4)
-        for (int ifm1 = 0; ifm1 < jcp.nb_ic; ifm1++) {
-            for (int ofm1 = 0; ofm1 < jcp.nb_oc; ofm1++) {
-                for (int ofm2 = 0; ofm2 < jcp.oc_block; ofm2++) {
-                    for (int ifm2 = 0; ifm2 < jcp.ic_block; ifm2++) {
-                        diff_weights_transform_bwd_weights(jcp,
-                                &(diff_weights(ofm1 * jcp.oc_block + ofm2,
-                                        ifm1 * jcp.ic_block + ifm2,
-                                        0, 0, 0, 0)),
-                                &(U(ifm1, ofm1, 0, 0, ofm2, ifm2, 0, 0)));
-                    }
-                }
-            }
-        }
+        parallel_nd_in_omp(jcp.nb_ic, jcp.nb_oc, jcp.oc_block, jcp.ic_block,
+            [&](int ifm1, int ofm1, int ofm2, int ifm2) {
+            diff_weights_transform_bwd_weights(jcp,
+                    &(diff_weights(ofm1 * jcp.oc_block + ofm2,
+                            ifm1 * jcp.ic_block + ifm2, 0, 0, 0, 0)),
+                    &(U(ifm1, ofm1, 0, 0, ofm2, ifm2, 0, 0)));
+        });
 
         if (jcp.with_bias) {
 #pragma omp for
@@ -1756,8 +1711,8 @@ void array_sum(int num_arrs, float *output,
 
 #pragma omp parallel
     {
-        const int ithr = omp_get_thread_num();
-        const int nthr = omp_get_num_threads();
+        const int ithr = mkldnn_get_thread_num();
+        const int nthr = mkldnn_get_num_threads();
         size_t start{ 0 }, end{ 0 };
         balance211(blocks_number, nthr, ithr, start, end);
 
@@ -1807,8 +1762,8 @@ void subarray_sum(int num_arrs, float *output, size_t nelems,
 
 #pragma omp parallel
     {
-        const int ithr = omp_get_thread_num();
-        const int nthr = omp_get_num_threads();
+        const int ithr = mkldnn_get_thread_num();
+        const int nthr = mkldnn_get_num_threads();
         size_t start{ 0 }, end{ 0 };
         balance211(blocks_number, nthr, ithr, start, end);
 
@@ -1939,12 +1894,9 @@ _execute_backward_weights_S_D_Giot_W()
 #pragma omp parallel
     {
         if (jcp.with_bias) {
-#pragma omp for nowait collapse(2)
-            for (int ithr = 0; ithr < nthreads; ithr++) {
-                for (int ofm = 0; ofm < jcp.oc; ofm++) {
-                    diff_bias_prv(ithr, ofm) = 0.0f;
-                }
-            }
+            parallel_nd_in_omp(nthreads, jcp.oc, [&](int ithr, int ofm) {
+                diff_bias_prv(ithr, ofm) = 0.0f;
+            });
 #pragma omp for nowait
             for (int bofm = 0; bofm < jcp.oc / simd_w; bofm++) {
                 PRAGMA_OMP_SIMD()
@@ -1956,85 +1908,72 @@ _execute_backward_weights_S_D_Giot_W()
 
 #pragma omp parallel
     {
-        const int ithread = omp_get_thread_num();
-#pragma omp for nowait collapse(3)
-        for (int img = 0; img < jcp.mb; img++) {
-            for (int ifm1 = 0; ifm1 < jcp.nb_ic; ++ifm1) {
-                for (int ifm2 = 0; ifm2 < jcp.ic_block; ++ifm2) {
-                    float *transb = jcp.ver == ver_4fma
-                        ? &(trans_buffer(ithread, 0))
-                        : NULL;
-                    diff_src_transform_bwd_weights_ver(img, jcp,
-                        &(diff_src(img, ifm1 * jcp.ic_block + ifm2,
+        const int ithread = mkldnn_get_thread_num();
+        parallel_nd_in_omp(jcp.mb, jcp.nb_ic, jcp.ic_block,
+            [&](int img, int ifm1, int ifm2) {
+                float *transb = jcp.ver == ver_4fma
+                    ? &(trans_buffer(ithread, 0))
+                    : NULL;
+                diff_src_transform_bwd_weights_ver(img, jcp,
+                    &(diff_src(img, ifm1 * jcp.ic_block + ifm2,
                             0, 0, 0)),
-                        &(V(ifm1, 0, 0, 0, ifm2, 0, 0, 0)),
-                        transb,
-                        kernel_->transpose_4fma_ker);
-                }
-            }
-        }
+                    &(V(ifm1, 0, 0, 0, ifm2, 0, 0, 0)),
+                    transb,
+                    kernel_->transpose_4fma_ker);
+        });
     }
 
 #pragma omp parallel num_threads(nthreads)
-#pragma omp for nowait collapse(3)
-    for (int img = 0; img < jcp.mb; img++) {
-        for (int ofm1 = 0; ofm1 < jcp.nb_oc; ofm1++) {
-            for (int ofm2 = 0; ofm2 < jcp.oc_block; ofm2++) {
-                const int ithread = omp_get_thread_num();
+    {
+        parallel_nd_in_omp(jcp.mb, jcp.nb_oc, jcp.oc_block,
+            [&](int img, int ofm1, int ofm2) {
+                const int ithread = mkldnn_get_thread_num();
                 float *dbias = jcp.with_bias
                     ? &(diff_bias_prv(ithread,
-                                simd_w * (ofm1 * jcp.oc_block + ofm2)))
+                        simd_w * (ofm1 * jcp.oc_block + ofm2)))
                     : NULL;
                 diff_dst_transform_bwd_weights_ver(img, jcp,
-                        &(diff_dst(img, ofm1 * jcp.oc_block + ofm2, 0, 0, 0)),
-                        &(M(ofm1, 0, 0, 0, ofm2, 0, 0, 0)), dbias);
-            }
-        }
+                    &(diff_dst(img, ofm1 * jcp.oc_block + ofm2, 0, 0, 0)),
+                    &(M(ofm1, 0, 0, 0, ofm2, 0, 0, 0)), dbias);
+        });
     }
 
     size_t input_starts[max_threads_number];
     size_t input_ends[max_threads_number];
     int th_counter = 0;
-#pragma omp parallel firstprivate(th_counter) \
-    num_threads(nthreads)
-#pragma omp for nowait collapse(5) schedule(static)
-    for (int ifm1 = 0; ifm1 < jcp.nb_ic; ifm1++) {
-        for (int ofm1 = 0; ofm1 < jcp.nb_oc; ofm1++) {
-            for (int oj = 0; oj < alpha; oj++) {
-                for (int oi = 0; oi < alpha; oi++) {
-                    for (int tile_block = 0; tile_block < jcp.tile_block;
-                            tile_block++) {
-                        int ithr = omp_get_thread_num();
-                        if (th_counter == 0) {
-                            input_starts[ithr] = (float *)&(Us(ithr, ifm1, ofm1,
-                                oj, oi, 0, 0, 0, 0)) - (float *)&(Us(ithr, 0, 0,
-                                    0, 0, 0, 0, 0, 0));
-                            input_ends[ithr] = input_starts[ithr]
-                                    + jcp.oc_block * jcp.ic_block
-                                      * jcp.ic_simd_block * jcp.oc_simd_block;
-                        }
-                        else if (tile_block == 0) {
-                            input_ends[ithr] += jcp.oc_block * jcp.ic_block
-                                * jcp.ic_simd_block * jcp.oc_simd_block;
-                        }
-
-                        if (th_counter == 0 || tile_block == 0) {
-                            kernel_->gemm_loop_ker_first_iter(
-                                    &(Us(ithr, ifm1, ofm1, oj, oi, 0, 0, 0, 0)),
-                                    &(M(ofm1, oj, oi, tile_block, 0, 0, 0, 0)),
-                                    &(V(ifm1, oj, oi, tile_block, 0, 0, 0, 0)));
-                        } else {
-                            kernel_->gemm_loop_ker(
-                                    &(Us(ithr, ifm1, ofm1, oj, oi, 0, 0, 0, 0)),
-                                    &(M(ofm1, oj, oi, tile_block, 0, 0, 0, 0)),
-                                    &(V(ifm1, oj, oi, tile_block, 0, 0, 0, 0)));
-                        }
-                        th_counter++;
-                    }
+#pragma omp parallel firstprivate(th_counter) num_threads(nthreads)
+    {
+        parallel_nd_in_omp(jcp.nb_ic, jcp.nb_oc, alpha, alpha, jcp.tile_block,
+            [&](int ifm1, int ofm1, int oj, int oi, int tile_block) {
+                int ithr = mkldnn_get_thread_num();
+                if (th_counter == 0) {
+                    input_starts[ithr] = (float *)&(Us(ithr, ifm1, ofm1,
+                            oj, oi, 0, 0, 0, 0)) - (float *)&(Us(ithr, 0, 0,
+                            0, 0, 0, 0, 0, 0));
+                    input_ends[ithr] = input_starts[ithr]
+                        + jcp.oc_block * jcp.ic_block
+                        * jcp.ic_simd_block * jcp.oc_simd_block;
                 }
-            }
-        }
+                else if (tile_block == 0) {
+                    input_ends[ithr] += jcp.oc_block * jcp.ic_block
+                        * jcp.ic_simd_block * jcp.oc_simd_block;
+                }
+
+                if (th_counter == 0 || tile_block == 0) {
+                    kernel_->gemm_loop_ker_first_iter(
+                        &(Us(ithr, ifm1, ofm1, oj, oi, 0, 0, 0, 0)),
+                        &(M(ofm1, oj, oi, tile_block, 0, 0, 0, 0)),
+                        &(V(ifm1, oj, oi, tile_block, 0, 0, 0, 0)));
+                } else {
+                    kernel_->gemm_loop_ker(
+                        &(Us(ithr, ifm1, ofm1, oj, oi, 0, 0, 0, 0)),
+                        &(M(ofm1, oj, oi, tile_block, 0, 0, 0, 0)),
+                        &(V(ifm1, oj, oi, tile_block, 0, 0, 0, 0)));
+                }
+                th_counter++;
+        });
     }
+
 
     // Reduce diff-weights
     {
@@ -2047,21 +1986,14 @@ _execute_backward_weights_S_D_Giot_W()
                 nthreads, output, nelems, input_ptrs, input_starts, input_ends);
     }
 
-#pragma omp parallel
-#pragma omp for collapse(4)
-    for (int ifm1 = 0; ifm1 < jcp.nb_ic; ifm1++) {
-        for (int ofm1 = 0; ofm1 < jcp.nb_oc; ofm1++) {
-            for (int ofm2 = 0; ofm2 < jcp.oc_block; ofm2++) {
-                for (int ifm2 = 0; ifm2 < jcp.ic_block; ifm2++) {
-                    diff_weights_transform_bwd_weights(jcp,
-                            &(diff_weights(ofm1 * jcp.oc_block + ofm2,
-                                    ifm1 * jcp.ic_block + ifm2,
-                                    0, 0, 0, 0)),
-                            &(U(ifm1, ofm1, 0, 0, ofm2, ifm2, 0, 0)));
-                }
-            }
-        }
-    }
+    parallel_nd(jcp.nb_ic, jcp.nb_oc, jcp.oc_block, jcp.ic_block,
+        [&](int ifm1, int ofm1, int ofm2, int ifm2) {
+            diff_weights_transform_bwd_weights(jcp,
+                    &(diff_weights(ofm1 * jcp.oc_block + ofm2,
+                            ifm1 * jcp.ic_block + ifm2,
+                            0, 0, 0, 0)),
+                    &(U(ifm1, ofm1, 0, 0, ofm2, ifm2, 0, 0)));
+    });
 
 #pragma omp parallel
     if (jcp.with_bias) {
@@ -2132,12 +2064,10 @@ _execute_backward_weights_SDGtWo()
 #pragma omp parallel
         {
             if (jcp.with_bias) {
-#pragma omp for nowait collapse(2)
-                for (int ithr = 0; ithr < nthreads; ithr++) {
-                    for (int ofm = 0; ofm < jcp.oc / jcp.nb_oc; ofm++) {
+                parallel_nd_in_omp(nthreads, jcp.oc / jcp.nb_oc,
+                    [&](int ithr, int ofm) {
                         diff_bias_prv(ithr, ofm) = 0.0f;
-                    }
-                }
+                });
 #pragma omp for nowait
                 for (int bofm = 0; bofm < jcp.oc_block; bofm++) {
                     PRAGMA_OMP_SIMD()
@@ -2150,7 +2080,7 @@ _execute_backward_weights_SDGtWo()
 #pragma omp parallel firstprivate(th_counter) num_threads(nthreads)
 #pragma omp for nowait
         for (int tile_block = 0; tile_block < jcp.tile_block; tile_block++) {
-            int ithr = omp_get_thread_num();
+            int ithr = mkldnn_get_thread_num();
             for (int ifm1 = 0; ifm1 < jcp.nb_ic; ++ifm1) {
                 for (int ifm2 = 0; ifm2 < jcp.ic_block; ++ifm2) {
                     diff_src_transform_bwd_weights_ver_tile(tile_block, jcp,
@@ -2200,19 +2130,14 @@ _execute_backward_weights_SDGtWo()
             array_sum(nthreads, output, nelems, input_ptrs);
         }
 
-#pragma omp parallel
-#pragma omp for collapse(3)
-        for (int ifm1 = 0; ifm1 < jcp.nb_ic; ifm1++) {
-            for (int ofm2 = 0; ofm2 < jcp.oc_block; ofm2++) {
-                for (int ifm2 = 0; ifm2 < jcp.ic_block; ifm2++) {
-                    diff_weights_transform_bwd_weights(jcp,
-                            &(diff_weights(ofm1 * jcp.oc_block + ofm2,
-                                    ifm1 * jcp.ic_block + ifm2,
-                                    0, 0, 0, 0)),
-                            &(Us(0, ifm1, 0, 0, ofm2, ifm2, 0, 0)));
-                }
-            }
-        }
+        parallel_nd(jcp.nb_ic, jcp.oc_block, jcp.ic_block,
+            [&](int ifm1, int ofm2, int ifm2) {
+            diff_weights_transform_bwd_weights(jcp,
+                    &(diff_weights(ofm1 * jcp.oc_block + ofm2,
+                            ifm1 * jcp.ic_block + ifm2,
+                            0, 0, 0, 0)),
+                    &(Us(0, ifm1, 0, 0, ofm2, ifm2, 0, 0)));
+        });
 
 #pragma omp parallel
         if (jcp.with_bias) {
@@ -2286,12 +2211,10 @@ _execute_backward_weights_SDGt_W()
 #pragma omp parallel
     {
         if (jcp.with_bias) {
-#pragma omp for nowait collapse(2)
-            for (int ithr = 0; ithr < nthreads; ithr++) {
-                for (int ofm = 0; ofm < jcp.oc; ofm++) {
+            parallel_nd_in_omp(nthreads, jcp.oc,
+                [&](int ithr, int ofm) {
                     diff_bias_prv(ithr, ofm) = 0.0f;
-                }
-            }
+            });
 #pragma omp for nowait
             for (int bofm = 0; bofm < jcp.oc / simd_w; bofm++) {
                 PRAGMA_OMP_SIMD()
@@ -2305,7 +2228,7 @@ _execute_backward_weights_SDGt_W()
 #pragma omp parallel firstprivate(th_counter) num_threads(nthreads)
 #pragma omp for nowait
     for (int tile_block = 0; tile_block < jcp.tile_block; tile_block++) {
-        int ithr = omp_get_thread_num();
+        int ithr = mkldnn_get_thread_num();
 
         for (int ifm1 = 0; ifm1 < jcp.nb_ic; ++ifm1) {
             for (int ifm2 = 0; ifm2 < jcp.ic_block; ++ifm2) {
@@ -2363,21 +2286,13 @@ _execute_backward_weights_SDGt_W()
         array_sum(nthreads, output, nelems, input_ptrs);
     }
 
-#pragma omp parallel
-#pragma omp for collapse(4)
-    for (int ofm1 = 0; ofm1 < jcp.nb_oc; ofm1++) {
-        for (int ifm1 = 0; ifm1 < jcp.nb_ic; ifm1++) {
-            for (int ofm2 = 0; ofm2 < jcp.oc_block; ofm2++) {
-                for (int ifm2 = 0; ifm2 < jcp.ic_block; ifm2++) {
-                    diff_weights_transform_bwd_weights(jcp,
-                            &(diff_weights(ofm1 * jcp.oc_block + ofm2,
-                                    ifm1 * jcp.ic_block + ifm2,
-                                    0, 0, 0, 0)),
-                            &(U(ofm1, ifm1, 0, 0, ofm2, ifm2, 0, 0)));
-                }
-            }
-        }
-    }
+    parallel_nd(jcp.nb_oc, jcp.nb_ic, jcp.oc_block, jcp.ic_block,
+        [&](int ofm1, int ifm1, int ofm2, int ifm2) {
+        diff_weights_transform_bwd_weights(jcp,
+                &(diff_weights(ofm1 * jcp.oc_block + ofm2,
+                        ifm1 * jcp.ic_block + ifm2, 0, 0, 0, 0)),
+                &(U(ofm1, ifm1, 0, 0, ofm2, ifm2, 0, 0)));
+    });
 
 #pragma omp parallel
     if (jcp.with_bias) {

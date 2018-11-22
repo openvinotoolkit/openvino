@@ -71,8 +71,6 @@ cldnn_activation_additional_params activation_params[3];
 /// @brief Weights, recurrent weights, and biases order. [iofz] : ONNX, [ifoz] : Caffe
 cldnn_lstm_offset_order offset_order;
 // NOT SUPPORTED YET
-// /// @brief Number of directions default = 1, bidirectional = 2.
-// uint32_t num_directions;
 // /// @brief The sequence output for the hidden. This is not clearly specified in the ONNX definition.
 // uint32_t output_sequence;
 CLDNN_END_PRIMITIVE_DESC(lstm)
@@ -92,9 +90,8 @@ cldnn_primitive_id recurrent;
 cldnn_primitive_id bias;
 /// @brief Array of primitive ids containing the initial value of the hidden data (Ht-1).
 cldnn_primitive_id hidden;
-// NOT SUPPORTED YET
-// /// @brief Number of directions default = 1, bidirectional = 2.
-// uint32_t num_directions;
+/// @brief direction default = 0, bidirectional = 1.
+uint32_t direction;
 CLDNN_END_PRIMITIVE_DESC(lstm_gemm)
 
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(lstm_gemm);
@@ -117,8 +114,6 @@ cldnn_activation_additional_params activation_params[3];
 /// @brief Weights, recurrent weights, and biases order. [iofz] : ONNX, [ifoz] : Caffe
 cldnn_lstm_offset_order offset_order;
 // NOT SUPPORTED YET
-// /// @brief Number of directions default = 1, bidirectional = 2.
-// uint32_t num_directions;
 // /// @brief The sequence output for the hidden. This is not clearly specified in the ONNX definition.
 // uint32_t output_sequence;
 CLDNN_END_PRIMITIVE_DESC(lstm_elt)

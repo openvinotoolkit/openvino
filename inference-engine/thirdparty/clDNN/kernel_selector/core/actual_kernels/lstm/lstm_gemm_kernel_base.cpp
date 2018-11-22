@@ -35,6 +35,7 @@ namespace kernel_selector
         }
 
         jit.AddConstants({ MakeJitConstant("WEIGHTS", weights)});
+        jit.AddConstants({ MakeJitConstant("DIRECTION", params.direction)});
 
         return jit;
     }
@@ -64,7 +65,7 @@ namespace kernel_selector
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
         kernel.workGroups.global = { out.X().v, out.Batch().v, 1 };
-        kernel.kernelString = GetKernelString(kernelName, jit, entryPoint);
+        kernel.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 0 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
         kernel.arguments.push_back({ ArgumentDescriptor::Types::WEIGHTS, 0 });

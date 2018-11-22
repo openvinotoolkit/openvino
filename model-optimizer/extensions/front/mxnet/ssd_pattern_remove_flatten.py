@@ -15,13 +15,13 @@
 """
 
 import networkx as nx
+
 from extensions.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.middle.passes.eliminate import remove_node_from_graph
 
 
 class SsdPatternRemoveFlatten(FrontReplacementSubgraph):
-
     enabled = True
 
     def run_before(self):
@@ -35,9 +35,8 @@ class SsdPatternRemoveFlatten(FrontReplacementSubgraph):
             ],
             edges=[
                 ('multi_box_prior', 'flatten', {'in': 0})
-            ],
-            node_attrs=['op'],
-            edge_attrs=['in'])
+            ]
+        )
 
     def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
         """

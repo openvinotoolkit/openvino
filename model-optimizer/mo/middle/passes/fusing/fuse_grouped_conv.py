@@ -123,6 +123,7 @@ def concat_convolutions(graph: nx.MultiDiGraph, start_node: Node, last_node: Nod
     log.debug('Output shape : {}'.format(weights_value.shape))
 
     gconv.group = len(conv_nodes)
+    gconv.output = weights_node.shape[feature_dim]
     gconv.output_shape[feature_dim] = weights_node.shape[feature_dim]
 
     return True

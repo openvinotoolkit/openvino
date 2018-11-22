@@ -30,14 +30,19 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
         THROW_IE_EXCEPTION << "Cannot convert softmax layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     axis = smLayer->axis;
 
     if (axis >= getParentEdgeAt(0)->getDims().ndims()) {
         THROW_IE_EXCEPTION << "Incorrect axis!";
+    }
+
+    if (getParentEdgeAt(0)->getDims().ndims() == 3) {
+        MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType, memory::format::blocked);
+        createDescriptor({in_candidate}, {});
     }
 
     for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getDims())) {

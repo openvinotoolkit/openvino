@@ -15,6 +15,7 @@
 """
 
 import logging as log
+from collections import namedtuple
 
 import networkx as nx
 import numpy as np
@@ -34,6 +35,11 @@ class Op(object):
 
     def __init__(self, graph: nx.MultiDiGraph, attrs1: dict = None, attrs2: dict = None):
         self.graph = graph
+        try:
+            self.ir_version = graph.graph['ir_version']
+        except:
+            self.ir_version = None
+
         self.attrs = {
             'precision': "FP32",
             'kind': 'op'
@@ -53,7 +59,7 @@ class Op(object):
         id = unique_id(self.graph, id_prefix)
         new_attrs['name'] = id
         new_attrs = add_attrs_props(new_attrs)
-        update_ie_fields(new_attrs)
+        update_ie_fields(new_attrs, self.ir_version)
         self.substitute_ie_attrs(new_attrs)
         self.graph.add_node(id, **new_attrs)
         return Node(self.graph, id)
@@ -63,13 +69,21 @@ class Op(object):
         Replace standard list of attribute in layer/data by attributes
         delivered by backend_attrs
         """
+        backend_attrs_mapping = {
+            None: self.backend_attrs,
+            3: self.backend_attrs,
+            2: self.backend_attrs_v2
+        }
+
+        if self.ir_version not in backend_attrs_mapping.keys():
+            raise Error("Unrecognized IR version was specified: {}".format(self.ir_version))
 
         new_attrs.update({
             'IE': [(
                 'layer',
                 [('id', lambda node: node.node), 'name', 'precision', 'type'],
                 [
-                    ('data', self.backend_attrs() + self.default_backend_attrs, []),
+                    ('data', backend_attrs_mapping[self.ir_version]() + self.default_backend_attrs, []),
                     '@ports',
                     '@consts'])]
         })
@@ -120,21 +134,22 @@ class Op(object):
         # Missed careful handling of debug information
         for i, inp in enumerate(inputs):
             edge_attr = {'in': i, 'out': inp[1],
-                         'in_attrs': ['in'],
-                         'out_attrs': ['out'],
+                         'in_attrs': ['in', 'permutation'],
+                         'out_attrs': ['out', 'permutation'],
                          'data_attrs': []} if not inp[0].has_valid('kind') or inp[0].kind == 'op' \
-                else {'in': i, 'in_attrs': ['in']}
+                else {'in': i, 'in_attrs': ['in', 'permutation']}
             if edge_attrs is not None:
                 edge_attr.update(edge_attrs)
             self.graph.add_edge(inp[0].id, new_node.id, **edge_attr)
         return new_node
 
     def create_node_with_data(self, inputs: list = None, attrs: dict = None,
-                              data_nodes: [Node, np.ndarray, list] = None):
+                              data_nodes: [Node, np.ndarray, list] = None, edge_attrs: list = None):
         """
         Creates a new node with given inputs and attrs and also creates data node that
         holds the op output value. Inputs should be data nodes (not op nodes).
         Work for ops with a single output port only.
+        Edge attributes in edge_attrs go in order of items in 'inputs'
         """
         if inputs is None:
             inputs = []
@@ -143,8 +158,17 @@ class Op(object):
         # No need to extract port, because input node should be a data node,
         # so there is no choice.
         new_op_node = self.add_node(attrs)
+
         # TODO Preserve debug infor
-        self.graph.add_edges_from([(input.id, new_op_node.id, {'in': i}) for i, input in enumerate(inputs)])
+        inputs_with_edge_attrs = []
+        for i, inp in enumerate(inputs):
+            edge_attr = {'in': i}
+            if edge_attrs is not None and i < len(edge_attrs):
+                edge_attr.update(edge_attrs[i])
+            inputs_with_edge_attrs.append((inp.id, new_op_node.id, edge_attr))
+        
+        self.graph.add_edges_from(inputs_with_edge_attrs)
+        
         # TODO: Extend to the case when multiple output ports
         old_data_value = [None]
         old_data_shape = [None]
@@ -178,7 +202,7 @@ class Op(object):
         return data_nodes[0] if len(data_nodes) == 1 else data_nodes
 
     @staticmethod
-    def create_data_node(graph: nx.MultiDiGraph, op_node: Node, attrs: dict = None):
+    def create_data_node(graph: nx.MultiDiGraph, op_node: Node, attrs: dict = None, edge_attrs: dict = None):
         assert op_node is not None and op_node.kind == 'op'
         assert len(op_node.out_nodes()) == 0
         if attrs is None:
@@ -190,7 +214,10 @@ class Op(object):
         defaul_attrs.update(attrs)
         graph.add_node(data_node, **add_attrs_props(defaul_attrs))
         data_node = Node(graph, data_node)
-        graph.add_edges_from([(op_node.id, data_node.id, {'out': 0})])
+        if edge_attrs is not None:
+            graph.add_edges_from([(op_node.id, data_node.id, {'out': 0, **edge_attrs})])
+        else:
+            graph.add_edges_from([(op_node.id, data_node.id, {'out': 0})])
         return data_node
 
     @staticmethod
@@ -215,6 +242,23 @@ class Op(object):
         graph.add_node(data_node, **add_attrs_props(defaul_attrs))
         return Node(graph, data_node)
 
+    @staticmethod
+    def create_and_connect_input_data_node(graph: nx.MultiDiGraph, op_node: Node, attrs: dict = None, edge_attrs: dict = None):
+        assert op_node is not None and op_node.kind == 'op'
+        if attrs is None:
+            attrs = {}
+        if edge_attrs is None:
+            edge_attrs = {}
+
+        data_node = unique_id(graph, op_node.id)
+        defaul_attrs = dict(kind='data', precision="FP32", name=data_node, value=None, shape=None, data_type=None,
+                            infer=None)
+        defaul_attrs.update(attrs)
+        graph.add_node(data_node, **add_attrs_props(defaul_attrs))
+        data_node = Node(graph, data_node)
+        graph.add_edges_from([(data_node.id, op_node.id, edge_attrs)])
+        return data_node
+
     def update_node(self, node: Node, attrs: dict = None):
         """
         Updates/creates new attributes in node based on self.attrs and attrs.
@@ -224,7 +268,7 @@ class Op(object):
         if attrs:
             new_attrs.update(attrs)
         new_attrs = add_attrs_props(new_attrs)
-        update_ie_fields(new_attrs)
+        update_ie_fields(new_attrs, self.ir_version)
         self.substitute_ie_attrs(new_attrs)
         for k, v in new_attrs.items():
             node[k] = v
@@ -248,6 +292,9 @@ class Op(object):
         """
         return self.supported_attrs()
 
+    def backend_attrs_v2(self):
+        return self.backend_attrs()
+
     @staticmethod
     def get_op_class_by_name(name: str):
         return __class__.registered_ops[name]
@@ -263,3 +310,129 @@ class Op(object):
         for idx in range(dims_to_add):
             node.value = np.expand_dims(node.value, axis=-1)
         node.shape = np.array(node.value.shape)
+
+
+class PermuteAttrs:
+    Permutation = namedtuple('Permutation', ['perm', 'inv'])
+    Attr = namedtuple('Attr', ['name', 'port', 'func'])
+
+    common_permutation = lambda node, permutation, attr: node[attr][permutation.perm]
+    common_permutation_inv = lambda node, permutation, attr: permutation.inv[node[attr]]
+
+    # List of default permutations
+    common_attrs_permutation = {
+            'dim': common_permutation,
+            'pad': common_permutation,
+            'shape': common_permutation,
+            'order': lambda node, permutation, attr: permutation.inv[node[attr][permutation.perm]],
+            'stride': common_permutation,
+            'window': common_permutation,
+            'dilation': common_permutation,
+            'kernel_shape': common_permutation,
+            'output_shape': common_permutation,
+            'slices': common_permutation,
+            'shrink_axis_mask': common_permutation,
+            'new_axis_mask': common_permutation,
+
+            'axis': common_permutation_inv,
+            'batch_dims': common_permutation_inv,
+            'channel_dims': common_permutation_inv,
+            'spatial_dims': common_permutation_inv,
+
+            'input_channel_dim': common_permutation_inv,
+            'output_channel_dim': common_permutation_inv,
+            'kernel_spatial_idx': common_permutation_inv,
+            'input_feature_channel': common_permutation_inv,
+            'output_feature_channel': common_permutation_inv,
+    }
+
+    @staticmethod
+    def __attr(name, port, func=None):
+        if func is None:
+            if name in PermuteAttrs.common_attrs_permutation:
+                func = PermuteAttrs.common_attrs_permutation[name]
+            else:
+                raise Error('Attr {} is missing in PermuteAttrs.common_attrs_permutation. Please update '
+                            'common_attrs_permutation with permutation for your attribute!'.format(name))
+
+        if len(port.split(':')) != 2 or port.split(':')[0] not in ['input', 'output']:
+            raise Error("Attribute port {} for {} wasn't set correctly!".format(port, name))
+
+        return PermuteAttrs.Attr(name=name, port=port, func=func)
+
+    def __init__(self):
+        self.attrs = {}
+
+    def update_attrs(self, attrs):
+        for attr in attrs:
+            if not isinstance(attr, tuple) or len(attr) not in [2, 3]:
+                raise Error('attr object must be a tuple: (attribute_name, port) or (attribute_name, port, func)')
+            self.attrs.update({attr[0]: self.__attr(*attr)})
+        return self
+
+    def permute_attrs(self, node):
+        # This function applies permutation for given node
+        for attr in self.attrs.keys():
+            name, port, func = self.attrs[attr]
+            node_type, port = port.split(':')
+            port = int(port)
+            node_with_permutation = node.in_node(port) if node_type == 'input' else node.out_node(port)
+
+            if node_with_permutation.has_valid('permutation'):
+                permutation = node_with_permutation.permutation
+                if isinstance(permutation, type(lambda: 0)):
+                    node[name] = func(node, permutation(node), name)
+                else:
+                    node[name] = func(node, permutation, name)
+
+    @staticmethod
+    def create_permute_attrs(node, attrs=None):
+        # Create permute_attrs if not exists
+        if not node.has_valid('permute_attrs'):
+            node['permute_attrs'] = PermuteAttrs()
+        node['permute_attrs'].update_attrs(attrs)
+
+    @staticmethod
+    def set_permutation(node1, node2, permutation, skip_if_exists=False):
+        # This function creates permutation on edge between node1->node2
+        edge_attrs = node1.graph.get_edge_data(node1.id, node2.id)[0]
+        if 'permutation' not in edge_attrs:
+            nx.set_edge_attributes(G=node1.graph,
+                                   values={(node1.id, node2.id, 0): permutation},
+                                   name='permutation')
+        else:
+            if skip_if_exists:
+                return
+            raise Error('Permutation already exists in edge between {} and {}'.format(node1.name, node2.name))
+
+    @staticmethod
+    def get_inverse_permutation(perm):
+        inv = [0] * len(perm)
+        # Create reverse permutation
+        for index, pos in enumerate(perm):
+            inv[pos] = index
+        return inv
+
+    @staticmethod
+    def get_nhwc_to_nchw_permutation(dims_number: int):
+        # This function returns permutation from NHWC to NCHW for given dims number
+        if dims_number != 3:
+            perm = [0, dims_number - 1, *[x for x in range(1, dims_number - 1)]] if dims_number > 1 else [x for x in range(
+                dims_number)]
+        else:
+            # Exclude 3D shapes from permutation process: identity permutation
+            perm = list(range(0, dims_number))
+        inv = PermuteAttrs.get_inverse_permutation(perm)
+        return PermuteAttrs.Permutation(perm=np.array(perm), inv=np.array(inv))
+
+    @staticmethod
+    def get_nchw_to_nhwc_permutation(dims_number: int):
+        # This function returns permutation from NCHW to NHWC for given dims number
+        if dims_number != 3:
+            perm = [0, *[x for x in range(2, dims_number)], 1] if dims_number > 1 else [x for x in range(
+                dims_number)]
+        else:
+            # Exclude 3D shapes from permutation process: identity permutation
+            perm = list(range(0, dims_number))
+        inv = PermuteAttrs.get_inverse_permutation(perm)
+        return PermuteAttrs.Permutation(perm=np.array(perm), inv=np.array(inv))

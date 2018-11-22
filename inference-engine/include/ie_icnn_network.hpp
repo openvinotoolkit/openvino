@@ -17,6 +17,7 @@
 #include "details/ie_irelease.hpp"
 #include "ie_preprocess.hpp"
 #include "ie_input_info.hpp"
+#include "ie_icnn_network_stats.hpp"
 #include "ie_iextension.h"
 #include <memory>
 #include <map>
@@ -28,6 +29,8 @@ namespace InferenceEngine {
  * @brief A collection that contains string as key, and Data smart pointer as value
  */
 using OutputsDataMap = std::map<std::string, DataPtr>;
+class IShapeInferExtension;
+using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
 
 /**
  * @brief This is the main interface to describe the NN topology
@@ -143,9 +146,10 @@ public:
      * @note There are several limitations and it's not recommended to use it. Set batch to the input shape and call @reshape.
      * @param size Size of batch to set
      * @return Status code of the operation
-     * @note: Current implementation of the function sets batch size to the first dimension of 4D input layers in the networks
-     * and starts shape inference for IR starting from v3, for IR v2 it sets batch to the first dimension for all layers.
-     * Custom layers might require custom shape infer implementation, use @IShapeInferExtension interface to register them.
+     * @note: Current implementation of the function sets batch size to the first dimension of all layers in the networks.
+     * Before calling it make sure that all your layers have batch in the first dimension, otherwise the method works incorrectly.
+     * This limitation is resolved via [Shape Inference feature](./docs/Inference_Engine_Developer_Guide/ShapeInference.md)
+     * by using InferenceEngine::ICNNNetwork::reshape method.
      */
     virtual StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept = 0;
 
@@ -161,12 +165,11 @@ public:
     using InputShapes = std::map<std::string, SizeVector>;
 
     /**
-    * @brief - Run shape inference with new input shapes for the network
-    * @param inputShapes - map of pairs: name of corresponding data and its dimension.
-     * @note currently all inputs are required
-    * @param resp Pointer to the response message that holds a description of an error if any occurred
-    * @return Status code of the operation
-    */
+     * @brief Run shape inference with new input shapes for the network
+     * @param inputShapes - map of pairs: name of corresponding data and its dimension.
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @return Status code of the operation
+     */
     virtual StatusCode reshape(const InputShapes& inputShapes, ResponseDesc* resp) noexcept { return NOT_IMPLEMENTED; };
 
     /**
@@ -177,5 +180,7 @@ public:
      */
     virtual StatusCode
     AddExtension(const IShapeInferExtensionPtr& extension, ResponseDesc* resp) noexcept { return NOT_IMPLEMENTED; };
+
+    virtual StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* resp) const noexcept { return NOT_IMPLEMENTED; };
 };
 }  // namespace InferenceEngine

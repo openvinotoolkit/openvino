@@ -30,6 +30,7 @@
 #include "fully_connected_kernel_bf_io_input_spatial.h"
 #include "fully_connected_kernel_image_tutorial.h"
 #include "fully_connected_kernel_MMAD.h"
+#include "fully_connected_kernel_mmad_batched.h"
 
 namespace kernel_selector {
 
@@ -49,6 +50,7 @@ namespace kernel_selector {
         Attach<FullyConnected_fb_io_b8_f8>();
         Attach<FullyConnected_bf_io_input_spatial>();
         Attach<FullyConnectedKernelMMAD>();
+        Attach<FullyConnected_mmad_batched>();
     }
 
     KernelsData fully_connected_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const

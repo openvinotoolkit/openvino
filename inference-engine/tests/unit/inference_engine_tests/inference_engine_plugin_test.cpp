@@ -6,7 +6,6 @@
 #include "tests_common.hpp"
 
 #include <ie_plugin_ptr.hpp>
-#include <mkldnn/mkldnn_extension.hpp>
 #include "details/ie_so_loader.h"
 #include "inference_engine.hpp"
 #include "mock_inference_engine.hpp"

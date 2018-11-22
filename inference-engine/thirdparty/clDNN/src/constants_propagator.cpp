@@ -80,13 +80,35 @@ void constants_propagator::add_constant(program_node& node)
         const_outputs.push_back(node.id());
 
     //if a non-tirivial constant has a trivial input, add this input as an input for our network
-    for (auto& dep : node.get_dependencies())
+    add_deps_to_tpl(node.get_dependencies());
+}
+
+void constants_propagator::add_deps_to_tpl(const std::vector<program_node*>& deps)
+{
+     /*   
+        Nodes can share dependencies, if we already have dep in tpl, don't add it again.
+        example:          
+            C   <--- shared dep
+           / \
+          /   \
+         A     B
+     */
+    for (auto& dep : deps)
     {
         if (dep->is_type<data>())
         {
+            if (is_already_in_tpl(dep->id())) continue;
             tpl.add(std::make_shared<input_layout>(dep->id(), dep->as<data>().get_primitive()->mem.get_layout()));
             const_inputs.push_back(&dep->as<data>());
         }
     }
 }
 
+bool constants_propagator::is_already_in_tpl(const primitive_id& id)
+{
+    for (auto const& id_in_tpl : tpl.get_primitives_id())
+    {
+        if (id == id_in_tpl) return true;
+    }
+    return false;
+}

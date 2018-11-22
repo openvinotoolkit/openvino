@@ -11,7 +11,6 @@
 
 #include "details/ie_so_pointer.hpp"
 #include "ie_iextension.h"
-#include "mkldnn/mkldnn_extension_ptr.hpp"
 #include <string>
 #include <memory>
 #include <map>
@@ -166,8 +165,8 @@ public:
      * @param resp Response descriptor
      * @return Status code
      */
-    StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
-        return actual->getPrimitiveTypes(types, size, resp);
+    StatusCode getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
+        return actual->getShapeInferTypes(types, size, resp);
     }
 
     /**
@@ -204,11 +203,7 @@ inline std::shared_ptr<IShapeInferExtension> make_so_pointer(const std::string &
  */
 template<>
 inline std::shared_ptr<IExtension> make_so_pointer(const std::string &name) {
-    try {
-        return std::make_shared<Extension>(name);
-    } catch (InferenceEngine::details::InferenceEngineException& ex) {
-        return std::make_shared<MKLDNNPlugin::MKLDNNExtension>(name);
-    }
+    return std::make_shared<Extension>(name);
 }
 
 }  // namespace InferenceEngine

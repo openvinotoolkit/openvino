@@ -14,6 +14,7 @@
 #include "xml_father.hpp"
 #include "ie_common.h"
 #include <memory>
+#include "details/ie_cnn_network_tools.h"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -309,6 +310,249 @@ TEST_F(GraphToolsTest, canIterateOverEmptyNetwork) {
     ASSERT_EQ(std::begin(wrap), std::end(wrap));
 }
 
+TEST_F(GraphToolsTest, CNNNetSwapLayersThrowsForNullPointers) {
+    CNNLayerPtr nullLayer;
+    ASSERT_ANY_THROW(CNNNetSwapLayers(nullLayer, nullLayer));
+}
+
+TEST_F(GraphToolsTest, CNNNetSwapLayersSwapWithItself) {
+    CONNECT(1, 2);
+    CONNECT(2, 3);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("2");
+
+    ASSERT_NO_THROW(CNNNetSwapLayers(l, l));
+
+    ASSERT_CONNECTION(1, 2);
+    ASSERT_CONNECTION(2, 3);
+}
+
+TEST_F(GraphToolsTest, CNNNetSwapLayersSimpleCase_1) {
+    CONNECT(1, 2);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_, _, _)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("1");
+    auto r = wrap.getLayerByName("2");
+
+    ASSERT_NO_THROW(CNNNetSwapLayers(l, r));
+
+    ASSERT_CONNECTION(2, 1);
+}
+
+TEST_F(GraphToolsTest, CNNNetSwapLayersSimpleCase_2) {
+    CONNECT(1, 2);
+    CONNECT(2, 3);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_, _, _)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("2");
+    auto r = wrap.getLayerByName("3");
+
+    ASSERT_NO_THROW(CNNNetSwapLayers(l, r));
+
+    ASSERT_CONNECTION(1, 3);
+    ASSERT_CONNECTION(3, 2);
+}
+
+TEST_F(GraphToolsTest, CNNNetSwapLayersSimpleCase_3) {
+    CONNECT(1, 2);
+    CONNECT(2, 3);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_, _, _)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("1");
+    auto r = wrap.getLayerByName("2");
+
+    ASSERT_NO_THROW(CNNNetSwapLayers(l, r));
+
+    ASSERT_CONNECTION(2, 1);
+    ASSERT_CONNECTION(1, 3);
+}
+
+TEST_F(GraphToolsTest, CNNNetSwapLayersDoesSwapDims) {
+    CONNECT(1, 2);
+    CONNECT(2, 3);
+
+    SET_DIMS(1, {10, 1});
+    SET_DIMS(2, {20, 1});
+    SET_DIMS(3, {30, 1});
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_, _, _)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("1");
+    auto r = wrap.getLayerByName("2");
+
+    ASSERT_NO_THROW(CNNNetSwapLayers(l, r));
+
+    ASSERT_CONNECTION(2, 1);
+    ASSERT_CONNECTION(1, 3);
+
+    ASSERT_DIMS(1, {20, 1});
+    ASSERT_DIMS(2, {20, 1});
+}
+
+TEST_F(GraphToolsTest, CNNNetSwapLayersSimpleCase_4) {
+    CONNECT(1, 2);
+    CONNECT(2, 3);
+    CONNECT(3, 4);
+    CONNECT(4, 5);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_, _, _)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("2");
+    auto r = wrap.getLayerByName("4");
+
+    ASSERT_NO_THROW(CNNNetSwapLayers(l, r));
+
+    ASSERT_CONNECTION(1, 4);
+    ASSERT_CONNECTION(4, 3);
+    ASSERT_CONNECTION(3, 2);
+    ASSERT_CONNECTION(2, 5);
+}
+
+TEST_F(GraphToolsTest, CNNNetSwapLayersSplit) {
+    CONNECT(1, 2);
+    CONNECT(1, 3);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_, _, _)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("2");
+    auto r = wrap.getLayerByName("3");
+
+    ASSERT_NO_THROW(CNNNetSwapLayers(l, r));
+
+    ASSERT_CONNECTION(1, 2);
+    ASSERT_CONNECTION(1, 3);
+}
+TEST_F(GraphToolsTest, CNNNetSwapLayersSplit_2) {
+    CONNECT(1, 2);
+    CONNECT(1, 3);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_, _, _)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("1");
+    auto r = wrap.getLayerByName("2");
+
+    ASSERT_NO_THROW(CNNNetSwapLayers(l, r));
+
+    ASSERT_CONNECTION(2, 1);
+    ASSERT_CONNECTION(2, 3);
+}
+
+TEST_F(GraphToolsTest, CNNNetSwapLayersSplit_3) {
+    CONNECT(1, 2);
+    CONNECT(1, 6);
+    CONNECT(2, 3);
+    CONNECT(2, 4);
+    CONNECT(2, 5);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_, _, _)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("1");
+    auto r = wrap.getLayerByName("2");
+
+    ASSERT_NO_THROW(CNNNetSwapLayers(l, r));
+
+    ASSERT_CONNECTION(2, 1);
+    ASSERT_CONNECTION(2, 6);
+    ASSERT_CONNECTION(1, 3);
+    ASSERT_CONNECTION(1, 4);
+    ASSERT_CONNECTION(1, 5);
+}
+
+TEST_F(GraphToolsTest, CNNNetSwapLayersSplit_4) {
+    CONNECT(1, 2);
+    CONNECT(2, 3);
+    CONNECT(1, 3);
+    CONNECT(4, 2);
+    CONNECT(4, 1);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_, _, _)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("1");
+    auto r = wrap.getLayerByName("2");
+
+    ASSERT_NO_THROW(CNNNetSwapLayers(l, r));
+
+    ASSERT_CONNECTION(4, 2);
+    ASSERT_CONNECTION(4, 1);
+    ASSERT_CONNECTION(2, 1);
+    ASSERT_CONNECTION(2, 3);
+    ASSERT_CONNECTION(1, 3);
+}
 
 TEST_F(GraphToolsTest, CNNNetworkInsertLayerThrowsForNullPointers) {
     CNNLayerPtr nullLayer;

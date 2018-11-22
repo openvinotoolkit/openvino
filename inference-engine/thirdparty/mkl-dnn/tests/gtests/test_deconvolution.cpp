@@ -39,22 +39,15 @@ void compute_bias_fwd(const test_convolution_sizes_t &c,
     const memory::desc bias_d = bias.get_primitive_desc().desc();
     const memory::desc dst_d = dst.get_primitive_desc().desc();
 
-#   pragma omp parallel for collapse(5) schedule(static)
-    for (int n = 0; n < c.mb; n++) {
-        for (int g = 0; g < c.ng; g++) {
-            for (int oc = 0; oc < c.oc / c.ng; oc++) {
-                for (int oh = 0; oh < c.oh; oh++) {
-                     for (int ow = 0; ow < c.ow; ow++) {
-                        data_t b = bias_data[map_index(bias_d, g * c.oc / c.ng + oc)];
-                        int oidx = n * c.oc * c.oh * c.ow
-                                 + g * c.oc / c.ng * c.oh * c.ow
-                                 + oc * c.oh * c.ow + oh * c.ow + ow;
-                        dst_data[map_index(dst_d, oidx)] += b;
-                    }
-                }
-            }
+    mkldnn::impl::parallel_nd(c.mb, c.ng, c.oc / c.ng, c.oh, c.ow,
+        [&](int n, int g, int oc, int oh, int ow) {
+            data_t b = bias_data[map_index(bias_d, g * c.oc / c.ng + oc)];
+            int oidx = n * c.oc * c.oh * c.ow
+                + g * c.oc / c.ng * c.oh * c.ow
+                + oc * c.oh * c.ow + oh * c.ow + ow;
+            dst_data[map_index(dst_d, oidx)] += b;
         }
-    }
+    );
 }
 
 template <typename data_t>
@@ -66,24 +59,21 @@ void compute_bias_bwd(const test_convolution_sizes_t &c,
     const memory::desc bias_d = bias.get_primitive_desc().desc();
     const memory::desc dst_d = dst.get_primitive_desc().desc();
 
-#   pragma omp parallel for collapse(2) schedule(static)
-    for (int g = 0; g < c.ng; ++g) {
-        for (int oc = 0; oc < c.oc / c.ng; ++oc) {
-            int bidx = g * c.oc / c.ng + oc;
-            bias_data[map_index(bias_d, bidx)] = 0.0;
-            for (int mb = 0; mb < c.mb; ++mb) {
-                for (int oh = 0; oh < c.oh; ++oh) {
-                    for (int ow = 0; ow < c.ow; ++ow) {
-                        int oidx = mb * c.oc * c.oh * c.ow
-                                + g * c.oc / c.ng * c.oh * c.ow
-                                + oc * c.oh * c.ow + oh * c.ow + ow;
-                        bias_data[map_index(bias_d, bidx)]
-                            += dst_data[map_index(dst_d, oidx)];
-                    }
+    mkldnn::impl::parallel_nd(c.ng, c.oc / c.ng, [&](int g, int oc) {
+        int bidx = g * c.oc / c.ng + oc;
+        bias_data[map_index(bias_d, bidx)] = 0.0;
+        for (int mb = 0; mb < c.mb; ++mb) {
+            for (int oh = 0; oh < c.oh; ++oh) {
+                for (int ow = 0; ow < c.ow; ++ow) {
+                    int oidx = mb * c.oc * c.oh * c.ow
+                            + g * c.oc / c.ng * c.oh * c.ow
+                            + oc * c.oh * c.ow + oh * c.ow + ow;
+                    bias_data[map_index(bias_d, bidx)]
+                        += dst_data[map_index(dst_d, oidx)];
                 }
             }
         }
-    }
+    });
 }
 
 template <typename data_t>
@@ -94,27 +84,20 @@ void transpose_wei(const test_convolution_sizes_t &c,
     const memory::desc weights_d = weights.get_primitive_desc().desc();
     data_t *weights_tr_data = (data_t *)weights_tr.get_data_handle();
     const memory::desc weights_tr_d = weights_tr.get_primitive_desc().desc();
-#   pragma omp parallel for collapse(5) schedule(static)
-    for (int g = 0; g < c.ng; ++g) {
-        for (int oc = 0; oc < c.oc / c.ng; oc++) {
-            for (int ic = 0; ic < c.ic / c.ng; ++ic) {
-                for (int kh = 0; kh < c.kh; kh++) {
-                    for (int kw = 0; kw < c.kw; kw++) {
-                       int widx = g * c.oc / c.ng * c.ic / c.ng * c.kh * c.kw
-                                + oc * c.ic / c.ng * c.kh * c.kw
-                                + ic * c.kh * c.kw + kh * c.kw + kw;
-                       int widx_tr = g * c.oc / c.ng * c.ic / c.ng * c.kh * c.kw
-                                + ic * c.oc / c.ng * c.kh * c.kw
-                                + oc * c.kh * c.kw + kh * c.kw + kw;
-                       weights_tr_data[map_index(weights_tr_d, widx_tr)]
-                            = weights_data[map_index(weights_d, widx)];
-                   }
-                }
-            }
-        }
-    }
-}
 
+    mkldnn::impl::parallel_nd(c.ng, c.oc / c.ng, c.ic / c.ng, c.kh, c.kw,
+        [&](int g, int oc, int ic, int kh, int kw) {
+            int widx = g * c.oc / c.ng * c.ic / c.ng * c.kh * c.kw
+                     + oc * c.ic / c.ng * c.kh * c.kw
+                     + ic * c.kh * c.kw + kh * c.kw + kw;
+            int widx_tr = g * c.oc / c.ng * c.ic / c.ng * c.kh * c.kw
+                     + ic * c.oc / c.ng * c.kh * c.kw
+                     + oc * c.kh * c.kw + kh * c.kw + kw;
+            weights_tr_data[map_index(weights_tr_d, widx_tr)]
+                 = weights_data[map_index(weights_d, widx)];
+        }
+    );
+}
 
 template <typename data_t>
 class deconvolution_test : public

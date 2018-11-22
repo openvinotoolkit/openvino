@@ -18,8 +18,9 @@
 // Output matrix dimensions: M x N
 // --------------------------------------------------------------------------------------------------------------------------------
 
+#include "include/common.cl"
 #include "include/data_types.cl"
-#include "include/activation_functions.cl"
+
 
 #define DOT8i_0( _result, _A, _B, i)					\
     {									\
@@ -66,9 +67,9 @@
 	_result = mad(_A.s7, sub_group_broadcast( _B.s7, i), _result);	\
     }
 
-#define UNIT_TYPE_2 CAT(UNIT_TYPE, 2)
-#define UNIT_TYPE_4 CAT(UNIT_TYPE, 4)
-#define UNIT_TYPE_8 CAT(UNIT_TYPE, 8)
+#define UNIT_TYPE_2 MAKE_VECTOR_TYPE(UNIT_TYPE, 2)
+#define UNIT_TYPE_4 MAKE_VECTOR_TYPE(UNIT_TYPE, 4)
+#define UNIT_TYPE_8 MAKE_VECTOR_TYPE(UNIT_TYPE, 8)
 
 
 __attribute__((reqd_work_group_size(16, 1, 8)))

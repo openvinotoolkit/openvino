@@ -68,6 +68,14 @@ file(GLOB __CLDNN_Sources__core_common
     "${__CLDNN_Directory__core_common}/*.cpp"
   )
 
+set(__CLDNN_Directory__core_cache          "${__CLDNN_Directory__core}/cache")
+set(__CLDNN_Label__core_cache              "${__CLDNN_Label__core}\\cache")
+file(GLOB __CLDNN_Sources__core_cache
+    "${__CLDNN_Directory__core_cache}/*.h"
+    "${__CLDNN_Directory__core_cache}/*.hpp"
+    "${__CLDNN_Directory__core_cache}/*.cpp"
+  )
+
 set(__CLDNN_Directory__actual_kernels "${__CLDNN_Directory__core}/actual_kernels")
 set(__CLDNN_Label__actual_kernels     "${__CLDNN_Label__core}\\actual_kernels")
 file(GLOB_RECURSE __CLDNN_Sources__actual_kernels
@@ -104,6 +112,7 @@ set(__CLDNN_AllSources
     ${__CLDNN_Sources__core}
     ${__CLDNN_Sources__common}
     ${__CLDNN_Sources__core_common}
+    ${__CLDNN_Sources__core_cache}
     ${__CLDNN_Sources__actual_kernels}
     ${__CLDNN_Sources__cl_kernels}
     ${__CLDNN_Sources__cg_cache}
@@ -117,6 +126,7 @@ source_group("${__CLDNN_Label__main}"             FILES ${__CLDNN_Sources__main}
 source_group("${__CLDNN_Label__core}"             FILES ${__CLDNN_Sources__core})
 source_group("${__CLDNN_Label__common}"           FILES ${__CLDNN_Sources__common})
 source_group("${__CLDNN_Label__core_common}"      FILES ${__CLDNN_Sources__core_common})
+source_group("${__CLDNN_Label__core_cache}"      FILES ${__CLDNN_Sources__core_cache})
 #source_group("${__CLDNN_Label__actual_kernels}"  FILES ${__CLDNN_Sources__actual_kernels})
 source_group("${__CLDNN_Label__cl_kernels}"       FILES ${__CLDNN_Sources__cl_kernels})
 source_group("${__CLDNN_Label__cg_cache}"         FILES ${__CLDNN_Sources__cg_cache})
@@ -127,6 +137,7 @@ include_directories(
     "${__CLDNN_Directory__main}"
     "${__CLDNN_Directory__core}"
     "${__CLDNN_Directory__core}/common"
+	"${__CLDNN_Directory__core}/cache"
     "${__CLDNN_Directory__actual_kernels}"
     "${__CLDNN_Directory__common}"
   )

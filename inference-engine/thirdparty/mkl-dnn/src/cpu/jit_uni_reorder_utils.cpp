@@ -150,7 +150,12 @@ status_t prb_init(prb_t &p, const memory_desc_t &imd, const memory_desc_t &omd,
     auto im_d = memory_desc_wrapper(imd);
     auto om_d = memory_desc_wrapper(omd);
 
-    if (!im_d.is_blocking_desc() || !om_d.is_blocking_desc())
+    bool ok = true
+        && im_d.is_blocking_desc()
+        && om_d.is_blocking_desc()
+        && !im_d.has_zero_dim()
+        && !om_d.has_zero_dim();
+    if (!ok)
         return unimplemented;
 
     /* padding_dim consistency check */
@@ -172,6 +177,25 @@ status_t prb_init(prb_t &p, const memory_desc_t &imd, const memory_desc_t &omd,
     p.itype = ild.dt;
     p.otype = old.dt;
 
+    p.scale_type = attr->output_scales_.has_default_values()
+        ? scale_type_t::NONE
+        : (attr->output_scales_.mask_ == 0
+                ? scale_type_t::COMMON
+                : scale_type_t::MANY);
+
+    ptrdiff_t ss[max_ndims] = {0};
+    if (p.scale_type == scale_type_t::MANY) {
+        ptrdiff_t last_ss = 1;
+        for (int d = old.ndims - 1; d >=0; --d) {
+            assert((d == 0 || old.id[d - 1] <= old.id[d])
+                    && "logical dimensions should be in ascending order");
+            if (attr->output_scales_.mask_ & (1 << old.id[d])) {
+                ss[d] = last_ss;
+                last_ss *= old.dims[d];
+            }
+        }
+    }
+
     int ndims = 0;
 
     int i_pos = 0; /* state for input  -- current dimension */
@@ -190,6 +214,7 @@ status_t prb_init(prb_t &p, const memory_desc_t &imd, const memory_desc_t &omd,
             p.nodes[ndims].n = ild.dims[i_pos];
             p.nodes[ndims].is = ild.strides[i_pos];
             p.nodes[ndims].os = old.strides[o_pos];
+            p.nodes[ndims].ss = ss[o_pos];
             ++ndims;
             ++i_pos;
             ++o_pos;
@@ -199,6 +224,7 @@ status_t prb_init(prb_t &p, const memory_desc_t &imd, const memory_desc_t &omd,
             p.nodes[ndims].n = ild.dims[i_pos];
             p.nodes[ndims].is = ild.strides[i_pos];
             p.nodes[ndims].os = old.strides[o_pos] * factor;
+            p.nodes[ndims].ss = ss[o_pos] * factor;
             ++ndims;
             ++i_pos;
             old.dims[o_pos] = factor;
@@ -208,6 +234,7 @@ status_t prb_init(prb_t &p, const memory_desc_t &imd, const memory_desc_t &omd,
             p.nodes[ndims].n = old.dims[o_pos];
             p.nodes[ndims].is = ild.strides[i_pos] * factor;
             p.nodes[ndims].os = old.strides[o_pos];
+            p.nodes[ndims].ss = ss[o_pos];
             ++ndims;
             ++o_pos;
             ild.dims[i_pos] = factor;
@@ -218,9 +245,6 @@ status_t prb_init(prb_t &p, const memory_desc_t &imd, const memory_desc_t &omd,
     dims_t zero_pos = {0};
     p.ioff = memory_desc_wrapper(imd).off_v(zero_pos);
     p.ooff = memory_desc_wrapper(omd).off_v(zero_pos);
-
-    p.is_alpha = attr->output_scales_.scales_[0] != 1.f;
-    if (attr->output_scales_.mask_ != 0) return unimplemented;
 
     const int sum_idx = attr->post_ops_.find(primitive_kind::sum);
     p.beta = sum_idx == -1 ? 0.f : attr->post_ops_.entry_[sum_idx].sum.scale;
@@ -239,28 +263,38 @@ void prb_normalize(prb_t &p) {
                         && p.nodes[j].n < p.nodes[min_pos].n);
             if (new_min) min_pos = j;
         }
-        if (min_pos != d) {
-            nstl::swap(p.nodes[d].n, p.nodes[min_pos].n);
-            nstl::swap(p.nodes[d].is, p.nodes[min_pos].is);
-            nstl::swap(p.nodes[d].os, p.nodes[min_pos].os);
-        }
+        if (min_pos != d)
+            nstl::swap(p.nodes[d], p.nodes[min_pos]);
     }
 }
 
 void prb_simplify(prb_t &p) {
+#if defined(__GNUC__) && __GNUC__ >= 4
+/* GCC produces bogus array subscript is above array bounds warning for
+ * the `p.nodes[j - 1] = p.nodes[j]` line below, so disable it for now. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
     for (int d = 0; d < p.ndims - 1; ++d) {
         auto &this_node = p.nodes[d + 0];
         auto &next_node = p.nodes[d + 1];
-        bool fold = true
-            && next_node.is == (ptrdiff_t)this_node.n * this_node.is
-            && next_node.os == (ptrdiff_t)this_node.n * this_node.os;
+        const bool fold = false
+            || next_node.n == (size_t)1 // trivial case, just drop next node
+            || (true // or real folding if possible
+                    && next_node.is == (ptrdiff_t)this_node.n * this_node.is
+                    && next_node.os == (ptrdiff_t)this_node.n * this_node.os
+                    && next_node.ss == (ptrdiff_t)this_node.n * this_node.ss);
         if (fold) {
             this_node.n *= next_node.n;
             for (int j = d + 2; j < p.ndims; ++j)
                 p.nodes[j - 1] = p.nodes[j];
             --p.ndims;
+            --d; // make another try
         }
     }
+#if defined(__GNUC__) && __GNUC__ >= 4
+#pragma GCC diagnostic pop
+#endif
 }
 
 void prb_node_split(prb_t &p, int dim, size_t n1) {
@@ -276,6 +310,7 @@ void prb_node_split(prb_t &p, int dim, size_t n1) {
     p.nodes[dim + 1].n = p.nodes[dim].n / n1;
     p.nodes[dim + 1].is = p.nodes[dim].is * n1;
     p.nodes[dim + 1].os = p.nodes[dim].os * n1;
+    p.nodes[dim + 1].ss = p.nodes[dim].ss * n1;
 
     p.nodes[dim].n = n1;
 }
@@ -313,7 +348,8 @@ void prb_dump(const prb_t &p) {
     printf("@@@ type:%s:%s ndims:%d ", mkldnn_dt2str(p.itype),
             mkldnn_dt2str(p.otype), p.ndims);
     for (int d = 0; d < p.ndims; ++d)
-        printf("[%zu:%td:%td]", p.nodes[d].n, p.nodes[d].is, p.nodes[d].os);
+        printf("[%zu:%td:%td:%td]",
+                p.nodes[d].n, p.nodes[d].is, p.nodes[d].os, p.nodes[d].ss);
     printf(" off:%zu:%zu\n", p.ioff, p.ooff);
 }
 

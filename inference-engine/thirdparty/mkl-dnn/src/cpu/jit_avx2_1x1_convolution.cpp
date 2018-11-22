@@ -51,8 +51,7 @@ void _jit_avx2_1x1_convolution_fwd_t<with_relu>::execute_forward() {
     const auto &jcp = kernel_->jcp;
     const int MB = conf_.MB();
 
-    int ocb_work = jcp.with_dw_conv ? utils::div_up(jcp.nb_load, jcp.nb_load_blocking) : 1;
-    const int work_amount = MB * jcp.ngroups * ocb_work * jcp.nb_bcast;
+    const int work_amount = MB * jcp.ngroups * jcp.nb_bcast;
 
     const int stride_h = conf_.cdesc()->strides[0];
     const int stride_w = conf_.cdesc()->strides[1];
@@ -115,7 +114,7 @@ void _jit_avx2_1x1_convolution_fwd_t<with_relu>::execute_forward() {
                 p.bias_data = &bias[_ocb * jcp.oc_block];
 
                 for (int icb = 0; icb < nb_ic; icb += nb_ic_blocking) {
-                    p.reduce_pos_flag = 0
+                    p.first_last_flag = 0
                         | (icb == 0 ? FLAG_REDUCE_FIRST : 0)
                         | (icb + nb_ic_blocking >= nb_ic
                                 ? FLAG_REDUCE_LAST : 0);
@@ -142,6 +141,8 @@ void _jit_avx2_1x1_convolution_fwd_t<with_relu>::execute_forward() {
                     } else
                         p.bcast_data = src + src_d.blk_off(n, _icb, ih, iw);
 
+                    p.oc_off = _ocb * jcp.oc_block * sizeof(float);
+
                     kernel_->jit_ker(&p);
                 }
 
@@ -152,10 +153,13 @@ void _jit_avx2_1x1_convolution_fwd_t<with_relu>::execute_forward() {
         }
     };
 
-#   pragma omp parallel
-    {
-        ker(omp_get_thread_num(), omp_get_num_threads());
+    if (conf_.want_padded_bias()) {
+        for (int oc = 0; oc < jcp.oc_without_padding; ++oc)
+            padded_bias_[oc] = bias[oc];
+        bias = padded_bias_;
     }
+
+    parallel(0, ker);
 }
 
 template <bool with_relu>
@@ -171,6 +175,8 @@ void _jit_avx2_1x1_convolution_fwd_t<with_relu>::execute_forward_fusing() {
 
     const auto &jcp = kernel_->jcp;
     const int MB = conf_.MB();
+
+    auto dw_bias = jcp.dw_conv_biases;
 
     int ocb_work = jcp.with_dw_conv ? utils::div_up(jcp.nb_load, jcp.nb_load_blocking) : 1;
     const int work_amount = MB * jcp.ngroups * ocb_work * jcp.nb_bcast;
@@ -211,7 +217,7 @@ void _jit_avx2_1x1_convolution_fwd_t<with_relu>::execute_forward_fusing() {
                     p.bias_data = &bias[_ocb * jcp.oc_block];
 
                     for (int icb = 0; icb < jcp.nb_reduce; icb += jcp.nb_reduce_blocking) {
-                        p.reduce_pos_flag = 0
+                        p.first_last_flag = 0
                                             | (icb == 0 ? FLAG_REDUCE_FIRST : 0)
                                             | (icb + jcp.nb_reduce_blocking >= jcp.nb_reduce
                                                ? FLAG_REDUCE_LAST : 0);
@@ -239,6 +245,8 @@ void _jit_avx2_1x1_convolution_fwd_t<with_relu>::execute_forward_fusing() {
                             p.bcast_data = src + src_d.blk_off(n, _icb, ih, iw);
                         }
 
+                        p.oc_off = _ocb * jcp.oc_block * sizeof(float);
+
                         kernel_->jit_ker(&p);
                     }
                 }
@@ -263,7 +271,7 @@ void _jit_avx2_1x1_convolution_fwd_t<with_relu>::execute_forward_fusing() {
 
                 par_conv_dw.kh_padding = jcp_dw.kh;
                 par_conv_dw.filt = &jcp.dw_conv_weights[chb * jcp_dw.kh * jcp_dw.kw * jcp_dw.ch_block];
-                par_conv_dw.bias = &jcp.dw_conv_biases[chb * jcp_dw.ch_block];
+                par_conv_dw.bias = &dw_bias[chb * jcp_dw.ch_block];
                 par_conv_dw.ur_w = (size_t)(jcp_dw.ow);
 
                 kernel_dw_->jit_ker(&par_conv_dw);
@@ -314,10 +322,17 @@ void _jit_avx2_1x1_convolution_fwd_t<with_relu>::execute_forward_fusing() {
         }
     };
 
-    #pragma omp parallel
-    {
-        ker(omp_get_thread_num(), omp_get_num_threads());
+    if (conf_.want_padded_bias()) {
+        for (int oc = 0; oc < jcp.oc_without_padding; ++oc)
+            padded_bias_[oc] = bias[oc];
+        bias = padded_bias_;
+
+        for (int oc = 0; oc < jcp.oc_without_padding; ++oc)
+            dw_padded_bias_[oc] = dw_bias[oc];
+        dw_bias = dw_padded_bias_;
     }
+
+    parallel(0, ker);
 }
 
 template struct _jit_avx2_1x1_convolution_fwd_t<true>;
@@ -413,7 +428,7 @@ void jit_avx2_1x1_convolution_bwd_data_t::execute_backward_data() {
                         ? weights_d.blk_off(g, ocb, icb)
                         : weights_d.blk_off(ocb, icb)];
 
-                    p.reduce_pos_flag = ocb == 0 ? FLAG_REDUCE_FIRST : 0;
+                    p.first_last_flag = ocb == 0 ? FLAG_REDUCE_FIRST : 0;
 
                     p.reduce_dim = this_block_size(ocb * jcp.oc_block, jcp.oc,
                             nb_oc_blocking * jcp.oc_block);
@@ -427,10 +442,7 @@ void jit_avx2_1x1_convolution_bwd_data_t::execute_backward_data() {
         }
     };
 
-#   pragma omp parallel
-    {
-        ker(omp_get_thread_num(), omp_get_num_threads());
-    }
+    parallel(0, ker);
 }
 
 /* convolution backward wtr weights */
@@ -440,6 +452,7 @@ jit_avx2_1x1_convolution_bwd_weights_t::jit_avx2_1x1_convolution_bwd_weights_t(
         const output_vector &outputs)
     : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), kernel_(nullptr)
     , rtus_driver_(nullptr), ws_per_thread_(0), scratch_(nullptr)
+    , padded_bias_(nullptr)
 {
     kernel_ = new jit_avx2_1x1_conv_kernel_f32(conf_.jcp_, *conf_.attr());
 
@@ -460,7 +473,7 @@ jit_avx2_1x1_convolution_bwd_weights_t::jit_avx2_1x1_convolution_bwd_weights_t(
     const int njobs_x = bcast_work;
     const int njobs_y = jcp.ngroups * load_work;
 
-    const int max_threads = omp_get_max_threads();
+    const int max_threads = mkldnn_get_max_threads();
     const size_t max_buffer_size = max_threads * job_size * 8;
 
     reducer_weights_ = new cpu_reducer_2d_t<data_type::f32>(
@@ -471,8 +484,11 @@ jit_avx2_1x1_convolution_bwd_weights_t::jit_avx2_1x1_convolution_bwd_weights_t(
 
     reducer_bias_ = !conf_.with_bias() ? nullptr
         : new cpu_reducer_t<data_type::f32>(reduce_balancer_t(max_threads,
-                    oc_block, conf_.G() * conf_.OC() / oc_block,
-                    conf_.MB(), max_buffer_size));
+                    oc_block, jcp.ngroups * jcp.oc / oc_block,
+                    jcp.mb, max_buffer_size));
+
+    if (conf_.want_padded_bias())
+        padded_bias_ = (data_t *)malloc(sizeof(data_t) * jcp.oc, 64);
 
     init_rtus_driver<avx2>(this);
 }
@@ -481,7 +497,8 @@ void jit_avx2_1x1_convolution_bwd_weights_t::execute_backward_weights() {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(1));
     auto diff_weights = reinterpret_cast<data_t *>(this->memory(0));
-    auto diff_bias = reinterpret_cast<data_t *>(this->memory(1));
+    auto diff_bias_in = reinterpret_cast<data_t *>(this->memory(1));
+    data_t *diff_bias = conf_.want_padded_bias() ? padded_bias_ : diff_bias_in;
 
     const memory_desc_wrapper diff_dst_d(conf_.diff_dst_pd());
     const memory_desc_wrapper src_d(conf_.src_pd());
@@ -544,7 +561,7 @@ void jit_avx2_1x1_convolution_bwd_weights_t::execute_backward_weights() {
                     p.reduce_dim = sp_step;
                     rp.os = p.reduce_dim;
 
-                    p.reduce_pos_flag = sp == sp_start && first_image
+                    p.first_last_flag = sp == sp_start && first_image
                         ? FLAG_REDUCE_FIRST : 0;
 
                     p.load_data = diff_dst
@@ -688,13 +705,17 @@ void jit_avx2_1x1_convolution_bwd_weights_t::execute_backward_weights() {
         rb->reduce(ithr, diff_bias);
     };
 
-#   pragma omp parallel
-    {
-        int ithr = omp_get_thread_num();
-        int nthr = omp_get_num_threads();
+    parallel(0, [&](const int ithr, const int nthr) {
         ker(ithr, nthr);
         if (conf_.with_bias())
             ker_bias(ithr, nthr);
+    });
+
+    /* TODO: put this in ker_bias */
+    if (conf_.want_padded_bias()) {
+        assert(jcp.ngroups == 1);
+        for (int oc = 0; oc < jcp.oc_without_padding; ++oc)
+            diff_bias_in[oc] = diff_bias[oc];
     }
 }
 

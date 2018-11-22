@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include "src/common/mkldnn_thread.hpp"
+
 #include "bnorm/bnorm.hpp"
 
 namespace bnorm {
@@ -37,8 +39,8 @@ void compute_ref_fwd(const prb_t *p, const dnn_mem_t &src, dnn_mem_t &mean,
             }
         }
     };
-#   pragma omp parallel for
-    for (int c = 0; c < p->ic; ++c) {
+
+    mkldnn::impl::parallel_nd(p->ic, [&](int c) {
         float smean = ((float *)mean)[c];
         float svar = ((float *)var)[c];
         float rcp_denom = (float)(1.0f / (sqrtf(svar + p->eps)));
@@ -57,7 +59,7 @@ void compute_ref_fwd(const prb_t *p, const dnn_mem_t &src, dnn_mem_t &mean,
             maybe_post_ops(res, D);
             D = res;
         }
-    }
+    });
 }
 
 void compute_ref_bwd(const prb_t *p, const dnn_mem_t &src,
@@ -66,8 +68,7 @@ void compute_ref_bwd(const prb_t *p, const dnn_mem_t &src,
         dnn_mem_t &d_ss) {
     const float NHW = p->mb * p->id * p->ih * p->iw;
 
-#   pragma omp parallel for
-    for (int c = 0; c < p->ic; ++c) {
+    mkldnn::impl::parallel_nd(p->ic, [&](int c) {
         float smean = ((float *)mean)[c];
         float svar = ((float *)var)[c];
         float rcp_denom = 1.f / sqrtf(svar + p->eps);
@@ -113,7 +114,7 @@ void compute_ref_bwd(const prb_t *p, const dnn_mem_t &src,
 
             ((float *)d_src)[off] = rcp_denom * ds * gamma;
         }
-    }
+    });
 }
 
 }

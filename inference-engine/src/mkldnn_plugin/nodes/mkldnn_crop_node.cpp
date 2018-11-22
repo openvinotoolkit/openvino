@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "ie_parallel.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -24,7 +25,7 @@ void MKLDNNCropNode::getSupportedDescriptors() {
 
     channelAxis = 1;
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2) {
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     }
 
     MKLDNNDims childDims = getChildEdgeAt(0)->getDims();
@@ -48,7 +49,7 @@ void MKLDNNCropNode::getSupportedDescriptors() {
     }
 
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 }
 
 void MKLDNNCropNode::initSupportedPrimitiveDescriptors() {
@@ -141,7 +142,7 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
     memory::dims src_dims = parentMem.GetDims();
     int src_ndims = static_cast<int>(src_dims.size());
 
-    const int IC = (src_ndims  > 1) ? src_dims[1] : 1;
+    const int IC = (src_ndims  > 1) ? rnd_up(src_dims[1], m_block_size) : 1;
     const int IH = (src_ndims  > 2) ? src_dims[2] : 1;
     const int IW = (src_ndims  > 3) ? src_dims[3] : 1;
 
@@ -150,7 +151,7 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
     float *dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetData()) +
             getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
 
-#   pragma omp parallel for collapse(2) schedule(static)
+#ifdef _WIN32
     for (int n = 0; n < ON; ++n) {
         for (int c = 0; c < OC; c += m_block_size) {
             for (int h = 0; h < OH; ++h) {
@@ -168,6 +169,21 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
             }
         }
     }
+#else
+    parallel_for2d(ON, (OC / m_block_size), [&](int n, int c) {
+        int dst_ind = (n*OC + c*m_block_size)*OH*OW;
+
+        int src_ind = ((n+OFFSET_N)*IC + (c*m_block_size+OFFSET_C))*IH*IW +
+                      (OFFSET_H*IW + OFFSET_W)*m_block_size;
+
+        for (int h = 0; h < OH; ++h) {
+            memcpy(dst_data + dst_ind, src_data + src_ind, m_inner_dim * sizeof(float));
+
+            src_ind += IW*m_block_size;
+            dst_ind += OW*m_block_size;
+        }
+    });
+#endif
 }
 
 bool MKLDNNCropNode::created() const {

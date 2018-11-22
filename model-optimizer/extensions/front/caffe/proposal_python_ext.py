@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging as log
 
 from mo.front.extractor import CaffePythonFrontExtractorOp
 from mo.ops.op import Op
@@ -37,6 +38,19 @@ class ProposalPythonFrontExtractor(CaffePythonFrontExtractorOp):
             'post_nms_topn': 300,
             'nms_thresh': 0.7
         }
+        if 'ratios' in attrs and 'ratio' in attrs :
+            log.error('Both ratios and ratio found, value of ratios will be used', extra={'is_warning':True})
+        if 'scales' in attrs and 'scale' in attrs :
+            log.error('Both scales and scale found, value of scales will be used', extra={'is_warning':True})
+
+        if 'ratios' in attrs:
+            attrs['ratio']=attrs['ratios']
+            del attrs['ratios']
+        if 'scales' in attrs:
+            attrs['scale']=attrs['scales']
+            del attrs['scales']
+
         update_attrs.update(attrs)
+        CaffePythonFrontExtractorOp.check_param(Op.get_op_class_by_name('Proposal'), update_attrs)
         Op.get_op_class_by_name('Proposal').update_node_stat(node, update_attrs)
         return __class__.enabled

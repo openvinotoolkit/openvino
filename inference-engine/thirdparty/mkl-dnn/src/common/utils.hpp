@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "c_types_map.hpp"
+
 namespace mkldnn {
 namespace impl {
 
@@ -36,6 +38,13 @@ namespace impl {
 
 #ifdef _WIN32
 #define __PRETTY_FUNCTION__ __FUNCSIG__
+#endif
+
+#ifdef __APPLE__
+// older XCode doesn't support thread_local
+#define THREAD_LOCAL __thread
+#else
+#define THREAD_LOCAL thread_local
 #endif
 
 namespace utils {
@@ -278,6 +287,9 @@ inline void yield_thread() { }
 int mkldnn_getenv(char *value, const char *name, int len);
 bool mkldnn_jit_dump();
 FILE *mkldnn_fopen(const char *filename, const char *mode);
+
+void set_rnd_mode(round_mode_t rnd_mode);
+void restore_rnd_mode();
 
 unsigned int get_cache_size(int level, bool per_core);
 

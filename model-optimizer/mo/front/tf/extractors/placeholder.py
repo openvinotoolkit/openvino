@@ -16,6 +16,7 @@
 
 from mo.front.common.partial_infer.elemental import single_output_infer
 from mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape
+from mo.ops.op import PermuteAttrs
 
 
 def tf_placeholder_ext(pb):
@@ -23,5 +24,6 @@ def tf_placeholder_ext(pb):
         'data_type': tf_dtype_extractor(pb.attr["dtype"].type),
         'shape': tf_tensor_shape(pb.attr["shape"].shape),
         'type': 'Input',
-        'infer': lambda node: single_output_infer(node, lambda n: n.shape)
+        'infer': lambda node: single_output_infer(node, lambda n: n.shape),
+        'permute_attrs': PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])
     }

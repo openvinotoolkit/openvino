@@ -20,6 +20,9 @@
 #include "ie_data.h"
 #include "ie_blob.h"
 #include "ie_device.hpp"
+#include "ie_layers_property.hpp"
+
+#include "ie_icnn_network.hpp"
 
 namespace InferenceEngine {
 /**
@@ -460,107 +463,91 @@ public:
 };
 
 /**
+ * @brief convinenent way to declare property with backward compatibility to 2D members
+ */
+#define DEFINE_PROP(prop_name) \
+PropertyVector<unsigned int> prop_name;\
+unsigned int &prop_name##_x = prop_name.at(X_AXIS);\
+unsigned int &prop_name##_y = prop_name.at(Y_AXIS);\
+
+/**
  * @brief This class represents a standard 3D Convolution Layer
  */
 class ConvolutionLayer : public WeightableLayer {
 public:
     /**
-     * @brief A convolution kernel width
+     * @brief A convolution kernel array [X, Y, Z, ...]
      */
-    unsigned int _kernel_x = 0;
+    DEFINE_PROP(_kernel);
     /**
-     * @brief A convolution kernel height
+     * @brief A convolution paddings begin array [X, Y, Z, ...]
      */
-    unsigned int _kernel_y = 0;
+    DEFINE_PROP(_padding);
     /**
-     * @brief An input convolution stride width
+     * @brief A convolution paddings end array [X, Y, Z, ...]
      */
-    unsigned int _stride_x = 1;
+    PropertyVector<unsigned int> _pads_end;
     /**
-     * @brief An Input convolution stride height
+     * @brief A convolution strides array [X, Y, Z, ...]
      */
-    unsigned int _stride_y = 1;
+    DEFINE_PROP(_stride);
+    /**
+     * @brief A convolution dilations array [X, Y, Z, ...]
+     */
+    DEFINE_PROP(_dilation);
     /**
      * @brief A number of output feature maps (size) generating the 3'rd output dimension
      */
-    unsigned int _out_depth = 0;
-    /**
-     * @brief Input padding width
-     */
-    unsigned int _padding_x = 0;
-    /**
-     * @brief Input padding height
-     */
-    unsigned int _padding_y = 0;
-    /**
-     * @brief Dilation width
-     */
-    unsigned int _dilation_x = 1;
-    /**
-     * @brief Dilation height
-     */
-    unsigned int _dilation_y = 1;
+    unsigned int _out_depth = 0u;
     /**
      * @brief Number of groups
      */
-    unsigned int _group = 1;
+    unsigned int _group = 1u;
 
     /**
      * @brief Creates a new ConvolutionLayer instance.
      */
-    using WeightableLayer::WeightableLayer;
+    explicit ConvolutionLayer(const LayerParams &p) : WeightableLayer(p),
+            _kernel(2, 0u), _padding(2, 0u), _stride(2, 1u), _dilation(2, 1u) {}
+    /**
+     * @brief assignment operator
+     */
+    ConvolutionLayer & operator = (const ConvolutionLayer & that) {
+        if (&that != this) {
+            WeightableLayer::operator=(that);
+            _kernel = that._kernel;
+            _padding = that._padding;
+            _pads_end = that._pads_end;
+            _stride = that._stride;
+            _dilation = that._dilation;
+            _out_depth = that._out_depth;
+            _group = that._group;
+        }
+        return *this;
+    }
+    /**
+     * @brief move assignment operator
+     */
+    ConvolutionLayer& operator = (ConvolutionLayer &&) = default;
+    /**
+     * @brief copy constructor
+     */
+    ConvolutionLayer(const ConvolutionLayer & that) : WeightableLayer(that) {
+        operator = (that);
+    }
+    /**
+     * @brief move constructor
+     */
+    ConvolutionLayer(ConvolutionLayer &&) = default;
 };
 
 /**
  * @brief This class represents a standard deconvolution layer
  */
-class DeconvolutionLayer : public WeightableLayer {
-public:
-    /**
-     * @brief Deconvolution kernel width
-     */
-    unsigned int _kernel_x = 0;
-    /**
-     * @brief Deconvolution kernel height
-     */
-    unsigned int _kernel_y = 0;
-    /**
-     * @brief Input Deconvolution stride width
-     */
-    unsigned int _stride_x = 0;
-    /**
-     * @brief Input Deconvolution stride height
-     */
-    unsigned int _stride_y = 0;
-    /**
-     * @brief number of output feature maps (size) generating the 3'rd output dimension
-     */
-    unsigned int _out_depth = 0;
-    /**
-     * @brief Input padding width
-     */
-    unsigned int _padding_x = 0;
-    /**
-     * @brief Input padding height
-     */
-    unsigned int _padding_y = 0;
-    /**
-     * @brief Dilation width
-     */
-    unsigned int _dilation_x = 0;
-    /**
-     * @brief Dilation height
-     */
-    unsigned int _dilation_y = 0;
-    /**
-     * @brief Number of groups
-     */
-    unsigned int _group = 0;
-
-    /**
-     * @brief Creates a new DeconvolutionLayer instance.
-     */
-    using WeightableLayer::WeightableLayer;
+class DeconvolutionLayer : public ConvolutionLayer {
+ public:
+    using ConvolutionLayer::ConvolutionLayer;
+    using ConvolutionLayer::operator=;
 };
 
 /**
@@ -569,29 +556,21 @@ public:
 class PoolingLayer : public CNNLayer {
 public:
     /**
-     * @brief Pooling kernel width
+     * @brief Pooling kernel array [X, Y, Z, ...]
      */
-    unsigned int _kernel_x = 0;
+    DEFINE_PROP(_kernel);
     /**
-     * @brief Pooling kernel height
+     * @brief Pooling paddings begin array [X, Y, Z, ...]
      */
-    unsigned int _kernel_y = 0;
+    DEFINE_PROP(_padding);
     /**
-     * @brief Input Pooling stride width
+     * @brief Pooling paddings end array [X, Y, Z, ...]
      */
-    unsigned int _stride_x = 0;
+    PropertyVector<unsigned int> _pads_end;
     /**
-     * @brief Input Pooling stride height
+     * @brief Pooling strides array [X, Y, Z, ...]
      */
-    unsigned int _stride_y = 0;
-    /**
-     * @brief Input padding width
-     */
-    unsigned int _padding_x = 0;
-    /**
-     * @brief Input padding height
-     */
-    unsigned int _padding_y = 0;
+    DEFINE_PROP(_stride);
 
     /**
      * @enum PoolType
@@ -618,8 +597,43 @@ public:
     /**
     * @brief Creates a new PoolingLayer instance.
     */
-    using CNNLayer::CNNLayer;
+    explicit PoolingLayer(const LayerParams &p) : CNNLayer(p),
+            _kernel(2, 0u), _padding(2, 0u), _stride(2, 0u) {}
+
+    /**
+     * @brief assignment operator
+     */
+    PoolingLayer & operator = (const PoolingLayer & that) {
+        if (&that != this) {
+            CNNLayer::operator=(that);
+            _kernel = that._kernel;
+            _padding = that._padding;
+            _pads_end = that._pads_end;
+            _stride = that._stride;
+            _type = that._type;
+            _exclude_pad = that._exclude_pad;
+        }
+        return *this;
+    }
+    /**
+     * @brief move assignment operator
+     */
+    PoolingLayer& operator = (PoolingLayer &&) = default;
+
+    /**
+     * @brief copy constructor
+     */
+    PoolingLayer(const PoolingLayer & that) : CNNLayer(that) {
+        operator=(that);
+    }
+
+    /**
+     * @brief move constructor
+     */
+    PoolingLayer(PoolingLayer &&) = default;
 };
+
+#undef DEFINE_PROP
 
 /**
  * @brief This class represents a fully connected layer
@@ -836,7 +850,6 @@ public:
      */
     std::vector<int> axis;
     /**
-     * @deprecated result size is defined by second input
      * @brief A vector of dimensions to be preserved
      */
     std::vector<int> dim;
@@ -910,6 +923,66 @@ public:
      * @brief Creates a new ScaleShiftLayer instance.
      */
     using WeightableLayer::WeightableLayer;
+};
+
+/**
+* @brief This class represents RNN sequence layer
+*/
+class RNNLayer : public WeightableLayer {
+public:
+    CellType cellType;
+
+    /**
+    * @brief An axis by which iteration is performed. Axis=0 means first input blob dimension is sequence, axis=1 means first dimension is batch.
+    */
+    unsigned int _axis = 1;
+
+    using WeightableLayer::WeightableLayer;
+
+    /**
+    * @brief Creates a new RNNLayer instance.
+    */
+    explicit RNNLayer(const LayerParams &p) : WeightableLayer(p) {}
+};
+
+/**
+* @brief This class represents LSTMCell pseudo-layer to be used in TensorIterator
+*/
+class LSTMCell : public WeightableLayer {
+public:
+    using WeightableLayer::WeightableLayer;
+};
+
+class ICNNNetReader;
+/**
+* @brief This class represents TensorIterator layer
+*/
+class TensorIterator : public CNNLayer {
+public:
+    using CNNNetReaderPtr = std::shared_ptr<ICNNNetReader>;
+    CNNNetReaderPtr reader;
+
+    struct BackEdge {
+        int fromLayer;
+        int fromPort;
+        int toLayer;
+        int toPort;
+    };
+
+    struct Port {
+        int external_port_id;
+        int internal_layer_id;
+        int internal_port_id;
+        int axis;
+        int part_size;
+        int stride;
+    };
+
+    std::vector<Port> input_ports;
+    std::vector<Port> output_ports;
+    std::vector<BackEdge> backEdges;
+
+    using CNNLayer::CNNLayer;
 };
 
 /**

@@ -21,6 +21,7 @@
 #include "scale_grad_weights/scale_grad_weights_kernel_selector.h"
 #include "scale_grad_weights/scale_grad_weights_kernel_base.h"
 #include "error_handler.h"
+#include "network_impl.h"
 
 using namespace cldnn;
 

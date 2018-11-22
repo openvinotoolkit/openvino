@@ -69,8 +69,8 @@ std::string concatenation_inst::to_string(concatenation_node const& node)
     concat_info.add("inputs", ss_inputs.str());
     concat_info.dump(primitive_description);
 
-    node_info.add("concat info", concat_info);
-    node_info.dump(primitive_description);
+    node_info->add("concat info", concat_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

@@ -22,12 +22,12 @@
 #include "events_waiter.h"
 #include "error_handler.h"
 #include "kernel_selector_helper.h"
-#include "detection_output_inst.h"
-#include "proposal_inst.h"
-#include "prior_box_inst.h"
 
 namespace cldnn { namespace gpu
 {
+
+// checks if any user in a list is a cpu primitive
+bool is_any_user_cpu(const std::list<const program_node*>& users);
 
 /*
 Base class for all implementation of specified primitive type.
@@ -99,10 +99,13 @@ protected:
         return 1;
     }
 
-    event_impl::ptr aggregate_events(const std::vector<event_impl::ptr>& events) const
+    event_impl::ptr aggregate_events(const std::vector<event_impl::ptr>& events, bool group=false) const
     {
         if (events.size() == 1)
             return events[0];
+
+        if (group)
+            return _outer.get_program().get_engine().get_context()->group_events(events);
 
         return events_waiter(_outer.get_program().get_engine().get_context()).run(events);
     }
@@ -139,17 +142,7 @@ protected:
 
                 //is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
                 auto users = instance.node.get_users();
-                bool next_prim_is_cpu = false;
-                for (const auto& user : users)
-                {
-                    if (user->type() == detection_output::type_id() ||
-                        user->type() == prior_box::type_id() ||
-                        user->type() == proposal::type_id())
-                    {
-                        next_prim_is_cpu = true;
-                        break;
-                    }
-                }
+                bool next_prim_is_cpu = is_any_user_cpu(users);
                 if (next_prim_is_cpu)
                 {
                     _kernels[k].set_output_event(true);
@@ -166,7 +159,8 @@ protected:
             tmp_events = new_events;
         }
 
-        return aggregate_events(tmp_events);
+        bool group_events = split > 1 ? true : false;
+        return aggregate_events(tmp_events, group_events);
     }
 };
 

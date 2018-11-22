@@ -96,7 +96,7 @@ namespace kernel_selector
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
         
         auto& kernel = kd.kernels[0];
-        FillCLKernelData(kernel, runInfo, kernelName, jit, entry_point);
+        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
         
         if (newParams.gradient)
             kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });

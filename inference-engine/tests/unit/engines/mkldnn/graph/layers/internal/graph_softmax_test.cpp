@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
@@ -47,7 +46,7 @@ void check_softmax_fwd(const InferenceEngine::TBlob<data_t> &src, softmax_test_p
     size_t W = prm.in.w;
     size_t H = prm.in.h;
     size_t C = prm.in.c;
-    size_t MB = 1;
+    size_t MB = prm.in.n;
 
     auto off = [=](int n, int c, int h, int w)
     {
@@ -61,9 +60,7 @@ void check_softmax_fwd(const InferenceEngine::TBlob<data_t> &src, softmax_test_p
     };
 
     if(prm.axis == 0) {
-
         for (int c = 0; c < C; ++c) {
-
             for (int h = 0; h < H; ++h) {
                 for (int w = 0; w < W; ++w) {
                     double result = 0.0f;
@@ -98,7 +95,7 @@ void check_softmax_fwd(const InferenceEngine::TBlob<data_t> &src, softmax_test_p
                     double result = 0.0f;
 
                     for (int h = 0; h < H; ++h) {
-                        result += src_data[off(n, c, w, w)];//dst_ptr[map_index(dst_pd, off(n, c, h, w))];
+                        result += src_data[off(n, c, h, w)];//dst_ptr[map_index(dst_pd, off(n, c, h, w))];
                     }
 
                     check_norm(result);
@@ -139,7 +136,7 @@ class MKLDNNGraphSoftMaxTests: public TestsCommon,
             </output>
         </layer>
         <layer name="norm" id="1" type="Softmax" precision="FP32">
-            <data PrimitivesPriority="_IMPLS_"/>
+            <data PrimitivesPriority="_IMPLS_" axis="_AX_"/>
             <input>
                 <port id="1">
                     <dim>_IN_</dim>
@@ -172,6 +169,7 @@ protected:
         REPLACE_WITH_NUM(model, "_IH_", p.in.h);
         REPLACE_WITH_NUM(model, "_IC_", p.in.c);
         REPLACE_WITH_NUM(model, "_IN_", p.in.n);
+        REPLACE_WITH_NUM(model, "_AX_", p.axis);
         std::string impls;
         for (const auto& preferType : p.preferTypes) {
             if (!impls.empty())
@@ -249,8 +247,22 @@ TEST_P(MKLDNNGraphSoftMaxTests, TestsSoftMax) {}
 INSTANTIATE_TEST_CASE_P(
         TestsSoftMax, MKLDNNGraphSoftMaxTests,
         ::testing::Values(
-                softmax_test_params{{1, 3, 228, 228}, 1, 3, MKLDNNPlugin::impl_desc_type::jit},
-                softmax_test_params{{1, 3, 228, 228}, 1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}));
+                softmax_test_params{{1, 3, 228, 228}, 1, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{1, 3, 228, 228}, 1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                softmax_test_params{{1, 100, 6, 1}, 1, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{1, 100, 6, 1}, 1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                softmax_test_params{{1, 1000, 1, 1}, 1, 1, MKLDNNPlugin::impl_desc_type::ref},
+                softmax_test_params{{8, 1000, 1, 1}, 1, 1, MKLDNNPlugin::impl_desc_type::ref},
+                softmax_test_params{{1, 19, 128, 128}, 1, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{1, 19, 128, 128}, 1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+//                softmax_test_params{{8, 100, 81, 1}, 2, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{8, 100, 81, 1}, 2, 1, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                softmax_test_params{{1, 1, 1, 1}, 3, 1, MKLDNNPlugin::impl_desc_type::ref},
+//                softmax_test_params{{1, 1, 1, 33}, 3, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{1, 1, 1, 33}, 3, 1, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+//                softmax_test_params{{8, 1, 10, 81}, 3, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{8, 1, 10, 81}, 3, 1, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}
+                ));
 
 class MKLDNNGraphDynBatchSoftMaxTests: public MKLDNNGraphSoftMaxTests {
 protected:
@@ -319,5 +331,19 @@ TEST_P(MKLDNNGraphDynBatchSoftMaxTests, TestsDynBatchSoftMax) {}
 INSTANTIATE_TEST_CASE_P(
         TestsDynBatchSoftMax, MKLDNNGraphDynBatchSoftMaxTests,
         ::testing::Values(
-                softmax_test_params{{1, 3, 228, 228}, 1, 3, MKLDNNPlugin::impl_desc_type::jit},
-                softmax_test_params{{1, 3, 228, 228}, 1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}));
+                softmax_test_params{{1, 3, 228, 228}, 1, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{1, 3, 228, 228}, 1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                softmax_test_params{{1, 100, 6, 1}, 1, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{1, 100, 6, 1}, 1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                softmax_test_params{{1, 1000, 1, 1}, 1, 1, MKLDNNPlugin::impl_desc_type::ref},
+                softmax_test_params{{8, 1000, 1, 1}, 1, 1, MKLDNNPlugin::impl_desc_type::ref},
+                softmax_test_params{{1, 19, 128, 128}, 1, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{1, 19, 128, 128}, 1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+//                softmax_test_params{{8, 100, 81, 1}, 2, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{8, 100, 81, 1}, 2, 1, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                softmax_test_params{{1, 1, 1, 1}, 3, 1, MKLDNNPlugin::impl_desc_type::ref},
+//                softmax_test_params{{1, 1, 1, 33}, 3, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{1, 1, 1, 33}, 3, 1, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+//                softmax_test_params{{8, 1, 10, 81}, 3, 2, MKLDNNPlugin::impl_desc_type::jit},
+                softmax_test_params{{8, 1, 10, 81}, 3, 1, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}
+                ));

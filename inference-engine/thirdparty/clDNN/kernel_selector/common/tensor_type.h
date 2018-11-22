@@ -48,6 +48,7 @@ namespace kernel_selector
             brfyx,              // 4D+batch
             winograd_2x3_s1_data, //winograd convolution input, F(2,3) -- filter 3x3 with stride 1
             byxf_af32, // for MMAD convolution
+            fs_bs_yx_bsv4_fsv32, // for batched MMAD
             DataLayoutCount // NMBER OF ELEMENTS IN ENUM
         };
 
@@ -78,6 +79,7 @@ namespace kernel_selector
             image_2d_weights_winograd_6x3_s1_fbxyb, // image 2d winograd convolution weights for fused kernel, F(2, 3) --filter 3x3 with stride 1
             image_2d_weights_winograd_6x3_s1_xfbyb, // image 2d winograd convolution weights for fused kernel, F(2, 3) --filter 3x3 with stride 1
             os_is_yx_isa8_osv8_isv4, // for MMAD convolution
+            is_o_yx_isv32, // for MMAD 1x1 convolutions
             WeightsLayoutCount // NMBER OF ELEMENTS IN ENUM
         };
 

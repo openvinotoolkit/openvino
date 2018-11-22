@@ -17,6 +17,7 @@
 from mo.front.common.partial_infer.concat import concat_infer
 from mo.front.onnx.extractors.utils import onnx_attr
 
+
 def concat_ext(node):
     return {
         'type': "Concat",

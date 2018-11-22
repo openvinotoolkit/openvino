@@ -53,7 +53,42 @@ def header(body):
 #ifndef MKLDNN_DEBUG_H
 #define MKLDNN_DEBUG_H
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+/* All symbols shall be internal unless marked as MKLDNN_API */
+#if defined _WIN32 || defined __CYGWIN__
+#   define MKLDNN_HELPER_DLL_IMPORT __declspec(dllimport)
+#   define MKLDNN_HELPER_DLL_EXPORT __declspec(dllexport)
+#else
+#   if __GNUC__ >= 4
+#       define MKLDNN_HELPER_DLL_IMPORT __attribute__ ((visibility ("default")))
+#       define MKLDNN_HELPER_DLL_EXPORT __attribute__ ((visibility ("default")))
+#   else
+#       define MKLDNN_HELPER_DLL_IMPORT
+#       define MKLDNN_HELPER_DLL_EXPORT
+#   endif
+#endif
+
+#ifdef MKLDNN_DLL
+#   ifdef MKLDNN_DLL_EXPORTS
+#       define MKLDNN_API MKLDNN_HELPER_DLL_EXPORT
+#   else
+#       define MKLDNN_API MKLDNN_HELPER_DLL_IMPORT
+#   endif
+#else
+#   define MKLDNN_API
+#endif
+
+#if defined (__GNUC__)
+#   define MKLDNN_DEPRECATED __attribute__((deprecated))
+#elif defined(_MSC_VER)
+#   define MKLDNN_DEPRECATED __declspec(deprecated)
+#else
+#   define MKLDNN_DEPRECATED
+#endif
+
 #include "mkldnn_types.h"
+#endif /* DOXYGEN_SHOULD_SKIP_THIS */
 
 #ifdef __cplusplus
 extern "C" {
@@ -83,6 +118,9 @@ def maybe_skip(enum):
     return enum in (
         'mkldnn_padding_kind_t',
         'mkldnn_batch_normalization_flag_t',
+        'mkldnn_wino_memory_format_t',
+        'mkldnn_rnn_cell_flags_t',
+        'mkldnn_rnn_direction_t',
         'mkldnn_engine_kind_t',
         'mkldnn_query_t',
         'mkldnn_stream_kind_t',
@@ -108,9 +146,10 @@ def sanitize_value(v):
     return v
 
 
-def func_decl(enum):
+def func_decl(enum, is_header = False):
     abbrev = enum_abbrev(enum)
-    return 'const char *mkldnn_%s2str(%s v)' % (abbrev, enum)
+    return 'const char %s*mkldnn_%s2str(%s v)' % \
+            ('MKLDNN_API ' if is_header else '', abbrev, enum)
 
 
 def func_to_str(enum, values):
@@ -136,7 +175,7 @@ def generate(ifile):
             continue
         values = [v_value.attrib['name'] \
                 for v_value in v_enum.findall('EnumValue')]
-        h_body += func_decl(enum) + ';\n'
+        h_body += func_decl(enum, is_header = True) + ';\n'
         s_body += func_to_str(enum, values) + '\n'
     return (template(header(h_body)), template(source(s_body)))
 

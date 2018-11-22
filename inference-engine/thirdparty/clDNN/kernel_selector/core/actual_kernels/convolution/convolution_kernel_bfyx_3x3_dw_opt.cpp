@@ -1,5 +1,5 @@
 ﻿/*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ namespace kernel_selector
     ConvolutionKernel_bfyx_3x3_dw_opt::ConvolutionKernel_bfyx_3x3_dw_opt() : ConvolutionKernelBase("convolution_gpu_bfyx_3x3_dw_opt")
     {
         // Generate the dispatch options to the auto-tuner.
-        std::vector<size_t> tileXDimSizes = { 1,2,4,5,6,8,10,12,14,16 };
+        std::vector<size_t> tileXDimSizes = { 1,2,4,5,6,8,10,12,14 };
         std::vector<size_t> tileYDimSizes = { 1,2,3,4,5,6,7 };
         std::vector<std::string> executionModes = { /*AGE_BASED ,*/ ROUND_ROBIN };
 
@@ -141,6 +141,18 @@ namespace kernel_selector
 
     KernelsData ConvolutionKernel_bfyx_3x3_dw_opt::GetTunedKernelsDataByIndex(const Params& params, const optional_params& options, const int autoTuneIndex) const
     {
+        constexpr int simdSize = 16;
+
+        KernelData kd = KernelData::Default<convolution_params>(params);
+        convolution_params& convParams = *static_cast<convolution_params*>(kd.params.get());
+        DispatchData runInfo = SetDefault(convParams, autoTuneIndex);
+
+        if (static_cast<int>(static_cast<int>(runInfo.gws0 - 1) / simdSize) * runInfo.cldnnStyle.blockWidth + simdSize > convParams.inputs[0].Y().pitch)
+        {
+            // Internal Error - requested tile size is not supported for y pitch
+            return{};
+        }
+
         return GetCommonKernelsData(params, options, GetAutoTuneOptions(params, autoTuneIndex).exeMode, autoTuneIndex);
     }
 

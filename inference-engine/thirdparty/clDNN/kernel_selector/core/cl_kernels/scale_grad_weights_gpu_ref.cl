@@ -21,14 +21,14 @@ KERNEL(scale_grad_weights_gpu_ref)(
     const __global UNIT_TYPE* input,
     const __global UNIT_TYPE* input_grad,
     __global OUTPUT_TYPE* output,
-	__global UNIT_TYPE* scale,
+	__global float* scale,
 #if BIAS_TERM
-    __global UNIT_TYPE* bias,
+    __global float* bias,
 #endif
 #if MOMENTUM
-    __global UNIT_TYPE* prev_grad_w,
+    __global float* prev_grad_w,
 #if BIAS_TERM
-    __global UNIT_TYPE* prev_grad_b,
+    __global float* prev_grad_b,
 #endif
 #endif
     const float lr
@@ -48,9 +48,9 @@ KERNEL(scale_grad_weights_gpu_ref)(
     {
         for (uint x = 0; x < INPUT0_SIZE_X; x++)
         {
-            UNIT_TYPE in_g = input_grad[grad_idx];
+            ACCUMULATOR_TYPE in_g = TO_ACCUMULATOR_TYPE(input_grad[grad_idx]);
             grad_sum[local_idx] += in_g * lr;
-            grad_sum_in[local_idx] += in_g * input[grad_idx] * lr; 
+            grad_sum_in[local_idx] += in_g * TO_ACCUMULATOR_TYPE(input[grad_idx]) * lr; 
             grad_idx += INPUT0_X_PITCH;
         }
         grad_idx += INPUT0_Y_PITCH - INPUT0_SIZE_X * INPUT0_X_PITCH;
@@ -71,7 +71,7 @@ KERNEL(scale_grad_weights_gpu_ref)(
     if (local_idx == 0)
     {
 #if MOMENTUM
-    UNIT_TYPE update_gradient_w = grad_sum_in[0] + prev_grad_w[f] * MOMENTUM_FACTOR + DECAY_RATE * lr * scale[f];
+    ACCUMULATOR_TYPE update_gradient_w = grad_sum_in[0] + prev_grad_w[f] * MOMENTUM_FACTOR + DECAY_RATE * lr * scale[f];
     scale[f] -= update_gradient_w;
     prev_grad_w[f] = update_gradient_w;
 #else
@@ -80,7 +80,7 @@ KERNEL(scale_grad_weights_gpu_ref)(
 
 #if BIAS_TERM
 #if MOMENTUM
-    UNIT_TYPE update_gradient_b = prev_grad_b[f] * MOMENTUM_FACTOR + grad_sum[0];
+    ACCUMULATOR_TYPE update_gradient_b = prev_grad_b[f] * MOMENTUM_FACTOR + grad_sum[0];
     bias[f] -= update_gradient_b;
     prev_grad_b[f] = update_gradient_b;
 #else

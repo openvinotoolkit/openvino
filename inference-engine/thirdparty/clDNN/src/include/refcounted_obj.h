@@ -33,8 +33,8 @@ template<class T>
 class refcounted_obj
 {
 public:
-    using ptr = refcounted_obj_ptr<std::remove_const_t<T>>;
-    using cptr = refcounted_obj_ptr<std::add_const_t<T>>;
+    using ptr = refcounted_obj_ptr<typename std::remove_const<T>::type>;
+    using cptr = refcounted_obj_ptr<typename std::add_const<T>::type>;
 
     refcounted_obj()
         : _ref_count(1)
@@ -67,15 +67,15 @@ struct refcounted_obj_ptr
     template <class U = T>
     refcounted_obj_ptr(T* ptr, bool add_ref = true) : _ptr(ptr)
     {
-        static_assert(std::is_base_of<refcounted_obj<std::remove_const_t<U>>, U>::value, "Object handled with refcounted_obj_ptr should derive from refcounted_obj");
+        static_assert(std::is_base_of<refcounted_obj<typename std::remove_const<U>::type>, U>::value, "Object handled with refcounted_obj_ptr should derive from refcounted_obj");
         if(add_ref) ptr_add_ref();
     }
 
     //for refcounted_obj_ptr<const T>, allow contruction from T*
-    template <class U = T, class = std::enable_if_t<std::is_const<U>::value>>
-    refcounted_obj_ptr(std::remove_const_t<T>* ptr, bool add_ref = true) : _ptr(ptr)
+    template <class U = T, class = typename std::enable_if<std::is_const<U>::value>::type>
+    refcounted_obj_ptr(typename std::remove_const<T>::type* ptr, bool add_ref = true) : _ptr(ptr)
     {
-        static_assert(std::is_base_of<refcounted_obj<std::remove_const_t<U>>, U>::value, "Object handled with refcounted_obj_ptr should derive from refcounted_obj");
+        static_assert(std::is_base_of<refcounted_obj<typename std::remove_const<U>::type>, U>::value, "Object handled with refcounted_obj_ptr should derive from refcounted_obj");
         if (add_ref) ptr_add_ref();
     }
 

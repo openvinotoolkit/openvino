@@ -291,7 +291,7 @@ mkldnn_status_t simple_net()
     /* AlexNet: relu
      * {BATCH, 96, 55, 55} -> {BATCH, 96, 55, 55}
      */
-    float negative_slope = 1.0;
+    float negative_slope = 1.0f;
 
     int *relu_dst_sizes = conv_dst_sizes;
     float *relu_dst_buffer =
@@ -337,9 +337,9 @@ mkldnn_status_t simple_net()
      * k: 1.0
      */
     uint32_t local_size = 5;
-    float alpha = 0.0001;
-    float beta = 0.75;
-    float k = 1.0;
+    float alpha = 0.0001f;
+    float beta = 0.75f;
+    float k = 1.0f;
 
     int32_t *lrn_dst_sizes = relu_dst_sizes;
 

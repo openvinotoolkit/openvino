@@ -15,37 +15,41 @@
 """
 
 
-class DSU_elem:
+class DSUElem:
     """
     An object that represents one DSU element.
     """
+    name = ''
+    parent = ''
+    rank = 1
 
     def __init__(self, name):
-        self.__setattr__('name', name)
-        self.__setattr__('parent', name)
-        self.__setattr__('rank', 1)
+        self.name = name
+        self.parent = name
+        self.rank = 1
 
 
 class DSU:
     """
     Naive implementation of the "disjoint set union" data structure.
     """
+    map = dict()
 
     def __init__(self, elems: list):
-        self.__setattr__('map', {elem.name: elem for elem in elems})
+        self.map = {elem.name: elem for elem in elems}
         pass
 
     def find_elem(self, name: str):
         return self.map[name]
 
-    def find_parent(self, elem: DSU_elem):
+    def find_parent(self, elem: DSUElem):
         if elem.parent == elem.name:
             return elem
         parent_elem = self.find_parent(self.find_elem(elem.parent))
         elem.parent = parent_elem.name
         return parent_elem
 
-    def union(self, elem1: DSU_elem, elem2: DSU_elem):
+    def union(self, elem1: DSUElem, elem2: DSUElem):
         elem1 = self.find_parent(elem1)
         elem2 = self.find_parent(elem2)
         if elem1.name == elem2.name:  # already in the same set

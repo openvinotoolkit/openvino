@@ -18,6 +18,8 @@
 #include "convolution_grad_weights_kernel_ref.h"
 #include "convolution_grad_weights_kernel_1x1.h"
 #include "convolution_grad_weights_kernel_yxfb.h"
+#include "convolution_grad_weights_kernel_3x3.h"
+#include "convolution_grad_weights_kernel_7x7.h"
  
 namespace kernel_selector 
 {
@@ -26,6 +28,8 @@ namespace kernel_selector
         Attach<ConvolutionGradWeightsKernelRef>();
         Attach<ConvolutionGradWeightsKernel1x1>();
 		Attach<ConvolutionGradWeightsKernel_yxfb>();
+        Attach<ConvolutionGradWeightsKernel3x3>();
+        Attach<ConvolutionGradWeightsKernel7x7>();
     }
 
     KernelsData convolution_grad_weights_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const

@@ -179,7 +179,10 @@ typedef struct
     uint8_t supports_fp16;             ///< Does engine support FP16.
     uint8_t supports_fp16_denorms;     ///< Does engine support denormalized FP16.
     uint8_t supports_subgroups_short;  ///< Does engine support cl_intel_subgroups_short.
-    uint8_t supports_image;           ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
+    uint8_t supports_image;            ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
+
+    uint8_t supports_imad;             ///< Does engine support int8 mad.
+    uint8_t supports_immad;            ///< Does engine support int8 multi mad.
 }  cldnn_engine_info;
 /// @}
 
@@ -205,11 +208,11 @@ typedef enum /*:int32_t*/
     cldnn_build_option_optimize_data,           ///< Enable implicit reordering for user input.
     cldnn_build_option_debug,                   ///< Enable debug mode.
     cldnn_build_option_outputs,                 ///< User selected list of network outputs.
-	cldnn_build_option_learning_config,         ///< User defined learning parameters.
     cldnn_build_option_tuning_config,           ///< Tuning config.
     cldnn_build_option_graph_dumps_dir,         ///< Specifies a directory to which stages of network compilation should be dumped.
     cldnn_build_option_serialization,           ///< Specifies a name of files to which serialization should be dumped.
-    cldnn_build_option_load_program             ///< Specifies a name of load_program process.
+    cldnn_build_option_load_program,            ///< Specifies a name of load_program process.
+    cldnn_build_option_learning_config          ///< User defined learning parameters.
 } cldnn_build_option_type;
 
 /// @brief Tuning modes.
@@ -285,7 +288,9 @@ typedef enum /*:int32_t*/
     cldnn_format_image_2d_weights_c1_b_fyx, ///< image format for weights, image 2d, single channel, width size is b, height is f*y*x
                                       ///< \n \image html image_2d_weights_c1_b_fyx.jpg
     cldnn_format_byxf_af32,           /// < \n format for input for primitives using MMAD
+    cldnn_format_fs_bs_yx_bs4_fs32, /// < \n format for batched input for primitives using MMAD
     cldnn_format_os_is_yx_isa8_osv8_isv4, /// < \n format for weights for MMAD convolutions, stored as ((aligned_to_8(O)/8) * (aligned_to_32(I)/32) * Y * X * ( 8 ) * ( 8 ) * ( 4 )
+    cldnn_format_is_o_yx_isv32, /// < \n format for weights for 1x1 MMAD convolutions 
     cldnn_format_format_num,    ///< number of format types
     cldnn_format_any = -1
 } cldnn_format_type;
@@ -323,7 +328,9 @@ typedef enum /*:size_t*/
 	cldnn_i8  = sizeof(int8_t),
     cldnn_f16 = sizeof(int16_t) | CLDNN_FLOAT_TYPE_MASK,
     cldnn_f32 = sizeof(float) | CLDNN_FLOAT_TYPE_MASK,
-    cldnn_u8  = sizeof(uint8_t) | CLDNN_UINT_TYPE_MASK // TODO: move to top of list and re-compile inference engine
+    cldnn_u8  = sizeof(uint8_t) | CLDNN_UINT_TYPE_MASK, // TODO: move to top of list and re-compile inference engine
+    cldnn_i32 = sizeof(int32_t),
+    cldnn_i64 = sizeof(int64_t)
 
 } cldnn_data_type;
 
@@ -420,6 +427,15 @@ typedef enum cldnn_activation_func_t
     activation_square,                  // val*val
     activation_sqrt,                    // sqrt(val)
     activation_elu,                     // max(0, val) + a * (exp(min(0, val) - 1) (a is additional param)
+    activation_sin,                     // sin(val)
+    activation_asin,                    // asin(val)
+    activation_sinh,                    // sinh(val)
+    activation_cos,                     // cos(val)
+    activation_acos,                    // acos(val)
+    activation_cosh,                    // cosh(val)
+    activation_log,                     // log(val)
+	activation_log2,					// log2(val)
+    activation_exp,                     // exp(val)
 } cldnn_activation_func;
 
 /// @brief activation gradient functions

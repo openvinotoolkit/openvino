@@ -29,8 +29,8 @@ namespace cldnn
 
     public:
         using parent::parent;
-        decltype(auto) input() const { return get_dependency(0); }
-        decltype(auto) inv_variance() const { return get_dependency(2); }
+        program_node& input() const { return get_dependency(0); }
+        program_node& inv_variance() const { return get_dependency(2); }
     };
 
     using batch_norm_grad_node = typed_program_node<batch_norm_grad>;
@@ -43,7 +43,7 @@ namespace cldnn
     public:
         typed_primitive_inst(network_impl& network, batch_norm_grad_node const& desc);
 
-        decltype(auto) inv_variance_memory() const { return dep_memory(2); }
+        memory_impl& inv_variance_memory() const { return dep_memory(2); }
 
         static layout calc_output_layout(batch_norm_grad_node const& node);
         static std::string to_string(batch_norm_grad_node const& node);

@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 
 class MockOutputController : public OutputController {
 public:
-    MockOutputController(const std::vector<DataPtr>& dataVec) : OutputController(dataVec, {}, {}, std::make_shared<EmptyChecker>()) {}
+    MockOutputController(const std::vector<DataPtr>& dataVec) : OutputController(dataVec, {}, std::make_shared<EmptyChecker>()) {}
 
     MOCK_METHOD2(setShapeByName, void(const SizeVector&, const std::string&));
 

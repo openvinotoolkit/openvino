@@ -177,38 +177,26 @@ void ref_pooling_fwd_t<data_type, acc_type>::execute_forward() {
     const int OW = conf_.OW();
 
     if (alg == pooling_max) {
-#       pragma omp parallel for collapse(5) schedule(static)
-        for (int mb = 0; mb < MB; ++mb) {
-            for (int oc = 0; oc < OC; ++oc) {
-                for (int od = 0; od < OD; ++od)
-                for (int oh = 0; oh < OH; ++oh)
-                for (int ow = 0; ow < OW; ++ow) {
-                    data_t *d = is_3d
-                        ? &dst[dst_d.off(mb, oc, od, oh, ow)]
-                        : &dst[dst_d.off(mb, oc, oh, ow)];
-                        d[0] = nstl::numeric_limits<data_t>::lowest();
-                        set_ws(mb, oc, od, oh, ow, 0);
-                        if (is_3d) ker_max_3d(d, mb, oc, od, oh, ow);
-                        else ker_max(d, mb, oc, oh, ow);
-                }
-            }
-        }
+        parallel_nd(MB, OC, OD, OH, OW,
+            [&](int mb, int oc, int od, int oh, int ow) {
+            data_t *d = is_3d
+                ? &dst[dst_d.off(mb, oc, od, oh, ow)]
+                : &dst[dst_d.off(mb, oc, oh, ow)];
+                d[0] = nstl::numeric_limits<data_t>::lowest();
+                set_ws(mb, oc, od, oh, ow, 0);
+                if (is_3d) ker_max_3d(d, mb, oc, od, oh, ow);
+                else ker_max(d, mb, oc, oh, ow);
+        });
     } else {
-#       pragma omp parallel for collapse(5) schedule(static)
-        for (int mb = 0; mb < MB; ++mb) {
-            for (int oc = 0; oc < OC; ++oc) {
-                for (int od = 0; od < OD; ++od)
-                for (int oh = 0; oh < OH; ++oh)
-                for (int ow = 0; ow < OW; ++ow) {
-                        data_t *d = is_3d
-                            ? &dst[dst_d.off(mb, oc, od, oh, ow)]
-                            : &dst[dst_d.off(mb, oc, oh, ow)];
-                        d[0] = 0;
-                        if (is_3d) ker_avg_3d(d, mb, oc, od, oh, ow);
-                        else ker_avg(d, mb, oc, oh, ow);
-                }
-            }
-        }
+        parallel_nd(MB, OC, OD, OH, OW,
+            [&](int mb, int oc, int od, int oh, int ow) {
+            data_t *d = is_3d
+                ? &dst[dst_d.off(mb, oc, od, oh, ow)]
+                : &dst[dst_d.off(mb, oc, oh, ow)];
+            d[0] = 0;
+            if (is_3d) ker_avg_3d(d, mb, oc, od, oh, ow);
+            else ker_avg(d, mb, oc, oh, ow);
+        });
     }
 }
 
@@ -354,43 +342,37 @@ void ref_pooling_bwd_t<data_type, acc_type>::execute_backward() {
     const int OW = conf_.OW();
 
     if (conf_.desc()->alg_kind == alg_kind::pooling_max) {
-#       pragma omp parallel for collapse(2) schedule(static)
-        for (int mb = 0; mb < MB; ++mb) {
-            for (int oc = 0; oc < OC; ++oc) {
-                if (is_3d) ker_zero_3d(mb, oc);
-                else ker_zero(mb, oc);
-                for (int od = 0; od < OD; ++od) {
-                    for (int oh = 0; oh < OH; ++oh) {
-                        for (int ow = 0; ow < OW; ++ow) {
-                            const data_t *d = is_3d
-                                ? &diff_dst[diff_dst_d.off(mb, oc, od, oh, ow)]
-                                : &diff_dst[diff_dst_d.off(mb, oc, oh, ow)];
-                            if (is_3d) ker_max_3d(d, mb, oc, od, oh, ow);
-                            else ker_max(d, mb, oc, oh, ow);
-                        }
+        parallel_nd(MB, OC, [&](int mb, int oc) {
+            if (is_3d) ker_zero_3d(mb, oc);
+            else ker_zero(mb, oc);
+            for (int od = 0; od < OD; ++od) {
+                for (int oh = 0; oh < OH; ++oh) {
+                    for (int ow = 0; ow < OW; ++ow) {
+                        const data_t *d = is_3d
+                            ? &diff_dst[diff_dst_d.off(mb, oc, od, oh, ow)]
+                            : &diff_dst[diff_dst_d.off(mb, oc, oh, ow)];
+                        if (is_3d) ker_max_3d(d, mb, oc, od, oh, ow);
+                        else ker_max(d, mb, oc, oh, ow);
                     }
                 }
             }
-        }
+        });
     } else {
-#       pragma omp parallel for collapse(2) schedule(static)
-        for (int mb = 0; mb < MB; ++mb) {
-            for (int oc = 0; oc < OC; ++oc) {
-                if (is_3d) ker_zero_3d(mb, oc);
-                else ker_zero(mb, oc);
-                for (int od = 0; od < OD; ++od) {
-                    for (int oh = 0; oh < OH; ++oh) {
-                        for (int ow = 0; ow < OW; ++ow) {
-                            const data_t *d = is_3d
-                                ? &diff_dst[diff_dst_d.off(mb, oc, od, oh, ow)]
-                                : &diff_dst[diff_dst_d.off(mb, oc, oh, ow)];
-                            if (is_3d) ker_avg_3d(d, mb, oc, od, oh, ow);
-                            else ker_avg(d, mb, oc, oh, ow);
-                        }
+        parallel_nd(MB, OC, [&](int mb, int oc) {
+            if (is_3d) ker_zero_3d(mb, oc);
+            else ker_zero(mb, oc);
+            for (int od = 0; od < OD; ++od) {
+                for (int oh = 0; oh < OH; ++oh) {
+                    for (int ow = 0; ow < OW; ++ow) {
+                        const data_t *d = is_3d
+                            ? &diff_dst[diff_dst_d.off(mb, oc, od, oh, ow)]
+                            : &diff_dst[diff_dst_d.off(mb, oc, oh, ow)];
+                        if (is_3d) ker_avg_3d(d, mb, oc, od, oh, ow);
+                        else ker_avg(d, mb, oc, oh, ow);
                     }
                 }
             }
-        }
+        });
     }
 }
 

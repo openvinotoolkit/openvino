@@ -14,6 +14,7 @@
  limitations under the License.
 """
 
+import numpy as np
 import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
@@ -27,7 +28,7 @@ class Div(FrontReplacementOp):
     enabled = True
 
     def replace_op(self, graph: nx.MultiDiGraph, node: Node):
-        reciprocal = Power(graph, dict(scale=1, power=-1, shift=0, name=node.name + '/reciprocal_'))
+        reciprocal = Power(graph, dict(scale=1, power=np.float64(-1), shift=0, name=node.name + '/reciprocal_'))
         mul = Eltwise(graph, dict(operation='mul', name=node.name + '/mul_'))
 
         out_node = mul.create_node([(node.in_node(0), node.in_edge(0)['out']),

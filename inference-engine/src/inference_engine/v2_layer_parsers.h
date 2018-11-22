@@ -10,7 +10,7 @@
 #include "v2_format_parser.h"
 #include "xml_parse_utils.h"
 #include "range_iterator.hpp"
-#include "caseless.hpp"
+#include "details/caseless.hpp"
 #include <vector>
 #include <string>
 #include <map>
@@ -103,6 +103,12 @@ public:
 class ActivationLayerCreator : public BaseCreator {
  public:
     explicit ActivationLayerCreator(const std::string& type) : BaseCreator(type) {}
+    CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) override;
+};
+
+class TILayerCreator : public BaseCreator {
+public:
+    explicit TILayerCreator(const std::string& type) : BaseCreator(type) {}
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) override;
 };
 }  // namespace details

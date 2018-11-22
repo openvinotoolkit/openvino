@@ -30,7 +30,7 @@ class typed_program_node<split> : public typed_program_node_base<split>
 public:
     using parent::parent;
 
-    decltype(auto) input() const { return get_dependency(0); }
+    program_node& input() const { return get_dependency(0); }
 };
 
 using split_node = typed_program_node<split>;

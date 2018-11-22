@@ -14,11 +14,10 @@
  limitations under the License.
 """
 
-from mo.ops.tile import Tile
 import networkx as nx
 import numpy as np
+
 from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import unique_id, Node
 
 
 class ShufflenetReLUReorder(BackReplacementPattern):
@@ -48,10 +47,8 @@ class ShufflenetReLUReorder(BackReplacementPattern):
                    ('transpose_data', 'reshape2'),
                    ('reshape2', 'reshape2_data'),
                    ('reshape2_data', 'conv'),
-                   ],
-            node_attrs=['kind', 'type'],
-            edge_attrs=[])
-
+                   ]
+        )
 
     def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
         relu = match['relu']
