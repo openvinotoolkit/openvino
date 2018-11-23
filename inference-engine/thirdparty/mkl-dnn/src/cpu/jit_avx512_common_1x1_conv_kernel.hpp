@@ -21,6 +21,7 @@
 #include "jit_generator.hpp"
 #include "jit_primitive_conf.hpp"
 #include "jit_uni_eltwise.hpp"
+#include "jit_uni_depthwise.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -32,6 +33,16 @@ struct jit_avx512_common_1x1_conv_kernel : public jit_generator {
     {
         this->generate();
         jit_ker = (void (*)(jit_1x1_conv_call_s *)) this->getCode();
+    }
+
+    ~jit_avx512_common_1x1_conv_kernel() {
+        for (auto inj : eltwise_injectors)
+            delete inj;
+        eltwise_injectors.clear();
+
+        for (auto inj : depthwise_injectors)
+            delete inj;
+        depthwise_injectors.clear();
     }
 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_common_1x1_conv_kernel)
@@ -80,15 +91,20 @@ struct jit_avx512_common_1x1_conv_kernel : public jit_generator {
     reg64_t reg_load_loop_work = rsi;
     reg64_t reg_reduce_loop_work = r11;
     reg64_t bcast_loop_iter = rdx;
-    reg64_t reduce_loop_iter = abi_param1;
+    reg64_t reduce_loop_iter = r13;
     reg64_t reg_reduce_pos_flag = rax;
     reg64_t reg_output_stride = r13;
     reg64_t reg_bias_data = r12;
-    reg64_t reg_relu_ns = r13;
     reg64_t reg_bcast_loop_work = aux1_reg_bcast_data;
-    mask_t vmask = k7;
 
     Xbyak::Zmm vreg_bcast = Xbyak::Zmm(31);
+
+    reg64_t reg_oc_off = abi_param1;
+    reg64_t reg_d_weights = imm_addr64;
+    reg64_t reg_d_bias = r13;
+
+    nstl::vector<jit_uni_eltwise_injector_f32<avx512_common>*> eltwise_injectors;
+    nstl::vector<jit_uni_depthwise_injector_f32<avx512_common>*> depthwise_injectors;
 
     int bcast_loop_work_offt = 0;
     int stack_space_needed = 16;
@@ -98,9 +114,6 @@ struct jit_avx512_common_1x1_conv_kernel : public jit_generator {
 
     void generate();
     static void balance(jit_1x1_conv_conf_t &jcp, int nthreads);
-
-    Xbyak::Label l_table;
-    jit_uni_eltwise_vector_f32<avx512_common> eltwise_generator;
 };
 }
 }

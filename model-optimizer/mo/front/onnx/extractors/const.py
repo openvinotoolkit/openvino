@@ -14,12 +14,10 @@
  limitations under the License.
 """
 
-import logging as log
 import numpy as np
 
 from mo.front.common.partial_infer.const import tf_const_infer
-from mo.utils.error import Error
-from onnx.numpy_helper import to_array # TODO eliminate direct onnx dependency
+from onnx.numpy_helper import to_array  # TODO eliminate direct onnx dependency
 
 
 def onnx_const_ext(node):

@@ -97,3 +97,6 @@ void HeteroDeviceLoader::initConfigs(const std::map<std::string, std::string> &c
     }
 }
 
+void HeteroDeviceLoader::SetLogCallback(IErrorListener &listener) {
+    _plugin->SetLogCallback(listener);
+}

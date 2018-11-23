@@ -17,16 +17,17 @@
 import networkx as nx
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
+from mo.graph.graph import Node
 from mo.ops.op import Op
 
 
 class Softmax(Op):
     op = 'Softmax'
-    enabled = False
+    enabled = True
 
     def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
         super().__init__(graph, {
-            'infer': copy_shape_infer,
+            'infer': Softmax.infer,
             'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
@@ -34,3 +35,9 @@ class Softmax(Op):
 
     def supported_attrs(self):
         return ['axis']
+
+    @staticmethod
+    def infer(node: Node):
+        if node.axis < 0:
+            node.axis = len(node.in_node().shape) + node.axis
+        copy_shape_infer(node)

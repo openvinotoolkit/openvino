@@ -11,6 +11,7 @@
 #include "ie_blob_proxy.hpp"
 #include "range_iterator.hpp"
 #include <fstream>
+#include "ie_icnn_network_stats.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -52,7 +53,7 @@ inline void ParseSegment(LayerParseParameters& prms, const pugi::xml_node &blob)
         segment.precision = prms.prms.precision;
 }
 
-int BaseCreator::version_ = 2;
+int BaseCreator::version_ = 3;
 
 void V2FormatParser::ParsePort(LayerParseParameters::LayerPortData& port, pugi::xml_node &node) const {
     port.portId = GetIntAttr(node, "id");
@@ -137,12 +138,15 @@ void V2FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& d
     for (unsigned i = 0; i < parseInfo.inputPorts.size(); i++) {
         if (parseInfo.inputPorts[i].portId != inputPort) continue;
         if (parseInfo.inputPorts[i].precision != dataPtr->getPrecision()) {
-            if (dataPtr->getPrecision() == Precision::UNSPECIFIED)
+            if (dataPtr->getPrecision() == Precision::UNSPECIFIED) {
                 dataPtr->setPrecision(parseInfo.inputPorts[i].precision);
-            else
-                THROW_IE_EXCEPTION << "in Layer " << targetLayer->name
+            } else {
+                // TODO: Make a correct exception
+
+                /*THROW_IE_EXCEPTION << "in Layer " << targetLayer->name
                                    << ": trying to connect an edge to mismatch precision of output port: "
-                                   << dataPtr->getName();
+                                   << dataPtr->getName();*/
+            }
         }
         if (!equal(parseInfo.inputPorts[i].dims, dataPtr->getDims()))
             THROW_IE_EXCEPTION << "in Layer " << targetLayer->name
@@ -265,6 +269,11 @@ CNNNetworkImplPtr V2FormatParser::Parse(pugi::xml_node& root) {
             inputPrecision = layer->precision == Precision::Q78 ? Precision::I16 :
                 layer->precision == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(layer->precision);
 
+            auto inputLayer = std::make_shared<GenericLayer>(LayerParams({inputData->getName(), "input",  inputPrecision}));
+            inputLayer->outData.push_back(inputData);
+            _network->addLayer(inputLayer);
+            inputData->creatorLayer = inputLayer;
+
             InputsDataMap inputs;
             _network->getInputsInfo(inputs);
             if (inputs.size() != 1) {
@@ -304,6 +313,8 @@ CNNNetworkImplPtr V2FormatParser::Parse(pugi::xml_node& root) {
         });
     }
 
+    auto statNode = root.child("statistics");
+    ParseStatisticSection(statNode);
 
     if (!_network->allLayers().size())
         THROW_IE_EXCEPTION << "Incorrect model! Network doesn't contain layers.";
@@ -311,33 +322,38 @@ CNNNetworkImplPtr V2FormatParser::Parse(pugi::xml_node& root) {
     // check all input ports are occupied
     for (const auto& kvp : _network->allLayers()) {
         const CNNLayer::Ptr& layer = kvp.second;
-        const LayerParseParameters& parseInfo = layersParseInfo[layer->name];
-        size_t inSize = layer->insData.size();
-        if (inSize != parseInfo.inputPorts.size())
-            THROW_IE_EXCEPTION << "Layer " << layer->name << " does not have any edge connected to it";
+        if (_version) {
+            const LayerParseParameters& parseInfo = layersParseInfo[layer->name];
+            size_t inSize = layer->insData.size();
+            if (inSize != parseInfo.inputPorts.size())
+                THROW_IE_EXCEPTION << "Layer " << layer->name << " does not have any edge connected to it";
 
-        for (unsigned i = 0; i < inSize; i++) {
-            if (!layer->insData[i].lock()) {
-                THROW_IE_EXCEPTION << "Layer " << layer->name.c_str() << " input port "
-                                   << parseInfo.inputPorts[i].portId << " is not connected to any data";
+            for (unsigned i = 0; i < inSize; i++) {
+                if (!layer->insData[i].lock()) {
+                    THROW_IE_EXCEPTION << "Layer " << layer->name.c_str() << " input port "
+                        << parseInfo.inputPorts[i].portId << " is not connected to any data";
+                }
             }
         }
         layer->validateLayer();
     }
-    // parse mean image
-    ParsePreProcess(root);
-    _network->resolveOutput();
 
-    // Set default output precision to FP32 (for back-compatibility)
-    OutputsDataMap outputsInfo;
-    _network->getOutputsInfo(outputsInfo);
-    for (auto outputInfo : outputsInfo) {
-        outputInfo.second->setPrecision(Precision::FP32);
-    }
+    if (_version) {
+        // parse mean image
+        ParsePreProcess(root);
+        _network->resolveOutput();
 
-    if (_version == 1) {
-        int batchSize = GetIntAttr(root, "batch", 1);
-        _network->setBatchSize(batchSize);
+        // Set default output precision to FP32 (for back-compatibility)
+        OutputsDataMap outputsInfo;
+        _network->getOutputsInfo(outputsInfo);
+        for (auto outputInfo : outputsInfo) {
+            outputInfo.second->setPrecision(Precision::FP32);
+        }
+
+        if (_version == 1) {
+            int batchSize = GetIntAttr(root, "batch", 1);
+            _network->setBatchSize(batchSize);
+        }
     }
 
     return _network;
@@ -346,7 +362,7 @@ CNNNetworkImplPtr V2FormatParser::Parse(pugi::xml_node& root) {
 template<typename BlobType>
 inline Blob::Ptr GetTypedBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, const WeightSegment& segment) {
     if (segment.getEnd() > weights->size())
-        THROW_IE_EXCEPTION << "segment exceeds given buffer limits";
+        THROW_IE_EXCEPTION << "metadata is incorrect - segment exceeds given buffer limits. Please validate input data";
 
     size_t noOfElement = segment.size / sizeof(BlobType);
     // RanC: TODO: IR does not provide me with weight slayout.
@@ -372,9 +388,18 @@ Blob::Ptr V2FormatParser::GetBlobFromSegment(const TBlob<uint8_t>::Ptr& weights,
         return GetTypedBlobFromSegment<short>(weights, segment);
     } else if (segment.precision == Precision::U8) {
         return GetTypedBlobFromSegment<uint8_t>(weights, segment);
+    } else if (segment.precision == Precision::I8) {
+        return GetTypedBlobFromSegment<int8_t>(weights, segment);
     } else {
         THROW_IE_EXCEPTION << "precision " << segment.precision << " is not supported...";
     }
+}
+
+void V2FormatParser::CopyBlobsByName(void* layerParsePrms, std::string name) {
+    auto internalParams = layersParseInfo.find(name);
+
+    LayerParseParameters* params = static_cast<LayerParseParameters *>(layerParsePrms);
+    params->blobs = internalParams->second.blobs;
 }
 
 void V2FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
@@ -395,11 +420,12 @@ void V2FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
                 pWL->_biases  = GetBlobFromSegment(weights, lprms.blobs["biases"]);
                 pWL->blobs["biases"] = pWL->_biases;
             }
-        }
-        auto pGL = dynamic_cast<GenericLayer *>(kvp.second.get());
-        if (pGL == nullptr) continue;
-        for (auto s : lprms.blobs) {
-            pGL->blobs[s.first] = GetBlobFromSegment(weights, s.second);
+        } else {
+            auto pGL = dynamic_cast<GenericLayer *>(kvp.second.get());
+            if (pGL == nullptr) continue;
+            for (auto s : lprms.blobs) {
+                pGL->blobs[s.first] = GetBlobFromSegment(weights, s.second);
+            }
         }
     }
     for (auto &kvp : _preProcessSegments) {
@@ -600,6 +626,8 @@ const std::vector<std::shared_ptr<BaseCreator> >& V2FormatParser::getCreators() 
         std::make_shared<V2LayerCreator<SoftMaxLayer>>("Softmax"),
         std::make_shared<V2LayerCreator<GRNLayer>>("GRN"),
         std::make_shared<V2LayerCreator<MVNLayer>>("MVN"),
+        std::make_shared<V2LayerCreator<RNNLayer>>("RNN"),
+        std::make_shared<V2LayerCreator<LSTMCell>>("LSTMCell"),
         std::make_shared<V2LayerCreator<ReLULayer>>("ReLU"),
         std::make_shared<V2LayerCreator<ClampLayer>>("Clamp"),
         std::make_shared<V2LayerCreator<SplitLayer>>("Split"),
@@ -614,8 +642,44 @@ const std::vector<std::shared_ptr<BaseCreator> >& V2FormatParser::getCreators() 
         std::make_shared<V2LayerCreator<TileLayer>>("Tile"),
         std::make_shared<ActivationLayerCreator>("Activation"),
         std::make_shared<V2LayerCreator<BatchNormalizationLayer>>("BatchNormalization"),
+        std::make_shared<TILayerCreator>("TensorIterator"),
     };
     return creators;
 }
 
+void V2FormatParser::ParseStatisticSection(const pugi::xml_node& statNode) {
+    auto splitParseCommas = [&](const string& s) ->vector<float> {
+        vector<float> res;
+        stringstream ss(s);
 
+        float val;
+
+        while (ss >> val) {
+            res.push_back(val);
+
+            if (ss.peek() == ',')
+                ss.ignore();
+        }
+
+        return res;
+    };
+
+    map<string, NetworkNodeStatsPtr> newNetNodesStats;
+
+    for (auto layer : statNode.children("layer")) {
+        NetworkNodeStatsPtr nodeStats = NetworkNodeStatsPtr(new NetworkNodeStats());
+
+        string name = layer.child("name").text().get();
+
+        newNetNodesStats[name] = nodeStats;
+
+        nodeStats->_minOutputs = splitParseCommas(layer.child("min").text().get());
+        nodeStats->_maxOutputs = splitParseCommas(layer.child("max").text().get());
+    }
+
+    ICNNNetworkStats *pstats = nullptr;
+    StatusCode s = _network->getStats(&pstats, nullptr);
+    if (s == StatusCode::OK && pstats) {
+        pstats->setNodesStats(newNetNodesStats);
+    }
+}

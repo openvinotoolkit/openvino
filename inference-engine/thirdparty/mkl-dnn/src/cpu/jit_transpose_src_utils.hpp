@@ -49,7 +49,7 @@ struct jit_trans_src_t {
 };
 
 struct jit_src_transpose_s {
-    int size;
+    size_t size;
     const void *src;
     const void *tr_src;
     const void *src_prf;
@@ -78,14 +78,6 @@ struct jit_trans_dst_t {
 
     const jit_conv_conf_t *conf_;
     void (*ker_)(const ctx_t *);
-};
-
-struct jit_dst_transpose_s {
-    int size;
-    const void *src;
-    const void *tr_src;
-    const void *src_prf;
-    const void *tr_src_prf;
 };
 
 struct jit_transpose4x16_src_t {

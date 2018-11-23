@@ -1,4 +1,4 @@
-# Image Classification Sample Async {#InferenceEngineClassificationPipelinedSampleApplication}
+# Image Classification Sample Async
 
 This sample demonstrates how to build and execute inference in pipelined mode on example of classifications networks.
 
@@ -52,6 +52,8 @@ Options:
                             Enables per-layer performance report
     -nireq "<integer>"
                             Number of infer request for pipelined mode (default 1)
+    -p_msg                  
+                            Enables messages from a plugin
 
 ```
 
@@ -78,4 +80,4 @@ Then in the loop it starts inference for the current infer request and switch fo
 When inference is done, the application outputs data to the standard output stream.
 
 ## See Also
-* [Using Inference Engine Samples](@ref SamplesOverview)
+* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)

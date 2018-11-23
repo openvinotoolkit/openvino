@@ -20,15 +20,17 @@ from extensions.back.kaldi_remove_memory_output import KaldiRemoveMemoryOutputBa
 from extensions.back.remove_last_softmax_pattern import RemoveLastSoftMaxPattern
 from extensions.front.kaldi.eliminate_redundant_reshape import EliminateRedundantReshape
 from extensions.front.kaldi.fuse_repeated_reshape import FuseRepeatedReshapes
+from extensions.middle.EltwiseChecker import EltwiseChecker
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
 from mo.front.extractor import create_tensor_nodes, extract_node_attrs, add_output_ops, remove_output_ops
 from mo.front.kaldi import loader
 from mo.front.kaldi.extractor import kaldi_extractor, kaldi_type_extractors
 from mo.utils import class_registration
+from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
 from mo.utils.find_inputs import find_outputs
 
-from mo.graph.graph import print_graph_stat, Node
+from mo.graph.graph import print_graph_stat, Node, check_empty_graph
 from mo.middle.passes.eliminate import graph_clean_up
 from mo.middle.passes.infer import override_placeholder_shapes, partial_infer, mark_outputs, override_batch
 from mo.pipeline.common import prepare_emit_ir
@@ -99,13 +101,20 @@ def apply_biases_to_last_layer(graph, counts):
 
 def driver(argv, input_model, output_model_name, outputs, output_dir, scale, placeholder_shapes=None,
            mean_scale_values=()):
+    meta_info = get_meta_info(argv)
+
+    EltwiseChecker.enabled = False
+    
     try:
         graph, input_shapes = loader.load_kaldi_nnet_model(input_model)
     except Exception as e:
         raise Error('Model Optimizer is not able to read Kaldi model {}. '.format(input_model) +
                     refer_to_faq_msg(91)) from e
+    check_empty_graph(graph, 'load_kaldi_nnet_model')
+
     graph.graph['cmd_params'] = argv
     graph.graph['fw'] = 'kaldi'
+    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 3
 
     if argv.counts:
         try:
@@ -120,10 +129,10 @@ def driver(argv, input_model, output_model_name, outputs, output_dir, scale, pla
     class_registration.apply_replacements(graph, class_registration.ClassType.FRONT_REPLACER)
     extract_node_attrs(graph, lambda node: kaldi_extractor(node))
 
-    graph, output_op_nodes = add_output_ops(graph, outputs)  # TODO pass real outputs instead of None
+    output_op_nodes = add_output_ops(graph, outputs)  # TODO pass real outputs instead of None
     log.debug("After adding specific nodes for outputs")
     print_graph_stat(graph)
-
+    check_empty_graph(graph, 'add_output_ops')
     create_tensor_nodes(graph)
 
     graph_clean_up(graph)
@@ -152,7 +161,7 @@ def driver(argv, input_model, output_model_name, outputs, output_dir, scale, pla
     # The order is intentional, firstly eliminate repeated, then remove redundant
     FuseRepeatedReshapes().find_and_replace_pattern(graph)
     EliminateRedundantReshape().find_and_replace_pattern(graph)
-
+    check_empty_graph(graph, 'partial_infer')
     if argv.counts:
         apply_biases_to_last_layer(graph, counts)
 
@@ -164,5 +173,5 @@ def driver(argv, input_model, output_model_name, outputs, output_dir, scale, pla
 
     # Intentionally after all transformations
     KaldiRemoveMemoryOutputBackReplacementPattern().find_and_replace_pattern(graph)
-    prepare_emit_ir(graph, argv.data_type, output_dir, output_model_name)
+    prepare_emit_ir(graph, argv.data_type, output_dir, output_model_name, meta_info=meta_info)
     return 0

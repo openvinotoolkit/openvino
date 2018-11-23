@@ -17,22 +17,8 @@
 #ifndef CPU_JIT_AVX2_GENERATOR_HPP
 #define CPU_JIT_AVX2_GENERATOR_HPP
 
-#include <type_traits>
-
-#define XBYAK64
-#define XBYAK_NO_OP_NAMES
-/* in order to make selinux happy memory that would be marked with X-bit should
- * be obtained with mmap */
-#define XBYAK_USE_MMAP_ALLOCATOR
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
-/* turn off `size_t to other-type implicit casting` warning
- * currently we have a lot of jit-generated instructions that
- * take uint32_t, but we pass size_t (e.g. due to using sizeof).
- * FIXME: replace size_t parameters with the appropriate ones */
-#pragma warning (disable: 4267)
-#endif
-#include "xbyak/xbyak.h"
-#include "xbyak/xbyak_util.h"
+#include <limits.h>
+#include "cpu_isa_traits.hpp"
 
 #include "utils.hpp"
 #include "mkldnn_thread.hpp"
@@ -59,58 +45,6 @@
 namespace mkldnn {
 namespace impl {
 namespace cpu {
-
-typedef enum {
-    isa_any,
-    sse42,
-    avx,
-    avx2,
-    avx512_common,
-    avx512_core,
-    avx512_core_vnni,
-    avx512_mic,
-    avx512_mic_4ops,
-} cpu_isa_t;
-
-template <cpu_isa_t> struct cpu_isa_traits {}; /* ::vlen -> 32 (for avx2) */
-
-template <> struct cpu_isa_traits<sse42> {
-    static constexpr int vlen_shift = 4;
-    static constexpr int vlen = 16;
-    static constexpr int n_vregs = 16;
-};
-template <> struct cpu_isa_traits<avx> {
-    static constexpr int vlen_shift = 5;
-    static constexpr int vlen = 32;
-    static constexpr int n_vregs = 16;
-};
-template <> struct cpu_isa_traits<avx2>:
-    public cpu_isa_traits<avx> {};
-
-template <> struct cpu_isa_traits<avx512_common> {
-    static constexpr int vlen_shift = 6;
-    static constexpr int vlen = 64;
-    static constexpr int n_vregs = 32;
-};
-template <> struct cpu_isa_traits<avx512_core>:
-    public cpu_isa_traits<avx512_common> {};
-
-template <> struct cpu_isa_traits<avx512_mic>:
-    public cpu_isa_traits<avx512_common> {};
-
-template <> struct cpu_isa_traits<avx512_mic_4ops>:
-    public cpu_isa_traits<avx512_common> {};
-
-/* whatever is required to generate string literals... */
-#include "z_magic.hpp"
-#define JIT_IMPL_NAME_HELPER(prefix, isa, suffix_if_any) \
-    (isa == sse42 ? prefix STRINGIFY(sse42) : \
-    (isa == avx2 ? prefix STRINGIFY(avx2) : \
-    (isa == avx512_common ? prefix STRINGIFY(avx512_common) : \
-    (isa == avx512_core ? prefix STRINGIFY(avx512_core) : \
-    (isa == avx512_mic ? prefix STRINGIFY(avx512_mic) : \
-    (isa == avx512_mic_4ops ? prefix STRINGIFY(avx512_mic_4ops) : \
-    prefix suffix_if_any))))))
 
 // TODO: move this to jit_generator class?
 namespace {
@@ -172,47 +106,27 @@ static const Xbyak::Reg64 abi_param1(Xbyak::Operand::RDI),
 #endif
 #endif
 
-static Xbyak::util::Cpu cpu;
-static inline bool mayiuse(const cpu_isa_t cpu_isa) {
-    using namespace Xbyak::util;
-
-    switch (cpu_isa) {
-    case sse42:
-        return cpu.has(Cpu::tSSE42);
-    case avx:
-        return cpu.has(Cpu::tAVX);
-    case avx2:
-        return cpu.has(Cpu::tAVX2);
-    case avx512_common:
-        return cpu.has(Cpu::tAVX512F);
-    case avx512_core:
-        return true
-            && cpu.has(Cpu::tAVX512F)
-            && cpu.has(Cpu::tAVX512BW)
-            && cpu.has(Cpu::tAVX512VL)
-            && cpu.has(Cpu::tAVX512DQ);
-    case avx512_core_vnni:
-        return true
-            && cpu.has(Cpu::tAVX512F)
-            && cpu.has(Cpu::tAVX512BW)
-            && cpu.has(Cpu::tAVX512VL)
-            && cpu.has(Cpu::tAVX512DQ)
-            && cpu.has(Cpu::tAVX512_VNNI);
-    case avx512_mic:
-        return true
-            && cpu.has(Cpu::tAVX512F)
-            && cpu.has(Cpu::tAVX512CD)
-            && cpu.has(Cpu::tAVX512ER)
-            && cpu.has(Cpu::tAVX512PF);
-    case avx512_mic_4ops:
-        return true
-            && mayiuse(avx512_mic)
-            && cpu.has(Cpu::tAVX512_4FMAPS)
-            && cpu.has(Cpu::tAVX512_4VNNIW);
-    case isa_any:
-        return true;
+inline unsigned int get_cache_size(int level, bool per_core = true){
+    unsigned int l = level - 1;
+    // Currently, if XByak is not able to fetch the cache topology
+    // we default to 32KB of L1, 512KB of L2 and 1MB of L3 per core.
+    if (cpu.data_cache_levels == 0){
+        const int L1_cache_per_core = 32000;
+        const int L2_cache_per_core = 512000;
+        const int L3_cache_per_core = 1024000;
+        int num_cores = per_core ? 1 : mkldnn_get_max_threads();
+        switch(l){
+        case(0): return L1_cache_per_core * num_cores;
+        case(1): return L2_cache_per_core * num_cores;
+        case(2): return L3_cache_per_core * num_cores;
+        default: return 0;
+        }
     }
-    return false;
+    if (l < cpu.data_cache_levels) {
+        return cpu.data_cache_size[l]
+            / (per_core ? cpu.cores_sharing_data_cache[l] : 1);
+    } else
+        return 0;
 }
 
 }
@@ -355,6 +269,7 @@ public:
         using Xbyak::Address;
         using Xbyak::RegExp;
 
+        assert(raw_offt <= INT_MAX);
         auto offt = static_cast<int>(raw_offt);
 
         int scale = 0;
@@ -377,6 +292,45 @@ public:
             return zword [re];
     }
 
+    Xbyak::Address make_safe_addr(const Xbyak::Reg64 &reg_out, size_t offt,
+        const Xbyak::Reg64 &tmp_reg, bool bcast = false) {
+        if (offt > INT_MAX) {
+            mov(tmp_reg, offt);
+            return bcast ? ptr_b[reg_out + tmp_reg] : ptr[reg_out + tmp_reg];
+        } else {
+            return bcast ? ptr_b[reg_out + offt] : ptr[reg_out + offt];
+        }
+    }
+
+    Xbyak::Address EVEX_compress_addr_safe(const Xbyak::Reg64 &base,
+        size_t raw_offt, const Xbyak::Reg64 &reg_offt, bool bcast = false) {
+        if (raw_offt > INT_MAX) {
+            return make_safe_addr(base, raw_offt, reg_offt, bcast);
+        } else {
+            return EVEX_compress_addr(base, raw_offt, bcast);
+        }
+    }
+
+    void safe_add(const Xbyak::Reg64 &base, size_t raw_offt,
+        const Xbyak::Reg64 &reg_offt) {
+        if (raw_offt > INT_MAX) {
+            mov(reg_offt, raw_offt);
+            add(base, reg_offt);
+        } else {
+            add(base, raw_offt);
+        }
+    }
+
+    void safe_sub(const Xbyak::Reg64 &base, size_t raw_offt,
+        const Xbyak::Reg64 &reg_offt) {
+        if (raw_offt > INT_MAX) {
+            mov(reg_offt, raw_offt);
+            sub(base, reg_offt);
+        } else {
+            sub(base, raw_offt);
+        }
+    }
+
     // Provide overrides for custom jit_tagged_label and C strings rather than
     // implement a conversion of jit_tagge_label to std::string to avoid
     // additional C++ runtime dependency
@@ -396,7 +350,11 @@ public:
     }
     void uni_vpxor(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2,
                    const Xbyak::Operand &op) {
-        vpxor(x1, x2, op);
+        if (mayiuse(avx2)) {
+            vpxor(x1, x2, op);
+        } else {
+            vxorps(x1, x2, op);
+        }
     }
     void uni_vpxor(const Xbyak::Zmm &x1, const Xbyak::Zmm &x2,
                    const Xbyak::Operand &op) {
@@ -449,7 +407,14 @@ public:
         shufps(x, x, 0x0);
     }
     void uni_vbroadcastss(const Xbyak::Ymm &x, const Xbyak::Operand &op) {
-        vbroadcastss(x, op);
+        if (mayiuse(avx2)) {
+            vbroadcastss(x, op);
+        } else {
+            Xbyak::Xmm t(x.getIdx());
+            if (t.getIdx() != op.getIdx()) movss(t, op);
+            vinsertf128(x, x, t, 1);
+            vshufps(x, x, x, 0);
+        }
     }
 
     void uni_vpbroadcastd(const Xbyak::Xmm &x, const Xbyak::Operand &op) {
@@ -457,7 +422,14 @@ public:
         pshufd(x, x, 0x0);
     }
     void uni_vpbroadcastd(const Xbyak::Ymm &x, const Xbyak::Operand &op) {
-        vpbroadcastd(x, op);
+        if (mayiuse(avx2)) {
+            vpbroadcastd(x, op);
+        } else {
+            Xbyak::Xmm t(x.getIdx());
+            if (t.getIdx() != op.getIdx()) movsd(t, op);
+            vinsertf128(x, x, t, 1);
+            vshufps(x, x, x, 0);
+        }
     }
 
     void uni_vdivps(const Xbyak::Xmm &x, const Xbyak::Operand &op1,

@@ -29,7 +29,7 @@ namespace cldnn
 
     public:
         using parent::parent;
-        decltype(auto) input() const { return get_dependency(0); }
+        program_node& input() const { return get_dependency(0); }
     };
 
     using average_unpooling_node = typed_program_node<average_unpooling>;

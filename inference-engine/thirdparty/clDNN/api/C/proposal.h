@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,12 +35,20 @@ extern "C" {
 CLDNN_BEGIN_PRIMITIVE_DESC(proposal)
     int max_proposals;
     float iou_threshold;
+    int base_bbox_size;
     int min_bbox_size;
     int feature_stride;
     int pre_nms_topn;
     int post_nms_topn;
     cldnn_float_arr ratios;
     cldnn_float_arr scales;
+    float coordinates_offset;
+    float box_coordinate_scale;
+    float box_size_scale;
+    uint32_t swap_xy;
+    uint32_t initial_clip;
+    uint32_t round_ratios;
+    uint32_t shift_anchors;
 CLDNN_END_PRIMITIVE_DESC(proposal)
 
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(proposal);
@@ -53,4 +61,3 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(proposal);
 /// @}
 /// @}
 #endif /* PROPOSAL_H */
-

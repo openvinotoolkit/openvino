@@ -18,7 +18,7 @@ class MockShapeInferExtension : public InferenceEngine::IShapeInferExtension {
     MOCK_QUALIFIED_METHOD1(SetLogCallback, noexcept, void (InferenceEngine::IErrorListener &));
     MOCK_QUALIFIED_METHOD0(Unload, noexcept, void ());
 
-    MOCK_QUALIFIED_METHOD3(getPrimitiveTypes, noexcept, InferenceEngine::StatusCode
+    MOCK_QUALIFIED_METHOD3(getShapeInferTypes, noexcept, InferenceEngine::StatusCode
                             (char**&, unsigned int&, InferenceEngine::ResponseDesc *resp));
 
     MOCK_QUALIFIED_METHOD3(getShapeInferImpl, noexcept, InferenceEngine::StatusCode

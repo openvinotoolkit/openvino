@@ -9,10 +9,12 @@
 #include <algorithm>
 #include <string>
 #include <mkldnn_extension_utils.h>
+#include "details/caseless.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 
 caseless_map<std::string, std::function<void(GenericLayer*, mkldnn::algorithm&, float&, float&)>> MKLDNNActivationNode::initializers = {
         {"relu", [](GenericLayer* activationLayer, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
@@ -84,15 +86,14 @@ void MKLDNNActivationNode::getSupportedDescriptors() {
         return;
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     auto parentOutDims = getParentEdgeAt(0)->getDims();
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
+
     // FIXME: MKLDNN doesn't support not inputs with number of dimensions less than 4 for activation
     while (parentOutDims.ndims() < 4)
         parentOutDims.push_back(1);

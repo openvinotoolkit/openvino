@@ -370,6 +370,77 @@ TEST(eltwise_gpu_f32, sub_basic_in4x4x4x4) {
     }
 }
 
+TEST(eltwise_gpu_int, basic_in4x4x4x4) {
+    //  Same params as in eltwise_gpu_f32, sub_basic_in4x4x4x4 but using int types instead
+
+    std::vector<data_types> data_types_to_test = { data_types::i8, data_types::i32, data_types::i64 };
+    std::vector<eltwise_mode> eltwise_ops_to_test = { eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::div, eltwise_mode::prod };
+
+    for (auto& data_type : data_types_to_test)
+    {
+        for (auto& mode : eltwise_ops_to_test)
+        {
+            engine engine;
+            auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+            auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+
+            topology topology;
+            topology.add(input_layout("input", input.get_layout()));
+            topology.add(input_layout("input2", input2.get_layout()));
+            topology.add(reorder("input_reorder", "input", { data_type, format::yxfb,{ 2, 2, 2, 2 } }));
+            topology.add(reorder("input2_reorder", "input2", { data_type, format::yxfb,{ 2, 2, 2, 2 } }));
+            topology.add(eltwise("eltwise", { "input_reorder", "input2_reorder" }, mode));
+            topology.add(reorder("eltwise_reorder", "eltwise", { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
+
+            std::vector<float> input_1_vec = {
+                1.f,   0.f,  5.f,  1.f,
+                2.f,   0.f,  6.f,  5.f,
+                3.f,   0.f, 7.f,  12.f,
+                4.f,   0.f, 8.f,   8.f
+            };
+            set_values(input, input_1_vec);
+
+            std::vector<float> input_2_vec = {
+                0.f,  2.f,  0.f, -1.f,
+                5.f,   7.f,   2.f,   2.f,
+                15.f,  17.f,   8.f,   8.f,
+                6.f,   8.f, 0.f,  10.f };
+            set_values(input2, input_2_vec);
+
+            network network(engine, topology);
+            network.set_input_data("input", input);
+            network.set_input_data("input2", input2);
+            auto outputs = network.execute();
+
+            ASSERT_EQ(outputs.size(), size_t(1));
+            EXPECT_EQ(outputs.begin()->first, "eltwise_reorder");
+
+            auto output = outputs.at("eltwise_reorder").get_memory();
+
+            auto output_ptr = output.pointer<float>();
+
+            for (int i = 0; i < 16; i++)
+            {
+                float expected = 0.f;
+                if (mode == eltwise_mode::sum)
+                    expected = input_1_vec[i] + input_2_vec[i];
+                else if (mode == eltwise_mode::sub)
+                    expected = input_1_vec[i] - input_2_vec[i];
+                else if (mode == eltwise_mode::prod)
+                    expected = input_1_vec[i] * input_2_vec[i];
+                else if (mode == eltwise_mode::div)
+                    expected = input_1_vec[i] / input_2_vec[i];
+                else if (mode == eltwise_mode::min)
+                    expected = std::min(input_1_vec[i], input_2_vec[i]);
+                else if (mode == eltwise_mode::max)
+                    expected = std::max(input_1_vec[i], input_2_vec[i]);
+
+                EXPECT_TRUE(are_equal(std::floor(expected), output_ptr[i]));
+            }
+        }
+    }
+}
+
 TEST(eltwise_gpu_f32, prod_basic_in4x4x4x4) {
     //  Input2   : 2x2x2
     //  Input  : 2x2x2x2

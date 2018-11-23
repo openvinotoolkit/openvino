@@ -14,8 +14,9 @@
  limitations under the License.
 """
 
-import networkx as nx
 import logging as log
+
+import networkx as nx
 import numpy as np
 
 from mo.middle.replacement import MiddleReplacementPattern
@@ -45,9 +46,8 @@ class FeatureShuffleReshape(MiddleReplacementPattern):
                    ('transpose', 'transpose_data'),
                    ('transpose_data', 'reshape2'),
                    ('reshape2', 'reshape2_data'),
-                   ],
-            node_attrs=['kind', 'type'],
-            edge_attrs=[])
+                   ]
+        )
 
     def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
         reshape1 = match['reshape1']
@@ -61,21 +61,24 @@ class FeatureShuffleReshape(MiddleReplacementPattern):
 
         # Check that input shape is 4D
         if len(input_shape) != 4:
-            log.warning('Can\'t convert Reshape->Transpose({})->Reshape sequence due to input shape should be 4D (instead of {}D)'.format(transpose.name, len(input_shape)))
+            log.warning('Can\'t convert Reshape->Transpose({})->Reshape sequence due to input shape should be 4D '
+                        '(instead of {}D)'.format(transpose.name, len(input_shape)))
             return
 
         # Check that output shape the same as input shape
         if not np.prod(input_shape) == np.prod(output_shape):
-            log.warning('Can\'t convert Reshape->Transpose({})->Reshape sequence due to output shape should be equal to input shape: {} and {}'.format(transpose.name, input_shape, output_shape))
+            log.warning('Can\'t convert Reshape->Transpose({})->Reshape sequence due to output shape should be equal '
+                        'to input shape: {} and {}'.format(transpose.name, input_shape, output_shape))
             return
 
-        # Input shapes can be either NCHW or NHWC, so in case of channel split, feature channel can be splited as follows in comments below
+        # Input shapes can be either NCHW or NHWC, so in case of channel split, feature channel can be splited as
+        # follows in comments below
         # So feature_dims_split list contains possible dims responsible for feature dim
         if graph.graph['layout'] == 'NCHW':
             # NC1C2HW or NC1C2(H*W)
             feature_dim = 1
             spatial_dims = [2, 3]
-            feature_dims_split =  np.array([feature_dim, feature_dim + 1])
+            feature_dims_split = np.array([feature_dim, feature_dim + 1])
         else:
             # NHWC1C2 or N(H*W)C1C2 or (N*H*W)C1C2
             feature_dim = 3
@@ -85,16 +88,20 @@ class FeatureShuffleReshape(MiddleReplacementPattern):
         # Check that feature_dims_split suits reshape layer shape
         for dim in feature_dims_split:
             if dim < 0 or dim >= len(reshape1_shape):
-                log.warning('Can\'t convert Reshape({}:{})->Transpose->Reshape sequence. Can\'t detect feature shuffle.'.format(reshape1.shape, reshape1_shape))
+                log.warning('Can\'t convert Reshape({}:{})->Transpose->Reshape sequence. Can\'t detect feature shuffle.'
+                            ''.format(reshape1.shape, reshape1_shape))
                 return
 
         if not np.prod(np.delete(reshape1_shape, feature_dims_split)) == np.prod(np.delete(input_shape, feature_dim)):
-            log.warning('Can\'t convert Reshape->Transpose->Reshape sequence. Can\'t detect feature shuffle. {} should be equal to {}'.format(np.prod(np.delete(reshape1_shape, feature_dims_split)), np.prod(np.delete(input_shape, feature_dim))))
+            log.warning('Can\'t convert Reshape->Transpose->Reshape sequence. Can\'t detect feature shuffle. {} '
+                        'should be equal to {}'.format(np.prod(np.delete(reshape1_shape, feature_dims_split)),
+                                                       np.prod(np.delete(input_shape, feature_dim))))
             return
 
         # Check transpose order
         if not np.array_equal(feature_dims_split[::-1], transpose.order[feature_dims_split]):
-            log.warning('Can\'t convert Reshape->Transpose({})->Reshape sequence. Transpose operation should withch feature order (given order: {})'.format(transpose.name, transpose.order))
+            log.warning('Can\'t convert Reshape->Transpose({})->Reshape sequence. Transpose operation should witch '
+                        'feature order (given order: {})'.format(transpose.name, transpose.order))
             return
 
         # Now we are sure that Reshape->Transpose->Reshape shuffle feature dims
@@ -105,7 +112,7 @@ class FeatureShuffleReshape(MiddleReplacementPattern):
                                              np.array(reshape1_shape[feature_dims_split]),
                                              np.array([np.prod(input_shape[spatial_dims])])))
 
-        new_transpose_order = np.array([0,2,1,3])
+        new_transpose_order = np.array([0, 2, 1, 3])
         new_transpose_shape = np.array(new_reshape1_shape[new_transpose_order])
 
         reshape1.out_node().shape = new_reshape1_shape
@@ -138,9 +145,7 @@ class ReshapeSoftmaxReshape(MiddleReplacementPattern):
             edges=[('reshape1', 'reshape1_data'),
                    ('reshape1_data', 'softmax'),
                    ('softmax', 'softmax_data'),
-                   ],
-            node_attrs=['kind', 'type'],
-            edge_attrs=[])
+                   ])
 
     def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
         if graph.graph['layout'] != 'NHWC':
@@ -155,11 +160,13 @@ class ReshapeSoftmaxReshape(MiddleReplacementPattern):
 
         # Check that input shape is 4D
         if len(input_shape) != 4:
-            log.warning('Can\'t convert Reshape({})->Softmax->Reshape sequence due to input shape should be 4D (instead of {}D {})'.format(reshape1.name, len(input_shape), input_shape))
+            log.warning('Can\'t convert Reshape({})->Softmax->Reshape sequence due to input shape should be 4D '
+                        '(instead of {}D {})'.format(reshape1.name, len(input_shape), input_shape))
             return
 
         if len(reshape1_shape) != 2:
-            log.warning('This pass expect 2D output tensor for first Reshape {} layer (given shape: {})'.format(reshape1.name, reshape1_shape))
+            log.warning('This pass expect 2D output tensor for first Reshape {} layer (given shape: {})'
+                        ''.format(reshape1.name, reshape1_shape))
             return
 
         # Define feature dim
@@ -167,13 +174,15 @@ class ReshapeSoftmaxReshape(MiddleReplacementPattern):
         spatial_dims = [1, 2]
 
         # Skip transform in case if spatial dims in input shape are equal to [1,1]
-        if np.array_equal(input_shape[spatial_dims], np.array([1,1])):
+        if np.array_equal(input_shape[spatial_dims], np.array([1, 1])):
             log.info('Skip this transformation due to spatial dims are [1,1]')
             return
 
         # Check that Reshape1 has out dims [-1, feature_dims]
-        if not (reshape1_shape[-1] == input_shape[-1] and reshape1_shape[0] == np.prod(np.delete(input_shape, feature_dim))):
-            log.warning('Output shape for Reshape operation should be [{},{}] instead of {}'.format(np.prod(np.delete(input_shape, feature_dim)), input_shape[-1], reshape1_shape))
+        if not (reshape1_shape[-1] == input_shape[-1] and reshape1_shape[0] == np.prod(
+                np.delete(input_shape, feature_dim))):
+            log.warning('Output shape for Reshape operation should be [{},{}] instead of {}'.format(
+                np.prod(np.delete(input_shape, feature_dim)), input_shape[-1], reshape1_shape))
             return
 
         # Now we are sure that Reshape->Softmax suits for this transformation
@@ -203,4 +212,3 @@ class ReshapeSoftmaxReshape(MiddleReplacementPattern):
         reshape_op = Reshape(graph, dict(name="Reshape_", dim=np.array(old_shape)))
         reshape_out_data = reshape_op.create_node_with_data(inputs=[softmax_out_data])
         graph.add_edges_from([(reshape_out_data.id, next_operation.id, edge_attrs)])
-

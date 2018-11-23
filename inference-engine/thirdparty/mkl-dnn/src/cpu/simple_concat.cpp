@@ -61,33 +61,27 @@ void simple_concat_t<data_type>::execute() {
         for (int a = 0; a < num_arrs; ++a) {
             const data_t *i = &input_ptrs[a][0];
             data_t *o = &output_ptrs[a][0];
-#           pragma omp parallel for
-            for (ptrdiff_t e = 0; e < (ptrdiff_t)nelems_to_copy[a]; ++e)
-                o[e] = i[e];
+            parallel_nd((ptrdiff_t)nelems_to_copy[a],
+                    [&](ptrdiff_t e) { o[e] = i[e]; });
         }
         break;
     }
-    default: {
-#       pragma omp parallel for collapse(6) schedule(static)
-        for (int n0 = 0; n0 < phys_dims[0]; ++n0)
-            for (int n1 = 0; n1 < phys_dims[1]; ++n1)
-                for (int n2 = 0; n2 < phys_dims[2]; ++n2)
-                    for (int n3 = 0; n3 < phys_dims[3]; ++n3)
-                        for (int n4 = 0; n4 < phys_dims[4]; ++n4)
-                            for (int a = 0; a < num_arrs; ++a) {
-                                size_t in_off = is[a][0] * n0 + is[a][1] * n1
-                                        + is[a][2] * n2 + is[a][3] * n3
-                                        + is[a][4] * n4;
-                                size_t out_off = os[0] * n0 + os[1] * n1
-                                        + os[2] * n2 + os[3] * n3 + os[4] * n4;
-                                const data_t *i = &input_ptrs[a][in_off];
-                                data_t *o = &output_ptrs[a][out_off];
+    default:
+        parallel_nd(phys_dims[0], phys_dims[1], phys_dims[2], phys_dims[3],
+            phys_dims[4], num_arrs,
+            [&](int n0, int n1, int n2, int n3, int n4, int a) {
+            size_t in_off = is[a][0] * n0 + is[a][1] * n1
+                    + is[a][2] * n2 + is[a][3] * n3
+                    + is[a][4] * n4;
+            size_t out_off = os[0] * n0 + os[1] * n1
+                    + os[2] * n2 + os[3] * n3 + os[4] * n4;
+            const data_t *i = &input_ptrs[a][in_off];
+            data_t *o = &output_ptrs[a][out_off];
 
-                                PRAGMA_OMP_SIMD()
-                                for (size_t e = 0; e < nelems_to_copy[a]; ++e)
-                                    o[e] = i[e];
-                            }
-    }
+            PRAGMA_OMP_SIMD()
+            for (size_t e = 0; e < nelems_to_copy[a]; ++e)
+                o[e] = i[e];
+        });
     }
 }
 template struct simple_concat_t<data_type::f32>;

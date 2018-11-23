@@ -15,6 +15,8 @@ class INFERENCE_ENGINE_API_CLASS(ITaskExecutor) {
 public:
     typedef std::shared_ptr<ITaskExecutor> Ptr;
 
+    virtual ~ITaskExecutor() = default;
+
     /**
      * @brief Add task for execution and notify working thread about new task to start.
      * @note can be called from multiple threads - tasks will be added to the queue and executed one-by-one in FIFO mode.

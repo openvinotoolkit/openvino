@@ -42,9 +42,9 @@ public:
     void set_depthwise_sep_opt(bool node_depthwise_sep_opt) { depthwise_sep_opt = node_depthwise_sep_opt; }
     bool get_depthwise_sep_opt() const { return depthwise_sep_opt; }
 
-    decltype(auto) input(size_t idx = 0) const { return get_dependency(idx); }
+    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
 
-    decltype(auto) weights(size_t idx = 0) const
+    program_node& weights(size_t idx = 0) const
     {
         if (static_cast<int32_t>(idx) >= get_split())
             throw std::range_error("weights offset too big");
@@ -52,7 +52,7 @@ public:
         return get_dependency(2 + idx);
     }
 
-    decltype(auto) bias(size_t idx = 0) const
+    program_node& bias(size_t idx = 0) const
     { 
         if (static_cast<int32_t>(idx) >= get_split())
             throw std::range_error("bias offset too big");
@@ -60,14 +60,14 @@ public:
         return get_dependency(2 + this->get_split() + idx);
     }
 
-    decltype(auto) prev_weights_grad(size_t idx = 0) const
+    program_node& prev_weights_grad(size_t idx = 0) const
     {
         if (static_cast<int32_t>(idx) >= get_split())
             throw std::range_error("prev weights grad offset too big");
         return get_dependency(2 + (bias_term() ? 2 : 1) * get_split() + idx);
     }
 
-    decltype(auto) prev_bias_grad(size_t idx = 0) const
+    program_node& prev_bias_grad(size_t idx = 0) const
     {
         if (static_cast<int32_t>(idx) >= get_split())
             throw std::range_error("prev bias grad offset too big");
@@ -109,7 +109,7 @@ public:
 public:
     typed_primitive_inst(network_impl& network, convolution_grad_weights_node const& node);
 
-    decltype(auto) weights_memory(size_t index) const
+    memory_impl& weights_memory(size_t index) const
     {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("weights offset too big");
@@ -117,7 +117,7 @@ public:
         return dep_memory(2 + index);
     }
 
-    decltype(auto) bias_memory(size_t index) const
+    memory_impl& bias_memory(size_t index) const
     {
         if (argument.bias.size() == 0 && static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("no bias data");
@@ -128,7 +128,7 @@ public:
         return dep_memory(2 + node.get_split() + index);
     }
 
-    decltype(auto) prev_weights_grad(size_t index) const
+    memory_impl& prev_weights_grad(size_t index) const
     {
         if(argument.prev_weights_grad.size() == 0 && static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("no prev weights grad data");
@@ -139,7 +139,7 @@ public:
         return dep_memory(2 + (bias_term() ? 2 : 1) * node.get_split() + index);
     }
 
-    decltype(auto) prev_bias_grad(size_t index) const
+    memory_impl& prev_bias_grad(size_t index) const
     {
         if (argument.prev_bias_grad.size() == 0 && static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("no prev bias grad data");

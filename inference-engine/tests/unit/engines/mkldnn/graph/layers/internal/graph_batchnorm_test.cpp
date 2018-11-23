@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
@@ -50,7 +49,6 @@ void ref_batchnorm4D(const InferenceEngine::TBlob<data_t> &src, const data_t *va
     const data_t *src_data = src.readOnly();
     data_t *dst_data = dst.data();
 
-#   pragma omp parallel for schedule(static)
     for (int c = 0; c < IC; ++c) {
         data_t v_mean = mean[c];
         data_t v_variance = variance[c];

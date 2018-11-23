@@ -64,7 +64,15 @@ void _jit_avx512_core_u8s8s32x_1x1_convolution_fwd_t<with_relu, dst_type>::execu
         reinterpret_cast<const wei_data_t *>(this->input_memory(1));
     auto bias = reinterpret_cast<const char *>(this->input_memory(2));
     auto dst = reinterpret_cast<dst_data_t *>(this->memory());
+    parallel(kernel_->jcp.nthr, [&](const int ithr, const int nthr) {
+        execute_forward_thr(ithr, nthr, src, weights, bias, dst);
+    });
+}
 
+template <bool with_relu, data_type_t dst_type>
+void _jit_avx512_core_u8s8s32x_1x1_convolution_fwd_t<with_relu, dst_type>
+::execute_forward_thr(const int ithr, const int nthr, const src_data_t *src,
+        const wei_data_t *weights, const char *bias, dst_data_t *dst) {
     const memory_desc_wrapper src_d(conf_.src_pd());
     const memory_desc_wrapper dst_d(conf_.dst_pd());
     const memory_desc_wrapper weights_d(conf_.weights_pd(0));
@@ -88,170 +96,154 @@ void _jit_avx512_core_u8s8s32x_1x1_convolution_fwd_t<with_relu, dst_type>::execu
         return remaining < tail_step ? remaining : default_step;
     };
 
-#   pragma omp parallel
-    {
-        int ithr = omp_get_thread_num(), nthr = omp_get_num_threads();
+    auto p = jit_1x1_conv_call_s();
 
-        auto p = jit_1x1_conv_call_s();
+    auto rp = rtus_driver_t<avx512_common>::call_params_t();
+    const int nb_oc = jcp.nb_load;
+    const int os_block = jcp.bcast_block;
 
-        auto rp = rtus_driver_t<avx512_common>::call_params_t();
-        const int nb_oc = jcp.nb_load;
-        const int nb_ic = jcp.nb_reduce;
-        const int nb_ic_blocking = jcp.nb_reduce_blocking;
-        const int os_block = jcp.bcast_block;
 
-        int bcast_start{0}, bcast_end{0}, ocb_start{0}, ocb_end{0};
-        balance2D(nthr, ithr, work_amount, bcast_start, bcast_end,
-            jcp.nb_load, ocb_start, ocb_end, jcp.load_grp_count);
+    int bcast_start{0}, bcast_end{0}, ocb_start{0}, ocb_end{0};
+    balance2D(nthr, ithr, work_amount, bcast_start, bcast_end,
+        jcp.nb_load, ocb_start, ocb_end, jcp.load_grp_count);
 
-        auto init_bcast = [&](int iwork, int &n, int &g, int &bcast_step,
+    auto init_bcast = [&](int iwork, int &n, int &g, int &bcast_step,
             int &oh, int &ow, int &ih, int &iw)
-        {
-            int osb{0};
-            nd_iterator_init(iwork, n, jcp.mb, g, jcp.ngroups, osb,
-                jcp.nb_bcast);
-            bcast_step = step(jcp.nb_bcast_blocking, jcp.nb_bcast - osb,
-                    jcp.nb_bcast_blocking_max);
-            bcast_step = nstl::min(bcast_step, bcast_end - iwork);
+    {
+        int osb{0};
+        nd_iterator_init(iwork, n, jcp.mb, g, jcp.ngroups, osb,
+            jcp.nb_bcast);
+        bcast_step = step(jcp.nb_bcast_blocking, jcp.nb_bcast - osb,
+                jcp.nb_bcast_blocking_max);
+        bcast_step = nstl::min(bcast_step, bcast_end - iwork);
 
-            const int os = osb * os_block;
-            oh = os / jcp.ow;
-            ow = os % jcp.ow;
+        const int os = osb * os_block;
+        oh = os / jcp.ow;
+        ow = os % jcp.ow;
 
-            ih = nstl::max(oh * stride_h - pad_t, 0);
-            iw = nstl::max(ow * stride_w - pad_l, 0);
-            rp.iw_start = iw;
+        ih = nstl::max(oh * stride_h - pad_t, 0);
+        iw = nstl::max(ow * stride_w - pad_l, 0);
+        rp.iw_start = iw;
 
-            p.bcast_dim = this_block_size(os, jcp.os,
-                bcast_step * os_block);
-            rp.os = p.bcast_dim;
-        };
+        p.bcast_dim = this_block_size(os, jcp.os,
+            bcast_step * os_block);
+        rp.os = p.bcast_dim;
+    };
 
-        auto init_load = [&](int ocb, int &load_step)
-        {
-            load_step = step(jcp.nb_load_blocking, ocb_end - ocb,
-                jcp.nb_load_blocking_max);
-            p.load_dim = this_block_size(ocb * jcp.oc_block,
-                ocb_end * jcp.oc_block, load_step * jcp.oc_block);
-        };
+    auto init_load = [&](int ocb, int &load_step)
+    {
+        load_step = step(jcp.nb_load_blocking, ocb_end - ocb,
+            jcp.nb_load_blocking_max);
+        p.load_dim = this_block_size(ocb * jcp.oc_block,
+            ocb_end * jcp.oc_block, load_step * jcp.oc_block);
 
-        auto init_reduce = [&](int icb)
-        {
-            const int nb_ic_blocking_step =
-                nstl::min(icb + nb_ic_blocking, nb_ic) - icb;
-            p.reduce_pos_flag = 0
-                | (icb == 0 ? FLAG_REDUCE_FIRST : 0)
-                | (icb + nb_ic_blocking_step >= nb_ic
-                        ? FLAG_REDUCE_LAST : 0);
+        if (ocb + load_step >= nb_oc)
+            p.first_last_flag |= FLAG_OC_LAST;
+        else
+            p.first_last_flag &= ~FLAG_OC_LAST;
 
-            p.reduce_dim = this_block_size(icb * jcp.ic_block,
-                jcp.ic, nb_ic_blocking_step * jcp.ic_block);
-            rp.icb = p.reduce_dim / jcp.reduce_block;
-        };
+    };
 
-        auto inner_ker = [&](int ocb, int icb, int n, int g, int oh, int ow,
+    auto init_reduce = [&]()
+    {
+        p.reduce_dim = this_block_size(0, jcp.ic, jcp.ic);
+        rp.icb = p.reduce_dim / jcp.reduce_block;
+    };
+
+    auto inner_ker = [&](int ocb, int n, int g, int oh, int ow,
             int ih, int iw)
-        {
-            const int _ocb = g * nb_oc + ocb;
-            const int _icb = g * nb_ic + icb;
+    {
+        const int icb = 0; // Start from the first IC block
+        const int _ocb = g * nb_oc + ocb;
+        const int _icb = g;
 
-            const size_t dst_off = dst_d.blk_off(n, _ocb * jcp.oc_block, oh, ow);
+        const size_t dst_off = dst_d.blk_off(n, _ocb * jcp.oc_block, oh, ow);
 
-            auto ws_c = &ws_[dst_off];
-            p.acc_s32 = ws_c;
-            p.output_data = &dst[dst_off];
-            p.load_data = &weights[conf_.with_groups()
-                ? weights_d.blk_off(g, ocb, icb)
-                : weights_d.blk_off(ocb, icb)];
-            p.bias_data = &bias[_ocb * jcp.oc_block * bia_dt_size];
-            p.scales = &oscales.scales_[jcp.is_oc_scale * _ocb * jcp.oc_block];
-            if (conf_.rtus_.reduce_src_) {
-                rp.ws = scratch_ + ithr * ws_per_thread_
-                    + _icb * jcp.is * jcp.ic_block;
-                if (ocb == ocb_start) {
-                    rp.src = src + src_d.blk_off(n, _icb * jcp.ic_block, ih, iw);
-                    rtus_driver_->ker_(&rp);
-                }
-                p.bcast_data = rp.ws;
-            } else
-                p.bcast_data = src + src_d.blk_off(n, _icb * jcp.ic_block, ih, iw);
-
-            kernel_->jit_ker(&p);
-        };
-
-        if (jcp.loop_order == loop_rlb) {
-            for (int icb = 0; icb < nb_ic; icb += nb_ic_blocking) {
-                init_reduce(icb);
-                int ocb = ocb_start;
-                while (ocb < ocb_end) {
-                    int load_step;
-                    init_load(ocb, load_step);
-                    int iwork = bcast_start;
-                    while (iwork < bcast_end) {
-                        int n, g, bcast_step, oh, ow, ih, iw;
-                        init_bcast(iwork, n, g, bcast_step, oh, ow, ih, iw);
-                        inner_ker(ocb, icb, n, g, oh, ow, ih, iw);
-                        iwork += bcast_step;
-                    }
-                    ocb += load_step;
-                }
+        p.output_data = &dst[dst_off];
+        p.load_data = &weights[conf_.with_groups()
+            ? weights_d.blk_off(g, ocb, icb)
+            : weights_d.blk_off(ocb, icb)];
+        p.bias_data = &bias[_ocb * jcp.oc_block * bia_dt_size];
+        p.scales = &oscales.scales_[jcp.is_oc_scale * _ocb * jcp.oc_block];
+        if (conf_.rtus_.reduce_src_) {
+            rp.ws = scratch_ + ithr * ws_per_thread_
+                + _icb * jcp.is * jcp.ic_block;
+            if (ocb == ocb_start) {
+                rp.src = src + src_d.blk_off(n, _icb * jcp.ic_block, ih, iw);
+                rtus_driver_->ker_(&rp);
             }
-        } else if (jcp.loop_order == loop_lbr) {
-            int ocb = ocb_start;
-            while (ocb < ocb_end) {
-                int load_step;
-                init_load(ocb, load_step);
-                int iwork = bcast_start;
-                while (iwork < bcast_end) {
-                    int n, g, bcast_step, oh, ow, ih, iw;
-                    init_bcast(iwork, n, g, bcast_step, oh, ow, ih, iw);
-                    for (int icb = 0; icb < nb_ic; icb += nb_ic_blocking) {
-                        init_reduce(icb);
-                        inner_ker(ocb, icb, n, g, oh, ow, ih, iw);
-                    }
-                    iwork += bcast_step;
-                }
-                ocb += load_step;
-            }
-        } else if (jcp.loop_order == loop_rbl) {
-            for (int icb = 0; icb < nb_ic; icb += nb_ic_blocking) {
-                init_reduce(icb);
-                int iwork = bcast_start;
-                while (iwork < bcast_end) {
-                    int n, g, bcast_step, oh, ow, ih, iw;
-                    init_bcast(iwork, n, g, bcast_step, oh, ow, ih, iw);
-                    int ocb = ocb_start;
-                    while (ocb < ocb_end) {
-                        int load_step;
-                        init_load(ocb, load_step);
-                        inner_ker(ocb, icb, n, g, oh, ow, ih, iw);
-                        ocb += load_step;
-                    }
-                    iwork += bcast_step;
-                }
-            }
-        } else if (jcp.loop_order == loop_blr) {
+            p.bcast_data = rp.ws;
+        } else
+            p.bcast_data = src + src_d.blk_off(n, _icb * jcp.ic_block, ih, iw);
+
+        kernel_->jit_ker(&p);
+    };
+
+    if (jcp.loop_order == loop_rlb) {
+        init_reduce();
+        int ocb = ocb_start;
+        while (ocb < ocb_end) {
+            int load_step;
+            init_load(ocb, load_step);
             int iwork = bcast_start;
             while (iwork < bcast_end) {
                 int n, g, bcast_step, oh, ow, ih, iw;
                 init_bcast(iwork, n, g, bcast_step, oh, ow, ih, iw);
-                int ocb = ocb_start;
-                while (ocb < ocb_end) {
-                    int load_step;
-                    init_load(ocb, load_step);
-                    for (int icb = 0; icb < nb_ic; icb += nb_ic_blocking) {
-                        init_reduce(icb);
-                        inner_ker(ocb, icb, n, g, oh, ow, ih, iw);
-                    }
-                    ocb += load_step;
-                }
+                inner_ker(ocb, n, g, oh, ow, ih, iw);
                 iwork += bcast_step;
             }
-        } else {
-            assert(!"unsupported loop order");
+            ocb += load_step;
         }
+    } else if (jcp.loop_order == loop_lbr) {
+        int ocb = ocb_start;
+        while (ocb < ocb_end) {
+            int load_step;
+            init_load(ocb, load_step);
+            int iwork = bcast_start;
+            while (iwork < bcast_end) {
+                int n, g, bcast_step, oh, ow, ih, iw;
+                init_bcast(iwork, n, g, bcast_step, oh, ow, ih, iw);
+                init_reduce();
+                inner_ker(ocb, n, g, oh, ow, ih, iw);
+                iwork += bcast_step;
+            }
+            ocb += load_step;
+        }
+    } else if (jcp.loop_order == loop_rbl) {
+        init_reduce();
+        int iwork = bcast_start;
+        while (iwork < bcast_end) {
+            int n, g, bcast_step, oh, ow, ih, iw;
+            init_bcast(iwork, n, g, bcast_step, oh, ow, ih, iw);
+            int ocb = ocb_start;
+            while (ocb < ocb_end) {
+                int load_step;
+                init_load(ocb, load_step);
+                inner_ker(ocb, n, g, oh, ow, ih, iw);
+                ocb += load_step;
+            }
+            iwork += bcast_step;
+        }
+    } else if (jcp.loop_order == loop_blr) {
+        int iwork = bcast_start;
+        while (iwork < bcast_end) {
+            int n, g, bcast_step, oh, ow, ih, iw;
+            init_bcast(iwork, n, g, bcast_step, oh, ow, ih, iw);
+            int ocb = ocb_start;
+            while (ocb < ocb_end) {
+                int load_step;
+                init_load(ocb, load_step);
+                init_reduce();
+                inner_ker(ocb, n, g, oh, ow, ih, iw);
+                ocb += load_step;
+            }
+            iwork += bcast_step;
+        }
+    } else {
+        assert(!"unsupported loop order");
     }
 }
+
 
 template struct _jit_avx512_core_u8s8s32x_1x1_convolution_fwd_t<false, data_type::u8>;
 template struct _jit_avx512_core_u8s8s32x_1x1_convolution_fwd_t<true, data_type::u8>;

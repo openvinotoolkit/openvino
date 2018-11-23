@@ -65,8 +65,8 @@ namespace cldnn
         scale_grad_input_info.add("input", input.id());
         scale_grad_input_info.add("scale input", scale_input.id());
 
-        node_info.add("scale_grad_input info", scale_grad_input_info);
-        node_info.dump(primitive_description);
+        node_info->add("scale_grad_input info", scale_grad_input_info);
+        node_info->dump(primitive_description);
 
         return primitive_description.str();
     }

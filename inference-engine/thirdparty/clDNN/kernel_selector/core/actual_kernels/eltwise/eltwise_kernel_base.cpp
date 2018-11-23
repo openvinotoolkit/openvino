@@ -41,6 +41,22 @@ namespace kernel_selector
         }
     }
 
+    ParamsKey eltwise_params::GetParamsKey() const
+    {
+        ParamsKey k = base_params::GetParamsKey();
+        if (int8_quantization)
+        {
+            k.EnableInt8Quantization();
+        }
+
+        if (output_calibration)
+        {
+            k.EnableOutputCalibration();
+        }
+
+        return k;
+    }
+
     bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) const
     {
         if (p.GetType() != KernelType::ELTWISE ||
@@ -56,7 +72,7 @@ namespace kernel_selector
             return false;
         }
 
-        auto& operations = params.eltwiseParams.operations;
+        auto& operations = params.operations;
 
         if (operations.size() == 0)
         {
@@ -91,24 +107,24 @@ namespace kernel_selector
         JitConstants jit = MakeBaseParamsJitConstants(params);
 
         jit.AddConstants({
-            MakeJitConstant("ELTWISE_LAYOUT_BASED", params.eltwiseParams.layoutBased),
-            MakeJitConstant("QUANTIZATION_TERM",    params.eltwiseParams.int8_quantization),
+            MakeJitConstant("ELTWISE_LAYOUT_BASED", params.layoutBased),
+            MakeJitConstant("QUANTIZATION_TERM",    params.int8_quantization),
         });
 
-        if (params.eltwiseParams.int8_quantization)
+        if (params.int8_quantization)
         {
-            if (params.eltwiseParams.output_calibration)
+            if (params.output_calibration)
             {
-                jit.AddConstant(MakeJitConstant("CALIBRATION_TERM", params.eltwiseParams.output_calibration));
+                jit.AddConstant(MakeJitConstant("CALIBRATION_TERM", params.output_calibration));
                 jit.AddConstant(MakeJitConstant("O_QF", params.output_calibration_factors[0]));
 
             }
             else
-                jit.AddConstants({ MakeJitConstant("O_QF",       params.eltwiseParams.output_quantization_factor) });
+                jit.AddConstants({ MakeJitConstant("O_QF",       params.output_quantization_factor) });
         }
 
         std::string inputs_decls, vload_decls;
-        auto& updateInputs = params.eltwiseParams.updateInputIds;
+        auto& updateInputs = params.updateInputIds;
 
         for (size_t i = 0; i < params.inputs.size(); i++)
         {
@@ -143,8 +159,8 @@ namespace kernel_selector
 
         std::string do_eltwise;
 
-        auto& operations   = params.eltwiseParams.operations;
-        auto& coefficients = params.eltwiseParams.coefficients;
+        auto& operations   = params.operations;
+        auto& coefficients = params.coefficients;
 
         for (size_t op_num = 0; op_num < operations.size(); op_num++)
         {
@@ -187,7 +203,7 @@ namespace kernel_selector
                 cast_type = "(MAKE_VECTOR_TYPE(UNIT_TYPE, 8))";
                 op = "const MAKE_VECTOR_TYPE(UNIT_TYPE, 8) tmp" + op_num_str + " = ";
             }
-            else if(params.eltwiseParams.int8_quantization)
+            else if(params.int8_quantization)
             {
                 cast_type = "(int)";
                 op = "const int tmp" + op_num_str + " = ";
@@ -251,7 +267,7 @@ namespace kernel_selector
 
         jit.AddConstant(MakeJitConstant("DO_ELTWISE", do_eltwise));
 
-        if (params.eltwiseParams.layoutBased || params.eltwiseParams.int8_quantization)
+        if (params.layoutBased || params.int8_quantization)
         {
             jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
         }
@@ -262,6 +278,51 @@ namespace kernel_selector
     JitConstants EltwiseKernelBase::GetJitConstants(const eltwise_params& params) const
     {
         return GetJitConstantsCommon(params, false);
+    }
+
+    EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_params& params) const
+    {
+        DispatchData kd;
+
+        if (params.layoutBased || params.int8_quantization)
+        {
+            auto global = GetTensorFriendlyWorkGroups(params.inputs[0]);
+            kd.gws0 = global[0];
+            kd.gws1 = global[1];
+            kd.gws2 = global[2];
+        }
+        else if (CheckInputsOutputNoPitchSameDims(params))
+        {
+            kd.gws0 = params.inputs[0].LogicalSize();
+            kd.gws1 = 1;
+            kd.gws2 = 1;
+        }
+        else
+        {
+            const auto& out = params.output;
+
+            std::vector<size_t> gws;
+            for (const auto& o : out.GetDims())
+            {
+                gws.push_back(o.v);
+            }
+
+            for (size_t i = gws.size(); i < 4; i++)
+            {
+                gws.push_back(1U);
+            }
+
+            kd.gws0 = gws[0];
+            kd.gws1 = gws[1];
+            kd.gws2 = gws[2] * gws[3];
+        }
+
+        auto local = GetOptimalLocalWorkGroupSizes( { kd.gws0, kd.gws1, kd.gws2 } );
+        kd.lws0 = local[0];
+        kd.lws1 = local[1];
+        kd.lws2 = local[2];
+
+        return kd;
     }
 
     KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const
@@ -278,34 +339,15 @@ namespace kernel_selector
         auto cldnn_jit = GetJitConstants(newParams);
         std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-        const auto& out = newParams.output;
+        DispatchData runInfo = SetDefault(newParams);
+
         auto& kernel = kd.kernels[0];
-        if (newParams.eltwiseParams.layoutBased || newParams.eltwiseParams.int8_quantization)
-        {
-            kernel.workGroups.global = GetTensorFriendlyWorkGroups(newParams.inputs[0]);
-        }
-        else if (CheckInputsOutputNoPitchSameDims(newParams))
-        {
-            kernel.workGroups.global = { newParams.inputs[0].LogicalSize(), 1, 1 };
-        }
-        else
-        {
-            std::vector<size_t> gws;
-            for (const auto& o : out.GetDims())
-            {
-                gws.push_back(o.v);
-            }
 
-            for (size_t i = gws.size(); i < 4; i++)
-            {
-                gws.push_back(1U);
-            }
+        kernel.workGroups.global = { runInfo.gws0, runInfo.gws1, runInfo.gws2 };
+        kernel.workGroups.local = { runInfo.lws0, runInfo.lws1, runInfo.lws2 };
 
-            kernel.workGroups.global = { gws[0], gws[1], gws[2] * gws[3] };
-        }
-        kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global);
-        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, ROUND_ROBIN);
-        kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false, newParams.eltwiseParams.int8_quantization, newParams.eltwiseParams.output_calibration);
+        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, ROUND_ROBIN);
+        kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false, newParams.int8_quantization, newParams.output_calibration);
 
         kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

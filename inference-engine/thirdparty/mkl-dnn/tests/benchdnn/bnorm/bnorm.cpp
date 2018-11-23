@@ -22,6 +22,8 @@
 
 #include "mkldnn.h"
 
+#include "src/common/mkldnn_thread.hpp"
+
 #include "mkldnn_common.hpp"
 #include "mkldnn_memory.hpp"
 #include "norm.hpp"
@@ -76,8 +78,7 @@ static int prepare_fwd(const prb_t *p, dnn_mem_t &src, dnn_mem_t &mean,
     print(6, "check_alg: %s, density = %g, flex_bits = %d\n",
             check_alg2str(alg), density, flex_bits);
 
-#   pragma omp parallel for
-    for (int c = 0; c < p->ic; ++c) {
+    mkldnn::impl::parallel_nd(p->ic, [&](int c) {
         const float m = ((float *)mean)[c] =
             alg == ALG_0 ? 0.f : 0.25f * (1 << (c % 7));
         float v = 0; /* current variance */
@@ -119,7 +120,7 @@ static int prepare_fwd(const prb_t *p, dnn_mem_t &src, dnn_mem_t &mean,
             ((float *)ss)[c] = 1;
             ((float *)ss)[p->ic + c] = 0;
         }
-    }
+    });
 
     return OK;
 }
@@ -180,8 +181,7 @@ static int prepare_bwd(const prb_t *p, dnn_mem_t &src, dnn_mem_t &d_dst,
     print(5, "prep_bwd: k:%d, P:%d log2P:%d, density = %g\n",
             k, P, log2P, density);
 
-#   pragma omp parallel for
-    for (int c = 0; c < p->ic; ++c) {
+    mkldnn::impl::parallel_nd(p->ic, [&](int c) {
         const float m = ((float *)mean)[c] = c % 2;
 
         /* var + eps \in {1/4, 1, 4} */
@@ -272,7 +272,7 @@ static int prepare_bwd(const prb_t *p, dnn_mem_t &src, dnn_mem_t &d_dst,
             ((float *)ss)[c] = 1;
             ((float *)ss)[p->ic + c] = 0;
         }
-    }
+    });
 
     return OK;
 }
@@ -375,11 +375,15 @@ int check_fwd_ws(const dnn_mem_t &data_dt, const dnn_mem_t &ws_dt, res_t *r) {
     const float *d = (const float *)data_dt;
     const uint8_t *ws = (const uint8_t *)ws_dt;
 
-    /* some internal knowledge: either ws element is byte-width (e.g. for ref
-     * implementation) or bit-width (for jitted one) */
+    /* some internal knowledge: flags in ws are either stored as bytes (e.g.
+     * for the ref implementation) or as bits (e.g. for the jitted one); in
+     * the first case the ws memory has fewer elements than the data memory */
     enum { ws_byte, ws_bit } ws_type;
-    ws_type = ws_dt.size() <= nelems ? ws_bit : ws_byte;
+    ws_type = ws_dt.nelems() < nelems ? ws_bit : ws_byte;
 
+    /* more internal knowledge: data_dt and ws_dt are expected to have exactly
+     * the same data layout, and data_dt padded regions are expected to be
+     * zero, and the respective ws_dt elements should be set accordingly */
     for (size_t i = 0; i < nelems; i += 8) {
         for (size_t j = 0; j < MIN2(8, nelems - i); ++j) {
             const bool want = *d > 0;

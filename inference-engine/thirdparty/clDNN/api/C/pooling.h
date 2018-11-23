@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +40,9 @@ typedef enum /*:int32_t*/
     /// @brief Average-pooling method without values which are outside of the input.
     cldnn_pooling_average_no_padding,
     /// @brief Maximum-pooling method with additional buffer to store argmax indices.
-    cldnn_pooling_max_with_argmax
+    cldnn_pooling_max_with_argmax,
+    /// @brief Pooling with bilinear interpolation
+    cldnn_pooling_bilinear
 } cldnn_pooling_mode;
 
 /// @brief Performs "pooling" operation which is a form of non-linear down-sampling.
@@ -72,4 +74,3 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(pooling);
 /// @}
 /// @}
 #endif /* POOLING_H */
-

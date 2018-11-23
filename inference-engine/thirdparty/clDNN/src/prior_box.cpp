@@ -257,8 +257,8 @@ std::string prior_box_inst::to_string(prior_box_node const& node)
     step_info.add("offset", desc->offset);
     prior_info.add("step", step_info);
 
-    node_info.add("prior box info", prior_info);
-    node_info.dump(primitive_description);
+    node_info->add("prior box info", prior_info);
+    node_info->dump(primitive_description);
     
     return primitive_description.str();
 }

@@ -52,62 +52,53 @@ void compute_ref_conv_fwd(const mkldnn_convolution_desc_t &conv_desc,
 
     const memory::desc src_d = src.get_primitive_desc().desc();
     const memory::desc weights_d = weights.get_primitive_desc().desc();
-//    const memory::desc bias_d = bias.get_primitive_desc().desc();
     const memory::desc dst_d = dst.get_primitive_desc().desc();
 
-//    #pragma omp parallel for collapse(5) schedule(static)
-    for (int n = 0; n < MB; n++) {
-        for (int g = 0; g < G; g++) {
-            for (int oc = 0; oc < OC / G; oc++) {
-                for (int oh = 0; oh < OH; oh++) {
-                    for (int ow = 0; ow < OW; ow++) {
-                        int oidx = n * OC * OH * OW
-                                + g * OC / G * OH * OW
-                                + oc * OH * OW + oh * OW + ow;
+    mkldnn::impl::parallel_nd(MB, G, OC / G, OH, OW,
+        [&](int n, int g, int oc, int oh, int ow) {
+            int oidx = n * OC * OH * OW
+                       + g * OC / G * OH * OW
+                       + oc * OH * OW + oh * OW + ow;
 
-                        data_t_acc a = (data_t_acc)0;
+            data_t_acc a = (data_t_acc) 0;
 
-                        for (int ic = 0; ic < IC / G; ic++) {
-                            for (int kh = 0; kh < KH; kh++) {
-                                for (int kw = 0; kw < KW; kw++) {
-                                    int iw = ow * SW
-                                          - PW + kw * (1 + DW);
-                                    int ih = oh * SH
-                                          - PH + kh * (1 + DH);
-                                    if (iw < 0 || iw >= IW) continue;
-                                    if (ih < 0 || ih >= IH) continue;
-                                    int iidx = n * IC * IH * IW
-                                            + g * IC / G * IH * IW
-                                            + ic * IH * IW + ih * IW + iw;
-                                    int widx = g * OC / G * IC
-                                                    / G * KH * KW
-                                            + oc * IC / G * KH * KW
-                                            + ic * KH * KW + kh * KW  + kw;
+            for (int ic = 0; ic < IC / G; ic++) {
+                for (int kh = 0; kh < KH; kh++) {
+                    for (int kw = 0; kw < KW; kw++) {
+                        int iw = ow * SW
+                                 - PW + kw * (1 + DW);
+                        int ih = oh * SH
+                                 - PH + kh * (1 + DH);
+                        if (iw < 0 || iw >= IW) continue;
+                        if (ih < 0 || ih >= IH) continue;
+                        int iidx = n * IC * IH * IW
+                                   + g * IC / G * IH * IW
+                                   + ic * IH * IW + ih * IW + iw;
+                        int widx = g * OC / G * IC
+                                   / G * KH * KW
+                                   + oc * IC / G * KH * KW
+                                   + ic * KH * KW + kh * KW + kw;
 
-                                    a += src_data[map_index(src_d, iidx)]
-                                            * weights_data[map_index(
-                                                      weights_d, widx)];
+                        a += src_data[map_index(src_d, iidx)]
+                             * weights_data[map_index(
+                                weights_d, widx)];
 
 
-                                }
-                            }
-                        }
-
-                        float a_fp = (float)a;
-
-//                        a_fp *= scales[G > 1 ? g : oc];
-                        a_fp += bias_data[G > 1 ? g : oc];
-
-                        if (with_relu) {
-                            a_fp = (a_fp > 0) ? a_fp : eltwise_alpha * a_fp;
-                        }
-
-                        dst_data[map_index(dst_d, oidx)] = (data_t_dst)a_fp;
                     }
                 }
             }
+
+            float a_fp = (float) a;
+
+            a_fp += bias_data[G > 1 ? g : oc];
+
+            if (with_relu) {
+                a_fp = (a_fp > 0) ? a_fp : eltwise_alpha * a_fp;
+            }
+
+            dst_data[map_index(dst_d, oidx)] = (data_t_dst) a_fp;
         }
-    }
+    );
 }
 
 template <typename data_t_src, typename data_t_wei,

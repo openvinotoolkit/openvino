@@ -51,8 +51,8 @@ namespace cldnn
         conv_info.add("with axis", axis);
         if (desc->with_axis)
             conv_info.add("axis", desc->axis);
-        node_info.add("lookup_table info", conv_info);
-        node_info.dump(primitive_description);
+        node_info->add("lookup_table info", conv_info);
+        node_info->dump(primitive_description);
 
         return primitive_description.str();
     }

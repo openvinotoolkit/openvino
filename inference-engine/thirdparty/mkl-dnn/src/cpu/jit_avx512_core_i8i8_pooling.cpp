@@ -551,47 +551,30 @@ void jit_avx512_core_i8i8_pooling_fwd_t::execute_forward() {
 
     const auto &jpp = conf_.jpp_;
 
-    auto ker = [&](int ithr, int nthr) {
-        const int work_amount = jpp.mb * jpp.oh * jpp.ow;
+    parallel_nd(jpp.mb, jpp.oh, jpp.ow,
+            [&](int n, int oh, int ow) {
+        const int ih = nstl::max(oh*jpp.stride_h - jpp.t_pad, 0);
+        const int iw = nstl::max(ow*jpp.stride_w - jpp.l_pad, 0);
 
-        int start{0}, end{0};
-        balance211(work_amount, nthr, ithr, start, end);
-
-        int n{0}, oh{0}, ow{0};
-        nd_iterator_init(start, n, jpp.mb, oh, jpp.oh, ow, jpp.ow);
+        const int kh_start = nstl::max(0, jpp.t_pad - oh * jpp.stride_h);
+        const int kh_end = nstl::min(jpp.kh,
+                jpp.ih + jpp.t_pad - oh * jpp.stride_h);
+        const int kw_start = nstl::max(0, jpp.l_pad - ow * jpp.stride_w);
+        const int kw_end = nstl::min(jpp.kw,
+                jpp.iw + jpp.l_pad - ow * jpp.stride_w);
 
         auto p = jit_avx512_core_i8i8_pool_fwd_ker_t::call_params_t();
+        p.src_i8 = &src_i8[
+            src_d.blk_off(n, 0, ih, iw) * src_d.data_type_size()];
+        p.dst_i8 = &dst_i8[
+            dst_d.blk_off(n, 0, oh, ow) * dst_d.data_type_size()];
+        p.kw_range = (size_t)(kw_end - kw_start);
+        p.kh_range = (size_t)(kh_end - kh_start);
+        p.idivider = 1.0f / ((jpp.alg == pooling_avg_exclude_padding) ?
+            p.kh_range*p.kw_range : jpp.kw*jpp.kh);
 
-        for (int iwork = start; iwork < end; ++iwork) {
-            const int ih = nstl::max(oh*jpp.stride_h - jpp.t_pad, 0);
-            const int iw = nstl::max(ow*jpp.stride_w - jpp.l_pad, 0);
-
-            const int kh_start = nstl::max(0, jpp.t_pad - oh * jpp.stride_h);
-            const int kh_end = nstl::min(jpp.kh,
-                    jpp.ih + jpp.t_pad - oh * jpp.stride_h);
-            const int kw_start = nstl::max(0, jpp.l_pad - ow * jpp.stride_w);
-            const int kw_end = nstl::min(jpp.kw,
-                    jpp.iw + jpp.l_pad - ow * jpp.stride_w);
-
-            p.src_i8 = &src_i8[
-                src_d.blk_off(n, 0, ih, iw) * src_d.data_type_size()];
-            p.dst_i8 = &dst_i8[
-                dst_d.blk_off(n, 0, oh, ow) * dst_d.data_type_size()];
-            p.kw_range = (size_t)(kw_end - kw_start);
-            p.kh_range = (size_t)(kh_end - kh_start);
-            p.idivider = 1.0f / ((jpp.alg == pooling_avg_exclude_padding) ?
-                p.kh_range*p.kw_range : jpp.kw*jpp.kh);
-
-            ker_->ker_(&p);
-
-            nd_iterator_step(n, jpp.mb, oh, jpp.oh, ow, jpp.ow);
-        }
-    };
-
-#   pragma omp parallel
-    {
-        ker(omp_get_thread_num(), omp_get_num_threads());
-    }
+        ker_->ker_(&p);
+    });
 }
 
 }

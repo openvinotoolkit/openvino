@@ -14,9 +14,9 @@
 // limitations under the License.
 */
 
+#include "include/common.cl"
+#include "include/data_types.cl"
 
-
-#include "include/include_all.cl"
 
 __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(softmax)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)

@@ -14,8 +14,7 @@ using namespace ShapeInfer;
 
 class MockInputController : public InputController {
 public:
-    MockInputController(const std::vector<DataPtr>& dataVec) : InputController(dataVec, {}, {},
-                                                                               std::make_shared<EmptyChecker>()) {}
+    MockInputController(const std::vector<DataPtr>& dataVec) : InputController(dataVec, {}, std::make_shared<EmptyChecker>()) {}
 
     MOCK_METHOD2(setShapeByName, void(
             const SizeVector&, const std::string&));

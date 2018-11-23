@@ -19,6 +19,7 @@
 #include "nstl.hpp"
 #include "utils.hpp"
 #include "jit_generator.hpp"
+#include "type_helpers.hpp"
 
 #include "jit_uni_softmax.hpp"
 
@@ -27,6 +28,9 @@ namespace impl {
 namespace cpu {
 
 using namespace Xbyak;
+using namespace mkldnn::impl::status;
+using namespace mkldnn::impl::memory_format;
+using namespace mkldnn::impl::utils;
 
 template <cpu_isa_t isa>
 jit_uni_softmax_fwd_t<isa>::jit_uni_softmax_fwd_t(const pd_t *pd,
@@ -55,27 +59,60 @@ void jit_uni_softmax_fwd_t<isa>::execute_forward()
 
     size_t dim = jpp.channels * jpp.inner_size;
 
-    auto ker = [&](const int ithr, const int nthr) {
-        size_t start{0}, end{0};
+    if (jpp.inner_size > 1) {
+        auto ker = [&](const int ithr, const int nthr) {
+            size_t start{0}, end{0};
 
-        const size_t work_amount = jpp.inner_size;
-        balance211(work_amount, nthr, ithr, start, end);
+            const size_t work_amount = outer_size;
+            balance211(work_amount, nthr, ithr, start, end);
 
-        for (size_t ou = 0; ou < outer_size; ++ou) {
-            jit_softmax_call_s args{};
-            args.channels = jpp.channels;
-            args.work = end - start;
-            size_t off = data_d.off_l(ou*dim + start);
-            args.src = src + off;
-            args.dst = dst + off;
+            size_t ou{0};
+            nd_iterator_init(start, ou, outer_size);
 
-            (*kernel_)(&args);
-        }
-    };
+            for (size_t iwork = start; iwork < end; ++iwork) {
+                jit_softmax_call_s args{};
+                args.channels = jpp.channels;
+                args.work = jpp.inner_size;
+                size_t off = data_d.off_l(ou * dim);
+                args.src = src + off;
+                args.dst = dst + off;
 
-#pragma omp parallel
-    {
-        ker(omp_get_thread_num(), omp_get_num_threads());
+                (*kernel_)(&args);
+
+                nd_iterator_step(ou, outer_size);
+            }
+        };
+
+        parallel(0, ker);
+    } else {
+        auto ker = [&](const int ithr, const int nthr) {
+            size_t start{0}, end{0};
+
+            int ou_blocks = div_up(outer_size, jpp.outer_block);
+
+            const size_t work_amount = ou_blocks;
+            balance211(work_amount, nthr, ithr, start, end);
+
+            size_t oub{0};
+            nd_iterator_init(start, oub, ou_blocks);
+
+            for (size_t iwork = start; iwork < end; ++iwork) {
+                size_t work = nstl::min(jpp.outer_block, outer_size - oub * jpp.outer_block);
+
+                jit_softmax_call_s args{};
+                args.channels = jpp.channels;
+                args.work = work;
+                size_t off = data_d.off_l(oub * jpp.outer_block * dim);
+                args.src = src + off;
+                args.dst = dst + off;
+
+                (*kernel_)(&args);
+
+                nd_iterator_step(oub, ou_blocks);
+            }
+        };
+
+        parallel(0, ker);
     }
 }
 

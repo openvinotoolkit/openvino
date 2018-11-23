@@ -18,10 +18,10 @@
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
 #include "error_handler.h"
+#include "network_impl.h"
 #include "kernel_selector_helper.h"
 #include "convolution_grad_weights/convolution_grad_weights_kernel_selector.h"
 #include "convolution_grad_weights/convolution_grad_weights_kernel_base.h"
-
 namespace cldnn { namespace gpu {
 
 struct convolution_grad_weights_gpu : typed_primitive_gpu_impl<convolution_grad_weights>
@@ -39,7 +39,7 @@ protected:
         // Check whether all memory elements use the same unit type (FP16 or FP32).
         CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(), "Input grad memory", instance.input_memory().get_layout().data_type, "output memory", instance.output_memory().get_layout().data_type, "");
         CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(), "Input memory", instance.input_memory(1).get_layout().data_type, "output memory", instance.output_memory().get_layout().data_type, "");
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(), "Input memory", instance.input_memory().get_layout().data_type, "filter memory", instance.weights_memory(0).get_layout().data_type, "");
+        CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(), "Fp32", data_types::f32, "filter memory", instance.weights_memory(0).get_layout().data_type, "");
 
         if (instance.use_momentum())
         {

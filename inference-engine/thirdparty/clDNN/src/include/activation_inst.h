@@ -30,8 +30,8 @@ struct typed_program_node<activation> : public typed_program_node_base<activatio
 public:
     using parent::parent;
 
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) slope_input() const { return get_dependency(1); }
+    program_node& input() const { return get_dependency(0); }
+    program_node& slope_input() const { return get_dependency(1); }
 
     bool is_parameterized() const { return !typed_desc()->additional_params_input.empty(); }
 };
@@ -49,7 +49,7 @@ public:
 public:
     typed_primitive_inst(network_impl& network, activation_node const& node);
 
-    decltype(auto) slope_memory() const { return dep_memory(1); }
+    memory_impl& slope_memory() const { return dep_memory(1); }
 
     bool is_parameterized() const { return !argument.additional_params_input.empty(); }
 };

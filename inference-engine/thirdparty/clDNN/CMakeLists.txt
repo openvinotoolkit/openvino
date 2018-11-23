@@ -15,11 +15,6 @@
 cmake_minimum_required (VERSION 3.1 FATAL_ERROR)
 include(CheckCXXCompilerFlag)
 
-if(CMAKE_VERSION VERSION_LESS 3.9)
-  # Register module overrides for boost package if cmake is too old.
-  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/common/boost/cmake/modules")
-endif()
-
 # Register Intel helper modules.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/utils/build/cmake/modules")
 include(IntelHelpers)
@@ -85,9 +80,6 @@ set(CLDNN__KERNEL_SELECTOR_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/kernel_selecto
 
 # Path which points to directory with binaries for Intel OpenCL SDK ICD (Installable Client Driver).
 set(CLDNN__IOCL_ICD_DIR  "${CLDNN__COMMON_DIR}/intel_ocl_icd")
-
-# Path which points to directory with boost libraries (only selection).
-set(CLDNN__BOOST_DIR     "${CLDNN__COMMON_DIR}/boost")
 
 # Path which points to directory with C++ bindings for OpenCL (header files + wrapper that disables specific warnings).
 set(CLDNN__KHR_CLHPP_DIR "${CLDNN__COMMON_DIR}/khronos_ocl_clhpp")
@@ -325,24 +317,6 @@ if(__CLDNN_IOclIcdDefaultVersion VERSION_EQUAL "0")
 endif()
 
 # ======================================================================================================
-
-# Detecting all versions of added boost package in the project.
-if(NOT EXISTS "${CLDNN__BOOST_DIR}")
-  message(FATAL_ERROR "[clDNN] Root for boost libraries is invalid or does not exist.
-    Please make sure that libraries are added into \"${CLDNN__BOOST_DIR}\".")
-endif()
-
-cldnn_locate_component_versions(__CLDNN_BoostVersions __CLDNN_BoostPaths __CLDNN_BoostDefaultVersion
-    "boost libraries" "${CLDNN__BOOST_DIR}"
-    "include/boost-*/boost/config.hpp"
-    "include/boost-*/boost/filesystem/config.hpp"
-  )
-
-if(__CLDNN_BoostDefaultVersion VERSION_EQUAL "0")
-  message(FATAL_ERROR "[clDNN] boost libraries required for build cannot be located.")
-endif()
-
-# ======================================================================================================
 # ============================================ CMAKE OPTIONS ===========================================
 # ======================================================================================================
 
@@ -387,13 +361,6 @@ set_property(CACHE CLDNN__IOCL_ICD_VERSION PROPERTY STRINGS ${__CLDNN_IOclIcdVer
 
 set(CLDNN__IOCL_ICD_USE_EXTERNAL OFF CACHE BOOL "Intel OpenCL SDK ICD: Try to use externally-intalled Intel OpenCL SDK ICD.")
 mark_as_advanced(CLDNN__IOCL_ICD_USE_EXTERNAL)
-
-# ======================================================================================================
-
-# boost libraries (filesystem subset): Version of libraries used to build clDNN.
-set(CLDNN__BOOST_VERSION "${__CLDNN_BoostDefaultVersion}" CACHE STRING "boost libraries (filesystem subset): Version of libraries used to build clDNN framework.")
-mark_as_advanced(CLDNN__BOOST_VERSION)
-set_property(CACHE CLDNN__BOOST_VERSION PROPERTY STRINGS ${__CLDNN_BoostVersions})
 
 # ======================================================================================================
 
@@ -450,12 +417,7 @@ mark_as_advanced(CLDNN__CMAKE_DEBUG)
 set(CLDNN__MIN_COMPILER_VERSION__MSVC  "19.0")
 set(CLDNN__MIN_COMPILER_VERSION__CLANG "3.5")
 set(CLDNN__MIN_COMPILER_VERSION__ICC   "17.0")
-
-if (CLDNN__INCLUDE_CORE OR CLDNN__INCLUDE_TESTS)
-  set(CLDNN__MIN_COMPILER_VERSION__GCC "5.2")
-else()
-  set(CLDNN__MIN_COMPILER_VERSION__GCC "4.8")
-endif()
+set(CLDNN__MIN_COMPILER_VERSION__GCC   "4.8")
 
 # ======================================================================================================
 
@@ -572,50 +534,6 @@ unset(__CLDNN_IOclIcdDefaultVersion)
 unset(__CLDNN_IOclIcdVersionIdx)
 
 
-# ======================================================================================================
-
-# Selecting boost libraries version and path.
-list(FIND __CLDNN_BoostVersions "${CLDNN__BOOST_VERSION}" __CLDNN_BoostVersionIdx)
-if(__CLDNN_BoostVersionIdx LESS 0)
-  message(FATAL_ERROR "[clDNN] CLDNN__BOOST_VERSION: Selected version of boost libraries cannot be found.
-    Please use one of following values: ${__CLDNN_BoostVersions}.")
-endif()
-list(GET __CLDNN_BoostPaths ${__CLDNN_BoostVersionIdx} CLDNN__BOOST_ROOT)
-set(CLDNN__BOOST_ROOT "${CLDNN__BOOST_ROOT}" CACHE INTERNAL "Path to boost libraries (filesystem subset) used to build clDNN framework.")
-
-# Setting paths for find_package.
-set(BOOST_ROOT            "${CLDNN__BOOST_ROOT}")
-set(BOOST_INCLUDEDIR      "${CLDNN__BOOST_ROOT}")
-set(BOOST_LIBRARYDIR      "${CLDNN__BOOST_ROOT}/${__CLDNN_TargetOs}/${__CLDNN_TargetCpuDir}/${__CLDNN_TargetCompilerDir}/lib")
-set(Boost_NO_SYSTEM_PATHS ON)
-# Setting preferred types of libraries.
-set(Boost_USE_STATIC_LIBS    ON)
-set(Boost_USE_DEBUG_RUNTIME  ON)
-set(Boost_USE_STATIC_RUNTIME ${CLDNN__COMPILE_LINK_USE_STATIC_RUNTIME})
-set(CLDNN__BOOST_USAGE system date_time program_options filesystem)
-find_package(Boost "${CLDNN__BOOST_VERSION}" EXACT REQUIRED
-      COMPONENTS ${CLDNN__BOOST_USAGE}
-    )
-
-
-get_cmake_property(__CLDNN_VarNames VARIABLES)
-cldnn_dmsg("All boost package variables:")
-foreach(__CLDNN_VarName ${__CLDNN_VarNames})
-  string(REPLACE ";" "\;" __CLDNN_VarName "${__CLDNN_VarName}") # [WA#1] Must escape ; again if occurred in item.
-  if(__CLDNN_VarName MATCHES "^Boost_")
-    cldnn_dmsg(" - ${__CLDNN_VarName}:     ${${__CLDNN_VarName}}")
-  endif()
-endforeach()
-cldnn_dmsg("")
-
-# ======================================================================================================
-
-# Clean-up of helper variables for component paths.
-unset(__CLDNN_TargetOs)
-unset(__CLDNN_TargetCpu)
-unset(__CLDNN_TargetCpuDir)
-unset(__CLDNN_TargetCompilerDir)
-
 # ====================================== Version Calculation ===========================================
 
 if(EXISTS "${CLDNN__VERSION_FILE_NAME}")
@@ -705,7 +623,6 @@ if (CLDNN__IOCL_ICD_USE_EXTERNAL)
 else()
   message(STATUS "[clDNN]  - ICD version used to build:     ${CLDNN__IOCL_ICD_VERSION}")
 endif()
-message(STATUS "[clDNN]  - boost ver. used to build:      ${CLDNN__BOOST_VERSION}")
 message(STATUS "[clDNN]")
 message(STATUS "[clDNN]  - Include/Build cldnn core:      ${CLDNN__INCLUDE_CORE}")
 message(STATUS "[clDNN]  - Include/Build kernel selector: ${CLDNN__INCLUDE_KERNEL_SELECTOR}")
@@ -725,12 +642,6 @@ message(STATUS "[clDNN]     + Headers:      ${CLDNN__IOCL_ICD_INCDIRS}")
 message(STATUS "[clDNN]     + Static libs:  ${CLDNN__IOCL_ICD_STLDIRS}")
 message(STATUS "[clDNN]     + Shared libs:  ${CLDNN__IOCL_ICD_SHLDIRS}")
 message(STATUS "[clDNN]     + Libs to link: ${CLDNN__IOCL_ICD_LIBDIRS}")
-message(STATUS "[clDNN]")
-message(STATUS "[clDNN] boost libraries:")
-message(STATUS "[clDNN]  - Root:            ${CLDNN__BOOST_ROOT}")
-message(STATUS "[clDNN]     + Headers:      ${Boost_INCLUDE_DIRS}")
-message(STATUS "[clDNN]     + Libs to link: ${Boost_LIBRARY_DIRS}")
-
 message(STATUS "[clDNN] =============================================================================")
 unset(__CLDNN_DetectedArch_Target)
 
@@ -794,19 +705,6 @@ cldnn_dmsg("    + version:        ${CMAKE_C_COMPILER_VERSION}")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/CMakeCompilerLinkerOpts.txt" NO_POLICY_SCOPE)
 
-# ======================================= Handle C++14 Stuffs ==========================================
-
-set(__CLDNN_UseCxx14 ${CLDNN__COMPILER_SUPPORTS_CXX14})
-
-if(NOT __CLDNN_UseCxx14)
-  if(CLDNN__INCLUDE_CORE OR CLDNN__INCLUDE_TESTS)
-    message(WARNING "Due to lack of support of c++14 switch cldnn_core/examples/tests projects will not be included in created solution")
-  endif()
-
-  set(CLDNN__INCLUDE_CORE OFF CACHE BOOL "" FORCE)
-  set(CLDNN__INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
-endif()
-
 # ======================================= Generic compiler options =====================================
 # Selecting C++ Runtime.
 if(CLDNN__COMPILE_LINK_USE_STATIC_RUNTIME)
@@ -827,7 +725,6 @@ foreach(__CLDNN_CompilerFlagName IN ITEMS "CMAKE_CXX_FLAGS" "CMAKE_C_FLAGS")
       ALL_PATTERN ""
       SET
         CompileAsDefault
-        DebugInfoProgramDatabase
         ExceptionsEnabled
         MultiProcessorCompilation
         DeadCodeEliminate
@@ -872,14 +769,24 @@ foreach(__CLDNN_CompilerFlagName IN ITEMS "CMAKE_CXX_FLAGS" "CMAKE_C_FLAGS")
             "/wd11076"
         )
     else()
-      intel_config_flag_apply_settings(
-          CompilerOptions
-          "${__CLDNN_CompilerFlagName}"
-          ALL_PATTERN ""
-          SET_RAW
+      if(__CLDNN_TargetCpu STREQUAL "32")
+        intel_config_flag_apply_settings(
+            CompilerOptions
+            "${__CLDNN_CompilerFlagName}"
+            ALL_PATTERN ""
+            SET_RAW
             "/arch:SSE2"
             "/sdl"
         )
+      else()
+        intel_config_flag_apply_settings(
+                CompilerOptions
+                "${__CLDNN_CompilerFlagName}"
+                ALL_PATTERN ""
+                SET_RAW
+                "/sdl"
+            )
+      endif()
     endif()
   elseif(CMAKE_COMPILER_IS_INTEL)
     message(FATAL_ERROR "TODO Support native ICC")
@@ -956,27 +863,8 @@ intel_config_flag_apply_settings(
     ALL_PATTERN ""
     SET
       RttiDisabled
+      StandardCxx11
   )
-
-if(__CLDNN_UseCxx14)
-  intel_config_flag_apply_settings(
-      CompilerOptions
-      CMAKE_CXX_FLAGS
-      ALL_PATTERN ""
-      SET
-        StandardCxx14
-    )
-else()
-  intel_config_flag_apply_settings(
-      CompilerOptions
-      CMAKE_CXX_FLAGS
-      ALL_PATTERN ""
-      SET
-        StandardCxx11
-    )
-endif()
-unset(__CLDNN_UseCxx14)
-
 
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   intel_config_flag_apply_settings(
@@ -1020,7 +908,6 @@ foreach(__CLDNN_LinkerFlagName IN ITEMS "CMAKE_EXE_LINKER_FLAGS" "CMAKE_SHARED_L
       "${__CLDNN_LinkerFlagName}"
       ALL_PATTERN ""
       SET
-        DebugInfoProgramDatabase
         DeadCodeEliminate
         IdenticalCodeDataFold
         IncrementalDisabled
@@ -1079,11 +966,18 @@ unset(__CLDNN_Flag)
 unset(__CLDNN_CfgType)
 unset(__CLDNN_CfgFlag)
 
+# ======================================================================================================
+
+# Clean-up of helper variables for component paths.
+unset(__CLDNN_TargetOs)
+unset(__CLDNN_TargetCpu)
+unset(__CLDNN_TargetCpuDir)
+unset(__CLDNN_TargetCompilerDir)
+
 # ============================== Generic compiler preprocessor definitions =============================
 
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
     CLDNN_CMAKE
-    BOOST_ALL_NO_LIB
   )
 
 if (MSVC)
@@ -1102,7 +996,6 @@ endif()
 include_directories(
     ${CLDNN__IOCL_ICD_INCDIRS}
     "${CLDNN__KHR_CLHPP_DIR}"
-    ${Boost_INCLUDE_DIRS}
     "${CLDNN__CODEGEN_INCDIR}"
   )
 link_directories(

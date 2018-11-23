@@ -43,8 +43,8 @@ std::string custom_gpu_primitive_inst::to_string(custom_gpu_primitive_node const
     custom_gpu_prim_info.add("gws", desc->gws);
     custom_gpu_prim_info.add("lws", desc->lws);
     // TODO: consider printing more information here
-    node_info.add("custom primitive info", custom_gpu_prim_info);
-    node_info.dump(primitive_description);
+    node_info->add("custom primitive info", custom_gpu_prim_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

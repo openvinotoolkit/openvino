@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-#include "include/include_all.cl"
+#include "include/common.cl"
+#include "include/data_types.cl"
 
 
 /****************************************************************************
@@ -77,6 +77,46 @@ KERNEL(roi_pooling_gpu)
     //       the pooled data is limited by its dimensions. (Is this clear?)
 
     const __global UNIT_TYPE * roi_ptr = &src_rois[PITCH_ROI_R * r];
+
+#if BILINEAR_POOLING
+    const uint output_offset = OUTPUT_OFFSET + x*OUTPUT_X_PITCH + y*OUTPUT_Y_PITCH + c*OUTPUT_FEATURE_PITCH + r*OUTPUT_ROI_PITCH;
+
+    COORD_T roi_start_w = roi_ptr[1];
+    COORD_T roi_start_h = roi_ptr[2];
+    COORD_T roi_end_w   = roi_ptr[3];
+    COORD_T roi_end_h   = roi_ptr[4];
+
+    COORD_T height_scale = (roi_end_h - roi_start_h) * (SRC_H - 1) / (COORD_T)(POOLED_HEIGHT - 1);
+    COORD_T width_scale  = (roi_end_w - roi_start_w) * (SRC_W - 1) / (COORD_T)(POOLED_WIDTH  - 1);
+
+    COORD_T in_y = y*height_scale + roi_start_h*(COORD_T)(SRC_H - 1);
+    COORD_T in_x = x*width_scale  + roi_start_w*(COORD_T)(SRC_W - 1);
+
+    if (in_y < 0 || in_y > (COORD_T)(SRC_H - 1) || in_x < 0 || in_x > (COORD_T)(SRC_W - 1) || roi_ptr[0] == -1) {
+        dst_data[output_offset] = ACTIVATION((UNIT_TYPE)0, NL_M, NL_N);
+        return;
+    }
+
+    int top_y_index    = (int)(floor(in_y));
+    int bottom_y_index = (int)(min(ceil(in_y), (COORD_T)SRC_H - 1));
+    int left_x_index   = (int)(floor(in_x));
+    int right_x_index  = (int)(min(ceil(in_x), (COORD_T)SRC_W - 1));
+
+    const __global UNIT_TYPE* data = src_data + INPUT0_OFFSET + INPUT0_FEATURE_PITCH*c;
+
+    ACCUM_T top_left     = (ACCUM_T)data[top_y_index*INPUT0_Y_PITCH + left_x_index*INPUT0_X_PITCH];
+    ACCUM_T top_right    = (ACCUM_T)data[top_y_index*INPUT0_Y_PITCH + right_x_index*INPUT0_X_PITCH];
+    ACCUM_T bottom_left  = (ACCUM_T)data[bottom_y_index*INPUT0_Y_PITCH + left_x_index*INPUT0_X_PITCH];
+    ACCUM_T bottom_right = (ACCUM_T)data[bottom_y_index*INPUT0_Y_PITCH + right_x_index*INPUT0_X_PITCH];
+
+    ACCUM_T top    = top_left + (top_right - top_left) * (in_x - left_x_index);
+    ACCUM_T bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
+
+    ACCUM_T res = top + (bottom - top) * (in_y - top_y_index);
+
+    dst_data[output_offset] = ACTIVATION((UNIT_TYPE)res, NL_M, NL_N);
+#else
+
 #if USE_OLD_SCALE_AND_ROUNDING
     const int roi_x  = round(roi_ptr[1] * SPATIAL_SCALE);
     const int roi_y  = round(roi_ptr[2] * SPATIAL_SCALE);
@@ -136,7 +176,7 @@ KERNEL(roi_pooling_gpu)
 #if 0
     const COORD_T group_bin_w = (COORD_T)roi_w / DST_W;
     const COORD_T group_bin_h = (COORD_T)roi_h / DST_H;
-    
+
     const uint group_x = CLAMP(x * group_bin_w, 0, GROUP_SIZE - 1);
     const uint group_y = CLAMP(y * group_bin_h, 0, GROUP_SIZE - 1);
 #else
@@ -147,25 +187,34 @@ KERNEL(roi_pooling_gpu)
     const uint work_c = group_x + GROUP_SIZE * (group_y + GROUP_SIZE * c);
 #endif
 
-    const __global UNIT_TYPE * data = src_data + INPUT0_OFFSET + INPUT0_FEATURE_PITCH*work_c;
+    const __global UNIT_TYPE* data = src_data + INPUT0_OFFSET + INPUT0_FEATURE_PITCH*work_c;
 
-    ACCUM_T res = MAX_POOL && x_begin < x_after && y_begin < y_after ? UNIT_VAL_MIN : 0;
+#if MAX_POOLING
+    ACCUM_T res = x_begin < x_after && y_begin < y_after ? UNIT_VAL_MIN : 0;
+#else
+    ACCUM_T res = 0;
+#endif
 
     for (int yy = y_begin; yy < y_after; ++yy)
     for (int xx = x_begin; xx < x_after; ++xx)
     {
         UNIT_TYPE val = data[xx*INPUT0_X_PITCH + yy*INPUT0_Y_PITCH];
-
-        res = MAX_POOL ? MAX(res, (ACCUM_T)val) : res + (ACCUM_T)val;
+#if MAX_POOLING
+        res = MAX(res, (ACCUM_T)val);
+#else
+        res = res + (ACCUM_T)val;
+#endif
     }
 
-    if (!MAX_POOL)
+#if (!MAX_POOLING)
     {
         //TODO(ruv): again, differs from the standard fixed size area (?)
         const COORD_T area = (y_after - y_begin) * (x_after - x_begin);
         if (area) res /= area;
     }
+#endif
 
     const uint output_offset = OUTPUT_OFFSET + x*OUTPUT_X_PITCH + y*OUTPUT_Y_PITCH + c*OUTPUT_FEATURE_PITCH + r*OUTPUT_ROI_PITCH;
     dst_data[output_offset] = ACTIVATION((UNIT_TYPE)res, NL_M, NL_N);
-} 
+#endif
+}

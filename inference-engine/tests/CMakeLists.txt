@@ -19,14 +19,8 @@ else()
 endif()
 
 add_subdirectory(mock_engine)
-add_subdirectory(mock_extension)
 
-#####################################################################################################
-#                                     SETUP GOOGLE TESTS                                            #
-#####################################################################################################
 add_subdirectory(libs/gtest)
-
-
 
 include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR}
         ${gmock_SOURCE_DIR}/include

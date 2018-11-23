@@ -17,7 +17,11 @@ namespace CLDNNPlugin {
 
 const std::string CLDNNInferRequest::fp32_suffix = "_fp32";
 
-Blob::Ptr CLDNNInferRequest::createInputBlob(const Precision& p, const Layout& l, const SizeVector& sz, uint8_t* mem_ptr) {
+Blob::Ptr CLDNNInferRequest::createInputBlob(const TensorDesc& desc, uint8_t* mem_ptr) {
+    const Layout l = desc.getLayout();
+    const Precision p = desc.getPrecision();
+    const SizeVector sz = SizeVector(desc.getDims().rbegin(), desc.getDims().rend());
+
     switch (p) {
     case Precision::FP32:
         if (mem_ptr != nullptr)
@@ -44,8 +48,10 @@ Blob::Ptr CLDNNInferRequest::createInputBlob(const Precision& p, const Layout& l
     }
 }
 
-Blob::Ptr CLDNNInferRequest::createOutputBlob(const Precision& p, SizeVector& sz, uint8_t* mem_ptr) {
-    Layout l = TensorDesc::getLayoutByDims(sz);
+Blob::Ptr CLDNNInferRequest::createOutputBlob(const TensorDesc& desc, uint8_t* mem_ptr) {
+    const Layout l = desc.getLayout();
+    const Precision p = desc.getPrecision();
+    const SizeVector sz = SizeVector(desc.getDims().rbegin(), desc.getDims().rend());
 
     switch (p) {
     case Precision::FP32:
@@ -58,7 +64,6 @@ Blob::Ptr CLDNNInferRequest::createOutputBlob(const Precision& p, SizeVector& sz
             return make_shared_blob<uint16_t>(p, l, sz, reinterpret_cast<uint16_t*>(mem_ptr));
         else
             return make_shared_blob<uint16_t, const SizeVector>(p, l, sz);
-        break;
     default:
         THROW_IE_EXCEPTION << "The plugin does not support output " << p.name() << " precision";
     }
@@ -82,6 +87,9 @@ void CLDNNInferRequest::copyOutputData(const cldnn::memory& outputMemory,
     switch (bptr->precision()) {
     case Precision::FP32: {
         TBlob<float>::Ptr out_f = std::dynamic_pointer_cast<TBlob<float>>(bptr);
+        if (out_f == nullptr) {
+            THROW_IE_EXCEPTION << "Invalid output blob";
+        }
         auto resPtr = outputMemory.pointer<float>();
         float *resVec = out_f->data() + offset;
 
@@ -109,6 +117,9 @@ void CLDNNInferRequest::copyOutputData(const cldnn::memory& outputMemory,
     break;
     case Precision::FP16: {
         TBlob<uint16_t>::Ptr out_f = std::dynamic_pointer_cast<TBlob<uint16_t>>(bptr);
+        if (out_f == nullptr) {
+            THROW_IE_EXCEPTION << "Invalid output blob";
+        }
         auto resPtr = outputMemory.pointer<uint16_t>();
         uint16_t *resVec = out_f->data() + offset;
 
@@ -172,24 +183,17 @@ void CLDNNInferRequest::AllocateInputs() {
     for (auto &input : m_env.inputLayouts) {
         std::string name = input.first;
         cldnn::layout layout = input.second;
-        cldnn::tensor dims = layout.size;
 
         InputInfo::Ptr ni = _networkInputs.at(input.first);
-
-        const SizeVector sz = { size_t(dims.spatial[0]), size_t(dims.spatial[1]),
-                                size_t(dims.feature[0]), size_t(dims.batch[0]) };
-        Precision ip = ni->getInputPrecision();
-        Layout l = TensorDesc::getLayoutByDims(sz);
+        const TensorDesc& desc = ni->getTensorDesc();
 
         cldnn::memory inputMem = cldnn::memory::allocate(*(m_env.engine), layout);
         cldnn::pointer<uint8_t> mem_ptr = inputMem.pointer<uint8_t>();
 
         inputsMemory.insert({ name, inputMem });
+        _inputs[name] = createInputBlob(desc, mem_ptr.data());
 
-        if (layout.format == cldnn::format::byxf) l = NHWC;
-
-        _inputs[name] = createInputBlob(ip, l, sz, mem_ptr.data());
-        if (ip == Precision::I16) {
+        if (desc.getPrecision() == Precision::I16) {
             cldnn::layout layout_fp32 = layout;
             layout_fp32.data_type = cldnn::data_types::f32;
             cldnn::memory inputMem_fp32 = cldnn::memory::allocate(*(m_env.engine), layout_fp32);
@@ -201,21 +205,21 @@ void CLDNNInferRequest::AllocateInputs() {
 void CLDNNInferRequest::AllocateInputsDyn() {
     // allocate inputs
     for (auto &input : m_env.inputLayouts) {
-        auto dims = input.second.size;
         InputInfo::Ptr ni = _networkInputs.at(input.first);
-        const SizeVector sz = { size_t(dims.spatial[0]), size_t(dims.spatial[1]),
-                                size_t(dims.feature[0]), size_t(m_env.m_max_batch) };
-        Precision ip = ni->getInputPrecision();
-        Layout l = TensorDesc::getLayoutByDims(sz);
+        TensorDesc desc = ni->getTensorDesc();
+        SizeVector& dims = desc.getDims();
 
-        Blob::Ptr inputBlob = createInputBlob(ip, l, sz);
-        if (ip == Precision::I16) {
-            auto fp32inputBlob = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
-                Precision::FP32, NCHW,
-                { size_t(dims.spatial[0]),
-                size_t(dims.spatial[1]),
-                size_t(dims.feature[0]),
-                size_t(m_env.m_max_batch) });
+        if (!dims.empty()) {
+            *dims.begin() = static_cast<size_t>(m_env.m_max_batch);
+        } else {
+            THROW_IE_EXCEPTION << "Empty dimensions for input blob " << input.first;
+        }
+
+        Blob::Ptr inputBlob = createInputBlob(desc);
+        if (desc.getPrecision() == Precision::I16) {
+            auto fp32inputBlob = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(Precision::FP32,
+                                                                                                            desc.getLayout(),
+                                                                                                            desc.getDims());
             fp32inputBlob->allocate();
             _inputs[input.first + fp32_suffix] = fp32inputBlob;
         }
@@ -245,19 +249,6 @@ void CLDNNInferRequest::AllocateOutputs() {
             outputID = m_env.prevPrimitiveIDs.at(outputID)[0];
         }
 
-        outputsMap[no.first] = outputID;
-
-        auto res_output = m_env.outputDims.find(no.first);
-
-        InferenceEngine::SizeVector output;
-        if (res_output != m_env.outputDims.end()) {
-            // if output with this name exists, take it
-            output = res_output->second;
-        } else {
-            // if doesn't try to locate fused layer
-            output = m_env.outputDims.at(outputID);
-        }
-
         cldnn::memory output_mem = m_env.network->get_output_memory(outputID);
         cldnn::pointer<uint8_t> output_mem_ptr = output_mem.pointer<uint8_t>();
         if (output_mem_ptr.data() == nullptr) {
@@ -265,30 +256,27 @@ void CLDNNInferRequest::AllocateOutputs() {
         }
 
         DataPtr oi = no.second;
-        Precision op = oi->getPrecision();
+        const TensorDesc& desc = oi->getTensorDesc();
 
-        _outputs[no.first] = createOutputBlob(op, output, output_mem_ptr.data());
+        _outputs[no.first] = createOutputBlob(desc, output_mem_ptr.data());
+        outputsMap[no.first] = outputID;
     }
 }
 
 void CLDNNInferRequest::AllocateOutputsDyn() {
     // allocate outputs
     for (auto& no : _networkOutputs) {
-        auto res_output = m_env.outputDims.find(no.first);
+        DataPtr oi = no.second;
+        TensorDesc desc = oi->getTensorDesc();
+        SizeVector& dims = desc.getDims();
 
-        InferenceEngine::SizeVector output;
-        if (res_output != m_env.outputDims.end()) {
-            // if output with this name exists, take it
-            output = res_output->second;
+        if (!dims.empty()) {
+            *dims.begin() = static_cast<size_t>(m_env.m_max_batch);
         } else {
-            // if doesn't try to locate fused layer
-            std::string outputID = m_env.primitiveIDs.at(no.first);
-            output = m_env.outputDims.at(outputID);
+            THROW_IE_EXCEPTION << "Empty dimensions for output blob " << no.first;
         }
 
-        DataPtr oi = no.second;
-        Precision op = oi->getPrecision();
-        Blob::Ptr outputBlob = createOutputBlob(op, output);
+        Blob::Ptr outputBlob = createOutputBlob(desc);
         outputBlob->allocate();
         _outputs[no.first] = outputBlob;
     }
@@ -533,7 +521,7 @@ void CLDNNInferRequest::InferImpl() {
     IE_PROFILING_AUTO_SCOPE(CLDNN_INFER)
 
     // execute input pre-processing.
-    execDataPreprocessing();
+    execDataPreprocessing(_inputs);
 
     for (auto &item : _inputs) {
         if (m_env.m_max_batch > 1) {

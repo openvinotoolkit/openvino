@@ -56,6 +56,8 @@ int main(int argc, char **argv) {
         else if (!strcmp("--rnn", argv[0])) prim = RNN;
         else if (!strncmp("--mode=", argv[0], 7))
             bench_mode = str2bench_mode(argv[0] + 7);
+        else if (!strncmp("--max-ms-per-prb=", argv[0], 17))
+            sscanf(argv[0] + 17, "%lf", &max_ms_per_prb);
         else if (!strncmp("-v", argv[0], 2))
             verbose = atoi(argv[0] + 2);
         else if (!strncmp("--verbose=", argv[0], 10))
@@ -65,6 +67,9 @@ int main(int argc, char **argv) {
         --argc;
         ++argv;
     }
+
+    if (max_ms_per_prb < 100 || max_ms_per_prb > 60e3)
+        max_ms_per_prb = 3e3;
 
     init();
 

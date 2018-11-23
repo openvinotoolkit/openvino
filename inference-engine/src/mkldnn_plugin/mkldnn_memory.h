@@ -21,12 +21,8 @@ class MKLDNNMemoryDesc {
 public:
     MKLDNNMemoryDesc(): desc({}, mkldnn::memory::data_type::f32, mkldnn::memory::format::format_undef) {}
     explicit MKLDNNMemoryDesc(const InferenceEngine::TensorDesc& tDesc);
-    explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc): desc(desc), realDims(desc.data.dims, desc.data.ndims) {}
+    explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc): desc(desc) {}
     MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType, mkldnn::memory::format format);
-
-    const mkldnn::memory::desc& getDesc() const {
-        return desc;
-    }
 
     mkldnn::memory::format getFormat() const {
         return static_cast<mkldnn::memory::format>(desc.data.format);
@@ -37,12 +33,7 @@ public:
     }
 
     MKLDNNDims getDims() const {
-        return realDims;
-    }
-
-    MKLDNNMemoryDesc& operator=(const mkldnn::memory::desc& desc) {
-        this->desc = desc;
-        return *this;
+        return MKLDNNDims(desc.data.dims, desc.data.ndims);
     }
 
     bool blocksExtended() const;
@@ -57,9 +48,7 @@ public:
     operator InferenceEngine::TensorDesc() const;
 
 private:
-    MKLDNNDims autoBlockingDims(const MKLDNNDims &dims, mkldnn::memory::format fmt);
     mkldnn::memory::desc desc;
-    MKLDNNDims realDims;
 };
 
 
@@ -111,19 +100,15 @@ public:
                 const void* data = nullptr);
 
     void Create(const mkldnn::memory::desc& desc, const void* data = nullptr);
-    void CreateFrom(mkldnn::memory::dims dims, const MKLDNNMemory& src);
-    void CreateFrom(mkldnn::memory::primitive_desc &pdesc, const void* data = nullptr);
 
     void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format format, const void* data, size_t size, bool ftz = true) const;
-    void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format format, const std::vector<void*>& data,
-                 const std::vector<size_t>& size, bool ftz = true) const;
+    void SetData(const MKLDNNMemory& memory, bool ftz = true) const;
 
     void FillZero();
 
     static bool IsPlainFormat(mkldnn::memory::format format);
     static mkldnn::memory::format GetPlainFormat(mkldnn::memory::dims dims);
     static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format format);
-    static bool formatEquals(const mkldnn::memory::format &lformat, const mkldnn::memory::format &rformat) noexcept;
     static mkldnn::memory::format Convert(const InferenceEngine::Layout layout);
 
     static std::string formatToString(mkldnn::memory::format fmt);

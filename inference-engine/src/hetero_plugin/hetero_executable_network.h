@@ -40,7 +40,8 @@ public:
     HeteroExecutableNetwork(InferenceEngine::ICNNNetwork &network,
                             const std::map<std::string, std::string> &config,
                             const std::vector<InferenceEngine::IExtensionPtr> &extensions,
-                            InferenceEngine::MapDeviceLoaders &deviceLoaders);
+                            InferenceEngine::MapDeviceLoaders &deviceLoaders,
+                            InferenceEngine::IErrorListener *listener);
 
     virtual ~HeteroExecutableNetwork() = default;
 
@@ -53,7 +54,8 @@ public:
      */
     void load(InferenceEngine::ICNNNetwork &network,
               const std::map<std::string, std::string> &config,
-              const std::vector<InferenceEngine::IExtensionPtr> &extensions);
+              const std::vector<InferenceEngine::IExtensionPtr> &extensions,
+              InferenceEngine::IErrorListener *listener);
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;

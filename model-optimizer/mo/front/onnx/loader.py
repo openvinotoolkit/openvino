@@ -18,21 +18,20 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import onnx
-import os
+import logging as log
+
 import networkx as nx
+import onnx
 
-from mo.utils.error import Error
-
-from google.protobuf import text_format
-from mo.graph.graph import create_graph_with_nodes, unique_id, Node
+from mo.graph.graph import create_graph_with_nodes, unique_id
+from mo.utils.error import Error, FrameworkError
 
 
 def load_onnx_model(file_name: str):
     try:
         onnx_model = onnx.load(file_name)
     except Exception as e:
-        raise Error(
+        raise FrameworkError(
             'Cannot read the model file: "{}" is incorrect ONNX model file. Details: {}',
             file_name,
             str(e)
@@ -61,10 +60,10 @@ def protobuf2nx(pb):
     All nodes and edges are restored here as ONNX model has op/data representation,
     that means that nodes are connected via tensor names. Name of tensors are defined
     on demand in nodes, so we have a code similar to Caffe here. '''
-    #graph = create_graph_with_nodes(pb.graph.node, get_id=node_id, get_attrs=protobuf_attrs)
+    # graph = create_graph_with_nodes(pb.graph.node, get_id=node_id, get_attrs=protobuf_attrs)
     # convert initializers to a NX graph for easier control of model consistency and to use it as a dictionary later
     initializers = create_graph_with_nodes(pb.graph.initializer, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
-    
+
     graph = nx.MultiDiGraph()
 
     # maps a tensor name to a node produced it and the node port: str -> (node_id, node_port)
@@ -88,15 +87,17 @@ def protobuf2nx(pb):
     # go over all initializer and make sure that all of them are added to the graph
     for initializer in initializers.nodes():
         if not graph.has_node(initializer):
-            graph.add_node(initializer, kind='op', op='Const', pb=initializers.node[initializer]['pb'], pb_init=initializers.node[initializer]['pb'])
+            graph.add_node(initializer, kind='op', op='Const', pb=initializers.node[initializer]['pb'],
+                           pb_init=initializers.node[initializer]['pb'])
             data_nodes_map[initializer] = (initializer, 0)
 
-    # Go through all nodes in the original model order (because date nodes are defined on-the-fly and order is important)
+    # Go through all nodes in the original model order (because data nodes are defined on-the-fly and order is
+    # important)
     for node in pb.graph.node:
         # create an NX node
         id = unique_id(graph, node_id(node))
         graph.add_node(id, pb=node, kind='op')
-        
+
         # add incoming edges based on data_nodes_map
         for dst_port, inp in enumerate(node.input):
             # should add edge inp --> id
@@ -106,9 +107,8 @@ def protobuf2nx(pb):
                     continue
                 else:
                     raise Error(
-                        'Reference to {} is not satisfied. A node refer not existing data tensor. ONNX model is not consistent. Protobuf fragment: {}',
-                        inp,
-                        node)
+                        'Reference to {} is not satisfied. A node refer not existing data tensor. ONNX model is not '
+                        'consistent. Protobuf fragment: {}', inp, node)
             src_id, src_port = data_nodes_map[inp]
 
             assert (graph.has_node(src_id))
@@ -123,11 +123,10 @@ def protobuf2nx(pb):
             }
             graph.add_edge(src_id, id, **edge_attrs)
 
-        # add outcoming edges to data_nodes_map
+        # add outgoing edges to data_nodes_map
         for src_port, out in enumerate(node.output):
             if out in data_nodes_map:
                 log.debug("Detected reuse of blob {}.".format(out))
             data_nodes_map[out] = (id, src_port)
 
     return graph
-

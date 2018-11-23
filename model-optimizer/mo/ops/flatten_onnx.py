@@ -59,3 +59,6 @@ class FlattenONNX(Op):
         dim = [np.prod(shape[0:axis]), np.prod(shape[axis:])]
         node['dim'] = np.array(dim)
         node.out_node().shape = np.array(dim)
+        if node.in_node(0).has_valid('value'):
+            node.out_node().value = node.in_node(0).value
+            node.out_node().value.shape = np.array(dim)

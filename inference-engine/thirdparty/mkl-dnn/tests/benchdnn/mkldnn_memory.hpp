@@ -176,7 +176,7 @@ private:
     }
 
     int initialize(int ndims, const mkldnn_dims_t dims, mkldnn_data_type_t dt,
-		    mkldnn_memory_format_t fmt, void* data) {
+                    mkldnn_memory_format_t fmt, void* data) {
         mkldnn_memory_desc_t xmd;
         DNN_SAFE(mkldnn_memory_desc_init(&xmd, ndims, dims, dt, fmt), CRIT);
         SAFE(initialize(xmd, data), CRIT);

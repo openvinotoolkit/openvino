@@ -6,8 +6,7 @@
 #pragma once
 
 #include <description_buffer.hpp>
-#include <ie_layer_validators.hpp>
-#include "impl_register.hpp"
+#include "ie_built_in_impl.hpp"
 #include <ie_layers.h>
 #include <map>
 #include <memory>
@@ -38,14 +37,12 @@ public:
         auto zoom_factor = static_cast<size_t>(cnnLayer.GetParamAsInt("zoom_factor", 0));
         auto height = static_cast<size_t>(cnnLayer.GetParamAsInt("height", 0));
         auto width = static_cast<size_t>(cnnLayer.GetParamAsInt("width", 0));
-        if (height || width) {
-            THROW_IE_EXCEPTION << "layer is not resizable with fixated width and height";
-        }
 
         // TODO: move to validators
-        if (!zoom_factor && !shrink_factor && !factor) {
+        if (!zoom_factor && !shrink_factor && !factor && (!height || !width)) {
             THROW_IE_EXCEPTION
-                    << "Can't reshape without factor. Supported attributes: factor, shrink_factor and zoom_factor";
+                    << "Can't reshape without factor, or target resolution. "
+                    << "Supported attributes: factor, shrink_factor, zoom_factor, height, width";
         }
         size_t N, C, H, W;
         // TODO: validate that only one input
@@ -53,18 +50,39 @@ public:
         C = inShapes[0][1];
         H = inShapes[0][2];
         W = inShapes[0][3];
+
+
+        auto SETW = [&width, &W](size_t value) {
+            if (width) {
+                W = width;
+            } else {
+                W = value;
+            }
+        };
+
+        auto SETH = [&height, &H](size_t value) {
+            if (height) {
+                H = height;
+            } else {
+                H = value;
+            }
+        };
+
         if (factor) {
-            H *= factor;
-            W *= factor;
-        } else {
+            SETH(H * factor);
+            SETW(W * factor);
+        } else if (shrink_factor || zoom_factor) {
             if (shrink_factor) {
-                H /= shrink_factor;
-                W /= shrink_factor;
+                SETH(H / shrink_factor);
+                SETW(W / shrink_factor);
             }
             if (zoom_factor) {
-                H *= zoom_factor;
-                W *= zoom_factor;
+                SETH(H * zoom_factor);
+                SETW(W * zoom_factor);
             }
+        } else {
+            SETW(width);
+            SETH(height);
         }
         outShapes.push_back({N, C, H, W});
     }

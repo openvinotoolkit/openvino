@@ -1,4 +1,4 @@
-# Overview of Inference Engine Python* API {#InferEnginePythonAPI}
+# Overview of Inference Engine Python* API
 
 **NOTE:** It is a preview version of the Inference Engine Python\* API for evaluation purpose only. 
 Module structure and API itself may be changed in future releases.  
@@ -32,20 +32,21 @@ after running the environment configuration script.
 This class stores main information about the layer and allow to modify some layer parameters 
 ### Class attributes:
  
-* `name` - name of the layer 
-* `type` - layer type
-* `precision` - layer base operating precision
-* `affinity` - layer affinity set by user or default affinity set by IEPlugin.set_initial_affinity() method.             
-             The affinity attribute provides getter and setter interface, so the layer affinity can be modified directly in following way
-             
+* `name` - Name of the layer 
+* `type`- Layer type
+* `precision` - Layer base operating precision. Provides getter and setter interfaces.
+* `affinity` - Layer affinity set by user or a default affinity set by the `IEPlugin.set_initial_affinity()` method.             
+               The affinity attribute provides getter and setter interfaces, so the layer affinity can be modified directly.
+               For example: 
+                        
 ```py
-    >>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
-    >>> plugin = IEPlugin(device="HETERO:FPGA,CPU")
-    >>> plugin.set_config({"TARGET_FALLBACK": "HETERO:FPGA,CPU"})
-    >>> plugin.set_initial_affinity(net) 
-    >>> for l in net.layers.values():
-    ...     if l.type == "Convolution":
-    ...         l.affinity = "CPU"
+>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> plugin = IEPlugin(device="HETERO:FPGA,CPU")
+>>> plugin.set_config({"TARGET_FALLBACK": "HETERO:FPGA,CPU"})
+>>> plugin.set_initial_affinity(net) 
+>>> for l in net.layers.values():
+...     if l.type == "Convolution":
+...         l.affinity = "CPU"
 
 ```
 		
@@ -61,18 +62,18 @@ To understand how default and non-default affinities are set:
 
 1. Call `net.layers` function right after model loading and check that layer affinity parameter is empty.
 2. Call `plugin.set_default_affinity(net)`.
-3. Call `net.layers` and check layer affinity parameters to see how plugin set default affinity
+3. Call `net.layers` and check layer affinity parameters to see how plugin set a default affinity
 4. Set layer affinity how it's described above
 5. Call `net.layers` again and check layer affinity parameters to see how it was changed after manual affinity 
    setting
           
-Please refer to `affinity_setting_sample.py` to see the full usage pipeline.
+Please refer to `affinity_setting_demo.py` to see the full usage pipeline.
     
-* `weights` - dictionary with layer weights, biases or custom blobs if any
-* `params` - layer specific parameters. Provides getter and setter interface which allows to get and\or modify layer parameters.
-            Please note that some modifications can be ignored and\or overwriten by target plugin (e.g. modification of 
-            convolution kernel size will be reflected in layer parameters but finally the plugin will ignore it and will
-            use initial kernel size) 
+* `weights`- Dictionary with layer weights, biases or custom blobs if any
+* `params` - Layer specific parameters. Provides getter and setter interfaces to get and modify layer parameters.
+             Please note that some modifications can be ignored and\or overwriten by target plugin (e.g. modification of 
+             convolution kernel size will be reflected in layer parameters but finally the plugin will ignore it and will
+             use initial kernel size) 
 
 ## <a name="ienetwork-class"></a>IENetwork 
 
@@ -86,41 +87,53 @@ There is no explicit class constructor. Use `from_ir` class method to read the I
 ### Class attributes:
 
 * `name` - Name of the loaded network
-* `inputs` - a dictionary of input layer name as a key and input data shape as a value
+* `inputs` - A dictionary that maps input layer names to <a name="inputinfo-class"></a>InputInfo objects. 
+             For example, to get a shape of the input layer:
 
-    * Usage example:
-    ```py
-		>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
-		>>> net.inputs
-		{'data': [1, 3, 224, 224]}
-    ```
-* `outputs` - a list of output layer names
+```py
+>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net.inputs
+{'data': <inference_engine.ie_api.InputInfo object at 0x7efe042dedd8>}
+>>> net.inputs['data'].shape
+[1, 3, 224, 224]
+```
 
-    * Usage example:
-    ```py
-		>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
-		>>> net.outputs
-		['prob']
-    ```
+* `outputs` - A dictionary that maps output layer names to <a name="inputinfo-class"></a>OutputInfo objects
+              For example, to get a shape of the output layer:
     
-* `batch_size` - Batch size of the network. Provides getter and setter interface which allows to get and modify the 
-                 network batch size in the following way:
-    ```py
-    >>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
-    >>> net.batch_size
-    1
-    >>> net.batch_size = 4
-    >>> net.batch_size
-    4
-    ```
-* `layers` - return dictionary with the network layer names as key and <a name="ienetlayer-class"></a>IENetLayer objects containing layer properties 
-             as value
+```py
+>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net.inputs
+{'prob': <inference_engine.ie_api.OutputInfo object at 0x7efe03ab95d0>}
+>>> net.outputs['prob'].shape
+[1, 1000]
+```
+    
+* `batch_size` - Batch size of the network. Provides getter and setter interfaces to get and modify the 
+                 network batch size. For example:
+    
+```py
+>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net.batch_size
+1
+>>> net.batch_size = 4
+>>> net.batch_size
+4
+>>> net.inputs['data'].shape
+    [4, 3, 224, 224]
+```
+    
+* `layers` - Return dictionary that maps network layer names to <a name="ienetlayer-class"></a>`IENetLayer` 
+             objects containing layer properties. For example, to list all network layers:
              
-    ```py
-		 >>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
-		 >>> net.layers
-		 {'conv0': <inference_engine.ie_api.IENetLayer object at 0x7f3a4c102370>}
-		 ```
+```py
+ >>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+ >>> net.layers
+ {'conv0': <inference_engine.ie_api.IENetLayer object at 0x7f3a4c102370>
+ ...
+ }
+ ```
+ 
 ### Class Methods
 
 * `from_ir(model: str, weights: str)` 
@@ -131,19 +144,20 @@ There is no explicit class constructor. Use `from_ir` class method to read the I
 		
     * Parameters:
         
-        * model - path to `.xml` file  of the IR
-        * weights - path to `.bin` file  of the IR
+        * model - Path to `.xml` file  of the IR
+        * weights - Path to `.bin` file  of the IR
     
     * Return value:
             
         An instance of the `IENetwork` class
             
     * Usage example:
-		```py
-		>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
-		>>> net
-		<inference_engine.ie_api.IENetwork object at 0x7fd7dbce54b0>
-		```
+    
+```py
+>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net
+<inference_engine.ie_api.IENetwork object at 0x7fd7dbce54b0>
+```
             
 ### Instance Methods
 	 
@@ -156,24 +170,89 @@ There is no explicit class constructor. Use `from_ir` class method to read the I
 		
     * Parameters:
             
-        * `outputs` - a list of layer names to be set as model outputs. In case of setting one layer as output, string with one layer can be provided.
+        * `outputs` - List of layer names to be set as model outputs. In case of setting one layer as output, string with one layer can be provided.
             
     * Return value:
     
         None
             
     * Usage example:
-		```py
-        >>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
-        >>> net.add_outputs(["conv5_1/dwise', conv2_1/expand'])]
-        >>> net.outputs
-        ['prob', 'conv5_1/dwise', 'conv2_1/expand']
-        ```  
-		
-        Note that the last layers (nodes without successors in graph representation of the model) are set as output 
-        by default. In the case above, `prob` layer is a default output and `conv5_1/dwise`, `conv2_1/expand` are user-defined
-		outputs. 
+    
+```py
+>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net.add_outputs(["conv5_1/dwise', conv2_1/expand'])]
+>>> net.outputs
+['prob', 'conv5_1/dwise', 'conv2_1/expand']
+```  
+    
+**Note**
 
+The last layers (nodes without successors in graph representation of the model) are set as output 
+by default. In the case above, `prob` layer is a default output and `conv5_1/dwise`, `conv2_1/expand` are user-defined
+outputs.
+
+* `reshape(input_shapes: dict)`:
+    
+    * Description: 
+        
+        The method reshapes the network to change spatial dimensions, batch size, or any dimension.
+        
+        **Note:**
+        
+        Before using this method, make sure that the target shape is applicable for the network
+        Changing the network shape to an arbitrary value may lead to unpredictable behaviour. 
+        
+    * Parameters:
+    
+        * `input_shapes` - The dictionary that maps input layer names to tuples with the target shape
+
+    * Return value:
+    
+        None
+            
+    * Usage example:
+    
+```py
+>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> input_layer = next(iter(net.inputs))
+>>> n, c, h, w = net.inputs[input_layer]
+>>> net.reshape({input_layer: (n, c, h*2, w*2)}]
+``` 
+
+## <a name="inputinfo-class"></a>InputInfo 
+
+This class contains the information about the network input layers
+
+### Class attributes:
+
+* `precision` - Precision of the input data provided by user. Provides setter and getter interfaces 
+                to get and modify input layer precision.
+                
+    List of applicable precisions: FP32 FP16, I32, I16, I8, U32, U16
+    
+    **Note**:  Support of any calculation precision depends on the target plugin                 
+
+* `layout` - Layout of the input data provided by user. Provides setter and getter interfaces  
+             to get and modify input layer layout. 
+             
+    List of applicable layouts: NCHW, NHWC, OIHW, C, CHW, HW, NC, CN, BLOCKED
+
+* `shape` - input layer data shape
+
+
+## <a name="outputinfo-class"></a>OutputInfo 
+
+This class contains the information about the network input layers
+
+### Class attributes:
+
+* `precision` - Precision of the output data. Provides setter and getter interfaces  
+                to get and modify output layer precision.          
+
+* `layout` - Layout of the output data provided by user
+
+* `shape` - Input layer data shape
+ 
 ## <a name="ieplugin-class"></a>IEPlugin Class
 
 This class is the main plugin interface and serves to initialize and configure the plugin.
@@ -184,8 +263,8 @@ This class is the main plugin interface and serves to initialize and configure t
 
     * Parameters:
     
-        * `device` - target device name. Supported devices: CPU, GPU, FPGA, MYRIAD, HETERO
-        * `plugin_dirs` - list of paths to plugin directories 
+        * `device` - Target device name. Supported devices: CPU, GPU, FPGA, MYRIAD, HETERO
+        * `plugin_dirs` - List of paths to plugin directories 
         
 ### Properties
 
@@ -194,7 +273,7 @@ This class is the main plugin interface and serves to initialize and configure t
 
 ### Instance Methods
 
-*  `load(network: IENetwork, num_requests: int=1, config=None)`
+*  ```load(network: IENetwork, num_requests: int=1, config=None)```
 
     * Description:
         
@@ -204,23 +283,25 @@ This class is the main plugin interface and serves to initialize and configure t
     
     * Parameters:
 	
-        * `network` - a valid IENetwork instance created by `IENetwork.from_ir()` method
-        * `num_requests` - a positive integer value of infer requests to be created. Number of infer requests may be limited 
+        * `network` - A valid IENetwork instance created by `IENetwork.from_ir()` method
+        * `num_requests` - A positive integer value of infer requests to be created. Number of infer requests may be limited 
         by device capabilities.        
-        * `config` - a dictionary of plugin configuration keys and their values
+        * `config` - A dictionary of plugin configuration keys and their values
         
     * Return value:
         
         None
     
     * Usage example:
-		```py
-		>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
-		>>> plugin = IEPlugin(device="CPU")
-		>>> exec_net = plugin.load(network=net, num_requsts=2)
-		>>> exec_net
-		<inference_engine.ie_api.ExecutableNetwork object at 0x7f5140bbcd38>
-		```
+    
+```py
+>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> plugin = IEPlugin(device="CPU")
+>>> exec_net = plugin.load(network=net, num_requsts=2)
+>>> exec_net
+<inference_engine.ie_api.ExecutableNetwork object at 0x7f5140bbcd38>
+```
+		
 * `set_initial_affinity(net: IENetwork)`
     
     * Description:
@@ -230,7 +311,7 @@ This class is the main plugin interface and serves to initialize and configure t
         
     * Parameters:
 	
-        * `net` - a valid instance of IENetwork 
+        * `net` - A valid instance of IENetwork 
     
     * Return value:
         
@@ -248,17 +329,20 @@ This class is the main plugin interface and serves to initialize and configure t
         
     * Parameters:
     
-        * `extension_path` - a full path to CPU extensions library   
+        * `extension_path` - A full path to CPU extensions library   
         
      * Return value:
         
         None
         
     * Usage example:
-		```py
-		>>> plugin = IEPlugin(device="CPU")
-		>>> plugin.add_cpu_extenstions(ext_lib_path)
-		```
+    
+```py
+>>> plugin = IEPlugin(device="CPU")
+>>> plugin.add_cpu_extenstions(ext_lib_path)
+```
+    
+    
 * `set_config(config: dict)`
 
     * Description: 
@@ -268,7 +352,7 @@ This class is the main plugin interface and serves to initialize and configure t
         
     * Parameters: 
         
-        * `config` - a dictionary of keys and values of acceptable configuration parameters
+        * `config` - A dictionary of keys and values of acceptable configuration parameters
         
     * Return value:
         
@@ -279,6 +363,7 @@ This class is the main plugin interface and serves to initialize and configure t
 		See `set_affinity` method of the `IENetwork` class.
 
 * `get_supported_layers(net: IENetwork)`
+    
     * Description:
         
         Returns the set of layers supported by the plugin. Please note that in case of CPU plugin support of 
@@ -286,7 +371,7 @@ This class is the main plugin interface and serves to initialize and configure t
         
     * Parameters:
 	
-        * `net` - a valid instance of IENetwork 
+        * `net` - A valid instance of IENetwork 
     
     * Return value:
         
@@ -306,16 +391,19 @@ There is no explicit class constructor. To make a valid instance of `ExecutableN
 
 ### Class attributes
 
-* `requests` - a tuple of InferRequest instances
+* `requests` - A tuple of InferRequest instances
 
     * Usage example:
-		```py
-		>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
-		>>> plugin = IEPlugin(device="CPU")
-		>>> exec_net = plugin.load(network=net, num_requsts=2)
-		>>> exec_net.requests
-		(<inference_engine.ie_api.InferRequest object at 0x7f66f56c57e0>, <inference_engine.ie_api.InferRequest object at 0x7f66f56c58b8>, <inference_engine.ie_api.InferRequest object at 0x7f66f56c5900>)
-		```
+        
+```py
+>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> plugin = IEPlugin(device="CPU")
+>>> exec_net = plugin.load(network=net, num_requsts=3)
+>>> exec_net.requests
+(<inference_engine.ie_api.InferRequest object at 0x7f66f56c57e0>, 
+<inference_engine.ie_api.InferRequest object at 0x7f66f56c58b8>, 
+<inference_engine.ie_api.InferRequest object at 0x7f66f56c5900>)
+```
 		
 ### Instance Methods
 
@@ -327,27 +415,28 @@ There is no explicit class constructor. To make a valid instance of `ExecutableN
         Wraps `infer()` method of the `InferRequest` class
     
     * Parameters:
-        * `inputs` - a dictionary of input layer name as a key and `numpy.ndarray` of proper shape with input data for the layer as a value
+        * `inputs` - A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with input data for the layer
         
     * Return value:
         
-        A dictionary of output layer name as a key and `numpy.ndarray` with output data of the layer as a value
+        A dictionary that maps output layer names to `numpy.ndarray` objects with output data of the layer
         
     * Usage example:
-		```py
-		>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
-		>>> plugin = IEPlugin(device="CPU")
-		>>> exec_net = plugin.load(network=net, num_requsts=2)
-		>>> res = exec_net.infer({'data': img})
-		>>> res
-		{'prob': array([[[[2.83426580e-08]],
-						 [[2.40166020e-08]],
-						 [[1.29469613e-09]],
-						 [[2.95946148e-08]]
-						 ......
-					  ]])}
-		```
-      For illustration of input data preparation, please see samples (for example, `classification_sample.py`).
+    
+```py
+>>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> plugin = IEPlugin(device="CPU")
+>>> exec_net = plugin.load(network=net, num_requsts=2)
+>>> res = exec_net.infer({'data': img})
+>>> res
+{'prob': array([[[[2.83426580e-08]],
+                 [[2.40166020e-08]],
+                 [[1.29469613e-09]],
+                 [[2.95946148e-08]]
+                 ......
+              ]])}
+```
+For illustration of input data preparation, please see samples (for example, `classification_sample.py`).
       
 * `start_async(request_id, inputs=None)`
 
@@ -358,21 +447,23 @@ There is no explicit class constructor. To make a valid instance of `ExecutableN
         
     * Parameters:
 	
-        * `request_id` - index of infer request to start inference
-        * `inputs` - a dictionary of input layer name as a key and `numpy.ndarray` of proper shape with input data for the layer as a value
+        * `request_id` - Index of infer request to start inference
+        * `inputs` - A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with input data for the layer
         
     * Return value:
         
         A handler of specified infer request, which is an instance of the `InferRequest` class.
         
     * Usage example:
-		```py
-		>>> infer_request_handle = exec_net.start_async(request_id=0, inputs={input_blob: image})
-		>>> infer_status = infer_request_handle.wait()
-		>>> res = infer_request_handle.outputs[out_blob]
-		```
-        For more details about infer requests processing, see `classification_sample_async.py` (simplified case) and 
-        `object_detection_demo_ssd_async.py` (real synchronous use case) samples.
+		
+```py
+>>> infer_request_handle = exec_net.start_async(request_id=0, inputs={input_blob: image})
+>>> infer_status = infer_request_handle.wait()
+>>> res = infer_request_handle.outputs[out_blob]
+```
+		
+For more details about infer requests processing, see `classification_sample_async.py` (simplified case) and 
+`object_detection_demo_ssd_async.py` (real asynchronous use case) samples.
         
 ## <a name="inferrequest"></a>InferRequest Class
 
@@ -386,19 +477,20 @@ class with specified number of requests to get `ExecutableNetwork` instance whic
 
 ### Class attributes
 
-* `inputs` - a dictionary of input layer name as a key and `numpy.ndarray` of proper shape with input data for the layer as a value
-* `outputs` - a dictionary of output layer name as a key and `numpy.ndarray` with output data of the layer as a value
+* `inputs` - A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with input data for the layer
+* `outputs` - A dictionary that maps output layer names to `numpy.ndarray` objects with output data of the layer
 
-* Usage example:
-	```py    
-	>>> exec_net.requests[0].inputs['data'][:] = image
-	>>> exec_net.requests[0].infer()
-	>>> res = exec_net.requests[0].outputs['prob']
-	>>> np.flip(np.sort(np.squeeze(res)),0) 
-	array([4.85416055e-01, 1.70385033e-01, 1.21873841e-01, 1.18894853e-01,
-		   5.45198545e-02, 2.44456064e-02, 5.41366823e-03, 3.42589128e-03,
-		   2.26027006e-03, 2.12283316e-03 ...])
-	``` 
+    * Usage example:
+
+```py    
+>>> exec_net.requests[0].inputs['data'][:] = image
+>>> exec_net.requests[0].infer()
+>>> res = exec_net.requests[0].outputs['prob']
+>>> np.flip(np.sort(np.squeeze(res)),0) 
+array([4.85416055e-01, 1.70385033e-01, 1.21873841e-01, 1.18894853e-01,
+       5.45198545e-02, 2.44456064e-02, 5.41366823e-03, 3.42589128e-03,
+       2.26027006e-03, 2.12283316e-03 ...])
+``` 
 	
 ### Instance Methods
 
@@ -413,22 +505,23 @@ To run inference, please use simplified methods `infer()` and `start_async()` of
 		 
      * Parameters:
 	 
-        * `inputs` - a dictionary of input layer name as a key and `numpy.ndarray` of proper shape with input data for the layer as a value
+        * `inputs` - A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with input data for the layer
         
     * Return value:
         
         None
         
     * Usage example:
-		```py
-		>>> exec_net = plugin.load(network=net, num_requests=2)
-		>>> exec_net.requests[0].infer({input_blob: image})
-		>>> res = exec_net.requests[0].outputs['prob']
-		>>> np.flip(np.sort(np.squeeze(res)),0) 
-		array([4.85416055e-01, 1.70385033e-01, 1.21873841e-01, 1.18894853e-01,
-			   5.45198545e-02, 2.44456064e-02, 5.41366823e-03, 3.42589128e-03,
-			   2.26027006e-03, 2.12283316e-03 ...]) 
-		```       
+    
+```py
+>>> exec_net = plugin.load(network=net, num_requests=2)
+>>> exec_net.requests[0].infer({input_blob: image})
+>>> res = exec_net.requests[0].outputs['prob']
+>>> np.flip(np.sort(np.squeeze(res)),0) 
+array([4.85416055e-01, 1.70385033e-01, 1.21873841e-01, 1.18894853e-01,
+       5.45198545e-02, 2.44456064e-02, 5.41366823e-03, 3.42589128e-03,
+       2.26027006e-03, 2.12283316e-03 ...]) 
+```       
                    
 * `async_infer(inputs=None)`
 
@@ -438,23 +531,24 @@ To run inference, please use simplified methods `infer()` and `start_async()` of
 		
      * Parameters:
 	 
-        * `inputs` - a dictionary of input layer name as a key and `numpy.ndarray` of proper shape with input data for the layer as a value
+        * `inputs` - A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with input data for the layer
         
     * Return value:
         
         None
         
     * Usage example:
-		```py
-		>>> exec_net = plugin.load(network=net, num_requests=2)
-		>>> exec_net.requests[0].async_infer({input_blob: image})
-		>>> exec_net.requests[0].wait()
-		>>> res = exec_net.requests[0].outputs['prob']
-		>>> np.flip(np.sort(np.squeeze(res)),0) 
-		array([4.85416055e-01, 1.70385033e-01, 1.21873841e-01, 1.18894853e-01,
-			   5.45198545e-02, 2.44456064e-02, 5.41366823e-03, 3.42589128e-03,
-			   2.26027006e-03, 2.12283316e-03 ...]) 
-		```
+    
+```py
+>>> exec_net = plugin.load(network=net, num_requests=2)
+>>> exec_net.requests[0].async_infer({input_blob: image})
+>>> exec_net.requests[0].wait()
+>>> res = exec_net.requests[0].outputs['prob']
+>>> np.flip(np.sort(np.squeeze(res)),0) 
+array([4.85416055e-01, 1.70385033e-01, 1.21873841e-01, 1.18894853e-01,
+       5.45198545e-02, 2.44456064e-02, 5.41366823e-03, 3.42589128e-03,
+       2.26027006e-03, 2.12283316e-03 ...]) 
+```
 			
 * `wait(timeout=-1)`
 
@@ -467,14 +561,14 @@ To run inference, please use simplified methods `infer()` and `start_async()` of
         
         There are special values of the timeout parameter:
         
-        * 0 - immediately returns the inference status. It does not block or interrupt execution. 
+        * 0 - Immediately returns the inference status. It does not block or interrupt execution. 
         To find statuses meaning, please refer to InferenceEngine::StatusCode in Inference Engine C++ documentation
         
-        * -1 - waits until inference result becomes available (default value)
+        * -1 - Waits until inference result becomes available (default value)
         
     * Parameters:
 	
-        * `timeout` - time to wait in milliseconds or special (0, -1) cases described above. 
+        * `timeout` - Time to wait in milliseconds or special (0, -1) cases described above. 
           If not specified, `timeout` value is set to -1 by default.
       
     * Usage example: 
@@ -498,19 +592,20 @@ To run inference, please use simplified methods `infer()` and `start_async()` of
       
     * Usage example: 
 	
-		```py
-		>>> exec_net = plugin.load(network=net, num_requests=2)
-		>>> exec_net.requests[0].infer({input_blob: image})
-		>>> exec_net.requests[0].get_perf_counts()
-        {'Conv2D': {'exec_type': 'jit_avx2_1x1', 
-                    'real_time': 154, 
-                    'cpu_time': 154, 
-                    'status': 'EXECUTED', 
-                    'layer_type': 'Convolution'},
-         'Relu6':  {'exec_type': 'undef', 
-                    'real_time': 0, 
-                    'cpu_time': 0, 
-                    'status': 'NOT_RUN', 
-                    'layer_type': 'Clamp'}
-        ...
-        }
+```py
+>>> exec_net = plugin.load(network=net, num_requests=2)
+>>> exec_net.requests[0].infer({input_blob: image})
+>>> exec_net.requests[0].get_perf_counts()
+{'Conv2D': {'exec_type': 'jit_avx2_1x1', 
+            'real_time': 154, 
+            'cpu_time': 154, 
+            'status': 'EXECUTED', 
+            'layer_type': 'Convolution'},
+ 'Relu6':  {'exec_type': 'undef', 
+            'real_time': 0, 
+            'cpu_time': 0, 
+            'status': 'NOT_RUN', 
+            'layer_type': 'Clamp'}
+...
+}
+```

@@ -55,6 +55,7 @@ struct _jit_sse42_1x1_convolution_fwd_t: public cpu_primitive_t {
                 && utils::one_of(this->cdesc_().prop_kind, forward_training,
                         forward_inference)
                 && this->cdesc_().alg_kind == alg_kind::convolution_direct
+                && !this->has_zero_dim_memory()
                 && utils::everyone_is(data_type::f32,
                         this->cdesc_().src_desc.data_type,
                         this->cdesc_().weights_desc.data_type,
@@ -108,17 +109,29 @@ struct _jit_sse42_1x1_convolution_fwd_t: public cpu_primitive_t {
     _jit_sse42_1x1_convolution_fwd_t(const pd_t *pd,
             const input_vector &inputs, const output_vector &outputs)
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd),
-        dw_conv_buffer_size_(0), dw_conv_buffer_(nullptr)
+        dw_conv_buffer_size_(0), dw_conv_buffer_(nullptr), padded_bias_(nullptr), dw_padded_bias_(nullptr)
     {
         kernel_ = new jit_sse42_1x1_conv_kernel_f32(conf_.jcp_, *conf_.attr());
         if (conf_.jcp_.with_dw_conv) {
             kernel_dw_ = new jit_uni_dw_conv_row_f32<sse42>(conf_.jcp_dw);
 
-            const int nthreads = omp_get_max_threads();
+            const int nthreads = mkldnn_get_max_threads();
             dw_conv_buffer_size_ = (size_t) conf_.jcp_dw.kh * conf_.jcp_dw.iw * conf_.jcp_dw.ch_block *
                                    (conf_.jcp_.oc / conf_.jcp_.oc_block);
             dw_conv_buffer_ = (data_t *) malloc(dw_conv_buffer_size_ * nthreads * sizeof(data_t), 64);
 
+        }
+
+        if (conf_.want_padded_bias()) {
+            const auto &j = conf_.jcp_;
+            assert(j.ngroups == 1);
+            padded_bias_ = (data_t *)malloc(sizeof(data_t) * j.oc, 64);
+            for (int oc = j.oc_without_padding; oc < j.oc; ++oc)
+                padded_bias_[oc] = 0;
+
+            dw_padded_bias_ = (data_t *)malloc(sizeof(data_t) * j.oc, 64);
+            for (int oc = j.oc_without_padding; oc < j.oc; ++oc)
+                dw_padded_bias_[oc] = 0;
         }
     }
 
@@ -128,7 +141,10 @@ struct _jit_sse42_1x1_convolution_fwd_t: public cpu_primitive_t {
         if (conf_.jcp_.with_dw_conv) {
             delete kernel_dw_;
             free(dw_conv_buffer_);
+            free(dw_padded_bias_);
         }
+
+        free(padded_bias_);
     };
 
     typedef typename prec_traits<data_type::f32>::type data_t;
@@ -154,6 +170,8 @@ private:
     size_t dw_conv_buffer_size_;
     data_t *dw_conv_buffer_;
 
+    data_t *padded_bias_;
+    data_t *dw_padded_bias_;
 };
 
 using jit_sse42_1x1_convolution_fwd_t = _jit_sse42_1x1_convolution_fwd_t<false>;

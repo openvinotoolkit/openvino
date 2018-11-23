@@ -12,9 +12,11 @@
 #include <map>
 #include <vector>
 #include <ie_iextension.h>
+#include <v2_format_parser.h>
 
 using namespace InferenceEngine;
 using namespace details;
+using std::vector;
 
 void CNNLayer::validateLayer() {
     LayerValidator::Ptr validator = LayerValidators::getInstance()->getValidator(type);
@@ -36,7 +38,7 @@ struct WeightableParams {
 };
 
 void checkWeightable(const std::map<std::string, Blob::Ptr>& blobs,
-                     const std::vector<SizeVector>& inShapes, WeightableParams params,
+                     const vector<SizeVector>& inShapes, WeightableParams params,
                      const SizeVector& numDims) {
     if (inShapes.size() != 1)
         THROW_IE_EXCEPTION << "Number of inputs (" << inShapes.size() << ") is not equal to expected ones (1)";
@@ -45,11 +47,14 @@ void checkWeightable(const std::map<std::string, Blob::Ptr>& blobs,
 
     bool isOK = false;
     for (auto dim : numDims) {
-        if (inputSize == dim) isOK = true;
+        if (inputSize == dim) {
+            isOK = true;
+            break;
+        }
     }
     if (!isOK) {
-        return THROW_IE_EXCEPTION << "Input shape " << details::dumpVec(firstInputShape)
-                                  << " has unexpected size, supported sizes: " << details::dumpVec(numDims);
+        THROW_IE_EXCEPTION << "Input shape " << details::dumpVec(firstInputShape)
+                           << " has unexpected size, supported sizes: " << details::dumpVec(numDims);
     }
 
     if (firstInputShape.empty()) THROW_IE_EXCEPTION << "Input shape can't be empty";
@@ -130,7 +135,7 @@ void FullyConnectedValidator::checkParams(const CNNLayer* layer) {
 
 void FullyConnectedValidator::checkCorrespondence(const CNNLayer* layer,
                                                   const std::map<std::string, Blob::Ptr>& blobs,
-                                                  const std::vector<SizeVector>& inShapes) const {
+                                                  const vector<SizeVector>& inShapes) const {
     const auto casted = dynamic_cast<const FullyConnectedLayer*>(layer);
     if (!casted) THROW_IE_EXCEPTION << "Layer is not instance of FullyConnectedLayer class";
     checkWeightable(blobs, inShapes, {casted->_out_num, true, 1}, {4, 2});
@@ -144,7 +149,7 @@ void CropValidator::parseParams(CNNLayer* layer) {
         THROW_IE_EXCEPTION << "Layer is not instance of CropLayer class";
     }
     if (casted->axis.empty()) {
-        auto getArray = [](std::string param, std::vector<int>& array) {
+        auto getArray = [](std::string param, vector<int>& array) {
             std::istringstream stream(param);
             std::string str;
             while (getline(stream, str, ',')) {
@@ -153,7 +158,15 @@ void CropValidator::parseParams(CNNLayer* layer) {
             }
         };
         getArray(layer->GetParamAsString("axis"), casted->axis);
-        getArray(layer->GetParamAsString("offset"), casted->offset);
+        if (casted->params.find("offset") != casted->params.end()) {
+            getArray(layer->GetParamAsString("offset"), casted->offset);
+        }
+        if (casted->params.find("dim") != casted->params.end()) {
+            getArray(layer->GetParamAsString("dim"), casted->dim);
+        }
+        if (casted->params.find("crop_begin") != casted->params.end()) {
+            getArray(layer->GetParamAsString("crop_begin"), casted->offset);
+        }
     }
 }
 
@@ -163,20 +176,22 @@ void CropValidator::checkParams(const CNNLayer* layer) {
         THROW_IE_EXCEPTION << "Layer is not instance of CropLayer class";
     }
     if (casted->axis.size() != casted->offset.size()) {
-        THROW_IE_EXCEPTION << "Incorrect format of the Crop layer.";
+        THROW_IE_EXCEPTION << "Incorrect format of the Crop layer: number of axis doesn't match number of offset - ("
+                           << casted->axis.size() << " vs. " << casted->offset.size() << ")";
     }
 }
 
 CropValidator::CropValidator(const std::string& _type) : LayerValidator(_type) {}
 
-void CropValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
+void CropValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
     auto casted = dynamic_cast<const CropLayer*>(layer);
     if (!casted) {
         THROW_IE_EXCEPTION << "Layer is not instance of CropLayer class";
     }
     size_t numInputs = inShapes.size();
-    if (numInputs != 1 && numInputs != 2)
+    if (numInputs != 1 && numInputs != 2) {
         THROW_IE_EXCEPTION << "Crop can take only 1 or 2 inputs, but actually it has: " << numInputs;
+    }
     auto firstShape = inShapes[0];
     size_t shapeSize = firstShape.size();
     for (size_t i = 0; i < casted->axis.size(); i++) {
@@ -187,6 +202,10 @@ void CropValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVec
                                << ") should be less the number of dimensions of first input ("
                                << firstShape.size() << ")";
         if (numInputs == 2) {
+            if (casted->params.find("crop_begin") != casted->params.end()) {
+                THROW_IE_EXCEPTION
+                        << "Incorrect format of the Crop layer: `crop_begin` and `crop_end` attributes are valid for single input only";
+            }
             auto secondShape = inShapes[1];
             if (secondShape.size() <= axis)
                 THROW_IE_EXCEPTION << "Crop axis(" << axis
@@ -198,6 +217,13 @@ void CropValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVec
                                    << newSize << ") should be less then input size(" << firstShape[axis]
                                    << ") for axis(" << axis << ")";
             }
+        } else if (!casted->dim.empty()) {
+            int dim = casted->dim[i];
+            if (firstShape[axis] < static_cast<size_t>(offset + dim)) {
+                THROW_IE_EXCEPTION << "Incorrect crop data! Offset(" << offset << ") + result size of output("
+                                   << dim << ") should be less then input size(" << firstShape[axis]
+                                   << ") for axis(" << axis << ")";
+            }
         }
     }
 }
@@ -205,31 +231,86 @@ void CropValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVec
 ConvolutionValidator::ConvolutionValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ConvolutionValidator::parseParams(CNNLayer* layer) {
-    auto casted = dynamic_cast<ConvolutionLayer*>(layer);
-    if (!casted) {
+    auto convLayer = dynamic_cast<ConvolutionLayer*>(layer);
+    if (!convLayer) {
         THROW_IE_EXCEPTION << "Layer is not instance of ConvolutionLayer class";
     }
-    casted->_out_depth = casted->GetParamAsUInt("output");
-    casted->_kernel_x = casted->GetParamAsUInt("kernel-x");
-    casted->_kernel_y = casted->GetParamAsUInt("kernel-y");
-    casted->_stride_x = casted->GetParamAsUInt("stride-x", 1);
-    casted->_stride_y = casted->GetParamAsUInt("stride-y", 1);
-    casted->_padding_x = casted->GetParamAsUInt("pad-x", 0);
-    casted->_padding_y = casted->GetParamAsUInt("pad-y", 0);
-    casted->_dilation_x = casted->GetParamAsUInt("dilation-x", 1);
-    casted->_dilation_y = casted->GetParamAsUInt("dilation-y", 1);
-    casted->_group = casted->GetParamAsUInt("group", 1);
-    // TODO: checks for presence of all required attributes, and that there's no extraneous parameters only.
+    auto version = BaseCreator::version_;
+    convLayer->_out_depth = convLayer->GetParamAsUInt("output");
 
-    // TODO: maybe just throw exception, why do we change IR?
-    if (0 == casted->_stride_x) {
-        casted->_stride_x = 1;
-        LogError("Warning! in layer %s: Stride x is 0, setting to 1 ", casted->name.c_str());
+    if (version < 3) {
+        convLayer->_kernel.clear();
+        convLayer->_kernel.insert(X_AXIS, convLayer->GetParamAsUInt("kernel-x"));
+        convLayer->_kernel.insert(Y_AXIS, convLayer->GetParamAsUInt("kernel-y"));
+
+        convLayer->_stride.clear();
+        convLayer->_stride.insert(X_AXIS, convLayer->GetParamAsUInt("stride-x", 1u));
+        convLayer->_stride.insert(Y_AXIS, convLayer->GetParamAsUInt("stride-y", 1u));
+        // TODO: maybe just throw exception, why do we change IR?
+        if (0 == convLayer->_stride[X_AXIS]) {
+            convLayer->_stride[X_AXIS] = 1u;
+            LogError("Warning! in layer %s: Stride x is 0, setting to 1 ", convLayer->name.c_str());
+        }
+        if (0 == convLayer->_stride[Y_AXIS]) {
+            convLayer->_stride[Y_AXIS] = 1u;
+            LogError("Warning! in layer %s: Stride y is 0, setting to 1", convLayer->name.c_str());
+        }
+
+        convLayer->_padding.clear();
+        convLayer->_padding.insert(X_AXIS, convLayer->GetParamAsUInt("pad-x", 0u));
+        convLayer->_padding.insert(Y_AXIS, convLayer->GetParamAsUInt("pad-y", 0u));
+
+        convLayer->_pads_end.clear();
+        convLayer->_pads_end.insert(X_AXIS, convLayer->GetParamAsUInt("pad-r", convLayer->_padding[X_AXIS]));
+        convLayer->_pads_end.insert(Y_AXIS, convLayer->GetParamAsUInt("pad-b", convLayer->_padding[Y_AXIS]));
+
+        convLayer->_dilation.clear();
+        convLayer->_dilation.insert(X_AXIS, convLayer->GetParamAsUInt("dilation-x", 1u));
+        convLayer->_dilation.insert(Y_AXIS, convLayer->GetParamAsUInt("dilation-y", 1u));
+
+        // TODO: checks for presence of all required attributes, and that there's no extraneous parameters only.
+    } else if (version == 3) {
+        vector<unsigned int> kernels = convLayer->GetParamAsUInts("kernel");
+        if (kernels.empty()) {
+            THROW_IE_EXCEPTION << "Invalid kernel field in layer " << convLayer->name;
+        }
+        convLayer->_kernel.clear();
+        for (int i = 1; i <= kernels.size(); i++) {
+            convLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
+        }
+
+        vector<unsigned int> default_0 = vector<unsigned int> (convLayer->_kernel.size(), 0u);
+        vector<unsigned int> default_1 = vector<unsigned int> (convLayer->_kernel.size(), 1u);
+
+        vector<unsigned int> strides = convLayer->GetParamAsUInts("strides", default_1);
+        convLayer->_stride.clear();
+        for (int i = 1; i <= strides.size(); i++) {
+            if (strides[strides.size() - i] == 0) {
+                THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << convLayer->name;
+            }
+            convLayer->_stride.insert(i - 1, strides[strides.size() - i]);
+        }
+
+        vector<unsigned int> pads_begin = convLayer->GetParamAsUInts("pads_begin", default_0);
+        convLayer->_padding.clear();
+        for (int i = 1; i <= pads_begin.size(); i++) {
+            convLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
+        }
+
+        vector<unsigned int> pads_end = convLayer->GetParamAsUInts("pads_end", default_0);
+        convLayer->_pads_end.clear();
+        for (int i = 1; i <= pads_end.size(); i++) {
+            convLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
+        }
+
+        vector<unsigned int> dilations = convLayer->GetParamAsUInts("dilations", default_1);
+        convLayer->_dilation.clear();
+        for (int i = 1; i <= dilations.size(); i++) {
+            convLayer->_dilation.insert(i - 1, dilations[dilations.size() - i]);
+        }
     }
-    if (0 == casted->_stride_y) {
-        casted->_stride_y = 1;
-        LogError("Warning! in layer %s: Stride y is 0, setting to 1", casted->name.c_str());
-    }
+
+    convLayer->_group = convLayer->GetParamAsUInt("group", 1u);
 }
 
 void ConvolutionValidator::checkParams(const CNNLayer* layer) {
@@ -242,37 +323,99 @@ void ConvolutionValidator::checkParams(const CNNLayer* layer) {
 
 void ConvolutionValidator::checkCorrespondence(const CNNLayer* layer,
                                                const std::map<std::string, Blob::Ptr>& blobs,
-                                               const std::vector<SizeVector>& inShapes) const {
-    auto casted = dynamic_cast<const ConvolutionLayer*>(layer);
-    if (!casted) THROW_IE_EXCEPTION << "Layer is not instance of ConvolutionLayer class";
-    checkWeightable(blobs, inShapes, {casted->_out_depth, false, casted->_group, casted->_kernel_y, casted->_kernel_x},
-                    {4});
+                                               const vector<SizeVector>& inShapes) const {
+    auto convLayer = dynamic_cast<const ConvolutionLayer*>(layer);
+    if (!convLayer) THROW_IE_EXCEPTION << "Layer is not instance of ConvolutionLayer class";
+    auto version = BaseCreator::version_;
+    if (version < 3) {
+        checkWeightable(blobs, inShapes, {convLayer->_out_depth, false, convLayer->_group, convLayer->_kernel[Y_AXIS], convLayer->_kernel[X_AXIS]},
+                        {4});
+    } else if (version == 3) {
+        // TODO: implement v2 convolution valitation
+    }
 }
 
 void DeconvolutionValidator::parseParams(CNNLayer* layer) {
-    auto casted = dynamic_cast<DeconvolutionLayer*>(layer);
-    if (!casted) {
+    auto deconvLayer = dynamic_cast<DeconvolutionLayer*>(layer);
+    if (!deconvLayer) {
         THROW_IE_EXCEPTION << "Layer is not instance of DeconvolutionLayer class";
     }
-    casted->_out_depth = casted->GetParamAsUInt("output");
-    casted->_kernel_x = casted->GetParamAsUInt("kernel-x");
-    casted->_kernel_y = casted->GetParamAsUInt("kernel-y");
-    casted->_stride_x = casted->GetParamAsUInt("stride-x", 1);
-    casted->_stride_y = casted->GetParamAsUInt("stride-y", 1);
-    casted->_padding_x = casted->GetParamAsUInt("pad-x", 0);
-    casted->_padding_y = casted->GetParamAsUInt("pad-y", 0);
-    casted->_dilation_x = casted->GetParamAsUInt("dilation-x", 1);
-    casted->_dilation_y = casted->GetParamAsUInt("dilation-y", 1);
-    casted->_group = casted->GetParamAsUInt("group", 1);
 
-    if (0 == casted->_stride_x) {
-        casted->_stride_x = 1;
-        LogError("Warning! in layer %s: Stride x is 0, setting to 1 ", casted->name.c_str());
+    auto version = BaseCreator::version_;
+
+    deconvLayer->_out_depth = deconvLayer->GetParamAsUInt("output");
+
+    if (version < 3) {
+        deconvLayer->_kernel.clear();
+        deconvLayer->_kernel.insert(X_AXIS, deconvLayer->GetParamAsUInt("kernel-x"));
+        deconvLayer->_kernel.insert(Y_AXIS, deconvLayer->GetParamAsUInt("kernel-y"));
+
+        deconvLayer->_stride.clear();
+        deconvLayer->_stride.insert(X_AXIS, deconvLayer->GetParamAsUInt("stride-x", 1u));
+        deconvLayer->_stride.insert(Y_AXIS, deconvLayer->GetParamAsUInt("stride-y", 1u));
+        // TODO: maybe just throw exception, why do we change IR?
+        if (0 == deconvLayer->_stride[X_AXIS]) {
+            deconvLayer->_stride[X_AXIS] = 1u;
+            LogError("Warning! in layer %s: Stride x is 0, setting to 1 ", deconvLayer->name.c_str());
+        }
+        if (0 == deconvLayer->_stride[Y_AXIS]) {
+            deconvLayer->_stride[Y_AXIS] = 1u;
+            LogError("Warning! in layer %s: Stride y is 0, setting to 1", deconvLayer->name.c_str());
+        }
+
+        deconvLayer->_padding.clear();
+        deconvLayer->_padding.insert(X_AXIS, deconvLayer->GetParamAsUInt("pad-x", 0u));
+        deconvLayer->_padding.insert(Y_AXIS, deconvLayer->GetParamAsUInt("pad-y", 0u));
+
+        deconvLayer->_pads_end.clear();
+        deconvLayer->_pads_end.insert(X_AXIS, deconvLayer->GetParamAsUInt("pad-r", deconvLayer->_padding[X_AXIS]));
+        deconvLayer->_pads_end.insert(Y_AXIS, deconvLayer->GetParamAsUInt("pad-b", deconvLayer->_padding[Y_AXIS]));
+
+        deconvLayer->_dilation.clear();
+        deconvLayer->_dilation.insert(X_AXIS, deconvLayer->GetParamAsUInt("dilation-x", 1u));
+        deconvLayer->_dilation.insert(Y_AXIS, deconvLayer->GetParamAsUInt("dilation-y", 1u));
+    } else if (version == 3) {
+        vector<unsigned int> kernels = deconvLayer->GetParamAsUInts("kernel");
+        if (kernels.empty()) {
+            THROW_IE_EXCEPTION << "Invalid kernel field in layer " << deconvLayer->name;
+        }
+        deconvLayer->_kernel.clear();
+        for (int i = 1; i <= kernels.size(); i++) {
+            deconvLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
+        }
+
+        vector<unsigned int> default_0 = vector<unsigned int> (deconvLayer->_kernel.size(), 0u);
+        vector<unsigned int> default_1 = vector<unsigned int> (deconvLayer->_kernel.size(), 1u);
+
+        vector<unsigned int> strides = deconvLayer->GetParamAsUInts("strides", default_1);
+        deconvLayer->_stride.clear();
+        for (int i = 1; i <= strides.size(); i++) {
+            if (strides[strides.size() - i] == 0) {
+                THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << deconvLayer->name;
+            }
+            deconvLayer->_stride.insert(i - 1, strides[strides.size() - i]);
+        }
+
+        vector<unsigned int> pads_begin = deconvLayer->GetParamAsUInts("pads_begin", default_0);
+        deconvLayer->_padding.clear();
+        for (int i = 1; i <= pads_begin.size(); i++) {
+            deconvLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
+        }
+
+        vector<unsigned int> pads_end = deconvLayer->GetParamAsUInts("pads_end", default_0);
+        deconvLayer->_pads_end.clear();
+        for (int i = 1; i <= pads_end.size(); i++) {
+            deconvLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
+        }
+
+        vector<unsigned int> dilations = deconvLayer->GetParamAsUInts("dilations", default_1);
+        deconvLayer->_dilation.clear();
+        for (int i = 1; i <= dilations.size(); i++) {
+            deconvLayer->_dilation.insert(i - 1, dilations[dilations.size() - i]);
+        }
     }
-    if (0 == casted->_stride_y) {
-        casted->_stride_y = 1;
-        LogError("Warning! in layer %s: Stride y is 0, setting to 1", casted->name.c_str());
-    }
+
+    deconvLayer->_group = deconvLayer->GetParamAsUInt("group", 1u);
 }
 
 void DeconvolutionValidator::checkParams(const CNNLayer* layer) {
@@ -284,55 +427,128 @@ DeconvolutionValidator::DeconvolutionValidator(const std::string& _type) : Layer
 
 void DeconvolutionValidator::checkCorrespondence(const CNNLayer* layer,
                                                  const std::map<std::string, Blob::Ptr>& blobs,
-                                                 const std::vector<SizeVector>& inShapes) const {
+                                                 const vector<SizeVector>& inShapes) const {
     auto casted = dynamic_cast<const DeconvolutionLayer*>(layer);
     if (!casted) THROW_IE_EXCEPTION << "Layer is not instance of ConvolutionLayer class";
-    checkWeightable(blobs, inShapes, {casted->_out_depth, false, casted->_group, casted->_kernel_y, casted->_kernel_x},
+    checkWeightable(blobs, inShapes, {casted->_out_depth, false, casted->_group, casted->_kernel[Y_AXIS], casted->_kernel[X_AXIS]},
                     {4});
 }
 
 PoolingValidator::PoolingValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void PoolingValidator::parseParams(CNNLayer* layer) {
-    auto casted = dynamic_cast<PoolingLayer*>(layer);
-    if (!casted) {
+    auto poolLayer = dynamic_cast<PoolingLayer*>(layer);
+    if (!poolLayer) {
         THROW_IE_EXCEPTION << "Layer is not instance of PoolingLayer class";
     }
-    int kernel_x = casted->GetParamAsInt("kernel-x", -1);
-    /** Pooling as custom layer */
-    if (kernel_x == -1) {
-        unsigned int kernel_size = casted->GetParamAsUInt("kernel_size");
-        unsigned int kernel_w = casted->GetParamAsUInt("kernel_w", 0);
-        unsigned int kernel_h = casted->GetParamAsUInt("kernel_h", 0);
-        casted->_kernel_x = kernel_w == 0 ? kernel_size : kernel_w;
-        casted->_kernel_y = kernel_h == 0 ? kernel_size : kernel_h;
 
-        unsigned int stride = casted->GetParamAsUInt("stride", 1);
-        unsigned int stride_w = casted->GetParamAsUInt("stride_w", 0);
-        unsigned int stride_h = casted->GetParamAsUInt("stride_h", 0);
-        casted->_stride_x = stride_w == 0 ? stride : stride_w;
-        casted->_stride_y = stride_h == 0 ? stride : stride_h;
+    auto version = BaseCreator::version_;
+    if (version < 3) {
+        int kernel_x = poolLayer->GetParamAsInt("kernel-x", -1);
+        /** Pooling as custom layer */
+        if (kernel_x == -1) {
+            try {
+                unsigned int kernel_size = poolLayer->GetParamAsUInt("kernel_size");
+                unsigned int kernel_w = poolLayer->GetParamAsUInt("kernel_w", 0u);
+                unsigned int kernel_h = poolLayer->GetParamAsUInt("kernel_h", 0u);
+                poolLayer->_kernel.clear();
+                poolLayer->_kernel.insert(X_AXIS, kernel_w == 0u ? kernel_size : kernel_w);
+                poolLayer->_kernel.insert(Y_AXIS, kernel_h == 0u ? kernel_size : kernel_h);
 
-        unsigned int pad = casted->GetParamAsUInt("pad", 0);
-        unsigned int pad_w = casted->GetParamAsUInt("pad_w", 0);
-        unsigned int pad_h = casted->GetParamAsUInt("pad_h", 0);
-        casted->_padding_x = pad_w == 0 ? pad : pad_w;
-        casted->_padding_y = pad_h == 0 ? pad : pad_h;
+                unsigned int stride = poolLayer->GetParamAsUInt("stride", 1u);
+                unsigned int stride_w = poolLayer->GetParamAsUInt("stride_w", 0u);
+                unsigned int stride_h = poolLayer->GetParamAsUInt("stride_h", 0u);
+                poolLayer->_stride.clear();
+                poolLayer->_stride.insert(X_AXIS, stride_w == 0u ? stride : stride_w);
+                poolLayer->_stride.insert(Y_AXIS, stride_h == 0u ? stride : stride_h);
 
-        std::string alg = casted->GetParamAsString("pool", "caffe.PoolingParameter.MAX");
-        casted->_type = alg == "caffe.PoolingParameter.MAX" ? PoolingLayer::MAX : PoolingLayer::AVG;
-    } else  /** Default behaviour */ {
-        casted->_kernel_x = casted->GetParamAsUInt("kernel-x");
-        casted->_kernel_y = casted->GetParamAsUInt("kernel-y");
-        casted->_stride_x = casted->GetParamAsUInt("stride-x", 1);
-        casted->_stride_y = casted->GetParamAsUInt("stride-y", 1);
-        casted->_padding_x = casted->GetParamAsUInt("pad-x", 0);
-        casted->_padding_y = casted->GetParamAsUInt("pad-y", 0);
+                unsigned int pad = poolLayer->GetParamAsUInt("pad", 0u);
+                unsigned int pad_w = poolLayer->GetParamAsUInt("pad_w", 0u);
+                unsigned int pad_h = poolLayer->GetParamAsUInt("pad_h", 0u);
 
-        // TODO: All kind of pool methods
-        casted->_exclude_pad = casted->GetParamsAsBool("exclude-pad", false);
-        std::string alg = casted->GetParamAsString("pool-method", "max");
-        casted->_type = alg == "avg" ? PoolingLayer::AVG : PoolingLayer::MAX;
+                poolLayer->_padding.clear();
+                poolLayer->_padding.insert(X_AXIS, pad_w == 0u ? pad : pad_w);
+                poolLayer->_padding.insert(Y_AXIS, pad_h == 0u ? pad : pad_h);
+
+                poolLayer->_pads_end.clear();
+                poolLayer->_pads_end.insert(X_AXIS, 0u);
+                poolLayer->_pads_end.insert(Y_AXIS, 0u);
+            } catch (...) {
+            }
+
+            std::string alg = poolLayer->GetParamAsString("pool", "caffe.PoolingParameter.MAX");
+            poolLayer->_type = alg == "caffe.PoolingParameter.MAX" ? PoolingLayer::MAX : PoolingLayer::AVG;
+        } else  /** Default behavior */ {
+            poolLayer->_kernel.clear();
+            poolLayer->_kernel.insert(X_AXIS, poolLayer->GetParamAsUInt("kernel-x"));
+            poolLayer->_kernel.insert(Y_AXIS, poolLayer->GetParamAsUInt("kernel-y"));
+
+            poolLayer->_stride.clear();
+            poolLayer->_stride.insert(X_AXIS, poolLayer->GetParamAsUInt("stride-x", 1u));
+            poolLayer->_stride.insert(Y_AXIS, poolLayer->GetParamAsUInt("stride-y", 1u));
+            // TODO: maybe just throw exception, why do we change IR?
+            if (0 == poolLayer->_stride[X_AXIS]) {
+                poolLayer->_stride[X_AXIS] = 1u;
+                LogError("Warning! in layer %s: Stride x is 0, setting to 1 ", poolLayer->name.c_str());
+            }
+            if (0 == poolLayer->_stride[Y_AXIS]) {
+                poolLayer->_stride[Y_AXIS] = 1u;
+                LogError("Warning! in layer %s: Stride y is 0, setting to 1", poolLayer->name.c_str());
+            }
+
+            poolLayer->_padding.clear();
+            poolLayer->_padding.insert(X_AXIS, poolLayer->GetParamAsUInt("pad-x", 0u));
+            poolLayer->_padding.insert(Y_AXIS, poolLayer->GetParamAsUInt("pad-y", 0u));
+
+            poolLayer->_pads_end.clear();
+            poolLayer->_pads_end.insert(X_AXIS, poolLayer->GetParamAsUInt("pad-r", poolLayer->_padding[X_AXIS]));
+            poolLayer->_pads_end.insert(Y_AXIS, poolLayer->GetParamAsUInt("pad-b", poolLayer->_padding[Y_AXIS]));
+
+            // TODO: All kind of pool methods
+            poolLayer->_exclude_pad = poolLayer->GetParamsAsBool("exclude-pad", false);
+            std::string alg = poolLayer->GetParamAsString("pool-method", "max");
+            poolLayer->_type = alg == "avg" ? PoolingLayer::AVG : PoolingLayer::MAX;
+            if (alg != "max" && alg != "avg") {
+                THROW_IE_EXCEPTION << "Layer with type `" << _type << "` has incorrect pad-type!";
+            }
+        }
+    } else if (version == 3) {
+        vector<unsigned int> kernels = poolLayer->GetParamAsUInts("kernel");
+        if (kernels.empty()) {
+            THROW_IE_EXCEPTION << "Invalid kernel field in layer " << poolLayer->name;
+        }
+        poolLayer->_kernel.clear();
+        for (int i = 1; i <= kernels.size(); i++) {
+            poolLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
+        }
+
+        vector<unsigned int> default_0 = vector<unsigned int> (poolLayer->_kernel.size(), 0u);
+        vector<unsigned int> default_1 = vector<unsigned int> (poolLayer->_kernel.size(), 1u);
+
+        vector<unsigned int> strides = poolLayer->GetParamAsUInts("strides", default_1);
+        poolLayer->_stride.clear();
+        for (int i = 1; i <= strides.size(); i++) {
+            if (strides[strides.size() - i] == 0) {
+                THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << poolLayer->name;
+            }
+            poolLayer->_stride.insert(i - 1, strides[strides.size() - i]);
+        }
+
+        vector<unsigned int> pads_begin = poolLayer->GetParamAsUInts("pads_begin", default_0);
+        poolLayer->_padding.clear();
+        for (int i = 1; i <= pads_begin.size(); i++) {
+            poolLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
+        }
+
+        vector<unsigned int> pads_end = poolLayer->GetParamAsUInts("pads_end", default_0);
+        poolLayer->_pads_end.clear();
+        for (int i = 1; i <= pads_end.size(); i++) {
+            poolLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
+        }
+
+        poolLayer->_exclude_pad = poolLayer->GetParamsAsBool("exclude-pad", false);
+        std::string alg = poolLayer->GetParamAsString("pool-method", "max");
+        poolLayer->_type = alg == "avg" ? PoolingLayer::AVG : PoolingLayer::MAX;
         if (alg != "max" && alg != "avg") {
             THROW_IE_EXCEPTION << "Layer with type `" << _type << "` has incorrect pad-type!";
         }
@@ -450,8 +666,8 @@ void ReshapeValidator::calculateIn2Out(ReshapeLayer* layer) {
     SizeVector inDims = layer->input()->getTensorDesc().getDims();
     SizeVector outDims = layer->outData[0]->getTensorDesc().getDims();
 
-    std::vector<size_t> inMapped;
-    std::vector<size_t> outMapped;
+    vector<size_t> inMapped;
+    vector<size_t> outMapped;
     for (size_t i = 0; i < inDims.size(); i++) {
         bool mapped = false;
         inMapped.push_back(i);
@@ -508,7 +724,7 @@ void EltwiseValidator::parseParams(CNNLayer* layer) {
         THROW_IE_EXCEPTION << "Unsupported element wise operation: " << op;
     }
 
-    auto getArray = [](std::string param, std::vector<float>& array) {
+    auto getArray = [](std::string param, vector<float>& array) {
         std::istringstream stream(param);
         std::string str;
         while (getline(stream, str, ',')) {

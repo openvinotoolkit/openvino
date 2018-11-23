@@ -28,7 +28,7 @@ from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs
-from mo.utils.error import Error
+from mo.utils.error import Error, FrameworkError
 from mo.utils.guess_framework import guess_framework_by_ext
 from mo.utils.logger import init_logger
 from mo.utils.utils import refer_to_faq_msg
@@ -197,6 +197,10 @@ def driver(argv: argparse.Namespace):
             'Both --scale and --scale_values are defined. Specify either scale factor or scale values per input ' +
             'channels. ' + refer_to_faq_msg(19))
 
+    if argv.scale and argv.scale < 1.0:
+        log.error("The scale value is less than 1.0. This is most probably an issue because the scale value specifies "
+                  "floating point value which all input values will be *divided*.", extra={'is_warning': True})
+
     if argv.input_model and (is_tf and argv.saved_model_dir):
         raise Error('Both --input_model and --saved_model_dir are defined. '
                     'Specify either input model or saved model directory.')
@@ -243,12 +247,12 @@ def driver(argv: argparse.Namespace):
             rp = replace.split('->')
             if len(rp) != 2:
                 raise Error("Wrong replacement syntax. Use --freeze_placeholder_with_value "
-                            "node1_name->value1,node2_name->value2")
+                            "\"node1_name->value1,node2_name->value2\"")
             if rp[0] in replacements and replacements[rp[0]] != rp[1]:
                 raise Error("Overriding replacement value of placeholder with name '{}': old value = {}, new value = {}"
                             ".".format(rp[0], replacements[rp[0]], rp[1]))
             value = rp[1]
-            if ' ' in value.strip(' '):
+            if '[' in value.strip(' '):
                 value = value.replace('[', '').replace(']', '').split(' ')
             replacements[rp[0]] = value
         argv.freeze_placeholder_with_value = replacements
@@ -324,6 +328,9 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         log.debug(traceback.format_exc())
     except Error as err:
         log.error(err)
+        log.debug(traceback.format_exc())
+    except FrameworkError as err:
+        log.error(err, extra={'framework_error': True})
         log.debug(traceback.format_exc())
     except Exception as err:
         log.error("-------------------------------------------------")

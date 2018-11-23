@@ -26,7 +26,6 @@
 #include "test_utils/test_utils.h"
 #include <api/CPP/data.hpp>
 #include "instrumentation.h"
-#include <boost/filesystem.hpp>
 
 #include <cmath>
 

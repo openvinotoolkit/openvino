@@ -143,6 +143,24 @@ public:
         }
     }
 
+    static void fill_data_sine(float *data, size_t size, float center, float ampl, float omega) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = center + ampl * sin((float)i * omega);
+        }
+    }
+
+    static void fill_data_const(float *data, size_t size, float value) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = value;
+        }
+    }
+
+    static void fill_data_dbgval(float *data, size_t size) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = i;
+        }
+    }
+
     void compare(InferenceEngine::Blob &res, InferenceEngine::Blob &ref, float max_diff = 0.01f) {
 
         float *res_ptr = res.buffer().as<float*>();
@@ -156,6 +174,42 @@ public:
         for (size_t i = 0; i < ref_size; i++) {
             ASSERT_NEAR(res_ptr[i], ref_ptr[i], max_diff);
         }
+    }
+
+    void compare_NRMSD(InferenceEngine::Blob &res, InferenceEngine::Blob &ref, float max_nrmsd = 0.01f) {
+
+        float *res_ptr = res.buffer().as<float*>();
+        size_t res_size = res.size();
+
+        float *ref_ptr = ref.buffer().as<float*>();
+        size_t ref_size = ref.size();
+
+        ASSERT_EQ(res_size, ref_size);
+
+        float sum = 0;
+
+        float mmin = ref_ptr[0], mmax = ref_ptr[0];
+
+        for (size_t i = 0; i < ref_size; i++) {
+            float sqr = (ref_ptr[i] - res_ptr[i]);
+            sqr *= sqr;
+            sum += sqr;
+
+            mmin = std::min(mmin, ref_ptr[i]);
+            mmax = std::max(mmax, ref_ptr[i]);
+
+            if (i % 10007 == 0) {
+                std::cout << i << ": " << res_ptr[i] << "\t" << ref_ptr[i] << "\t" << "\tdiv: " << ref_ptr[i] / res_ptr[i] << std::endl;
+            }
+
+        }
+        sum /= ref_size;
+
+        sum = pow(sum, 0.5);
+
+        sum /= mmax - mmin;
+
+        ASSERT_LE(sum, max_nrmsd);
     }
 
     void compare(float* res, float* ref, size_t size, float max_diff = 0.01f) {

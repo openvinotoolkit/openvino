@@ -22,6 +22,7 @@ from extensions.ops.DetectionOutput import DetectionOutput
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
 from mo.graph.graph import Node
+from mo.ops.op import PermuteAttrs
 from mo.ops.output import Output
 from mo.ops.reshape import Reshape
 
@@ -65,6 +66,7 @@ class SSDToolboxDetectionOutputReplacement(FrontReplacementFromConfigFileSubGrap
         detection_output_node = detection_output_op.create_node(
             [reshape_loc_node, reshape_conf_node, reshape_priors_node],
             dict(name=detection_output_op.attrs['type'] + '_'))
+        PermuteAttrs.set_permutation(reshape_priors_node, detection_output_node, None)
 
         # create Output node to mark DetectionOutput as a graph output operation
         output_op = Output(graph)

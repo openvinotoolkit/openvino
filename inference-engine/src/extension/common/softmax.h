@@ -16,13 +16,13 @@
 #endif
 
 #include <cmath>
-#include <omp.h>
 #include "defs.h"
+#include "ie_parallel.hpp"
+
 
 static inline
 void softmax_many_batches(const float *src_data, float *dst_data, int B, int C, int H, int W) {
-    #pragma omp parallel for schedule(static)
-    for (int i = 0; i < B * H * W; i++) {
+    InferenceEngine::parallel_for(B * H * W, [&](size_t i) {
         const float *psrc = src_data + (i / (H * W)) * C * H * W - (i / (H * W)) * H * W;
         float *pdst = dst_data + (i / (H * W)) * C * H * W - (i / (H * W)) * H * W;
 
@@ -41,14 +41,13 @@ void softmax_many_batches(const float *src_data, float *dst_data, int B, int C, 
         for (int c = 0; c < C; c++) {
             pdst[c * H * W + i] = pdst[c * H * W + i] / expSum;
         }
-    }
+    });
 }
 
 static inline
 void softmax_generic(const float *src_data, float *dst_data, int B, int C, int H, int W) {
     for (int b = 0; b < B; b++) {
 #if defined(HAVE_AVX2)
-        #pragma omp parallel for schedule(static)
         for (int i = 0; i <= H*W - 8; i += 8) {
             __m256 vmax = _mm256_loadu_ps(src_data + b*C*H*W + i);
             for (int c = 0; c < C; c++) {
@@ -75,7 +74,6 @@ void softmax_generic(const float *src_data, float *dst_data, int B, int C, int H
             }
         }
 #elif defined(HAVE_SSE)
-#pragma omp parallel for schedule(static)
         for (int i = 0; i <= H*W - 4; i += 4) {
             __m128 vmax = _mm_loadu_ps(src_data + b*C*H*W + i);
             for (int c = 0; c < C; c++) {

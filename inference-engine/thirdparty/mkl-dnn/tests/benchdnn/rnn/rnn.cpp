@@ -18,8 +18,11 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <random>
 
 #include "mkldnn.h"
+
+#include "src/common/mkldnn_thread.hpp"
 
 #include "mkldnn_common.hpp"
 #include "mkldnn_memory.hpp"
@@ -40,20 +43,22 @@ int fill_memory(const rnn_prb_t *p, rnn_data_kind_t kind, dnn_mem_t &mem1,
 #else
     const size_t nelems = mem2.nelems();
 #endif
+    size_t nchunks = mkldnn_get_max_threads();
+    size_t chunk_size = (nelems + nchunks - 1) / nchunks;
 
-    //    const auto &c = p->cfg_[kind];
-    //    const int range = c.f_max - c.f_min + 1;
+    mkldnn::impl::parallel(0, [&](int ithr, int nthr) {
+        size_t idx_start = ithr * chunk_size;
+        size_t idx_end = MIN2(idx_start + chunk_size, nelems);
 
-    for (size_t idx = 0; idx < nelems; ++idx) {
+        std::minstd_rand msr;
+        std::uniform_real_distribution<float> gen(-1, 1);
+        msr.discard(idx_start);
 
-        // const size_t gen = idx + 1637;
-        // const bool non_base = true;
-        float value = 1.0f;
-        /// non_base ? c.f_min + int(gen * c.f_step) % range : c.f_base;
-        mem2.set_elem(idx, value);
-    }
+        for (size_t idx = idx_start; idx < idx_end; ++idx)
+            mem2.set_elem(idx, gen(msr));
+    });
+
     mem1.reorder(mem2);
-
     return OK;
 }
 

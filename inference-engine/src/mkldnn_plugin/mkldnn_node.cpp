@@ -6,7 +6,7 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_mngr.h"
 
-#include "caseless.hpp"
+#include "details/caseless.hpp"
 #include <vector>
 #include <string>
 #include <limits>
@@ -33,12 +33,15 @@
 #include <nodes/mkldnn_split_node.h>
 #include <nodes/mkldnn_permute_node.h>
 #include <nodes/mkldnn_memory_node.hpp>
+#include <nodes/mkldnn_rnn.h>
 #include <mkldnn_types.h>
 
 #include "mkldnn_extension_utils.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
+
+using namespace InferenceEngine::details;
 
 std::vector<MKLDNNNode::Registry::CreatorByLayerFunction> MKLDNNNode::Registry::_dataByLayer;
 
@@ -65,6 +68,7 @@ MKLDNNNode::Register<MKLDNNTileNode> MKLDNNTileNode::reg;
 MKLDNNNode::Register<MKLDNNPermuteNode> MKLDNNPermuteNode::reg;
 MKLDNNNode::Register<MKLDNNMemoryInputNode> MKLDNNMemoryInputNode::reg;
 MKLDNNNode::Register<MKLDNNMemoryOutputNode> MKLDNNMemoryOutputNode::reg;
+MKLDNNNode::Register<MKLDNNRNN> MKLDNNRNN::reg;
 
 MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng)
         : cnnLayer(layer), name(layer->name), typeStr(layer->type), type(TypeFromName(layer->type)), engine(eng),
@@ -101,7 +105,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
     }
 }
 
-void MKLDNNNode::addEdge(const MKLDNNEdgeWeakPtr& edge, size_t pIndex, size_t cIndex) {
+void MKLDNNNode::addEdge(const MKLDNNEdgeWeakPtr& edge, size_t pIndex, size_t cIndex, bool insertChildIndex) {
     auto edgePtr = edge.lock();
     if (!edgePtr)
         return;
@@ -110,8 +114,12 @@ void MKLDNNNode::addEdge(const MKLDNNEdgeWeakPtr& edge, size_t pIndex, size_t cI
     if (!parentPtr || !childPtr)
         return;
     if (cIndex < parentPtr->childEdges.size()) {
-        removeEdge(parentPtr->childEdges[cIndex]);
-        parentPtr->childEdges[cIndex] = edge;
+        if (insertChildIndex) {
+            parentPtr->childEdges.insert(parentPtr->childEdges.begin() + cIndex, edge);
+        } else {
+            removeEdge(parentPtr->childEdges[cIndex]);
+            parentPtr->childEdges[cIndex] = edge;
+        }
     } else {
         parentPtr->childEdges.push_back(edge);
     }
@@ -294,6 +302,7 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
 
     SEARCH_TYPE(avx512);
     SEARCH_TYPE(avx2);
+    SEARCH_TYPE(avx);
     SEARCH_TYPE(sse42);
     SEARCH_TYPE(blas);
     SEARCH_TYPE(any);
@@ -306,6 +315,21 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
         str_type = "unknown";
     else if (str_type.empty())
         str_type = "undef";
+
+    // adding layer precision to the performance counters as one of the token
+    // currently we treat a layer executing in int8 mode if its input is I8 or U8. if input is U8, we still
+    // add I8 since I8 is special placeholder. The real calc precision might be quite complex and in most cases
+    // it is mixed precision.
+    if (selectedPrimitiveDesc) {
+        if (!selectedPrimitiveDesc->getConfig().inConfs.empty()) {
+            if (selectedPrimitiveDesc->getConfig().inConfs[0].desc.getPrecision() != InferenceEngine::Precision::U8) {
+                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().inConfs[0].desc.getPrecision().name());
+            } else {
+                str_type += "_I8";
+            }
+        }
+    }
+
     return str_type;
 }
 
@@ -470,7 +494,11 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
     if (blb == nullptr)
         THROW_IE_EXCEPTION << "Cannot get internal blob layer for node " << getName() << ".";
 
-    InferenceEngine::TensorDesc desc(blb->precision(), dims, InferenceEngine::TensorDesc::getLayoutByDims(dims));
+    auto intLayout = InferenceEngine::TensorDesc::getLayoutByDims(dims);
+    if (intLayout == InferenceEngine::Layout::NCHW)
+        intLayout = InferenceEngine::Layout::OIHW;
+
+    InferenceEngine::TensorDesc desc(blb->precision(), dims, intLayout);
     InferenceEngine::TBlob<float>::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
     internalBlob->allocate();
     char *data = internalBlob->buffer();
@@ -519,75 +547,11 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
     for (size_t i = 0; i < internalBlobs.size(); i++) {
         auto& internalBlob = internalBlobs[i];
         internalBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(engine)));
-        MKLDNNDims blobDims = MKLDNNDims(internalBlob->getTensorDesc().getDims());
-        memory::format format = memory::oihw;
 
-        if (blobDims.ndims() == 1) {
-            format = memory::x;
-        } else if (blobDims.ndims() == 2) {
-            format = memory::oi;
-        } else if (blobDims.ndims() == 5) {
-            format = memory::goihw;
-        }
-        auto inDataType = MKLDNNMemoryDesc(getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc).getDataType();
-
-        MKLDNNDims real_dims = intDescs[i].getDims();
-        if (blobDims == real_dims) {  // No auto blocking
-            // TODO: Cannot create memory from intDescs[i] because ScaleShift changes dims
-            internalBlobMemory[i]->Create(blobDims, inDataType, intDescs[i].getFormat());
-            internalBlobMemory[i]->SetData(inDataType, format, internalBlob->buffer(),
-                                           blobDims.size() * MKLDNNExtensionUtils::sizeOfDataType(inDataType));
-        } else {  // Auto blocking, logic and real dims are different
-            if (blobDims.ndims() != real_dims.ndims() || blobDims.ndims() > 5)
-                THROW_IE_EXCEPTION << getName() << " Error: CPU plugin supports auto blocking only "
-                                   << "for blobs with a number of dimensions less than 6!";
-            InferenceEngine::Blob::Ptr tmp_wght =
-                    InferenceEngine::make_shared_blob<float>(InferenceEngine::Precision::FP32, real_dims.ToSizeVector());
-
-            tmp_wght->allocate();
-
-            int with_group = 0;
-            if (blobDims.ndims() == 5)
-                with_group = 1;
-
-            // Logic dims
-            int L_G = blobDims.ndims() > 0 && with_group ? blobDims[0] : 1;
-            int L_N = blobDims.ndims() > 0 ? blobDims[0 + with_group] : 1;
-            int L_C = blobDims.ndims() > 1 ? blobDims[1 + with_group] : 1;
-            int L_H = blobDims.ndims() > 2 ? blobDims[2 + with_group] : 1;
-            int L_W = blobDims.ndims() > 3 ? blobDims[3 + with_group] : 1;
-
-            // Ref
-            int R_G = real_dims.ndims() > 0 && with_group ? real_dims[0] : 1;
-            int R_N = real_dims.ndims() > 0 ? real_dims[0 + with_group] : 1;
-            int R_C = real_dims.ndims() > 1 ? real_dims[1 + with_group] : 1;
-            int R_H = real_dims.ndims() > 2 ? real_dims[2 + with_group] : 1;
-            int R_W = real_dims.ndims() > 3 ? real_dims[3 + with_group] : 1;
-
-            if (L_H != R_H || L_W != R_W)
-                THROW_IE_EXCEPTION << "Unsuported mode of auto blocking tensors";
-
-            auto * tmp_data = tmp_wght->buffer().as<float*>();
-            auto * in_data = internalBlob->buffer().as<float*>();
-            memset(tmp_data, 0,  real_dims.size()* sizeof(float));
-
-            for (int g = 0; g < L_G; g++)
-            for (int n = 0; n < L_N; n++)
-            for (int c = 0; c < L_C; c++)
-            for (int h = 0; h < L_H; h++)
-            for (int w = 0; w < L_W; w++) {
-                int l_indx = g * L_N * L_C * L_H * L_W +
-                        n * L_C * L_H * L_W +
-                        c * L_H * L_W + h * L_W + w;
-                int r_indx = g * R_N * R_C * R_H * R_W +
-                        n * R_C * R_H * R_W +
-                        c * R_H * R_W + h * R_W + w;
-
-                tmp_data[r_indx] = in_data[l_indx];
-            }
-            internalBlobMemory[i]->Create(real_dims, inDataType, intDescs[i].getFormat());
-            internalBlobMemory[i]->SetData(inDataType, format, tmp_wght->buffer(), tmp_wght->byteSize());
-        }
+        internalBlobMemory[i]->Create(intDescs[i]);
+        MKLDNNMemory memory(engine);
+        memory.Create(MKLDNNMemoryDesc(internalBlob->getTensorDesc()), internalBlob->buffer());
+        internalBlobMemory[i]->SetData(memory);
     }
 }
 
@@ -716,6 +680,8 @@ std::string MKLDNNNode::typeToStr(Type type) {
             return "MemoryOutput";
         case MemoryInput:
             return "MemoryInput";
+        case RNN:
+            return "RNN";
         default:
             return "Unknown";
     }
@@ -733,6 +699,9 @@ const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
             impl_desc_type::jit_avx2_dw,
             impl_desc_type::jit_avx2_1x1,
             impl_desc_type::jit_avx2,
+            impl_desc_type::jit_avx_dw,
+            impl_desc_type::jit_avx_1x1,
+            impl_desc_type::jit_avx,
             impl_desc_type::jit_sse42_dw,
             impl_desc_type::jit_sse42_1x1,
             impl_desc_type::jit_sse42,
@@ -740,6 +709,7 @@ const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
             impl_desc_type::gemm_blas,
             impl_desc_type::gemm_avx512,
             impl_desc_type::gemm_avx2,
+            impl_desc_type::gemm_avx,
             impl_desc_type::gemm_sse42,
             impl_desc_type::ref_any,
             impl_desc_type::ref,

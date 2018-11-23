@@ -23,8 +23,8 @@ class LayerInjector : public T {
 
 
 using AllLayers = std::tuple <
-    ConvolutionLayer *,
     DeconvolutionLayer*,
+    ConvolutionLayer *,
     PoolingLayer*,
     FullyConnectedLayer*,
     ConcatLayer*,

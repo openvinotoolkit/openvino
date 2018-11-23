@@ -328,6 +328,7 @@ status_t jit_avx512_common_lrn_fwd_t::pd_t::init() {
     const memory_desc_wrapper data_d(data_pd_.desc());
     bool ok = true
         && one_of(desc()->prop_kind, forward_training, forward_inference)
+        && !has_zero_dim_memory()
         && everyone_is(data_type::f32, desc()->data_desc.data_type)
         && data_d.ndims() == 4
         && data_d.dims()[1] % vsize == 0
@@ -394,7 +395,7 @@ void jit_avx512_common_lrn_fwd_t::execute_forward() {
     const int H = conf_.H();
     const int W = conf_.W();
 
-    auto ker = [&](const int ithr, const int nthr) {
+    parallel(0, [&](const int ithr, const int nthr) {
         size_t start{0}, end{0};
         const int C16 = C / vsize;
         const size_t work_amount = use_h_parallelism ? N*C16*H : N*C16;
@@ -452,12 +453,7 @@ void jit_avx512_common_lrn_fwd_t::execute_forward() {
                 nd_iterator_step(n, N, c16, C16);
             }
         }
-    };
-
-# pragma omp parallel
-    {
-        ker(omp_get_thread_num(), omp_get_num_threads());
-    }
+    });
 }
 
 struct jit_avx512_common_lrn_bwd_t::jit_avx512_common_lrn_kernel_f32:
@@ -743,6 +739,7 @@ status_t jit_avx512_common_lrn_bwd_t::pd_t::init() {
     bool ok = true
         && utils::one_of(desc()->prop_kind, backward, backward_data)
         && utils::everyone_is(data_type::f32, desc()->data_desc.data_type)
+        && !has_zero_dim_memory()
         && data_d.ndims() == 4
         && data_d.dims()[1] % vsize == 0
         && attr()->has_default_values();
@@ -811,7 +808,7 @@ void jit_avx512_common_lrn_bwd_t::execute_backward() {
     const int H = conf_.H();
     const int W = conf_.W();
 
-    auto ker = [&](const int ithr, const int nthr) {
+    parallel(0, [&](const int ithr, const int nthr) {
         size_t start{0}, end{0};
         const int C16 = C / vsize;
         const size_t work_amount = use_h_parallelism ? N*C16*H : N*C16;
@@ -871,12 +868,7 @@ void jit_avx512_common_lrn_bwd_t::execute_backward() {
                 nd_iterator_step(n, N, c16, C16);
             }
         }
-    };
-
-# pragma omp parallel
-    {
-        ker(omp_get_thread_num(), omp_get_num_threads());
-    }
+    });
 }
 
 }

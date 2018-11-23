@@ -69,6 +69,14 @@ namespace kernel_selector
             MakeJitConstant("OUTPUT",           output),
         };
 
+        if (fp16Supported)
+        {
+            jit.Merge(MakeUnitTypeJitConstants(Datatype::F16));
+        }
+        else
+        {
+            jit.Merge(MakeUnitTypeJitConstants(Datatype::F32));
+        }
         return jit;
     }
 
@@ -185,7 +193,7 @@ namespace kernel_selector
 
         auto& kernel = kd.kernels[0];
         
-        FillCLKernelData(kernel, runInfo, kernelName, jit, entry_point);
+        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
 
         kernel.arguments = GetArgsDesc(1, false, false);
 
@@ -215,7 +223,7 @@ namespace kernel_selector
 
         auto& kernel = kd.kernels[0];
 
-        FillCLKernelData(kernel, runInfo, kernelName, jit, entry_point);
+        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
 
         kernel.arguments = GetArgsDesc(1, false, false);
         if (newParams.mode == MeanSubtractMode::IN_BUFFER)

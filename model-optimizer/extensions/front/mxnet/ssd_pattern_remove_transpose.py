@@ -15,15 +15,15 @@
 """
 
 import networkx as nx
+
+from extensions.front.mxnet.ssd_pattern_flatten_softmax_activation import SsdPatternFlattenSoftmaxActivation
 from extensions.front.mxnet.ssd_pattern_remove_flatten import SsdPatternRemoveFlatten
 from extensions.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
-from extensions.front.mxnet.ssd_pattern_flatten_softmax_activation import SsdPatternFlattenSoftmaxActivation
-from mo.graph.graph import create_edge
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.graph.graph import create_edge
 
 
 class SsdPatternRemoveTranspose(FrontReplacementSubgraph):
-
     enabled = True
 
     def run_before(self):
@@ -33,15 +33,14 @@ class SsdPatternRemoveTranspose(FrontReplacementSubgraph):
         return dict(
             nodes=[
                 ('transpose', dict(op='transpose')),
-                ('softmax_activation', dict(op='SoftmaxActivation')),
+                ('softmax_activation', dict(op='Softmax')),
                 ('multi_box_detection', dict(op='_contrib_MultiBoxDetection'))
             ],
             edges=[
                 ('transpose', 'softmax_activation', {'in': 0}),
                 ('softmax_activation', 'multi_box_detection', {'in': 1}),
-            ],
-            node_attrs=['op'],
-            edge_attrs=['in'])
+            ]
+        )
 
     def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
         """

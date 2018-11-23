@@ -20,10 +20,9 @@
 #include "api/CPP/primitive.hpp"
 #include "internal_primitive.h"
 
-#include "to_string_utils.h"
-#include "json_object.h"
-#include "xml_object.h"
 #include "meta_utils.h"
+
+#define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 
 namespace cldnn
 {
@@ -35,6 +34,9 @@ struct typed_program_node;
 
 template <class PType>
 struct internal_primitive_type_base;
+
+class json_composite;
+class xml_composite;
 
 /*
     Base class for all primitives which wraps API class and extends it to be used
@@ -59,6 +61,8 @@ struct program_node
 
     program_node(program_node const&) = delete;
 
+    virtual ~program_node() = default;
+
 public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
@@ -66,17 +70,17 @@ public:
     template <class PType>
     bool is_type() const
     {
-        static_assert(meta::is_primitive_v<PType>, "Type argument for program_node::is_type should be a non-const, non-volatile type derived from primitive");
+        static_assert(meta::is_primitive<PType>::value, "Type argument for program_node::is_type should be a non-const, non-volatile type derived from primitive");
         return type() == PType::type_id();
     }
 
-    auto& get_program() { return myprog; }
-    auto const& get_program() const { return myprog; }
+    program_impl& get_program() { return myprog; }
+    program_impl const& get_program() const { return myprog; }
 
-    auto get_selected_impl() const { return selected_impl; }
+    std::shared_ptr<primitive_impl> get_selected_impl() const { return selected_impl; }
 
-    auto const& get_dependencies() const { return dependencies; }
-    auto& get_dependency(size_t idx) const { return *dependencies.at(idx); }
+    std::vector<program_node*> const& get_dependencies() const { return dependencies; }
+    program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
 
     //replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep, detach_whole_branch)
     void replace_dependency(size_t idx, program_node& new_dep, bool detach_whole_branch = false);
@@ -104,16 +108,12 @@ public:
 
     bool is_detached(bool whole_branch = false);
 
-    auto const& get_users() { return users; }
+    std::list<program_node*> const& get_users() { return users; }
     // for const method, add const to stored successors/predecessors
-    auto const& get_users() const { return reinterpret_cast<const std::list<const program_node*>&>(users); }
+    std::list<const program_node*> const& get_users() const { return reinterpret_cast<const std::list<const program_node*>&>(users); }
 
-    bool has_next() const;
-    program_node* get_next() { auto itr = processing_itr; return (*++itr); }
-    const program_node* get_next() const { auto itr = processing_itr; return (*++itr); }
-
-    json_composite desc_to_json() const;
-	xml_composite desc_to_xml() const;
+    std::unique_ptr<json_composite> desc_to_json() const;
+	std::unique_ptr<xml_composite> desc_to_xml() const;
     //do not modify primitive directly to keep synchronisation wit graph
     std::shared_ptr<const primitive> get_primitive() const { return desc; }
     //primitive modification functions
@@ -153,18 +153,18 @@ public:
     bool has_padded_dependency();
     bool has_padded_dependency() const;
 
-    auto is_input() const { return dependencies.empty(); }
-    auto is_endpoint() const { return users.empty(); }
-    auto set_output(bool out) { output = out; }
-    auto is_output() const { return output; }
+    bool is_input() const { return dependencies.empty(); }
+    bool is_endpoint() const { return users.empty(); }
+    void set_output(bool out) { output = out; }
+    bool is_output() const { return output; }
 
-    auto is_valid_output_layout() const { return valid_output_layout; }
-    auto get_processing_num() const { return processing_num; }
+    bool is_valid_output_layout() const { return valid_output_layout; }
+    uint32_t get_processing_num() const { return processing_num; }
 
     uint8_t mark(uint8_t val = 1) { uint8_t ret = user_mark; user_mark = val; return ret; }
     void unmark() { user_mark = 0; }
-    auto is_marked() const { return user_mark != 0; }
-    auto is_marked(uint8_t val) const { return user_mark == val; }
+    bool is_marked() const { return user_mark != 0; }
+    bool is_marked(uint8_t val) const { return user_mark == val; }
     uint8_t get_user_mark() const { return user_mark; }
 
     void set_fused_activation(cldnn_activation_func activation_func, cldnn_activation_additional_params additional_params)
@@ -183,7 +183,7 @@ public:
         return fused_activation.additional_params;
     }
 
-    auto can_be_optimized() const { return optimized; }
+    bool can_be_optimized() const { return optimized; }
     void can_be_optimized(bool opt) { optimized = opt; }
 
     primitive_id get_org_primitive_id() const { return org_id; }
@@ -192,32 +192,12 @@ public:
         org_id = org_prim_id;
     }
 
-    // returns immidiate dominator of this node if it's not its direct predecessor, otherwise returns nullptr
-    program_node* get_dominator() { return dominator; }
-    const program_node* get_dominator() const { return dominator; }
-
-    //returns joint point associated with this node,
-    //if the node is not a split point (i.e. it has exactly one user) this function returns nullptr,
-    //otherwise returns pointer to a node which immidiately post-dominates this
-    program_node* get_joint() { return joint; }
-    const program_node* get_joint() const { return joint; }
-
-    bool is_joint_point() const { return dominator != nullptr; }
-    bool is_split_point() const { return joint != nullptr; }
-
     bool is_constant() const { return constant; }
     bool has_non_const_user() const { return (!constant || constant_frontier); }
-
-    //returns true if all paths from network's source to sink must come through this node
-    //(i.e. if this is a dominator of all the outputs)
-    //a source, in this context, is defined as an input which lies within a data flow (see is_in_data_flow)
-    bool is_in_main_branch() const { return main_branch; }
-
     //returns true if this node is within main data flow of the network (i.e. it does not describe helper data like convolution's weights etc.)
     bool is_in_data_flow() const { return data_flow; }
-
     //conversion from generic to specific
-    template <class To, class..., class = std::enable_if_t<!std::is_same<To, primitive>::value>>
+    template <class To, class..., class = typename std::enable_if<!std::is_same<To, primitive>::value>::type>
     typed_program_node<To>& as()
     {
         if (type() != To::type_id())
@@ -226,7 +206,7 @@ public:
         return reinterpret_cast<typed_program_node<To>&>(*this);
     }
 
-    template <class To, class..., class = std::enable_if_t<!std::is_same<To, primitive>::value>>
+    template <class To, class..., class = typename std::enable_if<!std::is_same<To, primitive>::value>::type>
     typed_program_node<To> const& as() const
     {
         if (type() != To::type_id())
@@ -268,23 +248,22 @@ protected:
     std::vector<program_node*> dependencies;
     std::list<program_node*> users;
 
+#if defined(__GNUC__) && (GCC_VERSION < 40900)
+    std::list<program_node*>::iterator processing_itr;
+#else
     std::list<program_node*>::const_iterator processing_itr;
+#endif
     uint32_t processing_num = 0;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
     std::set<primitive_id> memory_dependencies;  
 
-    program_node* dominator = nullptr;
-    program_node* joint = nullptr;
     bool constant = false;
     bool constant_frontier = false;
-
-    bool main_branch = true;
     bool data_flow = false;
 
     bool output = false;
     uint8_t user_mark = 0;
-
     bool optimized = false;
 
     mutable bool has_reused_memory = false;
@@ -308,7 +287,7 @@ namespace details
     template <class PType>
     struct api_typed_program_node_base : public program_node
     {
-        static_assert(meta::is_api_primitive_v<PType>, "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from cldnn::internal_primitive");
+        static_assert(meta::is_api_primitive<PType>::value, "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from cldnn::internal_primitive");
         friend struct cldnn::program_impl;
 
     public:
@@ -339,7 +318,7 @@ namespace details
     template <class PType>
     struct internal_typed_program_node_base : public internal_program_node_base
     {
-        static_assert(meta::is_internal_primitive_v<PType>, "PType should name a non-const, non-volatile type derived from cldnn::internal_primitive");
+        static_assert(meta::is_internal_primitive<PType>::value, "PType should name a non-const, non-volatile type derived from cldnn::internal_primitive");
 
     public:
         using internal_program_node_base::internal_program_node_base;
@@ -350,7 +329,7 @@ namespace details
         [[noreturn]]
         void get_primitive(Guard&&...)
         {
-            static_assert(meta::always_false_v<meta::pack<Guard...>>, "Trying to get primitive from internal node");
+            static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
         }
 
 
@@ -359,7 +338,7 @@ namespace details
         [[noreturn]]
         void typed_desc(Guard&&...)
         {
-            static_assert(meta::always_false_v<meta::pack<Guard...>>, "Trying to get primitive from internal node");
+            static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
         }
     };
 }
@@ -373,7 +352,7 @@ This class shadows 'get_primitive' method from base class which now returns poin
 type.
 */
 template <class PType>
-using typed_program_node_base = std::conditional_t<meta::is_api_primitive_v<PType>, details::api_typed_program_node_base<PType>, details::internal_typed_program_node_base<PType>>;
+using typed_program_node_base = typename std::conditional<meta::is_api_primitive<PType>::value, details::api_typed_program_node_base<PType>, details::internal_typed_program_node_base<PType>>::type;
 
 /*
     Actual template class used in context which requires 'program_node' to wrap
@@ -387,7 +366,7 @@ struct typed_program_node : public typed_program_node_base<PType>
 {
     using typed_program_node_base<PType>::typed_program_node_base;
 
-    decltype(auto) input() const { return program_node::get_dependency(0); }
+    program_node& input() const { return program_node::get_dependency(0); }
 };
 
 }

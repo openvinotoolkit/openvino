@@ -30,8 +30,8 @@ struct typed_program_node<normalize> : public typed_program_node_base<normalize>
 public:
     using parent::parent;
 
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) scale() const { return get_dependency(1); }
+    program_node& input() const { return get_dependency(0); }
+    program_node& scale() const { return get_dependency(1); }
 };
 
 using normalize_node = typed_program_node<normalize>;
@@ -47,7 +47,7 @@ public:
 public:
     typed_primitive_inst(network_impl& network, normalize_node const& node);
 
-    decltype(auto) scale_memory() const { return dep_memory(1); }
+    memory_impl& scale_memory() const { return dep_memory(1); }
 };
 
 using normalize_inst = typed_primitive_inst<normalize>;

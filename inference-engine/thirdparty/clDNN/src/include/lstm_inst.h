@@ -29,24 +29,25 @@ struct typed_program_node<lstm> : public typed_program_node_base<lstm>
 public:
     using parent::parent;
 
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) weights() const { return get_dependency(1); }
-    decltype(auto) recurrent() const { return get_dependency(2); }
-    decltype(auto) bias() const { return get_dependency(3); }
-    decltype(auto) inital_hidden() const {
+    program_node& input() const { return get_dependency(0); }
+    program_node& weights() const { return get_dependency(1); }
+    program_node& recurrent() const { return get_dependency(2); }
+    program_node& bias() const { return get_dependency(3); }
+    program_node& inital_hidden() const {
         return get_dependency(bias_term() ? 4 : 3);
     }
-    decltype(auto) inital_cell() const {
+    program_node& inital_cell() const {
         // This doesn't scale. We should use a map to get the dependencies index at primitive level
         return get_dependency(bias_term() ? (initial_hidden_term() ? 5 : 4) : (initial_hidden_term() ? 4 : 2));
     }
-    decltype(auto) peepholes() const { return get_dependency(6); }
+    program_node& peepholes() const { return get_dependency(6); }
     bool bias_term() const { return !get_primitive()->bias.empty(); }
     bool peepholes_term() const { return !get_primitive()->peepholes.empty(); }
     bool initial_hidden_term() const { return !get_primitive()->initial_hidden.empty(); }
     bool initial_cell_term() const { return !get_primitive()->initial_cell.empty(); }
-    auto activations() const { return get_primitive()->activations; }
-    auto activation_params() const { return get_primitive()->activation_params; }
+    std::vector<cldnn_activation_func> activations() const { return get_primitive()->activations; }
+    std::vector<cldnn_activation_additional_params> activation_params() const { return get_primitive()->activation_params; }
+    size_t sequence_len() const { return get_primitive()->input.size(); }
 };
 
 using lstm_node = typed_program_node<lstm>;
@@ -63,23 +64,23 @@ public:
 public:
     typed_primitive_inst(network_impl& network, lstm_node const& node);
 
-    decltype(auto) weights_memory() const { return dep_memory(1); }
-    decltype(auto) recurrent_memory() const { return dep_memory(2); }
-    decltype(auto) bias_memory() const { return dep_memory(3); }
-    decltype(auto) initial_hidden_memory() const
+    memory_impl& weights_memory() const { return dep_memory(1); }
+    memory_impl& recurrent_memory() const { return dep_memory(2); }
+    memory_impl& bias_memory() const { return dep_memory(3); }
+    memory_impl& initial_hidden_memory() const
     {
         return dep_memory(bias_term() ? 4 : 3);
     }
-    decltype(auto) initial_cell_memory() const {
+    memory_impl& initial_cell_memory() const {
         return dep_memory(bias_term() ? (initial_hidden_term() ? 5 : 4) : (initial_hidden_term() ? 4 : 2));
     }
-    decltype(auto) peepholes_memory() const { return dep_memory(6); }
+    memory_impl& peepholes_memory() const { return dep_memory(6); }
     bool bias_term() const { return !argument.bias.empty(); }
     bool peepholes_term() const { return !argument.peepholes.empty(); }
     bool initial_hidden_term() const { return !argument.initial_hidden.empty(); }
     bool initial_cell_term() const { return !argument.initial_cell.empty(); }
-    auto activations() const { return argument.activations; }
-    auto activation_params() const { return argument.activation_params; }
+    std::vector<cldnn_activation_func> activations() const { return argument.activations; }
+    std::vector<cldnn_activation_additional_params> activation_params() const { return argument.activation_params; }
 };
 
 using lstm_inst = typed_primitive_inst<lstm>;

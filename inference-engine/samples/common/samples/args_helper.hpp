@@ -23,19 +23,21 @@
 #endif
 
 /**
-* @brief This function check input args and find images in given folder
+* @brief This function checks input args and existence of specified files in a given folder
+* @param arg path to a file to be checked for existence
+* @return files updated vector of verified input files
 */
-void readImagesArguments(std::vector<std::string> &images, const std::string& arg) {
+void readInputFilesArguments(std::vector<std::string> &files, const std::string& arg) {
     struct stat sb;
     if (stat(arg.c_str(), &sb) != 0) {
-        std::cout << "[ WARNING ] File " << arg << " cannot be opened!" << std::endl;
+        slog::warn << "File " << arg << " cannot be opened!" << slog::endl;
         return;
     }
     if (S_ISDIR(sb.st_mode)) {
         DIR *dp;
         dp = opendir(arg.c_str());
         if (dp == nullptr) {
-            std::cout << "[ WARNING ] Directory " << arg << " cannot be opened!" << std::endl;
+            slog::warn << "Directory " << arg << " cannot be opened!" << slog::endl;
             return;
         }
 
@@ -43,19 +45,29 @@ void readImagesArguments(std::vector<std::string> &images, const std::string& ar
         while (nullptr != (ep = readdir(dp))) {
             std::string fileName = ep->d_name;
             if (fileName == "." || fileName == "..") continue;
-            std::cout << "[ INFO ] Add file  " << ep->d_name << " from directory " << arg << "." << std::endl;
-            images.push_back(arg + "/" + ep->d_name);
+            files.push_back(arg + "/" + ep->d_name);
+        }
+        closedir(dp);
+    } else {
+        files.push_back(arg);
+    }
+
+    if (files.size() < 20) {
+        slog::info << "Files were added: " << files.size() << slog::endl;
+        for (std::string filePath : files) {
+            slog::info << "    " << filePath << slog::endl;
         }
     } else {
-        images.push_back(arg);
+        slog::info << "Files were added: " << files.size() << ". Too many to display each of them." << slog::endl;
     }
 }
 
 /**
 * @brief This function find -i/--images key in input args
 *        It's necessary to process multiple values for single key
+* @return files updated vector of verified input files
 */
-void parseImagesArguments(std::vector<std::string> &images) {
+void parseInputFilesArguments(std::vector<std::string> &files) {
     std::vector<std::string> args = gflags::GetArgvs();
     bool readArguments = false;
     for (size_t i = 0; i < args.size(); i++) {
@@ -69,6 +81,6 @@ void parseImagesArguments(std::vector<std::string> &images) {
         if (args.at(i).c_str()[0] == '-') {
             break;
         }
-        readImagesArguments(images, args.at(i));
+        readInputFilesArguments(files, args.at(i));
     }
 }

@@ -29,8 +29,8 @@ struct typed_program_node<fully_connected_grad_input> : public typed_program_nod
 public:
     using parent::parent;
 
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) weights() const { return get_dependency(2); }
+    program_node& input() const { return get_dependency(0); }
+    program_node& weights() const { return get_dependency(2); }
 
 };
 
@@ -48,7 +48,7 @@ public:
 public:
     typed_primitive_inst(network_impl& network, fully_connected_grad_input_node const& node);
 
-    decltype(auto) weights_memory() const { return dep_memory(2); }
+    memory_impl& weights_memory() const { return dep_memory(2); }
     bool bias_term() const { return false; }
 
 };

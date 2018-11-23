@@ -22,19 +22,16 @@ void DefaultChecker::run(const std::vector<DataPtr>& dataVec, const std::string&
 }
 
 InputController::InputController(const std::vector<DataPtr>& dataVec, const std::string& layerName,
-                                 bool irShapesOnInit, const DefaultChecker::Ptr& checker)
-        : _dataVec(dataVec), _layerName(layerName), _irShapesOnInit(irShapesOnInit) {
+                                 const DefaultChecker::Ptr& checker) : _dataVec(dataVec), _layerName(layerName) {
     checker->run(_dataVec, layerName);
     for (const auto& data : _dataVec) {
         if (data) {
             _dataNames.push_back(data->name);
-            _shapes.emplace_back();
-            _irShapes.emplace_back();
+            SizeVector dims = data->getTensorDesc().getDims();
+            _irShapes.push_back(dims);
         }
     }
-    if (_irShapesOnInit) {
-        _irShapes = getIRShapesInternal();
-    }
+    _shapes = _irShapes;
 }
 
 void InputController::setShapeByName(const SizeVector& shape, const std::string& dataName) {
@@ -68,23 +65,11 @@ void InputController::checkCorrespondence() {
 }
 
 void InputController::reset() {
-    for (auto& shape : _shapes) {
-        shape.clear();
-    }
+    _shapes = _irShapes;
 }
 
 std::vector<SizeVector> InputController::getIRShapes() {
-    return _irShapesOnInit ? _irShapes : getIRShapesInternal();
-}
-
-std::vector<SizeVector> InputController::getIRShapesInternal() {
-    std::vector<SizeVector> shapes;
-    for (const auto& data : _dataVec) {
-        if (data) {
-            shapes.push_back(data->getTensorDesc().getDims());
-        }
-    }
-    return shapes;
+    return _irShapes;
 }
 
 SizeVector InputController::getIRShapeByName(const std::string& dataName) {
@@ -109,9 +94,9 @@ void InputController::setShapeByIndex(const SizeVector& shape, size_t index) {
     _shapes[index] = shape;
 }
 
-OutputController::OutputController(const std::vector<DataPtr>& data, const std::string& layerName, bool irShapesOnInit,
+OutputController::OutputController(const std::vector<DataPtr>& data, const std::string& layerName,
                                    const DefaultChecker::Ptr& checker)
-        : InputController(data, layerName, irShapesOnInit, checker) {}
+        : InputController(data, layerName, checker) {}
 
 void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& launchers) {
     checkCorrespondence();
@@ -120,9 +105,8 @@ void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& lau
         for (auto const& inputTo : outData->inputTo) {
             CNNLayerPtr layer = inputTo.second;
             if (layer == nullptr) {
-                THROW_IE_EXCEPTION << "Failed to propagate shapes for layer ("
-                            << inputTo.first
-                            << "): connected layer is null";
+                THROW_IE_EXCEPTION << "Failed to propagate shapes for layer (" << inputTo.first
+                                   << "): connected layer is null";
             }
             auto layerName = layer->name;
             auto foundLauncher = std::find_if(launchers.begin(), launchers.end(),

@@ -21,12 +21,10 @@
 #include <string>
 #include <vector>
 #include <iostream>
-#include <boost/filesystem.hpp>
-
 
 namespace instrumentation {
     // initalize dumping directory for whole run
-    const std::string logger::dump_dir = "memory_dumps/" + std::to_string(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
+    const std::string logger::dump_dir = DUMP_DIRECTORY;
 
     static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false)
     {
@@ -399,7 +397,6 @@ namespace instrumentation {
 
     void logger::log_memory_to_file(const cldnn::memory& mem, std::string prefix, bool single_batch, cldnn::tensor::value_type batch_id, bool single_feature, cldnn::tensor::value_type feature_id)
     {        
-        boost::filesystem::create_directories(dump_dir);
         auto batch = mem.get_layout().size.batch[0];
         auto feature = mem.get_layout().size.feature[0];
         auto eng_type =  "gpu" ;
@@ -429,7 +426,6 @@ namespace instrumentation {
 
     void logger::log_weights_to_file(const cldnn::memory& mem, std::string prefix)
     {
-        boost::filesystem::create_directories(dump_dir);
         std::stringstream stream;
 
         if (mem.get_layout().data_type == cldnn::data_types::f32)
@@ -438,7 +434,7 @@ namespace instrumentation {
             dump<half_t>(mem, stream);
 
         std::string filename((dump_dir + "/" + prefix + ".txt"));
-        std::ofstream file_stream = std::ofstream(filename, std::ios::out);
+        std::ofstream file_stream(filename);
         file_stream << stream.str();
         file_stream.close();
     }

@@ -71,6 +71,10 @@ struct param_size {
         return os;
     };
 
+    std::string toSeparetedRow(const char* separator) {
+        std::string res = std::to_string(y) + separator + std::to_string(x);
+        return res;
+    }
 };
 
 PRETTY_PARAM(kernel, param_size);
@@ -87,7 +91,7 @@ PRETTY_PARAM(out_channels, unsigned);
 
 PRETTY_PARAM(group, unsigned);
 
-PRETTY_PARAM(dilation_factor, unsigned);
+PRETTY_PARAM(dilation_factor, param_size);
 
 PRETTY_PARAM(pool_type, std::string);
 
@@ -121,14 +125,15 @@ protected:
 
     InferenceEngine::IShapeInferImpl::Ptr getShapeInferImpl(const std::string& type) {
         InferenceEngine::IShapeInferImpl::Ptr impl;
-        holder->getShapeInferImpl(impl, type.c_str(), nullptr);
+        sts = holder->getShapeInferImpl(impl, type.c_str(), &resp);
+        if (sts != InferenceEngine::StatusCode::OK) THROW_IE_EXCEPTION << resp.msg;
         return impl;
     }
 
 protected:
     InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::GENERAL_ERROR;
     InferenceEngine::ResponseDesc resp;
-    std::shared_ptr<InferenceEngine::ShapeInfer::BuiltInShapeInferHolder> holder;
+    std::shared_ptr<InferenceEngine::IShapeInferExtension> holder;
 };
 
 template<class T>
@@ -209,8 +214,9 @@ protected:
             const std::string& layerType,
             const testing::InOutData& inOutShapes,
             std::map<std::string, std::string>* params,
-            const std::string& layerDataName) {
-        testing::XMLHelper xmlHelper(new InferenceEngine::details::V2FormatParser(2));
+            const std::string& layerDataName,
+            int ir_version = 3) {
+        testing::XMLHelper xmlHelper(new InferenceEngine::details::V2FormatParser(ir_version));
         std::string precision = InferenceEngine::Precision(InferenceEngine::Precision::FP32).name();
         auto netBuilder = testing::V2NetBuilder::buildNetworkWithOneInput("Mock", inOutShapes.inDims[0], precision);
         size_t inputsNumber = inOutShapes.inDims.size();

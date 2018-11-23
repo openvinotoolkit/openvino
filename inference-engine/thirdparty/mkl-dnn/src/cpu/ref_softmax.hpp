@@ -95,8 +95,10 @@ private:
     void _max(int n, const data_t *x, data_t *max_data);
     void _sub(int n, data_t alpha, const data_t *x, data_t *y);
     void _exp(int n, const data_t *a, data_t *r);
+    void _exp_parallel(int n, const data_t *a, data_t *r);
     void _sum(int n, const data_t *x, data_t *sum_data);
     void _scal(int n, data_t alpha, data_t *x);
+    void _scal_parallel(int n, data_t alpha, data_t *x);
 
     pd_t conf_;
 

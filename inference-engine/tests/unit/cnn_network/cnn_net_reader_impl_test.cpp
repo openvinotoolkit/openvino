@@ -1695,3 +1695,141 @@ TEST_F(CNNNetReaderImplTest, cycleIsDetectedInReader) {
 
     ASSERT_EQ(GENERAL_ERROR, reader.ReadNetwork(model.data(), model.length(), &resp));
 }
+
+TEST_F(CNNNetReaderImplTest, canRead3DConvolution) {
+    std::string model =
+        "<net batch=\"1\" name=\"Convolution_only\" version=\"3\">"
+        "    <layers>"
+        "        <layer id=\"0\" name=\"1\" precision=\"FP32\" type=\"Input\">"
+        "            <output>"
+        "                <port id=\"0\">"
+        "                    <dim>1</dim>"
+        "                    <dim>3</dim>"
+        "                    <dim>16</dim>"
+        "                    <dim>112</dim>"
+        "                    <dim>112</dim>"
+        "                </port>"
+        "            </output>"
+        "        </layer>"
+        "        <layer id=\"1\" name=\"3D_conv\" precision=\"FP32\" type=\"Convolution\">"
+        "            <data dilations=\"1,3,5\" group=\"1\" kernel=\"1,3,5\" output=\"64\" pads_begin=\"1,3,5\" pads_end=\"1,3,5\" strides=\"1,3,5\"/>"
+        "            <input>"
+        "                <port id=\"0\">"
+        "                    <dim>1</dim>"
+        "                    <dim>3</dim>"
+        "                    <dim>16</dim>"
+        "                    <dim>112</dim>"
+        "                    <dim>112</dim>"
+        "                </port>"
+        "            </input>"
+        "            <output>"
+        "                <port id=\"1\">"
+        "                    <dim>1</dim>"
+        "                    <dim>64</dim>"
+        "                    <dim>16</dim>"
+        "                    <dim>56</dim>"
+        "                    <dim>56</dim>"
+        "                </port>"
+        "            </output>"
+        "            <blobs>"
+        "                <weights offset=\"0\" size=\"263424\"/>"
+        "                <biases offset=\"263424\" size=\"256\"/>"
+        "            </blobs>"
+        "        </layer>"
+        "    </layers>"
+        "    <edges>"
+        "        <edge from-layer=\"0\" from-port=\"0\" to-layer=\"1\" to-port=\"0\"/>"
+        "    </edges>"
+        "</net>";
+
+    CNNNetReaderImpl reader(make_shared<V2FormatParserCreator>());
+    ASSERT_EQ(OK, reader.ReadNetwork(model.data(), model.length(), &resp));
+    ResponseDesc resp;
+    auto network = reader.getNetwork(&resp);
+
+    CNNLayerPtr layer;
+    ASSERT_EQ(OK, network->getLayerByName("3D_conv", layer, nullptr));
+    auto *conv = dynamic_cast<ConvolutionLayer *>(layer.get());
+    ASSERT_NE(nullptr, conv);
+    ASSERT_EQ(conv->_kernel[X_AXIS], 5);
+    ASSERT_EQ(conv->_kernel[Y_AXIS], 3);
+    ASSERT_EQ(conv->_kernel[Z_AXIS], 1);
+    ASSERT_EQ(conv->_dilation[X_AXIS], 5);
+    ASSERT_EQ(conv->_dilation[Y_AXIS], 3);
+    ASSERT_EQ(conv->_dilation[Z_AXIS], 1);
+    ASSERT_EQ(conv->_stride[X_AXIS], 5);
+    ASSERT_EQ(conv->_stride[Y_AXIS], 3);
+    ASSERT_EQ(conv->_stride[Z_AXIS], 1);
+    ASSERT_EQ(conv->_padding[X_AXIS], 5);
+    ASSERT_EQ(conv->_padding[Y_AXIS], 3);
+    ASSERT_EQ(conv->_padding[Z_AXIS], 1);
+    ASSERT_EQ(conv->_pads_end[X_AXIS], 5);
+    ASSERT_EQ(conv->_pads_end[Y_AXIS], 3);
+    ASSERT_EQ(conv->_pads_end[Z_AXIS], 1);
+}
+
+TEST_F(CNNNetReaderImplTest, canRead3DPooling) {
+    std::string model =
+        "<net batch=\"1\" name=\"Pooling_only\" version=\"3\">"
+        "    <layers>"
+        "        <layer id=\"0\" name=\"1\" precision=\"FP32\" type=\"Input\">"
+        "            <output>"
+        "                <port id=\"0\">"
+        "                    <dim>1</dim>"
+        "                    <dim>3</dim>"
+        "                    <dim>16</dim>"
+        "                    <dim>112</dim>"
+        "                    <dim>112</dim>"
+        "                </port>"
+        "            </output>"
+        "        </layer>"
+        "        <layer id=\"1\" name=\"3D_pooling\" precision=\"FP32\" type=\"Pooling\">"
+        "            <data exclude-pad=\"true\" kernel=\"1,3,5\" pads_begin=\"1,3,5\" pads_end=\"1,3,5\" pool-method=\"max\" rounding_type=\"ceil\" strides=\"1,3,5\"/>"
+        "            <input>"
+        "                <port id=\"0\">"
+        "                    <dim>1</dim>"
+        "                    <dim>3</dim>"
+        "                    <dim>16</dim>"
+        "                    <dim>112</dim>"
+        "                    <dim>112</dim>"
+        "                </port>"
+        "            </input>"
+        "            <output>"
+        "                <port id=\"1\">"
+        "                    <dim>1</dim>"
+        "                    <dim>64</dim>"
+        "                    <dim>8</dim>"
+        "                    <dim>28</dim>"
+        "                    <dim>28</dim>"
+        "                </port>"
+        "            </output>"
+        "        </layer>"
+        "    </layers>"
+        "    <edges>"
+        "        <edge from-layer=\"0\" from-port=\"0\" to-layer=\"1\" to-port=\"0\"/>"
+        "    </edges>"
+        "</net>";
+
+    CNNNetReaderImpl reader(make_shared<V2FormatParserCreator>());
+    ASSERT_EQ(OK, reader.ReadNetwork(model.data(), model.length(), &resp));
+    ResponseDesc resp;
+    auto network = reader.getNetwork(&resp);
+
+    CNNLayerPtr layer;
+
+    ASSERT_EQ(OK, network->getLayerByName("3D_pooling", layer, nullptr));
+    auto *pool = dynamic_cast<PoolingLayer *>(layer.get());
+    ASSERT_NE(nullptr, pool);
+    ASSERT_EQ(pool->_kernel[X_AXIS], 5);
+    ASSERT_EQ(pool->_kernel[Y_AXIS], 3);
+    ASSERT_EQ(pool->_kernel[Z_AXIS], 1);
+    ASSERT_EQ(pool->_stride[X_AXIS], 5);
+    ASSERT_EQ(pool->_stride[Y_AXIS], 3);
+    ASSERT_EQ(pool->_stride[Z_AXIS], 1);
+    ASSERT_EQ(pool->_padding[X_AXIS], 5);
+    ASSERT_EQ(pool->_padding[Y_AXIS], 3);
+    ASSERT_EQ(pool->_padding[Z_AXIS], 1);
+    ASSERT_EQ(pool->_pads_end[X_AXIS], 5);
+    ASSERT_EQ(pool->_pads_end[Y_AXIS], 3);
+    ASSERT_EQ(pool->_pads_end[Z_AXIS], 1);
+}

@@ -35,6 +35,7 @@ private:
     bool withBiases;
     bool withGroups;
     bool isDW;
+    size_t groupNum = 1;
     std::vector<int> stride;
     std::vector<int> paddingL;
     std::vector<int> dilation;

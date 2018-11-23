@@ -49,11 +49,11 @@ class FrontReplacementFromConfigFileGeneral(FrontReplacementPattern):
             if 'custom_attributes' in desc._replacement_desc:
                 self.transform_graph(graph, desc._replacement_desc['custom_attributes'])
             else:
-                log.info("Failed to find \'custom_attributes\' in replacement description with id '{}'".format(self.replacement_id))
+                log.info("Failed to find \'custom_attributes\' in replacement description with id '{}'".format(
+                    self.replacement_id))
 
     registered_ops = {}
     registered_cls = []
-
 
     @classmethod
     def class_type(cls):
@@ -110,7 +110,10 @@ class FrontReplacementFromConfigFileOp(FrontReplacementFromConfigFileSubGraph):
     def __init__(self):
         super().__init__()
 
-    def input_edges_match(self, graph: nx.DiGraph, match: SubgraphMatch, new_sub_graph: dict):
+    def input_edges_match(self,  # pylint: disable=method-hidden
+                          graph: nx.DiGraph,
+                          match: SubgraphMatch,
+                          new_sub_graph: dict):
         """
         Function that generates matching of sub-graph input edges to a new sub-graph input edges. It works in case when
         the sub-graph is replaced with a single custom-layer node.
@@ -127,7 +130,10 @@ class FrontReplacementFromConfigFileOp(FrontReplacementFromConfigFileSubGraph):
             input_edges_match[(input_node.id, input_port)] = (new_sub_graph['new_node'].id, sub_graph_input_port)
         return input_edges_match
 
-    def output_edges_match(self, graph: nx.DiGraph, match: SubgraphMatch, new_sub_graph: dict):
+    def output_edges_match(self,  # pylint: disable=method-hidden
+                           graph: nx.DiGraph,
+                           match: SubgraphMatch,
+                           new_sub_graph: dict):
         """
         Function that generates matching of sub-graph output edges to a new sub-graph output edges. It works in case
         when the sub-graph is replaced with a single custom-layer node.
@@ -160,8 +166,8 @@ class FrontReplacementFromConfigFileOp(FrontReplacementFromConfigFileSubGraph):
                 if key not in ['name', 'op']:
                     node_attrs[key] = op.attrs[key]
             # functions below should return nothing because 'merge_nodes' already created input/output edges
-            self.input_edges_match = lambda gr, ma, new_sub_graph: dict()
-            self.output_edges_match = lambda gr, ma, new_sub_graph: dict()
+            self.input_edges_match = lambda gr, ma, new_sub_graph: dict()  # pylint: disable=method-hidden
+            self.output_edges_match = lambda gr, ma, new_sub_graph: dict()  # pylint: disable=method-hidden
         else:
             node = op.add_node(name=op.attrs['type'] + '_')
             node.type = op.attrs['type']

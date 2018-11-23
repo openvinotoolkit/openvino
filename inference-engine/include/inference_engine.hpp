@@ -21,6 +21,8 @@
 #include <ie_device.hpp>
 #include <ie_plugin_dispatcher.hpp>
 #include <ie_plugin_config.hpp>
+#include <ie_icnn_network.hpp>
+#include <ie_icnn_network_stats.hpp>
 #include <cpp/ie_cnn_net_reader.h>
 #include <cpp/ie_plugin_cpp.hpp>
 #include <cpp/ie_executable_network.hpp>
@@ -176,6 +178,5 @@ void copyToFloat(float *dst, const InferenceEngine::Blob *src) {
     }
     for (size_t i = 0; i < t_blob->size(); i++) dst[i] = srcPtr[i];
 }
-
 
 }  // namespace InferenceEngine

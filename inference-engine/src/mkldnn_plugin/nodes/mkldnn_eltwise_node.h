@@ -26,11 +26,14 @@ public:
 
     bool isSum();
     bool isUnitScales();
+    void initOptimalPrimitiveDescriptor() override;
 
 private:
     static Register<MKLDNNEltwiseNode> reg;
     InferenceEngine::EltwiseLayer::eOperation op;
     std::vector<float> sum_scales;
+
+    template <typename T0, typename T1> void ref_eltwise(int in0, int in1);
 };
 
 }  // namespace MKLDNNPlugin

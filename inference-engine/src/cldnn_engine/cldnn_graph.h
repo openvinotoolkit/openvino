@@ -42,7 +42,6 @@ struct InferenceEnv {
 
     std::map<std::string, InferenceEngine::SizeVector> outputDims;
     std::map<std::string, cldnn::layout> inputLayouts;
-    std::map<cldnn::primitive_id, cldnn::memory> constBlobs;
 
     std::vector<std::shared_ptr<cldnn::network>> batchNetworks;
     int m_max_batch;
@@ -54,7 +53,7 @@ public:
     typedef std::shared_ptr<CLDNNGraph> Ptr;
     struct Config {
         Config() : useProfiling(false), dumpCustomKernels(false), exclusiveAsyncRequests(false),
-            memory_pool_on(false),
+            memory_pool_on(true),
             enableDynamicBatch(false),
             queuePriority(cldnn::priority_mode_types::disabled),
             queueThrottle(cldnn::throttle_mode_types::disabled) {}
@@ -143,6 +142,8 @@ protected:
         ArgMax,
         MVN,
         Unpooling,
+        Tile,
+        RNN,
         NO_TYPE
     };
 
@@ -242,6 +243,8 @@ protected:
     void CreateArgMaxPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void CreateMaxUnpoolingPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void CreateMVNPrimitive(InferenceEngine::CNNLayerPtr &layer);
+    void CreateTilePrimitive(InferenceEngine::CNNLayerPtr &layer);
+    void CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void AddConstantBlobInput(InferenceEngine::CNNLayerPtr &layer);
     void CreateCustomLayerPrimitive(InferenceEngine::CNNLayerPtr &layer, CLDNNCustomLayerPtr customLayer);
 };

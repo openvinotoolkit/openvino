@@ -13,9 +13,63 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging as log
+import re
 
 from mo.utils.error import Error
 from mo.utils.simple_proto_parser import SimpleProtoParser
+
+
+# The list of rules how to map the value from the pipeline.config file to the dictionary with attributes.
+# The rule is either a string or a tuple with two elements. In the first case the rule string is used as a key to
+# search in the parsed pipeline.config file attributes dictionary and a key to save found value. In the second case the
+# first element of the tuple is the key to save found value; the second element of the tuple is a string defining the
+# path to the value of the attribute in the pipeline.config file. The path consists of the regular expression strings
+# defining the dictionary key to look for separated with a '/' character.
+mapping_rules = [
+    'num_classes',
+    # preprocessing block attributes
+    ('resizer_image_height', 'image_resizer/fixed_shape_resizer/height'),
+    ('resizer_image_width', 'image_resizer/fixed_shape_resizer/width'),
+    ('resizer_min_dimension', 'image_resizer/keep_aspect_ratio_resizer/min_dimension'),
+    ('resizer_max_dimension', 'image_resizer/keep_aspect_ratio_resizer/max_dimension'),
+    # anchor generator attributes
+    ('anchor_generator_height', 'first_stage_anchor_generator/grid_anchor_generator/height$', 256),
+    ('anchor_generator_width', 'first_stage_anchor_generator/grid_anchor_generator/width$', 256),
+    ('anchor_generator_height_stride', 'first_stage_anchor_generator/grid_anchor_generator/height_stride', 16),
+    ('anchor_generator_width_stride', 'first_stage_anchor_generator/grid_anchor_generator/width_stride', 16),
+    ('anchor_generator_scales', 'first_stage_anchor_generator/grid_anchor_generator/scales'),
+    ('anchor_generator_aspect_ratios', 'first_stage_anchor_generator/grid_anchor_generator/aspect_ratios'),
+    ('multiscale_anchor_generator_min_level', 'anchor_generator/multiscale_anchor_generator/min_level'),
+    ('multiscale_anchor_generator_max_level', 'anchor_generator/multiscale_anchor_generator/max_level'),
+    ('multiscale_anchor_generator_anchor_scale', 'anchor_generator/multiscale_anchor_generator/anchor_scale'),
+    ('multiscale_anchor_generator_aspect_ratios', 'anchor_generator/multiscale_anchor_generator/aspect_ratios'),
+    ('multiscale_anchor_generator_scales_per_octave', 'anchor_generator/multiscale_anchor_generator/scales_per_octave'),
+    # SSD anchor generator attributes
+    ('ssd_anchor_generator_min_scale', 'anchor_generator/ssd_anchor_generator/min_scale'),
+    ('ssd_anchor_generator_max_scale', 'anchor_generator/ssd_anchor_generator/max_scale'),
+    ('ssd_anchor_generator_num_layers', 'anchor_generator/ssd_anchor_generator/num_layers'),
+    ('ssd_anchor_generator_aspect_ratios', 'anchor_generator/ssd_anchor_generator/aspect_ratios'),
+    ('ssd_anchor_generator_reduce_lowest', 'anchor_generator/ssd_anchor_generator/reduce_boxes_in_lowest_layer'),
+    ('ssd_anchor_generator_base_anchor_height', 'anchor_generator/ssd_anchor_generator/base_anchor_height', 1.0),
+    ('ssd_anchor_generator_base_anchor_width', 'anchor_generator/ssd_anchor_generator/base_anchor_width', 1.0),
+    # Proposal and ROI Pooling layers attributes
+    ('first_stage_nms_score_threshold', '.*_nms_score_threshold'),
+    ('first_stage_nms_iou_threshold', '.*_nms_iou_threshold'),
+    ('first_stage_max_proposals', '.*_max_proposals'),
+    'initial_crop_size',
+    # Detection Output layer attributes
+    ('postprocessing_score_converter', '.*/score_converter'),
+    ('postprocessing_score_threshold', '.*/batch_non_max_suppression/score_threshold'),
+    ('postprocessing_iou_threshold', '.*/batch_non_max_suppression/iou_threshold'),
+    ('postprocessing_max_detections_per_class', '.*/batch_non_max_suppression/max_detections_per_class'),
+    ('postprocessing_max_total_detections', '.*/batch_non_max_suppression/max_total_detections'),
+    # Variances for predicted bounding box deltas (tx, ty, tw, th)
+    ('frcnn_variance_x', 'box_coder/faster_rcnn_box_coder/x_scale', 10.0),
+    ('frcnn_variance_y', 'box_coder/faster_rcnn_box_coder/y_scale', 10.0),
+    ('frcnn_variance_width', 'box_coder/faster_rcnn_box_coder/width_scale', 5.0),
+    ('frcnn_variance_height', 'box_coder/faster_rcnn_box_coder/height_scale', 5.0)
+]
 
 
 class PipelineConfig:
@@ -33,57 +87,55 @@ class PipelineConfig:
 
         self._initialize_model_params()
 
+    @staticmethod
+    def _get_value_by_path(params: dict, path: list):
+        if not path or len(path) == 0:
+            return None
+        if not isinstance(params, dict):
+            return None
+        compiled_regexp = re.compile(path[0])
+        for key in params.keys():
+            if re.match(compiled_regexp, key):
+                if len(path) == 1:
+                    return params[key]
+                else:
+                    value = __class__._get_value_by_path(params[key], path[1:])
+                    if value is not None:
+                        return value
+        return None
+
+    def _update_param_using_rule(self, params: dict, rule: [str, tuple]):
+        if isinstance(rule, str):
+            if rule in params:
+                self._model_params[rule] = params[rule]
+                log.debug('Found value "{}" for path "{}"'.format(params[rule], rule))
+        elif isinstance(rule, tuple):
+            if len(rule) != 2 and len(rule) != 3:
+                raise Error('Invalid rule length. Rule must be a tuple with two elements: key and path, or three '
+                            'elements: key, path, default_value.')
+            value = __class__._get_value_by_path(params, rule[1].split('/'))
+            if value is not None:
+                log.debug('Found value "{}" for path "{}"'.format(value, rule[1]))
+                self._model_params[rule[0]] = value
+            elif len(rule) == 3:
+                self._model_params[rule[0]] = rule[2]
+                log.debug('There is no value path "{}". Set default value "{}"'.format(value, rule[2]))
+
+        else:
+            raise Error('Invalid rule type. Rule can be either string or tuple')
+
     def _initialize_model_params(self):
         """
         Store global params in the dedicated dictionary self._model_params for easier use.
         :return: None
         """
+
+        if 'model' not in self._raw_data_dict:
+            raise Error('The "model" key is not found in the configuration file. Looks like the parsed file is not '
+                        'Object Detection API model configuration file.')
         params = list(self._raw_data_dict['model'].values())[0]
-
-        # global topology parameters
-        self._model_params['num_classes'] = params['num_classes']
-
-        # pre-processing of the image
-        self._model_params['image_resizer'] = list(params['image_resizer'].keys())[0]
-        image_resize_params = list(params['image_resizer'].values())[0]
-        if self._model_params['image_resizer'] == 'keep_aspect_ratio_resizer':
-            self._model_params['preprocessed_image_height'] = image_resize_params['min_dimension']
-            self._model_params['preprocessed_image_width'] = self._model_params['preprocessed_image_height']
-        elif self._model_params['image_resizer'] == 'fixed_shape_resizer':
-            self._model_params['preprocessed_image_height'] = image_resize_params['height']
-            self._model_params['preprocessed_image_width'] = image_resize_params['width']
-        else:
-            raise Error('Unknown image resizer type "{}"'.format(self._model_params['image_resizer']))
-
-        # grid anchors generator
-        if 'first_stage_anchor_generator' in params:
-            grid_params = params['first_stage_anchor_generator']['grid_anchor_generator']
-            self._model_params['anchor_generator_base_size'] = 256
-            self._model_params['anchor_generator_stride'] = grid_params['height_stride']
-            self._model_params['anchor_generator_scales'] = grid_params['scales']
-            self._model_params['anchor_generator_aspect_ratios'] = grid_params['aspect_ratios']
-
-        if 'feature_extractor' in params:
-            if 'first_stage_features_stride' in params['feature_extractor']:
-                self._model_params['features_extractor_stride'] = params['feature_extractor']['first_stage_features_stride']
-            else:  # the value is not specified in the configuration file for NASNet so use default value here
-                self._model_params['features_extractor_stride'] = 16
-
-        # Proposal and ROI Pooling layers
-        for param in ['first_stage_nms_score_threshold', 'first_stage_nms_iou_threshold', 'first_stage_max_proposals',
-                      'initial_crop_size']:
-            if param in params:
-                self._model_params[param] = params[param]
-
-        # post-processing parameters
-        postprocessing_params = None
-        for postpocessing_type in ['post_processing', 'second_stage_post_processing']:
-            if postpocessing_type in params:
-                postprocessing_params = params[postpocessing_type]['batch_non_max_suppression']
-                self._model_params['postprocessing_score_converter'] = params[postpocessing_type]['score_converter']
-        if postprocessing_params is not None:
-            for param in ['score_threshold', 'iou_threshold', 'max_detections_per_class', 'max_total_detections']:
-                self._model_params['postprocessing_' + param] = postprocessing_params[param]
+        for rule in mapping_rules:
+            self._update_param_using_rule(params, rule)
 
     def get_param(self, param: str):
         if param not in self._model_params:

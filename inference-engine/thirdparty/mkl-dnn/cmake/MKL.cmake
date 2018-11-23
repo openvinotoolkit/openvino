@@ -162,8 +162,16 @@ function(detect_mkl LIBNAME)
     endif()
 endfunction()
 
-detect_mkl("mklml_intel")
-detect_mkl("mklml")
+# Both mklml_intel and mklml_gnu are OpenMP based.
+# So in case of TBB link with Intel MKL (RT library) and either set:
+#   MKL_THREADING_LAYER=tbb
+# to make Intel MKL use TBB threading as well, or
+#   MKL_THREADING_LAYER=sequential
+# to make Intel MKL be sequential.
+if(NOT MKLDNN_THREADING STREQUAL "TBB")
+    detect_mkl("mklml_intel")
+    detect_mkl("mklml")
+endif()
 detect_mkl("mkl_rt")
 
 if(HAVE_MKL)

@@ -18,11 +18,11 @@ import logging as log
 
 import networkx as nx
 
+from extensions.front.squared_difference import SquaredDifference
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, replace_node
 from mo.ops.eltwise import Eltwise
 from mo.ops.op import Op
-from extensions.front.squared_difference import SquaredDifference
 
 
 class MVN(FrontReplacementSubgraph):
@@ -51,9 +51,7 @@ class MVN(FrontReplacementSubgraph):
                 ('variance', 'squeeze_variance', {'in': 0}),
                 ('squeeze_mean', 'fbn', {'in': 3}),
                 ('squeeze_variance', 'fbn', {'in': 4}),
-            ],
-            node_attrs=['op'],
-            edge_attrs=['in'])
+            ])
 
     def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
         fbn = match['fbn']
@@ -80,10 +78,11 @@ class MVN(FrontReplacementSubgraph):
         input_beta = fbn.in_node(2)
 
         mean_reduction = match['mean'].in_node(1)
+        variance_reduction = match['variance'].in_node(1)
 
         new_subgraph = add.create_node([
             mul.create_node([
-                mvn.create_node([input, mean_reduction]),
+                mvn.create_node([input, mean_reduction, variance_reduction]),
                 input_gamma
             ]),
             input_beta
@@ -93,17 +92,19 @@ class MVN(FrontReplacementSubgraph):
 
     @staticmethod
     def infer(node: Node):
-        if not (node.in_node(1).has_valid('value')):
+        if not (node.in_node(1).has_valid('value') and node.in_node(2).has_valid('value')):
             log.warning('Reduction indices for mean and variance for MVN node {} are not constants'.format(node.name))
             return
 
-        if not (all(node.in_node(1).value == node.required_reduction_indices)):
+        if not (all(node.in_node(1).value == node.required_reduction_indices) and
+                    all(node.in_node(2).value == node.required_reduction_indices)):
             log.warning('Reduction indices for mean {} and variance {} do not match required ones {}'.format(
                 node.in_node(1).value,
-                node.in_node(1).value,
+                node.in_node(2).value,
                 node.required_reduction_indices
             ))
             return
 
+        node.graph.remove_edge(node.in_node(2).id, node.id)
         node.graph.remove_edge(node.in_node(1).id, node.id)
         node.old_infer(node)

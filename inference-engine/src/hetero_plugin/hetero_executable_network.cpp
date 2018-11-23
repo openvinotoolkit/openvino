@@ -18,12 +18,13 @@
 #include <ie_plugin_dispatcher.hpp>
 #include <ie_graph_splitter.hpp>
 #include "fallback_policy.h"
-#include <caseless.hpp>
+#include "details/caseless.hpp"
 #include "ie_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "precision_utils.h"
 
 using namespace InferenceEngine;
+using namespace details;
 using namespace HeteroPlugin;
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::HeteroConfigParams;
@@ -83,14 +84,16 @@ void dumpGraph(InferenceEngine::ICNNNetwork &network,
 HeteroExecutableNetwork::HeteroExecutableNetwork(InferenceEngine::ICNNNetwork &network,
                                                  const std::map<std::string, std::string> &config,
                                                  const std::vector<InferenceEngine::IExtensionPtr> &extensions,
-                                                 MapDeviceLoaders& deviceLoaders) :
+                                                 MapDeviceLoaders& deviceLoaders,
+                                                 InferenceEngine::IErrorListener *listener) :
     _deviceLoaders(deviceLoaders) {
-    load(network, config, extensions);
+    load(network, config, extensions, listener);
 }
 
 void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
                                    const std::map<std::string, std::string> &config,
-                                   const std::vector<InferenceEngine::IExtensionPtr> &extensions) {
+                                   const std::vector<InferenceEngine::IExtensionPtr> &extensions,
+                                   InferenceEngine::IErrorListener *listener) {
     auto networkPtr = cloneNet(network_);
     auto& network = *networkPtr;
 
@@ -101,18 +104,25 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
         CNNLayer::Ptr layer = *i;
         if (!layer->affinity.empty()) {
             allEmpty = false;
+            break;
         }
         i++;
     }
 
     auto itDumpDotFile = config.find(KEY_HETERO_DUMP_GRAPH_DOT);
     bool dumpDotFile = itDumpDotFile != config.end() ? itDumpDotFile->second == YES : false;
+#ifndef NDEBUG
+    dumpDotFile  = true;
+#endif
 
     if (allEmpty) {
         FallbackPolicy fbPolicy(_deviceLoaders, dumpDotFile);
         auto it = config.find("TARGET_FALLBACK");
         if (it != config.end()) {
             fbPolicy.init(it->second, config, extensions);
+            if (listener)
+                for (auto& device_loader : _deviceLoaders)
+                    device_loader.second->SetLogCallback(*listener);
             fbPolicy.setAffinity(config, network);
         } else {
             THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
@@ -156,18 +166,15 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
 
     auto subgraphs = splitGraph(network, getAffinities(network));
 
-    if (dumpDotFile) {
-        char name[1024];
-        network.getName(name, sizeof(name));
+    sortSubgraphs(subgraphs);
 
+    if (dumpDotFile) {
         std::stringstream stream(std::stringstream::out);
-        stream << "hetero_subgraphs_" << name << ".dot";
+        stream << "hetero_subgraphs_" << network.getName() << ".dot";
 
         std::ofstream file(stream.str().c_str());
         dumpGraph(network, subgraphs, file);
     }
-
-    sortSubgraphs(subgraphs);
 
     std::vector<NetworkDesc> descs;
     PluginDispatcher dispatcher({ "" });
@@ -186,6 +193,8 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
             pdl->initConfigs(config, extensions);
             _deviceLoaders[affinity] = loader;
         }
+        if (listener)
+            _deviceLoaders[affinity]->SetLogCallback(*listener);
     }
 
     for (auto &&subgraph : subgraphs) {

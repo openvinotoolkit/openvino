@@ -1,7 +1,3 @@
-# Copyright (C) 2018 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
-
 project(pugixml)
 
 cmake_minimum_required(VERSION 2.6)

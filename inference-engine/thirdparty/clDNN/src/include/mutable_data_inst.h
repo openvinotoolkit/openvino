@@ -30,10 +30,10 @@ struct typed_program_node<mutable_data> : public typed_program_node_base<mutable
     typed_program_node(const std::shared_ptr<mutable_data> prim, program_impl& prog);
 
     memory_impl& get_attached_memory() const { return *mem; }
-    auto get_attached_memory_ptr() const { return mem; }
+    memory_impl::ptr get_attached_memory_ptr() const { return mem; }
     void attach_memory(memory_impl& new_mem, bool invalidate_users_if_changed = true);
 
-    decltype(auto) input(size_t idx = 0) const { return get_dependency(idx); }
+    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
 
 private:
     memory_impl::ptr mem;

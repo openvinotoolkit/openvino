@@ -143,8 +143,8 @@ std::string reorder_inst::to_string(reorder_node const& node)
         reorder_info.add("subtract per feature", desc->subtract_per_feature);
     } 
 
-    node_info.add("reorder info", reorder_info);
-    node_info.dump(primitive_description);
+    node_info->add("reorder info", reorder_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

@@ -11,7 +11,10 @@
 #include <vector>
 #include <utility>
 #include <algorithm>
+#if defined(HAVE_AVX2)
 #include <immintrin.h>
+#endif
+#include "ie_parallel.hpp"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -80,13 +83,7 @@ void enumerate_proposals_cpu(const float* bottom4d, const float* d_anchor4d, con
     const float* p_anchors_wp = anchors + 2 * num_anchors;
     const float* p_anchors_hp = anchors + 3 * num_anchors;
 
-#if _MSC_VER && !__INTEL_COMPILER
-    #pragma omp parallel for schedule(static)
-#else
-    #pragma omp parallel for collapse(2) schedule(static)
-#endif
-    for (int h = 0; h < bottom_H; ++h) {
-        for (int w = 0; w < bottom_W; ++w) {
+    parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
             const float x = (swap_xy ? h : w) * feat_stride;
             const float y = (swap_xy ? w : h) * feat_stride;
 
@@ -154,18 +151,16 @@ void enumerate_proposals_cpu(const float* bottom4d, const float* d_anchor4d, con
                 p_proposal[5*anchor + 3] = y1;
                 p_proposal[5*anchor + 4] = (min_box_W <= box_w) * (min_box_H <= box_h) * score;
             }
-        }
-    }
+    });
 }
 
 static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn) {
-    #pragma omp parallel for schedule(static)
-    for (int i = 0; i < pre_nms_topn; i++) {
+    parallel_for(pre_nms_topn, [&](size_t i) {
         unpacked_boxes[0*pre_nms_topn + i] = p_proposals[5*i + 0];
         unpacked_boxes[1*pre_nms_topn + i] = p_proposals[5*i + 1];
         unpacked_boxes[2*pre_nms_topn + i] = p_proposals[5*i + 2];
         unpacked_boxes[3*pre_nms_topn + i] = p_proposals[5*i + 3];
-    }
+    });
 }
 
 static
@@ -302,8 +297,7 @@ void retrieve_rois_cpu(const int num_rois, const int item_index,
     const float *src_x1 = proposals + 2 * num_proposals;
     const float *src_y1 = proposals + 3 * num_proposals;
 
-    #pragma omp parallel for schedule(static)
-    for (int roi = 0; roi < num_rois; roi++) {
+    parallel_for(num_rois, [&](size_t roi) {
         int index = roi_indices[roi];
 
         const float x0 = src_x0[index];
@@ -316,7 +310,7 @@ void retrieve_rois_cpu(const int num_rois, const int item_index,
         rois[roi * 5 + 2] = y0;
         rois[roi * 5 + 3] = x1;
         rois[roi * 5 + 4] = y1;
-    }
+    });
 
     if (num_rois < post_nms_topn_) {
         for (int i = 5 * num_rois; i < 5 * post_nms_topn_; i++) {
@@ -402,8 +396,8 @@ public:
         const int bottom_W = inputs[0]->getTensorDesc().getDims()[3];
 
         // input image height & width
-        const float img_H = p_img_info_cpu[0];
-        const float img_W = p_img_info_cpu[1];
+        const float img_H = p_img_info_cpu[swap_xy ? 1 : 0];
+        const float img_W = p_img_info_cpu[swap_xy ? 0 : 1];
 
         // scale factor for height & width
         const float scale_H = p_img_info_cpu[2];

@@ -18,7 +18,7 @@ import copy
 import networkx as nx
 import numpy as np
 from mo.graph.graph import Node
-from mo.ops.op import Op
+from mo.ops.op import Op, PermuteAttrs
 
 
 class Split(Op):
@@ -45,3 +45,5 @@ class Split(Op):
         out_shape[node.axis] = np.int64(input_node.shape[node.axis] / node.pb.num_split)
         for idx, output in outputs.items():
             output.shape = out_shape
+        PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
+

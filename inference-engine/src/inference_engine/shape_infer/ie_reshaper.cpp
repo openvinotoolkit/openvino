@@ -10,22 +10,27 @@
 #include <tuple>
 #include <ie_layers.h>
 #include <graph_tools.hpp>
-#include <ie_layer_validators.hpp>
 #include <debug.h>
 
 #include "shape_infer/built-in/ie_built_in_holder.hpp"
 #include "shape_infer/ie_reshaper.hpp"
-#include "caseless.hpp"
+#include "details/caseless.hpp"
+#include "details/ie_cnn_network_tools.h"
 
 using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 using namespace ShapeInfer;
 
-Reshaper::Reshaper(const ICNNNetwork& network, const LauncherCreator::Ptr& launcherCreator) {
+Reshaper::Reshaper(ICNNNetwork& network, const LauncherCreator::Ptr& launcherCreator) {
     auto builtIn = std::make_shared<BuiltInShapeInferHolder>();
     _allTypes = getTypeNamesFromExtension(builtIn);
     _extensions.push_back(builtIn);
 
-    _inputLayers = CNNNetGetAllInputLayers(network);
+    auto inputLayers = CNNNetGetAllInputLayers(network);
+    for (const auto& layer : inputLayers) {
+        _inputLayers.insert(layer);
+    }
+
     _allSortedLayers = CNNNetSortTopologically(network);
     if (_inputLayers.empty() || _allSortedLayers.empty())
         THROW_IE_EXCEPTION << "Unsupported model for shape inference: failed to collect inputs and layers";
@@ -136,14 +141,15 @@ caseless_set<std::string> Reshaper::getTypeNamesFromExtension(const IShapeInferE
     char** types = nullptr;
     unsigned int size = 0;
     ResponseDesc resp;
-    StatusCode sts;
-    sts = extension->getPrimitiveTypes(types, size, &resp);
+    StatusCode sts = extension->getShapeInferTypes(types, size, &resp);
     if (sts != OK) THROW_IE_EXCEPTION << "Failed to get types from extension: " << resp.msg;
     caseless_set<std::string> typesSet;
     for (int i = 0; i < size; i++) {
         std::string type(types[i], strlen(types[i]));
+        delete[] types[i];
         typesSet.insert(type);
     }
+    delete[] types;
     return typesSet;
 }
 

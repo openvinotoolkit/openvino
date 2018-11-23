@@ -28,9 +28,9 @@ struct typed_program_node<proposal> : public typed_program_node_base<proposal>
     using parent = typed_program_node_base<proposal>;
     using parent::parent;
 
-    decltype(auto) cls_score() const { return get_dependency(0); }
-    decltype(auto) bbox_pred() const { return get_dependency(1); }
-    decltype(auto) image_info() const { return get_dependency(2); }
+    program_node& cls_score() const { return get_dependency(0); }
+    program_node& bbox_pred() const { return get_dependency(1); }
+    program_node& image_info() const { return get_dependency(2); }
 };
 
 using proposal_node = typed_program_node<proposal>;

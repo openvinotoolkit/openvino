@@ -67,14 +67,10 @@ void jit_uni_pooling_fwd_t<isa>::execute_forward() {
         (*kernel_)(&arg);
     };
 
-#   pragma omp parallel for collapse(3) schedule(static)
-    for (int n = 0; n < mb; ++n) {
-        for (int b_c = 0; b_c < jpp.nb_c; ++b_c) {
-            for (int oh = 0; oh < jpp.oh; ++oh) {
-                ker(n, b_c, oh);
-            }
-        }
-    }
+    parallel_nd(mb, jpp.nb_c, jpp.oh,
+        [&](int n, int b_c, int oh) {
+        ker(n, b_c, oh);
+    });
 }
 
 template <cpu_isa_t isa>
@@ -124,21 +120,17 @@ void jit_uni_pooling_fwd_t<isa>::execute_forward_3d() {
         (*kernel_)(&arg);
     };
 
-#   pragma omp parallel for collapse(3) schedule(static)
-    for (int n = 0; n < mb; ++n) {
-        for (int b_c = 0; b_c < jpp.nb_c; ++b_c) {
-            for (int od = 0; od < jpp.od; ++od) {
-                const int ik = od * jpp.stride_d;
-                const int d_t_overflow = nstl::max(0, jpp.f_pad-ik);
-                const int d_b_overflow = nstl::max(jpp.id, ik+jpp.kd-jpp.f_pad)
-                    -jpp.id;
-                const int id = nstl::max(ik - jpp.f_pad, 0);
-                for (int oh = 0; oh < jpp.oh; ++oh) {
-                    ker(n, b_c, od, oh, id, d_t_overflow, d_b_overflow);
-                }
-            }
+    parallel_nd(mb, jpp.nb_c, jpp.od,
+        [&](int n, int b_c, int od) {
+        const int ik = od * jpp.stride_d;
+        const int d_t_overflow = nstl::max(0, jpp.f_pad-ik);
+        const int d_b_overflow = nstl::max(jpp.id, ik+jpp.kd-jpp.f_pad)
+            -jpp.id;
+        const int id = nstl::max(ik - jpp.f_pad, 0);
+        for (int oh = 0; oh < jpp.oh; ++oh) {
+            ker(n, b_c, od, oh, id, d_t_overflow, d_b_overflow);
         }
-    }
+    });
 }
 
 
@@ -183,14 +175,11 @@ void jit_uni_pooling_bwd_t<isa>::execute_backward() {
         (*kernel_)(&arg);
     };
 
-#   pragma omp parallel for collapse(2) schedule(static)
-    for (int n = 0; n < mb; ++n) {
-        for (int b_c = 0; b_c < jpp.nb_c; ++b_c) {
-            for (int oh = 0; oh < jpp.oh; ++oh) {
-                ker(n, b_c, oh);
-            }
+    parallel_nd(mb, jpp.nb_c, [&](int n, int b_c) {
+        for (int oh = 0; oh < jpp.oh; ++oh) {
+            ker(n, b_c, oh);
         }
-    }
+    });
 }
 
 template <cpu_isa_t isa>
@@ -241,35 +230,29 @@ void jit_uni_pooling_bwd_t<isa>::execute_backward_3d() {
     };
 
     if (jpp.simple_alg) {
-#       pragma omp parallel for collapse(3) schedule(static)
-        for (int n = 0; n < mb; ++n) {
-            for (int b_c = 0; b_c < jpp.nb_c; ++b_c) {
-                for (int od = 0; od < jpp.od; ++od) {
-                    const int ik = od * jpp.stride_d;
-                    const int d_t_overflow = nstl::max(0, jpp.f_pad - ik);
-                    const int d_b_overflow = nstl::max(jpp.id, ik + jpp.kd
-                            - jpp.f_pad) - jpp.id;
-                    const int id = nstl::max(ik - jpp.f_pad, 0);
-                    int zero_s = jpp.stride_d - d_t_overflow - (nstl::max(
-                            jpp.id, ik + jpp.stride_d - jpp.f_pad) - jpp.id);
-                    for (int oh = 0; oh < jpp.oh; ++oh) {
-                        ker(n, b_c, od, oh, id, d_t_overflow, d_b_overflow,
-                                (oh == 0) ? zero_s : 0, 0);
-                    }
-                }
+
+        parallel_nd(mb, jpp.nb_c, jpp.od,
+            [&](int n, int b_c, int od) {
+            const int ik = od * jpp.stride_d;
+            const int d_t_overflow = nstl::max(0, jpp.f_pad - ik);
+            const int d_b_overflow = nstl::max(jpp.id, ik + jpp.kd
+                    - jpp.f_pad) - jpp.id;
+            const int id = nstl::max(ik - jpp.f_pad, 0);
+            int zero_s = jpp.stride_d - d_t_overflow - (nstl::max(
+                    jpp.id, ik + jpp.stride_d - jpp.f_pad) - jpp.id);
+            for (int oh = 0; oh < jpp.oh; ++oh) {
+                ker(n, b_c, od, oh, id, d_t_overflow, d_b_overflow,
+                        (oh == 0) ? zero_s : 0, 0);
             }
-        }
+        });
     } else {
         ptrdiff_t nelems = (ptrdiff_t)mb * (ptrdiff_t)jpp.c
             * (ptrdiff_t)jpp.id * (ptrdiff_t)jpp.ih * (ptrdiff_t)jpp.iw;
-#       pragma omp parallel for
-        for (ptrdiff_t i = 0; i < nelems; ++i)
-            diff_src[i] = 0.;
+
+        parallel_nd(nelems, [&](ptrdiff_t i) { diff_src[i] = 0.f; });
 
         for (int kd = 0; kd < jpp.kd; ++kd) {
-#       pragma omp parallel for collapse(2) schedule(static)
-        for (int n = 0; n < mb; ++n) {
-            for (int b_c = 0; b_c < jpp.nb_c; ++b_c) {
+            parallel_nd(mb, jpp.nb_c, [&](int n, int b_c) {
                 for (int od = 0; od < jpp.od; ++od) {
                     const int ik = od * jpp.stride_d;
                     const int d_t_overflow = nstl::max(0, jpp.f_pad-ik);
@@ -283,8 +266,7 @@ void jit_uni_pooling_bwd_t<isa>::execute_backward_3d() {
                                 0, kd);
                     }
                 }
-            }
-        }
+            });
         }
     }
 }
@@ -292,8 +274,8 @@ void jit_uni_pooling_bwd_t<isa>::execute_backward_3d() {
 
 template struct jit_uni_pooling_fwd_t<sse42>;
 template struct jit_uni_pooling_bwd_t<sse42>;
-template struct jit_uni_pooling_fwd_t<avx2>;
-template struct jit_uni_pooling_bwd_t<avx2>;
+template struct jit_uni_pooling_fwd_t<avx>;
+template struct jit_uni_pooling_bwd_t<avx>;
 template struct jit_uni_pooling_fwd_t<avx512_common>;
 template struct jit_uni_pooling_bwd_t<avx512_common>;
 

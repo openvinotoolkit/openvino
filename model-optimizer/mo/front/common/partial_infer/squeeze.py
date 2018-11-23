@@ -15,6 +15,9 @@
 """
 
 import numpy as np
+from mo.front.caffe.extractors.utils import get_canonical_axis_index
+
+from mo.ops.op import PermuteAttrs
 
 
 def tf_squeeze_infer(node):
@@ -29,8 +32,11 @@ def tf_squeeze_infer(node):
     shape = shape.copy()
     for n in node.squeeze_dims:
         if shape[n] == 1:
-            real_squeeze_dims.append(n)
+            real_squeeze_dims.append(get_canonical_axis_index(shape, n))
     shape = np.delete(shape, real_squeeze_dims)
     node.out_node().shape = shape
+    node['dim'] = shape
     if node.in_node().value is not None:
         node.out_node().value = np.array(np.reshape(node.in_node().value, shape))
+
+    PermuteAttrs.create_permute_attrs(node, attrs =[('dim','output:0')])

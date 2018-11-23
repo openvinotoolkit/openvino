@@ -31,6 +31,12 @@ protected:
     virtual void SetUp() {}
 };
 
+TEST_F(memory_test, DataZeroDim) {
+    auto e = engine(engine::kind::cpu, 0);
+    mkldnn::memory mem0({{{2, 0, 3, 4}, memory::data_type::f32,
+            memory::format::nChw16c}, e});
+}
+
 TEST_F(memory_test, DataPaddingTest) {
     auto e = engine(engine::kind::cpu, 0);
 

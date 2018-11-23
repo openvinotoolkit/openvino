@@ -133,8 +133,8 @@ std::string convolution_inst::to_string(convolution_node const& node)
         conv_info.add("with user defined output size", ud_out_size_info);
     }
 
-    node_info.add("convolution info", conv_info);
-    node_info.dump(primitive_description);
+    node_info->add("convolution info", conv_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

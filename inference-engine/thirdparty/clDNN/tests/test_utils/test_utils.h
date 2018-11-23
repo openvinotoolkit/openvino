@@ -43,7 +43,6 @@
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
 namespace tests {
-    const std::string graph_dump_dir = "graph_dumps/" + std::to_string(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 #define USE_RANDOM_SEED 0
 #if USE_RANDOM_SEED
     std::random_device rnd_device;
@@ -321,7 +320,6 @@ struct memory_desc
 
 struct test_dump
 {
-    const std::string create_dump_graph_dir(std::string& str_err) const;
     const std::string name() const;
     const std::string test_case_name() const;
 private:
@@ -340,8 +338,8 @@ public:
     template<typename Type>
     void compare_buffers(const cldnn::memory& out, const cldnn::memory& ref);
 
-    static size_t get_linear_index(const cldnn::layout & layout, int b, int f, int y, int x, const memory_desc& desc);
-    static size_t get_linear_index_with_broadcast(const cldnn::layout& in_layout, int b, int f, int y, int x, const memory_desc& desc);
+    static size_t get_linear_index(const cldnn::layout & layout, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc);
+    static size_t get_linear_index_with_broadcast(const cldnn::layout& in_layout, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc);
 
     static memory_desc get_linear_memory_desc(const cldnn::layout & layout);
 

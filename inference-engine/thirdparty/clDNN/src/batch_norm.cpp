@@ -57,8 +57,8 @@ std::string batch_norm_inst::to_string(batch_norm_node const& node)
     }
     batch_norm_info.add("epsilon", desc->epsilon);
 
-    node_info.add("batch norm info", batch_norm_info);
-    node_info.dump(primitive_description);
+    node_info->add("batch norm info", batch_norm_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

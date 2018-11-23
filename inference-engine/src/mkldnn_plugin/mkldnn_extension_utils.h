@@ -13,7 +13,6 @@
 
 #include "mkldnn.hpp"
 #include "inference_engine.hpp"
-#include "mkldnn/mkldnn_extension_types.hpp"
 #include "mkldnn_memory.h"
 
 namespace MKLDNNPlugin {
@@ -25,10 +24,6 @@ public:
     static InferenceEngine::Precision DataTypeToIEPrecision(mkldnn::memory::data_type dataType);
     static InferenceEngine::TensorDesc getUninitTensorDesc(const InferenceEngine::TensorDesc& desc);
     static bool initTensorsAreEqual(InferenceEngine::TensorDesc desc1, InferenceEngine::TensorDesc desc2);
-    static InferenceEngine::SizeVector MKLDimsToSizeVector(mkldnn::memory::dims dims);
-    static InferenceEngine::MKLDNNPlugin::MemoryFormat MKLFormatToMemoryFormat(mkldnn::memory::dims dims, mkldnn::memory::format fmt);
-    static mkldnn::memory::format MemoryFormatToMKLFormat(InferenceEngine::MKLDNNPlugin::MemoryFormat fmt);
-    static InferenceEngine::MKLDNNPlugin::MKLDNNPrimitiveMemory MKLMemoryToGenericMemory(const MKLDNNMemory& mem);
 };
 
 }  // namespace MKLDNNPlugin

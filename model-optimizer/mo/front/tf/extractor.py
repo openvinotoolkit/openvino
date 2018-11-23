@@ -14,16 +14,12 @@
  limitations under the License.
 """
 
-import logging as log
-
 import numpy as np
 
-from mo.front.common.partial_infer.split import tf_split_infer, tf_split_v_infer
+from mo.front.common.partial_infer.split import tf_split_infer
 from mo.front.tf.extractors.bias_add import tf_bias_add_ext
 from mo.front.tf.extractors.concat import tf_concat_ext
 from mo.front.tf.extractors.const import tf_const_ext
-from mo.front.tf.extractors.convolution import tf_conv2d_ext
-from mo.front.tf.extractors.deconvolution import tf_deconv2d_ext
 from mo.front.tf.extractors.eltwise import make_tf_eltwise
 from mo.front.tf.extractors.expand_dims import tf_expand_dims_ext
 from mo.front.tf.extractors.fused_bn import tf_fused_bn_extractor
@@ -33,20 +29,17 @@ from mo.front.tf.extractors.mean import tf_mean_ext
 from mo.front.tf.extractors.native_tf import native_tf_node_extractor
 from mo.front.tf.extractors.pack import tf_pack_ext
 from mo.front.tf.extractors.placeholder import tf_placeholder_ext
-from mo.front.tf.extractors.pooling import tf_pool_ext
 from mo.front.tf.extractors.prod import tf_reduce_prod_ext
 from mo.front.tf.extractors.random_uniform import tf_random_uniform_ext
 from mo.front.tf.extractors.range import tf_range_ext
 from mo.front.tf.extractors.reshape import tf_reshape_ext
 from mo.front.tf.extractors.shape import tf_shape_ext
-from mo.front.tf.extractors.slice import tf_slice_ext
 from mo.front.tf.extractors.softmax import tf_softmax_ext
 from mo.front.tf.extractors.space_to_batch import tf_space_to_batch_ext, tf_batch_to_space_ext
 from mo.front.tf.extractors.split import tf_split_ext
 from mo.front.tf.extractors.squeeze import tf_squeeze_ext
 from mo.front.tf.extractors.strided_slice import tf_strided_slice_ext
 from mo.front.tf.extractors.sum import tf_sum_ext
-from mo.front.tf.extractors.tile import tf_tile_ext
 from mo.front.tf.extractors.transpose import tf_transpose_ext
 from mo.front.tf.extractors.unpack import tf_unpack_ext
 from mo.front.tf.extractors.utils import get_tf_node_port
@@ -72,8 +65,8 @@ def get_tf_edges(node: Node):
             'in': in_port,
             'out': src_port,
             'fw_tensor_debug_info': [(src_node_id, src_port)],  # debug anchor for a framework tensor name and port
-            'in_attrs': ['in', 'control_flow_edge'],
-            'out_attrs': ['out', 'control_flow_edge'],
+            'in_attrs': ['in', 'control_flow_edge', 'permutation'],
+            'out_attrs': ['out', 'permutation'],
             'data_attrs': ['fw_tensor_debug_info'],
             'control_flow_edge': cf_flag
         })
@@ -90,13 +83,10 @@ tf_op_extractors = {
     'Transpose': node_pb_arg(tf_transpose_ext),
     'LRN': node_pb_arg(tf_lrn_ext),
     'Split': node_pb_arg(lambda pb: tf_split_ext(pb, tf_split_infer)),
-    'SplitV': node_pb_arg(lambda pb: tf_split_ext(pb, tf_split_v_infer)),
     'FusedBatchNorm': node_pb_arg(tf_fused_bn_extractor),
     'Relu6': node_pb_arg(
         make_tf_eltwise(lambda a: np.maximum(0, np.minimum(a, 6)), attrs={'type': 'Clamp', 'min': 0, 'max': 6})),
-    'DepthwiseConv2dNative': node_pb_arg(lambda pb: tf_conv2d_ext(pb, True)),
     'ExpandDims': node_pb_arg(tf_expand_dims_ext),
-    'Slice': node_pb_arg(tf_slice_ext),
     'ConcatV2': node_pb_arg(tf_concat_ext),
     'MatMul': node_pb_arg(tf_matmul_ext),
     'Pack': node_pb_arg(tf_pack_ext),
@@ -104,10 +94,7 @@ tf_op_extractors = {
     'StridedSlice': node_pb_arg(tf_strided_slice_ext),
     'Prod': node_pb_arg(tf_reduce_prod_ext),
     'Const': node_pb_arg(tf_const_ext),
-    'Tile': node_pb_arg(tf_tile_ext),
     'Placeholder': node_pb_arg(tf_placeholder_ext),
-    'Conv2D': node_pb_arg(tf_conv2d_ext),
-    'Conv2DBackpropInput': node_pb_arg(tf_deconv2d_ext),
     'Identity': node_pb_arg(make_tf_eltwise(lambda v: v)),
     'Add': node_pb_arg(
         make_tf_eltwise(lambda a, b: a + b, attrs={'type': 'Eltwise', 'operation': 'sum', 'can_be_bias': True})),
@@ -118,8 +105,6 @@ tf_op_extractors = {
     'Sub': node_pb_arg(make_tf_eltwise(lambda a, b: a - b)),
     'RealDiv': node_pb_arg(make_tf_eltwise(lambda a, b: a / b, attrs={'op': 'Div'})),
     'Relu': node_pb_arg(make_tf_eltwise(lambda v: np.maximum(0, v), attrs={'type': 'ReLU'})),  # 0 is an integer
-    'AvgPool': node_pb_arg(lambda node: tf_pool_ext(node, pool_method='avg')),
-    'MaxPool': node_pb_arg(lambda node: tf_pool_ext(node, pool_method='max')),
     'RandomUniform': node_pb_arg(tf_random_uniform_ext),
     'Mean': node_pb_arg(tf_mean_ext),
     'BiasAdd': node_pb_arg(tf_bias_add_ext),

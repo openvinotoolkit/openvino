@@ -107,19 +107,23 @@ struct cpu_convolution_bwd_data_pd_t: public convolution_bwd_data_pd_t {
         : convolution_bwd_data_pd_t(engine, adesc, attr, hint_fwd_pd)
         , diff_src_pd_(this->engine_, &this->desc_.diff_src_desc)
         , diff_dst_pd_(this->engine_, &this->desc_.diff_dst_desc)
-        , weights_pd_(this->engine_, &this->desc_.weights_desc) {}
+        , weights_pd_(this->engine_, &this->desc_.weights_desc)
+        , bias_pd_(this->engine_, &this->desc_.bias_desc) {}
     virtual ~cpu_convolution_bwd_data_pd_t() {}
 
     virtual const cpu_memory_pd_t *diff_src_pd(int index = 0) const override
     { return index == 0 ? &diff_src_pd_ : nullptr; }
     virtual const cpu_memory_pd_t *diff_dst_pd(int index = 0) const override
     { return index == 0 ? &diff_dst_pd_ : nullptr; }
-    virtual const cpu_memory_pd_t *weights_pd(int index = 0) const override
-    { return index == 0 ? &weights_pd_ : nullptr; }
+    virtual const cpu_memory_pd_t *weights_pd(int index = 0) const override {
+        if (index == 0) return &weights_pd_;
+        if (index == 1 && this->with_bias()) return &bias_pd_;
+        return nullptr;
+    }
 
 protected:
     cpu_memory_pd_t diff_src_pd_, diff_dst_pd_;
-    cpu_memory_pd_t weights_pd_;
+    cpu_memory_pd_t weights_pd_, bias_pd_;
 
     inline memory_format_t src_format()
     {
@@ -142,6 +146,8 @@ protected:
             CHECK(diff_dst_pd_.set_format(diff_src_pd_.desc()->format));
         if (weights_pd_.desc()->format == any)
            CHECK(weights_pd_.set_format(wei_format()));
+        if (bias_pd_.desc()->format == any)
+            CHECK(bias_pd_.set_format(x));
         return status::success;
     }
 };

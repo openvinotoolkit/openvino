@@ -47,6 +47,20 @@
 #endif
 
 /**
+ * @brief This class represents a console error listener.
+ *
+ */
+class ConsoleErrorListener : public InferenceEngine::IErrorListener {
+    /**
+     * @brief The plugin calls this method with a null terminated error message (in case of error)
+     * @param msg Error message
+     */
+    void onError(const char *msg) noexcept override {
+        std::clog << "Plugin message: " << msg << std::endl;
+    }
+};
+
+/**
  * @brief Trims from both ends (in place)
  * @param s - string to trim
  * @return trimmed string
@@ -183,7 +197,7 @@ static UNUSED std::ostream &operator<<(std::ostream &os, const PluginVersion &ve
 }
 
 inline void printPluginVersion(InferenceEngine::InferenceEnginePluginPtr ptr, std::ostream& stream) {
-    const PluginVersion *pluginVersion;
+    const PluginVersion *pluginVersion = nullptr;
     ptr->GetVersion((const InferenceEngine::Version*&)pluginVersion);
     stream << pluginVersion << std::endl;
 }
@@ -462,9 +476,10 @@ static UNUSED bool writeOutputBmp(std::string name, unsigned char *data, size_t 
 * @param width - width of the rectangle
 * @param rectangles - vector points for the rectangle, should be 4x compared to num classes
 * @param classes - vector of classes
+* @param thickness - thickness of a line (in pixels) to be used for bounding boxes
 */
-static UNUSED void addRectangles(unsigned char *data, size_t height, size_t width, std::vector<int> rectangles, std::vector<int> classes) {
-    std::vector<Color> colors = {
+static UNUSED void addRectangles(unsigned char *data, size_t height, size_t width, std::vector<int> rectangles, std::vector<int> classes, int thickness = 1) {
+    std::vector<Color> colors = {  // colors to be used for bounding boxes
         { 128, 64,  128 },
         { 232, 35,  244 },
         { 70,  70,  70 },
@@ -497,38 +512,47 @@ static UNUSED void addRectangles(unsigned char *data, size_t height, size_t widt
         int w = rectangles.at(i * 4 + 2);
         int h = rectangles.at(i * 4 + 3);
 
+        int cls = classes.at(i) % colors.size();  // color of a bounding box line
+
         if (x < 0) x = 0;
         if (y < 0) y = 0;
         if (w < 0) w = 0;
         if (h < 0) h = 0;
 
-        if (x >= width) { x = width - 1; w = 0; }
-        if (y >= height) { y = height - 1; h = 0; }
+        if (x >= width) { x = width - 1; w = 0; thickness = 1; }
+        if (y >= height) { y = height - 1; h = 0; thickness = 1; }
 
         if (x + w >= width) { w = width - x - 1; }
         if (y + h >= height) { h = height - y - 1; }
 
-        size_t shift_first = y*width * 3;
-        size_t shift_second = (y + h)*width * 3;
-        int cls = classes.at(i) % colors.size();
-        for (int i = x; i < x + w; i++) {
-            data[shift_first + i * 3] = colors.at(cls).red();
-            data[shift_first + i * 3 + 1] = colors.at(cls).green();
-            data[shift_first + i * 3 + 2] = colors.at(cls).blue();
-            data[shift_second + i * 3] = colors.at(cls).red();
-            data[shift_second + i * 3 + 1] = colors.at(cls).green();
-            data[shift_second + i * 3 + 2] = colors.at(cls).blue();
+        thickness = std::min(std::min(thickness, w / 2 + 1), h / 2 + 1);
+
+        size_t shift_first;
+        size_t shift_second;
+        for (int t = 0; t < thickness; t++) {
+            shift_first = (y + t) * width * 3;
+            shift_second = (y + h - t) * width * 3;
+            for (int i = x; i < x + w + 1; i++) {
+                data[shift_first + i * 3] = colors.at(cls).red();
+                data[shift_first + i * 3 + 1] = colors.at(cls).green();
+                data[shift_first + i * 3 + 2] = colors.at(cls).blue();
+                data[shift_second + i * 3] = colors.at(cls).red();
+                data[shift_second + i * 3 + 1] = colors.at(cls).green();
+                data[shift_second + i * 3 + 2] = colors.at(cls).blue();
+            }
         }
 
-        shift_first = x * 3;
-        shift_second = (x + w) * 3;
-        for (int i = y; i < y + h; i++) {
-            data[shift_first + i*width * 3] = colors.at(cls).red();
-            data[shift_first + i*width * 3 + 1] = colors.at(cls).green();
-            data[shift_first + i*width * 3 + 2] = colors.at(cls).blue();
-            data[shift_second + i*width * 3] = colors.at(cls).red();
-            data[shift_second + i*width * 3 + 1] = colors.at(cls).green();
-            data[shift_second + i*width * 3 + 2] = colors.at(cls).blue();
+        for (int t = 0; t < thickness; t++) {
+            shift_first = (x + t) * 3;
+            shift_second = (x + w - t) * 3;
+            for (int i = y; i < y + h + 1; i++) {
+                data[shift_first + i * width * 3] = colors.at(cls).red();
+                data[shift_first + i * width * 3 + 1] = colors.at(cls).green();
+                data[shift_first + i * width * 3 + 2] = colors.at(cls).blue();
+                data[shift_second + i * width * 3] = colors.at(cls).red();
+                data[shift_second + i * width * 3 + 1] = colors.at(cls).green();
+                data[shift_second + i * width * 3 + 2] = colors.at(cls).blue();
+            }
         }
     }
 }

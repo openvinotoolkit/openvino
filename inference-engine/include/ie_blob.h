@@ -120,7 +120,7 @@ public:
             : tensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), l) {}
 
     /**
-     * @depricated It works with reversed dimensions. Please create a new blob if you want to change a size.
+     * @deprecated It works with reversed dimensions. Please create a new blob if you want to change a size.
      * @brief Changes Tensor size to the specified dimensions. If it was allocated, the previous data is deallocated and lost.
      * @param dims New dimensions to set
      * @param layout New layout to set
@@ -290,11 +290,16 @@ public:
      * @param data_size Length of the pre-allocated array. If not set, size is assumed equal
      * to the dot product of dims.
      */
-    TBlob(const TensorDesc& tensorDesc, T* ptr, size_t data_sze = 0): Blob(tensorDesc) {
-        if (size() != 0 && ptr == nullptr) {
+    TBlob(const TensorDesc& tensorDesc, T* ptr, size_t data_size = 0): Blob(tensorDesc) {
+        if (data_size == 0) {
+            data_size = size();
+        }
+
+        if (data_size != 0 && ptr == nullptr) {
             THROW_IE_EXCEPTION << "Using Blob on external nullptr memory";
         }
-        _allocator = details::make_pre_allocator(ptr, size());
+
+        _allocator = details::make_pre_allocator(ptr, data_size);
         // blob on attached memory is always allocated, so we are not forcing the user to call allocate()
         allocate();
     }
@@ -327,11 +332,14 @@ public:
      * @param ptr Pointer to the pre-allocated memory
      * @param data_size Length of the pre-allocated array. If not set, size is assumed equal to dot product of dims.
      */
-    TBlob(Precision p, Layout l, const SizeVector& dims, T* ptr, size_t data_sze = 0) : Blob(p, l, dims) {
-        if (size() != 0 && ptr == nullptr) {
+    TBlob(Precision p, Layout l, const SizeVector& dims, T* ptr, size_t data_size = 0) : Blob(p, l, dims) {
+        if (data_size == 0) {
+            data_size = size();
+        }
+        if (data_size != 0 && ptr == nullptr) {
             THROW_IE_EXCEPTION << "Using Blob on external nullptr memory";
         }
-        _allocator = details::make_pre_allocator(ptr, size());
+        _allocator = details::make_pre_allocator(ptr, data_size);
         // blob on attached memory is always allocated, so we are not forcing user to call allocate
         allocate();
     }
@@ -416,7 +424,10 @@ public:
         if (tensorDesc.getDims().size() == 0) {
             tensorDesc.setDims({static_cast<unsigned int>(that.size())});
         }
-        allocate();
+        // minimisation of reallocations
+        if (_handle == nullptr) {
+            allocate();
+        }
         auto memptr = data();
         memcpy(memptr, that.data(), product(tensorDesc.getDims()) * sizeof(T));
     }

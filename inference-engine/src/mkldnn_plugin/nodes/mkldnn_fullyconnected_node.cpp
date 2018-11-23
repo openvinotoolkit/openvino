@@ -49,9 +49,9 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     }
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getParentEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     MKLDNNDims inDims(fcLayer->input()->getDims());
 
@@ -128,6 +128,7 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
             impl_desc_type::gemm_blas,
             impl_desc_type::gemm_avx512,
             impl_desc_type::gemm_avx2,
+            impl_desc_type::gemm_avx,
             impl_desc_type::gemm_sse42,
             impl_desc_type::gemm_any,
             impl_desc_type::gemm,
@@ -140,6 +141,9 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
             impl_desc_type::jit_avx2_dw,
             impl_desc_type::jit_avx2_1x1,
             impl_desc_type::jit_avx2,
+            impl_desc_type::jit_avx_dw,
+            impl_desc_type::jit_avx_1x1,
+            impl_desc_type::jit_avx,
             impl_desc_type::jit_sse42_dw,
             impl_desc_type::jit_sse42_1x1,
             impl_desc_type::jit_sse42,

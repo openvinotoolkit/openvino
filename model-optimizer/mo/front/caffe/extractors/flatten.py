@@ -23,12 +23,9 @@ from mo.front.common.partial_infer.flatten import flatten_infer
 def flatten_ext(pl, ml):
     param = pl.flatten_param
     update_attrs = {
-
         'axis': param.axis,
         'end_axis': param.end_axis,
-        'num_axes': 0,
-        'dim': np.array([0], dtype=np.int64),
-
+        'num_axes': 0
     }
     mapping_rule = merge_attrs(param, update_attrs)
     mapping_rule.update({

@@ -18,6 +18,8 @@
 class StrTo(object):
     @staticmethod
     def tuple(type_of_elements: type, string: str):
+        if type_of_elements == int:
+            string = string.replace('L', '')
         return tuple(type_of_elements(x) for x in string[1:-1].split(','))
 
     @staticmethod

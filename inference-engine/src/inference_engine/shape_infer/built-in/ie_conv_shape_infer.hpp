@@ -6,14 +6,14 @@
 #pragma once
 
 #include <description_buffer.hpp>
-#include <ie_layer_validators.hpp>
-#include "impl_register.hpp"
+#include "ie_built_in_impl.hpp"
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 #include <debug.h>
 #include <cmath>
+#include <v2_format_parser.h>
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -42,18 +42,18 @@ public:
         size_t IW = dims[3];
         size_t KH = 0, KW = 0;
         int PR = -1, PB = -1;
-        if (convLayer._dilation_y)
-            KH = (convLayer._kernel_y - 1) * convLayer._dilation_y + 1;
+        if (convLayer._dilation[Y_AXIS])
+            KH = (convLayer._kernel[Y_AXIS] - 1) * convLayer._dilation[Y_AXIS] + 1;
         else
-            KH = convLayer._kernel_y;
-        if (convLayer._dilation_x)
-            KW = (convLayer._kernel_x - 1) * convLayer._dilation_x + 1;
+            KH = convLayer._kernel[Y_AXIS];
+        if (convLayer._dilation[X_AXIS])
+            KW = (convLayer._kernel[X_AXIS] - 1) * convLayer._dilation[X_AXIS] + 1;
         else
-            KW = convLayer._kernel_x;
-        size_t SH = convLayer._stride_y;
-        size_t SW = convLayer._stride_x;
-        size_t PH = convLayer._padding_y;
-        size_t PW = convLayer._padding_x;
+            KW = convLayer._kernel[X_AXIS];
+        size_t SH = convLayer._stride[Y_AXIS];
+        size_t SW = convLayer._stride[X_AXIS];
+        size_t PH = convLayer._padding[Y_AXIS];
+        size_t PW = convLayer._padding[X_AXIS];
         size_t OC = convLayer._out_depth;
         auto it = convLayer.params.find("auto_pad");
         std::string padType;
@@ -68,14 +68,25 @@ public:
             OH_temp = std::floor(1.f * IH / SH);
             OW_temp = std::floor(1.f * IW / SW);
         } else {
-            PR = convLayer.GetParamAsInt("pad-r", -1);
-            PB = convLayer.GetParamAsInt("pad-b", -1);
-            if (PR < 0 || PB < 0) {
-                OH_temp = std::floor((IH + 2.f * PH - KH) / SH) + 1;
-                OW_temp = std::floor((IW + 2.f * PW - KW) / SW) + 1;
+            auto ir_version = details::BaseCreator::version_;
+            bool isEndPaddingsSet = false;
+            try {
+                if (ir_version == 3) {
+                    auto pads_end = convLayer.GetParamAsUInts("pads_end");
+                    PR = pads_end[pads_end.size() - 1 - X_AXIS];
+                    PB = pads_end[pads_end.size() - 1 - Y_AXIS];
+                } else if (ir_version < 3) {
+                    PR = convLayer.GetParamAsInt("pad-r");
+                    PB = convLayer.GetParamAsInt("pad-b");
+                }
+                isEndPaddingsSet = true;
+            } catch (...) {}
+            if (!isEndPaddingsSet) {
+                OH_temp = std::floor((IH + 2.f * PH - KH) / SH) + 1.f;
+                OW_temp = std::floor((IW + 2.f * PW - KW) / SW) + 1.f;
             } else {
-                OH_temp = std::floor(1.f * (IH + PH + PB - KH) / SH) + 1;
-                OW_temp = std::floor(1.f * (IW + PW + PR - KW) / SW) + 1;
+                OH_temp = std::floor(1.f * (IH + PH + PB - KH) / SH) + 1.f;
+                OW_temp = std::floor(1.f * (IW + PW + PR - KW) / SW) + 1.f;
             }
         }
         if (OH_temp < 0 || OW_temp < 0)

@@ -15,7 +15,7 @@
 
 #include "include/reshape_dims.cl"
 #include "include/fetch.cl"
-#include "include/activation_functions.cl"
+
 #include "include/data_types.cl"
 
 ///////////////////////// Input Index /////////////////////////
@@ -30,6 +30,8 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
     return GET_DATA_BF8_XY16_INDEX(INPUT0, b, f, y, x);
 #elif defined INPUT0_LAYOUT_BYXF_AF32
 	return GET_DATA_BYXF_AF32_INDEX(INPUT0, b, f, y, x);
+#elif defined INPUT0_LAYOUT_FS_BS_YX_BSV4_FSV32
+    return GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(INPUT0, b, f, y, x);
 #else
 #error reorder_data.cl: input format - not supported
 #endif
@@ -48,6 +50,8 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint y, uint x)
     return GET_DATA_BF8_XY16_INDEX(OUTPUT, b, f, y, x);
 #elif defined OUTPUT_LAYOUT_BYXF_AF32
 	return GET_DATA_BYXF_AF32_INDEX(OUTPUT, b, f, y, x);
+#elif defined OUTPUT_LAYOUT_FS_BS_YX_BSV4_FSV32
+    return GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(OUTPUT, b, f, y, x);
 #else
 #error reorder_data.cl: output format - not supported
 #endif

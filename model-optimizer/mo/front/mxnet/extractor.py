@@ -15,11 +15,8 @@
 """
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.mxnet.extractors.batchnorm import batch_norm_ext
-from mo.front.mxnet.extractors.broadcast_mul import broadcast_mul_ext
 from mo.front.mxnet.extractors.concat import concat_ext
-from mo.front.mxnet.extractors.convolution import convolution_ext
 from mo.front.mxnet.extractors.crop import crop_ext
-from mo.front.mxnet.extractors.deconvolution import deconvolution_ext
 from mo.front.mxnet.extractors.eltwise import eltwise_ext
 from mo.front.mxnet.extractors.flatten import flatten_ext
 from mo.front.mxnet.extractors.fully_connected import fully_connected_ext
@@ -28,20 +25,15 @@ from mo.front.mxnet.extractors.lrn import lrn_ext
 from mo.front.mxnet.extractors.multibox_detection import multi_box_detection_ext
 from mo.front.mxnet.extractors.multibox_prior import multi_box_prior_ext
 from mo.front.mxnet.extractors.null import null_ext
-from mo.front.mxnet.extractors.pooling import pooling_ext
 from mo.front.mxnet.extractors.reshape import reshape_ext
 from mo.front.mxnet.extractors.scaleshift import scale_shift_ext
-from mo.front.mxnet.extractors.softmax import softmax_ext
 from mo.front.mxnet.extractors.transpose import transpose_ext
 from mo.front.mxnet.extractors.up_sampling import up_sampling_ext
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.front.mxnet.extractors.mul_scalar import mul_scalar_ext
 from mo.front.mxnet.extractors.slice_axis import slice_axis_ext
-from mo.front.mxnet.extractors.add_n import add_n_ext
 from mo.utils.error import Error
 from mo.graph.graph import Node
 from mo.utils.utils import refer_to_faq_msg
-
 
 def extractor_wrapper(mxnet_extractor):
     return lambda node: mxnet_extractor(get_mxnet_layer_attrs(node.symbol_dict))
@@ -51,13 +43,8 @@ mxnet_op_extractors = {
     'BatchNorm': extractor_wrapper(batch_norm_ext),
     'Crop': extractor_wrapper(crop_ext),
     'ScaleShift': extractor_wrapper(scale_shift_ext),
-    'Pooling': extractor_wrapper(pooling_ext),
-    'SoftmaxOutput': extractor_wrapper(softmax_ext),
-    'SoftmaxActivation': extractor_wrapper(softmax_ext),
     'slice_axis': extractor_wrapper(slice_axis_ext),
     'null': lambda node: null_ext(node.symbol_dict),
-    'Convolution': extractor_wrapper(convolution_ext),
-    'Deconvolution': extractor_wrapper(deconvolution_ext),
     'Concat': extractor_wrapper(concat_ext),
     'elemwise_add': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a + b, op_type="sum")),
     'elemwise_mul': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a * b, op_type="mul")),
@@ -73,10 +60,7 @@ mxnet_op_extractors = {
     '_copy': extractor_wrapper(lambda _: dict(infer=copy_shape_infer)),
     '_contrib_MultiBoxPrior': extractor_wrapper(multi_box_prior_ext),
     '_contrib_MultiBoxDetection': extractor_wrapper(multi_box_detection_ext),
-    '_mul_scalar': extractor_wrapper(mul_scalar_ext),
-    'broadcast_mul': extractor_wrapper(broadcast_mul_ext),
     'broadcast_add': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a + b, op_type="sum")),
-    'add_n': extractor_wrapper(add_n_ext)
 }
 
 

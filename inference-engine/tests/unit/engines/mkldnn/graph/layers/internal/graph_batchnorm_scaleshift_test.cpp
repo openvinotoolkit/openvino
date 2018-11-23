@@ -7,7 +7,6 @@
 #include <gmock/gmock-spec-builders.h>
 #include <inference_engine/cnn_network_impl.hpp>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
@@ -52,7 +51,7 @@ void ref_batchnorm4DWithScale(const InferenceEngine::TBlob<data_t> &src, const d
 
     const data_t *scale_data = scaleShift;
     const data_t *shift_data = scaleShift + IC;
-#   pragma omp parallel for schedule(static)
+
     for (int c = 0; c < IC; ++c) {
         data_t v_mean = mean[c];
         data_t v_variance = variance[c];

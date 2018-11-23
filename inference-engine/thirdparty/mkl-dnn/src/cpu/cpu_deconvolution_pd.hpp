@@ -43,7 +43,7 @@ struct cpu_deconvolution_fwd_pd_t: public deconvolution_fwd_pd_t {
         , src_pd_(this->engine_, &this->desc_.src_desc)
         , dst_pd_(this->engine_, &this->desc_.dst_desc)
         , weights_pd_(this->engine_, &this->desc_.weights_desc)
-        , bias_pd_(this->engine_, &this->desc_.bias_desc){}
+        , bias_pd_(this->engine_, &this->desc_.bias_desc) {}
     virtual ~cpu_deconvolution_fwd_pd_t() {}
 
     virtual const cpu_memory_pd_t *src_pd(int index = 0) const override
@@ -55,6 +55,7 @@ struct cpu_deconvolution_fwd_pd_t: public deconvolution_fwd_pd_t {
         if (index == 1 && this->with_bias()) return &bias_pd_;
         return nullptr;
     }
+
 protected:
     cpu_memory_pd_t src_pd_, dst_pd_;
     cpu_memory_pd_t weights_pd_, bias_pd_;
@@ -85,7 +86,8 @@ protected:
     cpu_memory_pd_t weights_pd_;
 };
 
-struct cpu_deconvolution_bwd_weights_pd_t: public deconvolution_bwd_weights_pd_t {
+struct cpu_deconvolution_bwd_weights_pd_t: public deconvolution_bwd_weights_pd_t
+{
     using cpu_memory_pd_t = cpu_memory_t::pd_t;
 
     cpu_deconvolution_bwd_weights_pd_t(engine_t *engine,
@@ -103,12 +105,12 @@ struct cpu_deconvolution_bwd_weights_pd_t: public deconvolution_bwd_weights_pd_t
     { return index == 0 ? &src_pd_ : nullptr; }
     virtual const cpu_memory_pd_t *diff_dst_pd(int index = 0) const override
     { return index == 0 ? &diff_dst_pd_ : nullptr; }
-    virtual const cpu_memory_pd_t *diff_weights_pd(int index = 0) const
-        override {
-            if (index == 0) return &diff_weights_pd_;
-            if (index == 1 && this->with_bias()) return &diff_bias_pd_;
-            return  nullptr;
-        }
+    virtual const cpu_memory_pd_t *diff_weights_pd(int index = 0) const override
+    {
+        if (index == 0) return &diff_weights_pd_;
+        if (index == 1 && this->with_bias()) return &diff_bias_pd_;
+        return nullptr;
+    }
 
 protected:
     cpu_memory_pd_t src_pd_;

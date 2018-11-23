@@ -221,7 +221,7 @@ static inline std::string stringFormat(const char *msg, ...) {
 
     vsnprintf_s(buffer, 65535, msg, va);
     va_end(va);
-    return buffer;
+    return std::string(buffer);
 }
 }  // namespace details
 }  // namespace InferenceEngine

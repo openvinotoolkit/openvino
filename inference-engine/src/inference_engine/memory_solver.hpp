@@ -64,7 +64,7 @@ public:
         int id;
     };
 
-    explicit MemorySolver(const std::vector<Box> boxes);
+    explicit MemorySolver(const std::vector<Box>& boxes);
 
     /**
      * @brief Solve memory location with maximal reuse.

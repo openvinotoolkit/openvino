@@ -31,27 +31,27 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         precision = InferenceEngine::Precision::FP32;
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    auto * cnnLayer = dynamic_cast<PoolingLayer*>(getCnnLayer().get());
-    if (cnnLayer == nullptr)
+    auto * poolingLayer = dynamic_cast<PoolingLayer*>(getCnnLayer().get());
+    if (poolingLayer == nullptr)
         THROW_IE_EXCEPTION << "Cannot convert pooling layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
-    type = cnnLayer->_type;
-    exclude_pad = cnnLayer->_exclude_pad;
+    type = poolingLayer->_type;
+    exclude_pad = poolingLayer->_exclude_pad;
 
-    stride = {static_cast<int>(cnnLayer->_stride_y), static_cast<int>(cnnLayer->_stride_x)};
-    paddingL = {static_cast<int>(cnnLayer->_padding_y), static_cast<int>(cnnLayer->_padding_x)};
-    paddingR = {0, 0};
-    kernel = {static_cast<int>(cnnLayer->_kernel_y), static_cast<int>(cnnLayer->_kernel_x)};
+    invertVectorCopyUtoI(poolingLayer->_stride, stride);
+    invertVectorCopyUtoI(poolingLayer->_kernel, kernel);
+    invertVectorCopyUtoI(poolingLayer->_padding, paddingL);
+    invertVectorCopyUtoI(poolingLayer->_pads_end, paddingR);
 
     auto parentDims = getParentEdgeAt(0)->getDims();
     auto childDims = getChildEdgeAt(0)->getDims();
-    if (parentDims.ndims() != 4)
-        THROW_IE_EXCEPTION << "Pooling layer. Unsupported mode, only 4D blob as input.";
+    if ((parentDims.ndims() < 4) || (parentDims.ndims() > 5))
+        THROW_IE_EXCEPTION << "Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
 
     for (int i = 0; i < 2; i++) {
         int krn = kernel[i];
@@ -62,12 +62,17 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         paddingR[i] = (dst - calc_dst) * stride[i];
     }
 
-    // It doesn't support any format
-    for (auto format : getAvailableFormatsForDims(parentDims)) {
-        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, format};
-        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, format};
-
+    if (this->getCnnLayer()->precision == Precision::I8) {
+        MKLDNNMemoryDesc in_candidate{parentDims, memory::data_type::u8, memory::format::nhwc};
+        MKLDNNMemoryDesc out_candidate{childDims, memory::data_type::u8, memory::format::nhwc};
         createDescriptor({in_candidate}, {out_candidate});
+    } else {
+        // It doesn't support any format
+        for (auto format : getAvailableFormatsForDims(parentDims)) {
+            MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, format};
+            MKLDNNMemoryDesc out_candidate{childDims, outputDataType, format};
+            createDescriptor({in_candidate}, {out_candidate});
+        }
     }
 }
 

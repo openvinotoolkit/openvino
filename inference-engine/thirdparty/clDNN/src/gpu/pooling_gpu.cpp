@@ -173,6 +173,7 @@ namespace {
             implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), pooling_gpu::create);
             // MMAD
             implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), pooling_gpu::create);
+            implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), pooling_gpu::create);
         }
         ~attach() {}
     };

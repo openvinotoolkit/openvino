@@ -49,10 +49,8 @@ protected:
     std::map<std::string, std::vector<buf_info>> batchInputs;
     std::map<std::string, std::vector<buf_info>> batchOutputs;
 
-    InferenceEngine::Blob::Ptr createInputBlob(const InferenceEngine::Precision& p, const InferenceEngine::Layout& l,
-                                               const InferenceEngine::SizeVector& sz, uint8_t* mem_ptr = nullptr);
-    InferenceEngine::Blob::Ptr createOutputBlob(const InferenceEngine::Precision& p, InferenceEngine::SizeVector& sz,
-                                                uint8_t* mem_ptr = nullptr);
+    InferenceEngine::Blob::Ptr createInputBlob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
+    InferenceEngine::Blob::Ptr createOutputBlob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
     void copyOutputData(const cldnn::memory& outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info* bi = nullptr);
     void copyInputData(std::shared_ptr<cldnn::network> network, const cldnn::primitive_id &inputName,
                                                 const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob,

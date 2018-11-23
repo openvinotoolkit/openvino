@@ -7,6 +7,7 @@
 
 #include "inference_engine.hpp"
 #include "mkldnn_dims.h"
+#include "ie_parallel.hpp"
 #include <vector>
 #include <limits>
 
@@ -33,32 +34,25 @@ public:
 
         if (meanBuffer && meanBuffer->size()) {
             const float * meanBufferValues = meanBuffer->readOnly();
-        #   pragma omp parallel for collapse(2) schedule(static)
-            for (int mb = 0; mb < MB; mb++) {
-                for (int i = 0; i < srcSize; i++) {
-                    int buf = input[srcSize * mb + i];
-                    buf -= meanBufferValues[i];
-                    if (buf < std::numeric_limits<T>::min()) buf = std::numeric_limits<T>::min();
-                    if (buf > std::numeric_limits<T>::max()) buf = std::numeric_limits<T>::max();
-                    input[srcSize * mb + i] = buf;
-                }
-            }
+
+            InferenceEngine::parallel_for2d(MB, srcSize, [&](int mb, int i) {
+                int buf = input[srcSize * mb + i];
+                buf -= meanBufferValues[i];
+                if (buf < std::numeric_limits<T>::min()) buf = std::numeric_limits<T>::min();
+                if (buf > std::numeric_limits<T>::max()) buf = std::numeric_limits<T>::max();
+                input[srcSize * mb + i] = buf;
+            });
         } else if (!meanValues.empty()) {
             int C = inputDims[1];
             srcSize /= inputDims[1];
 
-        #   pragma omp parallel for collapse(3) schedule(static)
-            for (int mb = 0; mb < MB; mb++) {
-                for (int c = 0; c < C; c++) {
-                    for (int i = 0; i < srcSize; i++) {
-                        int buf = input[srcSize * mb * C + c * srcSize + i];
-                        buf -= meanValues[c];
-                        if (buf < std::numeric_limits<T>::min()) buf = std::numeric_limits<T>::min();
-                        if (buf > std::numeric_limits<T>::max()) buf = std::numeric_limits<T>::max();
-                        input[srcSize * mb * C + c * srcSize + i] = buf;
-                    }
-                }
-            }
+            InferenceEngine::parallel_for3d(MB, C, srcSize, [&](int mb, int c, int i) {
+                int buf = input[srcSize * mb * C + c * srcSize + i];
+                buf -= meanValues[c];
+                if (buf < std::numeric_limits<T>::min()) buf = std::numeric_limits<T>::min();
+                if (buf > std::numeric_limits<T>::max()) buf = std::numeric_limits<T>::max();
+                input[srcSize * mb * C + c * srcSize + i] = buf;
+            });
         }
     }
 

@@ -12,6 +12,7 @@
 #include <cmath>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "ie_parallel.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -46,9 +47,9 @@ void MKLDNNEltwiseNode::getSupportedDescriptors() {
     op = eltwiseLayer->_operation;
 
     if (getParentEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     auto outDims = getParentEdgeAt(0)->getDims();
     for (size_t i = 1; i < getParentEdges().size(); i++) {
@@ -73,36 +74,39 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-
-    auto same = [&] (memory::format fmt) -> PrimitiveDescInfo {
+    auto same = [&] (mkldnn::memory::data_type inputDT, mkldnn::memory::data_type outputDT, memory::format fmt) -> PrimitiveDescInfo {
         InferenceEngine::LayerConfig config;
         config.dynBatchSupport = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             InferenceEngine::DataConfig dataConfig;
             dataConfig.inPlace = (!i && canBeInPlace()) ? 0 : -1;
             dataConfig.constant = false;
-            dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType, fmt);
+            dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDT, fmt);
             config.inConfs.push_back(dataConfig);
         }
 
         InferenceEngine::DataConfig dataConfig;
             dataConfig.inPlace = -1;
             dataConfig.constant = false;
-            dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
+            dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDT, fmt);
             config.outConfs.push_back(dataConfig);
         return {config, impl_desc_type::ref};
     };
 
     for (const auto& format : getAvailableFormatsForDims(getChildEdgeAt(0)->getDims())) {
-        supportedPrimitiveDescriptors.push_back(same(format));
+        if (getCnnLayer()->precision == Precision::FP32) {
+            mkldnn::memory::data_type inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::FP32);
+            mkldnn::memory::data_type outputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::FP32);
+            supportedPrimitiveDescriptors.push_back(same(inputDT, outputDT, format));
+        } else {
+            THROW_IE_EXCEPTION << "Invalid Eltwise layer precision";
+        }
+    }
+
+    if (getCnnLayer()->precision == Precision::I8) {
+        mkldnn::memory::data_type inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::U8);
+        mkldnn::memory::data_type outputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::U8);
+        supportedPrimitiveDescriptors.push_back(same(inputDT, outputDT, mkldnn::memory::format::nhwc));
     }
 }
 
@@ -131,53 +135,156 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     }
     if (op == EltwiseLayer::Sum) {
-        auto primitive_desc = sum::primitive_desc(dstMemPtr->GetDescriptor(), sum_scales, srcs_pd);
-        prim = std::shared_ptr<sum>(new sum(primitive_desc, srcs_p, dstMemPtr->GetPrimitive()));
+        try {
+            auto primitive_desc = sum::primitive_desc(dstMemPtr->GetDescriptor(), sum_scales, srcs_pd);
+            prim = std::shared_ptr<sum>(new sum(primitive_desc, srcs_p, dstMemPtr->GetPrimitive()));
+        } catch (...) {
+            std::cerr << "Handle this problem correctly!" << std::endl;
+            prim = nullptr;
+        }
     }
 }
+
+void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
+    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    if (isInitConfig(config))
+        return;
+
+    MKLDNNNode::initOptimalPrimitiveDescriptor();
+
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
+    if (!selectedPD) {
+        return;
+    }
+
+    auto& selectedConfig = getSelectedPrimitiveDescriptor()->getConfig();
+    for (size_t i = 1; i < selectedConfig.inConfs.size(); i++) {
+        if (selectedConfig.inConfs[0].desc.getPrecision() != selectedConfig.inConfs[i].desc.getPrecision()) {
+            selectedConfig.inConfs[i].desc.setPrecision(selectedConfig.inConfs[0].desc.getPrecision());
+        }
+    }
+}
+
+template <typename T0, typename T1> void MKLDNNEltwiseNode::ref_eltwise(int in0, int in1) {
+    IE_ASSERT(getParentEdges().size() > 1);
+
+    auto& srcMemory0 = getParentEdgeAt(in0)->getMemory();
+    auto& srcMemory1 = getParentEdgeAt(in1)->getMemory();
+    const T0 *src0_ptr = reinterpret_cast<const T0*>(srcMemory0.GetData()) +
+            srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const T1 *src1_ptr = reinterpret_cast<const T1*>(srcMemory1.GetData()) +
+            srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding;
+    T0 *dst_ptr = reinterpret_cast<T0*>(getChildEdgeAt(0)->getMemory().GetData()) +
+            getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const size_t dst_data_size = srcMemory0.GetSize() / sizeof(T0) / srcMemory0.GetDims()[0] * batchToProcess();
+
+    if (op == EltwiseLayer::Prod) {
+#ifdef _WIN32
+        for (int i = 0; i < dst_data_size; i++)
+            dst_ptr[i] = src0_ptr[i] * src1_ptr[i];
+#else
+        parallel_for(dst_data_size, [&](int i) {
+            dst_ptr[i] = src0_ptr[i] * src1_ptr[i];
+        });
+#endif
+
+        for (int j = 2; j < getParentEdges().size(); j++) {
+            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(j)->getMemory().GetData()) +
+                    getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
+#ifdef _WIN32
+            for (int i = 0; i < dst_data_size; i++)
+                dst_ptr[i] = dst_ptr[i] * src_ptr[i];
+#else
+            parallel_for(dst_data_size, [&](int i) {
+                dst_ptr[i] = dst_ptr[i] * src_ptr[i];
+            });
+#endif
+        }
+    } else if (op == EltwiseLayer::Max)  {
+#ifdef _WIN32
+        for (int i = 0; i < dst_data_size; i++)
+            dst_ptr[i] = std::max(src0_ptr[i], (T0)src1_ptr[i]);
+#else
+        parallel_for(dst_data_size, [&](int i) {
+            dst_ptr[i] = std::max(src0_ptr[i], (T0) src1_ptr[i]);
+        });
+#endif
+        for (int j = 2; j < getParentEdges().size(); j++) {
+            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
+                    getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
+#ifdef _WIN32
+            for (int i = 0; i < dst_data_size; i++)
+                dst_ptr[i] = std::max(dst_ptr[i], (T0)src_ptr[i]);
+#else
+            parallel_for(dst_data_size, [&](int i) {
+                dst_ptr[i] = std::max(dst_ptr[i], (T0) src_ptr[i]);
+            });
+#endif
+        }
+    } else if (op == EltwiseLayer::Sum)  {
+#ifdef _WIN32
+        for (int i = 0; i < dst_data_size; i++)
+            dst_ptr[i] = src0_ptr[i] + src1_ptr[i];
+#else
+        parallel_for(dst_data_size, [&](int i) {
+            dst_ptr[i] = src0_ptr[i] + src1_ptr[i];
+        });
+#endif
+
+        for (int j = 2; j < getParentEdges().size(); j++) {
+            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
+                    getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
+#ifdef _WIN32
+            for (int i = 0; i < dst_data_size; i++)
+                dst_ptr[i] = dst_ptr[i] + src_ptr[i];
+#else
+            parallel_for(dst_data_size, [&](int i) {
+                dst_ptr[i] = dst_ptr[i] + src_ptr[i];
+            });
+#endif
+        }
+    }
+}
+
 
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
     if (prim) {
         MKLDNNNode::execute(strm);
     } else {
+        if (getParentEdges().size() > 2) {
+            // Only float supported in this case
+            for (int i = 0; i < getParentEdges().size(); i++) {
+                if (getParentEdgeAt(i)->getDesc().getPrecision() != Precision::FP32) {
+                    THROW_IE_EXCEPTION << "If ref eltwise has more than 2 inputs, only FP32 inputs are supported";
+                }
+            }
+
+            ref_eltwise<float, float>(0, 1);
+            return;
+        }
+
+        Precision pi0 = getParentEdgeAt(0)->getDesc().getPrecision();
+        Precision pi1 = getParentEdgeAt(1)->getDesc().getPrecision();
+        Precision po = getChildEdgeAt(0)->getDesc().getPrecision();
+
         IE_ASSERT(getParentEdges().size() > 1);
 
-        auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
-        auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
-        const float *src0_ptr = reinterpret_cast<const float*>(srcMemory0.GetData()) +
-                srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding;
-        const float *src1_ptr = reinterpret_cast<const float*>(srcMemory1.GetData()) +
-                srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding;
-        float *dst_ptr = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetData()) +
-                getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-        const size_t data_size = srcMemory0.GetSize() / sizeof(float) / srcMemory0.GetDims()[0] * batchToProcess();
-
-        if (op == EltwiseLayer::Prod) {
-            #pragma omp parallel for
-            for (int i = 0; i < data_size; i++)
-                dst_ptr[i] = src0_ptr[i] * src1_ptr[i];
-
-            for (int j = 2; j < getParentEdges().size(); j++) {
-                const float *src_ptr = reinterpret_cast<const float *>(getParentEdgeAt(j)->getMemory().GetData()) +
-                        getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-                #pragma omp parallel for
-                for (int i = 0; i < data_size; i++)
-                    dst_ptr[i] = dst_ptr[i] * src_ptr[i];
-            }
-        } else if (op == EltwiseLayer::Max)  {
-            #pragma omp parallel for
-            for (int i = 0; i < data_size; i++)
-                dst_ptr[i] = std::max(src0_ptr[i], src1_ptr[i]);
-
-            for (int j = 2; j < getParentEdges().size(); j++) {
-                const float *src_ptr = reinterpret_cast<const float*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                        getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-                #pragma omp parallel for
-                for (int i = 0; i < data_size; i++)
-                    dst_ptr[i] = std::max(dst_ptr[i], src_ptr[i]);
-            }
+        if (po == Precision::FP32 && pi0 == po && pi1 == po) {
+            ref_eltwise<float, float>(0, 1);
+        } else if (po == Precision::FP32 && pi0 == po && pi1 == Precision::I8) {
+            ref_eltwise<float, int8_t>(0, 1);
+        } else if (po == Precision::FP32 && pi1 == po && pi0 == Precision::I8) {
+            ref_eltwise<float, int8_t>(1, 0);
+        } else if (po == Precision::FP32 && pi0 == po && pi1 == Precision::U8) {
+            ref_eltwise<float, uint8_t>(0, 1);
+        } else if (po == Precision::FP32 && pi1 == po && pi0 == Precision::U8) {
+            ref_eltwise<float, uint8_t>(1, 0);
+        } else if (po == Precision::I8 && pi0 == po && pi1 == po) {
+            ref_eltwise<int8_t, int8_t>(0, 1);
+        } else if (po == Precision::I8 && pi0 == po && pi1 == Precision::U8) {
+            ref_eltwise<int8_t, uint8_t>(0, 1);
+        } else if (po == Precision::I8 && pi1 == po && pi0 == Precision::U8) {
+            ref_eltwise<int8_t, uint8_t>(1, 0);
         }
     }
 }

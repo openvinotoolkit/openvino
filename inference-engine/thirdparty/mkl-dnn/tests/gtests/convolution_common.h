@@ -78,6 +78,11 @@
 #define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
 
+#define INST_TEST_CASE_3D_(str, ...) INSTANTIATE_TEST_CASE_P( \
+        str, convolution_test_3d, ::testing::Values(__VA_ARGS__))
+#define INST_TEST_CASE_3D(str, ...) INST_TEST_CASE_3D_( \
+        CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
+
 #ifndef NEGATIVE_SLOPE
 #define NEGATIVE_SLOPE 0.0f
 #else
@@ -89,6 +94,11 @@
 
 #define PARAMS(src, weights, bias, dst, ...) \
     test_convolution_params_t { ENGINE, ALGORITHM, NEGATIVE_SLOPE, \
+    EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
+    {__VA_ARGS__} }
+
+#define PARAMS_3D(src, weights, bias, dst, ...) \
+    test_convolution_params_t_3d { ENGINE, ALGORITHM, NEGATIVE_SLOPE, \
     EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
     {__VA_ARGS__} }
 

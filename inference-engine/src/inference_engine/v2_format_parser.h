@@ -11,7 +11,7 @@
 #include "cnn_network_impl.hpp"
 #include "ie_layers.h"
 #include "parsers.h"
-#include "caseless.hpp"
+#include "details/caseless.hpp"
 #include <vector>
 
 namespace InferenceEngine {
@@ -59,7 +59,7 @@ public:
     virtual CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) = 0;
 
     bool shouldCreate(const std::string& nodeType) const {
-        CaselessEq<std::string> comparator;
+        InferenceEngine::details::CaselessEq<std::string> comparator;
         return comparator(nodeType, type_);
     }
 };
@@ -72,6 +72,7 @@ public:
 
     Blob::Ptr GetBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, const WeightSegment & weight_segment) const;
     void SetWeights(const TBlob<uint8_t>::Ptr& weights) override;
+    void CopyBlobsByName(void* layerParsePrms, std::string name) override;
     void ParseDims(SizeVector& dims, const pugi::xml_node &node) const;
 
 private:
@@ -92,6 +93,7 @@ private:
     DataPtr ParseInputData(pugi::xml_node& root) const;
 
     void ParsePreProcess(pugi::xml_node& node);
+    void ParseStatisticSection(const pugi::xml_node& statNode);
 };
 }  // namespace details
 }  // namespace InferenceEngine

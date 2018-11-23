@@ -41,12 +41,12 @@ def parse_mean(file_path: str, in_shape: np.ndarray, mean_file_offsets: [tuple, 
 
     try:
         blob.ParseFromString(data)
-        data = np.array(blob.data)
+        data = np.array(blob.data)  # pylint: disable=no-member
 
         if blob.HasField('channels') or blob.HasField('height') or blob.HasField('width'):
-            data = data.reshape(blob.channels, blob.height, blob.width)
+            data = data.reshape(blob.channels, blob.height, blob.width)  # pylint: disable=no-member
         else:
-            data = data.reshape(blob.shape.dim)
+            data = data.reshape(blob.shape.dim)  # pylint: disable=no-member
         # crop mean image according to input size
         if in_shape[2] > data.shape[1] or in_shape[3] > data.shape[2]:
             raise Error(
@@ -238,26 +238,29 @@ def caffe_pb_to_nx(proto, model):
                 raise Error('Input layer has no input dims. ' +
                             refer_to_faq_msg(8))
             if hasattr(input_param, 'shape'):
-                # example of proto input
-                # layer
-                # {
-                #     name: "data"
-                #     type: "Input"
-                #     top: "data"
-                #     input_param {shape: {dim: 1 dim: 3 dim: 600 dim: 1000}}
-                # }
-                #
-                # layer
-                # {
-                #     name: "im_info"
-                #     type: "Input"
-                #     top: "im_info"
-                #     input_param {shape: {dim: 1 dim: 3}}
-                # }
+                """
+                example of proto input
+                layer
+                {
+                    name: "data"
+                    type: "Input"
+                    top: "data"
+                    input_param {shape: {dim: 1 dim: 3 dim: 600 dim: 1000}}
+                }
+
+                layer
+                {
+                    name: "im_info"
+                    type: "Input"
+                    top: "im_info"
+                    input_param {shape: {dim: 1 dim: 3}}
+                }
+                """
                 dims = map(int, list(filter(None, str(list(input_param.shape)[0]).split('dim:'))))
                 input_dims.append(np.array(list(dims), dtype=np.int64))
                 input_names.append(layer.name)
 
+        layer.name = unique_id(graph, layer.name)        
         graph.add_node(layer.name, pb=layer, model_pb=model_layer, kind='op')
 
         # connect inputs based on blob_producers dictionary

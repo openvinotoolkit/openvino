@@ -2,8 +2,8 @@ load("//tensorflow:tensorflow.bzl", "tf_cc_shared_object")
 tf_cc_shared_object(
     name = "libtensorflow_call_layer.so",
     srcs = [
-            "sample_extension.cpp",
-            "sample_extension.h",
+            "extension.cpp",
+            "extension.h",
             "tensorflow_layer.cpp",
             "tensorflow_layer.h"],
     copts = ["-Ithird_party/inference_engine/include"],

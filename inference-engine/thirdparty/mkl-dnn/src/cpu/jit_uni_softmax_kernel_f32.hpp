@@ -38,7 +38,11 @@ struct jit_uni_softmax_kernel_f32 : public jit_generator {
             isa == avx2, Ymm, Zmm>::type;
 
     jit_uni_softmax_kernel_f32(jit_softmax_conf_t ajpp) : jpp(ajpp) {
-        this->generate();
+        if (jpp.inner_size > 1)
+            this->generate();
+        else
+            this->generate_dense();
+
         jit_ker = (decltype(jit_ker))this->getCode();
     }
 
@@ -55,13 +59,16 @@ struct jit_uni_softmax_kernel_f32 : public jit_generator {
     void simd_expf(const Vmm &vmm_src);
     void scalar_expf(const Xmm &xmm_src);
 
-    void simd_loop_max(int ur_inner, char label_tag);
-    void simd_loop_exp(int ur_inner, char label_tag);
-    void simd_loop_div(int ur_inner, char label_tag);
+    void simd_loop_max(int ur_inner);
+    void simd_loop_exp(int ur_inner);
+    void simd_loop_div(int ur_inner);
 
     void scalar_loop_max();
     void scalar_loop_exp();
     void scalar_loop_div();
+
+    void dense_loop(int ou_block);
+    void generate_dense();
 private:
     void (*jit_ker)(jit_softmax_call_s *);
 

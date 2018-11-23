@@ -34,6 +34,7 @@
         <Source filename="interp.cl"/>
         <Define name="pad_beg_" type="int" param="pad_beg" default="0"/>
         <Define name="pad_end_" type="int" param="pad_end" default="0"/>
+        <Define name="align_corners_" type="int" param="align_corners" default="1"/>
     </Kernel>
     <Buffers>
         <Tensor arg-index="0" type="input" port-index="0"  format="ANY"/>
@@ -57,21 +58,6 @@
 
     <CompilerOptions options="-cl-mad-enable"/>
     <WorkSizes global="B,Y"/>
-</CustomLayer>
-
-<CustomLayer name="Tile" type="SimpleGPU" version="1">
-    <Kernel entry="tile">
-        <Source filename="tile.cl"/>
-        <Define name="axis_" type="int" param="axis" default="1"/>
-        <Define name="tiles_" type="int" param="tiles"/>
-    </Kernel>
-    <Buffers>
-        <Tensor arg-index="0" type="input" port-index="0"  format="BFYX"/>
-        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
-    </Buffers>
-
-    <CompilerOptions options="-cl-mad-enable"/>
-    <WorkSizes global="1,1,1"/>
 </CustomLayer>
 
 <CustomLayer name="CTCGreedyDecoder" type="SimpleGPU" version="1">

@@ -9,7 +9,9 @@
 
 #include <string>
 #include <vector>
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #include <immintrin.h>
+#endif
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -120,11 +122,6 @@ template <class IMPL>
 class ImplFactory : public ILayerImplFactory {
 public:
     explicit ImplFactory(const CNNLayer *layer): cnnLayer(*layer) {}
-
-    StatusCode getShapes(const std::vector<TensorDesc>& inShapes, std::vector<TensorDesc>& outShapes,
-            ResponseDesc *resp) noexcept override {
-        return NOT_IMPLEMENTED;
-    }
 
     // First implementation has more priority than next
     StatusCode getImplementations(std::vector<ILayerImpl::Ptr>& impls, ResponseDesc *resp) noexcept override {

@@ -10,6 +10,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <limits>
+#include "ie_parallel.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -28,9 +29,9 @@ void MKLDNNPowerNode::getSupportedDescriptors() {
     shift = powerLayer->offset;
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 }
 
 void MKLDNNPowerNode::initSupportedPrimitiveDescriptors() {
@@ -89,7 +90,7 @@ void MKLDNNPowerNode::createPrimitive() {
 void MKLDNNPowerNode::execute(mkldnn::stream strm) {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
     auto& dstMemory = getChildEdgeAt(0)->getMemory();
-    const size_t data_size = srcMemory.GetSize() / sizeof(float) / srcMemory.GetDims()[0] * batchToProcess();
+    const int data_size = srcMemory.GetSize() / sizeof(float) / srcMemory.GetDims()[0] * batchToProcess();
 
     const auto *src_ptr = reinterpret_cast<const float*>(srcMemory.GetData()) +
             srcMemory.GetDescriptor().data.layout_desc.blocking.offset_padding;
@@ -97,13 +98,13 @@ void MKLDNNPowerNode::execute(mkldnn::stream strm) {
             dstMemory.GetDescriptor().data.layout_desc.blocking.offset_padding;
 
     if (power == 1.0f) {
-        #pragma omp parallel for
-        for (int i = 0; i < data_size; i++)
+        parallel_for(data_size, [&](int i) {
             dst_ptr[i] = src_ptr[i] * scale + shift;
+        });
     } else {
-        #pragma omp parallel for
-        for (int i = 0; i < data_size; i++)
+        parallel_for(data_size, [&](int i) {
             dst_ptr[i] = pow(src_ptr[i] * scale + shift, power);
+        });
     }
 }
 

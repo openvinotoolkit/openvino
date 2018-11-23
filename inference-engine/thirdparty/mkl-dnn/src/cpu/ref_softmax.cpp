@@ -15,10 +15,12 @@
 *******************************************************************************/
 
 #include <assert.h>
+#include <float.h>
 #include <math.h>
 
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
+#include "mkldnn_thread.hpp"
 
 #include "ref_softmax.hpp"
 
@@ -36,23 +38,37 @@ void ref_softmax_fwd_t<data_type>::execute_forward_dense() {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto dst = reinterpret_cast<data_t *>(this->memory(0));
 
-#   pragma omp parallel for schedule(static)
-    for (int ou = 0; ou < outer_size_; ou++) {
-        const data_t *src_data = src + ou * channels_;
-        data_t *dst_data = dst + ou * channels_;
-        data_t scalar = 0;
+    outer_size_ = utils::array_product(conf_.src_pd()->desc()->dims, conf_.desc()->softmax_axis);
 
-        _max(channels_, src_data, &scalar);
-        _sub(channels_, scalar, src_data, dst_data);
-        _exp(channels_, dst_data, dst_data);
-        _sum(channels_, dst_data, &scalar);
-        _scal(channels_, data_t(1)/scalar, dst_data);
+    if (outer_size_ == 1) {
+        for (int ou = 0; ou < outer_size_; ou++) {
+            const data_t *src_data = src + ou * channels_;
+            data_t *dst_data = dst + ou * channels_;
+            data_t scalar = 0;
+
+            _max(channels_, src_data, &scalar);
+            _sub(channels_, scalar, src_data, dst_data);
+            _exp_parallel(channels_, dst_data, dst_data);
+            _sum(channels_, dst_data, &scalar);
+            _scal_parallel(channels_, data_t(1) / scalar, dst_data);
+        }
+    } else {
+        parallel_nd(outer_size_, [&](int ou) {
+            const data_t *src_data = src + ou * channels_;
+            data_t *dst_data = dst + ou * channels_;
+            data_t scalar = 0;
+
+            _max(channels_, src_data, &scalar);
+            _sub(channels_, scalar, src_data, dst_data);
+            _exp(channels_, dst_data, dst_data);
+            _sum(channels_, dst_data, &scalar);
+            _scal(channels_, data_t(1) / scalar, dst_data);
+        });
     }
 }
 
 template <impl::data_type_t data_type>
 void ref_softmax_fwd_t<data_type>::execute_forward_generic() {
-    typedef typename prec_traits<data_type>::type data_t;
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto dst = reinterpret_cast<data_t *>(this->memory(0));
 
@@ -62,7 +78,7 @@ void ref_softmax_fwd_t<data_type>::execute_forward_generic() {
     outer_size_ = utils::array_product(conf_.src_pd()->desc()->dims, conf_.desc()->softmax_axis);
 
     for (int ou = 0; ou < outer_size_; ou++) {
-        utils::array_set(max_, -nstl::numeric_limits<data_t>::max(), inner_size_);
+        utils::array_set(max_, -FLT_MAX, inner_size_);
         utils::array_set(denom_, 0, inner_size_);
 
         for (int c = 0; c < channels_; c++) {
@@ -105,15 +121,19 @@ void ref_softmax_fwd_t<data_type>::_sub(int n, data_t alpha, const data_t *x,
 }
 
 template <impl::data_type_t data_type>
-void ref_softmax_fwd_t<data_type>::_exp(int n, const data_t *a, data_t *r) {
+void ref_softmax_fwd_t<data_type>::_exp_parallel(int n, const data_t *a, data_t *r) {
 #ifdef USE_MKL
     if (data_type == data_type::f32) {
         vsExp(n, a, r);
         return;
     }
 #endif
-#   pragma omp parallel for
-    for (int c = 0; c < n; ++c)
+    parallel_nd(n, [&](int c) { r[c] = expf(a[c]); });
+}
+
+template <impl::data_type_t data_type>
+void ref_softmax_fwd_t<data_type>::_exp(int n, const data_t *a, data_t *r) {
+    for (int c = 0; c < n; c++)
         r[c] = expf(a[c]);
 }
 
@@ -126,15 +146,19 @@ void ref_softmax_fwd_t<data_type>::_sum(int n, const data_t *x,
 }
 
 template <impl::data_type_t data_type>
-void ref_softmax_fwd_t<data_type>::_scal(int n, data_t alpha, data_t *x) {
+void ref_softmax_fwd_t<data_type>::_scal_parallel(int n, data_t alpha, data_t *x) {
 #ifdef USE_MKL
     if (data_type == data_type::f32) {
         cblas_sscal(n, alpha, x, 1);
         return;
     }
 #endif
-#   pragma omp parallel for
-    for (int c = 0; c < n; ++c)
+    parallel_nd(n, [&](int c) { x[c] *= alpha; });
+}
+
+template <impl::data_type_t data_type>
+void ref_softmax_fwd_t<data_type>::_scal(int n, data_t alpha, data_t *x) {
+    for (int c = 0; c < n; c++)
         x[c] *= alpha;
 }
 
@@ -148,8 +172,7 @@ void ref_softmax_bwd_t<data_type>::execute_backward_dense() {
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(1));
     auto diff_src = reinterpret_cast<data_t *>(this->memory(0));
 
-#   pragma omp parallel for schedule(static)
-    for (int ou = 0; ou < outer_size_; ou++) {
+    parallel_nd(outer_size_, [&](int ou) {
         data_t sbr = 0;
         size_t off = channels_*ou;
         for (int c = 0; c < channels_; c++) {
@@ -163,7 +186,7 @@ void ref_softmax_bwd_t<data_type>::execute_backward_dense() {
           size_t loff = off + c;
           diff_src[loff] *= (diff_dst[loff] - sbr);
         }
-    }
+    });
 }
 
 template <impl::data_type_t data_type>
@@ -175,8 +198,7 @@ void ref_softmax_bwd_t<data_type>::execute_backward_generic() {
     const memory_desc_wrapper diff_d(conf_.diff_src_pd());
     const memory_desc_wrapper data_d(conf_.dst_pd());
 
-#   pragma omp parallel for schedule(static)
-    for (int ou = 0; ou < outer_size_; ou++) {
+    parallel_nd(outer_size_, [&](int ou) {
         for (int in = 0; in < inner_size_; in++) {
             data_t sbr = 0;
             for (int c = 0; c < channels_; c++) {
@@ -191,7 +213,7 @@ void ref_softmax_bwd_t<data_type>::execute_backward_generic() {
               diff_src[off_diff] = data[off_data]*(diff_dst[off_diff] - sbr);
             }
         }
-    }
+    });
 }
 
 template struct ref_softmax_bwd_t<data_type::f32>;
