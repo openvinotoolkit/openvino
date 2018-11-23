@@ -8,7 +8,8 @@ void user_event::set_impl()
     //casting is valid as long as cl::UserEvent does not add any members to cl::Event (which it shouldn't)
     static_assert(sizeof(cl::UserEvent) == sizeof(cl::Event) && alignof(cl::UserEvent) == alignof(cl::Event), "cl::UserEvent does not match cl::Event");
     static_cast<cl::UserEvent&&>(get()).setStatus(CL_COMPLETE);
-    _duration = std::make_unique<cldnn::instrumentation::profiling_period_basic>(_timer.uptime());
+    _duration = std::unique_ptr<cldnn::instrumentation::profiling_period_basic>(
+                            new cldnn::instrumentation::profiling_period_basic(_timer.uptime()));
 }
 
 bool user_event::get_profiling_info_impl(std::list<cldnn_profiling_interval>& info) {

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
- 
+
 __kernel void prior_box_clustered(
     const __global INPUT0_TYPE*  input0,
     const __global INPUT0_TYPE*  input1,
@@ -22,11 +22,20 @@ __kernel void prior_box_clustered(
     const int num_priors_ = sizeof(width_)/sizeof(width_[0]);
     const int var_size = sizeof(variance_)/sizeof(variance_[0]);
 
-    const float r_img_width  = 1.f/(((img_h_ == 0) | (img_w_ == 0)) ? INPUT1_DIMS[3] : img_w_) ;
-    const float r_img_height = 1.f/(((img_h_ == 0) | (img_w_ == 0)) ? INPUT1_DIMS[2] : img_h_) ;
+    const float img_width  = (img_w_ == 0) ? INPUT1_DIMS[3] : img_w_;
+    const float img_height = (img_h_ == 0) ? INPUT1_DIMS[2] : img_h_;
 
-    const float step_w = ((step_w_ == 0) | (step_h_ == 0)) ? step_ : step_w_;
-    const float step_h = ((step_w_ == 0) | (step_h_ == 0)) ? step_ : step_h_;
+    const float r_img_width  = 1.f/img_width;
+    const float r_img_height = 1.f/img_height;
+
+    float step_w = (step_w_ == 0) ? step_ : step_w_;
+    float step_h = (step_h_ == 0) ? step_ : step_h_;
+
+    if ((step_w == 0) & (step_h == 0))
+    {
+        step_w = img_width / INPUT0_DIMS[3];
+        step_h = img_height / INPUT0_DIMS[2];
+    }
 
     int h = get_global_id(0);
     int w = get_global_id(1);

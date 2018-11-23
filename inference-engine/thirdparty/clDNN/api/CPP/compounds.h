@@ -20,6 +20,7 @@
 #include <iterator>
 #include <cstring>
 #include <string>
+#include <stdexcept>
 
 #include "meta_utils.hpp"
 

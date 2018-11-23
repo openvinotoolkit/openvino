@@ -15,15 +15,9 @@
 *******************************************************************************/
 
 #include "mkldnn_thread.hpp"
+#include "utils.hpp"
 
 #include "scratchpad.hpp"
-
-#ifdef __APPLE__
-// older XCode doesn't support thread_local
-#define THREAD_LOCAL __thread
-#else
-#define THREAD_LOCAL thread_local
-#endif
 
 namespace mkldnn {
 namespace impl {

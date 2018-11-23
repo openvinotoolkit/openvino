@@ -17,13 +17,15 @@
 #include "eltwise_kernel_selector.h"
 #include "eltwise_kernel_ref.h"
 #include "eltwise_kernel_vload8.h"
- 
+#include "eltwise_kernel_fs_bs_yx_bsv4_fsv32.h"
+
 namespace kernel_selector 
 {
     eltwise_kernel_selector::eltwise_kernel_selector()
     {
         Attach<EltwiseKernelRef>();
         Attach<EltwiseKernel_vload8>();
+        Attach<EltwiseKernel_fs_bs_yx_bsv4_fsv32>();
     }
 
     KernelsData eltwise_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const

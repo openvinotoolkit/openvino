@@ -39,9 +39,8 @@ class FIFOQueue(FrontReplacementSubgraph):
                 ('placeholder', 'batch_join', {'out': 0}),
                 ('fifo_queue', 'batch_join', {'out': 0}),
                 ('batch_join', 'image_batch', {'out': 0})
-            ],
-            node_attrs=['op', 'data_type'],
-            edge_attrs=['out'])
+            ]
+        )
 
     @staticmethod
     def replace_sub_graph(graph: nx.MultiDiGraph, match: dict, **kwargs):
@@ -65,9 +64,10 @@ class FIFOQueue(FrontReplacementSubgraph):
         placeholder_shape = match['fifo_queue'].shape
         assert true_placeholder_shape.ndim <= 1
         if true_placeholder_shape.ndim == 1 and len(true_placeholder_shape) > 1:
-            log.warning('Placeholder \'{}\' got non 0-dimentional shape {} in FIFOQueue pattern. Placeholder will have the '
-                        'same shape after folding the pattern instead of {} shape which is original for the network.'
-                        ''.format(match['placeholder'].id, true_placeholder_shape, placeholder_shape))
+            log.warning(
+                'Placeholder \'{}\' got non 0-dimensional shape {} in FIFOQueue pattern. Placeholder will have the '
+                'same shape after folding the pattern instead of {} shape which is original for the network.'
+                ''.format(match['placeholder'].id, true_placeholder_shape, placeholder_shape))
             placeholder_shape = true_placeholder_shape
         placeholder_name = match['fifo_queue'].name
         erase_node(match['fifo_queue'])
@@ -80,5 +80,5 @@ class FIFOQueue(FrontReplacementSubgraph):
         erase_node(match['batch_join'])
         placeholder = Input(graph, {'name': placeholder_name, 'shape': placeholder_shape}).create_node()
         create_edge(placeholder, match['image_batch'])
-        log.info("FIFOQueueV2 pattern was detected. New shape of placeholder {} is {}. Use -b to set batch size if " \
+        log.info("FIFOQueueV2 pattern was detected. New shape of placeholder {} is {}. Use -b to set batch size if "
                  "needed".format(placeholder.id, placeholder['shape']))

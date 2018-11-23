@@ -29,7 +29,7 @@ void calc_nthr_nocopy_avx512_common(int m,
         int n, int k, int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k,
         int *BM, int *BN, int *BK);
 
-void calc_nthr_nocopy_avx2(int m, int n, int k,
+void calc_nthr_nocopy_avx(int m, int n, int k,
         int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k, int *BM, int *BN,
         int *BK);
 

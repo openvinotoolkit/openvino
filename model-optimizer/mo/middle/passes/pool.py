@@ -19,7 +19,7 @@ import numpy as np
 
 from mo.graph.graph import create_edge
 from mo.middle.pattern_match import apply_pattern
-from mo.ops.op import Op
+from mo.ops.op import Op, PermuteAttrs
 from mo.ops.reshape import Reshape
 
 
@@ -43,7 +43,12 @@ def mean_to_avgpool_action(graph: nx.MultiDiGraph, matches: dict):
     mean['pool_method'] = 'avg'
     mean['rounding_type'] = 'ceil'
     mean['exclude_pad'] = 'true'
+    mean['kernel_spatial'] = window[spatial_dims]
     graph.remove_edge(matches['axis'].node, matches['mean'].node)
+    mean['permute_attrs'] = PermuteAttrs().update_attrs(attrs=[('pad', 'input:0'),
+                                                               ('stride', 'input:0'),
+                                                               ('window', 'input:0'),
+                                                               ('spatial_dims', 'input:0')])
 
     if matches['mean'].keep_dims == False:
         output = matches['mean'].out_node()
@@ -59,7 +64,8 @@ def mean_to_avgpool_action(graph: nx.MultiDiGraph, matches: dict):
         pool_data = Op.create_data_node(graph, pool_node, {'shape': np.array(shape)})
         # Create and connect reshape node
         reshape_op = Reshape(graph, {'dim': np.array(output.shape)})
-        reshape_node = reshape_op.create_node([pool_data], dict(name='Reshape_'))
+        reshape_node = reshape_op.create_node([pool_data], dict(name='Reshape_',
+                                                                permute_attrs=PermuteAttrs().update_attrs(attrs=[('dim', 'output:0')])))
         create_edge(reshape_node, output)
 
 
@@ -76,7 +82,6 @@ def mean_to_avgpool(graph: nx.MultiDiGraph):
         edges=[
             ('input', 'mean', {'in': 0}),
             ('axis', 'mean', {'in': 1})],
-        action=mean_to_avgpool_action,
-        node_attrs=['kind', 'op'],
-        edge_attrs=['in'])
+        action=mean_to_avgpool_action
+    )
     return graph

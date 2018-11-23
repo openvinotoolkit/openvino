@@ -22,9 +22,9 @@ void MKLDNNTileNode::getSupportedDescriptors() {
         THROW_IE_EXCEPTION << "Cannot convert tile layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     axis = tileLayer->axis;
     tiles = tileLayer->tiles;
@@ -77,7 +77,7 @@ void MKLDNNTileNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
 }
 
 void MKLDNNTileNode::execute(mkldnn::stream strm) {

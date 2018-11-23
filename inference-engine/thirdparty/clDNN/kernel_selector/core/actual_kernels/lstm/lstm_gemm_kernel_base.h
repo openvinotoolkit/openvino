@@ -34,6 +34,7 @@ namespace kernel_selector
         DataTensor hidden;
         bool hasBias = false;
         bool hasHidden = false;
+        uint32_t direction = 0;
 
         void SetBias(const DataTensor& v) {
             bias = v;

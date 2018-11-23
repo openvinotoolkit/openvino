@@ -227,7 +227,7 @@ protected:
         if ((!diff_bias_pd_.is_zero()) && (diff_bias_pd_.desc()->format == any))
             CHECK(diff_bias_pd_.set_format(ldgo));
         if ((!dst_iter_pd_.is_zero()) && (dst_iter_pd_.desc()->format == any))
-            CHECK(diff_dst_iter_pd_.set_format(ldsnc));
+            CHECK(dst_iter_pd_.set_format(ldsnc));
         if ((!diff_dst_iter_pd_.is_zero())
                 && (diff_dst_iter_pd_.desc()->format == any))
             CHECK(diff_dst_iter_pd_.set_format(ldsnc));

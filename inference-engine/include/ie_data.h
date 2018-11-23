@@ -104,7 +104,7 @@ public:
     * Batch is defined as the last element in the dimensions vector.
     * @param batch_size Batch size to set
     */
-    inline void setBatchSize(size_t batch_size);
+    void setBatchSize(size_t batch_size);
 
     /**
     * @brief Sets the layout value for this Data instance

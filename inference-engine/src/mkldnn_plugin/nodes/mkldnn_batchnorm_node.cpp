@@ -40,9 +40,9 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
     }
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     eps = bnLayer->epsilon;
 
@@ -164,25 +164,6 @@ void MKLDNNBatchNormalizationNode::createPrimitive() {
         return;
 
     if (fusedWithScale()) {
-        const size_t channel = getChildEdgeAt(0)->getDims()[1];
-        size_t blk_channel = getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.block_dims[1];
-        if (channel % blk_channel) {
-            // Weights mem for the ScaleShift do not fit blocking layout and needs padding
-            blk_channel = ((size_t) ((channel + blk_channel - 1) / blk_channel)) * blk_channel;
-            const SizeVector mkldnn_weights = {blk_channel, 2};
-            InferenceEngine::TBlob<float>::Ptr internalBlob =
-                    InferenceEngine::make_shared_blob<float>(internalBlobs[2]->precision(), InferenceEngine::NC,
-                                                             mkldnn_weights);
-            internalBlob->allocate();
-            float *data = internalBlob->buffer();
-            memset(data, 0, internalBlob->byteSize());
-            const float *realData = internalBlobs[2]->buffer();
-            memcpy(data, realData, channel * sizeof(float));
-            memcpy(data + blk_channel, realData + channel, channel * sizeof(float));
-
-            // Replace the original weights blob for ScaleShift with the padded
-            internalBlobs[2] = internalBlob;
-        }
         auto prim_desc = createPrimitiveDescriptor<batch_normalization_forward::primitive_desc,
                 batch_normalization_forward::desc>();
         prim.reset(new batch_normalization_forward(prim_desc,

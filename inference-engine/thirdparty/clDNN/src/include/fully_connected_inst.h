@@ -34,11 +34,11 @@ public:
     {
     }
 
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) weights() const { return get_dependency(1); }
-    decltype(auto) bias() const { return get_dependency(2); }
-    decltype(auto) weights_quantization_factors() const { return get_dependency(3); }
-    decltype(auto) output_calibration_factors() const { return get_dependency(4); }
+    program_node& input() const { return get_dependency(0); }
+    program_node& weights() const { return get_dependency(1); }
+    program_node& bias() const { return get_dependency(2); }
+    program_node& weights_quantization_factors() const { return get_dependency(3); }
+    program_node& output_calibration_factors() const { return get_dependency(4); }
     bool bias_term() const { return !get_primitive()->bias.empty(); }
     bool weights_quantization_term() const { return !get_primitive()->weights_quantization_factors.empty(); }
     bool output_calibration_term() const { return !get_primitive()->output_calibration_factors.empty(); }
@@ -64,10 +64,10 @@ public:
 public:
     typed_primitive_inst(network_impl& network, fully_connected_node const& node);
 
-    decltype(auto) weights_memory() const { return dep_memory(1); }
-    decltype(auto) bias_memory() const { return dep_memory(2); }
-    decltype(auto) weights_quantization_factors_memory() const { return dep_memory(3); }
-    decltype(auto) output_calibration_factors_memory() const { return dep_memory(4); }
+    memory_impl& weights_memory() const { return dep_memory(1); }
+    memory_impl& bias_memory() const { return dep_memory(2); }
+    memory_impl& weights_quantization_factors_memory() const { return dep_memory(3); }
+    memory_impl& output_calibration_factors_memory() const { return dep_memory(4); }
 
     bool bias_term() const { return !argument.bias.empty(); }
     bool weights_quantization_factors_term() const { return node.weights_quantization_term(); }

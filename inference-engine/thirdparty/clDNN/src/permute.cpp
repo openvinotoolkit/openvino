@@ -95,8 +95,8 @@ std::string permute_inst::to_string(permute_node const& node)
     permute_info.add("input id", input.id());
     permute_info.add("permute order", ss_permute_order.str());
     
-    node_info.add("permute info", permute_info);
-    node_info.dump(primitive_description);
+    node_info->add("permute info", permute_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

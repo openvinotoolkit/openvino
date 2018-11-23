@@ -53,8 +53,8 @@ std::string lstm_elt_inst::to_string(lstm_elt_node const& node)
 
     json_composite lstm_elt_info;
     lstm_elt_info.add("cell id", cell_id);
-    node_info.add("lstm elt info", lstm_elt_info);
-    node_info.dump(primitive_description);
+    node_info->add("lstm elt info", lstm_elt_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

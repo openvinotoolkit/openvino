@@ -35,6 +35,8 @@ InferenceEngine::Blob::Ptr CreateBlobFromData(const InferenceEngine::DataPtr &da
             return std::make_shared<InferenceEngine::TBlob<uint8_t>>(data->getPrecision(), targetLayout, data->getDims());
         case InferenceEngine::Precision::I8:
             return std::make_shared<InferenceEngine::TBlob<int8_t>>(data->getPrecision(), targetLayout, data->getDims());
+        case InferenceEngine::Precision::I32:
+            return std::make_shared<InferenceEngine::TBlob<int32_t>>(data->getPrecision(), targetLayout, data->getDims());
         default:
             THROW_IE_EXCEPTION << "precision is no set";
     }

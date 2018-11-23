@@ -41,6 +41,8 @@ private:
 
     void handle_constant(program_node& node);
     void add_constant(program_node& node);
+    void add_deps_to_tpl(const std::vector<program_node*>& node);
+    bool is_already_in_tpl(const primitive_id& id);
 };
 
 }

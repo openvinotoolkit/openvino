@@ -43,59 +43,26 @@ else ()
     set(CLDNN_LIB_FOLDER lib)
 endif ()
 
-if (NOT IE_SUBMODULE_IN_CLDNN)
-    #cldnn deliveries always changed path
-    set (CLDNN_TOP_FOLDER ${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN)
+set (CLDNN_TOP_FOLDER ${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN)
 
-    if (NOT ENABLE_CLDNN_BUILD)
-        set (CLDNN_TOP_FOLDER ${CLDNN}/build/out)
-    endif()
+# Properties->C/C++->General->Additional Include Directories
+include_directories (
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${IE_MAIN_SOURCE_DIR}/include
+        ${CLDNN_TOP_FOLDER}/api
+        ${CLDNN_TOP_FOLDER}/include
+        #${OCL_DIST}/include
+        ${IE_MAIN_SOURCE_DIR}/src/inference_engine
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src)
 
-    # Properties->C/C++->General->Additional Include Directories
-    include_directories (
-            ${CMAKE_CURRENT_SOURCE_DIR}
-            ${IE_MAIN_SOURCE_DIR}/include
-            ${CLDNN_TOP_FOLDER}/api
-            ${CLDNN_TOP_FOLDER}/include
-            #${OCL_DIST}/include
-            ${IE_MAIN_SOURCE_DIR}/src/inference_engine
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src)
-
-    # clDnn build configuration, change that if you'd like to debug
-    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug" )
-        set (Configuration ${CMAKE_BUILD_TYPE})
-    else()
-        set (Configuration Release)
-    endif()
-
-    if (NOT ENABLE_CLDNN_BUILD)
-        set (CLDNN_TOP_FOLDER ${CLDNN}/build/out)
-        set (CLDNN_SEARCH_PATH ${CLDNN_TOP_FOLDER}/${CLDNN_PLATFORM})
-        debug_message (STATUS "clDNN search path ${CLDNN_SEARCH_PATH}" )
-        debug_message (STATUS "clDNN paths_sufixes: ${Configuration} ${CLDNN_BUILD_PLATFORM}${Configuration}" )
-
-        find_library(CLDNN_LIBRARY
-            ${CLDNN_LIB_NAME}
-            NO_DEFAULT_PATH
-            PATHS ${CLDNN_SEARCH_PATH}
-            PATH_SUFFIXES ${Configuration} ${CLDNN_BUILD_PLATFORM}/${Configuration})
-
-        debug_message(STATUS "CLDNN_LIBRARY ......................... " ${CLDNN_LIBRARY})
-
-        #saving rpath to be used by CI
-        log_rpath_remove_top(CLDNN FALSE ${CLDNN_LIBRARY} TRUE)
-    else()
-        set(CLDNN_LIBRARY clDNN_shlib)
-    endif()
+# clDnn build configuration, change that if you'd like to debug
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug" )
+    set (Configuration ${CMAKE_BUILD_TYPE})
 else()
-    # Properties->C/C++->General->Additional Include Directories
-    include_directories (
-            ${CMAKE_CURRENT_SOURCE_DIR}
-            ${IE_MAIN_SOURCE_DIR}/include
-            ${IE_MAIN_SOURCE_DIR}/../../api
-            ${IE_MAIN_SOURCE_DIR}/src/inference_engine
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src)
+    set (Configuration Release)
 endif()
+
+set(CLDNN_LIBRARY clDNN_shlib)
 
 # Create library file from sources.
 add_library(${TARGET_NAME} SHARED

@@ -96,6 +96,9 @@ struct batch_normalization_pd_t: public primitive_desc_t {
 
     inline int ndims() const { return desc_.data_desc.ndims; }
 
+    bool has_zero_dim_memory() const
+    { return memory_desc_wrapper(desc_.data_desc).has_zero_dim(); }
+
 protected:
     batch_normalization_desc_t desc_;
     const batch_normalization_fwd_pd_t *hint_fwd_pd_;

@@ -9,14 +9,14 @@
 #include <vector>
 #include <utility>
 #include <mkldnn_types.h>
+#include <ie_common.h>
 #include <mkldnn.hpp>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNDims {
 public:
-    MKLDNNDims() {
-    }
+    MKLDNNDims() = default;
 
     explicit MKLDNNDims(const InferenceEngine::SizeVector& size) {
         dims = std::vector<int>(size.begin(), size.end());
@@ -31,6 +31,7 @@ public:
     }
 
     explicit MKLDNNDims(std::initializer_list<int> ilist) : dims(ilist) {}
+    explicit MKLDNNDims(std::initializer_list<size_t > ilist) : dims(ilist.begin(), ilist.end()) {}
 
     InferenceEngine::SizeVector ToSizeVector() const {
         InferenceEngine::SizeVector size;
@@ -59,18 +60,8 @@ public:
         return size;
     }
 
-    void insert(int at, int val) {
-        dims.insert(dims.begin() + at, val);
-    }
-
     void push_back(int val) {
         dims.push_back(val);
-    }
-
-    void swap(int from, int to) {
-        int tmp = dims[from];
-        dims[from] = dims[to];
-        dims[to] = tmp;
     }
 
     operator mkldnn::memory::dims() const {

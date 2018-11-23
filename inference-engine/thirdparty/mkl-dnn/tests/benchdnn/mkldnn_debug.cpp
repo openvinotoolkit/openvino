@@ -14,36 +14,17 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include "mkldnn_debug.h"
+
 #include "common.hpp"
 #include "mkldnn_debug.hpp"
 
 const char *status2str(mkldnn_status_t status) {
-#   define CASE(s) case s: return #s
-    switch (status) {
-    CASE(mkldnn_success);
-    CASE(mkldnn_out_of_memory);
-    CASE(mkldnn_try_again);
-    CASE(mkldnn_invalid_arguments);
-    CASE(mkldnn_not_ready);
-    CASE(mkldnn_unimplemented);
-    CASE(mkldnn_iterator_ends);
-    CASE(mkldnn_runtime_error);
-    CASE(mkldnn_not_required);
-    }
-    return "unknown error";
-#   undef CASE
+    return mkldnn_status2str(status);
 }
 
 const char *dt2str(mkldnn_data_type_t dt) {
-#define CASE(_dt) if (CONCAT2(mkldnn_, _dt) == dt) return STRINGIFY(_dt)
-    CASE(s8);
-    CASE(u8);
-    CASE(s16);
-    CASE(s32);
-    CASE(f32);
-#undef CASE
-    assert(!"unknown data type");
-    return "unknown data type";
+    return mkldnn_dt2str(dt);
 }
 
 mkldnn_data_type_t str2dt(const char *str) {
@@ -84,21 +65,7 @@ mkldnn_round_mode_t str2rmode(const char *str) {
 }
 
 const char *fmt2str(mkldnn_memory_format_t fmt) {
-#define CASE(_fmt) if (CONCAT2(mkldnn_, _fmt) == fmt) return STRINGIFY(_fmt)
-    CASE(x);
-    CASE(nc);
-    CASE(nchw);
-    CASE(ncdhw);
-    CASE(nhwc);
-    CASE(nChw8c);
-    CASE(nChw16c);
-    CASE(nCdhw16c);
-    CASE(oidhw);
-    CASE(oihw);
-    CASE(hwio);
-#undef CASE
-    assert(!"unknown memory format");
-    return "unknown memory format";
+    return mkldnn_fmt2str(fmt);
 }
 
 mkldnn_memory_format_t str2fmt(const char *str) {
@@ -110,14 +77,65 @@ mkldnn_memory_format_t str2fmt(const char *str) {
     CASE(x);
     CASE(nc);
     CASE(nchw);
-    CASE(ncdhw);
     CASE(nhwc);
+    CASE(chwn);
     CASE(nChw8c);
     CASE(nChw16c);
-    CASE(nCdhw16c);
-    CASE(oidhw);
+    CASE(oi);
+    CASE(io);
     CASE(oihw);
+    CASE(ihwo);
     CASE(hwio);
+    CASE(dhwio);
+    CASE(OIhw8i8o);
+    CASE(OIhw16i16o);
+    CASE(OIhw8i16o2i);
+    CASE(OIdhw8i16o2i);
+    CASE(OIhw4i16o4i);
+    CASE(OIhw8o16i2o);
+    CASE(OIhw8o8i);
+    CASE(OIhw16o16i);
+    CASE(IOhw16o16i);
+    CASE(Oihw16o);
+    CASE(Ohwi8o);
+    CASE(Ohwi16o);
+    CASE(goihw);
+    CASE(hwigo);
+    CASE(gOIhw8i8o);
+    CASE(gOIhw16i16o);
+    CASE(gOIhw8i16o2i);
+    CASE(gOIdhw8i16o2i);
+    CASE(gOIhw4i16o4i);
+    CASE(gOIhw8o16i2o);
+    CASE(gOIhw8o8i);
+    CASE(gOIhw16o16i);
+    CASE(gIOhw16o16i);
+    CASE(gOihw16o);
+    CASE(gOhwi8o);
+    CASE(gOhwi16o);
+    CASE(Goihw8g);
+    CASE(Goihw16g);
+    CASE(oIhw8i);
+    CASE(oIhw16i);
+    CASE(ncdhw);
+    CASE(ndhwc);
+    CASE(oidhw);
+    CASE(goidhw);
+    CASE(nCdhw16c);
+    CASE(OIdhw16i16o);
+    CASE(gOIdhw16i16o);
+    CASE(OIdhw16o16i);
+    CASE(gOIdhw16o16i);
+    CASE(Oidhw16o);
+    CASE(Odhwi16o);
+    CASE(gOidhw16o);
+    CASE(gOdhwi16o);
+    CASE(ntc);
+    CASE(tnc);
+    CASE(ldsnc);
+    CASE(ldigo);
+    CASE(ldgoi);
+    CASE(ldgo);
 #undef CASE
     assert(!"unknown memory format");
     return mkldnn_format_undef;

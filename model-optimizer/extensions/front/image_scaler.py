@@ -18,10 +18,8 @@ import networkx as nx
 import numpy as np
 
 from mo.front.common.replacement import FrontReplacementOp
-from mo.ops.lin_op import Mul, Add
 from mo.ops.const import Const
-from mo.graph.graph import Node
-from mo.ops.op import Op
+from mo.ops.lin_op import Mul, Add
 
 
 class ImageScaler(FrontReplacementOp):

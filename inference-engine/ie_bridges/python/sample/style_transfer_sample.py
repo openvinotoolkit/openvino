@@ -69,7 +69,7 @@ def main():
     log.info("Loading network files:\n\t{}\n\t{}".format(model_xml, model_bin))
     net = IENetwork.from_ir(model=model_xml, weights=model_bin)
 
-    if "CPU" in plugin.device:
+    if plugin.device == "CPU":
         supported_layers = plugin.get_supported_layers(net)
         not_supported_layers = [l for l in net.layers.keys() if l not in supported_layers]
         if len(not_supported_layers) != 0:
@@ -88,7 +88,7 @@ def main():
     net.batch_size = len(args.input)
 
     # Read and pre-process input images
-    n, c, h, w = net.inputs[input_blob]
+    n, c, h, w = net.inputs[input_blob].shape
     images = np.ndarray(shape=(n, c, h, w))
     for i in range(n):
         image = cv2.imread(args.input[i])

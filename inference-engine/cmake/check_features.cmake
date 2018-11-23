@@ -2,10 +2,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-
-include ("features")
+include("features")
 include("mode")
-include("omp")
+if (THREADING STREQUAL "OMP")
+    include("omp")
+endif()
 include("itt")
 
 #64 bits platform
@@ -40,7 +41,7 @@ if (WIN32)
 
     if (MINGW)
         SET(ENABLE_CLDNN OFF) # dont have mingw dll for linking
-        set(ENABLE_SAMPLES_CORE OFF)
+        set(ENABLE_SAMPLES OFF)
     endif()
 endif()
 
@@ -61,14 +62,6 @@ endif ()
 
 if (NOT ENABLE_MKL_DNN)
     set(GEMM OPENBLAS)
-endif()
-
-if (NOT ENABLE_VPU)
-    set(ENABLE_MYRIAD OFF)
-endif()
-
-if (NOT ENABLE_MYRIAD)
-    set(ENABLE_VPU OFF)
 endif()
 
 #next section set defines to be accesible in c++/c code for certain feature
@@ -100,8 +93,6 @@ if (ENABLE_OBJECT_DETECTION_TESTS)
     add_definitions(-DENABLE_OBJECT_DETECTION_TESTS=1)
 endif()
 
-#models dependend tests
-
 if (DEVELOPMENT_PLUGIN_MODE)
     message (STATUS "Enabled development plugin mode")
 
@@ -121,14 +112,9 @@ if (VERBOSE_BUILD)
     set(CMAKE_VERBOSE_MAKEFILE  ON)
 endif()
 
-if (NOT ENABLE_OMP)
+if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "SEQ")
     set(ENABLE_INTEL_OMP OFF)
-endif()
-
-if (NOT GEMM STREQUAL "MKL" AND NOT GEMM STREQUAL "OPENBLAS")
-    message("FATAL_ERROR" "GEMM should be set to MKL|OPENBLAS")
+    message(STATUS "ENABLE_INTEL_OMP should be disabled if THREADING is TBB or Sequential. ENABLE_INTEL_OMP option is " ${ENABLE_INTEL_OMP})
 endif()
 
 print_enabled_features()
-
-message(STATUS "GEMM = ${GEMM}")

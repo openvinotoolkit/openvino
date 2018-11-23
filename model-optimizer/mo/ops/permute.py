@@ -31,8 +31,6 @@ class Permute(Op):
             'type': __class__.op,
             'op': __class__.op,
             'infer': self.infer,
-            'shape_attrs': ['order'],
-            'dim_attrs': ['order'],
         }, attrs)
 
     def supported_attrs(self):

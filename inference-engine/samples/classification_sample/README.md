@@ -1,4 +1,4 @@
-# Image Classification Sample {#InferenceEngineClassificationSampleApplication}
+# Image Classification Sample
 
 This topic demonstrates how to build and run the Image Classification sample application, which does 
 inference using image classification networks like AlexNet and GoogLeNet.
@@ -37,6 +37,8 @@ Options:
                             Number of iterations (default 1)
     -pc                     
                             Enables per-layer performance report
+    -p_msg                  
+                            Enables messages from a plugin
 
 ```
 
@@ -63,4 +65,4 @@ Engine plugin. When inference is done, the application creates an
 output image and outputs data to the standard output stream.
 
 ## See Also 
-* [Using Inference Engine Samples](@ref SamplesOverview)
+* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -84,7 +84,6 @@ KERNEL(convolution_f32)(
         _result.s6 = mad( _rowA, sub_group_broadcast( colB,  6 ), _result.s6 );  \
         _result.s7 = mad( _rowA, sub_group_broadcast( colB,  7 ), _result.s7 );  \
     }
-    typedef CAT( float, FILTER_SIZE_X ) float_t;
 
     // Walk DOWN src0 (patch 0, 1, 2, ...) and DOWN src1.
     // Inner loop loads and FMADs one row (FILTER_SIZE_X) of each input patch

@@ -86,7 +86,7 @@ def _fuse_mul(graph: nx.MultiDiGraph, node: Node, fuse_nodes: list, backward: bo
 
         # TODO : ch_dim should be equal to node.in_node(1).value.shape
         # We will multiply weights according output/input channel dimension
-        ch_dim = weights_node.output_channel_dim[0] if backward else weights_node.input_channel_dim[0]
+        ch_dim = weights_node.output_channel_dim if backward else weights_node.input_channel_dim
         shape = np.array([weights_node.shape[ch_dim]])
 
         # Scalar broadcast

@@ -34,7 +34,7 @@ namespace cldnn
 			: parent(prim, prog)
 		{
 		}
-		decltype(auto) input() const { return get_dependency(0); }
+        program_node& input() const { return get_dependency(0); }
 	};
 
 	using arg_max_min_node = typed_program_node<arg_max_min>;

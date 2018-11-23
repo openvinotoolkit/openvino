@@ -14,7 +14,6 @@
 
 #!/bin/bash
 
-BOOST_VERSION="1.64.0"
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BUILD_DIR="${ROOT_DIR}/build/Linux64"
 OUT_DIR="${ROOT_DIR}/build/out/Linux64"
@@ -31,12 +30,12 @@ else
 fi
 
 if [ "${USE_DEVTOOLSET}" = "" ]; then
-    cd ${ROOT_DIR} && cmake -E make_directory "${BUILD_DIR}/Debug" && cd "${BUILD_DIR}/Debug" && cmake -G "${GENERATOR}" "-DCLDNN__OUTPUT_DIR=${OUT_DIR}/Debug" "-DCMAKE_BUILD_TYPE=Debug" "-DCLDNN__BOOST_VERSION=${BOOST_VERSION}" "${ROOT_DIR}"
-    cd ${ROOT_DIR} && cmake -E make_directory "${BUILD_DIR}/Release" && cd "${BUILD_DIR}/Release" && cmake -G "${GENERATOR}" "-DCLDNN__OUTPUT_DIR=${OUT_DIR}/Release" "-DCMAKE_BUILD_TYPE=Release" "-DCLDNN__BOOST_VERSION=${BOOST_VERSION}" "${ROOT_DIR}"
+    cd ${ROOT_DIR} && cmake -E make_directory "${BUILD_DIR}/Debug" && cd "${BUILD_DIR}/Debug" && cmake -G "${GENERATOR}" "-DCLDNN__OUTPUT_DIR=${OUT_DIR}/Debug" "-DCMAKE_BUILD_TYPE=Debug" "${ROOT_DIR}"
+    cd ${ROOT_DIR} && cmake -E make_directory "${BUILD_DIR}/Release" && cd "${BUILD_DIR}/Release" && cmake -G "${GENERATOR}" "-DCLDNN__OUTPUT_DIR=${OUT_DIR}/Release" "-DCMAKE_BUILD_TYPE=Release" "${ROOT_DIR}"
 else
     echo Using devtoolset-${USE_DEVTOOLSET,,} ...
-    cd ${ROOT_DIR} && cmake -E make_directory "${BUILD_DIR}/Debug" && cd "${BUILD_DIR}/Debug" && scl enable devtoolset-${USE_DEVTOOLSET,,} "cmake -G \"${GENERATOR}\" \"-DCLDNN__OUTPUT_DIR=${OUT_DIR}/Debug\" \"-DCMAKE_BUILD_TYPE=Debug\" \"-DCLDNN__BOOST_VERSION=${BOOST_VERSION}\" \"${ROOT_DIR}\""
-    cd ${ROOT_DIR} && cmake -E make_directory "${BUILD_DIR}/Release" && cd "${BUILD_DIR}/Release" && scl enable devtoolset-${USE_DEVTOOLSET,,} "cmake -G \"${GENERATOR}\" \"-DCLDNN__OUTPUT_DIR=${OUT_DIR}/Release\" \"-DCMAKE_BUILD_TYPE=Release\" \"-DCLDNN__BOOST_VERSION=${BOOST_VERSION}\" \"${ROOT_DIR}\""
+    cd ${ROOT_DIR} && cmake -E make_directory "${BUILD_DIR}/Debug" && cd "${BUILD_DIR}/Debug" && scl enable devtoolset-${USE_DEVTOOLSET,,} "cmake -G \"${GENERATOR}\" \"-DCLDNN__OUTPUT_DIR=${OUT_DIR}/Debug\" \"-DCMAKE_BUILD_TYPE=Debug\" \"${ROOT_DIR}\""
+    cd ${ROOT_DIR} && cmake -E make_directory "${BUILD_DIR}/Release" && cd "${BUILD_DIR}/Release" && scl enable devtoolset-${USE_DEVTOOLSET,,} "cmake -G \"${GENERATOR}\" \"-DCLDNN__OUTPUT_DIR=${OUT_DIR}/Release\" \"-DCMAKE_BUILD_TYPE=Release\" \"${ROOT_DIR}\""
 fi
 
 

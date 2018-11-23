@@ -14,7 +14,8 @@
 // limitations under the License.
 */
 
-#include "include/include_all.cl"
+#include "include/common.cl"
+#include "include/data_types.cl"
 
 KERNEL (upsampling_gpu_ref)(__global UNIT_TYPE* input, __global UNIT_TYPE* output)
 {

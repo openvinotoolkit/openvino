@@ -100,6 +100,12 @@ struct inner_product_fwd_pd_t: public primitive_desc_t {
     inline bool with_bias() const
     { return !memory_desc_wrapper(desc_.bias_desc).is_zero(); }
 
+    bool has_zero_dim_memory() const {
+        return false
+            || memory_desc_wrapper(desc_.src_desc).has_zero_dim()
+            || memory_desc_wrapper(desc_.dst_desc).has_zero_dim();
+    }
+
 protected:
     inner_product_desc_t desc_;
     const inner_product_fwd_pd_t *hint_fwd_pd_;
@@ -180,6 +186,12 @@ struct inner_product_bwd_data_pd_t: public primitive_desc_t {
     inline int ndims() const { return desc_.diff_src_desc.ndims; }
     inline bool with_bias() const
     { return !memory_desc_wrapper(desc_.bias_desc).is_zero(); }
+
+    bool has_zero_dim_memory() const {
+        return false
+            || memory_desc_wrapper(desc_.diff_src_desc).has_zero_dim()
+            || memory_desc_wrapper(desc_.diff_dst_desc).has_zero_dim();
+    }
 
 protected:
     inner_product_desc_t desc_;
@@ -266,6 +278,12 @@ struct inner_product_bwd_weights_pd_t: public primitive_desc_t {
     inline int ndims() const { return desc_.src_desc.ndims; }
     inline bool with_bias() const
     { return !memory_desc_wrapper(desc_.diff_bias_desc).is_zero(); }
+
+    bool has_zero_dim_memory() const {
+        return false
+            || memory_desc_wrapper(desc_.src_desc).has_zero_dim()
+            || memory_desc_wrapper(desc_.diff_dst_desc).has_zero_dim();
+    }
 
 protected:
     inner_product_desc_t desc_;

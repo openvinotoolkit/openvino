@@ -30,7 +30,9 @@ namespace math {
 template <typename data_t, typename acc_t>
 inline typename utils::enable_if<!nstl::is_integral<data_t>::value,
        typename utils::remove_reference<data_t>::type>::type
-saturate(const acc_t &x) { return x; }
+saturate(const acc_t &x) {
+    return (typename utils::remove_reference<data_t>::type)x;
+}
 
 template <typename data_t, typename acc_t>
 inline typename utils::enable_if<nstl::is_integral<data_t>::value,
@@ -48,6 +50,10 @@ template <> inline int8_t saturate<int8_t, uint8_t>(const uint8_t &x) {
     return x <= 127u ? x : 127;
 }
 
+template <> inline uint8_t saturate<uint8_t, int8_t>(const int8_t &x) {
+    return x >= 0 ? x : 0;
+}
+
 template <typename out_t>
 inline typename utils::enable_if<nstl::is_integral<out_t>::value, out_t>::type
 out_round(float v, round_mode_t rmode = round_mode::nearest)
@@ -59,16 +65,16 @@ out_round(float v, round_mode_t rmode = round_mode::nearest)
 { UNUSED(rmode); return v; }
 
 inline int gcd(int a, int b) {
-	a = impl::nstl::abs(a);
-	b = impl::nstl::abs(b);
-	if (a < b) { int x = a; a = b; b = x; }
+    a = impl::nstl::abs(a);
+    b = impl::nstl::abs(b);
+    if (a < b) { int x = a; a = b; b = x; }
 
-	if (b == 0) return a;
+    if (b == 0) return a;
 
-	int r;
-	while ((r = a % b) != 0) { a = b; b = r; }
+    int r;
+    while ((r = a % b) != 0) { a = b; b = r; }
 
-	return b;
+    return b;
 }
 
 template <typename T>
@@ -100,7 +106,7 @@ template <typename T> inline T tanh_fwd(T s) {
 }
 template <typename T> inline T tanh_bwd(T dd, T s) {
     const float e = tanh_fwd<float>((float) s);
-    return (T)(dd * (1 - e * e));
+    return (T)(dd * (1 - e) * (1 + e));
 }
 
 template <typename T, typename A> inline T elu_fwd(T s, A alpha) {
@@ -167,7 +173,8 @@ inline T bounded_relu_bwd(T dd, T s, A alpha) {
 
 template <typename T>
 inline T soft_relu_fwd(T s) {
-    return (T)(::logf(1 + ::expf((float)s)));
+    float max_logf = 8.872284e+01; //::logf(FLT_MAX)
+    return s < max_logf ? (T)(::log1pf(::expf((float)s))) : s;
 }
 
 template <typename T>
@@ -177,14 +184,24 @@ inline T soft_relu_bwd(T dd, T s) {
 
 template <typename T>
 inline T logistic_fwd(T s) {
-    T v = (T)(::tanhf((float) s/2));
-    return (1 + v)/2;
+    T v = (T)(::expf((float) -s));
+    return 1 / (1 + v);
 }
 
 template <typename T>
 inline T logistic_bwd(T dd, T s) {
     T v = logistic_fwd<T>(s);
     return dd * v * (1 - v);
+}
+
+template <typename T, typename A>
+T clamp_fwd(T s, A alpha, A beta) {
+    return s > alpha ? (T)(alpha) : s < beta ? (T)(beta) : s;
+}
+
+template <typename T, typename A>
+T clamp_bwd(T dd, T s, A alpha, A beta) {
+    return dd * (beta < s && s < alpha ? 1 : 0);
 }
 
 }

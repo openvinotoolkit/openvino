@@ -1,9 +1,9 @@
-# Hello Infer Request Classification Sample {#InferenceEngineHelloRequestClassificationSample}
+# Hello Infer Request Classification Sample
 
 This topic describes how to run the Hello Infer Classification sample application.
-The sample is simplified version of [Image Classification Sample](@ref InferenceEngineClassificationSampleApplication). 
+The sample is simplified version of [Image Classification Sample](./samples/classification_sample/README.md).
 It's intended to demonstrate using of new Infer Request API of Inference Engine in applications. Refer to 
-[Integrate with customer application New Request API](@ref IntegrateIEInAppNewAPI) for details. 
+[Integrate with customer application New Request API](./docs/Inference_Engine_Developer_Guide/Integrate_with_customer_application_new_API.md) for details.
 
 ## Running
 
@@ -18,4 +18,4 @@ The application outputs top-10 inference results.
 
 
 ## See Also 
-* [Using Inference Engine Samples](@ref SamplesOverview)
+* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)

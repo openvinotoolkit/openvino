@@ -1,18 +1,7 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// SPDX-License-Identifier: Apache-2.0
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #pragma once
 
@@ -26,6 +15,9 @@
 #else
 #include <dirent.h>
 #endif
+
+/* thickness of a line (in pixels) to be used for bounding boxes */
+#define BBOX_THICKNESS 2
 
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
@@ -54,13 +46,15 @@ static const char performance_counter_message[] = "Enables per-layer performance
 static const char iterations_count_message[] = "Number of iterations (default 1)";
 
 /// @brief message for clDNN custom kernels desc
-static const char custom_cldnn_message[] = "Required for clDNN (GPU)-targeted custom kernels."\
+static const char custom_cldnn_message[] = "Required for clDNN (GPU)-targeted custom kernels. "\
 "Absolute path to the xml file with the kernels desc.";
 
 /// @brief message for user library argument
-static const char custom_cpu_library_message[] = "Required for MKLDNN (CPU)-targeted custom layers." \
+static const char custom_cpu_library_message[] = "Required for MKLDNN (CPU)-targeted custom layers. " \
 "Absolute path to a shared library with the kernels impl.";
 
+/// @brief message for plugin messages
+static const char plugin_err_message[] = "Enables messages from a plugin";
 
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -94,6 +88,8 @@ DEFINE_string(l, "", custom_cpu_library_message);
 /// @brief Iterations count (default 1)
 DEFINE_int32(ni, 1, iterations_count_message);
 
+/// @brief Enable plugin messages
+DEFINE_bool(p_msg, false, plugin_err_message);
 
 /**
 * \brief This function show a help message
@@ -113,4 +109,5 @@ static void showUsage() {
     std::cout << "    -d \"<device>\"           " << target_device_message << std::endl;
     std::cout << "    -pc                     " << performance_counter_message << std::endl;
     std::cout << "    -ni \"<integer>\"         " << iterations_count_message << std::endl;
+    std::cout << "    -p_msg                  " << plugin_err_message << std::endl;
 }

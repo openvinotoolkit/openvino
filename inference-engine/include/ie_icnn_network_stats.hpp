@@ -13,37 +13,39 @@
 #include <memory>
 #include <limits>
 #include <vector>
+#include <map>
+#include "details/ie_irelease.hpp"
 
 namespace InferenceEngine {
 
+class NetworkNodeStats;
+
+using NetworkNodeStatsPtr = std::shared_ptr<NetworkNodeStats>;
+using NetworkNodeStatsWeakPtr = std::weak_ptr<NetworkNodeStats>;
+using NetworkStatsMap = std::map<std::string, NetworkNodeStatsPtr>;
 /**
  * @class ICNNNetworkStats
  * @brief This is the interface to describe the NN topology scoring statistics
  */
 class ICNNNetworkStats : public details::IRelease {
 public:
-    virtual void SaveToFile(const std::string& xmlPath, const std::string& binPath) const = 0;
-    virtual void LoadFromFile(const std::string& xmlPath, const std::string& binPath) = 0;
+    virtual void setNodesStats(const NetworkStatsMap& stats) = 0;
+    virtual const NetworkStatsMap& getNodesStats() const = 0;
 
     virtual bool isEmpty() const = 0;
 };
 
 
-class NetworkNodeStats;
-
-using NetworkNodeStatsPtr = std::shared_ptr<NetworkNodeStats>;
-using NetworkNodeStatsWeakPtr = std::weak_ptr<NetworkNodeStats>;
-
 class NetworkNodeStats {
 public:
     NetworkNodeStats() { }
     explicit NetworkNodeStats(int statCount) {
-        float min = std::numeric_limits<float>::max();
-        float max = std::numeric_limits<float>::min();
+        float mn = (std::numeric_limits<float>::max)();
+        float mx = (std::numeric_limits<float>::min)();
 
         for (int i = 0; i < statCount; i++) {
-            _minOutputs.push_back(min);
-            _maxOutputs.push_back(max);
+            _minOutputs.push_back(mn);
+            _maxOutputs.push_back(mx);
         }
     }
 

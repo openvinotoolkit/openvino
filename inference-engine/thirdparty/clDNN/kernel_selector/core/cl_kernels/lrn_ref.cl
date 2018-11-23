@@ -17,7 +17,7 @@
 #include "include/common.cl"
 #include "include/fetch.cl"
 #include "include/data_types.cl"
-#include "include/activation_functions.cl"
+
 
 KERNEL(normalization)(__global const INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {

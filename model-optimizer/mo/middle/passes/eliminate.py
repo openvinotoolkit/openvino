@@ -195,9 +195,8 @@ def remove_op_nodes(graph: nx.MultiDiGraph, attrs: dict):
         graph,
         nodes=[('identity', op_attrs)],
         edges=[],
-        action=remove_identity_action,
-        node_attrs=['kind'] + list(attrs.keys()),
-        edge_attrs=[])
+        action=remove_identity_action
+    )
 
 
 def remove_edges_for_nodes(graph: nx.MultiDiGraph, node_attrs: dict, edge_attrs: dict):
@@ -227,9 +226,8 @@ def remove_useless_split(graph: nx.MultiDiGraph):
         graph,
         nodes=[('split', {'kind': 'op', 'op': 'Split', 'num_split': 1})],
         edges=[],
-        action=remove_useless_split_action,
-        node_attrs=['kind', 'op', 'num_split'],
-        edge_attrs=[])
+        action=remove_useless_split_action
+    )
 
 
 def remove_node_from_graph(graph: nx.MultiDiGraph, previous_node: Node, removing_node: Node):

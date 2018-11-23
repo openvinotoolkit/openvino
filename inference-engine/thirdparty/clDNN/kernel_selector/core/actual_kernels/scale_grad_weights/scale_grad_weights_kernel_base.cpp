@@ -57,7 +57,7 @@ namespace kernel_selector
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         auto& kernel = kd.kernels[0];
-        FillCLKernelData(kernel, runInfo, kernelName, jit, entry_point, ROUND_ROBIN, true, !orgParams.bias.empty(), 2);
+        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, ROUND_ROBIN, true, !orgParams.bias.empty(), 2);
 
         if (orgParams.use_momentum)
         {

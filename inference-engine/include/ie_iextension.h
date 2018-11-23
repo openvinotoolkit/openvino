@@ -22,7 +22,6 @@
 #include "details/ie_no_copy.hpp"
 
 
-
 #if defined(_WIN32) && defined(IMPLEMENT_INFERENCE_EXTENSION_API)
 #define INFERENCE_EXTENSION_API(TYPE) extern "C"  __declspec(dllexport) TYPE
 #else
@@ -137,7 +136,9 @@ public:
      * @return Status code
      */
     virtual StatusCode getShapes(const std::vector<TensorDesc>& inShapes, std::vector<TensorDesc>& outShapes,
-                                 ResponseDesc* resp) noexcept = 0;
+                                 ResponseDesc* resp) noexcept {
+        return NOT_IMPLEMENTED;
+    }
 
     /**
      * @brief Gets all possible implementations for the given cnn Layer
@@ -155,6 +156,8 @@ public:
 class IShapeInferImpl {
 public:
     using Ptr = std::shared_ptr<IShapeInferImpl>;
+
+    virtual ~IShapeInferImpl() = default;
 
     /**
      * @brief check that reshape can be applied, that parameters and shapes are valid
@@ -191,13 +194,13 @@ public:
     virtual void Unload() noexcept = 0;
 
     /**
-     * @brief Gets the array with types of layers which are included in the extension
+     * @brief Fills passed array with types of layers which shape infer implementations are included in the extension
      * @param types Array to store the layer types
      * @param size Size of the layer types array
      * @param resp Response descriptor
      * @return Status code
      */
-    virtual StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept = 0;
+    virtual StatusCode getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept = 0;
 
     /**
      * @brief Gets shape propagation implementation for the given string-type of cnn Layer
@@ -218,9 +221,20 @@ public:
     virtual StatusCode getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer,
                                      ResponseDesc* resp) noexcept = 0;
 
-    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl,
-                                 const char* type,
-                                 ResponseDesc* resp) noexcept override {
+    /**
+     * @brief Fills passed array with types of layers which kernel implementations are included in the extension
+     * @param types Array to store the layer types
+     * @param size Size of the layer types array
+     * @param resp Response descriptor
+     * @return Status code
+     */
+    virtual StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept = 0;
+
+    StatusCode getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
+        return NOT_IMPLEMENTED;
+    };
+
+    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept override {
         return NOT_IMPLEMENTED;
     };
 };

@@ -73,13 +73,6 @@
 #include <sstream>
 #include <iomanip>
 
-namespace cldnn
-{
-
-    CLDNN_DEFINE_INTERNAL_PRIM(connector)
-        CLDNN_DEFINE_SIMPLE_PRIM_INST(connector)
-
-}
 
 namespace {
 
@@ -126,12 +119,12 @@ namespace {
         {}
 
         constexpr size_t size() const { return 1; }
-        auto begin() const { return single_element_container(elem); }
-        auto end() const { return single_element_container(nullptr); }
-        auto& operator ++() { elem = nullptr; return *this; }
+        single_element_container<T> begin() const { return single_element_container(elem); }
+        single_element_container<T> end() const { return single_element_container(nullptr); }
+        single_element_container<T>& operator ++() { elem = nullptr; return *this; }
         bool operator !=(single_element_container const& sec) { return elem != sec.elem; }
 
-        decltype(auto) operator *() { return *elem; }
+        T operator *() { return *elem; }
 
     private:
         single_element_container(T* t) : elem(t)
@@ -154,7 +147,7 @@ namespace {
     //
     // T& case -> returns container which holds T&
     template <class T>
-    auto wrap_if_single(T& t)
+    single_element_container<T> wrap_if_single(T& t)
     {
         return single_element_container<T>(t);
     }
@@ -163,7 +156,7 @@ namespace {
     //other than std::vector.
     // T const& case -> returns container which holds T const&
     template <class T>
-    auto wrap_if_single(T const& t)
+    single_element_container<T const> wrap_if_single(T const& t)
     {
         return single_element_container<T const>(t);
     }
@@ -172,16 +165,16 @@ namespace {
     //other than std::vector.
     // T&& case -> returns container which holds new instance of T created by moving given param
     template <class T>
-    auto wrap_if_single(T&& t)
+    single_element_container<T> wrap_if_single(T&& t)
     {
-        static_assert(meta::always_false_v<T>, "Wrapping temporary object into single_element_container is an error (requires valid reference)");
+        static_assert(meta::always_false<T>::value, "Wrapping temporary object into single_element_container is an error (requires valid reference)");
         return single_element_container<T>(t);
     }
 
     //helper function which creates single-element array if it's given anything
     //other than std::vector.
     // std::vector case -> does not wrap, returns t as-is
-    decltype(auto) wrap_if_single(primitive::fixed_size_vector_ref const& t)
+    primitive::fixed_size_vector_ref const& wrap_if_single(primitive::fixed_size_vector_ref const& t)
     {
         return t;
     }
@@ -209,7 +202,7 @@ namespace {
     //helper function for getting target layout used in depthwise sep optimization
     layout get_weights_layout(typed_program_node<cldnn::data> &data_node, int32_t split)
     {
-        auto& mem_layout = const_cast<data&>(*data_node.get_primitive()).mem.get_layout();
+        auto mem_layout = data_node.get_output_layout();
 
         return layout(mem_layout.data_type, mem_layout.format, { split * mem_layout.size.batch[0], mem_layout.size.feature[0], mem_layout.size.spatial[0], mem_layout.size.spatial[1] });
     }
@@ -359,9 +352,7 @@ std::list<std::shared_ptr<program_node>> program_impl::get_nodes() const
     std::list<std::shared_ptr<program_node>> ret;
 
     for (auto& node : processing_order)
-        if (!node->is_type<connector>())
-            ret.push_back(nodes_map.at(node->id()));
-
+        ret.push_back(nodes_map.at(node->id()));
     return ret;
 }
 
@@ -411,21 +402,14 @@ void program_impl::init_graph(topology_impl const& topology)
     calc_prior_boxes(); dump_program("1_calculated_prior_boxes", true);
     mark_constants();
     mark_data_flow();
-    calc_dominators();
-
     dump_program("2_analyzed_graph", true);
 }
 
 void program_impl::pre_optimize_graph()
 {
     trim_to_outputs(); dump_program("3_trimmed", true);
-
-    // TODO: uncomment as soon as IE will enable OOOQ by default
-    //if (get_engine().configuration().enable_parallelisation)
-    reorder_nodes_for_parallel_execution();
-
+    calculate_BFS_processing_order();
     analyze_output_size_handling_need();
-
     for (auto& node : processing_order)
     {
         if (!node->is_type<internal_primitive>() && !node->is_type<data>())
@@ -434,6 +418,7 @@ void program_impl::pre_optimize_graph()
 
     if (options.get<build_option_type::optimize_data>()->enabled())
     {
+        prepare_primitive_fusing();
         layout_optimizer lo(output_size_handling_enabled);
         reorder_inputs(lo);
         // this code should move to post compilation after kernel selector will support handling reorder bias
@@ -452,7 +437,6 @@ void program_impl::pre_optimize_graph()
     if (options.get<build_option_type::optimize_data>()->enabled())
     {
         prepare_buffer_fusing();
-        prepare_primitive_fusing();
     }
 
     dump_program("7_pre_optimized", true);
@@ -480,7 +464,7 @@ void program_impl::post_optimize_graph()
     remove_redundant_reorders(); dump_program("10_removed_redundant_reorders", true); //TODO: do we need it at this place also?
     propagate_constants(); dump_program("11_propagated_constants", true);
     prep_opt_depthwise_sep_post();
-    update_processing_order(); dump_program("12_validated_processing_order", true);
+    update_processing_numbers(); dump_program("12_validated_processing_order", true);
     prepare_memory_dependencies();
 }
 
@@ -489,10 +473,6 @@ void program_impl::cleanup()
     for (auto& node : processing_order)
         if (!node->is_type<internal_primitive>())
             node->get_output_layout();
-
-    for (auto& input : inputs)
-        if (input->dependencies.size() == 1 && input->get_dependency(0).is_type<connector>())
-            input->dependencies.clear();
 
     //in debug build, at the end, mark all nodes as outputs so user can query for buffers of all not-optimized nodes, including internal ones etc.
     if (is_debug_build())
@@ -508,8 +488,7 @@ void program_impl::cleanup()
     }
 }
 
-
-std::string getIdString(size_t i) {
+std::string get_id_string(size_t i) {
     std::stringstream ss;
     ss << std::setw(5) << std::setfill('0') << i;
     return ss.str();
@@ -626,20 +605,39 @@ void program_impl::replace_nodes_post()
 
             //setting weights for deconvolution
             auto kernel_size = static_cast<tensor::value_type>((2 * scale) - (scale % 2));
-            layout weights_layout(data_types::f32, format::bfyx, tensor(num_filter, 1, kernel_size, kernel_size));
+            layout weights_layout(data_types::f32, format::bfyx, tensor(1, 1, kernel_size, kernel_size));
 
-            memory_impl::ptr data_to_allocate = engine->allocate_memory(weights_layout);
-            mem_lock<float> dst{ data_to_allocate };
-            float *dst_data = dst.data();
-            //initialize with bilinear weights data
-            auto f = static_cast<uint32_t>(std::ceil(kernel_size / 2.0f));
-            float c = (2 * f - 1 - f % 2) / (2.f * f);
-            float x = 0.f;
-            float y = 0.f;
-            for (size_t i = 0; i < weights_layout.count(); ++i) {
-                x = static_cast<float>(i % kernel_size);
-                y = static_cast<float>((i / kernel_size) % kernel_size);
-                dst_data[i] = (1 - std::abs(x / f - c)) * (1 - std::abs(y / f - c));
+            std::vector<primitive_id> weights_vec;
+            for (uint32_t weights_idx = 0; weights_idx < num_filter; weights_idx++)
+            {
+                memory_impl::ptr data_to_allocate = engine->allocate_memory(weights_layout);
+                mem_lock<float> dst{ data_to_allocate };
+                float *dst_data = dst.data();
+                //initialize with bilinear weights data
+                auto f = static_cast<uint32_t>(std::ceil(kernel_size / 2.0f));
+                float c = (2 * f - 1 - f % 2) / (2.f * f);
+                float x = 0.f;
+                float y = 0.f;
+                for (size_t i = 0; i < weights_layout.count(); ++i) {
+                    x = static_cast<float>(i % kernel_size);
+                    y = static_cast<float>((i / kernel_size) % kernel_size);
+                    dst_data[i] = (1 - std::abs(x / f - c)) * (1 - std::abs(y / f - c));
+                }
+
+                //create weights primitive, with dummy memory which will be replaced in firther step
+                primitive_id weights_id = upsampling_id + "_deconvolution_weights" + std::to_string(weights_idx);
+                layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
+                float zero = 0.f;
+                auto weights_prim = std::make_shared<data>(weights_id, memory::attach(dummy_layout, &zero, 1));
+                get_or_create(weights_prim);
+
+                weights_vec.push_back(weights_id);
+
+                auto weights_node_ptr = nodes_map.find(weights_id)->second;
+
+                //attach weights buffer
+                auto& data_node = weights_node_ptr->as<data>();
+                data_node.attach_memory(*data_to_allocate, false);
             }
 
             //remove upsampling node, rename it and move to the optimized list
@@ -647,17 +645,10 @@ void program_impl::replace_nodes_post()
             auto rename_id = upsampling_id + "_tmp";
             rename(*node, rename_id);
 
-            //create weights primitive, with dummy memory which will be replaced in firther step
-            primitive_id weights_id = upsampling_id + "_deconvolution_weights";
-            layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
-            float zero = 0.f;
-            auto weights_prim = std::make_shared<data>(weights_id, memory::attach(dummy_layout, &zero, 1));
-            get_or_create(weights_prim);
             //create deconvolution primitive
-            auto deconv_prim = std::make_shared<deconvolution>(upsampling_id, input_id, std::vector<primitive_id>{ weights_id }, stride, input_offset);
+            auto deconv_prim = std::make_shared<deconvolution>(upsampling_id, input_id, weights_vec, stride, input_offset);
             get_or_create(deconv_prim);
 
-            auto weights_node_ptr = nodes_map.find(weights_id)->second;
             auto deconv_node_ptr = nodes_map.find(upsampling_id)->second;
 
             auto upsampling_node_ptr = nodes_map.find(rename_id)->second;
@@ -665,13 +656,14 @@ void program_impl::replace_nodes_post()
             optimized_out.push_back(rename_id);
             nodes_map.erase(rename_id);
 
-            //attach weights buffer
-            auto& data_node = weights_node_ptr->as<data>();
-            data_node.attach_memory(*data_to_allocate, false);
-
             //add connections input->deconvolution and weights->deconvolution
             add_connection(input_node, *deconv_node_ptr);
-            add_connection(*weights_node_ptr, *deconv_node_ptr);
+
+            for (uint32_t weights_idx = 0; weights_idx < num_filter; weights_idx++)
+            {
+                auto weights_node_ptr = nodes_map.find(weights_vec[weights_idx])->second;
+                add_connection(*weights_node_ptr, *deconv_node_ptr);
+            }
             continue;
         }
 
@@ -781,137 +773,197 @@ void program_impl::replace_nodes_post()
 
 void program_impl::handle_lstm()
 {
-    bool hasLSTMParent;
+    bool has_lstm_children;
     auto itr = nodes_map.begin(); //note we need to use iterators since currently processed element can be removed
     while (itr != nodes_map.end())
     {
         auto node_itr = itr++;
         auto& node = (*node_itr).second;
-        hasLSTMParent = false;
+        has_lstm_children = false;
         // replace lstm node with lstm_gemm and lstm_elt nodes
         if (node->is_type<lstm>()) {
-
+            bool initial_hidden_term = node->as<lstm>().initial_hidden_term();
+            bool initial_cell_term = node->as<lstm>().initial_cell_term();
+            bool bias_term = node->as<lstm>().bias_term();
             auto lstm_prim = node->as<lstm>().typed_desc();
-            std::vector<primitive_id> output_ids_offsets;
-            std::list<program_node*> concat_depends;
-            std::list<program_node*> cell_list;
             primitive_id weights_id = lstm_prim->weights;
             primitive_id recurrent_id = lstm_prim->recurrent;
-            primitive_id bias_id = node->as<lstm>().bias_term() ? lstm_prim->bias : "";
-            primitive_id hidden_id = node->as<lstm>().initial_hidden_term() ? lstm_prim->initial_hidden : "";
-            primitive_id cell_id = node->as<lstm>().initial_cell_term() ? lstm_prim->initial_cell : "";
+            primitive_id bias_id = bias_term ? lstm_prim->bias : "";
+            primitive_id initial_hidden_id = initial_hidden_term ? lstm_prim->initial_hidden : "";
+            primitive_id initial_cell_id = initial_cell_term ? lstm_prim->initial_cell : "";
             //removing connection with weights to get proper dependency order for next operations
             remove_connection(*nodes_map.at(weights_id), *node);
             remove_connection(*nodes_map.at(recurrent_id), *node);
-            if (node->as<lstm>().bias_term())
+            if (bias_term)
                 remove_connection(*nodes_map.at(bias_id), *node);
+            if (initial_hidden_term)
+                remove_connection(*nodes_map.at(initial_hidden_id), *node);
+            if (initial_cell_term)
+                remove_connection(*nodes_map.at(initial_cell_id), *node);
 
-            //input size lstm
-            size_t sequence_len = 0;
-            for (auto& depend : node->get_dependencies())
-            {
-                if (depend->is_type<crop>())
-                {
-                    sequence_len++;
-                }
-
-            }
             //calculating sizes
             auto input_size = node->get_dependency(0).get_output_layout().size;
-            auto recurrent_size = nodes_map.at(lstm_prim->recurrent)->get_output_layout().size;
-            auto hidden_size = tensor(input_size.batch[0], recurrent_size.feature[0], recurrent_size.spatial[0], input_size.feature[0]);
+            auto recurrent_size = nodes_map.at(recurrent_id)->get_output_layout().size;
+            auto hidden_size = tensor(input_size.batch[0], 1, recurrent_size.spatial[0], input_size.feature[0]);
+            size_t directions = recurrent_size.feature[0];
+            size_t input_dependencies = node->get_dependencies().size();
+            size_t sequence_len = node->as<lstm>().sequence_len();
 
-            //check if parent is lstm node
+            //if the sequence has a single element but it has multiple inputs then
+            //the parent of this lstm is an lstm node. If this is a bidirectional lstm
+            //then the sequence length is the number of dependencies divided by 2.
+            if (sequence_len == 1 && input_dependencies > 1)
+                sequence_len = (directions == 1) ? input_dependencies : input_dependencies / 2;
+
+            //check if this lstm node has an lstm child
             for (auto& user : node->get_users())
             {
                 if (user->is_type<lstm>())
                 {
-                    hasLSTMParent = true;
+                    has_lstm_children = true;
                 }
+            }
+
+            std::vector<program_node*> cell_list(directions * sequence_len);
+            std::vector<program_node*> concat_depends(directions * sequence_len);
+            std::vector<primitive_id> output_ids_offsets(directions * sequence_len);
+
+            primitive_id hidden_fwd_id = initial_hidden_id;
+            primitive_id hidden_bwd_id = initial_hidden_id;
+            primitive_id cell_fwd_id = initial_cell_id;
+            primitive_id cell_bwd_id = initial_cell_id;
+
+            auto split_direction = [&](const std::string gate, bool initial_term, primitive_id& fwd_id, primitive_id& bwd_id) {
+                if (initial_term) {
+                    primitive_id initial_id = fwd_id;
+                    fwd_id = node->id() + ":" + gate + "_fwd";
+                    auto fwd_node = std::make_shared<crop>(fwd_id, initial_id, hidden_size, tensor{ 0,0,0,0 });
+                    auto &n1 = get_or_create(fwd_node);
+                    add_connection(*nodes_map.at(initial_id), n1);
+                    bwd_id = node->id() + ":" + gate + "_bwd";
+                    auto bwd_node = std::make_shared<crop>(bwd_id, initial_id, hidden_size, tensor{ 0,1,0,0 });
+                    auto &n2 = get_or_create(bwd_node);
+                    add_connection(*nodes_map.at(initial_id), n2);
+                }
+            };
+
+            //if bidirectional lstm then initial_hidden and initial_cell terms need to be split
+            if (directions > 1) {
+                split_direction("hidden", initial_hidden_term, hidden_fwd_id, hidden_bwd_id);
+                split_direction("cell", initial_cell_term, cell_fwd_id, cell_bwd_id);
             }
 
             //lstm expanding
-            for (size_t i = 0; i < sequence_len; ++i) {
-                primitive_id lstm_gemm_id = node->id() + ":lstm_gemm" + getIdString(i);
-                primitive_id lstm_elt_id = node->id() + ":lstm_elt" + getIdString(i);
-                primitive_id crop_id = node->id() + ":crop" + getIdString(i);
-                primitive_id lstm_gemm_input_id = node->get_dependency(i).get_org_primitive_id();
+            for (size_t dir = 0; dir < directions; ++dir) {
+                auto hidden_id = dir == 0 ? hidden_fwd_id : hidden_bwd_id;
+                auto cell_id = dir == 0 ? cell_fwd_id : cell_bwd_id;
+                for (size_t i = 0; i < sequence_len; ++i) {
+                    size_t idx = i + dir * sequence_len;
+                    primitive_id lstm_gemm_id = node->id() + ":lstm_gemm" + get_id_string(idx);
+                    primitive_id lstm_elt_id = node->id() + ":lstm_elt" + get_id_string(idx);
+                    primitive_id crop_id = node->id() + ":crop" + get_id_string(idx);
 
-                auto lstm_gemm_node = std::make_shared<lstm_gemm>(lstm_gemm_id, lstm_gemm_input_id, weights_id, recurrent_id, bias_id, hidden_id);
-                auto &n1 = get_or_create(lstm_gemm_node);
-
-
-                auto lstm_elt_node = std::make_shared<lstm_elt>(lstm_elt_id, lstm_gemm_id, cell_id, lstm_prim->clip, lstm_prim->input_forget,
-                    lstm_prim->activations, lstm_prim->activation_params, lstm_prim->offset_order);
-                auto &n2 = get_or_create(lstm_elt_node);
-                //adding lstm_elt as user
-                add_connection(n1, n2);
-                //adding dependecy to lstm_gemm node
-                //input
-                add_connection(node->get_dependency(i), n1);
-                //adding weights and initial values to lstm_gemm
-                add_connection(*nodes_map.at(weights_id), n1);
-                add_connection(*nodes_map.at(recurrent_id), n1);
-                if (node->as<lstm>().bias_term())
-                    add_connection(*nodes_map.at(bias_id), n1);
-
-                //adding cell and hiddens as dependencies
-                if (i > 0)
-                {
-                    add_connection(*cell_list.back(), n2);
-                    add_connection(*concat_depends.back(), n1);
-                }
-                //if initial values are present
-                else
-                {
-                    if (node->as<lstm>().initial_hidden_term())
-                        add_connection(*nodes_map.at(hidden_id), n1);
-                    if (node->as<lstm>().initial_cell_term())
-                        add_connection(*nodes_map.at(cell_id), n2);
-                }
-
-                //lstm_hidden
-                hidden_id = crop_id + ":hidden";
-                auto crop_hidden = std::make_shared<crop>(hidden_id, lstm_elt_id, hidden_size, tensor{ 0,0,0,0 });
-                auto &n3 = get_or_create(crop_hidden);
-                //adding eltwise as dependency to hidden
-                add_connection(n2, n3);
-
-                //if parent is lstm adding hiddens as dependency
-                if (hasLSTMParent)
-                {
-                    for (auto& user : node->get_users())
-                    {
-                        add_connection(n3, *user);
+                    size_t input_idx = i;
+                    //for bidirectional lstms, if first LSTM layer then reverse input
+                    //for subsequent stacked layers the input is strided on the dir dimension
+                    if (directions > 0) {
+                        if (input_dependencies > sequence_len) { // stacked layer
+                            input_idx = dir * sequence_len + i;
+                        }
+                        else
+                        {
+                            if (dir > 0) { // first layer
+                                input_idx = sequence_len - i - 1;
+                            }
+                        }
                     }
-                }
-                concat_depends.push_back(&n3);
+                    primitive_id lstm_gemm_input_id = node->get_dependency(input_idx).get_org_primitive_id();
 
-                //lstm_cell
-                if (i < sequence_len - 1) {
-                    cell_id = crop_id + ":cell";
-                    auto crop_cell = std::make_shared<crop>(cell_id, lstm_elt_id, hidden_size, tensor{ 0,1,0,0 });
-                    auto &n4 = get_or_create(crop_cell);
-                    add_connection(n2, n4);
-                    cell_list.push_back(&n4);
+                    auto lstm_gemm_node = std::make_shared<lstm_gemm>(lstm_gemm_id, lstm_gemm_input_id, weights_id, recurrent_id, bias_id, hidden_id, (uint32_t)dir);
+                    auto &n1 = get_or_create(lstm_gemm_node);
+
+                    auto lstm_elt_node = std::make_shared<lstm_elt>(lstm_elt_id, lstm_gemm_id, cell_id, lstm_prim->clip, lstm_prim->input_forget,
+                        lstm_prim->activations, lstm_prim->activation_params, lstm_prim->offset_order);
+                    auto &n2 = get_or_create(lstm_elt_node);
+                    //adding lstm_elt as user
+                    add_connection(n1, n2);
+                    //adding dependecy to lstm_gemm node
+                    //input
+                    add_connection(node->get_dependency(input_idx), n1);
+                    //adding weights and initial values to lstm_gemm
+                    add_connection(*nodes_map.at(weights_id), n1);
+                    add_connection(*nodes_map.at(recurrent_id), n1);
+                    if (bias_term)
+                        add_connection(*nodes_map.at(bias_id), n1);
+
+                    //adding cell and hiddens as dependencies
+                    if (i > 0)
+                    {
+                        add_connection(*cell_list[size_t(i - 1) * directions + dir], n2);
+                        add_connection(*(concat_depends[size_t(i - 1) * directions + dir]), n1);
+                    }
+                    //if initial values are present
+                    else
+                    {
+                        if (initial_hidden_term)
+                            add_connection(*nodes_map.at(hidden_id), n1);
+                        if (initial_cell_term)
+                            add_connection(*nodes_map.at(cell_id), n2);
+                    }
+
+                    //lstm_hidden
+                    hidden_id = crop_id + ":hidden";
+                    auto crop_hidden = std::make_shared<crop>(hidden_id, lstm_elt_id, hidden_size, tensor{ 0,0,0,0 });
+                    auto &n3 = get_or_create(crop_hidden);
+                    //adding eltwise as dependency to hidden
+                    add_connection(n2, n3);
+
+                    //if parent is lstm adding hiddens as dependency
+                    if (has_lstm_children)
+                    {
+                        for (auto& user : node->get_users())
+                        {
+                            add_connection(n3, *user);
+                        }
+                    }
+                    concat_depends[i * directions + dir] = &n3;
+
+                    //lstm_cell
+                    if (i < sequence_len - 1) {
+                        cell_id = crop_id + ":cell";
+                        auto crop_cell = std::make_shared<crop>(cell_id, lstm_elt_id, hidden_size, tensor{ 0,1,0,0 });
+                        auto &n4 = get_or_create(crop_cell);
+                        add_connection(n2, n4);
+                        cell_list[i * directions + dir] = &n4;
+                    }
+                    output_ids_offsets[i * directions + dir] = hidden_id;
                 }
-                output_ids_offsets.push_back(hidden_id);
             }
 
-            //if theres no next lstm, concatenation is created
-            if (!hasLSTMParent)
+            //if there is no next lstm, concatenation is created
+            if (!has_lstm_children)
             {
                 primitive_id original_id = node->id();
                 primitive_id concatenation_id = original_id + ":concat";
-                auto concatenation_node = std::make_shared<concatenation>(concatenation_id, output_ids_offsets, concatenation::along_f);
-                auto &n5 = get_or_create(concatenation_node);
-                for (auto concat_dependency : concat_depends)
+                auto concatenation_primitive = std::make_shared<concatenation>(concatenation_id, output_ids_offsets, concatenation::along_f);
+                auto &concatenation_node = get_or_create(concatenation_primitive);
+                for (auto sub_dependency : concat_depends)
                 {
-                    add_connection(*concat_dependency, n5);
+                    add_connection(*sub_dependency, concatenation_node);
                 }
-                for (auto& user : node->get_users())
-                {
-                    add_connection(n5, *user);
+                if (directions == 2) {
+                    // bidirectional support requires concatenations along the direction and sequence axis
+                    // instead we can concatenate along the sequence axis and reshape the tensor to the account
+                    // for the direction
+                    tensor output_size {input_size.batch[0], (int32_t)sequence_len, hidden_size.spatial[0], (int32_t)directions};
+                    primitive_id reshape_id = original_id + ":reshape";
+                    auto reshape_primitive = std::make_shared<reshape>(reshape_id, concatenation_id, output_size);
+                    auto &reshape_node = get_or_create(reshape_primitive);
+                    add_connection(concatenation_node, reshape_node);
+                    for (auto& user : node->get_users())
+                    {
+                        add_connection(reshape_node, *user);
+                    }
                 }
             }
 
@@ -997,19 +1049,19 @@ void program_impl::calc_processing_order()
     }
 }
 
-void program_impl::update_processing_order()
+void program_impl::update_processing_numbers()
 {
     uint32_t idx = 0;
     for (auto& node : processing_order)
     {
         node->processing_num = ++idx;
     }
-    // TODO: REMOVE BELOW, AFTER 847 FIX
+
     for (auto& node : processing_order)
     {
-        if(!processing_order_is_correct(node))
+        if (!processing_order_is_correct(node))
         {
-            engine->set_mem_pool(false);
+            CLDNN_ERROR_MESSAGE(node->id(), "Incorrect processing order");
             return;
         }
     }
@@ -1037,6 +1089,8 @@ void program_impl::calc_prior_boxes()
         replace(pb_node, data_node, false, false);
     }
 }
+
+
 
 void program_impl::mark_constants()
 {
@@ -1107,192 +1161,8 @@ void program_impl::mark_data_flow()
 
     for (auto& node : processing_order)
     {
-        node->main_branch = node->data_flow;
         assert(!node->constant || !node->data_flow); //node which is constant cannot be marked as data flow
         node->unmark();
-    }
-}
-
-void program_impl::calc_dominators()
-{
-    if (nodes_map.empty())
-        return;
-
-    //Algorithm per: Keith D. Cooper, Timothy J. Harvey, and Ken Kennedy "A Simple, Fast Dominance Algorithm"
-    //url: http://www.hipersoft.rice.edu/grads/publications/dom14.pdf
-
-    //Please note that in our representation we only care for immidiate dominators which are not direct predecessors.
-
-    //firstly find all in-data-flow inputs and create super-source if necessary
-    {
-        std::list<program_node*> data_inputs;
-        for (auto const& input : inputs)
-            if (input->is_in_data_flow())
-                data_inputs.push_back(input);
-
-        if (data_inputs.size() > 1)
-        {
-            std::shared_ptr<program_node> node = std::make_shared<connector_node>(*this);
-            node->data_flow = true;
-            nodes_map.insert(std::make_pair(node->id(), node));
-
-            for (auto const& input : data_inputs)
-            {
-                input->dependencies.push_back(node.get());
-                node->users.push_back(input);
-            }
-
-            node->processing_itr = processing_order.insert(processing_order.begin(), node.get());
-            node->processing_num = 0;
-        }
-    }
-
-    //...then create super-sink, find all endpoints
-    {
-        std::list<program_node*> endpoints;
-        for (auto const& node : processing_order)
-            if (node->is_endpoint())
-                endpoints.push_back(node);
-
-        assert(endpoints.size() > 0 && "Network without endpoints?");
-
-        //if more than one endpoint, create sink
-        if (endpoints.size() > 1)
-        {
-            std::shared_ptr<program_node> node = std::make_shared<connector_node>(*this);
-            node->data_flow = true;
-            nodes_map.insert(std::make_pair(node->id(), node));
-
-            for (auto const& endpoint : endpoints)
-            {
-                endpoint->users.push_back(node.get());
-                node->dependencies.push_back(endpoint);
-            }
-
-            node->processing_itr = processing_order.insert(processing_order.end(), node.get());
-            node->processing_num = static_cast<uint32_t>(processing_order.size()) + 1;
-        }
-    }
-
-    //As mentioned, we want to find 'first' node with at least two users, where by 'first' we meant such node that every other can be reached from it (except for w/b),
-    //the first one from the set of topologically sorted nodes should have this property.
-    //Also, we take iterator to it rather than a node itself since, accoring to the algorithm, we will need to process nodes in reversed-postorder, which is equivalent for ordering produced by
-    //topological sorting.
-    auto root_itr = processing_order.begin();
-    while (root_itr != processing_order.end())
-    {
-        if ((*root_itr)->is_in_data_flow() && (*root_itr)->get_users().size() > 1)
-            break;
-
-        ++root_itr;
-    }
-
-    //there are no splits so simply end (for each n, idom(n) e { dpred(n) })
-    if (root_itr == processing_order.end())
-        return;
-
-    auto root = *root_itr;
-    root->dominator = root; //its not valid accordingly to the definition of 'program_node::dominator' field, but it's required by the algorithm - at the end this field should be reverted to nullptr
-    bool changed = true;
-
-    const auto intersects = [](program_node* n1, program_node* n2) -> program_node*
-    {
-        assert(n1 != nullptr);
-        assert(n2 != nullptr);
-        while (n1->processing_num != n2->processing_num)
-        {
-            //please note: we use reverse-postorder numbering so conditions are swapped in regard to the original algorithm (which uses postorder here)
-            while (n1->processing_num > n2->processing_num)
-            {
-                n1 = n1->dominator;
-                assert(n1 != nullptr);
-            }
-            while (n1->processing_num < n2->processing_num)
-            {
-                n2 = n2->dominator;
-                assert(n2 != nullptr);
-            }
-        }
-
-        return n1;
-    };
-
-    while (changed)
-    {
-        changed = false;
-
-        //for all nodes, in reverse postorder (except root)
-        auto itr = root_itr;
-        ++itr;
-        while (itr != processing_order.end())
-        {
-            auto node = *(itr++);
-            if (!node->is_in_data_flow()) //eliminate helper nodes  || node->get_dependencies().size() == 0
-                continue;
-
-            //pick first (processed) predecessor
-            auto pred_itr = node->get_dependencies().begin();
-            while (pred_itr != node->get_dependencies().end() && (*pred_itr)->dominator == nullptr)
-                ++pred_itr;
-            assert(pred_itr != node->get_dependencies().end()); //we are processing nodes in reverse postorder, so at least one our predecessor should have been processed at this point
-
-            auto new_idom = *pred_itr;
-
-            //new_idom <- first predecessor
-            //for all other predecessors of node (note: it's not clear if authors mean DIRECT predecessors but I've assumed so, I makes more sense when looking at the examples)
-            pred_itr = node->get_dependencies().begin();
-            while (pred_itr != node->get_dependencies().end())
-            {
-                auto pred = *(pred_itr++);
-                if (pred->dominator != nullptr) //doms[pred] already calculated
-                    new_idom = intersects(pred, new_idom);
-            }
-
-            if (node->dominator != new_idom)
-            {
-                node->dominator = new_idom;
-                changed = true;
-            }
-        }
-    }
-
-    //change meaningless idoms to nullptr (i.e. idom(node) == node or idom(node) e { dpred(node) })
-    //process items in reverse order to guarantee not-null dominators when checking node's predecessors (needed for dominance frontier)
-    auto ritr = processing_order.rbegin();
-    while (ritr != processing_order.rend())
-    {
-        auto node = *(ritr++);
-        if (!node->dominator)
-            continue;
-        else if (!node->is_in_data_flow())
-            continue;
-        else if (node->dominator == node)
-            node->dominator = nullptr;
-        else if (node->get_dependencies().size() == 1)
-            node->dominator = nullptr;
-        else if (std::find(node->get_dependencies().begin(), node->get_dependencies().end(), node->dominator) != node->get_dependencies().end())
-            node->dominator = nullptr;
-        else //if dominator's not trivial, check its frontier to determinate if it lies on a 'main' branch
-        {
-            if (!node->dominator->joint)
-                node->dominator->joint = node;
-
-            for (auto dep : node->get_dependencies())
-            {
-                while (dep != node->dominator)
-                {
-                    if (!dep->data_flow)
-                        break;
-
-                    dep->main_branch = false;
-                    dep = dep->dominator;
-                    assert(dep != nullptr);
-                }
-            }
-        }
-
-        if (node == root)
-            break;
     }
 }
 
@@ -1301,11 +1171,6 @@ void program_impl::trim_to_outputs()
     size_t actual_nodes = processing_order.size();
     if (!actual_nodes) //degenerated case but can happen
         return;
-
-    if (processing_order.front()->is_type<connector>())
-        --actual_nodes;
-    if (processing_order.back()->is_type<connector>())
-        --actual_nodes;
 
     if (outputs.size() == actual_nodes)
         return;
@@ -1327,10 +1192,6 @@ void program_impl::trim_to_outputs()
             }
         }
     }
-
-    //mark connector at the end so it won't be removed
-    if (processing_order.back()->is_type<connector>())
-        processing_order.back()->mark();
 
     //all not-marked nodes should be removed
     std::list<program_node*> to_rem;
@@ -1379,7 +1240,7 @@ void add_memory_dependency(program_node* node, program_node* dep)
         {
             add_memory_dependency(node, subdep);
             add_memory_dependency(subdep, node);
-        }        
+        }
     }
 }
 
@@ -1600,83 +1461,56 @@ void program_impl::remove_redundant_reorders()
     }
 }
 
-void program_impl::reorder_nodes_for_parallel_execution()
-{
-    if (processing_order.empty())
-        return;
+/*
+    recalculate processing_order
+    algorithm based on: CLRS 24.5 (critical path in DAG)
+    modifications: adjust for multiple inputs
+    input: any topological order in processing order
+    output: BFS topological order.
+*/
 
-    //note: during computations perfomed by this function, both program_node::processing_itr and program_node::processing_num might be invalidated
-
-    //firstly, move all helpers at the beginning of processing queue to prevent them from being parallelised
-    std::list<program_node*> old_order;
-    std::swap(old_order, processing_order);
-    assert(processing_order.empty() && !old_order.empty());
-
-    const auto push_back = [this](program_node* node)
+void program_impl::calculate_BFS_processing_order() {
+    std::map<program_node*, int> distances;
+    for (auto itr : processing_order)
     {
-        processing_order.push_back(node);
-        node->processing_itr = --processing_order.end();
-        node->processing_num = static_cast<uint32_t>(processing_order.size());
-    };
-
-    auto itr = old_order.begin();
-    while (itr != old_order.end())
+        distances[itr] = -1;
+    }
+    int max_distance = 0;
+    for (auto itr : processing_order)
     {
-        auto* node = (*itr);
-        node->processing_num = 0;
-        if (!node->is_in_data_flow())
-        {
-            push_back(node);
-            itr = old_order.erase(itr);
+        //Init
+        if (distances[itr] == -1) {     // this must be an input
+            distances[itr] = 0;         // initialize input
         }
-        else
-            ++itr;
+        // RELAX
+        for (auto& user : itr->get_users())
+        {
+            distances[user] = std::max(distances[user], distances[itr] + 1);
+            max_distance = std::max(max_distance, distances[user]);
+        }
     }
 
-    //now identify all splits and try to reorder nodes
-    itr = old_order.begin();
-    while (itr != old_order.end())
+    //bucket sort nodes based on their max distance from input
+    std::vector<std::vector<program_node*>> dist_lists;
+    dist_lists.resize(max_distance + 1);
+    for (auto itr : processing_order)
     {
-        auto* split = (*itr);
-        if (!split->is_split_point())
-        {
-            push_back(split);
-            ++itr;
-            continue;
-        }
-
-        //the node is a split point, reorder all nodes between node and node->get_joint() in queue so they can be run in a parallel way
-        auto joint = split->get_joint();
-
-        //a nice thing: we can use already topologically sorted nodes to calculated maximum distance from the source for each node in a range (split, joint)
-        //then we can simply sort them so nodes which are in the same distance will be next to each other in the resulting list
-        auto sub_itr = itr;
-        while (*sub_itr != joint)
-        {
-            auto node = (*sub_itr++);
-            for (auto& user : node->get_users())
-                user->processing_num = std::max(user->processing_num, node->processing_num + 1);
-        }
-
-        //bucket sort nodes basing on their distance from source
-        std::vector<std::list<program_node*>> dist_map;
-        dist_map.resize(joint->processing_num);
-        sub_itr = itr;
-        while (*sub_itr != joint)
-        {
-            auto node = (*sub_itr++);
-            dist_map[node->processing_num].push_back(node);
-        }
-
-        //insert sorted nodes to a resulting list in order of their distance
-        for (auto& dist : dist_map)
-            for (auto& node : dist)
-                push_back(node);
-
-        itr = sub_itr;
-        assert(*itr == joint);
-        joint->processing_num = 0;
+        dist_lists[distances[itr]].push_back(itr);
     }
+
+    //replace the old processing order by the new one, still topological.
+    processing_order.clear();
+    for (auto& dist : dist_lists)
+    {
+        for (auto& node : dist)
+        {
+            processing_order.push_back(node);
+            node->processing_itr = processing_order.end();
+            node->processing_itr--;
+        }
+    }
+    update_processing_numbers();
+    return;
 }
 
 void program_impl::reorder_inputs(layout_optimizer& lo)
@@ -1808,7 +1642,7 @@ void program_impl::reorder_inputs(layout_optimizer& lo)
             {
                 conv_node.typed_desc()->with_activation = false;
                 if (!bias_term)
-                    back_node.set_fused_activation(activation_relu_negative_slope, cldnn_activation_additional_params_t{ conv_prim->activation_negative_slope });
+                    back_node.set_fused_activation(activation_relu_negative_slope, cldnn_activation_additional_params_t{ conv_prim->activation_negative_slope, 0.0f });
             }
 
             if (!bias_term)
@@ -1910,95 +1744,97 @@ void program_impl::reorder_inputs(layout_optimizer& lo)
     }
 }
 
-void program_impl::pre_optimize_bias(layout_optimizer& lo)
+//function which prepares given primitive for weights optimization
+template <typename T>
+void program_impl::optimize_bias(T& node, layout_optimizer& lo)
 {
-    //lambda function which finds weights primitive with given pimitive_id and adds it to weights_optimizer
-    //this function is reused in all cases (convolution weights, convolution bias, fc weights and fc bias) and does
-    //some basic sanity checks about existence of the primitive and it's type. throws std::logic_error
-    const auto add_bias = [this, &lo](program_node& bias, auto& node, layout const& output_layout, size_t dep_idx)
+    layout output_layout = node.get_output_layout();
+
+    size_t weights_offset = node.get_primitive()->input.size();
+    size_t bias_offset = weights_offset + wrap_if_single(node.get_primitive()->weights).size();
+    for (size_t i = bias_offset; i < node.get_dependencies().size(); ++i)
     {
+        //find weights primitive with given pimitive_id and add it to weights_optimizer
+        const program_node& bias = node.get_dependency(i);
         const auto bias_type = layout_optimizer::data_type::bias;
         auto reorder = lo.get_reorder(
-            bias.get_output_layout(),
-            bias.id(),
-            bias_type,
-            node,
-            output_layout);
+                bias.get_output_layout(),
+                bias.id(),
+                bias_type,
+                node,
+                output_layout);
 
         if (reorder.first)
-            this->add_intermediate(reorder.first, node, dep_idx, !reorder.second);
-    };
+            this->add_intermediate(reorder.first, node, i, !reorder.second);
+    }
+}
+template void program_impl::optimize_bias<convolution_node>(convolution_node& node, layout_optimizer& lo);
+template void program_impl::optimize_bias<deconvolution_node>(deconvolution_node& node, layout_optimizer& lo);
+template void program_impl::optimize_bias<fully_connected_node>(fully_connected_node& node, layout_optimizer& lo);
+template void program_impl::optimize_bias<embed_node>(embed_node& node, layout_optimizer& lo);
 
-    //generic lambda function which prepares given primitive for weights optimization
-    //it deduces the type of weights from the type of the argument and calls 'add_weights' for all
-    //weights and biases used by given primitive.
-    //argument should match few requirements:
-    // - it should be of a form 'typed_program_node<T>&'
-    // - both 'T.weights' and 'T.bias' should be either of type 'primitive_id' or 'std::vector<primitive_id>'
-    const auto prep_opt = [this, &add_bias](auto& node) -> void
-    {
-        auto output_layout = node.get_output_layout();
-
-        auto weights_offset = node.get_primitive()->input.size();
-        auto bias_offset = weights_offset + wrap_if_single(node.get_primitive()->weights).size();
-        for (auto i = bias_offset; i < node.get_dependencies().size(); ++i)
-        {
-            add_bias(node.get_dependency(i), node, output_layout, i);
-        }
-    };
-
+void program_impl::pre_optimize_bias(layout_optimizer& lo)
+{
     for (auto& p : nodes_map)
     {
         auto& prim = *p.second;
         if (prim.type() == convolution::type_id())
         {
             if (!prim.as<convolution>().weights_quantization_term())
-                prep_opt(prim.as<convolution>());
+                optimize_bias(prim.as<convolution>(), lo);
         }
         else if (prim.type() == deconvolution::type_id())
         {
-            prep_opt(prim.as<deconvolution>());
+            optimize_bias(prim.as<deconvolution>(), lo);
         }
         else if (prim.type() == fully_connected::type_id())
         {
             if (!prim.as<fully_connected>().weights_quantization_term())
-                prep_opt(prim.as<fully_connected>());
+                optimize_bias(prim.as<fully_connected>(), lo);
         }
         else if (prim.type() == embed::type_id())
         {
-            prep_opt(prim.as<embed>());
+            optimize_bias(prim.as<embed>(), lo);
         }
     }
 }
+
+template <typename T>
+void program_impl::optimize_depthwise_sep_pre(T& node)
+{
+    //enable optimization only when IFM / split <= 8 (otherwise scheduling multiple opt kernels is better) and split >= 16
+    if (!(node.get_dependency(0).get_output_layout().size.feature[0] / node.get_primitive()->split() <= 8) ||
+        !(node.get_primitive()->split() >= 16))
+        return;
+
+    //make sure the weights and biases are data type and
+    //are not reused in other primitives as they will be overriden with concatenated ones
+    for (size_t i = 1; i < node.get_dependencies().size(); i++)
+    {
+        auto& weights_or_biases = node.get_dependency(i);
+        if (weights_or_biases.get_users().size() > 1 || weights_or_biases.type() != data::type_id())
+            return;
+    }
+
+    node.set_depthwise_sep_opt(true);
+}
+template void program_impl::optimize_depthwise_sep_pre<convolution_node>(convolution_node& node);
+template void program_impl::optimize_depthwise_sep_pre<deconvolution_node>(deconvolution_node& node);
+
 void program_impl::prepare_depthwise_sep_opt()
 {
-    const auto prepare_depthwise_sep_opt = [this](auto& node) -> void
-    {
-        //enable optimization only when IFM / split <= 8 (otherwise scheduling multiple opt kernels is better) and split >= 16
-        if (!(node.get_dependency(0).get_output_layout().size.feature[0] / node.get_primitive()->split() <= 8) ||
-            !(node.get_primitive()->split() >= 16))
-            return;
-
-        //make sure the weights and biases are data type and
-        //are not reused in other primitives as they will be overriden with concatenated ones
-        for (size_t i = 1; i < node.get_dependencies().size(); i++)
-        {
-            auto& weights_or_biases = node.get_dependency(i);
-            if (weights_or_biases.get_users().size() > 1 || weights_or_biases.type() != data::type_id())
-                return;
-        }
-
-        node.set_depthwise_sep_opt(true);
-    };
-
     //depthiwise separated convolution/deconvolution optimization
     for (auto& p : nodes_map)
     {
         auto& prim = *p.second;
-        do_for_types<deconvolution, convolution>(prim,
-            prepare_depthwise_sep_opt,   //case for deconvolution
-            prepare_depthwise_sep_opt    //case for convolution
-            );
+        if (prim.type() == convolution::type_id())
+        {
+            optimize_depthwise_sep_pre(prim.as<convolution>());
+        }
+        else if (prim.type() == deconvolution::type_id())
+        {
+            optimize_depthwise_sep_pre(prim.as<deconvolution>());
+        }
     }
 }
 
@@ -2031,63 +1867,96 @@ void program_impl::handle_reshape()
                     reorder_node_to_split.push_back(user);
             }
 
-            if (reorder_node_to_split.empty())
-                continue;
-
-            auto& prim_node = node->as<reshape>();
-            const auto& prim = prim_node.get_primitive();
-            auto output_shape = prim->output_shape;
-
-            //vector for storing reshape nodes to connect to new reorder nodes (if needed)
-            std::vector<program_node*> reorder_reshape_nodes;
-
-            bool skip_first_user = false;
-            auto reshape_users = node->get_users();
-            for (const auto& user : reshape_users)
+            if (!reorder_node_to_split.empty())
             {
-                //reshape node for first user will be the orginal reshape from the graph
-                if (!skip_first_user)
+                auto& prim_node = node->as<reshape>();
+                const auto& prim = prim_node.get_primitive();
+                auto output_shape = prim->output_shape;
+
+                //vector for storing reshape nodes to connect to new reorder nodes (if needed)
+                std::vector<program_node*> reorder_reshape_nodes;
+
+                bool skip_first_user = false;
+                auto reshape_users = node->get_users();
+                for (const auto& user : reshape_users)
                 {
+                    //reshape node for first user will be the orginal reshape from the graph
+                    if (!skip_first_user)
+                    {
+                        if (std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) != reorder_node_to_split.end())
+                            reorder_reshape_nodes.push_back(node);
+                        skip_first_user = true;
+                        continue;
+                    }
+
+                    //other reshapes will be clones of the orginal one connected to reshape->reorder sequences
                     if (std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) != reorder_node_to_split.end())
-                        reorder_reshape_nodes.push_back(node);
-                    skip_first_user = true;
-                    continue;
+                    {
+                        auto new_reshape = std::make_shared<reshape>("_reshape_split_" + user->id() + "_" + node->id(), input_node.id(), output_shape);
+                        auto& new_reshape_node = get_or_create(new_reshape);
+                        add_connection(input_node, new_reshape_node);
+                        user->replace_dependency(0, new_reshape_node);
+                        new_reshape_node.processing_itr = processing_order.insert(std::next(input_node.processing_itr), &new_reshape_node);
+                        reorder_reshape_nodes.push_back(&new_reshape_node);
+                    }
                 }
 
-                //other reshapes will be clones of the orginal one connected to reshape->reorder sequences
-                if (std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) != reorder_node_to_split.end())
+                //add new reorder nodes to proper reshape node
+                auto reshape_reorder_id = 0;
+                for (const auto& reorder_node : reorder_node_to_split)
                 {
-                    auto new_reshape = std::make_shared<reshape>("_reshape_split_" + user->id() + "_" + node->id(), input_node.id(), output_shape);
-                    auto& new_reshape_node = get_or_create(new_reshape);
-                    add_connection(input_node, new_reshape_node);
-                    user->replace_dependency(0, new_reshape_node);
-                    new_reshape_node.processing_itr = processing_order.insert(std::next(input_node.processing_itr), &new_reshape_node);
-                    reorder_reshape_nodes.push_back(&new_reshape_node);
+                    auto& reorder_reshape_node = reorder_reshape_nodes[reshape_reorder_id];
+                    auto reshape_in_layout = reorder_node->get_output_layout();
+                    auto reshape_input = std::make_shared<reorder>("_reshape_input_" + reorder_node->id() + "_" + reorder_reshape_node->id(), input_node.id(), reshape_in_layout.format, reshape_in_layout.data_type);
+                    auto& reshape_input_node = get_or_create(reshape_input);
+                    add_intermediate(reshape_input_node, *reorder_reshape_node, 0, reshape_input_node.dependencies.empty());
+                    reshape_reorder_id++;
                 }
             }
 
-            //add new reorder nodes to proper reshape node
-            auto reshape_reorder_id = 0;
-            for (const auto& reorder_node : reorder_node_to_split)
+            auto reshape_layout = node->get_output_layout();
+            if (!(node->is_output()) && (reshape_layout.format != cldnn::format::bfyx))
             {
-                auto& reorder_reshape_node = reorder_reshape_nodes[reshape_reorder_id];
-                auto reshape_in_layout = reorder_node->get_output_layout();
-                auto reshape_input = std::make_shared<reorder>("_reshape_input_" + reorder_node->id() + "_" + reorder_reshape_node->id(), input_node.id(), reshape_in_layout.format, reshape_in_layout.data_type);
-                auto& reshape_input_node = get_or_create(reshape_input);
-                add_intermediate(reshape_input_node, *reorder_reshape_node, 0, reshape_input_node.dependencies.empty());
-                reshape_reorder_id++;
+                auto bfyx_layout = layout({ reshape_layout.data_type, cldnn::format::bfyx, reshape_layout.size });
+                //when some primitive does an implicit reorder to some other format then we lose the info about pitches in reshape stage
+                //we assume user provides the input vector in bfyx
+                if (!are_layouts_identical(reshape_layout, bfyx_layout).second)
+                {
+                    auto reshape_input = std::make_shared<reorder>("_reshape_input_" + node->id(), input_node.id(), cldnn::format::bfyx, reshape_layout.data_type);
+                    auto& reshape_input_node = get_or_create(reshape_input);
+                    add_intermediate(reshape_input_node, *node, 0, reshape_input_node.dependencies.empty());
+
+                    auto reshape_users = node->get_users();
+                    for (const auto& user : reshape_users)
+                    {
+                        size_t idx = 0;
+                        for (size_t i = 0; i < user->get_dependencies().size(); i++)
+                        {
+                            auto& input = user->get_dependency(i);
+                            if (input.id() == node->id()) {
+                                idx = i;
+                                break;
+                            }
+                        }
+                        auto reshape_output = std::make_shared<reorder>("_reshape_output_" + node->id(), user->id(), reshape_layout.format, reshape_layout.data_type);
+                        auto& reshape_output_node = get_or_create(reshape_output);
+                        add_intermediate(reshape_output_node, *user, idx, reshape_output_node.dependencies.empty());
+                    }
+                }
             }
         }
     }
 }
 
-void program_impl::post_optimize_weights(layout_optimizer& lo)
+//function which prepares given primitive for weights optimization
+template <typename T>
+void program_impl::optimize_weights(T& node, layout_optimizer& lo)
 {
-    //lambda function which finds weights primitive with given pimitive_id and adds it to weights_optimizer
-    //this function is reused in all cases (convolution weights, convolution bias, fc weights and fc bias) and does
-    //some basic sanity checks about existence of the primitive and it's type. throws std::logic_error
-    const auto add_weights = [this, &lo](program_node const& weights, auto& node, size_t dep_idx)
+    auto weights_offset = node.get_primitive()->input.size();
+    auto bias_offset = weights_offset + wrap_if_single(node.get_primitive()->weights).size();
+    for (auto i = weights_offset; i < bias_offset; i++)
     {
+        auto& weights = node.get_dependency(i);
         auto* impl = node.get_selected_impl().get();
         auto output_layout = node.get_output_layout();
         auto& weights_node = node.get_dependency(1);
@@ -2095,54 +1964,44 @@ void program_impl::post_optimize_weights(layout_optimizer& lo)
         const auto weights_type = layout_optimizer::data_type::weights;
 
         auto reorders = lo.get_generic_layer(
-            impl->_weights_reorder_params,
-            weights.id(),
-            weights_layout,
-            weights_type);
+                impl->_weights_reorder_params,
+                weights.id(),
+                weights_layout,
+                weights_type);
 
         for (auto& reorder : reorders)
         {
             //insert new generic_layer node to topology
-            this->add_intermediate(reorder.first, node, dep_idx);
+            this->add_intermediate(reorder.first, node, i, !reorder.second);
             //set generic_layer's node output layout and implementation
-            auto& g_node = node.get_dependency(dep_idx);
+            auto& g_node = node.get_dependency(i);
             g_node.get_output_layout(false);
             g_node.selected_impl = g_node.type()->choose_impl(*engine, g_node);
         }
         //set the old output layout and do not invalidate users as change of weights will not affect output layout
         node.set_output_layout(output_layout, false);
-    };
+    }
+}
+template void program_impl::optimize_weights<convolution_node>(convolution_node& node, layout_optimizer& lo);
+template void program_impl::optimize_weights<deconvolution_node>(deconvolution_node& node, layout_optimizer& lo);
+template void program_impl::optimize_weights<fully_connected_node>(fully_connected_node& node, layout_optimizer& lo);
 
-    //generic lambda function which prepares given primitive for weights optimization
-    //it deduces the type of weights from the type of the argument and calls 'add_weights' for all
-    //weights used by given primitive.
-    //argument should match requirements:
-    // - it should be of a form 'typed_program_node<T>&'
-    // - 'T.weights' should be either of type 'primitive_id' or 'std::vector<primitive_id>'
-    const auto prep_opt = [this, &add_weights](auto& node) -> void
-    {
-        auto weights_offset = node.get_primitive()->input.size();
-        auto bias_offset = weights_offset + wrap_if_single(node.get_primitive()->weights).size();
-        for (auto i = weights_offset; i < bias_offset; i++)
-        {
-            add_weights(node.get_dependency(i), node, i);
-        }
-    };
-
+void program_impl::post_optimize_weights(layout_optimizer& lo)
+{
     for (auto& p : nodes_map)
     {
         auto& prim = *p.second;
         if (prim.type() == convolution::type_id())
         {
-            prep_opt(prim.as<convolution>());
+            optimize_weights(prim.as<convolution>(), lo);
         }
         else if (prim.type() == deconvolution::type_id())
         {
-            prep_opt(prim.as<deconvolution>());
+            optimize_weights(prim.as<deconvolution>(), lo);
         }
         else if (prim.type() == fully_connected::type_id())
         {
-            prep_opt(prim.as<fully_connected>());
+            optimize_weights(prim.as<fully_connected>(), lo);
         }
         //else if (prim.type() == lstm_gemm::type_id())//TODO: Enable postoptimize weights for lstm
         //{
@@ -2151,69 +2010,76 @@ void program_impl::post_optimize_weights(layout_optimizer& lo)
     }
 }
 
+template <typename T>
+void program_impl::optimize_depthwise_sep_post(T& node)
+{
+    if (!node.get_depthwise_sep_opt())
+        return;
+
+    const auto& split = node.get_primitive()->split();
+
+    auto dependency_offset = node.get_primitive()->input.size();
+    //concatenate weights
+    {
+        //if weights were optimized it is needed to use the sizes after optimization
+        auto target_layout = get_weights_layout(node.get_dependency(dependency_offset), split);
+        merge_buffers(engine, node, target_layout, dependency_offset, dependency_offset + split);
+        dependency_offset++;
+    }
+
+    //concatenate biases
+    if (node.get_primitive()->bias.size() != 0)
+    {
+        const auto& bias_layout = node.get_dependency(dependency_offset).get_output_layout();
+        auto target_layout = layout(bias_layout.data_type, cldnn::format::bfyx, { 1, 1, bias_layout.size.spatial[0] * split, 1 });
+        merge_buffers(engine, node, target_layout, dependency_offset, dependency_offset + split);
+        dependency_offset++;
+    }
+
+    if (node.template is_type<convolution>())
+    {
+        auto& prim_node = node.template as<convolution>();
+        const auto& prim = prim_node.get_primitive();
+
+        // concatenate weights quantization factors
+        if (prim->weights_quantization_factors.size() != 0)
+        {
+            const auto& weights_quantization_layout = node.get_dependency(dependency_offset).get_output_layout();
+            auto target_layout = layout(weights_quantization_layout.data_type, cldnn::format::bfyx, { 1, 1, weights_quantization_layout.size.batch[0] * split, 1 });
+            merge_buffers(engine, node, target_layout, dependency_offset, dependency_offset + split);
+            dependency_offset++;
+        }
+        // concatenate output callibration factors
+        if (prim->output_calibration_factors.size() != 0)
+        {
+            const auto& output_callibration_layout = node.get_dependency(dependency_offset).get_output_layout();
+            auto target_layout = layout(output_callibration_layout.data_type, cldnn::format::bfyx, { 1, 1, output_callibration_layout.size.batch[0] * split, 1 });
+            merge_buffers(engine, node, target_layout, dependency_offset, dependency_offset + split);
+            dependency_offset++;
+        }
+    }
+
+    if (node.get_primitive())
+        //override node split, as only one kernel will be executed
+        node.set_split(1);
+}
+template void program_impl::optimize_depthwise_sep_post<convolution_node>(convolution_node& node);
+template void program_impl::optimize_depthwise_sep_post<deconvolution_node>(deconvolution_node& node);
+
 void program_impl::prep_opt_depthwise_sep_post()
 {
-    const auto prep_opt_depthwise_sep = [this](auto& node) -> void
-    {
-        if (!node.get_depthwise_sep_opt())
-            return;
-
-        const auto& split = node.get_primitive()->split();
-
-        auto dependency_offset = node.get_primitive()->input.size();
-        //concatenate weights
-        {
-            //if weights were optimized it is needed to use the sizes after optimization
-            auto target_layout = get_weights_layout(node.get_dependency(dependency_offset), split);
-            merge_buffers(engine, node, target_layout, dependency_offset, dependency_offset + split);
-            dependency_offset++;
-        }
-
-        //concatenate biases
-        if (node.get_primitive()->bias.size() != 0)
-        {
-            const auto& bias_layout = node.get_dependency(dependency_offset).get_output_layout();
-            auto target_layout = layout(bias_layout.data_type, cldnn::format::bfyx, { 1, 1, bias_layout.size.spatial[0] * split, 1 });
-            merge_buffers(engine, node, target_layout, dependency_offset, dependency_offset + split);
-            dependency_offset++;
-        }
-
-        if (node.template is_type<convolution>())
-        {
-            auto& prim_node = node.template as<convolution>();
-            const auto& prim = prim_node.get_primitive();
-
-            // concatenate weights quantization factors
-            if (prim->weights_quantization_factors.size() != 0)
-            {
-                const auto& weights_quantization_layout = node.get_dependency(dependency_offset).get_output_layout();
-                auto target_layout = layout(weights_quantization_layout.data_type, cldnn::format::bfyx, { 1, 1, weights_quantization_layout.size.batch[0] * split, 1 });
-                merge_buffers(engine, node, target_layout, dependency_offset, dependency_offset + split);
-                dependency_offset++;
-            }
-            // concatenate output callibration factors
-            if (prim->output_calibration_factors.size() != 0)
-            {
-                const auto& output_callibration_layout = node.get_dependency(dependency_offset).get_output_layout();
-                auto target_layout = layout(output_callibration_layout.data_type, cldnn::format::bfyx, { 1, 1, output_callibration_layout.size.batch[0] * split, 1 });
-                merge_buffers(engine, node, target_layout, dependency_offset, dependency_offset + split);
-                dependency_offset++;
-            }
-        }
-
-        if (node.get_primitive())
-            //override node split, as only one kernel will be executed
-            node.set_split(1);
-    };
-
     //depthiwise separated convolution/deconvolution optimization
     for (auto& p : nodes_map)
     {
         auto& prim = *p.second;
-        do_for_types<deconvolution, convolution>(prim,
-            prep_opt_depthwise_sep,   //case for deconvolution
-            prep_opt_depthwise_sep    //case for convolution
-            );
+        if (prim.type() == convolution::type_id())
+        {
+            optimize_depthwise_sep_post(prim.as<convolution>());
+        }
+        else if (prim.type() == deconvolution::type_id())
+        {
+            optimize_depthwise_sep_post(prim.as<deconvolution>());
+        }
     }
 }
 
@@ -2231,7 +2097,7 @@ void program_impl::apply_needed_padding(program_node& node, program_node& prev_n
     {
         target_layout.data_padding = needed_padding;
 
-        auto r_prim = std::make_shared<reorder>("reorder_" + prev_node.id(), prev_node.id(), target_layout);
+        auto r_prim = std::make_shared<reorder>("reorder_input_" + node.id(), prev_node.id(), target_layout);
         add_intermediate(r_prim, node, 0);
         return;
     }
@@ -2312,7 +2178,10 @@ void program_impl::prepare_padding()
         auto conv_layout = node.get_output_layout();
 
         // right now output padding optimization is only available for bfyx format and data type = float32
-        if (conv_layout.format != cldnn::format::bfyx && conv_layout.format != cldnn::format::bf8_xy16 && conv_layout.format != cldnn::format::byxf_af32)
+        if (conv_layout.format != cldnn::format::bfyx
+            && conv_layout.format != cldnn::format::bf8_xy16
+            && conv_layout.format != cldnn::format::byxf_af32
+            && conv_layout.format != cldnn::format::fs_bs_yx_bsv4_fsv32)
         {
             continue;
         }
@@ -2444,6 +2313,10 @@ void program_impl::prepare_buffer_fusing()
     {
         auto& node = (*itr++);
 
+        // TODO: Move fused activation to previous layer when possible
+        if (node->fused_activation.activation_func != cldnn_activation_func_t::activation_none)
+            continue;
+
         do_for_types<concatenation>(*node, [this, is_debug](concatenation_node& node)
         {
             // buffer fusing should not be performed if one of inputs produces padded output since
@@ -2551,10 +2424,6 @@ void program_impl::prepare_buffer_fusing()
             if (node.is_output() && !is_debug)
                 return;
 
-            //connector mights have been added at the end of the network, if that is a case ignore it
-            if (node.get_users().size() == 1 && node.get_users().front()->is_type<connector>())
-                return;
-
             //do not optimize when next node is concatenation which is not output
             if (node.get_users().size() == 1 && node.get_users().front()->is_type<concatenation>() && !node.get_users().front()->is_output())
                 return;
@@ -2608,7 +2477,7 @@ void program_impl::prepare_buffer_fusing()
         do_for_types<reshape>(*node, [this](reshape_node& node)
         {
             node.get_output_layout();
-            if (node.is_in_place())
+            if (node.is_in_place() && node.get_fused_activation_func() == activation_none)
                 node.can_be_optimized(true);
         });
         do_for_types<reorder>(*node, [this](reorder_node& node)
@@ -2679,6 +2548,64 @@ void program_impl::prepare_buffer_fusing()
     }
 }
 
+void program_impl::fuse_skip_layers(program_node* node)
+{
+    do_for_types<eltwise>(*node, [this](eltwise_node& node)
+    {
+        bool skippable = false;
+        int index = 0;
+        if (node.get_primitive()->mode != eltwise_mode::sum || node.inputs_count() != 2)
+            return;
+
+        if (node.input(0).is_type<deconvolution>())
+        {
+            skippable = true;
+        }
+        else if (node.input(1).is_type<deconvolution>())
+        {
+            skippable = true;
+            index = 1;
+        }
+
+        if (!skippable)
+            return;
+
+        auto& to_fuse_with = node.input(index).as<deconvolution>();
+        int to_fuse_index = index == 0 ? 1 : 0;
+
+        // check that node doesn't have fused eltwise already
+        if (to_fuse_with.has_fused_sum())
+            return;
+
+        //remove dependencies and users of elwtise that is going to be extracted
+        add_connection(node.input(to_fuse_index), to_fuse_with);
+        remove_connection(node.input(to_fuse_index), node);
+
+        //replace processing_num of the node where fusing take place and eltwise
+        auto new_processing_num = node.processing_num;
+        processing_order.erase(to_fuse_with.processing_itr);
+        to_fuse_with.processing_itr = processing_order.insert(node.processing_itr, &to_fuse_with);
+        to_fuse_with.processing_num = new_processing_num;
+
+        //make sure that new fused node's users have higher processing_num than fused node
+        for (auto user : to_fuse_with.get_users())
+        {
+            if (user->processing_num < new_processing_num)
+            {
+                processing_order.erase(user->processing_itr);
+                user->processing_itr = processing_order.insert(std::next(to_fuse_with.processing_itr), user);
+                user->processing_num = new_processing_num + 1;
+            }
+        }
+
+        if (node.get_fused_activation_func() != activation_none)
+            to_fuse_with.set_fused_activation(node.get_fused_activation_func(), node.get_fused_activation_params());
+        to_fuse_with.set_output_padding(node.get_output_layout().data_padding);
+
+        extract_and_remove(node);
+    });
+}
+
 void program_impl::prepare_primitive_fusing()
 {
     bool is_debug = options.get<build_option_type::debug>()->enabled();
@@ -2699,8 +2626,8 @@ void program_impl::prepare_primitive_fusing()
             // - primitives input cannot be output
             // - no activation additional input
             // - input was optimized
-            if (node.has_padded_dependency() || (input.is_output() && !is_debug) || node.get_dependencies().size() != 1 ||
-                input.can_be_optimized())
+            if (node.has_padded_dependency() || (input.is_output() && !is_debug) || node.is_output() ||
+                node.get_dependencies().size() != 1 || input.can_be_optimized())
                 return;
 
             // - check if there is no activation fused already
@@ -2712,7 +2639,7 @@ void program_impl::prepare_primitive_fusing()
                     !input.is_type<crop>() && !input.is_type<deconvolution>() && !input.is_type<eltwise>() &&
                     !input.is_type<fully_connected>() && !input.is_type<lrn>() && !input.is_type<normalize>() &&
                     !input.is_type<permute>() && !input.is_type<pooling>() && !input.is_type<reorder>() &&
-                    !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
+                    !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
                     !input.is_type<softmax>() && !input.is_type<upsampling>() && !input.is_type<mvn>()))
                 return;
 
@@ -2752,6 +2679,15 @@ void program_impl::prepare_primitive_fusing()
             extract_and_remove(node);
         });
     }
+    //Third loop tries fusing eltwise (sum) with deconvolution
+    itr = processing_order.begin();
+    while (itr != processing_order.end())
+    {
+        auto node_itr = itr++;
+        auto& node = (*node_itr);
+
+        fuse_skip_layers(node);
+    }
 }
 
 program_node& program_impl::get_or_create(std::shared_ptr<primitive> prim)
@@ -2787,7 +2723,6 @@ void program_impl::add_intermediate(program_node& node, program_node& next, size
     next.replace_dependency(prev_idx, node);
     node.constant = prev.constant;
     node.data_flow = prev.data_flow;
-    node.main_branch = prev.main_branch;
     if (prev.constant_frontier)
     {
         node.constant_frontier = true;
@@ -2840,7 +2775,7 @@ void program_impl::replace_all_usages(program_node & old_node, program_node & ne
 
 void program_impl::replace(program_node& old_node, program_node& new_node, bool replace_whole_branch, bool check_output_layouts_integrity)
 {
-    if ((!new_node.dependencies.empty() && !replace_whole_branch) || !new_node.users.empty() || new_node.dominator || new_node.joint)
+    if ((!new_node.dependencies.empty() && !replace_whole_branch) || !new_node.users.empty())
         throw std::invalid_argument("Node which is about to replace other node should be detached");
 
     if (new_node.is_output())
@@ -2893,15 +2828,6 @@ void program_impl::replace(program_node& old_node, program_node& new_node, bool 
     if (old_node.is_input())
         inputs.remove(&old_node);
 
-    new_node.dominator = old_node.dominator;
-    if (old_node.dominator && old_node.dominator->joint == &old_node)
-        old_node.dominator->joint = &new_node;
-    new_node.joint = old_node.joint;
-    if (old_node.joint && old_node.joint->dominator == &old_node)
-        old_node.joint->dominator = &new_node;
-
-    new_node.data_flow = old_node.data_flow;
-    new_node.main_branch = old_node.main_branch;
     new_node.constant = old_node.constant;
     new_node.constant_frontier = old_node.constant_frontier;
     new_node.user_mark = old_node.user_mark;
@@ -3037,70 +2963,6 @@ void program_impl::replace_data_with_optimized(std::map<primitive_id, memory_imp
         assert(node.is_type<data>() && "Optimized primitive is not a cldnn::data");
         assert(result.second != nullptr && "Memory which handles result of optimization should not be nullptr");
         node.as<data>().attach_memory(*result.second, false);
-    }
-}
-
-void program_impl::forward_bfs(std::function<void(program_node&)> const& mark_func, std::function<void(program_node&)> const& unmark_func) const
-{
-    if (!mark_func && !unmark_func)
-        return;
-
-    std::list<const std::list<program_node*>*> stack = { &inputs };
-    while (!stack.empty())
-    {
-        auto nodes_list = stack.front();
-        stack.pop_front();
-
-        for (auto node : *nodes_list)
-        {
-            if (!node->is_marked())
-            {
-                node->mark();
-                if (mark_func)
-                    mark_func(*node);
-                if (!node->get_users().empty())
-                    stack.push_back(&node->get_users());
-            }
-        }
-    }
-
-    for (auto& node : nodes_map)
-    {
-        if (unmark_func)
-            unmark_func(*node.second);
-        node.second->unmark();
-    }
-}
-
-void program_impl::backward_bfs(std::function<void(program_node&)> const& mark_func, std::function<void(program_node&)> const& unmark_func) const
-{
-    if (!mark_func && !unmark_func)
-        return;
-
-    std::list<const std::vector<program_node*>*> stack = { &outputs };
-    while (!stack.empty())
-    {
-        auto nodes_list = stack.front();
-        stack.pop_front();
-
-        for (auto node : *nodes_list)
-        {
-            if (!node->is_marked())
-            {
-                node->mark();
-                if (mark_func)
-                    mark_func(*node);
-                if (!node->get_dependencies().empty())
-                    stack.push_back(&node->get_dependencies());
-            }
-        }
-    }
-
-    for (auto& node : nodes_map)
-    {
-        if (unmark_func)
-            unmark_func(*node.second);
-        node.second->unmark();
     }
 }
 

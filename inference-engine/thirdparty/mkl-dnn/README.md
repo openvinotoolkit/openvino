@@ -3,7 +3,7 @@
 > Please update your links.
 
 # Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN)
-![v0.15 beta](https://img.shields.io/badge/v0.15-beta-orange.svg)
+![v0.16 beta](https://img.shields.io/badge/v0.16-beta-orange.svg)
 
 Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN) is
 an open source performance library for deep learning applications. The library
@@ -21,13 +21,14 @@ of the following deep learning topologies and variations of these.
 
 | Application                               | Example topology
 |:---                                       |:---
-| Image recognition                         | AlexNet, VGG, GoogleNet, ResNet
-| Image segmenation                         | FCN, SegNet
+| Image recognition                         | AlexNet, VGG, GoogleNet, ResNet, MobileNet
+| Image segmenation                         | FCN, SegNet, MaskRCNN, U-Net
 | Volumetric segmentation                   | 3D-Unet
 | Object detection                          | SSD, Faster R-CNN, Yolo
 | Neural Machine Translation (experimental) | GNMT
 | Speech Recognition (experimental)         | DeepSpeech
-
+| Adversarial Networks                      | DCGAN, 3DGAN
+| Reinforcement Learning                    | A3C
 
 Intel MKL-DNN is used in the following software products:
 * [Caffe\* Optimized for Intel Architecture](https://github.com/intel/caffe)
@@ -65,8 +66,9 @@ Please submit your questions, feature requests and bug reports on
 **WARNING** The following functionality has preview status and might change
 without prior notification in future releases:
 * Convolutions with `s16` data type in source, weights or destination
-* Convolutions and auxillary primitives for 3D spatial data
+* Convolutions and auxiliary primitives for 3D spatial data
 * RNN, LSTM and GRU primitives
+* Intel Threading Building (Intel TBB\*) support
 
 ## How to Contribute
 We welcome community contributions to Intel MKL-DNN. If you have an idea how to improve the library:
@@ -119,6 +121,7 @@ The implementation uses OpenMP\* 4.0 SIMD extensions. We recommend using
 Intel(R) Compiler for the best performance results.
 
 ## Installation
+
 Download [Intel MKL-DNN source code](https://github.com/intel/mkl-dnn/archive/master.zip)
 or clone the repository to your system
 
@@ -146,17 +149,41 @@ libraries using provided script
 ```
 
 or manually from [GitHub release section](https://github.com/intel/mkl-dnn/releases)
-and unpack it to the `external` directory in the repository root. 
+and unpack it to the `external` directory in the repository root. Intel MKL-DNN
+can also be built with full Intel MKL, if the latter is installed on the system.
+You might need to set `MKLROOT` environment variable to the path where full
+Intel MKL is installed to help cmake locate the library.
 
 You can choose to build Intel MKL-DNN without binary dependency. The resulting
 version will be fully functional, however performance of certain convolution
 shapes and sizes and inner product relying on SGEMM function may be suboptimal.
 
+> **Note**
+>
+> Using Intel MKL small libraries currently work for Intel MKL-DNN built with
+> OpenMP\* only. Building with Intel TBB requires either full Intel MKL library
+> or standalone build.
+
 Intel MKL-DNN uses a CMake-based build system
 
 ```
-	mkdir -p build && cd build && cmake .. && make
+	mkdir -p build && cd build && cmake $CMAKE_OPTIONS .. && make
 ```
+
+Here `$CMAKE_OPTIONS` are options to control the build. Along with the standard
+cmake options such as `CMAKE_INSTALL_PREFIX` or `CMAKE_BUILD_TYPE`,
+user can also pass Intel MKL-DNN specific ones:
+
+|Option                 | Possible Values (defaults in bold) | Description
+|:---                   |:---                | :---
+|MKLDNN_LIBRARY_TYPE    | **SHARED**, STATIC | Defines resulting library type
+|MKLDNN_THREADING       | **OMP**, TBB       | Defines threading type
+|WITH_EXAMPLE           | **ON**, OFF        | Controls building examples
+|WITH_TEST              | **ON**, OFF        | Controls building tests
+|VTUNEROOT              | *path*             | Enables integration with Intel(R) Vtune(tm) Amplifier
+
+Please check [cmake/options.cmake](cmake/options.cmake) for more options
+and details.
 
 Intel MKL-DNN includes unit tests implemented using the googletest framework. To validate your build, run:
 
@@ -180,22 +207,32 @@ will place the  header files, libraries and documentation in `/usr/local`. To ch
 the installation path, use the option `-DCMAKE_INSTALL_PREFIX=<prefix>` when invoking CMake.
 
 ## Linking your application
-Intel MKL-DNN include several header files providing C and C++ APIs for 
-the functionality and several dynamic libraries depending on how Intel MKL-DNN
-was built. Intel OpenMP runtime and Intel MKL small libraries are not installed
-for standalone Intel MKL-DNN build.
+
+Intel MKL-DNN includes several header files providing C and C++ APIs for
+the functionality and one or several dynamic libraries depending on how
+Intel MKL-DNN was built. The minimal installation:
 
 |File                   | Description
 |:---                   |:---
+|include/mkldnn.h       | C header
+|include/mkldnn.hpp     | C++ header
+|include/mkldnn_types.h | auxiliary C header
 |lib/libmkldnn.so       | Intel MKL-DNN dynamic library
+|lib/libmkldnn.a        | Intel MKL-DNN static library (if built with `MKLDNN_LIBRARY_TYPE=STATIC`)
+
+
+#### Intel MKL-DNN with OpenMP
+
+If Intel MKL-DNN is built with Intel MKL small libraries the following extra
+libraries would be installed:
+
+|File                   | Description
+|:---                   |:---
 |lib/libiomp5.so        | Intel OpenMP* runtime library
 |lib/libmklml_gnu.so    | Intel MKL small library for GNU* OpenMP runtime
 |lib/libmklml_intel.so  | Intel MKL small library for Intel(R) OpenMP runtime
-|include/mkldnn.h       | C header
-|include/mkldnn.hpp     | C++ header
-|include/mkldnn_types.h | auxillary C header
 
-Intel MKL-DNN uses OpenMP* for parallelism and requires an OpenMP runtime 
+Intel MKL-DNN uses OpenMP\* for parallelism and requires an OpenMP runtime
 library to work. As different OpenMP runtimes may not be binary compatible
 it's important to ensure that only one OpenMP runtime is used throughout the
 application. Having more than one OpenMP runtime initialized may lead to
@@ -225,6 +262,32 @@ same compiler correct OpenMP runtime will be used.
 ```
 	icpc -std=c++11 -qopenmp -I${MKLDNNROOT}/include -L${MKLDNNROOT}/lib simple_net.cpp -lmkldnn
 ```
+
+#### Intel MKL-DNN with Intel TBB
+
+Intel MKL-DNN built with Intel TBB doesn't require special handling:
+```
+	g++ -std=c++11 -I${MKLDNNROOT}/include -L${MKLDNNROOT}/lib simple_net.cpp -lmkldnn -ltbb
+```
+
+Please note that Intel MKL-DNN has limited optimizations done for Intel TBB
+and has some functional limitations if built with Intel TBB.
+
+Functional limitations:
+* Convolution with Winograd algorithm is not supported
+
+Performance limitations (mostly less parallelism than in case of OpenMP):
+* Batch normalization
+* Convolution backward by weights
+* mkldnn_sgemm
+
+> **WARNING**
+>
+> If the library is built with full Intel MKL user is expected to set
+> `MKL_THREADING_LAYER` environment variable to either `tbb` or `sequential`
+> to force Intel MKL to use Intel TBB for parallelization or to be sequential
+> respectively. Without this setting Intel MKL (RT library) by default would
+> try to use OpenMP for parallelization.
 
 --------
 

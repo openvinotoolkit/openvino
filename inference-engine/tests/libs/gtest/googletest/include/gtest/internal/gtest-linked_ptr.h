@@ -1,7 +1,69 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright 2003 Google Inc.
+// All rights reserved.
 //
-// SPDX-License-Identifier: Apache-2.0
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
 //
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Authors: Dan Egnor (egnor@google.com)
+//
+// A "smart" pointer type with reference tracking.  Every pointer to a
+// particular object is kept on a circular linked list.  When the last pointer
+// to an object is destroyed or reassigned, the object is deleted.
+//
+// Used properly, this deletes the object when the last reference goes away.
+// There are several caveats:
+// - Like all reference counting schemes, cycles lead to leaks.
+// - Each smart pointer is actually two pointers (8 bytes instead of 4).
+// - Every time a pointer is assigned, the entire list of pointers to that
+//   object is traversed.  This class is therefore NOT SUITABLE when there
+//   will often be more than two or three pointers to a particular object.
+// - References are only tracked as long as linked_ptr<> objects are copied.
+//   If a linked_ptr<> is converted to a raw pointer and back, BAD THINGS
+//   will happen (double deletion).
+//
+// A good use of this class is storing object references in STL containers.
+// You can safely put linked_ptr<> in a vector<>.
+// Other uses may not be as good.
+//
+// Note: If you use an incomplete type with linked_ptr<>, the class
+// *containing* linked_ptr<> must have a constructor and destructor (even
+// if they do nothing!).
+//
+// Bill Gibbons suggested we use something like this.
+//
+// Thread Safety:
+//   Unlike other linked_ptr implementations, in this implementation
+//   a linked_ptr object is thread-safe in the sense that:
+//     - it's safe to copy linked_ptr objects concurrently,
+//     - it's safe to copy *from* a linked_ptr and read its underlying
+//       raw pointer (e.g. via get()) concurrently, and
+//     - it's safe to write to two linked_ptrs that point to the same
+//       shared object concurrently.
+// TODO(wan@google.com): rename this to safe_linked_ptr to avoid
+// confusion with normal linked_ptr.
 
 #ifndef GTEST_INCLUDE_GTEST_INTERNAL_GTEST_LINKED_PTR_H_
 #define GTEST_INCLUDE_GTEST_INTERNAL_GTEST_LINKED_PTR_H_

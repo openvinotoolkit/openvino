@@ -65,96 +65,89 @@ void check_pool_fwd(const pool_test_params &p, const memory &src,
     auto pd = p.test_pd;
     size_t padded_c = src_d.data.layout_desc.blocking.padding_dims[1];
 
-#pragma omp parallel for collapse(4) schedule(static)
-    for (int n = 0; n < pd.mb; n++) {
-        for (int c = 0; c < pd.c; c++) {
-            for (int od = 0; od < pd.od; od++) {
-                for (int oh = 0; oh < pd.oh; oh++) {
-                    for (int ow = 0; ow < pd.ow; ow++) {
-                        size_t oidx = (size_t)n * padded_c * pd.od * pd.oh * pd.ow
-                                + (size_t)c * pd.od * pd.oh * pd.ow
-                                + (size_t)od * pd.oh * pd.ow
-                                + (size_t)oh * pd.ow + ow;
-                        data_t out = dst_data[map_index(dst_d, oidx)];
-                        int out_index = -1;
-                        if(p.aalgorithm == pooling_max
-                            && p.aprop_kind == prop_kind::forward_training) {
-                            out_index = ws_data(map_index(ws_d, oidx));
-                        }
-                        // match implementation for pooling_max: padding
-                        // is done with lowest value and not zero, it
-                        // affects the case when kernel slips into
-                        // the padding area entirely
-                        typename acc_t<data_t>::type acc_ref
-                                = (p.aalgorithm == pooling_max) ?
-                                std::numeric_limits<data_t>::lowest() :
-                                data_t(0);
-                        int out_ref_index = 0;
-                        bool is_initialized = false;
-                        int num_summands = 0;
+    mkldnn::impl::parallel_nd(pd.mb, pd.c, pd.od, pd.oh, pd.ow,
+        [&](int n, int c, int od, int oh, int ow) {
+            size_t oidx = (size_t)n * padded_c * pd.od * pd.oh * pd.ow
+                    + (size_t)c * pd.od * pd.oh * pd.ow
+                    + (size_t)od * pd.oh * pd.ow
+                    + (size_t)oh * pd.ow + ow;
+            data_t out = dst_data[map_index(dst_d, oidx)];
+            int out_index = -1;
+            if(p.aalgorithm == pooling_max
+                && p.aprop_kind == prop_kind::forward_training) {
+                out_index = ws_data(map_index(ws_d, oidx));
+            }
+            // match implementation for pooling_max: padding
+            // is done with lowest value and not zero, it
+            // affects the case when kernel slips into
+            // the padding area entirely
+            typename acc_t<data_t>::type acc_ref
+                    = (p.aalgorithm == pooling_max) ?
+                    std::numeric_limits<data_t>::lowest() :
+                    data_t(0);
+            int out_ref_index = 0;
+            bool is_initialized = false;
+            int num_summands = 0;
 
-                        for (int kd = 0; kd < pd.kd; ++kd)
-                        for (int kh = 0; kh < pd.kh; ++kh)
-                        for (int kw = 0; kw < pd.kw; ++kw)
-                        {
-                            const int id = od * pd.strd - pd.padf + kd;
-                            const int ih = oh * pd.strh - pd.padt + kh;
-                            const int iw = ow * pd.strw - pd.padl + kw;
+            for (int kd = 0; kd < pd.kd; ++kd)
+            for (int kh = 0; kh < pd.kh; ++kh)
+            for (int kw = 0; kw < pd.kw; ++kw)
+            {
+                const int id = od * pd.strd - pd.padf + kd;
+                const int ih = oh * pd.strh - pd.padt + kh;
+                const int iw = ow * pd.strw - pd.padl + kw;
 
-                            if (id < 0 || id >= pd.id) continue;
-                            if (ih < 0 || ih >= pd.ih) continue;
-                            if (iw < 0 || iw >= pd.iw) continue;
+                if (id < 0 || id >= pd.id) continue;
+                if (ih < 0 || ih >= pd.ih) continue;
+                if (iw < 0 || iw >= pd.iw) continue;
 
-                            size_t iidx
-                                    = (size_t)n * padded_c * pd.id * pd.ih * pd.iw
-                                    + (size_t)c * pd.id * pd.ih * pd.iw
-                                    + (size_t)id * pd.ih * pd.iw
-                                    + (size_t)ih * pd.iw + iw;
+                size_t iidx
+                        = (size_t)n * padded_c * pd.id * pd.ih * pd.iw
+                        + (size_t)c * pd.id * pd.ih * pd.iw
+                        + (size_t)id * pd.ih * pd.iw
+                        + (size_t)ih * pd.iw + iw;
 
-                            data_t d = src_data[map_index(src_d, iidx)];
-                            if (p.aalgorithm == pooling_max) {
-                                if (!is_initialized) {
-                                    acc_ref = d;
-                                    out_ref_index = kd * pd.kw * pd.kh
-                                    + kh * pd.kw + kw;
-                                    is_initialized = true;
-                                } else {
-                                    if (acc_ref < d) {
-                                        acc_ref = d;
-                                        out_ref_index = kd * pd.kw * pd.kh
-                                        + kh * pd.kw + kw;
-                                    }
-                                }
-                            } else if (p.aalgorithm == pooling_avg_include_padding ||
-                                p.aalgorithm == pooling_avg_exclude_padding) {
-                                acc_ref += d;
-                                num_summands++;
-                            }
-                        }
-
-                        if (p.aalgorithm == pooling_avg_include_padding) {
-                            num_summands = pd.kw * pd.kh * pd.kd;
-                        }
-
-                        if (p.aalgorithm == pooling_avg_include_padding ||
-                            p.aalgorithm == pooling_avg_exclude_padding) {
-                            acc_ref = out_round<data_t>(
-                                (float)acc_ref / num_summands);
-                        }
-
-                        const data_t out_ref = (data_t)acc_ref;
-                        EXPECT_NEAR(out, out_ref, 1e-6);
-                        if(p.aalgorithm == pooling_max
-                            && p.aprop_kind == forward_training) {
-                            EXPECT_EQ(out_index, out_ref_index) << " n = " << n
-                            << " c = " << c << " od = " << od << " oh = " << oh
-                            << " ow = " << ow;
+                data_t d = src_data[map_index(src_d, iidx)];
+                if (p.aalgorithm == pooling_max) {
+                    if (!is_initialized) {
+                        acc_ref = d;
+                        out_ref_index = kd * pd.kw * pd.kh
+                        + kh * pd.kw + kw;
+                        is_initialized = true;
+                    } else {
+                        if (acc_ref < d) {
+                            acc_ref = d;
+                            out_ref_index = kd * pd.kw * pd.kh
+                            + kh * pd.kw + kw;
                         }
                     }
+                } else if (p.aalgorithm == pooling_avg_include_padding ||
+                    p.aalgorithm == pooling_avg_exclude_padding) {
+                    acc_ref += d;
+                    num_summands++;
                 }
             }
+
+            if (p.aalgorithm == pooling_avg_include_padding) {
+                num_summands = pd.kw * pd.kh * pd.kd;
+            }
+
+            if (p.aalgorithm == pooling_avg_include_padding ||
+                p.aalgorithm == pooling_avg_exclude_padding) {
+                acc_ref = out_round<data_t>(
+                    (float)acc_ref / num_summands);
+            }
+
+            const data_t out_ref = (data_t)acc_ref;
+            EXPECT_NEAR(out, out_ref, 1e-6);
+            if(p.aalgorithm == pooling_max
+                && p.aprop_kind == forward_training) {
+                EXPECT_EQ(out_index, out_ref_index) << " n = " << n
+                << " c = " << c << " od = " << od << " oh = " << oh
+                << " ow = " << ow;
+            }
         }
-    }
+    );
 }
 
 template <typename data_t>
@@ -486,6 +479,35 @@ TEST_P(pooling_test_float, TestsPooling)
 }
 
 INSTANTIATE_TEST_CASE_P(
+        TestPoolingForwardZeroDim, pooling_test_float, ::testing::Values(
+            pool_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_max, memory::format::nchw,
+            memory::format::nchw,  EXPAND_SIZES_2D( 2, 0, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 )},
+            pool_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_max, memory::format::nhwc,
+            memory::format::nhwc,  EXPAND_SIZES_2D( 0, 4, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 )},
+            pool_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_max, memory::format::nchw,
+            memory::format::nchw,  EXPAND_SIZES_2D( 2, 4, 0, 4, 4, 4, 3, 3, 1, 1, 1, 1 )}
+            ));
+
+INSTANTIATE_TEST_CASE_P(
+        TestPoolingForwardEF, pooling_test_float, ::testing::Values(
+            pool_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_max, memory::format::nchw,
+            memory::format::nchw,  EXPAND_SIZES_2D( 2, -4, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
+            true, mkldnn_invalid_arguments},
+            pool_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_max, memory::format::nchw,
+            memory::format::nchw,  EXPAND_SIZES_2D( -1, 4, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
+            true, mkldnn_invalid_arguments},
+            pool_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::eltwise_square, memory::format::nchw,
+            memory::format::nchw,  EXPAND_SIZES_2D( 2, 4, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
+            true, mkldnn_invalid_arguments}
+            ));
+
+INSTANTIATE_TEST_CASE_P(
         TestPooling_nChw16c_with_padded, pooling_test_float, ::testing::Values(
             pool_test_params{ prop_kind::forward_training,
             engine::kind::cpu, algorithm::pooling_max, memory::format::nChw16c,
@@ -508,6 +530,31 @@ INSTANTIATE_TEST_CASE_P(
             pool_test_params{ prop_kind::forward_inference,
             engine::kind::cpu, algorithm::pooling_avg_include_padding, memory::format::nChw16c,
             memory::format::nChw16c, EXPAND_SIZES_2D(4, 28, 60, 60, 31, 31, 4, 2, 1, 1, 2, 2) }
+            ));
+
+INSTANTIATE_TEST_CASE_P(
+        TestPooling_nChw8c_with_padded, pooling_test_float, ::testing::Values(
+            pool_test_params{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_max, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 5,  6,  6,  7,  7, 2, 2, 1, 1, 1, 1) },
+            pool_test_params{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_max, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 9, 60, 60, 31, 31, 3, 4, 1, 1, 2, 2) },
+            pool_test_params{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_avg_exclude_padding, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 14, 60, 60, 31, 31, 3, 2, 1, 1, 2, 2) },
+            pool_test_params{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_avg_include_padding, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 17, 60, 60, 31, 31, 4, 3, 1, 1, 2, 2) },
+            pool_test_params{ prop_kind::forward_inference,
+            engine::kind::cpu, algorithm::pooling_max, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 14, 60, 60, 31, 31, 2, 3, 1, 1, 2, 2) },
+            pool_test_params{ prop_kind::forward_inference,
+            engine::kind::cpu, algorithm::pooling_avg_exclude_padding, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 25, 60, 60, 31, 31, 2, 4, 1, 1, 2, 2) },
+            pool_test_params{ prop_kind::forward_inference,
+            engine::kind::cpu, algorithm::pooling_avg_include_padding, memory::format::nChw8c,
+            memory::format::nChw8c, EXPAND_SIZES_2D(4, 28, 60, 60, 31, 31, 4, 2, 1, 1, 2, 2) }
             ));
 
 INSTANTIATE_TEST_CASE_P(
@@ -546,6 +593,28 @@ INSTANTIATE_TEST_CASE_P(
             pool_test_params{ prop_kind::forward_inference,
             engine::kind::cpu, algorithm::pooling_avg_include_padding, memory::format::nCdhw16c,
             memory::format::nCdhw16c, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 31, 31, 31, 3, 4, 2, 1, 1, 1, 2, 2, 2) }
+            ));
+
+INSTANTIATE_TEST_CASE_P(
+        TestPooling3D_nCdhw8c, pooling_test_float, ::testing::Values(
+            pool_test_params{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_max, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 31, 31, 31, 2, 3, 4, 1, 1, 1, 2, 2, 2) },
+            pool_test_params{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_avg_exclude_padding, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 31, 31, 31, 4, 3, 2, 1, 1, 1, 2, 2, 2) },
+            pool_test_params{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::pooling_avg_include_padding, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 31, 31, 31, 2, 4, 3, 1, 1, 1, 2, 2, 2) },
+            pool_test_params{ prop_kind::forward_inference,
+            engine::kind::cpu, algorithm::pooling_max, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 31, 31, 31, 4, 2, 3, 1, 1, 1, 2, 2, 2) },
+            pool_test_params{ prop_kind::forward_inference,
+            engine::kind::cpu, algorithm::pooling_avg_exclude_padding, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 31, 31, 31, 3, 2, 4, 1, 1, 1, 2, 2, 2) },
+            pool_test_params{ prop_kind::forward_inference,
+            engine::kind::cpu, algorithm::pooling_avg_include_padding, memory::format::nCdhw8c,
+            memory::format::nCdhw8c, EXPAND_SIZES_3D(2, 32, 60, 60, 60, 31, 31, 31, 3, 4, 2, 1, 1, 1, 2, 2, 2) }
             ));
 
 INSTANTIATE_TEST_CASE_P(
@@ -629,22 +698,6 @@ INSTANTIATE_TEST_CASE_P(
             pool_test_params{ prop_kind::forward_inference,
             engine::kind::cpu, algorithm::pooling_max, memory::format::nCdhw16c,
             memory::format::nCdhw16c, EXPAND_SIZES_3D(1, 256, 12, 12, 12, 12, 12, 12, 2, 2, 2, 0, 0, 0, 1, 1, 1) }
-            ));
-
-INSTANTIATE_TEST_CASE_P(
-        TestPoolingForwardEF, pooling_test_float, ::testing::Values(
-            pool_test_params_float{ prop_kind::forward_training,
-            engine::kind::cpu, algorithm::pooling_max, memory::format::nchw,
-            memory::format::nchw,  EXPAND_SIZES_2D( 2, 0, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
-            true, mkldnn_invalid_arguments},
-            pool_test_params_float{ prop_kind::forward_training,
-            engine::kind::cpu, algorithm::pooling_max, memory::format::nchw,
-            memory::format::nchw,  EXPAND_SIZES_2D( 0, 4, 4, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
-            true, mkldnn_invalid_arguments},
-            pool_test_params_float{ prop_kind::forward_training,
-            engine::kind::cpu, algorithm::pooling_max, memory::format::nchw,
-            memory::format::nchw,  EXPAND_SIZES_2D( 2, 4, 0, 4, 4, 4, 3, 3, 1, 1, 1, 1 ),
-            true, mkldnn_invalid_arguments}
             ));
 
 INSTANTIATE_TEST_CASE_P(

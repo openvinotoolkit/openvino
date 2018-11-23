@@ -22,6 +22,7 @@
 #include "cpu_engine.hpp"
 #include "jit_primitive_conf.hpp"
 #include "mkldnn_thread.hpp"
+#include "scratchpad.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -33,6 +34,7 @@ namespace jit_gemm_convolution_utils {
         int od);
     void im2col(jit_gemm_conv_conf_t &jcp, const float *im, float *col);
     void im2col_u8(jit_gemm_conv_conf_t &jcp, const uint8_t *im, uint8_t *col);
+    void col2im_s32(jit_gemm_conv_conf_t &jcp, const int32_t *col, int32_t *im);
     void col2im_3d(jit_gemm_conv_conf_t &jcp, const float *col, float *im,
         int od);
     void col2im(jit_gemm_conv_conf_t &jcp, const float *col, float *im);
@@ -40,16 +42,10 @@ namespace jit_gemm_convolution_utils {
     void init_conf(jit_gemm_conv_conf_t &jcp,
         const convolution_desc_t &cd, const memory_desc_wrapper &src_d,
         const memory_desc_wrapper &weights_d, const memory_desc_wrapper &dst_d,
-        bool with_relu = false, float relu_negative_slope = -1.0);
+        int max_threads, bool with_relu = false, float relu_negative_slope = -1.0);
 
-    template <typename src_t>
-    status_t prepare_ws_col(jit_gemm_conv_conf_t &jcp, src_t **col,
-            const int nthr);
-    status_t prepare_ws_wei_reduction(jit_gemm_conv_conf_t &jcp,
-            float **wei_reduction, size_t wei_sz, const int nthr);
-    template <typename acc_t>
-    status_t prepare_ws_acc(jit_gemm_conv_conf_t &jcp, acc_t **acc,
-            const int nthr);
+    status_t prepare_scratchpad(jit_gemm_conv_conf_t &jcp,
+                scratchpad_t **col_scratchpad_, size_t size, const int nthr);
 
     void bwd_weights_balance(int ithr, int nthr,
         int ngroups, int mb, int &ithr_g, int &nthr_g, int &ithr_mb,

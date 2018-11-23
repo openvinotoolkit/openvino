@@ -52,6 +52,10 @@ public:
 
         float step_w = step_w_ == 0 ? step_ : step_w_;
         float step_h = step_h_ == 0 ? step_ : step_h_;
+        if (step_w == 0 && step_h == 0) {
+            step_w = static_cast<float>(img_width) / layer_width;
+            step_h = static_cast<float>(img_height) / layer_height;
+        }
 
         auto *top_data_0 = outputs[0]->buffer().as<float *>();
         float *top_data_1 = top_data_0 + outputs[0]->getTensorDesc().getDims()[2];

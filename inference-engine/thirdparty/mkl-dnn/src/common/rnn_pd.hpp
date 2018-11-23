@@ -193,23 +193,23 @@ struct rnn_fwd_pd_t : public rnn_pd_t {
     virtual ~rnn_fwd_pd_t() {}
 
     virtual const memory_pd_t *input_pd(int index = 0) const override {
-        switch (index) {
-        case 0: return src_pd(0);
-        case 1: return src_pd(1);
-        case 2: return weights_pd(0);
-        case 3: return weights_pd(1);
-        case 4: return weights_pd(2);
-        default: return nullptr;
-        }
+        if (index == 0) return src_pd(0);
+        if (with_src_iter() && index == 1) return src_pd(1);
+        index = index - 1 - with_src_iter();
+
+        if (index < 3) return weights_pd(index);
+
+        return nullptr;
     }
 
     virtual const memory_pd_t *output_pd(int index = 0) const override {
-        switch (index) {
-        case 0: return dst_pd(0);
-        case 1: return dst_pd(1);
-        case 2: return workspace_pd();
-        default: return nullptr;
-        }
+        if (index == 0) return dst_pd(0);
+        if (with_dst_iter() && index == 1) return dst_pd(1);
+        index = index - 1 - with_dst_iter();
+
+        if (is_training() && index == 0) return workspace_pd();
+
+        return nullptr;
     }
 
     virtual int n_inputs() const override {
@@ -231,30 +231,35 @@ struct rnn_bwd_pd_t : public rnn_pd_t {
     virtual ~rnn_bwd_pd_t() {}
 
     virtual const memory_pd_t *input_pd(int index = 0) const override {
-        switch (index) {
-        case 0: return src_pd(0);
-        case 1: return src_pd(1);
-        case 2: return weights_pd(0);
-        case 3: return weights_pd(1);
-        case 4: return weights_pd(2);
-        case 5: return dst_pd(0);
-        case 6: return dst_pd(1);
-        case 7: return diff_dst_pd(0);
-        case 8: return diff_dst_pd(1);
-        case 9: return workspace_pd();
-        default: return nullptr;
-        }
+        if (index == 0) return src_pd(0);
+        if (with_src_iter() && index == 1) return src_pd(1);
+        index = index - 1 - with_src_iter();
+
+        if (index < 2) return weights_pd(index);
+        if (with_bias() && index == 2) return weights_pd(2);
+        index = index - 2 - with_bias();
+
+        if (index == 0) return dst_pd(0);
+        if (with_dst_iter() && index == 1) return dst_pd(1);
+        index = index - 1 - with_dst_iter();
+
+        if (index == 0) return diff_dst_pd(0);
+        if (with_dst_iter() && index == 1) return diff_dst_pd(1);
+        index = index - 1 - with_dst_iter();
+
+        if (index == 0) return workspace_pd();
+
+        return nullptr;
     }
 
     virtual const memory_pd_t *output_pd(int index = 0) const override {
-        switch (index) {
-        case 0: return diff_src_pd(0);
-        case 1: return diff_src_pd(1);
-        case 2: return diff_weights_pd(0);
-        case 3: return diff_weights_pd(1);
-        case 4: return diff_weights_pd(2);
-        default: return nullptr;
-        }
+        if (index == 0) return diff_src_pd(0);
+        if (with_src_iter() && index == 1) return diff_src_pd(1);
+        index = index - 1 - with_src_iter();
+
+        if (index < 3) return diff_weights_pd(index);
+
+        return nullptr;
     }
 
     virtual int n_inputs() const override {

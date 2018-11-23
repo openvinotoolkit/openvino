@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "include/include_all.cl"
+#include "include/common.cl"
+#include "include/data_types.cl"
 
 #define IW INPUT0_SIZES[0]
 #define IH INPUT0_SIZES[1]

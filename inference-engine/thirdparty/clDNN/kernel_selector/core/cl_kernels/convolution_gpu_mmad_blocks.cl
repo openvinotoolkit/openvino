@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "include/common.cl"
-#include "include/activation_functions.cl"
+
 #include "include/data_types.cl"
 #include "include/fetch.cl"
 #include "include/mmad.cl"

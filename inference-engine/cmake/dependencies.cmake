@@ -4,6 +4,7 @@
 #
 
 cmake_minimum_required(VERSION 2.8)
+cmake_policy(SET CMP0054 NEW)
 
 #features trigger supported by build system
 include(check_features)
@@ -40,19 +41,6 @@ endif()
 set(MODELS_PATH "${TEMP}/models")
 debug_message(STATUS "MODELS_PATH=" ${MODELS_PATH})
 
-#clDNN
-if (ENABLE_CLDNN AND NOT ENABLE_CLDNN_BUILD)
-if(NOT IE_SUBMODULE_IN_CLDNN)
-    RESOLVE_DEPENDENCY(CLDNN
-            ARCHIVE_UNIFIED "cldnn-main-03988.zip"
-            TARGET_PATH "${TEMP}/clDNN"
-            ENVIRONMENT "CLDNN"
-            VERSION_REGEX ".*_(([a-z]+-)?[a-z]+-[0-9]+)---.*"
-            FOLDER) #new cldnn package dont have toplevel cldnn folder
-    debug_message(STATUS "clDNN=" ${CLDNN})
-endif ()
-endif ()
-
 ## enable cblas_gemm from OpenBLAS package
 if (GEMM STREQUAL "OPENBLAS")
 if(NOT BLAS_LIBRARIES OR NOT BLAS_INCLUDE_DIRS)
@@ -67,51 +55,87 @@ debug_message(STATUS "openblas=" ${BLAS_LIBRARIES})
 endif ()
 
 #MKL-ml package
-if (GEMM STREQUAL "MKL" OR ENABLE_INTEL_OMP)
+if (GEMM STREQUAL "MKL")
+if(NOT MKLROOT)
+    message(FATAL_ERROR "MKLROOT not found: install MKL and set -DMKLROOT=<path_to_MKL>")
+endif()
+debug_message(STATUS "mkl_ml=" ${MKLROOT})
+endif ()
+
+if (ENABLE_INTEL_OMP)
 if (WIN32)
-    RESOLVE_DEPENDENCY(MKL
-            ARCHIVE_WIN "mkltiny_win_20180512.zip"
-            TARGET_PATH "${TEMP}/mkltiny_win_20180512"
-            ENVIRONMENT "MKLROOT"
+    RESOLVE_DEPENDENCY(OMP
+            ARCHIVE_WIN "iomp.zip"
+            TARGET_PATH "${TEMP}/omp"
+            ENVIRONMENT "OMP"
             VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
 elseif(LINUX)
-    RESOLVE_DEPENDENCY(MKL
-            ARCHIVE_LIN "mkltiny_lnx_20180511.tgz"
-            TARGET_PATH "${TEMP}/mkltiny_lnx_20180511"
-            ENVIRONMENT "MKLROOT"
+    RESOLVE_DEPENDENCY(OMP
+            ARCHIVE_LIN "iomp.tgz"
+            TARGET_PATH "${TEMP}/omp"
+            ENVIRONMENT "OMP"
             VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
 endif()
-debug_message(STATUS "mkl_ml=" ${MKL})
+log_rpath_from_dir(OMP "${OMP}/lib")
+debug_message(STATUS "intel_omp=" ${OMP})
+endif ()
+
+#TBB package
+if (THREADING STREQUAL "TBB")
+if (WIN32)
+    #TODO: add target_path to be platform specific as well, to avoid following if
+    RESOLVE_DEPENDENCY(TBB
+            ARCHIVE_WIN "tbb2018_20180618_win.zip" #TODO: windows zip archive created incorrectly using old name for folder
+            TARGET_PATH "${TEMP}/tbb"
+            ENVIRONMENT "TBBROOT"
+            VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+elseif(LINUX)
+    RESOLVE_DEPENDENCY(TBB
+            ARCHIVE_LIN "tbb2018_20180618_lin.tgz"
+            TARGET_PATH "${TEMP}/tbb"
+            ENVIRONMENT "TBBROOT")
+endif()
+set(TBB_INCLUDE_DIRS "${TBB}/include")
+find_path(TBB_INCLUDE_DIRS tbb/tbb.h)
+find_library(TBB_LIBRARIES_RELEASE tbb HINTS "${TBB}/lib")
+if (TBB_INCLUDE_DIRS AND TBB_LIBRARIES_RELEASE)
+    log_rpath_from_dir(TBB "${TBB}/lib")
+else()
+    message("FATAL_ERROR" "TBB is unset")
+endif()
+debug_message(STATUS "tbb=" ${TBB})
 endif ()
 
 if (ENABLE_OPENCV)
 if (WIN32)
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_WIN "opencv_3.4.3.zip"
-            TARGET_PATH "${TEMP}/opencv"
+            ARCHIVE_WIN "opencv_4.0.0-0256.zip"
+            TARGET_PATH "${TEMP}/opencv_4.0.0"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "\\opencv\\x64\\vc14\\bin")
-    set( ENV{OpenCV_DIR} ${OPENCV} )
+    log_rpath_from_dir(OPENCV "\\opencv_4.0.0\\bin")
+    set( ENV{OpenCV_DIR} ${OPENCV}/cmake )
 elseif(LINUX)
 if (${LINUX_OS_NAME} STREQUAL "Ubuntu 16.04")
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_3.4.3_ubuntu16.tar.bz2"
-            TARGET_PATH "${TEMP}/opencv_ubuntu16"
+            ARCHIVE_LIN "opencv_4.0.0-0256_ubuntu16.tgz"
+            TARGET_PATH "${TEMP}/opencv_4.0.0_ubuntu"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "opencv_ubuntu16/lib")
+    log_rpath_from_dir(OPENCV "opencv_4.0.0_ubuntu/lib")
 elseif (${LINUX_OS_NAME} STREQUAL "CentOS 7")
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_3.4.3_centos7.tar.bz2"
-            TARGET_PATH "${TEMP}/opencv_centos7"
+            ARCHIVE_LIN "opencv_4.0.0-0256_centos.tgz"
+            TARGET_PATH "${TEMP}/opencv_4.0.0_centos"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "opencv_centos7/lib")
+    log_rpath_from_dir(OPENCV "opencv_4.0.0_centos/lib")
 endif()
-    set( ENV{OpenCV_DIR} ${OPENCV}/share )
+    set( ENV{OpenCV_DIR} ${OPENCV}/cmake )
 endif()
 debug_message(STATUS "opencv=" ${OPENCV})
 endif()
 
-include(omp)
+if (THREADING STREQUAL "OMP")
+    include(omp)
+endif ()

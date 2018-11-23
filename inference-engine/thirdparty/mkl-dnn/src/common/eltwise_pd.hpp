@@ -77,6 +77,9 @@ struct eltwise_fwd_pd_t: public primitive_desc_t {
         alg_kind::eltwise_soft_relu, alg_kind::eltwise_logistic, alg_kind::eltwise_clamp);
     }
 
+    bool has_zero_dim_memory() const
+    { return memory_desc_wrapper(desc_.data_desc).has_zero_dim(); }
+
 protected:
     eltwise_desc_t desc_;
     const eltwise_fwd_pd_t *hint_fwd_pd_;
@@ -132,6 +135,9 @@ struct eltwise_bwd_pd_t: public primitive_desc_t {
     inline int W() const { return desc_.data_desc.ndims == 4
         ? desc_.data_desc.dims[3] : desc_.data_desc.dims[4]; }
     inline bool is_zero_preserved() const { return true; }
+
+    bool has_zero_dim_memory() const
+    { return memory_desc_wrapper(desc_.data_desc).has_zero_dim(); }
 
 protected:
     eltwise_desc_t desc_;

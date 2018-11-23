@@ -6,23 +6,25 @@
 #include "mkldnn_input_node.h"
 #include "../mkldnn_extension_utils.h"
 #include <string>
+#include "details/caseless.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
+using namespace InferenceEngine::details;
 
 MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
 
 void MKLDNNInputNode::getSupportedDescriptors() {
     if (getType() == Input) {
         if (!getParentEdges().empty())
-            THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+            THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
         if (getChildEdges().empty())
-            THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+            THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
     } else if (getType() == Output) {
         if (getParentEdges().size() != 1)
-            THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+            THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
         if (!getChildEdges().empty())
-            THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+            THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
     }
     constant = ConstantType::NoConst;
     auto layer = getCnnLayer();
@@ -41,7 +43,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
     if (getType() == Input || getType() == MemoryInput) {
-        InferenceEngine::Precision precision = getCnnLayer()->outData[0]->getPrecision();
+        InferenceEngine::Precision precision = getCnnLayer()->precision;
         if (precision == InferenceEngine::Precision::U16 || isMeanImage)
             precision = InferenceEngine::Precision::FP32;
         auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);

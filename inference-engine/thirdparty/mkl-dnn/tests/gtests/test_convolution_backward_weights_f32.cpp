@@ -32,5 +32,6 @@ TEST_P(convolution_test, TestConvolution)
 #define FP32
 #define DIRECTION_BACKWARD_WEIGHTS
 #include "convolution_common.h"
+#include "dilated_convolution.h"
 
 }

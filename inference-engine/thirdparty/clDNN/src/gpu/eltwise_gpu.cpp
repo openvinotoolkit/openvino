@@ -72,39 +72,39 @@ public:
         if(primitive->with_activation)
             convert_activation_func_params(primitive, ew_params);
 
-        ew_params.eltwiseParams.operations.push_back({ 
+        ew_params.operations.push_back({ 
             { kernel_selector::eltwise_params::InputType::Buffer(0), kernel_selector::eltwise_params::InputType::Buffer(1) },
             convect_to_eltwise_mode(primitive->mode) });
 
         for (uint32_t i = 2; i < static_cast<uint32_t>(arg.inputs_count()); i++)
         {
-            ew_params.eltwiseParams.operations.push_back({{ kernel_selector::eltwise_params::InputType::Intermediate(i-2),
+            ew_params.operations.push_back({{ kernel_selector::eltwise_params::InputType::Intermediate(i-2),
                                                             kernel_selector::eltwise_params::InputType::Buffer(i) },
                                                             convect_to_eltwise_mode(primitive->mode) });
         }
 
         if (primitive->mode == eltwise_mode::sum)
         {
-            ew_params.eltwiseParams.coefficients = primitive->coefficients;
+            ew_params.coefficients = primitive->coefficients;
         }
 
         for (size_t i = 0; i < ew_params.inputs.size(); i++)
         {
             if (!ew_params.inputs[i].SameDims(ew_params.output))
-                ew_params.eltwiseParams.layoutBased = true;
+                ew_params.layoutBased = true;
         }
 
         if (primitive->output_calibration_factors.size() > 0 || primitive->output_quantization_factor != 1.0f)
         {
-            ew_params.eltwiseParams.int8_quantization = true;
+            ew_params.int8_quantization = true;
 
             if (primitive->output_calibration_factors.size() > 0)
             {
-                ew_params.eltwiseParams.output_calibration = true;
+                ew_params.output_calibration = true;
                 ew_params.output_calibration_factors.push_back(convert_data_tensor(arg.output_calibration_factors().get_output_layout()).FlattenFeatureAndSpatials());
             }
             else
-                ew_params.eltwiseParams.output_quantization_factor = arg.get_output_qf();
+                ew_params.output_quantization_factor = arg.get_output_qf();
         }
 
         auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
@@ -124,13 +124,22 @@ namespace {
             implementation_map<eltwise>::add({
                 { std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), eltwise_gpu::create },
                 { std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), eltwise_gpu::create },
+                { std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), eltwise_gpu::create },
+                { std::make_tuple(engine_types::ocl, data_types::i32, format::yxfb), eltwise_gpu::create },
+                { std::make_tuple(engine_types::ocl, data_types::i64, format::yxfb), eltwise_gpu::create },
                 { std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), eltwise_gpu::create },
                 { std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), eltwise_gpu::create },
                 { std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), eltwise_gpu::create },
+                { std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), eltwise_gpu::create },
+                { std::make_tuple(engine_types::ocl, data_types::i64, format::bfyx), eltwise_gpu::create },
                 { std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), eltwise_gpu::create },
                 { std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), eltwise_gpu::create },
+                { std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), eltwise_gpu::create },
+                { std::make_tuple(engine_types::ocl, data_types::i32, format::byxf), eltwise_gpu::create },
+                { std::make_tuple(engine_types::ocl, data_types::i64, format::byxf), eltwise_gpu::create },
                 // MMAD
-                { std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), eltwise_gpu::create }
+                { std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), eltwise_gpu::create },
+                { std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), eltwise_gpu::create }
             });
         }
         ~attach() {}

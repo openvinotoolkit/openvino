@@ -18,10 +18,12 @@ import numpy as np
 import networkx as nx
 import logging as log
 
-from mo.ops.split import Split
+from extensions.ops.splitv import SplitV
 from mo.graph.graph import Node
 from mo.ops.op import Op
+from mo.ops.reshape import Reshape
 from mo.middle.replacement import MiddleReplacementPattern
+from extensions.middle.SliceConverter import ConvertSlice
 
 
 class ConvertGroupedStridedSlice(MiddleReplacementPattern):
@@ -45,6 +47,9 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
     """
 
     enabled = True
+
+    def run_after(self):
+        return [ConvertSlice]
 
     def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
         # Iterate over all data nodes and find all with >= 1 consumers
@@ -94,6 +99,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             # Check feature split intersection
             final_data_nodes_list = []
             sorted_split_dims = sorted(split_dims)
+            size_splits = []
             prev_r = 0
             for l, r, out in sorted_split_dims:
                 # Split dims shouldn't intersect
@@ -102,20 +108,33 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                 # Save missing tensor part
                 if l > prev_r:
                     shape = np.array(input_shape)
+                    size_splits.append(l - prev_r)
                     shape[split_channel_dim] = l - prev_r
                     data_node = Op._create_data_node(graph, 'fake_data', {'shape': shape})
+                    # added fake Reshape to workaround IE issue with Split and fake nodes
+                    fake_op = Reshape(graph, dict(name=out_nodes[0].name + "/" + str(l) + "_fake_op", dim=shape[1:]))
+                    fake_out_node = Op._create_data_node(graph, 'fake_out_data',
+                                                         {'shape': shape[1:], 'is_output': True})
+                    fake_op.create_node_with_data([data_node], fake_op.attrs, data_nodes=[fake_out_node])
+
                     final_data_nodes_list.append(data_node)
 
                 prev_r = r
+                size_splits.append(r - l)
                 final_data_nodes_list.append(out)
 
             if prev_r > input_shape[split_channel_dim]:
                 valid_for_replacement = False
             elif prev_r != input_shape[split_channel_dim]:
                 # Add last part of tensor
-                shape = input_shape
+                shape = input_shape.copy()
                 shape[split_channel_dim] = input_shape[split_channel_dim] - prev_r
+                size_splits.append(input_shape[split_channel_dim] - prev_r)
                 data_node = Op._create_data_node(graph, 'fake_data', {'shape': shape})
+                # added fake Reshape to workaround IE issue with Split and fake nodes
+                fake_op = Reshape(graph, dict(name=out_nodes[0].name + "/" + str(l) + "_fake_op", dim=shape[1:]))
+                fake_out_node = Op._create_data_node(graph, 'fake_out_data', {'shape': shape[1:], 'is_output': True})
+                fake_op.create_node_with_data([data_node], fake_op.attrs, data_nodes=[fake_out_node])
                 final_data_nodes_list.append(data_node)
 
             if not valid_for_replacement:
@@ -133,6 +152,6 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                 log.debug("Removed: {}".format(node.id))
 
             # 2. Create Split layer and reorder outputs
-            split = Split(graph, dict(name=name_for_future_split + "/Split", infer=None, axis=3))
+            split = SplitV(graph, dict(name=name_for_future_split + "/Split", axis=split_channel_dim,
+                                       size_splits=size_splits))
             split.create_node_with_data(inputs=[input_data], data_nodes=final_data_nodes_list)
-

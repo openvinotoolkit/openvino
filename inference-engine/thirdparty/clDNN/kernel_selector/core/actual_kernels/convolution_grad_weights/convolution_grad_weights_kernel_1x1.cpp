@@ -22,11 +22,8 @@ namespace kernel_selector
     ParamsKey ConvolutionGradWeightsKernel1x1::GetSupportedKey() const
     {
         ParamsKey k;
-        k.EnableInputDataType(Datatype::F16);
         k.EnableInputDataType(Datatype::F32);
-        k.EnableInputWeightsType(WeightsType::F16);
         k.EnableInputWeightsType(WeightsType::F32);
-        k.EnableOutputDataType(Datatype::F16);
         k.EnableOutputDataType(Datatype::F32);
         k.EnableInputLayout(DataLayout::bfyx);
         k.EnableOutputLayout(DataLayout::yxfb);

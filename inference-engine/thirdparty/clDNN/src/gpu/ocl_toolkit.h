@@ -28,11 +28,8 @@
 #include "engine_info.h"
 #include "event_impl.h"
 
-#include <boost/optional.hpp>
-
 #include <memory>
 #include <chrono>
-#include <fstream>
 
 namespace cldnn { 
     typedef cl::vector<cl::vector<unsigned char>> kernels_binaries_vector;
@@ -141,6 +138,8 @@ public:
 
     event_impl::ptr enqueue_kernel(cl::Kernel const& kern, cl::NDRange const& global, cl::NDRange const& local, std::vector<event_impl::ptr> const& deps);
     event_impl::ptr enqueue_marker(std::vector<event_impl::ptr> const& deps);
+    event_impl::ptr group_events(std::vector<event_impl::ptr> const& deps);
+
     void flush();
     void release_pending_memory();
     void wait_for_events(std::vector<event_impl::ptr> const& events);
@@ -167,7 +166,8 @@ private:
 
     std::string _extensions;
 
-    boost::optional<std::ofstream> _log_file;
+    struct ocl_logger;
+    std::unique_ptr<ocl_logger> _logger;
 
     //returns whether a barrier has been added
     void sync_events(std::vector<event_impl::ptr> const& deps);

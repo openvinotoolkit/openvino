@@ -18,8 +18,8 @@ rem ============================================================================
 rem req: PowerShell 3.0+
 powershell.exe -command "if ($PSVersionTable.PSVersion.Major -ge 3) {exit 1} else {Write-Host \"The script requires PowerShell 3.0 or above (current version: $($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor))\"}" && goto Error_load
 
-set MKLURLROOT=https://github.com/intel/mkl-dnn/releases/download/v0.15/
-set MKLVERSION=2018.0.3.20180406
+set MKLURLROOT=https://github.com/intel/mkl-dnn/releases/download/v0.16/
+set MKLVERSION=2019.0.20180710
 
 set MKLPACKAGE=mklml_win_%MKLVERSION%.zip
 

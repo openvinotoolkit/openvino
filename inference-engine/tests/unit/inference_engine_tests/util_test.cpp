@@ -487,7 +487,8 @@ TEST(UtilTests, cloneNet) {
     //        L6 -> L7
     //
     auto net = NetBuilder()
-               .data("data1",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
+                // input is 4d to allow setting of batch, otherwise, CHW notation doesnt have batches
+               .data("data1",IE::SizeVector{1,1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::NCHW)
                .data("data2",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
                .data("data3",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
                .data("data4",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)

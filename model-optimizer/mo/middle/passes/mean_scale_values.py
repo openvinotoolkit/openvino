@@ -1,9 +1,23 @@
+"""
+ Copyright (c) 2018 Intel Corporation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+
 import networkx as nx
 import numpy as np
 
-from mo.middle.passes.fusing.helpers import get_next_operation
 from mo.middle.pattern_match import apply_pattern
-from mo.graph.graph import Node
 
 
 def move_scaleshift_to_preprocess_action(graph, match):
@@ -60,6 +74,5 @@ def move_scaleshift_to_preprocess(graph: nx.MultiDiGraph):
             ('weights', 'scale_shift', {'in': 1}),
             ('biases', 'scale_shift', {'in': 2}),
         ],
-        action=move_scaleshift_to_preprocess_action,
-        node_attrs=['kind', 'type'],
-        edge_attrs=['in'])
+        action=move_scaleshift_to_preprocess_action
+    )

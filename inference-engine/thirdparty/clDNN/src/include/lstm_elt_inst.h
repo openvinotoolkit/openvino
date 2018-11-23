@@ -29,8 +29,8 @@ struct typed_program_node<lstm_elt> : public typed_program_node_base<lstm_elt>
 public:
     using parent::parent;
 
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) cell() const { return get_dependency(1); }
+    program_node& input() const { return get_dependency(0); }
+    program_node& cell() const { return get_dependency(1); }
     bool cell_term() const { return !get_primitive()->cell.empty(); }
     int32_t offset_order() const { return get_primitive()->offset_order; }
     float clip() const {
@@ -56,7 +56,7 @@ public:
 public:
     typed_primitive_inst(network_impl& network, lstm_elt_node const& node);
 
-    decltype(auto) cell_memory() const { return dep_memory(1); }
+    memory_impl& cell_memory() const { return dep_memory(1); }
     bool cell_term() const { return !argument.cell.empty(); }
     int32_t offset_order() const { return argument.offset_order; }
     float clip() const {

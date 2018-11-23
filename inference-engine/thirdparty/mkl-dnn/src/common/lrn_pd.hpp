@@ -71,6 +71,9 @@ struct lrn_fwd_pd_t: public primitive_desc_t {
     inline int H() const { return input_pd()->desc()->dims[2]; }
     inline int W() const { return input_pd()->desc()->dims[3]; }
 
+    bool has_zero_dim_memory() const
+    { return memory_desc_wrapper(desc_.data_desc).has_zero_dim(); }
+
 protected:
     lrn_desc_t desc_;
     const lrn_fwd_pd_t *hint_fwd_pd_;
@@ -122,6 +125,9 @@ struct lrn_bwd_pd_t: public primitive_desc_t {
     inline int C() const { return desc_.data_desc.dims[1]; }
     inline int H() const { return desc_.data_desc.dims[2]; }
     inline int W() const { return desc_.data_desc.dims[3]; }
+
+    bool has_zero_dim_memory() const
+    { return memory_desc_wrapper(desc_.data_desc).has_zero_dim(); }
 
 protected:
     lrn_desc_t desc_;

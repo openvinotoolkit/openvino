@@ -20,7 +20,6 @@ file(GLOB_RECURSE HEADERS
     )
 file(GLOB_RECURSE SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
     )
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -29,10 +28,6 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/reorder
     )
 
-option(BENCHDNN_USE_RDPMC
-    "enables rdpms counter to report precise cpu frequency.
-     CAUTION: may not work on all cpus (hence disable by default)"
-    OFF) # disabled by default
 if(BENCHDNN_USE_RDPMC)
     add_definitions(-DBENCHDNN_USE_RDPMC)
 endif()
@@ -40,56 +35,43 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
     if(WIN32)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Qprec-div")
-    elseif(UNIX OR APPLE)
+    elseif(UNIX)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -prec-div")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fp-model precise")
     endif()
 endif()
 
-add_executable(benchdnn ${SOURCES})
-if(WIN32)
-    configure_file(${CMAKE_SOURCE_DIR}/config_template.vcxproj.user
-        benchdnn.vcxproj.user @ONLY)
-    set_property(TARGET benchdnn PROPERTY ENVIRONMENT "PATH=${CTESTCONFIG_PATH}")
-endif()
-set_property(TARGET benchdnn PROPERTY CXX_STANDARD 11)
-target_link_libraries(benchdnn ${LIB_NAME} ${EXTRA_LIBS})
 if(UNIX AND NOT APPLE)
     find_library(LIBRT rt)
-    if(LIBRT)
-        target_link_libraries(benchdnn ${LIBRT})
-    endif()
 endif()
-# add_test(benchdnn benchdnn)
+register_exe(benchdnn "${SOURCES}" "" "${LIBRT}")
 
 file(COPY inputs DESTINATION .)
-add_custom_target(test_conv
-    COMMAND benchdnn --conv --batch=inputs/test_conv_all
-    DEPENDS benchdnn
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-if(WIN32)
-    configure_file(${CMAKE_SOURCE_DIR}/config_template.vcxproj.user
-        test_conv.vcxproj.user @ONLY)
-    set_property(TARGET test_conv PROPERTY ENVIRONMENT "PATH=${CTESTCONFIG_PATH}")
-endif()
-add_custom_target(test_benchdnn_other
-    COMMAND benchdnn --reorder
-    DEPENDS benchdnn
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-if(WIN32)
-    configure_file(${CMAKE_SOURCE_DIR}/config_template.vcxproj.user
-        test_benchdnn_other.vcxproj.user @ONLY)
-    set_property(TARGET test_benchdnn_other PROPERTY ENVIRONMENT "PATH=${CTESTCONFIG_PATH}")
-endif()
-add_custom_target(test_conv_regression
-    COMMAND benchdnn --conv --batch=inputs/test_conv_regression
-    DEPENDS benchdnn
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-if(WIN32)
-    configure_file(${CMAKE_SOURCE_DIR}/config_template.vcxproj.user
-        test_conv_regression.vcxproj.user @ONLY)
-    set_property(TARGET test_conv_regression PROPERTY ENVIRONMENT "PATH=${CTESTCONFIG_PATH}")
-endif()
+
+# register benchdnn test case
+function(register_benchdnn_test name cmd)
+    string(REPLACE " " ";" cmd ${cmd})
+    string(REPLACE " " ";" ARGV2 "${ARGV2}")
+    add_custom_target(${name}
+        COMMAND ${cmd}
+        COMMAND ${ARGV2} # if any
+        DEPENDS benchdnn
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    if(WIN32)
+        set_property(TARGET ${name} PROPERTY ENVIRONMENT "PATH=${CTESTCONFIG_PATH}")
+        configure_file(${CMAKE_SOURCE_DIR}/config_template.vcxproj.user ${name}.vcxproj.user @ONLY)
+    endif()
+endfunction()
+
+register_benchdnn_test(test_conv "benchdnn -v1 --conv --batch=inputs/test_conv_all")
+register_benchdnn_test(test_benchdnn_conv "benchdnn -v1 --conv --batch=inputs/test_conv_all")
+register_benchdnn_test(test_benchdnn_deconv "benchdnn -v1 --deconv --batch=inputs/test_deconv_all")
+register_benchdnn_test(test_benchdnn_rnn "benchdnn -v1 --rnn")
+register_benchdnn_test(test_benchdnn_reorder "benchdnn --reorder --batch=inputs/reorder/test_default")
+register_benchdnn_test(test_benchdnn_bnorm "benchdnn --bnorm  --batch=inputs/bnorm/test_bnorm_topo")
+register_benchdnn_test(test_benchdnn_ip "benchdnn --ip --batch=inputs/ip/test_ip_all")
+register_benchdnn_test(test_benchdnn_regression
+    "benchdnn --conv --batch=inputs/test_conv_regression"
+    "benchdnn --bnorm --batch=inputs/bnorm/test_bnorm_regressions"
+    )

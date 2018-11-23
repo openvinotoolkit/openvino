@@ -1,18 +1,7 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// SPDX-License-Identifier: Apache-2.0
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "classification_set_generator.hpp"
 
@@ -22,6 +11,8 @@
 #include <list>
 #include <map>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "user_exception.hpp"
 #include "details/ie_exception.hpp"
@@ -102,14 +93,14 @@ std::list<std::string> ClassificationSetGenerator::getDirContents(const std::str
     return list;
 }
 
-std::multimap<int, std::string> ClassificationSetGenerator::validationMapFromTxt(const std::string& file) {
+std::vector<std::pair<int, std::string>> ClassificationSetGenerator::validationMapFromTxt(const std::string& file) {
     std::string ext = fileExt(file);
     if (ext != "txt") {
         THROW_USER_EXCEPTION(1) << "Unknown dataset data file format: " << ext << "";
     }
 
     std::string dir = folderOf(file);
-    std::multimap<int, std::string> validationMap;
+    std::vector<std::pair<int, std::string>> validationMap;
     std::string imgPath = "";
     int classId = -1;
 
@@ -125,14 +116,14 @@ std::multimap<int, std::string> ClassificationSetGenerator::validationMapFromTxt
             THROW_USER_EXCEPTION(1) << "Invalid class id specified at line " << lineNumber << ":\n> " << line;
         }
         imgPath = line.substr(0, pos);
-        validationMap.insert({ classId, dir + imgPath });
+        validationMap.push_back({ classId, dir + imgPath });
     });
 
     return validationMap;
 }
 
-std::multimap<int, std::string> ClassificationSetGenerator::validationMapFromFolder(const std::string& dir) {
-    std::multimap<int, std::string> validationMap;
+std::vector<std::pair<int, std::string>> ClassificationSetGenerator::validationMapFromFolder(const std::string& dir) {
+    std::vector<std::pair<int, std::string>> validationMap;
     std::list<std::string> validation_labels = getDirContents(dir, false);
 
     for (auto& label : validation_labels) {
@@ -141,13 +132,13 @@ std::multimap<int, std::string> ClassificationSetGenerator::validationMapFromFol
 
         int id = val->second;
         for (auto& image : getDirContents(getFullName(label, dir))) {
-            validationMap.insert({ id + 1, image });        // [CVS-8200] line in .labels file is counted from 0, but classes are counted from 1
+            validationMap.push_back({ id + 1, image });        // [CVS-8200] line in .labels file is counted from 0, but classes are counted from 1
         }
     }
     return validationMap;
 }
 
-std::multimap<int, std::string> ClassificationSetGenerator::getValidationMap(const std::string& path) {
+std::vector<std::pair<int, std::string>> ClassificationSetGenerator::getValidationMap(const std::string& path) {
     struct stat sb;
     if (stat(path.c_str(), &sb) == 0) {
         if (S_ISDIR(sb.st_mode)) {

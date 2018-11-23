@@ -8,6 +8,7 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <algorithm>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -39,16 +40,48 @@ void CpuExtensions::GetVersion(const Version*& versionInfo) const noexcept {
     versionInfo = &ExtensionDescription;
 }
 
+StatusCode CpuExtensions::getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
+    collectTypes(types, size, CpuExtensions::GetExtensionsHolder()->list);
+    return OK;
+};
+StatusCode CpuExtensions::getFactoryFor(ILayerImplFactory *&factory, const CNNLayer *cnnLayer, ResponseDesc *resp) noexcept {
+    auto& factories = CpuExtensions::GetExtensionsHolder()->list;
+    if (factories.find(cnnLayer->type) == factories.end()) {
+        std::string errorMsg = std::string("Factory for ") + cnnLayer->type + " wasn't found!";
+        errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+        return NOT_FOUND;
+    }
+    factory = factories[cnnLayer->type](cnnLayer);
+    return OK;
+}
+StatusCode CpuExtensions::getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
+    collectTypes(types, size, CpuExtensions::GetExtensionsHolder()->si_list);
+    return OK;
+};
+
 StatusCode CpuExtensions::getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept {
     auto& factories = CpuExtensions::GetExtensionsHolder()->si_list;
     if (factories.find(type) == factories.end()) {
         std::string errorMsg = std::string("Shape Infer Implementation for ") + type + " wasn't found!";
-        errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+        if (resp) errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
         return NOT_FOUND;
     }
     impl = factories[type];
     return OK;
 }
+
+template<class T>
+void CpuExtensions::collectTypes(char**& types, unsigned int& size, const std::map<std::string, T>& factories) {
+    types = new char *[factories.size()];
+    unsigned count = 0;
+    for (auto it = factories.begin(); it != factories.end(); it++, count ++) {
+        types[count] = new char[it->first.size() + 1];
+        std::copy(it->first.begin(), it->first.end(), types[count]);
+        types[count][it->first.size() ] = '\0';
+    }
+    size = count;
+}
+
 
 // Exported function
 INFERENCE_EXTENSION_API(StatusCode) CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept {

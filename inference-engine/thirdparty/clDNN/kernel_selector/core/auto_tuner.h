@@ -18,6 +18,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <map>
 #include "kernel_selector_common.h"
 
 namespace kernel_selector 
@@ -48,7 +49,7 @@ namespace kernel_selector
                This device ID is also written in the cache file that is generated in the on-line mode.
             2. Find the hash of the node you want to change.
                This hash can be obtained by:
-               std::string hash = std::to_string(std::hash<std::string>{}(params.to_string()));
+               std::string hash = std::to_string(create_hash(params.to_string()));
             3. Change the kernel name and/or config index.
                For example:
                { "17001023283013862129", std::make_tuple("convolution_gpu_bfyx_os_iyx_osv16", 203) }

@@ -19,6 +19,9 @@
 #include "primitive_inst.h"
 #include "to_string_utils.h"
 
+#include "json_object.h"
+#include "xml_object.h"
+
 using namespace cldnn;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program_impl & prog) : desc(prim), myprog(prog)
@@ -84,11 +87,11 @@ void program_node::add_memory_dependency(std::vector<primitive_id> prim_list)
 }
 
 //Function used by serialization. Not working yet, in progress.
-xml_composite program_node::desc_to_xml() const
+std::unique_ptr<xml_composite> program_node::desc_to_xml() const
 {
-    xml_composite node_info;
-    node_info.add("id", id());
-    node_info.add("valid_output_layout", bool_to_str(valid_output_layout));
+    std::unique_ptr<xml_composite> node_info = std::unique_ptr<xml_composite>(new xml_composite());
+    node_info->add("id", id());
+    node_info->add("valid_output_layout", bool_to_str(valid_output_layout));
 
     xml_composite output_layout_info;
     output_layout_info.add("data_type", dt_to_str(output_layout.data_type));
@@ -100,13 +103,10 @@ xml_composite program_node::desc_to_xml() const
     padding_info.add("upper_size", output_layout.data_padding.upper_size().to_string());
     output_layout_info.add("padding_info", padding_info);
 
-    node_info.add("output_layout", output_layout_info);
-
-    node_info.add("processing_number", processing_num);
-    node_info.add("constant", bool_to_str(constant));
-    node_info.add("dominator", std::to_string(reinterpret_cast<uintptr_t>(dominator)));
-    node_info.add("joint", std::to_string(reinterpret_cast<uintptr_t>(joint)));
-    node_info.add("output", bool_to_str(output));
+    node_info->add("output_layout", output_layout_info);
+    node_info->add("processing_number", processing_num);
+    node_info->add("constant", bool_to_str(constant));
+    node_info->add("output", bool_to_str(output));
 
     std::vector<std::string> deps_ptrs;
     {
@@ -125,7 +125,7 @@ xml_composite program_node::desc_to_xml() const
             deps_ptrs.push_back("null");
         }
     }
-    node_info.add("dependencies", deps_ptrs);
+    node_info->add("dependencies", deps_ptrs);
 
     std::vector<std::string> users_ptrs;
     {
@@ -144,18 +144,18 @@ xml_composite program_node::desc_to_xml() const
             users_ptrs.push_back("null");
         }
     }
-    node_info.add("users", users_ptrs);
+    node_info->add("users", users_ptrs);
     return node_info;
     }
 
-json_composite program_node::desc_to_json() const
+std::unique_ptr<json_composite> program_node::desc_to_json() const
 {
-    json_composite node_info;
-    node_info.add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(this)));
-    node_info.add("id", id());
-    node_info.add("type", get_extr_type(typeid(*this).name()));
-    node_info.add("internal", bool_to_str(this->is_type<internal_primitive>()));
-    node_info.add("valid output layout", bool_to_str(valid_output_layout));
+    std::unique_ptr<json_composite> node_info = std::unique_ptr<json_composite>(new json_composite());
+    node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(this)));
+    node_info->add("id", id());
+    node_info->add("type", get_extr_type(typeid(*this).name()));
+    node_info->add("internal", bool_to_str(this->is_type<internal_primitive>()));
+    node_info->add("valid output layout", bool_to_str(valid_output_layout));
 
     json_composite output_layout_info;
     output_layout_info.add("data type", dt_to_str(output_layout.data_type));
@@ -167,16 +167,14 @@ json_composite program_node::desc_to_json() const
     padding_info.add("upper size", output_layout.data_padding.upper_size().to_string());
     output_layout_info.add("padding info", padding_info);
 
-    node_info.add("output layout", output_layout_info);
+    node_info->add("output layout", output_layout_info);
 
-    node_info.add("processing number", processing_num);
-    node_info.add("constant", bool_to_str(constant));
+    node_info->add("processing number", processing_num);
+    node_info->add("in data flow", bool_to_str(data_flow));
+    node_info->add("constant", bool_to_str(constant));
+    node_info->add("in data flow", bool_to_str(data_flow));
+    node_info->add("output", bool_to_str(output));
 
-    node_info.add("in data flow", bool_to_str(data_flow));
-    node_info.add("main branch", bool_to_str(main_branch));
-    node_info.add("dominator", std::to_string(reinterpret_cast<uintptr_t>(dominator)));
-    node_info.add("joint", std::to_string(reinterpret_cast<uintptr_t>(joint)));
-    node_info.add("output", bool_to_str(output));
 
     std::vector<std::string> deps_ptrs;
     {
@@ -195,7 +193,7 @@ json_composite program_node::desc_to_json() const
             deps_ptrs.push_back("null");
         }
     }
-    node_info.add("dependencies", deps_ptrs);
+    node_info->add("dependencies", deps_ptrs);
 
     std::vector<std::string> users_ptrs;
     {
@@ -214,7 +212,7 @@ json_composite program_node::desc_to_json() const
             users_ptrs.push_back("null");
         }
     }
-    node_info.add("users", users_ptrs);
+    node_info->add("users", users_ptrs);
     std::vector<std::string> impls;
     if (!selected_impl)
     {
@@ -231,7 +229,7 @@ json_composite program_node::desc_to_json() const
 #pragma clang diagnostic pop
 #endif
     }
-    node_info.add("implementation", impls);
+    node_info->add("implementation", impls);
     return node_info;
 }
 
@@ -248,16 +246,7 @@ bool program_node::is_detached(bool whole_branch)
         return false;
     if (!whole_branch && !dependencies.empty())
         return false;
-    if (joint != nullptr || dominator != nullptr)
-        return false;
-
     return true;
-}
-
-bool program_node::has_next() const
-{
-    auto itr = processing_itr;
-    return (++itr == myprog.processing_order.end());
 }
 
 layout program_node::calc_output_layout() const

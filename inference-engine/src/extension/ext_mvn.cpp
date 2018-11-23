@@ -11,7 +11,10 @@
 #include <vector>
 #include <cassert>
 #include <algorithm>
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #include <immintrin.h>
+#endif
+#include "ie_parallel.hpp"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -79,27 +82,27 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, int N, int C, int 
     for (int b = 0; b < N; b++) {
         // Calculate mean value
         if (across_channels) {
-            double mean = 0;
-            #pragma omp parallel for reduction(+ : mean) schedule(static)
-            for (int c = 0; c < C; c++) {
+            double mean = 0.0;
+            mean = parallel_sum(C, mean, [&](int c)->double {
+                double mean_internal = 0.0;
                 for (int h = 0; h < H; h++) {
                     for (int w = 0; w < W; w++) {
-                        mean += src_data[b*C*H*W + c*H*W + h*W + w];
+                        mean_internal += src_data[b*C*H*W + c*H*W + h*W + w];
                     }
                 }
-            }
+                return mean_internal;
+            });
+
             mean /= C*H*W;
-            #pragma omp parallel for schedule(static)
-            for (int c = 0; c < C; c++) {
+            parallel_for(C, [&](int c) {
                 for (int h = 0; h < H; h++) {
                     for (int w = 0; w < W; w++) {
                         dst_data[b*C*H*W + c*H*W + h*W + w] = src_data[b*C*H*W + c*H*W + h*W + w] - mean;
                     }
                 }
-            }
+            });
         } else {
-            #pragma omp parallel for schedule(static)
-            for (int c = 0; c < C; c++) {
+            parallel_for(C, [&](int c) {
                 double mean = 0;
                 for (int h = 0; h < H; h++) {
                     for (int w = 0; w < W; w++) {
@@ -113,7 +116,7 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, int N, int C, int 
                         dst_data[b*C*H*W + c*H*W + h*W + w] = src_data[b*C*H*W + c*H*W + h*W + w] - mean;
                     }
                 }
-            }
+            });
         }
     }
 
@@ -121,29 +124,29 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, int N, int C, int 
         for (int b = 0; b < N; b++) {
             // Calculate variances value
             if (across_channels) {
-                double variance = 0;
-                #pragma omp parallel for reduction(+ : variance) schedule(static)
-                for (int c = 0; c < C; c++) {
+                double variance = 0.0;
+                variance = parallel_sum(C, variance, [&](int c)->double {
+                    double variance_internal = 0.0;
                     for (int h = 0; h < H; h++) {
                         for (int w = 0; w < W; w++) {
-                            variance += std::pow(dst_data[b*C*H*W + c*H*W + h*W + w], 2);
+                            variance_internal += std::pow(dst_data[b*C*H*W + c*H*W + h*W + w], 2);
                         }
                     }
-                }
+                    return variance_internal;
+                });
+
                 variance /= C*H*W;
                 variance = std::pow(variance, 0.5f);
                 variance += eps;
-                #pragma omp parallel for schedule(static)
-                for (int c = 0; c < C; c++) {
+                parallel_for(C, [&](int c) {
                     for (int h = 0; h < H; h++) {
                         for (int w = 0; w < W; w++) {
                             dst_data[b*C*H*W + c*H*W + h*W + w] /= variance;
                         }
                     }
-                }
+                });
             } else {
-                #pragma omp parallel for schedule(static)
-                for (int c = 0; c < C; c++) {
+                parallel_for(C, [&](int c) {
                     double variance = 0;
                     for (int h = 0; h < H; h++) {
                         for (int w = 0; w < W; w++) {
@@ -158,7 +161,7 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, int N, int C, int 
                             dst_data[b*C*H*W + c*H*W + h*W + w] /= variance;
                         }
                     }
-                }
+                });
             }
         }
     }
@@ -182,67 +185,49 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, int N, int C, int 
     if (normalize_variance) {
         for (int b = 0; b < N; b++) {
             if (across_channels) {
-                float mean = 0;
-#if _MSC_VER && !__INTEL_COMPILER
-                #pragma omp parallel for reduction(+ : mean) schedule(static)
-#else
-                #pragma omp parallel for collapse(2) reduction(+ : mean) schedule(static)
-#endif
-                for (int cb = 0; cb < CB; cb++) {
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                                size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
+                float mean = 0.0f;
+                mean = parallel_sum2d(CB, H, mean, [&](int cb, int h)->float {
+                    float mean_internal = 0.0;
+                    for (int w = 0; w < W; w++) {
+                        for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
+                            size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
 
-                                mean += src_data[src_offset];
-                            }
+                            mean_internal += src_data[src_offset];
                         }
                     }
-                }
+                    return mean_internal;
+                });
 
                 mean /= C * H * W;
 
-                float variance = 0;
-#if _MSC_VER && !__INTEL_COMPILER
-                #pragma omp parallel for reduction(+ : variance) schedule(static)
-#else
-                #pragma omp parallel for collapse(2) reduction(+ : variance) schedule(static)
-#endif
-                for (int cb = 0; cb < CB; cb++) {
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                                size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
+                float variance = 0.0f;
+                variance = parallel_sum2d(CB, H, variance, [&](int cb, int h)->float {
+                    float variance_internal = 0.0;
+                    for (int w = 0; w < W; w++) {
+                        for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
+                            size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
 
-                                variance += std::pow(src_data[src_offset] - mean, 2);
-                            }
+                            variance_internal += std::pow(src_data[src_offset] - mean, 2);
                         }
                     }
-                }
+                    return variance_internal;
+                });
 
                 variance /= C*H*W;
                 variance = std::pow(variance, 0.5f);
                 variance += eps;
 
-#if _MSC_VER && !__INTEL_COMPILER
-                #pragma omp parallel for schedule(static)
-#else
-                #pragma omp parallel for collapse(2) schedule(static)
-#endif
-                for (int cb = 0; cb < CB; cb++) {
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                                size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
+                parallel_for2d(CB, H, [&](int cb, int h) {
+                    for (int w = 0; w < W; w++) {
+                        for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
+                            size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
 
-                                dst_data[src_offset] = (src_data[src_offset] - mean) / variance;
-                            }
+                            dst_data[src_offset] = (src_data[src_offset] - mean) / variance;
                         }
                     }
-                }
+                });
             } else {
-                #pragma omp parallel for schedule(static)
-                for (int cb = 0; cb < CB; cb++) {
+                parallel_for(CB, [&](int cb) {
                     size_t src_off = b*CB*H*W*blk_size + cb*H*W*blk_size;
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
                     vec_type vmean = _mm_uni_setzero_ps();
@@ -308,51 +293,38 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, int N, int C, int 
                         }
                     }
 #endif
-                }
+                });
             }
         }
     } else {
         for (int b = 0; b < N; b++) {
             if (across_channels) {
-                float mean = 0;
-#if _MSC_VER && !__INTEL_COMPILER
-                #pragma omp parallel for reduction(+ : mean) schedule(static)
-#else
-                #pragma omp parallel for collapse(2) reduction(+ : mean) schedule(static)
-#endif
-                for (int cb = 0; cb < CB; cb++) {
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                                size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
+                float mean = 0.0f;
+                mean = parallel_sum2d(CB, H, mean, [&](int cb, int h)->float {
+                    float mean_internal = 0;
+                    for (int w = 0; w < W; w++) {
+                        for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
+                            size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
 
-                                mean += src_data[src_offset];
-                            }
+                            mean_internal += src_data[src_offset];
                         }
                     }
-                }
+                    return mean_internal;
+                });
 
                 mean /= C * H * W;
 
-#if _MSC_VER && !__INTEL_COMPILER
-                #pragma omp parallel for schedule(static)
-#else
-                #pragma omp parallel for collapse(2) schedule(static)
-#endif
-                for (int cb = 0; cb < CB; cb++) {
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                                size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
+                parallel_for2d(CB, H, [&](int cb, int h) {
+                    for (int w = 0; w < W; w++) {
+                        for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
+                            size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
 
-                                dst_data[src_offset] = src_data[src_offset] - mean;
-                            }
+                            dst_data[src_offset] = src_data[src_offset] - mean;
                         }
                     }
-                }
+                });
             } else {
-                #pragma omp parallel for schedule(static)
-                for (int cb = 0; cb < CB; cb++) {
+                parallel_for(CB, [&](int cb) {
                     size_t src_off = b*CB*H*W*blk_size + cb*H*W*blk_size;
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
                     vec_type vmean = _mm_uni_setzero_ps();
@@ -390,7 +362,7 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, int N, int C, int 
                         }
                     }
 #endif
-                }
+                });
             }
         }
     }

@@ -31,9 +31,8 @@ class StandaloneConstEraser(FrontReplacementSubgraph):
             nodes=[('const', dict(kind='op', op='Const')),
                    ('output', dict(kind='op', op='OpOutput'))
                    ],
-            edges=[('const', 'output')],
-            node_attrs=['kind', 'op'],
-            edge_attrs=[])
+            edges=[('const', 'output')]
+        )
 
     @staticmethod
     def replace_sub_graph(graph: nx.MultiDiGraph, match: dict):

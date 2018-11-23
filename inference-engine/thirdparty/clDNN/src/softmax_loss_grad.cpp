@@ -38,7 +38,7 @@ std::string softmax_loss_grad_inst::to_string(softmax_loss_grad_node const& node
 
     std::stringstream primitive_description;
 
-    node_info.dump(primitive_description);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

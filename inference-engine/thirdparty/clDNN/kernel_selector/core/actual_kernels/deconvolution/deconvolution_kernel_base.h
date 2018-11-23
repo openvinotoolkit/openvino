@@ -34,6 +34,7 @@ namespace kernel_selector
         uSize    padding;
         uint32_t split = 1;
         bool     depthwiseSeparableOpt = false;
+        bool     fused_eltwise = false;
 
         virtual std::string to_string() const override;
 

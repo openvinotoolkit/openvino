@@ -8,9 +8,12 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #include <immintrin.h>
+#endif
 #include <cmath>
 #include <cassert>
+#include "ie_parallel.hpp"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -257,13 +260,7 @@ private:
         int OH = factor * IH;
         int OW = factor * IW;
 
-#if _MSC_VER && !__INTEL_COMPILER
-        #pragma omp parallel for schedule(static)
-#else
-        #pragma omp parallel for collapse(2) schedule(static)
-#endif
-        for (int b = 0; b < B; b++) {
-            for (int cb = 0; cb < CB; cb++) {
+        parallel_for2d(B, CB, [&](int b, int cb) {
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
                 const float *in_ptr = in_ptr_ + IW * IH * CB * blk_size * b + IW * IH * cb * blk_size;
                 float *out_ptr = out_ptr_ + OW * OH * CB * blk_size * b + OW * OH * cb * blk_size;
@@ -303,8 +300,7 @@ private:
                     }
                 }
 #endif
-            }
-        }
+        });
     }
 
 

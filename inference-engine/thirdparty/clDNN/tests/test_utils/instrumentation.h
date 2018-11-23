@@ -20,6 +20,8 @@
 #include <iomanip>
 #include "api/CPP/memory.hpp"
 
+#define DUMP_DIRECTORY "./"
+
 namespace instrumentation {
 
     template<class Rep, class Period>

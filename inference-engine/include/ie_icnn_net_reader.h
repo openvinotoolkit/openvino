@@ -29,6 +29,7 @@ class ICNNNetReader : public details::IRelease {
 public:
     /**
      * @brief Parses the topology part of the IR (.xml)
+     * This method can be called once only to read network. If you need to read another network instance then create new reader instance.
      * @param filepath The full path to the .xml file of the IR
      * @param resp Response message
      * @return Result code
@@ -37,6 +38,7 @@ public:
 
     /**
      * @brief Parses the topology part of the IR (.xml) given the xml as a buffer
+     * This method can be called once only to read network. If you need to read another network instance then create new reader instance.
      * @param model Pointer to a char array with the IR
      * @param resp Response message
      * @param size Size of the char array in bytes

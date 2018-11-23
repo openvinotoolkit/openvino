@@ -36,6 +36,14 @@ public:
         return false;
     }
 
+    const InferenceEngine::TensorDesc& getInput() { return input; }
+    const InferenceEngine::TensorDesc& getOutput() { return output; }
+
+    /**
+     * @brief A pointer to a scales blob
+     */
+    InferenceEngine::Blob::Ptr _scales;
+
 private:
     static Register<MKLDNNReorderNode> reg;
     InferenceEngine::TensorDesc input;

@@ -53,6 +53,7 @@ struct nchw_pooling_fwd_t: public cpu_primitive_t {
                 && utils::one_of(desc()->alg_kind, pooling_max,
                         pooling_avg_include_padding,
                         pooling_avg_exclude_padding)
+                && !has_zero_dim_memory()
                 && utils::everyone_is(data_type, src_pd()->desc()->data_type,
                         dst_pd()->desc()->data_type)
                 && utils::one_of(src_format, nchw, ncdhw)
@@ -107,11 +108,11 @@ struct nchw_pooling_bwd_t: public cpu_primitive_t {
                 && utils::one_of(desc()->alg_kind, pooling_max,
                         pooling_avg_include_padding,
                         pooling_avg_exclude_padding)
+                && !has_zero_dim_memory()
                 && utils::everyone_is(data_type,
                         diff_dst_pd()->desc()->data_type,
                         diff_src_pd()->desc()->data_type)
                 && utils::one_of(diff_dst_format, nchw, ncdhw)
-                && diff_dst_format == nchw
                 && (diff_dst_format == diff_src_pd()->desc()->format)
                 && attr()->has_default_values();
             if (!ok) return status::unimplemented;
@@ -122,7 +123,7 @@ struct nchw_pooling_bwd_t: public cpu_primitive_t {
                     && hint_fwd_pd_->workspace_pd()
                     && utils::one_of(
                             hint_fwd_pd_->workspace_pd()->desc()->format,
-                            nchw, nChw8c, nChw16c);
+                            nchw, nChw8c, nChw16c, ncdhw, nCdhw8c, nCdhw16c);
                 if (!ws_ok) return status::unimplemented;
 
                 ws_pd_ = *(cpu_memory_t::pd_t*)hint_fwd_pd_->workspace_pd();

@@ -49,9 +49,7 @@ void FallbackPolicy::init(const std::string &config, const std::map<std::string,
         _fallbackDevices.push_back(config.substr(i, idelimeter - i));
         i = idelimeter + 1;
     }
-    if (i >= 0) {
-        _fallbackDevices.push_back(config.substr(i, config.length() - i));
-    }
+    _fallbackDevices.push_back(config.substr(i, config.length() - i));
 
     for (auto d : _fallbackDevices) {
         if (_deviceLoaders.find(d) == _deviceLoaders.end()) {
@@ -87,7 +85,10 @@ void FallbackPolicy::setAffinity(const std::map<std::string, std::string>& confi
     }
 
     if (_dumpDotFile) {
-        std::ofstream file("hetero_affinity.dot");
+        std::stringstream stream(std::stringstream::out);
+        stream << "hetero_affinity_" << network.getName() << ".dot";
+
+        std::ofstream file(stream.str().c_str());
         saveGraphToDot(network, file, dla_layer_colorer);
     }
 }

@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
@@ -45,7 +44,6 @@ void ref_power(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob
     const data_t *src_data = src.readOnly();
     data_t *dst_data = dst.data();
 
-#pragma omp parallel for
     for (int i=0; i < src.size(); i++)
         dst_data[i] = pow(src_data[i]*prm.scale + prm.shift, prm.power);
 }

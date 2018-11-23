@@ -1722,7 +1722,7 @@ public:
                 auto dynamic_mode = (((output_tensor.spatial[0] - 1) * stride_width) + pooling->size.spatial[0]) > -2 * input_offset_width + width ||
                     (((output_tensor.spatial[1] - 1) * stride_height) + pooling->size.spatial[1]) > -2 * input_offset_width + height;
 
-                auto divider = [=](auto actual_x, auto actual_y) {
+                auto divider = [=](int actual_x, int actual_y) {
                     auto x = kernel_width;
                     auto y = kernel_height;
                     if (dynamic_mode)

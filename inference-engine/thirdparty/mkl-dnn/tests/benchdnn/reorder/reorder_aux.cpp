@@ -24,27 +24,45 @@
 
 namespace reorder {
 
-int dims2str(int ndims, const mkldnn_dims_t dims, char **_buffer, int rem_len)
-{
-    char *buffer = *_buffer;
+dims_t str2dims(const char *str) {
+    dims_t dims;
+    do {
+        int dim, len;
+        int scan = sscanf(str, "%d%n", &dim, &len);
+        SAFE_V(scan == 1 ? OK : FAIL);
+        dims.push_back(dim);
+        str += len;
+        SAFE_V(*str == 'x' || *str == '\0' ? OK : FAIL);
+    } while (*str++ != '\0');
+    return dims;
+}
 
-    for (int d = 0; d < ndims; ++d)
-        DPRINT("%d,", dims[d]);
-
-    *_buffer = buffer;
-    return rem_len;
+void dims2str(const dims_t &dims, char *buffer) {
+    int rem_len = max_dims_len;
+    for (size_t d = 0; d < dims.size() - 1; ++d)
+        DPRINT("%dx", dims[d]);
+    DPRINT("%d", dims[dims.size() - 1]);
 }
 
 void prb2str(const prb_t *p, const res_t *res, char *buffer) {
+    char dims_buf[max_dims_len] = {0};
+    dims2str(p->reorder.dims, dims_buf);
+
+    char attr_buf[max_attr_len] = {0};
+    bool is_attr_def = p->attr.is_def();
+    if (!is_attr_def) {
+        int len = snprintf(attr_buf, max_attr_len, "--attr=\"");
+        SAFE_V(len >= 0 ? OK : FAIL);
+        attr2str(&p->attr, attr_buf + len);
+        len = (int)strnlen(attr_buf, max_attr_len);
+        snprintf(attr_buf + len, max_attr_len - len, "\" ");
+    }
+
     int rem_len = max_prb_len;
-
-    const auto *r = p->reorder;
-
-    rem_len = dims2str(r->ndims, r->dims, &buffer, rem_len);
-
-    DPRINT("fmts=%s->%s;", fmt2str(r->fmt_in), fmt2str(r->fmt_out));
-    DPRINT("dts=%s->%s;", dt2str(p->conf_in.dt), dt2str(p->conf_out.dt));
-    attr2str(&p->attr, buffer);
+    DPRINT("--idt=%s --odt=%s --ifmt=%s --ofmt=%s %s%s",
+            dt2str(cfg2dt(p->conf_in)), dt2str(cfg2dt(p->conf_out)),
+            fmt2str(p->reorder.fmt_in), fmt2str(p->reorder.fmt_out),
+            attr_buf, dims_buf);
 }
 
 }

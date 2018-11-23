@@ -30,10 +30,10 @@ struct typed_program_node<batch_norm> : public typed_program_node_base<batch_nor
 public:
     using parent::parent;
 
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) mean() const { return get_dependency(1); }
-    decltype(auto) variance() const { return get_dependency(2); }
-    decltype(auto) inv_variance() const { return get_dependency(1); };
+    program_node& input() const { return get_dependency(0); }
+    program_node& mean() const { return get_dependency(1); }
+    program_node& variance() const { return get_dependency(2); }
+    program_node& inv_variance() const { return get_dependency(1); };
     bool variance_term() const { return !get_primitive()->variance.empty(); }
     bool use_global_stats() const { return !get_primitive()->mean.empty() && !get_primitive()->variance.empty(); };
     bool forwad_pass() const { return !get_primitive()->inv_variance.empty(); };
@@ -54,9 +54,9 @@ public:
 public:
     typed_primitive_inst(network_impl& network, batch_norm_node const& node);
 
-    decltype(auto) mean_memory() const { return dep_memory(1); }
-    decltype(auto) variance_memory() const { return dep_memory(2); }
-    decltype(auto) inv_variance_memory() const { return dep_memory(1); };
+    memory_impl& mean_memory() const { return dep_memory(1); }
+    memory_impl& variance_memory() const { return dep_memory(2); }
+    memory_impl& inv_variance_memory() const { return dep_memory(1); };
     bool use_global_stats() const { return !argument.mean.empty() && !argument.variance.empty(); };
     bool forwad_pass() const { return !argument.inv_variance.empty(); };
 };

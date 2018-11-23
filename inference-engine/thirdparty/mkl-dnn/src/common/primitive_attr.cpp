@@ -88,6 +88,26 @@ status_t post_ops_t::append_eltwise(float scale, alg_kind_t alg, float alpha,
     return success;
 }
 
+status_t post_ops_t::append_depthwise(alg_kind_t alg,
+        const float* weights_data, const float* biases_data) {
+    using namespace mkldnn::impl::alg_kind;
+    bool known_alg = one_of(alg, depthwise_scale_shift, depthwise_prelu);
+    if (!known_alg)
+        return invalid_arguments;
+
+    if (len_ == capacity)
+        return out_of_memory;
+
+    entry_[len_].kind = primitive_kind::depthwise;
+    entry_[len_].depthwise.alg = alg;
+    entry_[len_].depthwise.weights_data = weights_data;
+    entry_[len_].depthwise.biases_data = biases_data;
+
+    len_++;
+
+    return success;
+}
+
 status_t post_ops_t::append_dw_conv(int in_h, int in_w, int ker_h, int ker_w, int str_h, int str_w,
                                     const float* weights_data,
                                     const float* biases_data) {
@@ -289,6 +309,30 @@ status_t mkldnn_post_ops_get_params_eltwise(const post_ops_t *post_ops,
     *alg = e.alg;
     *alpha = e.alpha;
     *beta = e.beta;
+
+    return success;
+}
+
+status_t mkldnn_post_ops_append_depthwise(post_ops_t *post_ops,
+        alg_kind_t kind, const float* weights_data, const float* biases_data) {
+    if (post_ops == nullptr)
+        return invalid_arguments;
+
+    return post_ops->append_depthwise(kind, weights_data, biases_data);
+}
+
+status_t mkldnn_post_ops_get_params_depthwise(const post_ops_t *post_ops,
+        int index, alg_kind_t *alg, const float** weights_data, const float** biases_data) {
+    bool ok = true
+        && simple_get_params_check(post_ops, index, primitive_kind::depthwise)
+        && !any_null(alg, weights_data, biases_data);
+    if (!ok)
+        return invalid_arguments;
+
+    const auto &e = post_ops->entry_[index].depthwise;
+    *alg = e.alg;
+    *weights_data = e.weights_data;
+    *biases_data = e.biases_data;
 
     return success;
 }

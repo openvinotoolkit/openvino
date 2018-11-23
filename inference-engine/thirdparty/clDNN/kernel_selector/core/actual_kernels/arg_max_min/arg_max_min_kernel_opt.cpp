@@ -78,7 +78,7 @@ namespace kernel_selector
             runInfo.lws1 = 1;
             runInfo.lws2 = 1;
 
-            FillCLKernelData(kernel, runInfo, kernelName, jit, entryPoint);
+            FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entryPoint);
             size = (size / 128 + 1) * topK;
         }
 

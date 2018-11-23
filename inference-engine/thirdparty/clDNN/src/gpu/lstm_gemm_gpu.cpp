@@ -79,6 +79,7 @@ public:
             const auto& hidden_layout = arg.hidden().get_output_layout();
             lstm_gemm_params.SetHidden(convert_data_tensor(hidden_layout));
         }
+        lstm_gemm_params.direction = arg.direction();
 
         auto lstm_gemm_optional_params = get_default_optional_params<kernel_selector::lstm_gemm_optional_params>(arg.get_program());
 

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "tensor_type.h"
+
+#include "kernel_selector_common.h"
 #include "kernel_selector_params.h"
-#include <algorithm>
-#include <iostream>
+#include "tensor_type.h"
+
 #include <sstream>
 #include <cmath>
+
 
 namespace kernel_selector {
 
@@ -53,44 +55,9 @@ inline std::string GetTypeName<float>() { return "float"; }
 template <>
 inline std::string GetTypeName<double>() { return "double"; }
 
-inline std::string toCLType(WeightsType wType)
-{
-    switch (wType)
-    {
-    case WeightsType::INT8: return GetTypeName<int8_t>();
-    case WeightsType::F16:  return "half";
-    case WeightsType::F32:  return GetTypeName<float>();
-    default: return "";
-    }
-}
-
-inline std::string toCLType(Datatype dType)
-{
-    switch (dType)
-    {
-    case Datatype::INT8:    return GetTypeName<int8_t>();
-    case Datatype::UINT8:   return GetTypeName<uint8_t>();
-    case Datatype::INT16:   return GetTypeName<int16_t>();
-    case Datatype::UINT16:  return GetTypeName<uint16_t>();
-    case Datatype::INT32:   return GetTypeName<int32_t>();
-    case Datatype::UINT32:  return GetTypeName<uint32_t>();
-    case Datatype::F16:     return "half";
-    case Datatype::F32:     return GetTypeName<float>();
-    default: return "";
-    }
-}
-
-inline std::string getMeanOpString(MeanOp op)
-{
-    switch (op)
-    {
-    case MeanOp::NONE:   return "val";
-    case MeanOp::DIV:    return "val/mean_val";
-    case MeanOp::MUL:    return "val*mean_val";
-    case MeanOp::SUB:    return "val-mean_val";
-    default: return "";
-    }
-}
+std::string toCLType(WeightsType wType);
+std::string toCLType(Datatype dType);
+std::string getMeanOpString(MeanOp op);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ToCodeString functions
@@ -248,35 +215,7 @@ class DataTensorJitConstant : public TensorBaseTJitConstant<Datatype, DataLayout
 public:
     DataTensorJitConstant(const std::string& name, const DataTensor& t) : TensorBaseTJitConstant(name), _tensor(t) {}
 
-    JitDefinitions GetDefinitions() const override 
-    {
-        JitDefinitions baseDefinitions = TensorBaseTJitConstant::GetDefinitions(_tensor);
-
-        JitDefinitions definitions{
-            { _name + "_SIZE_X",        toCodeString(_tensor.X().v) },
-            { _name + "_SIZE_Y",        toCodeString(_tensor.Y().v) },
-            { _name + "_FEATURE_NUM",   toCodeString(_tensor.Feature().v) },
-            { _name + "_ROI_NUM",       toCodeString(_tensor.ROI().v) },
-            { _name + "_BATCH_NUM",     toCodeString(_tensor.Batch().v) },
-            { _name + "_X_PITCH",       toCodeString(_tensor.X().pitch) },
-            { _name + "_Y_PITCH",       toCodeString(_tensor.Y().pitch) },
-            { _name + "_FEATURE_PITCH", toCodeString(_tensor.Feature().pitch) },
-            { _name + "_ROI_PITCH",     toCodeString(_tensor.ROI().pitch) },
-            { _name + "_BATCH_PITCH",   toCodeString(_tensor.Batch().pitch) },
-            { _name + "_PAD_BEFORE_SIZE_X",        toCodeString(_tensor.X().pad.before) },
-            { _name + "_PAD_BEFORE_SIZE_Y",        toCodeString(_tensor.Y().pad.before) },
-            { _name + "_PAD_BEFORE_FEATURE_NUM",   toCodeString(_tensor.Feature().pad.before) },
-            { _name + "_PAD_BEFORE_BATCH_NUM",     toCodeString(_tensor.Batch().pad.before) },
-            { _name + "_PAD_AFTER_SIZE_X",         toCodeString(_tensor.X().pad.after) },
-            { _name + "_PAD_AFTER_SIZE_Y",         toCodeString(_tensor.Y().pad.after) },
-            { _name + "_PAD_AFTER_FEATURE_NUM",    toCodeString(_tensor.Feature().pad.after) },
-            { _name + "_PAD_AFTER_BATCH_NUM",      toCodeString(_tensor.Batch().pad.after) },
-        };
-
-        definitions.insert(definitions.end(), baseDefinitions.begin(), baseDefinitions.end());
-
-        return definitions;
-    }
+    JitDefinitions GetDefinitions() const override;
 };
 
 inline std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const DataTensor& value) 
@@ -294,25 +233,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
 public:
     WeightTensorJitConstant(const std::string& name, const WeightsTensor& t) : TensorBaseTJitConstant(name), _tensor(t) {}
 
-    JitDefinitions GetDefinitions() const override 
-    {
-        JitDefinitions baseDefinitions = TensorBaseTJitConstant::GetDefinitions(_tensor);
-
-        JitDefinitions definitions{
-            { _name + "_SIZE_X",        toCodeString(_tensor.X().v) },
-            { _name + "_SIZE_Y",        toCodeString(_tensor.Y().v) },
-            { _name + "_IFM_NUM",       toCodeString(_tensor.IFM().v) },
-            { _name + "_OFM_NUM",       toCodeString(_tensor.OFM().v) },
-            { _name + "_X_PITCH",       toCodeString(_tensor.X().pitch) },
-            { _name + "_Y_PITCH",       toCodeString(_tensor.Y().pitch) },
-            { _name + "_IFM_PITCH",     toCodeString(_tensor.IFM().pitch) },
-            { _name + "_OFM_PITCH",     toCodeString(_tensor.OFM().pitch) },
-        };
-
-        definitions.insert(definitions.end(), baseDefinitions.begin(), baseDefinitions.end());
-
-        return definitions;
-    }
+    JitDefinitions GetDefinitions() const override;
 };
 
 inline std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const WeightsTensor& value) 
@@ -375,6 +296,35 @@ inline std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, con
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DimTensor
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+class DimVectorJitConstant : public JitConstant
+{
+    const DimTensor<T> _dims;
+
+public:
+    DimVectorJitConstant(const std::string& name, const DimTensor<T>& size) : JitConstant(name), _dims(size) {}
+
+    JitDefinitions GetDefinitions() const override
+    {
+        JitDefinitions definitions{
+            { _name + "_BATCH_NUM",   toCodeString(_dims.b) },
+            { _name + "_FEATURE_NUM", toCodeString(_dims.f) },
+            { _name + "_SIZE_Y",      toCodeString(_dims.y) },
+            { _name + "_SIZE_X",      toCodeString(_dims.x) },
+        };
+        return definitions;
+    }
+};
+
+template <typename T>
+std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const DimTensor<T>& value)
+{
+    return std::make_shared<DimVectorJitConstant<T>>(name, value);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // jit_constants
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class JitConstants 
@@ -383,12 +333,12 @@ class JitConstants
 public:
     JitConstants(std::initializer_list<std::shared_ptr<JitConstant>> constants) :_constants(constants) {}
 
-    void AddConstant(std::shared_ptr<JitConstant> constant)
+    inline void AddConstant(std::shared_ptr<JitConstant> constant)
     {
         _constants.push_back(constant);
     }
 
-    void AddConstants(const std::vector<std::shared_ptr<JitConstant>>& constants)
+    inline void AddConstants(const std::vector<std::shared_ptr<JitConstant>>& constants)
     {
         for (const auto& c : constants)
         {
@@ -396,81 +346,16 @@ public:
         }
     }
 
-    void Merge(const JitConstants& jit)
+    inline void Merge(const JitConstants& jit)
     {
         AddConstants(jit._constants);
     }
 
-    JitDefinitions GetDefinitions() const 
-    {
-        JitDefinitions definitons;
-        definitons.reserve(_constants.size() * 6); //assuming max 6 pairs per jit_constant
-
-        for (auto& constant : _constants) {
-            auto def = constant->GetDefinitions();
-            definitons.insert(definitons.end(), def.begin(), def.end());
-        }
-        return definitons;
-    }
+    JitDefinitions GetDefinitions() const;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MakeBaseParamsJitConstants
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-inline JitConstants MakeBaseParamsJitConstants(const base_params& params)
-{
-    bool bFP16Used = params.output.GetDType() == Datatype::F16;
-    bool bInt8Used = params.output.GetDType() == Datatype::INT8;
-    for (const auto& i : params.inputs)
-    {
-        bFP16Used |= i.GetDType() == Datatype::F16;
-        bInt8Used |= i.GetDType() == Datatype::INT8;
-
-    }
-
-    JitConstants jit{
-        MakeJitConstant("OUTPUT",               params.output),
-        MakeJitConstant("FP64_SUPPORTED",       params.engineInfo.bFP64Support),
-        MakeJitConstant("FP16_SUPPORTED",       params.engineInfo.bFP16Support),
-        MakeJitConstant("FP16_UNIT_USED",       bFP16Used),
-        MakeJitConstant("INT8_UNIT_USED",       bInt8Used),
-        MakeJitConstant("UNIT_TYPE",            bInt8Used ? "char" : bFP16Used ? "half" : "float"),
-        MakeJitConstant("NL_M",                 params.activationParams.m),
-        MakeJitConstant("NL_N",                 params.activationParams.n),
-        MakeJitConstant("ACTIVATION_FUNCTION_"  + toString(params.activationFunc), ""),
-        MakeJitConstant("GRADIENT",             params.gradient),
-    };
-
-    for (size_t i = 0; i < params.inputs.size(); i++)
-    {
-        jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i]));
-    }
-
-    return jit;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MakeLoopUnrollParamsJitConstants
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-inline JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount)
-{
-    JitConstants jit{
-        MakeJitConstant("LOOP0(VAR, STMT)", ""),
-        MakeJitConstant("LOOP1(VAR, STMT)", "(STMT); (VAR)++;"),
-    };
-
-    for (uint32_t i = 2; i <= loopCount + 1; i++)
-    {
-        jit.AddConstant({
-            MakeJitConstant("LOOP" + toCodeString(i) + "(VAR, STMT)", "LOOP" + toCodeString(i - 1) + "(VAR, STMT); (STMT); (VAR)++;"),
-        });
-    }
-
-    jit.AddConstant({
-        MakeJitConstant("LOOP(N, VAR, STMT)", "CAT(LOOP, N)((VAR), (STMT))"),
-    });
-
-    return jit;
-}
+JitConstants MakeBaseParamsJitConstants(const base_params& params);
+JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount);
+JitConstants MakeUnitTypeJitConstants(Datatype dataType);
 
 }

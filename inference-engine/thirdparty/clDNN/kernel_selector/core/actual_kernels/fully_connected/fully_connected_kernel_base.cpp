@@ -49,7 +49,7 @@ namespace kernel_selector
 
     std::unique_ptr<FullyConnectedKernelBase::DispatchData> FullyConnectedKernelBase::SetDefault(const fully_connected_params& params) const
     {
-        std::unique_ptr<DispatchData> dispatchData = std::make_unique<DispatchData>();
+        std::unique_ptr<DispatchData> dispatchData = std::unique_ptr<DispatchData>(new DispatchData());
         dispatchData->fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
         // Determine global work sizes.
@@ -122,7 +122,7 @@ namespace kernel_selector
         std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         auto& kernel = kd.kernels[0];
-        FillCLKernelData(kernel, *runInfo.get(), kernelName, jit, entry_point, ROUND_ROBIN, true, !orgParams.bias.empty(), 1, newParams.int8_quantization, newParams.output_calibration);
+        FillCLKernelData(kernel, *runInfo.get(), params.engineInfo, kernelName, jit, entry_point, ROUND_ROBIN, true, !orgParams.bias.empty(), 1, newParams.int8_quantization, newParams.output_calibration);
 
         kd.estimatedTime = estimated_time;
         kd.autoTuneIndex = -1;

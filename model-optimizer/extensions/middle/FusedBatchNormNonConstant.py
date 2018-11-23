@@ -34,9 +34,8 @@ class FusedBatchNormNonConstant(MiddleReplacementPattern):
         return dict(
             nodes=[
                 ('op', dict(kind='op', op='FusedBatchNorm'))],
-            edges=[],
-            node_attrs=['kind', 'op'],
-            edge_attrs=[])
+            edges=[]
+        )
 
     def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
         node = match['op']

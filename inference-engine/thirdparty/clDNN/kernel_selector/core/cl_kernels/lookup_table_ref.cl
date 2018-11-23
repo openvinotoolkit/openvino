@@ -13,7 +13,8 @@
 // limitations under the License.
 
 
-#include "include/include_all.cl"
+#include "include/common.cl"
+#include "include/data_types.cl"
 
 KERNEL(lookup_table)(const __global UNIT_TYPE* input0, const __global float* indices, __global UNIT_TYPE* output)
 {

@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
@@ -39,6 +38,8 @@ struct deconv_test_params {
     size_t out_c;
     size_t grp_c;
 
+    bool with_bias;
+
     size_t num_prim_desc;
 
     std::vector<int> selectedTypes;
@@ -48,7 +49,7 @@ struct deconv_test_params {
 };
 
 template <typename data_t>
-void ref_deconv(const InferenceEngine::TBlob<data_t> &src, const data_t *weights, const size_t weightsSize,
+void ref_deconv(const InferenceEngine::TBlob<data_t> &src, const InferenceEngine::Blob::Ptr &weights, const InferenceEngine::Blob::Ptr &bias,
                 InferenceEngine::TBlob<data_t> &dst, deconv_test_params prm) {
 
     size_t G  = prm.grp_c;
@@ -72,11 +73,11 @@ void ref_deconv(const InferenceEngine::TBlob<data_t> &src, const data_t *weights
     size_t OH = SH * (IH - 1) + KH - 2 * PH;
 
     const data_t *src_data = src.readOnly();
-    const data_t *weights_data = weights;
+    const data_t *weights_data = weights->buffer().as<data_t*>();
+    const data_t *bias_data = bias->buffer().as<data_t*>();
 
     data_t *dst_data = dst.data();
 
-#   pragma omp parallel for collapse(4) schedule(static)
     for (int g = 0; g < G; ++g) {
         for (int mb = 0; mb < MB; ++mb) {
             for (int oc = 0; oc < OC / G; ++oc) {
@@ -86,6 +87,7 @@ void ref_deconv(const InferenceEngine::TBlob<data_t> &src, const data_t *weights
                                       + (g * OC / G + oc) * OH * OW + oh * OW + ow;
 
                         dst_data[didx] = data_t(0);
+                        if (prm.with_bias) dst_data[didx] += bias_data[oc];
 
                         for (int ic = 0; ic < IC / G; ic++) {
                             for (int kh = 0; kh < KH; kh++) {
@@ -146,6 +148,7 @@ class MKLDNNGraphDeconvolutionalTests: public TestsCommon,
                          output="_OC_"   group="_GC_"/>
 
             <weights offset="0" size="_S1_" />
+            <biases offset="_OFF2_" size="_S2_" />
 
             <input>
                 <port id="1">
@@ -194,6 +197,12 @@ protected:
 
         size_t w_data_size = (p.krn_w * p.krn_h * p.out_c * (p.in.c / p.grp_c)) * sizeof(float);
         REPLACE_WITH_NUM(model, "_S1_", w_data_size);
+
+        if (!p.with_bias) REMOVE_LINE(model, "<biases offset=\"_OFF2_\" size=\"_S2_\" />");
+        size_t b_data_size = p.out_c * sizeof(float);
+        REPLACE_WITH_NUM(model, "_OFF2_", w_data_size);
+        REPLACE_WITH_NUM(model, "_S2_", b_data_size);
+
         return model;
     }
 
@@ -209,16 +218,31 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::SizeVector dims_weights = {(p.krn_w * p.krn_h * p.out_c * (p.in.c / p.grp_c)) * sizeof(float)};
+            InferenceEngine::SizeVector dims_weights = {p.krn_w * p.krn_h * p.out_c * (p.in.c / p.grp_c)};
 
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, dims_weights);
-
+            std::vector<InferenceEngine::Blob::Ptr> blob_to_model;
+            InferenceEngine::Blob::Ptr weights = InferenceEngine::make_shared_blob<float>(InferenceEngine::Precision::FP32, InferenceEngine::C, dims_weights);
             weights->allocate();
-            fill_data(weights->data().as<float*>(), weights->size() / sizeof(float));
+            fill_data(weights->buffer().as<float*>(), weights->size());
+            blob_to_model.push_back(weights);
 
-            InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
+            InferenceEngine::Blob::Ptr bias = InferenceEngine::make_shared_blob<float>(InferenceEngine::Precision::FP32, InferenceEngine::C, {p.out_c});
+            bias->allocate();
+            fill_data(bias->buffer().as<float*>(), bias->size());
+            blob_to_model.push_back(bias);
 
-            net_reader.SetWeights(weights_ptr);
+            size_t total_size_in_bytes = 0;
+            for (InferenceEngine::Blob::Ptr blb : blob_to_model) total_size_in_bytes += blb->byteSize();
+
+            InferenceEngine::TBlob<uint8_t>::Ptr model_blob =
+                    InferenceEngine::make_shared_blob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {total_size_in_bytes});
+            model_blob->allocate();
+            uint8_t* model_blob_ptr = model_blob->buffer().as<uint8_t*>();
+            for (InferenceEngine::Blob::Ptr blb : blob_to_model) {
+                memcpy(model_blob_ptr, blb->buffer().as<uint8_t*>(), blb->byteSize());
+                model_blob_ptr += blb->byteSize();
+            }
+            net_reader.SetWeights(model_blob);
 
             MKLDNNGraphTestClass graph;
             graph.CreateGraph(net_reader.getNetwork());
@@ -268,7 +292,7 @@ protected:
             InferenceEngine::TBlob<float> dst_ref(item.second->getTensorDesc());
             dst_ref.allocate();
 
-            ref_deconv(*srcPtr, weights->readOnly().as<const float*>(), weights->size() / sizeof(float), dst_ref, p);
+            ref_deconv(*srcPtr, weights, bias, dst_ref, p);
 
             compare(*output, dst_ref);
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
@@ -283,15 +307,24 @@ TEST_P(MKLDNNGraphDeconvolutionalTests, TestsDeconvolution) {}
 INSTANTIATE_TEST_CASE_P(
         TestDeconvolution, MKLDNNGraphDeconvolutionalTests,
         ::testing::Values(
-                deconv_test_params{{1, 3, 3, 3}, 3, 3, 1, 1, 0, 0, 2, 1, 5, {MKLDNNPlugin::impl_desc_type::jit} },
-                deconv_test_params{{3, 3, 3, 3}, 4, 3, 1, 1, 0, 0, 2, 1, 5, {MKLDNNPlugin::impl_desc_type::jit} },
-                deconv_test_params{{1, 3, 3, 3}, 4, 3, 1, 2, 0, 0, 2, 1, 4, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
-                deconv_test_params{{1, 3, 3, 3}, 4, 3, 2, 2, 0, 0, 2, 1, 3, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
-                deconv_test_params{{4, 17, 3, 3}, 4, 3, 2, 2, 0, 0, 2, 1, 3, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
-                deconv_test_params{{2, 8, 5, 5}, 4, 4, 2, 2, 1, 1, 8, 2, 3, {MKLDNNPlugin::impl_desc_type::gemm}},
-                deconv_test_params{{2, 8, 5, 5}, 4, 4, 2, 2, 1, 1, 8, 8, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
-                deconv_test_params{{2, 8, 5, 5}, 8, 8, 4, 4, 1, 1, 8, 8, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
-                deconv_test_params{{2, 8, 5, 5}, 4, 8, 2, 4, 1, 1, 8, 8, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}}
+                deconv_test_params{{1, 3, 3, 3}, 3, 3, 1, 1, 0, 0, 2, 1, false, 2, {MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{3, 3, 3, 3}, 4, 3, 1, 1, 0, 0, 2, 1, false, 2, {MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{1, 3, 3, 3}, 4, 3, 1, 2, 0, 0, 2, 1, false, 2, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{1, 3, 3, 3}, 4, 3, 2, 2, 0, 0, 2, 1, false, 2, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{4, 17, 3, 3}, 4, 3, 2, 2, 0, 0, 2, 1, false, 2, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
+                /*deconv_test_params{{2, 8, 5, 5}, 4, 4, 2, 2, 1, 1, 8, 2, false, 3, {MKLDNNPlugin::impl_desc_type::gemm}},*/
+                deconv_test_params{{2, 8, 5, 5}, 4, 4, 2, 2, 1, 1, 8, 8, false, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
+                deconv_test_params{{2, 8, 5, 5}, 8, 8, 4, 4, 1, 1, 8, 8, false, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
+                deconv_test_params{{2, 8, 5, 5}, 4, 8, 2, 4, 1, 1, 8, 8, false, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
+                deconv_test_params{{1, 3, 3, 3}, 3, 3, 1, 1, 0, 0, 2, 1, true, 2, {MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{3, 3, 3, 3}, 4, 3, 1, 1, 0, 0, 2, 1, true, 2, {MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{1, 3, 3, 3}, 4, 3, 1, 2, 0, 0, 2, 1, true, 2, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{1, 3, 3, 3}, 4, 3, 2, 2, 0, 0, 2, 1, true, 2, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{4, 17, 3, 3}, 4, 3, 2, 2, 0, 0, 2, 1, true, 2, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
+                /*deconv_test_params{{2, 8, 5, 5}, 4, 4, 2, 2, 1, 1, 8, 2, true, 3, {MKLDNNPlugin::impl_desc_type::gemm}},*/
+                deconv_test_params{{2, 8, 5, 5}, 4, 4, 2, 2, 1, 1, 8, 8, true, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
+                deconv_test_params{{2, 8, 5, 5}, 8, 8, 4, 4, 1, 1, 8, 8, true, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
+                deconv_test_params{{2, 8, 5, 5}, 4, 8, 2, 4, 1, 1, 8, 8, true, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}}
         ));
 
 class MKLDNNGraphDynBatchDeconvolutionalTests: public MKLDNNGraphDeconvolutionalTests {
@@ -308,12 +341,31 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::SizeVector dims_weights = {(p.krn_w * p.krn_h * p.out_c * (p.in.c / p.grp_c)) * sizeof(float)};
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, dims_weights);
+            InferenceEngine::SizeVector dims_weights = {p.krn_w * p.krn_h * p.out_c * (p.in.c / p.grp_c)};
+
+            std::vector<InferenceEngine::Blob::Ptr> blob_to_model;
+            InferenceEngine::Blob::Ptr weights = InferenceEngine::make_shared_blob<float>(InferenceEngine::Precision::FP32, InferenceEngine::C, dims_weights);
             weights->allocate();
-            fill_data(weights->data().as<float*>(), weights->size() / sizeof(float));
-            InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-            net_reader.SetWeights(weights_ptr);
+            fill_data(weights->buffer().as<float*>(), weights->size());
+            blob_to_model.push_back(weights);
+
+            InferenceEngine::Blob::Ptr bias = InferenceEngine::make_shared_blob<float>(InferenceEngine::Precision::FP32, InferenceEngine::C, {p.out_c});
+            bias->allocate();
+            fill_data(bias->buffer().as<float*>(), bias->size());
+            blob_to_model.push_back(bias);
+
+            size_t total_size_in_bytes = 0;
+            for (InferenceEngine::Blob::Ptr blb : blob_to_model) total_size_in_bytes += blb->byteSize();
+
+            InferenceEngine::TBlob<uint8_t>::Ptr model_blob =
+                    InferenceEngine::make_shared_blob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {total_size_in_bytes});
+            model_blob->allocate();
+            uint8_t* model_blob_ptr = model_blob->buffer().as<uint8_t*>();
+            for (InferenceEngine::Blob::Ptr blb : blob_to_model) {
+                memcpy(model_blob_ptr, blb->buffer().as<uint8_t*>(), blb->byteSize());
+                model_blob_ptr += blb->byteSize();
+            }
+            net_reader.SetWeights(model_blob);
 
             InferenceEngine::CNNNetwork network = net_reader.getNetwork();
             auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
@@ -367,13 +419,13 @@ TEST_P(MKLDNNGraphDynBatchDeconvolutionalTests, TestsDynBatchDeconvolutional) {}
 INSTANTIATE_TEST_CASE_P(
         TestsDynBatchDeconvolutional, MKLDNNGraphDynBatchDeconvolutionalTests,
         ::testing::Values(
-                deconv_test_params{{1, 3, 3, 3}, 3, 3, 1, 1, 0, 0, 2, 1, 5, {MKLDNNPlugin::impl_desc_type::jit} },
-                deconv_test_params{{3, 3, 3, 3}, 4, 3, 1, 1, 0, 0, 2, 1, 5, {MKLDNNPlugin::impl_desc_type::jit} },
-                deconv_test_params{{1, 3, 3, 3}, 4, 3, 1, 2, 0, 0, 2, 1, 4, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
-                deconv_test_params{{1, 3, 3, 3}, 4, 3, 2, 2, 0, 0, 2, 1, 3, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
-                deconv_test_params{{4, 17, 3, 3}, 4, 3, 2, 2, 0, 0, 2, 1, 3, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
-                deconv_test_params{{2, 8, 5, 5}, 4, 4, 2, 2, 1, 1, 8, 2, 3, {MKLDNNPlugin::impl_desc_type::gemm}},
-                deconv_test_params{{2, 8, 5, 5}, 4, 4, 2, 2, 1, 1, 8, 8, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
-                deconv_test_params{{2, 8, 5, 5}, 8, 8, 4, 4, 1, 1, 8, 8, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
-                deconv_test_params{{2, 8, 5, 5}, 4, 8, 2, 4, 1, 1, 8, 8, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}}
+                deconv_test_params{{1, 3, 3, 3}, 3, 3, 1, 1, 0, 0, 2, 1, false, 5, {MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{3, 3, 3, 3}, 4, 3, 1, 1, 0, 0, 2, 1, false, 5, {MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{1, 3, 3, 3}, 4, 3, 1, 2, 0, 0, 2, 1, false, 4, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{1, 3, 3, 3}, 4, 3, 2, 2, 0, 0, 2, 1, false, 3, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{4, 17, 3, 3}, 4, 3, 2, 2, 0, 0, 2, 1, false, 3, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
+                deconv_test_params{{2, 8, 5, 5}, 4, 4, 2, 2, 1, 1, 8, 2, false, 3, {MKLDNNPlugin::impl_desc_type::gemm}},
+                deconv_test_params{{2, 8, 5, 5}, 4, 4, 2, 2, 1, 1, 8, 8, false, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
+                deconv_test_params{{2, 8, 5, 5}, 8, 8, 4, 4, 1, 1, 8, 8, false, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}},
+                deconv_test_params{{2, 8, 5, 5}, 4, 8, 2, 4, 1, 1, 8, 8, false, 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw}}
         ));

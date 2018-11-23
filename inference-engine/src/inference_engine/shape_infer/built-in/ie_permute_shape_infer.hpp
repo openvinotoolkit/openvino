@@ -6,8 +6,7 @@
 #pragma once
 
 #include <description_buffer.hpp>
-#include <ie_layer_validators.hpp>
-#include "impl_register.hpp"
+#include "ie_built_in_impl.hpp"
 #include <ie_layers.h>
 #include <map>
 #include <memory>

@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
@@ -55,7 +54,7 @@ void ref_conv(const InferenceEngine::TBlob<data_t> &src, const data_t *weights, 
     size_t OW = (IW + 2 * prm.pad_w - prm.krn_w) / prm.str_w + 1;
     size_t OH = (IH + 2 * prm.pad_h - prm.krn_h) / prm.str_h + 1;
     size_t OC = prm.out_c;
-    
+
     const data_t *src_data = src.readOnly();
     const data_t *weights_data = weights;
     const data_t *bias_data = weights_data + KW * KH * OC * IC / GC;

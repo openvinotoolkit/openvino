@@ -28,5 +28,8 @@ namespace kernel_selector
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
         virtual ParamsKey GetSupportedKey() const override;
+    protected:
+        bool Validate(const Params& p, const optional_params& o) const override;
+
     };
 }

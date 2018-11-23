@@ -22,39 +22,42 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 namespace gemm_utils {
-#define BM_NOCOPY_AVX2 64
-#define BN_NOCOPY_AVX2 48
-#define BK_NOCOPY_AVX2 384
-#define BN_LARGE_NOCOPY_AVX2 192
-#define BM_SMALL_NOCOPY_AVX2 16
-#define BN_SMALL_NOCOPY_AVX2 1
-#define BK_SMALL_NOCOPY_AVX2 4
+#define BM_NOCOPY_AVX 64
+#define BN_NOCOPY_AVX 48
+#define BK_NOCOPY_AVX 384
+#define BN_LARGE_NOCOPY_AVX 192
+#define BM_SMALL_NOCOPY_AVX 16
+#define BN_SMALL_NOCOPY_AVX 1
+#define BK_SMALL_NOCOPY_AVX 4
 // Determine number of threads for each dimension of a 3-D partitioning
 // algorithm based on input parameters
 // m/n/k - First/second/third parameter for GEMM
 // nthrs - total available number of threads
 // nthrs_m/nthrs_n/nthrs_k - number of threads to use in each dimension
 // BM/BN/BK - blocking values
-void calc_nthr_nocopy_avx2(int m, int n, int k,
+void calc_nthr_nocopy_avx(int m, int n, int k,
         int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k, int *BM, int *BN,
         int *BK)
 {
-    int nthr, nthr_m, nthr_n, nthr_k, nthr_other;
+    int nthr, nthr_m, nthr_n, nthr_k;
     int MB, NB, KB;
 
     nthr = nthrs;
-    nthr_m = (m + BM_NOCOPY_AVX2 - 1) / BM_NOCOPY_AVX2;
-    nthr_n = (n + BN_NOCOPY_AVX2 - 1) / BN_NOCOPY_AVX2;
+    nthr_m = (m + BM_NOCOPY_AVX - 1) / BM_NOCOPY_AVX;
+    nthr_n = (n + BN_NOCOPY_AVX - 1) / BN_NOCOPY_AVX;
     nthr_k = 1;
 
-    // Partition along K dimension if there is not enough parallelism along M or
-    // N.
-    nthr_other = nthr_k = 1;
-    while ((nthr_m * nthr_n * nthr_other < nthr)
-            && (k / (nthr_other + 1) > BK_NOCOPY_AVX2)) {
-        nthr_other++;
-        if ((nthr / nthr_other) * nthr_other > 0.9 * nthr)
-            nthr_k = nthr_other;
+    // Partition along K dimension
+    //  - if threading allows having barriers (e.g. OMP)
+    //  - if there is not enough parallelism along M or N
+    if (mkldnn_thr_syncable()) {
+        int nthr_other = nthr_k = 1;
+        while ((nthr_m * nthr_n * nthr_other < nthr)
+                && (k / (nthr_other + 1) > BK_NOCOPY_AVX)) {
+            nthr_other++;
+            if ((nthr / nthr_other) * nthr_other > 0.9 * nthr)
+                nthr_k = nthr_other;
+        }
     }
     nthr /= nthr_k;
 
@@ -79,8 +82,8 @@ void calc_nthr_nocopy_avx2(int m, int n, int k,
 
         if (nthr_m <= nthr_n) {
             nthr_m = (int)sqrt((double)nthr);
-            if (nthr_m > (m + BM_SMALL_NOCOPY_AVX2 - 1) / BM_SMALL_NOCOPY_AVX2)
-                nthr_m = (m + BM_SMALL_NOCOPY_AVX2 - 1) / BM_SMALL_NOCOPY_AVX2;
+            if (nthr_m > (m + BM_SMALL_NOCOPY_AVX - 1) / BM_SMALL_NOCOPY_AVX)
+                nthr_m = (m + BM_SMALL_NOCOPY_AVX - 1) / BM_SMALL_NOCOPY_AVX;
             nthr_n = nthr / nthr_m;
 
             while ((nthr_m > 1) && (nthr_m * nthr_n != nthr)) {
@@ -89,8 +92,8 @@ void calc_nthr_nocopy_avx2(int m, int n, int k,
             }
         } else {
             nthr_n = (int)sqrt((double)nthr);
-            if (nthr_n > (n + BN_SMALL_NOCOPY_AVX2 - 1) / BN_SMALL_NOCOPY_AVX2)
-                nthr_n = (n + BN_SMALL_NOCOPY_AVX2 - 1) / BN_SMALL_NOCOPY_AVX2;
+            if (nthr_n > (n + BN_SMALL_NOCOPY_AVX - 1) / BN_SMALL_NOCOPY_AVX)
+                nthr_n = (n + BN_SMALL_NOCOPY_AVX - 1) / BN_SMALL_NOCOPY_AVX;
             nthr_m = nthr / nthr_n;
 
             while ((nthr_n > 1) && (nthr_m * nthr_n != nthr)) {
@@ -100,12 +103,12 @@ void calc_nthr_nocopy_avx2(int m, int n, int k,
         }
     }
 
-    MB = (m + nthr_m - 1) / nthr_m + BM_SMALL_NOCOPY_AVX2 - 1;
-    MB -= MB % BM_SMALL_NOCOPY_AVX2;
-    NB = (n + nthr_n - 1) / nthr_n + BN_SMALL_NOCOPY_AVX2 - 1;
-    NB -= NB % BN_SMALL_NOCOPY_AVX2;
-    KB = (k + nthr_k - 1) / nthr_k + BK_SMALL_NOCOPY_AVX2 - 1;
-    KB -= KB % BK_SMALL_NOCOPY_AVX2;
+    MB = (m + nthr_m - 1) / nthr_m + BM_SMALL_NOCOPY_AVX - 1;
+    MB -= MB % BM_SMALL_NOCOPY_AVX;
+    NB = (n + nthr_n - 1) / nthr_n + BN_SMALL_NOCOPY_AVX - 1;
+    NB -= NB % BN_SMALL_NOCOPY_AVX;
+    KB = (k + nthr_k - 1) / nthr_k + BK_SMALL_NOCOPY_AVX - 1;
+    KB -= KB % BK_SMALL_NOCOPY_AVX;
 
     if (MB * nthr_m > m)
         nthr_m = (m + MB - 1) / MB;
@@ -122,13 +125,13 @@ void calc_nthr_nocopy_avx2(int m, int n, int k,
     *BN = NB;
     *BK = KB;
 }
-#undef BM_NOCOPY_AVX2
-#undef BN_NOCOPY_AVX2
-#undef BK_NOCOPY_AVX2
-#undef BN_LARGE_NOCOPY_AVX2
-#undef BM_SMALL_NOCOPY_AVX2
-#undef BN_SMALL_NOCOPY_AVX2
-#undef BK_SMALL_NOCOPY_AVX2
+#undef BM_NOCOPY_AVX
+#undef BN_NOCOPY_AVX
+#undef BK_NOCOPY_AVX
+#undef BN_LARGE_NOCOPY_AVX
+#undef BM_SMALL_NOCOPY_AVX
+#undef BN_SMALL_NOCOPY_AVX
+#undef BK_SMALL_NOCOPY_AVX
 
 #define BM_NOCOPY_AVX512_COMMON 32
 #define BN_NOCOPY_AVX512_COMMON 64
@@ -147,7 +150,7 @@ void calc_nthr_nocopy_avx512_common(int m,
         int n, int k, int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k,
         int *BM, int *BN, int *BK)
 {
-    int nthr, nthr_m, nthr_n, nthr_k;
+    int nthr, nthr_m, nthr_n, nthr_k = 1;
     int MB, NB, KB;
     nthr = nthrs;
 
@@ -157,22 +160,25 @@ void calc_nthr_nocopy_avx512_common(int m,
     nthr = nthrs;
     int nthr_m_gt_n;
 
-    /* Partition along K dimension if there is enough K and there is not enough
-     * M/N */
-    if (n <= 2 * BN_NOCOPY_AVX512_COMMON &&
-            m <= 2 * BM_NOCOPY_AVX512_COMMON * nthr) {
-        nthr_k = k / BK_NOCOPY_AVX512_COMMON;
-        if (nthr_k > nthr / 4)
-            nthr_k = nthr / 4;
-        if (nthr_k < 1)
-            nthr_k = 1;
+    // Partition along K dimension
+    //  - if threading allows having barriers (e.g. OMP)
+    //  - if there is not enough parallelism along M or N
+    if (mkldnn_thr_syncable()) {
+        if (n <= 2 * BN_NOCOPY_AVX512_COMMON &&
+                m <= 2 * BM_NOCOPY_AVX512_COMMON * nthr) {
+            nthr_k = k / BK_NOCOPY_AVX512_COMMON;
+            if (nthr_k > nthr / 4)
+                nthr_k = nthr / 4;
+            if (nthr_k < 1)
+                nthr_k = 1;
 
-        while ((nthr_k > 1) && (nthr % nthr_k)) {
-            nthr_k--;
+            while ((nthr_k > 1) && (nthr % nthr_k)) {
+                nthr_k--;
+            }
+            nthr /= nthr_k;
+        } else {
+            nthr_k = 1;
         }
-        nthr /= nthr_k;
-    } else {
-        nthr_k = 1;
     }
     nthr_m = (m + BM_NOCOPY_AVX512_COMMON - 1) / BM_NOCOPY_AVX512_COMMON;
     nthr_n = (n + BN_NOCOPY_AVX512_COMMON - 1) / BN_NOCOPY_AVX512_COMMON;

@@ -6,7 +6,7 @@
 #pragma once
 
 #include "ie_layers.h"
-#include "caseless.hpp"
+#include "details/caseless.hpp"
 #include <memory>
 #include <string>
 #include <map>
@@ -84,7 +84,7 @@ private:
 
 private:
     static LayerValidators* _instance;
-    caseless_unordered_map<std::string, LayerValidator::Ptr> _validators;
+    InferenceEngine::details::caseless_unordered_map<std::string, LayerValidator::Ptr> _validators;
 };
 
 static void checkWeakData(const DataWeakPtr& data) {
@@ -100,7 +100,7 @@ static void checkData(const DataPtr& data) {
 static void checkInputs(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) {
     // TODO: not finished implementation
     if (layer->insData.size() != inShapes.size())
-        return THROW_IE_EXCEPTION << "Number of layer's inputs don't correspond number of new input shapes";
+        THROW_IE_EXCEPTION << "Number of layer's inputs don't correspond number of new input shapes";
 
     auto inData = layer->insData[0].lock();
     bool isCorrect = false;
@@ -112,7 +112,7 @@ static void checkInputs(const CNNLayer* layer, const std::vector<SizeVector>& in
     }
 
     if (!isCorrect)
-        return THROW_IE_EXCEPTION << " Failed with invalid shapes: shapes are empty"
+        THROW_IE_EXCEPTION << " Failed with invalid shapes: shapes are empty"
                                   << "new input shape size=" << inShape.size() << ", input shape size in IR="
                                   << inDims.size();
 }

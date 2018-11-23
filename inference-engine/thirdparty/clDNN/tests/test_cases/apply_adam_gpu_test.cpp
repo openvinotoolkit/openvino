@@ -64,7 +64,7 @@ TEST(apply_adam_gpu, basic_in2x2x3x2_bfyx) {
     topology.add(activation("relu", "input", activation_linear, { 4.f, 0.f }));
     topology.add(activation("beta1_power_t2", "beta1_power_t1", activation_linear, { beta1, 0.f }));
     topology.add(activation("beta2_power_t2", "beta2_power_t1", activation_linear, { beta2, 0.f }));
-    topology.add(apply_adam("apply_adam2", "relu", "m", "v", "beta1_power_t2", "beta2_power_t2", lr, beta1, beta2, epsilon));
+    topology.add(apply_adam("apply_adam2", "relu", "m", "v", "beta1_power_t2", "beta2_power_t2", lr, beta1, beta2, epsilon, "apply_adam"));
     topology.add(mutable_data("var", { "apply_adam", "apply_adam2" }, var));
 
     set_values(input_grad, {

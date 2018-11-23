@@ -19,7 +19,7 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 
 #include "include/data_types.cl"
-#include "include/activation_functions.cl"
+
 
 #define DOT4i0( _result, _A, _B, i)					\
     {	\

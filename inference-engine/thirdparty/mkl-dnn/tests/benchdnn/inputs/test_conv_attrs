@@ -18,6 +18,7 @@
 --skip-impl="ref:gemm"      # ! test jit version only
 --allow-unimpl=true
 --dir=FWD_B --attr=post_ops='sum;relu' --batch=conv_resnet_50
+--dir=FWD_B --attr=post_ops='sum;relu' --batch=conv_3d
 
 # f32_wino
 --reset --alg=wino --cfg=f32_wino

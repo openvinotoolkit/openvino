@@ -12,11 +12,6 @@
 using namespace MKLDNNPlugin;
 
 MKLDNNPrimitive::MKLDNNPrimitive() {}
-MKLDNNPrimitive::MKLDNNPrimitive(const std::shared_ptr<mkldnn::primitive>& prim): prim(prim) {}
-
-MKLDNNPrimitive::operator std::shared_ptr<mkldnn::primitive>() {
-    return prim;
-}
 
 MKLDNNPrimitive::operator bool() {
     return prim ? true : false;

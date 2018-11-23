@@ -85,7 +85,7 @@ KERNEL(convolution_grad_weights_gpu_1x1)(
 #if BIAS_TERM
                     result = fma(input[input_idx], grad, result);
 #else
-                    if(!grad_zero_x && !grad_zero_y)
+                    if(!grad_zero)
                     {
                         uint input_grad_idx = grad_split_offset + b*INPUT0_BATCH_PITCH + ofm*INPUT0_FEATURE_PITCH + j*INPUT0_X_PITCH*16 + local_id*INPUT0_X_PITCH + i*INPUT0_Y_PITCH;
                         result = fma(input[input_idx], input_grad[input_grad_idx], result);
@@ -124,7 +124,7 @@ KERNEL(convolution_grad_weights_gpu_1x1)(
         if(ifm == 0)
         {
 #if MOMENTUM
-            UNIT_TYPE update_gradient_b = lr * (prev_grad_b[ofm] * MOMENTUM_FACTOR + grad_b);
+            UNIT_TYPE update_gradient_b = lr * grad_b + prev_grad_b[ofm] * MOMENTUM_FACTOR;
             bias[ofm] -= update_gradient_b;
             prev_grad_b[ofm] = update_gradient_b;
 #else

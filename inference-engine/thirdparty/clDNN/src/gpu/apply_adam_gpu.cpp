@@ -61,92 +61,92 @@ public:
         ew_params.inputs.push_back(convert_data_tensor(arg.beta2_power().get_output_layout()));
 
         //lr_t = lr * sqrt(1 - pow(beta2, t_f)) / (1 - pow(beta1, t_f))
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Scalar(1), kernel_selector::eltwise_params::InputType::Buffer(3) },
             kernel_selector::eltwise_mode::SUB });
 
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Scalar(1), kernel_selector::eltwise_params::InputType::Buffer(4) },
             kernel_selector::eltwise_mode::SUB });
 
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(1) },
             kernel_selector::eltwise_mode::SQRT });
 
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(2), kernel_selector::eltwise_params::InputType::Scalar(lr) },
             kernel_selector::eltwise_mode::MUL });
 
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(3), kernel_selector::eltwise_params::InputType::Intermediate(0) },
             kernel_selector::eltwise_mode::DIV });
 
         //m_t = beta1 * m_f + (1 - beta1) * input_grad
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Scalar(beta1), kernel_selector::eltwise_params::InputType::Buffer(1) },
             kernel_selector::eltwise_mode::MUL });
         
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Scalar(1), kernel_selector::eltwise_params::InputType::Scalar(beta1) },
             kernel_selector::eltwise_mode::SUB });
         
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(6), kernel_selector::eltwise_params::InputType::Buffer(0) },
             kernel_selector::eltwise_mode::MUL });
         
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(5), kernel_selector::eltwise_params::InputType::Intermediate(7) },
             kernel_selector::eltwise_mode::ADD });
 
         //save the result in m mutable_data primitive
-        ew_params.eltwiseParams.updateInputIds.push_back({ 1, 8 });
+        ew_params.updateInputIds.push_back({ 1, 8 });
         
         ////v_t = beta2 * v_f + (1 - beta2) * input_grad * input_grad
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Scalar(beta2), kernel_selector::eltwise_params::InputType::Buffer(2) },
             kernel_selector::eltwise_mode::MUL });
         
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Scalar(1), kernel_selector::eltwise_params::InputType::Scalar(beta2) },
             kernel_selector::eltwise_mode::SUB });
         
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(10), kernel_selector::eltwise_params::InputType::Buffer(0) },
             kernel_selector::eltwise_mode::MUL });
         
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(11), kernel_selector::eltwise_params::InputType::Buffer(0) },
             kernel_selector::eltwise_mode::MUL });
         
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(9), kernel_selector::eltwise_params::InputType::Intermediate(12) },
             kernel_selector::eltwise_mode::ADD });
         
         //save the result in v mutable_data primitive
-        ew_params.eltwiseParams.updateInputIds.push_back({ 2, 13 });
+        ew_params.updateInputIds.push_back({ 2, 13 });
 
         ////result = var - lr_t * m_t / (sqrt(v_t) + epsilon)
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(13) },
             kernel_selector::eltwise_mode::SQRT });
         
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(14), kernel_selector::eltwise_params::InputType::Scalar(epsilon) },
             kernel_selector::eltwise_mode::ADD });
         
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(4), kernel_selector::eltwise_params::InputType::Intermediate(8) },
             kernel_selector::eltwise_mode::MUL });
         
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Intermediate(16), kernel_selector::eltwise_params::InputType::Intermediate(15) },
             kernel_selector::eltwise_mode::DIV });
 
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::OutBuffer(), kernel_selector::eltwise_params::InputType::Intermediate(17) },
             kernel_selector::eltwise_mode::SUB });
 
-        ew_params.eltwiseParams.layoutBased = true;
+        ew_params.layoutBased = true;
 
         auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(ew_params, ew_optional_params);

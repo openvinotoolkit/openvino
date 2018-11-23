@@ -37,8 +37,9 @@ template <typename pd_t> inline void bn_init_default_ws(const pd_t *self,
     memory_desc_t ws_d;
     const size_t src_nelems
         = memory_desc_wrapper(self->src_pd(0)).nelems(true);
+    const size_t bits_per_byte = 8;
     const size_t ws_sz
-        = utils::div_up(src_nelems * bits_per_element, sizeof(uint8_t));
+        = utils::div_up(src_nelems * bits_per_element, bits_per_byte);
     dim_t mb = memory_desc_wrapper(self->src_pd(0)).dims()[0];
     dims_t ws_dims = { mb, (dim_t)( ws_sz / mb ) };
     mkldnn_memory_desc_init(&ws_d, 2, ws_dims, impl::data_type::u8,

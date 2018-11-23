@@ -14,9 +14,10 @@
  limitations under the License.
 """
 
-from mo.utils.error import Error
-import re
 import os
+import re
+
+from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 
 try:
@@ -27,7 +28,6 @@ except ImportError:
 
 from google.protobuf import text_format
 from mo.graph.graph import create_graph_with_nodes
-
 from mo.utils.summarize_graph import summarize_graph
 
 
@@ -73,11 +73,14 @@ def read_file_to_graph_def(graph_def: [tf.GraphDef, tf.MetaGraphDef], graph_file
         for node in nodes_to_clear_device:
             node.device = ""
     except Exception as e:
-        raise Error(
-            'Cannot read the model file: "{}" is incorrect TensorFlow model file or missing. ' \
-            'The file should contain frozen TensorFlow graph in text or binary format. ' \
-            'Make sure that --input_model_is_text is provided for a model in text format. ' \
-            'By the default, a model is interpreted in binary format. Details: {}. ' +
+        raise FrameworkError(
+            'TensorFlow cannot read the model file: "{}" is incorrect TensorFlow model file. '
+            '\nThe file should contain one of the following TensorFlow graphs:'
+            '\n1. frozen graph in text or binary format'
+            '\n2. inference graph for freezing with checkpoint (--input_checkpoint) in text or binary format'
+            '\n3. meta graph'
+            '\n\nMake sure that --input_model_is_text is provided for a model in text format. '
+            'By default, a model is interpreted in binary format. Framework error details: {}. ' +
             refer_to_faq_msg(43),
             graph_file_name,
             str(e)
@@ -86,8 +89,9 @@ def read_file_to_graph_def(graph_def: [tf.GraphDef, tf.MetaGraphDef], graph_file
 
 
 def get_output_node_names_list(graph_def, user_defined_output_node_names_list: list):
-    return summarize_graph(graph_def)['outputs'] if user_defined_output_node_names_list is None \
-            or len(user_defined_output_node_names_list) == 0 else user_defined_output_node_names_list
+    return summarize_graph(graph_def)['outputs'] \
+        if user_defined_output_node_names_list is None or len(user_defined_output_node_names_list) == 0 \
+        else user_defined_output_node_names_list
 
 
 def deducing_metagraph_path(meta_graph_file: str):
@@ -121,9 +125,23 @@ def deducing_metagraph_path(meta_graph_file: str):
 
 def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpoint: str = "",
                       model_dir: str = "", saved_model_tags: list = [], meta_graph_file: str = "",
-                      user_defined_output_node_names_list: list = []):
+                      user_output_node_names_list: list = []):
     # As a provisional solution, use a native TF methods to load a model protobuf
     graph_def = tf.GraphDef()
+    if isinstance(graph_file_name, str) and (re.match('.*\.(ckpt|meta)$', graph_file_name)):
+        print('[ WARNING ] The value for the --input_model command line parameter ends with ".ckpt" or ".meta" '
+              'extension.\n'
+              'It means that the model is not frozen.\n'
+              'To load non frozen model to Model Optimizer run:'
+              '\n\n1. For "*.ckpt" file:'
+              '\n- if inference graph is in binary format'
+              '\npython3 mo_tf.py --input_model "path/to/inference_graph.pb" --input_checkpoint "path/to/*.ckpt"'
+              '\n- if inference graph is in text format'
+              '\npython3 mo_tf.py --input_model "path/to/inference_graph.pbtxt" --input_model_is_text '
+              '--input_checkpoint "path/to/*.ckpt"'
+              '\n\n2. For "*.meta" file:'
+              '\npython3 mo_tf.py --input_meta_graph "path/to/*.meta"')
+
     try:
         if graph_file_name and not meta_graph_file and not checkpoint:
             # frozen graph
@@ -131,25 +149,26 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
         if graph_file_name and not meta_graph_file and checkpoint:
             # inference graph and checkpoint
             graph_def = read_file_to_graph_def(graph_def, graph_file_name, is_binary)
-            outputs = get_output_node_names_list(graph_def, user_defined_output_node_names_list)
+            outputs = get_output_node_names_list(graph_def, user_output_node_names_list)
             return freeze_checkpoint(graph_def=graph_def, checkpoint=checkpoint, output_node_names=outputs)
         if not graph_file_name and meta_graph_file:
             meta_graph_file = deducing_metagraph_path(meta_graph_file)
             input_meta_graph_def = read_file_to_graph_def(tf.MetaGraphDef(), meta_graph_file, is_binary)
+            # pylint: disable=no-member
             with tf.Session() as sess:
                 restorer = tf.train.import_meta_graph(input_meta_graph_def)
-                restorer.restore(sess, meta_graph_file.strip('.meta'))
-                outputs = get_output_node_names_list(input_meta_graph_def.graph_def, user_defined_output_node_names_list)
+                restorer.restore(sess, re.sub('\.meta$', '', meta_graph_file))
+                outputs = get_output_node_names_list(input_meta_graph_def.graph_def, user_output_node_names_list)
                 return tf.graph_util.convert_variables_to_constants(sess, input_meta_graph_def.graph_def, outputs)
         if model_dir:
             # saved model directory
             tags = saved_model_tags if saved_model_tags is not None else [tf.saved_model.tag_constants.SERVING]
             with tf.Session() as sess:
                 meta_graph_def = tf.saved_model.loader.load(sess, tags, model_dir)
-                outputs = get_output_node_names_list(meta_graph_def.graph_def, user_defined_output_node_names_list)
+                outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
                 return tf.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
     except Exception as e:
-        raise Error('Cannot load input model: {}', e) from e
+        raise FrameworkError('Cannot load input model: {}', e) from e
     raise Error("Unknown configuration of input model parameters")
 
 

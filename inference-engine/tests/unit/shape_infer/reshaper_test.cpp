@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-matchers.h>
 
-#include <inference_engine/shape_infer/ie_reshaper.hpp>
 #include <shape_infer/mock_ishape_infer_impl.hpp>
 #include <shape_infer/mock_shape_infer_extension.hpp>
 #include <mock_icnn_network.hpp>
@@ -122,10 +121,14 @@ TEST_F(ReshaperTest, canAddExtensionWithNotRegistered) {
         prepareInputs(maps);
     })));
     Reshaper reshaper(mockNet);
-    const char* notRegistered[] = {TEST_NAME.c_str()};
     auto extension = std::make_shared<MockShapeInferExtension>();
-    EXPECT_CALL(*extension.get(), getPrimitiveTypes(_, _, _)).WillOnce(DoAll(
-            WithArg<0>(Invoke([&](char**& type) { type = const_cast<char**>(notRegistered); })),
+    EXPECT_CALL(*extension.get(), getShapeInferTypes(_, _, _)).WillOnce(DoAll(
+            WithArg<0>(Invoke([&](char**& type) {
+                type = new char*[1];
+                type[0] = new char[TEST_NAME.size() + 1];
+                std::copy(TEST_NAME.begin(), TEST_NAME.end(), type[0]);
+                type[0][TEST_NAME.size()] = '\0';
+            })),
             WithArg<1>(Invoke([&](unsigned int& size) { size = 1; })),
             Return(OK)));
     reshaper.AddExtension(extension);
@@ -137,9 +140,17 @@ TEST_F(ReshaperTest, throwOnExtensionWithAlreadyRegisteredImpl) {
     })));
     Reshaper reshaper(mockNet);
     auto extension = std::make_shared<MockShapeInferExtension>();
-    const char* registered[] = {TEST_NAME.c_str(), "Convolution"};
-    EXPECT_CALL(*extension.get(), getPrimitiveTypes(_, _, _)).WillOnce(DoAll(
-            WithArg<0>(Invoke([&](char**& type) { type = const_cast<char**>(registered); })),
+    std::string conv_name = "Convolution";
+    EXPECT_CALL(*extension.get(), getShapeInferTypes(_, _, _)).WillOnce(DoAll(
+            WithArg<0>(Invoke([&](char**& type) {
+                type = new char*[2];
+                type[0] = new char[TEST_NAME.size() + 1];
+                std::copy(TEST_NAME.begin(), TEST_NAME.end(), type[0]);
+                type[0][TEST_NAME.size()] = '\0';
+                type[1] = new char[conv_name.size() + 1];
+                std::copy(conv_name.begin(), conv_name.end(), type[1]);
+                type[1][conv_name.size()] = '\0';
+            })),
             WithArg<1>(Invoke([&](unsigned int& size) { size = 2; })),
             Return(OK)));
     ASSERT_THROW(reshaper.AddExtension(extension), InferenceEngineException);
@@ -161,10 +172,14 @@ TEST_F(ReshaperTest, canResetOnReshape) {
         EXPECT_CALL(*(it.launcher).get(), applyChanges(_));
     }
 
-    const char* registered[] = {TEST_NAME.c_str()};
     auto extension = std::make_shared<MockShapeInferExtension>();
-    EXPECT_CALL(*extension.get(), getPrimitiveTypes(_, _, _)).WillOnce(DoAll(
-            WithArg<0>(Invoke([&](char**& type) { type = const_cast<char**>(registered); })),
+    EXPECT_CALL(*extension.get(), getShapeInferTypes(_, _, _)).WillOnce(DoAll(
+            WithArg<0>(Invoke([&](char**& type) {
+                type = new char*[1];
+                type[0] = new char[TEST_NAME.size() + 1];
+                std::copy(TEST_NAME.begin(), TEST_NAME.end(), type[0]);
+                type[0][TEST_NAME.size()] = '\0';
+            })),
             WithArg<1>(Invoke([&](unsigned int& size) { size = 1; })),
             Return(OK)));
     reshaper.AddExtension(extension);
@@ -182,8 +197,12 @@ TEST_F(ReshaperTest, canUpdateFakeImpl) {
 
     const char* registered[] = {""};
     auto extension = std::make_shared<MockShapeInferExtension>();
-    EXPECT_CALL(*extension.get(), getPrimitiveTypes(_, _, _)).WillOnce(DoAll(
-            WithArg<0>(Invoke([&](char**& type) { type = const_cast<char**>(registered); })),
+    EXPECT_CALL(*extension.get(), getShapeInferTypes(_, _, _)).WillOnce(DoAll(
+            WithArg<0>(Invoke([&](char**& type) {
+                type = new char*[1];
+                type[0] = new char[1];
+                type[0][0] = '\0';
+            })),
             WithArg<1>(Invoke([&](unsigned int& size) { size = 1; })),
             Return(OK)));
     EXPECT_CALL(*extension.get(), getShapeInferImpl(_, _, _)).WillOnce(DoAll(
@@ -193,6 +212,6 @@ TEST_F(ReshaperTest, canUpdateFakeImpl) {
 
     EXPECT_CALL(*newImpl.get(), inferShapes(_, _, _, _, _)).
             WillOnce(DoAll(
-            WithArg<3>(Invoke([&](std::vector<SizeVector>& outShape) { outShape.push_back({2}); })), Return(OK)));
-    reshaper.run({{"0", {2}}});
+            WithArg<3>(Invoke([&](std::vector<SizeVector>& outShape) { outShape.push_back({1, 2}); })), Return(OK)));
+    reshaper.run({{"0", {1, 2}}});
 }

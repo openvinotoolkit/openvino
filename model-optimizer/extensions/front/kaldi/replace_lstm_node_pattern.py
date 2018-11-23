@@ -81,6 +81,7 @@ def create_node(graph: nx.MultiDiGraph, name: str, attrs: dict, inputs: tuple = 
         attrs['fw_tensor_debug_info'] = [(Node(graph, noe_id).soft_get('name'), None)]
         if index < len(out_indexes):
             attrs['out'] = out_indexes[index]
+        attrs['in'] = index
         edges.append((noe_id, new_graph_node.id, attrs))
 
     graph.add_edges_from(edges)

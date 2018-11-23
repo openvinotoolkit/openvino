@@ -30,8 +30,8 @@ struct typed_program_node<scale_grad_input> : public typed_program_node_base<sca
 public:
     using parent::parent;
 
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) scale_in() const { return get_dependency(1); }
+    program_node& input() const { return get_dependency(0); }
+    program_node& scale_in() const { return get_dependency(1); }
 };
 
 using scale_grad_input_node = typed_program_node<scale_grad_input>;
@@ -48,7 +48,7 @@ public:
 public:
     typed_primitive_inst(network_impl& network, scale_grad_input_node const& desc);
 
-    decltype(auto) scale_input_memory() const { return dep_memory(1); }
+    memory_impl& scale_input_memory() const { return dep_memory(1); }
 };
 
 using scale_grad_input_inst = typed_primitive_inst<scale_grad_input>;

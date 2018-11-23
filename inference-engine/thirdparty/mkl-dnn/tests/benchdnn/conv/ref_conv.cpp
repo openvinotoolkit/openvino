@@ -14,7 +14,10 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include "src/common/mkldnn_thread.hpp"
+
 #include "conv/conv_common.hpp"
+
 namespace conv {
 
 void compute_ref_fwd(const prb_t *p, dnn_mem_t &src_m, dnn_mem_t &wei_m,
@@ -27,11 +30,11 @@ void compute_ref_fwd(const prb_t *p, dnn_mem_t &src_m, dnn_mem_t &wei_m,
 }
 
 void compute_ref_bwd_d(const prb_t *p, dnn_mem_t &diff_src_m, dnn_mem_t &wei_m,
-        dnn_mem_t &diff_dst_m) {
+        dnn_mem_t &bia_m, dnn_mem_t &diff_dst_m) {
     if (p->alg == WINO && p->cfg[SRC].dt == mkldnn_f32) {
-        compute_wino_ref_bwd_d(p, diff_src_m, wei_m, diff_dst_m);
+        compute_wino_ref_bwd_d(p, diff_src_m, wei_m, bia_m, diff_dst_m);
     } else {
-        compute_ref_direct_bwd_d(p, diff_src_m, wei_m, diff_dst_m);
+        compute_ref_direct_bwd_d(p, diff_src_m, wei_m, bia_m, diff_dst_m);
     }
 }
 
@@ -98,13 +101,9 @@ void compute_ref_direct_fwd(const prb_t *p, dnn_mem_t &src_m,
             }
         }
     };
-#   pragma omp parallel for collapse(5)
-    for (int g = 0; g < p->g; ++g) {
-    for (int mb = 0; mb < p->mb; ++mb) {
-        for (int oc = 0; oc < p->oc/p->g; ++oc) {
-        for (int od = 0; od < p->od; ++od) {
-        for (int oh = 0; oh < p->oh; ++oh) {
-        for (int ow = 0; ow < p->ow; ++ow) {
+
+    mkldnn::impl::parallel_nd(p->g, p->mb, p->oc / p->g, p->od, p->oh, p->ow,
+        [&](int g, int mb, int oc, int od, int oh, int ow) {
             const size_t dst_off = dst_off_f(p, mb, g, oc, od, oh, ow);
             float &dst = ((float*)dst_m)[dst_off];
 
@@ -124,15 +123,11 @@ void compute_ref_direct_fwd(const prb_t *p, dnn_mem_t &src_m,
 
             dst = conv_res;
         }
-        }
-        }
-        }
-    }
-    }
+    );
 }
 
 void compute_ref_direct_bwd_d(const prb_t *p, dnn_mem_t &diff_src_m,
-        dnn_mem_t &wei_m, dnn_mem_t &diff_dst_m) {
+        dnn_mem_t &wei_m, dnn_mem_t &bia_m, dnn_mem_t &diff_dst_m) {
     enum { precompute_size = 16 };
     const bool fast = MAX2(p->kh, p->kw) <= precompute_size;
 
@@ -204,13 +199,20 @@ void compute_ref_direct_bwd_d(const prb_t *p, dnn_mem_t &diff_src_m,
         }
     };
 
-#   pragma omp parallel for collapse(6)
-    for (int g = 0; g < p->g; ++g) {
-    for (int mb = 0; mb < p->mb; ++mb) {
-        for (int ic = 0; ic < p->ic/p->g; ++ic) {
-        for (int id = 0; id < p->id; ++id) {
-        for (int ih = 0; ih < p->ih; ++ih) {
-        for (int iw = 0; iw < p->iw; ++iw) {
+    auto maybe_scale = [&](float &ds, int ic) {
+        if (!p->attr.oscale.is_def()) {
+            using policy_t = attr_t::scale_t::policy_t;
+            const auto &s = p->attr.oscale;
+            if (s.policy == policy_t::COMMON) {
+                ds *= s.scale;
+            } else {
+                ds *= p->scales[ic];
+            }
+        }
+    };
+
+    mkldnn::impl::parallel_nd(p->g, p->mb, p->ic / p->g, p->id, p->ih, p->iw,
+        [&](int g, int mb, int ic, int id, int ih, int iw) {
             size_t src_off = src_off_f(p, mb, g, ic, id, ih, iw);
             float &ds = ((float*)diff_src_m)[src_off];
             ds = 0;
@@ -218,12 +220,14 @@ void compute_ref_direct_bwd_d(const prb_t *p, dnn_mem_t &diff_src_m,
                 ker_fast(ds, g, mb, ic, id, ih, iw);
             else
                 ker(ds, g, mb, ic, id, ih, iw);
+
+            if (p->dir & FLAG_BIA) {
+                const size_t bia_off = (size_t)g * p->ic / p->g + ic;
+                ds += ((float*)bia_m)[bia_off];
+            }
+            maybe_scale(ds, g * p->ic / p->g + ic);
         }
-        }
-        }
-        }
-    }
-    }
+    );
 }
 
 void compute_ref_bwd_weights(const prb_t *p, dnn_mem_t &src_m,
@@ -259,47 +263,34 @@ void compute_ref_bwd_weights(const prb_t *p, dnn_mem_t &src_m,
         }
     };
 
-#   pragma omp parallel for collapse(6)
-    for (int g = 0; g < p->g; ++g) {
-        for (int oc = 0; oc < p->oc/p->g; ++oc) {
-        for (int ic = 0; ic < p->ic/p->g; ++ic) {
-            for (int kd = 0; kd < p->kd; ++kd) {
-            for (int kh = 0; kh < p->kh; ++kh) {
-            for (int kw = 0; kw < p->kw; ++kw) {
+    mkldnn::impl::parallel_nd(
+        p->g, p->oc / p->g, p->ic / p->g, p->kd, p->kh, p->kw,
+        [&](int g, int oc, int ic, int kd, int kh, int kw) {
                 size_t wei_off = wei_off_f(p, g, oc, ic, kd, kh, kw);
                 float &dw = ((float*)diff_wei_m)[wei_off];
                 dw = 0;
                 ker(dw, g, oc, ic, kd, kh, kw);
-            }
-            }
-            }
         }
-        }
-    }
+    );
 }
+
 void compute_ref_bwd_bias(const prb_t *p, dnn_mem_t &diff_bia_m,
     dnn_mem_t &diff_dst_m) {
-#   pragma omp parallel for collapse(2)
-    for (int g = 0; g < p->g; ++g) {
-        for (int oc = 0; oc < p->oc/p->g; ++oc) {
-            size_t bia_off = bia_off_f(p, g, oc);
-            float &db = ((float*)diff_bia_m)[bia_off];
-            db = 0;
+    mkldnn::impl::parallel_nd(p->g, p->oc / p->g, [&](int g, int oc) {
+       size_t bia_off = bia_off_f(p, g, oc);
+       float &db = ((float*)diff_bia_m)[bia_off];
+       db = 0;
 
-            for (int mb = 0; mb < p->mb; ++mb) {
-                for (int od = 0; od < p->od; ++od) {
-                for (int oh = 0; oh < p->oh; ++oh) {
-                for (int ow = 0; ow < p->ow; ++ow) {
-                    size_t dst_off = dst_off_f(p, mb, g, oc, od, oh, ow);
-                    db += ((float*)diff_dst_m)[dst_off];
-                }
-                }
-                }
-            }
-        }
-    }
+       for (int mb = 0; mb < p->mb; ++mb)
+       for (int od = 0; od < p->od; ++od)
+       for (int oh = 0; oh < p->oh; ++oh)
+       for (int ow = 0; ow < p->ow; ++ow)
+       {
+           size_t dst_off = dst_off_f(p, mb, g, oc, od, oh, ow);
+           db += ((float*)diff_dst_m)[dst_off];
+       }
+    });
 }
-
 
 void compute_ref_direct_bwd_w(const prb_t *p, dnn_mem_t &src_m,
         dnn_mem_t &diff_wei_m, dnn_mem_t &diff_bia_m, dnn_mem_t &diff_dst_m) {
@@ -308,24 +299,4 @@ void compute_ref_direct_bwd_w(const prb_t *p, dnn_mem_t &src_m,
     compute_ref_bwd_bias(p, diff_bia_m, diff_dst_m);
 }
 
-void compute_bias_fwd(const prb_t *p, dnn_mem_t &bia_m,
-    dnn_mem_t &dst_m) {
-#   pragma omp parallel for collapse(5)
-    for (int g = 0; g < p->g; ++g) {
-    for (int mb = 0; mb < p->mb; ++mb) {
-        for (int oc = 0; oc < p->oc/p->g; ++oc) {
-        for (int od = 0; od < p->od; ++od) {
-        for (int oh = 0; oh < p->oh; ++oh) {
-        for (int ow = 0; ow < p->ow; ++ow) {
-            const size_t dst_off = dst_off_f(p, mb, g, oc, od, oh, ow);
-            float &dst = ((float*)dst_m)[dst_off];
-            const size_t bia_off = bia_off_f(p, g, oc);
-            dst += ((float*)bia_m)[bia_off];
-        }
-        }
-        }
-        }
-    }
-    }
-}
 }

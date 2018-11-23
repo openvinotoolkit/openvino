@@ -14,12 +14,14 @@
  limitations under the License.
 """
 
-from enum import Enum
 import logging as log
+from enum import Enum
+
 import networkx as nx
 
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
+from mo.graph.graph import check_empty_graph
 
 _registered_classes_dict = {}
 
@@ -74,8 +76,8 @@ def apply_replacements(graph: nx.MultiDiGraph, replacements_type):
     for class_type, classes_set in _registered_classes_dict.items():
         if class_type == replacements_type:
             for cls in classes_set:
-                replacers = [c for c in cls.registered_cls if not hasattr(c, 'op')] + [c for op, c in cls.registered_ops.items()
-                                                                                       if c]
+                replacers = [c for c in cls.registered_cls if not hasattr(c, 'op')] + \
+                            [c for op, c in cls.registered_ops.items() if c]
                 for replacer_cls in replacers:
                     if replacer_cls in cls.excluded_replacers:
                         # skip infrastructure classes
@@ -97,6 +99,23 @@ def apply_replacements(graph: nx.MultiDiGraph, replacements_type):
                     ' -> '.join([str(node) for node in list(cycles)[0]])) from exception
 
     for replacer_cls in replacers_order:
-        log.debug("Run replacer {}".format(replacer_cls))
         replacer = replacer_cls()
-        replacer.find_and_replace_pattern(graph)
+        replacement_id = 'REPLACEMENT_ID'
+        if hasattr(replacer, 'replacement_id'):
+            replacement_id = replacer.replacement_id
+
+        if hasattr(replacer, 'enabled') and not replacer.enabled:
+            log.info("Skip replacer {} (enabled = False)".format(replacer_cls))
+            continue
+
+        log.debug("Run replacer {}".format(replacer_cls))
+
+        try:
+            replacer.find_and_replace_pattern(graph)
+            check_empty_graph(graph, replacer_cls)
+        except Error as err:
+            raise Error('Exception occurred during running replacer "{}": {}'.format(replacement_id, str(err).replace(
+                '[REPLACEMENT_ID]', replacement_id))) from err
+        except Exception as err:
+            raise Exception('Exception occurred during running replacer "{}": {}'.format(
+                replacement_id, str(err).replace('[REPLACEMENT_ID]', replacement_id))) from err

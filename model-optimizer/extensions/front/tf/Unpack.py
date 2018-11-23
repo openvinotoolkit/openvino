@@ -27,15 +27,13 @@ class Unpack(FrontReplacementOp):
     do that. This replacer adds squeeze operation for each output of the Unpack nodes to remove the dimension.
     """
     op = "Unpack"
-    enabled = False
+    enabled = True
 
     def nodes_to_remove(self, graph: nx.MultiDiGraph, match: dict):
-        # do not remove
+        # do not remove matched node
         return []
 
     def replace_op(self, graph: nx.MultiDiGraph, node: Node):
-        # TODO FIXME incorrect output port assigment sporadically for the TF Faster RCNN network:
-        # SecondStagePostprocessor/Decode/get_center_coordinates_and_sizes/sub
         for ind in range(len(node.out_nodes())):
             squeeze_node = Squeeze(graph, dict(squeeze_dims=[node.axis], name=node.name + '/Squeeze_')).create_node([])
             insert_node_after(node, squeeze_node, ind)

@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <mkldnn/mkldnn_generic_primitive.hpp>
+#include <ie_iextension.h>
 #include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
@@ -37,15 +37,12 @@ public:
 
 
 protected:
-    std::shared_ptr<InferenceEngine::MKLDNNPlugin::IMKLDNNGenericPrimitive> genericPrimitive;
     InferenceEngine::ILayerImplFactory::Ptr extFactory;
     std::vector<InferenceEngine::ILayerImpl::Ptr> impls;
 
 private:
     static Register<MKLDNNGenericNode> reg;
     MKLDNNExtensionManager::Ptr extensionManager;
-    std::vector<InferenceEngine::MKLDNNPlugin::MKLDNNPrimitiveMemory> inputs;
-    std::vector<InferenceEngine::MKLDNNPlugin::MKLDNNPrimitiveMemory> outputs;
 };
 
 }  // namespace MKLDNNPlugin

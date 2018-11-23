@@ -18,7 +18,7 @@ import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node
-from mo.ops.op import Op
+from mo.ops.op import Op, PermuteAttrs
 
 
 class ReorgYoloOp(Op):
@@ -52,3 +52,4 @@ class ReorgYoloOp(Op):
         output_shape[node.spatial_dims] = np.round(input_shape[node.spatial_dims] / stride)
 
         node.out_node().shape = output_shape
+        PermuteAttrs.create_permute_attrs(node, attrs=[('channel_dims', 'input:0'), ('spatial_dims', 'input:0')])

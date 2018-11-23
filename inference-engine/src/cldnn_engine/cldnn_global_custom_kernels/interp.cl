@@ -25,8 +25,16 @@ inline void interpolate(const int N, const int C,
                         __global OUTPUT0_TYPE* dst, const int x2, const int y2,
                         const int OH_pad, const int OW_pad, const int OH, const int OW)
 {
-    const INPUT0_TYPE rh = (OH_pad > 1) ? (IH_pad - 1) / (INPUT0_TYPE)(OH_pad - 1) : (INPUT0_TYPE)(0.0f);
-    const INPUT0_TYPE rw = (OW_pad > 1) ? (IW_pad - 1) / (INPUT0_TYPE)(OW_pad - 1) : (INPUT0_TYPE)(0.0f);
+
+    INPUT0_TYPE rh;
+    INPUT0_TYPE rw;
+    if (align_corners_) {
+        rh = (OH_pad > 1) ? (IH_pad - 1) / (INPUT0_TYPE)(OH_pad - 1) : (INPUT0_TYPE)0.0f;
+        rw = (OW_pad > 1) ? (IW_pad - 1) / (INPUT0_TYPE)(OW_pad - 1) : (INPUT0_TYPE)0.0f;
+    } else {
+        rh = (IH_pad) / (INPUT0_TYPE)(OH_pad);
+        rw = (IW_pad) / (INPUT0_TYPE)(OW_pad);
+    }
 
     int h = get_global_id(0);
     int w = get_global_id(1);

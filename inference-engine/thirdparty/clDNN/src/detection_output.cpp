@@ -98,8 +98,8 @@ std::string detection_output_inst::to_string(detection_output_node const& node)
     detec_out_info.add("clip", clip);
     detec_out_info.dump(primitive_description);
 
-    node_info.add("dection output info", detec_out_info);
-    node_info.dump(primitive_description);
+    node_info->add("dection output info", detec_out_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

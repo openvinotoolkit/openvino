@@ -1,15 +1,7 @@
-/**
- * pugixml parser - version 1.7
- * --------------------------------------------------------
- * Copyright (C) 2006-2016, by Arseny Kapoulkine (arseny.kapoulkine@gmail.com)
- * Report bugs and download new versions at http://pugixml.org/
- *
- * This library is distributed under the MIT License. See notice at the end
- * of this file.
- *
- * This work is based on the pugxml parser, which is:
- * Copyright (C) 2003, by Kristen Wegner (kristen@tima.net)
- */
+// Copyright (C) 2018 Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #ifndef SOURCE_PUGIXML_CPP
 #define SOURCE_PUGIXML_CPP
@@ -5622,7 +5614,7 @@ namespace pugi
 	{
 		xml_node_type type_ = _root ? PUGI__NODETYPE(_root) : node_null;
 
-		if (type_ != node_element && type_ != node_pi && type_ != node_declaration)
+		if (!_root && type_ != node_element && type_ != node_pi && type_ != node_declaration)
 			return false;
 
 		return impl::strcpy_insitu(_root->name, _root->header, impl::xml_memory_page_name_allocated_mask, rhs, impl::strlength(rhs));
@@ -5632,7 +5624,7 @@ namespace pugi
 	{
 		xml_node_type type_ = _root ? PUGI__NODETYPE(_root) : node_null;
 
-		if (type_ != node_pcdata && type_ != node_cdata && type_ != node_comment && type_ != node_pi && type_ != node_doctype)
+		if (!_root && type_ != node_pcdata && type_ != node_cdata && type_ != node_comment && type_ != node_pi && type_ != node_doctype)
 			return false;
 
 		return impl::strcpy_insitu(_root->value, _root->header, impl::xml_memory_page_value_allocated_mask, rhs, impl::strlength(rhs));

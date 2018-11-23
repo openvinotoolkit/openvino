@@ -21,6 +21,8 @@
 
 #include "mkldnn.h"
 
+#include "src/common/mkldnn_thread.hpp"
+
 #include "mkldnn_common.hpp"
 #include "mkldnn_memory.hpp"
 
@@ -239,20 +241,15 @@ int fill_src(const prb_t *p, dnn_mem_t &mem_dt, dnn_mem_t &mem_fp,
     const auto &c = p->cfg[SRC];
     const int range = c.f_max - c.f_min + 1;
 
-#   pragma omp parallel for collapse(5)
-    for (int mb = 0; mb < p->mb; ++mb)
-    for (int ic = 0; ic < p->ic; ++ic)
-    for (int id = 0; id < p->id; ++id)
-    for (int ih = 0; ih < p->ih; ++ih)
-    for (int iw = 0; iw < p->iw; ++iw)
-    {
+    mkldnn::impl::parallel_nd(p->mb, p->ic, p->id, p->ih, p->iw,
+        [&](int mb, int ic, int id, int ih, int iw) {
         const int gen = 5 * id + 17 * ih + 13 * iw + 13 * mb + 19 * ic + 1637;
         const bool non_base = flip_coin(gen, c.f_sparsity);
         const float value =
             non_base ? c.f_min + gen * c.f_step % range : c.f_base;
 
         ((float*)mem_00)[src_off_f(p, mb, 0, ic, id, ih, iw)] = value;
-    }
+    });
 
     SAFE(mem_dt.reorder(mem_00), WARN);
     if (extra_mem) {
@@ -279,21 +276,16 @@ int fill_wei(const prb_t *p, dnn_mem_t &mem_dt, dnn_mem_t &mem_fp,
     const auto &c = p->cfg[WEI];
     const int range = c.f_max - c.f_min + 1;
 
-#   pragma omp parallel for collapse(5)
-    for (int g = 0; g < p->g; ++g)
-    for (int oc = 0; oc < p->oc / p->g; ++oc)
-    for (int ic = 0; ic < p->ic / p->g; ++ic)
-    for (int kd = 0; kd < p->kd; ++kd)
-    for (int kh = 0; kh < p->kh; ++kh)
-    for (int kw = 0; kw < p->kw; ++kw)
-    {
+    mkldnn::impl::parallel_nd(
+        p->g, p->oc / p->g, p->ic / p->g, p->kd, p->kh, p->kw,
+        [&](int g, int oc, int ic, int kd, int kh, int kw) {
         const int gen = 5 * kd + 17 * kh + 13 * kw + 13 * oc + 19 * ic + 38;
         const bool non_base = flip_coin(gen, c.f_sparsity);
         const float value =
             non_base ? c.f_min + gen * c.f_step % range : c.f_base;
 
         ((float*)mem_00)[wei_off_f(p, g, oc, ic, kd, kh, kw)] = value;
-    }
+    });
 
     SAFE(mem_dt.reorder(mem_00), WARN);
     if (extra_mem) {
@@ -348,20 +340,15 @@ int fill_dst(const prb_t *p, dnn_mem_t &mem_dt, dnn_mem_t &mem_fp,
     const auto &c = p->cfg[DST];
     const int range = c.f_max - c.f_min + 1;
 
-#   pragma omp parallel for collapse(4)
-    for (int mb = 0; mb < p->mb; ++mb)
-    for (int oc = 0; oc < p->oc; ++oc)
-    for (int od = 0; od < p->od; ++od)
-    for (int oh = 0; oh < p->oh; ++oh)
-    for (int ow = 0; ow < p->ow; ++ow)
-    {
+    mkldnn::impl::parallel_nd(p->mb, p->oc, p->od, p->oh, p->ow,
+        [&](int mb, int oc, int od, int oh, int ow) {
         const int gen = 7 * od + 19 * oh + 17 * ow + 13 * mb + 13 * oc + 223;
         const bool non_base = flip_coin(gen, c.f_sparsity);
         const float value =
             non_base ? c.f_min + gen * c.f_step % range : c.f_base;
 
         ((float*)mem_00)[dst_off_f(p, mb, 0, oc, od, oh, ow)] = value;
-    }
+    });
 
     SAFE(mem_dt.reorder(mem_00), WARN);
     if (extra_mem) {
@@ -420,10 +407,13 @@ inline int init_pd(const prb_t *p, mkldnn_convolution_desc_t &cd,
     if (p->alg == WINO) alg = mkldnn_convolution_winograd;
 
     switch (p->dir) {
-    case FWD_D: case FWD_B:
+    case FWD_D: case FWD_B: case FWD_I:
         DNN_SAFE(mkldnn_dilated_convolution_forward_desc_init(&cd,
-                    mkldnn_forward_inference, alg, &src_d, &wei_d,
-                    p->dir == FWD_D ? NULL : &bia_d, &dst_d,
+                    p->dir == FWD_I
+                        ? mkldnn_forward_inference
+                        : mkldnn_forward_training,
+                    alg, &src_d, &wei_d,
+                    p->dir == FWD_B ? &bia_d : NULL, &dst_d,
                     strides, dilates, padding, padding_r,
                     mkldnn_padding_zero), WARN);
         break;
@@ -563,7 +553,7 @@ int doit(const prb_t *p, res_t *r) {
         DNN_SAFE(mkldnn_primitive_create(&c, cpd, inputs, outputs), WARN);
         SAFE(execute(c), WARN);
         if (bench_mode & CORR) {
-            compute_ref_bwd_d(p, src_fp, wei_fp, dst_fp);
+            compute_ref_bwd_d(p, src_fp, wei_fp, bia_fp, dst_fp);
             dnn_mem_t src(src_dt, fp, src_format);
             SAFE(src.reorder(src_dt), WARN);
             SAFE(compare_src(p, src, src_fp, r, true), WARN);
