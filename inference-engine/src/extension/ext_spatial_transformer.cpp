@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <vector>
 #include <cmath>
+#include <map>
+#include <string>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -131,7 +133,20 @@ private:
     }
 };
 
+class SpatialTransformerShapeInfer : public IShapeInferImpl {
+public:
+    StatusCode inferShapes(const std::vector<SizeVector>& inShapes,
+                           const std::map<std::string, std::string>& params,
+                           const std::map<std::string, Blob::Ptr>& blobs,
+                           std::vector<SizeVector>& outShapes,
+                           ResponseDesc* resp) noexcept override {
+        outShapes.push_back(inShapes[0]);
+        return InferenceEngine::OK;
+    }
+};
+
 REG_FACTORY_FOR(ImplFactory<SpatialTransformerImpl>, SpatialTransformer);
+REG_SHAPE_INFER_FOR_TYPE(SpatialTransformerShapeInfer, SpatialTransformer);
 
 }  // namespace Cpu
 }  // namespace Extensions

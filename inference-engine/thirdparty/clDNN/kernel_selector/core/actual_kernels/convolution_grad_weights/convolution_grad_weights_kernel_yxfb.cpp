@@ -24,7 +24,6 @@ namespace kernel_selector
 		ParamsKey k;
 		k.EnableInputDataType(Datatype::F32);
 		k.EnableInputWeightsType(WeightsType::F32);
-		k.EnableOutputDataType(Datatype::F16);
 		k.EnableOutputDataType(Datatype::F32);
 		k.EnableInputLayout(DataLayout::yxfb);
 		k.EnableOutputLayout(DataLayout::yxfb);
@@ -64,11 +63,11 @@ namespace kernel_selector
 
 		DispatchData kd;
 
-		kd.gws0 = 32;
+		kd.gws0 = 16;
 		kd.gws1 = input_features * output_features;
 		kd.gws2 = x * y;
 
-		kd.lws0 = 32;
+        kd.lws0 = 16;
 		kd.lws1 = 1;
 		kd.lws2 = 1;
 		kd.effiency = FORCE_PRIORITY_7;

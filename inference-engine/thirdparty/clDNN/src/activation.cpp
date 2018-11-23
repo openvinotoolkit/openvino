@@ -45,8 +45,8 @@ std::string activation_inst::to_string(activation_node const& node)
     activation_info.add("additional_params.b", desc->additional_params.b);
     activation_info.add("additional_params input", desc->additional_params_input);
 
-    node_info.add("activation info", activation_info);
-    node_info.dump(primitive_description);
+    node_info->add("activation info", activation_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

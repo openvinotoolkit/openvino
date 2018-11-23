@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from mo.front.common.partial_infer.inner_product import onnx_matmul_infer
 from mo.ops.inner_product import InnerProduct
 from mo.front.extractor import FrontExtractorOp
 
@@ -24,5 +24,5 @@ class MatMulFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
-        InnerProduct.update_node_stat(node, attrs={'transpose_weights': True})
+        InnerProduct.update_node_stat(node, attrs={'infer': onnx_matmul_infer})
         return InnerProduct.enabled

@@ -16,8 +16,6 @@
 
 from mo.front.caffe.extractors.batchnorm import batch_norm_ext
 from mo.front.caffe.extractors.concat import concat_ext
-from mo.front.caffe.extractors.convolution import convolution_ext
-from mo.front.caffe.extractors.deconvolution import deconvolution_ext
 from mo.front.caffe.extractors.eltwise import eltwise_ext
 from mo.front.caffe.extractors.flatten import flatten_ext
 from mo.front.caffe.extractors.inner_product import inner_product_ext
@@ -25,7 +23,6 @@ from mo.front.caffe.extractors.input import global_input_ext, input_ext
 from mo.front.caffe.extractors.lrn import lrn_ext
 from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
 from mo.front.caffe.extractors.permute import permute_ext
-from mo.front.caffe.extractors.pooling import pooling_ext
 from mo.front.caffe.extractors.power import power_ext
 from mo.front.caffe.extractors.relu import relu_ext
 from mo.front.caffe.extractors.reshape import reshape_ext
@@ -59,11 +56,6 @@ caffe_type_extractors = {
     'innerproduct': node_pb_arg(inner_product_ext),
     'inner_product': node_pb_arg(inner_product_ext),
     'dropout': node_pb_arg(lambda _, __: dict(op='Dropout', infer=copy_shape_infer)),
-
-    # Vision Layers
-    'convolution': node_pb_arg(convolution_ext),
-    'deconvolution': node_pb_arg(deconvolution_ext),
-    'pooling': node_pb_arg(pooling_ext),
 
     # Normalization Layers
     'batchnorm': node_pb_arg(batch_norm_ext),

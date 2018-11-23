@@ -87,11 +87,14 @@ class CustomReplacementDescriptor(object):
         raise Exception("The function 'get_sub_graph_instances' must be implemented in the sub-class.")
 
     def get_config_file_representation(self):
-        return {
+        result = {
             'match_kind': self.match_kind, 'instances': self.instances,
             'inputs': self.inputs, 'outputs': self.outputs,
-            'custom_attributes': self.custom_attributes, 'id': self.id,
+            'custom_attributes': self.custom_attributes, 'id': self.id
         }
+        if self.has('op'):
+            result.update({'op': self.op})
+        return result
 
     def get_inputs_description(self):
         """
@@ -155,17 +158,20 @@ class CustomReplacementDescriptorPoints(CustomReplacementDescriptor):
     def __init__(self, replacement_id: str, attrs: dict = None):
         super().__init__(replacement_id, attrs)
         if not self.has('include_inputs_to_sub_graph'):
-            super(CustomReplacementDescriptor, self).__setattr__('include_inputs_to_sub_graph', True)
+            super(CustomReplacementDescriptorPoints, self).__setattr__('include_inputs_to_sub_graph', True)
         if not self.has('include_outputs_to_sub_graph'):
-            super(CustomReplacementDescriptor, self).__setattr__('include_outputs_to_sub_graph', True)
+            super(CustomReplacementDescriptorPoints, self).__setattr__('include_outputs_to_sub_graph', True)
 
     def get_config_file_representation(self):
-        return {
+        result = {
             'match_kind': self.match_kind, 'instances': self.instances,
             'custom_attributes': self.custom_attributes, 'id': self.id,
             'include_inputs_to_sub_graph': bool(self.include_inputs_to_sub_graph),
-            'include_outputs_to_sub_graph': bool(self.include_outputs_to_sub_graph),
+            'include_outputs_to_sub_graph': bool(self.include_outputs_to_sub_graph)
         }
+        if self.has('op'):
+            result.update({'op': self.op})
+        return result
 
     def get_inputs_description(self):
         return [[('^' + node_name + '$', 0)] for node_name in self.instances['start_points']]

@@ -21,6 +21,7 @@
 #include "jit_generator.hpp"
 #include "jit_primitive_conf.hpp"
 #include "jit_uni_eltwise.hpp"
+#include "jit_uni_depthwise.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -32,6 +33,16 @@ struct jit_sse42_conv_fwd_kernel_f32: public jit_generator {
     {
         this->generate();
         jit_ker = (void (*)(jit_conv_call_s *))this->getCode();
+    }
+
+    ~jit_sse42_conv_fwd_kernel_f32() {
+        for (auto inj : eltwise_injectors)
+            delete inj;
+        eltwise_injectors.clear();
+
+        for (auto inj : depthwise_injectors)
+            delete inj;
+        depthwise_injectors.clear();
     }
 
     static bool post_ops_ok(jit_conv_conf_t &jcp,
@@ -66,8 +77,12 @@ private:
     reg64_t imm_addr64 = reg_oc_blocks;
     Xbyak::Reg32 reg_ci_flag = r13d;
 
-    Xbyak::Label l_table;
-    jit_uni_eltwise_vector_f32<sse42> eltwise_generator;
+    reg64_t reg_d_weights = imm_addr64;
+    reg64_t reg_d_bias = ki_iter;
+    reg64_t reg_oc_off = abi_param1;
+
+    nstl::vector<jit_uni_eltwise_injector_f32<sse42>*> eltwise_injectors;
+    nstl::vector<jit_uni_depthwise_injector_f32<sse42>*> depthwise_injectors;
 
     inline void oh_step_unroll_kw(int ur_w, int pad_l, int pad_r,
             int oc_blocks);

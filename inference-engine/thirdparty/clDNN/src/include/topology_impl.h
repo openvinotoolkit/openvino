@@ -51,7 +51,7 @@ public:
         _primitives.insert({ id, desc });
     }
 
-    const auto& at(primitive_id id) const 
+    const std::shared_ptr<primitive>& at(primitive_id id) const
     {
         try
         {

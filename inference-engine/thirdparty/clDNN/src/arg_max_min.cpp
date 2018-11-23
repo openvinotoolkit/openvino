@@ -68,8 +68,8 @@ namespace cldnn
 		if (desc->with_axis)
 			conv_info.add("axis", desc->axis);
 		conv_info.add("output type", out_type);
-		node_info.add("arg_max_min info", conv_info);
-		node_info.dump(primitive_description);
+		node_info->add("arg_max_min info", conv_info);
+		node_info->dump(primitive_description);
 
 		return primitive_description.str();
 	}

@@ -18,6 +18,7 @@
 
 #include "program_dump_graph.h"
 #include "to_string_utils.h"
+#include "xml_object.h"
 #include <algorithm>
 #include <vector>
 
@@ -209,7 +210,9 @@ namespace cldnn
             case format::image_2d_weights_winograd_6x3_s1_fbxyb: out = "image_2d_weights_winograd_6x3_s1_fbxyb"; break;
             case format::image_2d_weights_winograd_6x3_s1_xfbyb: out = "image_2d_weights_winograd_6x3_s1_xfbyb"; break;
             case format::os_is_yx_isa8_osv8_isv4: out = "os_is_yx_isa8_osv8_isv4"; break;
+            case format::is_o_yx_isv32: out = "is_o_yx_isv32"; break;
             case format::byxf_af32: out = "byxf_af32"; break;
+            case format::fs_bs_yx_bsv4_fsv32: out = "fs_bs_yx_bsv4_fsv32"; break;
             case format::any: out = "any"; break;
             default:
                 out = "unk format";
@@ -286,8 +289,6 @@ namespace cldnn
                 graph << ", shape=box";
             if (node->is_type<internal_primitive>())
                 graph << ", color=blue";
-            if (node->is_in_data_flow())
-                graph << ", group=data_flow";
             if (node->is_reusing_memory())
             {
                 graph << ", fillcolor=\"" << colors[node->get_reused_memory_color() % colors.size()] << "\" ";
@@ -304,16 +305,15 @@ namespace cldnn
                 bool doubled = true;
                 if (std::find(user->get_dependencies().begin(), user->get_dependencies().end(), node.get()) == user->get_dependencies().end())
                     doubled = false;
-
                 graph << "    " << get_node_id(node.get()) << " -> " << get_node_id(user);
 
                 bool data_flow = node->is_in_data_flow() && user->is_in_data_flow();
                 if (data_flow)
                 {
                     if (doubled)
-                        graph << " [color=red]";
+                       graph << " [color=red]";
                     else
-                        graph << " [color=red, style=dashed, label=\"usr\"]";
+                       graph << " [color=red, style=dashed, label=\"usr\"]";
                 }
                 else
                 {
@@ -337,11 +337,6 @@ namespace cldnn
 
                 graph << "   " << get_node_id(node.get()) << " -> " << get_node_id(dep) << " [style=dashed, label=\"dep\", constraint=false];\n";
             }
-
-            if (node->get_dominator() && (!filter || filter(*node->get_dominator())))
-                graph << "    " << get_node_id(node.get()) << " -> " << get_node_id(node->get_dominator()) << " [style=dotted, label=\"dom\", constraint=false];\n";
-            if (node->get_joint() && (!filter || filter(*node->get_joint())))
-                graph << "    " << get_node_id(node.get()) << " -> " << get_node_id(node->get_joint()) << " [style=dotted, label=\"p-dom\", constraint=false];\n";
         }
         graph << "}\n";
         close_stream(graph);
@@ -380,7 +375,7 @@ namespace cldnn
     //Function used by serialization. Not working yet, in progress.
     void dump_to_xml(std::ofstream& graph, const program_impl& program, std::function<bool(program_node const&)> const& filter, std::vector<unsigned long long>& offsets, std::vector<std::string>& data_names)
     {
-        xml_composite data_container, node_container, kernels;
+        xml_composite data_container, node_container;
         auto node_number = 1;
         auto kernels_number = 1;
         auto postion = 0u;
@@ -403,8 +398,8 @@ namespace cldnn
                     }
                     if (data_names.at(p).find("kernels") != std::string::npos)
                     {
-                        node_info = kernels;
-                        node_info.add("id", data_names.at(p));
+                        node_info.reset(new xml_composite());
+                        node_info->add("id", data_names.at(p));
                         id = "kernels";
                         package_name = "kernels_" + std::to_string(kernels_number);
 
@@ -414,13 +409,13 @@ namespace cldnn
                     }
                     if (data_names.at(p).find(id) != std::string::npos)
                     {
-                        node_info.add("data_offset", std::to_string(offset));
-                        node_info.add("data_size", std::to_string(size));
+                        node_info->add("data_offset", std::to_string(offset));
+                        node_info->add("data_size", std::to_string(size));
                         node_number++;
                         break;
                     }
             }
-            node_container.add(package_name, node_info); 
+            node_container.add(package_name, node_info.get()); 
         }
         data_container.add("data", node_container);
         data_container.dump(graph);

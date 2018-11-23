@@ -39,7 +39,7 @@ status_t jit_uni_roi_pool_kernel_f32<isa>::init_conf(jit_roi_pool_conf_t &jpp,
     jpp.c_block = simd_w;
 
     jpp.mb = dst_d.dims()[0];
-    jpp.c  = src_d.dims()[1];
+    jpp.c = utils::rnd_up(src_d.dims()[1], simd_w);
     jpp.ih = src_d.dims()[2];
     jpp.iw = src_d.dims()[3];
     jpp.oh = dst_d.dims()[2];

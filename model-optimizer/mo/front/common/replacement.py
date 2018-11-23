@@ -111,13 +111,14 @@ class FrontReplacementSubgraph(FrontReplacementPattern):
 
     def replace_sub_graph(self, graph: nx.MultiDiGraph, match: [dict, SubgraphMatch]):
         log.debug('replace_sub_graph: "{}" matched nodes: {}'.format(self.replacement_id,
-                                                                     '\n'.join(match.matched_nodes_names())))
-        new_sub_graph = self.generate_sub_graph(graph, match)
+                                                                     '\n'.join(sorted(match.matched_nodes_names()))))
+        new_sub_graph = self.generate_sub_graph(graph, match)  # pylint: disable=assignment-from-no-return
         self.replace_input_edges(graph, self.input_edges_match(graph, match, new_sub_graph))
         self.replace_output_edges(graph, self.output_edges_match(graph, match, new_sub_graph))
 
         remove_nodes = self.nodes_to_remove(graph, match)
-        log.debug('replace_sub_graph: "{}" removing nodes: {}'.format(self.replacement_id, '\n'.join(remove_nodes)))
+        log.debug(
+            'replace_sub_graph: "{}" removing nodes: {}'.format(self.replacement_id, '\n'.join(sorted(remove_nodes))))
         graph.remove_nodes_from(remove_nodes)
 
     def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
@@ -140,14 +141,14 @@ class FrontReplacementOp(FrontReplacementSubgraph):
     Replaces a single operation (identified by 'op' attribute) by a sub-graph of operations.
     It is a convenient specialization of FrontReplacementPattern.
     """
+    op = 'UnknownOp'
 
     def pattern(self):
         return dict(
             nodes=[
                 ('op', dict(op=self.__class__.op))],
-            edges=[],
-            node_attrs=['op'],
-            edge_attrs=[])
+            edges=[]
+        )
 
     def replace_op(self, graph: nx.MultiDiGraph, node: Node):
         raise Exception("The function 'replace_op' must be implemented in the sub-class.")

@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
@@ -15,6 +14,9 @@
 #include <inference_engine/cnn_network_impl.hpp>
 #include "tests_common.hpp"
 
+#define XBYAK_NO_OP_NAMES
+#define XBYAK_UNDEF_JNL
+#include "../../../../../../../thirdparty/mkl-dnn/src/cpu/xbyak/xbyak_util.h"
 
 using namespace ::testing;
 using namespace std;
@@ -211,15 +213,31 @@ protected:
 
             auto& nodes = graph.getNodes();
             nodes = graph.getNodes();
+            bool isWino = false;
             for (auto &node : nodes) {
                 if (node->getType() == MKLDNNPlugin::Convolution) {
                     ASSERT_LE(p.num_prim_desc, node->getSupportedPrimitiveDescriptors().size());
+                    for (const auto prim : node->getSupportedPrimitiveDescriptors()) {
+                        std::cout << MKLDNNGraphTestClass::getStrPrimitiveDescriptorType(prim.getImplementationType()) << " ";
+                    }
+                    std::cout << std::endl;
                     for (size_t j = 0; j < p.num_prim_desc && j < p.comp.size(); j++) {
                         p.comp.at(j)(node->getSupportedPrimitiveDescriptors().at(j));
                     }
                     ASSERT_NE(nullptr, node->getSelectedPrimitiveDescriptor());
-                    ASSERT_EQ(p.selectedType,
-                              node->getSelectedPrimitiveDescriptor()->getImplementationType() & p.selectedType);
+                    Xbyak::util::Cpu cpu;
+                    if (cpu.has(Xbyak::util::Cpu::tAVX512F)
+                            && cpu.has(Xbyak::util::Cpu::tAVX512BW)
+                            && cpu.has(Xbyak::util::Cpu::tAVX512VL)
+                            && cpu.has(Xbyak::util::Cpu::tAVX512DQ)
+                            && !p.preferTypes.empty()
+                            && p.preferTypes[0] == MKLDNNPlugin::impl_desc_type::jit_avx512_winograd) {
+                        isWino = true;
+                        ASSERT_EQ(p.preferTypes[0], node->getSelectedPrimitiveDescriptor()->getImplementationType());
+                    } else {
+                        ASSERT_EQ(p.selectedType,
+                                  node->getSelectedPrimitiveDescriptor()->getImplementationType() & p.selectedType);
+                    }
                 }
             }
 
@@ -267,8 +285,7 @@ INSTANTIATE_TEST_CASE_P(
         TestConvolution, MKLDNNGraphConvolutionTests,
         ::testing::Values(
                 conv_test_params{{1, 9, 16, 32},
-                                 1, 1, 1, 1, 0, 0, 17, 1, 7, MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1,
-                },
+                                 1, 1, 1, 1, 0, 0, 17, 1, 6, MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1},
                 conv_test_params{{1, 9, 32, 16},
                                  2, 4, 1, 1, 0, 0, 17, 1, 5, MKLDNNPlugin::impl_desc_type::jit },
                 conv_test_params{{1, 9, 32, 16},
@@ -279,16 +296,19 @@ INSTANTIATE_TEST_CASE_P(
                                  3, 3, 1, 2, 0, 0, 20, 1, 5, MKLDNNPlugin::impl_desc_type::jit },
                 conv_test_params{{1, 1, 32, 16},
                                  2, 4, 2, 1, 0, 0, 17, 1, 5, MKLDNNPlugin::impl_desc_type::jit },
-                conv_test_params{{1, 9, 16, 32},
-                                 1, 1, 1, 1, 0, 0, 17, 1, 7, MKLDNNPlugin::impl_desc_type::gemm,
+                /*conv_test_params{{1, 9, 16, 32},
+                                 1, 1, 1, 1, 0, 0, 17, 1, 6, MKLDNNPlugin::impl_desc_type::gemm,
                                  {MKLDNNPlugin::impl_desc_type::gemm_any,
                                   MKLDNNPlugin::impl_desc_type::gemm_blas,
                                   MKLDNNPlugin::impl_desc_type::gemm_avx512,
                                   MKLDNNPlugin::impl_desc_type::gemm_avx2,
                                   MKLDNNPlugin::impl_desc_type::gemm_sse42}
-                },
+                },*/
                 conv_test_params{{1, 9, 32, 16},
-                                 2, 4, 1, 1, 0, 0, 17, 1, 5, MKLDNNPlugin::impl_desc_type::ref_any, {MKLDNNPlugin::impl_desc_type::ref_any} }));
+                                 2, 4, 1, 1, 0, 0, 17, 1, 5, MKLDNNPlugin::impl_desc_type::ref_any, {MKLDNNPlugin::impl_desc_type::ref_any} },
+                conv_test_params{{1, 4, 54, 96},
+                                 3, 3, 1, 1, 1, 1, 64, 1, 3, MKLDNNPlugin::impl_desc_type::ref_any,
+                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd, MKLDNNPlugin::impl_desc_type::ref_any}}));
 
 class MKLDNNGraphDynBatchConvolutionTests: public MKLDNNGraphConvolutionTests {
 protected:
@@ -368,17 +388,22 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(
                 conv_test_params{{1, 8, 16, 32},
                                  1, 1, 1, 1, 0, 0, 17, 1, 7, MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1,
-                },
+                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd}},
                 conv_test_params{{1, 9, 32, 16},
-                                 2, 4, 1, 1, 0, 0, 17, 1, 5, MKLDNNPlugin::impl_desc_type::jit },
+                                 2, 4, 1, 1, 0, 0, 17, 1, 5, MKLDNNPlugin::impl_desc_type::jit,
+                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd}},
                 conv_test_params{{1, 9, 32, 16},
-                                 2, 4, 2, 1, 0, 0, 17, 1, 5, MKLDNNPlugin::impl_desc_type::jit },
+                                 2, 4, 2, 1, 0, 0, 17, 1, 5, MKLDNNPlugin::impl_desc_type::jit,
+                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd}},
                 conv_test_params{{1, 3, 40, 40},
-                                 3, 3, 1, 2, 0, 0, 20, 1, 5, MKLDNNPlugin::impl_desc_type::jit },
+                                 3, 3, 1, 2, 0, 0, 20, 1, 5, MKLDNNPlugin::impl_desc_type::jit,
+                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd}},
                 conv_test_params{{1, 1, 40, 40},
-                                 3, 3, 1, 2, 0, 0, 20, 1, 5, MKLDNNPlugin::impl_desc_type::jit },
+                                 3, 3, 1, 2, 0, 0, 20, 1, 5, MKLDNNPlugin::impl_desc_type::jit,
+                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd}},
                 conv_test_params{{1, 1, 32, 16},
-                                 2, 4, 2, 1, 0, 0, 17, 1, 5, MKLDNNPlugin::impl_desc_type::jit },
+                                 2, 4, 2, 1, 0, 0, 17, 1, 5, MKLDNNPlugin::impl_desc_type::jit,
+                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd}},
                 conv_test_params{{1, 9, 16, 32},
                                  1, 1, 1, 1, 0, 0, 17, 1, 7, MKLDNNPlugin::impl_desc_type::gemm,
                                  {MKLDNNPlugin::impl_desc_type::gemm_any,

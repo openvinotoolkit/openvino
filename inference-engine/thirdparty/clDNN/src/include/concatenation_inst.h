@@ -30,9 +30,9 @@ struct typed_program_node<concatenation> : public typed_program_node_base<concat
 public:
     using parent::parent;
 
-    decltype(auto) input(size_t idx = 0) const { return get_dependency(idx); }
+    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
 
-    auto inputs_count() const { return desc->input.size(); }
+    size_t inputs_count() const { return desc->input.size(); }
 };
 
 using concatenation_node = typed_program_node<concatenation>;

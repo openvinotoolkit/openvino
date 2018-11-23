@@ -32,7 +32,6 @@
 
 #include "kernel_selector_common.h"
 #include "kernel_selector_helper.h"
-#include <boost/optional.hpp>
 
 #include <vector>
 
@@ -145,10 +144,10 @@ public:
                      data_type type,
                      T& node,
                      layout const& user_layout)
-        -> std::enable_if_t<
-            meta::is_any_of_v<T, convolution_node, fully_connected_node, deconvolution_node, detection_output_node, embed_node, lstm_gemm_node>,
+        -> typename std::enable_if<
+            meta::is_any_of<T, convolution_node, fully_connected_node, deconvolution_node, detection_output_node, embed_node, lstm_gemm_node>::value,
             meta::deduce_ret_type_t<decltype(&layout_optimizer::create_reorder_if_needed)>
-        >
+        >::type
     {
         auto expected_layout = get_expected_layout(data_layout, type, node, user_layout);
         return create_reorder_if_needed(data_layout, id, expected_layout);
@@ -161,12 +160,12 @@ public:
                      data_type type,
                      T& node,
                      layout const& user_layout)
-        -> std::enable_if_t<
-            !meta::is_any_of_v<T, convolution_node, fully_connected_node, deconvolution_node, detection_output_node, embed_node, lstm_gemm_node>,
+        -> typename std::enable_if<
+            !meta::is_any_of<T, convolution_node, fully_connected_node, deconvolution_node, detection_output_node, embed_node, lstm_gemm_node>::value,
             meta::deduce_ret_type_t<decltype(&layout_optimizer::create_reorder_if_needed)>
-        >
+        >::type
     {
-        static_assert(meta::always_false_v<T>, "Layout optimization for given primitive type is currently unsupported!");
+        static_assert(meta::always_false<T>::value, "Layout optimization for given primitive type is currently unsupported!");
         return meta::deduce_ret_type_t<decltype(&layout_optimizer::create_reorder_if_needed)>();
     }
 

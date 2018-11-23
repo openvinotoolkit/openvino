@@ -15,18 +15,25 @@ ie_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON)
 
 ie_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON)
 
-ie_option (ENABLE_CLDNN_BUILD "build clDnn from sources" OFF)
-
 ie_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON)
 
 ie_option (ENABLE_PROFILING_RAW "Raw counters profiling (just values, no start/stop time or timeline)" OFF)
 
-# "MKL-DNN library might use MKL-ML or OpenBLAS for gemm tasks: OPENBLAS|MKL"
-if (NOT GEMM)
-    set (GEMM "OPENBLAS")
-endif()
+#
 
-ie_option (ENABLE_OMP "MKL-DNN library based on OMP implementation" ON)
+# "MKL-DNN library might use MKL-ML or OpenBLAS for gemm tasks: MKL|OPENBLAS|JIT"
+if (NOT GEMM STREQUAL "MKL" AND NOT GEMM STREQUAL "OPENBLAS" AND NOT GEMM STREQUAL "JIT")
+    set (GEMM "JIT")
+    message(STATUS "GEMM should be set to MKL|OPENBLAS|JIT. Default option is " ${GEMM})
+endif()
+list (APPEND IE_OPTIONS GEMM)
+
+# "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
+if (NOT THREADING STREQUAL "TBB" AND NOT THREADING STREQUAL "OMP" AND NOT THREADING STREQUAL "SEQ")
+    set (THREADING "OMP")
+    message(STATUS "THREADING should be set to TBB|OMP|SEQ. Default option is " ${THREADING})
+endif()
+list (APPEND IE_OPTIONS THREADING)
 
 ie_option (ENABLE_INTEL_OMP "MKL-DNN library based on Intel OMP implementation" ON)
 
@@ -60,4 +67,3 @@ ie_option (ENABLE_PLUGIN_RPATH "enables rpath information to be present in plugi
 
 #name of environment variable stored path to temp directory"
 set (DL_SDK_TEMP  "DL_SDK_TEMP")
-

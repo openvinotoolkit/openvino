@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-from mo.ops.activation import Activation
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-
+from mo.ops.activation import Activation
 
 
 class EluFrontExtractor(FrontExtractorOp):

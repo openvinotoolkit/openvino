@@ -19,7 +19,7 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-CNNNetworkImpl::CNNNetworkImpl() : _targetDevice(TargetDevice::eDefault) {
+CNNNetworkImpl::CNNNetworkImpl(): _targetDevice(TargetDevice::eDefault), _stats(new CNNNetworkStatsImpl()) {
 }
 
 void CNNNetworkImpl::getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept {
@@ -168,6 +168,10 @@ size_t CNNNetworkImpl::getBatchSize() const noexcept {
     // for the latest dim as a batch, we can take the first input
     // and return batch size for it
     SizeVector dims = _inputData.cbegin()->second->getDims();
+    // 3D input layout doesn't have batch notation for input so batch is 1
+    if (dims.size() == 3 || dims.size() == 1) {
+        return 1;
+    }
     return dims.at(dims.size() - 1);
 }
 
@@ -175,8 +179,8 @@ StatusCode
 CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                         ResponseDesc* responseDesc) noexcept {
     try {
-        ShapeInfer::Reshaper reshaper(*this);
-        reshaper.run(inputShapes);
+        if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
+        _reshaper->run(inputShapes);
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
     } catch (const std::exception& e) {
@@ -190,7 +194,16 @@ CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputS
 StatusCode
 CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
                              InferenceEngine::ResponseDesc* resp) noexcept {
-    _shapeInferExts.push_back(extension);
+    try {
+        if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
+        _reshaper->AddExtension(extension);
+    } catch (const InferenceEngineException& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
+    }
     return OK;
 }
 
@@ -198,6 +211,13 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
     auto originalBatchSize = getBatchSize();
     if (originalBatchSize == size)
         return OK;
+    SizeVector dims = _inputData.cbegin()->second->getDims();
+
+    // 3D input layout doesn't have batch notation
+    if (dims.size() == 3 || dims.size() == 1) {
+        return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
+    }
+
     for (auto layer : _data) {
         SizeVector dims = layer.second->getDims();
         // Calculates original size for batch = 1

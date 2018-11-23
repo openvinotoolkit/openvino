@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
@@ -42,7 +41,6 @@ void ref_permute(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBl
     }
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, src.getTensorDesc().getDims(), {orderedDims, prm.order});
 
-#pragma omp parallel for
     for (int i=0; i < src.size(); i++) {
         dst_data[desc.offset(i)] = src_data[src.getTensorDesc().offset(i)];
     }

@@ -54,6 +54,7 @@ struct _jit_avx512_core_u8s8s32x_convolution_fwd_t : public cpu_primitive_t {
                     && utils::one_of(this->cdesc_().prop_kind, forward_training,
                                forward_inference)
                     && this->cdesc_().alg_kind == alg_kind::convolution_direct
+                    && !this->has_zero_dim_memory()
                     && this->cdesc_().dst_desc.data_type == dst_type
                     && utils::implication(this->with_bias(), utils::one_of(
                             this->cdesc_().bias_desc.data_type, data_type::f32,
@@ -77,23 +78,15 @@ struct _jit_avx512_core_u8s8s32x_convolution_fwd_t : public cpu_primitive_t {
     {
         kernel_ = new jit_avx512_core_u8s8s32x_fwd_kernel(conf_.jcp_,
                     *conf_.attr());
-
-        const int nthreads = omp_get_max_threads();
-        ws_per_thread_ = conf_.jcp_.oh * conf_.jcp_.ow * conf_.jcp_.oc_block
-                            * conf_.jcp_.nb_oc_blocking;
-        ws_ = (acc_data_t *)malloc(
-                nthreads * ws_per_thread_ * sizeof(acc_data_t), 64);
     }
 
     ~_jit_avx512_core_u8s8s32x_convolution_fwd_t() {
-        free(ws_);
         delete kernel_;
     };
 
     typedef typename prec_traits<data_type::u8>::type src_data_t;
     typedef typename prec_traits<data_type::s8>::type wei_data_t;
     typedef typename prec_traits<dst_type>::type dst_data_t;
-    typedef typename prec_traits<data_type::s32>::type acc_data_t;
 
     virtual void execute(event_t *e)
     {
@@ -105,8 +98,6 @@ private:
     void execute_forward();
     pd_t conf_;
     jit_avx512_core_u8s8s32x_fwd_kernel *kernel_;
-    size_t ws_per_thread_;
-    acc_data_t *ws_;
 };
 
 template <impl::data_type_t dst_type>

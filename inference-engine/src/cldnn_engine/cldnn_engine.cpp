@@ -19,7 +19,7 @@
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "ie_plugin.hpp"
 #include "ie_plugin_config.hpp"
-#include <caseless.hpp>
+#include "details/caseless.hpp"
 
 #undef min
 #undef max
@@ -36,6 +36,7 @@ using InferenceEngine::DescriptionBuffer;
 using InferenceEngine::TBlob;
 using InferenceEngine::Blob;
 using namespace InferenceEngine;
+using namespace details;
 
 namespace CLDNNPlugin {
 
@@ -115,7 +116,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(InferenceEngine::
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
         plugin = make_ie_compatible_plugin(
-                {1, 2,
+                {1, 4,
 #ifdef CLDNN_VERSION
                  CLDNN_VERSION,
 #else
@@ -148,6 +149,8 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
 
         if (CaselessEq<std::string>()(layer->type, "DetectionOutput")) {
         } else if (CaselessEq<std::string>()(layer->type, "PriorBox")) {
+        } else if (CaselessEq<std::string>()(layer->type, "Proposal")) {
+        } else if (CaselessEq<std::string>()(layer->type, "SimplerNMS")) {
         } else if (CaselessEq<std::string>()(layer->type, "Concat")) {
             concats.push_back(layer);
         } else if (CaselessEq<std::string>()(layer->type, "Const")) {

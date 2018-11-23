@@ -43,12 +43,21 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void setAffinity(const string & target_affinity) except +
         void setParams(const map[string, string] & params_map) except +
         map[string, Blob.Ptr] getWeights() except +
+        void setPrecision(string precision) except +
 
-    # cdef cppclass BlobInfo:
-    #    int layout
-    #    vector[size_t] dims
-    #    string name
-    #    vector[string] inputTo
+    cdef cppclass InputInfo:
+        vector[size_t] dims
+        string precision
+        string layout
+        void setPrecision(string precision)
+        void setLayout(string layout)
+
+    cdef cppclass OutputInfo:
+        vector[size_t] dims
+        string precision
+        string layout
+        void setPrecision(string precision)
+
 
     cdef cppclass ProfileInfo:
         string status
@@ -71,8 +80,9 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         string name
         size_t batch_size
         map[string, vector[size_t]] inputs
-        vector[string] outputs
         map[string, IENetLayer] getLayers() except +
+        map[string, InputInfo] getInputs() except +
+        map[string, OutputInfo] getOutputs() except +
         void addOutputs(vector[string] &, string &) except +
         void setAffinity(map[string, string] &types_affinity_map, map[string, string] &layers_affinity_map) except +
         void setBatch(size_t size) except +

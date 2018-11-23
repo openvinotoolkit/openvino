@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,8 +23,11 @@
 namespace cldnn
 {
 
-static void generate_anchors(unsigned base_size, const std::vector<float>& ratios, const std::vector<float>& scales,    // input
-                             std::vector<proposal_inst::anchor>& anchors);                                              // output
+static void generate_anchors(unsigned base_size, const std::vector<float>& ratios, const std::vector<float>& scales,
+                             std::vector<proposal_inst::anchor>& anchors,
+                             float coordinates_offset,
+                             bool shift_anchors,
+                             bool round_ratios);
 
 
 primitive_type_id proposal_type_id()
@@ -39,7 +42,7 @@ layout proposal_inst::calc_output_layout(proposal_node const& node)
     auto desc = node.get_primitive();
     layout input_layout = node.get_dependency(cls_scores_index).get_output_layout();
 
-    return layout(input_layout.data_type, format::bfyx, { desc->post_nms_topn, 1, CLDNN_ROI_VECTOR_SIZE, 1 });
+    return layout(input_layout.data_type, format::bfyx, { desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1 });
 }
 
 static inline std::string stringify_vector(std::vector<float> v)
@@ -64,7 +67,7 @@ static std::string stringify_port(const program_node & p)
 {
     std::stringstream res;
     auto node_info = p.desc_to_json();
-    node_info.dump(res);
+    node_info->dump(res);
 
     return res.str();
 }
@@ -78,6 +81,11 @@ std::string proposal_inst::to_string(proposal_node const& node)
 
     std::stringstream primitive_description;
 
+    auto swap_xy = desc->swap_xy ? "true" : "false";
+    auto initial_clip = desc->initial_clip ? "true" : "false";
+    auto round_ratios = desc->round_ratios ? "true" : "false";
+    auto shift_anchors = desc->shift_anchors ? "true" : "false";
+
     json_composite proposal_info;
     proposal_info.add("cls score", stringify_port(node.cls_score()));
     proposal_info.add("box pred", stringify_port(node.bbox_pred()));
@@ -86,15 +94,23 @@ std::string proposal_inst::to_string(proposal_node const& node)
     json_composite params;
     params.add("max proposals", desc->max_proposals);
     params.add("iou threshold", desc->iou_threshold);
+    params.add("base bbox size", desc->base_bbox_size);
     params.add("min bbox size", desc->min_bbox_size);
     params.add("pre nms topn", desc->pre_nms_topn);
     params.add("post nms topn", desc->post_nms_topn);
     params.add("ratios", stringify_vector(desc->ratios));
-    params.add("scales", stringify_vector(desc->scales));
+    params.add("ratios", stringify_vector(desc->ratios));
+    params.add("coordinates offset", desc->coordinates_offset);
+    params.add("box coordinate scale", desc->box_coordinate_scale);
+    params.add("box size scale", desc->box_size_scale);
+    params.add("swap xy", swap_xy);
+    params.add("initial clip", initial_clip);
+    params.add("round ratios", round_ratios);
+    params.add("shift anchors", shift_anchors);
     proposal_info.add("params", params);
 
-    node_info.add("proposal info", proposal_info);
-    node_info.dump(primitive_description);
+    node_info->add("proposal info", proposal_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }
@@ -102,102 +118,59 @@ std::string proposal_inst::to_string(proposal_node const& node)
 proposal_inst::typed_primitive_inst(network_impl& network, proposal_node const& node)
     :parent(network, node)
 {
-//    std::vector<float> default_ratios = { 0.5f, 1.0f, 2.0f };
-    int default_size = 16;
-    generate_anchors(default_size, argument.ratios, argument.scales, _anchors);
+    generate_anchors(argument.base_bbox_size, argument.ratios, argument.scales, _anchors, argument.coordinates_offset,
+                     argument.shift_anchors, argument.round_ratios);
 }
 
-static void calc_basic_params(
-        const proposal_inst::anchor& base_anchor,                       // input
-        float& width, float& height, float& x_center, float& y_center)  // output
+
+static void generate_anchors(unsigned int base_size,
+                             const std::vector<float>& ratios,
+                             const std::vector<float>& scales,   // input
+                             std::vector<proposal_inst::anchor>& anchors, // output
+                             float coordinates_offset,
+                             bool shift_anchors,
+                             bool round_ratios)
 {
-    width  = base_anchor.end_x - base_anchor.start_x + 1.0f;
-    height = base_anchor.end_y - base_anchor.start_y + 1.0f;
+    const float base_area = static_cast<float>(base_size * base_size);
+    const float half_base_size = base_size * 0.5f;
+    const float center = 0.5f * (base_size - coordinates_offset);
 
-    x_center = base_anchor.start_x + 0.5f * (width - 1.0f);
-    y_center = base_anchor.start_y + 0.5f * (height - 1.0f);
-}
+    anchors.clear();
+    // enumerate all transformed boxes
+    for (size_t ratio = 0; ratio < ratios.size(); ++ratio) {
+        // transformed width & height for given ratio factors
+        float ratio_w;
+        float ratio_h;
+        if (round_ratios) {
+            ratio_w = std::roundf(std::sqrt(base_area / ratios[ratio]));
+            ratio_h = std::roundf(ratio_w * ratios[ratio]);
+        } else {
+            ratio_w = std::sqrt(base_area / ratios[ratio]);
+            ratio_h = ratio_w * ratios[ratio];
+        }
 
-static std::vector<proposal_inst::anchor> make_anchors(
-        const std::vector<float>& ws,
-        const std::vector<float>& hs,
-        float x_center,
-        float y_center)
-{
-    size_t len = ws.size();
-    assert(hs.size() == len);
+        for (size_t scale = 0; scale < scales.size(); ++scale) {
+            proposal_inst::anchor anchor;
+            // transformed width & height for given scale factors
+            const float scale_w = 0.5f * (ratio_w * scales[scale] - coordinates_offset);
+            const float scale_h = 0.5f * (ratio_h * scales[scale] - coordinates_offset);
 
-    std::vector<proposal_inst::anchor> anchors(len);
+            // (x1, y1, x2, y2) for transformed box
+            anchor.start_x = center - scale_w;
+            anchor.start_y = center - scale_h;
+            anchor.end_x = center + scale_w;
+            anchor.end_y = center + scale_h;
 
-    for (size_t i = 0 ; i < len ; i++)
-    {
-        // transpose to create the anchor
-        anchors[i].start_x = x_center - 0.5f * (ws[i] - 1.0f);
-        anchors[i].start_y = y_center - 0.5f * (hs[i] - 1.0f);
-        anchors[i].end_x   = x_center + 0.5f * (ws[i] - 1.0f);
-        anchors[i].end_y   = y_center + 0.5f * (hs[i] - 1.0f);
+            if (shift_anchors) {
+                anchor.start_x -= half_base_size;
+                anchor.start_y -= half_base_size;
+                anchor.end_x -= half_base_size;
+                anchor.end_y -= half_base_size;
+            }
+
+            anchors.push_back(anchor);
+        }
     }
 
-    return anchors;
 }
-
-static std::vector<proposal_inst::anchor> calc_anchors(
-        const proposal_inst::anchor& base_anchor,
-        const std::vector<float>& scales)
-{
-    float width = 0.0f, height = 0.0f, x_center = 0.0f, y_center = 0.0f;
-
-    calc_basic_params(base_anchor, width, height, x_center, y_center);
-
-    size_t num_scales = scales.size();
-    std::vector<float> ws(num_scales), hs(num_scales);
-
-    for (unsigned int i = 0 ; i < num_scales ; i++)
-    {
-        ws[i] = width * scales[i];
-        hs[i] = height * scales[i];
-    }
-
-    return make_anchors(ws, hs, x_center, y_center);
-}
-
-static std::vector<proposal_inst::anchor> calc_ratio_anchors(
-        const proposal_inst::anchor& base_anchor,
-        const std::vector<float>& ratios)
-{
-    float width = 0.0f, height = 0.0f, x_center = 0.0f, y_center = 0.0f;
-
-    calc_basic_params(base_anchor, width, height, x_center, y_center);
-
-    float size = width * height;
-
-    size_t num_ratios = ratios.size();
-
-    std::vector<float> ws(num_ratios), hs(num_ratios);
-
-    for (unsigned int i = 0 ; i < num_ratios ; i++)
-    {
-        float new_size = size / ratios[i];
-        ws[i] = round(sqrt(new_size));
-        hs[i] = round(ws[i] * ratios[i]);
-    }
-
-    return make_anchors(ws, hs, x_center, y_center);
-}
-
-static void generate_anchors(unsigned int base_size, const std::vector<float>& ratios, const std::vector<float>& scales,   // input
-                     std::vector<proposal_inst::anchor>& anchors)                                                       // output
-{
-    float end = (float)(base_size - 1);        // because we start at zero
-
-    proposal_inst::anchor base_anchor(0.0f, 0.0f, end, end);
-
-    std::vector<proposal_inst::anchor> ratio_anchors = calc_ratio_anchors(base_anchor, ratios);
-
-    for (auto& ratio_anchor : ratio_anchors)
-    {
-        std::vector<proposal_inst::anchor> tmp = calc_anchors(ratio_anchor, scales);
-        anchors.insert(anchors.end(), tmp.begin(), tmp.end());
-    }
-}
-}
+} // namespace cldnn

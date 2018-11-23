@@ -17,9 +17,9 @@
 import logging as log
 
 import networkx as nx
-from tensorflow.core.framework import types_pb2 as tf_types
+from tensorflow.core.framework import types_pb2 as tf_types  # pylint: disable=no-name-in-module
 
-from mo.graph.graph import Node, get_outputs
+from mo.graph.graph import Node
 from mo.middle.passes.fusing.helpers import get_next_operation
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg

@@ -75,7 +75,11 @@ public:
     CNNNetwork getNetwork() {
         // network obj are to be updated upon this call
         if (network.get() == nullptr) {
-            network.reset(new CNNNetwork(actual));
+            try {
+                network.reset(new CNNNetwork(actual));
+            } catch (...) {
+                THROW_IE_EXCEPTION << "Could not allocate memory";
+            }
         }
         return *network.get();
     }

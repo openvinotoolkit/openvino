@@ -6,7 +6,7 @@
 #pragma once
 
 #include <description_buffer.hpp>
-#include "ie_built_in_holder.hpp"
+#include "ie_built_in_impl.hpp"
 #include <map>
 #include <memory>
 #include <string>

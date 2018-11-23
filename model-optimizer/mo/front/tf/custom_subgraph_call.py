@@ -24,6 +24,7 @@ import tensorflow as tf
 
 from mo.front.common.find_unsupported_ops import find_unsupported_ops_subgraphs
 from mo.front.common.layout import convert_shape, nhwc_to_nchw_permute, nchw_to_nhwc_permute
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import update_ie_fields
 from mo.front.tf.extractors.utils import tf_tensor_shape
 from mo.front.tf.partial_infer.tf import get_subgraph_output_tensors, tf_subgraph_infer, \
@@ -94,7 +95,7 @@ def make_shape_4d(shape: np.array):
     :param shape: shape to extend.
     :return: 4D tensor.
     """
-    new_shape = np.array(shape)
+    new_shape = int64_array(shape)
     old_shape_len = len(shape)
 
     for x in range(4 - old_shape_len):  # TODO think about proper way to add additional dimensions considering layout

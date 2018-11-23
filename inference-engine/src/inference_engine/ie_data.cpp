@@ -5,6 +5,7 @@
 
 #include "ie_layers.h"
 #include "ie_data.h"
+#include "blob_factory.hpp"
 #include <memory>
 #include <string>
 #include <map>
@@ -12,25 +13,7 @@
 using namespace InferenceEngine;
 
 Blob::Ptr Blob::CreateFromData(const DataPtr &data) {
-    // TODO Here some decision should be made about the layout.
-    // For now we just pass the layout and use conversion to NCHW for ANY.
-    Layout targetLayout = data->getLayout();
-    if (data->getLayout() == Layout::ANY) {
-        targetLayout = Layout::NCHW;
-    }
-
-    switch (data->getPrecision()) {
-        case Precision::FP32:
-            return std::make_shared<TBlob<float>>(data->getPrecision(), targetLayout, data->getDims());
-        case Precision::Q78:
-        case Precision::I16:
-        case Precision::FP16:
-            return std::make_shared<TBlob<short>>(data->getPrecision(), targetLayout, data->getDims());
-        case Precision::U8:
-            return std::make_shared<TBlob<uint8_t>>(data->getPrecision(), targetLayout, data->getDims());
-        default:
-            THROW_IE_EXCEPTION << "precision is no set";
-    }
+    return CreateBlobFromData(data);
 }
 
 Data::Data(const std::string &name, Precision _precision, Layout layout): precision(_precision), layout(layout),

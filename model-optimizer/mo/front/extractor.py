@@ -19,6 +19,7 @@ import logging as log
 import networkx as nx
 import numpy as np
 
+from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, unique_id, get_node_id_by_name
 from mo.middle.passes.eliminate import reverse_dfs, get_nodes_with_attributes
 from mo.utils import class_registration
@@ -153,8 +154,162 @@ def node_defs_to_str(node: Node):
     return result
 
 
-def update_ie_fields(attrs: dict):
-    attrs.update({
+def update_ie_fields(attrs: dict, ir_version = None):
+    ir_v3_attrs = {
+        'IE': [(
+            'layer',
+            [('id', lambda node: node.node), 'name', 'precision', 'type'],
+            [
+                (
+                    'data',
+                    [
+                        'auto_pad',
+                        'epsilon',
+                        'min',
+                        'max',
+                        ('axis', lambda node: attr_getter(node, 'axis')),
+                        'tiles',
+                        ('dim', lambda node: attr_getter(node, 'dim')),
+                        'num_axes',
+                        ('pool-method', 'pool_method'),
+                        'group',
+                        ('rounding-type', 'rounding_type'),
+                        ('exclude-pad', 'exclude_pad'),
+                        'operation',
+                        'out-size',
+                        'power',
+                        'shift',
+                        'alpha',
+                        'beta',
+                        'coords',
+                        'classes',
+                        'num',
+                        ('local-size', 'local_size'),
+                        'region',
+                        'knorm',
+
+                        'num_classes',
+                        'keep_top_k',
+                        'variance_encoded_in_target',
+                        'code_type',
+                        'share_location',
+                        'nms_threshold',
+                        'confidence_threshold',
+                        'background_label_id',
+                        'top_k',
+                        'eta',
+                        'visualize',
+                        'visualize_threshold',
+                        'save_file',
+                        'output_directory',
+                        'output_name_prefix',
+                        'output_format',
+                        'label_map_file',
+                        'name_size_file',
+                        'num_test_image',
+                        'prob',
+                        'resize_mode',
+                        'height',
+                        'width',
+                        'height_scale',
+                        'width_scale',
+                        'pad_mode',
+                        'pad_value',
+                        'interp_mode',
+
+                        'img_size',
+                        'img_h',
+                        'img_w',
+                        'step',
+                        'step_h',
+                        'step_w',
+                        ('offset', lambda node: attr_getter(node, 'offset')),
+                        'variance',
+                        'flip',
+                        'clip',
+                        ('min_size', lambda node: attr_getter(node, 'min_size')),
+                        ('max_size', lambda node: attr_getter(node, 'max_size')),
+                        ('aspect_ratio', lambda node: attr_getter(node, 'aspect_ratio')),
+                        'decrease_label_id',
+                        'normalized',
+                        'scale_all_sizes',
+
+                        ('type', 'norm_type'),
+                        'eps',
+                        'across_spatial',
+                        'channel_shared',
+
+                        'negative_slope',
+                        'engine',
+
+                        'num_filter',
+                        ('type', 'sample_type'),
+                        ('order', lambda node: attr_getter(node, 'order')),
+
+                        'pooled_h',
+                        'pooled_w',
+                        'spatial_scale',
+
+                        'cls_threshold',
+                        'max_num_proposals',
+                        'iou_threshold',
+                        'min_bbox_size',
+                        'feat_stride',
+                        'pre_nms_topn',
+                        'post_nms_topn',
+                        ('type', lambda node: node['filler_type'] if node.has('filler_type') else None),
+                        ('value', lambda node: node['filler_value'] if node.has('filler_value') else None),
+                        ('output',
+                         lambda node: node.output_shape[node.channel_dims][0] if node.has('output_shape') and node.has(
+                             'channel_dims') else None),
+                        ('input_nodes_names', lambda node: ' '.join(node['input_nodes_names']) if node.has(
+                            'input_nodes_names') else None),
+                        ('output_tensors_names', lambda node: ' '.join(node['output_tensors_names']) if node.has(
+                            'output_tensors_names') else None),
+                        ('real_input_dims', lambda node: ';'.join([' '.join(map(str, shape)) for shape in
+                                                                   node['real_input_dims']])
+                        if node.has('real_input_dims') else None),
+                        ('protobuf', lambda node: node_defs_to_str(node) if node.has('pbs') else None),
+                        {'custom_attributes': None},
+                        ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims])) if node.has_valid('stride') else None),
+                        ('kernel', lambda node: ','.join(map(str, node['kernel_spatial'])) if node.has_valid('kernel_spatial') else None),
+                        ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims])) if node.has_valid('dilation') else None),
+
+                        ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid('pad') else None),
+                        ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1))) if node.has_valid('pad') else None),
+
+                        ('scale', lambda node: attr_getter(node, 'scale')),
+                        'crop_width',
+                        'crop_height',
+                        'write_augmented',
+                        'max_multiplier',
+                        'augment_during_test',
+                        'recompute_mean',
+                        'write_mean',
+                        'mean_per_pixel',
+                        'mode',
+                        'bottomwidth',
+                        'bottomheight',
+                        'chromatic_eigvec',
+                        'kernel_size',
+                        'max_displacement',
+                        'stride_1',
+                        'stride_2',
+                        'single_direction',
+                        'do_abs',
+                        'correlation_type',
+                        'antialias',
+                        'resample_type',
+                        'factor',
+                        'coeff',
+                        ('ratio', lambda node: attr_getter(node, 'ratio'))
+                    ],
+                    []),
+                '@ports',
+                '@consts'])]
+    }
+
+    ir_v2_attrs = {
         'IE': [(
             'layer',
             [('id', lambda node: node.node), 'name', 'precision', 'type'],
@@ -307,13 +462,25 @@ def update_ie_fields(attrs: dict):
                         'antialias',
                         'resample_type',
                         'factor',
-                        'coeff'
-
+                        'coeff',
+                        ('ratio', lambda node: attr_getter(node, 'ratio'))
                     ],
                     []),
                 '@ports',
                 '@consts'])]
-    })
+    }
+
+    ir_version_mapping = {
+        # Default behaviour is IR V3 attributes
+        None: ir_v3_attrs,
+        3: ir_v3_attrs,
+        2: ir_v2_attrs
+    }
+
+    if ir_version not in ir_version_mapping.keys():
+        raise Error("Unrecognized IR version was specified: {}".format(ir_version))
+
+    attrs.update(ir_version_mapping[ir_version])
 
 
 def create_tensor_nodes(graph: nx.MultiDiGraph):
@@ -662,6 +829,7 @@ def add_opoutput(graph: nx.MultiDiGraph, node_name: str, port: int, cut: bool = 
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))
     log.debug(str(graph.node[opoutput_node.id]))
     log.debug("Add edge from {} to {}".format(node_name, opoutput_node.id))
+    return opoutput_node.id
 
 
 def add_output_ops(graph: nx.MultiDiGraph, user_defined_outputs: dict, inputs: dict = None):
@@ -713,7 +881,7 @@ def add_output_ops(graph: nx.MultiDiGraph, user_defined_outputs: dict, inputs: d
                             sinks.append(add_opoutput(graph, node, attrs['out']))
                 else:
                     sinks.append(add_opoutput(graph, node, 0))
-    return graph, sinks
+    return sinks
 
 
 def set_is_input_true(graph: nx.MultiDiGraph, placeholders: list):
@@ -793,6 +961,8 @@ def add_input_ops(graph: nx.MultiDiGraph, user_defined_inputs: dict, before_infe
         edges_to_remove = []
         for node_id in user_defined_inputs:
             for port_and_shape_info in user_defined_inputs[node_id]:
+                if 'added' in port_and_shape_info and port_and_shape_info['added']:
+                    continue
                 shape = port_and_shape_info['shape'] if 'shape' in port_and_shape_info else None
                 port = port_and_shape_info['in'] if 'in' in port_and_shape_info else None
                 smart_node = Node(graph, node_id)
@@ -826,8 +996,7 @@ def add_input_ops(graph: nx.MultiDiGraph, user_defined_inputs: dict, before_infe
                     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False, shape=shape))
                     port_and_shape_info['added'] = True
                 else:
-                    if 'added' in port_and_shape_info and port_and_shape_info['added']:
-                        continue
+
                     # we cut after infer and
                     if n_inputs > 1 and port is not None and port != 0:
                         raise Error('Input port > 0 in --input is not supported if --input_shape is not provided. Node:'
@@ -842,6 +1011,7 @@ def add_input_ops(graph: nx.MultiDiGraph, user_defined_inputs: dict, before_infe
                         if shape is None:
                             raise Error('Shape for tensor "{}" is not defined. Can not proceed. ' + refer_to_faq_msg(41),
                                         first)
+                        port = port if port is not None else edge_attrs['in']
                         inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=True, shape=shape))
                         port_and_shape_info['added'] = True
                         edges_to_remove.append((first, second))
@@ -857,7 +1027,7 @@ def add_input_ops(graph: nx.MultiDiGraph, user_defined_inputs: dict, before_infe
         for output_name in outputs:
             reverse_dfs(graph, output_name, check_input)
 
-    return graph, inputs
+    return inputs
 
 
 def remove_output_ops(graph: nx.MultiDiGraph):
@@ -953,6 +1123,13 @@ class CaffePythonFrontExtractorOp:
         if param_str[0] != '{' and param_str[-1] != '}':
             param_str = '{' + param_str + '}'
         return ast.literal_eval(param_str)
+
+    @staticmethod
+    def check_param(op_cls, attrs):
+        for a in attrs:
+            if a not in op_cls.supported_attrs(op_cls):
+                log.error('Parameter {} is not recognised, please check correctness.\n List of supported parameters is: {}'.format(a, op_cls.supported_attrs(op_cls)), extra={'is_warning':True})
+
 
     @classmethod
     def class_type(cls):

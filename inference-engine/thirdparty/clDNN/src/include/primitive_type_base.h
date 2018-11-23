@@ -29,7 +29,7 @@ namespace cldnn
 template<class PType>
 struct primitive_type_base : ::cldnn_primitive_type
 {
-    static_assert(meta::is_api_primitive_v<PType>, "Primitive type passed to primitive_type_base should derive from cldnn::primitive");
+    static_assert(meta::is_api_primitive<PType>::value, "Primitive type passed to primitive_type_base should derive from cldnn::primitive");
 
     std::shared_ptr<primitive> from_dto(const CLDNN_PRIMITIVE_DESC(primitive)* dto) const override
     {

@@ -19,6 +19,7 @@ import networkx as nx
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
 
+
 class FusedBatchNormTrainingCatch(MiddleReplacementPattern):
     """
     Replaces FusedBatchNorm(input, beta, gamma, mean, variance) with non-constant mean and variance,
@@ -27,14 +28,14 @@ class FusedBatchNormTrainingCatch(MiddleReplacementPattern):
     """
 
     enabled = True
+    replacement_id = "Fused_Batch_Norm_is_training_true_catcher"
 
     def pattern(self):
         return dict(
             nodes=[
                 ('op', dict(kind='op', op='FusedBatchNorm', is_training=True))],
-            edges=[],
-            node_attrs=['kind', 'op', 'is_training'],
-            edge_attrs=[])
+            edges=[]
+        )
 
     def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
         raise Error('FusedBatchNorm doesn\'t support is_training=True. Node {}'.format(match['op'].id))

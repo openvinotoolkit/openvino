@@ -28,10 +28,15 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
+
+protected:
+    void addScaleToPrimitiveAttr(mkldnn::primitive_attr attr) const;
 
 private:
     static Register<MKLDNNConvolutionNode> reg;
     bool withBiases;
+    bool withActivation;
     bool withSum;
     bool isDW;
     bool isMerged;
@@ -46,11 +51,14 @@ private:
     int dw_conv_oc;
     int dw_conv_ih;
     int dw_conv_iw;
-    int dw_conv_kh;
-    int dw_conv_kw;
-    int dw_conv_sh;
-    int dw_conv_sw;
-    std::vector<MKLDNNMemoryPtr> DWConvInternalBlobMemory;
+    std::vector<int> dw_conv_kernel;
+    std::vector<int> dw_conv_strides;
+    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
+
+    InferenceEngine::ConvolutionLayer* convLayer;
+    InferenceEngine::Blob::Ptr wScale, oScale;
+
+    bool lastInInt8Chain;
 };
 
 }  // namespace MKLDNNPlugin

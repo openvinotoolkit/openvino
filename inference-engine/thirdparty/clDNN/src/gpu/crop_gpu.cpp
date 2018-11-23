@@ -44,7 +44,7 @@ public:
         auto ew_params = get_default_params<kernel_selector::eltwise_params>(arg, 1);
         auto ew_optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(arg.get_program());
 
-        ew_params.eltwiseParams.operations.push_back({{ kernel_selector::eltwise_params::InputType::Buffer(0) }, kernel_selector::eltwise_mode::ASSIGN });
+        ew_params.operations.push_back({{ kernel_selector::eltwise_params::InputType::Buffer(0) }, kernel_selector::eltwise_mode::ASSIGN });
 
         const auto& input_layout = arg.input().get_output_layout();
         ew_params.inputs[0] = convert_data_tensor(input_layout, 1, arg.get_primitive()->offsets);

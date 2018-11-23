@@ -72,7 +72,7 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad):
             output = np.int64(np.floor(input / stride))
         residual = input % stride
         mask = residual == 0
-        full_pad = window
+        full_pad = window.copy()
         full_pad[mask] -= stride[mask]
         mask = np.logical_not(mask)
         full_pad[mask] -= input[mask] % stride[mask]

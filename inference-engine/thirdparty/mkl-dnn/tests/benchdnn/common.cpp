@@ -18,8 +18,9 @@
 #include <limits.h>
 #include <assert.h>
 
-#include "common.hpp"
+#include "mkldnn.h"
 
+#include "common.hpp"
 const char *bench_mode2str(bench_mode_t mode) {
     const char *modes[] = {
         "MODE_UNDEF", "CORR", "PERF", "CORR+PERF"
@@ -304,7 +305,8 @@ FILE *open_batch_file(const char *fname) {
     char *fdir = NULL;
     {
         char fname_copy[PATH_MAX];
-        strncpy(fname_copy, fname, PATH_MAX);
+        strncpy(fname_copy, fname, PATH_MAX - 1);
+        fname_copy[PATH_MAX - 1] = '\0';
         fdir = dirname(fname_copy);
     }
 
@@ -314,15 +316,17 @@ FILE *open_batch_file(const char *fname) {
             dir_found = true;
             break;
         }
-    if (!dir_found)
+    if (!dir_found) {
+        SAFE_V(n_paths < max_paths ? OK : FAIL);
         strcpy(search_paths[n_paths++], fdir);
+    }
 
     FILE *fp = fopen(fname, "r");
     if (fp) return fp;
 
     for (int n = 0; n < n_paths; ++n) {
-        char fullname[PATH_MAX];
-        snprintf(fullname, PATH_MAX, "%s/%s", search_paths[n], fname);
+        char fullname[PATH_MAX + 2];
+        snprintf(fullname, PATH_MAX + 2, "%s/%s", search_paths[n], fname);
         fp = fopen(fullname, "r");
         print(50, "batch file used: %s\n", fullname);
         if (fp) break;
@@ -380,4 +384,17 @@ int div_up(const int a, const int b){
 void array_set(char *arr, size_t size) {
     for (size_t i = 0; i < size; ++i)
         arr[i] = 0;
+}
+
+void gemm(const char *layout, const char *transa, const char *transb,
+        int m, int n, int k, const float alpha, const float *a, const int lda,
+        const float *b, const int ldb, const float beta, float *c,
+        const int ldc ) {
+    if (*layout == 'F') {
+        mkldnn_sgemm(transa, transb, &m, &n, &k, &alpha, a, &lda, b, &ldb,
+                &beta, c, &ldc);
+    } else {
+        mkldnn_sgemm(transb, transa, &n, &m, &k, &alpha, b, &ldb, a, &lda,
+                &beta, c, &ldc);
+    }
 }

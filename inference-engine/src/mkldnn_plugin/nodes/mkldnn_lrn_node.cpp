@@ -28,9 +28,9 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
         THROW_IE_EXCEPTION << "Cannot convert lrn layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     isAcrossMaps = lrnLayer->_isAcrossMaps;
     alpha = lrnLayer->_alpha;

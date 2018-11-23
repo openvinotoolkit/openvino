@@ -44,8 +44,8 @@ namespace cldnn
 
         batch_norm_grad_info.add("inv_variance_id", inv_var.id());
 
-        node_info.add("batch_norm_grad info", batch_norm_grad_info);
-        node_info.dump(primitive_description);
+        node_info->add("batch_norm_grad info", batch_norm_grad_info);
+        node_info->dump(primitive_description);
 
         return primitive_description.str();
     }

@@ -16,30 +16,59 @@
 #pragma once
 
 #include "inference_engine.hpp"
-#include "mkldnn/mkldnn_generic_primitive.hpp"
-#include "mkldnn/mkldnn_extension.hpp"
+#include "ie_iextension.h"
 #include <vector>
 
 namespace IECustomExtension {
 
-class TensorflowLayer : public InferenceEngine::MKLDNNPlugin::IMKLDNNGenericPrimitive {
+class TensorflowImplementation : public InferenceEngine::ILayerExecImpl {
 public:
-    explicit TensorflowLayer(const InferenceEngine::CNNLayerPtr& layer) : _layer(layer) {
-        // try to check parameters availability in constructor
-        auto genLayer = reinterpret_cast<InferenceEngine::GenericLayer*>(_layer.get());
-        const std::string protobuf = genLayer->GetParamAsString("protobuf");
-        const std::string input_nodes_names = genLayer->GetParamAsString("input_nodes_names");
-        const std::string output_tensors_names = genLayer->GetParamAsString("output_tensors_names");
+    explicit TensorflowImplementation(const InferenceEngine::CNNLayer *layer): _layer(*layer) {
+        try {
+            protobuf = _layer.GetParamAsString("protobuf");
+            input_nodes_names = _layer.GetParamAsString("input_nodes_names");
+            output_tensors_names = _layer.GetParamAsString("output_tensors_names");
+            real_input_dims = _layer.GetParamAsString("real_input_dims");
+        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+            errorMsg = ex.what();
+        }
     }
 
-    ~TensorflowLayer() override {}
 
-    std::vector<InferenceEngine::MKLDNNPlugin::MKLDNNGenericFormats> GetSupportedFormats() noexcept override;
+    InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf, InferenceEngine::ResponseDesc *resp) noexcept override;
+    InferenceEngine::StatusCode init(InferenceEngine::LayerConfig& config, InferenceEngine::ResponseDesc *resp) noexcept override;
+    InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
+                       InferenceEngine::ResponseDesc *resp) noexcept override;
 
-    void Execute() noexcept override;
+    ~TensorflowImplementation() override {}
 
 private:
-    InferenceEngine::CNNLayerPtr _layer;
+    InferenceEngine::CNNLayer _layer;
+    std::string protobuf;
+    std::string input_nodes_names;
+    std::string output_tensors_names;
+    std::string real_input_dims;
+
+    std::string errorMsg;
+};
+
+class TensorflowFactory : public InferenceEngine::ILayerImplFactory {
+public:
+    explicit TensorflowFactory(const InferenceEngine::CNNLayer *layer): cnnLayer(*layer) {}
+
+    InferenceEngine::StatusCode getShapes(const std::vector<InferenceEngine::TensorDesc>& inShapes, std::vector<InferenceEngine::TensorDesc>& outShapes,
+                         InferenceEngine::ResponseDesc *resp) noexcept override {
+        return InferenceEngine::NOT_IMPLEMENTED;
+    }
+
+    // First implementation has more priority than next
+    InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {
+        impls.push_back(InferenceEngine::ILayerImpl::Ptr(new TensorflowImplementation(&cnnLayer)));
+        return InferenceEngine::OK;
+    }
+
+protected:
+    InferenceEngine::CNNLayer cnnLayer;
 };
 
 }  // namespace IECustomExtension

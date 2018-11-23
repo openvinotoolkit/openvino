@@ -1126,6 +1126,88 @@ TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
         EXPECT_EQ(*(a_ptr++), val);
 }
 
+TEST(reorder_gpu_i32, basic)
+{
+    //  Test for converting data types f32->i32
+    engine engine;
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::i32, format::bfyx, { 2,2,2,2 });
+
+    set_values(input, {
+        1.f, 0.f, 5.f, 1.5f,
+        2.f, 0.f, 6.f, 5.2f,
+        3.f, 0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f, 8.f
+    });
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        reorder("reorder", "input", output_layout));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    int32_t answers[16] = {
+        1, 0, 5, 1,
+        2, 0, 6, 5,
+        3, 0, 7, 12,
+        4, 0, 8, 8
+    };
+
+    int32_t* a_ptr = answers;
+    auto output_ptr = output.pointer<int32_t>();
+    for (auto& val : output_ptr)
+        EXPECT_EQ(*(a_ptr++), val);
+}
+
+TEST(reorder_gpu_i64, basic)
+{
+    //  Test for converting data types f32->i64
+    engine engine;
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
+    layout output_layout(data_types::i64, format::bfyx, { 2,2,2,2 });
+
+    set_values(input, {
+        1.f, 0.f, 5.f, 1.5f,
+        2.f, 0.f, 6.f, 5.2f,
+        3.f, 0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f, 8.f
+    });
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        reorder("reorder", "input", output_layout));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    int64_t answers[16] = {
+        1, 0, 5, 1,
+        2, 0, 6, 5,
+        3, 0, 7, 12,
+        4, 0, 8, 8
+    };
+
+    int64_t* a_ptr = answers;
+    auto output_ptr = output.pointer<int64_t>();
+    for (auto& val : output_ptr)
+        EXPECT_EQ(*(a_ptr++), val);
+}
+
 using namespace cldnn;
 
 class reorder_test : public tests::generic_test

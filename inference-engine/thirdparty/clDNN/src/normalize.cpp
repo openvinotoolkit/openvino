@@ -49,8 +49,8 @@ std::string normalize_inst::to_string(normalize_node const& node)
     normalize_info.add("epsilon", epsilon);
     normalize_info.add("normalization region", norm_region);
 
-    node_info.add("noramlize info", normalize_info);
-    node_info.dump(primitive_description);
+    node_info->add("noramlize info", normalize_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

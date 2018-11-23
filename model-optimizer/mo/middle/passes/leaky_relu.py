@@ -21,7 +21,6 @@ import numpy as np
 
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.relu import ReLU
-from mo.ops.op import Op
 
 
 def _convert_to_leaky_relu_action(graph: nx.MultiDiGraph, matches: dict):
@@ -36,33 +35,29 @@ def _convert_to_leaky_relu_action(graph: nx.MultiDiGraph, matches: dict):
 
     # Check that all nodes satisfies conversion requirements
     if len(eltwise_op.in_nodes()) > 2:
-        log.debug(
-            'Eltwise layer ({}) can not participate in conversion to leaky ReLU due to it has more than two inputs ({})'.format(
-                eltwise_op.id, len(eltwise_op.in_nodes())))
+        log.debug('Eltwise layer ({}) can not participate in conversion to leaky ReLU due to it has more than two '
+                  'inputs ({})'.format(eltwise_op.id, len(eltwise_op.in_nodes())))
         return
 
     if eltwise_op.soft_get('operation') != 'max':
-        log.debug(
-            'Eltwise layer ({}) can not participate in conversion to leaky ReLU due to it has not satisfied operation type ({}) should be max'.format(
-                eltwise_op.id, eltwise_op.soft_get('operation')))
+        log.debug('Eltwise layer ({}) can not participate in conversion to leaky ReLU due to it has not satisfied '
+                  'operation type ({}) should be max'.format(eltwise_op.id, eltwise_op.soft_get('operation')))
         return
 
     if not (power_op.has_valid('scale') and power_op.has_valid('power') and power_op.has_valid('shift')):
-        log.debug(
-            'Power layer ({}) can not participate in conversion to leaky ReLU due to missing attribute (scale, power or shift)'.format(
-                power_op.id))
+        log.debug('Power layer ({}) can not participate in conversion to leaky ReLU due to missing attribute (scale, '
+                  'power or shift)'.format(power_op.id))
         return
 
     if power_op.scale > 1 or power_op.power != 1 or power_op.shift != 0:
-        log.debug(
-            'Power layer ({}) can not participate in conversion to leaky ReLU due to wrong parameters(Scale = {} (should be < 1), Power {} (should be = 1), Shift {} (should be = 0))'.format(
-                power_op.id, power_op.scale, power_op.power, power_op.shift))
+        log.debug('Power layer ({}) can not participate in conversion to leaky ReLU due to wrong parameters(Scale = {} '
+                  '(should be < 1), Power {} (should be = 1), Shift {} (should be = 0))'
+                  ''.format(power_op.id, power_op.scale, power_op.power, power_op.shift))
         return
 
     if len(power_data.out_nodes()) > 1:
-        log.debug(
-            'Power layer({}) can not participate in conversion to leaky ReLU due to it has more than one consumer'.format(
-                power_op.id))
+        log.debug('Power layer({}) can not participate in conversion to leaky ReLU due to it has more than one consumer'
+                  ''.format(power_op.id))
         return
 
     # Disconnect data nodes from ops
@@ -74,8 +69,8 @@ def _convert_to_leaky_relu_action(graph: nx.MultiDiGraph, matches: dict):
     relu_op = ReLU(graph, dict(name="LeakyReLU_", negative_slope=np.array(power_op.scale)))
     relu_op.create_node_with_data(inputs=[input_data], data_nodes=eltwise_data)
 
-    log.debug(
-        'Successful conversion from {} {} to ReLU with negative slope (leaky ReLU)'.format(eltwise_op.id, power_op.id))
+    log.debug('Successful conversion from {} {} to ReLU with negative slope (leaky ReLU)'
+              ''.format(eltwise_op.id, power_op.id))
 
 
 def convert_mul_eltwise_to_leaky_relu(graph: nx.MultiDiGraph):
@@ -99,7 +94,6 @@ def convert_mul_eltwise_to_leaky_relu(graph: nx.MultiDiGraph):
             ('data', 'eltwise_op'),
             ('power_data', 'eltwise_op'),
         ],
-        action=_convert_to_leaky_relu_action,
-        node_attrs=['kind', 'type'],
-        edge_attrs=[])
+        action=_convert_to_leaky_relu_action
+    )
     return graph

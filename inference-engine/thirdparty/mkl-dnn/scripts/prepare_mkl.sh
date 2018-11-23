@@ -15,8 +15,8 @@
 # limitations under the License.
 #===============================================================================
 
-MKLURLROOT="https://github.com/intel/mkl-dnn/releases/download/v0.15/"
-MKLVERSION="2018.0.3.20180406"
+MKLURLROOT="https://github.com/intel/mkl-dnn/releases/download/v0.16/"
+MKLVERSION="2019.0.20180710"
 
 os=`uname`
 if [ "$os" = "Linux" ]; then

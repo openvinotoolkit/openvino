@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 #include <map>
-#include <mkldnn_preprocess_data.hpp>
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 
 namespace MKLDNNPlugin {
@@ -42,27 +41,12 @@ public:
 
     void SetBatch(int batch = -1) override;
 
-    void execDataPreprocessing() {
-        for (auto &input : _inputs) {
-            // If there is a pre-process entry for an input then it must be pre-processed
-            // using preconfigured resize algorithm.
-            auto it = _preProcData.find(input.first);
-            if (it != _preProcData.end()) {
-                _preProcData[input.first].execute(input.second,
-                                                  _networkInputs[input.first]->getPreProcess().getResizeAlgorithm());
-            }
-        }
-    }
-
 private:
     template <typename T> void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob);
 
     void changeDefaultPtr();
     MKLDNNGraph::Ptr graph;
     std::map<std::string, void*> externalPtr;
-    // HOTFIX for openmp resize. Remove this line, execDataPreprocessing()
-    // and mkldnn_preprocess_data files in order to disable this hotfix
-    std::map<std::string, MKLDNNPreProcessData> _preProcData;  // pre-process data per input
 
     int m_curBatch;
 };

@@ -14,8 +14,6 @@
 
 #pragma once
 
-#include "boost/functional/hash.hpp"
-
 #include <initializer_list>
 #include <tuple>
 #include <type_traits>
@@ -199,11 +197,11 @@ template <template <typename> class DefaultValSelectorTTy,
           std::size_t DefaultedStartPos,
           std::size_t Idx,
           typename ArgTy>
-constexpr auto select_arg_or_default(ArgTy&& arg) -> std::decay_t<ArgTy>
+constexpr auto select_arg_or_default(ArgTy&& arg) -> typename std::decay<ArgTy>::type
 {
     return (Idx < DefaultedStartPos)
         ? std::forward<ArgTy>(arg)
-        : DefaultValSelectorTTy<std::decay_t<ArgTy>>::value;
+        : DefaultValSelectorTTy<typename std::decay<ArgTy>::type>::value;
 }
 
 template <template <typename> class DefaultValSelectorTTy,
@@ -211,7 +209,7 @@ template <template <typename> class DefaultValSelectorTTy,
           std::size_t ... Idxs,
           typename ... ArgTys>
 constexpr auto make_partially_defaulted_std_tuple(index_tuple<Idxs ...>&&, ArgTys&& ... args)
-    -> std::tuple<std::decay_t<ArgTys> ...>
+    -> std::tuple<typename std::decay<ArgTys>::type ...>
 {
     return std::make_tuple(
         select_arg_or_default<DefaultValSelectorTTy, DefaultedStartPos, Idxs>(std::forward<ArgTys>(args)) ...);
@@ -221,7 +219,7 @@ constexpr auto make_partially_defaulted_std_tuple(index_tuple<Idxs ...>&&, ArgTy
 template <template <typename> class DefaultValSelectorTTy,
           std::size_t DefaultedStartPos,
           typename ... ArgTys>
-constexpr auto make_partially_defaulted_std_tuple(ArgTys&& ... args) -> std::tuple<std::decay_t<ArgTys> ...>
+constexpr auto make_partially_defaulted_std_tuple(ArgTys&& ... args) -> std::tuple<typename std::decay<ArgTys>::type ...>
 {
     return detail::make_partially_defaulted_std_tuple<DefaultValSelectorTTy, DefaultedStartPos>(
         make_indexer_tt_t<type_tuple<ArgTys ...>>(),
@@ -260,7 +258,7 @@ class kd_selector<KernelDataTy, OuterTy, ReqSelectorCount, mputils::type_tuple<S
 public:
     using key_type = mputils::make_vttype_tt_t<std::tuple, _selector_types>;
 
-    using hash_type = boost::hash<key_type>;
+    using hash_type = std::hash<key_type>;
     using mapped_type = KernelDataTy (*)(const OuterTy&);
     using map_type = std::unordered_map<key_type, mapped_type, hash_type>;
     using value_type = typename map_type::value_type;

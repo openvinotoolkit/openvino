@@ -27,11 +27,11 @@ InputController* DefaultInitializer::createInputController(const CNNLayer* layer
     for (auto const& insData : layer->insData) {
         data.push_back(insData.lock());
     }
-    return new InputController(data, layer->name, false);
+    return new InputController(data, layer->name);
 }
 
 OutputController* DefaultInitializer::createOutputController(const CNNLayer* layer) {
-    return new OutputController(layer->outData, layer->name, false);
+    return new OutputController(layer->outData, layer->name);
 }
 
 ReshapeLauncher::ReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl,
@@ -111,7 +111,7 @@ InputController* FakeInitializer::createInputController(const CNNLayer* layer) {
     for (auto const& insData : layer->insData) {
         outData.push_back(insData.lock());
     }
-    return new InputController(outData, layer->name, true);
+    return new InputController(outData, layer->name);
 }
 
 void FakeInitializer::check(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl) {
@@ -120,7 +120,7 @@ void FakeInitializer::check(const CNNLayer* layer, const IShapeInferImpl::Ptr& i
 }
 
 OutputController* FakeInitializer::createOutputController(const CNNLayer* layer) {
-    return new OutputController(layer->outData, layer->name, true);
+    return new OutputController(layer->outData, layer->name);
 }
 
 FakeReshapeLauncher::FakeReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl)
@@ -137,7 +137,7 @@ void FakeReshapeLauncher::reshape(const std::set<ReshapeLauncher::Ptr>& launcher
         auto irInShape = iShapesIR[i];
         bool equal = std::equal(newInShape.begin(), newInShape.end(), irInShape.begin());
         if (!equal) {
-            return THROW_IE_EXCEPTION
+            THROW_IE_EXCEPTION
                     << "Failed to infer shapes for layer with type: " << _layer->type
                     << ". Use @IShapeInferExtension class to register shape infer function for this layer";
         }
@@ -160,7 +160,7 @@ InputController* OutputOnlyInitializer::createInputController(const CNNLayer* la
 }
 
 OutputController* OutputOnlyInitializer::createOutputController(const CNNLayer* layer) {
-    return new OutputController(layer->outData, layer->name, true);
+    return new OutputController(layer->outData, layer->name);
 }
 
 OutputOnlyReshapeLauncher::OutputOnlyReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl,

@@ -1,15 +1,7 @@
-/**
- * pugixml parser - version 1.7
- * --------------------------------------------------------
- * Copyright (C) 2006-2016, by Arseny Kapoulkine (arseny.kapoulkine@gmail.com)
- * Report bugs and download new versions at http://pugixml.org/
- *
- * This library is distributed under the MIT License. See notice at the end
- * of this file.
- *
- * This work is based on the pugxml parser, which is:
- * Copyright (C) 2003, by Kristen Wegner (kristen@tima.net)
- */
+// Copyright (C) 2018 Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #ifndef HEADER_PUGICONFIG_HPP
 #define HEADER_PUGICONFIG_HPP

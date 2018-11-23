@@ -20,6 +20,7 @@ def l2_normalization_ext(attrs):
     eps = attrs.float('eps', 1e-10)
 
     node_attrs = {
+        'op': 'Normalize',
         'type': 'Normalize',
         'eps': eps,
         'across_spatial': 0,

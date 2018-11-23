@@ -38,7 +38,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
     }
 
     // execute input pre-processing.
-    execDataPreprocessing();
+    execDataPreprocessing(_inputs);
 
     changeDefaultPtr();
     // need to retain converted blobs until infer finish
@@ -146,8 +146,11 @@ void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine
         InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
         InferenceEngine::Precision originPrecision = blobs[name]->getTensorDesc().getPrecision();
         if (_networkInputs.find(name) != _networkInputs.end()) {
-            desc = _networkInputs[name]->getTensorDesc();
-            desc.setPrecision(_networkInputs[name]->getInputPrecision());
+            InferenceEngine::Layout l = _networkInputs[name]->getLayout();
+            InferenceEngine::Precision p = _networkInputs[name]->getPrecision();
+            InferenceEngine::SizeVector dims = _networkInputs[name]->getTensorDesc().getDims();
+
+            desc = InferenceEngine::TensorDesc(p, dims, l);
         }
 
         _inputs[name] = make_blob_with_precision(desc);
@@ -195,33 +198,19 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const char *name, const Inference
     InferenceEngine::DataPtr foundOutput;
     size_t dataSize = data->size();
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        // Only precision is checked for an input with ROI inside (resize algorithm was set for the input).
+        if (foundInput->getInputPrecision() != data->precision()) {
+            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set Blob with precision "
+                               << data->precision();
+        }
+
         if (foundInput->getPreProcess().getResizeAlgorithm() != InferenceEngine::ResizeAlgorithm::NO_RESIZE) {
-            if (foundInput->getInputPrecision() != data->precision()) {
-                THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set Blob with precision "
-                                   << data->precision();
-            }
-            // Stores the given blob as ROI blob. It will be used to fill in a network input during pre-processing.
+            // Stores the given blob as ROI blob. It will be used to fill in network input during pre-processing.
             _preProcData[name].setRoiBlob(data);
         } else {
             size_t inputSize = InferenceEngine::details::product(foundInput->getDims());
             if (dataSize != inputSize) {
                 THROW_IE_EXCEPTION << "Input blob size is not equal network input size ("
                                    << dataSize << "!=" << inputSize << ").";
-            }
-
-            // Checking for the input precision
-            switch (data->precision()) {
-                case InferenceEngine::Precision::FP32:
-                case InferenceEngine::Precision::FP16:
-                case InferenceEngine::Precision::I16:
-                case InferenceEngine::Precision::U16:
-                case InferenceEngine::Precision::U8:
-                    // These Precisions are supported
-                    break;
-                default:
-                    THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set Blob with precision "
-                                       << data->precision();
             }
 
             if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&

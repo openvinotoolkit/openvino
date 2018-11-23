@@ -15,14 +15,15 @@
 """
 
 import copy
+
 import numpy as np
 
 from mo.front.caffe.extractors.utils import weights_biases
 from mo.front.common.extractors.utils import layout_attrs
-from mo.front.common.partial_infer.convolution import calc_convolution_caffe
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
+from mo.ops.convolution import Convolution
 from mo.ops.op import Op
 
 
@@ -36,11 +37,18 @@ class Convolution1DFrontExtractor(FrontExtractorOp):
         mapping_rule = {
             'output': params.output,
             'patch_stride': params.patch_stride,
+            'bias_term': None,
             'pad': int64_array([[0, 0], [0, 0], [0, 0], [0, 0]]),
+            'pad_spatial_shape': int64_array([[0, 0], [0, 0]]),
             'dilation': int64_array([1, 1, 1, 1]),
-            'kernel': int64_array([1, 1, params.kernel, 1]),
-            'stride': int64_array([1, 1, params.stride, 1]),
-            'infer': Convolution1DFrontExtractor.infer
+            'kernel': int64_array([1, 1, 1, params.kernel]),
+            'stride': int64_array([1, 1, 1, params.stride]),
+            'kernel_spatial': int64_array([1, params.kernel]),
+            'input_feature_channel': 1,
+            'output_feature_channel': 0,
+            'kernel_spatial_idx': [2,3],
+            'group': 1,
+            'reshape_kernel': True,
         }
         mapping_rule.update(layout_attrs())
         mapping_rule.update(weights_biases(params.bias_term, params))
@@ -51,15 +59,3 @@ class Convolution1DFrontExtractor(FrontExtractorOp):
 
         Op.get_op_class_by_name('Convolution').update_node_stat(node, mapping_rule)
         return __class__.enabled
-
-    @staticmethod
-    def infer(node: Node) -> None:
-        input_shape = node.in_node().shape
-        output_shape = copy.copy(input_shape)
-        output_shape[node.batch_dims] = input_shape[node.batch_dims]
-        output_shape[node.channel_dims] = node.output
-        output_shape[node.spatial_dims] = calc_convolution_caffe(input_shape[node.spatial_dims],
-                                                                 np.flip(node.stride[node.spatial_dims], axis=0),
-                                                                 np.add.reduce(node.pad, axis=0),
-                                                                 np.flip(node.kernel[node.spatial_dims], axis=0))
-        node.out_node().shape = output_shape

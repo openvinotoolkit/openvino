@@ -21,6 +21,7 @@ import logging as log
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.ops.op import PermuteAttrs
 
 
 def concat_infer(node):
@@ -60,12 +61,16 @@ def concat_infer(node):
         if 'axis' in node.dim_attrs:
             node.dim_attrs.remove('axis')
 
+    PermuteAttrs.create_permute_attrs(node, attrs=[('axis','input:0')])
+
     values = [node.in_node(i).value for i in range(N)]
     if any(v is None for v in values):
         return
 
     node.out_node(0).value = np.concatenate(values, axis=node.axis)
     node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)
+
+
 
 
 def tf_pack_infer(node):

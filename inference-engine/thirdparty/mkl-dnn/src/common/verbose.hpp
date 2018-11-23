@@ -42,8 +42,8 @@ double get_msec();
 #define MKLDNN_VERBOSE_PRB_LEN 384
 
 #define DECL_DAT_AUX_PRB_STRS() \
-    char dat_str[MKLDNN_VERBOSE_PRB_LEN] = {'\0'}; MAYBE_UNUSED(dat_str); \
-    char aux_str[MKLDNN_VERBOSE_PRB_LEN] = {'\0'}; MAYBE_UNUSED(aux_str); \
+    char dat_str[MKLDNN_VERBOSE_DAT_LEN] = {'\0'}; MAYBE_UNUSED(dat_str); \
+    char aux_str[MKLDNN_VERBOSE_AUX_LEN] = {'\0'}; MAYBE_UNUSED(aux_str); \
     char prb_str[MKLDNN_VERBOSE_PRB_LEN] = {'\0'}; MAYBE_UNUSED(prb_str)
 
 inline void verbose_templ(char *buffer, mkldnn_primitive_kind_t prim_kind,

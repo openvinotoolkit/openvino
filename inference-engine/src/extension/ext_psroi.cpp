@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include "ie_parallel.hpp"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -59,8 +60,7 @@ public:
             }
         }
 
-        #pragma omp parallel for schedule(static)
-        for (int n = 0; n < real_rois; n++) {
+        parallel_for(real_rois, [&](int n) {
             const float* bottom_rois = bottom_rois_beginning + n * 5;
             int roi_batch_ind = static_cast<int>(bottom_rois[0]);
             float roi_start_w = static_cast<float>(round(bottom_rois[1])) * spatial_scale_;
@@ -109,18 +109,13 @@ public:
                     }
                 }
             }
-        }
+        });
 
-        #pragma omp parallel for schedule(static)
         for (int n = real_rois; n < nn; n++) {
-            for (int c = 0; c < nc; c++) {
-                for (int h = 0; h < nh; h++) {
-                    for (int w = 0; w < nw; w++) {
-                        int index = n * nc * nh * nw + c * nh * nw + h * nw + w;
-                        dst_data[index] = 0.0f;
-                    }
-                }
-            }
+            parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
+                int index = n * nc * nh * nw + c * nh * nw + h * nw + w;
+                dst_data[index] = 0.0f;
+            });
         }
 
         return OK;

@@ -18,6 +18,7 @@ import networkx as nx
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim, shape_for_layout
 from mo.front.extractor import attr_getter
 from mo.graph.graph import Node
 from mo.ops.op import Op
@@ -71,5 +72,11 @@ class RegionYoloOp(Op):
             flat_dim = np.prod(input_shape[axis: end_axis + 1])
             node.out_node().shape = np.array([*input_shape[:axis], flat_dim, *input_shape[end_axis + 1:]])
         else:
-            channels = (node.classes + node.coords + 1) * len(node.mask)
-            node.out_node().shape = np.array([input_shape[0], channels, input_shape[2], input_shape[3]])
+            layout = node.graph.graph['layout']
+            assert len(layout) == 4
+
+            node.out_node().shape = shape_for_layout(layout,
+                                                     batch=input_shape[get_batch_dim(layout, 4)],
+                                                     features=(node.classes + node.coords + 1) * len(node.mask),
+                                                     height=input_shape[get_height_dim(layout, 4)],
+                                                     width=input_shape[get_width_dim(layout, 4)])

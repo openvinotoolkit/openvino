@@ -37,9 +37,9 @@ public:
     }
 
 
-    decltype(auto) input(size_t idx = 0) const { return get_dependency(idx); }
+    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
     size_t inputs_count() const { return get_dependencies().size() - (output_cf ? 1 : 0); }
-    decltype(auto) output_calibration_factors() const { return get_dependency(inputs_count()); }
+    program_node& output_calibration_factors() const { return get_dependency(inputs_count()); }
     bool output_calibration_term() const { return !get_primitive()->output_calibration_factors.empty(); }
     float get_output_qf() const { return output_qf; }
 
@@ -62,7 +62,7 @@ public:
 public:
     typed_primitive_inst(network_impl& network, eltwise_node const& node);
 
-    decltype(auto) output_calibration_factors_memory() const { return dep_memory(node.inputs_count()); } // because last place should be reserved for calibration factors
+    memory_impl& output_calibration_factors_memory() const { return dep_memory(node.inputs_count()); } // because last place should be reserved for calibration factors
     bool output_calibration_factors_term() const { return node.output_calibration_term(); }
 };
 

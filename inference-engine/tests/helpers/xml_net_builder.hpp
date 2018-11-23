@@ -285,8 +285,8 @@ public:
                             const std::string& precision,
                             std::map<std::string, std::string>* params,
                             InOutData inout,
-                            size_t weightsSize = 0,
-                            size_t biasesSize = 0,
+                            int weightsSize = 0,
+                            int biasesSize = 0,
                             std::string layerDataName = "data") {
         layersNum++;
         auto layerDesc = std::make_shared<LayerDesc>(type, inout);
@@ -318,7 +318,7 @@ public:
         return addLayer("Input", precision, nullptr, inout);
     }
 
-    std::string finish(std::map<std::string, std::string>* edges) {
+    std::string finish(std::vector<std::pair<std::string, std::string>>* edges) {
         auto& exp = xml.close();
         auto& node_edges = exp.node("edges");
 

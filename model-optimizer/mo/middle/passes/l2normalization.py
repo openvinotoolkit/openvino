@@ -99,6 +99,5 @@ def l2_norm_to_norm(graph: nx.MultiDiGraph):
             ('input', 'l2_normalize'),
             ('l2_normalize', 'l2_normalize_data'),
         ],
-        action=l2_norm_to_norm_action,
-        node_attrs=['kind', 'op'],
-        edge_attrs=[])
+        action=l2_norm_to_norm_action
+    )

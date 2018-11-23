@@ -1,4 +1,21 @@
 #!/usr/bin/env python3
+
+"""
+ Copyright (c) 2018 Intel Corporation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+
 import argparse
 import os
 import sys
@@ -18,9 +35,9 @@ def summarize_graph(graph_def):
     placeholders = dict()
     outputs = list()
     graph = tf.Graph()
-    with graph.as_default():
+    with graph.as_default():  # pylint: disable=not-context-manager
         tf.import_graph_def(graph_def, name='')
-    for node in graph.as_graph_def().node:
+    for node in graph.as_graph_def().node:  # pylint: disable=no-member
         if node.op == 'Placeholder':
             node_dict = dict()
             node_dict['type'] = tf.DType(node.attr['dtype'].type).name
@@ -42,10 +59,11 @@ if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_model", type=str, help="Path to tensorflow model", default="")
     parser.add_argument('--input_model_is_text', dest='text',
-                        help='TensorFlow*: treat the input model file in a text protobuf format instead of ' +
-                             'binary, which is default.', action='store_true', default=False)
+                        help='TensorFlow*: treat the input model file as a text protobuf format. If not specified, '
+                             'the Model Optimizer treats it as a binary file by default.', action='store_true',
+                        default=False)
     parser.add_argument('--input_meta', action='store_true',
-                        help='TensorFlow*: treat the input model file in a meta graph def format', default=False)
+                        help='TensorFlow*: treat the input model file as a meta graph def format', default=False)
     parser.add_argument("--input_checkpoint", type=str, help='TensorFlow variables file to load.', default="")
     parser.add_argument('--saved_model_dir', type=str, default="", help="TensorFlow saved_model_dir")
     parser.add_argument('--saved_model_tags', type=str, default="",
@@ -54,7 +72,7 @@ if __name__ == "__main__":  # pragma: no cover
 
     argv = parser.parse_args()
     if not argv.input_model and not argv.saved_model_dir:
-        print("[ ERROR ] Please, provide --input_model and --input_model_is_text if needed or --input_dir for saved " \
+        print("[ ERROR ] Please, provide --input_model and --input_model_is_text if needed or --input_dir for saved "
               "model directory")
         sys.exit(1)
     if argv.input_model and argv.saved_model_dir:

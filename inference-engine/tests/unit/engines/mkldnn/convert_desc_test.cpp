@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "../../../thirdparty/mkl-dnn/src/common/memory_desc_wrapper.hpp"
 #undef UNUSED

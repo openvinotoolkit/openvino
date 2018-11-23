@@ -27,7 +27,7 @@ namespace cldnn
 template <class PType>
 struct internal_primitive_type_base : public ::cldnn_primitive_type
 {
-    static_assert(meta::is_internal_primitive_v<PType>, "Primitive type passed to internal_primitive_type_base should derive from internal_primitive");
+    static_assert(meta::is_internal_primitive<PType>::value, "Primitive type passed to internal_primitive_type_base should derive from internal_primitive");
 
     [[noreturn]]
     std::shared_ptr<primitive> from_dto(const CLDNN_PRIMITIVE_DESC(primitive)*) const override

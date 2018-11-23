@@ -15,12 +15,13 @@
 """
 
 import logging as log
+
 import networkx as nx
 
-from mo.front.common.layout import get_height_dim, get_width_dim
+from extensions.ops.resize_factor_utils import factor_update
+from mo.front.common.layout import get_batch_dim, get_features_dim, get_height_dim, get_width_dim, shape_for_layout
 from mo.graph.graph import Node
 from mo.ops.op import Op
-from extensions.ops.resize_factor_utils import factor_update
 
 
 class ResampleOp(Op):
@@ -55,13 +56,15 @@ class ResampleOp(Op):
 
     @staticmethod
     def resample_infer(node: Node):
-        height_dim = get_height_dim(node.graph.graph['layout'])
-        width_dim = get_width_dim(node.graph.graph['layout'])
+        layout = node.graph.graph['layout']
+        assert len(layout) == 4
 
         input_shape = node.in_node(0).shape
         if input_shape is None:
             return
-        out_shape = input_shape.copy()
+        in_height = input_shape[get_height_dim(layout, 4)]
+        in_width = input_shape[get_width_dim(layout, 4)]
+
         if node.has('fw') and node.fw == 'tf':
             dst_shape = node.in_node(1).value
             if dst_shape is None or len(input_shape) != 4 or len(dst_shape) != 2:
@@ -70,27 +73,30 @@ class ResampleOp(Op):
                     'src/dst shapes: src_shape = {}, dst_shape = {}'.format(node.name, node.op, input_shape, dst_shape))
                 node.type = None  # prevent translation to a valid IE layer
                 return
-            out_shape[height_dim] = dst_shape[0]
-            out_shape[width_dim] = dst_shape[1]
+            out_height = dst_shape[0]
+            out_width = dst_shape[1]
             node.graph.remove_edge(node.in_node(1).id, node.id)
         else:
             if len(node.in_nodes()) == 1:
                 if node.has('width') and node.has('height'):
-                    out_shape[height_dim] = node.height
-                    out_shape[width_dim] = node.width
+                    out_height = node.height
+                    out_width = node.width
                 else:
-                    out_shape[height_dim] = node.factor * input_shape[height_dim]
-                    out_shape[width_dim] = node.factor * input_shape[width_dim]
+                    out_height = node.factor * in_height
+                    out_width = node.factor * in_width
             else:
-                out_shape[height_dim] = node.in_node(1).shape[height_dim]
-                out_shape[width_dim] = node.in_node(1).shape[width_dim]
+                out_height = node.in_node(1).shape[get_height_dim(layout, 4)]
+                out_width = node.in_node(1).shape[get_width_dim(layout, 4)]
 
-        real_factor = [float(out_shape[height_dim])/input_shape[height_dim], float(out_shape[width_dim])/input_shape[width_dim]]
         node.factor = factor_update(
             node.factor,
-            real_factor,
-            [input_shape[height_dim], input_shape[width_dim]],
-            [out_shape[height_dim], out_shape[width_dim]],
+            [float(out_height) / in_height, float(out_width) / in_width],
+            [in_height, in_width],
+            [out_height, out_width],
             node.soft_get('name'))
 
-        node.out_node().shape = out_shape
+        node.out_node().shape = shape_for_layout(layout,
+                                                 batch=input_shape[get_batch_dim(layout, 4)],
+                                                 features=input_shape[get_features_dim(layout, 4)],
+                                                 height=out_height,
+                                                 width=out_width)

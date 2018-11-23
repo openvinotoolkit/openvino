@@ -21,7 +21,7 @@ using namespace HeteroPlugin;
 using namespace std;
 
 static Version heteroPluginDescription = {
-        {1, 2},  // plugin API version
+        {1, 4},  // plugin API version
         CI_BUILD_NUMBER,
         "dliaPlugin"  // plugin description message -
 };
@@ -47,7 +47,8 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(Infer
             tconfig[c.first] = c.second;
         }
     }
-    return std::make_shared<HeteroExecutableNetwork>(network, tconfig, _extensions, _deviceLoaders);
+
+    return std::make_shared<HeteroExecutableNetwork>(network, tconfig, _extensions, _deviceLoaders, error_listener);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -82,11 +83,17 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(
         ResponseDesc *resp) noexcept {
     try {
         plugin = new HeteroPluginBase<Engine>(
-                {{1, 2}, "heteroPlugin", "heteroPlugin"},
+                {{1, 4}, "heteroPlugin", "heteroPlugin"},
                 std::make_shared<Engine>());
         return OK;
     }
     catch (std::exception &ex) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
     }
+}
+
+void Engine::SetLogCallback(IErrorListener &listener) {
+    error_listener = &listener;
+    for (auto& device_loader : _deviceLoaders)
+        device_loader.second->SetLogCallback(*error_listener);
 }

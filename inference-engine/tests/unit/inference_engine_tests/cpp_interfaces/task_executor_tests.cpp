@@ -119,7 +119,8 @@ TEST_F(TaskExecutorTests, canRunMultipleTasksWithExceptionInside) {
     }
 }
 
-TEST_F(TaskExecutorTests, canRunMultipleTasksFromMultipleThreads) {
+// TODO: CVS-11695
+TEST_F(TaskExecutorTests, DISABLED_canRunMultipleTasksFromMultipleThreads) {
     auto taskExecutor = std::make_shared<TaskExecutor>();
     int sharedVar = 0;
     int THREAD_NUMBER = MAX_NUMBER_OF_TASKS_IN_QUEUE;

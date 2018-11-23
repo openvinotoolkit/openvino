@@ -146,8 +146,8 @@ protected:
 
         std::vector<primitive> pipeline;
         auto depthwise_desc = with_bias
-                              ? depthwise_forward::desc(prop_kind::forward_training, p.alg_kind, *data_desc, *weights_desc, *bias_desc)
-                              : depthwise_forward::desc(prop_kind::forward_training, p.alg_kind, *data_desc, *weights_desc);
+                              ? depthwise_forward::desc(prop_kind::forward_training, p.alg_kind, *data_desc, *data_desc, *weights_desc, *bias_desc)
+                              : depthwise_forward::desc(prop_kind::forward_training, p.alg_kind, *data_desc, *data_desc, *weights_desc);
         depthwise_prim_desc.reset(new depthwise_forward::primitive_desc(depthwise_desc, *eng));
 
         auto depthwise = with_bias

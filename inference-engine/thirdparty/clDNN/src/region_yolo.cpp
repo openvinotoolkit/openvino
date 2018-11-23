@@ -69,8 +69,8 @@ namespace cldnn
         region_yolo_info.add("mask_size", mask_size);
 
 
-        node_info.add("region yolo info", region_yolo_info);
-        node_info.dump(primitive_description);
+        node_info->add("region yolo info", region_yolo_info);
+        node_info->dump(primitive_description);
 
         return primitive_description.str();
     }

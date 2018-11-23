@@ -495,7 +495,7 @@ TEST_F(V2FormatParserTest, canParseSumInElementwiseNode) {
         .close()
     END_NET();
 
-     ASSERT_NO_FATAL_FAILURE(assertParseSucceed(content));
+    ASSERT_NO_FATAL_FAILURE(assertParseSucceed(content));
     CNNLayerPtr ewise;
     ASSERT_EQ(OK, net->getLayerByName("e", ewise, nullptr));
     auto *eltwise = dynamic_cast<EltwiseLayer *>(ewise.get());
@@ -506,7 +506,7 @@ TEST_F(V2FormatParserTest, canParseSumInElementwiseNode) {
 TEST_F(V2FormatParserTest, parsesNumberOfLayersCorrectly) {
     string content = MAKE_ALEXNET_FOR_MEAN_TESTS_V2();
 
-     ASSERT_NO_FATAL_FAILURE(assertParseSucceed(content));
+    ASSERT_NO_FATAL_FAILURE(assertParseSucceed(content));
     CNNNetwork network(net.get());
     ASSERT_EQ(network.layerCount(), LAYER_COUNT);
 }

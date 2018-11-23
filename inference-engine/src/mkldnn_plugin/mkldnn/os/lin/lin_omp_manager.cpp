@@ -4,7 +4,7 @@
 //
 
 #include "lin_omp_manager.h"
-
+#include "ie_parallel.hpp"
 #include <fstream>
 #include <set>
 #include <string>
@@ -237,8 +237,6 @@ void Collection::updateCpuInformation(const Processor &processor,
    one core for exclusive use. The number of OpenMP threads is then limited
    to the number of available cores minus one. The amount of CPU cores may
    be limited by system eg. when numactl was used. */
-
-#include <omp.h>
 #include <sched.h>
 
 static const char *openMpEnvVars[] = {
@@ -298,11 +296,9 @@ void OpenMpManager::bindOpenMpThreads(int env_cores) {
         return;
 
     openMpManager.setOpenMpThreadNumberLimit(env_cores);
-    #pragma omp parallel
-    {
-        unsigned logicalCoreId = omp_get_thread_num();
+    InferenceEngine::parallel_nt(0, [&] (unsigned logicalCoreId, int nthr) {
         openMpManager.bindCurrentThreadToLogicalCoreCpu(logicalCoreId);
-    }
+    });
 }
 
 int OpenMpManager::getOpenMpThreadNumber() {
@@ -393,7 +389,7 @@ bool OpenMpManager::isThreadsBindAllowed() {
 
 // Limit of threads to number of logical cores available
 void OpenMpManager::setOpenMpThreadNumberLimit(int env_cores) {
-    omp_set_num_threads(env_cores == 0 ? CPU_COUNT(&currentCoreSet) : 0);
+    parallel_set_num_threads(env_cores == 0 ? CPU_COUNT(&currentCoreSet) : 0);
 }
 
 int OpenMpManager::getCoreNumber() {
@@ -402,20 +398,22 @@ int OpenMpManager::getCoreNumber() {
 
 void OpenMpManager::bindCurrentThreadToLogicalCoreCpu(unsigned logicalCoreId) {
     unsigned physicalCoreId = getPhysicalCoreId(logicalCoreId);
-
+#if IE_THREAD == IE_THREAD_OMP
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET(physicalCoreId, &set);
     sched_setaffinity(0, sizeof(set), &set);
+#endif
 }
 
 void OpenMpManager::bindCurrentThreadToLogicalCoreCpus(unsigned logicalCoreId) {
     unsigned physicalCoreId = getPhysicalCoreId(logicalCoreId);
-
+#if IE_THREAD == IE_THREAD_OMP
     cpu_set_t set;
     CPU_ZERO(&set);
     selectAllCoreCpus(&set, physicalCoreId);
     sched_setaffinity(0, sizeof(set), &set);
+#endif
 }
 
 #endif  // #ifndef APPLE

@@ -31,9 +31,8 @@ class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
             ],
             edges=[
                 ('memory_node', 'data_node', {'out': 0})
-            ],
-            node_attrs=['kind', 'op'],
-            edge_attrs=['in', 'out'])
+            ]
+        )
 
     @staticmethod
     def replace_pattern(graph: nx.MultiDiGraph, match: dict):

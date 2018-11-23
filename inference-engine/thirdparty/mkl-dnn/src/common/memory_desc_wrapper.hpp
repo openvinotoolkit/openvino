@@ -74,6 +74,9 @@ struct memory_desc_wrapper: public c_compatible {
     /** returns true if memory descriptor is zero */
     bool is_zero() const { return ndims() == 0; }
 
+    /** returns true if memory descriptor contains zero as one of its dim */
+    bool has_zero_dim() const { return nelems() == 0; }
+
     /** return the size of data type (a shortcut) */
     size_t data_type_size() const
     { return types::data_type_size(data_type()); }
@@ -82,19 +85,15 @@ struct memory_desc_wrapper: public c_compatible {
      * note: if offset_padding != 0 returns 0 (need to specify the behavior) */
     size_t size() const {
         using namespace mkldnn::impl::memory_format;
-        if (is_zero() || format() == memory_format::any) return 0;
+        if (is_zero() || has_zero_dim() || format() == memory_format::any)
+            return 0;
 
-        assert(utils::one_of(format(), blocked, x, nc, nchw, nhwc, chwn,
-                    nChw8c, nChw16c, oi, io, oihw, ihwo, hwio, hwigo, oIhw8i,
-                    oIhw16i, OIhw8i8o, OIhw16i16o, OIhw8i16o2i, OIhw8o16i2o,
-                    OIhw8o8i, OIhw16o16i, Oihw16o, Ohwi8o, Ohwi16o,
-                    OIhw4i16o4i, goihw, gOIhw8i8o, gOIhw16i16o, gOIhw8i16o2i,
-                    gOIhw8o16i2o, gOIhw8o8i, gOIhw16o16i, gOihw16o, gOhwi8o,
-                    gOhwi16o, IOhw16o16i, gIOhw16o16i, gOIhw4i16o4i, Goihw8g,
-                    Goihw16g, ncdhw, oidhw, goidhw, nCdhw16c, OIdhw16i16o,
-                    gOIdhw16i16o, OIdhw16o16i, gOIdhw16o16i, ndhwc, gOidhw16o,
-                    Oidhw16o, gOdhwi16o, Odhwi16o, ntc, tnc, ldsnc, ldigo,
-                    ldgoi, ldgo, wino_fmt, dhwio, OIdhw8i16o2i, gOIdhw8i16o2i));
+        assert((false
+                    || types::format_normalize(format()) == blocked
+                    || types::is_format_double_blocked(format())
+                    || format() == wino_fmt)
+                && "unknown format");
+
         if (format() == wino_fmt) {
             return wino_desc().size;
         } else {
@@ -108,9 +107,10 @@ struct memory_desc_wrapper: public c_compatible {
             for (int d = 0; d < ndims(); ++d) {
                 auto block = block_dims[d];
                 max_size = nstl::max(max_size,
-                    size_t(padding_dims[d] / block)*strides[0][d]);
+                    size_t(padding_dims[d] / block) * strides[0][d]);
                 if (block > 1)
-                    max_size = nstl::max(max_size, size_t(block*strides[1][d]));
+                    max_size = nstl::max(max_size,
+                            size_t(block * strides[1][d]));
             }
             return max_size * data_type_size();
         }
@@ -303,12 +303,14 @@ inline bool memory_desc_wrapper::operator==(const memory_desc_wrapper &rhs)
     return ndims() == rhs.ndims()
             && utils::array_cmp(dims(), rhs.dims(), ndims())
             && data_type() == rhs.data_type()
-            && (is_blocking_desc()
-                ? blocking_desc_is_equal(
-                    blocking_desc(), rhs.blocking_desc(), ndims())
-                : true)
-            && (is_wino_desc()
-                ? wino_desc_is_equal(wino_desc(), rhs.wino_desc()) : true);
+            && ((is_blocking_desc() && rhs.is_blocking_desc())
+                       || (is_wino_desc() && rhs.is_wino_desc()))
+            && (is_blocking_desc() ? blocking_desc_is_equal(blocking_desc(),
+                                             rhs.blocking_desc(), ndims()) :
+                                     true)
+            && (is_wino_desc() ? wino_desc_is_equal(
+                                         wino_desc(), rhs.wino_desc()) :
+                                 true);
 }
 
 inline bool memory_desc_wrapper::similar_to(const memory_desc_wrapper &rhs,

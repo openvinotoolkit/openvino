@@ -33,12 +33,12 @@ class UselessMergeEraser(MiddleReplacementPattern):
         return dict(
             nodes=[('merge', dict(kind='op', op='Merge')),
                    ('merge_data', dict(kind='data'))],
-            edges=[('merge', 'merge_data')],
-            node_attrs=['kind', 'op'],
-            edge_attrs=[])
+            edges=[('merge', 'merge_data')]
+        )
 
     def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
         if len(graph.in_edges(match['merge'].id)) <= 1:
             erase_node(match['merge'])
             erase_node(match['merge_data'])
-            log.info("Useles Merge op and data nodes was deleted op='{}' data='{}'".format(match['merge'].id, match['merge_data'].id))
+            log.info("Useles Merge op and data nodes was deleted op='{}' data='{}'"
+                     "".format(match['merge'].id, match['merge_data'].id))

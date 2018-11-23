@@ -15,25 +15,20 @@
 *******************************************************************************/
 
 #include <string.h>
+
 #define XBYAK64
 #define XBYAK_NO_OP_NAMES
 
 #include <cpu/xbyak/xbyak_util.h>
-#if defined(_OPENMP)
-#include <omp.h>
-#else // defined(_OPENMP)
-inline int omp_get_max_threads() { return 1; }
-inline int omp_get_num_threads() { return 1; }
-inline int omp_get_thread_num() { return 0; }
-inline int omp_in_parallel() { return 0; }
-#endif
 
 #ifdef _WIN32
 #include <malloc.h>
 #include <windows.h>
 #endif
+#include "xmmintrin.h"
 
 #include "utils.hpp"
+#include "mkldnn_thread.hpp"
 #include "mkldnn.h"
 
 namespace mkldnn {
@@ -94,6 +89,23 @@ FILE *mkldnn_fopen(const char *filename, const char *mode) {
 #endif
 }
 
+THREAD_LOCAL unsigned int mxcsr_save;
+
+void set_rnd_mode(round_mode_t rnd_mode) {
+    mxcsr_save = _mm_getcsr();
+    unsigned int mxcsr = mxcsr_save & ~(3u << 13);
+    switch (rnd_mode) {
+    case round_mode::nearest: mxcsr |= (0u << 13); break;
+    case round_mode::down: mxcsr |= (1u << 13); break;
+    default: assert(!"unreachable");
+    }
+    if (mxcsr != mxcsr_save) _mm_setcsr(mxcsr);
+}
+
+void restore_rnd_mode() {
+    _mm_setcsr(mxcsr_save);
+}
+
 void *malloc(size_t size, int alignment) {
     void *ptr;
 
@@ -115,17 +127,17 @@ void free(void *p) {
 #endif
 }
 
-static Xbyak::util::Cpu cpu;
+static Xbyak::util::Cpu cpu_;
 
 unsigned int get_cache_size(int level, bool per_core) {
     unsigned int l = level - 1;
     // Currently, if XByak is not able to fetch the cache topology
     // we default to 32KB of L1, 512KB of L2 and 1MB of L3 per core.
-    if (cpu.data_cache_levels == 0){
+    if (cpu_.data_cache_levels == 0){
         const int L1_cache_per_core = 32000;
         const int L2_cache_per_core = 512000;
         const int L3_cache_per_core = 1024000;
-        int num_cores = per_core ? 1 : omp_get_max_threads();
+        int num_cores = per_core ? 1 : mkldnn_get_max_threads();
         switch(l){
             case(0): return L1_cache_per_core * num_cores;
             case(1): return L2_cache_per_core * num_cores;
@@ -133,9 +145,9 @@ unsigned int get_cache_size(int level, bool per_core) {
             default: return 0;
         }
     }
-    if (l < cpu.data_cache_levels) {
-        return cpu.data_cache_size[l]
-               / (per_core ? cpu.cores_sharing_data_cache[l] : 1);
+    if (l < cpu_.data_cache_levels) {
+        return cpu_.data_cache_size[l]
+               / (per_core ? cpu_.cores_sharing_data_cache[l] : 1);
     } else
         return 0;
 }

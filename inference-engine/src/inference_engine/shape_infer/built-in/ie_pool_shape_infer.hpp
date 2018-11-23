@@ -5,12 +5,13 @@
 
 #pragma once
 
-#include "ie_built_in_holder.hpp"
+#include "ie_built_in_impl.hpp"
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 #include <cmath>
+#include <v2_format_parser.h>
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -39,12 +40,12 @@ public:
         size_t IC = dims[1];
         size_t IH = dims[2];
         size_t IW = dims[3];
-        size_t KH = poolLayer._kernel_y;
-        size_t KW = poolLayer._kernel_x;
-        size_t SH = poolLayer._stride_y;
-        size_t SW = poolLayer._stride_x;
-        size_t PH = poolLayer._padding_y;
-        size_t PW = poolLayer._padding_x;
+        size_t KH = poolLayer._kernel[Y_AXIS];
+        size_t KW = poolLayer._kernel[X_AXIS];
+        size_t SH = poolLayer._stride[Y_AXIS];
+        size_t SW = poolLayer._stride[X_AXIS];
+        size_t PH = poolLayer._padding[Y_AXIS];
+        size_t PW = poolLayer._padding[X_AXIS];
 
         auto it = poolLayer.params.find("auto_pad");
         std::string padType;
@@ -59,14 +60,31 @@ public:
             OHTemp = std::floor(1.f * IH / SH);
             OWTemp = std::floor(1.f * IW / SW);
         } else {
-            it = poolLayer.params.find("rounding-type");
+            it = std::find_if(
+                poolLayer.params.begin(),
+                poolLayer.params.end(),
+                [](decltype(*poolLayer.params.begin()) & lhs) {
+                    return lhs.first == "rounding-type" || lhs.first  == "rounding_type";
+                });
             bool isCeil = true;
             if (it != poolLayer.params.end()) {
                 if (it->second == "floor") isCeil = false;
             }
-            PR = poolLayer.GetParamAsInt("pad-r", -1);
-            PB = poolLayer.GetParamAsInt("pad-b", -1);
-            if (PR < 0 || PB < 0) {
+
+            auto ir_version = details::BaseCreator::version_;
+            bool isEndPaddingsSet = false;
+            try {
+                if (ir_version == 3) {
+                    auto pads_end = poolLayer.GetParamAsUInts("pads_end");
+                    PR = pads_end[pads_end.size() - 1 - X_AXIS];
+                    PB = pads_end[pads_end.size() - 1 - Y_AXIS];
+                } else if (ir_version < 3) {
+                    PR = poolLayer.GetParamAsInt("pad-r");
+                    PB = poolLayer.GetParamAsInt("pad-b");
+                }
+                isEndPaddingsSet = true;
+            } catch (...) {}
+            if (!isEndPaddingsSet) {
                 OHTemp += (IH + 2.f * PH - KH) / SH;
                 OWTemp += (IW + 2.f * PW - KW) / SW;
             } else {

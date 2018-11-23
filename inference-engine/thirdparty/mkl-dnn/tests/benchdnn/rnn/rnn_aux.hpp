@@ -45,10 +45,6 @@ float relu(float x);
 float drelu(float x);
 float dtanhf(float x);
 
-void gemm(const char *transa, const char *transb, int m, int n, int k,
-        const float *a, int lda, const float *b, int ldb, float *c, int ldc,
-        float beta);
-
 int compare_dat(const rnn_prb_t *p, rnn_data_kind_t kind, dnn_mem_t &mem_dt,
         dnn_mem_t &mem_fp, res_t *r, bool final_compare);
 

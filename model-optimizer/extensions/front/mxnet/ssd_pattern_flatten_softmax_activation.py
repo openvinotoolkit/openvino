@@ -15,16 +15,15 @@
 """
 
 import networkx as nx
-from mo.graph.graph import create_edge
-from mo.front.common.replacement import FrontReplacementSubgraph
+
 from extensions.front.mxnet.ssd_pattern_remove_flatten import SsdPatternRemoveFlatten
 from extensions.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
-
+from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.graph.graph import create_edge
 from mo.ops.reshape import Reshape
 
 
 class SsdPatternFlattenSoftmaxActivation(FrontReplacementSubgraph):
-
     enabled = True
 
     def run_before(self):
@@ -33,14 +32,13 @@ class SsdPatternFlattenSoftmaxActivation(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('softmax_activation', dict(op='SoftmaxActivation')),
+                ('softmax_activation', dict(op='Softmax')),
                 ('multi_box_detection', dict(op='_contrib_MultiBoxDetection'))
             ],
             edges=[
                 ('softmax_activation', 'multi_box_detection', {'in': 1})
-            ],
-            node_attrs=['op'],
-            edge_attrs=['in'])
+            ]
+        )
 
     def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
         """
@@ -57,6 +55,7 @@ class SsdPatternFlattenSoftmaxActivation(FrontReplacementSubgraph):
         """
         softmax_activation = match['softmax_activation']
         multi_box_detection = match['multi_box_detection']
+        softmax_activation['axis'] = -1
         edge_data = graph.get_edge_data(softmax_activation.id, multi_box_detection.id)
         out_port = edge_data[0]['out']
         in_port = edge_data[0]['in']
@@ -64,8 +63,11 @@ class SsdPatternFlattenSoftmaxActivation(FrontReplacementSubgraph):
         symbol_node = dict(
             op='Flatten',
             name=multi_box_detection.name + '/Reshape_',
-            dim=[0,-1]
+            dim=[0, -1],
+            axis=1,
+            end_axis=-1
         )
-        new_reshape_op = Reshape(graph, {'symbol_dict': symbol_node} )
+        new_reshape_op = Reshape(graph, {'symbol_dict': symbol_node})
         new_reshape_node = new_reshape_op.create_node([softmax_activation])
+        new_reshape_node['dim'] = [0, -1]
         create_edge(new_reshape_node, multi_box_detection, in_port=in_port, out_port=out_port)

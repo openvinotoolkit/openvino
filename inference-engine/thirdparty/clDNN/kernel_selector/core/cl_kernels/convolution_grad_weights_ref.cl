@@ -16,14 +16,14 @@
 KERNEL(convolution_grad_weights_gpu_ref)(
     const __global UNIT_TYPE* input_grad,
     __global UNIT_TYPE* output,
-    __global UNIT_TYPE* filter,
+    __global float* filter,
 #if BIAS_TERM
-    __global UNIT_TYPE* bias,
+    __global float* bias,
 #endif
 #if MOMENTUM
-    __global UNIT_TYPE* prev_grad_w,
+    __global float* prev_grad_w,
 #if BIAS_TERM
-    __global UNIT_TYPE* prev_grad_b,
+    __global float* prev_grad_b,
 #endif
 #endif
     const __global UNIT_TYPE* input,
@@ -49,10 +49,10 @@ KERNEL(convolution_grad_weights_gpu_ref)(
 
     for(int b = 0; b < INPUT0_BATCH_NUM; b++)
     {
-        UNIT_TYPE result = UNIT_VAL_ZERO;
+        ACCUMULATOR_TYPE result = ACCUMULATOR_TYPE_ZERO;
 
 #if BIAS_TERM
-        UNIT_TYPE result_bias = UNIT_VAL_ZERO;
+        ACCUMULATOR_TYPE result_bias = ACCUMULATOR_TYPE_ZERO;
 #endif
 
         const uint grad_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_OFM_NUM;
@@ -68,16 +68,16 @@ KERNEL(convolution_grad_weights_gpu_ref)(
                 const bool zero_x = input_offset_x >= INPUT1_SIZE_X || input_offset_x < 0;
 #if BIAS_TERM
                 uint input_grad_idx = grad_split_offset + b*INPUT0_BATCH_PITCH + ofm*INPUT0_FEATURE_PITCH + j*INPUT0_X_PITCH + i*INPUT0_Y_PITCH;
-                UNIT_TYPE grad = input_grad[input_grad_idx];
+                ACCUMULATOR_TYPE grad = TO_ACCUMULATOR_TYPE(input_grad[input_grad_idx]);
 #endif
                 if(!zero_x && !zero_y)
                 {
                     uint input_idx = in_split_offset + b*INPUT1_BATCH_PITCH + ifm*INPUT1_FEATURE_PITCH + (uint)input_offset_x*INPUT1_X_PITCH + (uint)input_offset_y*INPUT1_Y_PITCH;
 #if BIAS_TERM
-                    result = fma(input[input_idx], grad, result);
+                    result = fma(TO_ACCUMULATOR_TYPE(input[input_idx]), grad, result);
 #else
                     uint input_grad_idx = grad_split_offset + b*INPUT0_BATCH_PITCH + ofm*INPUT0_FEATURE_PITCH + j*INPUT0_X_PITCH + i*INPUT0_Y_PITCH;
-                    result = fma(input[input_idx], input_grad[input_grad_idx], result);
+                    result = fma(TO_ACCUMULATOR_TYPE(input[input_idx]), TO_ACCUMULATOR_TYPE(input_grad[input_grad_idx]), result);
 #endif
                 }
 #if BIAS_TERM
@@ -94,7 +94,7 @@ KERNEL(convolution_grad_weights_gpu_ref)(
     }
 
 #if MOMENTUM
-    UNIT_TYPE update_gradient_w = lr * (grad_w + DECAY_RATE * filter[weights_idx]) + prev_grad_w[weights_idx] * MOMENTUM_FACTOR;
+    float update_gradient_w = lr * (grad_w + DECAY_RATE * filter[weights_idx]) + prev_grad_w[weights_idx] * MOMENTUM_FACTOR;
     filter[weights_idx] -= update_gradient_w;
     prev_grad_w[weights_idx] = update_gradient_w;
 #else
@@ -105,7 +105,7 @@ KERNEL(convolution_grad_weights_gpu_ref)(
         if(ifm == 0 && id_x == 0 && id_y == 0)
         {
 #if MOMENTUM
-        UNIT_TYPE update_gradient_b = lr * grad_b + prev_grad_b[ofm] * MOMENTUM_FACTOR;
+        float update_gradient_b = lr * grad_b + prev_grad_b[ofm] * MOMENTUM_FACTOR;
         bias[ofm] -= update_gradient_b;
         prev_grad_b[ofm] = update_gradient_b;
 #else

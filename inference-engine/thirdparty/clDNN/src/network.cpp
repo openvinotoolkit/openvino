@@ -29,8 +29,129 @@
 #include "kernel_selector_helper.h"
 #include <algorithm>
 
+//#define DEBUG_DUMP_PATH "/tmp/dump/"
+#ifdef DEBUG_DUMP_PATH
+#include <iomanip>
+#include <fstream>
+
+#define DUMP_VERBOSE 0
+#define DUMP_SINGLE_LAYER 0
+#define DUMP_LAYER_NAME ""
+#endif
+
 namespace cldnn
 {
+
+#ifdef DEBUG_DUMP_PATH
+static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false)
+    {
+#if defined HALF_HALF_HPP
+        return val;
+#else
+        // FP32 parts extracted from FP16.
+        uint32_t sign = (static_cast<uint16_t>(val) & 0x8000U) << 16;
+        uint32_t mantissa = (static_cast<uint16_t>(val) & 0x3FFU) << 13;
+
+        uint32_t exp_val_f16 = (static_cast<uint16_t>(val) & 0x7C00U) >> 10;
+        uint32_t exp;
+        if (exp_val_f16 == 0)
+        {
+            // Handling +/-0 and denormals.
+            if (mantissa == 0)
+            {
+                exp = 0;
+            }
+            else if (flush_denorm_to_zero)
+            {
+                sign = 0;
+                exp = 0;
+                mantissa = 0;
+            }
+            else
+            {
+                // Denorms conversion to normal numbers.
+                exp = 127 - 15;
+                while (!(mantissa & 0x400000U))
+                {
+                    mantissa <<= 1;
+                    --exp;
+                }
+                mantissa = (mantissa << 1) & 0x7FFFFFU;
+                exp <<= 23;
+            }
+        }
+        else
+        {
+            // Handling +/-infinity, NaN and normal numbers.
+            exp = (exp_val_f16 == 0x1FU ? 0xFFU : exp_val_f16 + 127 - 15) << 23;
+        }
+
+        float ret;
+        reinterpret_cast<uint32_t&>(ret) = sign | exp | mantissa;
+
+        return ret;
+#endif
+    }
+
+    float convert_element(float f)
+    {
+        return f;
+    }
+
+    float convert_element(half_t h)
+    {
+        return convert_half_to_float(h);
+    }
+
+    template <class T>
+    static void dump(memory_impl& mem, std::ofstream& file_stream)
+    {
+        auto&& size = mem.get_layout().size;
+
+        file_stream << "shape: ";
+        file_stream << size.batch[0] << " ";
+        file_stream << size.feature[0] << " ";
+        file_stream << size.spatial[1] << " ";
+        file_stream << size.spatial[0] << " ";
+        file_stream << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
+
+        auto mem_ptr = static_cast<T*>(mem.lock());
+
+        for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b)
+        {
+            for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f)
+            {
+                for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y)
+                {
+                    for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x)
+                    {
+                        cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y));
+                        size_t input_it = mem.get_layout().get_linear_offset(t);
+                        file_stream << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;
+                    }
+                }
+            }
+        }
+
+        mem.unlock();
+    }
+
+    static void log_memory_to_file(memory_impl& mem, std::string layerName)
+    {
+        std::string filename = layerName;
+        std::replace(filename.begin(), filename.end(), '\\', '_');
+        std::replace(filename.begin(), filename.end(), '/', '_');
+        std::replace(filename.begin(), filename.end(), ' ', '_');
+        filename = DEBUG_DUMP_PATH + filename + ".txt";
+
+        std::ofstream file_stream(filename);
+        if (mem.get_layout().data_type == cldnn::data_types::f32)
+            dump<float>(mem, file_stream);
+        else
+            dump<half_t>(mem, file_stream);
+    }
+#endif
+
 /*
 Network_impl will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by const. propagator).
 */
@@ -46,7 +167,6 @@ network_impl::network_impl(const program_impl& program, bool is_internal)
 
     allocate_primitives();
     build_insts_deps();
-    build_exec_order();
 
     _program->dump_memory_pool();
 }
@@ -118,7 +238,8 @@ void network_impl::allocate_primitives()
     auto nodes = _program->get_nodes();
     std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
     nodes_to_allocate.insert(nodes_to_allocate.begin(), nodes.begin(), nodes.end());
-    std::sort(nodes_to_allocate.begin(), nodes_to_allocate.end(), [](auto const& lhs, auto const& rhs)
+    std::sort(nodes_to_allocate.begin(), nodes_to_allocate.end(), [](std::shared_ptr<program_node> const& lhs,
+                                                                     std::shared_ptr<program_node> const& rhs)
     {
         return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
     });
@@ -129,37 +250,6 @@ void network_impl::allocate_primitives()
     }
 }
 
-void network_impl::build_exec_order_vist(program_node* node)
-{
-    if (!(!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())))
-    {
-        return;
-    }
-    auto it = std::find_if(_exec_order.begin(), _exec_order.end(),
-        [&](std::shared_ptr<primitive_inst> inst) 
-    {
-        return inst->id() == node->id();
-    });
-    if (_exec_order.end() != it) //found
-    {
-        return;
-    }
-    for (auto& dep : node->get_dependencies())
-    {
-        build_exec_order_vist(dep);
-    }
-    _exec_order.push_back(get_primitive(node->id()));
-}
-
-void network_impl::build_exec_order()
-{
-    _program->get_nodes().reverse();
-    for (auto& node : _program->get_nodes())
-    {
-        build_exec_order_vist(node.get());
-    }
-    _program->get_nodes().reverse();
-}
 
 void network_impl::build_insts_deps()
 {
@@ -174,9 +264,73 @@ void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& ev
     //Wait for previous execution completion
     reset_execution(false);
 
-    for (auto& inst : _exec_order)
+    for (auto& inst : _program->get_processing_order())
     {
-        execute_primitive(inst, events);
+        if (!inst->is_type<data>() &&
+            !(inst->is_type<mutable_data>() && inst->get_dependencies().empty()))
+        {
+#ifdef DEBUG_DUMP_PATH
+            auto& node = _program->get_node(inst->id());
+
+        std::string layer_name = node.id();
+#if DUMP_VERBOSE
+        std::cerr << get_primitive_info(inst->id()) << std::endl;
+#endif
+#if DUMP_SINGLE_LAYER
+        if (layer_name == DUMP_LAYER_NAME)
+#endif
+        {
+            std::cerr << "Dump " << layer_name << " layer" << std::endl;
+            for (size_t i = 0; i < get_primitive(inst->id())->inputs_memory_count(); i++)
+            {
+                log_memory_to_file(get_primitive(inst->id())->input_memory(i), layer_name + "_src_" + std::to_string(i));
+            }
+        }
+#endif
+            execute_primitive(get_primitive(inst->id()), events);
+            _exec_order.push_back(get_primitive(inst->id()));
+#ifdef DEBUG_DUMP_PATH
+            #if DUMP_SINGLE_LAYER
+        if (layer_name == DUMP_LAYER_NAME)
+#endif
+        {
+            log_memory_to_file(get_primitive(inst->id())->output_memory(), layer_name + "_dst_0");
+        }
+        get_engine().flush_network();
+#endif
+        }
+    }
+
+    for (auto& inst : _program->get_processing_order())
+    {
+        //Special handling for mutable data. The event should be the same as the user or dependency with highest processing_num as
+        //the mutable_data can be updated when is both user or dependency.
+        if (inst->is_type<mutable_data>())
+        {
+            decltype(inst->get_processing_num()) proc_num = 0;
+            for (auto& user : inst->get_users())
+            {
+                auto user_proc_num = user->get_processing_num();
+                if (user_proc_num > proc_num)
+                {
+                    _events[inst->id()] = _events[user->id()];
+                    proc_num = user_proc_num;
+                }
+            }
+
+            if (!inst->get_dependencies().empty())
+            {
+                for (auto& dep : inst->get_dependencies())
+                {
+                    auto dep_proc_num = dep->get_processing_num();
+                    if (dep_proc_num > proc_num)
+                    {
+                        _events[inst->id()] = _events[dep->id()];
+                        proc_num = dep_proc_num;
+                    }
+                }
+            }
+        }
     }
 
     for (auto& dout : _data_outputs) //data primitives are not executed so if they are marked as output we need to add them valid events manually
@@ -260,10 +414,8 @@ refcounted_obj_ptr<event_impl> network_impl::execute_primitive(const std::shared
 {
     auto id = primitive->id();
     auto it = _events.find(id);
-    if(it != _events.end())
-    {
-        return it->second;
-    }
+    bool found = (it != _events.end());
+    CLDNN_ERROR_BOOL(id, "Invalid primitive call ", found, "Primitive " + id + " is tried to be executed for the second time");
 
     event_impl::ptr ev;
     if (!get_engine().get_context()->enabled_single_kernel() || get_engine().get_context()->single_kernel_name() == id)

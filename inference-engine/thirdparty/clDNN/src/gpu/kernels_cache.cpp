@@ -239,13 +239,17 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
         for (const auto& sources : program_source.source)
         {
             auto current_dump_file_name = dump_file_name + std::to_string(part_idx++) + ".cl";
-            boost::optional<std::ofstream> dump_file;
+            std::ofstream dump_file;
 
             if (dump_sources)
             {
-                dump_file.emplace(current_dump_file_name);
-                for (auto& s : sources)
-                    dump_file.get() << s;
+                dump_file.open(current_dump_file_name);
+
+                if (dump_file.good())
+                {
+                    for (auto& s : sources)
+                        dump_file << s;
+                }
             }
 
             try
@@ -255,13 +259,13 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
                 ///Store kernels for serialization process.
                 _context.store_binaries(program.getInfo<CL_PROGRAM_BINARIES>());
 
-                if (dump_sources)
+                if (dump_sources && dump_file.good())
                 {
-                    dump_file.get() << "\n/* Build Log:\n";
+                    dump_file << "\n/* Build Log:\n";
                     for (auto& p : program.getBuildInfo<CL_PROGRAM_BUILD_LOG>())
-                        dump_file.get() << p.second << "\n";
+                        dump_file << p.second << "\n";
 
-                    dump_file.get() << "*/\n";
+                    dump_file << "*/\n";
                 }
 
                 cl::vector<cl::Kernel> kernels;
@@ -275,19 +279,19 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
             }
             catch (const cl::BuildError& err)
             {
-                if (dump_sources)
-                    dump_file.get() << "\n/* Build Log:\n";
+                if (dump_sources && dump_file.good())
+                    dump_file << "\n/* Build Log:\n";
 
                 for (auto& p : err.getBuildLog())
                 {
-                    if (dump_sources)
-                        dump_file.get() << p.second << "\n";
+                    if (dump_sources && dump_file.good())
+                        dump_file << p.second << "\n";
                 
                     err_log += p.second + '\n';
                 }
 
-                if (dump_sources)
-                    dump_file.get() << "*/\n";
+                if (dump_sources && dump_file.good())
+                    dump_file << "*/\n";
             }
             
         }
@@ -350,4 +354,3 @@ void kernels_cache::build_all()
 }
 
 }}
- 

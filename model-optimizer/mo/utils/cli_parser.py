@@ -33,6 +33,7 @@ class CanonicalizePathAction(argparse.Action):
     """
     Expand user home directory paths and convert relative-paths to absolute.
     """
+
     def __call__(self, parser, namespace, values, option_string=None):
         if values is not None:
             list_of_values = list()
@@ -52,6 +53,7 @@ class CanonicalizePathCheckExistenceAction(CanonicalizePathAction):
     Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
     existence.
     """
+
     def __call__(self, parser, namespace, values, option_string=None):
         super().__call__(parser, namespace, values, option_string)
         names = getattr(namespace, self.dest)
@@ -293,20 +295,17 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action=CanonicalizePathAction,
                               type=writable_dir)
     common_group.add_argument('--input_shape',
-                              help='Input shape(s) that should be fed to an input node(s) of the model. ' +
-                                   'Shape is defined as a comma-separated list of integer numbers enclosed in parentheses, ' +
-                                   'for example [1,3,227,227] or [1,227,227,3], where the order of dimensions ' +
-                                   'depends on the framework input layout of the model. ' +
-                                   'For example, [N,C,H,W] is used for Caffe* models and [N,H,W,C] for TensorFlow* models. '
-                                   'Model Optimizer performs necessary transformations ' +
-                                   'to convert the shape to the layout required by Inference Engine (N,C,H,W). '
-                                   'Two types of brackets are allowed to enclose the dimensions: [...] or (...). ' +
-                                   'The shape ' +
-                                   'should not contain undefined dimensions (? or -1) and should ' +
-                                   'fit the dimensions defined in the input ' +
-                                   'operation of the graph. If there are multiple inputs in the model, --input_shape ' +
-                                   'should contain definition of shape for each input separated by a comma, for example: ' +
-                                   '[1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes.')
+                              help='Input shape(s) that should be fed to an input node(s) of the model. '
+                                   'Shape is defined as a comma-separated list of integer numbers enclosed in '
+                                   'parentheses or square brackets, for example [1,3,227,227] or (1,227,227,3), where '
+                                   'the order of dimensions depends on the framework input layout of the model. '
+                                   'For example, [N,C,H,W] is used for Caffe* models and [N,H,W,C] for TensorFlow* '
+                                   'models. Model Optimizer performs necessary transformations to convert the shape to '
+                                   'the layout required by Inference Engine (N,C,H,W). The shape should not contain '
+                                   'undefined dimensions (? or -1) and should fit the dimensions defined in the input '
+                                   'operation of the graph. If there are multiple inputs in the model, --input_shape '
+                                   'should contain definition of shape for each input separated by a comma, for '
+                                   'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes.')
     common_group.add_argument('--scale', '-s',
                               type=float,
                               help='All input values coming from original network inputs will be ' +
@@ -316,11 +315,11 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'is not applied for any input that does not match with ' +
                                    'the original input of the model.')
     common_group.add_argument('--reverse_input_channels',
-                              help='Switches the input channels order from RGB to BGR (or vice versa). ' +
-                                   'Applied to original inputs of the model when and only when ' +
-                                   'a number of channels equals 3. Applied after application of ' +
-                                   '--mean_values and --scale_values options, so numbers in --mean_values and --scale_values ' +
-                                   'go in the order of channels used in the original model.',
+                              help='Switch the input channels order from RGB to BGR (or vice versa). Applied to '
+                                   'original inputs of the model if and only if a number of channels equals 3. Applied '
+                                   'after application of --mean_values and --scale_values options, so numbers in '
+                                   '--mean_values and --scale_values go in the order of channels used in the original '
+                                   'model.',
                               action='store_true')
     common_group.add_argument('--log_level',
                               help='Logger level',
@@ -337,16 +336,16 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--mean_values', '-ms',
                               help='Mean values to be used for the input image per channel. ' +
                                    'Values to be provided in the (R,G,B) or [R,G,B] format. ' +
-                                   'Can be defined for desired input of the model, e.g.: ' +
-                                   '"--mean_values data[255,255,255],info[255,255,255]"' +
-                                   ' The exact meaning and order ' +
+                                   'Can be defined for desired input of the model, for example: ' +
+                                   '"--mean_values data[255,255,255],info[255,255,255]". ' +
+                                   'The exact meaning and order ' +
                                    'of channels depend on how the original model was trained.',
                               default=())
     common_group.add_argument('--scale_values',
                               help='Scale values to be used for the input image per channel. ' +
-                                   'Values are provided in the (R,G,B) or [R,G,B] format.' +
-                                   'Can be defined for desired input of the model, e.g.: ' +
-                                   '"--scale_values data[255,255,255],info[255,255,255]"' +
+                                   'Values are provided in the (R,G,B) or [R,G,B] format. ' +
+                                   'Can be defined for desired input of the model, for example: ' +
+                                   '"--scale_values data[255,255,255],info[255,255,255]". ' +
                                    'The exact meaning and order ' +
                                    'of channels depend on how the original model was trained.',
                               default=())
@@ -358,16 +357,16 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
     common_group.add_argument('--disable_fusing',
-                              help='Turns off fusing of linear operations to Convolution',
+                              help='Turn off fusing of linear operations to Convolution',
                               action='store_true')
     common_group.add_argument('--disable_resnet_optimization',
-                              help='Turns off resnet optimization',
+                              help='Turn off resnet optimization',
                               action='store_true')
     common_group.add_argument('--finegrain_fusing',
                               help='Regex for layers/operations that won\'t be fused. ' +
                                    'Example: --finegrain_fusing Convolution1,.*Scale.*')
     common_group.add_argument('--disable_gfusing',
-                              help='Turns off fusing of grouped convolutions',
+                              help='Turn off fusing of grouped convolutions',
                               action='store_true')
     common_group.add_argument('--move_to_preprocess',
                               help='Move mean values to IR preprocess section',
@@ -389,14 +388,22 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help="Version of Model Optimizer")
 
     common_group.add_argument('--silent',
-                              help='Prevents any output messages except those that correspond to log level equals'
+                              help='Prevent any output messages except those that correspond to log level equals '
                                    'ERROR, that can be set with the following option: --log_level. '
                                    'By default, log level is already ERROR. ',
                               action='store_true',
                               default=False)
-    common_group.add_argument('--freeze_placeholder_with_value', help='Replace input layer with constant node with '
-                                                                      'provided value, e.g.: node_name->True',
+    common_group.add_argument('--freeze_placeholder_with_value', help='Replaces input layer with constant node with '
+                                                                      'provided value, e.g.: "node_name->True"',
                               default=None)
+    common_group.add_argument('--generate_deprecated_IR_V2',
+                              help='Force to generate legacy/deprecated IR V2 to work with previous versions of the'
+                                   ' Inference Engine. The resulting IR may or may not be correctly loaded by'
+                                   ' Inference Engine API (including the most recent and old versions of Inference'
+                                   ' Engine) and provided as a partially-validated backup option for specific'
+                                   ' deployment scenarios. Use it at your own discretion. By default, without this'
+                                   ' option, the Model Optimizer generates IR V3.',
+                              action='store_true')
     return parser
 
 
@@ -443,6 +450,7 @@ def get_tf_cli_options():
         'tensorflow_use_custom_operations_config': '- Use the config file',
         'tensorflow_object_detection_api_pipeline_config': '- Use configuration file used to generate the model with '
                                                            'Object Detection API',
+        'tensorflow_custom_layer_libraries': '- List of shared libraries with TensorFlow custom layers implementation',
         'tensorboard_logdir': '- Path to model dump for TensorBoard'
     }
 
@@ -504,7 +512,7 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
                              help='Mean image to be used for the input. Should be a binaryproto file',
-                             default="",
+                             default=None,
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file_offsets', '-mo',
                              help='Mean image offsets to be used for the input binaryproto file. ' +
@@ -543,17 +551,17 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
 
     tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
     tf_group.add_argument('--input_model_is_text',
-                          help='TensorFlow*: treat the input model file in a text protobuf format ' +
-                               'instead of ' +
-                               'binary, which is default.',
+                          help='TensorFlow*: treat the input model file as a text protobuf format. If not specified, ' +
+                               'the Model Optimizer treats it as a binary file by default.',
                           action='store_true')
-    tf_group.add_argument('--input_checkpoint', type=str, default="", help="TensorFlow*: variables file to load.",
+    tf_group.add_argument('--input_checkpoint', type=str, default=None, help="TensorFlow*: variables file to load.",
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--input_meta_graph',
-                          help='Tensorflow*: a file with a non-trained model before freezing',
+                          help='Tensorflow*: a file with a meta-graph of the model before freezing',
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_file)
-    tf_group.add_argument('--saved_model_dir', default=None, help="TensorFlow*: directory representing non frozen model",
+    tf_group.add_argument('--saved_model_dir', default=None,
+                          help="TensorFlow*: directory representing non frozen model",
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_dirs)
     tf_group.add_argument('--saved_model_tags', type=str, default=None,
@@ -585,6 +593,14 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
                           help='TensorFlow*: dump the input graph to a given directory that should be used with TensorBoard.',
                           default=None,
                           action=CanonicalizePathCheckExistenceAction)
+    tf_group.add_argument('--tensorflow_custom_layer_libraries',
+                          help='TensorFlow*: comma separated list of shared libraries with TensorFlow* custom '
+                               'operations implementation.',
+                          default=None,
+                          action=CanonicalizePathCheckExistenceAction)
+    tf_group.add_argument('--disable_nhwc_to_nchw',
+                          help='Disables default translation from NHWC to NCHW',
+                          action='store_true')
     return parser
 
 
@@ -604,15 +620,15 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
 
     mx_group.add_argument('--input_symbol',
                           help='Symbol file (for example, model-symbol.json) that contains a topology structure ' +
-                                  'and layer attributes',
+                               'and layer attributes',
                           type=str,
                           action=CanonicalizePathCheckExistenceAction)
     mx_group.add_argument("--nd_prefix_name",
                           help="Prefix name for args.nd and argx.nd files.",
-                          default="")
+                          default=None)
     mx_group.add_argument("--pretrained_model_name",
                           help="Pretrained model without extension and epoch number which will be merged with args.nd and argx.nd files.",
-                          default="")
+                          default=None)
     mx_group.add_argument("--save_params_from_nd",
                           action='store_true',
                           help="Enable save built params file from nd files.")
@@ -634,16 +650,16 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser()
         get_common_cli_parser(parser=parser)
 
-    mx_group = parser.add_argument_group('Kaldi-specific parameters')
+    kaldi_group = parser.add_argument_group('Kaldi-specific parameters')
 
-    mx_group.add_argument("--counts",
-                          help="Path to the counts file",
-                          default="",
-                          action=CanonicalizePathCheckExistenceAction)
+    kaldi_group.add_argument("--counts",
+                             help="Path to the counts file",
+                             default=None,
+                             action=CanonicalizePathCheckExistenceAction)
 
-    mx_group.add_argument("--remove_output_softmax",
-                          help="Removes the Softmax layer that is the output layer",
-                          action='store_true')
+    kaldi_group.add_argument("--remove_output_softmax",
+                             help="Removes the Softmax layer that is the output layer",
+                             action='store_true')
     return parser
 
 
@@ -780,6 +796,11 @@ def parse_tuple_pairs(argv_values: str):
     data_str = argv_values
     while True:
         tuples_matches = re.findall(r'[(\[]([0-9., -]+)[)\]]', data_str, re.IGNORECASE)
+        if not tuples_matches :
+            raise Error(
+                "Mean/scale values should be in format: data(1,2,3),info(2,3,4)" +
+                " or just plain set of them without naming any inputs: (1,2,3),(2,3,4). " +
+                refer_to_faq_msg(101), argv_values)
         tuple_value = tuples_matches[0]
         matches = data_str.split(tuple_value)
 
@@ -793,9 +814,8 @@ def parse_tuple_pairs(argv_values: str):
                     # error - tuple with name is also specified
                     raise Error(
                         "Mean/scale values should either contain names of input layers: data(1,2,3),info(2,3,4)" +
-                        " or just plain set of them without naming any inputs: (1,2,3),(2,3,4). " +
-                        "For more information, please refer to to Model Optimizer FAQ, question #84.".format(
-                            argv_values))
+                        " or just plain set of them without naming any inputs: (1,2,3),(2,3,4)." +
+                        refer_to_faq_msg(101), argv_values)
             for match in tuples_matches:
                 res.append(np.fromstring(match, dtype=float, sep=','))
             break
@@ -999,4 +1019,33 @@ def check_positive(value):
         raise argparse.ArgumentTypeError("expected a positive integer value")
 
     return int_value
+
+
+def depersonalize(value: str):
+    if not isinstance(value, str):
+        return value
+    res = []
+    for path in value.split(','):
+        if os.path.isdir(path):
+            res.append('DIR')
+        elif os.path.isfile(path):
+            res.append(os.path.join('DIR', os.path.split(path)[1]))
+        else:
+            res.append(path)
+    return ','.join(res)
+
+
+def get_meta_info(argv: argparse.Namespace):
+    meta_data = {'unset': []}
+    for key, value in argv.__dict__.items():
+        if value is not None:
+            value = depersonalize(value)
+            meta_data[key] = value
+        else:
+            meta_data['unset'].append(key)
+    # The attribute 'k' is treated separately because it points to not existing file by default
+    for key in ['k']:
+        if key in meta_data:
+            meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
+    return meta_data
 

@@ -32,10 +32,15 @@
 
 namespace cldnn
 {
+
+uint32_t primitive_inst::get_network_id() const 
+{
+    return _network.get_id();
+}
+
 event_impl::ptr primitive_inst::execute(const std::vector<event_impl::ptr>& events)
 {
     CLDNN_ERROR_BOOL(id(), "Invalid/unset input", !_has_valid_input, "Cannot execute primitive " + id() + " with invalid/unset input");
-
     on_execute();
 
     if (_exec_deps.size() == 0)
@@ -43,13 +48,29 @@ event_impl::ptr primitive_inst::execute(const std::vector<event_impl::ptr>& even
 
     std::vector<event_impl::ptr> dependencies;
     dependencies.reserve(_exec_deps.size());
-
     for (auto& input : _exec_deps)
     {
-        dependencies.emplace_back(get_network().execute_primitive(input, events));
+        auto id = input->id();
+        try {
+            // if the requested event deos not exits it means that it has not been executed, so the processing_order is wrong or synchronization failed.
+            auto ev = get_network().get_primitive_event(id); 
+            dependencies.emplace_back(ev);
+        }
+        catch (const std::out_of_range& oor) {
+            std::string temp = std::string("internal CLDNN error: execution order corrupted.") + std::string("\n") +  std::string(oor.what() + std::string("\n"));
+            CLDNN_ERROR_MESSAGE(id, temp);
+        }
     }
-
     return _impl->execute(dependencies, *this);  
+}
+
+void primitive_inst::build_deps()
+{
+    if (_deps.empty() && !_node.get_dependencies().empty())
+    {
+        _deps = _network.get_primitives(_node.get_dependencies());
+        _exec_deps = build_exec_deps(_deps);
+    }
 }
 
 primitive_inst::primitive_inst(network_impl& network, program_node const& node, bool allocate_memory)
@@ -61,8 +82,27 @@ primitive_inst::primitive_inst(network_impl& network, program_node const& node, 
 {
     if (allocate_memory)
     {
-        if (node.get_users().size() == 1 && node.get_users().front()->is_type<mutable_data>())
-            _output = node.get_users().front()->as<mutable_data>().get_attached_memory_ptr();
+        //In case when output is mutable_data primitive, and other users dependencies are only used for suychronization,
+        //The output memory of such primitive will be fused with mutable_data
+        auto users = node.get_users();
+        auto user_count = users.size();
+        uint32_t mutable_data_count = 0;
+        for (auto& user : users)
+        {
+            //Get mutable_data nodes count from nodes users
+            if (user->is_type<mutable_data>())
+                mutable_data_count++;
+            //For certain primitives, it is known which dependency is used for synchronization only
+            else if (user->is_type<apply_adam>() && (user->as<apply_adam>().has_additional_dep()) && (user->as<apply_adam>().additional_dep().id() == node.id()))
+                user_count--;
+        }
+
+        if (user_count == 1 && mutable_data_count == 1)
+        {
+            for (auto& user : node.get_users())
+                if (user->is_type<mutable_data>())
+                    _output = user->as<mutable_data>().get_attached_memory_ptr();
+        }
         else
             _output = allocate_output();
     }
@@ -94,13 +134,13 @@ memory_impl::ptr primitive_inst::allocate_output()
     return get_network().get_engine().allocate_memory(layout, _node.id(), get_network_id(), _node.get_memory_dependencies(), true);
 }
 
-std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(std::vector<std::shared_ptr<primitive_inst>> const& mem_deps)
+std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(std::vector<std::shared_ptr<primitive_inst>> const& deps)
 {
     std::vector<std::shared_ptr<primitive_inst>> exec_deps;
-    exec_deps.reserve(mem_deps.size());
-    for (auto& mem_dep : mem_deps)
-        if (mem_dep->get_impl() != nullptr)
-            exec_deps.push_back(mem_dep);
+    exec_deps.reserve(deps.size());
+    for (auto& dep : deps)
+        if (dep->get_impl() != nullptr)
+            exec_deps.push_back(dep);
 
     return exec_deps;
 }
@@ -125,8 +165,8 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
     generic_info.add("deps count", node.get_dependencies().size());
     generic_info.add("deps", ss_inputs.str());
 
-    node_info.add("generic info", generic_info);
-    node_info.dump(primitive_description);
+    node_info->add("generic info", generic_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

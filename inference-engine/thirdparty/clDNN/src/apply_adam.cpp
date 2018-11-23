@@ -53,8 +53,8 @@ std::string apply_adam_inst::to_string(apply_adam_node const& node)
     apply_adam_info.add("beta2", desc->beta2);
     apply_adam_info.add("epsilon", desc->epsilon);
 
-    node_info.add("apply adam info", apply_adam_info);
-    node_info.dump(primitive_description);
+    node_info->add("apply adam info", apply_adam_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

@@ -14,11 +14,11 @@
 
 #include <ade_util.hpp>
 
-#include <typed_graph.hpp>
-#include <helpers/subgraphs.hpp>
+#include <ade/typed_graph.hpp>
+#include <ade/helpers/subgraphs.hpp>
 
-#include <util/filter_range.hpp>
-#include <util/iota_range.hpp>
+#include <ade/util/filter_range.hpp>
+#include <ade/util/iota_range.hpp>
 
 namespace InferenceEngine {
 
@@ -76,7 +76,7 @@ std::vector<LayersSet> splitGraph(ICNNNetwork& network,
     ade::SubgraphSelfReferenceChecker cycleChecker(nodes);
     while (!availableNodes.empty()) {
         auto subgraphs = ade::selectSubgraphs(
-                             util::filter(util::toRange(availableNodes),
+                             ade::util::filter(ade::util::toRange(availableNodes),
                                           [&](const ade::NodeHandle& node) {
             assert(nullptr != node);
             auto layer = tgr.metadata(node).get<CNNLayerMetadata>().layer;
@@ -89,7 +89,7 @@ std::vector<LayersSet> splitGraph(ICNNNetwork& network,
             assert(nullptr != edge);
             auto dstNode = ade::getDstMergeNode(edge, dir);
             assert(nullptr != dstNode);
-            if (!util::contains(availableNodes, dstNode)) {
+            if (!ade::util::contains(availableNodes, dstNode)) {
                 return false;
             }
             auto srcNode = ade::getSrcMergeNode(edge, dir);
@@ -153,7 +153,7 @@ ISplitChecker::GraphSelectionResult DefaultSplitChecker::selectSubgraph(
     assert(!subgraphs.empty());
     std::size_t index = 0;
     auto maxSize = subgraphs[0].size();
-    for (auto i : util::iota(std::size_t(1), subgraphs.size())) {
+    for (auto i : ade::util::iota(std::size_t(1), subgraphs.size())) {
         auto size = subgraphs[i].size();
         if (size > maxSize) {
             index = 1;
@@ -191,7 +191,7 @@ void topoVisitSubgraph(std::vector<SubgraphDesc>& subgraphs,
 void sortSubgraphs(std::vector<LayersSet>& subgraphs) {
     std::vector<SubgraphDesc> descs(subgraphs.size());
 
-    for (auto i : util::iota(subgraphs.size())) {
+    for (auto i : ade::util::iota(subgraphs.size())) {
         auto& subgraph = subgraphs[i];
         assert(!subgraph.empty());
         for (auto&& layer : subgraph) {
@@ -201,9 +201,9 @@ void sortSubgraphs(std::vector<LayersSet>& subgraphs) {
                 assert(nullptr != data);
                 auto prevLayer = data->creatorLayer.lock();
                 if (nullptr != prevLayer) {
-                    for (auto j : util::iota(subgraphs.size())) {
+                    for (auto j : ade::util::iota(subgraphs.size())) {
                         if (i != j) {
-                            if (util::contains(subgraphs[j], prevLayer)) {
+                            if (ade::util::contains(subgraphs[j], prevLayer)) {
                                 descs[i].dependsOn.insert(j);
                                 break;
                             }
@@ -223,7 +223,7 @@ void sortSubgraphs(std::vector<LayersSet>& subgraphs) {
     }
 
     std::vector<LayersSet> ret(subgraphs.size());
-    for (auto i : util::iota(subgraphs.size())) {
+    for (auto i : ade::util::iota(subgraphs.size())) {
         assert(i < descs.size());
         auto& desc = descs[i];
         auto topoIndex = desc.topoIndex;

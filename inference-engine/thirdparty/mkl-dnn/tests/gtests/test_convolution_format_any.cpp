@@ -16,10 +16,11 @@
 
 #include "mkldnn_test_common.hpp"
 #include "gtest/gtest.h"
+#include "cpu_isa_traits.hpp"
 
 #include "mkldnn.hpp"
-
 namespace mkldnn {
+
 using fmt = memory::format;
 
 #define EXP_VALS_NUM 3
@@ -50,6 +51,12 @@ protected:
     }
     virtual void SetUp()
     {
+        // Skip this test if the library cannot select blocked format a priori.
+        // Currently blocking is supported only for sse42 and later CPUs.
+        bool implementation_supports_blocking
+            = impl::cpu::mayiuse(impl::cpu::sse42);
+        if (!implementation_supports_blocking) return;
+
         conv_any_fmt_test_params p = ::testing::
                 TestWithParam<conv_any_fmt_test_params>::GetParam();
 

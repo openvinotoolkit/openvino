@@ -1,7 +1,7 @@
 #include "ocl_base_event.h"
 
 #include <cassert>
-
+#include <iostream>
 using namespace cldnn;
 using namespace gpu;
 
@@ -65,18 +65,17 @@ bool base_event::add_event_handler_impl(cldnn_event_handler, void*)
     return true;
 }
 
+static const std::vector<profiling_period_ocl_start_stop> profiling_periods
+{
+    { "submission", CL_PROFILING_COMMAND_QUEUED, CL_PROFILING_COMMAND_SUBMIT },
+    { "starting",   CL_PROFILING_COMMAND_SUBMIT, CL_PROFILING_COMMAND_START },
+    { "executing",  CL_PROFILING_COMMAND_START,  CL_PROFILING_COMMAND_END },
+};
+
 bool base_event::get_profiling_info_impl(std::list<cldnn_profiling_interval>& info)
 {
     if (!is_event_profiled(_event))
         return true;
-
-    static const std::vector<profiling_period_ocl_start_stop> profiling_periods
-    {
-        { "submission", CL_PROFILING_COMMAND_QUEUED, CL_PROFILING_COMMAND_SUBMIT },
-        { "starting",   CL_PROFILING_COMMAND_SUBMIT, CL_PROFILING_COMMAND_START },
-        { "executing",  CL_PROFILING_COMMAND_START,  CL_PROFILING_COMMAND_END },
-    };
-
 
     for (auto& period : profiling_periods)
     {
@@ -88,6 +87,73 @@ bool base_event::get_profiling_info_impl(std::list<cldnn_profiling_interval>& in
 
         info.push_back({ period.name, end - start });
     }
+
+    return true;
+}
+
+void base_events::wait_impl()
+{
+    if (!_events.empty())
+    {
+        for (size_t i = 0; i < _events.size(); i++)
+        {
+            _events[i]->wait();
+        }
+    }
+}
+
+bool base_events::is_set_impl()
+{
+    if (!_events.empty())
+    {
+        for (size_t i = 0; i < _events.size(); i++)
+        {
+            if (!_events[i]->is_set())
+                return false;
+        }
+        return true;
+    }
+    return true;
+}
+
+bool base_events::get_profiling_info_impl(std::list<cldnn_profiling_interval>& info)
+{
+    cl_ulong min_queue = CL_ULONG_MAX;
+    cl_ulong min_sub = CL_ULONG_MAX;
+    cl_ulong min_start = CL_ULONG_MAX;
+    uint64_t execution_time = 0;
+
+    for (size_t i = 0; i < _events.size(); i++)
+    {
+
+        auto be = dynamic_cast<base_event*>(_events[i].get());
+        if (!is_event_profiled(be->_event))
+            continue;
+
+        cl_ulong curr_queue;
+        cl_ulong curr_sub;
+        cl_ulong curr_start;
+        cl_ulong curr_end;
+        be->_event.getProfilingInfo(CL_PROFILING_COMMAND_QUEUED, &curr_queue);
+        be->_event.getProfilingInfo(CL_PROFILING_COMMAND_SUBMIT, &curr_sub);
+        be->_event.getProfilingInfo(CL_PROFILING_COMMAND_START, &curr_start);
+        be->_event.getProfilingInfo(CL_PROFILING_COMMAND_END, &curr_end);
+
+        if (curr_queue < min_queue)
+            min_queue = curr_queue;
+        
+        if (curr_sub < min_sub)
+            min_sub = curr_sub;
+        
+        if (curr_start < min_start)
+            min_start = curr_start;
+
+        execution_time += curr_end - curr_start;
+    }
+
+    info.push_back({ profiling_periods[0].name, min_sub - min_queue } );
+    info.push_back({ profiling_periods[1].name, min_start - min_sub } );
+    info.push_back({ profiling_periods[2].name, execution_time } );
 
     return true;
 }

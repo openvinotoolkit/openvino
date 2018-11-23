@@ -191,6 +191,16 @@ status_t fill_nCdhw16c(memory_desc_t &md) {
     return fill_contiguous_blocked(md, block_dims, perm);
 }
 
+status_t fill_nCdhw8c(memory_desc_t &md) {
+    if (md.ndims != 5) return invalid_arguments;
+
+    const dims_t block_dims = {1, 8, 1, 1, 1};
+    const int perm[] = {
+        0, 1, 2, 3, 4,
+        5, 6, 7, 8, 9};
+    return fill_contiguous_blocked(md, block_dims, perm);
+}
+
 status_t fill_oi(memory_desc_t &md) {
     if (md.ndims != 2) return invalid_arguments;
 
@@ -263,6 +273,16 @@ status_t fill_OIdhw16i16o(memory_desc_t &md) {
     return fill_contiguous_blocked(md, block_dims, perm);
 }
 
+status_t fill_OIdhw8i8o(memory_desc_t &md) {
+    if (md.ndims != 5) return invalid_arguments;
+
+    const dims_t block_dims = {8, 8, 1, 1, 1};
+    const int perm[] = {
+        0, 1, 2, 3, 4,
+        6, 5, 7, 8, 9};
+    return fill_contiguous_blocked(md, block_dims, perm);
+}
+
 status_t fill_OIhw4i16o4i(memory_desc_t &md) {
     if (md.ndims != 4) return invalid_arguments;
 
@@ -317,6 +337,16 @@ status_t fill_OIdhw16o16i(memory_desc_t &md) {
     if (md.ndims != 5) return invalid_arguments;
 
     const dims_t block_dims = {16, 16, 1, 1, 1};
+    const int perm[] = {
+        0, 1, 2, 3, 4,
+        5, 6, 7, 8, 9};
+    return fill_contiguous_blocked(md, block_dims, perm);
+}
+
+status_t fill_OIdhw8o8i(memory_desc_t &md) {
+    if (md.ndims != 5) return invalid_arguments;
+
+    const dims_t block_dims = {8, 8, 1, 1, 1};
     const int perm[] = {
         0, 1, 2, 3, 4,
         5, 6, 7, 8, 9};
@@ -393,6 +423,16 @@ status_t fill_Odhwi16o(memory_desc_t &md) {
     return fill_contiguous_blocked(md, block_dims, perm);
 }
 
+status_t fill_Odhwi8o(memory_desc_t &md) {
+    if (md.ndims != 5) return invalid_arguments;
+
+    const dims_t block_dims = {8, 1, 1, 1, 1};
+    const int perm[] = {
+        0, 2, 3, 4, 1,
+        5, 6, 7, 8, 9};
+    return fill_contiguous_blocked(md, block_dims, perm);
+}
+
 status_t fill_goihw(memory_desc_t &md) {
     if (md.ndims != 5) return invalid_arguments;
 
@@ -431,6 +471,16 @@ status_t fill_gOIdhw16i16o(memory_desc_t &md) {
     if (md.ndims != 6) return invalid_arguments;
 
     const dims_t block_dims = {1, 16, 16, 1, 1, 1};
+    const int perm[] = {
+        0, 1, 2, 3, 4, 5,
+        6, 8, 7, 9, 10, 11};
+    return fill_contiguous_blocked(md, block_dims, perm);
+}
+
+status_t fill_gOIdhw8i8o(memory_desc_t &md) {
+    if (md.ndims != 6) return invalid_arguments;
+
+    const dims_t block_dims = {1, 8, 8, 1, 1, 1};
     const int perm[] = {
         0, 1, 2, 3, 4, 5,
         6, 8, 7, 9, 10, 11};
@@ -481,6 +531,16 @@ status_t fill_gOdhwi16o(memory_desc_t &md) {
     if (md.ndims != 6) return invalid_arguments;
 
     const dims_t block_dims = {1, 16, 1, 1, 1, 1};
+    const int perm[] = {
+        0, 1, 3, 4, 5, 2,
+        6, 7, 8, 9, 10, 11};
+    return fill_contiguous_blocked(md, block_dims, perm);
+}
+
+status_t fill_gOdhwi8o(memory_desc_t &md) {
+    if (md.ndims != 6) return invalid_arguments;
+
+    const dims_t block_dims = {1, 8, 1, 1, 1, 1};
     const int perm[] = {
         0, 1, 3, 4, 5, 2,
         6, 7, 8, 9, 10, 11};
@@ -561,6 +621,16 @@ status_t fill_gOIdhw16o16i(memory_desc_t &md) {
     if (md.ndims != 6) return invalid_arguments;
 
     const dims_t block_dims = {1, 16, 16, 1, 1, 1};
+    const int perm[] = {
+        0, 1, 2, 3, 4, 5,
+        6, 7, 8, 9, 10, 11};
+    return fill_contiguous_blocked(md, block_dims, perm);
+}
+
+status_t fill_gOIdhw8o8i(memory_desc_t &md) {
+    if (md.ndims != 6) return invalid_arguments;
+
+    const dims_t block_dims = {1, 8, 8, 1, 1, 1};
     const int perm[] = {
         0, 1, 2, 3, 4, 5,
         6, 7, 8, 9, 10, 11};
@@ -679,15 +749,22 @@ status_t memory_desc_wrapper::compute_blocking(memory_desc_t &memory_desc)
     case ndhwc: return fill_ndhwc(memory_desc);
     case oidhw: return fill_oidhw(memory_desc);
     case goidhw: return fill_goidhw(memory_desc);
+    case nCdhw8c: return fill_nCdhw8c(memory_desc);
     case nCdhw16c: return fill_nCdhw16c(memory_desc);
     case OIdhw16i16o: return fill_OIdhw16i16o(memory_desc);
     case gOIdhw16i16o: return fill_gOIdhw16i16o(memory_desc);
+    case OIdhw8i8o: return fill_OIdhw8i8o(memory_desc);
+    case gOIdhw8i8o: return fill_gOIdhw8i8o(memory_desc);
     case OIdhw16o16i: return fill_OIdhw16o16i(memory_desc);
     case gOIdhw16o16i: return fill_gOIdhw16o16i(memory_desc);
+    case OIdhw8o8i: return fill_OIdhw8o8i(memory_desc);
+    case gOIdhw8o8i: return fill_gOIdhw8o8i(memory_desc);
     case Oidhw16o: return fill_Oidhw16o(memory_desc);
     case Odhwi16o: return fill_Odhwi16o(memory_desc);
+    case Odhwi8o: return fill_Odhwi8o(memory_desc);
     case gOidhw16o: return fill_gOidhw16o(memory_desc);
     case gOdhwi16o: return fill_gOdhwi16o(memory_desc);
+    case gOdhwi8o: return fill_gOdhwi8o(memory_desc);
     case ntc: return fill_ntc(memory_desc);
     case tnc: return fill_tnc(memory_desc);
     case ldsnc: return fill_ldsnc(memory_desc);

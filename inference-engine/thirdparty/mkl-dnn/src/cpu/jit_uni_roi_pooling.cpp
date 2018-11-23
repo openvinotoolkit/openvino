@@ -179,10 +179,7 @@ void jit_uni_roi_pooling_fwd_t<isa>::execute_forward() {
         }
     };
 
-    #pragma omp parallel
-    {
-        ker(omp_get_thread_num(), omp_get_num_threads());
-    }
+    parallel(0, ker);
 }
 
 template struct jit_uni_roi_pooling_fwd_t<sse42>;

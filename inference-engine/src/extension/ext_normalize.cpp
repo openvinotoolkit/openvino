@@ -11,7 +11,9 @@
 #include <vector>
 #include <map>
 #include <cmath>
+#if defined(HAVE_SSE) || defined(HAVE_AVX2)
 #include <immintrin.h>
+#endif
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -219,20 +221,7 @@ private:
     float eps = 1e-10;
 };
 
-class NormalizeShapeInfer : public IShapeInferImpl {
-public:
-    StatusCode inferShapes(const std::vector<SizeVector>& inShapes,
-                           const std::map<std::string, std::string>& params,
-                           const std::map<std::string, Blob::Ptr>& blobs,
-                           std::vector<SizeVector>& outShapes,
-                           ResponseDesc* resp) noexcept override {
-        outShapes.push_back(inShapes[0]);
-        return InferenceEngine::OK;
-    }
-};
-
 REG_FACTORY_FOR(ImplFactory<NormalizeImpl>, Normalize);
-REG_SHAPE_INFER_FOR_TYPE(NormalizeShapeInfer, Normalize);
 
 }  // namespace Cpu
 }  // namespace Extensions

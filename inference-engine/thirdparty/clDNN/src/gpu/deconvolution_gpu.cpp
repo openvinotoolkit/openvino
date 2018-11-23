@@ -47,9 +47,14 @@ protected:
     virtual kernel::kernel_arguments_data get_arguments(typed_primitive_inst<deconvolution>& instance, int32_t split) const override
     {
         kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
+        auto* desc = static_cast<const deconvolution*>(instance.desc().get());
+        int dep_size = (int)(desc->weights.size() + desc->bias.size() + 1);
 
         args.weights    = &instance.weights_memory(split);
         args.bias       = instance.bias_term() ? &instance.bias_memory(split) : nullptr;
+
+        if (int(instance.dependencies().size()) > dep_size)
+            args.inputs.emplace_back(&instance.dep_memory(dep_size));
 
         return args;
     }
@@ -121,6 +126,12 @@ public:
         };
 
         deconv_params.gradient = primitive->gradient();
+
+        if (arg.get_dependencies().size() > primitive->weights.size() + primitive->bias.size() + 1)
+        {
+            deconv_params.fused_eltwise = true;
+            deconv_params.inputs.push_back(convert_data_tensor(arg.fused_sum().get_output_layout()));
+        }
 
         auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);

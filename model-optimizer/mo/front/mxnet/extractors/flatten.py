@@ -24,7 +24,6 @@ def flatten_ext(attrs):
         'type': 'Flatten',
         'axis': 1,
         'num_axes': 0,
-        'dim': np.array([0], dtype=np.int64),
         'infer': flatten_infer
     }
     return node_attrs

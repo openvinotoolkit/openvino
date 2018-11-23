@@ -21,6 +21,5 @@ def tf_matmul_ext(pb):
     return {
         'transpose_a': pb.attr['transpose_a'].b,
         'transpose_b': pb.attr['transpose_b'].b,
-        'channel_dims': None,
         'infer': tf_matmul_infer
     }

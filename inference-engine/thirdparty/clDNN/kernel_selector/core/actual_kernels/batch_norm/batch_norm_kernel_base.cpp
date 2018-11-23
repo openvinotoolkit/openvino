@@ -80,7 +80,7 @@ namespace kernel_selector
 
         auto& kernel = kd.kernels[0];
         int inputs_num = 1 + orgParams.batchNormParams.with_inv_var;
-        FillCLKernelData(kernel, runInfo, kernelName, jit, entry_point, "", false, false, inputs_num);
+        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, "", false, false, inputs_num);
 
         kd.estimatedTime = estimatedTime;
 

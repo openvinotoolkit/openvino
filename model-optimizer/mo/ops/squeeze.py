@@ -26,6 +26,7 @@ class Squeeze(Op):
         super().__init__(graph, {
             'axis': 0,
             'num_axes': -1,
+            'dim': None,
             'kind': 'op',
             'type': 'Reshape',
             'op': __class__.op,

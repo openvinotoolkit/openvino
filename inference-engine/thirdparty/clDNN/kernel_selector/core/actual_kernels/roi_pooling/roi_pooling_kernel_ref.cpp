@@ -1,5 +1,5 @@
 ﻿/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,9 @@ namespace kernel_selector {
         k.EnableOutputDataType(Datatype::F32);
         k.EnableInputLayout(DataLayout::bfyx);
         k.EnableOutputLayout(DataLayout::brfyx);
+        k.EnablePoolType(PoolType::MAX);
+        k.EnablePoolType(PoolType::AVG);
+        k.EnablePoolType(PoolType::BILINEAR);
         k.EnableTensorOffset();
         k.EnableTensorPitches();
         k.EnableBatching();
@@ -69,7 +72,6 @@ namespace kernel_selector {
         });
 
         jit.AddConstants({
-            MakeJitConstant("MAX_POOL",                     rp.mode == PoolType::MAX),
             MakeJitConstant("USE_OLD_SCALE_AND_ROUNDING",   rp.groupSize == 0)
         });
 
@@ -94,7 +96,7 @@ namespace kernel_selector {
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         auto& kernel = kd.kernels[0];
-        FillCLKernelData(kernel, runInfo, kernelName, jit, entry_point);
+        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
         kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
 
         kd.estimatedTime = FORCE_PRIORITY_9;

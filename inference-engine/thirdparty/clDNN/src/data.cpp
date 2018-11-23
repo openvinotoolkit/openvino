@@ -19,6 +19,8 @@
 #include "primitive_type_base.h"
 #include "memory_impl.h"
 
+#include "json_object.h"
+
 namespace cldnn
 {
 primitive_type_id data_type_id()
@@ -61,7 +63,7 @@ std::string data_inst::to_string(data_node const& node)
 
     std::stringstream primitive_description;
     
-    node_info.dump(primitive_description);
+    node_info->dump(primitive_description);
     return primitive_description.str();
 }
 

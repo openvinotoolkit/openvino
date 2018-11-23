@@ -1,0 +1,23 @@
+#
+# f32 <-> s32 <-> s8 <-> u8
+#
+--dt=f32,s32,s8,u8
+
+--attr=irmode=nearest;oscale=per_oc:0.
+--fmt=nchw,nhwc,nChw8c,nChw16c 2x64x3x3
+--fmt=oihw,hwio 2x64x3x3
+--fmt=goihw,gOIhw16i16o 3x32x32x2x2
+
+--attr=irmode=down;oscale=common:0.
+--fmt=nchw,nhwc,nChw8c,nChw16c 2x64x3x3
+--fmt=oihw,hwio 2x64x3x3
+
+#
+# f32 <-> s16
+#
+--reset
+--both-dir-dt=true
+--idt=f32 --odt=s16
+
+--fmt=nchw,nhwc,nChw8c,nChw16c 2x64x3x3
+--fmt=oihw,hwio 2x64x3x3

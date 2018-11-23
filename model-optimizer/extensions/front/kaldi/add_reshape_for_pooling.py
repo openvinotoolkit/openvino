@@ -20,7 +20,6 @@ import numpy as np
 
 from extensions.front.kaldi.replace_lstm_node_pattern import create_node
 from mo.front.common.replacement import FrontReplacementOp
-from mo.ops.convolution import Convolution
 from mo.graph.graph import Node
 
 

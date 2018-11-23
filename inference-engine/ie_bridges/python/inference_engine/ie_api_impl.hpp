@@ -14,13 +14,8 @@
 #include <sstream>
 #include "ie_extension.h"
 
+
 namespace InferenceEnginePython {
-//struct BlobInfo {
-//    int layout;
-//    std::vector<std::size_t> dims;
-//    std::string name;
-//    std::vector<std::string> inputTo;
-//};
 struct IENetLayer {
     InferenceEngine::CNNLayerPtr layer_ptr;
     std::string name;
@@ -28,11 +23,25 @@ struct IENetLayer {
     std::string precision;
     std::string affinity;
     std::map<std::string, std::string> params;
-//    std::map<std::string, InferenceEnginePython::BlobInfo> blob_info;
-//    std::map<std::string, InferenceEngine::Blob::Ptr> weights;
     void setAffinity(const std::string & target_affinity);
     void setParams(const std::map<std::string, std::string> & params_map);
     std::map<std::string, InferenceEngine::Blob::Ptr> getWeights();
+    void setPrecision(std::string precision);
+};
+struct InputInfo{
+    InferenceEngine::InputInfo actual;
+    std::vector<size_t> dims;
+    std::string precision;
+    std::string layout;
+    void setPrecision(std::string precision);
+    void setLayout(std::string layout);
+};
+struct OutputInfo{
+    InferenceEngine::DataPtr actual;
+    std::vector<size_t> dims;
+    std::string precision;
+    std::string layout;
+    void setPrecision(std::string precision);
 };
 struct ProfileInfo {
     std::string status;
@@ -46,15 +55,11 @@ struct IENetwork {
     InferenceEngine::CNNNetwork actual;
     std::string name;
     std::size_t batch_size;
-    std::map<std::string, std::vector<size_t>> inputs;
-    std::vector<std::string> outputs;
-    void setPrecision() {
-        InferenceEngine::CNNNetwork one;
-        InferenceEngine::CNNNetwork second(std::move(one));
-    }
     void setBatch(const size_t size);
     void addOutputs(const std::vector<std::string> &out_layers, const std::string &precision);
     std::map<std::string, InferenceEnginePython::IENetLayer> getLayers();
+    std::map<std::string, InferenceEnginePython::InputInfo> getInputs();
+    std::map<std::string, InferenceEnginePython::OutputInfo> getOutputs();
     void reshape(const std::map<std::string, std::vector<size_t>> & input_shapes);
 };
 

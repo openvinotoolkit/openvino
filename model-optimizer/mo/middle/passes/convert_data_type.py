@@ -20,6 +20,7 @@ import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node
+from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
 SUPPORTED_DATA_TYPES = {
@@ -79,4 +80,7 @@ def convert(graph: nx.MultiDiGraph, data_type_str: str):
             real_data_type_str = data_type_str
         node_attrs['precision'] = data_type_str_to_precision(real_data_type_str)
         if node.kind == 'data' and node.value is not None:
-            convert_blob(graph, node, data_type_str_to_np(real_data_type_str))
+            try:
+                convert_blob(graph, node, data_type_str_to_np(real_data_type_str))
+            except Exception as e:
+                raise Error('Coudn\'t convert blob {}, details: {}', node.soft_get('name'), e) from e

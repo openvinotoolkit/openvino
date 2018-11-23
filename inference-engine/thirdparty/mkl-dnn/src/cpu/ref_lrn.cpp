@@ -109,38 +109,27 @@ void ref_lrn_fwd_t<data_type>::execute_forward() {
 
     const int MB = conf_.MB();
     if (fmt == nChw16c || fmt == nChw8c) {
-#       pragma omp parallel for collapse(4) schedule(static)
-        for (int mb = 0; mb < MB; ++mb)
-        for (int c = 0; c < C; c += blksize)
-        for (int h = 0; h < H; ++h)
-        for (int w = 0; w < W; ++w)
-        {
+        parallel_nd(MB, utils::div_up(C, blksize), H, W,
+            [&](int mb, int c_blk, int h, int w) {
+            int c = c_blk * blksize;
             const size_t off = mb * stride_mb + c * H * W
                 + (h * W + w) * blksize;
             PRAGMA_OMP_SIMD()
             for (int cc = 0; cc < nstl::min(blksize, C - c); ++cc)
                 ker(&dst[off + cc], mb, c + cc, h, w);
-        }
+        });
     } else if (fmt == nhwc) {
-#       pragma omp parallel for collapse(4) schedule(static)
-        for (int mb = 0; mb < MB; ++mb)
-        for (int h = 0; h < H; ++h)
-        for (int w = 0; w < W; ++w)
-        for (int c = 0; c < C; ++c)
-        {
+        parallel_nd(MB, H, W, C,
+            [&](int mb, int h, int w, int c) {
             const size_t off = mb * stride_mb + h * W * C + w * C + c;
             ker(&dst[off], mb, c, h, w);
-        }
+        });
     } else {
-#       pragma omp parallel for collapse(4) schedule(static)
-        for (int mb = 0; mb < MB; ++mb)
-        for (int c = 0; c < C; ++c)
-        for (int h = 0; h < H; ++h)
-        for (int w = 0; w < W; ++w)
-        {
+        parallel_nd(MB, C, H, W,
+            [&](int mb, int c, int h, int w) {
             const size_t off = data_off(mb, c, h, w);
             ker(&dst[off], mb, c, h, w);
-        }
+        });
     }
 }
 
@@ -211,38 +200,27 @@ void ref_lrn_bwd_t<data_type>::execute_backward() {
     };
 
     if (fmt == nChw16c || fmt == nChw8c) {
-#       pragma omp parallel for collapse(4) schedule(static)
-        for (int mb = 0; mb < MB; ++mb)
-        for (int c = 0; c < C; c += blksize)
-        for (int h = 0; h < H; ++h)
-        for (int w = 0; w < W; ++w)
-        {
+        parallel_nd(MB, utils::div_up(C, blksize), H, W,
+            [&](int mb, int c_blk, int h, int w) {
+            int c = c_blk * blksize;
             const size_t off = mb * stride_mb + c * H * W +
                 (h * W + w) * blksize;
             PRAGMA_OMP_SIMD()
             for (int cc = 0; cc < nstl::min(blksize, C - c); ++cc)
                 ker(&diff_src[off + cc], mb, c + cc, h, w);
-        }
+        });
     } else if (fmt == nhwc) {
-#       pragma omp parallel for collapse(4) schedule(static)
-        for (int mb = 0; mb < MB; ++mb)
-        for (int h = 0; h < H; ++h)
-        for (int w = 0; w < W; ++w)
-        for (int c = 0; c < C; ++c)
-        {
+        parallel_nd(MB, H, W, C,
+            [&](int mb, int h, int w, int c) {
             const size_t off = mb * stride_mb + h * W * C + w * C + c;
             ker(&diff_src[off], mb, c, h, w);
-        }
+        });
     } else {
-#       pragma omp parallel for collapse(4) schedule(static)
-        for (int mb = 0; mb < MB; ++mb)
-        for (int c = 0; c < C; ++c)
-        for (int h = 0; h < H; ++h)
-        for (int w = 0; w < W; ++w)
-        {
+        parallel_nd(MB, C, H, W,
+            [&](int mb, int c, int h, int w) {
             const size_t off = data_off(mb, c, h, w);
             ker(&diff_src[off], mb, c, h, w);
-        }
+        });
     }
 }
 

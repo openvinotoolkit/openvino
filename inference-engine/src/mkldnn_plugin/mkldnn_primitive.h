@@ -17,8 +17,6 @@ namespace MKLDNNPlugin {
 class MKLDNNPrimitive {
 public:
     MKLDNNPrimitive();
-    explicit MKLDNNPrimitive(const std::shared_ptr<mkldnn::primitive>& prim);
-    operator std::shared_ptr<mkldnn::primitive>();
     operator bool();
     MKLDNNPrimitive& operator=(const std::shared_ptr<mkldnn::primitive>& prim);
     mkldnn::primitive operator*();

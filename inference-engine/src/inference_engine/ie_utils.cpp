@@ -5,7 +5,7 @@
 
 #include "ie_util_internal.hpp"
 #include "graph_tools.hpp"
-#include "caseless.hpp"
+#include "details/caseless.hpp"
 #include "ie_utils.hpp"
 
 #include <ie_layers.h>
@@ -20,6 +20,9 @@
 #include <memory>
 #include <utility>
 #include <iomanip>
+
+using namespace InferenceEngine;
+using namespace details;
 
 namespace {
 
@@ -49,14 +52,14 @@ InferenceEngine::LayerComplexity getComplexity(const InferenceEngine::CNNLayerPt
                                  std::function<void(CNNLayer &)>> layerComplexityLookup = {
         {"Convolution", [&](CNNLayer &l) {
             auto* conv = dynamic_cast<ConvolutionLayer*>(&l);
-            unsigned long filter_m = conv->_kernel_x * conv->_kernel_y * (inDims[1] / conv->_group);
+            unsigned long filter_m = conv->_kernel[X_AXIS] * conv->_kernel[Y_AXIS] * (inDims[1] / conv->_group);
             flops = 2 * out_size * filter_m;
             params = filter_m * conv->_out_depth + conv->_out_depth;
         }},
 
         {"Deconvolution", [&](CNNLayer &l) {
             auto* deconv = dynamic_cast<DeconvolutionLayer*>(&l);
-            unsigned long filter_m = deconv->_kernel_x * deconv->_kernel_y * (inDims[1] / deconv->_group);
+            unsigned long filter_m = deconv->_kernel[X_AXIS] * deconv->_kernel[Y_AXIS] * (inDims[1] / deconv->_group);
             flops = 2 * out_size * filter_m;
             params = filter_m * deconv->_out_depth + deconv->_out_depth;
         }},
@@ -84,7 +87,7 @@ InferenceEngine::LayerComplexity getComplexity(const InferenceEngine::CNNLayerPt
 
                 flops = out_size * kernel_h * kernel_w;
             } else {
-                flops = out_size * (pool->_kernel_y * pool->_kernel_y);
+                flops = out_size * (pool->_kernel[Y_AXIS] * pool->_kernel[Y_AXIS]);
             }
         }},
 

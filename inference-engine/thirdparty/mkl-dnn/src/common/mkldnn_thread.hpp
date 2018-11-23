@@ -20,17 +20,50 @@
 #include "utils.hpp"
 #include "z_magic.hpp"
 
-#if defined(_OPENMP)
+#define MKLDNN_THR_SEQ 0
+#define MKLDNN_THR_OMP 1
+#define MKLDNN_THR_TBB 2
+
+#if !defined(MKLDNN_THR)
+#define MKLDNN_THR MKLDNN_THR_SEQ
+#endif
+
+#if MKLDNN_THR == MKLDNN_THR_SEQ
+#define MKLDNN_THR_SYNC 1
+inline int mkldnn_get_max_threads() { return 1; }
+inline int mkldnn_get_num_threads() { return 1; }
+inline int mkldnn_get_thread_num() { return 0; }
+inline int mkldnn_in_parallel() { return 0; }
+inline void mkldnn_thr_barrier() {}
+
+#elif MKLDNN_THR == MKLDNN_THR_OMP
 #include <omp.h>
-#else // defined(_OPENMP)
-inline int omp_get_max_threads() { return 1; }
-inline int omp_get_num_threads() { return 1; }
-inline int omp_get_thread_num() { return 0; }
-inline int omp_in_parallel() { return 0; }
+#define MKLDNN_THR_SYNC 1
+
+inline int mkldnn_get_max_threads() { return omp_get_max_threads(); }
+inline int mkldnn_get_num_threads() { return omp_get_num_threads(); }
+inline int mkldnn_get_thread_num() { return omp_get_thread_num(); }
+inline int mkldnn_in_parallel() { return omp_in_parallel(); }
+inline void mkldnn_thr_barrier() {
+#   pragma omp barrier
+}
+
+#elif MKLDNN_THR == MKLDNN_THR_TBB
+#include "tbb/parallel_for.h"
+#include "tbb/task_arena.h"
+#define MKLDNN_THR_SYNC 0
+
+inline int mkldnn_get_max_threads()
+{ return tbb::this_task_arena::max_concurrency(); }
+inline int mkldnn_get_num_threads() { return mkldnn_get_max_threads(); }
+inline int mkldnn_get_thread_num()
+{ return tbb::this_task_arena::current_thread_index(); }
+inline int mkldnn_in_parallel() { return 0; }
+inline void mkldnn_thr_barrier() { assert(!"no barrier in TBB"); }
 #endif
 
 /* MSVC still supports omp 2.0 only */
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
 #   define collapse(x)
 #   define PRAGMA_OMP_SIMD(...)
 #else
@@ -39,6 +72,8 @@ inline int omp_in_parallel() { return 0; }
 
 namespace mkldnn {
 namespace impl {
+
+inline bool mkldnn_thr_syncable() { return MKLDNN_THR_SYNC == 1; }
 
 template <typename T, typename U>
 inline void balance211(T n, U team, U tid, T &n_start, T &n_end) {
@@ -62,6 +97,8 @@ inline void balance211(T n, U team, U tid, T &n_start, T &n_end) {
 
 } // namespace impl
 } // namespace mkldnn
+
+#include "mkldnn_thread_parallel_nd.hpp"
 
 #endif
 

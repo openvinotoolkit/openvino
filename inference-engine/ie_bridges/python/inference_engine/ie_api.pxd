@@ -9,7 +9,6 @@ from .ie_api_impl_defs cimport Blob, TensorDesc
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.memory cimport unique_ptr
-from libcpp cimport bool
 
 cdef class BlobBuffer:
     cdef Blob.Ptr ptr
@@ -57,3 +56,9 @@ cdef class IENetReader:
 
 cdef class IENetLayer:
     cdef C.IENetLayer impl
+
+cdef class InputInfo:
+    cdef C.InputInfo impl
+
+cdef class OutputInfo:
+    cdef C.OutputInfo impl

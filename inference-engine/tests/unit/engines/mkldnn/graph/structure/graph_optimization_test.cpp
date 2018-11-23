@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "single_layer_common.hpp"
 #include <mkldnn_plugin/mkldnn_extension_utils.h>

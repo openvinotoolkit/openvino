@@ -84,6 +84,8 @@ public:
                               QueryNetworkResult &res) noexcept {
         QueryNetwork(device, network, res);
     };
+
+    virtual void SetLogCallback(IErrorListener &listener) = 0;
 };
 
 using MapDeviceLoaders = std::map<std::string, InferenceEngine::IHeteroDeviceLoader::Ptr>;

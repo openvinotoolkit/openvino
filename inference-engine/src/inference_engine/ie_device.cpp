@@ -46,12 +46,6 @@ FindPluginResponse InferenceEngine::findPlugin(const FindPluginRequest& req) {
                 "myriadPlugin",
 #endif
             } };
-#ifdef ENABLE_HDDL
-    case TargetDevice::eHDDL:
-        return{ {
-                "HDDLPlugin",
-            } };
-#endif
         case TargetDevice::eGNA:
             return{ {
 #ifdef ENABLE_GNA

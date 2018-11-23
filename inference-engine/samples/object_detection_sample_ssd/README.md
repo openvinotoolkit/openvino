@@ -1,4 +1,4 @@
-# Object Detection Sample SSD {#InferenceEngineObjectDetectionSSDSampleApplication}
+# Object Detection Sample SSD
 
 This topic demonstrates how to run the Object Detection sample application, which does inference using object detection 
 networks like SSD-VGG on Intel® Processors and Intel® HD Graphics.
@@ -15,26 +15,17 @@ InferenceEngine:
 object_detection_sample_ssd [OPTION]
 Options:
 
-    -h                      
-                            Print a usage message.
-    -i "<path>"
-                            Required. Path to an image file.
-    -m "<path>"             
-                            Required. Path to an .xml file with a trained model.
-        -l "<absolute_path>"    
-                            Optional. Absolute path to library with MKL-DNN (CPU) custom layers (*.so).
-        Or
-        -c "<absolute_path>"
-                            Optional. Absolute path to clDNN (GPU) custom layers config (*.xml).
-    -pp "<path>"            
-                            Path to a plugin folder.
-    -d "<device>"           
-                            Specify the target device to infer on; CPU, GPU, FPGA or MYRIAD is acceptable. Sample will look for a suitable plugin for device specified
-
-    -ni "<integer>"         
-                            Number of iterations (default 1)
-    -pc                     
-                            Enables per-layer performance report
+    -h                      Print a usage message.
+    -i "<path>"             Required. Path to an .bmp image.
+    -m "<path>"             Required. Path to an .xml file with a trained model.
+      -l "<absolute_path>"    Required for MKLDNN (CPU)-targeted custom layers. Absolute path to a shared library with the kernels impl.
+          Or
+      -c "<absolute_path>"    Required for clDNN (GPU)-targeted custom kernels. Absolute path to the xml file with the kernels desc.
+    -pp "<path>"            Path to a plugin folder.
+    -d "<device>"           Specify the target device to infer on; CPU, GPU, FPGA or MYRIAD is acceptable. Sample will look for a suitable plugin for device specified
+    -pc                     Enables per-layer performance report
+    -ni "<integer>"         Number of iterations (default 1)
+    -p_msg                  Enables messages from a plugin
 
 ```
 
@@ -63,4 +54,4 @@ Engine plugin. When inference is done, the application creates an
 output image and outputs data to the standard output stream.
 
 ## See Also 
-* [Using Inference Engine Samples](@ref SamplesOverview)
+* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)

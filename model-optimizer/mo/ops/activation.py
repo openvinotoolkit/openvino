@@ -14,15 +14,12 @@
  limitations under the License.
 """
 
-import numpy as np
 import networkx as nx
-import logging as log
+import numpy as np
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.graph.graph import Node
 from mo.ops.op import Op
-
-
 
 
 class Activation(Op):

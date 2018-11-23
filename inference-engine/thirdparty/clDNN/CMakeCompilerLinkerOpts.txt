@@ -32,11 +32,6 @@ if(MSVC)
     endif()
   endif()
   
-  CHECK_CXX_COMPILER_FLAG("-std=c++14" CLDNN__COMPILER_SUPPORTS_CXX14)
-  if(NOT CLDNN__COMPILER_SUPPORTS_CXX14)
-    message(STATUS "[clDNN] Compiler does not support C++14. Please update compiler.")
-  endif()
-
   intel_flag_register_settings(
       CompilerOptions
 
@@ -99,11 +94,6 @@ if(MSVC)
 elseif(CMAKE_COMPILER_IS_INTEL)
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "${CLDNN__MIN_COMPILER_VERSION__ICC}")
     message(FATAL_ERROR "[clDNN] required version of Intel C++ compiler is 17.0. Please update compiler.")
-  endif()
-
-  CHECK_CXX_COMPILER_FLAG("-std=c++14" CLDNN__COMPILER_SUPPORTS_CXX14)
-  if(NOT CLDNN__COMPILER_SUPPORTS_CXX14)
-    message(STATUS "[clDNN] Compiler does not support C++14. Please update compiler.")
   endif()
 
   intel_flag_register_settings(
@@ -177,10 +167,6 @@ elseif(CMAKE_COMPILER_IS_INTEL)
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "${CLDNN__MIN_COMPILER_VERSION__GCC}")
     message(FATAL_ERROR "[clDNN] Minimum required version of GCC/G++ compiler is ${CLDNN__MIN_COMPILER_VERSION__GCC}. Please update compiler.")
-  endif()
-  CHECK_CXX_COMPILER_FLAG("-std=c++14" CLDNN__COMPILER_SUPPORTS_CXX14)
-  if(NOT CLDNN__COMPILER_SUPPORTS_CXX14)
-    message(STATUS "[clDNN] Compiler does not support C++14. Please update compiler.")
   endif()
 
   intel_flag_register_settings(
@@ -265,11 +251,6 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 elseif((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^Clang$"))
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "${CLDNN__MIN_COMPILER_VERSION__CLANG}")
     message(FATAL_ERROR "[clDNN] Minimum required version of clang compiler is ${CLDNN__MIN_COMPILER_VERSION__CLANG}. Please update compiler.")
-  endif()
-
-  CHECK_CXX_COMPILER_FLAG("-std=c++14" CLDNN__COMPILER_SUPPORTS_CXX14)
-  if(NOT CLDNN__COMPILER_SUPPORTS_CXX14)
-    message(STATUS "[clDNN] Compiler does not support C++14. Please update compiler.")
   endif()
 
   intel_flag_register_settings(

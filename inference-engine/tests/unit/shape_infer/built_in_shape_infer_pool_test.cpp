@@ -49,6 +49,21 @@ protected:
         return params;
     }
 
+    std::map<std::string, std::string> getMapParams_IRv3() {
+        std::map<std::string, std::string> params = {
+                {"kernel",      kernel.toSeparetedRow(",")},
+                {"strides",     stride.toSeparetedRow(",")},
+                {"pads_begin",  pad.toSeparetedRow(",")},
+                {"pool-method", pool_type},
+                {"exclude-pad", exclude_pad ? "false" : "true"}
+        };
+        if (!auto_pad.empty()) params["auto_pad"] = auto_pad;
+        if (padrb.x != 0 && padrb.y != 0) {
+            params["pads_end"] = padrb.toSeparetedRow(",");
+        }
+        return params;
+    }
+
 protected:
     std::string type = "Pooling";
     testing::InOutData inOutShapes;
@@ -63,6 +78,7 @@ protected:
 };
 
 TEST_P(BuiltInShapeInferPoolImplTest, body) {
+    InferenceEngine::details::BaseCreator::version_ = 2;
     auto impl = getShapeInferImpl(type);
     ASSERT_NE(nullptr, impl);
     ASSERT_NO_THROW(sts = impl->inferShapes(inOutShapes.inDims, getMapParams(), blobs, outShapes, &resp));
@@ -72,7 +88,7 @@ TEST_P(BuiltInShapeInferPoolImplTest, body) {
 
 TEST_P(BuiltInShapeInferPoolImplTest, reshaper) {
     auto layerParams = getMapParams();
-    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, "pooling_data");
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, "pooling_data", 2);
     auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
     auto inputShapes = setInputShapes(*cnnNetworkImplPtr, newInOutShapes.inDims);
     reshaper->run(inputShapes);
@@ -81,6 +97,34 @@ TEST_P(BuiltInShapeInferPoolImplTest, reshaper) {
 
 TEST_P(BuiltInShapeInferPoolImplTest, batch) {
     auto layerParams = getMapParams();
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, "pooling_data", 2);
+    auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
+    sts = cnnNetworkImplPtr->setBatchSize(BATCH, &resp);
+    ASSERT_EQ((int)OK, sts) << resp.msg;
+    inOutShapes.inDims[0][0] = inOutShapes.outDims[0][0] = BATCH;
+    checkNetworkInOut(*cnnNetworkImplPtr, inOutShapes);
+}
+
+TEST_P(BuiltInShapeInferPoolImplTest, body_IRv3) {
+    InferenceEngine::details::BaseCreator::version_ = 3;
+    auto impl = getShapeInferImpl(type);
+    ASSERT_NE(nullptr, impl);
+    ASSERT_NO_THROW(sts = impl->inferShapes(inOutShapes.inDims, getMapParams_IRv3(), blobs, outShapes, &resp));
+    ASSERT_EQ(int(OK), sts) << resp.msg;
+    ASSERT_EQ(inOutShapes.outDims, outShapes);
+}
+
+TEST_P(BuiltInShapeInferPoolImplTest, reshaper_IRv3) {
+    auto layerParams = getMapParams_IRv3();
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, "pooling_data");
+    auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
+    auto inputShapes = setInputShapes(*cnnNetworkImplPtr, newInOutShapes.inDims);
+    reshaper->run(inputShapes);
+    checkNetworkInOut(*cnnNetworkImplPtr, newInOutShapes);
+}
+
+TEST_P(BuiltInShapeInferPoolImplTest, batch_IRv3) {
+    auto layerParams = getMapParams_IRv3();
     auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, "pooling_data");
     auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
     sts = cnnNetworkImplPtr->setBatchSize(BATCH, &resp);

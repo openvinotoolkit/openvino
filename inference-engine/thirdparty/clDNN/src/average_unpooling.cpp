@@ -62,8 +62,8 @@ namespace cldnn
         average_unpooling_info.add("stride", strd.to_string());
         average_unpooling_info.add("window size", window_size.to_string());
 
-        node_info.add("average_unpooling info", average_unpooling_info);
-        node_info.dump(primitive_description);
+        node_info->add("average_unpooling info", average_unpooling_info);
+        node_info->dump(primitive_description);
 
         return primitive_description.str();
     }

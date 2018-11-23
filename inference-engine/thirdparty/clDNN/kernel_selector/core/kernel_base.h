@@ -18,9 +18,12 @@
 
 #include "kernel_selector_common.h"
 #include "kernel_selector_params.h"
- 
+#include "primitive_db.h"
+
 namespace kernel_selector 
 {
+    using primitive_db = kernel_selector::gpu::cache::primitive_db;
+
     class KernelBase
     {
     public:

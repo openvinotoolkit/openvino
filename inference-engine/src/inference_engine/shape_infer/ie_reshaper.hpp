@@ -13,8 +13,7 @@
 #include <memory>
 
 #include <ie_layers.h>
-#include <graph_tools.hpp>
-#include <caseless.hpp>
+#include "details/caseless.hpp"
 #include "shape_infer/built-in/ie_built_in_holder.hpp"
 #include "ie_reshape_launcher.hpp"
 
@@ -59,7 +58,7 @@ public:
      * @brief Constructor
      * @param network - const reference to the ICNNNetwork for performing shape inference
      */
-    explicit Reshaper(const ICNNNetwork& network,
+    explicit Reshaper(ICNNNetwork& network,
                       const LauncherCreator::Ptr& creator = std::make_shared<LauncherCreator>());
 
     virtual ~Reshaper() = default;
@@ -81,14 +80,14 @@ public:
 private:
     ReshapeLauncher::Ptr getLauncherByLayerName(const std::string& layerName) const;
 
-    static caseless_set<std::string> getTypeNamesFromExtension(const IShapeInferExtensionPtr& extension);
+    static InferenceEngine::details::caseless_set<std::string> getTypeNamesFromExtension(const IShapeInferExtensionPtr& extension);
 
 private:
     std::vector<IShapeInferExtensionPtr> _extensions;
     std::set<ReshapeLauncher::Ptr> _launchers;
     std::vector<CNNLayerPtr> _allSortedLayers{};
-    CNNLayerSet _inputLayers{};
-    caseless_set<std::string> _allTypes;
+    std::set<CNNLayerPtr> _inputLayers{};
+    InferenceEngine::details::caseless_set<std::string> _allTypes;
 };
 
 }  // namespace ShapeInfer

@@ -29,6 +29,15 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
+struct ref_depthwise_scalar_fwd_t {
+public:
+    explicit ref_depthwise_scalar_fwd_t(alg_kind_t alg);
+    float compute_scalar(float s, const float* weights, const float* bias);
+
+private:
+    alg_kind_t alg;
+};
+
 template <impl::data_type_t data_type>
 struct ref_depthwise_fwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_depthwise_fwd_pd_t {

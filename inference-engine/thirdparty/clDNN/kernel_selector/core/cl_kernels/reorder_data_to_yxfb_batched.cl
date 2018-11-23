@@ -15,7 +15,7 @@
 
 #include "include/reshape_dims.cl"
 #include "include/fetch.cl"
-#include "include/activation_functions.cl"
+
 #include "include/data_types.cl"
 
 ///////////////////////// Input Index /////////////////////////

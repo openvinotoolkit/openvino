@@ -18,14 +18,14 @@
 KERNEL(fully_connected_grad_weights_gpu_ref)(
     const __global INPUT0_TYPE* input_grad,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global float* weights,
 #if BIAS_TERM
-    __global UNIT_TYPE* bias,
+    __global float* bias,
 #endif
 #if MOMENTUM
-    __global UNIT_TYPE* prev_grad_w,
+    __global float* prev_grad_w,
 #if BIAS_TERM
-    __global UNIT_TYPE* prev_grad_b,
+    __global float* prev_grad_b,
 #endif
 #endif
     const __global INPUT1_TYPE* input,
@@ -48,15 +48,15 @@ KERNEL(fully_connected_grad_weights_gpu_ref)(
     {
         const uint input_grad_idx = GET_DATA_INDEX(INPUT0, b, 0, 0, ofm);
         const uint input_idx = GET_DATA_INDEX(INPUT1, b, ifm, id_y, id_x);
-        UNIT_TYPE grad = input_grad[input_grad_idx];
-        grad_w += input[input_idx] * grad;
+        ACCUMULATOR_TYPE grad = TO_ACCUMULATOR_TYPE(input_grad[input_grad_idx]);
+        grad_w += TO_ACCUMULATOR_TYPE(input[input_idx] * grad);
 #if BIAS_TERM
-        grad_b += grad;
+        grad_b += TO_ACCUMULATOR_TYPE(grad);
 #endif
     }
 
 #if MOMENTUM
-    UNIT_TYPE update_gradient_w = lr * (grad_w + DECAY_RATE * weights[filter_idx]) + prev_grad_w[filter_idx] * MOMENTUM_FACTOR;
+    float update_gradient_w = lr * (grad_w + DECAY_RATE * weights[filter_idx]) + prev_grad_w[filter_idx] * MOMENTUM_FACTOR;
     weights[filter_idx] -= update_gradient_w;
     prev_grad_w[filter_idx] = update_gradient_w;
 #else
@@ -67,7 +67,7 @@ KERNEL(fully_connected_grad_weights_gpu_ref)(
     if(ifm == 0 && id_x == 0 && id_y == 0)
     {
 #if MOMENTUM
-        UNIT_TYPE update_gradient_b = lr * grad_b + prev_grad_b[ofm] * MOMENTUM_FACTOR;
+        float update_gradient_b = lr * grad_b + prev_grad_b[ofm] * MOMENTUM_FACTOR;
         bias[ofm] -= update_gradient_b;
         prev_grad_b[ofm] = update_gradient_b;
 #else

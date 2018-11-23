@@ -5,8 +5,9 @@
 
 #include "ie_util_internal.hpp"
 #include "graph_tools.hpp"
-#include "caseless.hpp"
+#include "details/caseless.hpp"
 #include "ie_utils.hpp"
+#include "ie_icnn_network_stats.hpp"
 
 #include <ie_layers.h>
 
@@ -20,7 +21,11 @@
 #include <utility>
 #include <iomanip>
 
+using std::string;
+
 namespace InferenceEngine {
+
+using namespace details;
 
 namespace {
 template<typename Visitor>
@@ -186,6 +191,16 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork &network) {
         }
     }
 
+    // cloning of statistics
+    InferenceEngine::ICNNNetworkStats* pstatsSrc = nullptr, *pstatsTarget = nullptr;
+    StatusCode s = network.getStats(&pstatsSrc, nullptr);
+    if (s == StatusCode::OK && pstatsSrc && !pstatsSrc->isEmpty()) {
+        StatusCode st = net->getStats(&pstatsTarget, nullptr);
+        if (st == StatusCode::OK && pstatsTarget) {
+            pstatsTarget->setNodesStats(pstatsSrc->getNodesStats());
+        }
+    }
+
     return net;
 }
 
@@ -231,7 +246,7 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
             auto data = src.lock();
             auto clonedData = createDataImpl(data);
 
-            std::string inputName;
+            string inputName;
             // Find input name
             for (auto&& inp : data->getInputTo()) {
                 if (srcLayer == inp.second) {
@@ -251,8 +266,8 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
             for (auto&& inp : data->getInputTo()) {
                 auto layer = inp.second;
                 if (std::find(layers.begin(), layers.end(), layer) == layers.end() &&
-                    !(CaselessEq<std::string>()(layer->type, "priorbox") ||
-                      CaselessEq<std::string>()(layer->type, "PriorBoxClustered"))) {
+                    !(CaselessEq<string>()(layer->type, "priorbox") ||
+                      CaselessEq<string>()(layer->type, "PriorBoxClustered"))) {
                     net->addOutput(data->getName());
                     break;
                 }
@@ -270,8 +285,8 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
             assert(nullptr != originalData);
 
             if (auto originalLayer = originalData->creatorLayer.lock()) {
-                if (CaselessEq<std::string>()(originalLayer->type, "input") ||
-                    CaselessEq<std::string>()(originalLayer->type, "const")) {
+                if (CaselessEq<string>()(originalLayer->type, "input") ||
+                    CaselessEq<string>()(originalLayer->type, "const")) {
                     layer = cloneLayerImpl(*originalLayer);
                     layer->outData.push_back(data);
                     data->getCreatorLayer() = layer;
@@ -290,7 +305,7 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
                 net->addLayer(layer);
             }
         }
-        if (CaselessEq<std::string>()(layer->type, "input")) {
+        if (CaselessEq<string>()(layer->type, "input")) {
             auto input = std::make_shared<InferenceEngine::InputInfo>();
             input->setInputData(data);
             net->setInputInfo(input);
@@ -369,7 +384,7 @@ struct NodePrinter {
         return static_cast<bool>(printed_data.count(datum.get()));
     }
 
-    std::string colorToStr(FILL_COLOR color) {
+    string colorToStr(FILL_COLOR color) {
         switch (color) {
             case DATA :
                 return "#FCF6E3";
@@ -382,14 +397,20 @@ struct NodePrinter {
         }
     }
 
-    std::string formatSize_(unsigned int x, unsigned int y) {
-        return x == y ? std::to_string(x) :
-               std::to_string(x) + "x" + std::to_string(y);
+    string formatSize_(const std::vector<unsigned int>& spatialDims) {
+        string result;
+        if (spatialDims.empty()) return result;
+        result = std::to_string(spatialDims[0]);
+        for (auto dim : spatialDims) {
+            result += "x" + std::to_string(dim);
+        }
+        return result;
     }
 
-    std::string cleanNodeName_(std::string node_name) const {
-        // remove dot sumbol form node name. It is incorrectly displayed in xdot
+    string cleanNodeName_(string node_name) const {
+        // remove dot and dash symbols form node name. It is incorrectly displayed in xdot
         node_name.erase(remove(node_name.begin(), node_name.end(), '.'), node_name.end());
+        std::replace(node_name.begin(), node_name.end(), '-', '_');
         return node_name;
     }
 
@@ -411,38 +432,24 @@ struct NodePrinter {
         if (type == "Convolution") {
             auto* conv = dynamic_cast<ConvolutionLayer*>(layer.get());
 
-            unsigned ker_y = conv->_kernel_y,
-                ker_x = conv->_kernel_x,
-                pad_x = conv->_padding_x,
-                pad_y = conv->_padding_y,
+            unsigned int
                 depth = conv->_out_depth,
-                stride_x = conv->_stride_x,
-                stride_y = conv->_stride_y,
-                dilation_x = conv->_dilation_x,
-                dilation_y = conv->_dilation_y,
                 group = conv->_group;
 
-            printed_properties.emplace_back("kernel size", formatSize_(ker_x, ker_y));
+            printed_properties.emplace_back("kernel size", formatSize_({&(conv->_kernel[0]), &(conv->_kernel[conv->_kernel.size() - 1])}));
             printed_properties.emplace_back("output depth", std::to_string(depth));
             printed_properties.emplace_back("group", std::to_string(group));
-            printed_properties.emplace_back("padding", formatSize_(pad_x, pad_y));
-            printed_properties.emplace_back("stride", formatSize_(stride_x, stride_y));
-            printed_properties.emplace_back("stride", formatSize_(stride_x, stride_y));
-            if (dilation_x != 1 || dilation_y != 1)
-                printed_properties.emplace_back("dilation", formatSize_(dilation_x, dilation_y));
+            printed_properties.emplace_back("padding begin", formatSize_({&(conv->_padding[0]), &(conv->_padding[conv->_padding.size() - 1])}));
+            printed_properties.emplace_back("padding end", formatSize_({&(conv->_pads_end[0]), &(conv->_pads_end[conv->_pads_end.size() - 1])}));
+            printed_properties.emplace_back("strides", formatSize_({&(conv->_stride[0]), &(conv->_stride[conv->_stride.size() - 1])}));
+            printed_properties.emplace_back("dilations", formatSize_({&(conv->_dilation[0]), &(conv->_dilation[conv->_dilation.size() - 1])}));
         } else if (type == "Pooling") {
             auto* pool = dynamic_cast<PoolingLayer*>(layer.get());
 
-            unsigned int ker_y = pool->_kernel_y,
-                ker_x = pool->_kernel_x,
-                pad_x = pool->_padding_x,
-                pad_y = pool->_padding_y,
-                stride_x = pool->_stride_x,
-                stride_y = pool->_stride_y;
-
-            printed_properties.emplace_back("window size", formatSize_(ker_x, ker_y));
-            printed_properties.emplace_back("padding", formatSize_(pad_x, pad_y));
-            printed_properties.emplace_back("stride", formatSize_(stride_x, stride_y));
+            printed_properties.emplace_back("window size", formatSize_({&(pool->_kernel[0]), &(pool->_kernel[pool->_kernel.size() - 1])}));
+            printed_properties.emplace_back("padding begin", formatSize_({&(pool->_padding[0]), &(pool->_padding[pool->_padding.size() - 1])}));
+            printed_properties.emplace_back("padding end", formatSize_({&(pool->_pads_end[0]), &(pool->_pads_end[pool->_pads_end.size() - 1])}));
+            printed_properties.emplace_back("strides", formatSize_({&(pool->_stride[0]), &(pool->_stride[pool->_stride.size() - 1])}));
         } else if (type == "ReLU") {
             auto* relu = dynamic_cast<ReLULayer*>(layer.get());
 
@@ -479,16 +486,18 @@ struct NodePrinter {
         dims_ss << ']';
 
         printed_properties.emplace_back("dims", dims_ss.str());
+        printed_properties.emplace_back("precision", data->precision.name());
+
         printNode(node_name, data->name, node_properties, printed_properties);
     }
 
-    void printNode(std::string const &node_name, const std::string &node_title,
+    void printNode(string const &node_name, const string &node_title,
                    ordered_properties const &node_properties,
                    ordered_properties const &printed_properties) {
         // normalization of names, removing all prohinited symbols like "/"
-        std::string nodeNameN = node_name;
+        string nodeNameN = node_name;
         std::replace(nodeNameN.begin(), nodeNameN.end(), '/', '_');
-        std::string dataNameN = node_title;
+        string dataNameN = node_title;
         std::replace(dataNameN.begin(), dataNameN.end(), '/', '_');
 
         out << '\t' << nodeNameN << " [";
@@ -561,8 +570,8 @@ std::unordered_set<DataPtr> getRootDataObjects(ICNNNetwork &network) {
         CNNLayer::Ptr layer = *i;
 
         // TODO: Data without creatorLayer
-        if (CaselessEq<std::string>()(layer->type, "input") ||
-            CaselessEq<std::string>()(layer->type, "const")) {
+        if (CaselessEq<string>()(layer->type, "input") ||
+            CaselessEq<string>()(layer->type, "const")) {
             ret.insert(layer->outData.begin(), layer->outData.end());
         }
         i++;

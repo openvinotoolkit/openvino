@@ -12,9 +12,9 @@
 #include <ie_util_internal.hpp>
 #include <ie_layers.h>
 
-#include <util/algorithm.hpp>
-#include <graph.hpp>
-#include <typed_graph.hpp>
+#include <ade/util/algorithm.hpp>
+#include <ade/graph.hpp>
+#include <ade/typed_graph.hpp>
 
 namespace InferenceEngine {
 namespace {
@@ -26,7 +26,7 @@ void translateVisitLayer(VisitedLayersMap& visited,
                 const ade::NodeHandle& prevNode,
                 const CNNLayer::Ptr& layer) {
     assert(nullptr != layer);;
-    assert(!util::contains(visited, layer));
+    assert(!ade::util::contains(visited, layer));
     auto node = gr.createNode();
     gr.metadata(node).set(CNNLayerMetadata{layer});
     if (nullptr != prevNode) {
@@ -55,7 +55,7 @@ void translateNetworkToAde(ade::Graph& gr, ICNNNetwork& network) {
         for (auto& layerIt : data->getInputTo()) {
             auto layer = layerIt.second;
             assert(nullptr != layer);
-            if (!util::contains(visited, layer)) {
+            if (!ade::util::contains(visited, layer)) {
                 translateVisitLayer(visited, tgr, nullptr, layer);
             }
         }

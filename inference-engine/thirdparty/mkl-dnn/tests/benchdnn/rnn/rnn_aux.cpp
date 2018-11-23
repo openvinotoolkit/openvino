@@ -141,36 +141,6 @@ void init_buffer(float *buf, int size, float value) {
         buf[i] = value;
 }
 
-void gemm(const char *transa, const char *transb, int m, int n, int k,
-        //    float a[m][k], float b[k][n], float c[m][n],
-        const float *a, int lda, const float *b, int ldb, float *c, int ldc,
-        float beta) {
-
-    const bool tr_a = transa && (*transa == 'T' || *transa == 't');
-    const bool tr_b = transb && (*transb == 'T' || *transb == 't');
-
-    array_offset_calculator<const float> pa(a, tr_a ? k : m, lda);
-    array_offset_calculator<const float> pb(b, tr_b ? n : k, ldb);
-    array_offset_calculator<float> pc(c, m, ldc);
-
-    print(80, "gemm(m:%d, n:%d, k:%d, lda:%d, ldb:%d, ldc:%d beta:%f)\n", m, n,
-            k, lda, ldb, ldc, beta);
-#pragma omp parallel for collapse(2)
-    for (int im = 0; im < m; im++) {
-        for (int in = 0; in < n; in++) {
-            // if beta == 0 the initialize pc by 0. Multiplication of
-            // uninitialized value even by zero can lead to nan
-            float c_elem = (beta == 0.) ? 0. : pc(im, in) * beta;
-            for (int ik = 0; ik < k; ik++) {
-                const float a_elem = tr_a ? pa(ik, im) : pa(im, ik);
-                const float b_elem = tr_b ? pb(in, ik) : pb(ik, in);
-                c_elem += a_elem * b_elem;
-            }
-            pc(im, in) = c_elem;
-        }
-    }
-}
-
 float logistic(float x) {
     return 1.0f / (1.0f + expf(-x));
 }

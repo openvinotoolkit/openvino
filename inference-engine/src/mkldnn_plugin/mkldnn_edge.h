@@ -10,6 +10,7 @@
 #include "mkldnn_memory.h"
 #include "mkldnn_dims.h"
 #include <map>
+#include <vector>
 
 namespace MKLDNNPlugin {
 
@@ -49,27 +50,19 @@ public:
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
 
-    inline bool contains(const std::shared_ptr<MKLDNNNode>& node) const noexcept {
-        return node.get() == parent.lock().get() || node.get() == child.lock().get();
-    }
-
-    bool operator==(const MKLDNNEdge& edge) {
-        return this->parent.lock().get() == edge.parent.lock().get() &&
-                this->child.lock().get() == edge.child.lock().get();
-    }
-
     bool isDropped();
 
     InferenceEngine::TensorDesc getDesc();
     int getInputNum();
     int getOutputNum();
+    std::vector<int> getAllOutputNums();
+    std::vector<int> getAllInputNums();
 
     MKLDNNDims &getDims();
     void setDims(MKLDNNDims &dims);
 
     void sharedMemFrom(const MKLDNNEdgePtr& edge);
     MKLDNNEdgePtr getSharedEdge() const;
-
 
 private:
     std::weak_ptr<MKLDNNNode> parent;
@@ -83,6 +76,7 @@ private:
     InferenceEngine::TensorDesc getOutputDesc();
     InferenceEngine::TensorDesc getSpecifiedInputDesc(std::map<mkldnn::memory::format, size_t> formats);
     InferenceEngine::TensorDesc getSpecifiedOutputDesc(std::map<mkldnn::memory::format, size_t> formats);
+
     InferenceEngine::TensorDesc inputDesc;
     InferenceEngine::TensorDesc outputDesc;
 

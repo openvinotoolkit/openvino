@@ -48,8 +48,6 @@ struct jit_uni_pooling_fwd_t: public cpu_primitive_t {
             using namespace utils;
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
-                && implication(desc()->src_desc.ndims == 5,
-                        isa == avx512_common)
                 && mayiuse(isa)
                 && set_default_params() == status::success
                 && one_of(desc()->prop_kind, forward_training,
@@ -57,6 +55,7 @@ struct jit_uni_pooling_fwd_t: public cpu_primitive_t {
                 && one_of(desc()->alg_kind, pooling_max,
                         pooling_avg_include_padding,
                         pooling_avg_exclude_padding)
+                && !has_zero_dim_memory()
                 && everyone_is(data_type::f32, src_pd()->desc()->data_type,
                         dst_pd()->desc()->data_type)
                 && everyone_is(desired_fmt(), src_pd()->desc()->format,
@@ -79,7 +78,7 @@ struct jit_uni_pooling_fwd_t: public cpu_primitive_t {
             using namespace memory_format;
             return (desc()->src_desc.ndims == 4)
                 ? isa == avx512_common ? nChw16c : nChw8c
-                : nCdhw16c;
+                : isa == avx512_common ? nCdhw16c : nCdhw8c;
         }
 
         jit_pool_conf_t jpp_;
@@ -134,13 +133,12 @@ struct jit_uni_pooling_bwd_t: public cpu_primitive_t {
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && mayiuse(isa)
-                && implication(desc()->diff_src_desc.ndims == 5,
-                        isa == avx512_common)
                 && set_default_params() == status::success
                 && one_of(desc()->prop_kind, backward, backward_data)
                 && one_of(desc()->alg_kind, pooling_max,
                         pooling_avg_include_padding,
                         pooling_avg_exclude_padding)
+                && !has_zero_dim_memory()
                 && everyone_is(desired_fmt(), diff_src_pd()->desc()->format,
                         diff_dst_pd()->desc()->format)
                 && everyone_is(data_type::f32, diff_src_pd()->desc()->data_type,
@@ -164,7 +162,7 @@ struct jit_uni_pooling_bwd_t: public cpu_primitive_t {
             using namespace memory_format;
             return (desc()->diff_src_desc.ndims == 4)
                 ? isa == avx512_common ? nChw16c : nChw8c
-                : nCdhw16c;
+                : isa == avx512_common ? nCdhw16c : nCdhw8c;
         }
 
         jit_pool_conf_t jpp_;

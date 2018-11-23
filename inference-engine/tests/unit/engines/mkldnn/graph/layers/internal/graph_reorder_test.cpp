@@ -6,12 +6,9 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
-#include <mock_mkldnn_extension.hpp>
-#include <mkldnn/mkldnn_extension_ptr.hpp>
 #include <mock_error_listener.hpp>
 #include <mkldnn_plugin/mkldnn_extension_mngr.h>
 #include "tests_common.hpp"

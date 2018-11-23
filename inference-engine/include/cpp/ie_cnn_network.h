@@ -191,7 +191,7 @@ public:
      * @brief - Helper method to get collect all input shapes with names of corresponding Data objects
      * @return Map of pairs: input's name and its dimension.
      */
-    virtual ICNNNetwork::InputShapes getInputShapes() {
+    virtual ICNNNetwork::InputShapes getInputShapes() const {
         ICNNNetwork::InputShapes shapes;
         InputsDataMap inputs;
         actual->getInputsInfo(inputs);
@@ -207,6 +207,10 @@ public:
         return std::move(shapes);
     }
 
+    /**
+     * @brief Run shape inference with new input shapes for the network
+     * @param inputShapes - map of pairs: name of corresponding data and its dimension.
+     */
     virtual void reshape(const ICNNNetwork::InputShapes &inputShapes) {
         CALL_STATUS_FNC(reshape, inputShapes);
     }

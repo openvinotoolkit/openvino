@@ -54,27 +54,11 @@ bool MKLDNNPlugin::MKLDNNEdge::needReorder() {
     }
 
     if (in_place) {
-        bool hasInPlace = false;
-        for (size_t i = 0; !hasInPlace && !canBeInPlaceConflicts && i < parentSPD->getConfig().inConfs.size(); i++) {
-            if (parentSPD->getConfig().inConfs[i].inPlace >= 0)
-                hasInPlace = true;
-        }
-        for (size_t i = 0; hasInPlace && !canBeInPlaceConflicts && i < childSPD->getConfig().outConfs.size(); i++) {
-            // getParent()->getType() != Concatenation && getChild()->getType() != Generic is necessary
-            // in order to avoid reorders in the situation: Concat->ScaleShift(or another default in-place layer).
-            if (childSPD->getConfig().outConfs[i].inPlace >= 0 && getParent()->getType() != Concatenation &&
-                getChild()->getType() != Generic)
-                canBeInPlaceConflicts = true;
-        }
-        hasInPlace = false;
-        for (size_t i = 0; !hasInPlace && !canBeInPlaceConflicts && i < parentSPD->getConfig().outConfs.size(); i++) {
-            if (parentSPD->getConfig().outConfs[i].inPlace >= 0)
-                hasInPlace = true;
-        }
-        for (size_t i = 0; hasInPlace && !canBeInPlaceConflicts && i < childSPD->getConfig().inConfs.size(); i++) {
-            if (childSPD->getConfig().inConfs[i].inPlace >= 0)
-                canBeInPlaceConflicts = true;
-        }
+        int outNumber = getOutputNum();
+        int inNumber = getInputNum();
+        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() && parentSPD->getConfig().outConfs[inNumber].inPlace >= 0 &&
+            outNumber >= 0 && outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace >= 0)
+            canBeInPlaceConflicts = true;
     }
     return !MKLDNNExtensionUtils::initTensorsAreEqual(getInputDesc(), getOutputDesc()) || canBeInPlaceConflicts;
 }
@@ -101,29 +85,41 @@ InferenceEngine::TensorDesc MKLDNNPlugin::MKLDNNEdge::getDesc() {
 }
 
 int MKLDNNPlugin::MKLDNNEdge::getInputNum() {
+    return getAllInputNums()[0];
+}
+
+std::vector<int> MKLDNNPlugin::MKLDNNEdge::getAllInputNums() {
     auto parentPtr = parent.lock();
     if (!parentPtr)
-        return -1;
+        return {-1};
+
+    std::vector<int> res;
     for (size_t i = 0; i < parentPtr->getChildEdges().size(); i++) {
         auto childEdge = parentPtr->getChildEdges()[i].lock();
         if (childEdge && childEdge.get() == this) {
-            return static_cast<int>(i);
+            res.push_back(static_cast<int>(i));
         }
     }
-    return -1;
+    return res.empty() ? std::vector<int>{-1} : res;
 }
 
 int MKLDNNPlugin::MKLDNNEdge::getOutputNum() {
+    return getAllOutputNums()[0];
+}
+
+std::vector<int> MKLDNNPlugin::MKLDNNEdge::getAllOutputNums() {
     auto childPtr = child.lock();
     if (!childPtr)
-        return -1;
+        return {-1};
+
+    std::vector<int> res;
     for (size_t i = 0; i < childPtr->getParentEdges().size(); i++) {
         auto parentEdge = childPtr->getParentEdges()[i].lock();
         if (parentEdge && parentEdge.get() == this) {
-            return static_cast<int>(i);
+            res.push_back(static_cast<int>(i));
         }
     }
-    return -1;
+    return res.empty() ? std::vector<int>{-1} : res;
 }
 
 void MKLDNNPlugin::MKLDNNEdge::allocate(const void* mem_ptr) {

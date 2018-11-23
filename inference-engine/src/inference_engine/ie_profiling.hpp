@@ -76,7 +76,7 @@ struct Annotate {
 };
 
 template< typename Static, typename Block, typename Local>
-typename Annotate< Static, Block, Local >::Static_ Annotate< Static, Block, Local >::static_{Local::static_args()};
+typename Annotate< Static, Block, Local >::Static_ Annotate< Static, Block, Local >::static_(Local::static_args());
 
 #define IE_ANNOTATE_CONCAT(x, y) IE_ANNOTATE_CONCAT_EVAL(x, y)
 #define IE_ANNOTATE_CONCAT_EVAL(x, y)  x ## y

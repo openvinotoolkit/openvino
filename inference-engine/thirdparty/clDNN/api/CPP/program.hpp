@@ -119,9 +119,6 @@ struct build_option
     /// @brief User selected list of program outputs.
     static std::shared_ptr<const build_option> outputs(const std::vector<primitive_id>& outs);
 
-	/// @brief User defined learning parameters.
-	static std::shared_ptr<const build_option> learning_config(const learning_params& params = learning_params());
-
     /// @brief Tuning configuration (default: false).
     /// @details This option will automatically find the optimal kernel/config for each node in the graph,
     /// by running multiple implementations and configurations per node and storing the optimal one in cache.
@@ -138,6 +135,8 @@ struct build_option
     /// @brief Specifies a name of load_program process.
     static std::shared_ptr<const build_option> load_program(const std::string& network_name);
 
+    /// @brief User defined learning parameters.
+    static std::shared_ptr<const build_option> learning_config(const learning_params& params = learning_params());
 
     virtual ~build_option() = default;
 

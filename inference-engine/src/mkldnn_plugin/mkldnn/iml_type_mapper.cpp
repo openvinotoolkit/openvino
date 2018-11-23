@@ -24,6 +24,9 @@ impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(_1x1);
     SEARCH_WORD(_dw);
     SEARCH_WORD(reorder);
+    if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
+        (res & impl_desc_type::avx512) != impl_desc_type::avx512)
+        SEARCH_WORD(avx);
 #undef SEARCH_WORD
 
 #define SEARCH_WORD_2(_wrd, _key) if (impl_desc_name.find(#_wrd) != std::string::npos) \

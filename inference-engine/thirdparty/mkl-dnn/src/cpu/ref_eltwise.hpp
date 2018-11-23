@@ -63,9 +63,13 @@ struct ref_eltwise_fwd_t: public cpu_primitive_t {
                 || (src_d.is_dense(true) && is_zero_preserved());
 
             use_nCspBc_padded_ = !use_dense_
-                && one_of(desc()->data_desc.format, nChw8c, nChw16c, nCdhw16c)
+                && one_of(desc()->data_desc.format, nChw8c, nChw16c,
+                    nCdhw8c, nCdhw16c)
                 && src_d.only_padded_dim(1)
                 && src_d.is_dense(true);
+
+            if (has_zero_dim_memory())
+                use_dense_ = use_nCspBc_padded_ = false;
 
             const bool use_generic = !use_dense_ && !use_nCspBc_padded_;
 
@@ -131,7 +135,8 @@ struct ref_eltwise_bwd_t: public cpu_primitive_t {
             use_dense_ = true
                 && same_fmt_
                 && diff_dst_d.is_dense(true)
-                && is_zero_preserved();
+                && is_zero_preserved()
+                && !has_zero_dim_memory();
             const bool use_generic = !use_dense_;
 
             if (use_generic && !one_of(diff_dst_d.ndims(), 4, 5))

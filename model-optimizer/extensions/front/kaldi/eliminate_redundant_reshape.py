@@ -36,9 +36,8 @@ class EliminateRedundantReshape(FrontReplacementPattern):
             nodes=[
                 ('reshape', dict(kind='op', op='Reshape'))
             ],
-            edges=[],
-            node_attrs=['kind', 'op'],
-            edge_attrs=[])
+            edges=[]
+        )
 
     @staticmethod
     def replace_pattern(graph: nx.MultiDiGraph, match: dict):

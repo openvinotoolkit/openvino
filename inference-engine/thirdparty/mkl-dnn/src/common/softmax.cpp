@@ -33,7 +33,6 @@ status_t softmax_desc_init(softmax_desc_t *softmax_desc, prop_kind_t prop_kind,
         const memory_desc_t *data_desc, const memory_desc_t *diff_desc, int softmax_axis) {
     bool args_ok = true
         && !any_null(softmax_desc, data_desc)
-        && memory_desc_wrapper(data_desc).nelems()
         && 0 <= softmax_axis
         && softmax_axis < data_desc->ndims;
     if (!args_ok) return invalid_arguments;
@@ -46,10 +45,6 @@ status_t softmax_desc_init(softmax_desc_t *softmax_desc, prop_kind_t prop_kind,
     sd.data_desc = *data_desc;
     sd.diff_desc = is_bwd ? *diff_desc : zero_md();
     sd.softmax_axis = softmax_axis;
-
-    bool consistency = true
-        && (!is_bwd || memory_desc_wrapper(sd.diff_desc).nelems());
-    if (!consistency) return invalid_arguments;
 
     *softmax_desc = sd;
     return success;

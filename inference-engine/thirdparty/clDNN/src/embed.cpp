@@ -53,8 +53,8 @@ namespace cldnn
 		embed_info.add("weights id", weights_id);
 		embed_info.add("bias id", bias_id);
 
-		node_info.add("embed info", embed_info);
-		node_info.dump(primitive_description);
+		node_info->add("embed info", embed_info);
+		node_info->dump(primitive_description);
 
 		return primitive_description.str();
 	}

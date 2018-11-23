@@ -30,12 +30,12 @@ struct typed_program_node<reorder> : public typed_program_node_base<reorder>
 public:
     using parent::parent;
 
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) mean() const { return get_dependency(1); }
+    program_node& input() const { return get_dependency(0); }
+    program_node& mean() const { return get_dependency(1); }
 
     bool has_mean() const { return !typed_desc()->mean.empty(); }
 
-    auto requires_reinterpret() const { return req_reinterpr; }
+    bool requires_reinterpret() const { return req_reinterpr; }
     void requires_reinterpret(bool val) { req_reinterpr = (optimized && val); }
 
     void set_input_offset(tensor const& io) { input_offset = io; }
@@ -60,7 +60,7 @@ public:
 public:
     typed_primitive_inst(network_impl& network, reorder_node const& node);
 
-    decltype(auto) mean_memory() const { return dep_memory(1); }
+    memory_impl& mean_memory() const { return dep_memory(1); }
 
     bool has_mean() const { return !argument.mean.empty(); }
 

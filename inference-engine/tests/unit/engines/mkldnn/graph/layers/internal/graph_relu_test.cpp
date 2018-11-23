@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
@@ -185,7 +184,7 @@ INSTANTIATE_TEST_CASE_P(
         TestsRelu, MKLDNNGraphReluTests,
         ::testing::Values(
                 relu_test_params{
-                        {1, 3, 228, 228}, 0.0f, 9, MKLDNNPlugin::impl_desc_type::jit, {
+                        {1, 3, 228, 228}, 0.0f, 5, MKLDNNPlugin::impl_desc_type::jit, {
                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
                                     ASSERT_TRUE(impl.getImplementationType() | MKLDNNPlugin::impl_desc_type::jit);
                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());

@@ -13,7 +13,8 @@
 // limitations under the License.
 
 
-#include "include/include_all.cl"
+#include "include/common.cl"
+#include "include/data_types.cl"
     
 #define GLOBAL_SIZE 128
 #define LOCAL_SIZE GLOBAL_SIZE

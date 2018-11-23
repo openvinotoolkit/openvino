@@ -27,6 +27,10 @@
 #include <sstream>
 
 using namespace cldnn;
+namespace kernel_selector
+{
+    using jit_constants = kernel_selector::JitConstants;
+}
 
 namespace neural
 {
@@ -94,6 +98,8 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     // #define INPUT0_TYPE float 
     static const std::map<data_types, std::string> dataTypeToIndex{
         { data_types::i8    ,"char" },
+        { data_types::i32   ,"int" },
+        { data_types::i64   ,"long" },
         { data_types::f16   ,"half" },
         { data_types::f32   ,"float" },
     };
