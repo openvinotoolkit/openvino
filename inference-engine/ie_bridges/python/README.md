@@ -30,7 +30,7 @@ Then build generated solution INFERENCE_ENGINE_DRIVER.sln using Microsoft\* Visu
 ```shellscript
   mkdir -p build
   cd build
-  cmake -DInferenceEngine_DIR=../../../build -DPYTHON_EXECUTABLE=`which python3.6` \
+  cmake -DInferenceEngine_DIR=`realpath ../../../build` -DPYTHON_EXECUTABLE=`which python3.6` \
   	-DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so \
   	-DPYTHON_INCLUDE_DIR=/usr/include/python3.6 ..
   make -j16
