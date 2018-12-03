@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 import logging as log
 from time import time
-from openvino.inference_engine import IENetwork, IEPlugin
+from inference_engine import IENetwork, IEPlugin
 
 classes_color_map = [
     (150, 150, 150),

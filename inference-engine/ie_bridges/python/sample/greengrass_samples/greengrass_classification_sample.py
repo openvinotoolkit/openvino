@@ -38,9 +38,9 @@ import boto3
 import timeit
 import datetime
 import json
-from collections import OrderedDict 
+from collections import OrderedDict
 
-from openvino.inference_engine import IENetwork, IEPlugin
+from inference_engine import IENetwork, IEPlugin
 
 # Specify the delta in seconds between each report
 reporting_interval = 1.0
@@ -95,11 +95,11 @@ def report(res_json, frame):
         cv2.imwrite(temp_image, frame)
         with open(temp_image) as file:
             image_contents = file.read()
-            s3_client.put_object(Body=image_contents, Bucket=s3_bucket_name, Key=date_prefix + ".jpeg") 
+            s3_client.put_object(Body=image_contents, Bucket=s3_bucket_name, Key=date_prefix + ".jpeg")
     if enable_local_jpeg_output:
         cv2.imwrite(os.path.join(PARAM_OUTPUT_DIRECTORY, date_prefix + ".jpeg"), frame)
 
-    
+
 def greengrass_classification_sample_run():
     client.publish(topic=PARAM_TOPIC_NAME, payload="OpenVINO: Initializing...")
     model_bin = os.path.splitext(PARAM_MODEL_XML)[0] + ".bin"
@@ -128,7 +128,7 @@ def greengrass_classification_sample_run():
     if PARAM_LABELMAP_FILE is not None:
        with open(PARAM_LABELMAP_FILE) as labelmap_file:
             labeldata = json.load(labelmap_file)
-    
+
     while (cap.isOpened()):
         ret, frame = cap.read()
         if not ret:
@@ -148,17 +148,17 @@ def greengrass_classification_sample_run():
         res_json = OrderedDict()
         res_json["Candidates"] = OrderedDict()
         frame_timestamp = datetime.datetime.now()
-            
+
         for i in top_ind:
             classlabel = labeldata[str(i)] if labeldata else str(i)
             res_json["Candidates"][classlabel] = round(res[out_blob][0, i], 2)
-            
+
         frame_count += 1
         # Measure elapsed seconds since the last report
         seconds_elapsed = timeit.default_timer() - start_time
         if seconds_elapsed >= reporting_interval:
             res_json["timestamp"] = frame_timestamp.isoformat()
-            res_json["frame_id"] = int(frameid)   
+            res_json["frame_id"] = int(frameid)
             res_json["inference_fps"] = frame_count / inf_seconds
             start_time = timeit.default_timer()
             report(res_json, frame)
