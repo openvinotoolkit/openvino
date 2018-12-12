@@ -31,6 +31,9 @@ class LinOp(Op):
             'infer': None,
         }, attrs)
 
+    def supported_attrs(self):
+        return ['operation']
+
 
 class Add(LinOp):
     enabled = False
