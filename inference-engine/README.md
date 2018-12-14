@@ -59,7 +59,7 @@ The software was validated on:
 5. In the `build` directory, run `cmake` to fetch project dependencies and generate a Visual Studio solution:
 ```sh
 cd build
-cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" -DOS_FOLDER=ON ^
+cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DICCLIB="C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\compiler\lib" ..
 ```
@@ -68,6 +68,8 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" -DOS_FOLDER=
 - To switch to optimized MKL-ML GEMM implementation, use `GEMM=MKL` and `MKLROOT` cmake options to specify path to unpacked MKL-ML with `include` and `lib` folders, for example use the following options: `-DGEMM=MKL -DMKLROOT=<path_to_MKL>`. MKL-ML\* package can be downloaded [here](https://github.com/intel/mkl-dnn/releases/download/v0.17/mklml_win_2019.0.1.20180928.zip)
 
 6. Build generated solution in Visual Studio 2017 or run `cmake --build . --config Release` to build from the command line.
+
+Before running the samples on Microsoft\* Windows\*, please add path to OpenMP library (<dldt_repo>/inference-engine/temp/omp/lib) and OpenCV libraries (<dldt_repo>/inference-engine/temp/opencv_4.0.0/bin) to the %PATH% environment variable.
 
 ---
 \* Other names and brands may be claimed as the property of others.
