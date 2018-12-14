@@ -127,7 +127,7 @@ void simple_net()
     /* AlexNet: relu
      * {batch, 96, 55, 55} -> {batch, 96, 55, 55}
      */
-    const float negative_slope = 1.0;
+    const float negative_slope = 1.0f;
 
     /* create relu primitive desc */
     /* keep memory format of source same as the format of convolution
@@ -151,9 +151,9 @@ void simple_net()
      * k: 1.0
      */
     const uint32_t local_size = 5;
-    const float alpha = 0.0001;
-    const float beta = 0.75;
-    const float k = 1.0;
+    const float alpha = 0.0001f;
+    const float beta = 0.75f;
+    const float k = 1.0f;
 
     /* create a lrn primitive descriptor */
     auto lrn_desc = lrn_forward::desc(prop_kind::forward, lrn_across_channels,

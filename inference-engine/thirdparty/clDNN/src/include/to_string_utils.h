@@ -15,18 +15,15 @@
 */
 #pragma once
 #include <string>
-#include "program_node.h"
+#include "api/CPP/tensor.hpp"
+#include "api/CPP/layout.hpp"
 
 namespace cldnn
 {
 
-inline std::string bool_to_str(const bool condi)
+inline std::string bool_to_str(bool cond)
 {
-	if (condi)
-	{
-		return "true";
-	}
-	return "false";
+    return cond ? "true" : "false";
 }
 
 inline std::string get_extr_type(const char* str)
@@ -63,10 +60,12 @@ inline std::string dt_to_str(data_types dt)
     switch (dt)
     {
     case data_types::i8: return "i8";
+    case data_types::i32: return "i32";
+    case data_types::i64: return "i64";
     case data_types::f16: return "f16";
     case data_types::f32: return "f32";
     default:
-        return "unknown (" + std::to_string(std::underlying_type_t<data_types>(dt)) + ")";
+        return "unknown (" + std::to_string(typename std::underlying_type<data_types>::type(dt)) + ")";
     }
 }
 
@@ -83,7 +82,9 @@ inline std::string fmt_to_str(format fmt)
     case format::bs_xs_xsv8_bsv16: return "bs_xs_xsv8_bsv16";
     case format::os_iyx_osv16: return "os_iyx_osv16";
     case format::os_is_yx_isa8_osv8_isv4: return "os_is_yx_isa8_osv8_isv4";
+    case format::is_o_yx_isv32: return "is_o_yx_isv32";
     case format::byxf_af32: return "byxf_af32";
+    case format::fs_bs_yx_bsv4_fsv32: return "fs_bs_yx_bsv4_fsv32";
     default:
         return "unknown (" + std::to_string(fmt.value) + ")";
     }

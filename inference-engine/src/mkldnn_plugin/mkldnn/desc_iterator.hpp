@@ -19,31 +19,11 @@ template <> struct handle_traits<mkldnn_primitive_desc_iterator_t> {
 
 struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t> {
     template <typename T>
-    primitive_desc_iterator(const T &adesc, const engine &aengine) {
-        mkldnn_primitive_desc_iterator_t result;
-        error::wrap_c_api(mkldnn_primitive_desc_iterator_create(
-                &result, &adesc.data, aengine.get(), nullptr),
-                "could not create a primitive descriptor iterator");
-        reset(result);
-    }
-
-    template <typename T>
     primitive_desc_iterator(const T &adesc, const mkldnn::primitive_attr &aattr, const engine &aengine) {
         mkldnn_primitive_desc_iterator_t result;
         error::wrap_c_api(mkldnn_primitive_desc_iterator_create_v2(
                 &result, &adesc.data, aattr.get(), aengine.get(), nullptr),
                           "could not create a primitive descriptor iterator");
-        reset(result);
-    }
-
-    template <typename T, typename TF>
-    primitive_desc_iterator(const T &adesc, const engine &aengine, const TF &hint_fwd_primitive_desc) {
-        mkldnn_primitive_desc_iterator_t result;
-        error::wrap_c_api(mkldnn_primitive_desc_iterator_create(&result,
-                        &adesc.data,
-                        aengine.get(),
-                        hint_fwd_primitive_desc.get()),
-                "could not create a primitive descriptor iterator");
         reset(result);
     }
 

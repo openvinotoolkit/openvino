@@ -63,7 +63,7 @@ TEST_F(ShapeInferHolderTest, DISABLED_allRegistered) {
     auto holder = std::make_shared<BuiltInShapeInferHolder>();
     char** types = nullptr;
     unsigned int size = 0;
-    ASSERT_NO_THROW(sts = holder->getPrimitiveTypes(types, size, &resp));
+    ASSERT_NO_THROW(sts = holder->getShapeInferTypes(types, size, &resp));
     std::list<std::string> actualTypes;
     for (int i = 0; i < size; i++) {
         actualTypes.emplace_back(types[i], strlen(types[i]));

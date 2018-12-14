@@ -44,8 +44,10 @@ typedef int data_kind_t;
 enum {
     SRC = 0, WEI, BIA, DST, ACC,
     DATA, MEAN, VAR, SS,
+    GWEI,
     DAT_TOTAL };
 const char *data_kind2str(data_kind_t kind);
+data_kind_t fmt2data_kind(mkldnn_memory_format_t fmt);
 
 struct attr_t {
     enum round_mode_t {

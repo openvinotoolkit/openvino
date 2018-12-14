@@ -31,10 +31,13 @@ source_group("src" FILES ${MAIN_SRC})
 source_group("include" FILES ${MAIN_HEADERS})
 
 # opencv include folders
-set(OpenCV_STATIC OFF)
-find_package(OpenCV 3.3 COMPONENTS core imgproc highgui imgcodecs)
+find_package(OpenCV QUIET COMPONENTS core imgproc highgui imgcodecs)
 if(NOT(OpenCV_FOUND))
-    find_package(OpenCV 3.3 REQUIRED world)
+    find_package(OpenCV QUIET COMPONENTS world)
+    if(NOT(OpenCV_FOUND))
+        message(WARNING "No suitable OpenCV version detected, " ${TARGET_NAME} " skipped")
+        return()
+    endif()
 endif()
 
 # Properties->C/C++->General->Additional Include Directories
@@ -51,7 +54,7 @@ add_executable(${TARGET_NAME} ${MAIN_SRC} ${MAIN_HEADERS})
 
 set_target_properties(${TARGET_NAME} PROPERTIES "CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS} -fPIE" 
 COMPILE_PDB_NAME ${TARGET_NAME})
-target_link_libraries(${TARGET_NAME} gflags cpu_extension ${InferenceEngine_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(${TARGET_NAME} gflags IE::ie_cpu_extension ${InferenceEngine_LIBRARIES} ${OpenCV_LIBRARIES})
 if (UNIX)
     target_link_libraries(${TARGET_NAME} dl)
 endif()

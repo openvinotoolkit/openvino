@@ -15,7 +15,10 @@
 """
 
 import logging as log
+
 import numpy as np
+
+from mo.ops.op import PermuteAttrs
 from mo.utils.error import Error
 
 
@@ -155,39 +158,50 @@ def tf_split_infer(node):
     node.graph.remove_edge(node.in_node(0).id, node.id)
     node['input_port'] = 1
 
+    PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:1')])
+
 
 def tf_split_v_infer(node):
     """
     Partial infer of split node similar to SplitV op of TF.
     """
 
-    if len(node.in_nodes()) == 1:
+    if len(node.in_nodes()) == 1 and not (node.has_valid('axis') and node.has_valid('size_splits')):
+        return True
+
+    if len(node.in_nodes()) == 3 and (node.has_valid('axis') or node.has_valid('size_splits')):
         return True
 
     # Three inputs: [input, size_splits, split_dim)
-    assert (len(node.in_nodes()) == 3)
-    split_dim = node.in_node(2).value
+    if len(node.in_nodes())==3 :
+        split_dim = node.in_node(2).value
+        assert split_dim.ndim == 0
+        split_dim = split_dim.item()
+        size_splits = node.in_node(1).value
+        node.graph.remove_edge(node.in_node(1).id, node.id)
+        node.graph.remove_edge(node.in_node(2).id, node.id)
+    else :
+        split_dim = node.axis
+        size_splits = node.size_splits
+   
     if split_dim is None:
         log.error('split_dim value for node {} is None. Cannot do shape inference.')
         return
-    assert split_dim.ndim == 0
-    split_dim = split_dim.item()
+    
     input = node.in_node(0)
-    size_splits = node.in_node(1)
-
+    
     log.debug(
-        'split_dim = {}, input.shape = {}, size_splits.value = {}'.format(split_dim, input.shape, size_splits.value))
+        'split_dim = {}, input.shape = {}, size_splits.value = {}'.format(split_dim, input.shape, size_splits))
 
-    if split_dim is None or input.shape is None or size_splits.value is None:
+    if split_dim is None or input.shape is None or size_splits is None:
         return
 
     outputs = node.out_nodes()
     # split_dim is a numpy array, axis is split_dim
-    split(input, node, [outputs[i] for i in range(len(outputs))], split_dim, size_splits.value)
+    split(input, node, [outputs[i] for i in range(len(outputs))], split_dim, size_splits)
     log.debug('output shapes after split: {}'.format([v.shape for k, v in outputs.items()]))
-    node.graph.remove_edge(node.in_node(1).id, node.id)
-    node.graph.remove_edge(node.in_node(2).id, node.id)
-
+    
+    PermuteAttrs.create_permute_attrs(node, attrs=[('axis','input:0')])
 
 def tf_unpack_infer(node):
     if len(node.in_nodes()) != 1:
@@ -218,15 +232,6 @@ def tf_unpack_infer(node):
     outputs = node.out_nodes()
     split(node.in_node(), node, [outputs[i] for i in range(len(outputs))], split_dim,
           [int(split_dim_size / node.num_split)] * node.num_split)
-
-    # Should eliminate dimension that is used for unpacking
-    for k, output in outputs.items():
-        if output.shape[split_dim] != 1:
-            raise Error('Cannot deduce output shape for Unpack trying to squeeze dimension {} for shape {}, but it is not 1.'.format(split_dim, output.shape))
-        output.shape = np.delete(output.shape, split_dim)
-        if output.value is not None:
-            output.value = np.squeeze(output.value, split_dim)
-            assert np.all(output.shape == output.value.shape)
 
     # node shapes will be squeezed in the separate pass
     log.debug('output shapes after split: {}'.format([v.shape for k, v in outputs.items()]))

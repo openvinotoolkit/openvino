@@ -20,7 +20,7 @@ import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.graph.graph import Node
-from mo.ops.op import Op
+from mo.ops.op import Op, PermuteAttrs
 
 
 class ArgMaxOp(Op):
@@ -67,6 +67,7 @@ class ArgMaxOp(Op):
             node.axis = axis
             out_shape = np.array(shape)
             out_shape[axis] = node.top_k
+            PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
         else:
             out_shape[0] = shape[0]
             out_shape[2] = node.top_k

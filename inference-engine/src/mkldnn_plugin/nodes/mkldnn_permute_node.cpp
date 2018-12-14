@@ -8,6 +8,7 @@
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "ie_parallel.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -17,9 +18,9 @@ MKLDNNPermuteNode::MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, 
 
 void MKLDNNPermuteNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (!getChildEdges().size())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     auto& layer = getCnnLayer();
     if (!layer) {
@@ -126,6 +127,31 @@ static void permute_to_0231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
     }
 }
 
+static void permute_to_0213(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    int block_size = 1;
+    if (!MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat())) {
+        block_size = srcMemPtr->GetDescriptor().data.layout_desc.blocking.block_dims[1];
+    }
+
+    const int C = srcMemPtr->GetDims()[1];
+    const int H = srcMemPtr->GetDims()[2];
+    const int W = srcMemPtr->GetDims()[3];
+
+    parallel_for3d(MB, C/block_size, H, [&](int n, int c, int h) {
+        for (int w = 0; w < W; w++) {
+            int src_off = n*C*H*W + (c*H*W + h*W + w)*block_size;
+            int dst_off = n*C*H*W + (h*C*W + w + c*W)*block_size;
+            for (int b = 0; b < block_size; b++) {
+                dst_data[dst_off + b] = src_data[src_off + b];
+            }
+        }
+    });
+}
+
 template <size_t scale_H = 0, size_t scale_W = 0>
 static void permute_to_014253(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
     auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
@@ -208,6 +234,9 @@ std::map<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl> MKLDNNPerm
         {{3, 0, 1, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_3012, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
         })},  // LPR case
+        {{0, 2, 1, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_0213, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        })},  // shufflenet
 };
 
 void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
@@ -230,11 +259,11 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
         }
         TensorDesc dstDesc(InferenceEngine::Precision::FP32, dims, {orderedDims, order});
 
-        size_t dataSize = srcBlob->size() / srcDesc.getDims()[0] * batchToProcess();
-#pragma omp parallel for
-        for (size_t i = 0; i < dataSize; i++) {
+        int dataSize = srcBlob->size() / srcDesc.getDims()[0] * batchToProcess();
+
+        parallel_for(dataSize, [&](int i) {
             dst_data[dstDesc.offset(i)] = src_data[srcDesc.offset(i)];
-        }
+        });
     }
 }
 

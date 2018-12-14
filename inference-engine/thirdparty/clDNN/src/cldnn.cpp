@@ -40,26 +40,6 @@ namespace cldnn {
     if(arg == 0) \
         throw std::invalid_argument( std::string(msg_prefix)  + " should not equals 0.");
 
-//this function should be used to initialize C API object which will be returned to the user
-template <class T>
-auto init_external_from_internal(refcounted_obj_ptr<T> obj_ptr) //the ref is being increased by a ctor of this arg
-{
-    auto raw_ptr = obj_ptr.detach(); //call detach to prevent release of the arg (so the increased ref is associated with the user)
-    return api_cast(raw_ptr); //return reintrpreted (raw) pointer
-}
-
-template <class T>
-auto init_external_from_internal(refcounted_obj_ptr<const T> obj_ptr)
-{
-    return init_external_from_internal(reinterpret_cast<refcounted_obj_ptr<T>&>(obj_ptr));
-}
-
-template <class T>
-auto init_external_from_internal(T& obj_ref)
-{
-    return init_external_from_internal(refcounted_obj_ptr<T>{ &obj_ref });
-}
-
 extern "C"
 {
 
@@ -119,7 +99,9 @@ void cldnn_change_input_layout(cldnn_topology topology, cldnn_primitive_id id, c
         if (new_layout.data_type != cldnn_data_type::cldnn_f16 &&
             new_layout.data_type != cldnn_data_type::cldnn_f32 &&
             new_layout.data_type != cldnn_data_type::cldnn_i8 &&
-            new_layout.data_type != cldnn_data_type::cldnn_u8)
+            new_layout.data_type != cldnn_data_type::cldnn_u8 &&
+            new_layout.data_type != cldnn_data_type::cldnn_i32 &&
+            new_layout.data_type != cldnn_data_type::cldnn_i64)
             throw std::invalid_argument("Unknown data_type of layout.");
         api_cast(topology)->change_input_layout(id, new_layout);
     });
@@ -296,7 +278,8 @@ cldnn_event cldnn_create_user_event(cldnn_engine engine, cldnn_status* status)
     return exception_handler<cldnn_event>(CLDNN_ERROR, status, nullptr, [&]()
     {
         SHOULD_NOT_BE_NULL(engine, "Engine");
-        return init_external_from_internal(api_cast(engine)->create_user_event());
+        event_impl* e = api_cast(engine)->create_user_event().detach();
+        return api_cast(e);
     });
 }
 
@@ -398,7 +381,9 @@ cldnn_program cldnn_build_program(cldnn_engine engine, cldnn_topology topology, 
         SHOULD_NOT_BE_NULL(engine,   "Engine");
         SHOULD_NOT_BE_NULL(topology, "Topology");
         cldnn::build_options options_obj(cldnn::array_ref<cldnn_build_option>(options, options_num));
-        return init_external_from_internal(api_cast(engine)->build_program(*api_cast(topology), options_obj));
+
+        cldnn::program_impl* prog = api_cast(engine)->build_program(*api_cast(topology), options_obj).detach();
+        return api_cast(prog);
     });
 }
 
@@ -425,7 +410,8 @@ cldnn_network cldnn_allocate_network(cldnn_program program, cldnn_status* status
     return exception_handler<cldnn_network>(CLDNN_ERROR, status, nullptr, [&]()
     {
         SHOULD_NOT_BE_NULL(program, "Program");
-        return init_external_from_internal(api_cast(program)->get_engine().allocate_network(*api_cast(program)));
+        network_impl* p = api_cast(program)->get_engine().allocate_network(*api_cast(program)).detach();
+        return api_cast(p);
     });
 }
 
@@ -491,7 +477,8 @@ cldnn_engine cldnn_get_network_engine(cldnn_network network, cldnn_status* statu
     return exception_handler<cldnn_engine>(CLDNN_ERROR, status, nullptr, [&]()
     {
         SHOULD_NOT_BE_NULL(network, "Network");
-        return init_external_from_internal(api_cast(network)->get_engine());
+        refcounted_obj_ptr<cldnn::engine_impl> ptr{&api_cast(network)->get_engine()};
+        return api_cast(ptr.detach());
     });
 }
 
@@ -500,7 +487,8 @@ cldnn_program cldnn_get_network_program(cldnn_network network, cldnn_status* sta
     return exception_handler<cldnn_program>(CLDNN_ERROR, status, nullptr, [&]()
     {   
         SHOULD_NOT_BE_NULL(network, "Network");
-        return init_external_from_internal(api_cast(network)->get_program());
+        refcounted_obj_ptr<cldnn::program_impl> ptr{const_cast<cldnn::program_impl*>(&api_cast(network)->get_program())};
+        return api_cast(ptr.detach());
     });
 }
 
@@ -722,9 +710,10 @@ cldnn_network_output cldnn_get_network_output(cldnn_network network, const char*
         cldnn::primitive_id id(name);
         auto event = api_cast(network)->get_primitive_event(id);
         auto& mem_result = api_cast(network)->get_primitive(id)->output_memory();
+        refcounted_obj_ptr<cldnn::memory_impl> mem_ptr{&mem_result};
         return{
-            init_external_from_internal(event),
-            init_external_from_internal(mem_result)
+                api_cast(event.detach()),
+                api_cast(mem_ptr.detach())
         };
     });
 }
@@ -738,7 +727,8 @@ cldnn_memory cldnn_get_network_output_memory(cldnn_network network, const char* 
         SHOULD_NOT_BE_NULL(name, "ID of primitive");
         cldnn::primitive_id id(name);
         auto& mem_result = api_cast(network)->get_primitive(id)->output_memory();
-        return init_external_from_internal(mem_result);
+        refcounted_obj_ptr<cldnn::memory_impl> mem_ptr{&mem_result};
+        return api_cast(mem_ptr.detach());
     });
 }
 
@@ -751,7 +741,7 @@ cldnn_event cldnn_get_network_output_event(cldnn_network network, const char* na
         SHOULD_NOT_BE_NULL(name, "ID of primitive");
         cldnn::primitive_id id(name);
         auto event = api_cast(network)->get_primitive_event(id);
-        return init_external_from_internal(event);
+        return api_cast(event.detach());
     });
 }
 
@@ -765,10 +755,13 @@ cldnn_memory cldnn_allocate_memory(cldnn_engine engine, cldnn_layout layout, cld
         if (layout.data_type != cldnn_data_type::cldnn_f16 &&
             layout.data_type != cldnn_data_type::cldnn_f32 &&
             layout.data_type != cldnn_data_type::cldnn_i8 &&
-            layout.data_type != cldnn_data_type::cldnn_u8)
+            layout.data_type != cldnn_data_type::cldnn_u8 &&
+            layout.data_type != cldnn_data_type::cldnn_i32 &&
+            layout.data_type != cldnn_data_type::cldnn_i64)
             throw std::invalid_argument("Unknown data_type of layout.");
 
-        return init_external_from_internal(api_cast(engine)->allocate_memory(layout));
+        cldnn::memory_impl* mem_ptr = api_cast(engine)->allocate_memory(layout).detach();
+        return api_cast(mem_ptr);
     });
 }
 
@@ -859,7 +852,8 @@ cldnn_engine cldnn_get_memory_engine(cldnn_memory memory, cldnn_status* status)
     return exception_handler<cldnn_engine>(CLDNN_ERROR, status, nullptr, [&]()
     {
         SHOULD_NOT_BE_NULL(memory, "Memory");
-        return init_external_from_internal(api_cast(memory)->get_engine());
+        auto engine = api_cast(memory)->get_engine();
+        return api_cast(engine.detach());
     });
 }
 
@@ -909,6 +903,8 @@ PRIMITIVE_TYPE_ID_CALL_IMPL(arg_max_min)
 PRIMITIVE_TYPE_ID_CALL_IMPL(average_unpooling)
 PRIMITIVE_TYPE_ID_CALL_IMPL(batch_norm)
 PRIMITIVE_TYPE_ID_CALL_IMPL(batch_norm_grad)
+PRIMITIVE_TYPE_ID_CALL_IMPL(border)
+PRIMITIVE_TYPE_ID_CALL_IMPL(broadcast)
 PRIMITIVE_TYPE_ID_CALL_IMPL(convolution)
 PRIMITIVE_TYPE_ID_CALL_IMPL(crop)
 PRIMITIVE_TYPE_ID_CALL_IMPL(data)
@@ -950,3 +946,7 @@ PRIMITIVE_TYPE_ID_CALL_IMPL(lstm)
 PRIMITIVE_TYPE_ID_CALL_IMPL(lstm_gemm)
 PRIMITIVE_TYPE_ID_CALL_IMPL(lstm_elt)
 PRIMITIVE_TYPE_ID_CALL_IMPL(softmax_loss_grad)
+PRIMITIVE_TYPE_ID_CALL_IMPL(tile)
+PRIMITIVE_TYPE_ID_CALL_IMPL(gemm)
+PRIMITIVE_TYPE_ID_CALL_IMPL(select)
+PRIMITIVE_TYPE_ID_CALL_IMPL(index_select)

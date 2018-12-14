@@ -65,8 +65,8 @@ std::string scale_inst::to_string(scale_node const& node)
     scale_info.add("input", input.id());
     scale_info.add("scale input", scale_input.id());
 
-    node_info.add("scale info", scale_info);
-    node_info.dump(primitive_description);
+    node_info->add("scale info", scale_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

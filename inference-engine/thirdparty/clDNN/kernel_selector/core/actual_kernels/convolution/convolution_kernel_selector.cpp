@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,8 @@
 #include "convolution_kernel_MMAD_blocks.h"
 #include "convolution_kernel_1x1_gemm_MMAD.h"
 #include "convolution_kernel_byxf_af32_depthwise.h"
+#include "convolution_kernel_mmad_batched.h"
+#include "convolution_kernel_bfyx_depthwise_weights_lwg.h"
 
 #include <iostream>
  
@@ -61,6 +63,8 @@ namespace kernel_selector
         Attach<ConvolutionKernel_MMAD_blocks>();
         Attach<ConvolutionKernel_1x1_gemm_MMAD>();
         Attach<ConvolutionKernel_byxf_af32_depthiwise>();
+        Attach<ConvolutionKernel_mmad_batched>();
+        Attach<ConvolutionKernel_bfyx_depthwise_weights_lwg>();
         //Attach<ConvolutionKernel_Tutorial>(); //In order to use this implementation for tutorial purposes please uncomment this line
     }
 

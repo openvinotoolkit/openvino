@@ -36,9 +36,9 @@ void MKLDNNROIPoolingNode::getSupportedDescriptors() {
         THROW_IE_EXCEPTION << "Cannot convert ROIPooling layer.";
 
     if (getParentEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     pooled_h = genericLayer->GetParamAsInt("pooled_h");
     pooled_w = genericLayer->GetParamAsInt("pooled_w");

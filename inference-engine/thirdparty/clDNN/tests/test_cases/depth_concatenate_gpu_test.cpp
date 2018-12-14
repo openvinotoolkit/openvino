@@ -99,8 +99,9 @@ TEST(depth_concatenate_f32_gpu, test01) {
     EXPECT_FLOAT_EQ(-0.2f, output_ptr[9]);
 }
 
-
-TEST(depth_concatenate_f32_gpu, concat_basic_int8) {
+template<data_types DType>
+void concat_basic_with_reorder()
+{
     //  Input count : 2
     //  Input1 : 2x 1x1 x 2
     //  Input2 : 2x 1x1 x 3
@@ -132,8 +133,8 @@ TEST(depth_concatenate_f32_gpu, concat_basic_int8) {
     topology topology;
     topology.add(input_layout("input1", input1.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
-    topology.add(reorder("to_int1", "input1", { data_types::i8, format::yxfb,{ 2,2,1,1 } }));
-    topology.add(reorder("to_int2", "input2", { data_types::i8, format::yxfb,{ 2,3,1,1 } }));
+    topology.add(reorder("to_int1", "input1", { DType, format::yxfb,{ 2,2,1,1 } }));
+    topology.add(reorder("to_int2", "input2", { DType, format::yxfb,{ 2,3,1,1 } }));
     topology.add(concatenation("depth1", { "to_int1", "to_int2" }, concatenation::along_f));
     topology.add(reorder("to_float", "depth1", { data_types::f32, format::yxfb,{ 2,5,1,1 } }));
 
@@ -143,7 +144,7 @@ TEST(depth_concatenate_f32_gpu, concat_basic_int8) {
     network.set_input_data("input2", input2);
 
     auto outputs = network.execute({});
-    EXPECT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.size(), size_t(1));
     EXPECT_EQ(outputs.begin()->first, "to_float");
 
     auto output = outputs.at("to_float").get_memory();
@@ -154,6 +155,18 @@ TEST(depth_concatenate_f32_gpu, concat_basic_int8) {
     {
         EXPECT_FLOAT_EQ(ref, output_ptr[ptr_cntr++]);
     }
+}
+
+TEST(depth_concatenate_int8_gpu, concat_basic) {
+    concat_basic_with_reorder<data_types::i8>();
+}
+
+TEST(depth_concatenate_int32_gpu, concat_basic) {
+    concat_basic_with_reorder<data_types::i32>();
+}
+
+TEST(depth_concatenate_int64_gpu, concat_basic) {
+    concat_basic_with_reorder<data_types::i64>();
 }
 
 TEST(depth_concatenate_f32_gpu, test02) {

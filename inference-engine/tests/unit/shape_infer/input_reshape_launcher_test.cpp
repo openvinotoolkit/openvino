@@ -117,14 +117,12 @@ TEST_F(InputReshapeLauncherTest, canReset) {
     ASSERT_NO_THROW(launcher.reset());
 }
 
-TEST_F(InputReshapeLauncherTest, throwOnApplyWithNotEnoughShapes) {
+TEST_F(InputReshapeLauncherTest, canApplyWithoutSettingShapes) {
     auto layer = createLayer();
     layer->outData.push_back(notEmptyData);
     InputReshapeLauncher launcher(layer.get(), impl);
-    launcher.setShapeByName(outDims, TEST_NAME);
-    ASSERT_THROW(launcher.applyChanges(layer.get()), InferenceEngineException);
+    ASSERT_NO_THROW(launcher.applyChanges(layer.get()));
 }
-
 
 TEST_F(InputReshapeLauncherTest, canNotApplyForLayerWithAnotherName) {
     auto layer1 = createLayer("");

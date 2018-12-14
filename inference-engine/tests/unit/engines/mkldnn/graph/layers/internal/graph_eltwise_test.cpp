@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
@@ -432,3 +431,121 @@ INSTANTIATE_TEST_CASE_P(
                 eltwise_test_params{{1, 3, 3, 3}, eltwise_test_params::opType::Sum, "1.5,0.5,-2.0", 3, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3, 3, 3}, eltwise_test_params::opType::Prod, "", 3, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3, 3, 3}, eltwise_test_params::opType::Max, "", 3, MKLDNNPlugin::impl_desc_type::ref}));
+
+
+struct precisions_test_2params {
+    struct {
+        std::string precision0;
+        std::string precision1;
+    } in;
+
+    size_t num_nodes;
+    size_t num_reorder_nodes;
+};
+
+class MKLDNNGraphEltwise2PrecisionsTests : public TestsCommon,
+                                     public WithParamInterface<precisions_test_2params> {
+
+    std::string model_t = R"V0G0N(
+<net name="default" version="2" batch="1">
+    <layers>
+        <layer name="second_input" type="Input" precision="_IP1_" id="1">
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="data" type="Input" precision="_IP0_" id="0">
+            <output>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Eltwise" precision="FP32" id="2">
+            <elementwise_data operation="sum" coeff=""/>
+            <input>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                </port>
+                <port id="3">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+            <output>
+                <port id="4">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="2" to-port="2"/>
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="3"/>
+    </edges>
+</net>
+)V0G0N";
+
+protected:
+    std::string getModel(precisions_test_2params p) {
+        std::string model = model_t;
+
+        REPLACE_WITH_STR(model, "_IP0_", p.in.precision0);
+        REPLACE_WITH_STR(model, "_IP1_", p.in.precision1);
+        return model;
+    }
+
+    virtual void TearDown() {
+    }
+
+    virtual void SetUp() {
+        try {
+            TestsCommon::SetUp();
+            precisions_test_2params p = ::testing::WithParamInterface<precisions_test_2params>::GetParam();
+            std::string model = getModel(p);
+
+            InferenceEngine::CNNNetReader net_reader;
+            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+
+            MKLDNNGraphTestClass graph;
+            ASSERT_NO_THROW(graph.CreateGraph(net_reader.getNetwork()));
+
+            auto& nodes = graph.getNodes();
+            nodes = graph.getNodes();
+            ASSERT_EQ(nodes.size(), p.num_nodes);
+
+            size_t actual_reorder_nodes = 0;
+            for (size_t i = 0; i < nodes.size(); i++) {
+                if(nodes[i].get()->getType() == MKLDNNPlugin::Type::Reorder &&
+                    FIND_STR(nodes[i].get()->getName(), "_U8_FP32_"))
+                    actual_reorder_nodes ++;
+            }
+            ASSERT_EQ(actual_reorder_nodes, p.num_reorder_nodes);
+        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+            FAIL() << e.what();
+        }
+    }
+};
+
+TEST_P(MKLDNNGraphEltwise2PrecisionsTests, TestsEltwise2Precisions) {}
+
+INSTANTIATE_TEST_CASE_P(
+        TestsEltwise2Precisions, MKLDNNGraphEltwise2PrecisionsTests,
+        ::testing::Values(
+            precisions_test_2params{ {"FP32", "FP32"}, 4, 0 },
+            precisions_test_2params{ {  "U8", "FP32"}, 5, 1 },
+            precisions_test_2params{ {"FP32",   "U8"}, 5, 1 },
+            precisions_test_2params{ {  "U8",   "U8"}, 6, 2 }
+        ));
+

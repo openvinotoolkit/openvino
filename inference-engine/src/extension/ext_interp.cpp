@@ -6,7 +6,10 @@
 #include "ext_list.hpp"
 #include "ext_base.hpp"
 #include <vector>
+#if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #include <immintrin.h>
+#endif
+#include "ie_parallel.hpp"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -25,6 +28,7 @@ public:
             // We don't read other parameters since they are needed only for dst reshape in caffe
             pad_beg = layer->GetParamAsInt("pad_beg");
             pad_end = layer->GetParamAsInt("pad_end");
+            align_corners = layer->GetParamsAsBool("align_corners", true);
 
 #if defined(HAVE_AVX512F)
             auto blk_layout = ConfLayout::BLK16;
@@ -63,6 +67,8 @@ public:
 private:
     int pad_beg;
     int pad_end;
+    bool align_corners;
+
     void interpolate(const int N, const int C,
                      const float *src, const int x1, const int y1,
                      const int IH_pad, const int IW_pad, const int IH, const int IW,
@@ -75,8 +81,15 @@ private:
             return;
         }
 
-        const float rh = (OH_pad > 1) ? static_cast<float>(IH_pad - 1) / (OH_pad - 1) : 0.0f;
-        const float rw = (OW_pad > 1) ? static_cast<float>(IW_pad - 1) / (OW_pad - 1) : 0.0f;
+        float rh;
+        float rw;
+        if (align_corners) {
+            rh = (OH_pad > 1) ? static_cast<float>(IH_pad - 1) / (OH_pad - 1) : 0.0f;
+            rw = (OW_pad > 1) ? static_cast<float>(IW_pad - 1) / (OW_pad - 1) : 0.0f;
+        } else {
+            rh = static_cast<float>(IH_pad) / (OH_pad);
+            rw = static_cast<float>(IW_pad) / (OW_pad);
+        }
 
 #if defined(HAVE_AVX512F)
         const int block_size = 16;
@@ -89,14 +102,7 @@ private:
 
         int CH = (C + block_size - 1) / block_size;
 
-#if _MSC_VER && !__INTEL_COMPILER
-        #pragma omp parallel for schedule(static)
-#else
-        #pragma omp parallel for collapse(3) schedule(static)
-#endif
-        for (int n = 0; n < N; n++) {
-            for (int cb = 0; cb < CH; ++cb) {
-                for (int h = 0; h < OH_pad; ++h) {
+        parallel_for3d(N, CH, OH_pad, [&](int n, int cb, int h) {
                     const float *psrc = src + n * CB * IH * IW;
 
                     float fh = rh * h;
@@ -185,10 +191,8 @@ private:
                                       h_lambda0 * (w_lambda1 * psrc10[c] + w_lambda0 * psrc11[c]);
                         }
 #endif
-                    }
-                }
             }
-        }
+        });
     }
 };
 

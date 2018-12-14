@@ -19,6 +19,7 @@ import logging as log
 import numpy as np
 
 from mo.front.extractor import update_attrs
+from mo.ops.op import PermuteAttrs
 
 
 def tf_transpose_infer(node):
@@ -31,11 +32,11 @@ def tf_transpose_infer(node):
     in_shape = np.array(node_inp.shape)
     node.graph.remove_edge(node_order.node, node.node)
     node.order = np.array(order)
-    update_attrs(node, 'shape_attrs', 'order')
-    update_attrs(node, 'dim_attrs', 'order')
     node.out_node().shape = in_shape[order]
     if node_inp.has_valid('value'):
         node.out_node().value = np.transpose(node_inp.value, axes=order)
+
+    PermuteAttrs.create_permute_attrs(node, attrs=[('order','input:0')])
 
 
 def transpose_infer(node):
@@ -52,5 +53,8 @@ def transpose_infer(node):
     if node.has_valid('reverse_order') and node.reverse_order:
         node.order = np.arange(len(input_shape))[::-1] # Reverse order
 
-    output_shape = [input_shape[i] for i in node.order]
+    output_shape = np.array([input_shape[i] for i in node.order], dtype=np.int64)
     node.out_node(0).shape = output_shape
+    if node.in_node().has_valid('value'):
+        node.out_node().value = np.transpose(node.in_node().value, axes=node.order)
+    PermuteAttrs.create_permute_attrs(node, attrs=[('order', 'input:0')])

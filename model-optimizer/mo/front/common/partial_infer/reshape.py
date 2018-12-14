@@ -18,6 +18,8 @@ import logging as log
 
 import numpy as np
 
+from mo.ops.op import PermuteAttrs
+
 
 def tf_reshape_shape_infer(node):
     # TODO Make sure that all -1 are handled correctly
@@ -29,6 +31,11 @@ def tf_reshape_shape_infer(node):
 
     input_shape = node.in_node(0).shape
     reshape_output = node.in_node(1).value if len(node.in_nodes()) > 1 else node.dim
+
+    # In case if Reshape operation was created with two inputs and dim attr wasn't set, we set in automatically
+    if not node.has_valid('dim'):
+        node['dim'] = np.array(reshape_output, dtype=np.int64)
+
     if node.in_node(0).shape is None:
         return None
     total = 1
@@ -62,5 +69,7 @@ def tf_reshape_shape_infer(node):
             "Number of elements in input {} and output {} of reshape node {} mismatch".format(input_shape, output_shape,
                                                                                               node.name))
         return None
+
+    PermuteAttrs.create_permute_attrs(node, attrs=[('dim', 'output:0')])
 
     return np.array(output_shape, dtype=np.int64)

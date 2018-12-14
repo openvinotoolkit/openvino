@@ -24,6 +24,7 @@ class MKLDNNMemoryNode {
             _id = lp->GetParamAsString("id");
         }
     }
+    virtual ~MKLDNNMemoryNode() = default;
     std::string getId() {
         return _id;
     }

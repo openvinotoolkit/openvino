@@ -197,12 +197,12 @@ TEST_F(V2TopologyVerificationTests, testMixedPrecisionIfLayerAndNetworkPrecision
     }
 }
 
-TEST_F(V2TopologyVerificationTests, cropDimIsIgnored) {
+TEST_F(V2TopologyVerificationTests, throwsIfCropDimIsTooBig) {
     CropData data = { 1, 0, 200 };
 
     string testContent = getNetworkWithCropLayer({ data });
     xmlHelper->loadContent(testContent);
-    ASSERT_NO_THROW(xmlHelper->parse());
+    ASSERT_THROW(xmlHelper->parse(), InferenceEngine::details::InferenceEngineException);
 }
 
 TEST_F(V2TopologyVerificationTests, testNoThrowWithProperCropParameters) {

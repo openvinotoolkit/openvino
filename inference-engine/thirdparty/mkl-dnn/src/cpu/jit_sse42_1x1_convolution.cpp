@@ -47,7 +47,13 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward() {
 
     const int work_amount = MB * jcp.ngroups * jcp.nb_bcast;
 
-    auto ker = [&](const int ithr, const int nthr) {
+    if (conf_.want_padded_bias()) {
+        for (int oc = 0; oc < jcp.oc_without_padding; ++oc)
+            padded_bias_[oc] = bias[oc];
+        bias = padded_bias_;
+    }
+
+    parallel(0, [&](const int ithr, const int nthr) {
         // TODO (Roma): remove this restriction
         assert(jcp.stride_w == 1 && jcp.stride_h == 1);
 
@@ -97,7 +103,7 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward() {
                 par_conv.bias_data = &bias[_ocb * jcp.oc_block];
 
                 for (int icb = 0; icb < nb_ic; icb += nb_ic_blocking) {
-                    par_conv.reduce_pos_flag = 0
+                    par_conv.first_last_flag = 0
                         | (icb == 0) * FLAG_REDUCE_FIRST
                         | (icb + nb_ic_blocking >= nb_ic) * FLAG_REDUCE_LAST;
 
@@ -112,6 +118,8 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward() {
                         ? weights_d.blk_off(g, ocb, icb)
                         : weights_d.blk_off(ocb, icb)];
 
+                    par_conv.oc_off = _ocb * jcp.oc_block * sizeof(float);
+
                     kernel_->jit_ker(&par_conv);
                 }
 
@@ -120,12 +128,7 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward() {
 
             iwork += bcast_step;
         }
-    };
-
-#   pragma omp parallel
-    {
-        ker(omp_get_thread_num(), omp_get_num_threads());
-    }
+    });
 }
 
 template <bool with_relu>
@@ -140,6 +143,8 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward_fusing() {
 
     auto &jcp = kernel_->jcp;
     int MB = conf_.MB();
+
+    auto dw_bias = jcp.dw_conv_biases;
 
     int ocb_work = jcp.with_dw_conv ? utils::div_up(jcp.nb_load, jcp.nb_load_blocking) : 1;
     const int work_amount = MB * jcp.ngroups * ocb_work * jcp.nb_bcast;
@@ -176,7 +181,7 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward_fusing() {
                     p.bias_data = &bias[_ocb * jcp.oc_block];
 
                     for (int icb = 0; icb < jcp.nb_reduce; icb += jcp.nb_reduce_blocking) {
-                        p.reduce_pos_flag = 0
+                        p.first_last_flag = 0
                                             | (icb == 0 ? FLAG_REDUCE_FIRST : 0)
                                             | (icb + jcp.nb_reduce_blocking >= jcp.nb_reduce
                                                ? FLAG_REDUCE_LAST : 0);
@@ -189,6 +194,8 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward_fusing() {
 
                         const int _icb = g * jcp.nb_reduce + icb;
                         p.bcast_data = src + src_d.blk_off(n, _icb, ih, iw);
+
+                        p.oc_off = _ocb * jcp.oc_block * sizeof(float);
 
                         kernel_->jit_ker(&p);
                     }
@@ -214,7 +221,7 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward_fusing() {
 
                 par_conv_dw.kh_padding = jcp_dw.kh;
                 par_conv_dw.filt = &jcp.dw_conv_weights[chb * jcp_dw.kh * jcp_dw.kw * jcp_dw.ch_block];
-                par_conv_dw.bias = &jcp.dw_conv_biases[chb * jcp_dw.ch_block];
+                par_conv_dw.bias = &dw_bias[chb * jcp_dw.ch_block];
                 par_conv_dw.ur_w = (size_t)(jcp_dw.ow);
 
                 kernel_dw_->jit_ker(&par_conv_dw);
@@ -267,10 +274,17 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward_fusing() {
         }
     };
 
-    #pragma omp parallel
-    {
-        ker(omp_get_thread_num(), omp_get_num_threads());
+    if (conf_.want_padded_bias()) {
+        for (int oc = 0; oc < jcp.oc_without_padding; ++oc)
+            padded_bias_[oc] = bias[oc];
+        bias = padded_bias_;
+
+        for (int oc = 0; oc < jcp.oc_without_padding; ++oc)
+            dw_padded_bias_[oc] = dw_bias[oc];
+        dw_bias = dw_padded_bias_;
     }
+
+    parallel(0, ker);
 }
 
 template void _jit_sse42_1x1_convolution_fwd_t<true>::execute_forward();

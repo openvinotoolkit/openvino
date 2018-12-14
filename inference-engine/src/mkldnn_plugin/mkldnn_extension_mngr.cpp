@@ -15,31 +15,6 @@
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
-using namespace InferenceEngine::MKLDNNPlugin;
-
-IMKLDNNGenericPrimitive* MKLDNNExtensionManager::CreateExtensionPrimitive(const CNNLayerPtr& layer) {
-    IMKLDNNGenericPrimitive* primitive = nullptr;
-
-    // last registered has a priority
-    for (auto ext = _extensions.rbegin(); ext != _extensions.rend(); ++ext) {
-        ResponseDesc respDesc;
-        StatusCode rc;
-        auto *mkldnnExtension = dynamic_cast<IMKLDNNExtension *>(ext->get());
-        if (mkldnnExtension != nullptr) {
-            // If extension does not want to provide impl it should just return OK and do nothing.
-            rc = mkldnnExtension->CreateGenericPrimitive(primitive, layer, &respDesc);
-            if (rc != OK) {
-                primitive = nullptr;
-                continue;
-            }
-
-            if (primitive != nullptr) {
-                break;
-            }
-        }
-    }
-    return primitive;
-}
 
 void MKLDNNExtensionManager::AddExtension(IExtensionPtr extension) {
     _extensions.push_back(extension);

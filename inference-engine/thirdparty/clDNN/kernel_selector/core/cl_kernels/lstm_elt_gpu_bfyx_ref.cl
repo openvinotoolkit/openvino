@@ -15,9 +15,12 @@
 
 #include "include/include_all.cl"
 
-// tempGEMM = [ 1, direction, batch, 4 * hidden_size ]
-// cell     = [ 1, direction, batch,     hidden_size ] optional
-// output   = [ 2, direction, batch,     hidden_size ] output
+#define ACTIVATION_LOGISTIC(input)                      (UNIT_VAL_ONE/(UNIT_VAL_ONE + exp(-input)))
+#define ACTIVATION_HYPERBOLIC_TAN(input)                (tanh(input))
+
+// tempGEMM = [ batch, direction, 1, 4 * hidden_size ]
+// cell     = [ batch, direction, 1,     hidden_size ] optional
+// output   = [ batch, direction, 2,     hidden_size ] output
 KERNEL(lstm_elt)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output

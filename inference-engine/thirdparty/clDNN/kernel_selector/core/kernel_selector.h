@@ -16,14 +16,14 @@
 
 #pragma once
 
-#include "kernel_base.h"
 #include "kernel_selector_common.h"
-#include "kernel_selector_params.h"
 #include "kernel_runner_interface.h"
 #include "auto_tuner.h"
 
 namespace kernel_selector 
 {
+    class KernelBase;
+
     using KernelList = std::vector<std::shared_ptr<KernelBase>>;
     using ForceList = std::map<std::string, bool>;
 
@@ -39,7 +39,7 @@ namespace kernel_selector
         template<typename T>
         inline void Attach()
         {
-            implementations.push_back(std::make_shared<T>(T()));
+            implementations.push_back(std::make_shared<T>());
         }
 
         virtual KernelsData GetNaiveBestKernel(const Params& params, const optional_params& options, KernelType kType) const;

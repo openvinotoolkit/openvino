@@ -31,9 +31,8 @@ class NoOpEraser(FrontReplacementSubgraph):
             nodes=[('noop', dict(kind='op', op='NoOp')),
                    ('output', dict(kind='op', op='OpOutput'))
                    ],
-            edges=[('noop', 'output')],
-            node_attrs=['kind', 'op'],
-            edge_attrs=[])
+            edges=[('noop', 'output')]
+        )
 
     @staticmethod
     def replace_sub_graph(graph: nx.MultiDiGraph, match: dict):

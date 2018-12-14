@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 cmake_minimum_required(VERSION 2.8)
+cmake_policy(SET CMP0054 NEW)
+
 set(TARGET_NAME InferenceEngineUnitTests)
 
 #rpath enabled for unit tests only
@@ -34,15 +36,16 @@ file(GLOB
         shape_infer/*.cpp
         shape_infer/built-in/*.cpp
         topology_verification_tests/*.cpp
-        extension/*.cpp
         stress_tests/*.cpp
         )
 
 if (ENABLE_MKL_DNN)
-    find_package(OpenMP)
-    if (OPENMP_FOUND)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    if (THREADING STREQUAL "OMP")
+        find_package(OpenMP)
+        if (OPENMP_FOUND)
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+        endif ()
     endif ()
 
     file(GLOB
@@ -117,7 +120,7 @@ target_link_libraries(${TARGET_NAME}
         gmock
         gtest_main
         inference_engine_s
-        cpu_extension
+        ie_cpu_extension
         helpers
         ${PUGI}
         ${LIB_DL}
@@ -136,4 +139,4 @@ endif ()
 add_test(NAME ${TARGET_NAME}
         COMMAND ${TARGET_NAME})
 
-add_dependencies(${TARGET_NAME} mock_engine mock_extensions)
+add_dependencies(${TARGET_NAME} mock_engine)

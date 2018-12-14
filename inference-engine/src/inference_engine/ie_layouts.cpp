@@ -51,7 +51,7 @@ TensorDesc::TensorDesc(const Precision &precision, SizeVector dims, const Blocki
         : dims(dims), blockingDesc(blockDesc), precision(precision)  {
     if (dims.size() != *std::max_element(blockDesc.getOrder().begin(), blockDesc.getOrder().end()) + 1)
         THROW_IE_EXCEPTION << "Cannot create TensorDesc! Blocked dims are inconsistent with original dims.";
-    if (dims == blockingDesc.getBlockDims()) {
+    if (dims.size() == blockingDesc.getBlockDims().size()) {
         switch (dims.size()) {
             case 1:
                 layout = Layout::C;

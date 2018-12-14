@@ -103,8 +103,8 @@ std::string pooling_inst::to_string(pooling_node const& node)
         pooling_info.add("with_user_defined_output_size", ud_out_size_info);
     }
 
-    node_info.add("pooling info", pooling_info);
-    node_info.dump(primitive_description);
+    node_info->add("pooling info", pooling_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

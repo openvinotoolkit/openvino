@@ -110,8 +110,8 @@ def get_subgraph_output_tensors(node: Node):
     tf.reset_default_graph()
     graph = tf.Graph()
     sess = tf.Session(graph=graph)
-    with graph.as_default():
-        with sess.as_default():
+    with graph.as_default():  # pylint: disable=not-context-manager
+        with sess.as_default():  # pylint: disable=not-context-manager
             tf.import_graph_def(graph_def, name='')
             all_constants, feed_dict = generate_feed_dict(graph, node)
             for out_port, out_tensor_name in enumerate(node['output_tensors_names']):

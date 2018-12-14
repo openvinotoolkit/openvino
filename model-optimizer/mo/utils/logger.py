@@ -27,7 +27,8 @@ class LvlFormatter(log.Formatter):
         log.INFO: "[ %(levelname)s ]  %(msg)s",
         log.WARNING: "[ WARNING ]  %(msg)s",
         log.ERROR: "[ %(levelname)s ]  %(msg)s",
-        log.CRITICAL: "[ %(levelname)s ]  %(msg)s"
+        log.CRITICAL: "[ %(levelname)s ]  %(msg)s",
+        'framework_error': "[ FRAMEWORK ERROR ]  %(msg)s"
     }
 
     def __init__(self, lvl, fmt=None):
@@ -41,6 +42,8 @@ class LvlFormatter(log.Formatter):
             self._style._fmt = self.format_dict[record.levelno]
         if 'is_warning' in record.__dict__.keys():
             self._style._fmt = self.format_dict[log.WARNING]
+        if 'framework_error' in record.__dict__.keys():
+            self._style._fmt = self.format_dict['framework_error']
         return log.Formatter.format(self, record)
 
 

@@ -43,6 +43,7 @@ struct ref_inner_product_fwd_t: public cpu_primitive_t {
 
         virtual status_t init() override {
             using namespace prop_kind;
+            using namespace data_type;
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && this->set_default_params() == status::success
@@ -52,9 +53,13 @@ struct ref_inner_product_fwd_t: public cpu_primitive_t {
                 && desc()->weights_desc.data_type == wei_type
                 && desc()->accum_data_type == acc_type
                 && desc()->dst_desc.data_type == dst_type
-                && utils::implication(this->with_bias(),
-                        desc()->bias_desc.data_type == dst_type)
-                && attr()->has_default_values();
+                && utils::implication(with_bias(),
+                            utils::one_of(desc()->bias_desc.data_type,
+                                f32, s32, s8, u8))
+                && attr()->output_scales_.has_default_values()
+                && attr()->post_ops_.len_ <= 1
+                && utils::implication(attr()->post_ops_.len_ == 1,
+                        attr()->post_ops_.entry_[0].is_relu(true, false));
             return ok ? status::success : status::unimplemented;
         }
     };

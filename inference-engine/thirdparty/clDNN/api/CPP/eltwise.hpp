@@ -54,6 +54,7 @@ enum class eltwise_mode : int32_t
 /// @notes
 /// - both inputs have to have equal sizes in all dimensions
 /// - format of both inputs has to be the same
+/// - when using integer types, only following eltwise modes are supported: sum, sub, prod, div
 struct eltwise : public primitive_base<eltwise, CLDNN_PRIMITIVE_DESC(eltwise)>
 {
     CLDNN_DECLARE_PRIMITIVE(eltwise)

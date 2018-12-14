@@ -5,7 +5,6 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include <mock_mkldnn_extension.hpp>
 #include <cpp_interfaces/impl/mock_executable_thread_safe_async_only.hpp>
 #include <cpp_interfaces/impl/mock_async_infer_request_internal.hpp>
 

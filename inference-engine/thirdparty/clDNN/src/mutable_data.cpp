@@ -20,6 +20,7 @@
 #include "memory_impl.h"
 #include <random>
 #include "error_handler.h"
+#include "json_object.h"
 
 namespace cldnn
 {
@@ -74,6 +75,9 @@ void mutable_data_node::fill_memory()
     case mutable_data::filler_type::zero:
         fill_memory_constant(0.f);
         break;
+    case mutable_data::filler_type::one:
+        fill_memory_constant(1.f);
+        break;
     case mutable_data::filler_type::xavier:
         fill_memory_xavier();
         break;
@@ -114,7 +118,7 @@ std::string mutable_data_inst::to_string(mutable_data_node const& node)
 
     std::stringstream primitive_description;
     
-    node_info.dump(primitive_description);
+    node_info->dump(primitive_description);
     return primitive_description.str();
 }
 

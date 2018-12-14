@@ -82,7 +82,7 @@ void HeteroInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
     for (size_t i = 0; i < _inferRequests.size(); i++) {
         auto perfMapRequest = _inferRequests[i]._request->GetPerformanceCounts();
         for (auto &&r : perfMapRequest) {
-            perfMap[std::string("subgraph") + std::to_string(i + 1) + ": " + r.first] = r.second;
+            perfMap[std::string("subgraph") + std::to_string(i) + ": " + r.first] = r.second;
         }
     }
 }

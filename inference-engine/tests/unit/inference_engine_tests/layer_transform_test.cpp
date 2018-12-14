@@ -31,36 +31,39 @@ TEST_F(LayerTransformTest, canInjectIntoConvolutionLayer) {
 
     ConvolutionLayer lc(LayerParams{"name", "type", Precision::FP32});
 
-    lc._kernel_x = 23;
-    lc._kernel_y = 24;
+    lc._kernel.clear();
+    lc._kernel.insert(X_AXIS, 23);
+    lc._kernel.insert(Y_AXIS, 24);
 
     auto layerWithData = injectData<int>(lc);
     dynamic_cast<details::LayerInjector<ConvolutionLayer, int>*>(layerWithData.get())->injected = 5;
 
-    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel_x,  23);
-    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel_y,  24);
+    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel[X_AXIS],  23);
+    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel[Y_AXIS],  24);
 }
 
 TEST_F(LayerTransformTest, canInjectValue) {
 
     ConvolutionLayer lc(LayerParams{"name", "type", Precision::FP32});
 
-    lc._kernel_x = 23;
-    lc._kernel_y = 24;
+    lc._kernel.clear();
+    lc._kernel.insert(X_AXIS, 23);
+    lc._kernel.insert(Y_AXIS, 24);
 
     auto layerWithData = injectData<int>(lc, 6);
     ASSERT_EQ((dynamic_cast<details::LayerInjector<ConvolutionLayer, int>*>(layerWithData.get())->injected), 6);
 
-    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel_x,  23);
-    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel_y,  24);
+    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel[X_AXIS],  23);
+    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel[Y_AXIS],  24);
 }
 
 TEST_F(LayerTransformTest, canAccessInjectedValue) {
 
     ConvolutionLayer lc(LayerParams{"name", "type", Precision::FP32});
 
-    lc._kernel_x = 23;
-    lc._kernel_y = 24;
+    lc._kernel.clear();
+    lc._kernel.insert(X_AXIS, 23);
+    lc._kernel.insert(Y_AXIS, 24);
 
     auto layerWithData = injectData<int>(lc, 7);
     auto injectedData = getInjectedData<int>(layerWithData);
@@ -68,23 +71,24 @@ TEST_F(LayerTransformTest, canAccessInjectedValue) {
     ASSERT_NE(injectedData, nullptr);
     ASSERT_EQ(*injectedData, 7);
 
-    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel_x,  23);
-    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel_y,  24);
+    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel[X_AXIS],  23);
+    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel[Y_AXIS],  24);
 }
 
 TEST_F(LayerTransformTest, returnNullIfNotInjected) {
 
     ConvolutionLayer lc(LayerParams{"name", "type", Precision::FP32});
 
-    lc._kernel_x = 23;
-    lc._kernel_y = 24;
+    lc._kernel.clear();
+    lc._kernel.insert(X_AXIS, 23);
+    lc._kernel.insert(Y_AXIS, 24);
 
     auto layerWithData = injectData<int>(lc, 7);
 
     ASSERT_EQ(getInjectedData<float>(layerWithData), nullptr);
 
-    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel_x,  23);
-    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel_y,  24);
+    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel[X_AXIS],  23);
+    ASSERT_EQ(dynamic_cast<ConvolutionLayer*>(layerWithData.get())->_kernel[Y_AXIS],  24);
 }
 
 struct SomeData {

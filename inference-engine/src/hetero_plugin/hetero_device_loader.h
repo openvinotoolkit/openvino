@@ -38,6 +38,8 @@ public:
     void initConfigs(const std::map<std::string, std::string> &config,
                      const std::vector<InferenceEngine::IExtensionPtr> &extensions);
 
+    void SetLogCallback(IErrorListener &listener) override;
+
 protected:
     std::string _deviceId;
     InferenceEngine::InferenceEnginePluginPtr _plugin;

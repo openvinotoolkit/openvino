@@ -111,11 +111,11 @@ protected:
         return nullptr;
     }
 
-    bool compareTop(InferenceEngine::Blob& blob, std::vector<std::pair<int, float>> &ref_top, int batch_to_compare = 0) {
+    bool compareTop(InferenceEngine::Blob& blob, std::vector<std::pair<int, float>> &ref_top, int batch_to_compare = 0, float threshold = 0.005f) {
         if (blob.dims()[0] == 7)
             return compareTopLikeObjDetection(blob, ref_top, batch_to_compare);
         else
-            return compareTopLikeClassification(blob, ref_top, batch_to_compare);
+            return compareTopLikeClassification(blob, ref_top, batch_to_compare, threshold);
     }
 
     bool compareTopLikeObjDetection (InferenceEngine::Blob& blob, std::vector<std::pair<int, float>> &ref_top,
@@ -151,7 +151,7 @@ protected:
     }
 
     bool compareTopLikeClassification (InferenceEngine::Blob& blob, std::vector<std::pair<int, float>> &ref_top,
-                     int batch_to_compare = 0) {
+                     int batch_to_compare = 0, float threshold = 0.005f) {
         int top_num = (int)ref_top.size();
 
         size_t data_size = blob.size();
@@ -174,8 +174,8 @@ protected:
                 return false;
             }
 
-            if (fabs(data_ptr[top[i]] - ref_top[i].second)/ref_top[i].second > 0.005) {
-                EXPECT_NEAR(data_ptr[top[i]] , ref_top[i].second , ref_top[i].second * 0.005);
+            if (fabs(data_ptr[top[i]] - ref_top[i].second)/ref_top[i].second > threshold) {
+                EXPECT_NEAR(data_ptr[top[i]] , ref_top[i].second , ref_top[i].second * threshold);
                 return false;
             }
         }

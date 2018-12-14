@@ -6,6 +6,25 @@
 #include "ie_api_impl.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
+std::map <std::string,InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
+                                                                       {"FP16", InferenceEngine::Precision::FP16},
+                                                                       {"Q78", InferenceEngine::Precision::Q78},
+                                                                       {"I32",  InferenceEngine::Precision::I32},
+                                                                       {"I16",  InferenceEngine::Precision::I16},
+                                                                       {"I8",  InferenceEngine::Precision::I8},
+                                                                       {"U16",  InferenceEngine::Precision::U16},
+                                                                       {"U8",  InferenceEngine::Precision::U8}};
+
+std::map <std::string,InferenceEngine::Layout> layout_map = {{"ANY", InferenceEngine::Layout::ANY},
+                                                                {"NCHW", InferenceEngine::Layout::NCHW},
+                                                                {"NHWC", InferenceEngine::Layout::NHWC},
+                                                                {"OIHW", InferenceEngine::Layout::OIHW},
+                                                                {"C", InferenceEngine::Layout::C},
+                                                                {"CHW", InferenceEngine::Layout::CHW},
+                                                                {"HW", InferenceEngine::Layout::HW},
+                                                                {"NC", InferenceEngine::Layout::NC},
+                                                                {"CN", InferenceEngine::Layout::CN},
+                                                                {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
 #define stringify( name ) # name
 #define IE_CHECK_CALL(expr) {                       \
     auto ret = (expr);                              \
@@ -14,33 +33,18 @@
     }                                               \
 }                                                   \
 
+
+
 InferenceEnginePython::IENetwork InferenceEnginePython::IENetReader::read(std::string const &model,
                                                                      std::string const &weights)
 {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(model);
     net_reader.ReadWeights(weights);
-
     const std::string &net_name = net_reader.getName();
-    std::map<std::string, std::vector<size_t>> inputs;
-    const InferenceEngine::InputsDataMap &inputsInfo = net_reader.getNetwork().getInputsInfo();
-    for (auto &item : inputsInfo)
-    {
-        const InferenceEngine::TensorDesc &inputTensorDesc = item.second->getTensorDesc();
-        InferenceEngine::SizeVector dims = inputTensorDesc.getDims();
-        inputs[item.first] = dims;
-    }
-
-    // TODO: store output shapes for each output
-    std::vector<std::string> outputs;
-    const InferenceEngine::OutputsDataMap &outputsInfo = net_reader.getNetwork().getOutputsInfo();
-    for (auto &item : outputsInfo)
-    {
-        outputs.push_back(item.first);
-    }
     InferenceEngine::CNNNetwork network = net_reader.getNetwork();
     std::size_t batch_size = network.getBatchSize();
-    return {network, net_name, batch_size, inputs, outputs};
+    return {network, net_name, batch_size};
 }
 
 std::map<std::string, InferenceEnginePython::IENetLayer> InferenceEnginePython::IENetwork::getLayers()
@@ -91,17 +95,47 @@ std::map<std::string, InferenceEnginePython::IENetLayer> InferenceEnginePython::
     return result;
 
 }
+std::map<std::string, InferenceEnginePython::InputInfo> InferenceEnginePython::IENetwork::getInputs(){
+    std::map<std::string, InferenceEnginePython::InputInfo> inputs;
+    const InferenceEngine::InputsDataMap &inputsInfo = actual.getInputsInfo();
+    for (auto & in : inputsInfo){
+        InferenceEnginePython::InputInfo info;
+        info.actual = *in.second;
+        const InferenceEngine::TensorDesc &inputTensorDesc = in.second->getTensorDesc();
+        info.dims = inputTensorDesc.getDims();
+        for (auto it : precision_map )
+            if (it.second == in.second->getPrecision())
+                info.precision =  it.first;
+        for (auto it : layout_map )
+            if (it.second == in.second->getLayout())
+                info.layout =  it.first;
+        inputs[in.first] = info;
+    }
+    return inputs;
+}
+
+std::map<std::string, InferenceEnginePython::OutputInfo> InferenceEnginePython::IENetwork::getOutputs(){
+    std::map<std::string, InferenceEnginePython::OutputInfo> outputs;
+    const InferenceEngine::OutputsDataMap &outputsInfo = actual.getOutputsInfo();
+    for (auto & out : outputsInfo){
+        InferenceEnginePython::OutputInfo info;
+        info.actual = out.second;
+        const InferenceEngine::TensorDesc &inputTensorDesc = out.second->getTensorDesc();
+        info.dims = inputTensorDesc.getDims();
+        for (auto it : precision_map )
+            if (it.second == out.second->getPrecision())
+                info.precision =  it.first;
+        for (auto it : layout_map )
+            if (it.second == out.second->getLayout())
+                info.layout =  it.first;
+        outputs[out.first] = info;
+    }
+    return outputs;
+}
 
 void InferenceEnginePython::IENetwork::addOutputs(const std::vector<std::string> & out_layers, const std::string &precision)
 {
-    std::map <std::string,InferenceEngine::Precision> precision_map = {{"fp32", InferenceEngine::Precision::FP32},
-                                                                       {"fp16", InferenceEngine::Precision::FP16},
-                                                                       {"q78", InferenceEngine::Precision::Q78},
-                                                                       {"i32",  InferenceEngine::Precision::I32},
-                                                                       {"i16",  InferenceEngine::Precision::I16},
-                                                                       {"i8",  InferenceEngine::Precision::I8},
-                                                                       {"u16",  InferenceEngine::Precision::U16},
-                                                                       {"u8",  InferenceEngine::Precision::U8}};
+
     for (auto && l : out_layers)
     {
         InferenceEngine::OutputsDataMap outputsDataMap = actual.getOutputsInfo();
@@ -118,32 +152,29 @@ void InferenceEnginePython::IENetwork::addOutputs(const std::vector<std::string>
         actual.addOutput(l);
         InferenceEngine::OutputsDataMap outputsDataMapUpd = actual.getOutputsInfo();
         outputsDataMapUpd[l]->setPrecision(precision_map[precision]);
-        outputs.push_back(l);
     }
 }
 
 void InferenceEnginePython::IENetwork::setBatch(const size_t size)
 {
     actual.setBatchSize(size);
-    const InferenceEngine::InputsDataMap &inputsInfo = actual.getInputsInfo();
-    for (auto &item : inputsInfo)
-    {
-        const InferenceEngine::TensorDesc &inputTensorDesc = item.second->getTensorDesc();
-        InferenceEngine::SizeVector dims = inputTensorDesc.getDims();
-        inputs[item.first] = dims;
-    }
 }
 void InferenceEnginePython::IENetwork::reshape(const std::map<std::string, std::vector<size_t>> & input_shapes){
     actual.reshape(input_shapes);
-    const InferenceEngine::InputsDataMap &inputsInfo = actual.getInputsInfo();
-    for (auto &item : inputsInfo)
-    {
-        const InferenceEngine::TensorDesc &inputTensorDesc = item.second->getTensorDesc();
-        InferenceEngine::SizeVector dims = inputTensorDesc.getDims();
-        inputs[item.first] = dims;
-    }
-
 }
+
+void InferenceEnginePython::InputInfo::setPrecision(std::string precision){
+    actual.setPrecision(precision_map[precision]);
+}
+
+void InferenceEnginePython::InputInfo::setLayout(std::string layout){
+    actual.setLayout(layout_map[layout]);
+}
+
+void InferenceEnginePython::OutputInfo::setPrecision(std::string precision){
+    actual->setPrecision(precision_map[precision]);
+}
+
 InferenceEnginePython::IEPlugin::IEPlugin(const std::string &device, const std::vector<std::string> &plugin_dirs)
 {
 
@@ -211,6 +242,9 @@ std::map<std::string, InferenceEngine::Blob::Ptr> InferenceEnginePython::IENetLa
     return weights;
 }
 
+void InferenceEnginePython::IENetLayer::setPrecision(std::string precision){
+    layer_ptr->precision = precision_map[precision];
+}
 void InferenceEnginePython::IEPlugin::addCpuExtension(const std::string &extension_path)
 {
     InferenceEngine::ResponseDesc response;
@@ -295,13 +329,13 @@ std::vector<std::string> InferenceEnginePython::InferRequestWrap::getOutputsList
 }
 
 void InferenceEnginePython::InferRequestWrap::infer() {
-    InferenceEngine::ResponseDesc responseDesc;
-    request_ptr->Infer(&responseDesc);
+    InferenceEngine::ResponseDesc response;
+    IE_CHECK_CALL(request_ptr->Infer(&response));
 }
 
 void InferenceEnginePython::InferRequestWrap::infer_async() {
-    InferenceEngine::ResponseDesc responseDesc;
-    request_ptr->StartAsync(&responseDesc);
+    InferenceEngine::ResponseDesc response;
+    IE_CHECK_CALL(request_ptr->StartAsync(&response));
 }
 
 int InferenceEnginePython::InferRequestWrap::wait(int64_t timeout) {

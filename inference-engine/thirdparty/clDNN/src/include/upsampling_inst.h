@@ -31,8 +31,8 @@ struct typed_program_node<upsampling> : public typed_program_node_base<upsamplin
 public:
     using parent::parent;
 
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) input2() const { return get_dependency(1); }
+    program_node& input() const { return get_dependency(0); }
+    program_node& input2() const { return get_dependency(1); }
 };
 
 using upsampling_node = typed_program_node<upsampling>;

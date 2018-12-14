@@ -126,8 +126,7 @@ struct ref_convolution_bwd_data_t: public cpu_primitive_t {
             assert(this->engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && this->set_default_params() == status::success
-                && utils::one_of(this->desc()->prop_kind, backward,
-                        backward_data)
+                && this->desc()->prop_kind == backward_data
                 && this->desc()->alg_kind == alg_kind::convolution_direct
                 && this->desc()->diff_dst_desc.data_type == diff_dst_type
                 && this->desc()->weights_desc.data_type == wei_type
@@ -136,6 +135,8 @@ struct ref_convolution_bwd_data_t: public cpu_primitive_t {
                 && this->attr()->has_default_values();
             return ok ? status::success : status::unimplemented;
         }
+
+        virtual bool support_bias() const override { return true; }
     };
 
     ref_convolution_bwd_data_t(const pd_t *pd, const input_vector &inputs,
@@ -149,7 +150,6 @@ struct ref_convolution_bwd_data_t: public cpu_primitive_t {
 
     virtual void execute(event_t *e) {
         switch (conf_.desc()->prop_kind) {
-        case prop_kind::backward:
         case prop_kind::backward_data:
             execute_backward_data();
             break;
@@ -183,8 +183,7 @@ struct ref_convolution_bwd_weights_t: public cpu_primitive_t {
             assert(this->engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && this->set_default_params() == status::success
-                && utils::one_of(this->desc()->prop_kind, backward,
-                        backward_weights)
+                && this->desc()->prop_kind == backward_weights
                 && this->desc()->alg_kind == alg_kind::convolution_direct
                 && this->desc()->src_desc.data_type == src_type
                 && this->desc()->diff_weights_desc.data_type == diff_wei_type
@@ -209,7 +208,6 @@ struct ref_convolution_bwd_weights_t: public cpu_primitive_t {
 
     virtual void execute(event_t *e) {
         switch (conf_.desc()->prop_kind) {
-        case prop_kind::backward:
         case prop_kind::backward_weights:
             execute_backward_weights();
             break;

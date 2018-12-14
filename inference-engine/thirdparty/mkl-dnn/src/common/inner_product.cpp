@@ -57,10 +57,7 @@ status_t ip_desc_init(inner_product_desc_t *ip_desc, prop_kind_t prop_kind,
     id.accum_data_type = types::default_accum_data_type(src_desc->data_type,
             weights_desc->data_type, dst_desc->data_type, prop_kind);
 
-    /* FIXME: fill-in! */
     bool consistency = true
-        && memory_desc_wrapper(src_desc).nelems()
-        && memory_desc_wrapper(dst_desc).nelems()
         && memory_desc_wrapper(weights_desc).nelems()
         && one_of(src_desc->ndims, 2, 4, 5)
         && dst_desc->ndims == 2

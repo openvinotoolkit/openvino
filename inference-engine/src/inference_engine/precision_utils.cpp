@@ -7,8 +7,6 @@
 #include <stdint.h>
 #include <details/ie_exception.hpp>
 #include <ie_blob.h>
-#include <emmintrin.h>
-#include <nmmintrin.h>
 #include "inference_engine.hpp"
 
 using namespace InferenceEngine;
@@ -145,41 +143,3 @@ ie_fp16 PrecisionUtils::f32tof16(float x) {
 
     return v.u | s;
 }
-
-namespace InferenceEngine {
-    template<>
-    void copyToFloat<uint8_t>(float *dst, const InferenceEngine::Blob *src) {
-        if (!dst) {
-            return;
-        }
-        const InferenceEngine::TBlob<uint8_t> *t_blob = dynamic_cast<const InferenceEngine::TBlob<uint8_t> *>(src);
-        if (t_blob == nullptr) {
-            THROW_IE_EXCEPTION << "input type is " << src->precision() << " but input is not " << typeid(uint8_t).name();
-        }
-
-        const uint8_t *srcPtr = t_blob->readOnly();
-        if (srcPtr == nullptr) {
-            THROW_IE_EXCEPTION << "Input data was not allocated.";
-        }
-        size_t multiple_of = 0;
-        #if defined(__SSE4_2__)
-        const bool is_aligned = (size_t(dst)&0xf) == 0;
-        multiple_of = t_blob->size() - t_blob->size()%4;
-        for (size_t i = 0; i < multiple_of; i+=4) {
-                // Load four uchar elements to lower part of the __m128i
-                const __m128i four_elements_uchar = _mm_castps_si128(_mm_load_ss(reinterpret_cast<const float*>(srcPtr + i)));
-                // Convert four uchar elements to int
-                const __m128i four_elements_int = _mm_cvtepu8_epi32(four_elements_uchar);
-                // Convert int to float and store the result
-                const __m128 four_elements_float = _mm_cvtepi32_ps(four_elements_int);
-                if (is_aligned)
-                    _mm_stream_ps(dst+i,  four_elements_float);
-                else
-                    _mm_storeu_ps(dst+i, four_elements_float);
-            }
-        #endif
-        for (size_t i = multiple_of; i < t_blob->size(); i++) {
-            dst[i] = srcPtr[i];
-        }
-    }
-}  // namespace InferenceEngine

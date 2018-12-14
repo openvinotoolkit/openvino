@@ -23,7 +23,6 @@ clDNN is licensed is licensed under
 
 ### Attached licenses
 clDNN uses 3<sup>rd</sup>-party components licensed under following licenses:
-- *boost* under [Boost\* Software License - Version 1.0](http://www.boost.org/LICENSE_1_0.txt)
 - *googletest* under [Google\* License](https://github.com/google/googletest/blob/master/googletest/LICENSE)
 - *OpenCL™ ICD and C++ Wrapper* under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
 
@@ -34,15 +33,32 @@ There is also inline documentation available that can be [generated with Doxygen
 
 Accelerate Deep Learning Inference with Intel® Processor Graphics whitepaper [link](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).
 
-## OpenVINO™ Toolkit and clDNN
+## Intel® OpenVino™ Toolkit and clDNN
 
-clDNN is released also together with OpenVINO™ Toolkit, which contains:
+clDNN is released also together with Intel® OpenVino™ Toolkit, which contains:
 - *Model Optimizer* a Python*-based command line tool, which imports trained models from popular deep learning frameworks such as Caffe*, TensorFlow*, and Apache MXNet*.
 - *Inference Engine* an execution engine which uses a common API to deliver inference solutions on the platform of your choice (for example GPU with clDNN library)
 
 You can find more information [here](https://software.intel.com/en-us/openvino-toolkit/deep-learning-cv).
 
 ## Changelog
+
+### Drop 9.1
+    New features:
+    - select index primitive
+	- gemm primitive
+    Bug fixes:
+    - fix for output format in fully connected primitive
+
+### Drop 9.0
+    New features:
+    - log2 activation function
+    - support for i32 and i64 types
+    - select primitive
+	- border primitive
+	- tile primitive
+    Bug fixes:
+    - dilation > input size fix
 
 ### Drop 8.0
     New features:
@@ -96,7 +112,6 @@ You can find more information [here](https://software.intel.com/en-us/openvino-t
 	- winograd bias fix
 	- mean subtract fix
 	UX:
-	- update boost to 1.64.0
 	- extend graph dumps
 	Performance:
 	- update offline caches for newer drivers
@@ -217,16 +232,9 @@ clDNN requires CPU with Intel® SSE/Intel® AVX support.
 ---
 
 The software dependencies are:
-- [CMake\*](https://cmake.org/download/) 3.9 or later  
-(the project is compatible with CMake 3.1, but, due to issues with boost libraries resolution
-in CMake 3.4.3, with CheckCXXCompilerFlag module in CMake 3.5.2 and hard dependency on supported boost version based
-on version of CMake, we strongly recommend 3.9+)
-    > **NOTE:** In rare situation when update of CMake is not possible, you can try to update / override only *FindBoost.cmake*
-    module. You can do that by downloading *FindBoost.cmake* file from newer version of CMake (e.g. from [here](https://gitlab.kitware.com/cmake/cmake/blob/master/Modules/FindBoost.cmake))
-    and putting the file into *common/boost/cmake/modules* directory (create it if necessary). This directory will be attached
-    to the list of modules if your CMake version is lower than 3.9.
-- C++ compiler with partiall or full C++14 standard support compatible with:
-    * GNU\* Compiler Collection 5.2 or later
+- [CMake\*](https://cmake.org/download/) 3.5 or later  
+- C++ compiler with C++11 standard support compatible with:
+    * GNU\* Compiler Collection 4.8 or later  
     * clang 3.5 or later
     * [Intel® C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe) 17.0 or later
     * Visual C++ 2015 (MSVC++ 19.0) or later
@@ -304,7 +312,6 @@ CMake solution offers multiple options which you can specify using normal CMake 
 |                                           |          |                                                                              |
 | **CMake advanced option**                 | **Type** | **Description**                                                              |
 | PYTHON\_EXECUTABLE                        | FILEPATH | Path to Python interpreter. CMake will try to detect Python. Specify this option only if CMake has problem with locating Python. |
-| CLDNN\_\_BOOST\_VERSION                   | STRING   | Version of boost prebuilded binaries to use (from `common` subdirectory). It is automatically setected by CMake (highest version). Specify, if you have multiple versions and want to use different than automatically selected. |
 | CLDNN\_\_IOCL\_ICD\_USE\_EXTERNAL         | BOOL     | Use this option to enable use of external Intel® OpenCL™ SDK as a source for ICD binaries and headers (based on `INTELOCLSDKROOT` environment variable). Default: `OFF` |
 | CLDNN\_\_IOCL\_ICD\_VERSION               | STRING   | Version of Intel® OpenCL™ ICD binaries and headers to use (from `common` subdirectory). It is automatically setected by CMake (highest version). Specify, if you have multiple versions and want to use different than automatically selected. |
 |                                           |          |                                                                              |

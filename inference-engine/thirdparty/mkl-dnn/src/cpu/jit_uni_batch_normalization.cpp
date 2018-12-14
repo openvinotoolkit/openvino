@@ -71,7 +71,7 @@ struct jit_bnorm_t: public jit_generator {
     const int vlen = isa == sse42 ? 32 : cpu_isa_traits<isa>::vlen;
 
     const batch_normalization_pd_t *bdesc_;
-    int is_spatial_thr;
+    int is_spatial_thr_;
 
     void (*ker)(const call_params_t *);
     void operator()(const call_params_t *p) { (*ker)(p); }
@@ -116,7 +116,6 @@ struct jit_bnorm_t: public jit_generator {
 
     // channel tail processing
     Opmask ktail_mask = Opmask(2);
-    Opmask kis_cblk_tail = Opmask(3);
 
     size_t unroll_blocks;
     size_t unroll_regs;
@@ -126,11 +125,11 @@ struct jit_bnorm_t: public jit_generator {
     Vmm vsqrtvar = Vmm(isa == avx512_common ? 23 : 8);
     Vmm vone = Vmm(isa == avx512_common ? 24 : 9);
     Vmm vmean = Vmm(isa == avx512_common ? 25 : 10);
-    Vmm vvar = Vmm(isa == avx512_common ? 26 : 11);
-    Vmm vgamma = Vmm(isa == avx512_common ? 27 : 12);
-    Vmm vbeta = Vmm(isa == avx512_common ? 28 : 13);
-    Vmm veps = Vmm(isa == avx512_common ? 29 : 14);
-    Vmm vchan_size = Vmm(isa == avx512_common ? 31 : 15);
+    Vmm vgamma = Vmm(isa == avx512_common ? 26 : 11);
+    Vmm vbeta = Vmm(isa == avx512_common ? 27 : 12);
+    Vmm veps = Vmm(isa == avx512_common ? 28 : 13);
+    Vmm vchan_size = Vmm(isa == avx512_common ? 29 : 14);
+    Vmm vtail_mask = Vmm(isa == avx512_common ? 30 : 15);
 
     size_t t0_pf_offt;
     size_t t1_pf_offt;
@@ -150,7 +149,8 @@ struct jit_bnorm_t: public jit_generator {
         stack_off_spat_size_loc = 72,
         stack_off_s_s = 80,
         stack_off_s_tail = 88,
-        stack_size_required = 96,
+        stack_off_is_cblk_tail = 96,
+        stack_size_required = 104,
     };
 
     bool is_c_padded() const {
@@ -206,13 +206,17 @@ struct jit_bnorm_t: public jit_generator {
         mov(ptr[rsp + stack_off_ws], reg_tmp);
         mov(reg_tmp, ptr[reg_param + PARAM_OFF(barrier)]);
         mov(ptr[rsp + stack_off_barrier], reg_tmp);
-        if (is_spatial_thr) {
+        if (is_spatial_thr_) {
             mov(reg_tmp, ptr[reg_param + PARAM_OFF(spat_size_loc)]);
             mov(ptr[rsp + stack_off_spat_size_loc], reg_tmp);
             mov(reg_tmp, ptr[reg_param + PARAM_OFF(S_s)]);
             mov(ptr[rsp + stack_off_s_s], reg_tmp);
             mov(reg_tmp, ptr[reg_param + PARAM_OFF(S_tail)]);
             mov(ptr[rsp + stack_off_s_tail], reg_tmp);
+        }
+        if (is_c_padded()) {
+            mov(reg_tmp, ptr[reg_param + PARAM_OFF(is_cblk_tail)]);
+            mov(ptr[rsp + stack_off_is_cblk_tail], reg_tmp);
         }
 
         if (bdesc_->is_fwd()) {
@@ -236,8 +240,18 @@ struct jit_bnorm_t: public jit_generator {
         Reg32 regw_tmp = reg_tmp.cvt32();
         mov(regw_tmp, mask);
         kmovw(ktail_mask, regw_tmp);
-        mov(regw_tmp, ptr[reg_param + offsetof(call_params_t, is_cblk_tail)]);
-        kmovw(kis_cblk_tail, regw_tmp);
+    }
+
+    void prepare_tail_mask_avx2_common() {
+        if (!is_c_padded()) return;
+
+        const int tail = bdesc_->C() % (int)(vlen / sizeof(float));
+        static const uint32_t mask[16] = {0xffffffff, 0xffffffff, 0xffffffff,
+                0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
+                0, 0, 0, 0, 0, 0, 0, 0};
+
+        mov(reg_tmp, reinterpret_cast<size_t>(&mask[8 - tail]));
+        vmovups(vtail_mask, ptr[reg_tmp]);
     }
 
     void prepare_relu() {
@@ -298,17 +312,18 @@ struct jit_bnorm_t: public jit_generator {
         shl(reg_soff, 5);
     }
 
-    void uni_vmovups_maybe_tail_avx512_common(const Operand &dst,
-            const Operand &src, Label &l_no_mask, Label &l_ret) {
-        Label l_mask;
-        kortestw(kis_cblk_tail, kis_cblk_tail);
-        jz(l_no_mask);
+    void uni_vmovups_tail_avx2_common(const Operand &dst,
+            const Operand &src, Label &l_ret) {
+        if (dst.isMEM()) {
+            vmaskmovps(dst.getAddress(), vtail_mask, Vmm(src.getIdx()));
+        } else {
+            vmaskmovps(Vmm(dst.getIdx()), vtail_mask, src.getAddress());
+        }
+        jmp(l_ret);
+    }
 
-        lea(reg_tmp, ptr[reg_coff + vlen]);
-        cmp(reg_tmp, reg_coff_max);
-        jl(l_no_mask);
-
-        L(l_mask);
+    void uni_vmovups_tail_avx512_common(const Operand &dst,
+            const Operand &src, Label &l_ret) {
         if (dst.isMEM())
             uni_vmovups(dst.getAddress() | ktail_mask | T_z, Vmm(src.getIdx()));
         else
@@ -321,10 +336,19 @@ struct jit_bnorm_t: public jit_generator {
         Label l_no_mask, l_ret;
 
         if (is_c_padded()) {
-            assert(isa == avx512_common);
-            uni_vmovups_maybe_tail_avx512_common(dst, src, l_no_mask, l_ret);
-        }
+            mov(reg_tmp, ptr[rsp + stack_off_is_cblk_tail]);
+            cmp(reg_tmp, 0);
+            jz(l_no_mask);
 
+            lea(reg_tmp, ptr[reg_coff + vlen]);
+            cmp(reg_tmp, reg_coff_max);
+            jl(l_no_mask);
+            assert(isa == avx512_common || isa == avx2);
+            if (isa == avx512_common)
+                uni_vmovups_tail_avx512_common(dst, src, l_ret);
+            else if (isa == avx2)
+                uni_vmovups_tail_avx2_common(dst, src, l_ret);
+        }
         L(l_no_mask);
         if (dst.isMEM())
             uni_vmovups(dst.getAddress(), Vmm(src.getIdx()));
@@ -376,7 +400,7 @@ struct jit_bnorm_t: public jit_generator {
         for (size_t i = 0; i < num_active_regs; i++)
             init(i);
         if (loop_unroll) {
-            if (is_spatial_thr) {
+            if (is_spatial_thr_) {
                 mov(reg_ctr, ptr[rsp + stack_off_spat_size_loc]);
                 add(reg_soff, ptr[rsp + stack_off_s_s]);
             } else {
@@ -392,7 +416,7 @@ struct jit_bnorm_t: public jit_generator {
                 sub(reg_ctr, factor);
                 jnz(label);
             }
-            if (is_spatial_thr) {
+            if (is_spatial_thr_) {
                 add(reg_soff, ptr[rsp + stack_off_s_tail]);
             }
         }
@@ -752,7 +776,8 @@ struct jit_bnorm_t: public jit_generator {
                                 bwd_process_relu_avx512_common(t2, offt);
                             else if (isa == avx2)
                                 bwd_process_relu_avx2(t2, offt, t3);
-                            assert(false);
+                            else
+                                assert(false);
                         }
                         uni_vsubps(t3, vmean, t1, t3);
                         if (isa == sse42) {
@@ -818,7 +843,8 @@ struct jit_bnorm_t: public jit_generator {
                                     bwd_process_relu_avx512_common(v, offt);
                                 else if (isa == avx2)
                                     bwd_process_relu_avx2(v, offt, t);
-                                assert(false);
+                                else
+                                    assert(false);
                             }
                             if (!bdesc_->omit_stats()) {
                                 uni_vsubps(v, v, vdiff_beta);
@@ -980,19 +1006,20 @@ struct jit_bnorm_t: public jit_generator {
         }
     }
 
-    jit_bnorm_t(const batch_normalization_pd_t *bdesc, int is_spatial_thr_):
-        bdesc_(bdesc) {
+    jit_bnorm_t(const batch_normalization_pd_t *bdesc, int is_spatial_thr):
+        bdesc_(bdesc), is_spatial_thr_(is_spatial_thr) {
         static_assert(isa == sse42 || isa == avx2 || isa == avx512_common
                 || isa == avx512_mic, "unsupported isa");
 
-        is_spatial_thr = is_spatial_thr_;
-        unroll_blocks = isa == avx512_common && !is_spatial_thr ? 4 : 1;
-        unroll_regs = isa == avx512_common && !is_spatial_thr ? 4 : 1;
+        unroll_blocks = isa == avx512_common && !is_spatial_thr_ ? 4 : 1;
+        unroll_regs = isa == avx512_common && !is_spatial_thr_ ? 4 : 1;
 
         preamble();
 
         if (isa == avx512_common)
             prepare_tail_mask_avx512_common();
+        else if (isa == avx2)
+            prepare_tail_mask_avx2_common();
 
         compute_static_strides();
         sub(rsp, stack_size_required);
@@ -1019,7 +1046,7 @@ template <cpu_isa_t isa>
 struct uni_bnorm_driver_t: public c_compatible {
     uni_bnorm_driver_t(const batch_normalization_pd_t *bdesc,
         int is_spatial_thr) : bdesc_(bdesc), ker_(bdesc_,is_spatial_thr),
-        syncable_(true), buf_(nullptr), barriers_(nullptr)
+        buf_(nullptr), barriers_(nullptr)
     {
         use_tmp_stats_ = !bdesc_->stats_is_src()
             && bdesc_->desc()->prop_kind == prop_kind::forward_inference;
@@ -1029,7 +1056,7 @@ struct uni_bnorm_driver_t: public c_compatible {
         int num_sbufs = 2 * use_tmp_stats_;
         int num_pbufs = 2 * use_tmp_diff_scale_shift_;
         int num_rbufs = bdesc_->is_fwd() ? 1 : 2;
-        int nthrs = omp_get_max_threads();
+        int nthrs = mkldnn_get_max_threads();
         int C_PADDED = memory_desc_wrapper(bdesc_->src_pd()).blocking_desc()
             .padding_dims[1];
 
@@ -1041,7 +1068,7 @@ struct uni_bnorm_driver_t: public c_compatible {
         rbuf_ = pbuf_ + num_pbufs * C_PADDED;
 
         int num_barriers = C_PADDED / simd_w;
-        if (syncable_) {
+        if (mkldnn_thr_syncable()) {
             barriers_ = (barrier::ctx_t *)malloc(
                     num_barriers * sizeof(barrier::ctx_t), 64);
             for (int i = 0; i < num_barriers; ++i)
@@ -1098,6 +1125,7 @@ struct uni_bnorm_driver_t: public c_compatible {
 
         int SP_N_ithr = N_ithr * S_nthr + S_ithr;
         int SP_N_nthr = N_nthr * S_nthr;
+        assert(utils::implication(!mkldnn_thr_syncable(), SP_N_nthr == 1));
 
         p.N_ithr = SP_N_ithr;
         p.N_nthr = SP_N_nthr;
@@ -1175,7 +1203,6 @@ private:
 
     const batch_normalization_pd_t *bdesc_;
     jit_bnorm_t<isa> ker_;
-    bool syncable_;
     bool use_tmp_stats_, use_tmp_diff_scale_shift_;
     bool do_blocking_;
     size_t l3_size_;
@@ -1218,11 +1245,10 @@ void jit_uni_batch_normalization_fwd_t<isa>::execute(event_t *e) {
         reinterpret_cast<const data_t *>(this->input_memory(idx_scale_shift));
     auto ws = reinterpret_cast<uint8_t *>(this->memory(conf_.ws_idx()));
 
-#   pragma omp parallel
-    {
-        bnorm_driver_->exec(omp_get_thread_num(), omp_get_num_threads(), src,
+    parallel(0, [&](const int ithr, const int nthr) {
+        bnorm_driver_->exec(ithr, nthr, src,
                 nullptr, dst, nullptr, scale_shift, nullptr, mean, var, ws);
-    }
+    });
     e->set_state(event_t::ready);
 }
 
@@ -1258,12 +1284,11 @@ void jit_uni_batch_normalization_bwd_t<isa>::execute(event_t *e) {
     auto ws = reinterpret_cast<const uint8_t *>(
             this->input_memory(conf_.ws_idx()));
 
-#   pragma omp parallel
-    {
-        bnorm_driver_->exec(omp_get_thread_num(), omp_get_num_threads(), src,
+    parallel(0, [&](const int ithr, const int nthr) {
+        bnorm_driver_->exec(ithr, nthr, src,
                 diff_src, nullptr, diff_dst, scale_shift, diff_scale_shift,
                 mean, var, ws);
-    }
+    });
     e->set_state(event_t::ready);
 }
 

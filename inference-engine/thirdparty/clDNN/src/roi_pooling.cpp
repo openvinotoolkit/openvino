@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node)
 std::string roi_pooling_inst::to_string(roi_pooling_node const& node)
 {
     auto desc      = node.get_primitive();
-    auto mode      = desc->mode == pooling_mode::max ? "max" : "average";
+    auto mode      = desc->mode == pooling_mode::max ? "max" : desc->mode == pooling_mode::bilinear ? "bilinear" : "average";
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;
@@ -68,8 +68,8 @@ std::string roi_pooling_inst::to_string(roi_pooling_node const& node)
     roi_info.add("spatial_scale", desc->spatial_scale);
     roi_info.add("group_sz", desc->group_sz);
 
-    node_info.add("roi info", roi_info);
-    node_info.dump(primitive_description);
+    node_info->add("roi info", roi_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

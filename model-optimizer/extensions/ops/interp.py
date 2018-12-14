@@ -18,9 +18,9 @@ import inspect
 import logging as log
 
 import networkx as nx
-import numpy as np
 
 from extensions.ops.resize_factor_utils import factor_update
+from mo.front.common.layout import get_batch_dim, get_features_dim, get_height_dim, get_width_dim, shape_for_layout
 from mo.graph.graph import Node
 from mo.ops.op import Op
 from mo.utils.utils import refer_to_faq_msg
@@ -34,6 +34,7 @@ class InterpOp(Op):
             'type': __class__.op,
             'op': __class__.op,
             'factor': None,
+            'align_corners': 1,
             'infer': InterpOp.interp_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -46,42 +47,54 @@ class InterpOp(Op):
             'shrink_factor',
             'factor',  # float factor required by IE shape inference
             'pad_beg',
-            'pad_end'
+            'pad_end',
+            'align_corners'
         ]
 
     @staticmethod
     def interp_infer(node: Node):
+        layout = node.graph.graph['layout']
+        assert len(layout) == 4
         if len(node.in_nodes()) == 2:
             src_shape = node.in_node(0).shape
             dst_shape = node.in_node(1).value
             if src_shape is None or dst_shape is None or len(src_shape) != 4 or len(dst_shape) != 2:
                 log.error(
-                    'Node {} with op {} cannot be converted to Resample layer because there is no enough info about src/dst shapes:' +
-                    ', src_shape = {}, dst_shape = {}'.format(node.name, node.op, src_shape, dst_shape))
+                    'Node {} with op {} cannot be converted to Resample layer because there is no enough info about '
+                    'src/dst shapes: src_shape = {}, dst_shape = {}'.format(node.name, node.op, src_shape, dst_shape))
                 node.type = None  # prevent translation to a valid IE layer
                 return
-            out_shape = src_shape.copy()
-            log.warning('This works only for NHWC layout. If real layout is different, result will be incorrect.')
-            out_shape[1] = dst_shape[0]
-            out_shape[2] = dst_shape[1]
-            real_factor = [float(out_shape[1])/src_shape[1], float(out_shape[2])/src_shape[2]]
+            in_height = src_shape[get_height_dim(layout, 4)]
+            in_width = src_shape[get_width_dim(layout, 4)]
+            out_height = dst_shape[0]
+            out_width = dst_shape[1]
+
             node.factor = factor_update(
                 node.factor,
-                real_factor,
-                [src_shape[1], src_shape[2]],
-                [out_shape[1], out_shape[2]],
+                [float(out_height) / in_height, float(out_width) / in_width],
+                [in_height, in_width],
+                [out_height, out_width],
                 node.soft_get('name')
             )
-            node.out_node().shape = out_shape
+
+            if node.factor is None:
+                node['width'] = out_width
+                node['height'] = out_height
+
+            node.out_node().shape = shape_for_layout(layout,
+                                                     batch=src_shape[get_batch_dim(layout, 4)],
+                                                     features=src_shape[get_features_dim(layout, 4)],
+                                                     height=out_height,
+                                                     width=out_width)
             node.graph.remove_edge(node.in_node(1).id, node.id)
         else:
             outn = node.out_node(0)
 
             in_shape = node.in_node(0)
-            num_ = in_shape.shape[0]
-            channels_ = in_shape.shape[1]
-            height_in_ = in_shape.shape[2]
-            width_in_ = in_shape.shape[3]
+            num_ = in_shape.shape[get_batch_dim(layout, 4)]
+            channels_ = in_shape.shape[get_features_dim(layout, 4)]
+            height_in_ = in_shape.shape[get_height_dim(layout, 4)]
+            width_in_ = in_shape.shape[get_width_dim(layout, 4)]
 
             height_out_ = height_in_ + node.pad_beg + node.pad_end
             width_out_ = width_in_ + node.pad_beg + node.pad_end
@@ -129,4 +142,8 @@ class InterpOp(Op):
                 height_out_ = height_out_ + (height_out_ - 1) * (zoom_factor - 1)
                 width_out_ = width_out_ + (width_out_ - 1) * (zoom_factor - 1)
 
-            outn.shape = np.array([num_, channels_, height_out_, width_out_], dtype=np.int64)
+            outn.shape = shape_for_layout(layout,
+                                          batch=num_,
+                                          features=channels_,
+                                          height=height_out_,
+                                          width=width_out_)

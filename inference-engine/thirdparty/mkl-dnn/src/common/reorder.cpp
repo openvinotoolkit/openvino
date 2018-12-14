@@ -51,9 +51,6 @@ status_t mkldnn_reorder_primitive_desc_create_v2(
     auto i_mdw = memory_desc_wrapper(i_mpd);
     auto o_mdw = memory_desc_wrapper(o_mpd);
 
-    if (i_mdw.nelems() == 0 || o_mdw.nelems() == 0)
-        return invalid_arguments;
-
     if (!i_mdw.consistent_with(o_mdw))
         return invalid_arguments;
 

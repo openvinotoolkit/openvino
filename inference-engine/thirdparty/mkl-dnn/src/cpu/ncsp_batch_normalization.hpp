@@ -43,14 +43,15 @@ struct ncsp_batch_normalization_fwd_t : public cpu_primitive_t {
             using namespace prop_kind;
             using namespace data_type;
             assert(engine()->kind() == engine_kind::cpu);
-            bool ok = true && is_fwd() && desc()->data_desc.data_type == f32
-                    && utils::implication(use_scaleshift(),
-                               desc()->data_scaleshift_desc.data_type == f32)
-                    && utils::one_of(data_pd_.desc()->format,
-                               memory_format::nchw, memory_format::ncdhw,
-                               memory_format::nc)
-                    && (attr()->has_default_values()
-                               || this->with_relu_post_op());
+            bool ok = true
+                && is_fwd()
+                && !has_zero_dim_memory()
+                && desc()->data_desc.data_type == f32
+                && utils::implication(use_scaleshift(),
+                        desc()->data_scaleshift_desc.data_type == f32)
+                && utils::one_of(data_pd_.desc()->format, memory_format::nchw,
+                        memory_format::ncdhw, memory_format::nc)
+                && (attr()->has_default_values() || this->with_relu_post_op());
             if (!ok)
                 return status::unimplemented;
 
@@ -102,13 +103,15 @@ struct ncsp_batch_normalization_bwd_t : public cpu_primitive_t {
             using namespace prop_kind;
             using namespace data_type;
             assert(engine()->kind() == engine_kind::cpu);
-            bool ok = true && is_bwd() && desc()->data_desc.data_type == f32
-                    && utils::implication(use_scaleshift(),
-                               desc()->data_scaleshift_desc.data_type == f32)
-                    && utils::one_of(data_pd_.desc()->format,
-                               memory_format::nchw, memory_format::ncdhw,
-                               memory_format::nc)
-                    && attr()->has_default_values();
+            bool ok = true
+                && is_bwd()
+                && !has_zero_dim_memory()
+                && desc()->data_desc.data_type == f32
+                && utils::implication(use_scaleshift(),
+                        desc()->data_scaleshift_desc.data_type == f32)
+                && utils::one_of(data_pd_.desc()->format, memory_format::nchw,
+                        memory_format::ncdhw, memory_format::nc)
+                && attr()->has_default_values();
             if (!ok)
                 return status::unimplemented;
 

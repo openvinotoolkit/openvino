@@ -13,7 +13,7 @@
 
 namespace InferenceEngine {
 
-MemorySolver::MemorySolver(const std::vector<Box> boxes) : _boxes(boxes) {
+MemorySolver::MemorySolver(const std::vector<Box>& boxes) : _boxes(boxes) {
     int max_ts = 0;
     for (const Box &box : _boxes) max_ts = std::max(std::max(max_ts, box.start), box.finish);
     for (Box &box : _boxes) if (box.finish == -1) box.finish = max_ts;

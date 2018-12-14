@@ -18,6 +18,8 @@ import logging as log
 
 import numpy as np
 
+from mo.ops.op import PermuteAttrs
+
 
 def tf_expand_dims_infer(node):
     input_node = node.in_nodes()[0]
@@ -51,3 +53,6 @@ def tf_expand_dims_infer(node):
     node['axis'] = 0
     node['num_axes'] = -1
     node['dim'] = output_node.shape
+
+    PermuteAttrs.create_permute_attrs(node, attrs=[('axis','output:0'), ('dim','output:0')])
+

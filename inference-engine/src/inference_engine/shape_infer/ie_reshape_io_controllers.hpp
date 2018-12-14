@@ -43,7 +43,6 @@ class InputController {
 public:
     InputController(const std::vector<DataPtr>& dataVec,
                     const std::string& layerName,
-                    bool irShapesOnInit = false,
                     const DefaultChecker::Ptr& checker = std::make_shared<DefaultChecker>());
 
     virtual ~InputController() = default;
@@ -98,13 +97,6 @@ public:
     virtual void checkCorrespondence();
 
 private:
-    /**
-     * @brief Returns shapes from IR by accessing Data object of Layer
-     * @note Shapes are in topological order.
-     * @return shapes from IR
-     */
-    std::vector<SizeVector> getIRShapesInternal();
-
     long getPositionByName(const std::string& dataName);
 
 protected:
@@ -113,7 +105,6 @@ protected:
     std::vector<SizeVector> _irShapes;
     std::vector<std::string> _dataNames;
     std::string _layerName;
-    bool _irShapesOnInit = false;
 };
 
 /**
@@ -123,7 +114,6 @@ class OutputController : public InputController {
 public:
     OutputController(const std::vector<DataPtr>& inData,
                      const std::string& layerName,
-                     bool irShapesOnInit = false,
                      const DefaultChecker::Ptr& checker = std::make_shared<DefaultChecker>());
 
     /**

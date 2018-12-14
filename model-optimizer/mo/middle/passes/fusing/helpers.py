@@ -1,23 +1,30 @@
+"""
+ Copyright (c) 2018 Intel Corporation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+
 import logging as log
 from collections import deque
 
-import networkx as nx
-import numpy as np
-
-from mo.front.extractor import add_attrs_props
-from mo.graph.graph import Node, unique_id
-from mo.middle.passes.eliminate import graph_clean_up
-from mo.utils.graph import pseudo_topological_sort
-from mo.ops.lin_op import Mul, Add
-from mo.ops.op import Op
-from mo.graph.graph import dump_graph_for_graphviz
+from mo.graph.graph import Node
 
 
 def get_value_id(node: Node):
-    assert node.has_valid('op') and (node.op == 'Mul' or node.op == 'Add')
+    assert node.has_valid('op')
     value_id = None
     for port, in_node in node.in_nodes().items():
-        if in_node.value is not None:
+        if in_node.has_valid('value'):
             if value_id:
                 return None
             value_id = port
@@ -25,10 +32,10 @@ def get_value_id(node: Node):
 
 
 def get_tensor_id(node: Node):
-    assert node.has_valid('op') and (node.op == 'Mul' or node.op == 'Add')
+    assert node.has_valid('op')
     tensor_id = None
     for port, in_node in node.in_nodes().items():
-        if in_node.value is None:
+        if not in_node.has_valid('value'):
             if tensor_id:
                 return None
             tensor_id = port

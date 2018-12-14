@@ -37,7 +37,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES "CMAKE_CXX_FLAGS" "${CMAKE_CXX_F
 COMPILE_PDB_NAME ${TARGET_NAME})
 
 
-target_link_libraries(${TARGET_NAME} ${InferenceEngine_LIBRARIES} cpu_extension format_reader gflags)
+target_link_libraries(${TARGET_NAME} ${InferenceEngine_LIBRARIES} IE::ie_cpu_extension format_reader gflags)
 
 if(UNIX)
     target_link_libraries(${TARGET_NAME} ${LIB_DL} pthread)

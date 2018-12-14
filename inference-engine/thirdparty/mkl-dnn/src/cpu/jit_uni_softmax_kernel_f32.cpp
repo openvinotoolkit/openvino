@@ -33,10 +33,20 @@ template <cpu_isa_t isa>
 status_t jit_uni_softmax_kernel_f32<isa>::init_conf(jit_softmax_conf_t &jpp,
                    const softmax_desc_t &pd, const memory_desc_wrapper &src_d,
                    const memory_desc_wrapper &dst_d) {
-
     auto ndims = pd.data_desc.ndims;
     auto dims = pd.data_desc.dims;
     auto axis = pd.softmax_axis;
+
+    bool is_plain = true;
+    for (int i = axis; i < ndims; i++) {
+        if (src_d.blocking_desc().block_dims[i] != 1) {
+            is_plain = false;
+        }
+    }
+
+    if (!is_plain) {
+        return status::unimplemented;
+    }
 
     size_t nregs = cpu_isa_traits<isa>::n_vregs;
     size_t aux_simd_registers = 5; // 3 aux for exp + one + (-FTL_MAX)
@@ -47,9 +57,27 @@ status_t jit_uni_softmax_kernel_f32<isa>::init_conf(jit_softmax_conf_t &jpp,
     jpp.outer_size = utils::array_product(dims, axis);
     jpp.channels = dims[axis];
     jpp.inner_size = utils::array_product(dims + axis + 1, ndims - axis - 1);
-    jpp.ur_channel = nstl::min(max_channels_unroll, jpp.channels);
+
+    if (jpp.outer_size < 1 || jpp.channels < 1 || jpp.inner_size < 1) {
+        return status::unimplemented;
+    }
+
     jpp.ur_inner = max_inner_unroll;
-    jpp.mb = dims[0];
+    jpp.ur_channel = nstl::min(max_channels_unroll, jpp.channels);
+    jpp.outer_block = 2 * cpu_isa_traits<isa>::vlen / sizeof(float);
+
+    if (jpp.inner_size == 1) {
+        // limit max jit code size for dense case
+        if (jpp.channels > 128) {
+            return status::unimplemented;
+        }
+
+        // ref implementation is faster for small work amount
+        if (jpp.channels * jpp.outer_size < 16) {
+            return status::unimplemented;
+        }
+    }
+
     return status::success;
 }
 
@@ -205,10 +233,10 @@ void jit_uni_softmax_kernel_f32<isa>::scalar_expf(const Xmm &xmm_src) {
 }
 
 template <cpu_isa_t isa>
-void jit_uni_softmax_kernel_f32<isa>::simd_loop_max(int ur_inner, char label_tag) {
-    jit_tagged_label loop_channel_blocks("max_loop_channel_blocks", label_tag);
-    jit_tagged_label loop_channel_tail("max_loop_channel_tail", label_tag);
-    jit_tagged_label loop_channel_end("max_loop_channel_end", label_tag);
+void jit_uni_softmax_kernel_f32<isa>::simd_loop_max(int ur_inner) {
+    Label loop_channel_blocks;
+    Label loop_channel_tail;
+    Label loop_channel_end;
 
     for (int i = 0; i < ur_inner; ++i) {
         uni_vbroadcastss(vreg_max(i), xmm_float_min);
@@ -257,10 +285,10 @@ void jit_uni_softmax_kernel_f32<isa>::simd_loop_max(int ur_inner, char label_tag
 }
 
 template <cpu_isa_t isa>
-void jit_uni_softmax_kernel_f32<isa>::simd_loop_exp(int ur_inner, char label_tag) {
-    jit_tagged_label loop_channel_blocks("exp_loop_channel_blocks", label_tag);
-    jit_tagged_label loop_channel_tail("exp_loop_channel_tail", label_tag);
-    jit_tagged_label loop_channel_end("exp_loop_channel_end", label_tag);
+void jit_uni_softmax_kernel_f32<isa>::simd_loop_exp(int ur_inner) {
+    Label loop_channel_blocks;
+    Label loop_channel_tail;
+    Label loop_channel_end;
 
     for (int i = 0; i < ur_inner; ++i) {
         uni_vpxor(vreg_denom(i), vreg_denom(i), vreg_denom(i));
@@ -316,10 +344,10 @@ void jit_uni_softmax_kernel_f32<isa>::simd_loop_exp(int ur_inner, char label_tag
 
 
 template <cpu_isa_t isa>
-void jit_uni_softmax_kernel_f32<isa>::simd_loop_div(int ur_inner, char label_tag) {
-    jit_tagged_label loop_channel_blocks("div_loop_channel_blocks", label_tag);
-    jit_tagged_label loop_channel_tail("div_loop_channel_tail", label_tag);
-    jit_tagged_label loop_channel_end("div_loop_channel_end", label_tag);
+void jit_uni_softmax_kernel_f32<isa>::simd_loop_div(int ur_inner) {
+    Label loop_channel_blocks;
+    Label loop_channel_tail;
+    Label loop_channel_end;
 
     for (int i = 0; i < ur_inner; ++i) {
         if (isa == sse42) {
@@ -377,12 +405,11 @@ void jit_uni_softmax_kernel_f32<isa>::simd_loop_div(int ur_inner, char label_tag
 
 template <cpu_isa_t isa>
 void jit_uni_softmax_kernel_f32<isa>::scalar_loop_max() {
-    jit_tagged_label loop_channel_tail("max_loop_channel_tail", 's');
-    jit_tagged_label loop_channel_end("max_loop_channel_end", 's');
+    Label loop_channel_tail;
+    Label loop_channel_end;
 
     movups(xmm_max, xmm_float_min);
     mov(reg_src_ptr, reg_src_base_ptr);
-    mov(reg_dst_ptr, reg_dst_base_ptr);
     mov(reg_ch_work, reg_channels);
 
     L(loop_channel_tail); {
@@ -393,7 +420,6 @@ void jit_uni_softmax_kernel_f32<isa>::scalar_loop_max() {
         maxss(xmm_max, xmm_src);
 
         add(reg_src_ptr, jpp.inner_size*sizeof(float));
-        add(reg_dst_ptr, jpp.inner_size*sizeof(float));
 
         dec(reg_ch_work);
         jmp(loop_channel_tail);
@@ -404,8 +430,8 @@ void jit_uni_softmax_kernel_f32<isa>::scalar_loop_max() {
 
 template <cpu_isa_t isa>
 void jit_uni_softmax_kernel_f32<isa>::scalar_loop_exp() {
-    jit_tagged_label loop_channel_tail("exp_loop_channel_tail", 's');
-    jit_tagged_label loop_channel_end("exp_loop_channel_end", 's');
+    Label loop_channel_tail;
+    Label loop_channel_end;
 
     mov(reg_src_ptr, reg_src_base_ptr);
     mov(reg_dst_ptr, reg_dst_base_ptr);
@@ -436,8 +462,8 @@ void jit_uni_softmax_kernel_f32<isa>::scalar_loop_exp() {
 
 template <cpu_isa_t isa>
 void jit_uni_softmax_kernel_f32<isa>::scalar_loop_div() {
-    jit_tagged_label loop_channel_tail("div_loop_channel_tail", 's');
-    jit_tagged_label loop_channel_end("div_loop_channel_end", 's');
+    Label loop_channel_tail;
+    Label loop_channel_end;
 
     mov(reg_src_ptr, reg_src_base_ptr);
     mov(reg_dst_ptr, reg_dst_base_ptr);
@@ -462,6 +488,52 @@ void jit_uni_softmax_kernel_f32<isa>::scalar_loop_div() {
 }
 
 template <cpu_isa_t isa>
+void jit_uni_softmax_kernel_f32<isa>::dense_loop(int ou_block) {
+    for (int ou = 0; ou < ou_block; ou++) {
+        movups(xmm_max, xmm_float_min);
+        for (int ch = 0; ch < (int)jpp.channels; ch++) {
+            maxss(xmm_max, ptr[reg_src_base_ptr + (ou * jpp.channels + ch) * sizeof(float)]);
+        }
+
+        for (int ch = 0; ch < (int)jpp.channels; ch++) {
+            movss(xmm_src, ptr[reg_src_base_ptr + (ou * jpp.channels + ch) * sizeof(float)]);
+            subss(xmm_src, xmm_max);
+            movss(ptr[reg_dst_base_ptr + (ou * jpp.channels + ch) * sizeof(float)], xmm_src);
+        }
+    }
+
+    int full_work = ou_block * (int)jpp.channels;
+    int i = 0;
+    for (; i <= full_work - simd_w; i += simd_w) {
+        uni_vmovups(vreg_src(0), ptr[reg_dst_base_ptr + i * sizeof(float)]);
+        simd_expf(vreg_src(0));
+        uni_vmovups(ptr[reg_dst_base_ptr + i * sizeof(float)], vreg_src(0));
+    }
+
+    for (; i < full_work; i++) {
+        movss(xmm_src, ptr[reg_dst_base_ptr + i * sizeof(float)]);
+        scalar_expf(xmm_src);
+        movss(ptr[reg_dst_base_ptr + i * sizeof(float)], xmm_src);
+    }
+
+    for (int ou = 0; ou < ou_block; ou++) {
+        pxor(xmm_denom, xmm_denom);
+        for (int ch = 0; ch < (int)jpp.channels; ch++) {
+            addss(xmm_denom, ptr[reg_dst_base_ptr + (ou * jpp.channels + ch) * sizeof(float)]);
+        }
+
+        movss(xmm_one, ptr[imm_addr64 + 0 * vlen]);
+        divss(xmm_one, xmm_denom);
+        movss(xmm_denom, xmm_one);
+        for (int ch = 0; ch < (int)jpp.channels; ch++) {
+            movss(xmm_src, ptr[reg_dst_base_ptr + (ou * jpp.channels + ch) * sizeof(float)]);
+            mulss(xmm_src, xmm_denom);
+            movss(ptr[reg_dst_base_ptr + (ou * jpp.channels + ch) * sizeof(float)], xmm_src);
+        }
+    }
+}
+
+template <cpu_isa_t isa>
 void jit_uni_softmax_kernel_f32<isa>::generate() {
     this->preamble();
 
@@ -480,9 +552,9 @@ void jit_uni_softmax_kernel_f32<isa>::generate() {
     jl(loop_simd, T_NEAR);
 
     L(loop_simd_unroll); {
-        simd_loop_max(jpp.ur_inner, '1');
-        simd_loop_exp(jpp.ur_inner, '1');
-        simd_loop_div(jpp.ur_inner, '1');
+        simd_loop_max(jpp.ur_inner);
+        simd_loop_exp(jpp.ur_inner);
+        simd_loop_div(jpp.ur_inner);
 
         add(reg_src_base_ptr, jpp.ur_inner*simd_w*sizeof(float));
         add(reg_dst_base_ptr, jpp.ur_inner*simd_w*sizeof(float));
@@ -496,9 +568,9 @@ void jit_uni_softmax_kernel_f32<isa>::generate() {
         cmp(reg_work_amount, simd_w);
         jl(loop_scalar, T_NEAR);
 
-        simd_loop_max(1, '0');
-        simd_loop_exp(1, '0');
-        simd_loop_div(1, '0');
+        simd_loop_max(1);
+        simd_loop_exp(1);
+        simd_loop_div(1);
 
         add(reg_src_base_ptr, simd_w*sizeof(float));
         add(reg_dst_base_ptr, simd_w*sizeof(float));
@@ -523,6 +595,60 @@ void jit_uni_softmax_kernel_f32<isa>::generate() {
     }
 
     L(loop_end);
+
+    this->postamble();
+
+    prepare_table();
+}
+
+template <cpu_isa_t isa>
+void jit_uni_softmax_kernel_f32<isa>::generate_dense() {
+    this->preamble();
+
+    mov(reg_src_base_ptr, ptr[abi_param1 + GET_OFF(src)]);
+    mov(reg_dst_base_ptr, ptr[abi_param1 + GET_OFF(dst)]);
+    mov(reg_work_amount, ptr[abi_param1 + GET_OFF(work)]);
+
+    mov(reg_min, float2int(-FLT_MAX));
+    movq(xmm_float_min, reg_min);
+
+    mov(imm_addr64, jit_uni_softmax_kernel_f32<isa>::l_table);
+    uni_vmovups(vmm_one, ptr[imm_addr64 + 0 * vlen]);
+
+    int outer_tail = jpp.outer_size % jpp.outer_block;
+    Label ou_loop_tail_label;
+    Label ou_loop_tail_1_label;
+    Label ou_loop_exit_label;
+
+    cmp(reg_work_amount, jpp.outer_block);
+    jne(ou_loop_tail_label, T_NEAR);
+
+    dense_loop(jpp.outer_block);
+
+    jmp(ou_loop_exit_label, T_NEAR);
+
+    L(ou_loop_tail_label);
+    cmp(reg_work_amount, outer_tail);
+    jne(ou_loop_tail_1_label, T_NEAR);
+
+    dense_loop(outer_tail);
+
+    jmp(ou_loop_exit_label, T_NEAR);
+
+    L(ou_loop_tail_1_label); {
+        cmp(reg_work_amount, 1);
+        jl(ou_loop_exit_label, T_NEAR);
+
+        dense_loop(1);
+
+        add(reg_src_base_ptr, sizeof(float)*jpp.channels);
+        add(reg_dst_base_ptr, sizeof(float)*jpp.channels);
+        dec(reg_work_amount);
+
+        jmp(ou_loop_tail_1_label, T_NEAR);
+    }
+
+    L(ou_loop_exit_label);
 
     this->postamble();
 

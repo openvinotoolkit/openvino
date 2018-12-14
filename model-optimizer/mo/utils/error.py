@@ -27,7 +27,12 @@ class BasicError(Exception):
     def __str__(self):
         if len(self.args) <= 1:
             return Exception.__str__(self)
-        return self.args[0].format(*self.args[1:])
+        return self.args[0].format(*self.args[1:])  # pylint: disable=unsubscriptable-object
+
+
+class FrameworkError(BasicError):
+    """ User-friendly error: raised when the error on the framework side. """
+    pass
 
 
 class Error(BasicError):
@@ -38,3 +43,4 @@ class Error(BasicError):
 class InternalError(BasicError):
     """ Not user-friendly error: user cannot fix it and it points to the bug inside MO. """
     pass
+

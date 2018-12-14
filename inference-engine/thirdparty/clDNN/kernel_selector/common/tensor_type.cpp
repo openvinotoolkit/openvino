@@ -24,33 +24,39 @@ namespace kernel_selector
     {
         std::array<std::array<int, 5>, DataLayout::DataLayoutCount> DataTensor::dataChannelArray
         { {
-            { -1,-1, 0,-1, 1 }, // DataLayout::bf
-            { -1,-1, 1,-1, 0 }, // DataLayout::fb
+            // explaination:
+            // 0, 1, 2, 3, 4 means the ordering starts from X, then Y, then F, thenR, then B
+            // -1 means it's not used
+            //X, Y, F, R, B
+            {-1,-1, 0,-1, 1 }, // DataLayout::bf
+            {-1,-1, 1,-1, 0 }, // DataLayout::fb
             { 0, 1, 2,-1, 3 },  // DataLayout::bfyx
             { 2, 3, 1,-1, 0 },  // DataLayout::yxfb
             { 1, 2, 0,-1, 3 },  // DataLayout::byxf
             { 1, 2, 3,-1, 0 },  // DataLayout::fyxb
-            { -1,-1, 0,-1, 1 }, // DataLayout::bs_f_bsv8__af8
-            { -1,-1, 0,-1, 1 }, // DataLayout::bs_f_bsv16__af8
+            {-1,-1, 0,-1, 1 },  // DataLayout::bs_f_bsv8__af8
+            {-1,-1, 0,-1, 1 },  // DataLayout::bs_f_bsv16__af8
             { 0, 1, 2,-1, 3 },  // DataLayout::bf8_xy16
             { 0, 1, 2, 3, 4 },  // DataLayout::brfyx
             { 2, 1, 0,-1, 3 },  // DataLayout::winograd_2x3_s1_data
             { 1, 2, 0,-1, 3 },  // DataLayout::byxf_af32
+            { 0, 1, 3,-1, 2 },  // DataLayout::fs_bs_yx_bsv4_fsv32
         } };
 
         std::array<std::array<int, 4>, WeightsLayout::WeightsLayoutCount> WeightsTensor::weightsChannelArray
         { {
-            { -1,-1, 0, 1 }, // WeightsLayout::oi
-            { -1,-1, 1, 0 }, // WeightsLayout::io
+            //X, Y, I, O
+            {-1,-1, 0, 1 },  // WeightsLayout::oi
+            {-1,-1, 1, 0 },  // WeightsLayout::io
             { 0, 1, 2, 3 },  // WeightsLayout::oiyx
             { 1, 2, 0, 3 },  // WeightsLayout::oyxi
             { 1, 2, 3, 0 },  // WeightsLayout::iyxo
             { 2, 3, 1, 0 },  // WeightsLayout::yxio
             { 0, 1, 2, 3 },  // WeightsLayout::os_iyx_osv16
             { 0, 1, 2, 3 },  // WeightsLayout::os_iyx_osv16_rotate_180
-            { -1,-1, 0, 1 }, // WeightsLayout::os_i_osv8__ai8
-            { -1,-1, 0, 1 }, // WeightsLayout::os_i_osv16__ai8
-            { -1,-1, 0, 1 }, // WeightsLayout::os_i_osv16            
+            {-1,-1, 0, 1 },  // WeightsLayout::os_i_osv8__ai8
+            {-1,-1, 0, 1 },  // WeightsLayout::os_i_osv16__ai8
+            {-1,-1, 0, 1 },  // WeightsLayout::os_i_osv16            
             { 1, 2, 3, 0 },  // WeightsLayout::i_yxs_os_yxsv2_osv16
             { 1, 2, 3, 0 },  // WeightsLayout::iy_xs_os_xsv2_osv16__ao32
             { 1, 2, 3, 0 },  // WeightsLayout::iy_xs_os_xsv2_osv8__ao32
@@ -61,7 +67,8 @@ namespace kernel_selector
             { 0, 1, 2, 3 },  // WeightsLayout::winograd_6x3_s1_fused_weights
             { 0, 1, 2, 3 },  // WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb
             { 0, 1, 2, 3 },  // WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb
-            { 0, 1, 2, 3},   // WeightsLayout::os_is_yx_isa8_osv8_isv4
+            { 0, 1, 2, 3 },  // WeightsLayout::os_is_yx_isa8_osv8_isv4
+            { 1, 2, 0, 3 },  // WeightsLayout::is_o_yx_isv32
         } };
 
         NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l)
@@ -91,6 +98,11 @@ namespace kernel_selector
                 assert(newDims.size() == 4);
                 newDims[0] = RoundUp(newDims[0], 32);
                 break;
+            case fs_bs_yx_bsv4_fsv32:
+                assert(newDims.size() == 4);
+                newDims[3] = RoundUp(newDims[3], 32);
+                newDims[2] = RoundUp(newDims[2], 4);
+                break;
             default:
                 break;
             }
@@ -105,7 +117,7 @@ namespace kernel_selector
                 pitch *= newDims[i];
             }
 
-            if (l == byxf_af32)
+            if (l == byxf_af32 || l == fs_bs_yx_bsv4_fsv32)
             {
                 ret[0].pitch = 1;
                 ret[1].pitch = ret[0].pitch * newDims[0];
@@ -204,7 +216,8 @@ namespace kernel_selector
 
                 // TODO: [FUTURE] Use C++17 [[fallthrough]] instead of code duplication to get portable warning avoidance.
                 if ((x.pitch == f.pitch && y.pitch == x.v*x.pitch) ||                   // YX - no Features (val/pitch)
-                    (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch)) // Feature only
+                    (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch) || // Feature only
+                    (f.v * f.pitch == x.pitch && f.v * f.pitch == y.pitch && y.v == 1 && x.v == 1)) // Feature only
                 {
                     l = targetLayout;
                     break;
@@ -213,7 +226,8 @@ namespace kernel_selector
 
             case Tensor::byxf:
                 if ((x.pitch == f.pitch && y.pitch == x.v*x.pitch) ||                   // YX - no Features (val/pitch)
-                    (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch)) // Feature only
+                    (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch) || // Feature only
+                    (f.v * f.pitch == x.pitch && f.v * f.pitch == y.pitch && y.v == 1 && x.v == 1)) // Feature only
                 {
                     l = targetLayout;
                     break;
@@ -279,6 +293,10 @@ namespace kernel_selector
                 assert(newDims.size() == 4);
                 newDims[3] = RoundUp(newDims[3], 8);
                 newDims[2] = RoundUp(newDims[2], 32);
+                break;
+            case is_o_yx_isv32:
+                assert(newDims.size() == 4);
+                newDims[0] = RoundUp(newDims[0], 32);
                 break;
             default:
                 break;

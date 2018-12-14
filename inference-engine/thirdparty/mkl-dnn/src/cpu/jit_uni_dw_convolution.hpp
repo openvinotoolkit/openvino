@@ -49,6 +49,7 @@ struct _jit_uni_dw_convolution_fwd_t: public cpu_primitive_t {
                 && utils::one_of(this->cdesc_().prop_kind, forward_training,
                         forward_inference)
                 && this->cdesc_().alg_kind == alg_kind::convolution_direct
+                && !this->has_zero_dim_memory()
                 && utils::everyone_is(data_type::f32,
                         this->cdesc_().src_desc.data_type,
                         this->cdesc_().weights_desc.data_type,
@@ -89,7 +90,7 @@ struct _jit_uni_dw_convolution_fwd_t: public cpu_primitive_t {
             const output_vector &outputs)
         : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd)
         , padded_bias_(nullptr) {
-        kernel_ = new jit_uni_dw_conv_fwd_kernel_f32<isa>(conf_.jcp_);
+        kernel_ = new jit_uni_dw_conv_fwd_kernel_f32<isa>(conf_.jcp_, *conf_.attr());
         if (conf_.want_padded_bias()) {
             padded_bias_ = (float *)malloc(sizeof(float) * conf_.jcp_.oc, 64);
             for (int c = conf_.jcp_.oc_without_padding; c < conf_.jcp_.oc; ++c)
@@ -154,6 +155,7 @@ struct _jit_uni_dw_convolution_bwd_data_t: public cpu_primitive_t {
                 && utils::one_of(this->desc()->prop_kind, backward,
                         backward_data)
                 && this->desc()->alg_kind == alg_kind::convolution_direct
+                && !this->has_zero_dim_memory()
                 && utils::everyone_is(data_type::f32,
                         this->desc()->diff_src_desc.data_type,
                         this->desc()->weights_desc.data_type,

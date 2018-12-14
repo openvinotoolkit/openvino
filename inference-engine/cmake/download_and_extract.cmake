@@ -144,7 +144,7 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
   set (status "ON")
   set (on_master FALSE)
 
-  set (URL  "https://download.01.org/openvinotoolkit/2018_R3/dldt/inference_engine/${RELATIVE_URL}")
+  set (URL  "https://download.01.org/openvinotoolkit/2018_R4/dldt/inference_engine/${RELATIVE_URL}")
 
   #no message on recursive calls
   if (${use_alternatives})

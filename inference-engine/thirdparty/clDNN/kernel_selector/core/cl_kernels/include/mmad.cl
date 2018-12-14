@@ -37,6 +37,25 @@ inline int FUNC(mmad8)(int8 A_scalars, int8 B_vectors, int acc)
 	return acc;
 }
 
+inline int4 FUNC(mmad4x8)(int4 A_vectors, int8 B_vectors, int4 acc)
+{
+    int4 ret;
+    for(uint i = 0; i < 4; i++)
+    {
+        int8 A_scalars;
+        A_scalars.s0 = sub_group_broadcast(A_vectors[i], 0);
+        A_scalars.s1 = sub_group_broadcast(A_vectors[i], 1);
+        A_scalars.s2 = sub_group_broadcast(A_vectors[i], 2);
+        A_scalars.s3 = sub_group_broadcast(A_vectors[i], 3);
+        A_scalars.s4 = sub_group_broadcast(A_vectors[i], 4);
+        A_scalars.s5 = sub_group_broadcast(A_vectors[i], 5);
+        A_scalars.s6 = sub_group_broadcast(A_vectors[i], 6);
+        A_scalars.s7 = sub_group_broadcast(A_vectors[i], 7);
+        ret[i] = FUNC_CALL(mmad8)(A_scalars, B_vectors, acc[i]);    
+    }
+    return ret;
+}
+
 inline int8 FUNC(mmad8x8)(int8 A_vectors, int8 B_vectors, int8 acc)
 {
     int8 ret;
@@ -58,4 +77,5 @@ inline int8 FUNC(mmad8x8)(int8 A_vectors, int8 B_vectors, int8 acc)
 
 
 #define MMAD_8(A, B, C) FUNC_CALL(mmad8)(A, B, C)
+#define MMAD_4x8(A, B, C) FUNC_CALL(mmad4x8)(A, B, C)
 #define MMAD_8x8(A, B, C) FUNC_CALL(mmad8x8)(A, B, C)

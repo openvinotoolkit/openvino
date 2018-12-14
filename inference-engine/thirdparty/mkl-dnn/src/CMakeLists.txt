@@ -36,6 +36,18 @@ include_directories(
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SRC_CCXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_SRC_CCXX_FLAGS}")
 
+# propagate no warning flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_CCXX_NOWARN_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CCXX_NOWARN_FLAGS}")
+
+if(NOT MKLDNN_VERBOSE)
+    add_definitions(-DDISABLE_VERBOSE)
+endif()
+
+if(MKLDNN_ENABLE_CONCURRENT_EXEC)
+    add_definitions(-DMKLDNN_ENABLE_CONCURRENT_EXEC)
+endif()
+
 if(VTUNEROOT)
     include_directories(${VTUNEROOT}/include)
     add_definitions(-DJIT_PROFILING_VTUNE)
@@ -65,7 +77,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
     endif()
 endif()
 
-add_library(${TARGET_NAME} SHARED ${HEADERS} ${SOURCES})
+add_library(${TARGET_NAME} ${MKLDNN_LIBRARY_TYPE} ${HEADERS} ${SOURCES})
+
 #Add mkldnn.dll to execution PATH
 if(NOT(MINGW))
     set(CTESTCONFIG_PATH "${CTESTCONFIG_PATH}\;${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}" PARENT_SCOPE)

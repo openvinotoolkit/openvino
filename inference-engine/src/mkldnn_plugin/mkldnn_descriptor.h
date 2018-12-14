@@ -12,7 +12,6 @@
 
 class MKLDNNDescriptor {
 public:
-    MKLDNNDescriptor() {}
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::batch_normalization_forward::desc> desc);
     operator std::shared_ptr<mkldnn::batch_normalization_forward::desc>();
 
@@ -48,9 +47,11 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::depthwise_forward::desc> desc);
     operator std::shared_ptr<mkldnn::depthwise_forward::desc>();
 
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::rnn_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::rnn_forward::desc>();
+
     mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine,
             const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) const;
-    mkldnn::primitive_desc_iterator * createPrimitiveDescriptorIteratorPtr(const mkldnn::engine &engine) const;
 
     size_t outputNumbers() const;
     size_t inputNumbers() const;
@@ -61,10 +62,8 @@ private:
     class IDesc {
     public:
         virtual ~IDesc() {}
-        virtual mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine) const = 0;
         virtual mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr &attr,
                                                                                   const mkldnn::engine &engine) const = 0;
-        virtual mkldnn::primitive_desc_iterator *createPrimitiveDescriptorIteratorPtr(const mkldnn::engine &engine) const = 0;
     };
 
     template <class T>
@@ -73,17 +72,9 @@ private:
     public:
         explicit DescFwdImpl(std::shared_ptr<T> d) : desc(d) {}
 
-        mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine) const override {
-            return mkldnn::primitive_desc_iterator(*desc, engine);
-        }
-
         mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr &attr,
                                                                           const mkldnn::engine &engine) const override {
             return mkldnn::primitive_desc_iterator(*desc, attr, engine);
-        }
-
-        mkldnn::primitive_desc_iterator *createPrimitiveDescriptorIteratorPtr(const mkldnn::engine &engine) const override {
-            return new mkldnn::primitive_desc_iterator(*desc, engine);
         }
 
         std::shared_ptr<T>& getPtr() {
@@ -100,17 +91,9 @@ private:
     public:
         DescBwdImpl(std::shared_ptr<T> d, std::shared_ptr<P> p) : desc(d), prim(p) {}
 
-        mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine) const override {
-            return mkldnn::primitive_desc_iterator(*desc, engine, *prim);
-        }
-
         mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::primitive_attr &attr,
                                                                           const mkldnn::engine &engine) const override {
             return mkldnn::primitive_desc_iterator(*desc, attr, engine, *prim);
-        }
-
-        mkldnn::primitive_desc_iterator *createPrimitiveDescriptorIteratorPtr(const mkldnn::engine &engine) const override {
-            return new mkldnn::primitive_desc_iterator(*desc, engine, *prim);
         }
 
         std::shared_ptr<T>& getPtr() {

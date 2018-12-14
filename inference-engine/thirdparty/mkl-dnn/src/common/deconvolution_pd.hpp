@@ -97,9 +97,9 @@ struct deconvolution_fwd_pd_t : public primitive_desc_t {
     inline int KSH() const { return desc_.strides[ndims()-4]; }
     inline int KSW() const { return desc_.strides[ndims()-3]; }
 
-    inline int KDD() const { return 0; }
-    inline int KDH() const { return 0; }
-    inline int KDW() const { return 0; }
+    inline int KDD() const { return (ndims() == 5) ? desc_.dilates[0] : 0; }
+    inline int KDH() const { return desc_.dilates[ndims()-4]; }
+    inline int KDW() const { return desc_.dilates[ndims()-3]; }
 
     inline int padFront() const
         { return (ndims() == 5) ? desc_.padding[0][0] : 0; }
@@ -195,9 +195,9 @@ struct deconvolution_bwd_data_pd_t : public primitive_desc_t {
     inline int KSH() const { return desc_.strides[ndims()-4]; }
     inline int KSW() const { return desc_.strides[ndims()-3]; }
 
-    inline int KDD() const { return 0; }
-    inline int KDH() const { return 0; }
-    inline int KDW() const { return 0; }
+    inline int KDD() const { return (ndims() == 5) ? desc_.dilates[0] : 0; }
+    inline int KDH() const { return desc_.dilates[ndims()-4]; }
+    inline int KDW() const { return desc_.dilates[ndims()-3]; }
 
     inline int padFront() const
         { return (ndims() == 5) ? desc_.padding[0][0] : 0; }
@@ -296,9 +296,9 @@ struct deconvolution_bwd_weights_pd_t : public primitive_desc_t {
     inline int KSH() const { return desc_.strides[ndims()-4]; }
     inline int KSW() const { return desc_.strides[ndims()-3]; }
 
-    inline int KDD() const { return 0; }
-    inline int KDH() const { return 0; }
-    inline int KDW() const { return 0; }
+    inline int KDD() const { return (ndims() == 5) ? desc_.dilates[0] : 0; }
+    inline int KDH() const { return desc_.dilates[ndims()-4]; }
+    inline int KDW() const { return desc_.dilates[ndims()-3]; }
 
     inline int padFront() const
         { return (ndims() == 5) ? desc_.padding[0][0] : 0; }

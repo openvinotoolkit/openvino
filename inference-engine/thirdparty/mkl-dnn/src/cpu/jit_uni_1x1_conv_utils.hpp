@@ -242,7 +242,7 @@ inline void init_rtus_driver(conv_t *self) {
 
     if (!conf.rtus_.reduce_src_) return;
 
-    const int max_threads = omp_get_max_threads();
+    const int max_threads = mkldnn_get_max_threads();
     size_t factor = 0;
     switch (cd.prop_kind) {
     case prop_kind::forward_training: case prop_kind::forward_inference:

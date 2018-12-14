@@ -34,15 +34,13 @@ class LinOp(Op):
 
 class Add(LinOp):
     enabled = False
-    op = lambda a, b: a + b
     def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
-        attrs.update({'op': 'Add', 'operation': 'sum', 'infer': lambda node: eltwise_infer(node, self.op)})
+        attrs.update({'op': 'Add', 'operation': 'sum', 'infer': lambda node: eltwise_infer(node, lambda a, b: a + b)})
         super().__init__(graph, attrs)
 
 
 class Mul(LinOp):
     enabled = False
-    op = lambda a, b: a * b
     def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
-        attrs.update({'op': 'Mul', 'operation': 'mul', 'infer': lambda node: eltwise_infer(node, self.op)})
+        attrs.update({'op': 'Mul', 'operation': 'mul', 'infer': lambda node: eltwise_infer(node, lambda a, b: a*b)})
         super().__init__(graph, attrs)

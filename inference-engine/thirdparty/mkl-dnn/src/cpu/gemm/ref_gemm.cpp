@@ -13,14 +13,19 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
-#include "gemm_utils.hpp"
-#include "utils.hpp"
+
+#include "mkldnn_thread.hpp"
 #include "nstl.hpp"
+#include "utils.hpp"
+
 #include "../jit_generator.hpp"
+
+#include "gemm_utils.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
+
 using namespace mkldnn::impl::utils;
 
 constexpr int unroll_m = 16;
@@ -156,18 +161,19 @@ void gemm_ithr(const int M, const int N, const int K, const float alpha,
 void ref_gemm(const char *transa_, const char *transb_, const int *M_,
         const int *N_, const int *K_, const float *alpha_, const float *A,
         const int *lda_, const float *B, const int *ldb_, const float *beta_,
-        float *C, const int *ldc_) {
+        float *C, const int *ldc_, const float *bias) {
     bool isTransA = (*transa_ == 'T' || *transa_ == 't');
     bool isTransB = (*transb_ == 'T' || *transb_ == 't');
     const int M = *M_, N = *N_, K = *K_, lda = *lda_, ldb = *ldb_, ldc = *ldc_;
     const float alpha = *alpha_, beta = *beta_;
 
-    int max_nthr = omp_get_max_threads();
+    int max_nthr = mkldnn_in_parallel() ? 1 : mkldnn_get_max_threads();
     int nthr_m, nthr_n, nthr_k;
     int MB, NB, KB;
-    // thread ballancing over M, N, K & size of blocking dimensions
-    gemm_utils::calc_nthr_nocopy_avx2(
+    // thread balancing over M, N, K & size of blocking dimensions
+    gemm_utils::calc_nthr_nocopy_avx(
             M, N, K, max_nthr, &nthr_m, &nthr_n, &nthr_k, &MB, &NB, &KB);
+    assert(utils::implication(!mkldnn_thr_syncable(), nthr_k == 1));
 
     float *c_buffers = nullptr, *ws_buffers = nullptr;
     if (nthr_k > 1) {
@@ -180,7 +186,8 @@ void ref_gemm(const char *transa_, const char *transb_, const int *M_,
     }
 
     bool do_copy = (NB / unroll_n > 3);
-    int nthr = nthr_m * nthr_n * nthr_k;
+    const int nthr_mn = nthr_m * nthr_n;
+    const int nthr = nthr_mn * nthr_k;
     const size_t ws_elems_per_thr = K * unroll_m;
     const size_t ws_size_per_thr
             = utils::rnd_up(ws_elems_per_thr * sizeof(float), PAGE_4K);
@@ -189,18 +196,17 @@ void ref_gemm(const char *transa_, const char *transb_, const int *M_,
         if (!ws_buffers)
             do_copy = false;
     }
-#   pragma omp parallel num_threads(nthr)
-    {
-        int ithr_omp = omp_get_thread_num();
-        int nthr_mn = nthr_m * nthr_n;
-        int ithr_omp_mn = ithr_omp % nthr_mn;
-        int ithr_omp_m = ithr_omp_mn % nthr_m;
-        int ithr_omp_n = ithr_omp_mn / nthr_m;
-        int ithr_omp_k = ithr_omp / nthr_mn;
-        int cbase = (ithr_omp_m + nthr_m * ithr_omp_n) * (nthr_k - 1);
+
+    parallel(nthr, [&](const int ithr, const int nthr) {
+        int ithr_mn = ithr % nthr_mn;
+        int ithr_m = ithr_mn % nthr_m;
+        int ithr_n = ithr_mn / nthr_m;
+        int ithr_k = ithr / nthr_mn;
+
+        int cbase = (ithr_m + nthr_m * ithr_n) * (nthr_k - 1);
 
         float *ws = do_copy
-                ? ws_buffers + ithr_omp * ws_size_per_thr / sizeof(float)
+                ? ws_buffers + ithr * ws_size_per_thr / sizeof(float)
                 : nullptr;
 
         int m_from = 0, m_to = 0, myM = 0, n_from = 0, n_to = 0, myN = 0,
@@ -213,19 +219,19 @@ void ref_gemm(const char *transa_, const char *transb_, const int *M_,
                 to = N;
             myN = to - from;
         };
-        get_thr_block(m_from, m_to, myM, MB, M, ithr_omp_m);
-        get_thr_block(n_from, n_to, myN, NB, N, ithr_omp_n);
-        get_thr_block(k_from, k_to, myK, KB, K, ithr_omp_k);
+        get_thr_block(m_from, m_to, myM, MB, M, ithr_m);
+        get_thr_block(n_from, n_to, myN, NB, N, ithr_n);
+        get_thr_block(k_from, k_to, myK, KB, K, ithr_k);
 
-        if ((myM > 0) && (myN > 0)) {
+        if (myM > 0 && myN > 0) {
             float myBeta, *myC;
             int ld;
-            if (ithr_omp_k == 0) {
+            if (ithr_k == 0) {
                 myC = &(C[m_from + n_from * ldc]);
                 myBeta = beta;
                 ld = ldc;
             } else {
-                myC = c_buffers + MB * NB * (cbase + ithr_omp_k - 1);
+                myC = c_buffers + MB * NB * (cbase + ithr_k - 1);
                 myBeta = 0.0f;
                 ld = MB;
             }
@@ -254,20 +260,29 @@ void ref_gemm(const char *transa_, const char *transb_, const int *M_,
                 }
             }
         }
+
         if (nthr_k > 1) {
-#           pragma omp barrier
+            assert(mkldnn_thr_syncable());
+            mkldnn_thr_barrier();
+
             // sum matrices partitioned along K dimension
             int offset = 0, block = 0;
-            gemm_utils::partition_unit_diff(ithr_omp_k, nthr_k, myN, &offset,
+            gemm_utils::partition_unit_diff(ithr_k, nthr_k, myN, &offset,
                     &block);
             for (int ik = 1; ik < nthr_k; ++ik) {
-                float *myC = c_buffers + MB * NB * (cbase + ik - 1);
-                myC = myC + offset * MB;
+                float *myC = c_buffers + MB * (NB * (cbase + ik - 1) + offset);
                 gemm_utils::sum_two_matrices(myM, block, myC, MB,
                         &C[m_from + (n_from + offset) * ldc], ldc);
             }
         }
+    });
+
+    if (bias) {
+        parallel_nd(N, M, [&](int i, int j) {
+            C[i*ldc + j] += bias[j];
+        });
     }
+
     free(ws_buffers);
     free(c_buffers);
 }

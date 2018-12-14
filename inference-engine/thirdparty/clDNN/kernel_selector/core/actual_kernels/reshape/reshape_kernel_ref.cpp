@@ -24,8 +24,14 @@ namespace kernel_selector
         ParamsKey k;
         k.EnableInputDataType(Datatype::F16);
         k.EnableInputDataType(Datatype::F32);
+        k.EnableInputDataType(Datatype::INT8);
+        k.EnableInputDataType(Datatype::INT32);
+        k.EnableInputDataType(Datatype::INT64);
         k.EnableOutputDataType(Datatype::F16);
         k.EnableOutputDataType(Datatype::F32);
+        k.EnableOutputDataType(Datatype::INT8);
+        k.EnableOutputDataType(Datatype::INT32);
+        k.EnableOutputDataType(Datatype::INT64);
         k.EnableAllInputLayout();
         k.EnableAllOutputLayout();
         k.EnableTensorOffset();
@@ -60,7 +66,7 @@ namespace kernel_selector
 
         kernel.workGroups.global = { gws[0], gws[1], gws[2] * gws[3] };
         kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global);
-        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, ROUND_ROBIN);
+        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, ROUND_ROBIN);
         kernel.arguments = GetArgsDesc(1, false, false);
         
         kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;

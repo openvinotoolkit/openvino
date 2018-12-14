@@ -50,8 +50,8 @@ namespace cldnn
         reorg_yolo_info.add("stride", stride);
 
 
-        node_info.add("reorg yolo info", reorg_yolo_info);
-        node_info.dump(primitive_description);
+        node_info->add("reorg yolo info", reorg_yolo_info);
+        node_info->dump(primitive_description);
 
         return primitive_description.str();
     }

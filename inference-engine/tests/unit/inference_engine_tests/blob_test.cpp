@@ -362,7 +362,7 @@ TEST_F(BlobTests, canCreateBlobOnExistedMemory) {
     }
 }
 
-TEST_F(BlobTests, preAllocatorWillDoesntWorkIfPtrNotAlocated) {
+TEST_F(BlobTests, preAllocatorWillnotWorkIfPtrNotAlocated) {
    ASSERT_ANY_THROW(TBlob<float>(Precision::FP32, C, {1}, nullptr));
 }
 
@@ -381,6 +381,18 @@ TEST_F(BlobTests, cannotIncreaseSizeOfPreallocated) {
     ASSERT_NE(nullptr, b->buffer().as<float*>());
 }
 
+
+TEST_F(BlobTests, canAcceptpreallocatedSize) {
+
+    float input[] = {0.1f, 0.2f, 0.3f};
+    auto  b = make_shared_blob(Precision::FP32, HW, {1, 2}, input, 100);
+    b->Resize({1,101});
+    //since allocator isno't releasing, user have to be carefull that this still use old array
+    ASSERT_EQ(nullptr, b->buffer().as<float*>());
+
+    b->Resize({1,100});
+    ASSERT_NE(nullptr, b->buffer().as<float*>());
+}
 
 TEST_F(BlobTests, ifBlobCannotReleaseItWillReuseOldMemory) {
 

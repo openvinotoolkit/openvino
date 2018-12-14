@@ -42,7 +42,7 @@ endif()
 
 set(PROJECT_NAME "Intel(R) MKL-DNN")
 set(PROJECT_FULL_NAME "Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN)")
-set(PROJECT_VERSION "0.14")
+set(PROJECT_VERSION "0.16")
 
 set(LIB_NAME mkldnn)
 
@@ -57,8 +57,11 @@ set(CMAKE_SRC_CCXX_FLAGS)       # SRC specifics
 set(CMAKE_EXAMPLE_CCXX_FLAGS)   # EXAMPLE specifics
 set(CMAKE_TEST_CCXX_FLAGS)      # TESTS specifics
 
+include("cmake/utils.cmake")
+include("cmake/options.cmake")
 include("cmake/platform.cmake")
 include("cmake/OpenMP.cmake")
+include("cmake/TBB.cmake")
 include("cmake/SDL.cmake")
 include("cmake/MKL.cmake")
 include("cmake/Doxygen.cmake")

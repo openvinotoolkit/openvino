@@ -56,6 +56,7 @@ typedef enum /*:int32_t*/
 /// @notes
 /// - both inputs have to have equal sizes in all dimensions
 /// - format of both inputs has to be the same
+/// - when using integer types, only following eltwise modes are supported: sum, sub, prod, div
 CLDNN_BEGIN_PRIMITIVE_DESC(eltwise)
 /// @brief Primitive id containing output quanitization factors per output feature map.
 cldnn_primitive_id output_calibration_factors;

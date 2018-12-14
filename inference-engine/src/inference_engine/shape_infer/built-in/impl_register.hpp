@@ -20,7 +20,7 @@ public:
 };
 
 #define REG_SHAPE_INFER_FOR_TYPE(__prim, __type) \
-static ImplRegisterBase<__prim> __reg__##__type(#__type)
+static ImplRegisterBase<__prim> __bi_reg__##__type(#__type)
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine

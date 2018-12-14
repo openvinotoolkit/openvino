@@ -31,6 +31,7 @@ namespace cpu {
 
 using namespace Xbyak;
 using namespace mkldnn::impl::memory_format;
+using namespace mkldnn::impl::utils;
 
 struct jit_args {
     const float *from;
@@ -50,9 +51,143 @@ struct jit_uni_depthwise_kernel_f32 : public c_compatible {
     jit_uni_depthwise_kernel_f32(const depthwise_desc_t &desc, bool with_bias)
         : desc_(desc), ker_(nullptr), with_bias_(with_bias) {}
     virtual ~jit_uni_depthwise_kernel_f32() {}
-
-
 };
+
+template <cpu_isa_t isa>
+int jit_uni_depthwise_injector_f32<isa>::aux_vecs_count(alg_kind_t depthwise_alg) {
+    switch (depthwise_alg) {
+        case alg_kind::depthwise_scale_shift: return 0;
+        case alg_kind::depthwise_prelu: return 2;
+        default: assert(!"unsupported depthwise algorithm");
+    }
+
+    return 0;
+}
+
+template <cpu_isa_t isa>
+void jit_uni_depthwise_injector_f32<isa>::injector_preamble(size_t start_idx, size_t end_idx) {
+    preserved_vecs_count = 0;
+    vecs_to_preserve = (size_t)jit_uni_depthwise_injector_f32<isa>::aux_vecs_count(depthwise_alg);
+
+    for (size_t i = 0; i < vecs_count; i++) {
+        if (preserved_vecs_count >= vecs_to_preserve)
+            break;
+
+        if (i < start_idx || i >= end_idx) {
+            preserved_vec_idxs[preserved_vecs_count] = i;
+            preserved_vecs_count++;
+        }
+    }
+
+    start_idx_tail = start_idx;
+    size_t preserved_vecs_count_tail = vecs_to_preserve - preserved_vecs_count;
+    for (size_t i = 0; i < preserved_vecs_count_tail; i++) {
+        preserved_vec_idxs[preserved_vecs_count] = start_idx + i;
+        preserved_vecs_count++;
+        start_idx_tail = start_idx + i + 1;
+    }
+
+    h->sub(h->rsp, preserved_vecs_count * vlen);
+    for (size_t i = 0; i < preserved_vecs_count; ++i)
+        h->uni_vmovups(h->ptr[h->rsp + i * vlen], Vmm(preserved_vec_idxs[i]));
+
+    assign_regs();
+}
+
+template <cpu_isa_t isa>
+void jit_uni_depthwise_injector_f32<isa>::injector_preamble_tail(size_t start_idx, size_t end_idx) {
+    size_t tail_vecs_to_preserve = start_idx_tail - start_idx;
+    int idx_off = (vecs_to_preserve - tail_vecs_to_preserve);
+
+    if (tail_vecs_to_preserve > 0) {
+        h->add(h->rsp, idx_off * vlen);
+        for (size_t i = 0; i < tail_vecs_to_preserve; ++i)
+            h->uni_vmovups(Vmm(preserved_vec_idxs[idx_off + i]), h->ptr[h->rsp + i * vlen]);
+
+        for (size_t i = 0; i < tail_vecs_to_preserve; ++i) {
+            preserved_vec_idxs[idx_off + i] += tail_vecs_to_preserve;
+        }
+
+        for (size_t i = 0; i < tail_vecs_to_preserve; ++i)
+            h->uni_vmovups(h->ptr[h->rsp + i * vlen], Vmm(preserved_vec_idxs[idx_off + i]));
+        h->sub(h->rsp, idx_off * vlen);
+
+        assign_regs();
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_uni_depthwise_injector_f32<isa>::injector_postamble() {
+    for (size_t i = 0; i < preserved_vecs_count; ++i)
+        h->uni_vmovups(Vmm(preserved_vec_idxs[i]), h->ptr[h->rsp + i * vlen]);
+    h->add(h->rsp, preserved_vecs_count * vlen);
+}
+
+template <cpu_isa_t isa>
+void jit_uni_depthwise_injector_f32<isa>::assign_regs() {
+    vmm_mask = Vmm(preserved_vec_idxs[0]);
+    vmm_aux0 = Vmm(preserved_vec_idxs[1]);
+}
+
+template <cpu_isa_t isa>
+void jit_uni_depthwise_injector_f32<isa>::scale_shift_compute_vector(const Vmm &vmm_src,
+        const Xbyak::Reg64& p_weights, const Xbyak::Reg64& p_bias) {
+    h->uni_vmulps(vmm_src, vmm_src, h->ptr[p_weights]);
+    h->uni_vaddps(vmm_src, vmm_src, h->ptr[p_bias]);
+}
+
+template <cpu_isa_t isa>
+void jit_uni_depthwise_injector_f32<isa>::prelu_compute_vector(const Vmm &vmm_src,
+        const Xbyak::Reg64& p_weights, const Xbyak::Reg64& p_bias) {
+    const unsigned char _cmp_gt_os = 6;
+    const unsigned char _cmp_lt_os = 1;
+
+    if (isa == sse42) {
+        h->pxor(vmm_mask, vmm_mask);
+        h->cmpps(vmm_mask, vmm_src, _cmp_gt_os);
+        h->movups(vmm_aux0, vmm_src);
+        h->mulps(vmm_aux0, h->ptr[p_weights]);
+        h->blendvps(vmm_src, vmm_aux0);
+    } else if (isa == avx2) {
+        h->vxorps(vmm_mask, vmm_mask, vmm_mask);
+        h->vcmpgtps(vmm_mask, vmm_src, vmm_mask);
+        h->vmulps(vmm_aux0, vmm_src, h->ptr[p_weights]);
+        h->vblendvps(vmm_src, vmm_aux0, vmm_src, vmm_mask);
+    } else if (isa == avx512_common) {
+        h->vxorpd(vmm_mask, vmm_mask, vmm_mask);
+        h->vmovups(vmm_aux0, vmm_src);
+        h->vcmpps(k_mask, vmm_src, vmm_mask, _cmp_lt_os);
+        h->vmulps(vmm_src | k_mask, vmm_aux0, h->ptr[p_weights]);
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_uni_depthwise_injector_f32<isa>::compute_body(size_t start_idx, size_t end_idx,
+        const Xbyak::Reg64& p_weights, const Xbyak::Reg64& p_bias) {
+    for (size_t idx = start_idx; idx < end_idx; idx++) {
+        switch (depthwise_alg) {
+            case alg_kind::depthwise_scale_shift:
+                scale_shift_compute_vector(Vmm(idx), p_weights, p_bias); break;
+            case alg_kind::depthwise_prelu:
+                prelu_compute_vector(Vmm(idx), p_weights, p_bias); break;
+            default: assert(!"unsupported depthwise algorithm");
+        }
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_uni_depthwise_injector_f32<isa>::compute_vector_range(int start_idx, int end_idx,
+        const Xbyak::Reg64& p_weights, const Xbyak::Reg64& p_bias) {
+    injector_preamble(start_idx, end_idx);
+    compute_body(start_idx_tail, end_idx, p_weights, p_bias);
+    injector_preamble_tail(start_idx, end_idx);
+    compute_body(start_idx, start_idx_tail, p_weights, p_bias);
+    injector_postamble();
+}
+
+template struct jit_uni_depthwise_injector_f32<avx512_common>;
+template struct jit_uni_depthwise_injector_f32<avx2>;
+template struct jit_uni_depthwise_injector_f32<sse42>;
 
 /* jit kernels */
 namespace {
@@ -332,7 +467,8 @@ status_t jit_uni_depthwise_fwd_t<isa>::pd_t::init() {
 template <cpu_isa_t isa>
 jit_uni_depthwise_fwd_t<isa>::jit_uni_depthwise_fwd_t(const pd_t *pd,
         const input_vector &inputs, const output_vector &outputs)
-    : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), kernel_(nullptr) {
+    : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), kernel_(nullptr),
+      padded_weights_(nullptr), padded_bias_(nullptr) {
     const auto &desc = *conf_.desc();
     switch (desc.alg_kind) {
         case alg_kind::depthwise_scale_shift:
@@ -341,11 +477,31 @@ jit_uni_depthwise_fwd_t<isa>::jit_uni_depthwise_fwd_t(const pd_t *pd,
             kernel_ = new jit_uni_prelu_kernel_f32<isa>(desc, pd->with_bias()); break;
         default: assert(!"unknown depthwise alg_kind");
     }
+
+    const int simd_w = isa == avx512_common ? 16 : 8;
+    const memory_desc_wrapper data_d(conf_.src_pd());
+    const int c_without_padding = data_d.dims()[1];
+    const int c_padded = rnd_up(c_without_padding, simd_w);
+
+    if (conf_.want_padded_weights()) {
+        padded_weights_ = (data_t *)malloc(sizeof(data_t) * c_padded, 64);
+        for (int oc = c_without_padding; oc < c_padded; ++oc)
+            padded_weights_[oc] = 0;
+
+        if (conf_.with_bias()) {
+            padded_bias_ = (data_t *)malloc(sizeof(data_t) * c_padded, 64);
+            for (int oc = c_without_padding; oc < c_padded; ++oc)
+                padded_bias_[oc] = 0;
+        }
+    }
 }
 
 template <cpu_isa_t isa>
-jit_uni_depthwise_fwd_t<isa>::~jit_uni_depthwise_fwd_t()
-{ delete kernel_; }
+jit_uni_depthwise_fwd_t<isa>::~jit_uni_depthwise_fwd_t() {
+    delete kernel_;
+    free(padded_weights_);
+    free(padded_bias_);
+}
 
 template <cpu_isa_t isa>
 void jit_uni_depthwise_fwd_t<isa>::execute_forward() {
@@ -365,9 +521,22 @@ void jit_uni_depthwise_fwd_t<isa>::execute_forward() {
 
     const int simd_w = isa == avx512_common ? 16 : 8;
     const int ch_block_size = data_d.format() == nchw ? 1 : simd_w;
-    const int CB = C / ch_block_size;
+    const int CB = div_up(C, ch_block_size);
 
-    auto ker = [&](int n, int cb, int h) {
+    if (conf_.want_padded_weights()) {
+        for (int oc = 0; oc < C; ++oc)
+            padded_weights_[oc] = weights[oc];
+        weights = padded_weights_;
+
+        if (conf_.with_bias()) {
+            for (int oc = 0; oc < C; ++oc)
+                padded_bias_[oc] = bias[oc];
+            bias = padded_bias_;
+        }
+    }
+
+    parallel_nd(N, CB, H,
+        [&](int n, int cb, int h) {
         jit_args arg = {};
 
         arg.from    = &src[data_d.blk_off(n, cb, h)];
@@ -378,16 +547,7 @@ void jit_uni_depthwise_fwd_t<isa>::execute_forward() {
         arg.work_amount = (size_t)W;
 
         (*kernel_)(&arg);
-    };
-
-    #pragma omp parallel for collapse(3) schedule(static)
-    for (int n = 0; n < N; ++n) {
-        for (int cb = 0; cb < CB; ++cb) {
-            for (int h = 0; h < H; ++h) {
-                ker(n, cb, h);
-            }
-        }
-    }
+    });
 }
 
 template struct jit_uni_depthwise_fwd_t<sse42>;
@@ -503,18 +663,8 @@ void jit_uni_dw_conv_row_f32<isa>::apply_filter(int ur_w, int kw_size) {
 template <cpu_isa_t isa>
 void jit_uni_dw_conv_row_f32<isa>::apply_activation(int ur_w) {
     if (this->jcp.with_eltwise) {
-        inject(eltwise_generator.prepareConstants(jcp.eltwise_alpha, jcp.eltwise_beta));
-
-        // TODO (dmitrygo): need to find appropriate way to share labels.
-        mov(imm_addr64, l_table);
         int repeats = isa == sse42 ? 2 : 1;
-        for (int i = 0; i < repeats; i++) {
-            for (int ow = 0; ow < ur_w; ow++) {
-                Vmm vmm_dst = get_acc_reg(i*ur_w + ow);
-
-                inject(eltwise_generator.computeVector(vmm_dst, vmm_dst));
-            }
-        }
+        eltwise_injector->compute_vector_range(4, repeats * ur_w + 4);
     }
 }
 
@@ -643,21 +793,6 @@ void jit_uni_dw_conv_row_f32<isa>::loop_body() {
 template <cpu_isa_t isa>
 void jit_uni_dw_conv_row_f32<isa>::generate()
 {
-    if (jcp.with_eltwise) {
-        nstl::vector<int> shared_vecs;
-        shared_vecs.push_back(0);
-        shared_vecs.push_back(1);
-        shared_vecs.push_back(2);
-        shared_vecs.push_back(3);
-        if (isa == avx512_common)
-            shared_vecs.push_back(31);
-
-        nstl::vector<Reg64> shared_regs;
-        shared_regs.push_back(imm_addr64);
-
-        eltwise_generator.init(jcp.eltwise_alg, shared_vecs, shared_regs);
-    }
-
     this->preamble();
 
     mov(reg_input0, ptr[this->param1 + GET_OFF_DW(src_row0)]);
@@ -674,13 +809,8 @@ void jit_uni_dw_conv_row_f32<isa>::generate()
 
     this->postamble();
 
-    if (jcp.with_eltwise) {
-        // TODO (dmitrygo): need to find appropriate way to share labels.
-        align(64);
-        L(l_table);
-        inject(eltwise_generator.prepareTable());
-        eltwise_generator.release();
-    }
+    if (jcp.with_eltwise)
+        eltwise_injector->prepare_table();
 }
 
 template <cpu_isa_t isa>

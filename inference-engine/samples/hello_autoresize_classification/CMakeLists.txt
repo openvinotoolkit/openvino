@@ -26,14 +26,14 @@ file (GLOB SRC
 
 # Find OpenCV libray if exists
 find_package(OpenCV)
-if(OpenCV_FOUND)
-    include_directories(${OpenCV_INCLUDE_DIRS})
-else()
+if(NOT(OpenCV_FOUND))
     message(STATUS "OPENCV is disabled or not found, " ${TARGET_NAME} " skiped")
     return()
 endif()
 
 source_group("src" FILES ${SRC})
+
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 link_directories(${LIB_FOLDER})
 
@@ -45,7 +45,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES "CMAKE_CXX_FLAGS" "${CMAKE_CXX_F
 
 
 target_link_libraries(${TARGET_NAME} ${InferenceEngine_LIBRARIES} ${OpenCV_LIBRARIES})
-
 
 if(UNIX)
     target_link_libraries(${TARGET_NAME} ${LIB_DL})

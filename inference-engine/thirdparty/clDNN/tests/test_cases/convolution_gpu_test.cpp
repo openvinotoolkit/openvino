@@ -261,6 +261,94 @@ TEST(convolution_f32_fw_gpu, basic_convolution_int8_no_bias) {
     }
 }
 
+TEST(convolution_f32_fw_gpu, with_output_size_same_input) {
+
+    engine engine;
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 4, 320, 320 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx, { 64, 4, 7, 7 } });
+    auto weights2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 64, 4, 7, 7 } });
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        data("weights", weights),
+        data("weights2", weights2),
+        convolution::create_with_output_size("conv1", "input", { "weights" }, {1, 64, 160, 160}, {1, 1, 2, 2}, {0, 0, -3, -3}),
+        convolution::create_with_output_size("conv2", "input", { "weights2" }, {1, 64, 320, 320}, {1, 1, 1, 1}, {0, 0, -3, -3})
+    );
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(2));
+    EXPECT_EQ(outputs.begin()->first, "conv1");
+    EXPECT_EQ(outputs.rbegin()->first, "conv2");
+}
+
+TEST(convolution_f32_fw_gpu, three_convolutions_same_weights) {
+    //  Filter : 1x1
+    //  Input  : 2x2
+    //  Output : 2x2
+    //
+    //  Input:
+    //  1  1   1  1
+    //  1  1   1  1
+    //  
+    //  Filter:
+    //  1 
+    //  
+    //  Output:
+    //  8  8   8  8
+    //  8  8   8  8
+
+
+    engine engine;
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, {1,2,2,2} });
+    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx, { 2,2,1,1 } });
+
+    set_values(input, { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
+    set_values(weights, { 1.0f, 1.0f, 1.0f, 1.0f });
+
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        data("weights", weights),
+        convolution("conv1", "input", { "weights" }),
+        convolution("conv2", "conv1", { "weights" }),
+        convolution("conv3", "conv2", { "weights" })
+    );
+
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(true));
+    network network(engine, topology, options);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output_memory = outputs.at("conv3").get_memory();
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+
+    int y_size = output_layout.size.spatial[1];
+    int x_size = output_layout.size.spatial[0];
+    int f_size = output_layout.size.feature[0];
+    int b_size = output_layout.size.batch[0];
+
+    EXPECT_EQ(output_layout.format, format::bfyx);
+    EXPECT_EQ(y_size, 2);
+    EXPECT_EQ(x_size, 2);
+    EXPECT_EQ(f_size, 2);
+    EXPECT_EQ(b_size, 1);
+
+    for (int y = 0; y < y_size; ++y) {
+        for (int x = 0; x < x_size; ++x) {
+            EXPECT_FLOAT_EQ(8.0f, output_ptr[y * x_size + x]);
+        }
+    }
+}
+
 
 TEST(convolution_f32_fw_gpu, basic_convolution) {
     //  Filter : 2x3

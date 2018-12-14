@@ -49,8 +49,8 @@ std::string fully_connected_grad_input_inst::to_string(fully_connected_grad_inpu
     json_composite fc_info;
     fc_info.add("weights id", weights_id);
 
-    node_info.add("fully connected grad input info", fc_info);
-    node_info.dump(primitive_description);
+    node_info->add("fully connected grad input info", fc_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

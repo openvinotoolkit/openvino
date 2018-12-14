@@ -45,7 +45,7 @@
 #define __PRETTY_FUNCTION__ __FUNCSIG__
 #endif
 
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
 #define collapse(x)
 #endif
 
@@ -165,6 +165,17 @@ const char *bool2str(bool value);
 bool match_regex(const char *str, const char *pattern);
 bool maybe_skip(const char *skip_impl, const char *impl_str);
 
+template <typename B, typename F>
+void read_csv(const char *csv, B b, F f, const char *delim = ",") {
+    char csv_copy[128];
+    strncpy(csv_copy, csv, sizeof(csv_copy) - 1);
+    csv_copy[sizeof(csv_copy) - 1] = '\0';
+
+    b();
+    const char *s = strtok(csv_copy, delim);
+    for (; s && *s; s = strtok(NULL, delim)) f(s);
+}
+
 typedef int (*bench_f)(int argc, char **argv, bool main_bench);
 int batch(const char *fname, bench_f bench);
 
@@ -176,4 +187,11 @@ int div_up(const int a, const int b);
 /* set '0' across *arr:+size */
 void array_set(char *arr, size_t size);
 
+/* wrapper to mkldnn_sgemm
+ * layout = 'F' - column major
+ * layout = 'C' - row major*/
+void gemm(const char *layout, const char *transa, const char *transb,
+        int m, int n, int k, const float alpha, const float *a, const int lda,
+        const float *b, const int ldb, const float beta, float *c,
+        const int ldc );
 #endif

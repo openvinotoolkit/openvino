@@ -15,10 +15,11 @@
 """
 
 import logging as log
+
 import networkx as nx
 
-from extensions.ops.resample import ResampleOp
 from extensions.front.tf.Pack import Pack
+from extensions.ops.resample import ResampleOp
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import replace_node
 
@@ -52,9 +53,8 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
                 ('reshape_1', 'mul'),
                 ('mul_const', 'mul'),
                 ('mul', 'reshape_2'),
-            ],
-            node_attrs=['kind', 'op'],
-            edge_attrs=[])
+            ]
+        )
 
     def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
         log.debug('Matched NearestNeighborUpsampling pattern: {}'.format([node.id for node in match.values()]))

@@ -28,17 +28,7 @@ primitive_type_id softmax_type_id()
 
 layout softmax_inst::calc_output_layout(softmax_node const& node)
 {
-    auto input_layout = node.input().get_output_layout();
-
-    cldnn::layout out_layout = input_layout;
-    if (input_layout.size.spatial[0] == 1 && input_layout.size.spatial[1] == 1) //squeezenet spatials are 1x1
-    {
-        if (input_layout.format == format::bfyx)
-            out_layout = cldnn::layout(input_layout.data_type, format::bfyx, tensor(input_layout.size.batch[0], 1, input_layout.size.feature[0], 1));
-        else
-            out_layout = cldnn::layout(input_layout.data_type, format::yxfb, tensor(input_layout.size.batch[0], 1, input_layout.size.feature[0], 1));
-    }
-    return out_layout;
+    return node.input().get_output_layout();
 }
 
 std::string softmax_inst::to_string(softmax_node const& node)
@@ -48,7 +38,7 @@ std::string softmax_inst::to_string(softmax_node const& node)
 
     std::stringstream primitive_description;
 
-    node_info.dump(primitive_description);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

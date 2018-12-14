@@ -19,6 +19,7 @@
 
 #include "c_types_map.hpp"
 #include "type_helpers.hpp"
+#include "mkldnn_thread.hpp"
 
 #include "ref_batch_normalization.hpp"
 
@@ -46,6 +47,9 @@ void ref_batch_normalization_fwd_t<data_type>::execute_forward() {
 
     auto dst = reinterpret_cast<data_t*>(this->memory(0));
     auto ws = reinterpret_cast<uint8_t *>(this->memory(conf_.ws_idx()));
+
+    /* fast return */
+    if (this->conf_.has_zero_dim_memory()) return;
 
     const memory_desc_wrapper data_d(conf_.src_pd());
     const memory_desc_wrapper scaleshift_d(conf_.weights_pd());
@@ -84,8 +88,7 @@ void ref_batch_normalization_fwd_t<data_type>::execute_forward() {
         else return data_d.off(n, c);
     };
 
-#   pragma omp parallel for schedule(static)
-    for (int c = 0; c < C; ++c) {
+    parallel_nd(C, [&](int c) {
         data_t v_mean = calculate_stats ? 0 : mean[c];
         data_t v_variance = calculate_stats ? 0 : variance[c];
 
@@ -137,7 +140,7 @@ void ref_batch_normalization_fwd_t<data_type>::execute_forward() {
                 variance[c] = v_variance;
             }
         }
-    }
+    });
 }
 
 template struct ref_batch_normalization_fwd_t<data_type::f32>;
@@ -162,8 +165,20 @@ void ref_batch_normalization_bwd_t<data_type>::execute_backward() {
     const memory_desc_wrapper mean_d(conf_.mean_pd());
     const memory_desc_wrapper variance_d(conf_.variance_pd());
 
-    const int N = conf_.MB();
     const int C = conf_.C();
+
+    /* fast return */
+    if (this->conf_.has_zero_dim_memory()) {
+        if (diff_scaleshift) {
+            for (int c = 0; c < C; ++c) {
+                diff_scaleshift[diff_scaleshift_d.off(0, c)] = 0;
+                diff_scaleshift[diff_scaleshift_d.off(1, c)] = 0;
+            }
+        }
+        return;
+    }
+
+    const int N = conf_.MB();
     int H = 1, W = 1, D = 1;
     const bool has_spatial = utils::one_of(data_d.ndims(), 4 ,5);
     if (has_spatial)
@@ -190,8 +205,7 @@ void ref_batch_normalization_bwd_t<data_type>::execute_backward() {
         else return data_d.off(n, c);
     };
 
-#   pragma omp parallel for schedule(static)
-    for (int c = 0; c < C; ++c) {
+    parallel_nd(C, [&](int c) {
         data_t v_mean = mean[mean_d.off(c)];
         data_t v_variance = variance[variance_d.off(c)];
         data_t sqrt_variance = static_cast<data_t>(1.0f / sqrtf(v_variance + eps));
@@ -239,7 +253,7 @@ void ref_batch_normalization_bwd_t<data_type>::execute_backward() {
             v_diff_src *= gamma*sqrt_variance;
             diff_src[dd_off] = v_diff_src;
         }
-    }
+    });
 }
 
 template struct ref_batch_normalization_bwd_t<data_type::f32>;

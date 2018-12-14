@@ -266,3 +266,76 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_3_2_input_padding)
     }
 
 }
+
+template<data_types DType>
+void permute_test_with_reorder()
+{
+    engine engine;
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
+
+    set_values(input, {
+        1.0f,  2.0f, -15.f,
+        3.0f,  4.0f, -15.f,
+
+        5.0f,  6.0f, -15.f,
+        7.0f,  8.0f, -15.f,
+
+        0.0f,  0.0f, -15.f,
+        0.0f,  0.0f, -15.f,
+
+        1.0f,  5.0f, -15.f,
+        12.0f, 8.0f, -15.f,
+    });
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        reorder("reorder", "input", { DType, format::bfyx,{ 2, 2, 3, 2 } }),
+        permute("permute", "reorder", { 0, 1, 3, 2 }),
+        reorder("reorder_out", "permute", { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } }));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder_out");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    float answers[24] = {
+        1.0f,  3.0f,
+        2.0f,  4.0f,
+        -15.0f,  -15.0f,
+
+        5.0f,  7.0f,
+        6.0f,  8.0f,
+        -15.0f,  -15.0f,
+
+        0.0f,  0.0f,
+        0.0f,  0.0f,
+        -15.0f,  -15.0f,
+
+        1.0f,  12.0f,
+        5.0f, 8.0f,
+        -15.0f,  -15.0f,
+    };
+
+    auto output_ptr = output.pointer<float>();
+    for (int i = 0; i < 24; i++)
+    {
+        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(permute_gpu_i8, basic_bfyx_permute_0_1_3_2) {
+    permute_test_with_reorder<data_types::i8>();
+}
+
+TEST(permute_gpu_i32, basic_bfyx_permute_0_1_3_2) {
+    permute_test_with_reorder<data_types::i32>();
+}
+
+TEST(permute_gpu_i64, basic_bfyx_permute_0_1_3_2) {
+    permute_test_with_reorder<data_types::i64>();
+}

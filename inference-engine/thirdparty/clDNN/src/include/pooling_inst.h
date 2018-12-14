@@ -29,8 +29,8 @@ struct typed_program_node<pooling> : public typed_program_node_base<pooling>
 
 public:
     using parent::parent;
-    decltype(auto) input() const { return get_dependency(0); }
-    decltype(auto) argmax() const { return get_dependency(1); }
+    program_node& input() const { return get_dependency(0); }
+    program_node& argmax() const { return get_dependency(1); }
 };
 
 using pooling_node = typed_program_node<pooling>;

@@ -37,7 +37,7 @@ namespace kernel_selector
 
     std::unique_ptr<FullyConnected_fb_io_block::FullyConnectedKernelBase::DispatchData> FullyConnected_fb_io_block::SetDefault(const fully_connected_params& arg) const
     {
-        auto kd = std::make_unique<DispatchData>(*FullyConnectedKernelBase::SetDefault(arg).get());
+        auto kd = std::unique_ptr<DispatchData>(new DispatchData(*FullyConnectedKernelBase::SetDefault(arg)));
         const auto& output = arg.output;
         
         auto batch_size = output.Batch().v;

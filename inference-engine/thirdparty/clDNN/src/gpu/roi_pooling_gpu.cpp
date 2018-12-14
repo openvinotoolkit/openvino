@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,24 @@ namespace {
         const auto & batch = node.get_output_layout().size.batch;
 
         return batch.empty() || (batch.size() == 1 && batch[0] == 1);
+    }
+
+    kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode)
+    {
+        switch (mode)
+        {
+            case pooling_mode::max:
+                return kernel_selector::pool_type::MAX;
+            case pooling_mode::average:
+                return kernel_selector::pool_type::AVG;
+            case pooling_mode::average_no_padding:
+                return kernel_selector::pool_type::AVG;
+            case pooling_mode::bilinear:
+                return kernel_selector::pool_type::BILINEAR;
+            default:
+                assert(0);
+                return kernel_selector::pool_type::MAX;
+        }
     }
 }
 
@@ -84,7 +102,7 @@ public:
         const auto roi_bf = roi_bfyx.FlattenFeatureAndSpatials();
         roi_params.inputs.push_back(roi_bf);
         roi_params.output = { out.GetDims(), out.GetDType(), kernel_selector::data_layout::brfyx, out.GetViewOffset(), out.PhysicalSize(), out.GetPaddedVal() }; // TOOD: it's an hack - cldnn doesn't support roi pooling with batching
-        roi_params.mode         = primitive->mode == pooling_mode::max ? kernel_selector::pool_type::MAX : kernel_selector::pool_type::AVG;
+        roi_params.mode         = cldnn_2_pool_type(primitive->mode);
         roi_params.pooledWidth  = primitive->pooled_width;
         roi_params.pooledHeight = primitive->pooled_height;
         roi_params.spatialScale = primitive->spatial_scale;

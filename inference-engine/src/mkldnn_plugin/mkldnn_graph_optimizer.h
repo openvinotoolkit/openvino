@@ -15,19 +15,24 @@ public:
     MKLDNNGraphOptimizer();
 
 public:
-    void Optimize(MKLDNNGraph& graph);
+    void ApplyCommonGraphOptimizations(MKLDNNGraph& graph);
+    void ApplyImplSpecificGraphOptimizations(MKLDNNGraph& graph);
 
 private:
+    void SLTMTransform(MKLDNNGraph& graph);
     void MergeGroupConvolution(MKLDNNGraph& graph);
     void FuseConvolutionAndActivation(MKLDNNGraph &graph);
+    void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
     void FuseBatchNormWithScale(MKLDNNGraph& graph);
     void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
     void RemoveIdentityOperator(MKLDNNGraph& graph);
-    void RemoveDropped(MKLDNNGraph& graph);
-    void RemoveDroppedEdges(MKLDNNGraph& graph);
 
-    void DropNode(MKLDNNGraph& graph, MKLDNNNodePtr& node);
+    void RemoveIOScaleShifts(MKLDNNGraph& graph);
+    void DropDoubleReorders(MKLDNNGraph& graph);
+
+    void AddScaleShiftAfterInt8(MKLDNNGraph &graph);
+
 
     bool IsOneOf(Type type, std::vector<Type> types);
 };

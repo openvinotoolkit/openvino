@@ -15,6 +15,7 @@
 #include "xml_parse_utils.h"
 #include "mean_image.h"
 #include "ie_blob_proxy.hpp"
+#include <fstream>
 
 class FormatParserTest : public TestsCommon {
  public:
@@ -89,8 +90,9 @@ class FormatParserTest : public TestsCommon {
 
         pugi::xml_node root = xmlDoc.document_element();
 
-        int version = XMLParseUtils::GetIntAttr(root, "version", 1);
-        if (version > 2) THROW_IE_EXCEPTION << "cannot parse future versions: " << version;
+        int version = XMLParseUtils::GetIntAttr(root, "version", 2);
+        if (version < 2) THROW_IE_EXCEPTION << "Deprecated IR's versions: " << version;
+        if (version > 3) THROW_IE_EXCEPTION << "cannot parse future versions: " << version;
         parser.reset(new InferenceEngine::details::V2FormatParser(version));
 
         net = parser->Parse(root);
@@ -127,6 +129,19 @@ class FormatParserTest : public TestsCommon {
             .node("port").attr("id", portid)\
               .node("dim", MT_BATCH)\
               .node("dim", MT_CHANNELS)\
+              .node("dim", MT_HEIGHT)\
+              .node("dim", MT_WIDTH)\
+            .close()\
+        .close()\
+    .close()
+
+#define initInputlayer5D(name, id, portid) \
+    node("layer").attr("type", "Input").attr("name", name).attr("id", id)\
+        .node("output")\
+            .node("port").attr("id", portid)\
+              .node("dim", MT_BATCH)\
+              .node("dim", MT_CHANNELS)\
+              .node("dim", MT_DEPTH)\
               .node("dim", MT_HEIGHT)\
               .node("dim", MT_WIDTH)\
             .close()\
@@ -193,6 +208,28 @@ class FormatParserTest : public TestsCommon {
             .close()\
         .close()\
 
+
+#define initConv5DlayerInOut(name, id, group, output, kernel, pads_begin, pads_end, strides, dilations, inputid, outputid) \
+    node("layer").attr("type", "Convolution").attr("name", name).attr("id", id)\
+        .node("data").attr("group", group).attr("output", output).attr("kernel", kernel).attr("pads_begin", pads_begin).attr("pads_end", pads_end).attr("strides", strides).attr("dilations", dilations).close()\
+        .node("input")\
+            .node("port").attr("id", inputid)\
+              .node("dim", MT_BATCH)\
+              .node("dim", MT_CHANNELS)\
+              .node("dim", MT_DEPTH)\
+              .node("dim", MT_HEIGHT)\
+              .node("dim", MT_WIDTH)\
+            .close()\
+        .close()\
+        .node("output")\
+            .node("port").attr("id", outputid)\
+              .node("dim", MT_BATCH)\
+              .node("dim", MT_CHANNELS)\
+              .node("dim", MT_DEPTH)\
+              .node("dim", MT_HEIGHT)\
+              .node("dim", MT_WIDTH)\
+            .close()\
+        .close()\
 
 
 #define initedge(fl, fp, tl, tp)\

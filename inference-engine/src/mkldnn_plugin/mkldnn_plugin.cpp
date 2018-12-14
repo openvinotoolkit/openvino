@@ -86,7 +86,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc *resp) noexcept {
     try {
         plugin = make_ie_compatible_plugin(
-                {{1, 2},
+                {{1, 4},
 #ifdef MKL_VERSION
                  MKL_VERSION,
 #else

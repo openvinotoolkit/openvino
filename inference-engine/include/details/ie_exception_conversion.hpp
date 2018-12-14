@@ -68,6 +68,7 @@ inline void extract_exception(StatusCode status, char *msg) {
         case RESULT_NOT_READY:throw ResultNotReady(msg);
         case NOT_ALLOCATED:throw NotAllocated(msg);
         case INFER_NOT_STARTED:throw InferNotStarted(msg);
+        case NETWORK_NOT_READ:throw NetworkNotRead(msg);
         default:THROW_IE_EXCEPTION << msg;
     }
 }

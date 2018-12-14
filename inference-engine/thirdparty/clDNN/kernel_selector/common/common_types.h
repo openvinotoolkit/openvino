@@ -1,5 +1,4 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #pragma once
+
 #include <cstddef>
-#include <stdint.h>
+#include <cstdint>
+
 
 namespace kernel_selector
 {
@@ -57,7 +57,13 @@ namespace kernel_selector
         LSTM_GEMM,
         LSTM_ELT,
         EMBED,
-        SOFT_MAX_LOSS_GRAD
+        SOFT_MAX_LOSS_GRAD,
+        BORDER,
+        TILE,
+        SELECT,
+        BROADCAST,
+        GEMM,
+        INDEX_SELECT
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,6 +78,7 @@ namespace kernel_selector
         UINT16,
         INT32,
         UINT32,
+        INT64,
         F16,
         F32,
     };
@@ -105,6 +112,15 @@ namespace kernel_selector
         ELU,
         RELU_GRAD,
         RELU_NEGATIVE_SLOPE_GRAD,
+        SIN,
+        ASIN,
+        SINH,
+        COS,
+        ACOS,
+        COSH,
+        LOG,
+		LOG2,
+        EXP,
         NONE,
         NONE_GRAD
     };
@@ -116,7 +132,8 @@ namespace kernel_selector
     {
         MAX,
         AVG,
-        MAX_WITH_ARGMAX
+        MAX_WITH_ARGMAX,
+        BILINEAR
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -298,12 +315,44 @@ namespace kernel_selector
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // TileAxis
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    enum class TileAxis
+    {
+        X,
+        Y,
+        FEATURE,
+        BATCH,
+    };
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // SampleType
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     enum class SampleType
     {
         NEAREST,
         BILINEAR,
+    };
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // BorderType
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    enum class BorderType
+    {
+        ZERO,
+        MIRROR,
+        MIRROR_101,
+    };
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // IndexSelectAxis
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    enum class IndexSelectAxis
+    {
+        BATCH,
+        FEATURE,
+        X,
+        Y
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -315,9 +364,7 @@ namespace kernel_selector
         float n = 0.f;
 
         NonLinearParams() = default;
-        NonLinearParams(const NonLinearParams&) = default;
-        NonLinearParams& operator=(const NonLinearParams&) = default;
-        NonLinearParams(float m, float n) : m(m), n(n) {}
+        NonLinearParams(const float m, const float n) : m(m), n(n) {}
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -329,9 +376,21 @@ namespace kernel_selector
         T y = 0;
 
         Size() = default;
-        Size(const Size&) = default;
-        Size& operator=(const Size&) = default;
         Size(T x, T y) : x(x), y(y) {}
+    };
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // DimTensor
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    template <typename T = std::uint32_t>
+    struct DimTensor {
+        T b = 0;
+        T f = 0;
+        T y = 0;
+        T x = 0;
+
+        DimTensor() = default;
+        DimTensor(T b, T f, T y, T x) : b(b), f(f), y(y), x(x) {}
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -341,13 +400,12 @@ namespace kernel_selector
     {
         TUNING_DISABLED,        // Tuning is disabled.
         TUNING_USE_CACHE,       // Tuning using the cached data (no on-line tuning for non-existing data).
-        TUNING_TUNE_AND_CACHE   // Tuning using the cached data if exist, tune and update cache otherwise.
+        TUNING_TUNE_AND_CACHE   // Tuning using the cached data if exist, tune and update cache otherwise.attention_params
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // typedefs
+    // Aliases:
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    typedef Size<uint32_t> uSize;
-    typedef Size<size_t>   stSize;
- 
+    using uSize  = Size<std::uint32_t>;
+    using stSize = Size<std::size_t>;
 }

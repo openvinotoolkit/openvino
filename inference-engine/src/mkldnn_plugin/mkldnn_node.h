@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <ie_common.h>
 #include <ie_profiling.hpp>
-#include <caseless.hpp>
+#include "details/caseless.hpp"
 #include "mkldnn_dims.h"
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"
@@ -37,6 +37,7 @@ enum Type {
     Deconvolution,
     Convolution_Sum,
     Convolution_Activation,
+    Convolution_Depthwise,
     Convolution_Sum_Activation,
     Activation,
     Depthwise,
@@ -59,10 +60,11 @@ enum Type {
     Copy,
     MemoryOutput,
     MemoryInput,
+    RNN
 };
 
 static Type TypeFromName(const std::string type) {
-    static caseless_unordered_map<std::string, Type> type_to_name_tbl = {
+    static InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl = {
             { "Unknown", Unknown },
             { "Input", Input },
             { "Const", Input },
@@ -101,6 +103,7 @@ static Type TypeFromName(const std::string type) {
             { "Flatten", Flatten },
             { "Permute", Permute },
             { "Copy", Copy },
+            { "RNN", RNN },
             { "MemoryInput", MemoryInput},  // for construction from name ctor, arbitrary name is used
             { "Memory", MemoryOutput },  // for construction from layer ctor
     };
@@ -116,9 +119,6 @@ class PrimitiveDescInfo {
 public:
     PrimitiveDescInfo(const InferenceEngine::LayerConfig conf, impl_desc_type type): config(conf) {
         implementationType = type;
-    }
-    PrimitiveDescInfo(const InferenceEngine::LayerConfig conf, const char *desc_native_name): config(conf) {
-        implementationType = parse_impl_name(desc_native_name);
     }
 
     PrimitiveDescInfo(const PrimitiveDescInfo &descInfo) = default;
@@ -149,7 +149,7 @@ public:
 
     ~MKLDNNNode() override = default;
 
-    void addEdge(const MKLDNNEdgeWeakPtr& edge, size_t pIndex, size_t cIndex);
+    void addEdge(const MKLDNNEdgeWeakPtr& edge, size_t pIndex, size_t cIndex, bool insertChildIndex = false);
     void removeEdge(const MKLDNNEdgeWeakPtr& edge);
 
     virtual void cleanup();
@@ -199,7 +199,7 @@ public:
         return type;
     }
 
-    const InferenceEngine::CNNLayerPtr &getCnnLayer() {
+    const InferenceEngine::CNNLayerPtr &getCnnLayer() const {
         return cnnLayer;
     }
 
@@ -231,8 +231,6 @@ public:
     std::string getPrimitiveDescriptorType();
 
     PerfCount &PerfCounter() { return perfCounter; }
-
-    InferenceEngine::ProfilingTask &GetProfilingTask() { return profilingTask; }
 
     virtual void setDynamicBatchLim(int lim);
 
@@ -302,6 +300,13 @@ public:
         }
 
         THROW_IE_EXCEPTION << "Primitive descriptor was not found for node " << getName() << ".";
+    }
+
+    static void invertVectorCopyUtoI(const InferenceEngine::PropertyVector<unsigned int>& src, std::vector<int>& dst) {
+        dst.clear();
+        for (int i = 1; i <= src.size(); i++) {
+            dst.push_back(static_cast<int>(src[src.size() - i]));
+        }
     }
 
 protected:

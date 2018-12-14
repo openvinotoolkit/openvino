@@ -20,8 +20,8 @@ import networkx as nx
 import numpy as np
 
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES
 from mo.graph.graph import erase_node
+from mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES
 from mo.ops.const import Const
 from mo.utils.error import Error
 
@@ -40,9 +40,8 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
     def pattern():
         return dict(
             nodes=[('placeholder', dict(kind='op', op='Placeholder'))],
-            edges=[],
-            node_attrs=['kind', 'op'],
-            edge_attrs=[])
+            edges=[]
+        )
 
     def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
         ph = match['placeholder']
@@ -75,7 +74,8 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
                 raise Error("Can not reshape value {} to shape {}".format(value, ph.shape))
             out_edges = list(graph.out_edges(ph.id, data=True))
             new_node = Const(graph).create_node(
-                attrs={'value': value, 'data_type': type(value), 'name': name + '/const_placeholder', 'shape': ph.shape})
+                attrs={'value': value, 'data_type': type(value), 'name': name + '/const_placeholder',
+                       'shape': ph.shape})
             erase_node(ph)
             graph.add_edges_from([(new_node.id, v, attrs) for u, v, attrs in out_edges])
             log.info("Placeholder node \"{}\" was replaced with Const node \"{}\" with value \"{}\"".format(

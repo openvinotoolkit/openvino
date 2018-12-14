@@ -36,6 +36,8 @@ def tf_dtype_extractor(pb_dtype, default=None):
 
 
 def tf_data_format_spatial(pb):
+    if b"DHW" in pb.s:
+        return [pb.s.index(c) for c in b"DHW"]
     return [pb.s.index(c) for c in b"HW"]
 
 
@@ -82,7 +84,7 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
             if len(flat) == shape.prod():
                 return flat.reshape(shape)
             else:
-                log.warning("Shape and content size of tensor don't match, shape: {} content size: {}",
+                log.warning("Shape and content size of tensor don't match, shape: {} content size: {}".
                             format(shape, len(flat)))
                 # broadcast semantics: no reshape
                 return flat
@@ -92,3 +94,54 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
             value = np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
             log.warning("Broadcast of scalar to shape: {}".format(shape))
             return np.broadcast_to(value, shape=shape).copy()
+
+
+def check_attr_type(a):
+    """
+      Check type of attribute from TF prototxt message
+      param: a - attribute from TF prototxt message
+      return: type of attribute
+    """
+    if a.s:
+        return 's'
+    if a.i:
+        return 'i'
+    if a.f:
+        return 'f'
+    if a.b:
+        return 'b'
+    if a.type:
+        return 'type'
+    if a.shape and a.shape.dim:
+        return 'shape'
+    if a.list:
+        return 'list'
+
+
+def collect_tf_attrs(attrs):
+    """
+     Function generates map for attributes and parsing functions
+     param: attrs  - TF proto message with attributes
+     return: mapping attributes and parsing functions ready for use in update_node_stat function
+    """
+    ret_attrs = {}
+    type_parsers = {
+        's': lambda x: x.s,
+        'i': lambda x: x.i,
+        'f': lambda x: x.f,
+        'b': lambda x: x.b,
+        'type': lambda x: tf_dtype_extractor(x.type),
+        'shape': lambda x: tf_tensor_shape(x.shape),
+        'list': lambda x: x.list
+    }
+
+    for a in attrs:
+        t = check_attr_type(attrs[a])
+        a_l = attrs[a]
+        while t == 'list':
+            a_l = type_parsers[t](attrs[a])
+            t = check_attr_type(a_l)
+
+        ret_attrs[a] = type_parsers[t](a_l)
+
+    return ret_attrs

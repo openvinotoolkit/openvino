@@ -103,6 +103,10 @@ struct pooling_fwd_pd_t: public primitive_desc_t {
         ? desc_.padding[0][2] : desc_.padding[0][1]; }
     inline int padR() const { return is_3d()
         ? desc_.padding[1][2] : desc_.padding[1][1]; }
+
+    bool has_zero_dim_memory() const
+    { return memory_desc_wrapper(desc_.src_desc).has_zero_dim(); }
+
 protected:
     pooling_desc_t desc_;
     const pooling_fwd_pd_t *hint_fwd_pd_;
@@ -186,6 +190,9 @@ struct pooling_bwd_pd_t: public primitive_desc_t {
         ? desc_.padding[0][2] : desc_.padding[0][1]; }
     inline int padR() const { return is_3d()
         ? desc_.padding[1][2] : desc_.padding[1][1]; }
+
+    bool has_zero_dim_memory() const
+    { return memory_desc_wrapper(desc_.diff_src_desc).has_zero_dim(); }
 
 protected:
     pooling_desc_t desc_;

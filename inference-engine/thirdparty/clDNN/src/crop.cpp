@@ -48,8 +48,8 @@ std::string crop_inst::to_string(crop_node const& node)
     crop_info.add("reference input", ref_input.to_string());
     crop_info.add("offset", offsets.to_string());    
 
-    node_info.add("crop info", crop_info);
-    node_info.dump(primitive_description);
+    node_info->add("crop info", crop_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

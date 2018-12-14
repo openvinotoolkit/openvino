@@ -25,22 +25,22 @@ private:
     static Register<BitMap> reg;
 
     typedef struct {
-        unsigned short type;                 /* Magic identifier            */
-        unsigned int size;                   /* File size in bytes          */
-        unsigned int reserved;
-        unsigned int offset;                /* Offset to image data, bytes */
+        unsigned short type   = 0u;              /* Magic identifier            */
+        unsigned int size     = 0u;              /* File size in bytes          */
+        unsigned int reserved = 0u;
+        unsigned int offset   = 0u;              /* Offset to image data, bytes */
     } BmpHeader;
 
     typedef struct {
-        unsigned int size;                  /* Header size in bytes      */
-        int width, height;                  /* Width and height of image */
-        unsigned short planes;              /* Number of colour planes   */
-        unsigned short bits;                /* Bits per pixel            */
-        unsigned int compression;           /* Compression type          */
-        unsigned int imagesize;             /* Image size in bytes       */
-        int xresolution, yresolution;       /* Pixels per meter          */
-        unsigned int ncolours;              /* Number of colours         */
-        unsigned int importantcolours;      /* Important colours         */
+        unsigned int size = 0u;                  /* Header size in bytes      */
+        int width = 0, height = 0;               /* Width and height of image */
+        unsigned short planes = 0u;              /* Number of colour planes   */
+        unsigned short bits = 0u;                /* Bits per pixel            */
+        unsigned int compression = 0u;           /* Compression type          */
+        unsigned int imagesize = 0u;             /* Image size in bytes       */
+        int xresolution = 0, yresolution = 0;    /* Pixels per meter          */
+        unsigned int ncolours = 0u;              /* Number of colours         */
+        unsigned int importantcolours = 0u;      /* Important colours         */
     } BmpInfoHeader;
 
 public:

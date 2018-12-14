@@ -51,8 +51,8 @@ std::string scale_grad_weights_inst::to_string(scale_grad_weights_node const& no
     if (node.bias_term())
         scale_grad_weights_info.add("bias", node.bias().id());
         
-    node_info.add("scale_grad_weights info", scale_grad_weights_info);
-    node_info.dump(primitive_description);
+    node_info->add("scale_grad_weights info", scale_grad_weights_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

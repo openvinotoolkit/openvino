@@ -1,18 +1,7 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// SPDX-License-Identifier: Apache-2.0
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include <string>
 #include <vector>
@@ -24,7 +13,8 @@
 using InferenceEngine::details::InferenceEngineException;
 
 ClassificationProcessor::ClassificationProcessor(const std::string& flags_m, const std::string& flags_d, const std::string& flags_i, int flags_b,
-        InferencePlugin plugin, CsvDumper& dumper, const std::string& flags_l, PreprocessingOptions preprocessingOptions, bool zeroBackground)
+        InferencePlugin plugin, CsvDumper& dumper, const std::string& flags_l,
+        PreprocessingOptions preprocessingOptions, bool zeroBackground)
     : Processor(flags_m, flags_d, flags_i, flags_b, plugin, dumper, "Classification network", preprocessingOptions), zeroBackground(zeroBackground) {
 
     // Change path to labels file if necessary
@@ -58,7 +48,6 @@ std::shared_ptr<Processor::InferenceMetrics> ClassificationProcessor::Process() 
 
      std::vector<int> expected(batch);
      std::vector<std::string> files(batch);
-     int captured = 0;
 
      ConsoleProgress progress(validationMap.size());
 

@@ -6,11 +6,9 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
-#include "mock_mkldnn_primitive.hpp"
 
 #include "test_graph.hpp"
 
-#include <mock_mkldnn_extension.hpp>
 #include <ie_iextension.h>
 #include <ie_plugin_config.hpp>
 #include <mock_error_listener.hpp>
@@ -525,7 +523,6 @@ void ref_double(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlo
     const data_t *src_data = src.readOnly();
     data_t *dst_data = dst.data();
 
-#pragma omp parallel for
     for (int i=0; i < src.size(); i++)
         dst_data[i] = src_data[i]*2;
 }
@@ -535,10 +532,9 @@ void ref_double_batch1(const InferenceEngine::TBlob<data_t> &src, InferenceEngin
     const data_t *src_data = src.readOnly();
     data_t *dst_data = dst.data();
 
-#pragma omp parallel for
     for (int i= 0; i < src.size() / 2; i++)
         dst_data[i] = src_data[i]*2;
-#pragma omp parallel for
+
     for (int i= src.size() / 2; i < src.size(); i++)
         dst_data[i] = 0;
 }
@@ -549,11 +545,9 @@ void ref_twoDifferent(const InferenceEngine::TBlob<data_t> &src, InferenceEngine
     data_t *dst_data1 = dst1.data();
     data_t *dst_data2 = dst2.data();
 
-#pragma omp parallel for
     for (int i=0; i < dst1.size(); i++)
         dst_data1[i] = (*(src_data++))*2;
 
-#pragma omp parallel for
     for (int i=0; i < dst2.size(); i++)
         dst_data2[i] = (*(src_data++))*6;
 }

@@ -12,9 +12,13 @@
 #include "ie_data.h"
 #include "ie_blob.h"
 #include "ie_api.h"
+#include "ie_input_info.hpp"
 #include "description_buffer.hpp"
 #include <string>
 #include <vector>
+#include <shape_infer/ie_reshaper.hpp>
+
+#include "cnn_network_stats_impl.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -105,6 +109,12 @@ public:
 
     void addOutput(const std::string& dataName);
 
+    StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* resp) const noexcept override {
+        if (stats == nullptr) return StatusCode::PARAMETER_MISMATCH;
+        *stats = _stats.get();
+        return StatusCode::OK;
+    }
+
     void Release() noexcept override {
         delete this;
     }
@@ -126,7 +136,8 @@ protected:
     /// @brief
     TargetDevice _targetDevice;
     DataPtr _emptyData;
-    std::vector<IShapeInferExtensionPtr> _shapeInferExts;
+    InferenceEngine::ShapeInfer::Reshaper::Ptr _reshaper;
+    CNNNetworkStatsImplPtr _stats;
 };
 
 

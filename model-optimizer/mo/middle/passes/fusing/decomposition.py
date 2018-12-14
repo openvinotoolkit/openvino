@@ -1,12 +1,27 @@
+"""
+ Copyright (c) 2018 Intel Corporation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+
 import logging as log
 
 import networkx as nx
 import numpy as np
 
-from mo.front.extractor import add_attrs_props
-from mo.graph.graph import Node, unique_id
-from mo.middle.pattern_match import apply_pattern
+from mo.graph.graph import Node
 from mo.middle.passes.eliminate import merge_data_nodes
+from mo.middle.pattern_match import apply_pattern
 from mo.ops.lin_op import Mul, Add
 from mo.ops.op import Op
 
@@ -17,7 +32,8 @@ def convert_batch_norm(graph: nx.MultiDiGraph):
     """
     for n in list(graph.nodes()):
         node = Node(graph, n)
-        if node.has_valid('op') and (node.op == 'FusedBatchNorm' or node.op == 'BatchNorm' or node.op == 'BatchNormalization'):
+        if node.has_valid('op') and (
+                node.op == 'FusedBatchNorm' or node.op == 'BatchNorm' or node.op == 'BatchNormalization'):
             toutput = node.out_node()
             tinput = node.in_node(0)
 
@@ -62,7 +78,7 @@ def convert_batch_norm(graph: nx.MultiDiGraph):
 
 
 def _fused_batch_norm_decomposition(graph: nx.MultiDiGraph, tinput: Node, toutput: Node, gamma: Node, beta: Node,
-                                   mean: np.ndarray, variance: np.ndarray, can_be_fused=True):
+                                    mean: np.ndarray, variance: np.ndarray, can_be_fused=True):
     """
     This is common function for TF, Caffe and MXNet
     It creates Mul->Add->Mul->Add subgraph
@@ -90,7 +106,7 @@ def _fused_batch_norm_decomposition(graph: nx.MultiDiGraph, tinput: Node, toutpu
         inputs=[mul2_node.create_node_with_data(
             inputs=[add1_node.create_node_with_data(
                 inputs=[mul1_node.create_node_with_data(inputs=[tinput, mul1_data]),
-                    add1_data]),
+                        add1_data]),
                 gamma]),
             beta],
         data_nodes=toutput)
@@ -129,7 +145,9 @@ def convert_scale_shift_to_mul_add(graph: nx.MultiDiGraph):
 
         # Connect input->mul->out->add->out
         if has_biases:
-            add_node.create_node_with_data(inputs=[mul_node.create_node_with_data(inputs=[input_node, scale_node]), shift_node], data_nodes=output_node)
+            add_node.create_node_with_data(
+                inputs=[mul_node.create_node_with_data(inputs=[input_node, scale_node]), shift_node],
+                data_nodes=output_node)
         elif has_weights:
             mul_node.create_node_with_data(inputs=[input_node, scale_node], data_nodes=output_node)
         else:
@@ -172,7 +190,8 @@ def _bn_to_mul_add_action(graph: nx.MultiDiGraph, match: dict):
     add_node = Add(graph, dict(name="Add_", can_be_fused=can_be_fused))
 
     # Connect input->mul->add
-    add_node.create_node_with_data(inputs=[mul_node.create_node_with_data(inputs=[tinput, mean]), variance], data_nodes=toutput)
+    add_node.create_node_with_data(inputs=[mul_node.create_node_with_data(inputs=[tinput, mean]), variance],
+                                   data_nodes=toutput)
 
 
 def convert_bn_to_mul_add(graph: nx.MultiDiGraph):
@@ -191,6 +210,5 @@ def convert_bn_to_mul_add(graph: nx.MultiDiGraph):
             ('variance', 'batch_norm', {'in': 2}),
             ('batch_norm', 'output'),
         ],
-        action=_bn_to_mul_add_action,
-        node_attrs=['kind', 'op'],
-        edge_attrs=['in'])
+        action=_bn_to_mul_add_action
+    )

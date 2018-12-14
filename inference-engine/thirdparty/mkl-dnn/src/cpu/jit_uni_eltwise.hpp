@@ -25,62 +25,102 @@
 #include "cpu_engine.hpp"
 #include "type_helpers.hpp"
 #include "utils.hpp"
+#include "jit_generator.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-struct jit_uni_eltwise_kernel_f32;
-
 template <cpu_isa_t isa>
-struct jit_uni_eltwise_vector_f32;
+struct jit_uni_eltwise_injector_f32 {
+    jit_uni_eltwise_injector_f32(jit_generator* host, alg_kind_t elt_alg_,
+            float alpha_, float beta_, bool save_vecs_state_ = true,
+            int table_reg_idx_ = 0, int opmask_idx_ = 1) {
+        assert(utils::one_of(isa, sse42, avx2, avx512_common));
+        assert(utils::one_of(elt_alg_, alg_kind::eltwise_relu,
+                alg_kind::eltwise_tanh, alg_kind::eltwise_elu,
+                alg_kind::eltwise_square, alg_kind::eltwise_abs,
+                alg_kind::eltwise_sqrt, alg_kind::eltwise_linear,
+                alg_kind::eltwise_bounded_relu, alg_kind::eltwise_soft_relu,
+                alg_kind::eltwise_logistic, alg_kind::eltwise_clamp));
 
-template <cpu_isa_t isa>
-struct jit_uni_relu_vector_f32;
+        h = host;
+        elt_alg = elt_alg_;
+        alpha = alpha_;
+        beta = beta_;
+        save_vecs_state = save_vecs_state_;
+        table_reg_idx = table_reg_idx_;
+        opmask_idx = opmask_idx_;
+    }
 
-template <cpu_isa_t isa>
-struct jit_uni_eltwise_vector_f32 : public c_compatible {
+    void compute_vector_range(size_t start_idx, size_t end_idx);
+    void compute_vector(size_t idx);
+    void prepare_table();
+
+private:
+    jit_generator* h;
+
     using Vmm = typename utils::conditional3<isa == sse42, Xbyak::Xmm,
             isa == avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    const int vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits<isa>::vlen;
 
+    alg_kind_t elt_alg;
+    float alpha;
+    float beta;
+
+    bool save_vecs_state;
+    int table_reg_idx;
+    int opmask_idx;
+
+    const static size_t preserved_vecs_max = 5;
+
+    size_t vecs_to_preserve = 0;
+    size_t vecs_count = isa == avx512_common ? 32 : 16;
+    size_t preserved_vecs_count = 0;
+    size_t preserved_vec_idxs[preserved_vecs_max] = {0};
+    size_t start_idx_tail = 0;
+
+    Vmm vmm_mask, vmm_aux0, vmm_aux1, vmm_aux2, vmm_aux3;
+
+    Xbyak::Reg64 p_table;
     Xbyak::Opmask k_mask;
-    Vmm vmm_mask;
-    Vmm vmm_ns;
-    Xbyak::Xmm xmm_ns;
-    Vmm vmm_zero;
-    Vmm vmm_aux0;
-    Xbyak::Xmm xmm_aux0;
-    Vmm vmm_aux1;
-    Vmm vmm_aux2;
-    Vmm vmm_src_rem;
+    Xbyak::Label l_table;
 
-    Xbyak::Reg64 imm_addr64;
+    int aux_vecs_count(alg_kind_t elt_alg);
 
-    alg_kind_t elt_alg = alg_kind::undef;
+    void compute_body(size_t start_idx, size_t end_idx);
+    void injector_preamble(size_t start_idx, size_t end_idx);
+    void injector_preamble_tail(size_t start_idx);
+    void injector_postamble();
+    void assign_regs();
+    bool is_free_vec(size_t idx);
 
-    jit_generator *generator = nullptr;
+    void exp_compute_vector(const Vmm &vmm_src);
+    void relu_compute_vector(const Vmm &vmm_src);
+    void relu_zero_ns_compute_vector(const Vmm &vmm_src);
+    void elu_compute_vector(const Vmm &vmm_src);
+    void tanh_compute_vector(const Vmm &vmm_src);
+    void square_compute_vector(const Vmm &vmm_src);
+    void abs_compute_vector(const Vmm &vmm_src);
+    void sqrt_compute_vector(const Vmm &vmm_src);
+    void linear_compute_vector(const Vmm &vmm_src);
+    void bounded_relu_compute_vector(const Vmm &vmm_src);
+    void soft_relu_compute_vector(const Vmm &vmm_src);
+    void logistic_compute_vector(const Vmm &vmm_src);
+    void clamp_compute_vector(const Vmm &vmm_src);
 
-    ~jit_uni_eltwise_vector_f32() { release(); }
-
-    void init(alg_kind_t elt_alg_, nstl::vector<int> &shared_vecs, nstl::vector<Xbyak::Reg64> &shared_regs);
-    void release() { if (generator != nullptr) { delete generator; generator = nullptr; } }
-
-    static int sharedVecsCount(alg_kind_t elt_alg) {
-        //TODO (dmitrygo): upper bound. Should be specified for each type.
-        return isa == avx512_common ? 5 : 4;
-    }
-
-    static int sharedRegsCount(alg_kind_t elt_alg) {
-        //TODO (dmitrygo): upper bound. Should be specified for each type.
-        return 1;
-    }
-
-    jit_code_injection prepareConstants(float alpha, float beta);
-    jit_code_injection computeVector(const Vmm &vmm_src, const Vmm &vmm_dst);
-    jit_code_injection prepareTable();
+    void relu_prepare_table();
+    void elu_prepare_table();
+    void soft_relu_prepare_table();
+    void abs_prepare_table();
+    void sqrt_prepare_table();
+    void linear_prepare_table();
+    void bounded_relu_prepare_table();
+    void clamp_prepare_table();
 };
+
+struct jit_uni_eltwise_kernel_f32;
 
 template <cpu_isa_t isa>
 struct jit_uni_eltwise_fwd_t : public cpu_primitive_t {

@@ -34,9 +34,9 @@ void MKLDNNConcatNode::getSupportedDescriptors() {
     axis = conLayer->_axis;
 
     if (getParentEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of input edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges.";
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
     auto& firstParentDims = getParentEdgeAt(0)->getDims();
     for (size_t i = 1; i < getParentEdges().size(); i++) {
         auto& dims = getParentEdgeAt(i)->getDims();
@@ -60,13 +60,14 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+
+    if (getCnnLayer()->precision == Precision::I8) {
+        inputDataType = memory::data_type::u8;
+        outputDataType = memory::data_type::u8;
+    }
 
     MKLDNNDims dstDims = getChildEdgeAt(0)->getDims();
     InferenceEngine::LayerConfig config;
@@ -117,77 +118,117 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         offsets.push_back(0);
     }
 
-    SizeVector strides(numOfDim);
-    strides[numOfDim - 1] = 1;
-    for (size_t i = 2; i <= numOfDim; i++) {
-        if (numOfDim - i < axis) {
-            strides[numOfDim - i] = std::numeric_limits<size_t>::max();
-        } else {
-            strides[numOfDim - i] = strides[numOfDim - i + 1] * dstDims[numOfDim - i + 1];
-        }
-    }
+    if (this->getCnnLayer()->precision == Precision::I8) {
+        if (numOfDim == 4) {
+            // Here we assume NHWC layout (channels are the last)
 
-    config.outConfs[0].desc = TensorDesc(Precision::FP32, dstDims.ToSizeVector(), {dstDims.ToSizeVector(), order, offset, offsets, strides});
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto parentEdge = getParentEdgeAt(i);
-        config.inConfs[i].inPlace = 0;
-        config.inConfs[i].desc = TensorDesc(Precision::FP32, parentEdge->getDims().ToSizeVector(),
-                                            {parentEdge->getDims().ToSizeVector(), order, offset, offsets, strides});
-    }
+            order = {0, 2, 3, 1};
+            offsets = {0, 0, 0, 0};
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
-
-    if (numOfDim == 4) {
-        order = {0, 1, 2, 3, 1};
-        offsets = {0, 0, 0, 0, 0};
-        numOfDim = 5;
-
-        // nChw8c and nChw16c
-        for (int sizeS : {8, 16}) {
             SizeVector blkDims = dstDims.ToSizeVector();
-            if (blkDims[1] % sizeS)
-                continue;
-            blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1 : 0);
-            blkDims.push_back(sizeS);
+            blkDims = { blkDims[0], blkDims[2], blkDims[3], blkDims[1] };
 
+            SizeVector strides(numOfDim);
             strides.resize(numOfDim);
-            strides[numOfDim - 1] = 1;
-            for (size_t i = 2; i <= numOfDim; i++) {
-                if (numOfDim - i < axis) {
-                    strides[numOfDim - i] = std::numeric_limits<size_t>::max();
-                } else {
-                    strides[numOfDim - i] = strides[numOfDim - i + 1] * blkDims[numOfDim - i + 1];
-                }
+            // C is the last in NHWC, so all strides are max()
+            for (size_t i = 0; i < numOfDim; i++) {
+                strides[i] = std::numeric_limits<size_t>::max();
             }
-            config.outConfs[0].desc = TensorDesc(Precision::FP32, dstDims.ToSizeVector(), {blkDims, order, offset, offsets, strides});
 
-            bool canInplace = true;
-            for (size_t i = 0; canInplace && i < getParentEdges().size(); i++) {
+            config.outConfs[0].desc = TensorDesc(Precision::U8, dstDims.ToSizeVector(), {blkDims, order, offset, offsets, strides});
+            for (size_t i = 0; i < getParentEdges().size(); i++) {
                 auto parentEdge = getParentEdgeAt(i);
-                blkDims = parentEdge->getDims().ToSizeVector();
-                if (blkDims[1] % sizeS)
-                    canInplace = false;
 
+                SizeVector blkDims = parentEdge->getDims().ToSizeVector();
+                blkDims = { blkDims[0], blkDims[2], blkDims[3], blkDims[1] };
+
+                config.inConfs[i].inPlace = -1;     // Change to 0 here if inplace concat is supported for NHWC in mkldnn
+
+                config.inConfs[i].desc = TensorDesc(Precision::U8, parentEdge->getDims().ToSizeVector(),
+                                                    {blkDims, order, offset, offsets, strides});
+            }
+
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
+        }
+    } else {
+        SizeVector strides(numOfDim);
+        strides[numOfDim - 1] = 1;
+        for (size_t i = 2; i <= numOfDim; i++) {
+            if (numOfDim - i < axis) {
+                strides[numOfDim - i] = std::numeric_limits<size_t>::max();
+            } else {
+                strides[numOfDim - i] = strides[numOfDim - i + 1] * dstDims[numOfDim - i + 1];
+            }
+        }
+
+        config.outConfs[0].desc = TensorDesc(
+                MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType),
+                dstDims.ToSizeVector(),
+                {dstDims.ToSizeVector(), order, offset, offsets, strides});
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            auto parentEdge = getParentEdgeAt(i);
+            config.inConfs[i].inPlace = 0;
+            config.inConfs[i].desc = TensorDesc(MKLDNNExtensionUtils::DataTypeToIEPrecision(inputDataType), parentEdge->getDims().ToSizeVector(),
+                                                {parentEdge->getDims().ToSizeVector(), order, offset, offsets, strides});
+        }
+
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+
+        if (numOfDim == 4) {
+            order = {0, 1, 2, 3, 1};
+            offsets = {0, 0, 0, 0, 0};
+            numOfDim = 5;
+
+            // nChw8c and nChw16c
+            for (int sizeS : {8, 16}) {
+                SizeVector blkDims = dstDims.ToSizeVector();
+                if (blkDims[1] % sizeS)
+                    continue;
                 blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1 : 0);
                 blkDims.push_back(sizeS);
-                config.inConfs[i].desc =  TensorDesc(Precision::FP32, parentEdge->getDims().ToSizeVector(),
-                                                     {blkDims, order, offset, offsets, strides});
+
+                strides.resize(numOfDim);
+                strides[numOfDim - 1] = 1;
+                for (size_t i = 2; i <= numOfDim; i++) {
+                    if (numOfDim - i < axis) {
+                        strides[numOfDim - i] = std::numeric_limits<size_t>::max();
+                    } else {
+                        strides[numOfDim - i] = strides[numOfDim - i + 1] * blkDims[numOfDim - i + 1];
+                    }
+                }
+                config.outConfs[0].desc = TensorDesc(
+                        MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType),
+                        dstDims.ToSizeVector(), {blkDims, order, offset, offsets, strides});
+
+                bool canInplace = true;
+                for (size_t i = 0; canInplace && i < getParentEdges().size(); i++) {
+                    auto parentEdge = getParentEdgeAt(i);
+                    blkDims = parentEdge->getDims().ToSizeVector();
+                    if (blkDims[1] % sizeS)
+                        canInplace = false;
+
+                    blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1 : 0);
+                    blkDims.push_back(sizeS);
+                    config.inConfs[i].desc =  TensorDesc(MKLDNNExtensionUtils::DataTypeToIEPrecision(inputDataType), parentEdge->getDims().ToSizeVector(),
+                                                         {blkDims, order, offset, offsets, strides});
+                }
+                if (canInplace)
+                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
             }
-            if (canInplace)
-                supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
     }
 }
 
 void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+
+    if (getCnnLayer()->precision == Precision::I8) {
+        inputDataType = memory::data_type::u8;
+        outputDataType = memory::data_type::u8;
+    }
 
     bool hasUnknown = false;
     std::vector<size_t> canSelectPrimitive;
@@ -217,6 +258,22 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         if (!hasAny) {
             canSelectPrimitive.push_back(i);
         }
+    }
+
+    bool hasDoubleConnection = false;
+    for (int i = 0; i < getParentEdges().size(); i++) {
+        for (int j = i + 1; j < getParentEdges().size(); j++) {
+            if (getParentEdgeAt(i) == getParentEdgeAt(j)) hasDoubleConnection = true;
+        }
+    }
+
+    if (hasDoubleConnection) {
+        // The double connection marks that some tensor should
+        // be replicated. Inplace approach is not applicable
+        // for that case. Descriptor with index 0 is pure copy
+        // implementation
+        selectPrimitiveDescriptorByIndex(0);
+        return;
     }
 
     bool canOptimize = true;
@@ -296,27 +353,6 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
             convertTo = MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims());
     }
 
-    if (!canOptimize) {
-        for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
-            auto &primDescInfo = supportedPrimitiveDescriptors[i];
-            if (primDescInfo.getImplementationType() == impl_desc_type::unknown)
-                continue;
-            if (convertTo == MKLDNNMemoryDesc(supportedPrimitiveDescriptors[i].getConfig().outConfs[0].desc).getFormat()) {
-                size_t num = 0;
-                for (num = 0; num < getParentEdges().size(); num++) {
-                    if (MKLDNNMemoryDesc(getParentEdgeAt(num)->getDims(), inputDataType, convertTo).blocksExtended())
-                        break;
-                }
-                if (num == getParentEdges().size()) {
-                    selectPrimitiveDescriptorByIndex(i);
-                    return;
-                }
-            }
-        }
-        selectPrimitiveDescriptorByIndex(0);
-        return;
-    }
-
     for (auto supportedPdIndex : canSelectPrimitive) {
         if (MKLDNNMemoryDesc(supportedPrimitiveDescriptors[supportedPdIndex].getConfig().inConfs[0].desc).getFormat() == convertTo) {
             selectPrimitiveDescriptorByIndex(static_cast<int>(supportedPdIndex));
@@ -324,7 +360,23 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         }
     }
 
-    THROW_IE_EXCEPTION << "Cannot find optimal primitive desc for node: " << getName();
+    for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
+        auto &primDescInfo = supportedPrimitiveDescriptors[i];
+        if (primDescInfo.getImplementationType() == impl_desc_type::unknown)
+            continue;
+        if (convertTo == MKLDNNMemoryDesc(supportedPrimitiveDescriptors[i].getConfig().outConfs[0].desc).getFormat()) {
+            size_t num = 0;
+            for (num = 0; num < getParentEdges().size(); num++) {
+                if (MKLDNNMemoryDesc(getParentEdgeAt(num)->getDims(), inputDataType, convertTo).blocksExtended())
+                    break;
+            }
+            if (num == getParentEdges().size()) {
+                selectPrimitiveDescriptorByIndex(i);
+                return;
+            }
+        }
+    }
+    selectPrimitiveDescriptorByIndex(0);
 }
 
 bool MKLDNNConcatNode::created() const {
@@ -378,6 +430,15 @@ void MKLDNNConcatNode::createPrimitive() {
     prim.reset(new concat(primitive_desc, srcs_p, getChildEdgeAt(0)->getMemory().GetPrimitive()));
 }
 
+size_t MKLDNNConcatNode::inverseOrder(const SizeVector& order, size_t axis) {
+    for (size_t i = 0; i < order.size(); i++) {
+        if (axis == order[i]) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     if (!isOptimized()) {
         MKLDNNNode::initOptimalPrimitiveDescriptor();
@@ -394,16 +455,17 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
             continue;
 
         int num = getChildEdgeAt(i)->getOutputNum();
-        if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
-            if (num >= 0) {
-                if (isUninitTensorDesc(getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num].desc) &&
-                        getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num].inPlace >= 0)
+        if (num >= 0) {
+            auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
+            childConf.desc.setPrecision(config.outConfs[i].desc.getPrecision());
+
+            if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
+                if (isUninitTensorDesc(childConf.desc) && childConf.inPlace >= 0)
                     getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
-                if (!isUninitTensorDesc(getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num].desc) &&
-                        MKLDNNExtensionUtils::initTensorsAreEqual(
-                                getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num].desc,
-                                config.outConfs[i].desc)) {
-                    config.outConfs[i].desc = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num].desc;
+
+                if (!isUninitTensorDesc(childConf.desc) &&
+                        MKLDNNExtensionUtils::initTensorsAreEqual(childConf.desc, config.outConfs[i].desc)) {
+                    config.outConfs[i].desc = childConf.desc;
                     continue;
                 }
             }
@@ -425,8 +487,19 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
                                                                   config.outConfs[0].desc.getBlockingDesc().getStrides()
                                                              });
         size_t axisSize = 1;
-        for (size_t j = axis; j < config.inConfs[i].desc.getBlockingDesc().getBlockDims().size(); j++) {
-            axisSize *= config.inConfs[i].desc.getBlockingDesc().getBlockDims()[j];
+
+        if (config.inConfs[0].desc.getLayout() == Layout::NHWC) {
+            // This is more general and works for any "direct" Layout (such as nchw or nhwc), but it doesn't work for nchw8c
+            size_t realAxis = inverseOrder(config.inConfs[0].desc.getBlockingDesc().getOrder(), axis);
+            for (size_t j = realAxis; j < config.inConfs[i].desc.getBlockingDesc().getBlockDims().size(); j++) {
+                size_t jj = config.inConfs[0].desc.getBlockingDesc().getOrder()[j];
+                axisSize *= config.inConfs[i].desc.getBlockingDesc().getBlockDims()[jj];
+            }
+        } else {
+            // This works for nchw and nchw8c/nchw16c
+            for (size_t j = axis; j < config.inConfs[i].desc.getBlockingDesc().getBlockDims().size(); j++) {
+                axisSize *= config.inConfs[i].desc.getBlockingDesc().getBlockDims()[j];
+            }
         }
         offset += axisSize;
     }

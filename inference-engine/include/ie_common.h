@@ -67,6 +67,12 @@ union UserValue {
     void *v_ptr;
 };
 
+enum CellType {
+    ORIG,
+    LSTM,
+    GRU
+};
+
 /**
  * @enum Layout
  * @brief Layouts that the inference engine supports
@@ -94,6 +100,29 @@ enum Layout : uint8_t {
 
     BLOCKED = 200,
 };
+inline std::ostream & operator << (std::ostream &out, const Layout & p) {
+    switch (p) {
+#define PRINT_LAYOUT(name)\
+        case name : out << #name; break;
+
+            PRINT_LAYOUT(ANY);
+            PRINT_LAYOUT(NCHW);
+            PRINT_LAYOUT(NHWC);
+            PRINT_LAYOUT(OIHW);
+            PRINT_LAYOUT(C);
+            PRINT_LAYOUT(CHW);
+            PRINT_LAYOUT(HW);
+            PRINT_LAYOUT(NC);
+            PRINT_LAYOUT(CN);
+            PRINT_LAYOUT(BLOCKED);
+#undef PRINT_LAYOUT
+            default:
+                 out << static_cast<int>(p);
+            break;
+        }
+        return out;
+    }
+
 
 /**
  * @struct InferenceEngineProfileInfo
@@ -157,7 +186,8 @@ enum StatusCode : int {
     REQUEST_BUSY = -8,
     RESULT_NOT_READY = -9,
     NOT_ALLOCATED = -10,
-    INFER_NOT_STARTED = -11
+    INFER_NOT_STARTED = -11,
+    NETWORK_NOT_READ = -12
 };
 
 /**
@@ -215,6 +245,10 @@ class NotAllocated : public std::logic_error
 class InferNotStarted : public std::logic_error
 { using std::logic_error::logic_error; };
 }  // namespace InferenceEngine
+
+/** @brief This class represents StatusCode::NETWORK_NOT_READ exception */
+class NetworkNotRead : public std::logic_error
+{ using std::logic_error::logic_error; };
 
 #if defined(_WIN32)
     #define __PRETTY_FUNCTION__ __FUNCSIG__

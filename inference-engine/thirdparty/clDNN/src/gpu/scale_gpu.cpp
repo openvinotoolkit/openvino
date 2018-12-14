@@ -56,19 +56,19 @@ public:
 
         ew_params.inputs.push_back(convert_data_tensor(arg.scale_in().get_output_layout()));
 
-        ew_params.eltwiseParams.operations.push_back({
+        ew_params.operations.push_back({
             { kernel_selector::eltwise_params::InputType::Buffer(0), kernel_selector::eltwise_params::InputType::Buffer(1) },
             kernel_selector::eltwise_mode::MUL });
 
         if (arg.bias_term())
         {
             ew_params.inputs.push_back(convert_data_tensor(arg.bias().get_output_layout()));
-            ew_params.eltwiseParams.operations.push_back({
+            ew_params.operations.push_back({
                 { kernel_selector::eltwise_params::InputType::Intermediate(0), kernel_selector::eltwise_params::InputType::Buffer(2) },
                 kernel_selector::eltwise_mode::ADD });
         }
 
-        ew_params.eltwiseParams.layoutBased = true;
+        ew_params.layoutBased = true;
 
         auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(ew_params, ew_optional_params);

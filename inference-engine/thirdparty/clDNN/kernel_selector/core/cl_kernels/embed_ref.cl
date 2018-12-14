@@ -13,7 +13,8 @@
 // limitations under the License.
 
 
-#include "include/include_all.cl"
+#include "include/common.cl"
+#include "include/data_types.cl"
 
 KERNEL(embed_ref)(const __global UNIT_TYPE* input0, __global UNIT_TYPE* output, __global UNIT_TYPE* weights, __global UNIT_TYPE* biases)
 {

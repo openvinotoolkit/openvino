@@ -60,7 +60,7 @@ struct ref_sum_t: public cpu_primitive_t {
         virtual status_t create_primitive(primitive_t **primitive,
                 const primitive_at_t *inputs, const primitive_t **outputs)
                 const override {
-	    double ms = get_msec();
+            double ms = get_msec();
             nstl::vector<primitive_t *> reorders;
             reorders.resize(n_);
             for (int i = 0; i < n_; ++i)
@@ -71,12 +71,12 @@ struct ref_sum_t: public cpu_primitive_t {
             primitive_t::output_vector outs(outputs, outputs + 1);
             auto ret = safe_ptr_assign<primitive_t>(*primitive,
                      new ref_sum_t(this, ins, outs, reorders));
-	    ms = get_msec() - ms;
-	    if (mkldnn_verbose()->level >= 2) {
-	        printf("mkldnn_verbose,create,%s,%g\n", this->info(), ms);
-	        fflush(0);
-	    }
-	    return ret;
+            ms = get_msec() - ms;
+            if (mkldnn_verbose()->level >= 2) {
+                printf("mkldnn_verbose,create,%s,%g\n", this->info(), ms);
+                fflush(0);
+            }
+            return ret;
         }
         virtual pd_t *clone() const override { return nullptr; /* FIXME */ }
        virtual const char *name() const override { return "ref:any"; }
@@ -96,7 +96,7 @@ struct ref_sum_t: public cpu_primitive_t {
                     }
                     if ((*r)(&r_pd, &src_pds_[i], &dst_pd_, &dummy_attr)
                             == status::success) {
-		        r_pd->init_info();
+                        r_pd->init_info();
                         reorder_pds_.push_back(r_pd);
                         break;
                     }

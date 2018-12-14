@@ -10,10 +10,12 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "details/caseless.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 
 MKLDNNDepthwiseNode::MKLDNNDepthwiseNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
@@ -126,12 +128,6 @@ void MKLDNNDepthwiseNode::createDescriptor(const std::vector<InferenceEngine::Te
     MKLDNNMemoryDesc in_candidate(inputDesc[0]);
     MKLDNNMemoryDesc out_candidate(inputDesc[0]);
     MKLDNNDims weightDims({in_candidate.getDims()[1]});
-
-    if (in_candidate.getFormat() == memory::nChw16c) {
-        weightDims[0] = rnd_up(weightDims[0], 16);
-    } else if (in_candidate.getFormat() == memory::nChw8c) {
-        weightDims[0] = rnd_up(weightDims[0], 8);
-    }
 
     MKLDNNMemoryDesc wgh_candidate{weightDims, in_candidate.getDataType(), memory::x};
 

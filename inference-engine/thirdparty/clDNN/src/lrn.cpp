@@ -53,8 +53,8 @@ std::string lrn_inst::to_string(lrn_node const& node)
     lrn_info.add("size of normalization", norm_size);
     lrn_info.add("normalization region", norm_region);
 
-    node_info.add("lrn info", lrn_info);
-    node_info.dump(primitive_description);
+    node_info->add("lrn info", lrn_info);
+    node_info->dump(primitive_description);
    
     return primitive_description.str();
 }

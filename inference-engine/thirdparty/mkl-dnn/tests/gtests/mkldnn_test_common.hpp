@@ -24,11 +24,13 @@
 
 #include "gtest/gtest.h"
 
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
 #define collapse(x)
 #endif
 
 #include "mkldnn.hpp"
+
+#include "src/common/mkldnn_thread.hpp"
 
 template <typename data_t> struct data_traits { };
 template <> struct data_traits<float> {
@@ -215,6 +217,7 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
         ndims = 1; break;
     case f::nc:
     case f::oi:
+    case f::io:
         ndims = 2; break;
     case f::nchw:
     case f::nhwc:
@@ -236,10 +239,16 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
         ndims = 4; break;
     case f::ncdhw:
     case f::ndhwc:
+    case f::nCdhw8c:
     case f::nCdhw16c:
+    case f::dhwio:
     case f::oidhw:
     case f::goihw:
     case f::hwigo:
+    case f::OIdhw8i8o:
+    case f::OIdhw16i16o:
+    case f::OIdhw8o8i:
+    case f::OIdhw16o16i:
     case f::gOhwi8o:
     case f::Goihw8g:
     case f::Goihw16g:
@@ -252,6 +261,11 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::gOIhw16o16i:
     case f::gIOhw16o16i:
         ndims = 5; break;
+    case f::gOIdhw8i8o:
+    case f::gOIdhw16i16o:
+    case f::gOIdhw8o8i:
+    case f::gOIdhw16o16i:
+    case f::gOdhwi16o:
     case f::goidhw:
         ndims = 6; break;
     case f::format_undef:
@@ -292,27 +306,26 @@ template <typename data_t>
 static void fill_data(const size_t size, data_t *data, data_t mean,
         data_t deviation, double sparsity = 1.)
 {
-#   pragma omp parallel for schedule(static)
-    for (ptrdiff_t n = 0; n < (ptrdiff_t)size; n++) {
-        data[n] = set_value<data_t>(n, mean, deviation, sparsity);
-    }
+    mkldnn::impl::parallel_nd((ptrdiff_t)size, [&](ptrdiff_t n) {
+            data[n] = set_value<data_t>(n, mean, deviation, sparsity);
+    });
 }
 
 template <typename data_t>
 static void fill_data(const size_t size, data_t *data, double sparsity = 1.,
         bool init_negs = false)
 {
-#   pragma omp parallel for schedule(static)
-    for (ptrdiff_t n = 0; n < (ptrdiff_t)size; n++) {
+    mkldnn::impl::parallel_nd((ptrdiff_t)size, [&](ptrdiff_t n) {
         data[n] = set_value<data_t>(n, data_t(1), data_t(2e-1), sparsity);
 
         if (init_negs && n%4 == 0U)
             data[n] = static_cast<data_t>(-data[n]); // weird for unsigned types!
-    }
+    });
 }
 
 template <typename data_t>
-static void compare_data(mkldnn::memory& ref, mkldnn::memory& dst)
+static void compare_data(mkldnn::memory& ref, mkldnn::memory& dst,
+                         data_t threshold = (data_t)1e-4)
 {
     using data_type = mkldnn::memory::data_type;
 
@@ -341,20 +354,19 @@ static void compare_data(mkldnn::memory& ref, mkldnn::memory& dst)
     data_t *ref_data = (data_t *)ref.get_data_handle();
     data_t *dst_data = (data_t *)dst.get_data_handle();
 
-#   pragma omp parallel for schedule(static)
-    for (ptrdiff_t i = 0; i < num; ++i) {
+    mkldnn::impl::parallel_nd(num, [&](ptrdiff_t i) {
         data_t ref = ref_data[map_index(ref_desc, i)];
         data_t got = dst_data[map_index(dst_desc, i)];
 
         if (data_traits<data_t>::data_type == data_type::f32) {
             data_t diff = got - ref;
-            data_t e = (std::abs(ref) > (data_t)1e-3) ? diff / ref : diff;
-            EXPECT_NEAR(e, (data_t)0.0, (data_t)1e-3)
+            data_t e = (std::abs(ref) > threshold) ? diff / ref : diff;
+            EXPECT_NEAR(e, (data_t)0.0, threshold)
                 << "Index: " << i << " Total: " << num;
         } else {
             EXPECT_EQ(ref, got) << "Index: " << i << " Total: " << num;
         }
-    }
+    });
 }
 
 inline const char *query_impl_info(const_mkldnn_primitive_desc_t pd) {
@@ -398,6 +410,35 @@ struct test_convolution_sizes_t {
     int padh, padw;
     int strh, strw;
     int dilh, dilw;
+};
+
+struct test_convolution_sizes_t_3d {
+    test_convolution_sizes_t_3d(
+        int mb,
+        int ng,
+        int ic, int id, int ih, int iw,
+        int oc, int od, int oh, int ow,
+        int kd, int kh, int kw,
+        int padd, int padh, int padw,
+        int strd, int strh, int strw,
+        int dild=0, int dilh=0, int dilw=0
+    ) :
+        mb(mb),
+        ng(ng),
+        ic(ic), id(id), ih(ih), iw(iw),
+        oc(oc), od(od), oh(oh), ow(ow),
+        kd(kd), kh(kh), kw(kw),
+        padd(padd), padh(padh), padw(padw),
+        strd(strd), strh(strh), strw(strw),
+        dild(dild), dilh(dilh), dilw(dilw) {}
+    int mb;
+    int ng;
+    int ic, id, ih, iw;
+    int oc, od, oh, ow;
+    int kd, kh, kw;
+    int padd, padh, padw;
+    int strd, strh, strw;
+    int dild, dilh, dilw;
 };
 
 struct test_convolution_attr_t {
@@ -455,12 +496,34 @@ struct test_convolution_params_t {
     mkldnn_status_t expected_status;
 };
 
+struct test_convolution_params_t_3d {
+    const mkldnn::engine::kind engine_kind;
+    mkldnn::algorithm aalgorithm;
+    const float relu_negative_slope;
+    test_convolution_formats_t formats;
+    test_convolution_attr_t attr;
+    test_convolution_sizes_t_3d sizes;
+    bool expect_to_fail;
+    mkldnn_status_t expected_status;
+};
+
 struct test_convolution_eltwise_params_t {
     const mkldnn::algorithm alg;
     const mkldnn::engine::kind engine_kind;
     mkldnn::algorithm aalgorithm;
     const float eltwise_alpha;
     const float eltwise_beta;
+    test_convolution_formats_t formats;
+    test_convolution_attr_t attr;
+    test_convolution_sizes_t sizes;
+    bool expect_to_fail;
+    mkldnn_status_t expected_status;
+};
+
+struct test_convolution_depthwise_params_t {
+    const mkldnn::algorithm alg;
+    const mkldnn::engine::kind engine_kind;
+    mkldnn::algorithm aalgorithm;
     test_convolution_formats_t formats;
     test_convolution_attr_t attr;
     test_convolution_sizes_t sizes;

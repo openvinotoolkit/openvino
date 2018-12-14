@@ -20,7 +20,7 @@ import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node
-from mo.utils.dsu import DSU, DSU_elem
+from mo.utils.dsu import DSU, DSUElem
 from mo.utils.graph import bfs_search
 
 
@@ -70,7 +70,7 @@ def find_unsupported_ops_subgraphs(graph: nx.MultiDiGraph, unsupported_nodes: li
     for node_name in bfs_nodes:
         node = Node(graph, node_name)
         if node.has_valid('supported') and not node['supported']:
-            dsu_elems.append(DSU_elem(node_name))
+            dsu_elems.append(DSUElem(node_name))
 
     dsu = DSU(dsu_elems)
 

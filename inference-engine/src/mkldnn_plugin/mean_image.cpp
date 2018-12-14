@@ -4,6 +4,7 @@
 //
 
 #include "mean_image.h"
+#include "ie_parallel.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -82,23 +83,16 @@ void MeanImage::Subtract(const MKLDNNDims &inputDims, float *input) {
 
     if (meanBuffer && meanBuffer->size()) {
         const float * meanBufferValues = meanBuffer->readOnly();
-#   pragma omp parallel for collapse(2) schedule(static)
-        for (int mb = 0; mb < MB; mb++) {
-            for (int i = 0; i < srcSize; i++) {
-                input[srcSize * mb + i] -= meanBufferValues[i];
-            }
-        }
+
+        parallel_for2d(MB, srcSize, [&](int mb, int i) {
+            input[srcSize * mb + i] -= meanBufferValues[i];
+        });
     } else if (!meanValues.empty()) {
         int C = inputDims[1];
         srcSize /= inputDims[1];
 
-#   pragma omp parallel for collapse(3) schedule(static)
-        for (int mb = 0; mb < MB; mb++) {
-            for (int c = 0; c < C; c++) {
-                for (int i = 0; i < srcSize; i++) {
-                    input[srcSize * mb * C + c * srcSize + i] -= meanValues[c];
-                }
-            }
-        }
+        parallel_for3d(MB, C, srcSize, [&](int mb, int c, int i) {
+            input[srcSize * mb * C + c * srcSize + i] -= meanValues[c];
+        });
     }
 }

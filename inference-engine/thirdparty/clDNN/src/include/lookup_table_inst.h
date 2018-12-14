@@ -34,8 +34,8 @@ namespace cldnn
             : parent(prim, prog)
         {
         }
-        decltype(auto) input() const { return get_dependency(0); }
-        decltype(auto) indices() const { return get_dependency(1); }
+        program_node& input() const { return get_dependency(0); }
+        program_node& indices() const { return get_dependency(1); }
     };
 
     using lookup_table_node = typed_program_node<lookup_table>;

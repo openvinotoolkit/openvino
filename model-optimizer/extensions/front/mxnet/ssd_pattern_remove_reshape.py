@@ -15,13 +15,13 @@
 """
 
 import networkx as nx
-from mo.front.mxnet.extractors.utils import get_json_layer_attrs
+
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.front.mxnet.extractors.utils import get_json_layer_attrs
 from mo.middle.passes.eliminate import remove_node_from_graph
 
 
 class SsdPatternRemoveReshape(FrontReplacementSubgraph):
-
     enabled = True
 
     def pattern(self):
@@ -34,9 +34,8 @@ class SsdPatternRemoveReshape(FrontReplacementSubgraph):
             edges=[
                 ('multi_box_prior', 'concat', {'in': 0}),
                 ('concat', 'reshape', {'in': 0})
-            ],
-            node_attrs=['op'],
-            edge_attrs=['in'])
+            ]
+        )
 
     def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
         """
@@ -57,3 +56,4 @@ class SsdPatternRemoveReshape(FrontReplacementSubgraph):
         attr = get_json_layer_attrs(concat_node.graph.node[concat_node.id]['symbol_dict'])
         if 'dim' in attr:
             attr['dim'] = 2
+            concat_node['axis'] = 2

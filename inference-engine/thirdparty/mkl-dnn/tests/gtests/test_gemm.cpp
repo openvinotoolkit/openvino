@@ -48,32 +48,26 @@ void ref_gemm(const char *transa, const char *transb, int m, int n, int k,
     auto pb = [=] (int i, int j) { return b[j*ldb + i]; };
     auto pc = [=] (int i, int j) { return c[j*ldc + i]; };
 
-#   pragma omp parallel for collapse(2)
-    for (int im = 0; im < m; im++) {
-        for (int in = 0; in < n; in++) {
-            float c_elem = (beta == 0.) ? 0. : pc(im, in) * beta;
-            for (int ik = 0; ik < k; ik++) {
-                const float a_elem = tr_a ? pa(ik, im) : pa(im, ik);
-                const float b_elem = tr_b ? pb(in, ik) : pb(ik, in);
-                c_elem += alpha * a_elem * b_elem;
-            }
-            c[in*ldc + im] = c_elem;
+    mkldnn::impl::parallel_nd(m, n, [&](int im, int in) {
+        float c_elem = (beta == 0.) ? 0. : pc(im, in) * beta;
+        for (int ik = 0; ik < k; ik++) {
+            const float a_elem = tr_a ? pa(ik, im) : pa(im, ik);
+            const float b_elem = tr_b ? pb(in, ik) : pb(ik, in);
+            c_elem += alpha * a_elem * b_elem;
         }
-    }
+        c[in*ldc + im] = c_elem;
+    });
 }
 
 void compare(int M, int N, int ldc, float *C, float *C_ref) {
-#   pragma omp parallel for collapse(2)
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < ldc; ++j) {
-            float ref = C_ref[i*ldc + j];
-            float got = C[i*ldc + j];
-            float diff = got - ref;
-            float e = (std::abs(ref) > 1e-4) ? diff / ref : diff;
-            EXPECT_NEAR(e, 0.0, 1e-4)
-                << "Row: " << j << " Column: " << i;
-        }
-    }
+    mkldnn::impl::parallel_nd(N, ldc, [&](int i, int j) {
+        float ref = C_ref[i*ldc + j];
+        float got = C[i*ldc + j];
+        float diff = got - ref;
+        float e = (std::abs(ref) > 1e-4) ? diff / ref : diff;
+        EXPECT_NEAR(e, 0.0, 1e-4)
+            << "Row: " << j << " Column: " << i;
+    });
 }
 
 class sgemm_test: public ::testing::TestWithParam<test_params> {
@@ -103,9 +97,7 @@ protected:
         fill_data<float>(sizeB, B);
         fill_data<float>(sizeC, C);
 
-        #pragma omp parallel for
-        for (int i=0; i<p.N*p.ldc; i++)
-                C_ref[i] = C[i];
+        mkldnn::impl::parallel_nd(p.N * p.ldc, [&](int i) { C_ref[i] = C[i]; });
 
         status = mkldnn_sgemm(&p.transA, &p.transB, &p.M, &p.N, &p.K, &p.alpha, A,
                 &p.lda, B, &p.ldb, &p.beta, C, &p.ldc);

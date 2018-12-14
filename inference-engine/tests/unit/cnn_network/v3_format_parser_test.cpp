@@ -5,6 +5,7 @@
 
 #define MT_BATCH 1
 #define MT_CHANNELS 3
+#define MT_DEPTH 2
 #define MT_HEIGHT 1
 #define MT_WIDTH 2
 #define LAYER_COUNT 1
@@ -21,7 +22,7 @@ using namespace testing;
 class V3FormatParserTest : public FormatParserTest {
 };
 
-TEST_F(V3FormatParserTest, canNotParseEmptyElementwiseNode) {
+TEST_F(V3FormatParserTest, DISABLED_canNotParseEmptyElementwiseNode) {
     string content = BEGIN_NET_V3()
         .initlayerInOut("e", "Eltwise", 1, 1, 2)
         .node("data").attr("operation", "").close()
@@ -31,7 +32,7 @@ TEST_F(V3FormatParserTest, canNotParseEmptyElementwiseNode) {
     ASSERT_NO_FATAL_FAILURE(assertParseFail(content));
 }
 
-TEST_F(V3FormatParserTest, canNotParseMissedElementwiseNodeType) {
+TEST_F(V3FormatParserTest, DISABLED_canNotParseMissedElementwiseNodeType) {
     string content = BEGIN_NET_V3()
         .initlayerInOut("e", "Eltwise", 1, 1, 2)
         .close()
@@ -50,7 +51,7 @@ TEST_F(V3FormatParserTest, cannotParseUnknownEltwiseOperation) {
     ASSERT_NO_FATAL_FAILURE(assertParseFail(content));
 }
 
-TEST_F(V3FormatParserTest, DISABLED_canParseProdInElementwiseNode) {
+TEST_F(V3FormatParserTest, canParseProdInElementwiseNode) {
     string content = BEGIN_NET_V3()
         .initlayerInOut("e", "Eltwise", 1, 1, 2)
         .node("data").attr("operation", "prod").close()
@@ -65,8 +66,7 @@ TEST_F(V3FormatParserTest, DISABLED_canParseProdInElementwiseNode) {
     ASSERT_EQ(eltwise->_operation, EltwiseLayer::Prod);
 }
 
-
-TEST_F(V3FormatParserTest, DISABLED_canParseMulInElementwiseNode) {
+TEST_F(V3FormatParserTest, canParseMulInElementwiseNode) {
     string content = BEGIN_NET_V3()
         .initlayerInOut("e", "Eltwise", 1, 1, 2)
         .node("data").attr("operation", "mul").close()
@@ -79,4 +79,19 @@ TEST_F(V3FormatParserTest, DISABLED_canParseMulInElementwiseNode) {
     auto *eltwise = dynamic_cast<EltwiseLayer *>(ewise.get());
     ASSERT_NE(nullptr, eltwise);
     ASSERT_EQ(eltwise->_operation, EltwiseLayer::Prod);
+}
+
+TEST_F(V3FormatParserTest, canParse5Dinput) {
+    string content = xml().node("net").attr("name", "Only_input_5D").attr("version", 3)
+            .initInputlayer5D("data", 0, 0);
+
+    ASSERT_NO_FATAL_FAILURE(assertParseFail(content));
+}
+
+TEST_F(V3FormatParserTest, DISABLE_conv3DInvalidKernel) {
+    string content = xml().node("net").attr("name", "5d_net").attr("version", 3)
+            .initConv5DlayerInOut("3D_conv", 0, 1, 64, "", "0,0,0", "0,0,0", "1,1,1", "1,1,1", 0, 0)
+            .close();
+
+    ASSERT_NO_FATAL_FAILURE(assertParseFail(content));
 }

@@ -80,8 +80,8 @@ std::string max_unpooling_inst::to_string(max_unpooling_node const& node)
     max_unmax_unpooling_info.add("input", input.id());
     max_unmax_unpooling_info.add("argmax", argmax.id());
 
-    node_info.add("max unmax_unpooling info", max_unmax_unpooling_info);
-    node_info.dump(primitive_description);
+    node_info->add("max unmax_unpooling info", max_unmax_unpooling_info);
+    node_info->dump(primitive_description);
 
     return primitive_description.str();
 }

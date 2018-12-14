@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include <ie_version.hpp>
-#include <mock_mkldnn_extension.hpp>
 #include "cpp_interfaces/mock_plugin_impl.hpp"
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
 
@@ -171,29 +170,6 @@ TEST_F(PluginBaseTests, canCatchUnknownErrorInGetPerformanceCounts) {
     EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts(_)).WillOnce(Throw(5));
     std::map <std::string, InferenceEngineProfileInfo> profileInfo;
     ASSERT_EQ(UNEXPECTED, plugin->GetPerformanceCounts(profileInfo, nullptr));
-}
-
-TEST_F(PluginBaseTests, canForwarAddExtension) {
-
-    InferenceEngine::IExtensionPtr ext_ptr ( new MockMKLDNNExtension());
-
-    EXPECT_CALL(*mock_impl.get(), AddExtension(ext_ptr)).Times(1);
-
-    ASSERT_EQ(OK, plugin->AddExtension(ext_ptr, &dsc));
-}
-
-TEST_F(PluginBaseTests, canReportErrorInAdddExtension) {
-
-    EXPECT_CALL(*mock_impl.get(), AddExtension(_)).WillOnce(Throw(std::runtime_error("error")));
-    InferenceEngine::IExtensionPtr ext_ptr (new MockMKLDNNExtension());
-
-    ASSERT_NE(OK, plugin->AddExtension(ext_ptr, &dsc));
-}
-
-TEST_F(PluginBaseTests, canCatchUnknownErrorInLoadExtension) {
-    EXPECT_CALL(*mock_impl.get(), AddExtension(_)).WillOnce(Throw(5));
-    InferenceEngine::IExtensionPtr ext_ptr (new MockMKLDNNExtension());
-    ASSERT_EQ(UNEXPECTED, plugin->AddExtension(ext_ptr, &dsc));
 }
 
 TEST_F(PluginBaseTests, canForwarSetConfig) {

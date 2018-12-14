@@ -29,6 +29,7 @@ namespace HeteroConfigParams {
  * This option should be used with values: CONFIG_VALUE(NO) (default) or CONFIG_VALUE(YES)
  */
 DECLARE_HETERO_CONFIG_KEY(DUMP_GRAPH_DOT);
+DECLARE_HETERO_CONFIG_KEY(DUMP_DLA_MESSAGES);
 
 }  // namespace HeteroConfigParams
 }  // namespace InferenceEngine

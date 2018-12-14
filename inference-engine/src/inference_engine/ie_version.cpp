@@ -11,7 +11,7 @@ INFERENCE_ENGINE_API(const Version*) GetInferenceEngineVersion() noexcept {
     // Use local static variable to make sure it is always properly initialized
     // even if called from global constructor
     static Version inferenceEngineVersion = {
-        {1, 2},  // inference engine API version
+        {1, 4},  // inference engine API version
         CI_BUILD_NUMBER
     };
     return &inferenceEngineVersion;

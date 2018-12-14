@@ -9,6 +9,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include "ie_parallel.hpp"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -41,25 +42,16 @@ public:
         int H = static_cast<int>((dims.size() > 2) ? dims[2] : 1);
         int W = static_cast<int>((dims.size() > 3) ? dims[3] : 1);
 
-#if _MSC_VER && !__INTEL_COMPILER
-        #pragma omp parallel for schedule(static)
-#else
-        #pragma omp parallel for collapse(3) schedule(static)
-#endif
-        for (int b = 0; b < N; b++) {
-            for (int h = 0; h < H; h++) {
-                for (int w = 0; w < W; w++) {
-                    double variance = 0;
-                    for (int c = 0; c < C; c++) {
-                        variance += std::pow(src_data[b*C*H*W + c*H*W + h*W + w], 2);
-                    }
-                    variance = std::pow(variance + bias, 0.5f);
-                    for (int c = 0; c < C; c++) {
-                        dst_data[b*C*H*W + c*H*W + h*W + w] = src_data[b*C*H*W + c*H*W + h*W + w] / variance;
-                    }
-                }
+        parallel_for3d(N, H, W, [&](int b, int h, int w) {
+            double variance = 0;
+            for (int c = 0; c < C; c++) {
+                variance += std::pow(src_data[b*C*H*W + c*H*W + h*W + w], 2);
             }
-        }
+            variance = std::pow(variance + bias, 0.5f);
+            for (int c = 0; c < C; c++) {
+                dst_data[b*C*H*W + c*H*W + h*W + w] = src_data[b*C*H*W + c*H*W + h*W + w] / variance;
+            }
+        });
         return OK;
     }
 
