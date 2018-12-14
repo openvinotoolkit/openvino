@@ -36,4 +36,11 @@ Then build generated solution INFERENCE_ENGINE_DRIVER.sln using Microsoft\* Visu
   make -j16
 ```
 
-Note: -DInferenceEngine_DIR parameter is needed to specify the folder with generated make files or Visual Studio solution used to build Inference Engine (see readme file in the inference-engine root folder).
+Note: `-DInferenceEngine_DIR` parameter is needed to specify the folder with generated make files or Visual Studio solution used to build Inference Engine (see readme file in the inference-engine root folder).
+
+Before running the Python samples, please manually replicate OpenVINO folders structure with Python modules:
+- create an empty folder `openvino/inference_engine`
+- move built `ie_api.so` and `__init__.py` files from the `<build_folder>/inference_engine` to `openvino/inference_engine` folder
+- create an empty `__init__.py` file in the `openvino` folder
+- add the root folder where `openvino` folder is located to the PYTHONPATH environment variable.
+- add the folder with Inference Engine libraries to LD_LIBRARY_PATH variable on Linux (or PATH on Windows).
