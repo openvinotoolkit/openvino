@@ -248,7 +248,7 @@ const InstructionSet::InstructionSet_Internal InstructionSet::CPU_Rep;
 // Print out supported instruction set extensions
 int main()
 {
-    std::ofstream fo(\"cpuid.txt\");
+    std::ofstream fo(\"${CMAKE_BINARY_DIR}/cpuid.txt\");
     auto& outstream = fo;//std::cout;
 
     auto support_message = [&outstream](std::string isa_feature, bool is_supported) {
