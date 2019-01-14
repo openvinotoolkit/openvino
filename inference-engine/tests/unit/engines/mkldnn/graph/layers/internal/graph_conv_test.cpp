@@ -14,9 +14,11 @@
 #include <inference_engine/cnn_network_impl.hpp>
 #include "tests_common.hpp"
 
+#ifdef ENABLE_MKL_DNN_JIT
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
-#include "../../../../../../../thirdparty/mkl-dnn/src/cpu/xbyak/xbyak_util.h"
+#include "../../../../../../../thirdparty/mkl-dnn/src/cpu/jit/xbyak/xbyak_util.h"
+#endif
 
 using namespace ::testing;
 using namespace std;
@@ -225,6 +227,7 @@ protected:
                         p.comp.at(j)(node->getSupportedPrimitiveDescriptors().at(j));
                     }
                     ASSERT_NE(nullptr, node->getSelectedPrimitiveDescriptor());
+#ifdef ENABLE_MKL_DNN_JIT
                     Xbyak::util::Cpu cpu;
                     if (cpu.has(Xbyak::util::Cpu::tAVX512F)
                             && cpu.has(Xbyak::util::Cpu::tAVX512BW)
@@ -238,6 +241,7 @@ protected:
                         ASSERT_EQ(p.selectedType,
                                   node->getSelectedPrimitiveDescriptor()->getImplementationType() & p.selectedType);
                     }
+#endif
                 }
             }
 

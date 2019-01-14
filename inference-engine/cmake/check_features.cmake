@@ -79,6 +79,12 @@ endif()
 
 if (ENABLE_MKL_DNN)
     add_definitions(-DENABLE_MKL_DNN=1)
+else()
+    set(ENABLE_MKL_DNN_JIT OFF)
+endif()
+
+if (ENABLE_MKL_DNN_JIT)
+    add_definitions(-DENABLE_MKL_DNN_JIT=1)
 endif()
 
 if (ENABLE_STRESS_UNIT_TESTS)

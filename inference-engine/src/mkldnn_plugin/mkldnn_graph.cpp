@@ -37,9 +37,11 @@
 #include <data_stats.h>
 #include "../inference_engine/cnn_network_int8_normalizer.hpp"
 
+#ifdef ENABLE_MKL_DNN_JIT
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
-#include "../../thirdparty/mkl-dnn/src/cpu/xbyak/xbyak_util.h"
+#include "../../thirdparty/mkl-dnn/src/cpu/jit/xbyak/xbyak_util.h"
+#endif
 
 #include "cnn_network_stats_impl.hpp"
 // #define DEBUG_DUMP_PATH "/temp/path/dump/"
@@ -1329,7 +1331,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(InferenceEngine::ICNNNetwork &network,
         // are not cloned properly
         ICNNNetworkStats* pstats = nullptr;
         StatusCode s = network.getStats(&pstats, nullptr);
-        Xbyak::util::Cpu cpu;
+#ifdef ENABLE_MKL_DNN_JIT
+	Xbyak::util::Cpu cpu;
         // Enable int8 only for avx512
         if (s == StatusCode::OK && pstats && !pstats->isEmpty() && cpu.has(Xbyak::util::Cpu::tAVX512F)) {
             details::CNNNetworkImplPtr clonnedNetwork = cloneNet(network);
@@ -1339,6 +1342,9 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(InferenceEngine::ICNNNetwork &network,
         } else {
             graph->CreateGraph(network, extensionManager);
         }
+#else
+        graph->CreateGraph(network, extensionManager);
+#endif
     });
 
     _taskExecutor->startTask(task);

@@ -35,8 +35,26 @@ include_directories(
         ${MKLDNN_ROOT}/include
         ${MKLDNN_ROOT}/src
         ${MKLDNN_ROOT}/src/common
-        ${MKLDNN_ROOT}/src/cpu/xbyak
 )
+
+if(ENABLE_MKL_DNN_JIT)
+    add_definitions(-DMKLDNN_JIT=1)
+    include_directories(
+        ${MKLDNN_ROOT}/src/cpu
+        ${MKLDNN_ROOT}/src/cpu/jit
+        ${MKLDNN_ROOT}/src/cpu/jit/xbyak
+        ${MKLDNN_ROOT}/src/cpu/gemm
+        ${MKLDNN_ROOT}/src/cpu/gemm/jit
+        ${MKLDNN_ROOT}/src/cpu/gemm/s8x8s32
+        ${MKLDNN_ROOT}/src/cpu/gemm/f32
+    )
+else()
+    foreach (ITEM ${SRC})
+        if ("${ITEM}" MATCHES "(.*)/jit/(.*)")
+            list(REMOVE_ITEM SRC ${ITEM})
+        endif()
+    endforeach()
+endif()
 
 if(WIN32)
     add_definitions(-D_WIN)

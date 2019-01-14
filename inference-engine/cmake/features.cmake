@@ -13,6 +13,8 @@ include ("options")
 
 ie_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON)
 
+ie_option (ENABLE_MKL_DNN_JIT "Enable JIT for the MKL DNN plugin" ON)
+
 ie_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON)
 
 ie_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON)
