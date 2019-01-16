@@ -288,8 +288,10 @@ int mkldnn_getenv(char *value, const char *name, int len);
 bool mkldnn_jit_dump();
 FILE *mkldnn_fopen(const char *filename, const char *mode);
 
+#ifdef MKLDNN_JIT
 void set_rnd_mode(round_mode_t rnd_mode);
 void restore_rnd_mode();
+#endif
 
 unsigned int get_cache_size(int level, bool per_core);
 

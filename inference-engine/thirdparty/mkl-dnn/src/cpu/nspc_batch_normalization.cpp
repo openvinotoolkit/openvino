@@ -18,7 +18,11 @@
 #include <math.h>
 
 #include "c_types_map.hpp"
+#ifdef MKLDNN_JIT
 #include "jit_generator.hpp"
+#else
+#include "mkldnn_thread.hpp"
+#endif
 #include "nspc_batch_normalization.hpp"
 #include "type_helpers.hpp"
 

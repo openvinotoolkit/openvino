@@ -45,6 +45,7 @@ set(MKLDNN_LIBRARY_TYPE "SHARED" CACHE STRING
     "specifies whether Intel(R) MKL-DNN library should be SHARED or STATIC")
 option(WITH_EXAMPLE "builds examples"  ON)
 option(WITH_TEST "builds tests" ON)
+option(MKLDNN_JIT "builds with JIT support" ON)
 
 set(MKLDNN_THREADING "OMP" CACHE STRING
     "specifies threading type; supports OMP (default), or TBB.

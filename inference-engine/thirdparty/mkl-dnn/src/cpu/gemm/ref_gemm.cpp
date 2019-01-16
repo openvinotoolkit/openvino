@@ -18,7 +18,11 @@
 #include "nstl.hpp"
 #include "utils.hpp"
 
-#include "../jit_generator.hpp"
+#ifdef MKLDNN_JIT
+#include "jit_generator.hpp"
+#else
+#define PAGE_4K 4096
+#endif
 
 #include "gemm_utils.hpp"
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2017-2018 Intel Corporation
+* Copyright 2016-2018 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,34 +14,11 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "cpu_engine.hpp"
-#include "cpu_memory.hpp"
-#include "type_helpers.hpp"
+#ifndef REF_CACHE_SIZE_HPP
+#define REF_CACHE_SIZE_HPP
 
-#include "cpu_sum.hpp"
-#include "ref_sum.hpp"
-#include "simple_sum.hpp"
-
-namespace mkldnn {
-namespace impl {
-namespace cpu {
-
-using spd_create_f = mkldnn::impl::engine_t::sum_primitive_desc_create_f;
-
-namespace {
-#define INSTANCE(...) __VA_ARGS__::pd_t::create
-static const spd_create_f cpu_sum_impl_list[] = {
-    INSTANCE(simple_sum_t<data_type::f32>),
-    INSTANCE(ref_sum_t),
-    nullptr,
-};
-#undef INSTANCE
+inline unsigned int get_cache_size(int level, bool per_core = true){
+    return 0;
 }
 
-const spd_create_f *cpu_engine_t::get_sum_implementation_list() const {
-    return cpu_sum_impl_list;
-}
-
-}
-}
-}
+#endif

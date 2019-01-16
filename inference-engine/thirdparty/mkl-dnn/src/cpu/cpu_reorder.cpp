@@ -20,9 +20,11 @@
 #include "cpu_memory.hpp"
 #include "type_helpers.hpp"
 
-#include "cpu/jit_uni_reorder.hpp"
-#include "cpu/simple_reorder.hpp"
-#include "cpu/wino_reorder.hpp"
+#ifdef MKLDNN_JIT
+#include "jit_uni_reorder.hpp"
+#endif
+#include "simple_reorder.hpp"
+#include "wino_reorder.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -70,8 +72,10 @@ static const rpd_create_f cpu_reorder_impl_list[] = {
     REG_SR_DIRECT_COPY(u8, u8),
 #endif
 
+#ifdef MKLDNN_JIT
     /* jit */
     jit_uni_reorder_create,
+#endif
 
     /* fp32: flat <-> blocked with tail */
     REG_SR_BIDIR(f32, any, f32, nChw8c),

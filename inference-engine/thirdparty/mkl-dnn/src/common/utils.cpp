@@ -19,13 +19,17 @@
 #define XBYAK64
 #define XBYAK_NO_OP_NAMES
 
-#include <cpu/xbyak/xbyak_util.h>
+#ifdef MKLDNN_JIT
+#include <cpu/jit/xbyak/xbyak_util.h>
+#endif
 
 #ifdef _WIN32
 #include <malloc.h>
 #include <windows.h>
 #endif
+#ifdef MKLDNN_JIT
 #include "xmmintrin.h"
+#endif
 
 #include "utils.hpp"
 #include "mkldnn_thread.hpp"
@@ -65,6 +69,7 @@ int mkldnn_getenv(char *value, const char *name, int length) {
     return result;
 }
 
+#ifdef MKLDNN_JIT
 static bool dump_jit_code;
 
 bool mkldnn_jit_dump() {
@@ -79,6 +84,7 @@ bool mkldnn_jit_dump() {
     }
     return dump_jit_code;
 }
+#endif
 
 FILE *mkldnn_fopen(const char *filename, const char *mode) {
 #ifdef _WIN32
@@ -89,6 +95,7 @@ FILE *mkldnn_fopen(const char *filename, const char *mode) {
 #endif
 }
 
+#ifdef MKLDNN_JIT
 THREAD_LOCAL unsigned int mxcsr_save;
 
 void set_rnd_mode(round_mode_t rnd_mode) {
@@ -105,6 +112,7 @@ void set_rnd_mode(round_mode_t rnd_mode) {
 void restore_rnd_mode() {
     _mm_setcsr(mxcsr_save);
 }
+#endif
 
 void *malloc(size_t size, int alignment) {
     void *ptr;
@@ -127,6 +135,7 @@ void free(void *p) {
 #endif
 }
 
+#ifdef MKLDNN_JIT
 static Xbyak::util::Cpu cpu_;
 
 unsigned int get_cache_size(int level, bool per_core) {
@@ -151,6 +160,12 @@ unsigned int get_cache_size(int level, bool per_core) {
     } else
         return 0;
 }
+#else
+unsigned int get_cache_size(int level, bool per_core) {
+    return 0;
+}
+#endif
+
 
 }
 }

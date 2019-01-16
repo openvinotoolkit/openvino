@@ -20,9 +20,9 @@
 #include "cpu_memory.hpp"
 #include "type_helpers.hpp"
 
-#include "cpu/cpu_concat.hpp"
-#include "cpu/ref_concat.hpp"
-#include "cpu/simple_concat.hpp"
+#include "cpu_concat.hpp"
+#include "ref_concat.hpp"
+#include "simple_concat.hpp"
 
 namespace mkldnn {
 namespace impl {

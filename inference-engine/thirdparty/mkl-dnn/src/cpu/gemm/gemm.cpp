@@ -19,10 +19,16 @@
 
 #include "verbose.hpp"
 
-#include "jit_avx_gemm_f32.hpp"
-#include "jit_avx512_common_gemm_f32.hpp"
+#ifdef MKLDNN_JIT
+#include "jit/jit_avx_gemm_f32.hpp"
+#include "jit/jit_avx512_common_gemm_f32.hpp"
+#endif
 #include "gemm.hpp"
-#include "../jit_generator.hpp"
+#ifdef MKLDNN_JIT
+#include "jit_generator.hpp"
+#else
+#include "mkldnn_thread.hpp"
+#endif
 #include "nstl.hpp"
 #include "os_blas.hpp"
 
@@ -70,6 +76,7 @@ struct gemm_impl_t {
     gemm_impl_t(char transa, char transb, bool zero_beta, bool with_bias) {
         //jit kernel has three codepaths: beta is 0, 1 or arbitrary
         //we will generate kernel for 0 and arbitrary beta
+#ifdef MKLDNN_JIT
         float zero = 0.0f, arbitrary_float = 2.0f;
         if (mayiuse(avx512_common)) {
             isa_ = avx512_common;
@@ -83,8 +90,10 @@ struct gemm_impl_t {
                     transa, transb, zero_beta ? zero : arbitrary_float,
                     with_bias);
         }
+#endif
     }
 
+#ifdef MKLDNN_JIT
     mkldnn_status_t call(const char *transa, const char *transb, const int *M,
             const int *N, const int *K, const float *alpha, const float *A,
             const int *lda, const float *B, const int *ldb, const float *beta,
@@ -108,6 +117,15 @@ struct gemm_impl_t {
 
     void *ker_;
     cpu_isa_t isa_;
+#else
+    mkldnn_status_t call(const char *transa, const char *transb, const int *M,
+            const int *N, const int *K, const float *alpha, const float *A,
+            const int *lda, const float *B, const int *ldb, const float *beta,
+            float *C, const int *ldc, const float *bias = nullptr) {
+        ref_gemm(transa, transb, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc, bias);
+	return mkldnn_success;
+    }
+#endif
 };
 //Gemm implementations for: zero/nonzero beta, transA, transB
 static gemm_impl_t *gemm_impl[2][2][2];

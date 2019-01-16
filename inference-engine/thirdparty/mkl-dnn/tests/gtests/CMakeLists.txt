@@ -24,6 +24,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/in
                     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/common
                     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/jit
                     )
 if(WIN32)
     # Correct 'jnl' macro/jit issue

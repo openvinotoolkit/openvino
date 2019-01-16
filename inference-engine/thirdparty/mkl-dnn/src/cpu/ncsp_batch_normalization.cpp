@@ -19,7 +19,12 @@
 
 #include "cpu_batch_normalization_utils.hpp"
 #include "c_types_map.hpp"
+#ifdef MKLDNN_JIT
 #include "jit_generator.hpp"
+#else
+#include "mkldnn_thread.hpp"
+#include "ref_cache_size.hpp"
+#endif
 #include "ncsp_batch_normalization.hpp"
 #include "type_helpers.hpp"
 

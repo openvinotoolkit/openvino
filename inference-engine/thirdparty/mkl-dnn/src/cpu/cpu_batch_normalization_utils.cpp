@@ -18,7 +18,14 @@
 
 #include "c_types_map.hpp"
 #include "utils.hpp"
+
+#ifdef MKLDNN_JIT
 #include "jit_generator.hpp"
+#else
+#include "mkldnn_thread.hpp"
+#include "ref_cache_size.hpp"
+#endif
+
 #include "cpu_batch_normalization_pd.hpp"
 #include "utils.hpp"
 

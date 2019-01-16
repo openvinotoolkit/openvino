@@ -20,13 +20,41 @@
 #include "c_types_map.hpp"
 #include "cpu_convolution_pd.hpp"
 #include "cpu_engine.hpp"
+#ifdef MKLDNN_JIT
 #include "jit_primitive_conf.hpp"
+#endif
 #include "mkldnn_thread.hpp"
 #include "scratchpad.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
+
+#ifndef MKLDNN_JIT
+struct jit_gemm_conv_conf_t {
+    prop_kind_t prop_kind;
+
+    int mb;
+    int ngroups, ic, oc;
+    int iw, ih, id, ow, oh, od;
+    int l_pad, t_pad, f_pad;
+    int kh, kw, kd;
+    int stride_h, stride_w, stride_d;
+    int dilate_h, dilate_w, dilate_d;
+    memory_format_t src_fmt;
+    bool with_bias, with_relu;
+    float relu_negative_slope;
+
+    int is, os, ks;
+    int ic_block, oc_block;
+
+    int nthr;
+    ptrdiff_t im2col_sz;
+    bool need_wei_reduction;
+    bool signed_input;
+    float wei_adj_scale;
+};
+#endif
 
 namespace jit_gemm_convolution_utils {
 
