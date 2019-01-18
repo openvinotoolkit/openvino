@@ -45,8 +45,9 @@ class TensorArrayWriter(Op):
         value_shape = value.shape
 
         ta_node = Node(node.graph, str(handle.value))
-        if ta_node.has_valid('element_shape'):
-            assert match_shapes(ta_node['element_shape'], value.shape)
+        if ta_node.has_valid('element_shape') and len(ta_node.element_shape) > 0:
+            assert match_shapes(ta_node['element_shape'], value.shape), \
+                'Shapes are not compatible: {} and {}'.format(ta_node['element_shape'], value.shape)
         ta_node['element_shape'] = value_shape
 
         output_shape = flow_in.shape

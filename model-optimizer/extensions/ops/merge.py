@@ -26,7 +26,6 @@ class Merge(Op):
 
     def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
             'op': __class__.op,
             'infer': __class__.merge_infer
         }

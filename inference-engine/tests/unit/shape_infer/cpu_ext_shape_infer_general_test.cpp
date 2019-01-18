@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +10,8 @@
 #include <cpp/ie_cnn_net_reader.h>
 #include <test_model_path.hpp>
 #include <inference_engine/debug.h>
-#include <extension/ext_list.hpp>
+#include <ie_extension.h>
+#include <tests_common.hpp>
 #include "built_in_shape_infer_general_test.hpp"
 
 using namespace InferenceEngine;
@@ -20,9 +20,12 @@ using namespace ShapeInfer;
 
 class CPUExtShapeInferTests : public BuiltInShapeInferImplTest {
 protected:
+    InferenceEngine::ShapeInferExtension shapeInferExt;
+    CPUExtShapeInferTests () : shapeInferExt(TestsCommon::make_so_name("cpu_extension")) {}
+
     void SetUp() override {
         BuiltInShapeInferImplTest::SetUp();
-        holder = std::make_shared<InferenceEngine::Extensions::Cpu::CpuExtensions>();
+        holder = std::shared_ptr<IShapeInferExtension>(&shapeInferExt, [](IShapeInferExtension*){});
     }
 };
 
@@ -40,7 +43,7 @@ TEST_P(CPUExtShapeInferTests, impl) {
 }
 
 TEST_P(CPUExtShapeInferTests, reshaper) {
-    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams.data, layerDataName);
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork<3>(type, inOutShapes, &layerParams.data, layerDataName);
     auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
     auto inputShapes = setInputShapes(*cnnNetworkImplPtr.get(), newInOutShapes.inDims);
     reshaper->AddExtension(holder);

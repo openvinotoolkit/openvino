@@ -35,12 +35,15 @@ This class stores main information about the layer and allow to modify some laye
 * `name` - Name of the layer 
 * `type`- Layer type
 * `precision` - Layer base operating precision. Provides getter and setter interfaces.
+* `layout` - Returns the layout of shape of the layer.
+* `shape` -  Return the list of the shape of the layer.
+* `parents` - Returns a list, which contains names of layers preceding this layer.
+* `children` - Returns a list, which contains names of layers following this layer. 
 * `affinity` - Layer affinity set by user or a default affinity set by the `IEPlugin.set_initial_affinity()` method.             
                The affinity attribute provides getter and setter interfaces, so the layer affinity can be modified directly.
-               For example: 
-                        
+               For example:                          
 ```py
->>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 >>> plugin = IEPlugin(device="HETERO:FPGA,CPU")
 >>> plugin.set_config({"TARGET_FALLBACK": "HETERO:FPGA,CPU"})
 >>> plugin.set_initial_affinity(net) 
@@ -82,7 +85,12 @@ layers affinity and output layers.
 
 ### Class Constructor
 
-There is no explicit class constructor. Use `from_ir` class method to read the Intermediate Representation (IR) and initialize a correct instance of the `IENetwork` class.
+* `__init__(model: str, weights: str)`
+
+    * Parameters:
+        
+        * model - Path to `.xml` file  of the IR
+        * weights - Path to `.bin` file  of the IR
 
 ### Class attributes:
 
@@ -91,7 +99,7 @@ There is no explicit class constructor. Use `from_ir` class method to read the I
              For example, to get a shape of the input layer:
 
 ```py
->>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 >>> net.inputs
 {'data': <inference_engine.ie_api.InputInfo object at 0x7efe042dedd8>}
 >>> net.inputs['data'].shape
@@ -102,7 +110,7 @@ There is no explicit class constructor. Use `from_ir` class method to read the I
               For example, to get a shape of the output layer:
     
 ```py
->>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 >>> net.inputs
 {'prob': <inference_engine.ie_api.OutputInfo object at 0x7efe03ab95d0>}
 >>> net.outputs['prob'].shape
@@ -113,7 +121,7 @@ There is no explicit class constructor. Use `from_ir` class method to read the I
                  network batch size. For example:
     
 ```py
->>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 >>> net.batch_size
 1
 >>> net.batch_size = 4
@@ -124,19 +132,36 @@ There is no explicit class constructor. Use `from_ir` class method to read the I
 ```
     
 * `layers` - Return dictionary that maps network layer names to <a name="ienetlayer-class"></a>`IENetLayer` 
-             objects containing layer properties. For example, to list all network layers:
+             objects containing layer properties in topological order. For example, to list all network layers:
              
 ```py
- >>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+ >>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
  >>> net.layers
  {'conv0': <inference_engine.ie_api.IENetLayer object at 0x7f3a4c102370>
  ...
  }
  ```
  
+ * `stats` - Returns `LayersStatsMap` object containing dictionary that maps network layer names to calibration statistics 
+            represented by <a name="layerstats-class"></a> `LayerStats` objects.
+            `LayersStatsMap` class inherited from built-in python `dict` and overrides default `update()`method to allow
+            to set or modify layers calibration statistics. 
+```py
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net.stats.update({
+        "conv1_2d" : LayserStats(min=(-25, -1, 0), max=(63, 124, 70)),
+        "conv2_2d" : LayserStats(min=(-5, -1, 0, 1, -7, 2), max=(63, 124, 70, 174, 99, 106)),
+    })
+```
+For more details about low precision inference please refer to "Low-Precision 8-bit Integer Inference" 
+section in Inference Engine Developers Guide documentation. 
+
+             
 ### Class Methods
 
 * `from_ir(model: str, weights: str)` 
+
+**Note:** The function is deprecated. Please use `IENetwork()` class constructor to create valid instance of `IENetwork`
 
     * Description:
             
@@ -154,7 +179,7 @@ There is no explicit class constructor. Use `from_ir` class method to read the I
     * Usage example:
     
 ```py
->>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 >>> net
 <inference_engine.ie_api.IENetwork object at 0x7fd7dbce54b0>
 ```
@@ -179,7 +204,7 @@ There is no explicit class constructor. Use `from_ir` class method to read the I
     * Usage example:
     
 ```py
->>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 >>> net.add_outputs(["conv5_1/dwise', conv2_1/expand'])]
 >>> net.outputs
 ['prob', 'conv5_1/dwise', 'conv2_1/expand']
@@ -213,11 +238,43 @@ outputs.
     * Usage example:
     
 ```py
->>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 >>> input_layer = next(iter(net.inputs))
 >>> n, c, h, w = net.inputs[input_layer]
 >>> net.reshape({input_layer: (n, c, h*2, w*2)}]
 ``` 
+
+* `serialize(path_to_xml, path_to_bin)`:
+    
+    * Description: 
+        
+        The method serializes the network and stores it in files. 
+        
+    * Parameters:
+    
+        * `path_to_xml` - path to a file, where a serialized model will be stored. 
+        * `path_to_bin` - path to a file, where serialized weights will be stored.
+
+    * Return value:
+    
+        None
+            
+    * Usage example:
+    
+```py
+>>> net = IENetwork(model=path_to_model, weights=path_to_weights)
+>>> net.serialize(path_to_xml, path_to_bin)
+``` 
+## <a name="layerstats-class"></a>LayerStats
+Layer calibration statistic container
+### Class Constructor
+
+* `__init__(min: tuple = (), max: tuple = ())`
+
+    * Parameters:
+        
+        * min - Tuple with per-channel minimum layer activation values 
+        * max - Tuple with per-channel maximum layer activation values
 
 ## <a name="inputinfo-class"></a>InputInfo 
 
@@ -283,7 +340,7 @@ This class is the main plugin interface and serves to initialize and configure t
     
     * Parameters:
 	
-        * `network` - A valid IENetwork instance created by `IENetwork.from_ir()` method
+        * `network` - A valid `IENetwork` instance
         * `num_requests` - A positive integer value of infer requests to be created. Number of infer requests may be limited 
         by device capabilities.        
         * `config` - A dictionary of plugin configuration keys and their values
@@ -295,7 +352,7 @@ This class is the main plugin interface and serves to initialize and configure t
     * Usage example:
     
 ```py
->>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 >>> plugin = IEPlugin(device="CPU")
 >>> exec_net = plugin.load(network=net, num_requsts=2)
 >>> exec_net
@@ -396,7 +453,7 @@ There is no explicit class constructor. To make a valid instance of `ExecutableN
     * Usage example:
         
 ```py
->>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 >>> plugin = IEPlugin(device="CPU")
 >>> exec_net = plugin.load(network=net, num_requsts=3)
 >>> exec_net.requests
@@ -424,7 +481,7 @@ There is no explicit class constructor. To make a valid instance of `ExecutableN
     * Usage example:
     
 ```py
->>> net = IENetwork.from_ir(model=path_to_xml_file, weights=path_to_bin_file)
+>>> net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
 >>> plugin = IEPlugin(device="CPU")
 >>> exec_net = plugin.load(network=net, num_requsts=2)
 >>> res = exec_net.infer({'data': img})
@@ -609,3 +666,22 @@ array([4.85416055e-01, 1.70385033e-01, 1.21873841e-01, 1.18894853e-01,
 ...
 }
 ```
+
+* `set_batch(size)`
+    * Description:   
+       Sets new batch size for certain infer request when dynamic batching is enabled in executable network that created this request.
+       
+       **Note:** Support of dynamic batch size depends on the target plugin.        
+        
+    * Parameters:
+        * `batch` - new batch size to be used by all the following inference calls for this request.
+        
+    * Usage example:
+```py
+>>> plugin.set_config({"DYN_BATCH_ENABLED": "YES"})
+>>> exec_net = plugin.load(network=net)
+>>> exec_net.requests[0].set_batch(inputs_count)
+```
+Please refer to `dynamic_batch_demo.py` to see the full usage example.
+
+

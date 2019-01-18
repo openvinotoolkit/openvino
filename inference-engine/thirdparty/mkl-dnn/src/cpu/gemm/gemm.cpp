@@ -25,6 +25,8 @@
 #include "../jit_generator.hpp"
 #include "nstl.hpp"
 #include "os_blas.hpp"
+#include "math_utils.hpp"
+#include "mkldnn_traits.hpp"
 
 /* USE_MKL      USE_CBLAS       effect
  * -------      ---------       ------
@@ -52,6 +54,7 @@ mkldnn_status_t check_gemm_input(const char *transa, const char *transb,
         && *M >= 0
         && *N >= 0
         && *K >= 0;
+
     if (!consistency) return invalid_arguments;
     bool isTransA = utils::one_of(*transa, 'T', 't');
     bool isTransB = utils::one_of(*transb, 'T', 't');
@@ -64,6 +67,19 @@ mkldnn_status_t check_gemm_input(const char *transa, const char *transb,
     if (!consistency) return invalid_arguments;
 
     return success;
+}
+
+mkldnn_status_t check_gemm_x8x8x32_input(const char *offsetc,
+        const char *transa, const char *transb, const int *M, const int *N,
+        const int *K, const int *lda, const int *ldb, const int *ldc,
+        const float *alpha, const float *beta, const bool with_bias) {
+
+    if (offsetc == nullptr) return invalid_arguments;
+    if (!utils::one_of(*offsetc, 'F', 'f', 'C', 'c', 'R', 'r'))
+        return invalid_arguments;
+
+    return check_gemm_input(transa, transb, M, N, K, lda, ldb, ldc, alpha,
+        beta, with_bias);
 }
 
 struct gemm_impl_t {
@@ -132,7 +148,7 @@ mkldnn_status_t extended_sgemm(const char *transa, const char *transb,
         const int *M, const int *N, const int *K, const float *alpha,
         const float *A, const int *lda, const float *B, const int *ldb,
         const float *beta, float *C, const int *ldc,
-        const float *bias) {
+        const float *bias, const bool force_jit_gemm) {
     //Check input
     mkldnn_status_t status = check_gemm_input(transa, transb, M, N, K,
             lda, ldb, ldc, alpha, beta, bias != nullptr);
@@ -143,20 +159,22 @@ mkldnn_status_t extended_sgemm(const char *transa, const char *transb,
     int trA = *transa == 't' || *transa == 'T';
     int trB = *transb == 't' || *transb == 'T';
 #ifdef USE_CBLAS
-    //Call cblas
-    CBLAS_TRANSPOSE Cblas_trA = trA ? CblasTrans : CblasNoTrans;
-    CBLAS_TRANSPOSE Cblas_trB = trB ? CblasTrans : CblasNoTrans;
-    cblas_sgemm(CblasColMajor, Cblas_trA, Cblas_trB,
-            *M, *N, *K, *alpha, A, *lda, B, *ldb, *beta, C, *ldc);
-    //Add bias if necessary (bias is applied to columns of C)
-    if (bias) {
-        cblas_int incx = 1, incy = 1;
-        parallel_nd(*N, [&](int n) {
-            cblas_saxpy(*M, 1.0, bias, incx, C + n*(*ldc), incy);
-        });
+    if (!force_jit_gemm) {
+        //Call cblas
+        CBLAS_TRANSPOSE Cblas_trA = trA ? CblasTrans : CblasNoTrans;
+        CBLAS_TRANSPOSE Cblas_trB = trB ? CblasTrans : CblasNoTrans;
+        cblas_sgemm(CblasColMajor, Cblas_trA, Cblas_trB,
+                *M, *N, *K, *alpha, A, *lda, B, *ldb, *beta, C, *ldc);
+        //Add bias if necessary (bias is applied to columns of C)
+        if (bias) {
+            cblas_int incx = 1, incy = 1;
+            parallel_nd(*N, [&](int n) {
+                cblas_saxpy(*M, 1.0, bias, incx, C + n*(*ldc), incy);
+            });
+        }
+        return mkldnn_success;
     }
-    return mkldnn_success;
-#else
+#endif
     //Generate jit kernel and call sgemm with bias
     volatile static int initialized = 0;
     if (!initialized) {
@@ -176,9 +194,98 @@ mkldnn_status_t extended_sgemm(const char *transa, const char *transb,
                 transa, transb, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
 
     return mkldnn_success;
-#endif
 }
 
+template <typename b_dt>
+mkldnn_status_t gemm_s8x8s32(const char *transa, const char *transb,
+        const char *offsetc, const int *M, const int *N, const int *K,
+        const float *alpha, const int8_t *A, const int *LDA, const int8_t *ao,
+        const b_dt *B, const int *LDB, const int8_t *bo, const float *beta,
+        int32_t *C, const int *LDC, const int32_t *co) {
+
+    mkldnn_status_t status = check_gemm_x8x8x32_input(offsetc, transa, transb,
+        M, N, K, LDA, LDB, LDC, alpha, beta, false);
+
+    if (status != mkldnn_success)
+        return status;
+
+    if (*M == 0 || *N == 0 || *K == 0)
+        return mkldnn_success;
+
+    bool OCisR = (*offsetc == 'R' || *offsetc == 'r');
+    bool OCisC = (*offsetc == 'C' || *offsetc == 'c');
+    bool AisN = (*transa == 'N' || *transa == 'n');
+    bool BisN = (*transb == 'N' || *transb == 'n');
+
+#if defined(USE_MKL) && defined(USE_CBLAS)
+    if (data_traits<b_dt>::data_type == data_type::u8) {
+        CBLAS_TRANSPOSE Cblas_trA = AisN ? CblasNoTrans : CblasTrans;
+        CBLAS_TRANSPOSE Cblas_trB = BisN ? CblasNoTrans : CblasTrans;
+        CBLAS_OFFSET Cblas_offsetc =
+            OCisR
+            ? CblasRowOffset
+            : OCisC
+            ? CblasColOffset
+            : CblasFixOffset;
+        cblas_gemm_s8u8s32(CblasColMajor, Cblas_trA, Cblas_trB, Cblas_offsetc,
+            *M, *N, *K, *alpha, A, *LDA, *ao, (b_dt*)B, *LDB, *bo, *beta, C, *LDC, co);
+        return mkldnn_success;
+    }
+#endif
+    int m = *M, n = *N, k = *K, lda = *LDA, ldb = *LDB, ldc = *LDC;
+    size_t sizeA = AisN ? lda * k : lda * m;
+    size_t sizeB = BisN ? ldb * n : ldb * k;
+    size_t sizeC = ldc * n;
+
+    double *dA = (double *)malloc(sizeA * sizeof(double), PAGE_4K);
+    double *dB = (double *)malloc(sizeB * sizeof(double), PAGE_4K);
+    double *dC = (double *)malloc(sizeC * sizeof(double), PAGE_4K);
+
+    if (utils::any_null(dA, dB, dC)) {
+        free(dA);
+        free(dB);
+        free(dC);
+        return mkldnn_out_of_memory;
+    }
+
+    auto da_setter = [=] (int i, int j, double v) { dA[j * lda + i] = v; };
+    auto db_setter = [=] (int i, int j, double v) { dB[j * ldb + i] = v; };
+
+    auto ia_accessor = [=] (int i, int j) { return A[j * lda + i]; };
+    auto ib_accessor = [=] (int i, int j) { return B[j * ldb + i]; };
+
+    const int a_rows = AisN ? m : k;
+    const int a_cols = AisN ? k : m;
+    mkldnn::impl::parallel_nd(a_cols, a_rows, [&](int j, int i) {
+        da_setter(i, j,
+            static_cast<double>(ia_accessor(i, j)) + static_cast<double>(ao[0]));
+    });
+
+    const int b_rows = BisN ? k : n;
+    const int b_cols = BisN ? n : k;
+    mkldnn::impl::parallel_nd(b_cols, b_rows, [&](int j, int i) {
+        db_setter(i, j,
+            static_cast<double>(ib_accessor(i, j)) + static_cast<double>(bo[0]));
+    });
+    double one = 1.0, zero = 0.0;
+    ref_gemm<double>(transa, transb, M, N, K, &one, dA, LDA, dB, LDB, &zero,
+        dC, LDC, nullptr);
+
+    auto i2d = [=] (int32_t v) { return static_cast<double>(v); };
+    auto f2d = [=] (float v)   { return static_cast<double>(v); };
+
+    mkldnn::impl::parallel_nd(n, m, [&] (int j, int i) {
+        double coffset = OCisR ? i2d(co[j]) : OCisC ? i2d(co[i]) : i2d(co[0]);
+        double val = ((*beta == 0.0f) ? 0.0 : f2d(*beta) * i2d(C[i + j * ldc]))
+            + f2d(*alpha) * dC[i + j * ldc] + coffset;
+        C[i + j * ldc] = math::out_round<int32_t>(math::saturate<int32_t>(val));
+    });
+
+    free(dA);
+    free(dB);
+    free(dC);
+    return mkldnn_success;
+}
 }
 }
 }
@@ -192,4 +299,24 @@ mkldnn_status_t mkldnn_sgemm(const char *transa, const char *transb,
         const float *beta, float *C, const int *ldc) {
     return extended_sgemm(
             transa, transb, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
+}
+
+mkldnn_status_t mkldnn_gemm_s8u8s32(const char *transa, const char *transb,
+        const char *offsetc, const int *M, const int *N, const int *K,
+        const float *alpha, const int8_t *A, const int *lda, const int8_t *ao,
+        const uint8_t *B, const int *ldb, const int8_t *bo, const float *beta,
+        int32_t *c, const int *ldc, const int32_t *co) {
+    return gemm_s8x8s32(
+        transa, transb, offsetc, M, N, K, alpha, A, lda, ao, B, ldb, bo,
+        beta, c, ldc, co);
+}
+
+mkldnn_status_t mkldnn_gemm_s8s8s32(const char *transa, const char *transb,
+        const char *offsetc, const int *M, const int *N, const int *K,
+        const float *alpha, const int8_t *A, const int *lda, const int8_t *ao,
+        const int8_t *B, const int *ldb, const int8_t *bo, const float *beta,
+        int32_t *c, const int *ldc, const int32_t *co) {
+    return gemm_s8x8s32(
+        transa, transb, offsetc, M, N, K, alpha, A, lda, ao, B, ldb, bo,
+        beta, c, ldc, co);
 }

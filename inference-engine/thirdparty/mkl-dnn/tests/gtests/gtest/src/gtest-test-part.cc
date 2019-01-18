@@ -57,7 +57,8 @@ std::string TestPartResult::ExtractSummary(const char* message) {
 // Prints a TestPartResult object.
 std::ostream& operator<<(std::ostream& os, const TestPartResult& result) {
   return os
-      << result.file_name() << ":" << result.line_number() << ": "
+      << (result.file_name() == NULL ? "" : result.file_name())
+      << ":" << result.line_number() << ": "
       << (result.type() == TestPartResult::kSuccess ? "Success" :
           result.type() == TestPartResult::kFatalFailure ? "Fatal failure" :
           "Non-fatal failure") << ":\n"

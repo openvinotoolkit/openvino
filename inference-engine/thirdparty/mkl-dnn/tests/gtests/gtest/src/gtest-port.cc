@@ -855,6 +855,10 @@ void RE::Init(const char* regex) {
   // full match: we need space to prepend a '^', append a '$', and
   // terminate the string with '\0'.
   char* buffer = static_cast<char*>(malloc(len + 3));
+  if (buffer == NULL) {
+      return;
+  }
+
   full_pattern_ = buffer;
 
   if (*regex != '^')
@@ -995,6 +999,11 @@ class CapturedStream {
     }
 
     FILE* const file = posix::FOpen(filename_.c_str(), "r");
+    if (file == NULL) {
+        printf("Unable to open file \"%s\"\n", filename_.c_str());
+        fflush(stdout);
+        return "";
+    }
     const std::string content = ReadEntireFile(file);
     posix::FClose(file);
     return content;

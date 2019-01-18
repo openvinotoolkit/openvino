@@ -22,13 +22,14 @@ from mo.ops.op import Op
 
 
 class Softmax(Op):
-    op = 'Softmax'
+    op = 'SoftMax'
     enabled = True
 
     def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
         super().__init__(graph, {
             'infer': Softmax.infer,
             'kind': 'op',
+            'axis': 1,
             'type': __class__.op,
             'op': __class__.op,
         }, attrs)

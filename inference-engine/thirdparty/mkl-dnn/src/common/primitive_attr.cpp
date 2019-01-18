@@ -49,6 +49,13 @@ status_t scales_t::set(int count, int mask, const float *scales) {
     return status::success;
 }
 
+mkldnn::impl::status_t scales_t::scale(float factor) {
+    int cnt = (count_ == 1) ? scales_buf_size : count_;
+    for (int c = 0; c < cnt; ++c)
+        scales_[c] *= factor;
+    return status::success;
+}
+
 }
 }
 

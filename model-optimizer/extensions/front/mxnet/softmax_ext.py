@@ -28,7 +28,7 @@ class SoftmaxFrontExtractor(FrontExtractorOp):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
 
         update_attrs = {
-            'type': 'Softmax',
+            'type': 'SoftMax',
             'axis': attrs.int("axis", -1),
             'temperature': attrs.float('temperature', 1.0)
         }

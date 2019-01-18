@@ -34,15 +34,14 @@ using namespace mkldnn::impl::utils;
 
 using namespace Xbyak;
 
-void jit_sse42_1x1_conv_kernel_f32::bcast_loop(int load_loop_blk,
-        char load_loop_tag)
+void jit_sse42_1x1_conv_kernel_f32::generate_bcast_loop(int load_loop_blk)
 {
     mov(aux1_reg_bcast_data, reg_bcast_data);
     mov(aux_reg_output_data, reg_output_data);
     mov(bcast_loop_iter, reg_bcast_loop_work);
 
-    jit_tagged_label bcast_loop("bcast_loop", load_loop_tag);
-    jit_tagged_label bcast_loop_tail("bcast_loop_tail", load_loop_tag);
+    Label bcast_loop;
+    Label bcast_loop_tail;
 
     cmp(bcast_loop_iter, jcp.ur);
     jl(bcast_loop_tail, T_NEAR);
@@ -52,7 +51,7 @@ void jit_sse42_1x1_conv_kernel_f32::bcast_loop(int load_loop_blk,
         int num_substeps = jcp.bcast_block / jcp.ur;
         assert(num_substeps > 0 && num_substeps < 10);
         for (int i = 0; i < num_substeps; i++) {
-            reduce_loop(load_loop_blk, jcp.ur, load_loop_tag, '0' + i);
+            generate_reduce_loop(load_loop_blk, jcp.ur);
             if (i < num_substeps - 1) {
                 add(aux1_reg_bcast_data, jcp.bcast_loop_bcast_substep);
                 add(aux_reg_output_data, jcp.bcast_loop_output_substep);
@@ -70,17 +69,16 @@ void jit_sse42_1x1_conv_kernel_f32::bcast_loop(int load_loop_blk,
 
     L(bcast_loop_tail);
     if (jcp.ur_tail) {
-        jit_tagged_label bcast_loop_tail_out(
-                "bcast_loop_tail_out", load_loop_tag);
+        Label bcast_loop_tail_out;
         cmp(bcast_loop_iter, 0);
         jz(bcast_loop_tail_out, T_NEAR);
-        reduce_loop(load_loop_blk, jcp.ur_tail, load_loop_tag, '1');
+        generate_reduce_loop(load_loop_blk, jcp.ur_tail);
         L(bcast_loop_tail_out);
     }
 }
 
-void jit_sse42_1x1_conv_kernel_f32::reduce_loop(int load_loop_blk, int ur,
-        char load_loop_tag, char bcast_loop_tag)
+void jit_sse42_1x1_conv_kernel_f32::generate_reduce_loop(
+        int load_loop_blk, int ur)
 {
     auto reg_load = [=](int i, int n) {
         return Xmm(2*ur * load_loop_blk + 2*i + n + 1);
@@ -149,8 +147,8 @@ void jit_sse42_1x1_conv_kernel_f32::reduce_loop(int load_loop_blk, int ur,
     };
 
     auto init = [=]() {
-        jit_tagged_label init_done("init_done", load_loop_tag, bcast_loop_tag);
-        jit_tagged_label init_zero("init_zero", load_loop_tag, bcast_loop_tag);
+        Label init_done;
+        Label init_zero;
 
         if (jcp.with_bias && one_of(jcp.prop_kind, forward_training,
                     forward_inference)) {
@@ -187,10 +185,8 @@ void jit_sse42_1x1_conv_kernel_f32::reduce_loop(int load_loop_blk, int ur,
     }; // init()
 
     auto store = [=]() {
-        jit_tagged_label store_done(
-                "store_done", load_loop_tag, bcast_loop_tag);
-        jit_tagged_label store_noadd(
-                "store_noadd", load_loop_tag, bcast_loop_tag);
+        Label store_done;
+        Label store_noadd;
 
         if (!jcp.with_sum) {
             test(reg_reduce_pos_flag, FLAG_REDUCE_FIRST);
@@ -207,15 +203,13 @@ void jit_sse42_1x1_conv_kernel_f32::reduce_loop(int load_loop_blk, int ur,
 
         L(store_noadd);
 
-        jit_tagged_label store_norelu(
-                "store_norelu", load_loop_tag, bcast_loop_tag);
+        Label store_norelu;
         test(reg_reduce_pos_flag, FLAG_REDUCE_LAST);
         jz(store_norelu, T_NEAR);
 
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         const auto &p = attr_.post_ops_;
-
         if (p.len_ == 0 && eltwise_injectors.size() == 1) {
             eltwise_injectors[0]->compute_vector_range(1, 2 * ur * load_loop_blk + 1);
         }
@@ -287,9 +281,8 @@ void jit_sse42_1x1_conv_kernel_f32::reduce_loop(int load_loop_blk, int ur,
         } // for reduce_loop_unroll
     };
 
-    jit_tagged_label reduce_loop("reduce_loop", load_loop_tag, bcast_loop_tag);
-    jit_tagged_label reduce_loop_tail(
-            "reduce_loop_tail", load_loop_tag, bcast_loop_tag);
+    Label reduce_loop;
+    Label reduce_loop_tail;
 
     mov(aux_reg_load_data, reg_load_data);
     mov(aux_reg_bcast_data, aux1_reg_bcast_data);
@@ -314,16 +307,13 @@ void jit_sse42_1x1_conv_kernel_f32::reduce_loop(int load_loop_blk, int ur,
     store();
 } // reduce_loop()
 
-void jit_sse42_1x1_conv_kernel_f32::diff_bias_loop(int load_loop_blk,
-        char load_loop_tag)
+void jit_sse42_1x1_conv_kernel_f32::generate_diff_bias_loop(int load_loop_blk)
 {
     if (!jcp.with_bias || jcp.prop_kind != backward_weights)
         return;
 
-    jit_tagged_label diff_bias_loop("diff_bias_loop", load_loop_tag);
-    jit_tagged_label diff_bias_loop_out("diff_bias_loop_out", load_loop_tag);
-    jit_tagged_label diff_bias_init_out("diff_bias_init_out", load_loop_tag);
-    jit_tagged_label diff_bias_load("diff_bias_load", load_loop_tag);
+    Label diff_bias_loop, diff_bias_loop_out, diff_bias_init_out;
+    Label diff_bias_load;
 
     auto diff_bias_ptr = [=](int i, int n) {
         return ptr[reg_diff_bias_data + i * jcp.oc_block * sizeof(float)+ 4*n*sizeof(float)];
@@ -432,8 +422,8 @@ void jit_sse42_1x1_conv_kernel_f32::generate()
         mov(reg_output_stride, ptr[param1 + GET_OFF(output_stride)]);
     mov(reg_oc_off, ptr[param1 + GET_OFF(oc_off)]);
 
-    auto load_loop_body = [=] (int load_loop_blk, char bcast_loop_tag) {
-        bcast_loop(load_loop_blk, bcast_loop_tag);
+    auto generate_load_loop_body = [=] (int load_loop_blk) {
+        generate_bcast_loop(load_loop_blk);
         add(reg_load_data, load_loop_blk * jcp.load_loop_load_step);
         switch (jcp.prop_kind) {
         case forward_training:
@@ -461,10 +451,10 @@ void jit_sse42_1x1_conv_kernel_f32::generate()
         add(reg_oc_off, load_loop_blk * jcp.oc_block * sizeof(float));
     };
 
-    const char *load_loop_blk_8 = "load_loop_blk_8";
-    const char *load_loop_blk_16 = "load_loop_blk_16";
-    const char *load_loop_blk_24 = "load_loop_blk_24";
-    const char *load_loop_blk_end = "load_loop_blk_end";
+    Label load_loop_blk_8;
+    Label load_loop_blk_16;
+    Label load_loop_blk_24;
+    Label load_loop_blk_end;
 
     cmp(reg_load_loop_work, 8);
     jle(load_loop_blk_8, T_NEAR);
@@ -476,8 +466,8 @@ void jit_sse42_1x1_conv_kernel_f32::generate()
     jle(load_loop_blk_16, T_NEAR);
 
     L(load_loop_blk_24); {
-        diff_bias_loop(3, '3');
-        load_loop_body(3, '3');
+        generate_diff_bias_loop(3);
+        generate_load_loop_body(3);
         cmp(reg_load_loop_work, 32);
         je(load_loop_blk_16);
         cmp(reg_load_loop_work, 24);
@@ -488,8 +478,8 @@ void jit_sse42_1x1_conv_kernel_f32::generate()
     jle(load_loop_blk_8, T_NEAR);
 
     L(load_loop_blk_16); {
-        diff_bias_loop(2, '2');
-        load_loop_body(2, '2');
+        generate_diff_bias_loop(2);
+        generate_load_loop_body(2);
         cmp(reg_load_loop_work, 16);
         jge(load_loop_blk_16);
     }
@@ -497,8 +487,8 @@ void jit_sse42_1x1_conv_kernel_f32::generate()
     L(load_loop_blk_8); {
         cmp(reg_load_loop_work, 0);
         je(load_loop_blk_end, T_NEAR);
-        diff_bias_loop(1, '1');
-        load_loop_body(1, '1');
+        generate_diff_bias_loop(1);
+        generate_load_loop_body(1);
     }
 
     L(load_loop_blk_end);
@@ -558,6 +548,7 @@ status_t jit_sse42_1x1_conv_kernel_f32::init_conf(jit_1x1_conv_conf_t &jcp,
     // TODO (Roma): this code is duplicated from the generic kernel; maybe the
     // configuration struct could do some stuff below
     const bool with_groups = weights_d.ndims() == src_d.ndims() + 1;
+    const int ndims = src_d.ndims();
 
     jcp.prop_kind = cd.prop_kind;
 
@@ -568,19 +559,19 @@ status_t jit_sse42_1x1_conv_kernel_f32::init_conf(jit_1x1_conv_conf_t &jcp,
     jcp.oc_without_padding = jcp.oc;
     jcp.ic = src_d.dims()[1] / jcp.ngroups;
 
-    jcp.ih = src_d.dims()[2];
-    jcp.iw = src_d.dims()[3];
-    jcp.oh = dst_d.dims()[2];
-    jcp.ow = dst_d.dims()[3];
+    jcp.ih = (ndims == 3) ? 1 : src_d.dims()[2];
+    jcp.iw = src_d.dims()[ndims - 1];
+    jcp.oh = (ndims == 3) ? 1 : dst_d.dims()[2];
+    jcp.ow = dst_d.dims()[ndims - 1];
 
-    jcp.kh = weights_d.dims()[with_groups + 2];
-    jcp.kw = weights_d.dims()[with_groups + 3];
+    jcp.kh = (ndims == 3) ? 1 : weights_d.dims()[with_groups + 2];
+    jcp.kw = weights_d.dims()[with_groups + ndims - 1];
 
-    jcp.t_pad = cd.padding[0][0];
-    jcp.l_pad = cd.padding[0][1];
+    jcp.t_pad = (ndims == 3) ? 0 : cd.padding[0][0];
+    jcp.l_pad = cd.padding[0][ndims - 3];
 
-    jcp.stride_h = cd.strides[0];
-    jcp.stride_w = cd.strides[1];
+    jcp.stride_h = (ndims == 3) ? 1 : cd.strides[0];
+    jcp.stride_w = cd.strides[ndims - 3];
 
     jcp.src_fmt = src_d.format();
     jcp.with_bias = cd.bias_desc.format != memory_format::undef;
@@ -630,19 +621,19 @@ status_t jit_sse42_1x1_conv_kernel_f32::init_conf(jit_1x1_conv_conf_t &jcp,
     jcp.os = jcp.oh * jcp.ow;
     jcp.is = jcp.ih * jcp.iw;
 
-    constexpr memory_format_t weights_formats[2][2] = {
-        { OIhw8i8o, OIhw8o8i },
-        { gOIhw8i8o, gOIhw8o8i }
-    };
-    memory_format_t weights_format
-        = weights_formats[with_groups][jcp.prop_kind == backward_data];
+    const int is_bwd_d = jcp.prop_kind == backward_data;
+    memory_format_t weights_format = with_groups
+        ? utils::pick(2 * ndims - 6 + is_bwd_d, gOIw8i8o, gOIw8o8i, gOIhw8i8o,
+            gOIhw8o8i)
+        : utils::pick(2 * ndims - 6 + is_bwd_d, OIw8i8o, OIw8o8i, OIhw8i8o,
+            OIhw8o8i);
 
     bool args_ok = true
         && jcp.ngroups == 1
-        && src_d.format() == nChw8c
+        && one_of(src_d.format(), nCw8c, nChw8c)
         && weights_d.format() == weights_format
         && one_of(cd.bias_desc.format, memory_format::undef, any, x)
-        && dst_d.format() == nChw8c;
+        && one_of(dst_d.format(), nCw8c, nChw8c);
     if (!args_ok) return status::unimplemented;
 
     const int simd_w = 4;

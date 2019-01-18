@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -169,8 +168,22 @@ bool MKLDNNMemory::isConsistant(memory::dims dims, memory::format format) {
         case f::OhIw16o4i:
         case f::OIhw4i16o4i:
             ndims = 4; break;
-        case f::goihw:
+        // DHW
+        case f::ncdhw:
+        case f::ndhwc:
+        case f::nCdhw8c:
+        case f::nCdhw16c:
+        case f::oidhw:
+        case f::OIdhw8i8o:
+        case f::OIdhw16i16o:
+        case f::OIdhw8o8i:
+        case f::OIdhw16o16i:
+        case f::OIdhw8i16o2i:
+        case f::Odhwi8o:
+        case f::Odhwi16o:
+        // Group HW
         case f::hwigo:
+        case f::goihw:
         case f::gOIhw8i8o:
         case f::gOIhw16i16o:
         case f::gOIhw8i16o2i:
@@ -183,6 +196,15 @@ bool MKLDNNMemory::isConsistant(memory::dims dims, memory::format format) {
         case f::Goihw8g:
         case f::Goihw16g:
             ndims = 5; break;
+        case f::goidhw:
+        case f::gOIdhw8i8o:
+        case f::gOIdhw16i16o:
+        case f::gOIdhw8i16o2i:
+        case f::gOdhwi8o:
+        case f::gOdhwi16o:
+        case f::gOIdhw8o8i:
+        case f::gOIdhw16o16i:
+            ndims = 6; break;
         case f::format_undef:
             ndims = 0; break;
         case f::any:
@@ -197,8 +219,8 @@ bool MKLDNNMemory::isConsistant(memory::dims dims, memory::format format) {
 }
 
 bool MKLDNNMemory::IsPlainFormat(memory::format format) {
-    std::vector<memory::format> plains = {memory::nc, memory::nchw, memory::nhwc, memory::chwn,
-        memory::oi, memory::io, memory::oihw, memory::ihwo,
+    std::vector<memory::format> plains = {memory::nc, memory::nchw, memory::ncdhw, memory::nhwc, memory::ndhwc, memory::chwn,
+        memory::oi, memory::io, memory::oihw, memory::oidhw, memory::ihwo,
         memory::goihw,
         memory::blocked};
 
@@ -217,10 +239,25 @@ memory::format MKLDNNMemory::GetPlainFormat(memory::dims dims) {
             return memory::x;
         case 2:
             return memory::nc;
+        case 3:
+            return memory::tnc;
         case 4:
             return memory::nchw;
+        case 5:
+            return memory::ncdhw;
         default:
             return memory::blocked;
+    }
+}
+
+InferenceEngine::Layout MKLDNNMemory::GetPlainLayout(memory::dims dims) {
+    switch (dims.size()) {
+        case 1: return Layout::C;
+        case 2: return Layout::NC;
+        case 3: return Layout::CHW;
+        case 4: return Layout::NCHW;
+        default:
+            return Layout::BLOCKED;
     }
 }
 
@@ -262,6 +299,10 @@ memory::format MKLDNNMemory::Convert(const InferenceEngine::Layout layout) {
             return memory::nchw;
         case NHWC:
             return memory::nhwc;
+        case NCDHW:
+            return memory::ncdhw;
+        case NDHWC:
+            return memory::ndhwc;
         case CHW:
             return memory::tnc;
         case NC:
@@ -294,6 +335,11 @@ std::string MKLDNNMemory::formatToString(memory::format fmt) {
         case memory::nChw8c: return "nChw8c";
         case memory::nChw16c: return "nChw16c";
 
+        case memory::ncdhw: return "ncdhw";
+        case memory::ndhwc: return "ndhwc";
+        case memory::nCdhw8c: return "nCdhw8c";
+        case memory::nCdhw16c: return "nCdhw16c";
+
         case memory::oihw: return "oihw";
         case memory::ihwo: return "ihwo";
         case memory::OIhw8i8o: return "OIhw8i8o";
@@ -306,8 +352,18 @@ std::string MKLDNNMemory::formatToString(memory::format fmt) {
         case memory::Ohwi16o: return "Ohwi16o";
         case memory::OhIw16o4i: return "OhIw16o4i";
 
+        case memory::oidhw: return "oidhw";
+        case memory::OIdhw8i8o: return "OIdhw8i8o";
+        case memory::OIdhw16i16o: return "OIdhw16i16o";
+        case memory::OIdhw8o8i: return "OIdhw8o8i";
+        case memory::OIdhw16o16i: return "OIdhw16o16i";
+        case memory::OIdhw8i16o2i: return "OIdhw8i16o2i";
+        case memory::Odhwi8o: return "Odhwi8o";
+        case memory::Odhwi16o: return "Odhwi16o";
+
         case memory::goihw: return "goihw";
         case memory::hwigo: return "hwigo";
+        case memory::hwio: return "hwio";
         case memory::gOIhw8i8o: return "gOIhw8i8o";
         case memory::gOIhw16i16o: return "gOIhw16i16o";
         case memory::gOIhw8i16o2i: return "gOIhw8i16o2i";
@@ -317,6 +373,16 @@ std::string MKLDNNMemory::formatToString(memory::format fmt) {
         case memory::gOIhw8o8i: return "gOIhw8o8i";
         case memory::gOIhw16o16i: return "gOIhw16o16i";
         case memory::gOhIw16o4i: return "gOhIw16o4i";
+
+        case memory::goidhw: return "goidhw";
+        case memory::gOIdhw8i8o: return "gOIdhw8i8o";
+        case memory::gOIdhw16i16o: return "gOIdhw16i16o";
+        case memory::gOIdhw8i16o2i: return "gOIdhw8i16o2i";
+        case memory::gOdhwi8o: return "gOdhwi8o";
+        case memory::gOdhwi16o: return "gOdhwi16o";
+        case memory::gOIdhw8o8i: return "gOIdhw8o8i";
+        case memory::gOIdhw16o16i: return "gOIdhw16o16i";
+
         default: {
             THROW_IE_EXCEPTION << "Unknown data format.";
         }
@@ -400,66 +466,96 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
     auto blkInfo = desc.data.layout_desc.blocking;
     auto offset = static_cast<size_t>(blkInfo.offset_padding);
     SizeVector offsetsForDims;
+    SizeVector dims = getDims().ToSizeVector();
     switch (getFormat()) {
         case memory::format_undef:
             THROW_IE_EXCEPTION << "Cannot cast to tensor desc. Format is undefined!";
         case memory::any:
             layout = Layout::ANY;
-            return TensorDesc(precision, getDims().ToSizeVector(), layout);
+            return TensorDesc(precision, dims, layout);
         case memory::x:
             layout = Layout::C;
             order = {0};
-            blkDims = getDims().ToSizeVector();
+            blkDims = dims;
             break;
         case memory::oi:
         case memory::nc:
             layout = Layout::NC;
             order = {0, 1};
-            blkDims = getDims().ToSizeVector();
+            blkDims = dims;
             break;
         case memory::tnc:
             layout = Layout::CHW;
             order = {0, 1, 2};
-            blkDims = getDims().ToSizeVector();
+            blkDims = dims;
             break;
         case memory::ntc:
             layout = Layout::CHW;
             order = {1, 0, 2};
-            blkDims = {static_cast<size_t>(getDims()[1]),
-                       static_cast<size_t>(getDims()[0]),
-                       static_cast<size_t>(getDims()[2])};
+            blkDims = {static_cast<size_t>(dims[1]),
+                       static_cast<size_t>(dims[0]),
+                       static_cast<size_t>(dims[2])};
             break;
         case memory::oihw:
         case memory::nchw:
             layout = Layout::NCHW;
             order = {0, 1, 2, 3};
-            blkDims = getDims().ToSizeVector();
+            blkDims = dims;
+            break;
+        case memory::ncdhw:
+            layout = Layout::NCDHW;
+            order = {0, 1, 2, 3, 4};
+            blkDims = dims;
             break;
         case memory::nhwc:
             layout = Layout::NHWC;
             order = {0, 2, 3, 1};
-            blkDims = {static_cast<size_t>(getDims()[0]),
-                       static_cast<size_t>(getDims()[2]),
-                       static_cast<size_t>(getDims()[3]),
-                       static_cast<size_t>(getDims()[1])};
+            blkDims = {static_cast<size_t>(dims[0]),
+                       static_cast<size_t>(dims[2]),
+                       static_cast<size_t>(dims[3]),
+                       static_cast<size_t>(dims[1])};
             break;
+        case memory::ndhwc:
+            layout = Layout::NDHWC;
+            order = {0, 2, 3, 4, 1};
+            blkDims = {static_cast<size_t>(dims[0]),
+                       static_cast<size_t>(dims[2]),
+                       static_cast<size_t>(dims[3]),
+                       static_cast<size_t>(dims[4]),
+                       static_cast<size_t>(dims[1])};
+            break;
+        case memory::oIhw8i:
         case memory::nChw8c:
             order = {0, 1, 2, 3, 1};
-            blkDims = getDims().ToSizeVector();
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
+            blkDims.push_back(8);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::nCdhw8c:
+            order = {0, 1, 2, 3, 4, 1};
+            blkDims = dims;
             blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
             blkDims.push_back(8);
             layout = Layout::BLOCKED;
             break;
         case memory::nChw16c:
             order = {0, 1, 2, 3, 1};
-            blkDims = getDims().ToSizeVector();
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
+            blkDims.push_back(16);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::nCdhw16c:
+            order = {0, 1, 2, 3, 4, 1};
+            blkDims = dims;
             blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
             blkDims.push_back(16);
             layout = Layout::BLOCKED;
             break;
         case memory::blocked:
             order.clear();
-            blkDims = getDims().ToSizeVector();
+            blkDims = dims;
             for (size_t i = 0; i < blkDims.size(); i++) {
                 order.push_back(i);
                 if ((i && blkInfo.strides[0][i - 1] < blkInfo.strides[0][i]) || blkInfo.block_dims[i] != 1) {
@@ -478,14 +574,14 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
 
     SizeVector strides(blkDims.size());
 
-    if (layout == Layout::NHWC || layout == Layout::CHW) {
+    if (layout == Layout::NHWC || layout == Layout::NDHWC || layout == Layout::CHW) {
         for (size_t i = 0; i < order.size(); i++) {
             strides[i] = static_cast<size_t>(blkInfo.strides[0][order[i]]);
         }
     } else {
         strides[blkDims.size() - 1] = 1;
         for (size_t i = 2; i <= order.size(); i++) {
-            if (blkDims.size() - i < getDims().ndims()) {
+            if (blkDims.size() - i < dims.size()) {
                 strides[blkDims.size() - i] = static_cast<size_t>(blkInfo.strides[0][order[blkDims.size() - i]]);
             } else {
                 strides[blkDims.size() - i] = strides[blkDims.size() - i + 1] * blkDims[blkDims.size() - i + 1];
@@ -494,13 +590,13 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
     }
 
     for (size_t i = 0; i < blkDims.size() && i < TENSOR_MAX_DIMS; i++) {
-        if (i < getDims().ndims())
+        if (i < dims.size())
             offsetsForDims.push_back(blkInfo.offset_padding_to_data[i]);
         else
             offsetsForDims.push_back(0);
     }
 
-    TensorDesc tensorDesc(precision, getDims().ToSizeVector(), {blkDims, order, offset, offsetsForDims, strides});
+    TensorDesc tensorDesc(precision, dims, {blkDims, order, offset, offsetsForDims, strides});
 
     tensorDesc.setLayout(layout);
     return tensorDesc;
@@ -543,8 +639,14 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         case NCHW:
             mkldnnFormat = memory::format::nchw;
             break;
+        case NCDHW:
+            mkldnnFormat = memory::format::ncdhw;
+            break;
         case NHWC:
             mkldnnFormat = memory::format::nhwc;
+            break;
+        case NDHWC:
+            mkldnnFormat = memory::format::ndhwc;
             break;
         case OIHW:
             mkldnnFormat = memory::format::oihw;
@@ -553,6 +655,11 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
             mkldnnFormat = memory::format::x;
             break;
         case CHW:
+            if (order == SizeVector{0, 1, 2})
+                mkldnnFormat = memory::format::tnc;
+            else if (order == SizeVector{1, 0, 2})
+                mkldnnFormat = memory::format::ntc;
+            else
                 mkldnnFormat = memory::format::blocked;
             break;
         case HW:
@@ -560,32 +667,41 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
             mkldnnFormat = memory::format::nc;
             break;
         case BLOCKED:
+            mkldnnFormat = memory::format::blocked;
             if (realDims.ndims() == 1) {
                 mkldnnFormat = memory::format::x;
-                break;
             } else if (realDims.ndims() == 2) {
                 mkldnnFormat = memory::format::nc;
-                break;
             } else if (realDims.ndims() == 4) {
                 if (order.size() == 5 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1) {
                     if (blkdDims[4] == 8) {
                         mkldnnFormat = memory::format::nChw8c;
-                        break;
                     } else if (blkdDims[4] == 16) {
                         mkldnnFormat = memory::format::nChw16c;
-                        break;
                     }
                 } else if (order.size() == 4) {
                     if (order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3) {
                         mkldnnFormat = memory::format::nchw;
-                        break;
                     } else if (order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 1) {
                         mkldnnFormat = memory::format::nhwc;
-                        break;
+                    }
+                }
+            } else if (realDims.ndims() == 5) {
+                if (order.size() == 6 &&
+                        order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 1) {
+                    if (blkdDims[5] == 8) {
+                        mkldnnFormat = memory::format::nCdhw8c;
+                    } else if (blkdDims[5] == 16) {
+                        mkldnnFormat = memory::format::nCdhw16c;
+                    }
+                } else if (order.size() == 5) {
+                    if (order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4) {
+                        mkldnnFormat = memory::format::ncdhw;
+                    } else if (order[0] == 0 && order[1] == 2 && order[2] == 3 && order[3] == 4 && order[4] == 1) {
+                        mkldnnFormat = memory::format::ndhwc;
                     }
                 }
             }
-            mkldnnFormat = memory::format::blocked;
             break;
         case CN:
             mkldnnFormat = memory::format::blocked;

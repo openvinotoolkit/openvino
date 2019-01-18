@@ -22,14 +22,22 @@ import networkx as nx
 import numpy as np
 import tensorflow as tf
 
-from extensions.middle.EltwiseInputNormalization import EltwiseInputNormalize
-from extensions.middle.TensorIteratorConditionChecker import ConditionChecks
-from mo.middle.pattern_match import for_each_sub_graph, for_graph_and_each_sub_graph_recursively
+try:
+    import tensorflow.contrib
+except:
+    pass  # we try to import contrib for loading models that use contrib operations
+
 import mo.front.tf.custom_subgraph_call as csc
 from extensions.front.freeze_placeholder_value import FreezePlaceholderValue
+from extensions.front.tf.basic_lstm_cell import BasicLSTMCell
+from extensions.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
+from extensions.middle.EltwiseInputNormalization import EltwiseInputNormalize
+from extensions.middle.GemmResolver import GemmResolver
 from extensions.middle.TensorIteratorBackEdge import BackEdgesMatching
-from extensions.middle.TensorIteratorCondition import LoopConditionMatcher
-from extensions.middle.TensorIteratorInput import SmartInputMatcher, SimpleInputMatcher
+from extensions.middle.TensorIteratorCondition import LoopConditionMatcher, \
+    SimpleConditionMather  # SimpleConditionMather
+from extensions.middle.TensorIteratorConditionChecker import ConditionChecks
+from extensions.middle.TensorIteratorInput import SmartInputMatcher, SimpleInputMatcher, BackEdgeSimpleInputMatcher
 from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
 from extensions.middle.TensorIteratorOutput import SmartOutputMatcher
 from extensions.middle.TensorIterator_utils import DeleteSelect
@@ -41,7 +49,7 @@ from mo.front.extractor import restore_edges, add_output_ops, add_input_ops, \
     extract_node_attrs, create_tensor_nodes, remove_output_ops, user_data_repack, remove_control_dependency_inputs
 from mo.front.tf.change_placeholder_type import change_placeholders_types_to_FP32
 from mo.front.tf.extractor import get_tf_edges, common_tf_fields, tf_op_extractor, tf_op_extractors
-from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
+from mo.front.tf.loader import load_tf_graph_def, protobuf2nx, variables_to_constants
 from mo.front.tf.register_custom_ops import update_registration
 from mo.front.tf.replacement import FrontReplacementFromConfigFileOp
 from mo.graph.graph import check_empty_graph
@@ -55,7 +63,8 @@ from mo.middle.passes.fusing.fuse_linear_ops import fuse_linear_ops
 from mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
 from mo.middle.passes.fusing.mark_unfused_nodes import mark_unfused_nodes
 from mo.middle.passes.infer import scale_input, override_placeholder_shapes, partial_infer, convert_mul_add_to_power, \
-    update_fully_connected_shapes, add_mean_scale_values, override_batch, check_for_cycle, delete_not_executable, delete_control_flow_edges
+    update_fully_connected_shapes, add_mean_scale_values, override_batch, check_for_cycle, delete_not_executable, \
+    delete_control_flow_edges
 from mo.middle.passes.l2normalization import l2_norm_to_norm
 from mo.middle.passes.leaky_relu import convert_mul_eltwise_to_leaky_relu
 from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
@@ -64,6 +73,7 @@ from mo.middle.passes.shape import convert_squeeze, convert_reshape, reverse_inp
     conv_flatten_concat, fuse_sequence_of_reshapes, repack_fully_connected_weights_nhwc_to_nchw, \
     apply_nhwc_to_nchw_permutation, permute_data_nodes_attrs, permute_op_nodes_attrs, merge_nodes_permutations
 from mo.middle.passes.shared_weights_duplication import duplicate_shared_weights
+from mo.middle.pattern_match import for_each_sub_graph, for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir
 from mo.utils import class_registration, tensorboard
 from mo.utils.cli_parser import get_meta_info
@@ -109,12 +119,12 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
             log.info('Loading library "{}" with custom operations'.format(library))
             tf.load_op_library(library)
 
-    graph_def = load_tf_graph_def(graph_file_name=model_file_name, is_binary=is_binary,
-                                  checkpoint=argv.input_checkpoint,
-                                  user_output_node_names_list=outputs,
-                                  model_dir=argv.saved_model_dir,
-                                  meta_graph_file=argv.input_meta_graph,
-                                  saved_model_tags=argv.saved_model_tags)
+    graph_def, variables_values = load_tf_graph_def(graph_file_name=model_file_name, is_binary=is_binary,
+                                                    checkpoint=argv.input_checkpoint,
+                                                    user_output_node_names_list=outputs,
+                                                    model_dir=argv.saved_model_dir,
+                                                    meta_graph_file=argv.input_meta_graph,
+                                                    saved_model_tags=argv.saved_model_tags)
 
     try:
         tf.import_graph_def(graph_def, name='')
@@ -140,7 +150,16 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
         graph.graph['layout'] = 'NCHW' if argv.disable_nhwc_to_nchw else 'NHWC'
         graph.graph['cmd_params'] = argv
         graph.graph['fw'] = 'tf'
-        graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 3
+        graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 4
+
+        if graph.graph['ir_version'] == 2:
+            # When the deprecated IR version was requested,
+            # we configure only those phases that can lead to
+            # functional regressions in the version 2.
+            # BasicLSTMCell is one such transformation; when it is turned off,
+            # the body of TF basic_lstm_cell is converted as-is in a decomposed form,
+            # and should work in version 2.
+            BasicLSTMCell.enabled = False
 
         # placeholder for request from a transformation pass to repeat the entire conversion
         graph.graph['repeat_conversion'] = False
@@ -168,6 +187,8 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
         FreezePlaceholderValue.replacement_dict = freeze_placeholder
         update_registration()
 
+    GemmResolver.enabled = False
+
     inputs = list(packed_user_shapes.keys()) if packed_user_shapes is not None and isinstance(packed_user_shapes,
                                                                                               dict) else None
     graph.graph['inputs'] = inputs  # save user defined inputs for other extensions
@@ -177,8 +198,13 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
 
     # this call of 'graph_clean_up' removes child nodes of outputs which is useful when custom output is specified
     graph_clean_up_tf(graph)
+
     check_empty_graph(graph, 'add_output_ops and add_input_ops. It may happen due to absence of \'Placeholder\' layer '
                              'in the model')
+
+    variables_to_constants(graph, variables_values)
+    del variables_values
+    graph_clean_up_tf(graph)
 
     if argv.tensorflow_custom_operations_config_update:
         if update_custom_replacement_config_file(graph, argv.tensorflow_custom_operations_config_update):
@@ -230,42 +256,50 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
         partial_infer(graph)
         delete_control_flow_edges(graph)
 
+        replacer = AddIsCyclicAttribute()
+        replacer.find_and_replace_pattern(graph)
+
         # TENSOR ITERATOR CREATING BEGINS
-        replacer = DeleteSelect()
-        replacer.find_and_replace_pattern(graph)
+        if graph.graph['is_cyclic']:
+            replacer = DeleteSelect()
+            replacer.find_and_replace_pattern(graph)
 
-        replacer = SmartInputMatcher()
-        replacer.find_and_replace_pattern(graph)
+            replacer = SmartInputMatcher()
+            replacer.find_and_replace_pattern(graph)
 
-        replacer = SmartOutputMatcher()
-        replacer.find_and_replace_pattern(graph)
+            replacer = SmartOutputMatcher()
+            replacer.find_and_replace_pattern(graph)
 
-        replacer = LoopConditionMatcher()
-        replacer.find_and_replace_pattern(graph)
+            replacer = LoopConditionMatcher()
+            replacer.find_and_replace_pattern(graph)
 
-        replacer = BackEdgesMatching()
-        replacer.find_and_replace_pattern(graph)
+            replacer = SimpleConditionMather()
+            replacer.find_and_replace_pattern(graph)
 
-        replacer = ConditionChecks()
-        replacer.find_and_replace_pattern(graph)
+            replacer = BackEdgesMatching()
+            replacer.find_and_replace_pattern(graph)
+
+            replacer = ConditionChecks()
+            replacer.find_and_replace_pattern(graph)
 
         delete_not_executable(graph)
         graph_clean_up_tf(graph)
+        if graph.graph['is_cyclic']:
+            replacer = SimpleInputMatcher()
+            replacer.find_and_replace_pattern(graph)
 
-        replacer = SimpleInputMatcher()
-        replacer.find_and_replace_pattern(graph)
+            replacer = BackEdgeSimpleInputMatcher()
+            replacer.find_and_replace_pattern(graph)
 
-        # Here will be optimizing path (ops afer Enter and before body take out of body)
+            # Here will be optimizing path (ops after Enter and before body take out of body)
 
-        replacer = TensorIteratorMerge()
-        replacer.find_and_replace_pattern(graph)
-
+            replacer = TensorIteratorMerge()
+            replacer.find_and_replace_pattern(graph)
         # TENSOR ITERATOR CREATING ENDS
 
         check_for_cycle(graph)
 
-        graph_clean_up_tf(graph)
-        for_each_sub_graph(graph, graph_clean_up_tf)
+        for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
         check_empty_graph(graph, 'partial_infer')
 
         csc.prepare_tf_call_nodes(graph)
@@ -283,14 +317,12 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
         add_mean_scale_values(graph, mean_scale_values)
 
         convert_dilated_convolution(graph)
-        graph_clean_up_tf(graph)
-        for_each_sub_graph(graph, graph_clean_up_tf)
+        for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
         l2_norm_to_norm(graph)
         graph_clean_up_tf(graph)
 
-        remove_op_nodes(graph, {'op': 'Identity'})
-        remove_op_nodes(graph, {'op': 'StopGradient'})
+        remove_op_nodes(graph, {'identity': True})
         remove_useless_split(graph)
 
         class_registration.apply_replacements(graph, class_registration.ClassType.MIDDLE_REPLACER)
@@ -304,8 +336,7 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
         convert_matmul_to_fully_connected(graph)
 
         # Mark nodes with attr 'can_be_fused': False to disable fusing for specified nodes
-        mark_unfused_nodes(graph, argv.finegrain_fusing)
-        for_each_sub_graph(graph, lambda graph: mark_unfused_nodes(graph, argv.finegrain_fusing))
+        for_graph_and_each_sub_graph_recursively(graph, lambda graph: mark_unfused_nodes(graph, argv.finegrain_fusing))
 
         # Converting FusedBatchNorm layer to Mul->Add->Mul->Add sequence
         # IE doesn't support BN with 4 inputs, so we have to split it to two ScaleShift
@@ -314,20 +345,16 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
 
         if not argv.disable_fusing:
             # Converting ScaleShift layer to Mul->Add
-            convert_scale_shift_to_mul_add(graph)
-            graph_clean_up_tf(graph)
+            for_graph_and_each_sub_graph_recursively(graph, convert_scale_shift_to_mul_add)
+            for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
             # Fusing the sequences of Mul/Add operations
-            fuse_mul_add_sequence(graph)
-            for_each_sub_graph(graph, fuse_mul_add_sequence)
-            graph_clean_up_tf(graph)
-            for_each_sub_graph(graph, graph_clean_up_tf)
+            for_graph_and_each_sub_graph_recursively(graph, fuse_mul_add_sequence)
+            for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
             # Fusing linear operation to Convolution
-            fuse_linear_ops(graph)
-            for_each_sub_graph(graph, fuse_linear_ops)
-            graph_clean_up_tf(graph)
-            for_each_sub_graph(graph, graph_clean_up_tf)
+            for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
+            for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
         if not argv.disable_gfusing:
             grouped_convolutions_fusing(graph)
@@ -337,27 +364,29 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
                 graph_clean_up_tf(graph)
 
         # Converting Mul->Add to ScaleShift node
-        convert_muladd_to_scaleshift_or_power(graph)
-        graph_clean_up_tf(graph)
+        for_graph_and_each_sub_graph_recursively(graph, convert_muladd_to_scaleshift_or_power)
+        for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
-        convert_mul_add_to_power(graph)
+        for_graph_and_each_sub_graph_recursively(graph, convert_mul_add_to_power)
 
         # Need to eliminate dead nodes before doing update_fully_connected_shapes
         # because update_fully_connected_shapes does partial inference and dead
         # nodes will lead to sporadic failures.
-        graph_clean_up_tf(graph)
-        update_fully_connected_shapes(graph)
+        for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
+        for_graph_and_each_sub_graph_recursively(graph, update_fully_connected_shapes)
 
-        convert_mul_eltwise_to_leaky_relu(graph)
+        for_graph_and_each_sub_graph_recursively(graph, convert_mul_eltwise_to_leaky_relu)
         graph_clean_up_tf(graph)
+        for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
-        fuse_pad(graph)
-        graph_clean_up_tf(graph)
+        for_graph_and_each_sub_graph_recursively(graph, fuse_pad)
+        for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
-        convert_reshape(graph)
-        convert_squeeze(graph)
-        convert_add_to_scaleshift(graph)  # scale = 1
-        convert_mul_to_scaleshift(graph)  # biases = 0
+        for_graph_and_each_sub_graph_recursively(graph, convert_reshape)
+        for_graph_and_each_sub_graph_recursively(graph, convert_squeeze)
+
+        for_graph_and_each_sub_graph_recursively(graph, convert_add_to_scaleshift)  # scale = 1
+        for_graph_and_each_sub_graph_recursively(graph, convert_mul_to_scaleshift)  # biases = 0
 
         if argv.reverse_input_channels:
             reverse_input_channels(graph)
@@ -366,28 +395,22 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
             move_scaleshift_to_preprocess(graph)
             graph_clean_up_tf(graph)
 
-        fuse_sequence_of_reshapes(graph)
+        for_graph_and_each_sub_graph_recursively(graph, fuse_sequence_of_reshapes)
 
         pattern = EltwiseInputNormalize()
         pattern.find_and_replace_pattern(graph)
 
         conv_flatten_concat(graph)
 
-        apply_nhwc_to_nchw_permutation(graph)
-        for_each_sub_graph(graph, apply_nhwc_to_nchw_permutation)
-        merge_nodes_permutations(graph)
-        for_each_sub_graph(graph, merge_nodes_permutations)
-        permute_data_nodes_attrs(graph)
-        for_each_sub_graph(graph, permute_data_nodes_attrs)
-        permute_op_nodes_attrs(graph)
-        for_each_sub_graph(graph, permute_op_nodes_attrs)
+        for_graph_and_each_sub_graph_recursively(graph, apply_nhwc_to_nchw_permutation)
+        for_graph_and_each_sub_graph_recursively(graph, merge_nodes_permutations)
+        for_graph_and_each_sub_graph_recursively(graph, permute_data_nodes_attrs)
+        for_graph_and_each_sub_graph_recursively(graph, permute_op_nodes_attrs)
 
-        repack_fully_connected_weights_nhwc_to_nchw(graph)
-        for_each_sub_graph(graph, repack_fully_connected_weights_nhwc_to_nchw)
-        transpose_fully_connected_weights(graph)
-        for_each_sub_graph(graph, transpose_fully_connected_weights)
+        for_graph_and_each_sub_graph_recursively(graph, repack_fully_connected_weights_nhwc_to_nchw)
+        for_graph_and_each_sub_graph_recursively(graph, transpose_fully_connected_weights)
 
-        graph_clean_up_tf(graph)
+        for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
         if argv.offload_unsupported_operations_to_tf:
             unsupported_ops_to_offload_to_tf = find_unsupported_ops(graph)

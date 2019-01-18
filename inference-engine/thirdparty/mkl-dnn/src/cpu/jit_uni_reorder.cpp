@@ -115,7 +115,7 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
             && utils::one_of(p.beta, 0.f, 1.f) /* anything else? */
             && simple_impl_desc_init(p, nullptr)
             && mayiuse(sse42)
-            && utils::implication(!utils::everyone_is(f32, p.itype, p.otype),
+            && IMPLICATION(!utils::everyone_is(f32, p.itype, p.otype),
                     mayiuse(avx512_core));
         if (!ok) return false;
 
@@ -432,7 +432,8 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
                             scale_load_type = scale_load_type_t::load;
 
                     if (scale_load_type == scale_load_type_t::bcast) {
-                        vbroadcastss(xmm_scale, s_addr(s_off[ur]));
+                        movss(xmm_scale, s_addr(s_off[ur]));
+                        shufps(xmm_scale, xmm_scale, 0x0);
                         mulps(Xmm(ur), xmm_scale);
                         continue;
                     }
@@ -443,7 +444,7 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
                             scale_load_type = scale_load_type_t::gather;
 
                     if (scale_load_type == scale_load_type_t::load) {
-                        vmovups(xmm_scale, s_addr(s_off[ur]));
+                        movups(xmm_scale, s_addr(s_off[ur]));
                         mulps(Xmm(ur), xmm_scale);
                         continue;
                     }
@@ -652,7 +653,7 @@ private:
 
     Reg64 reg_ptr_in = rsi;
     Reg64 reg_ptr_out = rdx;
-    Reg64 reg_ptr_scale = rcx;
+    Reg64 reg_ptr_scale = abi_not_param1;
 
     Reg64 reg_off_in = r8;
     Reg64 reg_off_out = r9;

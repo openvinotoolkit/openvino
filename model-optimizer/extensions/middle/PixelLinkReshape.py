@@ -104,6 +104,7 @@ class PixelLinkReshape(MiddleReplacementPattern):
             graph.add_edge(permute_before_node.id, node_split.id, **attrs)
 
             node = match['reshape_pack']
+            node['nchw_layout'] = True
             new_reshape_shape = np.concatenate((np.array([node.in_node(0).shape[0]]),
                                                 np.array([np.prod(node.in_node(0).shape[[1, 2, 3]])]),
                                                 np.array([node.in_node(0).shape[-1]])))

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +10,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <v2_format_parser.h>
+#include <ie_format_parser.h>
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -52,9 +51,7 @@ public:
         size_t PH = deconvLayer._padding[Y_AXIS];
         size_t PW = deconvLayer._padding[X_AXIS];
         size_t OC = deconvLayer._out_depth;
-        auto it = deconvLayer.params.find("auto_pad");
-        std::string padType;
-        if (it != deconvLayer.params.end()) padType = it->second;
+        std::string padType = deconvLayer._auto_pad;
         if (padType == "valid") {
             OHTemp = IH * SH + KH - 1;
             OWTemp = IW * SW + KW - 1;
@@ -62,26 +59,10 @@ public:
             OHTemp = IH * SH;
             OWTemp = IW * SW;
         } else {
-            auto ir_version = details::BaseCreator::version_;
-            bool isEndPaddingsSet = false;
-            try {
-                if (ir_version == 3) {
-                    auto pads_end = deconvLayer.GetParamAsUInts("pads_end");
-                    PR = pads_end[pads_end.size() - 1 - X_AXIS];
-                    PB = pads_end[pads_end.size() - 1 - Y_AXIS];
-                } else if (ir_version < 3) {
-                    PR = deconvLayer.GetParamAsInt("pad-r");
-                    PB = deconvLayer.GetParamAsInt("pad-b");
-                }
-                isEndPaddingsSet = true;
-            } catch (...) {}
-            if (!isEndPaddingsSet) {
-                OHTemp = SH * (IH - 1) + KH - 2 * PH;
-                OWTemp = SW * (IW - 1) + KW - 2 * PW;
-            } else {
-                OHTemp = SH * (IH - 1) + KH - PH - PB;
-                OWTemp = SW * (IW - 1) + KW - PW - PR;
-            }
+            PR = deconvLayer._pads_end[X_AXIS];
+            PB = deconvLayer._pads_end[Y_AXIS];
+            OHTemp = SH * (IH - 1) + KH - PH - PB;
+            OWTemp = SW * (IW - 1) + KW - PW - PR;
         }
         if (OHTemp < 0 || OWTemp < 0)
             THROW_IE_EXCEPTION << "New shapes " << details::dumpVec(dims) << " make output shape negative";

@@ -21,13 +21,14 @@ import numpy as np
 
 # TODO remove it
 from mo.front.extractor import update_ie_fields
-from mo.graph.graph import Node, get_outputs, get_node_id_by_name
+from mo.graph.graph import Node, get_outputs, get_node_id_by_name, dump_graph_for_graphviz
 from mo.middle.passes.eliminate import get_nodes_with_attributes
 from mo.middle.pattern_match import apply_pattern, for_each_sub_graph
 from mo.ops.lin_op import Mul, Add
 from mo.ops.op import Op
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
+from mo.graph.graph import dict_includes
 
 
 def log_debug_dict(nodes_per_port: dict, direction_name: str):
@@ -93,6 +94,19 @@ def delete_control_flow_edges(graph: nx.MultiDiGraph):
             log.debug('Removing control flow edge from {} to {}'.format(u, v))
 
 
+def exit_bound_edges(graph: nx.MultiDiGraph, sources: list, end_node_attrs: dict):
+    """
+    Finds all descendant nodes for each node from 'sources' that have given attributes from end_node_attrs.
+    For each found node, create a tuple with a given element from 'source' and the node.
+    """
+    result = []
+    for node in sources:
+        for end_node in nx.descendants(graph, node):
+            if dict_includes(big=graph.node[end_node], sub_dict=end_node_attrs):
+                result.append((node, end_node, 0, {}))
+    return result
+
+
 def partial_infer(graph: nx.MultiDiGraph, start_node: str = None):
     """
     Tries to execute constant parts of the graph and deduce as much as possible
@@ -102,25 +116,28 @@ def partial_infer(graph: nx.MultiDiGraph, start_node: str = None):
     """
     cycle_nodes = get_nodes_with_attributes(graph, is_cyclic=True)
     cycle_nodes = [Node(graph, node).out_node().id for node in cycle_nodes]
-    ebunch = list(graph.out_edges(nbunch=cycle_nodes, data=True, keys=True))
-    graph.remove_edges_from(ebunch)
+    ebunch_cyclic = list(graph.out_edges(nbunch=cycle_nodes, data=True, keys=True))
+    ebunch_reconnected = exit_bound_edges(graph, sources=cycle_nodes, end_node_attrs={'op': 'Exit'})
+    graph.remove_edges_from(ebunch_cyclic)
+    graph.add_edges_from(ebunch_reconnected)
 
     try:
         nodes = list(nx.topological_sort(graph))
     except:
         raise Error('Graph contains a cycle. Can not proceed. ' + refer_to_faq_msg(97))
 
-    graph.add_edges_from(ebunch)
+    graph.remove_edges_from(ebunch_reconnected)
+    graph.add_edges_from(ebunch_cyclic)
 
     # Mark all nodes as not inferred yet
     if not start_node is None:
         start_index = nodes.index(start_node)
-        nx.set_node_attributes(graph.subgraph(nodes[start_index:]), name='is_partial_inferred', values=False)
+        nx.set_node_attributes(G=graph.subgraph(nodes[start_index:]), name='is_partial_inferred', values=False)
     else:
-        nx.set_node_attributes(graph, name='is_partial_inferred', values=False)
+        nx.set_node_attributes(G=graph, name='is_partial_inferred', values=False)
     debug_logger = log.getLogger().isEnabledFor(log.DEBUG)
 
-    nx.set_node_attributes(graph, name='executable',
+    nx.set_node_attributes(G=graph, name='executable',
                            values={n: True for n in get_nodes_with_attributes(graph, kind='data')})
 
     for n in nodes:
@@ -217,10 +234,10 @@ def check_for_cycle(graph: nx.MultiDiGraph):
 
 
 def mark_outputs(graph: nx.MultiDiGraph):
-    nx.set_node_attributes(graph, name='is_output', values=False)
+    nx.set_node_attributes(G=graph, name='is_output', values=False)
     for node in graph.nodes():
         if graph.node[node]['kind'] == 'data' and len(get_outputs(graph, node)) == 0:
-            nx.set_node_attributes(graph, name='is_output', values={node: True})
+            nx.set_node_attributes(G=graph, name='is_output', values={node: True})
 
 
 def override_batch(graph: nx.MultiDiGraph, batch: int):
@@ -249,29 +266,31 @@ def override_batch(graph: nx.MultiDiGraph, batch: int):
 
 def override_placeholder_shapes(graph: nx.MultiDiGraph, user_shapes: dict, batch=None):
     """
-    Overrides shapes for nodes defined by user
-    Or overrides shapes for nodes with 'op' param set to 'Placeholder'
-    Parameters
-    ----------
-    graph: graph to operate on
-    user_shapes: dictionary, that represents user defined nodes and shapes
-    batch: user defined integer value to override batch
+    This function overrides shapes for nodes with 'op' param set to 'Placeholder' with shapes defined by users (only
+    for inputs without in/out port specified).
+    And override batch if batch was specified and shape for input is not None.
+    :param graph: graph to operate on
+    :param user_shapes: dictionary, that represents user defined nodes and shapes
+    :param batch: user defined integer value to override batch
     """
     if user_shapes is None:
         # DON'T MOVE UPPER!!! WE NEED TO SET BATCH FIRST
         # user did not specify neither shapes nor inputs, keep models values
         return
-    if isinstance(user_shapes, dict):
-        for node_id, values in user_shapes.items():
+    placeholders = get_nodes_with_attributes(graph, kind='op', op='Placeholder')
+    for node_id in placeholders:
+        node_attrs = graph.node[node_id]
+        shape = None
+        if node_id in user_shapes:
+            values = user_shapes[node_id]
             for value in values:
-                shape = value['shape'] if 'shape' in value else None
-                if shape is not None:
-                    graph.node[node_id]['shape'] = shape
-                if 'shape' in graph.node[node_id] and graph.node[node_id]['shape'] is not None:
-                    if batch:
-                        old_batch = graph.node[node_id]['shape'][0]
-                        if old_batch != batch:
-                            graph.node[node_id]['shape'] = np.array([batch, *graph.node[node_id]['shape'][1:]])
+                if 'in' not in value and 'out' not in value:
+                    shape = value['shape'] if value['shape'] is not None else None
+                    break  # we assume only one specified shape for one input
+        if shape is not None:
+            node_attrs['shape'] = shape
+        if batch is not None and node_attrs['shape'] is not None and len(node_attrs['shape']) > 0:
+            node_attrs['shape'][0] = batch
 
 
 def _scale_input_action_mul(graph: nx.MultiDiGraph, match: dict, scale: float):

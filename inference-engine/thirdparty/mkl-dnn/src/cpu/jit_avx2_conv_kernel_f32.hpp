@@ -20,6 +20,7 @@
 #include "c_types_map.hpp"
 #include "jit_generator.hpp"
 #include "jit_primitive_conf.hpp"
+#include "cpu_memory.hpp"
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"
 
@@ -146,7 +147,7 @@ private:
     reg64_t start_off_reg = aux1_reg_input;
 
     inline void hsw_iter(int ur_w, int l_overflow, int r_overflow,
-            int start_off, char hsw_iter_tag, char start_off_tag);
+            int start_off);
 
     void generate();
 };
@@ -186,19 +187,13 @@ private:
     reg64_t reg_long_offt = r11;
 
     inline void od_step_comeback_pointers();
-    inline void oh_step_comeback_pointers(const char *kh_comeback_label);
+    inline void oh_step_comeback_pointers();
     inline void compute_ic_block_step(int ur_w, int pad_l, int pad_r,
             int ic_block_step, int input_offset, int kernel_offset,
             int output_offset);
-    inline void compute_oh_step_disp(const char* kh_label,
-            const char* ic_block_label, const char* ow_block_label,
-            const char* kh_comeback_label);
-    inline void compute_oh_step_unroll_ow(const char* kh_label,
-            const char* ic_block_label, const char* ow_block_label,
-            const char* kh_comeback_label, int ic_block_step, int max_ur_w);
-    inline void compute_oh_step_common(const char* kh_label,
-            const char* ic_block_label, const char* ow_block_label,
-            const char* kh_comeback_label, int ic_block_step, int max_ur_w);
+    inline void compute_oh_step_disp();
+    inline void compute_oh_step_unroll_ow(int ic_block_step, int max_ur_w);
+    inline void compute_oh_step_common(int ic_block_step, int max_ur_w);
     inline void compute_oh_loop_common();
 
     void generate();

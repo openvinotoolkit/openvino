@@ -33,6 +33,7 @@ namespace kernel_selector {
         k.EnableTensorOffset();
         k.EnableTensorPitches();
         k.EnableBatching();
+        k.EnableDifferentTypes();
         return k;
     }
 

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -328,6 +327,10 @@ public:
         try {
             if (layer->insData.size() != 3 || layer->outData.size() != 1)
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+
+            if (layer->insData[0].lock()->dims.size() != 4)
+                THROW_IE_EXCEPTION << "Proposal supports only 4D blobs!";
+
             feat_stride_ = static_cast<size_t>(layer->GetParamAsInt("feat_stride"));
             base_size_ = static_cast<size_t>(layer->GetParamAsInt("base_size"));
             min_size_ = static_cast<size_t>(layer->GetParamAsInt("min_size"));

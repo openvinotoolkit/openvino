@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,10 +25,6 @@
 
 #include <algorithm>
 #include <chrono>
-
-#ifdef USE_OPENCV
-    #include <opencv2/opencv.hpp>
-#endif
 
 #include <ie_plugin_dispatcher.hpp>
 #include <ie_plugin_ptr.hpp>
@@ -88,8 +83,8 @@ static InferenceEngine::TargetDevice getDeviceFromStr(const std::string &deviceN
 * @param device - device to infer on
 * @return Plugin pointer
 */
-static InferenceEngine::InferenceEnginePluginPtr selectPlugin(const std::vector<std::string> &pluginDirs,
-                                                              const std::string &plugin,
+static InferenceEngine::InferenceEnginePluginPtr selectPlugin(const std::vector<file_name_t> &pluginDirs,
+                                                              const file_name_t &plugin,
                                                               InferenceEngine::TargetDevice device) {
     InferenceEngine::PluginDispatcher dispatcher(pluginDirs);
 
@@ -107,8 +102,8 @@ static InferenceEngine::InferenceEnginePluginPtr selectPlugin(const std::vector<
  * @param device - string representation of device to infer on
  * @return Plugin pointer
  */
-static UNUSED InferenceEngine::InferenceEnginePluginPtr selectPlugin(const std::vector<std::string> &pluginDirs,
-                                                                     const std::string &plugin,
+static UNUSED InferenceEngine::InferenceEnginePluginPtr selectPlugin(const std::vector<file_name_t> &pluginDirs,
+                                                                     const file_name_t &plugin,
                                                                      const std::string &device) {
     return selectPlugin(pluginDirs, plugin, getDeviceFromStr(device));
 }
@@ -118,7 +113,7 @@ static UNUSED InferenceEngine::InferenceEnginePluginPtr selectPlugin(const std::
  * @param filepath - full file name
  * @return filename without extension
  */
-static UNUSED std::string fileNameNoExt(const std::string &filepath) {
+static std::string fileNameNoExt(const std::string &filepath) {
     auto pos = filepath.rfind('.');
     if (pos == std::string::npos) return filepath;
     return filepath.substr(0, pos);
@@ -197,8 +192,8 @@ static UNUSED std::ostream &operator<<(std::ostream &os, const PluginVersion &ve
 }
 
 inline void printPluginVersion(InferenceEngine::InferenceEnginePluginPtr ptr, std::ostream& stream) {
-    const PluginVersion *pluginVersion = nullptr;
-    ptr->GetVersion((const InferenceEngine::Version*&)pluginVersion);
+    const InferenceEngine::Version *pluginVersion = nullptr;
+    ptr->GetVersion(pluginVersion);
     stream << pluginVersion << std::endl;
 }
 
@@ -519,11 +514,11 @@ static UNUSED void addRectangles(unsigned char *data, size_t height, size_t widt
         if (w < 0) w = 0;
         if (h < 0) h = 0;
 
-        if (x >= width) { x = width - 1; w = 0; thickness = 1; }
-        if (y >= height) { y = height - 1; h = 0; thickness = 1; }
+        if (static_cast<std::size_t>(x) >= width) { x = width - 1; w = 0; thickness = 1; }
+        if (static_cast<std::size_t>(y) >= height) { y = height - 1; h = 0; thickness = 1; }
 
-        if (x + w >= width) { w = width - x - 1; }
-        if (y + h >= height) { h = height - y - 1; }
+        if (static_cast<std::size_t>(x + w) >= width) { w = width - x - 1; }
+        if (static_cast<std::size_t>(y + h) >= height) { h = height - y - 1; }
 
         thickness = std::min(std::min(thickness, w / 2 + 1), h / 2 + 1);
 
@@ -532,26 +527,26 @@ static UNUSED void addRectangles(unsigned char *data, size_t height, size_t widt
         for (int t = 0; t < thickness; t++) {
             shift_first = (y + t) * width * 3;
             shift_second = (y + h - t) * width * 3;
-            for (int i = x; i < x + w + 1; i++) {
-                data[shift_first + i * 3] = colors.at(cls).red();
-                data[shift_first + i * 3 + 1] = colors.at(cls).green();
-                data[shift_first + i * 3 + 2] = colors.at(cls).blue();
-                data[shift_second + i * 3] = colors.at(cls).red();
-                data[shift_second + i * 3 + 1] = colors.at(cls).green();
-                data[shift_second + i * 3 + 2] = colors.at(cls).blue();
+            for (int ii = x; ii < x + w + 1; ii++) {
+                data[shift_first + ii * 3] = colors.at(cls).red();
+                data[shift_first + ii * 3 + 1] = colors.at(cls).green();
+                data[shift_first + ii * 3 + 2] = colors.at(cls).blue();
+                data[shift_second + ii * 3] = colors.at(cls).red();
+                data[shift_second + ii * 3 + 1] = colors.at(cls).green();
+                data[shift_second + ii * 3 + 2] = colors.at(cls).blue();
             }
         }
 
         for (int t = 0; t < thickness; t++) {
             shift_first = (x + t) * 3;
             shift_second = (x + w - t) * 3;
-            for (int i = y; i < y + h + 1; i++) {
-                data[shift_first + i * width * 3] = colors.at(cls).red();
-                data[shift_first + i * width * 3 + 1] = colors.at(cls).green();
-                data[shift_first + i * width * 3 + 2] = colors.at(cls).blue();
-                data[shift_second + i * width * 3] = colors.at(cls).red();
-                data[shift_second + i * width * 3 + 1] = colors.at(cls).green();
-                data[shift_second + i * width * 3 + 2] = colors.at(cls).blue();
+            for (int ii = y; ii < y + h + 1; ii++) {
+                data[shift_first + ii * width * 3] = colors.at(cls).red();
+                data[shift_first + ii * width * 3 + 1] = colors.at(cls).green();
+                data[shift_first + ii * width * 3 + 2] = colors.at(cls).blue();
+                data[shift_second + ii * width * 3] = colors.at(cls).red();
+                data[shift_second + ii * width * 3 + 1] = colors.at(cls).green();
+                data[shift_second + ii * width * 3 + 2] = colors.at(cls).blue();
             }
         }
     }
@@ -710,8 +705,8 @@ public:
     float xmin, xmax, ymin, ymax, prob;
     bool difficult;
 
-    DetectedObject(int objectType, float xmin, float ymin, float xmax, float ymax, float prob, bool difficult = false)
-        : objectType(objectType), xmin(xmin), xmax(xmax), ymin(ymin), ymax(ymax), prob(prob), difficult(difficult) {
+    DetectedObject(int _objectType, float _xmin, float _ymin, float _xmax, float _ymax, float _prob, bool _difficult = false)
+        : objectType(_objectType), xmin(_xmin), xmax(_xmax), ymin(_ymin), ymax(_ymax), prob(_prob), difficult(_difficult) {
     }
 
     DetectedObject(const DetectedObject& other) = default;
@@ -781,8 +776,8 @@ public:
     const std::list<DetectedObject> alist;
     const bool check_probs;
 
-    explicit ImageDescription(const std::list<DetectedObject> &alist, bool check_probs = false)
-            : alist(alist), check_probs(check_probs) {
+    explicit ImageDescription(const std::list<DetectedObject> &_alist, bool _check_probs = false)
+            : alist(_alist), check_probs(_check_probs) {
     }
 
     static float ioUMultiple(const ImageDescription &detectedObjects, const ImageDescription &desiredObjects) {
@@ -815,8 +810,6 @@ public:
             float coeff = 1.0;
             if (check_probs) {
                 if (bestJ != doB.end()) {
-                    DetectedObject test = *bestJ;
-                    DetectedObject test1 = *doS.begin();
                     float mn = std::min((*bestJ).prob, (*doS.begin()).prob);
                     float mx = std::max((*bestJ).prob, (*doS.begin()).prob);
 
@@ -867,23 +860,20 @@ private:
     }
 
 public:
-    explicit AveragePrecisionCalculator(double threshold) : threshold(threshold) { }
+    explicit AveragePrecisionCalculator(double _threshold) : threshold(_threshold) { }
 
     // gt_bboxes -> des
     // bboxes -> det
 
     void consumeImage(const ImageDescription &detectedObjects, const ImageDescription &desiredObjects) {
-            // Collecting IoU values
-        int tp = 0, fp = 0;
-
+        // Collecting IoU values
         std::vector<bool> visited(desiredObjects.alist.size(), false);
         std::vector<DetectedObject> bboxes{ std::begin(detectedObjects.alist), std::end(detectedObjects.alist) };
         std::sort(bboxes.begin(), bboxes.end(), SortBBoxDescend);
 
 
         for (auto&& detObj : bboxes) {
-                // Searching for the best match to this detection
-
+            // Searching for the best match to this detection
             // Searching for desired object
             float overlap_max = -1;
             int jmax = -1;
@@ -932,8 +922,6 @@ public:
 
         std::map<int, double> res;
 
-        double AP = 0;
-        double q = 0;
         for (auto m : matches) {
             // Sorting
             std::sort(m.second.begin(), m.second.end(), SortPairDescend);
@@ -1054,65 +1042,3 @@ static UNUSED void addRectangles(unsigned char *data, size_t height, size_t widt
         }
     }
 }
-
-#ifdef USE_OPENCV
-/**
-* @brief Sets image data stored in cv::Mat object to a given Blob object.
-* @param orig_image - given cv::Mat object with an image data.
-* @param blob - Blob object which to be filled by an image data.
-* @param batchIndex - batch index of an image inside of the blob.
-*/
-template <typename T>
-void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, int batchIndex = 0) {
-    InferenceEngine::SizeVector blobSize = blob->getTensorDesc().getDims();
-    const size_t width = blobSize[3];
-    const size_t height = blobSize[2];
-    const size_t channels = blobSize[1];
-    T* blob_data = blob->buffer().as<T*>();
-
-    cv::Mat resized_image(orig_image);
-    if (width != orig_image.size().width || height!= orig_image.size().height) {
-        cv::resize(orig_image, resized_image, cv::Size(width, height));
-    }
-
-    int batchOffset = batchIndex * width * height * channels;
-
-    for (size_t c = 0; c < channels; c++) {
-        for (size_t  h = 0; h < height; h++) {
-            for (size_t w = 0; w < width; w++) {
-                blob_data[batchOffset + c * width * height + h * width + w] =
-                        resized_image.at<cv::Vec3b>(h, w)[c];
-            }
-        }
-    }
-}
-
-/**
- * @brief Wraps data stored inside of a passed cv::Mat object by new Blob pointer.
- * @note: No memory allocation is happened. The blob just points to already existing
- *        cv::Mat data.
- * @param mat - given cv::Mat object with an image data.
- * @return resulting Blob pointer.
- */
-static InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat &mat) {
-    size_t channels = mat.channels();
-    size_t height = mat.size().height;
-    size_t width = mat.size().width;
-
-    size_t strideH = mat.step.buf[0];
-    size_t strideW = mat.step.buf[1];
-
-    bool is_dense =
-            strideW == channels &&
-            strideH == channels * width;
-
-    if (!is_dense) THROW_IE_EXCEPTION
-                << "Doesn't support conversion from not dense cv::Mat";
-
-    InferenceEngine::TensorDesc tDesc(InferenceEngine::Precision::U8,
-                                      {1, channels, height, width},
-                                      InferenceEngine::Layout::NHWC);
-
-    return InferenceEngine::make_shared_blob<uint8_t>(tDesc, mat.data);
-}
-#endif

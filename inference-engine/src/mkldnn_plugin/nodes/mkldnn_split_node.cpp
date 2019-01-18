@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,15 +23,14 @@ void MKLDNNSplitNode::getSupportedDescriptors() {
     if (splitLayer == nullptr)
         THROW_IE_EXCEPTION << "Cannot convert split layer.";
 
-    axis = splitLayer->_axis;
-
-    if (axis != 1)
-        THROW_IE_EXCEPTION << "Split support only axis 1.";
-
     if (getParentEdges().size() != 1)
         THROW_IE_EXCEPTION << "Incorrect number of input nodes.";
     if (getChildEdges().empty())
         THROW_IE_EXCEPTION << "Incorrect number of output nodes.";
+
+    axis = splitLayer->_axis;
+    if (axis >= getParentEdgeAt(0)->getDims().ndims())
+        THROW_IE_EXCEPTION << "Invalid value of axis parameter in split layer";
 
     // WA. Check applicability and limitations
     for (size_t i = 1; i < getCnnLayer()->outData.size(); i++) {
@@ -72,7 +70,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     if (srcDims.ndims() < 2)
         THROW_IE_EXCEPTION << "Split " << getName() << " isn't supported 1d blobs";
 
-    auto num_chanels = 0;
+    auto axis_size = 0;
     auto dstFirstDims = getChildEdgeAt(0)->getDims();
     for (size_t i = 0; i < outDims.size(); i++) {
         auto o_Dims = outDims[i];
@@ -83,15 +81,15 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.outConfs[i].inPlace = -1;
         config.outConfs[i].constant = false;
         config.outConfs[i].desc = MKLDNNMemoryDesc(o_Dims, outputDataType, memory::format::any);
-        num_chanels += o_Dims[1];
+        axis_size += o_Dims[axis];
         for (size_t j = 0; j < dstFirstDims.ndims(); j++) {
             if (j == axis)
                 continue;
             if (o_Dims[j] != dstFirstDims[j])
-                THROW_IE_EXCEPTION << "Split " << getName() << "has incorrect output dimensions";
+                THROW_IE_EXCEPTION << "Split " << getName() << " has incorrect output dimensions";
         }
     }
-    dstFirstDims[1] = num_chanels;
+    dstFirstDims[axis] = axis_size;
     if (dstFirstDims.size() != srcDims.size())
         THROW_IE_EXCEPTION << "The sizes of input blob and sum of output blobs are not equal.";
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
@@ -99,11 +97,10 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     auto numOfDim = static_cast<size_t>(srcDims.ndims());
 
     SizeVector order;
-    SizeVector offsets;
+    SizeVector offsets(numOfDim, 0lu);
     size_t offset = std::numeric_limits<size_t>::max();
     for (size_t i = 0; i < numOfDim; i++) {
         order.push_back(i);
-        offsets.push_back(0);
     }
 
     SizeVector strides(numOfDim);
@@ -125,23 +122,23 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     }
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 
-    if (numOfDim != 4)
+    if ((numOfDim != 4 && numOfDim != 5) || axis != 1)
         return;
 
-    order = {0, 1, 2, 3, 1};
-    offsets = {0, 0, 0, 0, 0};
-    numOfDim = 5;
+    order.push_back(1);
+    numOfDim = order.size();
+    offsets = SizeVector(numOfDim, 0lu);
 
     // nChw8c and nChw16c
-    for (int sizeS : {8, 16}) {
+    for (size_t sizeS : {8lu, 16lu}) {
         SizeVector blkDims = srcDims.ToSizeVector();
         if (blkDims[1] % sizeS)
             continue;
-        blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1 : 0);
+        blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1lu : 0lu);
         blkDims.push_back(sizeS);
 
         strides.resize(numOfDim);
-        strides[numOfDim - 1] = 1;
+        strides[numOfDim - 1] = 1lu;
         for (size_t i = 2; i <= numOfDim; i++) {
             if (numOfDim - i < axis) {
                 strides[numOfDim - i] = std::numeric_limits<size_t>::max();
@@ -160,9 +157,9 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
                 canInplace = false;
                 break;
             }
-            blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1 : 0);
+            blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1lu : 0lu);
             blkDims.push_back(sizeS);
-            config.outConfs[i].desc =  TensorDesc(Precision::FP32, outDims, {blkDims, order, offset, offsets, strides});
+            config.outConfs[i].desc = TensorDesc(Precision::FP32, outDims, {blkDims, order, offset, offsets, strides});
         }
         if (canInplace)
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
@@ -190,18 +187,32 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
     int MB = batchToProcess();
     auto srcBlob = getParentEdgeAt(0)->getBlob();
     const auto *srcData = srcBlob->cbuffer().as<const float *>();
+
+    size_t outerSize = 1;
+    for (int i = 0; i < axis; i++) {
+        if (i == 0)
+            outerSize *= MB;
+        else
+            outerSize *= srcBlob->dims()[srcBlob->dims().size() - i - 1];
+    }
+
     size_t srcSize = getParentEdgeAt(0)->getMemory().GetSize();
-    size_t src_batch_off = srcBlob->getTensorDesc().offset(srcBlob->size() / srcBlob->getTensorDesc().getDims()[0])
+    size_t src_batch_off = srcBlob->getTensorDesc().offset(srcBlob->size() / outerSize)
             - srcBlob->getTensorDesc().offset(0);
 
     for (size_t i = 0, sIdx = 0; i < getChildEdges().size(); i++) {
         auto dstBlob = getChildEdgeAt(i)->getBlob();
         auto *dstData = dstBlob->buffer().as<float *>();
-        size_t dst_slice_size = dstBlob->size() / dstBlob->getTensorDesc().getDims()[0];
-        size_t dst_batch_off = dstBlob->getTensorDesc().offset(dst_slice_size) - dstBlob->getTensorDesc().offset(0);
 
-        for (size_t dIdx = 0; dIdx < dst_slice_size; dIdx++, sIdx++) {
-            for (unsigned b = 0; b < MB; b++) {
+        size_t innerSize = 1;
+        for (size_t j = axis; j < dstBlob->dims().size(); j++) {
+            innerSize *= dstBlob->dims()[dstBlob->dims().size() - j - 1];
+        }
+
+        size_t dst_batch_off = dstBlob->getTensorDesc().offset(innerSize) - dstBlob->getTensorDesc().offset(0);
+
+        for (size_t dIdx = 0; dIdx < innerSize; dIdx++, sIdx++) {
+            for (unsigned b = 0; b < outerSize; b++) {
                 if (sIdx + b*src_batch_off >= srcSize)
                     THROW_IE_EXCEPTION << "Incorrect configuration of split layer " << getName() << "!";
                 dstData[b * dst_batch_off + dstBlob->getTensorDesc().offset(dIdx)] =
@@ -435,4 +446,14 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         offset += axisSize;
     }
     initDescriptor(config);
+}
+
+void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
+    if (axis == 0)
+        THROW_IE_EXCEPTION << "Dynamic batch is not supported by split layer with axis == 0 parameter";
+
+    dynBatchLim = lim;
+    if (prim) {
+        prim.setBatchLimit(batchToProcess(), getParentEdges().size(), getChildEdges().size());
+    }
 }

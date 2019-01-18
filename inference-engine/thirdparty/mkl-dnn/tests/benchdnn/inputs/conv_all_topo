@@ -1,3 +1,4 @@
+--batch=conv_1d_wavenet
 --batch=conv_3d_unet
 --batch=conv_a3c
 --batch=conv_alexnet

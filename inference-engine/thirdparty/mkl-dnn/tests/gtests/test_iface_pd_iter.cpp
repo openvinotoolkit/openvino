@@ -64,4 +64,24 @@ TEST_F(pd_iter_test, TestReLUImpls) {
     mkldnn_primitive_desc_iterator_destroy(it);
 }
 
+TEST(pd_next_impl, TestEltwiseImpl) {
+    auto eng = engine(engine::kind::cpu, 0);
+    memory::desc md({8, 32, 4, 4}, memory::data_type::f32, memory::format::nChw8c);
+    memory data({md, eng});
+
+    eltwise_forward::desc ed(prop_kind::forward_training,
+            algorithm::eltwise_relu, md, 0, 0);
+    eltwise_forward::primitive_desc epd(ed, eng);
+
+    std::string impl0(epd.impl_info_str());
+    eltwise_forward(epd, data, data);
+
+    while (epd.next_impl()) {
+        std::string impl1(epd.impl_info_str());
+        eltwise_forward(epd, data, data);
+        EXPECT_NE(impl0, impl1);
+        impl0 = impl1;
+    }
+}
+
 }

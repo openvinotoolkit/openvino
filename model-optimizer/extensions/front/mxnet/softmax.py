@@ -28,7 +28,7 @@ class SoftmaxFrontReplacementSubgraph(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('softmax', dict(op='Softmax'))
+                ('softmax', dict(type='SoftMax'))
             ],
             edges=[]
         )

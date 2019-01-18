@@ -306,9 +306,10 @@ int check_reorder(const prb_t *p, res_t *res) {
             &check_rpd, mem_dt_in_fmt_in.mpd_, mem_dt_out_fmt_out.mpd_,
             mkldnn_attr);
     if (init_status == mkldnn_unimplemented) {
-        mkldnn_primitive_attr_destroy(mkldnn_attr);
-        return res->state = UNIMPLEMENTED, OK;
+        res->state = UNIMPLEMENTED;
+        goto cleanup;
     }
+    mkldnn_primitive_desc_destroy(check_rpd);
     SAFE(init_status, WARN);
 
     SAFE(mem_dt_out_fmt_out.reorder(mem_dt_in_fmt_in, mkldnn_attr), WARN);
@@ -353,6 +354,7 @@ int check_reorder(const prb_t *p, res_t *res) {
     }
 
     /* Step 8: clean up */
+cleanup:
     mkldnn_primitive_attr_destroy(mkldnn_attr);
     zfree(scales);
 

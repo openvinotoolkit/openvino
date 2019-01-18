@@ -58,3 +58,14 @@ ic35oc32_ih13oh13kh3ph1_id13od11kd3pd0_n"tails_conv_3d:4"
 
 ic47oc37_ih13oh12kh3ph0_id13od11kd3pd0_n"tails_conv_3d:5"
 ic27oc19_ih13oh13kh3ph1_id13od11kd3pd0_n"tails_conv_3d:6"
+
+# 1d conv
+ic19oc32_iw13ow12kw3pw1_n"tails_conv_1d:1"
+ic20oc32_iw13ow13kw3pw0_n"tails_conv_1d:2"
+ic23oc64_iw13ow13kw3pw1_n"tails_conv_1d:3"
+ic25oc24_iw13ow12kw3pw0_n"tails_conv_1d:4"
+ic29oc32_iw13ow12kw3pw0_n"tails_conv_1d:5"
+ic20oc32_iw13kw1pw0_n"tails_conv_1d_1x1:2"
+ic23oc64_iw13kw1pw0_n"tails_conv_1d_1x1:3"
+ic25oc24_iw13kw1pw0_n"tails_conv_1d_1x1:4"
+ic29oc32_iw13kw1pw0_n"tails_conv_1d_1x1:5"

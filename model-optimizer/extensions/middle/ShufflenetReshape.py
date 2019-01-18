@@ -19,6 +19,8 @@ import logging as log
 import networkx as nx
 import numpy as np
 
+from mo.front.common.layout import get_features_dim, get_height_dim, get_width_dim
+from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.reshape import Reshape
 
@@ -74,15 +76,14 @@ class FeatureShuffleReshape(MiddleReplacementPattern):
         # Input shapes can be either NCHW or NHWC, so in case of channel split, feature channel can be splited as
         # follows in comments below
         # So feature_dims_split list contains possible dims responsible for feature dim
-        if graph.graph['layout'] == 'NCHW':
+        layout = graph.graph['layout']
+        feature_dim = get_features_dim(layout, len(input_shape))
+        spatial_dims = [get_height_dim(layout, len(input_shape)), get_width_dim(layout, len(input_shape))]
+        if layout == 'NCHW':
             # NC1C2HW or NC1C2(H*W)
-            feature_dim = 1
-            spatial_dims = [2, 3]
             feature_dims_split = np.array([feature_dim, feature_dim + 1])
         else:
             # NHWC1C2 or N(H*W)C1C2 or (N*H*W)C1C2
-            feature_dim = 3
-            spatial_dims = [1, 2]
             feature_dims_split = np.array([len(reshape1_shape) - 2, len(reshape1_shape) - 1])
 
         # Check that feature_dims_split suits reshape layer shape
@@ -128,8 +129,10 @@ class FeatureShuffleReshape(MiddleReplacementPattern):
 
 class ReshapeSoftmaxReshape(MiddleReplacementPattern):
     """
-    In case of NHWC this pass finds patterns Reshape(-1,2)->Softmax and changes first Reshape dims for NCHW format.
-    This transformation is necessary because after conversion to NCHW this sequence will have wrong interpretation
+    In case of NHWC this pass finds patterns Reshape(-1,C) -> Softmax and changes first Reshape dims for NCHW format.
+    This transformation is necessary because after conversion to NCHW this sequence will have wrong interpretation.
+    There is no need to permute data before reshape because the Softmax will be performed over the features dimension
+    so the output will be in a correct layout.
     """
 
     enabled = True
@@ -148,7 +151,8 @@ class ReshapeSoftmaxReshape(MiddleReplacementPattern):
                    ])
 
     def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
-        if graph.graph['layout'] != 'NHWC':
+        layout = graph.graph['layout']
+        if layout != 'NHWC':
             return
 
         reshape1 = match['reshape1']
@@ -170,8 +174,8 @@ class ReshapeSoftmaxReshape(MiddleReplacementPattern):
             return
 
         # Define feature dim
-        feature_dim = 3
-        spatial_dims = [1, 2]
+        feature_dim = get_features_dim(layout, len(input_shape))
+        spatial_dims = [get_height_dim(layout, len(input_shape)), get_width_dim(layout, len(input_shape))]
 
         # Skip transform in case if spatial dims in input shape are equal to [1,1]
         if np.array_equal(input_shape[spatial_dims], np.array([1, 1])):
@@ -192,6 +196,9 @@ class ReshapeSoftmaxReshape(MiddleReplacementPattern):
                                              np.array([reshape1_shape[-1]]),
                                              np.array([np.prod(input_shape[spatial_dims])])))
 
+        # update 'dim' attribute but preserve batch dimension size which could be -1
+        reshape1.dim = int64_array([reshape1.dim[0], *new_reshape1_shape[1:]])
+
         old_shape = np.array(reshape1.out_node().shape)
         reshape1.out_node().shape = new_reshape1_shape
         softmax.out_node().shape = new_reshape1_shape
@@ -202,13 +209,13 @@ class ReshapeSoftmaxReshape(MiddleReplacementPattern):
         softmax['nchw_layout'] = True
         softmax.out_node()['nchw_layout'] = True
 
-        # Create final Reshape to keep original shape for softmax output
+        # Create final Reshape to keep original shape for softmax output if softmax is not the last node
         softmax_out_data = softmax.out_node()
-        next_operation = softmax_out_data.out_node()
-        # Save edge attributes & remove edge
-        edge_attrs = graph.get_edge_data(softmax_out_data.id, next_operation.id)[0]
-        graph.remove_edge(softmax_out_data.id, next_operation.id)
-
-        reshape_op = Reshape(graph, dict(name="Reshape_", dim=np.array(old_shape)))
-        reshape_out_data = reshape_op.create_node_with_data(inputs=[softmax_out_data])
-        graph.add_edges_from([(reshape_out_data.id, next_operation.id, edge_attrs)])
+        if len(softmax_out_data.out_nodes()) != 0:
+            next_operation = softmax_out_data.out_node()
+            # Save edge attributes & remove edge
+            edge_attrs = graph.get_edge_data(softmax_out_data.id, next_operation.id)[0]
+            graph.remove_edge(softmax_out_data.id, next_operation.id)
+            reshape_op = Reshape(graph, dict(name=softmax.id + "/Reshape", dim=np.array(old_shape), nchw_layout=True))
+            reshape_out_data = reshape_op.create_node_with_data(inputs=[softmax_out_data])
+            graph.add_edges_from([(reshape_out_data.id, next_operation.id, edge_attrs)])

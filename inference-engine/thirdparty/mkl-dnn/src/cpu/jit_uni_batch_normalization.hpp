@@ -60,7 +60,7 @@ struct jit_uni_batch_normalization_fwd_t: public cpu_primitive_t {
                 && !has_zero_dim_memory()
                 && utils::one_of(ndims(), 4, 5)
                 && desc()->data_desc.data_type == f32
-                && utils::implication(use_scaleshift(),
+                && IMPLICATION(use_scaleshift(),
                         desc()->data_scaleshift_desc.data_type == f32)
                 && desc()->data_desc.format == desired_fmt
                 && (attr()->has_default_values() || this->with_relu_post_op());
@@ -129,7 +129,7 @@ struct jit_uni_batch_normalization_bwd_t: public cpu_primitive_t {
                 && utils::one_of(ndims(), 4, 5)
                 && everyone_is(f32, desc()->data_desc.data_type,
                         desc()->diff_data_desc.data_type)
-                && implication(use_scaleshift(),
+                && IMPLICATION(use_scaleshift(),
                         desc()->data_scaleshift_desc.data_type == f32)
                 && everyone_is(desired_fmt, desc()->diff_data_desc.format,
                         desc()->data_desc.format)

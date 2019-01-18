@@ -26,11 +26,12 @@ from mo.ops.op import Op
 
 class Power(Op):
     enabled = False
+    op = 'Power'
 
     def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
         super().__init__(graph, {
             'type': 'Power',
-            'op': 'Power',
+            'op': __class__.op,
             'power': 1,
             'scale': 1,
             'shift': 0,

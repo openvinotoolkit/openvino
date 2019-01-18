@@ -63,6 +63,7 @@ void nchw_pooling_fwd_t<data_type>::execute_forward() {
     const int padF = conf_.padFront();
     const int padT = conf_.padT();
     const int padL = conf_.padL();
+    const int padBack = conf_.padBack();
     const int padB = conf_.padB();
     const int padR = conf_.padR();
 
@@ -86,6 +87,7 @@ void nchw_pooling_fwd_t<data_type>::execute_forward() {
     };
 
     auto ker_max = [=](data_t *d, int mb, int c, int od, int oh, int ow) {
+        bool is_initialized = false;
         for (int kd = 0; kd < KD; ++kd) {
             for (int kh = 0; kh < KH; ++kh) {
                 for (int kw = 0; kw < KW; ++kw) {
@@ -104,9 +106,14 @@ void nchw_pooling_fwd_t<data_type>::execute_forward() {
                         + (size_t)IW * ih
                         + (size_t)iw;
                     auto s = src[src_offset];
-                    if (s > d[0]) {
+                    if (!is_initialized) {
                         d[0] = s;
                         set_ws(mb, c, od, oh, ow, kd*KH*KW + kh*KW + kw);
+                        is_initialized = true;
+                    } else {
+                        if (d[0] < s)
+                            d[0] = s;
+                            set_ws(mb, c, od, oh, ow, kd*KH*KW + kh*KW + kw);
                     }
                 }
             }
@@ -114,23 +121,26 @@ void nchw_pooling_fwd_t<data_type>::execute_forward() {
     };
 
     auto ker_avg = [=](data_t *d, int mb, int c, int od, int oh, int ow) {
+        auto id_start = od*SD - padF;
         auto ih_start = oh*SH - padT;
         auto iw_start = ow*SW - padL;
-        auto id_start = od*SD - padF;
-        auto id_end = nstl::min(od*SD - padF + KD, ID);
+        auto id_end = nstl::min(od*SD - padF + KD, ID + padBack);
         auto ih_end = nstl::min(oh*SH - padT + KH, IH + padB);
         auto iw_end = nstl::min(ow*SW - padL + KW, IW + padR);
 
         // case alg == pooling_avg_include_padding
         auto num_summands = (id_end - id_start)*(ih_end - ih_start)*(iw_end - iw_start);
 
+        id_start = nstl::max(id_start, 0);
         ih_start = nstl::max(ih_start, 0);
         iw_start = nstl::max(iw_start, 0);
+        id_end = nstl::min(id_end, ID);
         ih_end = nstl::min(ih_end, IH);
         iw_end = nstl::min(iw_end, IW);
 
         if (alg == pooling_avg_exclude_padding)
-            num_summands = (ih_end - ih_start)*(iw_end - iw_start);
+            num_summands = (id_end - id_start)*(ih_end - ih_start)*(iw_end - iw_start);
+        if (num_summands == 0) return;
 
         for (int id = id_start; id < id_end; ++id) {
             for (int ih = ih_start; ih < ih_end; ++ih) {
@@ -160,7 +170,7 @@ void nchw_pooling_fwd_t<data_type>::execute_forward() {
                 + (size_t)OW * oh
                 + (size_t)ow;
             data_t *d = &dst[dst_offset];
-            d[0] = nstl::numeric_limits<data_t>::lowest();
+            d[0] = (data_t)0;
             set_ws(mb, c, od, oh, ow, 0);
             ker_max(d, mb, c, od, oh, ow);
         });
@@ -174,7 +184,7 @@ void nchw_pooling_fwd_t<data_type>::execute_forward() {
                 + (size_t)OW * oh
                 + (size_t)ow;
             data_t *d = &dst[dst_offset];
-            d[0] = 0;
+            d[0] = (data_t)0;
             ker_avg(d, mb, c, od, oh, ow);
         });
     }

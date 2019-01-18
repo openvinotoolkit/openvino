@@ -12,3 +12,5 @@
 # int8 (full)
 --reset --cfg=u8s8u8s32
 --dir=FWD_D --batch=conv_dilated_rfcn --match=.*fc6.* --batch=conv_ssd_300_voc0712
+--reset --allow-unimpl=true --cfg=s8s8u8s32
+--dir=FWD_D --batch=conv_dilated_rfcn --match=.*fc6.* --batch=conv_ssd_300_voc0712

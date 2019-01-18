@@ -17,17 +17,7 @@ endif()
 file(GLOB_RECURSE SRC *.cpp)
 file(GLOB_RECURSE HDR *.hpp)
 
-if(WIN32)
-    add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_API)
-endif()
-
-if (THREADING STREQUAL "TBB")
-    add_definitions(-DIE_THREAD=IE_THREAD_TBB)
-elseif (THREADING STREQUAL "OMP")
-    add_definitions(-DIE_THREAD=IE_THREAD_OMP)
-else()
-    add_definitions(-DIE_THREAD=IE_THREAD_SEQ)
-endif()
+add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_API)
 
 include_directories (PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/common
@@ -35,18 +25,12 @@ include_directories (PRIVATE
 )
 
 add_library(${TARGET_NAME} SHARED ${SRC} ${HDR})
+set_ie_threading_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "cpu_extension")
 
-if (THREADING STREQUAL "TBB")
-    target_include_directories(${TARGET_NAME} PUBLIC ${TBB_INCLUDE_DIRS})
-    target_link_libraries(${TARGET_NAME} debug ${TBB_LIBRARIES_RELEASE} optimized ${TBB_LIBRARIES_RELEASE})
-elseif (THREADING STREQUAL "OMP")
-    enable_omp()
-    target_link_libraries(${TARGET_NAME} ${intel_omp_lib})
-endif()
+target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
 
-target_link_libraries(${TARGET_NAME} ${InferenceEngine_LIBRARIES})
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 

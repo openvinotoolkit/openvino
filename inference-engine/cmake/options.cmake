@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-
 # Usage: ie_option(<option_variable> "description" <initial value or boolean expression> [IF <condition>])
+
 function (ie_option variable description value)
     option(${variable} "${description}" ${value})
     list (APPEND IE_OPTIONS "${variable}")

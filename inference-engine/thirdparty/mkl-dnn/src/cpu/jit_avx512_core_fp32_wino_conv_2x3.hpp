@@ -61,12 +61,9 @@ struct _jit_avx512_core_fp32_wino_conv_2x3_fwd_t : public cpu_primitive_t {
                     && this->cdesc_().src_desc.data_type == data_type::f32
                     && this->cdesc_().dst_desc.data_type == data_type::f32
                     && this->cdesc_().weights_desc.data_type == data_type::f32
-                    && utils::implication(this->with_bias(),
+                    && IMPLICATION(this->with_bias(),
                                utils::one_of(this->cdesc_().bias_desc.data_type,
                                        data_type::f32));
-
-            ok = ok && this->dst_pd_.desc()->format == memory_format::nChw16c &&
-                    this->src_pd_.desc()->format == memory_format::nChw16c;
             if (!ok)
                 return status::unimplemented;
 

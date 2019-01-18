@@ -31,10 +31,17 @@ class NamedAttrsClass:
 
 
 def match_shapes(pattern: np.array, shape: np.array):
-    '''Check if shape matches shape pattern handling -1 and 0 in the pattern.'''
+    """ Check if shape matches shape pattern handling -1 and 0 in the pattern. """
     # Elements with values -1 and 0 in pattern are just ignored.
     # Other elements should match.
     if pattern.size != shape.size:
         return False
     indices = [i for i, n in enumerate(pattern) if n not in [0, -1]]
     return np.array_equal(pattern[indices], shape[indices])
+
+
+def symm_match_shapes(shape1: np.array, shape2: np.array):
+    """ Check if shape matches shape pattern handling -1 and 0 in the pattern. """
+    # Elements with values -1 and 0 in both shapes are just ignored.
+    # Other elements should match. Undefined elements can be one side only.
+    return match_shapes(shape1, shape2) or match_shapes(shape2, shape1)

@@ -42,7 +42,7 @@ elseif(UNIX)
     find_package(TBB REQUIRED tbb HINTS cmake/lnx)
 endif()
 
-add_definitions(-DMKLDNN_THR=MKLDNN_THR_TBB)
+set_threading("TBB")
 list(APPEND mkldnn_LINKER_LIBS ${TBB_IMPORTED_TARGETS})
 
 message(STATUS "Intel(R) TBB: ${TBBROOT}")

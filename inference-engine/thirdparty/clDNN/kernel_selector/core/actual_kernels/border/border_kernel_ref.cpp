@@ -40,6 +40,8 @@ namespace kernel_selector
         k.EnableOutputLayout(DataLayout::byxf);
 
         k.EnableBatching();
+        k.EnableTensorOffset();
+        k.EnableTensorPitches();
 
         return k;
     }

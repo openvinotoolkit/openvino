@@ -29,8 +29,11 @@ class DetectionOutput(Op):
             'type': __class__.op,
             'op': __class__.op,
             'infer': multi_box_detection_infer,
+            'input_width': 1,
+            'input_height': 1,
+            'normalized': 1,
             'share_location': 1,
-            'variance_encoded_in_target': 0
+            'variance_encoded_in_target': 0,
         }, attrs)
 
     def supported_attrs(self):

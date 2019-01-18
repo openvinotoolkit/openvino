@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -202,6 +201,9 @@ public:
         try {
             if (layer->insData.size() != 3 || layer->outData.size() != 1)
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+
+            if (layer->insData[0].lock()->dims.size() != 4)
+                THROW_IE_EXCEPTION << "SimplerNMS supports only 4D blobs!";
 
             min_box_size_ = layer->GetParamAsInt("min_bbox_size");
             feat_stride_ = layer->GetParamAsInt("feat_stride");

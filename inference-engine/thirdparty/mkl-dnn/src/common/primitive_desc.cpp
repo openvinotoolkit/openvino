@@ -35,6 +35,11 @@ status_t primitive_desc_t::query(query_t what, int idx, void *result) const {
         case query::engine: *(engine_t**)result = engine(); break;
         case query::primitive_kind: *(primitive_kind_t*)result = kind(); break;
 
+        case query::op_d:
+            if (idx != 0 || op_desc() == nullptr) return invalid_arguments;
+            *(const_c_op_desc_t *)result
+                = static_cast<const_c_op_desc_t>(op_desc()); break;
+
         case query::input_pd: return safe_ret_pd(input_pd(idx));
         case query::output_pd: return safe_ret_pd(output_pd(idx));
         case query::src_pd: return safe_ret_pd(src_pd(idx));

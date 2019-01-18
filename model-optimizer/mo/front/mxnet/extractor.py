@@ -13,27 +13,25 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from mo.front.common.partial_infer.elemental import copy_shape_infer
+
 from mo.front.mxnet.extractors.batchnorm import batch_norm_ext
 from mo.front.mxnet.extractors.concat import concat_ext
 from mo.front.mxnet.extractors.crop import crop_ext
 from mo.front.mxnet.extractors.eltwise import eltwise_ext
-from mo.front.mxnet.extractors.flatten import flatten_ext
 from mo.front.mxnet.extractors.fully_connected import fully_connected_ext
 from mo.front.mxnet.extractors.l2_normalization import l2_normalization_ext
 from mo.front.mxnet.extractors.lrn import lrn_ext
 from mo.front.mxnet.extractors.multibox_detection import multi_box_detection_ext
 from mo.front.mxnet.extractors.multibox_prior import multi_box_prior_ext
 from mo.front.mxnet.extractors.null import null_ext
-from mo.front.mxnet.extractors.reshape import reshape_ext
 from mo.front.mxnet.extractors.scaleshift import scale_shift_ext
-from mo.front.mxnet.extractors.transpose import transpose_ext
-from mo.front.mxnet.extractors.up_sampling import up_sampling_ext
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.front.mxnet.extractors.slice_axis import slice_axis_ext
-from mo.utils.error import Error
+from mo.front.mxnet.extractors.transpose import transpose_ext
+from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.graph.graph import Node
+from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
+
 
 def extractor_wrapper(mxnet_extractor):
     return lambda node: mxnet_extractor(get_mxnet_layer_attrs(node.symbol_dict))
@@ -49,15 +47,10 @@ mxnet_op_extractors = {
     'elemwise_add': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a + b, op_type="sum")),
     'elemwise_mul': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a * b, op_type="mul")),
     '_Plus': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a + b, op_type="sum")),
-    'Flatten': extractor_wrapper(flatten_ext),
     'FullyConnected': extractor_wrapper(fully_connected_ext),
-    'Reshape': extractor_wrapper(reshape_ext),
-    'UpSampling': extractor_wrapper(up_sampling_ext),
     'transpose': extractor_wrapper(transpose_ext),
     'LRN': extractor_wrapper(lrn_ext),
     'L2Normalization': extractor_wrapper(l2_normalization_ext),
-    'Dropout': extractor_wrapper(lambda _: dict(infer=copy_shape_infer)),
-    '_copy': extractor_wrapper(lambda _: dict(infer=copy_shape_infer)),
     '_contrib_MultiBoxPrior': extractor_wrapper(multi_box_prior_ext),
     '_contrib_MultiBoxDetection': extractor_wrapper(multi_box_detection_ext),
     'broadcast_add': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a + b, op_type="sum")),
@@ -84,6 +77,11 @@ def mxnet_op_extractor(node: Node):
             refer_to_faq_msg(86),
             op)
     result_attr = mxnet_op_extractors[op](node)
+
+    if result_attr is None:
+        raise Error('Model Optimizer does not support layer "{}". Please, implement extension. '.format(node.name) +
+                    refer_to_faq_msg(45))
+
     result.update(result_attr)
     supported = bool(result_attr)
     return supported, result

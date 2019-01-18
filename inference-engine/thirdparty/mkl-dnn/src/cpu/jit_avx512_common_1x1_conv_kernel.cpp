@@ -681,6 +681,7 @@ status_t jit_avx512_common_1x1_conv_kernel::init_conf(
 
     const bool with_groups = weights_d.ndims() == src_d.ndims() + 1;
     const int simd_w = cpu_isa_traits<avx512_common>::vlen / sizeof(float);
+    const int ndims = src_d.ndims();
 
     jcp.prop_kind = cd.prop_kind;
 
@@ -699,19 +700,19 @@ status_t jit_avx512_common_1x1_conv_kernel::init_conf(
         jcp.ic = rnd_up(jcp.ic, simd_w);
     }
 
-    jcp.ih = src_d.dims()[2];
-    jcp.iw = src_d.dims()[3];
-    jcp.oh = dst_d.dims()[2];
-    jcp.ow = dst_d.dims()[3];
+    jcp.ih = (ndims == 3) ? 1 : src_d.dims()[2];
+    jcp.iw = src_d.dims()[ndims - 1];
+    jcp.oh = (ndims == 3) ? 1 : dst_d.dims()[2];
+    jcp.ow = dst_d.dims()[ndims - 1];
 
-    jcp.kh = weights_d.dims()[with_groups + 2];
-    jcp.kw = weights_d.dims()[with_groups + 3];
+    jcp.kh = (ndims == 3) ? 1 : weights_d.dims()[with_groups + 2];
+    jcp.kw = weights_d.dims()[with_groups + ndims - 1];
 
-    jcp.t_pad = cd.padding[0][0];
-    jcp.l_pad = cd.padding[0][1];
+    jcp.t_pad = (ndims == 3) ? 0 : cd.padding[0][0];
+    jcp.l_pad = cd.padding[0][ndims - 3];
 
-    jcp.stride_h = cd.strides[0];
-    jcp.stride_w = cd.strides[1];
+    jcp.stride_h = (ndims == 3) ? 1 : cd.strides[0];
+    jcp.stride_w = cd.strides[ndims - 3];
 
     jcp.src_fmt = src_d.format();
     jcp.with_bias = one_of(jcp.prop_kind, forward_training, forward_inference)
@@ -732,7 +733,8 @@ status_t jit_avx512_common_1x1_conv_kernel::init_conf(
 
     bool args_ok = true
         && jcp.ngroups == 1
-        && everyone_is(nChw16c, src_d.format(), dst_d.format())
+        && everyone_is(pick(ndims - 3, nCw16c, nChw16c), src_d.format(),
+            dst_d.format())
         && one_of(cd.bias_desc.format, memory_format::undef, any, x);
     if (!args_ok) return status::unimplemented;
 
@@ -756,12 +758,13 @@ status_t jit_avx512_common_1x1_conv_kernel::init_conf(
             && weights_d.data_type() == data_type::s16
             && dst_d.data_type() == data_type::s16)))
     {
-        constexpr memory_format_t weights_formats[2][2] = {
-            { OIhw8i16o2i, OIhw8o16i2o },
-            { gOIhw8i16o2i, gOIhw8o16i2o }
-        };
-        memory_format_t weights_format
-            = weights_formats[with_groups][jcp.prop_kind == backward_data];
+        const int is_bwd_d = jcp.prop_kind == backward_data;
+        memory_format_t weights_format = with_groups
+            ? pick(2 * ndims - 6 + is_bwd_d, gOIw8i16o2i, gOIw8o16i2o,
+                gOIhw8i16o2i, gOIhw8o16i2o)
+            : pick(2 * ndims - 6 + is_bwd_d, OIw8i16o2i, OIw8o16i2o,
+                OIhw8i16o2i, OIhw8o16i2o);
+
         if (weights_d.format() != weights_format)
             return status::unimplemented;
 
@@ -773,12 +776,12 @@ status_t jit_avx512_common_1x1_conv_kernel::init_conf(
     else if (everyone_is(data_type::f32, src_d.data_type(),
                             weights_d.data_type(), dst_d.data_type()))
     {
-        constexpr memory_format_t weights_formats[2][2] = {
-            { OIhw16i16o, IOhw16o16i },
-            { gOIhw16i16o, gIOhw16o16i }
-        };
-        memory_format_t weights_format
-            = weights_formats[with_groups][jcp.prop_kind == backward_data];
+        const int is_bwd_d = jcp.prop_kind == backward_data;
+        memory_format_t weights_format = with_groups
+            ? pick(2 * ndims - 6 + is_bwd_d, gOIw16i16o, gIOw16o16i,
+                gOIhw16i16o, gIOhw16o16i)
+            : pick(2 * ndims - 6 + is_bwd_d, OIw16i16o, IOw16o16i,
+                OIhw16i16o, IOhw16o16i);
 
         if (weights_d.format() != weights_format)
             return status::unimplemented;
@@ -892,6 +895,7 @@ status_t jit_avx512_common_1x1_conv_kernel::init_conf(
             bool is4ops = (jcp.ver == ver_4fma || jcp.ver == ver_4vnni);
 
 //            max_regs = is4ops ? 28 : 30;
+            // FIXME (ichuraev): it is a fix for densnet-121
             max_regs = 28;
             min_regs = 9;
             size_treshold = is4ops ? 28 : 14;

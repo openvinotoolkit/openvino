@@ -7,10 +7,14 @@
 --attr=irmode=down;oscale=per_oc:2.25;post_ops='sum:1.5;relu'
 --cfg=u8s8u8s32  --batch=conv_vgg_19
 --cfg=u8s8f32s32 --batch=conv_googlenet_v2
+--cfg=s8s8u8s32  --batch=conv_vgg_19
+--cfg=s8s8f32s32 --batch=conv_googlenet_v2
 --dir=FWD_D
 --attr=irmode=nearest;oscale=common:2.25;post_ops='sum:1.5'
 --cfg=u8s8s8s32  --batch=conv_googlenet_v3
 --cfg=u8s8s32s32 --batch=conv_alexnet
+--cfg=s8s8s8s32  --batch=conv_googlenet_v3
+--cfg=s8s8s32s32 --batch=conv_alexnet
 
 # f32
 --reset --cfg=f32
@@ -19,6 +23,7 @@
 --allow-unimpl=true
 --dir=FWD_B --attr=post_ops='sum;relu' --batch=conv_resnet_50
 --dir=FWD_B --attr=post_ops='sum;relu' --batch=conv_3d
+--dir=FWD_B --attr=post_ops='sum;relu' --batch=conv_1d
 
 # f32_wino
 --reset --alg=wino --cfg=f32_wino

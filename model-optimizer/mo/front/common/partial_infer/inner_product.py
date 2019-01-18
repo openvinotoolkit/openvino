@@ -52,20 +52,13 @@ def onnx_matmul_infer(node):
     if len(node.in_nodes()) != 2:
         raise Error("Wrong number of input nodes for {} node. Should be 2 instead of {}".format(node.name,
                                                                                                 len(node.in_nodes())))
+    input_0_shape = node.in_node(0).shape
+    input_1_shape = node.in_node(1).shape
 
-    input_node = node.in_node(0)
-    weights_node = node.in_node(1)
+    input_shapes = [node.in_node(port).shape for port in node.in_nodes()]
+    max_len = max([len(shape) for shape in input_shapes])
+    new_input_shapes = [np.concatenate([np.ones(max_len - len(input_shapes[i])), input_shapes[i]], axis=0)
+                        for i in range(len(input_shapes))]
 
-    input_shape = input_node.shape
-    weights_shape = weights_node.shape
-
-    if len(weights_shape) > 2:
-        raise Error("MatMul {} with weights shape != 2 is not supported".format(node.name))
-
-    mark_input_bins(node)
-    assign_dims_to_weights(weights_node, None, 0, 1, 2)
-    PermuteAttrs.set_permutation(weights_node, node, PermuteAttrs.Permutation(perm=int64_array([1, 0]),
-                                                                              inv=int64_array([0, 1])))
-
-    node['out-size'] = weights_shape[1]
-    node.out_node().shape = np.array([*input_shape[0:-1], weights_shape[1]])
+    node.out_node().shape = np.concatenate([np.maximum(*[shape[0:-2] for shape in new_input_shapes]),
+                                            [input_0_shape[-2], input_1_shape[-1]]], axis=0)

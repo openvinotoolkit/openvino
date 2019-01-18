@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +8,7 @@
 #include "xml_net_builder.hpp"
 #include "xml_helper.hpp"
 #include "pugixml.hpp"
-#include "inference_engine/v2_format_parser.h"
+#include "inference_engine/ie_format_parser.h"
 #include <fstream>
 #include <stdio.h>
 #include "details/ie_exception.hpp"
@@ -22,7 +21,7 @@ class V2TopologyVerificationTests : public ::testing::Test {
 protected:
     virtual void TearDown() {}
     virtual void SetUp() {
-        xmlHelper.reset(new XMLHelper(new details::V2FormatParser(2)));
+        xmlHelper.reset(new XMLHelper(new details::FormatParser(2)));
     }
 public:
     unique_ptr<CNNNetwork> cnnNetwork;

@@ -48,18 +48,18 @@ TEST_F(memory_test, DataPaddingTest) {
     data_t *mem0_ptr = (data_t *)mem0.get_data_handle();
     fill_data<data_t>(N*C_16*H*W, mem0_ptr);
 
-    std::shared_ptr<data_t> mem1_shr_ptr(new data_t[phys_sz]);
-    data_t *mem1_ptr = mem1_shr_ptr.get();
-    std::memcpy((void*)mem1_ptr, mem0_ptr, phys_sz * sizeof(data_t));
+    std::vector<data_t> mem1_vec(phys_sz);
+    mem1_vec.assign(mem0_ptr,
+            mem0_ptr + mem0.get_primitive_desc().get_size() / sizeof(data_t));
 
     mkldnn::memory mem1({{{N, C, H, W}, memory::data_type::f32,
-            memory::format::nChw16c}, e}, mem1_ptr);
+            memory::format::nChw16c}, e}, &mem1_vec[0]);
 
     check_zero_tail<data_t>(0, mem1);
     check_zero_tail<data_t>(1, mem0);
 
     for (size_t i = 0; i < phys_sz; ++i)
-        EXPECT_NEAR(mem0_ptr[i], mem1_ptr[i], 1e-7) << i;
+        EXPECT_NEAR(mem0_ptr[i], mem1_vec[i], 1e-7) << i;
 }
 
 TEST_F(memory_test, WeightPaddingTest) {
@@ -73,18 +73,18 @@ TEST_F(memory_test, WeightPaddingTest) {
     data_t *mem0_ptr = (data_t *)mem0.get_data_handle();
     fill_data<data_t>(O_16*I_16*H*W, mem0_ptr);
 
-    std::shared_ptr<data_t> mem1_shr_ptr(new data_t[phys_sz]);
-    data_t *mem1_ptr = mem1_shr_ptr.get();
-    std::memcpy((void*)mem1_ptr, mem0_ptr, phys_sz * sizeof(data_t));
+    std::vector<data_t> mem1_vec(phys_sz);
+    mem1_vec.assign(mem0_ptr,
+            mem0_ptr + mem0.get_primitive_desc().get_size() / sizeof(data_t));
 
     mkldnn::memory mem1({{{O, I, H, W}, memory::data_type::f32,
-            memory::format::OIhw16i16o}, e}, mem1_ptr);
+            memory::format::OIhw16i16o}, e}, &mem1_vec[0]);
 
     check_zero_tail<data_t>(0, mem1);
     check_zero_tail<data_t>(1, mem0);
 
     for (size_t i = 0; i < phys_sz; ++i)
-        EXPECT_NEAR(mem0_ptr[i], mem1_ptr[i], 1e-7) << i;
+        EXPECT_NEAR(mem0_ptr[i], mem1_vec[i], 1e-7) << i;
 }
 
 }

@@ -28,7 +28,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 if(WIN32)
     # Correct 'jnl' macro/jit issue
     if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qlong-double")
+        append(CMAKE_CXX_FLAGS "/Qlong-double")
     endif()
 endif()
 
@@ -54,6 +54,7 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_inner_product_forward.cpp
                               test_inner_product_backward_data.cpp
                               test_inner_product_backward_weights.cpp
+                              test_shuffle.cpp
                               test_convolution_format_any.cpp
                               test_convolution_forward_f32.cpp
                               test_convolution_forward_f32_3d.cpp
@@ -68,7 +69,9 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_convolution_backward_weights_f32.cpp
                               test_convolution_backward_weights_s16s16s32.cpp
                               test_deconvolution.cpp
-                              test_gemm.cpp
+                              test_gemm_f32.cpp
+                              test_gemm_s8u8s32.cpp
+                              test_gemm_s8s8s32.cpp
                               test_roi_pooling_forward.cpp
                               test_convolution_eltwise_forward_f32.cpp
                               test_convolution_depthwise_forward_f32.cpp

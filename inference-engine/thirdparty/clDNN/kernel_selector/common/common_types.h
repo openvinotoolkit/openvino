@@ -339,7 +339,8 @@ namespace kernel_selector
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     enum class BorderType
     {
-        ZERO,
+        CONSTANT,
+        EDGE,
         MIRROR,
         MIRROR_101,
     };

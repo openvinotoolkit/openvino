@@ -31,6 +31,7 @@ class PoolingFrontExtractor(FrontExtractorOp):
         param = proto_layer.pooling_param
 
         method = 'max'
+        exclude_pad = 'true'
         kernel = [0, 0]
         stride = [1, 1]
         padding = [0, 0]
@@ -45,8 +46,10 @@ class PoolingFrontExtractor(FrontExtractorOp):
 
         if param.pool == 0:
             method = 'max'
+            exclude_pad = 'true'
         elif param.pool == 1:
             method = 'avg'
+            exclude_pad = 'false'
         else:
             raise ValueError('Unknown Pooling Method!')
 
@@ -64,7 +67,7 @@ class PoolingFrontExtractor(FrontExtractorOp):
             'pad': np.array([[0, 0], [0, 0], [padding[1], padding[1]], [padding[0], padding[0]]], dtype=np.int64),
             'pad_spatial_shape': np.array([[padding[1], padding[1]], [padding[0], padding[0]]], dtype=np.int64),
             'pool_method': method,
-            'exclude_pad': 'false',
+            'exclude_pad': exclude_pad,
             'global_pool': global_pooling,
             'output_spatial_shape': None,
             'rounding_type': rt

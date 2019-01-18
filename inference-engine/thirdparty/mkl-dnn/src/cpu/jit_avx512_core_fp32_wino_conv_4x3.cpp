@@ -724,7 +724,7 @@ _execute_backward_weights_SDGtWo() {
        1.13777777777778f};
     float G_O_3x3_4x4[4] = {2.25f, 0.625f, 1.5f, 0.390625f};
 
-#pragma omp parallel firstprivate(trans_ker_p, I, T)
+#pragma omp parallel num_threads(nthreads) firstprivate(trans_ker_p, I, T)
 {
     if (jcp.with_bias) {
         parallel_nd_in_omp(nthreads, jcp.oc / simd_w,
@@ -878,8 +878,8 @@ _execute_backward_weights_S_D_Giot_W() {
     array_offset_calculator<float, 2> diff_bias_prv(
             (float *)(scratchpad_->bias_ptr()), nthreads, jcp.oc);
 
-    size_t input_starts[max_threads_number];
-    size_t input_ends[max_threads_number];
+    size_t input_starts[max_threads_number] = {0};
+    size_t input_ends[max_threads_number] = {0};
     size_t first_tblk = 0;
 
     auto trans_ker_p = jit_wino_transform_call_s();

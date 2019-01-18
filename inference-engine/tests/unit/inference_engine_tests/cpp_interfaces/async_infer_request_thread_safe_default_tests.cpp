@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -170,9 +169,9 @@ TEST_F(InferRequestThreadSafeDefaultTests, callbackTakesOKIfAsyncRequestWasOK) {
             testRequest), [](IInferRequest *p) { p->Release(); });
     testRequest->SetPointerToPublicInterface(asyncRequest);
 
-    testRequest->SetCompletionCallback({[](InferenceEngine::IInferRequest::Ptr request, StatusCode status) {
+    testRequest->SetCompletionCallback([](InferenceEngine::IInferRequest::Ptr request, StatusCode status) {
         ASSERT_EQ((int) StatusCode::OK, status);
-    }});
+    });
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).Times(1);
 
     testRequest->StartAsync();

@@ -18,7 +18,7 @@ import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.mxnet.extractors.utils import get_json_layer_attrs
-from mo.middle.passes.eliminate import remove_node_from_graph
+from mo.graph.graph import erase_node
 
 
 class SsdPatternRemoveReshape(FrontReplacementSubgraph):
@@ -49,7 +49,7 @@ class SsdPatternRemoveReshape(FrontReplacementSubgraph):
          match : dict
            Patterns which were found in graph structure.
         """
-        remove_node_from_graph(graph, match['concat'], match['reshape'])
+        erase_node(match['reshape'])
 
         # concat should be performed for the third axis
         concat_node = match['concat']

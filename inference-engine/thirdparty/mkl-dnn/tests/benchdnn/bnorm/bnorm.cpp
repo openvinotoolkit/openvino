@@ -510,8 +510,8 @@ static int cvt_mask_to_ws(const prb_t *p, const dnn_mem_t &mask_fp,
     DNN_SAFE(mkldnn_primitive_create(&b, bpd, inputs, outputs), WARN);
     SAFE(execute(b), WARN);
 
-    mkldnn_primitive_desc_destroy(bpd);
-    mkldnn_primitive_destroy(b);
+    DNN_SAFE(mkldnn_primitive_desc_destroy(bpd), CRIT);
+    DNN_SAFE(mkldnn_primitive_destroy(b), CRIT);
 
     return OK;
 }
@@ -675,6 +675,8 @@ int doit(const prb_t *p, res_t *r) {
     }
 
     delete p_ws_dt;
+    DNN_SAFE(mkldnn_primitive_desc_destroy(bpd), CRIT);
+    DNN_SAFE(mkldnn_primitive_destroy(b), CRIT);
 
     return OK;
 }

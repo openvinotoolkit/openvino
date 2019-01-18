@@ -37,15 +37,15 @@ inline bool dense_gemm_consitency_check(const memory_desc_wrapper &src_d,
     using namespace memory_format;
     using namespace utils;
     return true
-        && implication(src_d.format() == nChw8c, wei_d.format() == oIhw8i)
-        && implication(src_d.format() == nChw16c, wei_d.format() == oIhw16i)
-        && implication(src_d.format() == nCdhw8c, wei_d.format() == oIdhw8i)
-        && implication(src_d.format() == nCdhw16c, wei_d.format() == oIdhw16i)
-        && implication(src_d.format() == nchw, wei_d.format() == oihw)
-        && implication(src_d.format() == ncdhw, wei_d.format() == oidhw)
-        && implication(src_d.format() == nhwc, wei_d.format() == hwio)
-        && implication(src_d.format() == ndhwc, wei_d.format() == dhwio)
-        && implication(src_d.format() == nc, one_of(wei_d.format(), oi, io))
+        && IMPLICATION(src_d.format() == nChw8c, wei_d.format() == oIhw8i)
+        && IMPLICATION(src_d.format() == nChw16c, wei_d.format() == oIhw16i)
+        && IMPLICATION(src_d.format() == nCdhw8c, wei_d.format() == oIdhw8i)
+        && IMPLICATION(src_d.format() == nCdhw16c, wei_d.format() == oIdhw16i)
+        && IMPLICATION(src_d.format() == nchw, wei_d.format() == oihw)
+        && IMPLICATION(src_d.format() == ncdhw, wei_d.format() == oidhw)
+        && IMPLICATION(src_d.format() == nhwc, wei_d.format() == hwio)
+        && IMPLICATION(src_d.format() == ndhwc, wei_d.format() == dhwio)
+        && IMPLICATION(src_d.format() == nc, one_of(wei_d.format(), oi, io))
         && dst_d.format() == nc
         && src_d.only_padded_dim(1)
         && wei_d.only_padded_dim(1)

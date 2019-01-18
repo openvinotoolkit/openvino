@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,7 +140,7 @@ private:
     }
 
     template <typename T>
-    std::pair<StatusCode, bool> status_code_assign(const T & arg) {
+    std::pair<StatusCode, bool> status_code_assign(const T &) {
         return {static_cast<StatusCode>(0), false};
     }
 };

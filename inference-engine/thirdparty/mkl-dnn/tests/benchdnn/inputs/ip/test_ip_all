@@ -5,7 +5,7 @@
 --dir=BWD_WB --batch=ip_all
 
 # i8 (skx)
---reset --dir=FWD_B --mb=2 --attr=irmode=down;oscale=per_oc:2.25;
+--reset --allow-unimpl=true --dir=FWD_B --mb=2 --attr=irmode=down;oscale=per_oc:2.25;
 --cfg=u8s8u8s32  --batch=ip_all
 --cfg=u8s8s8s32  --batch=ip_all
 --cfg=u8s8s32s32 --batch=ip_all

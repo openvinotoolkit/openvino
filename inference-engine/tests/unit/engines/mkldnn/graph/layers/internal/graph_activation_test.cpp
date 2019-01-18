@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +20,8 @@ struct activation_test_params {
     float alpha;
     float beta;
 
-    struct {
-        size_t n;
-        size_t c;
-        size_t h;
-        size_t w;
-    } in;
+    // Formats: NCHW, NCDHW
+    vector<size_t> dims;
 
     size_t num_prim_desc;
 
@@ -56,10 +51,17 @@ T bounded_relu_fwd(T s, A alpha) {
     return s > alpha ? (T)(alpha) : s;
 }
 
+template <typename T> T tanh_fwd(T s) {
+    return static_cast<T>(::tanhf((float)s));
+}
+
 template <typename data_t>
 void ref_activation(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<data_t> &dst, activation_test_params prm) {
-    size_t IW = src.dims()[3];
-    size_t IH = src.dims()[2];
+    auto dims_size = src.dims().size();
+    
+    size_t IW = src.dims()[dims_size - 1];
+    size_t IH = src.dims()[dims_size - 2];
+    size_t ID = dims_size == 5 ? src.dims()[dims_size - 3] : 1u;
     size_t IC = src.dims()[1];
     size_t MB = src.dims()[0];
 
@@ -68,18 +70,23 @@ void ref_activation(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::
 
     for(int mb = 0; mb < MB; mb++) {
         for(int c = 0; c < IC; c++) {
-            for(int h = 0; h < IH; h++) {
-                for(int w = 0; w < IW; w++) {
-                    int idx = mb * IC * IH * IW
-                              + c * IH * IW
-                              + h * IW + w;
+            for(int d = 0; d < ID; d++) {
+                for(int h = 0; h < IH; h++) {
+                    for(int w = 0; w < IW; w++) {
+                        int idx = mb * IC * ID * IH * IW
+                                  + c * ID * IH * IW
+                                  + d * IH * IW
+                                  + h * IW
+                                  + w;
 
-                    switch (prm.alg) {
-                        case eltwise_relu:         dst_data[idx] = relu_fwd(src_data[idx], prm.alpha);         break;
-                        case eltwise_elu:          dst_data[idx] = elu_fwd(src_data[idx], prm.alpha);          break;
-                        case eltwise_logistic:     dst_data[idx] = logistic_fwd(src_data[idx]);                break;
-                        case eltwise_bounded_relu: dst_data[idx] = bounded_relu_fwd(src_data[idx], prm.alpha); break;
-                        default: assert(!"unknown alg_kind");
+                        switch (prm.alg) {
+                            case eltwise_relu:         dst_data[idx] = relu_fwd(src_data[idx], prm.alpha);         break;
+                            case eltwise_elu:          dst_data[idx] = elu_fwd(src_data[idx], prm.alpha);          break;
+                            case eltwise_logistic:     dst_data[idx] = logistic_fwd(src_data[idx]);                break;
+                            case eltwise_bounded_relu: dst_data[idx] = bounded_relu_fwd(src_data[idx], prm.alpha); break;
+                            case eltwise_tanh:         dst_data[idx] = tanh_fwd(src_data[idx]); break;
+                            default: assert(!"unknown alg_kind");
+                        }
                     }
                 }
             }
@@ -90,24 +97,26 @@ void ref_activation(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::
 class MKLDNNGraphActivationTests: public TestsCommon,
                                      public WithParamInterface<activation_test_params> {
     std::string model_t = R"V0G0N(
-<Net Name="Activation" version="2" precision="FP32" batch="1">
+<Net Name="Activation" version="3" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
             <output>
                 <port id="0">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
             </output>
         </layer>
         <layer name="activation" id="1" type="_LT_" precision="FP32">
-            <data _P1_NAME_="_P1_VAL_" _P2_NAME_="_P2_VAL_" PrimitivesPriority="_IMPLS_"/>
+            <data _P1_ _P2_ PrimitivesPriority="_IMPLS_"/>
             <input>
                 <port id="1">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
@@ -116,6 +125,7 @@ class MKLDNNGraphActivationTests: public TestsCommon,
                 <port id="2">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
@@ -134,30 +144,49 @@ protected:
 
     std::string getModel(activation_test_params p) {
         std::string model = model_t;
+        auto dims_size = p.dims.size();
+
+        switch (dims_size) {
+            case 3:
+                REMOVE_LINE(model, "<dim>_IH_</dim>");
+            case 4:
+                REMOVE_LINE(model, "<dim>_ID_</dim>");
+        }
 
         switch (p.alg) {
             case eltwise_relu:         REPLACE_WITH_STR(model, "_LT_", "ReLU"); break;
             case eltwise_elu:          REPLACE_WITH_STR(model, "_LT_", "ELU"); break;
             case eltwise_logistic:     REPLACE_WITH_STR(model, "_LT_", "Sigmoid"); break;
             case eltwise_bounded_relu: REPLACE_WITH_STR(model, "_LT_", "ReLU6"); break;
+            case eltwise_tanh:         REPLACE_WITH_STR(model, "_LT_", "Activation"); break;
             default: assert(!"unknown alg_kind");
         }
 
-        if (p.alg == eltwise_relu)
-            REPLACE_WITH_STR(model, "_P1_NAME_", "negative_slope");
-        else if (p.alg == eltwise_bounded_relu)
-            REPLACE_WITH_STR(model, "_P1_NAME_", "n");
-        else
-            REPLACE_WITH_STR(model, "_P1_NAME_", "alpha");
-        REPLACE_WITH_NUM(model, "_P1_VAL_", p.alpha);
+        string P1, P2;
+        if (p.alg == eltwise_relu) {
+            P1 = string("negative_slope=\"") + to_string(p.alpha) + string("\"");
+            P2 = string("beta=\"") + to_string(p.beta) + string("\"");
+        } else if (p.alg == eltwise_bounded_relu) {
+            P1 = string("n=\"") + to_string(p.alpha) + string("\"");
+            P2 = string("beta=\"") + to_string(p.beta) + string("\"");
+        } else if (p.alg == eltwise_tanh) {
+            P1 = string("type=\"tanh\"");
+        } else {
+            P1 = string("alpha=\"") + to_string(p.alpha) + string("\"");
+            P2 = string("beta=\"") + to_string(p.beta) + string("\"");
+        }
+        REPLACE_WITH_STR(model, "_P1_", P1);
+        REPLACE_WITH_STR(model, "_P2_", P2);
 
-        REPLACE_WITH_STR(model, "_P2_NAME_", "beta");
-        REPLACE_WITH_NUM(model, "_P2_VAL_", p.beta);
-
-        REPLACE_WITH_NUM(model, "_IW_", p.in.w);
-        REPLACE_WITH_NUM(model, "_IH_", p.in.h);
-        REPLACE_WITH_NUM(model, "_IC_", p.in.c);
-        REPLACE_WITH_NUM(model, "_IN_", p.in.n);
+        REPLACE_WITH_NUM(model, "_IW_", p.dims[dims_size - 1]);
+        REPLACE_WITH_NUM(model, "_IC_", p.dims[1]);
+        REPLACE_WITH_NUM(model, "_IN_", p.dims[0]);
+        switch (dims_size) {
+            case 5:
+                REPLACE_WITH_NUM(model, "_ID_", p.dims[dims_size - 3]);
+            case 4:
+                REPLACE_WITH_NUM(model, "_IH_", p.dims[dims_size - 2]);
+        }
 
         std::string impls;
         for (const auto& preferType : p.preferTypes) {
@@ -194,9 +223,18 @@ protected:
                 }
             }
 
-            InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
+            InferenceEngine::SizeVector dims_src = p.dims;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.dims.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -226,7 +264,7 @@ protected:
 
             ref_activation(*srcPtr, dst_ref, p);
 
-            compare(*output, dst_ref);
+            compare(*output, dst_ref, 0.0005f);
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
         }
@@ -265,7 +303,9 @@ INSTANTIATE_TEST_CASE_P(
                 activation_test_params{eltwise_bounded_relu, 6.0f, 0.0f, {1, 32, 128, 256}, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 activation_test_params{eltwise_bounded_relu, 6.0f, 0.0f, {4, 3, 228, 228}, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 activation_test_params{eltwise_bounded_relu, 0.1f, 0.0f, {1, 32, 128, 256}, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                activation_test_params{eltwise_bounded_relu, 0.1f, 0.0f, {4, 3, 228, 228}, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}
+                activation_test_params{eltwise_bounded_relu, 0.1f, 0.0f, {4, 3, 228, 228}, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                // 5D
+                activation_test_params{eltwise_tanh, 0.f, 0.f, {1, 1, 64, 64, 64}, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}
         ));
 
 class MKLDNNGraphDynBatchActivationTests: public MKLDNNGraphActivationTests {
@@ -275,7 +315,7 @@ protected:
             TestsCommon::SetUp();
             activation_test_params p = ::testing::WithParamInterface<activation_test_params>::GetParam();
             std::string model = getModel(p);
-            size_t MB = p.in.n;
+            size_t MB = p.dims[0];
             if (MB < 2)
                 MB = 2;
 
@@ -292,9 +332,18 @@ protected:
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
             graph.CreateGraph(net_reader.getNetwork());
 
-            InferenceEngine::SizeVector dims_src = {MB, p.in.c, p.in.h, p.in.w};
+            InferenceEngine::SizeVector dims_src = p.dims;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.dims.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src->allocate();
             fill_data(src->buffer(), src->size());
 

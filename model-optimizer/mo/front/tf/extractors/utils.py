@@ -80,7 +80,7 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
         # return np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
     else:
         if pb_tensor.tensor_content:
-            flat = np.frombuffer(pb_tensor.tensor_content, type_helper[0])
+            flat = np.array(np.frombuffer(pb_tensor.tensor_content, type_helper[0]))
             if len(flat) == shape.prod():
                 return flat.reshape(shape)
             else:

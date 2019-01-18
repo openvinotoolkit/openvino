@@ -1125,7 +1125,7 @@ struct uni_bnorm_driver_t: public c_compatible {
 
         int SP_N_ithr = N_ithr * S_nthr + S_ithr;
         int SP_N_nthr = N_nthr * S_nthr;
-        assert(utils::implication(!mkldnn_thr_syncable(), SP_N_nthr == 1));
+        assert(IMPLICATION(!mkldnn_thr_syncable(), SP_N_nthr == 1));
 
         p.N_ithr = SP_N_ithr;
         p.N_nthr = SP_N_nthr;

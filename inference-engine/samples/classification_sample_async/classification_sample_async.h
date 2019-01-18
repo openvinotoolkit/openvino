@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +44,9 @@ static const char iterations_count_message[] = "Number of iterations (default 1)
 /// @brief message for iterations count
 static const char ninfer_request_message[] = "Number of infer request for pipelined mode (default 1)";
 
+/// @brief message for #threads for CPU inference
+static const char infer_num_threads_message[] = "Optional. Number of threads to use for inference on the CPU "
+                                                "(including Hetero cases).";
 
 /// @brief message for clDNN custom kernels desc
 static const char custom_cldnn_message[] = "Required for clDNN (GPU)-targeted custom kernels."\
@@ -53,6 +55,10 @@ static const char custom_cldnn_message[] = "Required for clDNN (GPU)-targeted cu
 /// @brief message for user library argument
 static const char custom_cpu_library_message[] = "Required for MKLDNN (CPU)-targeted custom layers." \
                                                  "Absolute path to a shared library with the kernels impl.";
+
+// @brief message for CPU threads pinning option
+static const char cpu_threads_pinning_message[] = "Optional. Enable (\"YES\"default) or disable (\"NO\")" \
+                                                  "CPU threads pinning for CPU-involved inference.";
 
 /// @brief message for plugin messages
 static const char plugin_message[] = "Enables messages from a plugin";
@@ -98,6 +104,13 @@ DEFINE_int32(nireq, 1, ninfer_request_message);
 /// @brief Enable plugin messages
 DEFINE_bool(p_msg, false, plugin_message);
 
+/// @brief Enable plugin messages
+DEFINE_string(pin, "YES", cpu_threads_pinning_message);
+
+/// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
+DEFINE_int32(nthreads, 0, infer_num_threads_message);
+
+
 /**
 * @brief This function show a help message
 */
@@ -119,4 +132,7 @@ static void showUsage() {
     std::cout << "    -pc                     " << performance_counter_message << std::endl;
     std::cout << "    -nireq \"<integer>\"      " << ninfer_request_message << std::endl;
     std::cout << "    -p_msg                  " << plugin_message << std::endl;
+    std::cout << "    Some CPU-specific performance options" << std::endl;
+    std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
+    std::cout << "    -pin \"YES\"/\"NO\"       " << cpu_threads_pinning_message << std::endl;
 }

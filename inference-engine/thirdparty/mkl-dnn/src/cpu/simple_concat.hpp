@@ -49,7 +49,6 @@ struct simple_concat_t: public cpu_primitive_t {
             const memory_desc_wrapper dst_d(&dst_pd_);
             bool ok = true
                 && cpu_concat_pd_t::init() == success
-                && src_pds_.size() <= max_num_arrs
                 && dst_d.ndims() <= 6;
 
             if (!ok) return unimplemented;
@@ -62,7 +61,8 @@ struct simple_concat_t: public cpu_primitive_t {
                             o_d.data_type())
                     && i_d.format() == o_d.format()
                     && !utils::one_of(i_d.format(), memory_format::blocked,
-                        memory_format::wino_fmt);
+                        memory_format::wino_fmt)
+                    && !i_d.is_additional_buffer();
             }
 
             if (!ok)
@@ -85,19 +85,36 @@ struct simple_concat_t: public cpu_primitive_t {
 
     simple_concat_t(const pd_t *conf, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*conf) {}
+        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*conf)
+    {
+        const int n = conf_.n_inputs();
+        input_ptrs_ = (decltype(input_ptrs_))malloc(
+                sizeof(*input_ptrs_) * n, 64);
+        output_ptrs_ = (decltype(output_ptrs_))malloc(
+                sizeof(*output_ptrs_) * n, 64);
+        nelems_to_copy_ = (decltype(nelems_to_copy_))malloc(
+                sizeof(*nelems_to_copy_) * n, 64);
+        is_ = (decltype(is_))malloc(sizeof(*is_) * n, 64);
+    }
+
+    ~simple_concat_t() {
+        free(input_ptrs_);
+        free(output_ptrs_);
+        free(nelems_to_copy_);
+        free(is_);
+    }
 
     virtual void execute(event_t *e) {
         execute();
         e->set_state(event_t::ready);
     }
 
-    enum { max_num_arrs = 16 };
     typedef typename prec_traits<data_type>::type data_t;
 
 private:
     static void format_perm(
             const int ndims, const stride_t *strides, int *perm, int *iperm) {
+        assert(ndims >= 0);
         bool swapped;
         strides_t strides_tmp;
         utils::array_copy(strides_tmp, strides, ndims);
@@ -151,7 +168,13 @@ private:
 
     void execute();
     pd_t conf_;
+
+    const data_t **input_ptrs_ = nullptr;
+    data_t **output_ptrs_ = nullptr;
+    size_t *nelems_to_copy_ = nullptr;
+    strides_t *is_ = nullptr;
 };
+
 }
 }
 }

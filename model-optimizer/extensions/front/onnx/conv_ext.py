@@ -38,17 +38,17 @@ class ConvFrontExtractor(FrontExtractorOp):
         if pads is not None:
             pads = pads.reshape([2, -1])
             pads = np.transpose(pads)
-            final_pad = np.array([[0, 0], [0, 0], *[p for p in reversed(pads)]], dtype=np.int64)
+            final_pad = np.array([[0, 0], [0, 0], *pads], dtype=np.int64)
 
         # Extract dilations attribute
         # In case if dilations is not specified it will be set in default (1) in infer function
         dilations = onnx_attr(node, 'dilations', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
-        final_dilations = np.array([1, 1, *[d for d in dilations]], dtype=np.int64) if dilations is not None else None
+        final_dilations = np.array([1, 1, *dilations], dtype=np.int64) if dilations is not None else None
 
         # Extract dilations attribute
         # In case if dilations is not specified it will be set in default (1) in infer function
         strides = onnx_attr(node, 'strides', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
-        final_strides = np.array([1, 1, *[s for s in strides]], dtype=np.int64) if strides is not None else None
+        final_strides = np.array([1, 1, *strides], dtype=np.int64) if strides is not None else None
 
         kernel_shape = onnx_attr(node, 'kernel_shape', 'ints', default=None)
         auto_pad = onnx_attr(node, 'auto_pad', 's', default=None, dst_type=get_onnx_autopad)
@@ -60,14 +60,14 @@ class ConvFrontExtractor(FrontExtractorOp):
             'bias_addable': True,
             'bias_term': None,
             'pad': final_pad,
-            'pad_spatial_shape': np.array([pad for pad in pads], dtype=np.int64) if pads is not None else None,
+            'pad_spatial_shape': np.array(pads, dtype=np.int64) if pads is not None else None,
             'dilation': final_dilations,
             'output_spatial_shape': None,
             'output_shape': None,
             'stride': final_strides,
             'group': group,
             'output': None,
-            'kernel_spatial': np.array([x for x in kernel_shape], dtype=np.int64) if kernel_shape is not None else None,
+            'kernel_spatial': np.array(kernel_shape, dtype=np.int64) if kernel_shape is not None else None,
 
             'input_feature_channel': 1,
             'output_feature_channel': 0,

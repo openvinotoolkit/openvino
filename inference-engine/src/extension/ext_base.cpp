@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,9 +81,9 @@ void ExtLayerBase::addConfig(const CNNLayer* layer, std::vector<DataConfigurator
         for (size_t i = 0; i < order.size(); i++) order[i] = i;
 
         if (conf.layout == ConfLayout::BLK8 || conf.layout == ConfLayout::BLK16) {
-            if (data_dims.size() != 4)
+            if (data_dims.size() < 4 && data_dims.size() > 5)
                 THROW_IE_EXCEPTION << "Inapplicable blocking layout."
-                                   << "Tensor should be 4D.";
+                                   << "Tensor should be 4D or 5D.";
 
             int blk_size = conf.layout == ConfLayout::BLK8 ? 8 : 16;
 

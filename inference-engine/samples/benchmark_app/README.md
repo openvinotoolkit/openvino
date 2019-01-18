@@ -1,10 +1,13 @@
 # Benchmark Application Demo
 
-This topic demonstrates how to run the Benchmark Application demo, which performs inference using convolutional networks.
+This topic demonstrates how to use the Benchmark Application to estimate deep learning inference performance on supported devices. Performance can be measured for two inference modes: synchronous and asynchronous. 
+
+> **NOTE:** This topic describes usage of C++ implementation of the Benchmark Application. For the Python* implementation, refer to [Benchmark Application (Python*)](./samples/python_samples/benchmark_app/README.md)
+
 
 ## How It Works
 
-**NOTE:** To achieve benchmark results similar to the official published results, set CPU frequency to 2.9GHz and GPU frequency to 1GHz.
+> **NOTE:** To achieve benchmark results similar to the official published results, set CPU frequency to 2.9GHz and GPU frequency to 1GHz.
 
 Upon the start-up, the application reads command-line parameters and loads a network and images to the Inference Engine plugin. The number of infer requests and execution approach depend on a mode defined with the `-api` command-line parameter.
 
@@ -56,15 +59,24 @@ Options:
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-To run the demo, you can use one-layer public models or one-layer pre-trained and optimized models delivered with the package that support images as input.
+You can run the application for one input layer four-dimensional models that support images as input, for example, public 
+AlexNet and GoogLeNet models that can be downloaded 
+with the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader).
 
-For example, to do inference on an image using a trained network with multiple outputs on CPU, run the following command:
+> **NOTE**: To run the application, the model should be first converted to the Inference Engine format (\*.xml + \*.bin) 
+using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+
+For example, to perform inference on CPU in the synchronous mode and get estimated performance metrics for AlexNet model, run the following command:
 
 ```sh
-./benchmark_app -i <path_to_image>/inputImage.bmp -m <path_to_model>/multiple-output.xml -d CPU
+./benchmark_app -i <path_to_image>/inputImage.bmp -m <path_to_model>/alexnet_fp32.xml -d CPU -api sync
 ```
 
-**NOTE**: Public models should be first converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/Model_Optimizer_Developer_Guide/Deep_Learning_Model_Optimizer_DevGuide.md).
+For the asynchronous mode:
+```sh
+./benchmark_app -i <path_to_image>/inputImage.bmp -m <path_to_model>/alexnet_fp32.xml -d CPU -api async
+```
+
 
 ## Demo Output
 
@@ -84,4 +96,6 @@ For asynchronous API, the application outputs only throughput:
 ```
 
 ## See Also
-* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)
+* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)

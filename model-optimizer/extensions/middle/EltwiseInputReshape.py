@@ -48,7 +48,7 @@ class Eltwise1DInputReshape(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
         layout = graph.graph['layout']
-        for n in nx.topological_sort(graph):
+        for n in list(graph.nodes()):
             if 'type' in graph.node[n] and graph.node[n]['type'] == 'Eltwise' and get_value_id(Node(graph, n)) is None:
                 eltwise_op_node = Node(graph, n)
                 out_shape = eltwise_op_node.out_node().shape

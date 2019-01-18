@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +16,7 @@ class ConsoleProgress {
 
     size_t total;
     size_t current = 0;
+    bool stream_output;
     size_t detalization;
 
 public:
@@ -25,8 +25,9 @@ public:
     * @param _total - maximum value that is correspondent to 100%
     * @param _detalization - number of symbols(.) to use to represent progress
     */
-    explicit ConsoleProgress(size_t _total, size_t _detalization = DEFAULT_DETALIZATION) :
+    explicit ConsoleProgress(size_t _total, bool _stream_output = false, size_t _detalization = DEFAULT_DETALIZATION) :
             total(_total), detalization(_detalization) {
+        stream_output = _stream_output;
         if (total == 0) {
             total = 1;
         }
@@ -45,8 +46,12 @@ public:
         for (; i < detalization; i++) {
             std::cout << " ";
         }
-        std::cout << "] " << std::fixed << std::setprecision(2) << 100 * static_cast<float>(current) / total << "% done    ";
-        std::flush(std::cout);
+        std::cout << "] " << std::fixed << std::setprecision(2) << 100 * static_cast<float>(current) / total << "% done";
+        if (stream_output) {
+            std::cout << std::endl;
+        } else {
+            std::flush(std::cout);
+        }
     }
 
     /**

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +46,7 @@ ObjectDetectionProcessor::ObjectDetectionProcessor(const std::string& flags_m, c
     }
 }
 
-shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process() {
+shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process(bool stream_output) {
     // Parsing PASCAL VOC2012 format
     VOCAnnotationParser vocAnnParser;
     slog::info << "Collecting VOC annotations from " << annotationsPath << slog::endl;
@@ -92,7 +91,7 @@ shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process() {
 
     std::vector<VOCAnnotation> expected(batch);
 
-    ConsoleProgress progress(annCollector.annotations().size());
+    ConsoleProgress progress(annCollector.annotations().size(), stream_output);
 
     ObjectDetectionInferenceMetrics im(threshold);
 

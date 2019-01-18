@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -303,57 +302,6 @@ TEST(CNNSpecificGraphCopyTests, copyPreprocess) {
     ASSERT_FLOAT_EQ(pp[1]->meanValue, 116);
     ASSERT_FLOAT_EQ(pp[2]->meanValue, 122);
 }
-
-
-TEST(CNNSpecificGraphCopyTests, copyV1IR) {
-    CNNNetReader netReader;
-    //define minimal network with Clamp layer
-    const std::string SINGLE_LAYER_MODEL = R"V0G0N(
-    <net name="SingleLayer" version="1" batch="1">
-        <input>
-            <dim>3</dim>
-            <dim>224</dim>
-            <dim>224</dim>
-        </input>
-        <layers>
-            <layer id="1" name="ClampLayer" precision="FP16" type="Clamp">
-                <data max="6" min="0"/>
-                <input>
-                        <port id="0">
-                                <dim>3</dim>
-                                <dim>224</dim>
-                                <dim>224</dim>
-                        </port>
-                </input>
-                <output>
-                        <port id="1">
-                                <dim>3</dim>
-                                <dim>224</dim>
-                                <dim>224</dim>
-                        </port>
-                </output>
-            </layer>
-        </layers>
-        <edges>
-        </edges>
-    </net>
-    )V0G0N";
-    ASSERT_NO_THROW(netReader.ReadNetwork(SINGLE_LAYER_MODEL.data(), SINGLE_LAYER_MODEL.length()));
-    ASSERT_TRUE(netReader.isParseSuccess());
-    auto network = netReader.getNetwork();
-
-    //copy the network
-    struct EmptyStruct {};
-    auto visitor = [&](CNNLayerPtr lp) { return injectData<EmptyStruct>(lp); };
-    auto copied_net_ptr = CNNNetCopy(network, visitor);
-    auto copied_net = CNNNetwork(copied_net_ptr.get());
-
-    //check that Clamp layer was properly copied
-    auto layer = std::dynamic_pointer_cast<ClampLayer>(copied_net.getLayerByName("ClampLayer"));
-    ASSERT_NE(layer, nullptr) << "Could not perform dynamic cast from base pointer to Clamp layer pointer. "
-                                 "Net copy could be incorrect.";
-}
-
 
 TEST(CNNSpecificGraphCopyTests, copyNetworkWithDeconvolution) {
     CNNNetReader netReader;

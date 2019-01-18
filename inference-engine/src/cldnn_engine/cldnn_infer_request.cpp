@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -521,7 +520,7 @@ void CLDNNInferRequest::InferImpl() {
     IE_PROFILING_AUTO_SCOPE(CLDNN_INFER)
 
     // execute input pre-processing.
-    execDataPreprocessing(_inputs);
+    execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
 
     for (auto &item : _inputs) {
         if (m_env.m_max_batch > 1) {

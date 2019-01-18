@@ -22,11 +22,20 @@ mkldnn_status_t extended_sgemm(const char *transa, const char *transb,
         const int *M, const int *N, const int *K, const float *alpha,
         const float *A, const int *lda, const float *B, const int *ldb,
         const float *beta, float *C, const int *ldc,
-        const float *bias = nullptr);
+        const float *bias = nullptr, bool force_jit_gemm = false);
+
+template <typename b_dt>
+mkldnn_status_t gemm_s8x8s32(const char *transa, const char *transb,
+        const char *offsetc, const int *M, const int *N, const int *K,
+        const float *alpha, const int8_t *A, const int *lda, const int8_t *ao,
+        const b_dt *B, const int *ldb, const int8_t *bo, const float *beta,
+        int32_t *c, const int *ldc, const int32_t *co);
+
+template <typename data_t>
 void ref_gemm(const char *transa, const char *transb, const int *M,
-        const int *N, const int *K, const float *alpha, const float *A,
-        const int *lda, const float *B, const int *ldb, const float *beta,
-        float *C, const int *ldc, const float *bias);
+        const int *N, const int *K, const data_t *alpha, const data_t *A,
+        const int *lda, const data_t *B, const int *ldb, const data_t *beta,
+        data_t *C, const int *ldc, const data_t *bias);
 #ifdef USE_CBLAS
 #define GEMM_IMPL_STR "gemm:blas"
 #else

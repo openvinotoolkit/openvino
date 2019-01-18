@@ -88,14 +88,16 @@ template <typename in_t> struct qz_b0<in_t, float> {
 /* Quantization */
 template <typename in_t, typename out_t> struct qz {
     out_t operator()(in_t in, out_t out, float alpha, float beta,
-            round_mode_t rmode)
-    { return round_and_saturate<out_t>(alpha * in + beta * out, rmode); }
+            round_mode_t rmode) {
+        return round_and_saturate<out_t>(
+                alpha * in + (beta ? beta * out : 0), rmode);
+    }
 };
 
 template <typename in_t> struct qz<in_t, float> {
     float operator()(in_t in, float out, float alpha, float beta,
             round_mode_t rmode)
-    { return alpha * in + beta * out; }
+    { return alpha * in + (beta ? beta * out : 0); }
 };
 
 }

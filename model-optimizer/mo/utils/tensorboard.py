@@ -15,7 +15,10 @@
 """
 
 import tensorflow as tf
-
+try:
+    import tensorflow.contrib
+except:
+    pass  # we try to import contrib for loading models that use contrib operations
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 

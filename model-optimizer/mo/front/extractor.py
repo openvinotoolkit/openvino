@@ -15,6 +15,8 @@
 """
 import ast
 import logging as log
+from collections import defaultdict
+from copy import copy
 
 import networkx as nx
 import numpy as np
@@ -27,8 +29,6 @@ from mo.utils.error import Error
 from mo.utils.graph import dfs
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
-from collections import defaultdict
-from copy import copy
 
 
 def restore_edges(graph: nx.DiGraph, get_edges: callable):
@@ -473,6 +473,7 @@ def update_ie_fields(attrs: dict, ir_version = None):
     ir_version_mapping = {
         # Default behaviour is IR V3 attributes
         None: ir_v3_attrs,
+        4: ir_v3_attrs,
         3: ir_v3_attrs,
         2: ir_v2_attrs
     }
@@ -884,15 +885,9 @@ def add_output_ops(graph: nx.MultiDiGraph, user_defined_outputs: dict, inputs: d
     return sinks
 
 
-def set_is_input_true(graph: nx.MultiDiGraph, placeholders: list):
+def set_is_input(graph: nx.MultiDiGraph, placeholders: list, is_input: bool):
     for placeholder in placeholders:
-        graph.node[placeholder]['is_input'] = True
-
-
-def set_is_input_false(graph: nx.MultiDiGraph):
-    for node, data in list(graph.nodes(data=True)):
-        if 'op' in data and data['op'] == 'Placeholder':
-            graph.node[node]['is_input'] = False
+        graph.node[placeholder]['is_input'] = is_input
 
 
 def check_input(graph: nx.MultiDiGraph, node_name: str):
@@ -912,120 +907,240 @@ def split_node_in_port(node_id: str):
             node_name = separator.join(parts[1:])
             try:
                 port = int(parts[0])
-                return (node_name, port)
+                return node_name, port
             except ValueError as err:
                 log.warning('Didn\'t recognize port:node format for "{}" because port is not an integer.'.format(
                     node_id))
-    return (node_id, None)
+    return node_id, None
 
 
-def add_input_op(graph: nx.MultiDiGraph, node_id: str, port: int = 0, data: bool = False, shape=None):
-    # we import it here because Op imports add_attrs_props and update_ie_fields from this file
+def add_input_op_input_port_without_data(graph: nx.MultiDiGraph, node_id: str, input_op, edge_attrs: dict):
+    input_node = input_op.create_node()
+    graph.add_edge(input_node.id, node_id, **edge_attrs)
+    log.debug('Input: {} for node {}'.format(input_node.id, node_id))
+    log.debug("Add edge from {} to {}".format(input_node.id, node_id))
+    return input_node.id
+
+
+def add_input_op_input_port_with_data(graph: nx.MultiDiGraph, node_id: str, input_op, edge_attrs: dict):
+    input_data_node = input_op.create_node_with_data()
+    input_node = input_data_node.in_node()
+    graph.add_edge(input_data_node.id, node_id, **edge_attrs)
+    update_ie_fields(graph.node[input_node.id])
+    log.debug('Input: {} for node {}'.format(input_node.id, node_id))
+    log.debug("Add edge from {} to {}".format(input_node.id, input_data_node.id))
+    log.debug("Add edge from {} to {}".format(input_data_node.id, node_id))
+    return input_node.id
+
+
+def add_input_op_output_port_without_data(graph: nx.MultiDiGraph, node_id: str, input_op, port: int):
+    input_node = input_op.create_node()
+    # In this case it can be more than one out edge from one port and we should iterate over all output edges
+    for _, out_node, attrs in graph.out_edges(node_id, data=True):
+        if attrs['out'] == port:
+            # new out port = 0
+            attrs = attrs.copy()
+            attrs['out'] = 0
+            graph.add_edge(input_node.id, out_node, **attrs)
+            log.debug('Input: {} for node {} output port {}'.format(input_node.id, node_id, port))
+            log.debug("Add edge from {} to {}".format(input_node.id, out_node))
+    return input_node.id
+
+
+def add_input_op_output_port_with_data(graph: nx.MultiDiGraph, node_id: str, input_op, port: int):
+    # we assume that after op always data node
+    data_node = Node(graph, node_id).out_node(port)
+    assert data_node.has_valid('kind') and data_node.kind == 'data'
+    input_op.create_node_with_data(data_nodes=data_node)
+    input_node = data_node.in_node()
+    update_ie_fields(graph.node[input_node.id])
+    log.debug('Input: {} for node {}'.format(input_node.id, node_id))
+    log.debug("Add edge from {} to {}".format(input_node.id, node_id))
+    return input_node.id
+
+
+def add_input_op(graph: nx.MultiDiGraph, node_id: str, port: int = 0, data: bool = False, shape=None,
+                 is_out_port: bool = False):
+    """
+    This function adds Input node to node with id==node_id to specified port (in or out defined with is_out_port).
+    :param graph: graph to operate on.
+    :param node_id: node_id for node to which we should add new input.
+    :param port: number of port of node_id node for adding input node.
+    :param data: flag that define whether data nodes is needed or not.
+    :param shape: shape for new input node.
+    :param is_out_port: flag that define whether port is output port or not.
+    :return: id of new Input operation
+    """
+    # We import it here because Op imports add_attrs_props and update_ie_fields from this file
     from mo.ops.input import Input
-    input = Input(graph, dict(shape=shape, initial_node_name=node_id, name='{}/placeholder_port_{}'.format(node_id, port)))
+    port_type = '_out' if is_out_port else ''
+    input_op = Input(graph, dict(shape=shape, initial_node_name=node_id,
+                                 name='{}/placeholder{}_port_{}'.format(node_id, port_type, port)))
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],
                   'fw_tensor_debug_info': [(Node(graph, node_id).soft_get('name'), port)],
                   'data_attrs': ['fw_tensor_debug_info']}
     if not data:
-        input_node = input.create_node()
-        graph.add_edge(input_node.id, node_id, **edge_attrs)
-        log.debug('Input: {} for node {}'.format(input_node.id, node_id))
-        log.debug("Add edge from {} to {}".format(node_id, input_node.id))
-        return input_node.id
+        if is_out_port:
+            new_input_id = add_input_op_output_port_without_data(graph=graph, node_id=node_id, input_op=input_op,
+                                                                 port=port)
+        else:
+            new_input_id = add_input_op_input_port_without_data(graph=graph, node_id=node_id, input_op=input_op,
+                                                                edge_attrs=edge_attrs)
     else:
-        input_data_node = input.create_node_with_data()
-        input = input_data_node.in_node()
-        graph.add_edge(input_data_node.id, node_id, **edge_attrs)
-        update_ie_fields(graph.node[input.id])
-        log.debug('Input: {} for node {}'.format(input.id, node_id))
-        log.debug("Add edge from {} to {}".format(input.id, input_data_node.id))
-        log.debug("Add edge from {} to {}".format(input_data_node.id, node_id))
-        return input.id
+        if is_out_port:
+            new_input_id = add_input_op_output_port_with_data(graph=graph, node_id=node_id, input_op=input_op,
+                                                              port=port)
+        else:
+            new_input_id = add_input_op_input_port_with_data(graph=graph, node_id=node_id, input_op=input_op,
+                                                             edge_attrs=edge_attrs)
+    return new_input_id
+
+
+def add_input_ops_helper_before_infer_input_port(graph: nx.MultiDiGraph, smart_node: Node, port: int, node_id: str,
+                                                 shape: np.array, inputs: list, edges_to_remove: list):
+    n_inputs = len(smart_node.in_nodes())
+    if n_inputs > 1 and port is None:
+        raise Error(
+            'Node {} has more than 1 input and input shapes were provided. Try not to provide input'
+            ' shapes or specify input port with port:node notation, where port is an integer. '
+            '{}'.format(smart_node.soft_get('name'), refer_to_faq_msg(30)))
+    port = port if port is not None else 0
+    edges_to_remove.append((smart_node.in_node(port).id, smart_node.id))
+    inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False,
+                               shape=shape))
+
+
+def add_input_ops_helper_after_infer_input_port(graph: nx.MultiDiGraph, smart_node: Node, port:int, node_id: str,
+                                                inputs: list, edges_to_remove: list):
+    n_inputs = len(smart_node.in_nodes())
+    if n_inputs > 1 and port is not None and port != 0:
+        raise Error(
+            'Input port > 0 in --input is not supported if --input_shape is not provided. Node:'
+            ' "{}". Omit port index and all input ports will be replaced by placeholders. '
+            'Or provide --input_shape. ' + refer_to_faq_msg(31), node_id)
+    port = port if port is not None else 0
+    in_node = smart_node.in_node(port)
+    shape = in_node['shape'] if 'shape' in in_node else None
+    if shape is None:
+        raise Error('Shape for tensor "{}" is not defined. Can not proceed.' + refer_to_faq_msg(41),
+                    in_node.soft_get('name'))
+    inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=True,
+                               shape=shape.copy()))
+    edges_to_remove.append((in_node.id, node_id))
+
+
+def add_input_ops_helper_before_infer_output_port(graph: nx.MultiDiGraph, port:int, node_id: str,
+                                                 shape: np.array, inputs: list, edges_to_remove: list):
+    for u, v, edge_attrs in graph.out_edges(node_id, data=True):
+        if edge_attrs['out'] == port:
+            edges_to_remove.append((u, v))  # we need to remove all edges from this port
+    inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False,
+                               shape=shape, is_out_port=True))
+
+def add_input_ops_helper_after_infer_output_port(graph: nx.MultiDiGraph, smart_node: Node, port:int, node_id: str,
+                                                 inputs: list, edges_to_remove: list):
+    out_node = smart_node.out_node(port)
+    shape = out_node['shape'] if 'shape' in out_node else None
+    if shape is None:
+        raise Error('Shape for tensor "{}" is not defined. Can not proceed.' + refer_to_faq_msg(41),
+                    out_node.soft_get('name'))
+    inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=True,
+                               shape=shape.copy(), is_out_port=True))
+    edges_to_remove.append((node_id, out_node.id))
 
 
 def add_input_ops(graph: nx.MultiDiGraph, user_defined_inputs: dict, before_infer: bool):
+    """
+    This function add user defined input operations.
+    For cutting without port:
+    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2]}} =>
+    Op_1,  New_input (op=Placeholder, shape=[1, 2]) -> Op_2 -> output
+
+    For cutting with input port:
+    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2], 'in': 0}} =>
+    Op_1,  New_input (op=Placeholder, shape=[1, 2]) -> Op_2 -> output
+
+    For cutting with output port:
+    Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2], 'out': 0}} =>
+    Op_1 -> Op_2, New_input (op=Placeholder, shape=[1, 2]) -> output
+
+    For case with before_infer=False data nodes are added to this schemes.
+    """
     inputs = []
-    set_is_input_false(graph)
+    set_is_input(graph, get_nodes_with_attributes(graph, op='Placeholder'), False)
     if user_defined_inputs is None:
         inputs = get_nodes_with_attributes(graph, op='Placeholder')
     else:
         # cutting the net by inputs
         assert isinstance(user_defined_inputs, dict)
-        for key, values in user_defined_inputs.items():
-            for value in values:
-                if 'out' in value:
-                    raise Error(
-                        'Cutting the net by output ports of nodes is forbidden. Can not cut the edge from output port '
-                        '{} of node {}'.format(value['out'], key))
-
         edges_to_remove = []
         for node_id in user_defined_inputs:
             for port_and_shape_info in user_defined_inputs[node_id]:
                 if 'added' in port_and_shape_info and port_and_shape_info['added']:
                     continue
+
+                is_out_port = 'out' in port_and_shape_info  # by default we assume input port or input node without port
                 shape = port_and_shape_info['shape'] if 'shape' in port_and_shape_info else None
-                port = port_and_shape_info['in'] if 'in' in port_and_shape_info else None
                 smart_node = Node(graph, node_id)
-                n_inputs = len(smart_node.in_nodes())
-                # specific Placeholder cases
+
+                # Common port index check
+                if is_out_port:
+                    port = port_and_shape_info['out']  # we check that 'out' in port_and_shape_info earlier
+                    if port is None:
+                        raise Error('Output port for input node {} should be specified, it cannot be None!'.format(
+                            node_id
+                        ))
+                    if port is not None and port not in smart_node.out_nodes():
+                        raise Error('Output port index {} is out of number of available output ports for node "{}". ' +
+                                    refer_to_faq_msg(29), port, node_id)
+                else:
+                    port = port_and_shape_info['in'] if 'in' in port_and_shape_info else None
+                    if port is not None and port not in smart_node.in_nodes():
+                        raise Error('Input port index {} is out of number of available input ports for node "{}". ' +
+                                    refer_to_faq_msg(29), port, node_id)
+
+                # specific Placeholder case
                 if smart_node.op == 'Placeholder':
                     if port is not None:
-                        raise Error('Placeholder node "{}" doesn\'t have input port, but input port {} was provided. ' +
-                                    refer_to_faq_msg(28), node_id, port)
+                        raise Error(
+                            'Placeholder node "{}" doesn\'t have input port, but input port {} was provided. ' +
+                            refer_to_faq_msg(28), node_id, port)
                     if shape is not None:
                         graph.node[node_id]['shape'] = shape
                     inputs.append(node_id)
                     port_and_shape_info['added'] = True
                     continue
-                # common port index check
-                if port is not None and port >= n_inputs:
-                    raise Error('Port index {} is out of number of available input ports for node "{}". ' +
-                                refer_to_faq_msg(29), port, n_inputs)
+
                 if before_infer:
                     if shape is None:
                         continue
-                    # we cut with shapes provided by user and there is no need to wait till infer
-                    if n_inputs > 1 and port is None:
-                        raise Error('Node {} has more than 1 input and input shapes were provided. Try not to provide input'
-                                    ' shapes or specify input port with port:node notation, where port is an integer. '
-                                    '{}'.format(smart_node.soft_get('name'), refer_to_faq_msg(30)))
-                    if port is None:
-                        assert n_inputs == 1
-                        port = 0
-                    edges_to_remove = [(smart_node.in_node(port).id, smart_node.id)]
-                    inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False, shape=shape))
-                    port_and_shape_info['added'] = True
+                    # We cut with shapes provided by user and there is no need to wait till infer
+                    if is_out_port:
+                        add_input_ops_helper_before_infer_output_port(graph, port, node_id, shape, inputs,
+                                                                      edges_to_remove)
+                    else:
+                        add_input_ops_helper_before_infer_input_port(graph, smart_node, port, node_id, shape, inputs,
+                                                                     edges_to_remove)
                 else:
-
-                    # we cut after infer and
-                    if n_inputs > 1 and port is not None and port != 0:
-                        raise Error('Input port > 0 in --input is not supported if --input_shape is not provided. Node:'
-                                    ' "{}". Omit port index and all input ports will be replaced by placeholders. '
-                                    'Or provide --input_shape. ' + refer_to_faq_msg(31), node_id)
-                    for first, second, edge_attrs in list(graph.in_edges(node_id, data=True)):
-                        if graph.node[first]['value'] is not None:
-                            continue
-                        if port is not None and edge_attrs['in'] != port:
-                            continue
-                        shape = graph.node[first]['shape'].copy()
-                        if shape is None:
-                            raise Error('Shape for tensor "{}" is not defined. Can not proceed. ' + refer_to_faq_msg(41),
-                                        first)
-                        port = port if port is not None else edge_attrs['in']
-                        inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=True, shape=shape))
-                        port_and_shape_info['added'] = True
-                        edges_to_remove.append((first, second))
-            graph.remove_edges_from(edges_to_remove)
-            edges_to_remove = []
+                    # We cut after infer and we need inferred shapes in nodes
+                    if is_out_port:
+                        add_input_ops_helper_after_infer_output_port(graph, smart_node, port, node_id, inputs,
+                                                                     edges_to_remove)
+                    else:
+                        add_input_ops_helper_after_infer_input_port(graph, smart_node, port, node_id, inputs,
+                                                                    edges_to_remove)
+                port_and_shape_info['added'] = True
+        graph.remove_edges_from(edges_to_remove)
 
     # if len(inputs) == 0, shapes were not provided for all nodes in input-cut request,
     # we didn't cut inputs before infer, so this check is useless and invalid
     if len(inputs):
-        set_is_input_true(graph, inputs)
+        set_is_input(graph, inputs, True)
         # Check if there are inputs that are not listed in user_defined_inputs and are needed to calculate outputs
         outputs = get_nodes_with_attributes(graph, is_output=True)
+        visited = set()
         for output_name in outputs:
-            reverse_dfs(graph, output_name, check_input)
+            reverse_dfs(graph, output_name, check_input, visited)
 
     return inputs
 

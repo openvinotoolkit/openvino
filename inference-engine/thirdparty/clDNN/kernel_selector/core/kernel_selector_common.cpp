@@ -368,7 +368,8 @@ namespace kernel_selector
     {
         switch (type)
         {
-        case BorderType::ZERO:       return "BORDER_TYPE_ZERO";
+        case BorderType::CONSTANT:   return "BORDER_TYPE_CONSTANT";
+        case BorderType::EDGE:       return "BORDER_TYPE_EDGE";
         case BorderType::MIRROR:     return "BORDER_TYPE_MIRROR";
         case BorderType::MIRROR_101: return "BORDER_TYPE_MIRROR_101";
         default:                     return "";

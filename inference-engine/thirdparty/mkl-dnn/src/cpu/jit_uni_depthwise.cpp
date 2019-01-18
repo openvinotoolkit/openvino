@@ -458,7 +458,7 @@ status_t jit_uni_depthwise_fwd_t<isa>::pd_t::init() {
         && utils::one_of(desc()->src_desc.format, desired_blk_fmt, nchw)
         && utils::one_of(desc()->dst_desc.format, desired_blk_fmt, nchw)
         && utils::one_of(desc()->weights_desc.format, x)
-        && utils::implication(this->with_bias(), x == desc()->bias_desc.format)
+        && IMPLICATION(this->with_bias(), x == desc()->bias_desc.format)
         && attr()->has_default_values();
 
     return ok ? status::success : status::unimplemented;
