@@ -32,4 +32,4 @@ class ExpandDims(Op):
 
     def supported_attrs(self):
         # TODO ugly copying from Reshape op
-        return ['axis', ('dim', lambda node: ', '.join(map(str, node['dim']))), 'num_axes']
+        return [('dim', lambda node: ', '.join(map(str, node['dim'])))]

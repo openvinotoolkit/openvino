@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +19,11 @@ public:
         try {
             if (layer->insData.size() != 2 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+
+            if (layer->insData[0].lock()->dims.size() != 4 ||
+                    layer->insData[1].lock()->dims.size() != 4)
+                THROW_IE_EXCEPTION << "PriorBox supports only 4D blobs!";
+
             _offset = layer->GetParamAsFloat("offset");
             _step = layer->GetParamAsFloat("step", 0);
             _min_sizes = layer->GetParamAsFloats("min_size", {});

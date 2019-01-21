@@ -50,7 +50,7 @@ layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node)
         fm /= gss;
     }
 
-    return layout(rois_layout.data_type, format::bfyx, { num_rois, fm, desc->pooled_width, desc->pooled_height });
+    return layout(data_layout.data_type, format::bfyx, { num_rois, fm, desc->pooled_width, desc->pooled_height });
 }
 
 std::string roi_pooling_inst::to_string(roi_pooling_node const& node)

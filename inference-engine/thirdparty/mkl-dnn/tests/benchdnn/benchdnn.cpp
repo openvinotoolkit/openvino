@@ -30,6 +30,7 @@
 #include "conv/conv.hpp"
 #include "conv/deconv.hpp"
 #include "ip/ip.hpp"
+#include "shuffle/shuffle.hpp"
 #include "reorder/reorder.hpp"
 #include "bnorm/bnorm.hpp"
 #include "rnn/rnn.hpp"
@@ -51,6 +52,7 @@ int main(int argc, char **argv) {
         else if (!strcmp("--conv", argv[0])) prim = CONV;
         else if (!strcmp("--deconv", argv[0])) prim = DECONV;
         else if (!strcmp("--ip", argv[0])) prim = IP;
+        else if (!strcmp("--shuffle", argv[0])) prim = SHUFFLE;
         else if (!strcmp("--reorder", argv[0])) prim = REORDER;
         else if (!strcmp("--bnorm", argv[0])) prim = BNORM;
         else if (!strcmp("--rnn", argv[0])) prim = RNN;
@@ -78,6 +80,7 @@ int main(int argc, char **argv) {
     case CONV: conv::bench(argc, argv); break;
     case DECONV: deconv::bench(argc, argv); break;
     case IP: ip::bench(argc, argv); break;
+    case SHUFFLE: shuffle::bench(argc, argv); break;
     case REORDER: reorder::bench(argc, argv); break;
     case BNORM: bnorm::bench(argc, argv); break;
     case RNN: rnn::bench(argc, argv); break;

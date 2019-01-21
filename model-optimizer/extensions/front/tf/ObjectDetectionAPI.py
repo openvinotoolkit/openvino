@@ -23,7 +23,7 @@ import numpy as np
 from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.front.sub import Sub
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
-from extensions.front.tf.Pack import Pack
+from extensions.front.Pack import Pack
 from extensions.front.tf.Unpack import Unpack
 from extensions.ops.DetectionOutput import DetectionOutput
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
@@ -156,7 +156,7 @@ def _relax_reshape_nodes(graph: nx.MultiDiGraph, pipeline_config: PipelineConfig
         old_reshape_node = _skip_node_of_type(input_node.out_node(), ['Identity'])
         assert (old_reshape_node.op == 'Reshape')
         reshape_size_node = Const(graph, {'value': np.array([0, -1, 1, 4])}).create_node([])
-        new_reshape_op = Reshape(graph, {'name': input_node.id + '/Reshape'})
+        new_reshape_op = Reshape(graph, {'name': input_node.id + '/Reshape', 'correct_data_layout': True})
         new_reshape_node = new_reshape_op.create_node([input_node, reshape_size_node])
         replace_node(old_reshape_node, new_reshape_node)
 
@@ -166,7 +166,7 @@ def _relax_reshape_nodes(graph: nx.MultiDiGraph, pipeline_config: PipelineConfig
         old_reshape_node = _skip_node_of_type(input_node.out_node(), ['Identity'])
         assert (old_reshape_node.op == 'Reshape')
         reshape_size_node_2 = Const(graph, {'value': np.array([0, -1, num_classes + 1])}).create_node([])
-        new_reshape_op_2 = Reshape(graph, {'name': input_node.id + '/Reshape'})
+        new_reshape_op_2 = Reshape(graph, {'name': input_node.id + '/Reshape', 'correct_data_layout': True})
         new_reshape_node_2 = new_reshape_op_2.create_node([input_node, reshape_size_node_2])
         replace_node(old_reshape_node, new_reshape_node_2)
 
@@ -475,6 +475,12 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         # only one output edge match
         return {match.output_node(0)[0].id: new_sub_graph['detection_output_node'].id}
 
+    @staticmethod
+    def skip_nodes_by_condition(current_node: Node, condition: callable):
+        while condition(current_node):
+            current_node = current_node.in_node()
+        return current_node
+
     def generate_sub_graph(self, graph: nx.MultiDiGraph, match: SubgraphMatch):
         argv = graph.graph['cmd_params']
         if argv.tensorflow_object_detection_api_pipeline_config is None:
@@ -500,9 +506,14 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         fake_background_locs_const_op = Const(graph, dict(value=fake_background_locs_blob))
         fake_background_locs_const_node = fake_background_locs_const_op.create_node([])
 
+        # Workaround for PermuteForReshape pass.
+        # We looking for first not Reshape-typed node before match.single_input_node(0)[0].in_node(0).
+        # And add  reshape_loc node after this first not Reshape-typed node.
+        current_node = self.skip_nodes_by_condition(match.single_input_node(0)[0].in_node(0),
+                                                    lambda x: x['kind'] == 'op' and x.soft_get('type') == 'Reshape')
+
         reshape_loc_op = Reshape(graph, dict(dim=np.array([first_stage_max_proposals, num_classes, 4])))
-        reshape_loc_node = reshape_loc_op.create_node([match.single_input_node(0)[0].in_node(0)],
-                                                      dict(name='reshape_loc'))
+        reshape_loc_node = reshape_loc_op.create_node([current_node], dict(name='reshape_loc'))
 
         concat_loc_op = Concat(graph, dict(axis=1))
         concat_loc_node = concat_loc_op.create_node([fake_background_locs_const_node, reshape_loc_node],
@@ -584,7 +595,6 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
                  top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_detections_per_class'),
                  keep_top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_total_detections'),
                  nms_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_iou_threshold')))
-        PermuteAttrs.set_permutation(reshape_priors_node, detection_output_node, None)
         # sets specific name to the node so we can find it in other replacers
         detection_output_node.name = 'detection_output'
 
@@ -737,7 +747,8 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
         reshape_classes_op = Reshape(graph, dict(dim=np.array([0, -1, 2])))
         reshape_classes_node = reshape_classes_op.create_node([permute_predictions_node],
-                                                              dict(name='reshape_FirstStageBoxPredictor_class'))
+                                                              dict(name='reshape_FirstStageBoxPredictor_class',
+                                                                   nchw_layout=True))
 
         softmax_conf_op = Softmax(graph, dict(axis=2))
         softmax_conf_node = softmax_conf_op.create_node([reshape_classes_node],

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,26 +18,11 @@ using namespace std;
 using namespace mkldnn;
 
 struct split_test_params {
-    struct {
-        size_t n;
-        size_t c;
-        size_t h;
-        size_t w;
-    } in;
+    // Formats: NCHW, NCDHW
+    vector<size_t> dims;
+    std::vector<vector<size_t>> outs;
 
-    struct {
-        size_t n;
-        size_t c;
-        size_t h;
-        size_t w;
-    } out1;
-
-    struct {
-        size_t n;
-        size_t c;
-        size_t h;
-        size_t w;
-    } out2;
+    int axis;
 
     size_t num_prim_desc;
 
@@ -49,133 +33,120 @@ struct split_test_params {
 };
 
 template <typename data_t>
-void ref_split(InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<data_t> &dst1, InferenceEngine::TBlob<data_t> &dst2) {
+void ref_split(InferenceEngine::TBlob<data_t> &src, std::vector<InferenceEngine::TBlob<data_t>>& dsts, split_test_params& prm) {
     const float * srcData = src.readOnly();
 
-    int MB = dst1.dims()[dst1.dims().size() - 1];
+    int outerSize = 1;
+    for (int i = 0; i < prm.axis; i++)
+        outerSize *= src.dims()[i];
 
-    float * dstData1 = dst1.data();
-    int dstSize1 = dst1.size() / MB;
+    for (size_t osIdx = 0; osIdx < outerSize; osIdx++) {
+        for (size_t dstIdx = 0; dstIdx < dsts.size(); dstIdx++) {
+            float* dstData = dsts[dstIdx].data();
+            int innerSize = dsts[dstIdx].size() / outerSize;
 
-    float *dstData2 = dst2.data();
-    int dstSize2 = dst2.size() / MB;
-
-    for (int b = 0; b < MB; b++) {
-        for (size_t j = 0; j < dstSize1; j++, srcData++) {
-            dstData1[b*dstSize1 + j] = *srcData;
-        }
-
-        for (size_t j = 0; j < dstSize2; j++, srcData++) {
-            dstData2[b*dstSize1 + j] = *srcData;
+            for (size_t j = 0; j < innerSize; j++, srcData++) {
+                dstData[osIdx*innerSize + j] = *srcData;
+            }
         }
     }
 }
 
 class MKLDNNGraphSplitTests: public TestsCommon,
                               public WithParamInterface<split_test_params> {
-    // TODO: remove power layers from the test
     std::string model_t = R"V0G0N(
-<net name="ConcatOnly" version="2" precision="FP32" batch="1">
+<net name="ConcatOnly" version="3" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="1">
             <output>
                 <port id="1">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
             </output>
         </layer>
         <layer name="split" id="2" type="Split" precision="FP32">
-            <split_data axis="1" PrimitivesPriority="_IMPLS_"/>
+            <split_data axis="_AXIS_" PrimitivesPriority="_IMPLS_"/>
             <input>
                 <port id="1">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
             </input>
             <output>
-                <port id="2">
-                    <dim>_ON1_</dim>
-                    <dim>_OC1_</dim>
-                    <dim>_OH1_</dim>
-                    <dim>_OW1_</dim>
-                </port>
-                <port id="3">
-                    <dim>_ON2_</dim>
-                    <dim>_OC2_</dim>
-                    <dim>_OH2_</dim>
-                    <dim>_OW2_</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="power1" id="3" type="Power" precision="FP32">
-            <power_data power="1" scale="1" shift="0"/>
-            <input>
-                <port id="1">
-                    <dim>_ON1_</dim>
-                    <dim>_OC1_</dim>
-                    <dim>_OH1_</dim>
-                    <dim>_OW1_</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2">
-                    <dim>_ON1_</dim>
-                    <dim>_OC1_</dim>
-                    <dim>_OH1_</dim>
-                    <dim>_OW1_</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="power2" id="4" type="Power" precision="FP32">
-            <power_data power="1" scale="1" shift="0"/>
-            <input>
-                <port id="1">
-                    <dim>_ON2_</dim>
-                    <dim>_OC2_</dim>
-                    <dim>_OH2_</dim>
-                    <dim>_OW2_</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2">
-                    <dim>_ON2_</dim>
-                    <dim>_OC2_</dim>
-                    <dim>_OH2_</dim>
-                    <dim>_OW2_</dim>
-                </port>
+                _OP_
             </output>
         </layer>
     </layers>
     <edges>
         <edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
-        <edge from-layer="2" from-port="2" to-layer="3" to-port="1"/>
-        <edge from-layer="2" from-port="3" to-layer="4" to-port="1"/>
     </edges>
 </net>
+)V0G0N";
+
+    std::string port_t = R"V0G0N(
+<port id="_ID_">
+    <dim>_N_</dim>
+    <dim>_C_</dim>
+    <dim>_D_</dim>
+    <dim>_H_</dim>
+    <dim>_W_</dim>
+</port>
 )V0G0N";
 
 protected:
     std::string getModel(split_test_params p) {
         std::string model = model_t;
-        REPLACE_WITH_NUM(model, "_IN_", p.in.n);
-        REPLACE_WITH_NUM(model, "_IC_", p.in.c);
-        REPLACE_WITH_NUM(model, "_IW_", p.in.w);
-        REPLACE_WITH_NUM(model, "_IH_", p.in.h);
+        auto dims_size = p.dims.size();
 
-        REPLACE_WITH_NUM(model, "_ON1_", p.out1.n);
-        REPLACE_WITH_NUM(model, "_OC1_", p.out1.c);
-        REPLACE_WITH_NUM(model, "_OH1_", p.out1.h);
-        REPLACE_WITH_NUM(model, "_OW1_", p.out1.w);
+        switch (dims_size) {
+            case 3:
+                REMOVE_LINE(model, "<dim>_IH_</dim>");
+            case 4:
+                REMOVE_LINE(model, "<dim>_ID_</dim>");
+        }
+        REPLACE_WITH_NUM(model, "_IN_", p.dims[0]);
+        REPLACE_WITH_NUM(model, "_IC_", p.dims[1]);
+        REPLACE_WITH_NUM(model, "_IW_", p.dims[dims_size - 1]);
+        switch (dims_size) {
+            case 5:
+                REPLACE_WITH_NUM(model, "_ID_", p.dims[dims_size - 3]);
+            case 4:
+                REPLACE_WITH_NUM(model, "_IH_", p.dims[dims_size - 2]);
+        }
 
-        REPLACE_WITH_NUM(model, "_ON2_", p.out2.n);
-        REPLACE_WITH_NUM(model, "_OC2_", p.out2.c);
-        REPLACE_WITH_NUM(model, "_OH2_", p.out2.h);
-        REPLACE_WITH_NUM(model, "_OW2_", p.out2.w);
+        std::string outPorts;
+        for (int idx = 0; idx < p.outs.size(); idx++) {
+            std::string outPort = port_t;
+            switch (dims_size) {
+                case 3:
+                    REMOVE_LINE(outPort, "<dim>_H_</dim>");
+                case 4:
+                    REMOVE_LINE(outPort, "<dim>_D_</dim>");
+            }
+            REPLACE_WITH_NUM(outPort, "_ID_", idx);
+            REPLACE_WITH_NUM(outPort, "_N_", p.outs[idx][0]);
+            REPLACE_WITH_NUM(outPort, "_C_", p.outs[idx][1]);
+            REPLACE_WITH_NUM(outPort, "_W_", p.outs[idx][dims_size - 1]);
+            switch (dims_size) {
+                case 5:
+                    REPLACE_WITH_NUM(outPort, "_D_", p.outs[idx][dims_size - 3]);
+                case 4:
+                    REPLACE_WITH_NUM(outPort, "_H_", p.outs[idx][dims_size - 2]);
+            }
+
+            outPorts += outPort;
+        }
+        REPLACE_WITH_STR(model, "_OP_", outPorts);
+
+        REPLACE_WITH_NUM(model, "_AXIS_", p.axis);
+
         std::string impls;
         for (const auto& preferType : p.preferTypes) {
             if (!impls.empty())
@@ -195,7 +166,7 @@ protected:
             std::string model = getModel(p);
 
             InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+            net_reader.ReadNetwork(model.data(), model.length());
 
             MKLDNNGraphTestClass graph;
             graph.CreateGraph(net_reader.getNetwork());
@@ -212,16 +183,25 @@ protected:
             }
             ASSERT_LE(3, nodes.size());
 
-            InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
+            InferenceEngine::SizeVector dims_src = p.dims;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.dims.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src->allocate();
             fill_data(src->buffer(), src->size());
 
             InferenceEngine::BlobMap srcs;
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
-            InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
+            auto srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
 
             if (srcPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
@@ -229,33 +209,26 @@ protected:
             InferenceEngine::OutputsDataMap out;
             out = net_reader.getNetwork().getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
-            auto it = out.begin();
+            std::vector<InferenceEngine::TBlob<float>> dst_refs;
+            for (auto& item : out) {
+                InferenceEngine::TBlob<float>::Ptr output;
+                output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
+                output->allocate();
+                outputBlobs[item.first] = output;
 
-            std::pair<std::string, InferenceEngine::DataPtr> item = *it;
-
-            InferenceEngine::TBlob<float>::Ptr output1;
-            output1 = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
-            output1->allocate();
-            outputBlobs[item.first] = output1;
-
-            InferenceEngine::TBlob<float> dst_ref1(item.second->getTensorDesc());
-            dst_ref1.allocate();
-
-            item = *(++it);
-            InferenceEngine::TBlob<float>::Ptr output2;
-            output2 = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
-            output2->allocate();
-            outputBlobs[item.first] = output2;
-
-            InferenceEngine::TBlob<float> dst_ref2(item.second->getTensorDesc());
-            dst_ref2.allocate();
+                InferenceEngine::TBlob<float> dst_ref(item.second->getTensorDesc());
+                dst_ref.allocate();
+                dst_refs.push_back(dst_ref);
+            }
 
             graph.Infer(srcs, outputBlobs);
 
-            ref_split(*srcPtr, dst_ref1, dst_ref2);
+            ref_split(*srcPtr, dst_refs, p);
 
-            compare(*output1, dst_ref1);
-            compare(*output2, dst_ref2);
+            int ref_idx = 0;
+            for (auto& output : outputBlobs) {
+                compare(*output.second, dst_refs[ref_idx++], 0.0005f);
+            }
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
         }
@@ -269,9 +242,8 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(
                 split_test_params {
                         {1, 24, 2, 5},
-                        {1, 16, 2, 5},
-                        {1, 8, 2, 5},
-                        3, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                        {{1, 16, 2, 5}, {1, 8, 2, 5}},
+                        1, 3, MKLDNNPlugin::impl_desc_type::unknown, {}, {
                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
@@ -300,9 +272,8 @@ INSTANTIATE_TEST_CASE_P(
                 },
                 split_test_params {
                         {1, 20, 2, 5},
-                        {1, 13, 2, 5},
-                        {1, 7, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                        {{1, 13, 2, 5}, {1, 7, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
@@ -323,9 +294,8 @@ INSTANTIATE_TEST_CASE_P(
                 },
                 split_test_params {
                         {1, 20, 2, 5},
-                        {1, 10, 2, 5},
-                        {1, 10, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                        {{1, 10, 2, 5}, {1, 10, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
@@ -346,9 +316,8 @@ INSTANTIATE_TEST_CASE_P(
                 },
                 split_test_params {
                         {2, 20, 2, 5},
-                        {2, 10, 2, 5},
-                        {2, 10, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                        {{2, 10, 2, 5}, {2, 10, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
@@ -369,27 +338,76 @@ INSTANTIATE_TEST_CASE_P(
                 },
                 split_test_params {
                         {1, 24, 2, 5},
-                        {1, 16, 2, 5},
-                        {1, 8, 2, 5},
-                        3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        {{1, 16, 2, 5}, {1, 8, 2, 5}},
+                        1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {1, 20, 2, 5},
-                        {1, 13, 2, 5},
-                        {1, 7, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        {{1, 13, 2, 5}, {1, 7, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {1, 20, 2, 5},
-                        {1, 10, 2, 5},
-                        {1, 10, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        {{1, 10, 2, 5}, {1, 10, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {2, 20, 2, 5},
-                        {2, 10, 2, 5},
-                        {2, 10, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}}));
+                        {{2, 10, 2, 5}, {2, 10, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {2, 20, 2, 5},
+                        {{2, 15, 2, 5}, {2,  5, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {9, 11, 7, 5},
+                        {{3, 11, 7, 5}, {6, 11, 7, 5}},
+                        0, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {3, 11, 7, 5},
+                        {{3, 11, 4, 5}, {3, 11, 3, 5}},
+                        2, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {3, 11, 7, 5},
+                        {{3, 11, 7, 1}, {3, 11, 7, 4}},
+                        3, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {5, 6, 7, 15},
+                        {{1, 6, 7, 15}, {2, 6, 7, 15}, {1, 6, 7, 15}, {1, 6, 7, 15}},
+                        0, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {5, 6, 7, 15},
+                        {{5, 1, 7, 15}, {5, 2, 7, 15}, {5, 1, 7, 15}, {5, 2, 7, 15}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {5, 6, 7, 15},
+                        {{5, 6, 3, 15}, {5, 6, 1, 15}, {5, 6, 2, 15}, {5, 6, 1, 15}},
+                        2, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {5, 6, 7, 15},
+                        {{5, 6, 7, 5}, {5, 6, 7, 3}, {5, 6, 7, 4}, {5, 6, 7, 3}},
+                        3, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {5, 6, 7, 15},
+                        {{5, 6, 7, 15}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}},
+                split_test_params {
+                        {1, 32, 16, 16, 16},
+                        {{1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}},
+                        1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}},
+                split_test_params {
+                        {1, 32, 16, 16, 16},
+                        {{1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}},
+                        1, 3, MKLDNNPlugin::impl_desc_type::unknown, {}}));
 
 class MKLDNNGraphDynBatchSplitTests: public MKLDNNGraphSplitTests {
 protected:
@@ -397,7 +415,7 @@ protected:
         try {
             split_test_params p = ::testing::WithParamInterface<split_test_params>::GetParam();
             std::string model = getModel(p);
-            size_t MB = p.in.n;
+            size_t MB = p.dims[0];
             if (MB < 2)
                 MB = 2;
 
@@ -414,9 +432,18 @@ protected:
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
             graph.CreateGraph(net_reader.getNetwork());
 
-            InferenceEngine::SizeVector dims_src = {MB, p.in.c, p.in.h, p.in.w};
+            InferenceEngine::SizeVector dims_src = p.dims;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.dims.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -465,9 +492,8 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(
                 split_test_params {
                         {1, 24, 2, 5},
-                        {1, 16, 2, 5},
-                        {1, 8, 2, 5},
-                        3, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                        {{1, 16, 2, 5}, {1, 8, 2, 5}},
+                        1, 3, MKLDNNPlugin::impl_desc_type::unknown, {}, {
                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
@@ -496,9 +522,8 @@ INSTANTIATE_TEST_CASE_P(
                 },
                 split_test_params {
                         {1, 20, 2, 5},
-                        {1, 13, 2, 5},
-                        {1, 7, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                        {{1, 13, 2, 5}, {1, 7, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
@@ -519,9 +544,8 @@ INSTANTIATE_TEST_CASE_P(
                 },
                 split_test_params {
                         {1, 20, 2, 5},
-                        {1, 10, 2, 5},
-                        {1, 10, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                        {{1, 10, 2, 5}, {1, 10, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
@@ -542,9 +566,8 @@ INSTANTIATE_TEST_CASE_P(
                 },
                 split_test_params {
                         {2, 20, 2, 5},
-                        {2, 10, 2, 5},
-                        {2, 10, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
+                        {{2, 10, 2, 5}, {2, 10, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown, {}, {
                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
@@ -564,25 +587,51 @@ INSTANTIATE_TEST_CASE_P(
                         }
                 },
                 split_test_params {
-                        {1, 24, 2, 5},
-                        {1, 16, 2, 5},
-                        {1, 8, 2, 5},
-                        3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        {2, 24, 2, 5},
+                        {{2, 16, 2, 5}, {2, 8, 2, 5}},
+                        1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {1, 20, 2, 5},
-                        {1, 13, 2, 5},
-                        {1, 7, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        {{1, 13, 2, 5}, {1, 7, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {1, 20, 2, 5},
-                        {1, 10, 2, 5},
-                        {1, 10, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        {{1, 10, 2, 5}, {1, 10, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {2, 20, 2, 5},
-                        {2, 10, 2, 5},
-                        {2, 10, 2, 5},
-                        2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}}));
+                        {{2, 10, 2, 5}, {2, 10, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {2, 20, 2, 5},
+                        {{2, 15, 2, 5}, {2,  5, 2, 5}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {3, 11, 7, 5},
+                        {{3, 11, 4, 5}, {3, 11, 3, 5}},
+                        2, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {3, 11, 7, 5},
+                        {{3, 11, 7, 1}, {3, 11, 7, 4}},
+                        3, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {5, 6, 7, 15},
+                        {{5, 1, 7, 15}, {5, 2, 7, 15}, {5, 1, 7, 15}, {5, 2, 7, 15}},
+                        1, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {5, 6, 7, 15},
+                        {{5, 6, 3, 15}, {5, 6, 1, 15}, {5, 6, 2, 15}, {5, 6, 1, 15}},
+                        2, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                },
+                split_test_params {
+                        {5, 6, 7, 15},
+                        {{5, 6, 7, 5}, {5, 6, 7, 3}, {5, 6, 7, 4}, {5, 6, 7, 3}},
+                        3, 2, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}}));

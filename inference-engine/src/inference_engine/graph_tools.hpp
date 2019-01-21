@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -174,6 +173,25 @@ inline bool CNNNetDFS(const InferenceEngine::CNNLayerPtr &layer, const T &visit,
 
     std::unordered_map < CNNLayer *, bool> visited;
     return details::DFS(visited, layer, visit, visitBefore);
+}
+/**
+ * DFS algorithm with multiple starting data
+ * @param layer - starting data
+ * @param visit - callback to be called upon visiting
+ * @param visitBefore - indicates when callback is happened before all child nodes or after
+ */
+template<class T>
+inline bool CNNNetForestDFS(const std::vector<DataPtr> &heads, const T &visit, bool bVisitBefore) {
+    std::unordered_map< CNNLayer *, bool> visited;
+    for (const auto &in : heads) {
+        for (const auto &to : in->inputTo) {
+            if (visited.find(to.second.get()) != visited.end()) continue;
+            if (!details::DFS(visited, to.second, visit, bVisitBefore)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 /**
@@ -740,7 +758,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after, CNNLayerPtr before, CNNLaye
 
         if (!bLocated) {
             if (before != nullptr) {
-                THROW_IE_EXCEPTION << "Layers are not adjiacend: " << after->name << " vs " << before->name;
+                THROW_IE_EXCEPTION << "Layers are not adjacent: " << after->name << " vs " << before->name;
             }
             // inserting into node that doesnt have childs
             IE_ASSERT(!after->outData.empty());

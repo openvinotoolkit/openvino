@@ -23,13 +23,12 @@ from extensions.front.kaldi.fuse_repeated_reshape import FuseRepeatedReshapes
 from extensions.middle.EltwiseChecker import EltwiseChecker
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
 from mo.front.extractor import create_tensor_nodes, extract_node_attrs, add_output_ops, remove_output_ops
-from mo.front.kaldi import loader
 from mo.front.kaldi.extractor import kaldi_extractor, kaldi_type_extractors
+from mo.front.kaldi.loader.loader import load_kaldi_model, read_counts_file
 from mo.utils import class_registration
 from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
 from mo.utils.find_inputs import find_outputs
-
 from mo.graph.graph import print_graph_stat, Node, check_empty_graph
 from mo.middle.passes.eliminate import graph_clean_up
 from mo.middle.passes.infer import override_placeholder_shapes, partial_infer, mark_outputs, override_batch
@@ -104,34 +103,27 @@ def driver(argv, input_model, output_model_name, outputs, output_dir, scale, pla
     meta_info = get_meta_info(argv)
 
     EltwiseChecker.enabled = False
-    
+
     try:
-        graph, input_shapes = loader.load_kaldi_nnet_model(input_model)
+        graph, input_shapes = load_kaldi_model(input_model)
     except Exception as e:
         raise Error('Model Optimizer is not able to read Kaldi model {}. '.format(input_model) +
                     refer_to_faq_msg(91)) from e
     check_empty_graph(graph, 'load_kaldi_nnet_model')
-
     graph.graph['cmd_params'] = argv
     graph.graph['fw'] = 'kaldi'
-    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 3
-
-    if argv.counts:
-        try:
-            counts = loader.read_counts_file(argv.counts)
-        except Exception as e:
-            raise Error('Model Optimizer is not able to read counts file {}'.format(argv.counts) +
-                        refer_to_faq_msg(92)) from e
+    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 4
 
     update_extractors_with_extensions(kaldi_type_extractors)
-    # Intentionally before extracting attributes
+
+    extract_node_attrs(graph, lambda node: kaldi_extractor(node))
 
     class_registration.apply_replacements(graph, class_registration.ClassType.FRONT_REPLACER)
-    extract_node_attrs(graph, lambda node: kaldi_extractor(node))
 
     output_op_nodes = add_output_ops(graph, outputs)  # TODO pass real outputs instead of None
     log.debug("After adding specific nodes for outputs")
     print_graph_stat(graph)
+
     check_empty_graph(graph, 'add_output_ops')
     create_tensor_nodes(graph)
 
@@ -153,16 +145,22 @@ def driver(argv, input_model, output_model_name, outputs, output_dir, scale, pla
     # You need to pass required network outputs here
     # but we don't have a way yet, so just passing all discovered sinks
     mark_outputs(graph)
-
     graph_clean_up(graph)
     log.debug("After graph_cleanup")
     print_graph_stat(graph)
     graph = partial_infer(graph)
+
     # The order is intentional, firstly eliminate repeated, then remove redundant
     FuseRepeatedReshapes().find_and_replace_pattern(graph)
     EliminateRedundantReshape().find_and_replace_pattern(graph)
     check_empty_graph(graph, 'partial_infer')
     if argv.counts:
+        try:
+            counts = read_counts_file(argv.counts)
+        except Exception as e:
+            raise Error('Model Optimizer is not able to read counts file {}'.format(argv.counts) +
+                        refer_to_faq_msg(92)) from e
+
         apply_biases_to_last_layer(graph, counts)
 
     if argv.remove_output_softmax:

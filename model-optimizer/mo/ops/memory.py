@@ -15,9 +15,7 @@
 """
 
 import networkx as nx
-import numpy as np
 
-from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.graph.graph import Node
 from mo.ops.op import Op
 from mo.front.common.partial_infer.elemental import copy_shape_infer
@@ -44,7 +42,6 @@ class Memory(Op):
 
     @staticmethod
     def infer(node: Node):
-        outn = node.out_node(0)  # data
         if len(node.in_nodes()) > 0:
             # In case this is a memory node with input,
             # It should not have output
@@ -53,18 +50,16 @@ class Memory(Op):
             # node that will be removed later in pipeline
             copy_shape_infer(node)
             return
-        data_outs = outn.out_nodes()  # children
-        for out in data_outs:
-            if len(out.pb.blobs) == 0 or not isinstance(out.pb.blobs[0], np.ndarray):
-                continue
-            blob_shape = out.pb.blobs[0].shape[0]
-            if out.type == 'FullyConnected':
-                outn.shape = np.int64(np.array([1, blob_shape / out.pb.num_output]))
-                break
-            elif out.type == 'ScaleShift':
-                outn.shape = np.int64(np.array([1, blob_shape]))
-                break
+        elif node.has_valid('shape'):
+            # For Memories, that has not input infer shapes is very difficult
+            # But often we can know shape in extracting attributes
+            # And we can set the attribute 'shape' in extracting
+            batch = 1
+            for out_node in node.out_nodes().values():
+                out_node.shape = [batch, *node.shape[:]]
+            return
         else:
             raise Error('Model Optimizer is unable to calculate output shape of Memory node {}. ' +
                         refer_to_faq_msg(88),
                         node.id)
+

@@ -60,9 +60,9 @@
 
 KERNEL(roi_pooling_gpu)
 (
-    const __global UNIT_TYPE * src_data,
-    __global UNIT_TYPE * dst_data,
-    const __global UNIT_TYPE * src_rois
+    const __global INPUT0_TYPE * src_data,
+    __global OUTPUT_TYPE * dst_data,
+    const __global INPUT1_TYPE * src_rois
 )
 {
     const size_t i = get_global_id(0);
@@ -76,7 +76,7 @@ KERNEL(roi_pooling_gpu)
     //       with SPATIAL_SCALE: It makes sense since the resolution of
     //       the pooled data is limited by its dimensions. (Is this clear?)
 
-    const __global UNIT_TYPE * roi_ptr = &src_rois[PITCH_ROI_R * r];
+    const __global INPUT1_TYPE * roi_ptr = &src_rois[PITCH_ROI_R * r];
 
 #if BILINEAR_POOLING
     const uint output_offset = OUTPUT_OFFSET + x*OUTPUT_X_PITCH + y*OUTPUT_Y_PITCH + c*OUTPUT_FEATURE_PITCH + r*OUTPUT_ROI_PITCH;
@@ -93,7 +93,7 @@ KERNEL(roi_pooling_gpu)
     COORD_T in_x = x*width_scale  + roi_start_w*(COORD_T)(SRC_W - 1);
 
     if (in_y < 0 || in_y > (COORD_T)(SRC_H - 1) || in_x < 0 || in_x > (COORD_T)(SRC_W - 1) || roi_ptr[0] == -1) {
-        dst_data[output_offset] = ACTIVATION((UNIT_TYPE)0, NL_M, NL_N);
+        dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)0, NL_M, NL_N);
         return;
     }
 
@@ -102,7 +102,7 @@ KERNEL(roi_pooling_gpu)
     int left_x_index   = (int)(floor(in_x));
     int right_x_index  = (int)(min(ceil(in_x), (COORD_T)SRC_W - 1));
 
-    const __global UNIT_TYPE* data = src_data + INPUT0_OFFSET + INPUT0_FEATURE_PITCH*c;
+    const __global INPUT0_TYPE* data = src_data + INPUT0_OFFSET + INPUT0_FEATURE_PITCH*c;
 
     ACCUM_T top_left     = (ACCUM_T)data[top_y_index*INPUT0_Y_PITCH + left_x_index*INPUT0_X_PITCH];
     ACCUM_T top_right    = (ACCUM_T)data[top_y_index*INPUT0_Y_PITCH + right_x_index*INPUT0_X_PITCH];
@@ -114,7 +114,7 @@ KERNEL(roi_pooling_gpu)
 
     ACCUM_T res = top + (bottom - top) * (in_y - top_y_index);
 
-    dst_data[output_offset] = ACTIVATION((UNIT_TYPE)res, NL_M, NL_N);
+    dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)res, NL_M, NL_N);
 #else
 
 #if USE_OLD_SCALE_AND_ROUNDING
@@ -187,10 +187,10 @@ KERNEL(roi_pooling_gpu)
     const uint work_c = group_x + GROUP_SIZE * (group_y + GROUP_SIZE * c);
 #endif
 
-    const __global UNIT_TYPE* data = src_data + INPUT0_OFFSET + INPUT0_FEATURE_PITCH*work_c;
+    const __global INPUT0_TYPE* data = src_data + INPUT0_OFFSET + INPUT0_FEATURE_PITCH*work_c;
 
 #if MAX_POOLING
-    ACCUM_T res = x_begin < x_after && y_begin < y_after ? UNIT_VAL_MIN : 0;
+    ACCUM_T res = x_begin < x_after && y_begin < y_after ? -FLT_MAX : 0;
 #else
     ACCUM_T res = 0;
 #endif
@@ -198,7 +198,7 @@ KERNEL(roi_pooling_gpu)
     for (int yy = y_begin; yy < y_after; ++yy)
     for (int xx = x_begin; xx < x_after; ++xx)
     {
-        UNIT_TYPE val = data[xx*INPUT0_X_PITCH + yy*INPUT0_Y_PITCH];
+        INPUT0_TYPE val = data[xx*INPUT0_X_PITCH + yy*INPUT0_Y_PITCH];
 #if MAX_POOLING
         res = MAX(res, (ACCUM_T)val);
 #else
@@ -215,6 +215,6 @@ KERNEL(roi_pooling_gpu)
 #endif
 
     const uint output_offset = OUTPUT_OFFSET + x*OUTPUT_X_PITCH + y*OUTPUT_Y_PITCH + c*OUTPUT_FEATURE_PITCH + r*OUTPUT_ROI_PITCH;
-    dst_data[output_offset] = ACTIVATION((UNIT_TYPE)res, NL_M, NL_N);
+    dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)res, NL_M, NL_N);
 #endif
 }

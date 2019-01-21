@@ -25,7 +25,7 @@ class DisableUnsupportedNDOperations(BackReplacementPattern):
     """
         This pass disables ND Convolutions/Deconvolutions/Poolings
     """
-    enabled = True
+    enabled = False
 
     unsupported_operations = ['Convolution', 'Deconvolution', 'Pooling']
 

@@ -343,8 +343,9 @@ void partition_unit_diff(
 
 // Sum the m*n values from p_src into p_dst, assuming the two-dimensional
 // arrays have leading dimensions ld_src and ld_dst, respectively
+template<typename data_t>
 void sum_two_matrices(
-        int m, int n, float *p_src, int ld_src, float *p_dst, int ld_dst)
+        int m, int n, data_t *p_src, int ld_src, data_t *p_dst, int ld_dst)
 {
     int i, j;
     for (j = 0; j < n; j++) {
@@ -353,6 +354,12 @@ void sum_two_matrices(
         }
     }
 }
+
+template void sum_two_matrices<float>(
+        int m, int n, float *p_src, int ld_src, float *p_dst, int ld_dst);
+
+template void sum_two_matrices<double>(
+        int m, int n, double *p_src, int ld_src, double *p_dst, int ld_dst);
 }
 }
 }

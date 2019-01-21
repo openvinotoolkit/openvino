@@ -185,9 +185,6 @@ void gemm_convolution_bwd_data_t::execute_backward_data() {
     const int LDC = jcp.im2col_sz ? m : M;
     data_t *col = jcp.im2col_sz ? (data_t *)this->scratchpad_->get() : nullptr;
 
-    parallel_nd(jcp.im2col_sz * jcp.nthr,
-            [&](ptrdiff_t i) { col[i] = (data_t)0; });
-
     const size_t work_amount = (size_t)jcp.ngroups * MB;
 
     if (jcp.id > 1) {
@@ -266,14 +263,14 @@ void gemm_convolution_bwd_weights_t::execute_backward_weights() {
         jit_gemm_convolution_utils::bwd_weights_balance(ithr, nthr, jcp.ngroups,
                 mb_for_balance, ithr_g, nthr_g, ithr_mb, nthr_mb);
 
-        assert(utils::implication(!jcp.need_wei_reduction, nthr_mb == 1));
+        assert(IMPLICATION(!jcp.need_wei_reduction, nthr_mb == 1));
         const int need_reduction = nthr_mb != 1;
 
         if (ithr_g != -1 && ithr_mb != -1) {
             balance211((size_t)jcp.ngroups, nthr_g, ithr_g, g_start, g_end);
             balance211((size_t)jcp.mb, nthr_mb, ithr_mb, mb_start, mb_end);
 
-            assert(implication((g_end - g_start) > 1, need_reduction == 0));
+            assert(IMPLICATION((g_end - g_start) > 1, need_reduction == 0));
 
             data_t *_col = col + (ptrdiff_t)ithr * jcp.im2col_sz;
             data_t *weights_reduce_base = wei_reduction

@@ -53,12 +53,12 @@ struct ref_inner_product_fwd_t: public cpu_primitive_t {
                 && desc()->weights_desc.data_type == wei_type
                 && desc()->accum_data_type == acc_type
                 && desc()->dst_desc.data_type == dst_type
-                && utils::implication(with_bias(),
+                && IMPLICATION(with_bias(),
                             utils::one_of(desc()->bias_desc.data_type,
                                 f32, s32, s8, u8))
                 && attr()->output_scales_.has_default_values()
                 && attr()->post_ops_.len_ <= 1
-                && utils::implication(attr()->post_ops_.len_ == 1,
+                && IMPLICATION(attr()->post_ops_.len_ == 1,
                         attr()->post_ops_.entry_[0].is_relu(true, false));
             return ok ? status::success : status::unimplemented;
         }
@@ -167,7 +167,7 @@ struct ref_inner_product_bwd_weights_t: public cpu_primitive_t {
                         this->desc()->src_desc.data_type,
                         this->desc()->diff_dst_desc.data_type,
                         this->desc()->diff_weights_desc.data_type)
-                && utils::implication(this->with_bias(),
+                && IMPLICATION(this->with_bias(),
                         data_type == this->desc()->diff_bias_desc.data_type)
                 && attr()->has_default_values();
             return ok ? status::success : status::unimplemented;

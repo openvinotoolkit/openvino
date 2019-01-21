@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,6 +70,17 @@ void MKLDNNReorderNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
 
+    createReorderPrimitive(srcMemPtr->GetDescriptor(), srcMemPtr->GetPrimitive().get_data_handle(),
+            dstMemPtr->GetDescriptor(), dstMemPtr->GetPrimitive().get_data_handle());
+}
+
+void MKLDNNReorderNode::createReorderPrimitive(mkldnn::memory::desc srcDesc, void* srcPtr, mkldnn::memory::desc dstDesc, void* dstPtr) {
+    src_blocked = std::make_shared<MKLDNNMemory>(getEngine());
+    src_blocked->Create(srcDesc, srcPtr);
+
+    dst_blocked = std::make_shared<MKLDNNMemory>(getEngine());
+    dst_blocked->Create(dstDesc, dstPtr);
+
     mkldnn::primitive_attr attr;
 
     if (_scales) {
@@ -90,52 +100,12 @@ void MKLDNNReorderNode::createPrimitive() {
         attr.set_int_output_round_mode(round_nearest);
     }
 
-    if (srcMemPtr->GetSize() == dstMemPtr->GetSize()) {
-        InferenceEngine::Precision dstPrec = getChildEdgeAt(0)->getDesc().getPrecision();
-        InferenceEngine::Precision srcPrec = getParentEdgeAt(0)->getDesc().getPrecision();
-
-        if ((srcPrec == InferenceEngine::Precision::I8 && dstPrec == InferenceEngine::Precision::U8)) {
-            // This reorder actually does nothing so we declare it in-place.
-            dstMemPtr->GetPrimitive().set_data_handle(srcMemPtr->GetPrimitive().get_data_handle());
-        } else {
-            try {
-                // No autoblocking. Reorder can be applied as is
-
-                reorder::primitive_desc pd = reorder::primitive_desc(srcMemPtr->GetPrimitiveDescriptor(), dstMemPtr->GetPrimitiveDescriptor(), attr);
-                prim.reset(new mkldnn::reorder(srcMemPtr->GetPrimitive(), dstMemPtr->GetPrimitive()));
-            } catch (...) {}
-        }
-    } else {
-        // Autoblocking case. nchw<=>nChw8c are only supported, but memory descriptor
-        // should be with strides. Prepare it from enlarged blob
-        memory::dims dims = srcMemPtr->GetDims();
-        memory::dims dims_dst = dstMemPtr->GetDims();
-
-        for (int i = 0; i < dims.size(); i++)  // min dims is a logical dims
-            dims[i] = std::min(dims[i], dims_dst[i]);
-
-        memory::desc src_d = srcMemPtr->GetDescriptor();
-        void *src_data_hdl = srcMemPtr->GetPrimitive().get_data_handle();
-
-        memory::desc dst_d = dstMemPtr->GetDescriptor();
-        void *dst_data_hdl = dstMemPtr->GetPrimitive().get_data_handle();
-
-        for (int i = 0; i < dims.size(); i++)
-            src_d.data.dims[i] = dst_d.data.dims[i] = dims[i];
-
-        src_blocked = std::make_shared<MKLDNNMemory>(getEngine());
-        src_blocked->Create(src_d, src_data_hdl);
-
-        dst_blocked = std::make_shared<MKLDNNMemory>(getEngine());
-        dst_blocked->Create(dst_d, dst_data_hdl);
-
-        // output blob should be zeroed. NaN value can occur in untouched place.
-        dstMemPtr->FillZero();
-
+    try {
+        // No autoblocking. Reorder can be applied as is
         reorder::primitive_desc pd = reorder::primitive_desc(src_blocked->GetPrimitiveDescriptor(), dst_blocked->GetPrimitiveDescriptor(), attr);
 
         prim.reset(new mkldnn::reorder(pd, src_blocked->GetPrimitive(), dst_blocked->GetPrimitive()));
-    }
+    } catch (...) {}
 }
 
 const std::vector<impl_desc_type>& MKLDNNReorderNode::getPrimitivesPriority() {
@@ -148,32 +118,9 @@ bool MKLDNNReorderNode::created() const {
 }
 
 void MKLDNNReorderNode::execute(mkldnn::stream strm) {
-    if (prim) {
-        if (src_blocked)
-            src_blocked->GetPrimitivePtr()->set_data_handle(getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
-        if (dst_blocked)
-            dst_blocked->GetPrimitivePtr()->set_data_handle(getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
-        MKLDNNNode::execute(strm);
-    } else {
-        InferenceEngine::Precision dstPrec = getChildEdgeAt(0)->getDesc().getPrecision();
-        InferenceEngine::Precision srcPrec = getParentEdgeAt(0)->getDesc().getPrecision();
-        if ((srcPrec == InferenceEngine::Precision::I8 && dstPrec == InferenceEngine::Precision::U8)) {
-            // Do nothing here
-        } else {
-            auto srcBlbPtr = getParentEdgeAt(0)->getBlob();
-            auto dstBlbPtr = getChildEdgeAt(0)->getBlob();
-
-            assert(srcBlbPtr->size() == dstBlbPtr->size());
-            int data_size = srcBlbPtr->size();
-
-            const auto* src_data = srcBlbPtr->cbuffer().as<const float *>();
-            auto* dst_data = dstBlbPtr->buffer().as<float *>();
-
-            InferenceEngine::parallel_for(data_size, [&](int i) {
-                dst_data[dstBlbPtr->getTensorDesc().offset(i)] = src_data[srcBlbPtr->getTensorDesc().offset(i)];
-            });
-        }
-    }
+    src_blocked->GetPrimitivePtr()->set_data_handle(getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
+    dst_blocked->GetPrimitivePtr()->set_data_handle(getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
+    MKLDNNNode::execute(strm);
 }
 
 void MKLDNNReorderNode::setDynamicBatchLim(int lim) {
@@ -186,21 +133,12 @@ void MKLDNNReorderNode::setDynamicBatchLim(int lim) {
         void *src_data_hdl = srcMemPtr->GetPrimitive().get_data_handle();
         void *dst_data_hdl = dstMemPtr->GetPrimitive().get_data_handle();
 
-        if (src_blocked && dst_blocked) {
-            src_d = src_blocked->GetDescriptor();
-            dst_d = dst_blocked->GetDescriptor();
-            src_data_hdl = src_blocked->GetPrimitive().get_data_handle();
-            dst_data_hdl = dst_blocked->GetPrimitive().get_data_handle();
-        }
-        src_blocked = std::make_shared<MKLDNNMemory>(getEngine());
         src_d.data.dims[0] = batchToProcess();
         src_d.data.layout_desc.blocking.padding_dims[0] = batchToProcess();
-        src_blocked->Create(src_d, src_data_hdl);
 
-        dst_blocked = std::make_shared<MKLDNNMemory>(getEngine());
         dst_d.data.dims[0] = batchToProcess();
         dst_d.data.layout_desc.blocking.padding_dims[0] = batchToProcess();
-        dst_blocked->Create(dst_d, dst_data_hdl);
-        prim.reset(new mkldnn::reorder(src_blocked->GetPrimitive(), dst_blocked->GetPrimitive()));
+
+        createReorderPrimitive(src_d, src_data_hdl, dst_d, dst_data_hdl);
     }
 }

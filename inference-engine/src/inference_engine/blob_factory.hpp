@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +35,9 @@ template <InferenceEngine::Precision::ePrecision precision, class ... Args> Infe
 
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr) make_blob_with_precision(const InferenceEngine::TensorDesc& desc);
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr) make_blob_with_precision(const InferenceEngine::TensorDesc& desc, void* ptr);
+INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr) make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVector dims);
+
+INFERENCE_ENGINE_API_CPP(InferenceEngine::Layout) plain_layout(InferenceEngine::SizeVector dims);
 
 template <class ... Args>
 InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision precision, Args &&... args) {

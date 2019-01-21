@@ -1,9 +1,9 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
 #include <cctype>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -114,15 +114,21 @@ public:
     static std::string make_so_name(const std::string & input) {
 #ifdef _WIN32
     #ifdef __MINGW32__
-        return "lib" + input + ".dll";
+        std::string pre = "lib";
+        std::string ext = ".dll";
     #else
-        return input + ".dll";
+        std::string pre = "";
+        std::string ext = ".dll";
     #endif
 #elif __APPLE__
-        return "lib" + input + ".dylib";
+        std::string pre = "lib";
+        std::string ext = ".dylib";
 #else
-        return "lib" + input + ".so";
+        std::string pre = "lib";
+        std::string ext = ".so";
 #endif
+        return pre + input + IE_BUILD_POSTFIX + ext;
+
     }
 
     static std::string make_plugin_name(const std::string & input) {
@@ -161,7 +167,7 @@ public:
         }
     }
 
-    void compare(InferenceEngine::Blob &res, InferenceEngine::Blob &ref, float max_diff = 0.01f) {
+    static void compare(InferenceEngine::Blob &res, InferenceEngine::Blob &ref, float max_diff = 0.01f) {
 
         float *res_ptr = res.buffer().as<float*>();
         size_t res_size = res.size();
@@ -176,7 +182,7 @@ public:
         }
     }
 
-    void compare_NRMSD(InferenceEngine::Blob &res, InferenceEngine::Blob &ref, float max_nrmsd = 0.01f) {
+    static void compare_NRMSD(InferenceEngine::Blob &res, InferenceEngine::Blob &ref, float max_nrmsd = 0.01f) {
 
         float *res_ptr = res.buffer().as<float*>();
         size_t res_size = res.size();
@@ -195,8 +201,8 @@ public:
             sqr *= sqr;
             sum += sqr;
 
-            mmin = std::min(mmin, ref_ptr[i]);
-            mmax = std::max(mmax, ref_ptr[i]);
+            mmin = (std::min)(mmin, ref_ptr[i]);
+            mmax = (std::max)(mmax, ref_ptr[i]);
 
             if (i % 10007 == 0) {
                 std::cout << i << ": " << res_ptr[i] << "\t" << ref_ptr[i] << "\t" << "\tdiv: " << ref_ptr[i] / res_ptr[i] << std::endl;
@@ -212,7 +218,7 @@ public:
         ASSERT_LE(sum, max_nrmsd);
     }
 
-    void compare(float* res, float* ref, size_t size, float max_diff = 0.01f) {
+    static void compare(float* res, float* ref, size_t size, float max_diff = 0.01f) {
         for (size_t i = 0; i < size; i++) {
             ASSERT_NEAR(res[i], ref[i], max_diff);
         }

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +9,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#include <../samples/slog.hpp>
+#include <samples/slog.hpp>
 
 using namespace std;
 using namespace FormatReader;

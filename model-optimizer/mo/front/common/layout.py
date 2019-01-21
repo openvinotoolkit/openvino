@@ -14,9 +14,10 @@
  limitations under the License.
 """
 
+import logging as log
+
 import numpy as np
 
-from mo.graph.graph import Node
 from mo.utils.error import Error
 
 nchw_to_nhwc_permute = np.array([0, 2, 3, 1], dtype=np.int64)

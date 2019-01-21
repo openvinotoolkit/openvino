@@ -26,6 +26,9 @@ def tf_reduce_infer(node, op=None):
     if input_shape is None or axis is None or input_shape.ndim != 1 or axis.ndim > 1:
         return
     output_shape = np.array(input_shape)
+    if len(axis.shape) == 0:  # fix since np.delete deprecate negative idxs
+        axis = axis.reshape([1])
+    axis[axis < 0] += output_shape.shape[0]
     if node.keep_dims:
         output_shape[axis] = 1
     else:

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +43,7 @@ public:
             InferenceEngine::InferencePlugin plugin, CsvDumper& dumper,
             const std::string& flags_a, const std::string& classes_list_file, PreprocessingOptions preprocessingOptions, bool scaleSizeToInputSize);
 
-    shared_ptr<InferenceMetrics> Process();
+    shared_ptr<InferenceMetrics> Process(bool stream_output);
     virtual void Report(const InferenceMetrics& im);
     virtual ~ObjectDetectionProcessor() {}
 };

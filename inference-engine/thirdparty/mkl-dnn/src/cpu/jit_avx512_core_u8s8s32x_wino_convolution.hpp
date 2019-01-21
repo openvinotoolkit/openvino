@@ -23,6 +23,7 @@
 #include "cpu_convolution_pd.hpp"
 #include "cpu_engine.hpp"
 #include "mkldnn_thread.hpp"
+#include "scratchpad.hpp"
 #include "type_helpers.hpp"
 #include "utils.hpp"
 
@@ -66,7 +67,7 @@ struct _jit_avx512_core_u8s8s32x_wino_convolution_fwd_t : public cpu_primitive_t
                 && this->cdesc_().src_desc.data_type == data_type::u8
                 && this->cdesc_().dst_desc.data_type == dst_data_type
                 && this->cdesc_().weights_desc.data_type == data_type::s8
-                && utils::implication(this->with_bias(),
+                && IMPLICATION(this->with_bias(),
                     utils::one_of(this->cdesc_().bias_desc.data_type,
                                                 data_type::f32, data_type::s32,
                                                 data_type::s8, data_type::u8))
@@ -118,17 +119,14 @@ private:
     jit_avx512_core_u8s8s32x_wino_conv_src_trans_t *src_trans_;
     jit_avx512_core_u8s8s32x_wino_conv_dst_trans_t *dst_trans_;
 
-    size_t size_wino_wei;
-    size_t size_wino_src;
-    size_t size_wino_dst;
+    size_t size_wino_wei_;
+    size_t size_wino_src_;
+    size_t size_wino_dst_;
+    size_t wino_shift_;
 
-    const wei_data_t *wino_wei_;
-    const acc_data_t *dst_bias_;
+    scratchpad_t *scratchpad_;
 
-    src_data_t *wino_src_;
-    acc_data_t *wino_dst_;
-
-    void *workspace;
+    mkldnn::impl::scales_t updated_output_scales_;
 };
 
 template <impl::data_type_t dst_type>

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +13,7 @@
 #include <cmath>
 #include <cassert>
 #include "ie_parallel.hpp"
+#include "simple_copy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -30,6 +30,9 @@ public:
         try {
             if (layer->insData.size() != 1 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+
+            if (layer->insData[0].lock()->dims.size() != 4)
+                THROW_IE_EXCEPTION << "Resample supports only 4D blobs!";
 
             type = layer->GetParamAsString("type");
             antialias = static_cast<bool>(layer->GetParamAsInt("antialias"));
@@ -65,7 +68,7 @@ public:
         size_t OW = outputs[0]->getTensorDesc().getDims()[3];
 
         if (IW == OW && IH == OH && type == "caffe.ResampleParameter.LINEAR") {
-            memcpy(dst_data, src_data, IN * IC * IH * IW * sizeof(float));
+            simple_copy(dst_data, outputs[0]->byteSize(), src_data, IN * IC * IH * IW * sizeof(float));
             return OK;
         }
 

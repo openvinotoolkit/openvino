@@ -1,10 +1,8 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "lin_omp_manager.h"
-#include "ie_parallel.hpp"
 #include <fstream>
 #include <set>
 #include <string>
@@ -19,18 +17,11 @@ namespace cpu {
 Processor::Processor() {
     processor = 0;
     physicalId = 0;
-    siblings = 0;
-    coreId = 0;
     cpuCores = 0;
-    speedMHz = 0;
 }
 
 CpuInfo::CpuInfo() {
     loadContentFromFile("/proc/cpuinfo");
-}
-
-CpuInfo::CpuInfo(const char *content) {
-    loadContent(content);
 }
 
 void CpuInfo::loadContentFromFile(const char *fileName) {
@@ -98,10 +89,6 @@ Collection::Collection(CpuInfoInterface *cpuInfo) : cpuInfo(*cpuInfo) {
     collectBasicCpuInformation();
 }
 
-unsigned Collection::getProcessorSpeedMHz() {
-    return processors.size() ? processors[0].speedMHz : 0;
-}
-
 unsigned Collection::getTotalNumberOfSockets() {
     return totalNumberOfSockets;
 }
@@ -112,10 +99,6 @@ unsigned Collection::getTotalNumberOfCpuCores() {
 
 unsigned Collection::getNumberOfProcessors() {
     return processors.size();
-}
-
-const Processor &Collection::getProcessor(unsigned processorId) {
-    return processors[processorId];
 }
 
 void Collection::parseCpuInfo() {
@@ -148,20 +131,8 @@ void Collection::parseValue(const char *fieldName, const char *valueString) {
         currentProcessor->physicalId = parseInteger(valueString);
     }
 
-    if (beginsWith(fieldName, "siblings")) {
-        currentProcessor->siblings = parseInteger(valueString);
-    }
-
-    if (beginsWith(fieldName, "core id")) {
-        currentProcessor->coreId = parseInteger(valueString);
-    }
-
     if (beginsWith(fieldName, "cpu cores")) {
         currentProcessor->cpuCores = parseInteger(valueString);
-    }
-
-    if (beginsWith(fieldName, "model name")) {
-        currentProcessor->speedMHz = extractSpeedFromModelName(valueString);
     }
 }
 
@@ -184,32 +155,6 @@ unsigned Collection::parseInteger(const char *text) const {
     return atol(text);
 }
 
-/* Function extracts CPU speed from model name. If unit is not set it is
-   assumed that values below 100 are specified in GHz, otherwise MHz */
-unsigned Collection::extractSpeedFromModelName(const char *text) const {
-    text = strstr(text, "@");
-    if (!text) {
-        return 0;
-    }
-
-    char *unit;
-    double speed = strtod(&text[1], &unit);
-
-    while (isspace(*unit)) {
-        unit++;
-    }
-
-    bool isMHz = !strncmp(unit, "MHz", 3);
-    bool isGHz = !strncmp(unit, "GHz", 3);
-    bool isGHzPossible = (speed < 100);
-
-    if (isGHz || (isGHzPossible && !isMHz)) {
-        return 1000 * speed + 0.5;
-    } else {
-        return speed + 0.5;
-    }
-}
-
 void Collection::collectBasicCpuInformation() {
     std::set<unsigned> uniquePhysicalId;
     std::vector<Processor>::iterator processor = processors.begin();
@@ -229,119 +174,26 @@ void Collection::updateCpuInformation(const Processor &processor,
     totalNumberOfCpuCores += processor.cpuCores;
 }
 
-
-/* The OpenMpManager class is responsible for determining a set of all of
-   available CPU cores and delegating each core to perform other tasks. The
-   first of available cores is delegated for background threads, while other
-   remaining cores are dedicated for OpenMP threads. Each OpenMP thread owns
-   one core for exclusive use. The number of OpenMP threads is then limited
-   to the number of available cores minus one. The amount of CPU cores may
-   be limited by system eg. when numactl was used. */
 #include <sched.h>
 
-static const char *openMpEnvVars[] = {
-        "OMP_CANCELLATION", "OMP_DISPLAY_ENV", "OMP_DEFAULT_DEVICE", "OMP_DYNAMIC",
-        "OMP_MAX_ACTIVE_LEVELS", "OMP_MAX_TASK_PRIORITY", "OMP_NESTED",
-        "OMP_NUM_THREADS", "OMP_PROC_BIND", "OMP_PLACES", "OMP_STACKSIZE",
-        "OMP_SCHEDULE", "OMP_THREAD_LIMIT", "OMP_WAIT_POLICY", "GOMP_CPU_AFFINITY",
-        "GOMP_DEBUG", "GOMP_STACKSIZE", "GOMP_SPINCOUNT", "GOMP_RTEMS_THREAD_POOLS",
-        "KMP_AFFINITY", "KMP_NUM_THREADS", "MIC_KMP_AFFINITY",
-        "MIC_OMP_NUM_THREADS", "MIC_OMP_PROC_BIND", "PHI_KMP_AFFINITY",
-        "PHI_OMP_NUM_THREADS", "PHI_KMP_PLACE_THREADS", "MKL_NUM_THREADS",
-        "MKL_DYNAMIC", "MKL_DOMAIN_NUM_THREADS"
-};
-
-static const unsigned numberOfOpenMpEnvVars =
-        sizeof(openMpEnvVars) / sizeof(openMpEnvVars[0]);
-
-OpenMpManager::OpenMpManager(Collection *collection) :
-        collection(*collection), isGpuEnabled(false) {
-    getOpenMpEnvVars();
-    getCurrentCpuSet();
-    getCurrentCoreSet();
-}
-
-OpenMpManager &OpenMpManager::getInstance() {
+int getNumberOfCPUSockets() {
     static CpuInfo cpuInfo;
     static Collection collection(&cpuInfo);
-    static OpenMpManager openMpManager(&collection);
-    return openMpManager;
+    return collection.getTotalNumberOfSockets();
 }
 
-void OpenMpManager::setGpuEnabled() {
-    OpenMpManager &openMpManager = getInstance();
-    openMpManager.isGpuEnabled = true;
-}
-
-void OpenMpManager::setGpuDisabled() {
-    OpenMpManager &openMpManager = getInstance();
-    openMpManager.isGpuEnabled = false;
-}
-
-// Ideally bind given thread to secondary logical core, if
-// only one thread exists then bind to primary one
-void OpenMpManager::bindCurrentThreadToNonPrimaryCoreIfPossible() {
-    OpenMpManager &openMpManager = getInstance();
-    if (openMpManager.isThreadsBindAllowed()) {
-        int totalNumberOfAvailableCores = CPU_COUNT(&openMpManager.currentCoreSet);
-        int logicalCoreToBindTo = totalNumberOfAvailableCores > 1 ? 1 : 0;
-        openMpManager.bindCurrentThreadToLogicalCoreCpus(logicalCoreToBindTo);
-    }
-}
-
-void OpenMpManager::bindOpenMpThreads(int env_cores) {
-    OpenMpManager &openMpManager = getInstance();
-
-    if (!openMpManager.isThreadsBindAllowed())
-        return;
-
-    openMpManager.setOpenMpThreadNumberLimit(env_cores);
-    InferenceEngine::parallel_nt(0, [&] (unsigned logicalCoreId, int nthr) {
-        openMpManager.bindCurrentThreadToLogicalCoreCpu(logicalCoreId);
-    });
-}
-
-int OpenMpManager::getOpenMpThreadNumber() {
-    OpenMpManager &openMpManager = getInstance();
-
-    return openMpManager.getCoreNumber();
-}
-
-
-void OpenMpManager::getOpenMpEnvVars() {
-    isAnyOpenMpEnvVarSpecified = false;
-    for (unsigned i = 0; i < numberOfOpenMpEnvVars; i++) {
-        if (getenv(openMpEnvVars[i])) {
-            isAnyOpenMpEnvVarSpecified = true;
-        }
-    }
-}
-
-void OpenMpManager::getCurrentCpuSet() {
-    if (sched_getaffinity(0, sizeof(currentCpuSet), &currentCpuSet)) {
-        getDefaultCpuSet(&currentCpuSet);
-    }
-}
-
-void OpenMpManager::getDefaultCpuSet(cpu_set_t *defaultCpuSet) {
-    CPU_ZERO(defaultCpuSet);
-    unsigned numberOfProcessors = collection.getNumberOfProcessors();
-    for (int processorId = 0; processorId < numberOfProcessors; processorId++) {
-        CPU_SET(processorId, defaultCpuSet);
-    }
-}
-
-/* Function getCurrentCoreSet() fills currentCoreSet variable with a set of
-   available CPUs, where only one CPU per core is chosen. When multiple CPUs
-   of single core are used, function is selecting only first one of all
-   available. */
-void OpenMpManager::getCurrentCoreSet() {
+int getNumberOfCPUCores() {
+    static CpuInfo cpuInfo;
+    static Collection collection(&cpuInfo);
     unsigned numberOfProcessors = collection.getNumberOfProcessors();
     unsigned totalNumberOfCpuCores = collection.getTotalNumberOfCpuCores();
 
-    cpu_set_t usedCoreSet;
+    cpu_set_t usedCoreSet, currentCoreSet, currentCpuSet;
+    CPU_ZERO(&currentCpuSet);
     CPU_ZERO(&usedCoreSet);
     CPU_ZERO(&currentCoreSet);
+
+    sched_getaffinity(0, sizeof(currentCpuSet), &currentCpuSet);
 
     for (int processorId = 0; processorId < numberOfProcessors; processorId++) {
         if (CPU_ISSET(processorId, &currentCpuSet)) {
@@ -352,68 +204,7 @@ void OpenMpManager::getCurrentCoreSet() {
             }
         }
     }
-}
-
-void OpenMpManager::selectAllCoreCpus(cpu_set_t *set, unsigned physicalCoreId) {
-    unsigned numberOfProcessors = collection.getNumberOfProcessors();
-    unsigned totalNumberOfCpuCores = collection.getTotalNumberOfCpuCores();
-
-    int processorId = physicalCoreId % totalNumberOfCpuCores;
-    while (processorId < numberOfProcessors) {
-        if (CPU_ISSET(processorId, &currentCpuSet)) {
-            CPU_SET(processorId, set);
-        }
-
-        processorId += totalNumberOfCpuCores;
-    }
-}
-
-unsigned OpenMpManager::getPhysicalCoreId(unsigned logicalCoreId) {
-    unsigned numberOfProcessors = collection.getNumberOfProcessors();
-
-    for (int processorId = 0; processorId < numberOfProcessors; processorId++) {
-        if (CPU_ISSET(processorId, &currentCoreSet)) {
-            if (!logicalCoreId--) {
-                return processorId;
-            }
-        }
-    }
-
-    std::cerr << "This should never happen!";
-    return 0;
-}
-
-bool OpenMpManager::isThreadsBindAllowed() {
-    return !isAnyOpenMpEnvVarSpecified && !isGpuEnabled;
-}
-
-// Limit of threads to number of logical cores available
-void OpenMpManager::setOpenMpThreadNumberLimit(int env_cores) {
-    parallel_set_num_threads(env_cores == 0 ? CPU_COUNT(&currentCoreSet) : 0);
-}
-
-int OpenMpManager::getCoreNumber() {
     return CPU_COUNT(&currentCoreSet);
-}
-
-void OpenMpManager::bindCurrentThreadToLogicalCoreCpu(unsigned logicalCoreId) {
-    unsigned physicalCoreId = getPhysicalCoreId(logicalCoreId);
-#if IE_THREAD == IE_THREAD_OMP
-    cpu_set_t set;
-    CPU_ZERO(&set);
-    CPU_SET(physicalCoreId, &set);
-    sched_setaffinity(0, sizeof(set), &set);
-#endif
-}
-
-void OpenMpManager::bindCurrentThreadToLogicalCoreCpus(unsigned logicalCoreId) {
-    unsigned physicalCoreId = getPhysicalCoreId(logicalCoreId);
-#if IE_THREAD == IE_THREAD_OMP
-    cpu_set_t set;
-    CPU_ZERO(&set);
-    selectAllCoreCpus(&set, physicalCoreId);
-    sched_setaffinity(0, sizeof(set), &set);
-#endif
 }
 
 #endif  // #ifndef APPLE

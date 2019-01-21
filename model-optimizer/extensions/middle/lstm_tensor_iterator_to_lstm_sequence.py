@@ -37,7 +37,7 @@ class TensorIteratorLSTM(MiddleReplacementPattern):
         in a separate pass.
     """
 
-    enabled = True
+    enabled = False
 
     def run_after(self):
         return [TensorIteratorMerge, LSTMSequenceNormalize, LSTMSequenceTensorIterator, TensorFlowLSTMtoGeneric]
@@ -111,7 +111,7 @@ class CheckUnsupportedLSTMCell(MiddleReplacementPattern):
         Initiates the second translation round if find any not supported LSTMCell instances.
     """
 
-    enabled = True
+    enabled = False
 
     def run_after(self):
         return [TensorIteratorLSTM]

@@ -77,7 +77,7 @@ struct ref_eltwise_fwd_t: public cpu_primitive_t {
                 && one_of(desc()->prop_kind, forward_training,
                         forward_inference)
                 && everyone_is(data_type, desc()->data_desc.data_type)
-                && implication(use_generic, one_of(src_d.ndims(), 4, 5))
+                && IMPLICATION(use_generic, one_of(src_d.ndims(), 4, 5))
                 && attr()->has_default_values();
             if (!ok) return status::unimplemented;
 

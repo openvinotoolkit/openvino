@@ -1,12 +1,11 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 #include "xml_father.hpp"
-#include "inference_engine/v2_format_parser.h"
+#include "inference_engine/ie_format_parser.h"
 #include <string>
 #include <pugixml.hpp>
 #include <fstream>

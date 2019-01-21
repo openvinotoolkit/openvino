@@ -42,7 +42,7 @@ protected:
         p = ::testing::TestWithParam<decltype(p)>::GetParam();
         size = 1;
         for (auto &d: p.dims) size *= d;
-        data.reserve((size_t)size);
+        data.resize((size_t)size);
     }
 
     void CheckID() {

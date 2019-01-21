@@ -28,10 +28,13 @@ def mean_to_avgpool_action(graph: nx.MultiDiGraph, matches: dict):
         return
     dims = len(matches['input'].shape)
     ones = np.ones(dims, dtype=np.int64)
+    axis = np.array(matches['axis'].value)
+    axis = axis if axis.ndim != 0 else np.array([axis], dtype=np.int64)
+
     mean = graph.node[matches['mean'].node]
     mean['stride'] = np.array(ones)
     # TODO: need to check axis with real layout
-    spatial_dims = np.array(matches['axis'].value)
+    spatial_dims = np.array(axis)
     mean['spatial_dims'] = spatial_dims
     mean['pad'] = np.zeros((dims, 2), np.int64)
     mean['pad_spatial_shape'] = np.array(mean['pad'][spatial_dims])

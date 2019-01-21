@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +15,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+// TODO: (ichuraev) I don't fully sure that names of types and parameters are correct for square, abs, sqrt, linear, bounded_relu and soft_relu
 caseless_map<std::string, std::function<void(GenericLayer*, mkldnn::algorithm&, float&, float&)>> MKLDNNActivationNode::initializers = {
         {"relu", [](GenericLayer* activationLayer, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
             alpha = activationLayer->GetParamAsFloat("negative_slope", 0.0f);

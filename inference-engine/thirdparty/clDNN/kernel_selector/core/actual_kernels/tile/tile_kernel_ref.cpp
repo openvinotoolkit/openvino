@@ -124,7 +124,7 @@ namespace kernel_selector
         jit.AddConstant(MakeJitConstant("OUTER_SIZE", outer_size));
         if (inner_size == 1)
         {
-            jit.AddConstant(MakeJitConstant("OUTPUT_SIZE", out.LogicalSize()));
+            jit.AddConstant(MakeJitConstant("OUTPUT_ELEMENTS", out.LogicalSize()));
             jit.AddConstant(MakeJitConstant("DENSE", 1));
         }
         return jit;

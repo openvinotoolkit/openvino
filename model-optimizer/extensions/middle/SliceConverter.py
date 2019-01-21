@@ -39,7 +39,7 @@ class ConvertSlice(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('slice',dict(kind='op', op='Slice'))
+                ('slice', dict(kind='op', op='Slice'))
             ],
             edges=[]
         )
@@ -69,8 +69,11 @@ class ConvertSlice(MiddleReplacementPattern):
         elif dims == 1:
             # If Slice use only one axis, than
             # convert Slice to StridedSlice
+
             node['op'] = 'StridedSlice'
             node['type'] = 'StridedSlice'
+            node['new_axis_mask'] = np.zeros(len(output_data.shape), dtype=np.bool)
+            node['shrink_axis_mask'] = np.zeros(len(output_data.shape), dtype=np.bool)
 
             convert_negative_indices(begin, input.shape)
             convert_negative_indices(end, input.shape)

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +33,6 @@ protected:
     shared_ptr<MockAllocator> createMockAllocator() {
         return shared_ptr<MockAllocator>(new MockAllocator());
     }
-
 
 public:
 

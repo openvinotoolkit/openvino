@@ -22,8 +22,8 @@
 #include "nspc_batch_normalization.hpp"
 #include "type_helpers.hpp"
 
-// clang6 generates incorrect code with OMP_SIMD in some particular cases
-#if (defined __clang_major__) && (__clang_major__ == 6)
+// clang 6 and 7 generate incorrect code with OMP_SIMD in some particular cases
+#if (defined __clang_major__) && (__clang_major__ >= 6)
 #define SAFE_TO_USE_OMP_SIMD 0
 #else
 #define SAFE_TO_USE_OMP_SIMD 1

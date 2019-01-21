@@ -52,7 +52,6 @@ from mo.front.common.register_custom_ops import update_extractors_with_extension
 from mo.front.mxnet.extractor import mxnet_op_extractors
 from mo.utils import class_registration
 from mo.utils.cli_parser import get_meta_info
-from extensions.middle.PadToPoolingMiddleReplacer import PadToPoolingMiddleReplacer
 from extensions.middle.EltwiseInputNormalization import EltwiseInputNormalize
 
 
@@ -88,7 +87,7 @@ def add_input_data_to_prior_boxes(graph: nx.MultiDiGraph, input_names: str = '')
 #TODO Remove the func after 'add_output_ops' will be moved to front replacer.
 def check_softmax_node_inputs(graph: nx.MultiDiGraph):
     for i, attrs in list(graph.nodes(data=True)):
-        if 'op' in attrs and attrs['op'] == 'Softmax':
+        if 'op' in attrs and attrs['op'] == 'SoftMax':
             node = Node(graph, i)
             if len(node.in_nodes()) > 1:
                 graph.remove_node(node.in_node(1).id)
@@ -125,7 +124,8 @@ def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, o
     graph.graph['layout'] = 'NCHW'
     graph.graph['cmd_params'] = argv
     graph.graph['fw'] = 'mxnet'
-    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 3
+    graph.graph['feature_dim'] = 1 if graph.graph['layout'] == 'NCHW' else 3
+    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 4
     graph = extract_node_attrs(graph, mxnet_op_extractor)
     check_softmax_node_inputs(graph)
 
@@ -168,8 +168,7 @@ def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, o
     scale_input(graph, scale)
     add_mean_scale_values(graph, mean_scale_values)
 
-    remove_op_nodes(graph, {'op': 'Dropout'})
-    remove_op_nodes(graph, {'op': '_copy'})
+    remove_op_nodes(graph, {'identity': True})
 
     graph_clean_up(graph)
 
@@ -200,7 +199,6 @@ def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, o
         stride_optimization(graph)
 
     fuse_pad(graph)
-    PadToPoolingMiddleReplacer().find_and_replace_pattern(graph)
 
     # Converting Mul->Add to ScaleShift node
     convert_muladd_to_scaleshift_or_power(graph)

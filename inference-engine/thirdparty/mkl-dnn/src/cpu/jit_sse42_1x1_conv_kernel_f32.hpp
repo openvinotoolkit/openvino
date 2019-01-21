@@ -20,6 +20,7 @@
 #include "c_types_map.hpp"
 #include "jit_generator.hpp"
 #include "jit_primitive_conf.hpp"
+#include "cpu_memory.hpp"
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"
 
@@ -106,10 +107,9 @@ private:
     nstl::vector<jit_uni_eltwise_injector_f32<sse42>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<sse42>*> depthwise_injectors;
 
-    void bcast_loop(int load_loop_blk, char load_loop_tag);
-    void reduce_loop(int load_loop_blk, int ur, char load_loop_tag,
-            char bcast_loop_tag);
-    void diff_bias_loop(int load_loop_blk, char load_loop_tag);
+    void generate_bcast_loop(int load_loop_blk);
+    void generate_reduce_loop(int load_loop_blk, int ur);
+    void generate_diff_bias_loop(int load_loop_blk);
 
     void generate();
 };

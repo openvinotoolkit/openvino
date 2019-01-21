@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +32,6 @@ void Registry::RegisterReader(CreatorFunction f) {
     _data.push_back(f);
 }
 
-FORMAT_READER_API(Reader*)CreateFormatReader(const char *filename) {
+FORMAT_READER_API(Reader*) CreateFormatReader(const char *filename) {
     return Registry::CreateReader(filename);
 }

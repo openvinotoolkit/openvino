@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +28,6 @@ namespace InferenceEngine {
  * @brief A collection that contains string as key, and Data smart pointer as value
  */
 using OutputsDataMap = std::map<std::string, DataPtr>;
-class IShapeInferExtension;
-using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
 
 /**
  * @brief This is the main interface to describe the NN topology
@@ -148,8 +145,9 @@ public:
      * @return Status code of the operation
      * @note: Current implementation of the function sets batch size to the first dimension of all layers in the networks.
      * Before calling it make sure that all your layers have batch in the first dimension, otherwise the method works incorrectly.
-     * This limitation is resolved via [Shape Inference feature](./docs/Inference_Engine_Developer_Guide/ShapeInference.md)
+     * This limitation is resolved via shape inference feature
      * by using InferenceEngine::ICNNNetwork::reshape method.
+     * To read more refer to the Shape Inference section in documentation
      */
     virtual StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept = 0;
 
@@ -170,7 +168,7 @@ public:
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return Status code of the operation
      */
-    virtual StatusCode reshape(const InputShapes& inputShapes, ResponseDesc* resp) noexcept { return NOT_IMPLEMENTED; };
+    virtual StatusCode reshape(const InputShapes& /*inputShapes*/, ResponseDesc* /*resp*/) noexcept { return NOT_IMPLEMENTED; };
 
     /**
      * @brief Registers extension within the plugin
@@ -179,8 +177,16 @@ public:
      * @return Status code of the operation. OK if succeeded
      */
     virtual StatusCode
-    AddExtension(const IShapeInferExtensionPtr& extension, ResponseDesc* resp) noexcept { return NOT_IMPLEMENTED; };
+    AddExtension(const IShapeInferExtensionPtr& /*extension*/, ResponseDesc* /*resp*/) noexcept { return NOT_IMPLEMENTED; };
 
-    virtual StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* resp) const noexcept { return NOT_IMPLEMENTED; };
+    virtual StatusCode getStats(ICNNNetworkStats** /*stats*/, ResponseDesc* /*resp*/) const noexcept { return NOT_IMPLEMENTED; };
+
+    /**
+     * @brief Serialize network to IR and weights files.
+     * @param xmlPath Path to output IR file.
+     * @param binPath Path to output weights file.
+     * @return Status code of the operation
+     */
+    virtual StatusCode serialize(const std::string &xmlPath, const std::string &binPath, ResponseDesc* resp) const noexcept = 0;
 };
 }  // namespace InferenceEngine

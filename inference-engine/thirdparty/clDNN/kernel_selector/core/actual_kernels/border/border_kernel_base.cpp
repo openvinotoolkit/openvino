@@ -27,6 +27,7 @@ namespace kernel_selector
         jit.AddConstants({
             MakeJitConstant("LT_SIZES",              params.lt_sizes),
             MakeJitConstant("RB_SIZES",              params.rb_sizes),
+            MakeJitConstant("BORDER_VALUE",          params.border_value),
             MakeJitConstant(toString(params.b_type), "")
         });
 

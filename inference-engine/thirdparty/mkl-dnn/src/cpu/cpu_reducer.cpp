@@ -77,7 +77,7 @@ void reduce_balancer_t::balance() {
     assert(ngroups * nthr_per_group <= nthr_);
     assert((size_t)njobs_per_group_ub * job_size_ * nthr_ <= max_buffer_size_
             || nthr_per_group == 1); /* no reduction buffer overflow */
-    assert(implication(!syncable_, nthr_per_group == 1));
+    assert(IMPLICATION(!syncable_, nthr_per_group == 1));
 
     ngroups_ = ngroups;
     nthr_per_group_ = nthr_per_group;

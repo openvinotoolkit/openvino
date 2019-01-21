@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,11 +38,32 @@ DECLARE_CONFIG_VALUE(YES);
 DECLARE_CONFIG_VALUE(NO);
 
 /**
+* @brief Limit #threads that are used by Inference Engine for inference on the CPU.
+*/
+DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
+
+/**
 * @brief The name for setting CPU affinity per thread option.
 * It is passed to IInferencePlugin::SetConfig(), this option should be used with values:
 * PluginConfigParams::YES or PluginConfigParams::NO
+* Ignored, if the OpenVINO compiled with OpenMP threading and any affinity-related OpenMP's
+* environment variable is set
 */
 DECLARE_CONFIG_KEY(CPU_BIND_THREAD);
+
+/**
+* @brief Optimize CPU execution to maximize throughput.
+* It is passed to IInferencePlugin::SetConfig(), this option should be used with values:
+* - KEY_CPU_THROUGHPUT_NUMA creates as many streams as needed to accomodate NUMA and avoid associated penalties
+* - KEY_CPU_THROUGHPUT_AUTO creates bare minimum of streams to improve the performance,
+*   this is the most portable option if you have no insights into how many cores you target machine will have
+*   (and what is the optimal number of streams)
+* - finally, specifying the positive integer value creates the requested number of streams
+*/
+DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_AUTO);
+DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS);
+
 
 /**
 * @brief The name for setting performance counters option.
@@ -125,10 +145,21 @@ DECLARE_CONFIG_KEY(DEVICE_ID);
 /**
 * @brief the key for enabling exclusive mode for async requests of different executable networks and the same plugin.
 * Sometimes it's necessary to avoid oversubscription requests that are sharing the same device in parallel.
-* E.g. There 2 task executors for CPU device: one - in FPGA, another - in MKLDNN. Parallel execution both of them leads to
-* not optimal CPU usage. More efficient to run the corresponding tasks one by one via single executor.
+* E.g. There 2 task executors for CPU device: one - in the Hetero plugin, another - in pure CPU plugin.
+* Parallel execution both of them might lead to oversubscription and not optimal CPU usage. More efficient
+* to run the corresponding tasks one by one via single executor.
+* By default, the option is set to YES for hetero cases, and to NO for conventional (single-plugin) cases
+* Notice that setting YES disables the CPU streams feature (see another config key in this file)
 */
 DECLARE_CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS);
+
+/**
+ * @brief This key enables dumping of the internal primitive graph.
+ * Should be passed into LoadNetwork method to enable dumping of internal graph of primitives and
+ * corresponding configuration information. Value is a name of output dot file without extension.
+ * Files <dot_file_name>_init.dot and <dot_file_name>_perf.dot will be produced.
+ */
+DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 
 }  // namespace PluginConfigParams
 }  // namespace InferenceEngine

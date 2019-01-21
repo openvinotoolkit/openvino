@@ -19,7 +19,7 @@ import numpy as np
 
 from mo.graph.graph import Node
 from mo.ops.op import Op
-from mo.utils.utils import match_shapes
+from mo.utils.utils import symm_match_shapes
 
 
 class TensorArrayGather(Op):
@@ -43,17 +43,12 @@ class TensorArrayGather(Op):
 
         ta_node = Node(node.graph, str(handle.value))
 
-        if ta_node.has_valid('element_shape'):
-            assert match_shapes(ta_node['element_shape'], node.element_shape)
-        ta_node['element_shape'] = node.element_shape
+        if ta_node.has_valid('element_shape') and ta_node.element_shape is not None and len(ta_node.element_shape) > 0:
+            assert symm_match_shapes(ta_node['element_shape'], node.element_shape)
+        else:
+            ta_node['element_shape'] = node.element_shape
         data_shape = ta_node['element_shape']
-        if -1 in data_shape:
-            assert data_shape.size == 2 and data_shape[0] == -1 and data_shape[1] != -1
-            # This is a workaround for a bug that we cannot deduce element_shape
-            # when it is required for inference, so we putting 1 here instead of -1.
-            # This makes impossible to have batch size > 1 for LSTM-like loops
-            data_shape[0] = 1
-            ta_node.element_shape = data_shape
+        assert -1 not in data_shape or data_shape.size == 2 and data_shape[0] == -1 and data_shape[1] != -1
 
         assert ta_node.has_valid('size')
         size = ta_node['size']

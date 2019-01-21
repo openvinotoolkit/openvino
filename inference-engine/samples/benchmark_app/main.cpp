@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,7 +176,7 @@ int main(int argc, char *argv[]) {
             const InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 
             /** Set the precision of output data provided by the user, should be called before load of the network to the plugin **/
-            outData->precision = outputPrecision;
+            outData->setPrecision(outputPrecision);
             InferenceEngine::TBlob<float>::Ptr output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
             output->allocate();
             outputBlobs[item.first] = output;
@@ -186,7 +185,17 @@ int main(int argc, char *argv[]) {
         // --------------------------- 5. Loading model to the plugin ------------------------------------------
 
         slog::info << "Loading model to the plugin" << slog::endl;
-        const std::map<std::string, std::string> networkConfig;
+        std::map<std::string, std::string> networkConfig;
+        if (FLAGS_d.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
+            // limit threading for CPU portion of inference
+            if (FLAGS_nthreads != 0)
+                networkConfig[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(FLAGS_nthreads);
+            // pin threads for CPU portion of inference
+            networkConfig[PluginConfigParams::KEY_CPU_BIND_THREAD] = FLAGS_pin;
+            // for pure CPU execution, more throughput-oriented execution via streams
+            if (FLAGS_api == "async" && FLAGS_d == "CPU")
+                networkConfig[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(FLAGS_nireq);
+        }
         InferenceEngine::ExecutableNetwork exeNetwork = plugin.LoadNetwork(cnnNetwork, networkConfig);
 
         // --------------------------- 6. Performance measurements stuff ------------------------------------------
@@ -217,6 +226,10 @@ int main(int argc, char *argv[]) {
             } else {
                 slog::info << "Start inference synchronously (" << durationInNanoseconds * 0.000001 << " ms duration)" << slog::endl << slog::endl;
             }
+
+            // warming up - out of scope
+            inferRequest.Infer();
+            inferRequest.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
 
             const auto startTime = Time::now();
             auto currentTime = Time::now();

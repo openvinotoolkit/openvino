@@ -1,8 +1,9 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <vector>
+#include <string>
 #include <ie_device.hpp>
 #include <details/ie_exception.hpp>
 #include "description_buffer.hpp"
@@ -10,56 +11,58 @@
 using namespace InferenceEngine;
 
 FindPluginResponse InferenceEngine::findPlugin(const FindPluginRequest& req) {
+    std::vector<std::string> pluginVec;
     switch (req.device) {
-    case TargetDevice::eCPU:
-        return { {
+        case TargetDevice::eCPU:
 #ifdef ENABLE_MKL_DNN
-                "MKLDNNPlugin",
+            pluginVec.push_back("MKLDNNPlugin");
 #endif
 #ifdef ENABLE_OPENVX_CVE
-                "OpenVXPluginCVE",
+            pluginVec.push_back("OpenVXPluginCVE");
 #elif defined ENABLE_OPENVX
-                "OpenVXPlugin",
+            pluginVec.push_back("OpenVXPlugin");
 #endif
-            } };
-    case TargetDevice::eGPU:
-        return { {
+            break;
+        case TargetDevice::eGPU:
 #ifdef ENABLE_CLDNN
-                "clDNNPlugin",
+            pluginVec.push_back("clDNNPlugin");
 #endif
 #ifdef ENABLE_OPENVX
-                "OpenVXPlugin",
+            pluginVec.push_back("OpenVXPlugin");
 #endif
-            } };
-    case TargetDevice::eFPGA:
-        return{ {
+            break;
+        case TargetDevice::eFPGA:
 #ifdef ENABLE_DLIA
-                "dliaPlugin",
+            pluginVec.push_back("dliaPlugin");
 #endif
 #ifdef ENABLE_OPENVX
-                "OpenVXPlugin",
+            pluginVec.push_back("OpenVXPlugin");
 #endif
-            } };
-    case TargetDevice::eMYRIAD:
-        return{ {
+            break;
+        case TargetDevice::eMYRIAD:
 #ifdef ENABLE_MYRIAD
-                "myriadPlugin",
+            pluginVec.push_back("myriadPlugin");
 #endif
-            } };
+            break;
+        case TargetDevice::eHDDL:
+#ifdef ENABLE_HDDL
+            pluginVec.push_back("HDDLPlugin");
+#endif
+            break;
         case TargetDevice::eGNA:
-            return{ {
 #ifdef ENABLE_GNA
-                        "GNAPlugin",
+            pluginVec.push_back("GNAPlugin");
 #endif
-                    } };
-    case TargetDevice::eHETERO:
-        return{ {
-                "HeteroPlugin",
-            } };
+            break;
+        case TargetDevice::eHETERO:
+            pluginVec.push_back("HeteroPlugin");
+            break;
 
-    default:
-        THROW_IE_EXCEPTION << "Cannot find plugin for device: " << getDeviceName(req.device);
+        default:
+            THROW_IE_EXCEPTION << "Cannot find plugin for device: " << getDeviceName(req.device);
     }
+    std::for_each(pluginVec.begin(), pluginVec.end(), [](std::string &name){ name = name + IE_BUILD_POSTFIX;});
+    return {pluginVec};
 }
 
 INFERENCE_ENGINE_API(StatusCode) InferenceEngine::findPlugin(

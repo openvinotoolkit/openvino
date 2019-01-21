@@ -22,6 +22,8 @@
 #include "cpu_engine.hpp"
 #include "jit_primitive_conf.hpp"
 #include "jit_uni_dw_conv_kernel_f32.hpp"
+#include "cpu_reducer.hpp"
+#include "cpu_barrier.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -54,7 +56,7 @@ struct _jit_uni_dw_convolution_fwd_t: public cpu_primitive_t {
                         this->cdesc_().src_desc.data_type,
                         this->cdesc_().weights_desc.data_type,
                         this->cdesc_().dst_desc.data_type)
-                && utils::implication(this->with_bias(),
+                && IMPLICATION(this->with_bias(),
                         data_type::f32 == this->cdesc_().bias_desc.data_type);
 
             if (!ok) return status::unimplemented;
@@ -219,6 +221,109 @@ using jit_avx2_dw_convolution_bwd_data_t =
     _jit_uni_dw_convolution_bwd_data_t<avx2>;
 using jit_sse42_dw_convolution_bwd_data_t =
     _jit_uni_dw_convolution_bwd_data_t<sse42>;
+
+template <cpu_isa_t isa>
+struct _jit_uni_dw_convolution_bwd_weights_t: public cpu_primitive_t {
+    struct pd_t: public cpu_convolution_bwd_weights_pd_t {
+        pd_t(engine_t *engine,
+                const convolution_desc_t *adesc,
+                const primitive_attr_t *attr,
+                const convolution_fwd_pd_t *hint_fwd_pd)
+            : cpu_convolution_bwd_weights_pd_t(engine, adesc, attr, hint_fwd_pd)
+            , jcp_() {}
+
+        DECLARE_COMMON_PD_T(
+                JIT_IMPL_NAME_HELPER("jit_dw:", isa, ""),
+                _jit_uni_dw_convolution_bwd_weights_t<isa>);
+
+        virtual status_t init() override {
+            using namespace prop_kind;
+
+            assert(this->engine()->kind() == engine_kind::cpu);
+            bool ok = true
+                && this->set_default_params() == status::success
+                && this->desc()->prop_kind == prop_kind::backward_weights
+                && this->desc()->alg_kind == alg_kind::convolution_direct
+                && utils::everyone_is(data_type::f32,
+                        this->desc()->src_desc.data_type,
+                        this->desc()->diff_weights_desc.data_type,
+                        this->desc()->diff_dst_desc.data_type);
+
+            if (!ok) return status::unimplemented;
+
+            return jit_uni_dw_conv_bwd_weights_kernel_f32<isa>::init_conf(jcp_,
+                        *this->desc(), *this->src_pd_.desc(),
+                        *this->diff_weights_pd_.desc(), *this->diff_dst_pd_.desc());
+        }
+
+        jit_conv_conf_t jcp_;
+
+    protected:
+        virtual status_t set_default_params() override {
+
+            using namespace memory_format;
+            auto desired_act_fmt = isa == avx512_common ? nChw16c : nChw8c;
+            auto desired_wei_fmt = isa == avx512_common ? Goihw16g : Goihw8g;
+
+            if (this->src_pd_.desc()->format == any)
+                CHECK(this->src_pd_.set_format(desired_act_fmt));
+            if (this->diff_dst_pd_.desc()->format == any)
+                CHECK(this->diff_dst_pd_.set_format(desired_act_fmt));
+            if (this->diff_weights_pd_.desc()->format == any)
+                CHECK(this->diff_weights_pd_.set_format(desired_wei_fmt));
+            if (this->diff_bias_pd_.desc()->format == any)
+                CHECK(this->diff_bias_pd_.set_format(x));
+
+            return status::success;
+        }
+    };
+
+    _jit_uni_dw_convolution_bwd_weights_t(const pd_t *pd,
+            const input_vector &inputs, const output_vector &outputs);
+    ~_jit_uni_dw_convolution_bwd_weights_t() {
+        delete kernel_;
+        if (acc_ker_)
+            delete acc_ker_;
+
+        free(ws_reduction_);
+        free(bias_reduction_);
+    };
+
+    typedef typename prec_traits<data_type::f32>::type data_t;
+
+    virtual void execute(event_t *e) {
+        execute_backward_weights();
+        e->set_state(event_t::ready);
+    }
+
+private:
+    void execute_backward_weights();
+
+    pd_t conf_;
+    jit_uni_dw_conv_bwd_weights_kernel_f32<isa> *kernel_;
+
+    data_t *ws_reduction_ = nullptr;
+    data_t *bias_reduction_ = nullptr;
+
+    /* Used when executing a parallel reduction */
+    cpu_accumulator_1d_t<data_type::f32> *acc_ker_ = nullptr;
+    simple_barrier::ctx_t reduction_bctx_;
+
+    /* For parallel implementation details see '.cpp' file in the
+     * backwards-by-wights section. */
+    int nthr_, nthr_g_, nthr_mb_;
+
+    inline bool do_parallel_reduction(){
+        return false;
+    }
+};
+
+using jit_avx512_common_dw_convolution_bwd_weights_t =
+    _jit_uni_dw_convolution_bwd_weights_t<avx512_common>;
+using jit_avx2_dw_convolution_bwd_weights_t =
+    _jit_uni_dw_convolution_bwd_weights_t<avx2>;
+using jit_sse42_dw_convolution_bwd_weights_t =
+    _jit_uni_dw_convolution_bwd_weights_t<sse42>;
 
 }
 }

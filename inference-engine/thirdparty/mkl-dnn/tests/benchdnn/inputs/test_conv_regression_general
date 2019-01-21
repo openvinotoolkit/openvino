@@ -29,6 +29,7 @@
 
 # MKLDNN-623
 --reset --cfg=u8s8u8s32 --dir=FWD_D --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
+--reset --allow-unimpl=true --cfg=s8s8u8s32 --dir=FWD_D --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
 --reset --cfg=s16s16s32s32 --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
 --reset --cfg=s32s16s16s32 --dir=BWD_D --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
 --reset --cfg=s16s32s16s32 --dir=BWD_WB --skip-impl="ref:gemm" mb2ic672ih29iw29oc192kh1kw1sh1sw1ph0pw0n"DENSENET_161:conv3_11/x1"
@@ -42,6 +43,7 @@
 # MKLDNN-796: large asymmetric padding
 --reset --cfg=f32_full mb2_g1ic32oc32_ih7oh11kh3ph2
 --reset --cfg=u8s8u8s32 mb2_g1ic32oc32_ih7oh11kh3ph2
+--reset --allow-unimpl=true --cfg=s8s8u8s32 mb2_g1ic32oc32_ih7oh11kh3ph2
 
 # MKLDNN-860
 --reset --dir=BWD_WB --cfg=f32_wino --allow-unimpl=true --alg=wino  mb2ic16ih13oc16oh13kh3ph1
@@ -52,9 +54,18 @@
 # MKLDNN-930
 --reset mb2ic3ih300oc32oh150kh3sh2
 --reset --cfg=u8s8u8s32 mb2ic3ih84oc16oh42kh3sh2
+--reset --allow-unimpl=true --cfg=s8s8u8s32 mb2ic3ih84oc16oh42kh3sh2
 
 # MKLDNN-949
 --reset --dir=BWD_D mb2_g1ic1oc2_ih3oh1kh2sh1dh1ph0_iw5ow3kw2sw1dw1pw0
 
 # special case for 4vnni and 4fma kernels had this FPE bug
 --reset --cfg=f32_full mb1_g1ic16oc16_ih7oh7kh3ph1
+
+# MKLDNN-982: FPE for large right-hand-side padding
+--reset --dir=FWD_D mb2_g1ic1oc2_ih3oh10kh2sh1dh1ph4_iw5ow12kw2sw1dw1pw2
+--reset --dir=FWD_D mb2_g1ic8oc8_ih1oh16kh2ph1
+
+# MKLDNN-1074: FPE for mb1 with ih < sh or iw < sw
+--reset --dir=FWD_D mb1_g1ic128oc256_ih1oh1kh3sh2dh0ph1_iw1ow1kw3sw2dw0pw1
+

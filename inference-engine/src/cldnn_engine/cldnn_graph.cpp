@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +40,7 @@
 #include <CPP/arg_max_min.hpp>
 #include <CPP/mvn.hpp>
 #include <CPP/tile.hpp>
+#include <CPP/border.hpp>
 #include <CPP/lstm.hpp>
 #include <chrono>
 #include <cmath>
@@ -50,6 +50,9 @@
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
 #include <graph_tools.hpp>
+#include <ie_layers_internal.hpp>
+#include <net_pass.h>
+#include <ie_layers_prv.h>
 #include "cldnn_infer_request.h"
 #include <cpp_interfaces/ie_executor_manager.hpp>
 #include "details/caseless.hpp"
@@ -305,6 +308,11 @@ CLDNNGraph::CLDNNGraph(InferenceEngine::ICNNNetwork& network, const Config& conf
         ExecutorManager *executorManager = ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor(TargetDeviceInfo::name(TargetDevice::eGPU));
     }
+
+    bool res = !NetPass::CombineLSTMSeq(network) ? NetPass::UnrollTI(network) : true;
+    if (!res)
+        THROW_CLDNN_EXCEPTION("Plugin doesn't support Tensor Iterator in pure form. "
+                              "No one TI optimization pattern was not applied successfully");
 
     if (max_batch > 1) {
         // check topology for applicability
@@ -563,6 +571,8 @@ CLDNNGraph::LayerType CLDNNGraph::LayerTypeFromStr(const std::string &str) {
         { "MVN" , MVN },
         { "Unpooling" , Unpooling },
         { "Tile" , Tile },
+        { "Pad" , Pad },
+        { "LSTMCell" , LSTMCell },
         { "RNN" , RNN },
     };
     auto it = LayerNameToType.find(str);
@@ -604,7 +614,6 @@ cldnn::eltwise_mode CLDNNGraph::EltwiseModeFromIEEltwise(InferenceEngine::Eltwis
 cldnn::concatenation::concatenation_axis CLDNNGraph::ConcatAxisFromIEAxis(unsigned axis) {
     switch (axis) {
     case 0:
-        THROW_CLDNN_EXCEPTION("Unsupported concatenation axis: " << axis);  // Currently unsupported (although existing in the API)
         return cldnn::concatenation::concatenation_axis::along_b;
     case 1:
         return cldnn::concatenation::concatenation_axis::along_f;
@@ -946,6 +955,8 @@ void CLDNNGraph::CreateSingleLayerPrimitive(InferenceEngine::CNNLayerPtr &layer)
             break;
         case MVN: CreateMVNPrimitive(layer);
             break;
+        case LSTMCell: CreateLSTMCellPrimitive(layer);
+            break;
         case RNN: CreateRNNPrimitive(layer);
             break;
         case RegionYolo: CreateYOLO2RegionPrimitive(layer);
@@ -953,6 +964,8 @@ void CLDNNGraph::CreateSingleLayerPrimitive(InferenceEngine::CNNLayerPtr &layer)
         case ReorgYolo: CreateYOLO2ReorgPrimitive(layer);
             break;
         case Tile: CreateTilePrimitive(layer);
+            break;
+        case Pad: CreatePadPrimitive(layer);
             break;
         default: THROW_CLDNN_EXCEPTION("Unknown Layer Type: " << layer->type);
     }
@@ -1076,20 +1089,6 @@ void CLDNNGraph::CreatePReLUPrimitive(InferenceEngine::CNNLayerPtr &layer) {
         THROW_CLDNN_EXCEPTION("Data inserted into PreLu " << preluLayer->name << " is nullptr");
     }
     auto inputDims = inDataPtr->dims;
-    if (inputDims.size() == 2) {
-        // WA for FC output as BF instead of BX
-        // todo: remove this once FC output is changed in clDNN
-        cldnn::primitive_id reshapeID = preluLayer->name + m_workaroundTag;
-        m_topology->add(cldnn::reshape(
-            reshapeID,
-            inputPrimitives[0],
-            cldnn::tensor(TensorValue(inputDims[1]), TensorValue(inputDims[0]), 1, 1)));
-        m_env.primitiveIDs[inputPrimitives[0]] = reshapeID;
-        inputPrimitives[0] = reshapeID;
-        m_env.primitiveIDs[reshapeID] = reshapeID;
-        m_env.profilingIDs.insert(reshapeID);
-    }
-
     static const std::string blobName("weights");
     ValidateGenericLayerBlobs(preluLayer, { blobName });
 
@@ -1400,10 +1399,11 @@ void CLDNNGraph::CreateDeconvolutionPrimitive(InferenceEngine::CNNLayerPtr &laye
     std::vector<cldnn::primitive_id> weightPrimID;
     std::vector<cldnn::primitive_id> biasPrimID;
     CreateWeightAndBiasPrimitives(layer, weightPrimID, biasPrimID);
+    auto allPads = getPaddings(*deconvLayer);
     cldnn::tensor stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1),
                                          cldnn::spatial(deconvLayer->_stride[X_AXIS], deconvLayer->_stride[Y_AXIS]));
     cldnn::tensor padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0),
-                                         cldnn::spatial(-deconvLayer->_padding[X_AXIS], -deconvLayer->_padding[Y_AXIS]));
+                                         cldnn::spatial(-allPads.begin[X_AXIS], -allPads.begin[Y_AXIS]));
 
     auto deconvPrim = cldnn::deconvolution(deconvLayer->name,
         inputPrimitives[0],
@@ -1907,8 +1907,9 @@ void CLDNNGraph::CreateFusedSplitConvMergePrimitive(InferenceEngine::CNNLayerPtr
 
     cldnn::tensor stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1),
                                          cldnn::spatial(convLayer1->_stride[X_AXIS], convLayer1->_stride[Y_AXIS]));
+    auto allPad = getPaddings(*convLayer1);
     cldnn::tensor padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0),
-                                          cldnn::spatial(-convLayer1->_padding[X_AXIS], -convLayer1->_padding[Y_AXIS]));
+                                          cldnn::spatial(-allPad.begin[X_AXIS], -allPad.begin[Y_AXIS]));
     cldnn::tensor dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1),
                                            cldnn::spatial(convLayer1->_dilation[X_AXIS], convLayer1->_dilation[Y_AXIS]));
 
@@ -2066,6 +2067,7 @@ void CLDNNGraph::CreatePoolingPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
     auto poolLayer = dynamic_cast<InferenceEngine::PoolingLayer *> (layer.get());
 
+    auto allPads = getPaddings(*poolLayer);
     if (poolLayer->outData.size() > 1) {
         // max pooling with argmax
         SizeVector argmaxDims;
@@ -2124,7 +2126,7 @@ void CLDNNGraph::CreatePoolingPrimitive(InferenceEngine::CNNLayerPtr &layer) {
             cldnn::spatial(TensorValue(poolLayer->_kernel[X_AXIS]), TensorValue(poolLayer->_kernel[Y_AXIS])),  // size
             cldnn::spatial(TensorValue(poolLayer->_stride[X_AXIS]), TensorValue(poolLayer->_stride[Y_AXIS])),  // stride
                                                                                                    // input offset (padding) - explicit tensor for 0 bf
-            { 0, 0, -TensorValue(poolLayer->_padding[X_AXIS]), -TensorValue(poolLayer->_padding[Y_AXIS]) },
+            { 0, 0, -TensorValue(allPads.begin[X_AXIS]), -TensorValue(allPads.begin[Y_AXIS]) },
             CldnnTensorFromIEDims(poolLayer->outData[0]->dims));
         m_topology->add(poolPrim);
         m_env.primitiveIDs[realOutputID] = poolLayer->name;
@@ -2136,7 +2138,7 @@ void CLDNNGraph::CreatePoolingPrimitive(InferenceEngine::CNNLayerPtr &layer) {
             cldnn::spatial(TensorValue(poolLayer->_kernel[X_AXIS]), TensorValue(poolLayer->_kernel[Y_AXIS])),  // size
             cldnn::spatial(TensorValue(poolLayer->_stride[X_AXIS]), TensorValue(poolLayer->_stride[Y_AXIS])),  // stride
                                                                                                    // input offset (padding) - explicit tensor for 0 bf
-            { 0, 0, -TensorValue(poolLayer->_padding[X_AXIS]), -TensorValue(poolLayer->_padding[Y_AXIS]) },
+            { 0, 0, -TensorValue(allPads.begin[X_AXIS]), -TensorValue(allPads.begin[Y_AXIS]) },
             CldnnTensorFromIEDims(poolLayer->outData[0]->dims));
     m_topology->add(poolPrim);
         m_env.primitiveIDs[poolLayer->name] = poolLayer->name;
@@ -2488,19 +2490,237 @@ void CLDNNGraph::CreateTilePrimitive(InferenceEngine::CNNLayerPtr &layer) {
     m_env.profilingIDs.insert(tileLayer->name);
 }
 
+void CLDNNGraph::CreatePadPrimitive(InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 1);
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto padLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+
+    auto PadTensorFromArgs = [](const std::string &s) -> cldnn::tensor {
+        std::stringstream ss(s);
+        std::string item;
+        std::vector<cldnn::tensor::value_type> elems;
+        while (std::getline(ss, item, ',')) {
+            elems.push_back(static_cast<cldnn::tensor::value_type>(std::atoll(item.c_str())));
+        }
+
+        while (elems.size() < 4) {
+            elems.push_back(0);
+        }
+
+        // Swap x and y
+        auto tmp = elems[2];
+        elems[2] = elems[3];
+        elems[3] = tmp;
+
+        return cldnn::tensor(elems, 0);
+    };
+
+    auto pads_begin = PadTensorFromArgs(padLayer->GetParamAsString("pads_begin"));
+    auto pads_end = PadTensorFromArgs(padLayer->GetParamAsString("pads_end"));
+    std::string mode = padLayer->GetParamAsString("pad_mode");
+    float pad_value = padLayer->GetParamAsFloat("pad_value", 0.0f);
+
+    cldnn::border_type border_mode;
+    if (mode == "constant")
+        border_mode = cldnn::border_type::constant;
+    else if (mode == "edge")
+        border_mode = cldnn::border_type::edge;
+    else if (mode == "symmetric")
+        border_mode = cldnn::border_type::mirror;
+    else if (mode == "reflect")
+        border_mode = cldnn::border_type::mirror_101;
+    else
+        THROW_CLDNN_EXCEPTION("Invalid border mode " << mode << " in layer " << padLayer->name);
+
+    auto tilePrim = cldnn::border(
+            padLayer->name,
+            inputPrimitives[0],
+            pads_begin,
+            pads_end,
+            border_mode,
+            pad_value);
+
+    m_env.primitiveIDs[padLayer->name] = padLayer->name;
+    m_topology->add(tilePrim);
+    m_env.profilingIDs.insert(padLayer->name);
+}
+
 std::string get_string_id(size_t i) {
     std::stringstream ss;
     ss << std::setw(5) << std::setfill('0') << i;
     return ss.str();
 }
 
+void CLDNNGraph::CreateLSTMCellPrimitive(InferenceEngine::CNNLayerPtr &layer) {
+    int lstm_batch_size, lstm_sequence_len, lstm_input_size, lstm_hidden_size;
+    SizeVector in_dims1, in_dims2;
+    bool hasBias = false;
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+
+    auto elementSize = cldnn::data_type_traits::size_of(m_networkPrecision);
+    cldnn::primitive_id weightID = layer->name + m_weightsTag;
+    cldnn::primitive_id recurrentID = layer->name + "_recurrent" + m_weightsTag;
+    cldnn::primitive_id biasID = layer->name + m_biasesTag;
+    auto cellLayer = dynamic_cast<InferenceEngine::LSTMCell*> (layer.get());
+
+    /* check incoming CNN layer and setup required variables */
+    {
+        auto in_data0 = layer->insData[0].lock();
+        if (!in_data0)
+            THROW_IE_EXCEPTION << "Missing first input for LSTMCell layer " << layer->name;
+
+        auto in_dims0 = in_data0->dims;
+        auto out_dims0 = layer->outData[0]->dims;
+
+        lstm_input_size = in_dims0[0];
+        lstm_batch_size = in_dims0[1];
+        lstm_hidden_size = out_dims0[0];
+
+        /* do we have initial hidden and cell?
+        if blobs are not null, direct the data from them
+        into corresponding LSTM inputs */
+
+        auto in_data1 = layer->insData[1].lock();
+        if (!in_data1)
+            THROW_IE_EXCEPTION << "Missing second input for LSTMCell layer " << layer->name;
+        in_dims1 = in_data1->dims;
+
+
+        auto in_data2 = layer->insData[2].lock();
+        if (!in_data2)
+            THROW_IE_EXCEPTION << "Missing third input for LSTMCell layer " << layer->name;
+        in_dims2 = in_data2->dims;
+
+
+        if (in_dims0.size() != 2 || in_dims1.size() != 2 || in_dims2.size() != 2)
+            THROW_IE_EXCEPTION << "Wrong input shapes for LSTMCell Layer " << layer->name;
+    }
+
+    /*
+     * Prepare weight/bias memory primitives:
+     *   - split weight blob into W and R
+     *   - rearrange gate order from FICO layout in IR to IOFC expected by clDNN
+     */
+    {
+        cldnn::tensor wTensor = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(lstm_input_size, 4 * lstm_hidden_size));
+        cldnn::tensor rTensor = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(lstm_hidden_size, 4 * lstm_hidden_size));
+        cldnn::layout WLayout = cldnn::layout(m_networkPrecision, m_defaultFormat, wTensor);
+        cldnn::layout RLayout = cldnn::layout(m_networkPrecision, m_defaultFormat, rTensor);
+
+        auto wmem = cldnn::memory::allocate(*(m_env.engine), WLayout);
+        auto wtmpPointer = wmem.pointer<char>();  // implicitly maps buffer - unmap in destructor
+
+        auto rmem = cldnn::memory::allocate(*(m_env.engine), RLayout);
+        auto rtmpPointer = rmem.pointer<char>();
+
+        // FICO -> IOFC
+        const std::vector<size_t> gate_offs{2, 0, 3, 1};
+
+        auto wLayer = dynamic_cast<InferenceEngine::WeightableLayer *> (layer.get());
+        auto pWeightsBlob = wLayer->_weights;
+        auto blobBytes = static_cast<const char *>(pWeightsBlob->buffer());
+        const size_t WchunkSz = lstm_input_size * elementSize;
+        const size_t RchunkSz = lstm_hidden_size * elementSize;
+
+        for (int g = 0; g < 4; g++) {
+            auto wBytes = wtmpPointer.data() + gate_offs[g] * lstm_hidden_size * WchunkSz;
+            auto rBytes = rtmpPointer.data() + gate_offs[g] * lstm_hidden_size * RchunkSz;
+            for (int h = 0; h < lstm_hidden_size; h++) {
+                // copy "input size" elements to W
+                for (size_t b = 0; b < WchunkSz; b++) {
+                    wBytes[b] = blobBytes[b];
+                }
+                blobBytes += WchunkSz;
+                wBytes += WchunkSz;
+
+                // copy "lstm_hidden_size" elements to R
+                for (size_t b = 0; b < RchunkSz; b++) {
+                    rBytes[b] = blobBytes[b];
+                }
+                blobBytes += RchunkSz;
+                rBytes += RchunkSz;
+            }
+        }
+
+        m_topology->add(cldnn::data(weightID, wmem));
+        m_topology->add(cldnn::data(recurrentID, rmem));
+
+        /* create bias memory primitive */
+        auto pBiasBlob = wLayer->_biases;
+        if (pBiasBlob != nullptr) {
+            cldnn::tensor bTensor = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(4 * lstm_hidden_size, 1));
+            cldnn::layout BLayout = cldnn::layout(m_networkPrecision, m_defaultFormat, rTensor);
+
+            auto bmem = cldnn::memory::allocate(*(m_env.engine), BLayout);
+            auto btmpPointer = bmem.pointer<char>();
+
+            auto blobBytes = static_cast<const char *>(pBiasBlob->buffer());
+            const size_t BchunkSz = lstm_hidden_size * elementSize;
+
+            for (int g = 0; g < 4; g++) {
+                auto bBytes = btmpPointer.data() + gate_offs[g] * BchunkSz;
+                // copy "lstm_hidden_size" elements to B
+                for (size_t b = 0; b < BchunkSz; b++) {
+                    bBytes[b] = blobBytes[b];
+                }
+                blobBytes += BchunkSz;
+            }
+
+            m_topology->add(cldnn::data(biasID, bmem));
+            hasBias = true;
+        }
+    }
+
+    cldnn::primitive_id inReshapeID = layer->name + "_inReshape";
+    cldnn::primitive_id permuteID = layer->name + "_inputReorder";
+    cldnn::primitive_id inHiddenReshapeID = layer->name + "_inHiddenReshape";
+
+    cldnn::tensor inputShape = { lstm_batch_size, 1, lstm_input_size, 1 };
+    cldnn::tensor hiddenStateShape = { lstm_batch_size, 1, lstm_hidden_size, 1 };
+    cldnn::layout inputLayout = cldnn::layout(m_networkPrecision, cldnn::format::bfyx, inputShape);
+    m_topology->add(cldnn::reshape(inReshapeID, inputPrimitives[0], inputShape));
+    m_topology->add(cldnn::reorder(permuteID, inReshapeID, inputLayout));
+
+    m_topology->add(cldnn::reshape(inHiddenReshapeID+"_1", inputPrimitives[1], hiddenStateShape));
+    m_topology->add(cldnn::reshape(inHiddenReshapeID+"_2", inputPrimitives[2], hiddenStateShape));
+
+    cldnn::tensor hiddenSz = cldnn::tensor{ 1, lstm_batch_size, lstm_hidden_size, 1 };
+    cldnn::tensor cellCropSz = cldnn::tensor{0, 1, 0, 0};
+    std::string hiddenInStr = inHiddenReshapeID+"_1";
+    std::string cellInStr = inHiddenReshapeID+"_2";
+
+
+    std::string lstm_gemm_id = layer->name + "_lstm_gemm";
+    std::string lstm_elt_id = layer->name + "_lstm_elt";
+    std::string crop_id = layer->name + "_crop";
+
+    m_topology->add(cldnn::lstm_gemm(lstm_gemm_id, permuteID,
+                                     weightID, recurrentID,
+                                     hasBias ? biasID : "",
+                                     hiddenInStr));
+    m_topology->add(cldnn::lstm_elt(lstm_elt_id, lstm_gemm_id,
+                                    cellInStr));
+
+
+
+
+    cldnn::primitive_id outputHiddenID = layer->name;
+    m_topology->add(cldnn::crop(outputHiddenID, lstm_elt_id, hiddenSz, cldnn::tensor{0, 0, 0, 0}));
+    m_env.primitiveIDs[outputHiddenID] = outputHiddenID;
+    m_env.primitiveIDs[layer->outData[0]->name] = outputHiddenID;
+
+    cldnn::primitive_id outputCellID = layer->outData[1]->name;
+    m_topology->add(cldnn::crop(outputCellID, lstm_elt_id, hiddenSz, cellCropSz));
+    m_env.primitiveIDs[outputCellID] = outputCellID;
+
+    m_env.profilingIDs.insert(layer->name);
+}
+
 void CLDNNGraph::CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     int lstm_batch_size, lstm_sequence_len, lstm_input_size, lstm_hidden_size;
     SizeVector in_dims1, in_dims2;
-    bool hasInitialHidden = false, hasInitialCell = false, hasBias = false;
-    bool swap_state = layer->params["swap_state"] == "YES";
+    bool hasInitialHidden = false, hasInitialCell = false, hasBias = false, isForward = true;
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-
 
     auto elementSize = cldnn::data_type_traits::size_of(m_networkPrecision);
     cldnn::primitive_id weightID = layer->name + m_weightsTag;
@@ -2510,7 +2730,7 @@ void CLDNNGraph::CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
 
     /* check incoming CNN layer and setup required variables */
     {
-        if (rnnLayer->cellType != LSTM)
+        if (rnnLayer->cellType != "LSTM")
          THROW_IE_EXCEPTION << "RNN layer supports only LSTM like cell";
 
         auto in_data0 = layer->insData[0].lock();
@@ -2520,7 +2740,7 @@ void CLDNNGraph::CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
         auto in_dims0 = in_data0->dims;
         auto out_dims0 = layer->outData[0]->dims;
 
-        if (1 == rnnLayer->_axis) {
+        if (1 == rnnLayer->axis) {
             lstm_batch_size = in_dims0[2];
             lstm_sequence_len = in_dims0[1];
         } else {
@@ -2535,17 +2755,21 @@ void CLDNNGraph::CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
         if blobs are not null, direct the data from them
         into corresponding LSTM inputs */
 
-        auto in_data1 = layer->insData[swap_state ? 2 : 1].lock();
+        auto in_data1 = layer->insData[1].lock();
         if (in_data1) {
             in_dims1 = in_data1->dims;
             hasInitialHidden = true;
         }
 
-        auto in_data2 = layer->insData[swap_state ? 1 : 2].lock();
+        auto in_data2 = layer->insData[2].lock();
         if (in_data2) {
             in_dims2 = in_data2->dims;
             hasInitialCell = true;
         }
+
+        if (rnnLayer->direction != RNNLayer::RNN_FWD && rnnLayer->direction != RNNLayer::RNN_BWD)
+            THROW_IE_EXCEPTION << "Support only forward and backward direction for RNN Layer " << layer->name;
+        isForward = rnnLayer->direction == RNNLayer::RNN_FWD;
 
         if (in_dims0.size() != 3 || in_dims1.size() != 2 || in_dims2.size() != 2)
             THROW_IE_EXCEPTION << "Wrong input shapes for RNN Layer " << layer->name;
@@ -2650,15 +2874,16 @@ void CLDNNGraph::CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
 
     cldnn::tensor hiddenSz = cldnn::tensor{ 1, lstm_batch_size, lstm_hidden_size, 1 };
     cldnn::tensor cellCropSz = cldnn::tensor{0, 1, 0, 0};
-    std::string hiddenStr = hasInitialHidden ? (swap_state ? inHiddenReshapeID+"_2" : inHiddenReshapeID+"_1") : "";
-    std::string cellStr = hasInitialCell ? (swap_state ? inHiddenReshapeID+"_1" : inHiddenReshapeID+"_2") : "";
+    std::string hiddenStr = hasInitialHidden ? inHiddenReshapeID+"_1" : "";
+    std::string cellStr = hasInitialCell ? inHiddenReshapeID+"_2" : "";
 
     for (int i = 0; i < lstm_sequence_len; ++i) {
         std::string lstm_gemm_id = layer->name + "_lstm_gemm" + get_string_id(i);
         std::string lstm_elt_id = layer->name + "_lstm_elt" + get_string_id(i);
         std::string crop_id = layer->name + "_crop" + get_string_id(i);
 
-        m_topology->add(cldnn::lstm_gemm(lstm_gemm_id, inputSplitID + ":" + get_string_id(i),
+        int seqIdx = isForward ? i : lstm_sequence_len - 1 - i;
+        m_topology->add(cldnn::lstm_gemm(lstm_gemm_id, inputSplitID + ":" + get_string_id(seqIdx),
                                             weightID, recurrentID,
                                             hasBias ? biasID : "",
                                             hiddenStr));
@@ -2675,14 +2900,14 @@ void CLDNNGraph::CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
         } else {
             // last hidden state crop (output 2)
             if (layer->outData.size() > 1) {
-                cldnn::primitive_id outputHiddenID = layer->outData[swap_state ? 2 : 1]->name;
+                cldnn::primitive_id outputHiddenID = layer->outData[1]->name;
                 m_env.primitiveIDs[hiddenStr] = hiddenStr;
                 m_env.primitiveIDs[outputHiddenID] = hiddenStr;
             }
 
             // last cell state crop (output 3)
             if (layer->outData.size() > 2) {
-                cldnn::primitive_id outputCellID = layer->outData[swap_state ? 1 : 2]->name;
+                cldnn::primitive_id outputCellID = layer->outData[2]->name;
                 auto cropPrim = cldnn::crop(outputCellID, lstm_elt_id, hiddenSz, cellCropSz);
                 m_topology->add(cropPrim);
                 m_env.primitiveIDs[outputCellID] = outputCellID;
@@ -2690,13 +2915,15 @@ void CLDNNGraph::CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
         }
     }
 
+    if (!isForward) std::reverse(output_ids_offsets.begin(), output_ids_offsets.end());
+
     // main output (concatenated hidden)
     cldnn::primitive_id concatID = layer->name + "_outputConcat";
     m_topology->add(cldnn::concatenation(concatID, output_ids_offsets, cldnn::concatenation::along_f));
 
     // permute output to [1, batch, sequence, hidden_size]
     cldnn::tensor outputTensor;
-    if (1 == rnnLayer->_axis) {
+    if (1 == rnnLayer->axis) {
         outputTensor = cldnn::tensor(cldnn::batch(1),   cldnn::feature(lstm_batch_size), cldnn::spatial(lstm_hidden_size, lstm_sequence_len));
     } else {
         outputTensor = cldnn::tensor(cldnn::batch(1), cldnn::feature(lstm_sequence_len), cldnn::spatial(lstm_hidden_size, lstm_batch_size));
@@ -2765,8 +2992,9 @@ void CLDNNGraph::CreateConvolutionPrimitive(InferenceEngine::CNNLayerPtr &layer)
 
     cldnn::tensor stride = cldnn::tensor(cldnn::batch(1), cldnn::feature(1),
                                          cldnn::spatial(convLayer->_stride[X_AXIS], convLayer->_stride[Y_AXIS]));
+    auto allPad = getPaddings(*convLayer);
     cldnn::tensor padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0),
-                                          cldnn::spatial(-convLayer->_padding[X_AXIS], -convLayer->_padding[Y_AXIS]));
+                                          cldnn::spatial(-allPad.begin[X_AXIS], -allPad.begin[Y_AXIS]));
     cldnn::tensor dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1),
                                            cldnn::spatial(convLayer->_dilation[X_AXIS], convLayer->_dilation[Y_AXIS]));
 
@@ -2799,12 +3027,16 @@ bool CLDNNGraph::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitL
         dynamic_cast<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[0]).get());
     auto convLayer2 =
         dynamic_cast<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[1]).get());
-    if (!convLayer1 || !convLayer2  // outputs aren't convolutions
-        || convLayer1->precision != convLayer2->precision                       // wrong precision
+    if (!convLayer1 || !convLayer2) {   // outputs aren't convolutions
+        return false;
+    }
+    auto allPad1 = getPaddings(*convLayer1);
+    auto allPad2 = getPaddings(*convLayer2);
+    if (convLayer1->precision != convLayer2->precision                       // wrong precision
         || convLayer1->_fusedWith || convLayer2->_fusedWith                     // convolutions are fused
         || convLayer1->outData.size() != 1 || convLayer2->outData.size() != 1   // more than 1 output for convolutions
-        || convLayer1->_padding[X_AXIS] != convLayer2->_padding[X_AXIS]                     // different padding
-        || convLayer1->_padding[Y_AXIS] != convLayer2->_padding[Y_AXIS]                     // different padding
+        || allPad1.begin[X_AXIS] != allPad2.begin[X_AXIS]                     // different padding
+        || allPad1.begin[Y_AXIS] != allPad2.begin[Y_AXIS]                     // different padding
         || convLayer1->_stride[X_AXIS] != convLayer2->_stride[X_AXIS]                       // different strides
         || convLayer1->_stride[Y_AXIS] != convLayer2->_stride[Y_AXIS]                       // different strides
         || convLayer1->_dilation[X_AXIS] != convLayer2->_dilation[X_AXIS]                   // different dilation

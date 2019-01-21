@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +7,7 @@
 #include "details/caseless.hpp"
 #include "ie_utils.hpp"
 #include "ie_icnn_network_stats.hpp"
+#include "details/ie_cnn_network_tools.h"
 
 #include <ie_layers.h>
 
@@ -134,6 +134,9 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
         &layerCloneImpl<ReshapeLayer           >,
         &layerCloneImpl<CropLayer              >,
         &layerCloneImpl<EltwiseLayer           >,
+        &layerCloneImpl<GemmLayer              >,
+        &layerCloneImpl<PadLayer               >,
+        &layerCloneImpl<GatherLayer            >,
         &layerCloneImpl<ClampLayer             >,
         &layerCloneImpl<ReLULayer              >,
         &layerCloneImpl<SoftMaxLayer           >,
@@ -265,6 +268,8 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
             clonedLayer->outData.push_back(clonedData);
             for (auto&& inp : data->getInputTo()) {
                 auto layer = inp.second;
+                // TODO(amalyshe) is it the best place to check priorbox and remove
+                // such edge from outputs?
                 if (std::find(layers.begin(), layers.end(), layer) == layers.end() &&
                     !(CaselessEq<string>()(layer->type, "priorbox") ||
                       CaselessEq<string>()(layer->type, "PriorBoxClustered"))) {
@@ -296,7 +301,7 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
             if (nullptr == layer) {
                 LayerParams params;
                 params.name = data->getName();
-                params.precision = data->precision;
+                params.precision = data->getPrecision();
                 params.type = "Input";
                 layer = std::make_shared<CNNLayer>(params);
                 // this place should be transactional
@@ -486,7 +491,7 @@ struct NodePrinter {
         dims_ss << ']';
 
         printed_properties.emplace_back("dims", dims_ss.str());
-        printed_properties.emplace_back("precision", data->precision.name());
+        printed_properties.emplace_back("precision", data->getPrecision().name());
 
         printNode(node_name, data->name, node_properties, printed_properties);
     }
@@ -534,10 +539,17 @@ void saveGraphToDot(InferenceEngine::ICNNNetwork &network, std::ostream &out, pr
         }
     }
 
+    std::vector<std::pair<CNNLayerPtr, std::string>> perf_info;
+    auto store_perf_info = [&](CNNLayerPtr layer) {
+        auto perf = layer->params.find("perf");
+        if (perf != layer->params.end()) perf_info.push_back({layer, perf->second});
+    };
+
     out << "strict digraph Network {\n";
     // Traverse graph and print nodes
-    CNNNetForestDFS(inputs, [&](CNNLayerPtr layer) {
+    for (const auto &layer : details::CNNNetSortTopologically(network)) {
         printer.printLayerNode(layer);
+        store_perf_info(layer);
 
         // Print output Data Object
         for (auto &dataptr : layer->outData) {
@@ -558,7 +570,28 @@ void saveGraphToDot(InferenceEngine::ICNNNetwork &network, std::ostream &out, pr
             // to remove duplicate edges
             printer.printEdge(layer, dataptr, true);
         }
-    }, true);
+    }
+
+    if (!perf_info.empty()) {
+        out << "// Performance statistic" << std::endl;
+        out << "node [shape=plain, fontsize=24]" << std::endl;
+
+        for (auto &p : perf_info) {
+            auto &perf = p.second;
+            auto &name = p.first->name;
+            auto layer_name = "layer_" + name;
+            auto perf_name = "perf_" + name;
+            // {rank=same; perf_conv1 [label="133  mcs"]; layer_conv1;}
+            out << "{rank=same; " << perf_name << " [label=\"" << perf << "\"]; "
+                << layer_name << ";}" << std::endl;
+        }
+
+        out << std::endl << "edge[style=invis];" << std::endl;
+        auto p = perf_info.begin();
+        out << "perf_" + p->first->name;
+        for (; p != perf_info.end(); p++)
+            out << " -> perf_" + p->first->name;
+    }
 
     out << "}" << std::endl;
 }

@@ -14,11 +14,10 @@
  limitations under the License.
 """
 
-import logging as log
-import numpy as np
 import networkx as nx
-from mo.graph.graph import Node
-from mo.graph.graph import erase_node
+import numpy as np
+
+from extensions.middle.FusePermutesSequence import FusePermutesSequence
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -33,6 +32,11 @@ class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
 
     def run_after(self):
         return []
+
+    def run_before(self):
+        return [
+            FusePermutesSequence,
+        ]
 
     def pattern(self):
         return dict(
@@ -57,8 +61,10 @@ class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
         hidden_size = node.in_node(1).shape[1]
         weights = weights_node.value
         biases = biases_node.value
-        assert weights.shape[0] == input_size + hidden_size, "weights.shape={} input_size={} hidden_size={}".format(weights.shape, input_size, hidden_size)
-        assert weights.shape[1] == biases.shape[0] == 4 * hidden_size, "weights.shape={} biases.shape={} hidden_size={}".format(weights.shape, biases.shape, hidden_size)
+        assert weights.shape[0] == input_size + hidden_size, "weights.shape={} input_size={} hidden_size={}".format(
+            weights.shape, input_size, hidden_size)
+        assert weights.shape[1] == biases.shape[0] == 4 * hidden_size,\
+            "weights.shape={} biases.shape={} hidden_size={}".format(weights.shape, biases.shape, hidden_size)
 
         weights = weights.reshape([
             weights.shape[0],

@@ -873,15 +873,20 @@ struct jit_uni_kernel_fwd_f32: public jit_uni_eltwise_kernel_f32,
 
         preamble();
 
+        Label vectorized_loop_start;
+        Label reminder_loop_start;
+        Label vectorized_loop_end;
+        Label reminder_loop_end;
+
         Reg64 param = abi_param1;
         mov(reg_from, ptr[param + GET_OFF(from)]);
         mov(reg_to, ptr[param + GET_OFF(to)]);
         mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
         cmp(reg_work_amount, simd_w);
-        jl("reminder_loop_start", T_NEAR);
+        jl(reminder_loop_start, T_NEAR);
 
-        L("vectorized_loop_start");
+        L(vectorized_loop_start);
 
         uni_vmovups(vmm_src, ptr[reg_from]);
         eltwise_injector->compute_vector(vmm_src.getIdx());
@@ -892,14 +897,14 @@ struct jit_uni_kernel_fwd_f32: public jit_uni_eltwise_kernel_f32,
 
         sub(reg_work_amount, simd_w);
         cmp(reg_work_amount, simd_w);
-        jge("vectorized_loop_start", T_NEAR);
+        jge(vectorized_loop_start, T_NEAR);
 
-        L("vectorized_loop_end");
+        L(vectorized_loop_end);
 
-        L("reminder_loop_start");
+        L(reminder_loop_start);
 
         cmp(reg_work_amount, 0);
-        jle("reminder_loop_end", T_NEAR);
+        jle(reminder_loop_end, T_NEAR);
 
         movss(xmm_src, ptr[reg_from]);
         eltwise_injector->compute_vector(xmm_src.getIdx());
@@ -909,9 +914,9 @@ struct jit_uni_kernel_fwd_f32: public jit_uni_eltwise_kernel_f32,
         add(reg_to, sizeof(float));
 
         dec(reg_work_amount);
-        jmp("reminder_loop_start", T_NEAR);
+        jmp(reminder_loop_start, T_NEAR);
 
-        L("reminder_loop_end");
+        L(reminder_loop_end);
 
         postamble();
 
@@ -954,9 +959,9 @@ status_t jit_uni_eltwise_fwd_t<isa>::pd_t::init() {
                 prop_kind::forward_inference)
         && utils::everyone_is(data_type::f32, desc()->data_desc.data_type)
         && !has_zero_dim_memory()
-        && utils::implication(isa > avx2, utils::one_of(desc()->alg_kind,
+        && IMPLICATION(isa > avx2, utils::one_of(desc()->alg_kind,
                 eltwise_relu, eltwise_elu))
-        && utils::implication(isa == sse42 || isa == avx2, utils::one_of(
+        && IMPLICATION(isa == sse42 || isa == avx2, utils::one_of(
                     desc()->alg_kind, eltwise_relu, eltwise_tanh, eltwise_elu,
                     eltwise_square, eltwise_abs, eltwise_sqrt, eltwise_linear,
                     eltwise_bounded_relu, eltwise_soft_relu, eltwise_logistic))

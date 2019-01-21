@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,10 +88,16 @@ static const char custom_cldnn_message[] = "Required for GPU custom kernels."
 static const char custom_cpu_library_message[] = "Required for CPU custom layers. "
                                                  "Absolute path to a shared library with the kernel implementations";
 
+/// @brief Message for labels file
+static const char labels_file_message[] = "Labels file path. The labels file contains names of the dataset classes";
+
 static const char zero_background_message[] = "\"Zero is a background\" flag. Some networks are trained with a modified"
                                               " dataset where the class IDs "
                                               " are enumerated from 1, but 0 is an undefined \"background\" class"
                                               " (which is never detected)";
+
+static const char plain_output_message[] = "Flag for plain output";
+
 
 /// @brief Network type options and their descriptions
 static const char* types_descriptions[][2] = {
@@ -156,6 +161,11 @@ DEFINE_string(c, "", custom_cldnn_message);
 /// It is an optional parameter
 DEFINE_string(l, "", custom_cpu_library_message);
 
+/// @brief Flag for printing plain text
+DEFINE_bool(plain, false, plain_output_message);
+
+DEFINE_string(lbl, "", labels_file_message);
+
 /**
  * @brief This function shows a help message
  */
@@ -171,6 +181,7 @@ static void showUsage() {
     }
     std::cout << "    -i <path>                 " << image_message << std::endl;
     std::cout << "    -m <path>                 " << model_message << std::endl;
+    std::cout << "    -lbl <path>               " << labels_file_message << std::endl;
     std::cout << "    -l <absolute_path>        " << custom_cpu_library_message << std::endl;
     std::cout << "    -c <absolute_path>        " << custom_cldnn_message << std::endl;
     std::cout << "    -d <device>               " << target_device_message << std::endl;
@@ -248,7 +259,6 @@ int main(int argc, char *argv[]) {
             // Checking required OD-specific options
             if (FLAGS_ODa.empty()) ee << UserException(11, "Annotations folder is not specified for object detection (missing -a option)");
             if (FLAGS_ODc.empty()) ee << UserException(12, "Classes file is not specified (missing -c option)");
-            if (FLAGS_b > 0) ee << UserException(13, "Batch option other than 0 is not supported for Object Detection networks");
         }
 
         if (!ee.empty()) throw ee;
@@ -311,7 +321,7 @@ int main(int argc, char *argv[]) {
         if (netType == Classification) {
             processor = std::shared_ptr<Processor>(
                     new ClassificationProcessor(FLAGS_m, FLAGS_d, FLAGS_i, FLAGS_b,
-                                                plugin, dumper, FLAGS_l, preprocessingOptions, FLAGS_Czb));
+                                                plugin, dumper, FLAGS_lbl, preprocessingOptions, FLAGS_Czb));
         } else if (netType == ObjDetection) {
             if (FLAGS_ODkind == "SSD") {
                 processor = std::shared_ptr<Processor>(
@@ -329,7 +339,7 @@ int main(int argc, char *argv[]) {
             THROW_USER_EXCEPTION(2) <<  "Processor pointer is invalid" << FLAGS_ppType;
         }
         slog::info << (FLAGS_d.empty() ? "Plugin: " + FLAGS_p : "Device: " + FLAGS_d) << slog::endl;
-        shared_ptr<Processor::InferenceMetrics> pIM = processor->Process();
+        shared_ptr<Processor::InferenceMetrics> pIM = processor->Process(FLAGS_plain);
         processor->Report(*pIM.get());
 
         if (dumper.dumpEnabled()) {

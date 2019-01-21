@@ -20,6 +20,7 @@
 #include "type_helpers.hpp"
 #include "mkldnn_thread.hpp"
 #include "utils.hpp"
+#include "cpu_isa_traits.hpp"
 
 #include "gemm_convolution_utils.hpp"
 
@@ -163,7 +164,8 @@ void im2col(jit_gemm_conv_conf_t &jcp, const float *im, float *col) {
 }
 
 /* col[oh][ow][kh][kw][ic] <-- im2col_u8(im[ih][iw][ic]) */
-void im2col_u8(jit_gemm_conv_conf_t &jcp, const uint8_t *im, uint8_t *col) {
+template <typename T>
+void im2col_u8(jit_gemm_conv_conf_t &jcp, const T *im, uint8_t *col) {
     parallel_nd(jcp.oh, jcp.ow, [&](int oh, int ow) {
             for (int kh = 0; kh < jcp.kh; ++kh) {
                 const int ih = oh * jcp.stride_h
@@ -181,13 +183,19 @@ void im2col_u8(jit_gemm_conv_conf_t &jcp, const uint8_t *im, uint8_t *col) {
                         = (ih * jcp.iw + iw) * jcp.ngroups * jcp.ic;
                     PRAGMA_OMP_SIMD()
                     for (int ic = 0; ic < jcp.ic; ++ic) {
-                        col[col_idx + ic] = im[im_idx + ic];
+                        col[col_idx + ic] = jcp.signed_input
+                        ? im[im_idx + ic] + 128
+                        : im[im_idx + ic];
                     }
                 }
             }
         }
     );
 }
+template void im2col_u8<int8_t>(
+        jit_gemm_conv_conf_t &jcp, const int8_t *im, uint8_t *col);
+template void im2col_u8<uint8_t>(
+        jit_gemm_conv_conf_t &jcp, const uint8_t *im, uint8_t *col);
 
 /* im[ih][iw][ic] <-- col2im_s32(col[oh][ow][kh][kw][ic]) */
 void col2im_s32(jit_gemm_conv_conf_t &jcp, const int32_t *col, int32_t *im) {
@@ -323,34 +331,35 @@ void init_conf(
     const bool with_groups = weights_d.ndims() == src_d.ndims() + 1;
     jcp.prop_kind = cd.prop_kind;
     const int ndims = src_d.ndims();
+    const int is_1d = ndims == 3;
+    const int is_3d = ndims == 5;
 
     jcp.ngroups = with_groups ? weights_d.dims()[0] : 1;
     jcp.mb = src_d.dims()[0];
 
     jcp.oc = dst_d.dims()[1] / jcp.ngroups;
     jcp.ic = src_d.dims()[1] / jcp.ngroups;
-
-    jcp.id = (ndims == 4) ? 1 : src_d.dims()[2];
-    jcp.ih = src_d.dims()[ndims - 2];
+    jcp.id = is_3d ? src_d.dims()[2] : 1;
+    jcp.ih = is_1d ? 1 : src_d.dims()[ndims - 2];
     jcp.iw = src_d.dims()[ndims - 1];
-    jcp.od = (ndims == 4) ? 1 : dst_d.dims()[2];
-    jcp.oh = dst_d.dims()[ndims - 2];
+    jcp.od = is_3d ? dst_d.dims()[2] : 1;
+    jcp.oh = is_1d ? 1 : dst_d.dims()[ndims - 2];
     jcp.ow = dst_d.dims()[ndims - 1];
 
-    jcp.kd = (ndims == 4) ? 1 : weights_d.dims()[with_groups + 2];
-    jcp.kh = weights_d.dims()[with_groups + ndims - 2];
+    jcp.kd = is_3d ? weights_d.dims()[with_groups + 2] : 1;
+    jcp.kh = is_1d ? 1 : weights_d.dims()[with_groups + ndims - 2];
     jcp.kw = weights_d.dims()[with_groups + ndims - 1];
 
-    jcp.f_pad = (ndims == 4) ? 0 : cd.padding[0][0];
-    jcp.t_pad = cd.padding[0][ndims - 4];
+    jcp.f_pad = is_3d ? cd.padding[0][0] : 0;
+    jcp.t_pad = is_1d ? 0 : cd.padding[0][ndims - 4];
     jcp.l_pad = cd.padding[0][ndims - 3];
 
-    jcp.stride_d = (ndims == 4) ? 1 : cd.strides[0];
-    jcp.stride_h = cd.strides[ndims - 4];
+    jcp.stride_d = is_3d ? cd.strides[0] : 1;
+    jcp.stride_h = is_1d ? 1 : cd.strides[ndims - 4];
     jcp.stride_w = cd.strides[ndims - 3];
 
-    jcp.dilate_d = (ndims == 4) ? 0 : cd.dilates[0];
-    jcp.dilate_h = cd.dilates[ndims - 4];
+    jcp.dilate_d = is_3d ? cd.dilates[0] : 0;
+    jcp.dilate_h = is_1d ? 0 : cd.dilates[ndims - 4];
     jcp.dilate_w = cd.dilates[ndims - 3];
 
     jcp.src_fmt = src_d.format();
@@ -363,14 +372,22 @@ void init_conf(
     jcp.is = jcp.ih * jcp.iw;
     jcp.os = jcp.oh * jcp.ow;
     jcp.ks = jcp.kh * jcp.kw * jcp.kd;
-    jcp.im2col_sz = !(jcp.oh == jcp.ih && jcp.ow == jcp.iw
-                            && jcp.od == jcp.id && jcp.ks == 1)
+
+    jcp.signed_input = (src_d.data_type() == data_type::s8);
+    jcp.wei_adj_scale = (!jcp.signed_input || mayiuse(avx512_core_vnni))
+            ? 1.0f
+            : (1.0f / 2.0f);
+    jcp.im2col_sz = !everyone_is(true,
+            jcp.ow == jcp.iw, jcp.oh == jcp.ih, jcp.od == jcp.id,
+            jcp.stride_w == 1, jcp.stride_h == 1, jcp.stride_d == 1,
+            jcp.ks == 1, !jcp.signed_input)
         ? (ptrdiff_t)jcp.ic * jcp.ks * jcp.os
         : 0;
 
     bool do_outer_threading = false;
-    bool is_int8_conv = (cd.src_desc.data_type == u8
-            && cd.weights_desc.data_type == s8);
+    bool is_int8_conv
+            = (utils::one_of(cd.src_desc.data_type == u8, cd.src_desc.data_type == s8)
+                    && cd.weights_desc.data_type == s8);
     if (is_int8_conv) {
         bool is_depthwise =
                 utils::everyone_is(1, jcp.ic, jcp.oc) && jcp.ngroups != 1;
@@ -379,7 +396,7 @@ void init_conf(
     } else {
         if (utils::one_of(jcp.prop_kind, forward_training, forward_inference))
             do_outer_threading = jcp.os / max_threads < 512
-                && utils::implication(jcp.od == 1, (jcp.mb != 1 || jcp.ngroups > 2));
+                && IMPLICATION(jcp.od == 1, (jcp.mb != 1 || jcp.ngroups > 2));
         else if (jcp.prop_kind == backward_data)
             do_outer_threading = (jcp.mb != 1 || jcp.ngroups > 2);
         else //(jcp.prop_kind == backward_weights)

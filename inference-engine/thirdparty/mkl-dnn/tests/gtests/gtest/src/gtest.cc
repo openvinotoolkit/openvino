@@ -2658,8 +2658,10 @@ void TestInfo::Run() {
 
   // Deletes the test object.
   impl->os_stack_trace_getter()->UponLeavingGTest();
-  internal::HandleExceptionsInMethodIfSupported(
-      test, &Test::DeleteSelf_, "the test fixture's destructor");
+  if (test != NULL) {
+      internal::HandleExceptionsInMethodIfSupported(
+          test, &Test::DeleteSelf_, "the test fixture's destructor");
+  }
 
   result_.set_elapsed_time(internal::GetTimeInMillis() - start);
 
@@ -3173,12 +3175,25 @@ void PrettyUnitTestResultPrinter::PrintFailedTests(const UnitTest& unit_test) {
   }
 
   for (int i = 0; i < unit_test.total_test_case_count(); ++i) {
-    const TestCase& test_case = *unit_test.GetTestCase(i);
+    const auto p_test_case = unit_test.GetTestCase(i);
+    if (!p_test_case) {
+      ColoredPrintf(COLOR_RED, "Could not get test case %d\n", i);
+      fflush(stdout);
+      continue;
+    }
+    const TestCase& test_case = *p_test_case;
     if (!test_case.should_run() || (test_case.failed_test_count() == 0)) {
       continue;
     }
     for (int j = 0; j < test_case.total_test_count(); ++j) {
-      const TestInfo& test_info = *test_case.GetTestInfo(j);
+      const auto p_test_info = test_case.GetTestInfo(j);
+      if (!p_test_info) {
+        ColoredPrintf(COLOR_RED, "Could not get test info %d of test case %d\n",
+               j, i);
+        fflush(stdout);
+        continue;
+      }
+      const TestInfo& test_info = *p_test_info;
       if (!test_info.should_run() || test_info.result()->Passed()) {
         continue;
       }
@@ -3398,9 +3413,18 @@ class XmlUnitTestResultPrinter : public EmptyTestEventListener {
                                 const char* test_case_name,
                                 const TestInfo& test_info);
 
+  // Streams an XML representation of a NULL TestInfo object.
+  static void OutputXmlNullTestInfo(::std::ostream* stream,
+                                const char* test_case_name,
+                                const int test_info_index);
+
   // Prints an XML representation of a TestCase object
   static void PrintXmlTestCase(::std::ostream* stream,
                                const TestCase& test_case);
+
+  // Prints an XML representation of a NullTestCase object
+  static void PrintXmlNullTestCase(::std::ostream* stream,
+                               const int test_case_inedx);
 
   // Prints an XML summary of unit_test to output stream out.
   static void PrintXmlUnitTest(::std::ostream* stream,
@@ -3671,6 +3695,17 @@ void XmlUnitTestResultPrinter::OutputXmlTestInfo(::std::ostream* stream,
     *stream << "    </testcase>\n";
 }
 
+// Prints an XML representation of a NULL TestInfo object.
+void XmlUnitTestResultPrinter::OutputXmlNullTestInfo(::std::ostream* stream,
+       const char* test_case_name, const int test_info_index) {
+  *stream << "    <testcase";
+  OutputXmlAttribute(stream, "testcase", "classname", test_case_name);
+  *stream << "      <failure message=\""
+          << "failed to get test info " << test_info_index << "\""
+          << ">\n</failure>\n"
+          << ">\n    </testcase>\n";
+}
+
 // Prints an XML representation of a TestCase object
 void XmlUnitTestResultPrinter::PrintXmlTestCase(std::ostream* stream,
                                                 const TestCase& test_case) {
@@ -3691,10 +3726,25 @@ void XmlUnitTestResultPrinter::PrintXmlTestCase(std::ostream* stream,
           << ">\n";
 
   for (int i = 0; i < test_case.total_test_count(); ++i) {
-    if (test_case.GetTestInfo(i)->is_reportable())
-      OutputXmlTestInfo(stream, test_case.name(), *test_case.GetTestInfo(i));
+    const auto p_test_info = test_case.GetTestInfo(i);
+    if (!p_test_info) {
+      OutputXmlNullTestInfo(stream, test_case.name(), i);
+      continue;
+    }
+    if (p_test_info->is_reportable())
+      OutputXmlTestInfo(stream, test_case.name(), *p_test_info);
   }
   *stream << "  </" << kTestsuite << ">\n";
+}
+
+// Prints an XML representation of a NULL TestCase object
+void XmlUnitTestResultPrinter::PrintXmlNullTestCase(std::ostream* stream,
+       const int test_case_index) {
+  *stream << "  <testsuite"
+          << "      <failure message=\""
+          << "failed to get test case " << test_case_index << "\""
+          << ">\n</failure>\n"
+          << ">\n  </testsuite>\n";
 }
 
 // Prints an XML summary of unit_test to output stream out.
@@ -3730,8 +3780,13 @@ void XmlUnitTestResultPrinter::PrintXmlUnitTest(std::ostream* stream,
   *stream << ">\n";
 
   for (int i = 0; i < unit_test.total_test_case_count(); ++i) {
-    if (unit_test.GetTestCase(i)->reportable_test_count() > 0)
-      PrintXmlTestCase(stream, *unit_test.GetTestCase(i));
+    const auto p_test_case = unit_test.GetTestCase(i);
+    if (!p_test_case) {
+      PrintXmlNullTestCase(stream, i);
+      continue;
+    }
+    if (p_test_case->reportable_test_count() > 0)
+      PrintXmlTestCase(stream, *p_test_case);
   }
   *stream << "</" << kTestsuites << ">\n";
 }
@@ -3866,6 +3921,13 @@ class ScopedPrematureExitFile {
       // errors are ignored as there's nothing better we can do and we
       // don't want to fail the test because of this.
       FILE* pfile = posix::FOpen(premature_exit_filepath, "w");
+      if (pfile == NULL) {
+          fprintf(stderr,
+              "Unable to open file \"%s\"\n", premature_exit_filepath);
+          fflush(stderr);
+          exit(EXIT_FAILURE);
+      }
+
       size_t unused = fwrite("0", 1, 1, pfile);
       (void)unused;
       fclose(pfile);
@@ -4647,6 +4709,10 @@ bool UnitTestImpl::RunAllTests() {
       if (!Test::HasFatalFailure()) {
         for (int test_index = 0; test_index < total_test_case_count();
              test_index++) {
+          if (GetMutableTestCase(test_index) == NULL) {
+              printf("\n.Cound not get test case %d\n", test_index);
+              continue;
+          }
           GetMutableTestCase(test_index)->Run();
         }
       }

@@ -22,7 +22,7 @@ from mo.ops.op import Op
 
 
 class FlattenONNX(Op):
-    op = 'Flatten'
+    op = 'FlattenONNX'
     enabled = True
 
     def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
@@ -33,7 +33,7 @@ class FlattenONNX(Op):
         }, attrs)
 
     def supported_attrs(self):
-        return ['axis', ('dim', lambda node: ','.join(map(str, node['dim'])))]
+        return [('dim', lambda node: ','.join(map(str, node['dim'])))]
 
     @staticmethod
     def infer(node):

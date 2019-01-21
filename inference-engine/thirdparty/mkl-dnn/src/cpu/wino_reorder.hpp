@@ -107,6 +107,8 @@ private:
         oc2_block_ = output_d.wino_desc().oc2_block;
         assert(nb_ic_ % ic2_block_ == 0 && nb_oc_ % oc2_block_ == 0);
 
+        adj_scale_ = output_d.wino_desc().adj_scale;
+
         size_wino_wei_ = w_alpha_ * w_alpha_ * oc_ * ic_;
         size_wspace_ = r_ * w_alpha_ * oc_block_;
 
@@ -189,7 +191,7 @@ private:
                         : scales[ob * oc_block_ + ioc];
                     _out[(i * w_alpha_ + j) * Z + ioc]
                             = qz_b0<in_data_t, out_data_t>()(
-                                    (in_data_t)t, scale, rmode);
+                                    (in_data_t)t, scale * adj_scale_, rmode);
                 } else {
                     _out[(i * w_alpha_ + j) * Z + ioc] = (out_data_t)t;
                 }
@@ -336,6 +338,7 @@ private:
     int r_, w_alpha_;
     int ic_, oc_, or_ic_, or_oc_, kh_, kw_;
     int oc_block_, ic_block_, oc2_block_, ic2_block_;
+    float adj_scale_;
     int nb_oc_, nb_ic_;
     mkldnn_wino_memory_format_t wino_format_;
     in_data_t *__restrict wspace_;

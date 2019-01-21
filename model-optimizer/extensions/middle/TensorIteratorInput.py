@@ -15,8 +15,8 @@
 """
 
 import logging as log
-
 import networkx as nx
+import numpy as np
 
 from extensions.ops.TensorIterator_ops import TensorIteratorInput
 from mo.middle.replacement import MiddleReplacementPattern
@@ -37,7 +37,8 @@ class SmartInputMatcher(MiddleReplacementPattern):
         |                                                  ^
         |__________________________________________________|
     """
-    enabled = True
+
+    enabled = False  # called from mo.pipeline.tf directly
 
     @staticmethod
     def pattern():
@@ -139,7 +140,7 @@ class SmartInputMatcher(MiddleReplacementPattern):
         # Create input node with params
         # axis == 0 because in TensorArray we ALWAYS iterate over 0 axis, other params will be fill later (with
         # condition)
-        input_node = TensorIteratorInput(graph, dict(axis=0, start=start, end=end, stride=None, part_size=None,
+        input_node = TensorIteratorInput(graph, dict(axis=0, start=start, stride=None, part_size=None,
                                                 external_port_id=str(match['Enter_data'].value),
                                                 internal_layer_id=match['TensorArrayRead_data'].id,
                                                 name=match['TensorArrayRead'].name + '/TensorIteratorInput_'
@@ -157,6 +158,9 @@ class SmartInputMatcher(MiddleReplacementPattern):
 
 
 class SimpleInputMatcher(MiddleReplacementPattern):
+
+    enabled = False  # called from mo.pipeline.tf directly
+
     """
     This pattern match simple inputs (without partitions) in while loops in TF (this inputs are set by Enter nodes).
     """
@@ -182,3 +186,38 @@ class SimpleInputMatcher(MiddleReplacementPattern):
 
         # Delete useless nodes
         graph.remove_nodes_from([match['Enter'].id])
+
+
+class BackEdgeSimpleInputMatcher(MiddleReplacementPattern):
+
+    enabled = False  # called from mo.pipeline.tf directly
+
+    @staticmethod
+    def pattern():
+        return dict(
+            nodes=[
+                ('BackEdge', dict(kind='op', op='TensorIteratorBackEdge')),
+            ],
+            edges=[
+            ],
+        )
+
+    @staticmethod
+    def replace_pattern(graph: nx.MultiDiGraph, match: dict):
+        log.debug('================== SimpleBackEdgeInputFind ===============')
+
+        assert len(match['BackEdge'].in_nodes()) == 3
+        condition = match['BackEdge'].in_node(2)
+        init_input = match['BackEdge'].in_node(0)
+        cycle_input = match['BackEdge'].in_node(1)
+
+        # We need to create new TensorItertorInput node only if this node doesn't exist already.
+        if len(init_input.in_nodes()) == 0:
+            input_node = TensorIteratorInput(graph, dict(external_port_id=None,
+                                             internal_layer_id=None,
+                                             name=match['BackEdge'].name + '/TensorIteratorInput_'
+                                            ))
+            input_data_node = input_node.create_node_with_data(inputs=[init_input])
+            input_data_node.shape = np.array(init_input.shape, dtype=np.int64)
+            graph.remove_edges_from([(init_input.id, match['BackEdge'].id)])
+            graph.add_edges_from([(input_data_node.id, match['BackEdge'].id, {'in': 0, 'out': 0})])

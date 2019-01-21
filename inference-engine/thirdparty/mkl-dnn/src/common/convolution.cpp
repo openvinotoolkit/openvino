@@ -89,7 +89,7 @@ status_t conv_desc_init(convolution_desc_t *conv_desc,
     bool consistency = true
         && memory_desc_wrapper(weights_desc).nelems()
         && src_desc->ndims == dst_desc->ndims
-        && utils::one_of(src_desc->ndims, 4, 5)
+        && utils::one_of(src_desc->ndims, 3, 4, 5)
         && utils::one_of(weights_desc->ndims, src_desc->ndims,
                 src_desc->ndims + 1)
         && (with_bias ? bias_desc->ndims == 1 : true)

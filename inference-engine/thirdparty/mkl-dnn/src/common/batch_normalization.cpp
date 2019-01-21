@@ -36,7 +36,7 @@ status_t bnrm_desc_init(batch_normalization_desc_t *bnrm_desc,
         && !any_null(bnrm_desc, data_desc)
         && one_of(prop_kind, forward_training, forward_inference,
                 backward_data, backward)
-        && implication(prop_kind & backward, diff_data_desc != nullptr);
+        && IMPLICATION(prop_kind & backward, diff_data_desc != nullptr);
     if (!args_ok) return invalid_arguments;
 
     auto bd = batch_normalization_desc_t();

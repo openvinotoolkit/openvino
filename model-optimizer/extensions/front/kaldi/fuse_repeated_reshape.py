@@ -17,7 +17,7 @@
 import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementPattern
-from mo.middle.passes.eliminate import remove_op_node
+from mo.middle.passes.eliminate import remove_op_node_with_data_node
 
 
 class FuseRepeatedReshapes(FrontReplacementPattern):
@@ -43,4 +43,4 @@ class FuseRepeatedReshapes(FrontReplacementPattern):
         if (node.has_valid('type') and node.type == 'Reshape' and
                 len(node.out_nodes()) == 1 and node.out_node().has_valid('kind') and node.out_node().kind == 'data' and
                 len(node.out_node().out_nodes()) == 1):
-            remove_op_node(graph, node)
+            remove_op_node_with_data_node(graph, node)

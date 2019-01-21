@@ -15,9 +15,8 @@
 """
 
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
-
 from mo.front.onnx.extractors.utils import onnx_attr
+from mo.ops.flatten_onnx import FlattenONNX
 
 
 class FlattenFrontExtractor(FrontExtractorOp):
@@ -31,6 +30,5 @@ class FlattenFrontExtractor(FrontExtractorOp):
             'axis': axis
         }
 
-        # update the attributes of the node
-        Op.get_op_class_by_name(__class__.op).update_node_stat(node, attrs)
+        FlattenONNX.update_node_stat(node, attrs)
         return __class__.enabled

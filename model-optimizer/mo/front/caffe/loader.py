@@ -26,7 +26,7 @@ from google.protobuf.internal import api_implementation
 
 from mo.front.caffe.proto import caffe_pb2
 from mo.graph.graph import Node, unique_id
-from mo.utils.error import Error
+from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -103,18 +103,40 @@ def load_caffe_proto_model(proto_path: str, model_path: [str, None] = None):
                        'python -m easy_install protobuf-3.5.1-py($your_python_version)-win-amd64.egg \n' \
                        'set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp'
         print(message + '\n\n' + refer_to_faq_msg(80))
+
     # Read proto layers
-    proto = caffe_pb2.NetParameter()
-    with open(proto_path, "r") as file:
-        text_format.Merge(str(file.read()), proto)
+    try:
+        proto = caffe_pb2.NetParameter()
+        with open(proto_path, "r") as file:
+            text_format.Merge(str(file.read()), proto)
+    except Exception as e:
+        log.error('Exception message: {}\n\n'.format(e) +
+                  '    Possible reasons:\n' +
+                  '      1. {} does not exist\n'.format(proto_path) +
+                  '      2. {} does not have a valid structure, for example, it was downloaded as html\n'.format(proto_path) +
+                  '      3. {} contains custom layers or attributes that are not supported\n'.format(proto_path) +
+                  '         in Model Optimizer by default.\n\n' +
+                  '    After you made sure that {} has a valid structure and still see this issue, then\n'.format(proto_path) +
+                  '    you need to generate a python parser for caffe.proto that was used when the model\n' +
+                  '    was created.\n' +
+                  '    Run "python3 generate_caffe_pb2.py --input_proto ${PATH_TO_CAFFE}/src/caffe/proto/caffe.proto"' +
+                  refer_to_faq_msg(1) + '\n\n', extra={'framework_error': True})
+        raise FrameworkError('Model Optimizer is not able to parse {}'.format(proto_path)) from e
 
     # Read model layer if exists
     model = None
-    if model_path:
-        model = caffe_pb2.NetParameter()
-        with open(model_path, "rb") as infile:
-            map = mmap.mmap(infile.fileno(), 0, access=mmap.ACCESS_READ)
-            model.MergeFromString(map)
+    try:
+        if model_path:
+            model = caffe_pb2.NetParameter()
+            with open(model_path, "rb") as infile:
+                map = mmap.mmap(infile.fileno(), 0, access=mmap.ACCESS_READ)
+                model.MergeFromString(map)
+    except Exception as e:
+        log.error('Exception message: {}\n\n'.format(e) +
+                  '    Possible reasons:\n' +
+                  '      1. {} does not exist\n'.format(model_path) +
+                  '      2. {} does not have a valid structure\n'.format(model_path), extra={'framework_error': True})
+        raise FrameworkError('Model Optimizer is not able to parse {}'.format(model_path)) from e
 
     return proto, model
 

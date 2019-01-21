@@ -141,6 +141,13 @@ def check_requirements(framework = None):
             not_satisfied_versions.append((name, 'not installed', 'required: {}'.format(required_version)))
             exit_code = 1
             continue
+        except Exception as e:
+            log.error('Error happened while importing {} module. It may happen due to unsatisfied requirements of '
+                      'that module. Please run requirements installation script once more.\n'
+                      'Details on module importing failure: {}'.format(name, e))
+            not_satisfied_versions.append((name, 'package error', 'required: {}'.format(required_version)))
+            exit_code = 1
+            continue
 
     if len(not_satisfied_versions) != 0:
         extension = 'bat' if os.name == 'nt' else 'sh'

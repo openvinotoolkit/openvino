@@ -24,8 +24,15 @@
 #define MKLDNN_THR_OMP 1
 #define MKLDNN_THR_TBB 2
 
+/* Ideally this condition below should never happen (if the library is built
+ * using regular cmake). For the 3rd-party projects that build the library
+ * from the sources on their own try to guess the right threading... */
 #if !defined(MKLDNN_THR)
-#define MKLDNN_THR MKLDNN_THR_SEQ
+#   if defined(_OPENMP)
+#       define MKLDNN_THR MKLDNN_THR_OMP
+#   else
+#       define MKLDNN_THR MKLDNN_THR_SEQ
+#   endif
 #endif
 
 #if MKLDNN_THR == MKLDNN_THR_SEQ
@@ -49,8 +56,8 @@ inline void mkldnn_thr_barrier() {
 }
 
 #elif MKLDNN_THR == MKLDNN_THR_TBB
-#include "tbb/parallel_for.h"
 #include "tbb/task_arena.h"
+#include "tbb/parallel_for.h"
 #define MKLDNN_THR_SYNC 0
 
 inline int mkldnn_get_max_threads()

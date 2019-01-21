@@ -18,16 +18,44 @@ import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
+from mo.ops.op import PermuteAttrs
 from mo.utils.error import Error
 
 
 def tf_matmul_infer(node):
     assert (len(node.in_nodes()) == 2)
-    shapes = [node.in_node(i).shape for i in range(2)]
+
+    shapes = [node.in_node(i).shape.copy() for i in range(2)]
     log.debug('matmul shapes: {}'.format(shapes))
-    if node.transpose_a or node.transpose_b or any(s is None or len(s) < 2 for s in shapes):
+    if any(s is None or len(s) < 2 for s in shapes):
         log.error("MatMul wasn't able to infer shape")
         return
+
+    if node.transpose_a:
+        if not node.in_node(0).has_valid('value'):
+            log.error("MatMul wasn't able to infer shape")
+            return
+        else:
+            perm = np.array(range(len(node.in_node(0).shape)), dtype=np.int64)
+            perm[-1], perm[-2] = perm[-2], perm[-1]
+            inv = PermuteAttrs.get_inverse_permutation(perm)
+            permutation = PermuteAttrs.Permutation(perm=perm, inv=int64_array(inv))
+            PermuteAttrs.set_permutation(node.in_node(0), node, permutation)
+            shapes[0] = shapes[0][perm]
+
+    if node.transpose_b:
+        if not node.in_node(1).has_valid('value'):
+            log.error("MatMul wasn't able to infer shape")
+            return
+        else:
+            perm = np.array(range(len(node.in_node(1).shape)), dtype=np.int64)
+            perm[-1], perm[-2] = perm[-2], perm[-1]
+            inv = PermuteAttrs.get_inverse_permutation(perm)
+            permutation = PermuteAttrs.Permutation(perm=perm, inv=int64_array(inv))
+            PermuteAttrs.set_permutation(node.in_node(1), node, permutation)
+            shapes[1] = shapes[1][perm]
+
     if any(shapes[0][:-2] != shapes[1][:-2]) or shapes[0][-1] != shapes[1][-2]:
         log.error("MatMul wasn't able to infer shape because input dimensions are not compatible")
         return
@@ -49,7 +77,6 @@ def tf_matmul_infer(node):
     log.debug('matmul shape: {}'.format(node.out_node().shape))
 
 
-
 def onnx_gemm_infer(node):
     assert (len(node.in_nodes()) == 3)
     shapeA = node.in_node(0).shape
@@ -60,16 +87,15 @@ def onnx_gemm_infer(node):
 
     if shapeA.size > 2 and node.transpose_a:
         raise Error(
-            'ONNX Gemm operation do not support {}dimensional input with set transA key'.format(shapeA.size))
+            'ONNX Gemm operation do not support {} dimensional input with set transA key'.format(shapeA.size))
 
     # apply transposes and broadcasts
     if node.transpose_a:
-        shapeA = shapeA[[1,0]]
+        shapeA = shapeA[[1, 0]]
     if node.transpose_b:
-        shapeB = shapeB[[1,0]]
+        shapeB = shapeB[[1, 0]]
     if node.broadcast_c and shapeC.size == 1:
         shapeC = np.array([shapeA[0], shapeC[0]])
 
     node.out_node().shape = shapeC
     return
-

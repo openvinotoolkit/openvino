@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +15,7 @@
 #include "ie_eltwise_shape_infer.hpp"
 #include "ie_permute_shape_infer.hpp"
 #include "ie_reshape_shape_infer.hpp"
+#include "ie_flatten_shape_infer.hpp"
 #include "ie_proposal_shape_infer.hpp"
 #include "ie_priorbox_shape_infer.hpp"
 #include "ie_upsampling_shape_infer.hpp"
@@ -32,6 +32,9 @@
 #include "ie_resample_shape_infer.hpp"
 #include "ie_interp_shape_infer.hpp"
 #include "ie_argmax_shape_infer.hpp"
+#include "ie_gemm_shape_infer.hpp"
+#include "ie_pad_shape_infer.hpp"
+#include "ie_gather_shape_infer.hpp"
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -77,9 +80,10 @@ BuiltInShapeInferHolder::getShapeInferImpl(IShapeInferImpl::Ptr& impl, const cha
 void BuiltInShapeInferHolder::SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept {}
 
 // Register without implementation just to protect from adding custom implementation for them
-REG_SHAPE_INFER_FOR_TYPE(DoNothingShapeProp, Input);
-REG_SHAPE_INFER_FOR_TYPE(DoNothingShapeProp, Memory);
-REG_SHAPE_INFER_FOR_TYPE(DoNothingShapeProp, Const);
+REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Input);
+REG_SHAPE_INFER_FOR_TYPE(DoNothingShapeProp, Output);
+REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Memory);
+REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Const);
 
 // Outputs = Inputs
 REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Activation);
@@ -113,7 +117,7 @@ REG_SHAPE_INFER_FOR_TYPE(InnerProductShapeProp, FullyConnected);
 REG_SHAPE_INFER_FOR_TYPE(SplitShapeProp, Split);
 REG_SHAPE_INFER_FOR_TYPE(SplitShapeProp, Slice);
 REG_SHAPE_INFER_FOR_TYPE(PermuteShapeProp, Permute);
-REG_SHAPE_INFER_FOR_TYPE(ReshapeShapeProp, Flatten);
+REG_SHAPE_INFER_FOR_TYPE(FlattenShapeProp, Flatten);
 REG_SHAPE_INFER_FOR_TYPE(ReshapeShapeProp, Reshape);
 REG_SHAPE_INFER_FOR_TYPE(DetectionOutputShapeProp, DetectionOutput);
 REG_SHAPE_INFER_FOR_TYPE(PriorBoxClusteredShapeProp, PriorBoxClustered);
@@ -133,6 +137,9 @@ REG_SHAPE_INFER_FOR_TYPE(ProposalShapeProp, Proposal);
 REG_SHAPE_INFER_FOR_TYPE(ReorgYoloShapeProp, ReorgYolo);
 REG_SHAPE_INFER_FOR_TYPE(RegionYoloShapeProp, RegionYolo);
 REG_SHAPE_INFER_FOR_TYPE(ArgMaxShapeProp, ArgMax);
+REG_SHAPE_INFER_FOR_TYPE(GemmShapeProp, Gemm);
+REG_SHAPE_INFER_FOR_TYPE(PadShapeProp, Pad);
+REG_SHAPE_INFER_FOR_TYPE(GatherShapeProp, Gather);
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine

@@ -1,6 +1,7 @@
 # Copyright (C) 2018 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 cmake_minimum_required(VERSION 2.8)
 set(TARGET_NAME helpers)
 
@@ -23,7 +24,7 @@ add_library(${TARGET_NAME} STATIC
             ${HELPERS_HEADERS})
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PROJECT_BINARY_DIR})
-target_compile_definitions(${TARGET_NAME} PUBLIC -DMODELS_PATH="${MODELS_PATH}")
+target_compile_definitions(${TARGET_NAME} PUBLIC -DMODELS_PATH=\"${MODELS_PATH}\")
 
 set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD 11)
 set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)

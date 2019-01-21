@@ -69,6 +69,8 @@ class AttrDictionary(object):
         if attr is None:
             return default
         if isinstance(attr, str):
+            if (not '(' in attr and not ')' in attr) and (not '[' in attr and not ']' in attr):
+                return (valtype(attr),)
             if (not attr) or (not attr[1:-1].split(',')[0]):
                 return tuple([valtype(x) for x in default])
             return StrTo.tuple(valtype, attr)
@@ -104,9 +106,10 @@ def get_mxnet_node_edges(node: dict, node_id: [int, str], nodes_list: list, inde
     edge_list = []
     for in_port, src_node_id in enumerate(node['inputs']):
         src_node = src_node_id[0]
+        dest_port = src_node_id[1]
         edge_attrs = {
             'in': in_port,
-            'out': 0,  # TODO Check if src_node_id[1] should be here (already used as fw_tensor_debug_info)
+            'out': dest_port,
             # debug anchor for name of tensor consumed at this input port
             'fw_tensor_debug_info': [(nodes_list[src_node]['name'], src_node_id[1])],
             'in_attrs': ['in'],
@@ -152,6 +155,9 @@ def load_params(input_model, data_names = ('data',)):
             elif len(keys)>1 and 'arg' == keys[0]:
                 arg_keys.append(keys[1])
                 arg_params[keys[1]] = loaded_weight[key]
+            else:
+                arg_keys.append(key)
+                arg_params[key] = loaded_weight[key]
     elif file_format == 'nd':
         for key in loaded_weight:
             if 'auxs' in input_model:

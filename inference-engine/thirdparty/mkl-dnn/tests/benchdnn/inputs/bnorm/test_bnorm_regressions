@@ -2,7 +2,6 @@
 --fmt=nhwc
 
 --dir=FWD_D
---flags=SR --batch=bnorm_large
 --flags=SR --batch=bnorm_regressions
 --flags=GS --batch=bnorm_regressions
 --flags=S  --batch=bnorm_regressions
@@ -13,7 +12,6 @@
 --attr=
 
 --dir=BWD_DW
---flags=SR --batch=bnorm_large
 --flags=SR --batch=bnorm_regressions
 --flags=GS --batch=bnorm_regressions
 --flags=S  --batch=bnorm_regressions
@@ -24,7 +22,6 @@
 --fmt=nchw
 
 --dir=FWD_D
---flags=SR --batch=bnorm_large
 --flags=SR --batch=bnorm_regressions
 --flags=GS --batch=bnorm_regressions
 --flags=S  --batch=bnorm_regressions
@@ -35,7 +32,6 @@
 --attr=
 
 --dir=BWD_DW
---flags=SR --batch=bnorm_large
 --flags=SR --batch=bnorm_regressions
 --flags=GS --batch=bnorm_regressions
 --flags=S  --batch=bnorm_regressions
@@ -46,7 +42,6 @@
 --fmt=nChw16c # avx512
 
 --dir=FWD_D
---flags=SR --batch=bnorm_large
 --flags=SR --batch=bnorm_regressions
 --flags=GS --batch=bnorm_regressions
 --flags=S  --batch=bnorm_regressions
@@ -57,7 +52,6 @@
 --attr=
 
 --dir=BWD_DW
---flags=SR --batch=bnorm_large
 --flags=SR --batch=bnorm_regressions
 --flags=GS --batch=bnorm_regressions
 --flags=S  --batch=bnorm_regressions

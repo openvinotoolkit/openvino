@@ -143,7 +143,7 @@ struct jit_uni_pooling_bwd_t: public cpu_primitive_t {
                         diff_dst_pd()->desc()->format)
                 && everyone_is(data_type::f32, diff_src_pd()->desc()->data_type,
                         diff_dst_pd()->desc()->data_type)
-                && utils::implication(desc()->alg_kind == pooling_max,
+                && IMPLICATION(desc()->alg_kind == pooling_max,
                         hint_fwd_pd_ && hint_fwd_pd_->workspace_pd()
                         && hint_fwd_pd_->workspace_pd()->desc()->format
                                 == desired_fmt())

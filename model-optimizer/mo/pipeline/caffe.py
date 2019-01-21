@@ -62,20 +62,7 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
 
     FusePermutesSequence.enabled = False
 
-    try:
-        proto, model = loader.load_caffe_proto_model(proto_file_name, model_file_name)
-    except Error as e:
-        raise
-    except Exception as e:
-        raise Error('Model Optimizer is not able to read {}. Possible reasons: '.format(proto_file_name) +
-                    '1. your caffemodel contains custom layers that are not supported in Model Optimizer by default. ' +
-                    '2. your prototxt does not have a valid structure, e.g you downloaded it as html. ' +
-                    'In particular the first unknown field is {} '.format(str(e).split(' ')[-1]) +
-                    'After you made sure that prototxt has a valid structure and still see this issue, then ' +
-                    'you need to generate a python parser for caffe.proto that was used when the model ' +
-                    'was created. ' +
-                    'Run "python3 generate_caffe_pb2.py --input_proto ${PATH_TO_CAFFE}/src/caffe/proto/caffe.proto". ' +
-                    refer_to_faq_msg(1)) from e
+    proto, model = loader.load_caffe_proto_model(proto_file_name, model_file_name)
 
     update_extractors_with_extensions(
         caffe_type_extractors,
@@ -99,7 +86,7 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     graph.graph['layout'] = 'NCHW'
     graph.graph['cmd_params'] = argv
     graph.graph['fw'] = 'caffe'
-    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 3
+    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 4
 
     extract_node_attrs(graph, lambda node: (True, common_caffe_fields(node)))
 
@@ -182,11 +169,12 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     # Mark nodes with attr 'can_be_fused': False to disable fusing for specified nodes
     mark_unfused_nodes(graph, argv.finegrain_fusing)
 
+    #need this pass even without fusing to convert scale with 2 inputs
+    convert_scale_shift_to_mul_add(graph)
+    graph_clean_up(graph)
+
     if not argv.disable_fusing:
         convert_bn_to_mul_add(graph)
-        graph_clean_up(graph)
-
-        convert_scale_shift_to_mul_add(graph)
         graph_clean_up(graph)
 
         fuse_mul_add_sequence(graph)

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,16 +13,19 @@
 using namespace InferenceEngine;
 using namespace ::testing;
 
-class PluginDispatcherTests : public ::testing::Test {};
+class PluginDispatcherTests : public ::testing::Test {
+public:
+    const std::string nameExt(const std::string& name) { return name + IE_BUILD_POSTFIX;}
+};
 
 TEST_F(PluginDispatcherTests, canLoadMockPlugin) {
     PluginDispatcher dispatcher({ "", "./", "./lib" });
-    ASSERT_NO_THROW(dispatcher.getPluginByName("mock_engine"));
+    ASSERT_NO_THROW(dispatcher.getPluginByName(nameExt("mock_engine")));
 }
 
 TEST_F(PluginDispatcherTests, throwsOnUnknownPlugin) {
     PluginDispatcher dispatcher({ "./", "./lib" });
-    ASSERT_THROW(dispatcher.getPluginByName("unknown_plugin"), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(dispatcher.getPluginByName(nameExt("unknown_plugin")), InferenceEngine::details::InferenceEngineException);
 }
 
 TEST_F(PluginDispatcherTests, throwsOnDeviceWithoutPlugins) {
@@ -42,12 +44,12 @@ TEST_F(PluginDispatcherTests, triesToLoadEveryPluginSuitableForDevice) {
 
     ON_CALL(disp, getPluginByName(_)).WillByDefault(ThrowException());
 #ifdef ENABLE_MKL_DNN
-    EXPECT_CALL(disp, getPluginByName("MKLDNNPlugin")).Times(1);
+    EXPECT_CALL(disp, getPluginByName(nameExt("MKLDNNPlugin"))).Times(1);
 #endif
 #ifdef ENABLE_OPENVX_CVE
-    EXPECT_CALL(disp, getPluginByName("OpenVXPluginCVE")).Times(1);
+    EXPECT_CALL(disp, getPluginByName(nameExt("OpenVXPluginCVE"))).Times(1);
 #elif defined ENABLE_OPENVX
-    EXPECT_CALL(disp, getPluginByName("OpenVXPlugin")).Times(1);
+    EXPECT_CALL(disp, getPluginByName(nameExt("OpenVXPlugin"))).Times(1);
 #endif
     ASSERT_THROW(disp.getSuitablePlugin(TargetDevice::eCPU), InferenceEngine::details::InferenceEngineException);
 }
@@ -56,7 +58,7 @@ TEST_F(PluginDispatcherTests, triesToLoadEveryPluginSuitableForDevice) {
 TEST_F(PluginDispatcherTests, returnsIfLoadSuccessfull) {
     MockDispatcher disp({ "./", "./lib" });
     PluginDispatcher dispatcher({ "", "./", "./lib" });
-    auto ptr = dispatcher.getPluginByName("mock_engine");
+    auto ptr = dispatcher.getPluginByName(nameExt("mock_engine"));
 
     EXPECT_CALL(disp, getPluginByName(_)).WillOnce(Return(ptr));
     ASSERT_NO_THROW(disp.getSuitablePlugin(TargetDevice::eCPU));

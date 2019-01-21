@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +10,6 @@
 
 #include "single_layer_common.hpp"
 #include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <extension/ext_list.hpp>
 #include "tests_common.hpp"
 
 using namespace ::testing;
@@ -41,6 +39,8 @@ struct resample_test_params {
 static inline float triangleCoeff(float x) {
     return std::max(0.0f, 1 - std::abs(x));
 }
+
+extern InferenceEngine::IExtensionPtr make_FakeExtensions();
 
 template <typename data_t>
 void ref_resample(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<data_t> &dst, resample_test_params prm) {
@@ -222,9 +222,10 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            std::shared_ptr<InferenceEngine::IExtension> cpuExt(new InferenceEngine::Extensions::Cpu::CpuExtensions());
+            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
             MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(cpuExt);
+            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
+            extMgr->AddExtension(make_FakeExtensions());
 
             MKLDNNGraphTestClass graph;
             graph.CreateGraph(net_reader.getNetwork(), extMgr);

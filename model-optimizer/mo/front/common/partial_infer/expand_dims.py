@@ -50,9 +50,7 @@ def tf_expand_dims_infer(node):
     if input_node.value is not None:
         output_node.value = np.array(np.reshape(input_node.value, output_node.shape))
 
-    node['axis'] = 0
-    node['num_axes'] = -1
     node['dim'] = output_node.shape
 
-    PermuteAttrs.create_permute_attrs(node, attrs=[('axis','output:0'), ('dim','output:0')])
+    PermuteAttrs.create_permute_attrs(node, attrs=[('dim', 'output:0')])
 

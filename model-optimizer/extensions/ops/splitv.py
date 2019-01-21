@@ -14,13 +14,9 @@
  limitations under the License.
 """
 
-import logging as log
-
 import networkx as nx
-import numpy as np
 
 from mo.front.common.partial_infer.split import tf_split_v_infer
-from mo.graph.graph import Node
 from mo.ops.op import Op
 
 
@@ -32,10 +28,13 @@ class SplitV(Op):
         super().__init__(graph, {
             'type': 'Split',
             'op': 'SplitV',
-            'axis' : 1,
+            'axis': 1,
             'input_port': 0,
             'infer': tf_split_v_infer
         }, attrs)
-        
+
     def supported_attrs(self):
-        return ['axis', 'split_sizes']
+        return ['axis', 'size_splits']
+
+    def backend_attrs(self):
+        return ['axis']

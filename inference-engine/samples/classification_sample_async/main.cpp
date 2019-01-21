@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -185,10 +184,18 @@ int main(int argc, char *argv[]) {
         slog::info << "Loading model to the plugin" << slog::endl;
 
         std::map<std::string, std::string> config;
-        if (FLAGS_pc) {
+        if (FLAGS_pc)
             config[PluginConfigParams::KEY_PERF_COUNT] = PluginConfigParams::YES;
+        if (FLAGS_d.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
+            // limit threading for CPU portion of inference
+            config[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(FLAGS_nthreads);
+            // pin threads for CPU portion of inference
+            config[PluginConfigParams::KEY_CPU_BIND_THREAD] = FLAGS_pin;
+            // for pure CPU execution, more throughput-oriented execution via streams
+            if (FLAGS_d == "CPU")
+                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(FLAGS_nireq);
         }
-        ExecutableNetwork executable_network = plugin.LoadNetwork(network, {});
+        ExecutableNetwork executable_network = plugin.LoadNetwork(network, config);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Create infer request -------------------------------------------------
@@ -237,6 +244,9 @@ int main(int argc, char *argv[]) {
         typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
         typedef std::chrono::duration<float> fsec;
 
+        // warming up
+        inferRequests[0].StartAsync();
+        inferRequests[0].Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
         double total = 0.0;
         /** Start inference & calc performance **/
         auto t0 = Time::now();
@@ -244,16 +254,11 @@ int main(int argc, char *argv[]) {
         size_t currentInfer = 0;
         size_t prevInfer = (FLAGS_nireq > 1) ? 1 : 0;
 
-
-        // warming up
-        inferRequests[0].StartAsync();
-        inferRequests[0].Wait(10000);
-
         for (int iter = 0; iter < FLAGS_ni + FLAGS_nireq; ++iter) {
             if (iter < FLAGS_ni) {
                 inferRequests[currentInfer].StartAsync();
             }
-            inferRequests[prevInfer].Wait(10000);
+            inferRequests[prevInfer].Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
 
             currentInfer++;
             if (currentInfer >= FLAGS_nireq) {

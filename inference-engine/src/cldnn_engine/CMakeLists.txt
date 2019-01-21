@@ -1,6 +1,7 @@
 # Copyright (C) 2018 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 set (TARGET_NAME "clDNNPlugin")
 
 file (GLOB MAIN_SRC
@@ -14,9 +15,7 @@ file (GLOB LIBRARY_HEADERS
 
 addVersionDefines(cldnn_engine.cpp CI_BUILD_NUMBER CLDNN_VERSION)
 
-if(WIN32)
-    add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_PLUGIN)
-endif()
+add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj

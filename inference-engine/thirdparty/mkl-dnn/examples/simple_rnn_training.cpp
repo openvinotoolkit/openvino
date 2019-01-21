@@ -545,7 +545,7 @@ void simple_net() {
     );
     auto leftmost_bwd_prim_desc
         = mkldnn::rnn_backward::primitive_desc(
-            leftmost_layer_bwd_desc, cpu_engine);
+            leftmost_layer_bwd_desc, cpu_engine, leftmost_prim_desc);
 
     // As the batch dimensions are different between leftmost and rightmost
     // we need to do the views. rightmost needs less memory, so it will view
@@ -585,7 +585,7 @@ void simple_net() {
     );
     auto rightmost_bwd_prim_desc
         = mkldnn::rnn_backward::primitive_desc(
-            rightmost_layer_bwd_desc, cpu_engine);
+            rightmost_layer_bwd_desc, cpu_engine, rightmost_prim_desc);
 
     //
     // Memory primitives for backward pass

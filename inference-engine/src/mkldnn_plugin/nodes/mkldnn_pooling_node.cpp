@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +10,7 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include <ie_layers_internal.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -23,12 +23,8 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     auto * poolingLayer = dynamic_cast<PoolingLayer*>(getCnnLayer().get());
@@ -45,15 +41,16 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
 
     invertVectorCopyUtoI(poolingLayer->_stride, stride);
     invertVectorCopyUtoI(poolingLayer->_kernel, kernel);
-    invertVectorCopyUtoI(poolingLayer->_padding, paddingL);
-    invertVectorCopyUtoI(poolingLayer->_pads_end, paddingR);
+    auto allPads = getPaddings(*poolingLayer);
+    invertVectorCopyUtoI(allPads.begin, paddingL);
+    invertVectorCopyUtoI(allPads.end, paddingR);
 
     auto parentDims = getParentEdgeAt(0)->getDims();
     auto childDims = getChildEdgeAt(0)->getDims();
     if ((parentDims.ndims() < 4) || (parentDims.ndims() > 5))
         THROW_IE_EXCEPTION << "Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < paddingR.size(); i++) {
         int krn = kernel[i];
         int src = getParentEdgeAt(0)->getDims()[2 + i];
         int dst = getChildEdgeAt(0)->getDims()[2 + i];
@@ -61,11 +58,11 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         int calc_dst = (src - krn + paddingL[i]) / stride[i] + 1;
         paddingR[i] = (dst - calc_dst) * stride[i];
     }
-
     if (this->getCnnLayer()->precision == Precision::I8) {
-        MKLDNNMemoryDesc in_candidate{parentDims, memory::data_type::u8, memory::format::nhwc};
-        MKLDNNMemoryDesc out_candidate{childDims, memory::data_type::u8, memory::format::nhwc};
-        createDescriptor({in_candidate}, {out_candidate});
+        // i8 layers supports only nhwc layout
+        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, memory::format::nhwc};
+        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, memory::format::nhwc};
+        createDescriptor({ in_candidate }, { out_candidate });
     } else {
         // It doesn't support any format
         for (auto format : getAvailableFormatsForDims(parentDims)) {
@@ -97,7 +94,14 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
 
     algorithm alg;
     if (type == PoolingLayer::PoolType::AVG) {
-        if (!exclude_pad && (paddingL[0] != 0 || paddingL[1] != 0))
+        bool not_zero_l = false;
+        for (auto lr : paddingL) {
+            if (lr) {
+                not_zero_l = true;
+                break;
+            }
+        }
+        if (!exclude_pad && not_zero_l)
             alg = pooling_avg_include_padding;
         else
             alg = pooling_avg_exclude_padding;
@@ -114,7 +118,14 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
                                       stride, kernel, paddingL, paddingR,
                                       mkldnn::padding_kind::zero));
 
-    if (alg == pooling_avg_include_padding && (paddingR[0] || paddingR[1])) {
+    bool not_zero_r = false;
+    for (auto pr : paddingR) {
+        if (pr) {
+            not_zero_r = true;
+            break;
+        }
+    }
+    if (alg == pooling_avg_include_padding && not_zero_r) {
         // In case of AVG including paddings the norm coeff should be calculated
         // with tacking into account original pads. So we need to restore
         // original values (R_padding = L_padding).

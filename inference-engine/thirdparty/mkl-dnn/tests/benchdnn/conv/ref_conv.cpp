@@ -278,8 +278,7 @@ void compute_ref_bwd_bias(const prb_t *p, dnn_mem_t &diff_bia_m,
     dnn_mem_t &diff_dst_m) {
     mkldnn::impl::parallel_nd(p->g, p->oc / p->g, [&](int g, int oc) {
        size_t bia_off = bia_off_f(p, g, oc);
-       float &db = ((float*)diff_bia_m)[bia_off];
-       db = 0;
+       double sum = 0;
 
        for (int mb = 0; mb < p->mb; ++mb)
        for (int od = 0; od < p->od; ++od)
@@ -287,8 +286,9 @@ void compute_ref_bwd_bias(const prb_t *p, dnn_mem_t &diff_bia_m,
        for (int ow = 0; ow < p->ow; ++ow)
        {
            size_t dst_off = dst_off_f(p, mb, g, oc, od, oh, ow);
-           db += ((float*)diff_dst_m)[dst_off];
+           sum += ((float*)diff_dst_m)[dst_off];
        }
+       ((float *)diff_bia_m)[bia_off] = (float)sum;
     });
 }
 

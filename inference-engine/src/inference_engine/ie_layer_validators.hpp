@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -158,7 +157,7 @@ public:
                              const std::vector<SizeVector>& inShapes) const override;
 };
 
-class INFERENCE_ENGINE_API_CLASS(DeconvolutionValidator) : public LayerValidator {
+class INFERENCE_ENGINE_API_CLASS(DeconvolutionValidator) : public ConvolutionValidator {
 public:
     void parseParams(CNNLayer* layer) override;
 
@@ -257,9 +256,6 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
-
-protected:
-    void calculateIn2Out(ReshapeLayer* layer);
 };
 
 class INFERENCE_ENGINE_API_CLASS(EltwiseValidator) : public LayerValidator {
@@ -332,6 +328,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(ConcatValidator) : public LayerValidator {
@@ -341,6 +339,52 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(GemmValidator) : public LayerValidator {
+public:
+    explicit GemmValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(PadValidator) : public LayerValidator {
+public:
+    explicit PadValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(GatherValidator) : public LayerValidator {
+public:
+    explicit GatherValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(RNNValidator) : public LayerValidator {
+public:
+    explicit RNNValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 template<typename Validator>
@@ -378,6 +422,10 @@ REG_LAYER_VALIDATOR_FOR_TYPE(NormValidator, LRN);
 REG_LAYER_VALIDATOR_FOR_TYPE(SplitValidator, Split);
 REG_LAYER_VALIDATOR_FOR_TYPE(SplitValidator, Slice);
 REG_LAYER_VALIDATOR_FOR_TYPE(ConcatValidator, Concat);
+REG_LAYER_VALIDATOR_FOR_TYPE(GemmValidator, Gemm);
+REG_LAYER_VALIDATOR_FOR_TYPE(PadValidator, Pad);
+REG_LAYER_VALIDATOR_FOR_TYPE(GatherValidator, Gather);
+REG_LAYER_VALIDATOR_FOR_TYPE(RNNValidator, RNN);
 
 }  // namespace details
 }  // namespace InferenceEngine

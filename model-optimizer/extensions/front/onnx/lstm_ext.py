@@ -20,6 +20,7 @@ import numpy as np
 from extensions.ops.lstm_sequence import LSTMSequence
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
+from mo.ops.op import Op
 
 
 class LSTMFrontExtractor(FrontExtractorOp):
@@ -29,11 +30,25 @@ class LSTMFrontExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
 
+        def split_helper(node, index: int, direction: str):
+            return Op._create_data_node(
+                node.graph,
+                name=node.name + '/SplittedBiLSTM/{}/'.format(direction),
+                attrs={'value': node.value[index], 'shape': np.array(node.value[index].shape, dtype=np.int64)}
+            )
+
         attrs = {
             'hidden_size': np.array(onnx_attr(node, 'hidden_size', 'i'), dtype=np.int64),
             'batch_dim': 1,
             'sequence_dim': 0,
             'blobs_wrb': True,
+            'has_num_directions': True,
+            'direction': onnx_attr(node, 'direction', 's', b'forward').decode().lower(),
+            'format': 'onnx',
+            'blob_bidirectional_split': lambda node: (
+                split_helper(node, 0, 'forward'),
+                split_helper(node, 1, 'reverse')
+            )
         }
 
         LSTMSequence.update_node_stat(node, attrs)

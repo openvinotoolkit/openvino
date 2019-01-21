@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,7 +131,7 @@ std::vector<std::pair<int, std::string>> ClassificationSetGenerator::validationM
 
         int id = val->second;
         for (auto& image : getDirContents(getFullName(label, dir))) {
-            validationMap.push_back({ id + 1, image });        // [CVS-8200] line in .labels file is counted from 0, but classes are counted from 1
+            validationMap.push_back({ id, image });
         }
     }
     return validationMap;

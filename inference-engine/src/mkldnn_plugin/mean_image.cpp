@@ -1,10 +1,10 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mean_image.h"
 #include "ie_parallel.hpp"
+#include "ie_memcpy.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -54,7 +54,8 @@ void MeanImage::Load(const MKLDNNDims& inputDims, InputInfo::Ptr inputInfo) {
                     THROW_IE_EXCEPTION << "mean image size does not match expected network input, expecting " << meanWidth << " x " << meanHeight;
                 }
                 // todo: cast to TBlob and make sure it is floats
-                memcpy(meanBuffer->data() + channel*meanBlob->size(), meanBlob->buffer(), meanBlob->byteSize());
+                ie_memcpy(meanBuffer->data() + channel*meanBlob->size(), meanBuffer->byteSize() - channel*meanBlob->byteSize(),
+                          meanBlob->buffer(), meanBlob->byteSize());
             }
         }
             break;

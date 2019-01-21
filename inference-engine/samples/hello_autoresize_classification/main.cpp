@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +8,8 @@
 #include <string>
 #include <cstdlib>
 
-#include <opencv2/opencv.hpp>
 #include <inference_engine.hpp>
-#include <samples/common.hpp>
+#include <samples/ocv_common.hpp>
 
 using namespace InferenceEngine;
 
