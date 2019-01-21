@@ -59,6 +59,7 @@ if (GEMM STREQUAL "MKL")
 if(NOT MKLROOT)
     message(FATAL_ERROR "MKLROOT not found: install MKL and set -DMKLROOT=<path_to_MKL>")
 endif()
+set(MKL ${MKLROOT})
 debug_message(STATUS "mkl_ml=" ${MKLROOT})
 endif ()
 
