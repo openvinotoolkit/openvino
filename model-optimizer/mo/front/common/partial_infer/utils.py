@@ -24,21 +24,17 @@ def int64_array(l: list):
 
 
 def float_array(l: list):
-    return np.array(l, dtype=np.int64)
+    return np.array(l, dtype=np.float64)
 
 
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
     """
     Preparing necessary attributes for edges at input ports starting from start_port.
-    It is applicable for convolution and other operations that has constant inputs which
+    It is applicable for convolution and other operations that have constant inputs which
     are intended to be dumped as IE IR bin file.
     """
-    nports = len(node.in_nodes())
-    for i, name in enumerate(names):
-        port = i + start_port
-        if port >= nports:
-            break
-        if node.in_node(port).value is not None:
+    for port, name in enumerate(names, start=start_port):
+        if port in node.in_nodes() and node.in_node(port).has_valid('value'):
             node.in_edge(port)['bin'] = name
 
 

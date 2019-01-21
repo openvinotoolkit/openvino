@@ -1,6 +1,7 @@
 # Copyright (C) 2018 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 ####################################
 ## All next project will use C++11
 set (CMAKE_CXX_STANDARD 11)

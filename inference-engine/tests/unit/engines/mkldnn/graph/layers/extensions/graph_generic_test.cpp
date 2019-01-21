@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1361,9 +1360,10 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteNotInLineGRN) {
         <edge from-layer="2" from-port="4" to-layer="3" to-port="6"/>
     </edges>
 </net>)V0G0N";
-    std::shared_ptr<InferenceEngine::IExtension> cpuExt(new InferenceEngine::Extensions::Cpu::CpuExtensions());
+    InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
     MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-    extMgr->AddExtension(cpuExt);
+
+    extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
 
     InferenceEngine::CNNNetReader net_reader;
     ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
@@ -1503,9 +1503,10 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteInLineGRN) {
         <edge from-layer="3" from-port="4" to-layer="4" to-port="6"/>
     </edges>
 </net>)V0G0N";
-    std::shared_ptr<InferenceEngine::IExtension> cpuExt(new InferenceEngine::Extensions::Cpu::CpuExtensions());
+
+    InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
     MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-    extMgr->AddExtension(cpuExt);
+    extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
 
     InferenceEngine::CNNNetReader net_reader;
     ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));

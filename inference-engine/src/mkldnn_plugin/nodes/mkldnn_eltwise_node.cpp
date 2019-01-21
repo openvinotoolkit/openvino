@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,14 +98,8 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             mkldnn::memory::data_type outputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::FP32);
             supportedPrimitiveDescriptors.push_back(same(inputDT, outputDT, format));
         } else {
-            THROW_IE_EXCEPTION << "Invalid Eltwise layer precision";
+            THROW_IE_EXCEPTION << "Invalid Eltwise layer precision: " << getCnnLayer()->name;
         }
-    }
-
-    if (getCnnLayer()->precision == Precision::I8) {
-        mkldnn::memory::data_type inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::U8);
-        mkldnn::memory::data_type outputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::U8);
-        supportedPrimitiveDescriptors.push_back(same(inputDT, outputDT, mkldnn::memory::format::nhwc));
     }
 }
 

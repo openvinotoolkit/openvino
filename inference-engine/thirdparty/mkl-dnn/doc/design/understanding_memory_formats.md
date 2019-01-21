@@ -44,7 +44,7 @@ linear (1D) memory address space and why this is important for
 Let's first focus on data formats for activations (images).
 
 Activations consist of channels (aka feature maps) and a spatial domain,
-either 2D or 3D. Spatial domain together with channels form an image.
+1D, 2D or 3D. Spatial domain together with channels form an image.
 During the training phase images are typically grouped together in batches.
 Even if there is only one image, we would still assume there is a batch
 with batch size equal to 1.

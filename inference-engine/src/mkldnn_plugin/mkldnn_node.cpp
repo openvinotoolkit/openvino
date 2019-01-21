@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +9,8 @@
 #include <vector>
 #include <string>
 #include <limits>
+#include <cstdint>
+#include <unordered_map>
 
 #include <nodes/mkldnn_batchnorm_node.h>
 #include <nodes/mkldnn_concat_node.h>
@@ -17,6 +18,7 @@
 #include <nodes/mkldnn_crop_node.h>
 #include <nodes/mkldnn_deconv_node.h>
 #include <nodes/mkldnn_eltwise_node.h>
+#include <nodes/mkldnn_gemm_node.h>
 #include <nodes/mkldnn_fullyconnected_node.h>
 #include <nodes/mkldnn_generic_node.h>
 #include <nodes/mkldnn_input_node.h>
@@ -35,8 +37,9 @@
 #include <nodes/mkldnn_memory_node.hpp>
 #include <nodes/mkldnn_rnn.h>
 #include <mkldnn_types.h>
-
 #include "mkldnn_extension_utils.h"
+#include "mkldnn_plugin.h"
+#include "ie_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -52,6 +55,7 @@ MKLDNNNode::Register<MKLDNNConvolutionNode> MKLDNNConvolutionNode::reg;
 MKLDNNNode::Register<MKLDNNCropNode> MKLDNNCropNode::reg;
 MKLDNNNode::Register<MKLDNNDeconvolutionNode> MKLDNNDeconvolutionNode::reg;
 MKLDNNNode::Register<MKLDNNEltwiseNode> MKLDNNEltwiseNode::reg;
+MKLDNNNode::Register<MKLDNNGemmNode> MKLDNNGemmNode::reg;
 MKLDNNNode::Register<MKLDNNFullyConnectedNode> MKLDNNFullyConnectedNode::reg;
 MKLDNNNode::Register<MKLDNNInputNode> MKLDNNInputNode::reg;
 MKLDNNNode::Register<MKLDNNLrnNode> MKLDNNLrnNode::reg;
@@ -358,6 +362,8 @@ std::vector<memory::format> MKLDNNNode::getAvailableFormatsForDims(const MKLDNND
         return {memory::format::nc};
     else if (dims.ndims() == 4)
         return {memory::format::nchw, memory::format::nChw8c, memory::format::nChw16c};
+    else if (dims.ndims() == 5)
+        return {memory::format::ncdhw, memory::format::nCdhw8c, memory::format::nCdhw16c};
     return {memory::format::any};
 }
 
@@ -506,7 +512,7 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
 
     size_t offset = blb->byteSize();
     checkSize(intBuffSize, offset);
-    memcpy(data, blb->buffer(), blb->byteSize());
+    ie_memcpy(data, internalBlob->byteSize(), blb->buffer(), blb->byteSize());
     data += blb->byteSize();
     for (const auto &merged : getMergeWith()) {
         wLayer = dynamic_cast<InferenceEngine::WeightableLayer*>(merged->getCnnLayer().get());
@@ -519,7 +525,7 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
             THROW_IE_EXCEPTION << "Cannot get internal blob layer for node " << getName() << ".";
         offset += blb->byteSize();
         checkSize(intBuffSize, offset);
-        memcpy(data, blb->buffer(), blb->byteSize());
+        ie_memcpy(data, internalBlob->byteSize(), blb->buffer(), blb->byteSize());
         data += blb->byteSize();
     }
 
@@ -545,13 +551,32 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
 
     internalBlobMemory.clear();
     for (size_t i = 0; i < internalBlobs.size(); i++) {
-        auto& internalBlob = internalBlobs[i];
-        internalBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(engine)));
+        const auto &internalBlob = internalBlobs[i];
 
-        internalBlobMemory[i]->Create(intDescs[i]);
-        MKLDNNMemory memory(engine);
-        memory.Create(MKLDNNMemoryDesc(internalBlob->getTensorDesc()), internalBlob->buffer());
-        internalBlobMemory[i]->SetData(memory);
+        const uint64_t data_hash =  Engine::GetWeightsSharing().GetHashFunc().hash(internalBlob->buffer(), internalBlob->byteSize());
+        const std::string string_hash = name + "_" + std::to_string(i)
+                                     + "_" + std::to_string(internalBlob->byteSize())
+                                     + "_" + std::to_string(data_hash);
+        MKLDNNMemoryPtr ptr =
+                Engine::GetWeightsSharing().findOrCreate(string_hash, [&] () {
+                    MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(engine));
+                    _ptr->Create(intDescs[i]);
+                    MKLDNNMemory memory(engine);
+
+                    auto newDesc = MKLDNNMemoryDesc(internalBlob->getTensorDesc());
+                    auto newFormat = newDesc.getFormat();
+                    if (newFormat == mkldnn::memory::ncdhw) {
+                        newFormat = mkldnn::memory::goihw;
+                    }
+                    if (newFormat == mkldnn::memory::nchw) {
+                        newFormat = mkldnn::memory::oihw;
+                    }
+                    memory.Create(MKLDNNMemoryDesc(newDesc.getDims(), newDesc.getDataType(), newFormat), internalBlob->buffer());
+                    auto aformat = memory.GetFormat();
+                    _ptr->SetData(memory);
+                    return _ptr;
+                });
+        internalBlobMemory.push_back(ptr);
     }
 }
 
@@ -648,6 +673,8 @@ std::string MKLDNNNode::typeToStr(Type type) {
             return "Pooling";
         case FullyConnected:
             return "FullyConnected";
+        case Gemm:
+            return "Gemm";
         case SoftMax:
             return "SoftMax";
         case Split:
@@ -682,6 +709,9 @@ std::string MKLDNNNode::typeToStr(Type type) {
             return "MemoryInput";
         case RNN:
             return "RNN";
+        case LSTMCell:
+            return "LSTMCell";
+
         default:
             return "Unknown";
     }
@@ -838,17 +868,18 @@ InferenceEngine::TensorDesc MKLDNNNode::getConfiguredOutputDesc(const InferenceE
 
 void MKLDNNNode::initOptimalPrimitiveDescriptor() {
     auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    if (isInitConfig(config))
-        return;
+    if (!isInitConfig(config)) {
+        for (size_t i = 0; i < config.inConfs.size(); i++) {
+            config.inConfs[i].desc = getConfiguredInputDesc(config, i);
+        }
 
-    for (size_t i = 0; i < config.inConfs.size(); i++) {
-        config.inConfs[i].desc = getConfiguredInputDesc(config, i);
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
+            config.outConfs[i].desc = getConfiguredOutputDesc(config, i);
+        }
+        initDescriptor(config);
+    } else if (getType() != RNN && getType() != LSTMCell) {
+        initDescriptor(config);
     }
-
-    for (size_t i = 0; i < config.outConfs.size(); i++) {
-        config.outConfs[i].desc = getConfiguredOutputDesc(config, i);
-    }
-    initDescriptor(config);
 }
 
 bool MKLDNNNode::isInitConfig(const InferenceEngine::LayerConfig& config) const {

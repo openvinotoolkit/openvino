@@ -25,7 +25,6 @@ from mo.ops.reshape import Reshape
 from mo.middle.replacement import MiddleReplacementPattern
 from extensions.middle.SliceConverter import ConvertSlice
 
-
 class ConvertGroupedStridedSlice(MiddleReplacementPattern):
     """
         This pass converts subgraphs where StridedSlices used for splitting single channel to single Split layers
@@ -110,14 +109,9 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                     shape = np.array(input_shape)
                     size_splits.append(l - prev_r)
                     shape[split_channel_dim] = l - prev_r
-                    data_node = Op._create_data_node(graph, 'fake_data', {'shape': shape})
-                    # added fake Reshape to workaround IE issue with Split and fake nodes
-                    fake_op = Reshape(graph, dict(name=out_nodes[0].name + "/" + str(l) + "_fake_op", dim=shape[1:]))
-                    fake_out_node = Op._create_data_node(graph, 'fake_out_data',
-                                                         {'shape': shape[1:], 'is_output': True})
-                    fake_op.create_node_with_data([data_node], fake_op.attrs, data_nodes=[fake_out_node])
-
+                    data_node = Op._create_data_node(graph, 'fake_data', {'shape': shape, 'is_output': True})
                     final_data_nodes_list.append(data_node)
+
 
                 prev_r = r
                 size_splits.append(r - l)
@@ -130,11 +124,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                 shape = input_shape.copy()
                 shape[split_channel_dim] = input_shape[split_channel_dim] - prev_r
                 size_splits.append(input_shape[split_channel_dim] - prev_r)
-                data_node = Op._create_data_node(graph, 'fake_data', {'shape': shape})
-                # added fake Reshape to workaround IE issue with Split and fake nodes
-                fake_op = Reshape(graph, dict(name=out_nodes[0].name + "/" + str(l) + "_fake_op", dim=shape[1:]))
-                fake_out_node = Op._create_data_node(graph, 'fake_out_data', {'shape': shape[1:], 'is_output': True})
-                fake_op.create_node_with_data([data_node], fake_op.attrs, data_nodes=[fake_out_node])
+                data_node = Op._create_data_node(graph, 'fake_data', {'shape': shape, 'is_output': True})
                 final_data_nodes_list.append(data_node)
 
             if not valid_for_replacement:

@@ -65,13 +65,14 @@ class FusePermutesSequence(MiddleReplacementPattern):
 
                 if np.array_equal(final_permutation, [x for x in range(len(list_of_permutes[0].order))]):
                     first_data_node, last_data_node = list_of_permutes[0].in_node(), list_of_permutes[-1].out_node()
+                    graph.remove_edge(first_data_node.id, list_of_permutes[0].id)
                 else:
                     if len(list_of_permutes) < 2:
                         continue
                     first_data_node, last_data_node = list_of_permutes[0].out_node(), list_of_permutes[-1].out_node()
                     list_of_permutes[0].order = final_permutation
+                    graph.remove_edge(first_data_node.id, first_data_node.out_node().id)
 
-                graph.remove_edge(first_data_node.id, first_data_node.out_node().id)
                 graph.remove_edge(last_data_node.in_node().id, last_data_node.id)
 
                 merge_data_nodes(graph, first_data_node, last_data_node)

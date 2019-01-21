@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,20 +143,27 @@ void MKLDNNGraphOptimizer::FuseBatchNormWithScale(MKLDNNGraph &graph) {
 }
 
 void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
+    auto isOneOf = [&](mkldnn::algorithm alg, std::vector<mkldnn::algorithm> algs) {
+        for (auto a : algs) {
+            if (alg == a) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     auto& graphNodes = graph.GetNodes();
 
-    auto isFusingSupported = [&](MKLDNNNodePtr node) {
-        if (!node->getCnnLayer())
+    auto isFusingSupported = [&](MKLDNNNodePtr conv, MKLDNNNodePtr activation) {
+        if (!activation->getCnnLayer())
             return false;
 
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
+        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(activation.get());
 
         return activationNode &&
-               (activationNode->getAlgorithm() == mkldnn::algorithm::eltwise_relu           ||
-                activationNode->getAlgorithm() == mkldnn::algorithm::eltwise_elu            ||
-                activationNode->getAlgorithm() == mkldnn::algorithm::eltwise_logistic       ||
-                activationNode->getAlgorithm() == mkldnn::algorithm::eltwise_bounded_relu   ||
-                activationNode->getAlgorithm() == mkldnn::algorithm::eltwise_clamp);
+            (activationNode->getAlgorithm() == eltwise_relu ||
+            (conv->getCnnLayer()->precision == Precision::FP32 &&
+             isOneOf(activationNode->getAlgorithm(), {eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp})));
     };
 
     for (int i = 0; i < graphNodes.size(); i++) {
@@ -172,13 +178,13 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
             if (conv->getChildEdges().size() == 1) {
                 auto ch1 = conv->getChildEdgeAt(0)->getChild();
 
-                if (isFusingSupported(ch1)) {
+                if (isFusingSupported(conv, ch1)) {
                     fuse(ch1);
 
                     if (ch1->getChildEdges().size() == 1) {
                         auto ch2 = ch1->getChildEdgeAt(0)->getChild();
 
-                        if (isFusingSupported(ch2)) {
+                        if (isFusingSupported(conv, ch2)) {
                             fuse(ch2);
                             graph.DropNode(ch2);
                         }
@@ -193,7 +199,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
 
                         if (is_max_pool && pool->getChildEdges().size() == 1) {
                             auto ch2 = pool->getChildEdgeAt(0)->getChild();
-                            if (isFusingSupported(ch2)) {
+                            if (isFusingSupported(conv, ch2)) {
                                 fuse(ch2);
                                 graph.DropNode(ch2);
                             }
@@ -274,8 +280,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
 
     auto isSutableChildConvolution = [](MKLDNNNodePtr node) {
         auto* layer = dynamic_cast<ConvolutionLayer*>(node->getCnnLayer().get());
-        auto allPads = getConvPaddings(*layer);
+        auto allPads = getPaddings(*layer);
         bool isSupportedParams = layer->_out_depth == layer->_group &&
+
+                                 layer->_out_depth != 1 &&
+                                 // Depthwise convolution output should be multiple of 8
+
                                  layer->_kernel[X_AXIS] == 3 && layer->_kernel[Y_AXIS] == 3 &&
                                  allPads.begin[X_AXIS] == 1 && allPads.begin[Y_AXIS] == 1 &&
                                  layer->_dilation[X_AXIS] == 1 && layer->_dilation[Y_AXIS] == 1 &&
@@ -379,18 +389,25 @@ static bool is_data_dependency(const std::shared_ptr<MKLDNNNode> &parent,
 void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph) {
     std::vector<MKLDNNNodePtr> &graphNodes = graph.GetNodes();
 
-    auto isFusingSupported = [&](MKLDNNNodePtr node) {
-        if (!node->getCnnLayer())
+    auto isOneOf = [&](mkldnn::algorithm alg, std::vector<mkldnn::algorithm> algs) {
+        for (auto a : algs) {
+            if (alg == a) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    auto isFusingSupported = [&](MKLDNNNodePtr conv, MKLDNNNodePtr activation) {
+        if (!activation->getCnnLayer())
             return false;
 
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
+        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(activation.get());
 
         return activationNode &&
-               (activationNode->getAlgorithm() == mkldnn::algorithm::eltwise_relu           ||
-                activationNode->getAlgorithm() == mkldnn::algorithm::eltwise_elu            ||
-                activationNode->getAlgorithm() == mkldnn::algorithm::eltwise_logistic       ||
-                activationNode->getAlgorithm() == mkldnn::algorithm::eltwise_bounded_relu   ||
-                activationNode->getAlgorithm() == mkldnn::algorithm::eltwise_clamp);
+            (activationNode->getAlgorithm() == eltwise_relu ||
+            (conv->getCnnLayer()->precision == Precision::FP32 &&
+             isOneOf(activationNode->getAlgorithm(), {eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp})));
     };
 
     for (auto &graphNode : graphNodes) {
@@ -411,6 +428,10 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
 
         auto mergedConv = (parent1->getType() == Convolution) ? parent1 : parent2;
         auto peerNode = (parent1->getType() == Convolution) ? parent2 : parent1;
+        if (peerNode->getType() == Convolution && mergedConv->getChildEdges().size() != 1) {
+            mergedConv = parent2;
+            peerNode = parent1;
+        }
         auto sum = graphNode;
         auto lastNode = sum;
 
@@ -431,7 +452,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         if (!fuse_allowed) continue;
 
         if (graphNode->getChildEdges().size() == 1 &&
-                isFusingSupported(graphNode->getChildEdgeAt(0)->getChild())) {
+                isFusingSupported(graphNode, graphNode->getChildEdgeAt(0)->getChild())) {
             auto relu_shared = graphNode->getChildEdgeAt(0)->getChild();
             lastNode = relu_shared;
             mergedConv->setType(Convolution_Sum_Activation);
@@ -472,29 +493,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
     }
 }
 
-/**
- *  Convert LSTM layer format with combined state blob
- */
-void MKLDNNGraphOptimizer::SLTMTransform(MKLDNNGraph& graph) {
-    auto &all_nodes = graph.GetNodes();
-
-    for (auto &lstm : all_nodes) {
-        if (lstm->getType() != RNN)
-            continue;
-
-        auto layer = lstm->getCnnLayer();
-        auto in_datas = layer->insData;
-        auto out_datas = layer->outData;
-
-        if (in_datas.size() == 3) {
-            assert(lstm->getParentEdges().size() == 3);
-            // Concatenate 2 states into one blob
-            // TODO: TBD
-        } else if ((in_datas.size() != 1)) {
-            THROW_IE_EXCEPTION << "Unsupported mode for LSTM cell. Expected two state blobs";
-        }
-    }
-}
 
 void MKLDNNGraphOptimizer::RemoveIdentityOperator(MKLDNNGraph &graph) {
     for (MKLDNNNodePtr& node : graph.GetNodes()) {
@@ -520,8 +518,11 @@ void MKLDNNGraphOptimizer::RemoveIdentityOperator(MKLDNNGraph &graph) {
 
 void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
     std::set<MKLDNNNodePtr> processed;
+    std::vector<MKLDNNNodePtr> newNodes;
     for (MKLDNNNodePtr& node : graph.GetNodes()) {
-        if (processed.find(node) == processed.end() && node->getType() == Reorder && node->getChildEdgeAt(0)->getChild()->getType() == Reorder) {
+        if (processed.find(node) == processed.end() && node->getType() == Reorder
+            && node->getChildEdges().size() == 1
+            && node->getChildEdgeAt(0)->getChild()->getType() == Reorder ) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
             MKLDNNReorderNode* n = dynamic_cast<MKLDNNReorderNode*>(node.get());
             MKLDNNReorderNode* nn = dynamic_cast<MKLDNNReorderNode*>(nextNode.get());
@@ -590,9 +591,12 @@ void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
             afterNode->getDesc();
             graph.GetEdges().push_back(afterNode);
 
-            graph.GetNodes().push_back(newReorder);
+            newNodes.push_back(newReorder);
             graph.GetEdges().erase(std::remove(graph.GetEdges().begin(), graph.GetEdges().end(), edge), graph.GetEdges().end());
         }
+    }
+    for (MKLDNNNodePtr& node : newNodes) {
+        graph.GetNodes().push_back(node);
     }
 }
 
@@ -603,7 +607,7 @@ void MKLDNNGraphOptimizer::RemoveIOScaleShifts(MKLDNNGraph &graph) {
 
             auto cur = l->insData[0].lock();
             if (cur == nullptr) {
-                THROW_IE_EXCEPTION << "[MKLDNN] shared_ptr l->insData[0].lock() returned nullptr";
+                THROW_IE_EXCEPTION << "[MKLDNN] error - invalid input data";
             }
             if (cur->precision != l->outData[0]->precision) {
                 if (node->name.find("_iScaleShift_") != std::string::npos) {

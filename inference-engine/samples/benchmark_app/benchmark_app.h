@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +43,12 @@ static const char target_device_message[] = "Specify a target device to infer on
 static const char iterations_count_message[] = "Optional. Number of iterations. " \
 "If not specified, the number of iterations is calculated depending on a device.";
 
-/// @brief message for iterations count
+/// @brief message for requests count
 static const char infer_requests_count_message[] = "Optional. Number of infer requests (default value is 2).";
+
+/// @brief message for #threads for CPU inference
+static const char infer_num_threads_message[] = "Optional. Number of threads to use for inference on the CPU "
+                                                "(including Hetero cases).";
 
 /// @brief message for user library argument
 static const char custom_cpu_library_message[] = "Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.";
@@ -53,7 +56,11 @@ static const char custom_cpu_library_message[] = "Required for CPU custom layers
 /// @brief message for clDNN custom kernels desc
 static const char custom_cldnn_message[] = "Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.";
 
-static const char batch_size_message[] = "Batch size value. If not specified, the batch size value is determined from IR";
+static const char batch_size_message[] = "Optional. Batch size value. If not specified, the batch size value is determined from IR";
+
+// @brief message for CPU threads pinning option
+static const char infer_threads_pinning_message[] = "Optional. Enable (\"YES\" is default value) or disable (\"NO\")" \
+                                                  "CPU threads pinning for CPU-involved inference.";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -91,11 +98,15 @@ DEFINE_int32(niter, 0, iterations_count_message);
 /// @brief Number of infer requests in parallel
 DEFINE_int32(nireq, 2, infer_requests_count_message);
 
+/// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
+DEFINE_int32(nthreads, 0, infer_num_threads_message);
+
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
 DEFINE_int32(b, 0, batch_size_message);
 
-
+// @brief Enable plugin messages
+DEFINE_string(pin, "YES", infer_threads_pinning_message);
 /**
 * @brief This function show a help message
 */
@@ -116,4 +127,7 @@ static void showUsage() {
     std::cout << "    -c \"<absolute_path>\"    " << custom_cldnn_message << std::endl;
     std::cout << "    -nireq \"<integer>\"      " << infer_requests_count_message << std::endl;
     std::cout << "    -b \"<integer>\"          " << batch_size_message << std::endl;
+    std::cout << "    Some CPU-specific performance options" << std::endl;
+    std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
+    std::cout << "    -pin \"YES\"/\"NO\"       " << infer_threads_pinning_message << std::endl;
 }

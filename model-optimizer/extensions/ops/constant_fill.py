@@ -57,4 +57,4 @@ class ConstantFill(Op):
         assert shape is not None
 
         node.out_node(0).value = np.full(shape, node.fill_value, np.float32)
-        node.out_node(0).shape = node.out_node(0).value.shape
+        node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)

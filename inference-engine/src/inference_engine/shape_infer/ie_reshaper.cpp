@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,10 +15,13 @@
 #include "shape_infer/ie_reshaper.hpp"
 #include "details/caseless.hpp"
 #include "details/ie_cnn_network_tools.h"
+#include "ie_reshaper.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace ShapeInfer;
+
+Reshaper::Reshaper(const Context &context, Network::Ptr& network): ctx(context), network(network) {}
 
 Reshaper::Reshaper(ICNNNetwork& network, const LauncherCreator::Ptr& launcherCreator) {
     auto builtIn = std::make_shared<BuiltInShapeInferHolder>();
@@ -51,6 +53,12 @@ Reshaper::Reshaper(ICNNNetwork& network, const LauncherCreator::Ptr& launcherCre
 
 void Reshaper::AddExtension(const IShapeInferExtensionPtr& extension) {
     if (!extension) THROW_IE_EXCEPTION << "Failed to add empty shape infer extension";
+
+    if (network) {
+        ctx.addExtension(extension);
+        return;
+    }
+
     auto newLayerTypes = getTypeNamesFromExtension(extension);
     std::string badLayerTypes;
     for (const auto& type : newLayerTypes) {
@@ -103,7 +111,10 @@ ReshapeLauncher::Ptr Reshaper::getLauncherByLayerName(const std::string& layerNa
     return *foundLauncher;
 }
 
-void Reshaper::run(const std::map<std::string, SizeVector>& inputShapes) {
+StatusCode Reshaper::run(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) {
+    if (network) {
+        return networkShapeInfer(inputShapes, resp);
+    }
     // Reset all shapes from previous run
     for (const auto& launcher : _launchers) {
         launcher->reset();
@@ -135,6 +146,79 @@ void Reshaper::run(const std::map<std::string, SizeVector>& inputShapes) {
         auto foundLauncher = getLauncherByLayerName(layer->name);
         foundLauncher->applyChanges(layer.get());
     }
+    return OK;
+}
+
+StatusCode Reshaper::networkShapeInfer(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) {
+    if (!network)
+        return DescriptionBuffer(GENERAL_ERROR, resp) << "Cannot infer shapes! Network is not loaded.";
+    std::vector<Layer> propagatedLayers;
+    Network propagatedNetwork(*network);
+
+    // Set new input shapes
+    for (auto& layer : propagatedNetwork) {
+        if (inputShapes.find(layer->getName()) == inputShapes.end() ||
+                details::CaselessEq<std::string>()(layer->getType(), "Const"))
+            continue;
+
+        if (layer->getOutputPorts().size() != 1)
+            return DescriptionBuffer(GENERAL_ERROR, resp) << "Cannot infer shapes! Input layers can have only one output port.";
+
+        layer->getOutputPorts()[0].shape() = inputShapes.find(layer->getName())->second;
+    }
+
+    // Try to propagate shapes
+    for (auto& layer : propagatedNetwork) {
+        const auto impl = ctx.getShapeInferImpl(layer->getType());
+        if (!impl)
+            return DescriptionBuffer(NOT_FOUND, resp) <<
+                        "Cannot infer shapes! Shape infer implementation was not found for type " << layer->getType() << ".";
+        std::vector<SizeVector> inShapes;
+        std::vector<SizeVector> outShapes;
+        std::map<std::string, std::string> params;
+        std::map<std::string, Blob::Ptr> blobs;
+
+        for (const auto& inPort : layer->getInputPorts().empty() ? layer->getOutputPorts() : layer->getInputPorts()) {
+            inShapes.push_back(inPort.shape());
+        }
+        if (layer->getParameters()) {
+            for (const auto& it  : layer->getParameters()->getParameters()) {
+                params[it.first] = it.second;
+            }
+            for (const auto& it  : layer->getParameters()->getConstantData()) {
+                blobs[it.first] = std::const_pointer_cast<Blob>(it.second);
+            }
+        }
+
+        StatusCode sts = impl->inferShapes(inShapes, params, blobs, outShapes, resp);
+        if (sts != OK)
+            return sts;
+
+        if (outShapes.size() != layer->getOutputPorts().size())
+            return DescriptionBuffer(GENERAL_ERROR, resp) << "Cannot infer shapes! The number of output shapes is not equal the number of output ports.";
+
+        for (size_t i = 0; i < outShapes.size(); i++) {
+            layer->getOutputPorts()[i].shape() = outShapes[i];
+        }
+        for (const auto& connection : propagatedNetwork.getLayerConnections(layer->getId())) {
+            if (connection.from().layerId() != layer->getId())
+                continue;
+            auto nextLayer = propagatedNetwork.getLayer(connection.to().layerId());
+            nextLayer->getInputPorts()[connection.to().portId()].shape() = outShapes[connection.from().portId()];
+        }
+    }
+
+    // Apply new shapes
+    for (auto& layer : *network) {
+        const auto& propagatedLayer = propagatedNetwork.getLayer(layer->getId());
+        for (size_t i = 0; i < layer->getInputPorts().size(); i++) {
+            layer->getInputPorts()[i].shape() = propagatedLayer->getInputPorts()[i].shape();
+        }
+        for (size_t i = 0; i < layer->getOutputPorts().size(); i++) {
+            layer->getOutputPorts()[i].shape() = propagatedLayer->getOutputPorts()[i].shape();
+        }
+    }
+    return OK;
 }
 
 caseless_set<std::string> Reshaper::getTypeNamesFromExtension(const IShapeInferExtensionPtr& extension) {

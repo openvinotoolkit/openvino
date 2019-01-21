@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -206,22 +205,6 @@ inline std::string tolower(const std::string &s) {
     ret.resize(s.length());
     std::transform(s.begin(), s.end(), ret.begin(), ::tolower);
     return ret;
-}
-
-/**
- * @brief Wierd function to perform string formatting
- * @param msg - base format
- * @param ... - arguments for formatting
- * @return formatted string
- */
-static inline std::string stringFormat(const char *msg, ...) {
-    va_list va;
-    va_start(va, msg);
-    char buffer[65536];
-
-    vsnprintf_s(buffer, 65535, msg, va);
-    va_end(va);
-    return std::string(buffer);
 }
 }  // namespace details
 }  // namespace InferenceEngine

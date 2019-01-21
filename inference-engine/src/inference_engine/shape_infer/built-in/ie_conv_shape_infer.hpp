@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +12,7 @@
 #include <vector>
 #include <debug.h>
 #include <cmath>
-#include <v2_format_parser.h>
+#include <ie_format_parser.h>
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -55,9 +54,7 @@ public:
         size_t PH = convLayer._padding[Y_AXIS];
         size_t PW = convLayer._padding[X_AXIS];
         size_t OC = convLayer._out_depth;
-        auto it = convLayer.params.find("auto_pad");
-        std::string padType;
-        if (it != convLayer.params.end()) padType = it->second;
+        std::string padType = convLayer._auto_pad;
         if (padType == "valid") {
             OH_temp = std::ceil((IH - KH + 1.f) / SH);
             OW_temp = std::ceil((IW - KW + 1.f) / SW);
@@ -68,26 +65,10 @@ public:
             OH_temp = std::floor(1.f * IH / SH);
             OW_temp = std::floor(1.f * IW / SW);
         } else {
-            auto ir_version = details::BaseCreator::version_;
-            bool isEndPaddingsSet = false;
-            try {
-                if (ir_version == 3) {
-                    auto pads_end = convLayer.GetParamAsUInts("pads_end");
-                    PR = pads_end[pads_end.size() - 1 - X_AXIS];
-                    PB = pads_end[pads_end.size() - 1 - Y_AXIS];
-                } else if (ir_version < 3) {
-                    PR = convLayer.GetParamAsInt("pad-r");
-                    PB = convLayer.GetParamAsInt("pad-b");
-                }
-                isEndPaddingsSet = true;
-            } catch (...) {}
-            if (!isEndPaddingsSet) {
-                OH_temp = std::floor((IH + 2.f * PH - KH) / SH) + 1.f;
-                OW_temp = std::floor((IW + 2.f * PW - KW) / SW) + 1.f;
-            } else {
-                OH_temp = std::floor(1.f * (IH + PH + PB - KH) / SH) + 1.f;
-                OW_temp = std::floor(1.f * (IW + PW + PR - KW) / SW) + 1.f;
-            }
+            PR = convLayer._pads_end[X_AXIS];
+            PB = convLayer._pads_end[Y_AXIS];
+            OH_temp = std::floor(1.f * (IH + PH + PB - KH) / SH) + 1.f;
+            OW_temp = std::floor(1.f * (IW + PW + PR - KW) / SW) + 1.f;
         }
         if (OH_temp < 0 || OW_temp < 0)
             THROW_IE_EXCEPTION << "New shapes " << details::dumpVec(dims) << " make output shape negative";

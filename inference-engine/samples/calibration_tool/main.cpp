@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +29,6 @@
 #include "calibrator_processors.h"
 #include "SSDObjectDetectionProcessor.hpp"
 #include "YOLOObjectDetectionProcessor.hpp"
-#include "network_serializer.h"
 #include "ie_icnn_network_stats.hpp"
 #include "details/caseless.hpp"
 
@@ -93,11 +91,16 @@ static const char custom_cldnn_message[] = "Required for GPU custom kernels. "
 /// @brief Message for user library argument
 static const char custom_cpu_library_message[] = "Required for CPU custom layers. "
                                                  "Absolute path to a shared library with the kernel implementations.";
+/// @brief Message for labels file
+static const char labels_file_message[] = "Labels file path. The labels file contains names of the dataset classes";
 
 static const char zero_background_message[] = "\"Zero is a background\" flag. Some networks are trained with a modified"
                                               " dataset where the class IDs "
                                               " are enumerated from 1, but 0 is an undefined \"background\" class"
                                               " (which is never detected)";
+
+static const char stream_output_message[] = "Flag for printing progress as a plain text.When used, interactive progress"
+                                            " bar is replaced with multiline output";
 
 /// @brief Network type options and their descriptions
 static const char* types_descriptions[][2] = {
@@ -177,9 +180,14 @@ DEFINE_string(l, "", custom_cpu_library_message);
 /// @brief Define parameter for accuracy drop threshold
 DEFINE_double(threshold, 1.0f, accuracy_threshold_message);
 
+/// @brief Define path to output calibrated model
+DEFINE_bool(stream_output, false, stream_output_message);
+
 DEFINE_int32(subset, 0, number_of_pictures_message);
 
 DEFINE_string(output, "", output_model_name);
+
+DEFINE_string(lbl, "", labels_file_message);
 
 /**
  * @brief This function shows a help message
@@ -196,6 +204,7 @@ static void showUsage() {
     }
     std::cout << "    -i <path>                 " << image_message << std::endl;
     std::cout << "    -m <path>                 " << model_message << std::endl;
+    std::cout << "    -lbl <path>               " << labels_file_message << std::endl;
     std::cout << "    -l <absolute_path>        " << custom_cpu_library_message << std::endl;
     std::cout << "    -c <absolute_path>        " << custom_cldnn_message << std::endl;
     std::cout << "    -d <device>               " << target_device_message << std::endl;
@@ -219,6 +228,9 @@ static void showUsage() {
     std::cout << "      -ODa <path>             " << obj_detection_annotations_message << std::endl;
     std::cout << "      -ODc <file>             " << obj_detection_classes_message << std::endl;
     std::cout << "      -ODsubdir <name>        " << obj_detection_subdir_message << std::endl << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "    -stream_output                   " << stream_output_message << std::endl;
 }
 
 enum NetworkType {
@@ -270,8 +282,7 @@ void SaveCalibratedIR(const std::string &originalName,
     }
 
     slog::info << "Write calibrated network to " << outModelName << ".(xml|bin) IR file\n";
-    CNNNetworkSerializer serializer;
-    serializer.Serialize(outModelName + ".xml", outModelName + ".bin", networkReader.getNetwork());
+    networkReader.getNetwork().serialize(outModelName + ".xml", outModelName + ".bin");
 }
 
 /**
@@ -321,7 +332,6 @@ int main(int argc, char *argv[]) {
             // Checking required OD-specific options
             if (FLAGS_ODa.empty()) ee << UserException(11, "Annotations folder is not specified for object detection (missing -a option)");
             if (FLAGS_ODc.empty()) ee << UserException(12, "Classes file is not specified (missing -c option)");
-            if (FLAGS_b > 0) ee << UserException(13, "Batch option other than 0 is not supported for Object Detection networks");
         }
 
         if (!ee.empty()) throw ee;
@@ -384,7 +394,7 @@ int main(int argc, char *argv[]) {
         if (netType == Classification || netType == RawC) {
             processor = std::shared_ptr<Processor>(
                 new ClassificationCalibrator(FLAGS_subset, FLAGS_m, FLAGS_d, FLAGS_i, FLAGS_b,
-                                                plugin, dumper, FLAGS_l, preprocessingOptions, FLAGS_Czb));
+                                                plugin, dumper, FLAGS_lbl, preprocessingOptions, FLAGS_Czb));
         } else if (netType == ObjDetection || netType == RawOD) {
             if (FLAGS_ODkind == "SSD") {
                 processor = std::shared_ptr<Processor>(
@@ -411,7 +421,7 @@ int main(int argc, char *argv[]) {
             slog::info << "Collecting activation statistics" << slog::endl;
         }
         calibrator->collectFP32Statistic();
-        shared_ptr<Processor::InferenceMetrics> pIMFP32 = processor->Process();
+        shared_ptr<Processor::InferenceMetrics> pIMFP32 = processor->Process(FLAGS_stream_output);
         const CalibrationMetrics* mFP32 = dynamic_cast<const CalibrationMetrics*>(pIMFP32.get());
         std:: cout << "  FP32 Accuracy: " << OUTPUT_FLOATING(100.0 * mFP32->AccuracyResult) << "% " << std::endl;
 
@@ -427,7 +437,7 @@ int main(int argc, char *argv[]) {
                 std::cout << "Validate int8 accuracy, threshold for activation statistics = " << threshold << std::endl;
                 InferenceEngine::NetworkStatsMap tmpStatMap = calibrator->getStatistic(threshold);
                 calibrator->validateInt8Config(tmpStatMap, {});
-                shared_ptr<Processor::InferenceMetrics> pIM_I8 = processor->Process();
+                shared_ptr<Processor::InferenceMetrics> pIM_I8 = processor->Process(FLAGS_stream_output);
                 const CalibrationMetrics *mI8 = dynamic_cast<const CalibrationMetrics *>(pIM_I8.get());
                 if (maximalAccuracy < mI8->AccuracyResult) {
                     maximalAccuracy = mI8->AccuracyResult;
@@ -446,7 +456,7 @@ int main(int argc, char *argv[]) {
                 slog::info << "Collecting intermediate per-layer accuracy drop" << slog::endl;
                 // getting statistic on accuracy drop by layers
                 calibrator->collectByLayerStatistic(statMap);
-                processor->Process();
+                processor->Process(FLAGS_stream_output);
                 // starting to reduce number of layers being converted to Int8
                 std::map<std::string, float>  layersAccuracyDrop = calibrator->layersAccuracyDrop();
 
@@ -463,7 +473,7 @@ int main(int argc, char *argv[]) {
                     slog::info << "Returning of '" << it->second << "' to FP32 precision, start validation\n";
                     layersToInt8[it->second] = false;
                     calibrator->validateInt8Config(statMap, layersToInt8);
-                    pIM_I8 = processor->Process();
+                    pIM_I8 = processor->Process(FLAGS_stream_output);
                     mI8 = dynamic_cast<const CalibrationMetrics *>(pIM_I8.get());
                     maximalAccuracy = mI8->AccuracyResult;
                     if ((mFP32->AccuracyResult - maximalAccuracy) > (FLAGS_threshold / 100)) {

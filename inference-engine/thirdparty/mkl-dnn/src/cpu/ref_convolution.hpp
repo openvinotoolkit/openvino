@@ -58,11 +58,11 @@ struct _ref_convolution_fwd_t: public cpu_primitive_t {
                 && this->cdesc_().weights_desc.data_type == wei_type
                 && this->cdesc_().accum_data_type == acc_type
                 && this->cdesc_().dst_desc.data_type == dst_type
-                && utils::implication(this->with_bias(), true
-                        && utils::implication(src_type == u8,
+                && IMPLICATION(this->with_bias(), true
+                        && IMPLICATION(src_type == u8,
                             utils::one_of(this->cdesc_().bias_desc.data_type,
                                 f32, s32, s8, u8))
-                        && utils::implication(src_type == f32,
+                        && IMPLICATION(src_type == f32,
                             this->cdesc_().bias_desc.data_type == f32))
                 && this->attr()->has_default_values();
             return ok ? status::success : status::unimplemented;
@@ -189,7 +189,7 @@ struct ref_convolution_bwd_weights_t: public cpu_primitive_t {
                 && this->desc()->diff_weights_desc.data_type == diff_wei_type
                 && this->desc()->diff_dst_desc.data_type == diff_dst_type
                 && this->desc()->accum_data_type == acc_type
-                && utils::implication(this->with_bias(),
+                && IMPLICATION(this->with_bias(),
                         this->desc()->diff_bias_desc.data_type
                         == diff_wei_type)
                 && this->attr()->has_default_values();

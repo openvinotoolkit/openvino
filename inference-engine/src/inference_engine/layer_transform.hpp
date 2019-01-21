@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +6,9 @@
 
 #include <tuple>
 #include <memory>
+#include <utility>
 #include "ie_layers.h"
+#include "ie_layers_prv.h"
 
 namespace InferenceEngine {
 
@@ -27,6 +28,9 @@ using AllLayers = std::tuple <
     ConvolutionLayer *,
     PoolingLayer*,
     FullyConnectedLayer*,
+    GemmLayer*,
+    PadLayer*,
+    GatherLayer*,
     ConcatLayer*,
     SplitLayer*,
     NormLayer*,
@@ -43,6 +47,9 @@ using AllLayers = std::tuple <
     PowerLayer*,
     BatchNormalizationLayer*,
     ClampLayer*,
+    TensorIterator*,
+    LSTMCell*,
+    RNNLayer*,
     WeightableLayer*,
     CNNLayer*
 >;
@@ -63,11 +70,11 @@ void dynamic_cast_layer(const CNNLayer &source, CNNLayerPtr &target, T & /*, Inj
 
 template<class Visitor, std::size_t I = 0, typename... Tp>
 inline typename std::enable_if<I == sizeof...(Tp), void>::type
-visitActualLayer(std::tuple<Tp...> &t, const CNNLayer &sourceLayer, const Visitor & v) {}
+visitActualLayer(std::tuple<Tp...> &&t, const CNNLayer &sourceLayer, const Visitor & v) {}
 
 template<class Visitor, std::size_t I = 0, typename... Tp>
 inline typename std::enable_if < I < sizeof...(Tp), void>::type
-visitActualLayer(std::tuple<Tp...> &t, const CNNLayer &sourceLayer, const Visitor & visitor) {
+visitActualLayer(std::tuple<Tp...> &&t, const CNNLayer &sourceLayer, const Visitor & visitor) {
     using EType = typename std::tuple_element<I, std::tuple<Tp...>>::type;
     auto casted = dynamic_cast<EType>(const_cast<CNNLayer *>(&sourceLayer));
 
@@ -78,7 +85,7 @@ visitActualLayer(std::tuple<Tp...> &t, const CNNLayer &sourceLayer, const Visito
         }
     }
 
-    visitActualLayer<Visitor, I + 1, Tp...>(t, sourceLayer, visitor);
+    visitActualLayer<Visitor, I + 1, Tp...>(std::move(t), sourceLayer, visitor);
 }
 
 template<class InjectedType, std::size_t I = 0, typename... Tp>
@@ -164,8 +171,7 @@ inline CNNLayerPtr injectData(CNNLayerPtr sourceLayer, const InjectType & value 
  */
 template<class Transformer>
 inline void transformLayer(const CNNLayer & sourceLayer, const Transformer & transformer) {
-    details::AllLayers layers;
-    details::visitActualLayer<Transformer>(layers, sourceLayer, transformer);
+    details::visitActualLayer<Transformer>(std::move(details::AllLayers()), sourceLayer, transformer);
 }
 
 template<class Transformer>

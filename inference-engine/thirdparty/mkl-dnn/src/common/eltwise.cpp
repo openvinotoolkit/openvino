@@ -40,7 +40,7 @@ status_t eltwise_desc_init(eltwise_desc_t *eltwise_desc, prop_kind_t prop_kind,
                   eltwise_square, eltwise_abs, eltwise_sqrt, eltwise_linear,
                   eltwise_bounded_relu, eltwise_soft_relu, eltwise_logistic,
                   eltwise_clamp)
-        && implication(prop_kind == backward_data, diff_data_desc != nullptr);
+        && IMPLICATION(prop_kind == backward_data, diff_data_desc != nullptr);
     if (!args_ok) return invalid_arguments;
 
     auto ed = eltwise_desc_t();
@@ -57,7 +57,7 @@ status_t eltwise_desc_init(eltwise_desc_t *eltwise_desc, prop_kind_t prop_kind,
     ed.negative_slope = ed.alpha;
 
     bool consistency = true
-        && implication(ed.prop_kind == backward_data,
+        && IMPLICATION(ed.prop_kind == backward_data,
                 array_cmp(ed.diff_data_desc.dims, ed.data_desc.dims,
                     ed.diff_data_desc.ndims));
     if (!consistency) return invalid_arguments;

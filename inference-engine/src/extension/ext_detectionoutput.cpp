@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,24 +70,24 @@ public:
                                                     static_cast<size_t>(_num_classes),
                                                     static_cast<size_t>(_num_priors),
                                                     4};
-            _decoded_bboxes = InferenceEngine::make_shared_blob<float>({Precision::UNSPECIFIED, bboxes_size, NCHW});
+            _decoded_bboxes = InferenceEngine::make_shared_blob<float>({Precision::FP32, bboxes_size, NCHW});
             _decoded_bboxes->allocate();
 
             InferenceEngine::SizeVector buf_size{static_cast<size_t>(_num),
                                                  static_cast<size_t>(_num_classes),
                                                  static_cast<size_t>(_num_priors)};
-            _buffer = InferenceEngine::make_shared_blob<int>({Precision::UNSPECIFIED, buf_size, {buf_size, {0, 1, 2}}});
+            _buffer = InferenceEngine::make_shared_blob<int>({Precision::I32, buf_size, {buf_size, {0, 1, 2}}});
             _buffer->allocate();
 
             InferenceEngine::SizeVector indices_size{static_cast<size_t>(_num),
                                                      static_cast<size_t>(_num_classes),
                                                      static_cast<size_t>(_num_priors)};
             _indices = InferenceEngine::make_shared_blob<int>(
-                    {Precision::UNSPECIFIED, indices_size, {indices_size, {0, 1, 2}}});
+                    {Precision::I32, indices_size, {indices_size, {0, 1, 2}}});
             _indices->allocate();
 
             InferenceEngine::SizeVector detections_size{static_cast<size_t>(_num * _num_classes)};
-            _detections_count = InferenceEngine::make_shared_blob<int>({Precision::UNSPECIFIED, detections_size, C});
+            _detections_count = InferenceEngine::make_shared_blob<int>({Precision::I32, detections_size, C});
             _detections_count->allocate();
 
             InferenceEngine::SizeVector conf_size = layer->insData[idx_confidence].lock()->dims;
@@ -103,7 +102,7 @@ public:
             _bbox_sizes->allocate();
 
             InferenceEngine::SizeVector num_priors_actual_size{static_cast<size_t>(_num)};
-            _num_priors_actual = InferenceEngine::make_shared_blob<int>({Precision::UNSPECIFIED, num_priors_actual_size, C});
+            _num_priors_actual = InferenceEngine::make_shared_blob<int>({Precision::I32, num_priors_actual_size, C});
             _num_priors_actual->allocate();
 
             addConfig(layer, {DataConfigurator(ConfLayout::PLN),

@@ -60,7 +60,7 @@ struct _jit_sse42_1x1_convolution_fwd_t: public cpu_primitive_t {
                         this->cdesc_().src_desc.data_type,
                         this->cdesc_().weights_desc.data_type,
                         this->cdesc_().dst_desc.data_type)
-                && utils::implication(this->with_bias(),
+                && IMPLICATION(this->with_bias(),
                         data_type::f32 == this->cdesc_().bias_desc.data_type);
             if (!ok) return status::unimplemented;
 
@@ -94,12 +94,15 @@ struct _jit_sse42_1x1_convolution_fwd_t: public cpu_primitive_t {
         virtual status_t set_default_params() override {
             using namespace memory_format;
             if (this->src_pd_.desc()->format == any)
-                CHECK(this->src_pd_.set_format(nChw8c));
+                CHECK(this->src_pd_.set_format(utils::pick(this->ndims() - 3,
+                    nCw8c, nChw8c)));
             if (this->dst_pd_.desc()->format == any)
-                CHECK(this->dst_pd_.set_format(nChw8c));
+                CHECK(this->dst_pd_.set_format(utils::pick(this->ndims() - 3,
+                    nCw8c, nChw8c)));
             if (this->weights_pd_.desc()->format == any)
                 CHECK(this->weights_pd_.set_format(this->with_groups()
-                            ? gOIhw8i8o : OIhw8i8o));
+                    ? utils::pick(this->ndims() - 3, gOIw8i8o, gOIhw8i8o)
+                    : utils::pick(this->ndims() - 3, OIw8i8o, OIhw8i8o)));
             if (this->bias_pd_.desc()->format == any)
                 CHECK(this->bias_pd_.set_format(x));
             return status::success;

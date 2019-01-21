@@ -19,6 +19,7 @@ import networkx as nx
 from extensions.ops.lstm_cell import LSTMCell
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, replace_node, get_inputs_with_ports
+from mo.ops.output import Output
 
 
 class BasicLSTMCell(FrontReplacementSubgraph):
@@ -172,6 +173,14 @@ class BasicLSTMCell(FrontReplacementSubgraph):
 
         for i, output in enumerate(__class__.outputs):
             replace_node(match[output], lstm_node, i)
+
+        # Because of LSTMCell specification, this layer MUST have 2 outputs.
+        # => we need to create fake consumers for LSTMCell
+        # when this node haven't some outputs.
+        for i in [0, 1]:
+            if i not in lstm_node.out_nodes():
+                fake_output_node = Output(graph, dict(name=lstm_node.name + "/Output_{}".format(i)))
+                fake_output_node.create_node(inputs=[lstm_node], edge_attrs={'out': i, 'in': 0})
 
         lstm_node['tf'] = True
         lstm_node['extra_inputs'] = {name: match[name].id for name in __class__.extra_inputs}

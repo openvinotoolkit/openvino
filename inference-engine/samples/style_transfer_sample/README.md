@@ -35,11 +35,13 @@ You can do inference on an image using a trained model of NST network on Intel&r
 ./style_transfer_sample -i <path_to_image>/cat.bmp -m <path_to_model>/1_decoder_FP32.xml
 ```
 
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+
 ### Outputs
 
 The application outputs an styled image(s) (<code>out(1).bmp</code>) which were redrawn in style of model which used for infer.
 Style of output images depend on models which use for sample.
 
 ## See Also 
-* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)
+* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
 

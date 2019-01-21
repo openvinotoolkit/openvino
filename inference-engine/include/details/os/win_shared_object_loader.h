@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +14,9 @@
 // Avoidance of Windows.h to include winsock library.
 #define _WINSOCKAPI_
 // Avoidance of Windows.h to define min/max.
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #include <direct.h>
 
@@ -35,7 +36,7 @@ private:
      *        WinAPI LoadLibrary rules
      * @param pluginName Full or relative path to the plugin library
      */
-    explicit SharedObjectLoader(const char* pluginName) {
+    explicit SharedObjectLoader(LPCTSTR pluginName) {
         char cwd[1024];
         shared_object = LoadLibrary(pluginName);
         if (!shared_object) {

@@ -26,5 +26,7 @@ def guess_framework_by_ext(input_model_path: str) -> int:
         return 'mxnet'
     elif re.match('^.*\.nnet$', input_model_path):
         return 'kaldi'
+    elif re.match('^.*\.mdl', input_model_path):
+        return 'kaldi'
     elif re.match('^.*\.onnx$', input_model_path):
         return 'onnx'

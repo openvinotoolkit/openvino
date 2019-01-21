@@ -52,12 +52,12 @@ class ConvertLayoutDependentOperations(MiddleReplacementPattern):
                     # if Node has NHWC and graph has NCHW layout
                     permutation = PermuteAttrs.get_nchw_to_nhwc_permutation(len(node.layout))
 
-                # Schematic representation og transformation below
+                # Schematic representation of transformation below
                 #
                 #                                           \            NCHW                              NCHW
                 #            NHWC                        --  \            |  permutation       permutation  |
                 #   data-->Convolution(example)-->data   --  /            |      |       NCHW      |        |
-                #                                          /    data->Permute->data->Convolution->data->Permute->data
+                #                                           /   data->Permute->data->Convolution->data->Permute->data
 
                 # 1. Insert input Permute
                 #    This Permute will permute input from original input layout to operation layout

@@ -133,7 +133,7 @@ def add_activation_function_after_node(graph: nx.MultiDiGraph, node: Node, activ
     """
     if activation_function == 'SOFTMAX':
         # softmax to be applied to the confidence
-        softmax_conf_op = Softmax(graph, dict(axis=1, nchw_layout=True))
+        softmax_conf_op = Softmax(graph, dict(axis=-1, nchw_layout=True))
         activation_node = softmax_conf_op.create_node([node], dict(name=node.name + '/softmax'))
     elif activation_function == 'SIGMOID':
         # sigmoid activation function to be applied to the confidence

@@ -445,4 +445,42 @@ INSTANTIATE_TEST_CASE_P(
             memory::format::nChw8c, { 2, 256, 27, 27, 1.0e-4f, 0.75f, 1.0f, 5, WITHIN } }
             ));
 
+// This tests compatibility with MKL-DNN 0.14
+INSTANTIATE_TEST_CASE_P(
+        TestLRNRegressionWeightFormat, lrn_forward_test_float,
+        ::testing::Values(
+            lrn_fwd_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::lrn_across_channels, memory::format::oihw,
+            memory::format::oihw, { 2, 64, 56, 56, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
+        ));
+
+INSTANTIATE_TEST_CASE_P(
+        TestLRNForwardNCHWTail, lrn_forward_test_float,
+        ::testing::Values(
+            lrn_fwd_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::lrn_across_channels, memory::format::nchw,
+            memory::format::nchw, { 1, 64, 1, 9, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
+            , lrn_fwd_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::lrn_across_channels, memory::format::nchw,
+            memory::format::nchw, { 1, 64, 2, 9, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
+            , lrn_fwd_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::lrn_across_channels, memory::format::nchw,
+            memory::format::nchw, { 1, 64, 3, 9, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
+            , lrn_fwd_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::lrn_across_channels, memory::format::nchw,
+            memory::format::nchw, { 1, 64, 4, 9, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
+            , lrn_fwd_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::lrn_across_channels, memory::format::nchw,
+            memory::format::nchw, { 1, 64, 5, 9, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
+            , lrn_fwd_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::lrn_across_channels, memory::format::nchw,
+            memory::format::nchw, { 1, 64, 9, 6, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
+            , lrn_fwd_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::lrn_across_channels, memory::format::nchw,
+            memory::format::nchw, { 1, 64, 7, 9, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
+            , lrn_fwd_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::lrn_across_channels, memory::format::nchw,
+            memory::format::nchw, { 1, 64, 8, 9, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
+            ));
+
 }

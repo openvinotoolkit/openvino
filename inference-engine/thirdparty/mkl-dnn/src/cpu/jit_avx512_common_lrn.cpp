@@ -263,13 +263,11 @@ struct jit_avx512_common_lrn_fwd_t::jit_avx512_common_lrn_kernel_f32:
         movq(xk, imm_addr64);
         vbroadcastss(zk, xk);
 
-        char tag = '\0';
         if (is_first || is_single) {
             vxorps(xmm2, xmm2, xmm2);
             for(int irb = 0; irb < FWD_RBC; irb++) {
                 vmovups(ptr[t + irb*BUFFER_BLOCK], xmm2);
             }
-            tag = 'f';
         }
         if (is_last || is_single) {
             vxorps(xmm2, xmm2, xmm2);
@@ -277,13 +275,12 @@ struct jit_avx512_common_lrn_fwd_t::jit_avx512_common_lrn_kernel_f32:
                 vmovups(ptr[t + irb*BUFFER_BLOCK + BUFFER_NEXT_OFFSET],
                     xmm2);
             }
-            tag = 'l';
         }
 
         int LSREST = LSB % FWD_RBC;
         int LS = LSB - LSREST;
 
-        jit_tagged_label lrn_loop("lrn_loop", tag);
+        Label lrn_loop;
 
         if (LS > 0) {
             mov(hw, LS);
@@ -675,26 +672,23 @@ struct jit_avx512_common_lrn_bwd_t::jit_avx512_common_lrn_kernel_f32:
         is_last  = J.version == +1 || J.version == +2;
         is_single = J.version == 3;
 
-        char tag = '\0';
         if (is_first || is_single) {
             vxorps(xmm1, xmm1, xmm1);
             for(int irb = 0; irb < BWD_RBC; irb++) {
                 vmovups(ptr[t + irb*BUFFER_BLOCK], xmm1);
             }
-            tag = 'f';
         }
         if (is_last || is_single) {
             vxorps(xmm1, xmm1, xmm1);
             for(int irb = 0; irb < BWD_RBC; irb++) {
                 vmovups(ptr[t + irb*BUFFER_BLOCK + BUFFER_NEXT_OFFSET], xmm1);
             }
-            tag = 'l';
         }
 
         int LSREST = LSB % BWD_RBC;
         int LS = LSB - LSREST;
 
-        jit_tagged_label lrn_loop("lrn_loop", tag);
+        Label lrn_loop;
 
         if (LS > 0) {
             mov(hw, LS);

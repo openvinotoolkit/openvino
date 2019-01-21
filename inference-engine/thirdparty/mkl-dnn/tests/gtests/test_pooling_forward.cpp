@@ -132,8 +132,9 @@ void check_pool_fwd(const pool_test_params &p, const memory &src,
                 num_summands = pd.kw * pd.kh * pd.kd;
             }
 
-            if (p.aalgorithm == pooling_avg_include_padding ||
-                p.aalgorithm == pooling_avg_exclude_padding) {
+            if ((p.aalgorithm == pooling_avg_include_padding ||
+                p.aalgorithm == pooling_avg_exclude_padding) &&
+                num_summands)  {
                 acc_ref = out_round<data_t>(
                     (float)acc_ref / num_summands);
             }

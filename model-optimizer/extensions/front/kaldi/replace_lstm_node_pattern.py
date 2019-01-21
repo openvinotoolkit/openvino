@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2018 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,14 +13,20 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import copy
+import numpy as np
 
 import networkx as nx
 
+from mo.front.caffe.extractors.utils import embed_input
 from mo.front.common.replacement import FrontReplacementOp
-from mo.front.kaldi.extractor import common_kaldi_fields
-from mo.front.kaldi.utils import KaldiNode
-from mo.graph.graph import Node, unique_id as unique_node_id
+from mo.graph.graph import Node
+from mo.ops.activation import Activation
+from mo.ops.clamp import Clamp
+from mo.ops.eltwise import Eltwise
+from mo.ops.inner_product import InnerProduct
+from mo.ops.memory import Memory
+from mo.ops.scale_shift import ScaleShiftOp
+from mo.ops.split import Split
 
 
 def unique_id(prefix: str = 'id') -> str:
@@ -40,90 +46,50 @@ def unique_id(prefix: str = 'id') -> str:
 unique_id.names = []
 
 
-def create_node(graph: nx.MultiDiGraph, name: str, attrs: dict, inputs: tuple = (), out_indexes: tuple = ([0]),
-                weights=None, biases=None):
-    """
-    Create node with name 'name' and attributes from 'attrs'.
-    Incoming edges for the node creates from nodes with id from 'inputs'
-    Outgoing edges for the node creates to nodes with id from 'out_indexes'
-    :param graph: graph to operate on.
-    :param name: name how to save added node.
-    :param attrs: optional attributes to be set. Attributes of the node
-    :param inputs: tuple of ids inputs nodes
-    :param out_indexes: tuple of ids outputs nodes
-    :param weights: np.array of weights
-    :param biases: np.array of biases
-    :return:
-    """
-    unique_name = unique_node_id(graph, '{}_'.format(name))
-    layer = KaldiNode(unique_name)
-    layer.set_weight(weights)
-    layer.set_bias(biases)
-    layer.set_attrs(attrs)
-
-    graph.add_node(unique_name, pb=layer, kind='op')
-    new_graph_node = Node(graph, unique_name)
-    graph.node[unique_name].update(common_kaldi_fields(new_graph_node))
-
-    edge_attrs = {
-        'out': 0,
-        'in': 0,
-        'name': layer.name,
-        'fw_tensor_debug_info': [('', layer.name)],  # debug anchor for a framework tensor name and port
-        'in_attrs': ['in', 'name'],
-        'out_attrs': ['out', 'name'],
-        'data_attrs': ['fw_tensor_debug_info']
-    }
-
-    edges = []
-    for index, noe_id in enumerate(inputs):
-        attrs = copy.deepcopy(edge_attrs)
-        attrs['fw_tensor_debug_info'] = [(Node(graph, noe_id).soft_get('name'), None)]
-        if index < len(out_indexes):
-            attrs['out'] = out_indexes[index]
-        attrs['in'] = index
-        edges.append((noe_id, new_graph_node.id, attrs))
-
-    graph.add_edges_from(edges)
-
-    return new_graph_node
-
-
 class ReplaceLSTMNodePattern(FrontReplacementOp):
-    op = "LSTMProjectedStreams"
+    op = "LSTMCell"
     enabled = True
 
     def replace_op(self, graph: nx.MultiDiGraph, node: Node):
-        input_node = node.in_nodes()[0]
-        out_node = node.out_node()
+        input_node = node.in_node()
 
         memory_pair_input = unique_id('id')
         memory_pair_output = unique_id('id')
-        # Input -> FullyConnected
-        fc_layer_after_input = create_node(graph, 'input_fullyconnected',
-                                           dict(type='FullyConnected',
-                                                num_output=node.pb.gifo_x_weights_shape[0],
-                                                bias_term=True),
-                                           tuple([input_node.id]),
-                                           weights=node.pb.gifo_x_weights,
-                                           biases=node.pb.gifo_biases)
 
-        prev_lstm_output_node = create_node(graph, 'prev_memory_output',
-                                            dict(type='Memory', id=memory_pair_input, index=1, size=2))
+        # Input -> FullyConnected
+        fc_layer_after_input_attrs = {'name': 'input_fullyconnected',
+                                      'num_output': node.gifo_x_weights_shape[0],
+                                      'bias_term': True
+                                      }
+
+        embed_input(fc_layer_after_input_attrs, 1, 'weights', node.gifo_x_weights)
+        embed_input(fc_layer_after_input_attrs, 2, 'biases', node.gifo_biases)
+        fc_layer_after_input = InnerProduct(graph, fc_layer_after_input_attrs).create_node([input_node])
+
+        prev_lstm_output = Memory(graph, {'name': 'prev_memory_output',
+                                          'id': memory_pair_input,
+                                          'index': 1,
+                                          'size': 2,
+                                          'shape': np.array([node.gifo_r_weights_shape[1]], dtype=np.int64)
+                                          }).create_node()
 
         # *Memory(output) -> FullyConnected
-        fc_layer_from_prev_state = create_node(graph, 'prev_memory_output_fullyconnected',
-                                               dict(type='FullyConnected', num_output=node.pb.gifo_r_weights_shape[0],
-                                                    bias_term=False),
-                                               tuple([prev_lstm_output_node.id]),
-                                               weights=node.pb.gifo_r_weights)
+        fc_layer_from_prev_state_attrs = {'name': 'prev_memory_output_fullyconnected',
+                                          'num_output': node.gifo_r_weights_shape[0],
+                                          'bias_term': False
+                                          }
+
+        embed_input(fc_layer_from_prev_state_attrs, 1, 'weights', node.gifo_r_weights)
+        fc_layer_from_prev_state = InnerProduct(graph, fc_layer_from_prev_state_attrs).create_node(
+            [prev_lstm_output])
 
         # Memory -> FullyConnected  \
         #                           *Eltwise(sum)
         # Input -> FullyConnected   /
-        join_input_prev_state_sum_node = create_node(graph, 'join_input_eltwise',
-                                                     dict(type='Eltwise', operation='sum'),
-                                                     tuple([fc_layer_from_prev_state.id, fc_layer_after_input.id]))
+        join_input_prev_state_sum = Eltwise(graph, {'name': 'join_input_eltwise',
+                                                    'operation': 'sum'
+                                                    }).create_node([fc_layer_from_prev_state,
+                                                                    fc_layer_after_input])
 
         # *Eltwise(sum) -> Split
         # it is split into 4 nodes: Act, Eltw*3
@@ -134,154 +100,151 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         #     |\
         #     | \__(3)Eltwise(sum)
         #     |____(4)Eltwise(sum)
-        split_joined_input = create_node(graph, 'join_input_split',
-                                         dict(type='Split', axis=None, num_split=4),
+        split_joined_input = Split(graph, {'name': 'join_input_split',
+                                           'axis': 1,
+                                           'num_split': 4
+                                           }).create_node([join_input_prev_state_sum])
 
-                                         tuple([join_input_prev_state_sum_node.id]))
-
-        prev_lstm_state_node = create_node(graph, 'prev_memory_state',
-                                           dict(type='Memory', id=memory_pair_output, index=1, size=2))
+        prev_lstm_state = Memory(graph, {'name': 'prev_memory_state',
+                                         'id': memory_pair_output,
+                                         'index': 1,
+                                         'size': 2,
+                                         'shape': np.array([node.input_gate_weights.shape[0]], dtype=np.int64)
+                                         }).create_node()
 
         # *Memory(state) -> *ScaleShift(input)
-        state_input_scaleshift_node = create_node(graph, 'input_scaleshift',
-                                                  dict(type='ScaleShift', bias_term=False),
-                                                  tuple([prev_lstm_state_node.id]),
-                                                  weights=node.pb.input_gate_weights)
+        state_input_scaleshift_attrs = {'name': 'input_scaleshift',
+                                        'bias_term': False
+                                        }
+        embed_input(state_input_scaleshift_attrs, 1, 'weights', node.input_gate_weights)
+        state_input_scaleshift = ScaleShiftOp(graph, state_input_scaleshift_attrs).create_node([prev_lstm_state])
 
         # *Memory(state) -> *ScaleShift(forget)
-        state_forget_scaleshift_node = create_node(graph, 'forget_scaleshift',
-                                                   dict(type='ScaleShift', bias_term=False),
-                                                   tuple([prev_lstm_state_node.id]),
-                                                   weights=node.pb.forget_gate_weights)
+        state_forget_scaleshift_attrs = {'name': 'forget_scaleshift',
+                                         'bias_term': False
+                                         }
+        embed_input(state_forget_scaleshift_attrs, 1, 'weights', node.forget_gate_weights)
+        state_forget_scaleshift = ScaleShiftOp(graph, state_forget_scaleshift_attrs).create_node([prev_lstm_state])
 
         # Split                                 \
         #                                       (2)Eltwise(sum)
         # Memory(state) -> *ScaleShift(input)  /
-        join_prev_lstm_input_joined_input_sum_node = create_node(graph, 'join_prev_lstm_input_joined_input_eltwise',
-                                                                 dict(type='Eltwise', operation='sum'),
-                                                                 tuple([
-                                                                     split_joined_input.id,
-                                                                     state_input_scaleshift_node.id
-                                                                 ]), out_indexes=(1, 0))
-
+        join_prev_lstm_input_joined_input_sum = Eltwise(graph, {'name': 'join_prev_lstm_input_joined_input_eltwise',
+                                                                'operation': 'sum'
+                                                                }).create_node([(split_joined_input, 1),
+                                                                                state_input_scaleshift
+                                                                                ])
         # Split                                 \
         #                                       (3)Eltwise(sum)
         # Memory(state) -> *ScaleShift(forget)  /
-        join_prev_lstm_input_joined_forget_sum_node = create_node(graph, 'join_prev_lstm_input_joined_forget_sum',
-                                                                  dict(type='Eltwise', operation='sum'),
-                                                                  tuple([
-                                                                      split_joined_input.id,
-                                                                      state_forget_scaleshift_node.id
-                                                                  ]),
-                                                                  out_indexes=(2, 0))
+        join_prev_lstm_input_joined_forget_sum = Eltwise(graph, {'name': 'join_prev_lstm_input_joined_forget_sum',
+                                                                 'operation': 'sum'
+                                                                 }).create_node([(split_joined_input, 2),
+                                                                                 state_forget_scaleshift
+                                                                                 ])
 
         # Split -> Tanh
-        remember_tahn = create_node(graph, 'remember_tahn',
-                                    dict(type='Activation', operation='tanh'),
-                                    tuple([split_joined_input.id]), out_indexes=(0,))
+        remember_tahn = Activation(graph, {'name': 'remember_tahnv',
+                                           'operation': 'tanh'
+                                           }).create_node([(split_joined_input, 0)])
 
         # Split -> (2)Eltwise(sum) -> *Sigmoid
-        remember_sigmoid = create_node(graph, 'remember_sigmoid',
-                                       dict(type='Activation', operation='sigmoid'),
-                                       tuple([join_prev_lstm_input_joined_input_sum_node.id]))
+        remember_sigmoid = Activation(graph, {'name': 'remember_sigmoid',
+                                              'operation': 'sigmoid'
+                                              }).create_node(
+            [join_prev_lstm_input_joined_input_sum])
 
         # Split -> (3)Eltwise(sum) -> **Sigmoid
-        forget_sigmoid = create_node(graph, 'forget_sigmoid',
-                                     dict(type='Activation', operation='sigmoid'),
-                                     tuple([join_prev_lstm_input_joined_forget_sum_node.id]))
+        forget_sigmoid = Activation(graph, {'name': 'forget_sigmoid',
+                                            'operation': 'sigmoid'
+                                            }).create_node(
+            [join_prev_lstm_input_joined_forget_sum])
 
         # *Memory(state)                        \
         #                                       (6)Eltwise(mul)
         # Split -> (3)Eltwise(sum) -> **Sigmoid /
-        join_forget_prev_state_mul_node = create_node(graph, 'join_forget_prev_state_mul',
-                                                      dict(type='Eltwise', operation='mul'),
-                                                      tuple([
-                                                          forget_sigmoid.id,
-                                                          prev_lstm_state_node.id
-                                                      ]))
+        join_forget_prev_state_mul = Eltwise(graph, {'name': 'join_forget_prev_state_mul',
+                                                     'operation': 'mul'
+                                                     }).create_node(
+            [forget_sigmoid, prev_lstm_state])
 
         # Split -> Tahn                         \
         #                                       (5)Eltwise(mul)
         # Split -> (2)Eltwise(sum) -> *Sigmoid   /
-        join_remember_candidates_mul_node = create_node(graph, 'join_remember_candidates_mul',
-                                                        dict(type='Eltwise', operation='mul'),
-                                                        tuple([
-                                                            remember_tahn.id,
-                                                            remember_sigmoid.id,
-                                                        ]))
+        join_remember_candidates_mul = Eltwise(graph, {'name': 'join_remember_candidates_mul',
+                                                       'operation': 'mul'
+                                                       }).create_node(
+            [remember_tahn, remember_sigmoid])
 
         # (5)Eltwise(mul)  \
         #               (7)Eltwise(sum)
         # (6)Eltwise(mul)   /
-        join_forget_remember_sum_node = create_node(graph, 'join_forget_remember_sum',
-                                                    dict(type='Eltwise', operation='sum'),
-                                                    tuple([
-                                                        join_forget_prev_state_mul_node.id,
-                                                        join_remember_candidates_mul_node.id,
-                                                    ]))
+        join_forget_remember_sum = Eltwise(graph, {'name': 'join_forget_remember_sum',
+                                                   'operation': 'sum'
+                                                   }).create_node(
+            [join_forget_prev_state_mul, join_remember_candidates_mul])
 
         # (7)Eltwise(sum) -> Clamp
-        join_forget_clamp_node = create_node(graph, 'join_forget_clamp',
-                                             dict(type='Clamp', max=node.pb.clip_value, min=-node.pb.clip_value),
-                                             tuple([join_forget_remember_sum_node.id]))
-
+        join_forget_clamp = Clamp(graph, {'name': 'join_forget_clamp',
+                                          'max': node.clip_value,
+                                          'min': -node.clip_value
+                                          }).create_node(
+            [join_forget_remember_sum])
+        #
         # Clamp -> (2)Memory(state)
-        next_lstm_state_node = create_node(graph, 'next_lstm_state',
-                                           dict(type='Memory', id=memory_pair_output, index=0, size=2),
-                                           tuple([join_forget_clamp_node.id]))
+        Memory(graph, {'name': 'next_lstm_state',
+                       'id': memory_pair_output,
+                       'index': 0,
+                       'size': 2,
+                       'shape': np.array([node.input_gate_weights.shape[0]], dtype=np.int64)
+                       }).create_node([join_forget_clamp])
 
         # Clamp -> (2)Tahn
-        state_filtered_tahn_node = create_node(graph, 'state_filtered_tahn',
-                                               dict(type='Activation', operation='tanh'),
-                                               tuple([join_forget_clamp_node.id]))
+        state_filtered_tahn = Activation(graph, {'name': 'state_filtered_tahn',
+                                                 'operation': 'tanh'
+                                                 }).create_node([join_forget_clamp])
 
         # Clamp -> (2)ScaleShift
-        clamp_scaleshift_node = create_node(graph, 'clamp_scaleshift',
-                                            dict(type='ScaleShift', bias_term=False),
-                                            tuple([join_forget_clamp_node.id]),
-                                            weights=node.pb.output_gate_weights)
+        clamp_scaleshift_attrs = {'name': 'clamp_scaleshift',
+                                  'bias_term': False}
+        embed_input(clamp_scaleshift_attrs, 1, 'weights', node.output_gate_weights)
+        clamp_scaleshift = ScaleShiftOp(graph, clamp_scaleshift_attrs).create_node([join_forget_clamp])
 
         # Split                 \
         #                       (4)Eltwise(sum)
         # Clamp -> (2)ScaleShift /
-        join_next_lstm_input_joined_input_sum_node = create_node(graph, 'join_next_lstm_input_joined_input_sum',
-                                                                 dict(type='Eltwise', operation='sum'),
-                                                                 tuple([
-                                                                     split_joined_input.id,
-                                                                     clamp_scaleshift_node.id
-                                                                 ]),
-                                                                 out_indexes=(3, 0))
+        join_next_lstm_input_joined_input_sum = Eltwise(graph, {'name': 'join_next_lstm_input_joined_input_sum',
+                                                                'operation': 'sum'
+                                                                }).create_node([(split_joined_input, 3), clamp_scaleshift])
 
         # (4)Eltwise(sum) -> (3)Sigmoid
-        output_sigmoid = create_node(graph, 'output_sigmoid',
-                                     dict(type='Activation', operation='sigmoid'),
-                                     tuple([join_next_lstm_input_joined_input_sum_node.id]))
+        output_sigmoid = Activation(graph, {'name': 'output_sigmoid',
+                                            'operation': 'sigmoid'
+                                            }).create_node(
+            [join_next_lstm_input_joined_input_sum])
 
         # (4)Eltwise(sum) -> (3)Sigmoid         \
         #                                       (5)Eltwise(mul)
         # Clamp -> (2)Tahn                      /
-        joined_output_mul_node = create_node(graph, 'joined_output_mul',
-                                             dict(type='Eltwise', operation='mul'),
-                                             tuple([
-                                                 state_filtered_tahn_node.id,
-                                                 output_sigmoid.id
-                                             ]))
+        joined_output_mul = Eltwise(graph, {'name': 'joined_output_mul',
+                                            'operation': 'mul'
+                                            }).create_node([state_filtered_tahn, output_sigmoid])
 
         # (5)Eltwise(mul) -> (3)FullyConnected
-        fc_output_node = create_node(graph, 'FullyConnected',
-                                     dict(type='FullyConnected', num_output=node.pb.projection_weights_shape[0],
-                                          bias_term=False),
-                                     tuple([joined_output_mul_node.id]),
-                                     weights=node.pb.projection_weights)
+        fc_output_attrs = {'name': 'FullyConnected',
+                           'num_output': node.projection_weights_shape[0],
+                           'bias_term': False}
+        embed_input(fc_output_attrs, 1, 'weights', node.projection_weights)
+        fc_output = InnerProduct(graph, fc_output_attrs).create_node([joined_output_mul])
 
         #                   / (2)Memory(output)
         # (3)FullyConnected
         #                   \ Output (any next node) (edge created automatically after replacement)
-        create_node(graph, 'next_lstm_output',
-                    dict(type='Memory', id=memory_pair_input, index=0, size=2),
-                    tuple([fc_output_node.id]))
+        Memory(graph, {'name': 'next_lstm_output',
+                       'id': memory_pair_input,
+                       'index': 0,
+                       'size': 2,
+                       'shape': np.array([node.gifo_r_weights_shape[1]], dtype=np.int64)
+                       }).create_node([fc_output])
 
-        graph.remove_edges_from([input_node.id, node.id])
-        graph.remove_edges_from([node.id, out_node.id])
-
-        return [fc_output_node.id]
+        return [fc_output.id]

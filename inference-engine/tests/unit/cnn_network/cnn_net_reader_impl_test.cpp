@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1832,4 +1831,265 @@ TEST_F(CNNNetReaderImplTest, canRead3DPooling) {
     ASSERT_EQ(pool->_pads_end[X_AXIS], 5);
     ASSERT_EQ(pool->_pads_end[Y_AXIS], 3);
     ASSERT_EQ(pool->_pads_end[Z_AXIS], 1);
+}
+
+TEST_F(CNNNetReaderImplTest, canParseWithoutInput_1to2) {
+    std::string model = R"V0G0N(
+<net batch="1" name="SimpleNet" version="2">
+    <layers>
+        <layer id="1" name="Boo" precision="FP32" type="Split">
+            <data operation="sum"/>
+            <input>
+                <port id="0">
+                    <dim>2</dim>
+                    <dim>16</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>16</dim>
+                </port>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>16</dim>
+                </port>
+            </output>
+        </layer>
+    </layers>
+</net>
+    )V0G0N";
+
+    CNNNetReaderImpl reader(make_shared<V2FormatParserCreator>());
+    sts = reader.ReadNetwork(model.data(), model.length(), &resp);
+    ASSERT_EQ(OK, sts) << resp.msg;
+
+    auto net = reader.getNetwork(&resp);
+    ASSERT_NE(nullptr, net ) << resp.msg;
+
+    InputsDataMap in_map;
+    OutputsDataMap out_map;
+    net->getInputsInfo(in_map);
+    net->getOutputsInfo(out_map);
+
+    ASSERT_EQ(in_map.size(), 1); auto i = in_map.begin();
+    ASSERT_EQ(i++->second->name(), "Boo");
+
+    ASSERT_EQ(out_map.size(), 2); auto o = out_map.begin();
+    ASSERT_EQ(o++->second->getName(), "Boo.0");
+    ASSERT_EQ(o++->second->getName(), "Boo.1");
+}
+
+TEST_F(CNNNetReaderImplTest, canParseWithoutInput_2to1) {
+    std::string model = R"V0G0N(
+<net batch="1" name="SimpleNet" version="2">
+    <layers>
+        <layer id="1" name="Foo" precision="FP32" type="Eltwise">
+            <data operation="sum"/>
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>16</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>16</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>16</dim>
+                </port>
+            </output>
+        </layer>
+    </layers>
+</net>
+    )V0G0N";
+
+    CNNNetReaderImpl reader(make_shared<V2FormatParserCreator>());
+    sts = reader.ReadNetwork(model.data(), model.length(), &resp);
+    ASSERT_EQ(OK, sts) << resp.msg;
+
+    auto net = reader.getNetwork(&resp);
+    ASSERT_NE(nullptr, net ) << resp.msg;
+
+    InputsDataMap in_map;
+    OutputsDataMap out_map;
+    net->getInputsInfo(in_map);
+    net->getOutputsInfo(out_map);
+
+    ASSERT_EQ(in_map.size(), 2); auto i = in_map.begin();
+    ASSERT_EQ(i++->second->name(), "Foo.0");
+    ASSERT_EQ(i++->second->name(), "Foo.1");
+
+    ASSERT_EQ(out_map.size(), 1); auto o = out_map.begin();
+    ASSERT_EQ(o++->second->getName(), "Foo");
+}
+
+TEST_F(CNNNetReaderImplTest, canParseSimpleTI) {
+        std::string model = R"V0G0N(
+<net batch="1" name="Simple_TI" version="4">
+    <layers>
+        <layer id="0" name="input" precision="FP32" type="Input">
+            <output>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>5</dim>
+                    <dim>16</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="Bias" precision="FP32" type="Const">
+            <output>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>16</dim>
+                </port>
+            </output>
+            <blobs>
+                <custom offset="0" size="64"/>
+            </blobs>
+        </layer>
+        <layer id="2" name="SomeTI" precision="FP32" type="TensorIterator">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>5</dim>
+                    <dim>16</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>16</dim>
+                </port>
+            </input>
+            <output>
+                <port id="3">
+                    <dim>1</dim>
+                    <dim>5</dim>
+                    <dim>16</dim>
+                </port>
+            </output>
+            <port_map>
+                <input  external_port_id="0" internal_layer_id="0" internal_port_id="0" axis="1" />
+                <input  external_port_id="1" internal_layer_id="1" internal_port_id="1"/>
+                <output external_port_id="3" internal_layer_id="2" internal_port_id="1" axis="1" />
+            </port_map>
+            <back_edges>
+                <edge from-layer="1" from-port="2" to-layer="1" to-port="1"/>
+            </back_edges>
+            <body>
+                <layers>
+                    <layer id="0" name="TI_reshape_in" precision="FP32" type="Reshape">
+                        <data axis="0" dim="1,512" num_axes="-1"/>
+                        <input>
+                            <port id="0">
+                                <dim>1</dim>
+                                <dim>1</dim>
+                                <dim>16</dim>
+                            </port>
+                        </input>
+                        <output>
+                            <port id="1">
+                                <dim>1</dim>
+                                <dim>16</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer id="1" name="TI_sum" precision="FP32" type="Eltwise">
+                        <data operation="sum"/>
+                        <input>
+                            <port id="0">
+                                <dim>1</dim>
+                                <dim>16</dim>
+                            </port>
+                            <port id="1">
+                                <dim>1</dim>
+                                <dim>16</dim>
+                            </port>
+                        </input>
+                        <output>
+                            <port id="2">
+                                <dim>1</dim>
+                                <dim>16</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer id="2" name="TI_reshape_out" precision="FP32" type="Reshape">
+                        <data axis="0" dim="1,1,256" num_axes="-1"/>
+                        <input>
+                            <port id="0">
+                                <dim>1</dim>
+                                <dim>16</dim>
+                            </port>
+                        </input>
+                        <output>
+                            <port id="1">
+                                <dim>1</dim>
+                                <dim>1</dim>
+                                <dim>16</dim>
+                            </port>
+                        </output>
+                    </layer>
+                </layers>
+                <edges>
+                    <edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
+                    <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+                </edges>
+            </body>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+    </edges>
+</net>
+    )V0G0N";
+
+        CNNNetReaderImpl reader(make_shared<V2FormatParserCreator>());
+        sts = reader.ReadNetwork(model.data(), model.length(), &resp);
+        ASSERT_EQ(OK, sts) << resp.msg;
+
+        auto network = reader.getNetwork(&resp);
+        ASSERT_NE(nullptr, network ) << resp.msg;
+
+        CNNLayerPtr layer;
+        sts = network->getLayerByName("SomeTI", layer, &resp);
+        ASSERT_EQ(OK, sts) << resp.msg;
+
+        auto *ti = dynamic_cast<TensorIterator*>(layer.get());
+        ASSERT_NE(nullptr, ti);
+        ASSERT_EQ(ti->type, "TensorIterator");
+
+        //  Check Input port mapping
+        ASSERT_EQ(ti->input_port_map.size(), 2);
+        int i = ti->input_port_map[0].axis == 1 ? 0 : 1;
+        ASSERT_EQ(ti->input_port_map[i].axis, 1);
+        ASSERT_EQ(ti->input_port_map[i].stride, 1);
+        ASSERT_EQ(ti->input_port_map[i].start, 0);
+        ASSERT_EQ(ti->input_port_map[i].end, -1);
+        ASSERT_EQ(ti->input_port_map[i].part_size, 1);
+        ASSERT_EQ(ti->input_port_map[1-i].axis, -1);
+        ASSERT_EQ(ti->input_port_map[1-i].stride, 1);
+        ASSERT_EQ(ti->input_port_map[1-i].start, 0);
+        ASSERT_EQ(ti->input_port_map[1-i].end, -1);
+        ASSERT_EQ(ti->input_port_map[1-i].part_size, 1);
+
+        //  Check Output port mapping
+        ASSERT_EQ(ti->output_port_map.size(), 1);
+        ASSERT_EQ(ti->output_port_map[0].axis, 1);
+        ASSERT_EQ(ti->output_port_map[0].stride, 1);
+        ASSERT_EQ(ti->output_port_map[0].start, 0);
+        ASSERT_EQ(ti->output_port_map[0].end, -1);
+        ASSERT_EQ(ti->output_port_map[0].part_size, 1);
+
+        //  No back edges
+        ASSERT_EQ(ti->back_edges.size(), 1);
+        ASSERT_EQ(ti->back_edges[0].from, 0);
+        ASSERT_EQ(ti->back_edges[0].to, 1);
+        ASSERT_EQ(ti->back_edges[0].axis, -1);
+        ASSERT_EQ(ti->back_edges[0].stride, 1);
+        ASSERT_EQ(ti->back_edges[0].start, 0);
+        ASSERT_EQ(ti->back_edges[0].end, -1);
+        ASSERT_EQ(ti->back_edges[0].part_size, 1);
 }

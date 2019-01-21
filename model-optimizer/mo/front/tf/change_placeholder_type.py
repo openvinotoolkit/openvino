@@ -36,6 +36,8 @@ def change_placeholders_types_to_FP32(graph: nx.MultiDiGraph):
             if all([is_node_casts_to_float(op) and len(op.in_nodes()) == 1 for op in next_ops]):
                 change_node_type(node, tf_types.DT_FLOAT)
                 remove_node_preserving_edges(node, next_ops)  # remove 'Cast' nodes
+            elif all([is_node_gather(op) for op in next_ops] for op in next_ops):
+                change_node_type(node, tf_types.DT_FLOAT)
             else:
                 raise Error(
                     ('Cannot convert type of placeholder "{}" because not all of its outputs are "Cast" to float '
@@ -50,6 +52,11 @@ def change_placeholders_types_to_FP32(graph: nx.MultiDiGraph):
 def is_node_casts_to_float(node: Node):
     attrs = node.graph.node[node.id]
     return 'pb' in attrs and attrs['pb'].op == 'Cast' and attrs['pb'].attr['DstT'].type == tf_types.DT_FLOAT
+
+
+def is_node_gather(node: Node):
+    attrs = node.graph.node[node.id]
+    return 'pb' in attrs and attrs['pb'].op == 'GatherV2' and attrs['precision'] == 'FP32'
 
 
 def change_node_type(node: Node, new_type: type):

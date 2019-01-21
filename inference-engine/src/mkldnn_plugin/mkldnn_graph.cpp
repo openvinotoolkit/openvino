@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +10,7 @@
 #include <limits>
 #include <fstream>
 #include <unordered_map>
+#include <memory>
 #include "details/caseless.hpp"
 
 #include "mkldnn_graph.h"
@@ -24,7 +24,6 @@
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn/omp_manager.h"
-#include "ie_parallel.hpp"
 #include <graph_tools.hpp>
 #include <cpp_interfaces/ie_executor_manager.hpp>
 #include "ie_algorithm.hpp"
@@ -33,21 +32,34 @@
 #include "mkldnn_async_infer_request.h"
 #include <blob_factory.hpp>
 #include <ie_util_internal.hpp>
+#include <net_pass.h>
+
+#include <mkldnn_graph_dumper.h>
 
 #include <data_stats.h>
-#include "../inference_engine/cnn_network_int8_normalizer.hpp"
+#include "cnn_network_int8_normalizer.hpp"
+#include "ie_memcpy.h"
 
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
 #include "../../thirdparty/mkl-dnn/src/cpu/xbyak/xbyak_util.h"
 
 #include "cnn_network_stats_impl.hpp"
-// #define DEBUG_DUMP_PATH "/temp/path/dump/"
-// #define DEBUG_DUMP_NEW_FOLDER_PER_INFER
-#ifdef DEBUG_DUMP_PATH
-#include "../../thirdparty/mkl-dnn/src/common/memory_desc_wrapper.hpp"
-#include <iomanip>
-// #define DEBUG_BMP_OUTPUT 1
+
+#include "utils/blob_dump.h"
+
+/*****************************************************
+ * Dump capability
+ * Specify path to dump folder in BLOB_DUMP_PATH
+ *****************************************************/
+// #define BLOB_DUMP_PATH "dump"
+
+#ifdef BLOB_DUMP_PATH
+#   define DUMP_DIR        BLOB_DUMP_PATH
+#   define ENABLE_DUMP(_x) { _x ;}
+#else
+#   define DUMP_DIR ""
+#   define ENABLE_DUMP(_x)
 #endif
 
 using namespace mkldnn;
@@ -56,36 +68,10 @@ using namespace MKLDNNPlugin::cpu;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-void BindThreads(mkldnn::engine eng) {
-    static bool alreadyBind = false;
-    if (!alreadyBind) {
-#if IE_THREAD == IE_THREAD_OMP
-        int env_cores = 0;
-        if (getenv("OMP_NUM_THREADS") != nullptr) {
-            try {
-                env_cores = std::stoi(std::string(getenv("OMP_NUM_THREADS")));
-            } catch (...) {
-                env_cores = 0;
-            }
-        }
-#if !(defined(__APPLE__) || defined(_WIN32))
-        OpenMpManager::setGpuDisabled();
-        OpenMpManager::bindOpenMpThreads(env_cores);
-#else
-        int num_cores = env_cores == 0 ? OpenMpManager::getOpenMpThreadNumber() : env_cores;
-        parallel_set_num_threads(num_cores);
-#endif
-#endif
-        alreadyBind = true;
-    }
-}
-
-void MKLDNNGraph::CreateGraph(ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
+void MKLDNNGraph::CreateGraph(const ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
     if (IsReady()) {
         ForgetGraphData();
     }
-
-    if (config.useThreadBinding) BindThreads(eng);
 
     // go over the inputs and create input primitives
     InputsDataMap inputs;
@@ -273,6 +259,9 @@ void MKLDNNGraph::CreateGraph(ICNNNetwork &network, const MKLDNNExtensionManager
 
     CreatePrimitives();
 
+    // Will do it before cleanup. Because it will lose original layers information
+    if (!config.dumpToDot.empty()) dumpToDotFile(config.dumpToDot + "_init.dot");
+
     for (auto &graphNode : graphNodes) {
         graphNode->cleanup();
     }
@@ -378,15 +367,31 @@ void MKLDNNGraph::ParseNode(const CNNLayerPtr& cnnLayer, MKLDNNNodePtr& parent,
     if (exists)
         return;
 
+    if (cnnLayer->blobs.find("ext-scale") != cnnLayer->blobs.end())
+        node->ext_scales = cnnLayer->blobs["ext-scale"];
+
     graphNodes.push_back(node);
 
     size_t count_out = 0;
+    std::vector<ParsedLayer> remaining;
     for (const auto &layer : cnnLayer->outData) {
+        bool first = true;
         for (const auto &data : layer->getInputTo()) {
-            queuelayers.push_back({node, data.second, count_out});
+            if (first) {
+                queuelayers.push_back({node, data.second, count_out});
+                first = false;
+            } else {
+                // TODO: Just to hide bug with port ordering.
+                //       At first step we visit only first connection
+                //       at port. As second we will visit all remaining.
+                //
+                // Not first connection to the port are stored here
+                remaining.push_back({node, data.second, count_out});
+            }
         }
         count_out++;
     }
+    queuelayers.insert(queuelayers.end(), remaining.begin(), remaining.end());
 }
 
 void MKLDNNGraph::InitNodes() {
@@ -416,58 +421,6 @@ void MKLDNNGraph::InitEdges() {
         if (MKLDNNMemoryDesc(parentDesc).getFormat() != MKLDNNMemoryDesc(childDesc).getFormat()) {
             inArgs += (inArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(parentDesc).getFormat());
             outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(childDesc).getFormat());
-        } else if (inArgs.empty() && outArgs.empty()) {
-            // This detailed name disabled by request from ICV team
-#if 0
-            auto parentBlk = parentDesc.getBlockingDesc();
-            auto childBlk = childDesc.getBlockingDesc();
-            std::string order_in, order_out, stride_in, stride_out, dims_in, dims_out, off_in, off_out;
-            for (size_t i = 0; i < parentBlk.getBlockDims().size(); i++) {
-                if (i) {
-                    stride_in += ",";
-                    order_in += ",";
-                    dims_in += ",";
-                    off_in += ",";
-                }
-                stride_in += std::to_string(parentBlk.getStrides()[i]);
-                order_in += std::to_string(parentBlk.getOrder()[i]);
-                dims_in += std::to_string(parentBlk.getBlockDims()[i]);
-                off_in += std::to_string(parentBlk.getOffsetPaddingToData()[i]);
-            }
-            for (size_t i = 0; i < childBlk.getBlockDims().size(); i++) {
-                if (i) {
-                    stride_out += ",";
-                    order_out += ",";
-                    dims_out += ",";
-                    off_out += ",";
-                }
-                stride_out += std::to_string(childBlk.getStrides()[i]);
-                order_out += std::to_string(childBlk.getOrder()[i]);
-                dims_out += std::to_string(childBlk.getBlockDims()[i]);
-                off_out += std::to_string(childBlk.getOffsetPaddingToData()[i]);
-            }
-
-            if (parentBlk.getOffsetPadding() != childBlk.getOffsetPadding()) {
-                inArgs += (inArgs.empty() ? "" : "_") + std::string("off:") + std::to_string(parentBlk.getOffsetPadding());
-                outArgs += (outArgs.empty() ? "" : "_") + std::string("off:") + std::to_string(childBlk.getOffsetPadding());
-            }
-            if (parentBlk.getStrides() != childBlk.getStrides()) {
-                inArgs += (inArgs.empty() ? "" : "_") + std::string("str:") + stride_in;
-                outArgs += (outArgs.empty() ? "" : "_") + std::string("str:") + stride_out;
-            }
-            if (parentBlk.getOrder() != childBlk.getOrder()) {
-                inArgs += (inArgs.empty() ? "" : "_") + std::string("ord:") + order_in;
-                outArgs += (outArgs.empty() ? "" : "_") + std::string("ord:") + order_out;
-            }
-            if (parentBlk.getBlockDims() != childBlk.getBlockDims()) {
-                inArgs += (inArgs.empty() ? "" : "_") + std::string("dim:") + dims_in;
-                outArgs += (outArgs.empty() ? "" : "_") + std::string("dim:") + dims_out;
-            }
-            if (parentBlk.getOffsetPaddingToData() != childBlk.getOffsetPaddingToData()) {
-                inArgs += (inArgs.empty() ? "" : "_") + std::string("offs:") + off_in;
-                outArgs += (outArgs.empty() ? "" : "_") + std::string("offs:") + off_out;
-            }
-#endif
         }
         return inArgs + "_" + outArgs;
     };
@@ -529,7 +482,7 @@ static inline bool isConstOutput(MKLDNNEdgePtr edge) {
 void MKLDNNGraph::AllocateWithReuse() {
     std::vector<std::vector<MKLDNNEdgePtr>> edge_clasters;
 
-    // detect edge clasters which are view on one.
+    // detect edge clusters which are view on one.
     for (auto &edge : graphEdges) {
         MKLDNNEdgePtr par = (edge->getStatus() == MKLDNNEdge::Status::NotAllocated)
                             ? edge->getSharedEdge()
@@ -606,7 +559,7 @@ void MKLDNNGraph::AllocateWithReuse() {
 
             int e_size = block_desk.getOffsetPadding() + 1;  // size in elements (from begin of data to last element)
             for (int j = 0; j < block_desk.getBlockDims().size(); j++)
-                e_size += (block_desk.getBlockDims()[j] - 1 ) * block_desk.getStrides()[j];
+                e_size += (block_desk.getBlockDims()[j] - 1) * block_desk.getStrides()[j];
 
             box.start = std::min(e_start, box.start);
             box.finish = std::max(e_finish, box.finish);
@@ -754,139 +707,9 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             MB_to_process = std::min<int>(config.batchLimit, MB_to_process);
         size_t size_to_copy = intr_blob.GetSize() * MB_to_process / MB;
 
-        memcpy(ext_blob_ptr, intr_blob_ptr, size_to_copy);
+        ie_memcpy(ext_blob_ptr, ext_blob->byteSize(), intr_blob_ptr, size_to_copy);
     }
 }
-
-#ifdef DEBUG_BMP_OUTPUT
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../../thirdparty/stb_lib/stb_image_write.h"
-
-#if defined(_WIN32)
-#define mkdir(dir, mode) _mkdir(dir)
-#endif
-
-void dump_as_bitmaps(const std::string name, const float* data,
-                     const SizeVector& cdims,
-                    mkldnn::impl::memory_format_t format = mkldnn::impl::memory_format::nchw) {
-    std::string dir_name = name + "_bmp_dir/";
-    mkdir(dir_name.c_str(), 0755);
-
-    std::ofstream layer_bmp_log;
-    layer_bmp_log.open(dir_name + "bmp_dump_log.txt");
-    layer_bmp_log << "Format " << format << std::endl;
-
-    if (cdims.size() == 1) {
-        layer_bmp_log << "Only one dimension: " << cdims[0] << std::endl;
-        layer_bmp_log.close();
-        return;
-    }
-
-    SizeVector dims(cdims.rbegin(), cdims.rend());
-
-    size_t x = dims[0], y = dims[1], total_images = 1;
-    size_t img_sz = x*y;
-
-    for (size_t k = 0; k < dims.size(); ++k)
-        if (dims[k])
-            total_images *= dims[k];
-
-    total_images /= img_sz;
-
-    //  sanity checks
-    if (img_sz < 100) {
-        layer_bmp_log << "Image size is too small" << std::endl;
-        layer_bmp_log.close();
-        return;
-    } else if (x < 10 || y < 10 || x > 2048 || y > 2048) {
-        layer_bmp_log << "Dimensions are unapropriate to dump - " << y << "x" << x << std::endl;
-        layer_bmp_log.close();
-        return;
-    } else {
-        float ratio = static_cast<float>(x) / static_cast<float>(y);
-        if (ratio < 1.0) ratio = 1.0 / ratio;
-
-        if (ratio > 8.f) {
-            layer_bmp_log << "Suspicious aspect ratio - " << ratio << std::endl;
-            layer_bmp_log.close();
-            return;
-        }
-    }
-
-    layer_bmp_log << total_images << " images to write ..." << std::endl;
-
-    const float* dataPtr = data;
-    for (size_t img = 0; img < total_images; img++) {
-        std::string img_name = "img" + std::to_string(img) + ".bmp";
-
-        //  copy image plane to separate buffer,
-        //  normalize and convert to 3-channel 8-bit bmp
-        std::vector<float> imgbuf(img_sz);
-        int stride = 1;
-        switch (format) {
-        case mkldnn::impl::memory_format::nChw8c:
-            stride = 8;
-            break;
-        case mkldnn::impl::memory_format::nChw16c:
-            stride = 16;
-            break;
-        case mkldnn::impl::memory_format::nchw:
-        default:
-            break;
-        }
-
-        float maxval = -FLT_MAX, minval = FLT_MAX;
-        for (size_t i = 0; i < y; i++)
-            for (size_t j = 0; j < x; j++) {
-                float val = dataPtr[(i*x + j) * stride];
-                if (val > maxval) maxval = val;
-                if (val < minval) minval = val;
-                imgbuf[i*x + j] = val;
-            }
-
-        if (minval >= 0.f && maxval <= 0.f) {
-            layer_bmp_log << img_name << " all zero." << std::endl;
-        } else {
-            const float mult = 256.f / (maxval - minval);
-            std::vector<unsigned char> bmpbuf(img_sz * 3);
-            unsigned char* bmp_ptr = bmpbuf.data();
-
-            for (int i = 0; i < imgbuf.size(); i++, bmp_ptr += 3) {
-                if (imgbuf[i] >= 0.f && imgbuf[i] <= 0.f) {
-                    bmp_ptr[0] = 65;
-                    bmp_ptr[1] = bmp_ptr[2] = 0;
-                } else {
-                    bmp_ptr[0] = bmp_ptr[1] = bmp_ptr[2] = (unsigned char)((imgbuf[i] - minval) * mult);
-                }
-            }
-
-            //  write bmp file
-            std::string full_name = dir_name + img_name;
-            stbi_write_bmp(full_name.c_str(), x, y, 3, (const void *)bmpbuf.data());
-        }
-
-        switch (format) {
-        case mkldnn::impl::memory_format::nChw8c:
-            if ( ( img & 7 ) < 7 )   dataPtr++;
-            else                dataPtr += img_sz * 8;
-            break;
-        case mkldnn::impl::memory_format::nChw16c:
-            if ( ( img & 15 ) < 15 )    dataPtr++;
-            else                    dataPtr += img_sz * 16;
-            break;
-        case mkldnn::impl::memory_format::nchw:
-        default:
-            dataPtr += img_sz;
-            break;
-        }
-    }
-
-    layer_bmp_log.close();
-}
-#endif
 
 void MKLDNNGraph::Infer(int batch) {
     if (!IsReady()) {
@@ -894,175 +717,20 @@ void MKLDNNGraph::Infer(int batch) {
     }
 
     mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
-#ifdef DEBUG_DUMP_NEW_FOLDER_PER_INFER
-        static int folderIdx = 0;
-        folderIdx++;
-#endif
     for (int i = 0; i < graphNodes.size(); i++) {
         PERF(graphNodes[i]);
 
         if (batch > 0)
             graphNodes[i]->setDynamicBatchLim(batch);
 
+        ENABLE_DUMP(do_before(DUMP_DIR, graphNodes[i]));
+
         if (!graphNodes[i]->isConstant()) {
             IE_PROFILING_AUTO_SCOPE_TASK(graphNodes[i]->profilingTask)
             graphNodes[i]->execute(stream);
         }
 
-#ifdef DEBUG_DUMP_PATH
-        {
-            auto folderName = std::string(DEBUG_DUMP_PATH) +
-#ifdef DEBUG_DUMP_NEW_FOLDER_PER_INFER
-            std::to_string(folderIdx - 1) +
-#endif
-            "/";
-            std::cout << "Try to create logs for " << graphNodes[i]->getName() << std::endl;
-            std::string nodeName = graphNodes[i]->name;
-            std::replace(nodeName.begin(), nodeName.end(), '/', '_');
-            std::ofstream layer_data_dump;
-            for (size_t j = 0; j < graphNodes[i]->getChildEdges().size(); j++) {
-                auto childEdge = graphNodes[i]->getChildEdgeAt(j);
-                std::string childName = graphNodes[i]->getChildEdgeAt(j)->getChild()->getName();
-                std::replace(childName.begin(), childName.end(), '/', '_');
-
-                //  std::string fname = DEBUG_DUMP_PATH + nodeName + "_dst_" + childName + "_" + std::to_string(j) + ".txt";
-                std::string tname = folderName + nodeName + "_dst_" + childName + "_" + std::to_string(j);
-                std::string fname = tname + ".txt";
-                if (graphNodes[i]->getChildEdges().size() == 1) {
-                    fname = folderName + nodeName + "_dst.txt";
-                }
-                layer_data_dump.open(fname);
-                if (layer_data_dump.is_open()) {
-                    float *data = static_cast<float *>(childEdge->getMemory().GetData());
-                    mkldnn::impl::memory_desc_wrapper dst_d(childEdge->getMemory().GetDescriptor().data);
-    #ifdef DEBUG_BMP_OUTPUT
-                    dump_as_bitmaps(tname, data, childEdge->getDims().ToSizeVector(), dst_d.format());
-    #endif
-
-                    layer_data_dump << "shape: ";
-                    for (size_t d = 0; d < childEdge->getDims().ndims(); d++)
-                        layer_data_dump << childEdge->getDims()[d] << " ";
-                    layer_data_dump << "(" << dst_d.nelems() << ")" << std::endl;
-                    if (childEdge->getBlob()->getTensorDesc().getPrecision() == Precision::FP32) {
-                        float *data = childEdge->getBlob()->buffer();
-                        for (size_t bs = 0; bs < dst_d.nelems(); bs++) {
-                            layer_data_dump << std::fixed << std::setprecision(3) << data[dst_d.off_l(bs)] << std::endl;
-                    }
-                    } else if (childEdge->getBlob()->getTensorDesc().getPrecision() == Precision::I8) {
-                        int8_t *data = childEdge->getBlob()->buffer();
-                        for (size_t bs = 0; bs < dst_d.nelems(); bs++) {
-                            layer_data_dump << static_cast<int>(data[dst_d.off_l(bs)]) << std::endl;
-                        }
-                    } else if (childEdge->getBlob()->getTensorDesc().getPrecision() == Precision::U8) {
-                        uint8_t *data = childEdge->getBlob()->buffer();
-                        for (size_t bs = 0; bs < dst_d.nelems(); bs++) {
-                            layer_data_dump << static_cast<int>(data[dst_d.off_l(bs)]) << std::endl;
-                        }
-                    } else if (childEdge->getBlob()->getTensorDesc().getPrecision() == Precision::I32) {
-                        int32_t *data = childEdge->getBlob()->buffer();
-                        for (size_t bs = 0; bs < dst_d.nelems(); bs++) {
-                            layer_data_dump << static_cast<int>(data[dst_d.off_l(bs)]) << std::endl;
-                        }
-                    }
-
-                    layer_data_dump.close();
-                } else {
-                    std::cout << "Cannot create file " << fname << std::endl;
-                }
-            }
-
-            for (size_t p = 0 ; p < graphNodes[i]->getParentEdges().size(); p++) {
-                auto parentEdge = graphNodes[i]->getParentEdgeAt(p);
-                auto parent = parentEdge->getParent();
-                std::string parentName = parent->getName();
-                std::replace(parentName.begin(), parentName.end(), '/', '_');
-                //  std::string fname = folderName + nodeName + "_src_" + parentName + "_" + std::to_string(p) + ".txt";
-                std::string tname = folderName + nodeName + "_src_" + parentName + "_" + std::to_string(p);
-                std::string fname = tname + ".txt";
-                layer_data_dump.open(fname);
-                if (layer_data_dump.is_open()) {
-                    size_t dataSize = graphNodes[i]->getParentEdges()[p].lock()->getMemory().GetSize();
-                    mkldnn::impl::memory_desc_wrapper src_d(graphNodes[i]->getParentEdges()[p]
-                                                                    .lock()->getMemory().GetDescriptor().data);
-    #ifdef DEBUG_BMP_OUTPUT
-                    dump_as_bitmaps(tname, data, parentEdge->getDims().ToSizeVector(), src_d.format());
-    #endif
-                    layer_data_dump << "shape: ";
-                    for (size_t d = 0; d < parentEdge->getDims().ndims(); d++)
-                        layer_data_dump << parentEdge->getDims()[d] << " ";
-                    layer_data_dump << "(" << src_d.nelems() << ")"<< std::endl;
-                    auto precision = graphNodes[i]->getParentEdges()[p].lock()->outputDesc.getPrecision();
-                    if (precision == Precision::FP32) {
-                        float *data = static_cast<float *>(graphNodes[i]->getParentEdges()[p].lock()->getMemory().GetData());
-                        for (size_t bs = 0; bs < dataSize; bs++) {
-                            layer_data_dump << std::fixed << std::setprecision(3) << data[src_d.off_l(bs)] << std::endl;
-                        }
-                    } else if (precision == Precision::I8) {
-                        int8_t *data = static_cast<int8_t *>(graphNodes[i]->getParentEdges()[p].lock()->getMemory().GetData());
-                        for (size_t bs = 0; bs < dataSize; bs++) {
-                            layer_data_dump << static_cast<int>(data[src_d.off_l(bs)]) << std::endl;
-                        }
-                    } else if (graphNodes[i]->getParentEdges()[p].lock()->outputDesc.getPrecision() == Precision::U8) {
-                        uint8_t *data = static_cast<uint8_t *>(graphNodes[i]->getParentEdges()[p].lock()->getMemory().GetData());
-                        for (size_t bs = 0; bs < dataSize; bs++) {
-                            layer_data_dump << static_cast<int>(data[src_d.off_l(bs)]) << std::endl;
-                        }
-                    } else if (graphNodes[i]->getParentEdges()[p].lock()->outputDesc.getPrecision() == Precision::I32) {
-                        int32_t *data = static_cast<int32_t *>(graphNodes[i]->getParentEdges()[p].lock()->getMemory().GetData());
-                        for (size_t bs = 0; bs < dataSize; bs++) {
-                            layer_data_dump << static_cast<int>(data[src_d.off_l(bs)]) << std::endl;
-                        }
-                    } else {
-                        layer_data_dump << "Unsupported precision: " << precision.name() << std::endl;
-                    }
-
-                    layer_data_dump.close();
-                } else {
-                    std::cout << "Cannot create file " << fname << std::endl;
-                }
-            }
-
-            GenericLayer* genericLayer = dynamic_cast<GenericLayer*>(graphNodes[i]->getCnnLayer().get());
-            if (genericLayer != nullptr) {
-                for (auto blob : genericLayer->blobs) {
-                    layer_data_dump.open(folderName + nodeName + "_blob-" + blob.first + ".txt");
-                    if (layer_data_dump.is_open()) {
-                        layer_data_dump << "shape: ";
-                        for (size_t d = 0; d < blob.second->dims().size(); d++)
-                            layer_data_dump << blob.second->dims()[d] << " ";
-                        layer_data_dump << "(" << blob.second->size() << ")"<< std::endl;
-                        if (blob.second->getTensorDesc().getPrecision() == Precision::FP32) {
-                        float *data = blob.second->buffer();
-                        for (size_t bs = 0; bs < blob.second->size(); bs++) {
-                            layer_data_dump << std::fixed << std::setprecision(3) << data[bs] << std::endl;
-                        }
-                        } else if (blob.second->getTensorDesc().getPrecision() == Precision::I8) {
-                            int8_t *data = blob.second->buffer();
-                            for (size_t bs = 0; bs < blob.second->size(); bs++) {
-                                layer_data_dump << static_cast<int>(data[bs]) << std::endl;
-                            }
-                        } else if (blob.second->getTensorDesc().getPrecision() == Precision::U8) {
-                            uint8_t *data = blob.second->buffer();
-                            for (size_t bs = 0; bs < blob.second->size(); bs++) {
-                                layer_data_dump << static_cast<int>(data[bs]) << std::endl;
-                            }
-                        } else if (blob.second->getTensorDesc().getPrecision() == Precision::I32) {
-                            int32_t *data = blob.second->buffer();
-                            for (size_t bs = 0; bs < blob.second->size(); bs++) {
-                                layer_data_dump << static_cast<int>(data[bs]) << std::endl;
-                            }
-                        } else {
-                            layer_data_dump << "Unsupported precision: " << blob.second->getTensorDesc().getPrecision().name() << std::endl;
-                        }
-                        layer_data_dump.close();
-                    } else {
-                        std::cout << "Cannot create file " << folderName << nodeName
-                                  << "_" << blob.first << ".txt" << std::endl;
-                    }
-                }
-            }
-        }
-#endif
+        ENABLE_DUMP(do_after(DUMP_DIR, graphNodes[i]));
     }
 }
 
@@ -1153,6 +821,8 @@ void MKLDNNGraph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEn
     for (int i = 1; i < graphNodes.size(); i++) {
         getPerfMapFor(perfMap, graphNodes[i]);
     }
+
+    if (!config.dumpToDot.empty()) dumpToDotFile(config.dumpToDot + "_perf.dot");
 }
 
 void MKLDNNGraph::setConfig(const Config &cfg) {
@@ -1257,7 +927,56 @@ void MKLDNNGraph::RemoveDroppedEdges() {
     }
 }
 
-bool MKLDNNExecNetwork::CanProcessDynBatch(InferenceEngine::ICNNNetwork &network) const {
+void MKLDNNGraph::dumpToDotFile(std::string file) const {
+    std::ofstream dot;
+    dot.open(file);
+    if (!dot.is_open()) THROW_IE_EXCEPTION << "CPU Plugin cannot create dot file " << file << ".";
+
+    dump_graph_as_dot(*this, dot);
+    dot.close();
+}
+
+void MKLDNNGraph::do_before(const std::string &dir, const MKLDNNNodePtr &node) {
+    auto exec_order = std::to_string(node->execIndex);
+    std::string nodeName = node->name;
+    std::replace(nodeName.begin(), nodeName.end(), '/', '_');
+
+    auto num_ports = node->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size();
+    for (size_t i = 0; i < num_ports; i++) {
+        auto prEdge = node->getParentEdgeAt(i);
+        auto pr = prEdge->getParent();
+
+        auto dump_file = dir + "/#" + exec_order + "_" +  nodeName + "_in" + std::to_string(i) + ".ieb";
+        TensorDesc desc = prEdge->getDesc();
+        Blob::Ptr blob = make_blob_with_precision(desc, prEdge->getMemoryPtr()->GetData());
+
+        BlobDumper dumper(blob);
+        if (pr->ext_scales) dumper.withScales(pr->ext_scales);
+        dumper.dump(dump_file);
+    }
+}
+
+void MKLDNNGraph::do_after(const std::string &dir, const MKLDNNNodePtr &node) {
+    auto exec_order = std::to_string(node->execIndex);
+    auto nodeName = node->name;
+    std::replace(nodeName.begin(), nodeName.end(), '/', '_');
+
+    auto num_ports = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size();
+    for (size_t i = 0; i < num_ports; i++) {
+        auto childEdge = node->getChildEdgeAt(i);
+
+        auto dump_file = dir + "/#" + exec_order + "_" +  nodeName + "_out" + std::to_string(i) + ".ieb";
+        TensorDesc desc = childEdge->getDesc();
+        Blob::Ptr blob = make_blob_with_precision(desc, childEdge->getMemoryPtr()->GetData());
+
+        BlobDumper dumper(blob);
+        if (node->ext_scales) dumper.withScales(node->ext_scales);
+
+        dumper.dump(dump_file);
+    }
+}
+
+bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &network) const {
     InputsDataMap inputs;
     network.getInputsInfo(inputs);
 
@@ -1274,6 +993,11 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(InferenceEngine::ICNNNetwork &network
     bool check_result = true;
     details::UnorderedDFS(allLayers, secondLayers.begin()->second, [&](CNNLayerPtr layer) {
         auto type = TypeFromName(layer->type);
+        // This is WA for Tile layer
+        auto tileLayer = dynamic_cast<TileLayer *>(layer.get());
+        if (tileLayer && tileLayer->axis)
+            return;
+
         if (type != Input &&
             type != Output &&
             type != Convolution &&
@@ -1283,6 +1007,7 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(InferenceEngine::ICNNNetwork &network
             type != Lrn &&
             type != Pooling &&
             type != FullyConnected &&
+            type != Gemm &&
             type != SoftMax &&
             type != Split &&
             type != Concatenation &&
@@ -1301,55 +1026,87 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(InferenceEngine::ICNNNetwork &network
 InferenceEngine::InferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                           InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs);
+    if (graphs.size() > 1)  // streams uses special requests that are not connected to graphs
+        return std::make_shared<MKLDNNGraphlessInferRequest>(networkInputs, networkOutputs);
+    else
+        return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs);
 }
 
-MKLDNNExecNetwork::MKLDNNExecNetwork(InferenceEngine::ICNNNetwork &network,
+MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network,
                                      const Config &cfg,
                                      const MKLDNNExtensionManager::Ptr& extMgr) : extensionManager(extMgr) {
-    graph.reset(new MKLDNNGraph());
-    graph->setConfig(cfg);
+    ICNNNetworkStats* pstats = nullptr;
+    StatusCode s = network.getStats(&pstats, nullptr);
+    // we are cloning network if we have statistics and we can transform network
+    // in other case we pass original network. Especially because LSTM networks
+    // are not cloned properly
+    details::CNNNetworkImplPtr clonedNetwork;
+    if (s == StatusCode::OK && pstats && !pstats->isEmpty()) {
+        CNNNetworkInt8Normalizer cnnorm;
+        clonedNetwork = cloneNet(network);
+        cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
+    }
+    bool ti_proc_ok = !NetPass::CombineLSTMSeq(network) ? NetPass::UnrollTI(network) : true;
+    if (!ti_proc_ok)
+        THROW_IE_EXCEPTION << "Plugin doesn't support Tensor Iterator in pure form. "
+                              "None TI optimization pattern has been applied successfully";
+
 
     if (cfg.batchLimit > 1) {
         // check topology for applicability
-        if (!CanProcessDynBatch(network)) {
+        if (!CanProcessDynBatch(clonedNetwork ? *clonedNetwork : network)) {
             THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
         }
     }
+    // check whether any (affinity-related) envs are set and if user requested thread binding
+    const bool bPinningRequested = !check_env_variables() && cfg.useThreadBinding;
+    // general #threads logic
+    const int env_threads = parallel_get_env_threads();
+    // for streams need all (logical) cores, while single-stream case just physical cores (better for servers), as usual
+    const int hw_cores = cfg.throughputStreams > 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
+    const int threads = cfg.threadsNum ? cfg.threadsNum : (env_threads ? env_threads : hw_cores);
+    const int threads_per_stream = std::max(1, threads/cfg.throughputStreams);
 
-    if (graph->getProperty().exclusiveAsyncRequests) {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor(TargetDeviceInfo::name(TargetDevice::eCPU));
+    // graph(s) initialization in taskExecutor threads (streams), in parallel (in case of streams)
+    std::vector<Task::Ptr> tasks;
+
+    for (int n = 0; n < cfg.throughputStreams; n++) {
+        MKLDNNGraph::Ptr _graph = std::make_shared<MKLDNNGraph>();
+        graphs.push_back(_graph);
+        auto task = std::make_shared<InferenceEngine::Task>([=, &cfg, &network]() {
+            _graph->CreateArena(threads_per_stream);
+
+            if (bPinningRequested) {
+                _graph->CreateObserver(n, threads_per_stream);
+            }
+
+            _graph->setConfig(cfg);
+            _graph->CreateGraph(clonedNetwork ? *clonedNetwork : network, extensionManager);
+            if (cfg.throughputStreams > 1)  // for streams, each worker thread has it's own graph
+                MKLDNNPlugin::MultiWorkerTaskExecutor::ptrContext.ptrGraph = _graph;
+        });
+        tasks.push_back(task);
     }
 
-    // initialization in taskExecutor thread
-    auto task = std::make_shared<InferenceEngine::Task>([&]() {
-        // we are cloning network if we have statistics and we can transform network
-        // in other case we pass original network. Especially because LSTM networks
-        // are not cloned properly
-        ICNNNetworkStats* pstats = nullptr;
-        StatusCode s = network.getStats(&pstats, nullptr);
-        Xbyak::util::Cpu cpu;
-        // Enable int8 only for avx512
-        if (s == StatusCode::OK && pstats && !pstats->isEmpty() && cpu.has(Xbyak::util::Cpu::tAVX512F)) {
-            details::CNNNetworkImplPtr clonnedNetwork = cloneNet(network);
-            CNNNetworkInt8Normalizer cnnorm;
-            cnnorm.NormalizeNetwork(*clonnedNetwork, *pstats);
-            graph->CreateGraph(*clonnedNetwork, extensionManager);
-        } else {
-            graph->CreateGraph(network, extensionManager);
+    if (cfg.throughputStreams > 1) {
+        // special executor with as many threads as requested #streams, each with it's own initialization task
+        _taskExecutor = std::make_shared<MultiWorkerTaskExecutor>(tasks);
+    } else {
+        if (cfg.exclusiveAsyncRequests) {
+            // special case when all InferRequests are muxed into a single queue
+            ExecutorManager *executorManager = ExecutorManager::getInstance();
+            _taskExecutor = executorManager->getExecutor(TargetDeviceInfo::name(TargetDevice::eCPU));
         }
-    });
-
-    _taskExecutor->startTask(task);
-    Task::Status sts = task->wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-
-    if (sts == Task::TS_ERROR) task->checkException();
+        _taskExecutor->startTask(tasks[0]);
+        Task::Status sts = tasks[0]->wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    }
+    for (auto t : tasks)
+        t->checkException();
 }
 
 void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
-    if (graph)  // TODO: graph field cannot be empty
-        graph->setProperty(properties);
+    for (auto g : graphs)
+        g->setProperty(properties);
 }
 
 void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) {
@@ -1362,13 +1119,10 @@ void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &
 
     asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);
 
-    auto mkldnnSyncRequest = dynamic_cast<MKLDNNInferRequest *>(syncRequestImpl.get());
-    if (!mkldnnSyncRequest)
-        THROW_IE_EXCEPTION << " Cannot get mkldnn sync request.";
-    mkldnnSyncRequest->SetGraph(graph);
-}
-
-MKLDNNExecNetwork::~MKLDNNExecNetwork() {
-    graph.reset();
-    extensionManager.reset();
+    if (graphs.size() == 1) {  // single-stream (legacy/hetero) case - single graph for all requests
+        auto mkldnnSyncRequest = dynamic_cast<MKLDNNInferRequest *>(syncRequestImpl.get());
+        if (!mkldnnSyncRequest)
+            THROW_IE_EXCEPTION << " Cannot get mkldnn sync request.";
+        mkldnnSyncRequest->SetGraph(graphs[0]);
+    }
 }

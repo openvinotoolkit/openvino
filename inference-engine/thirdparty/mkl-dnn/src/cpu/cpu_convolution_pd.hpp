@@ -70,14 +70,14 @@ protected:
     inline memory_format_t src_format()
     {
         using namespace memory_format;
-        return (this->cdesc_().src_desc.ndims == 4) ? nchw : ncdhw;
+        return utils::pick(this->cdesc_().src_desc.ndims - 3, ncw, nchw, ncdhw);
     }
     inline memory_format_t wei_format()
     {
         using namespace memory_format;
-        return (this->cdesc_().src_desc.ndims == 4)
-            ? this->with_groups() ? goihw : oihw
-            : this->with_groups() ? goidhw : oidhw;
+        return this->with_groups()
+            ? utils::pick(this->cdesc_().src_desc.ndims - 3, goiw, goihw, goidhw)
+            : utils::pick(this->cdesc_().src_desc.ndims - 3, oiw, oihw, oidhw);
     }
 
     virtual status_t set_default_params() {
@@ -128,14 +128,14 @@ protected:
     inline memory_format_t src_format()
     {
         using namespace memory_format;
-        return (this->desc_.diff_src_desc.ndims == 4) ? nchw : ncdhw;
+        return utils::pick(this->desc_.diff_src_desc.ndims - 3, ncw, nchw, ncdhw);
     }
     inline memory_format_t wei_format()
     {
         using namespace memory_format;
-        return (this->desc_.diff_src_desc.ndims == 4)
-            ? this->with_groups() ? goihw : oihw
-            : this->with_groups() ? goidhw : oidhw;
+        return this->with_groups()
+            ? utils::pick(this->desc_.diff_src_desc.ndims - 3, goiw, goihw, goidhw)
+            : utils::pick(this->desc_.diff_src_desc.ndims - 3, oiw, oihw, oidhw);
     }
 
     virtual status_t set_default_params() {
@@ -192,14 +192,14 @@ protected:
     inline memory_format_t src_format()
     {
         using namespace memory_format;
-        return (this->desc_.src_desc.ndims == 4) ? nchw : ncdhw;
+        return utils::pick(this->desc_.src_desc.ndims - 3, ncw, nchw, ncdhw);
     }
     inline memory_format_t wei_format()
     {
         using namespace memory_format;
-        return (this->desc_.src_desc.ndims == 4)
-            ? this->with_groups() ? goihw : oihw
-            : this->with_groups() ? goidhw : oidhw;
+        return this->with_groups()
+            ? utils::pick(this->desc_.src_desc.ndims - 3, goiw, goihw, goidhw)
+            : utils::pick(this->desc_.src_desc.ndims - 3, oiw, oihw, oidhw);
     }
 
     virtual status_t set_default_params() {

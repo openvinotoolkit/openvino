@@ -2515,6 +2515,9 @@ void program_impl::prepare_buffer_fusing()
             if (remove_bf8_xy_opt)
             {
                 auto users_user_layout = node.get_users().front()->get_users().front()->get_output_layout();
+				// if users_user_layout is still bf8_yx16 (stacked convolutions) then leave the reorder
+				if (users_user_layout.format == format::bf8_xy16)
+					return;
                 auto input_layout = input.get_output_layout();
                 auto target_layout = layout(input_layout.data_type, users_user_layout.format, input_layout.size, input_layout.data_padding);
                 input.set_output_layout(target_layout, false);

@@ -187,7 +187,7 @@ class SimpleProtoParser(object):
         """
         self._split_to_tokens(file_content)
         if not self._convert_tokens_to_dict():
-            log.error('Failed to generate dictionary representation of file with content: {}'.format(file_content))
+            log.error('Failed to generate dictionary representation of file.')
             return None
         return self._result
 

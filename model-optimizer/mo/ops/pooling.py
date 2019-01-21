@@ -92,7 +92,9 @@ class Pooling(Op):
             node['stride'] = np.array([1 for x in range(len(input_shape))], dtype=np.int64)
 
         if node.has_and_set('global_pool'):
+            node['window'] = np.zeros(len(input_shape), dtype=np.int64)
             node.window[node.spatial_dims] = input_spatial_shape
+
         window_spatial_shape = node.window[node.spatial_dims]
         stride_spatial = node.stride[node.spatial_dims]
         assert any(stride_spatial), 'Stride can not be zero in node {}'.format(node.id)

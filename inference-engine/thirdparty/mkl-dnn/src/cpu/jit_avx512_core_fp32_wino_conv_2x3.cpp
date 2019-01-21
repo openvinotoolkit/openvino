@@ -236,7 +236,7 @@ struct jit_avx512_core_fp32_wino_conv_2x3_dst_trans_t: public jit_generator {
     Reg64 reg_oc_block = r8;
 
     Reg64 reg_ptr_bias = rbx;
-    Reg64 reg_ptr_scales = rcx;
+    Reg64 reg_ptr_scales = abi_not_param1;
     Reg64 reg_ptr_sum_scale = rdx;
 };
 
@@ -458,11 +458,11 @@ bool jit_avx512_core_fp32_wino_conv_2x3_fwd_ker_t::post_ops_ok(
    switch (p.len_) {
     case 0: return true;
     case 1: return true
-                && implication(jcp.with_relu, p.contain(sum, 0))
-                && implication(!jcp.with_relu, is_relu(0) || p.contain(sum, 0));
+                && IMPLICATION(jcp.with_relu, p.contain(sum, 0))
+                && IMPLICATION(!jcp.with_relu, is_relu(0) || p.contain(sum, 0));
     case 2: return true
-                && implication(jcp.with_relu, p.contain(sum, 0) && is_relu(1))
-                && implication(!jcp.with_relu, false
+                && IMPLICATION(jcp.with_relu, p.contain(sum, 0) && is_relu(1))
+                && IMPLICATION(!jcp.with_relu, false
                         || (p.contain(sum, 0) && is_relu(1))
                         || (p.contain(sum, 1) && is_relu(0)));
     case 3: return true
@@ -614,12 +614,26 @@ status_t jit_avx512_core_fp32_wino_conv_2x3_fwd_ker_t ::init_conf(
     jcp.r = 3;
     jcp.alpha = jcp.m + jcp.r - 1;
     int simdw = 16;
+    jcp.src_fmt = src_d.format();
+    jcp.with_bias = cd.bias_desc.format != memory_format::undef;
+    jcp.with_relu = with_relu;
+    jcp.relu_negative_slope = relu_negative_slope;
+    if (!IMPLICATION(with_relu, relu_negative_slope == 0.))
+        return status::unimplemented;
+    if (!post_ops_ok(jcp, attr))
+        return status::unimplemented;
 
     bool ok_to_pad_channels = jcp.ngroups == 1;
     if (ok_to_pad_channels) {
         jcp.oc = rnd_up(jcp.oc, simdw);
         jcp.ic = rnd_up(jcp.ic, simdw);
     }
+
+    if (src_d.format() != nChw16c
+            || dst_d.format() != nChw16c
+            || !IMPLICATION(jcp.with_bias,
+                bias_d.format() == x))
+        return status::unimplemented;
 
     jcp.ver = ver_avx512_core;
     if (!(mayiuse(avx512_core)))
@@ -673,15 +687,6 @@ status_t jit_avx512_core_fp32_wino_conv_2x3_fwd_ker_t ::init_conf(
                 || inp_sz > L2_cap * nthr + L3_capacity))
         || (jcp.small_mb && sp_sz > 196))
         return unimplemented;
-
-    jcp.src_fmt = src_d.format();
-    jcp.with_bias = cd.bias_desc.format != memory_format::undef;
-    jcp.with_relu = with_relu;
-    jcp.relu_negative_slope = relu_negative_slope;
-    if (!implication(with_relu, relu_negative_slope == 0.))
-        return status::unimplemented;
-    if (!post_ops_ok(jcp, attr))
-        return status::unimplemented;
 
     jcp.bia_dt = jcp.with_bias ? cd.bias_desc.data_type : data_type::undef;
     jcp.dst_dt = cd.dst_desc.data_type;
@@ -809,7 +814,7 @@ status_t jit_avx512_core_fp32_wino_conv_2x3_fwd_ker_t ::init_conf(
 
     const auto &oscales = attr.output_scales_;
     jcp.is_oc_scale = oscales.mask_ == 1 << 1;
-    assert(utils::implication(!jcp.is_oc_scale, oscales.mask_ == 0));
+    assert(IMPLICATION(!jcp.is_oc_scale, oscales.mask_ == 0));
 
     /* re-create weights primitive descriptor
                                     and set weights wino_blocking */
@@ -826,6 +831,7 @@ status_t jit_avx512_core_fp32_wino_conv_2x3_fwd_ker_t ::init_conf(
     wd.oc_block = jcp.oc_block;
     wd.oc2_block = jcp.n2_block;
     wd.ic2_block = 1;
+    wd.adj_scale = 1.f;
     size_t max_size = sizeof(float) * jcp.alpha * jcp.alpha * jcp.ic * jcp.oc;
     wd.size = max_size;
 
@@ -847,7 +853,7 @@ _jit_avx512_core_fp32_wino_conv_2x3_fwd_t<with_relu>::
         _jit_avx512_core_fp32_wino_conv_2x3_fwd_t(const pd_t *pd,
                 const input_vector &inputs, const output_vector &outputs)
     : cpu_primitive_t(&conf_, inputs, outputs)
-    , conf_(*pd) {
+    , conf_(*pd), padded_bias_(nullptr) {
     const int nthreads = mkldnn_get_max_threads();
     kernel_ = new jit_avx512_core_fp32_wino_conv_2x3_fwd_ker_t(
             conf_.jcp_, *conf_.attr());
@@ -884,9 +890,7 @@ _jit_avx512_core_fp32_wino_conv_2x3_fwd_t<with_relu>
 
     free(wino_src_);
     free(wino_dst_);
-    if (conf_.want_padded_bias()) {
-        free(padded_bias_);
-    }
+    free(padded_bias_);
 }
 
 template <bool with_relu>

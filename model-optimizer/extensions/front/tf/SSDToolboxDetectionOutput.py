@@ -61,8 +61,6 @@ class SSDToolboxDetectionOutputReplacement(FrontReplacementFromConfigFileSubGrap
                                                             dict(name='DetectionOutput_Reshape_priors_'))
         # create Detection Output node with three inputs: locations, confidences and prior boxes
         detection_output_op = DetectionOutput(graph, match.custom_replacement_desc.custom_attributes)
-        detection_output_op.attrs['old_infer'] = detection_output_op.attrs['infer']
-        detection_output_op.attrs['infer'] = __class__.do_infer
         detection_output_node = detection_output_op.create_node(
             [reshape_loc_node, reshape_conf_node, reshape_priors_node],
             dict(name=detection_output_op.attrs['type'] + '_'))
@@ -72,12 +70,3 @@ class SSDToolboxDetectionOutputReplacement(FrontReplacementFromConfigFileSubGrap
         output_op = Output(graph)
         output_op.create_node([detection_output_node], dict(name='sink_'))
         return {}
-
-    @staticmethod
-    def do_infer(node: Node):
-        """
-        This infer function is used to set attribute 'force_precision' in the data node of the prior boxes because
-        it should be in FP32 even if the model has been created in the FP16 or another format.
-        """
-        node.in_node(2)['force_precision'] = 'FP32'
-        node.old_infer(node)

@@ -14,16 +14,16 @@
  limitations under the License.
 """
 
+import logging as log
+
 import networkx as nx
 import numpy as np
 
-from mo.front.common.partial_infer.transpose import transpose_infer
-from mo.front.extractor import attr_getter
-from mo.ops.op import Op
+from mo.ops.op import Op, PermuteAttrs
 
 
 class Pad(Op):
-    ''' Pad operation that explicitly extends an input tensor at edges.
+    """ Pad operation that explicitly extends an input tensor at edges.
         
         This operation frequently appears in TF and rarely in ONNX models
         followed by some windowed operation like convolution or pooling.
@@ -45,15 +45,15 @@ class Pad(Op):
         where pad_begin_dim1 etc. are padding margins in elements. If the second
         input argument is omitted, then it is in 'pads' attribute in the same
         format.
-    '''
+    """
 
     op = 'Pad'
     enabled = True
 
     def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
         super().__init__(graph, {
-            # no 'type' as this operation is not directly supported by IE
             'op': __class__.op,
+            'type': __class__.op,
             'infer': __class__.infer,
             'mode': 'constant',
             'fill_value': float(0),
@@ -64,21 +64,31 @@ class Pad(Op):
         return ['mode', 'fill_value', 'pads']
 
     def backend_attrs(self):
-        # it shouldn't be translated to IE layer
-        return []
+        return [('pad_mode', 'mode'),
+                ('pad_value', 'fill_value'),
+                ('pads_begin', lambda node: ','.join(map(str, node.pads[:, 0]))),
+                ('pads_end', lambda node: ','.join(map(str, node.pads[:, 1]))),
+                ]
 
     @staticmethod
     def infer(node):
+        PermuteAttrs.create_permute_attrs(node, attrs=[('pads', 'input:0')])
+
         if node.has_valid('pads'):
-            assert len(node.in_nodes()) == 1, "Pad operation has pads attribute and unexpected additional input argument for node {}.".format(node.name)
-            padding = node.pads
+            assert len(node.in_nodes()) == 1, "Pad operation has pads attribute and unexpected additional input " \
+                                              "argument for node {}.".format(node.name)
         else:
-            assert len(node.in_nodes()) == 2, "Missing required second input argument for node {} and pads attribute is missing.".format(node.name)
-            padding = node.in_node(1).value
+            assert len(node.in_nodes()) >= 2, "Missing required second input argument for node {} and pads attribute " \
+                                              "is missing.".format(node.name)
+            node.pads = node.in_node(1).value
+            if len(node.in_nodes()) == 3:  # the third input contains the fill value
+                node.fill_value = node.in_node(2).value
+        padding = node.pads
 
         input_shape = node.in_node(0).shape
         if padding is None or input_shape is None:
-            return None
+            log.error('The paddings are not defined for node "{}"'.format(node.soft_get('name')))
+            return
 
         # paddings can be defined, partially defined or undefined
         # TODO for now we only handle fully defined paddings
@@ -99,7 +109,8 @@ class Pad(Op):
 
         # preserve non-positive values in the input shape, because it has a special meaning
         shape = np.array(
-            [shape_change[i] + input_shape[i] if input_shape[i] > 0 else input_shape[i] for i in range(len(input_shape))])
+            [shape_change[i] + input_shape[i] if input_shape[i] > 0 else input_shape[i] for i in
+             range(len(input_shape))])
 
         assert len(node.out_nodes()) == 1
 

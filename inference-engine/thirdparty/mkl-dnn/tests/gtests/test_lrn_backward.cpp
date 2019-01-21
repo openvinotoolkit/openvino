@@ -696,6 +696,15 @@ INSTANTIATE_TEST_CASE_P(
             memory::format::nChw16c, { 2, 192, 56, 56, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
             ));
 
+// This tests compatibility with MKL-DNN 0.14
+INSTANTIATE_TEST_CASE_P(
+        TestLRNRegressionWeightFormat, lrn_test_float,
+        ::testing::Values(
+            lrn_test_params_float{ prop_kind::forward_training,
+            engine::kind::cpu, algorithm::lrn_across_channels, memory::format::oihw,
+            memory::format::oihw, { 2, 64, 56, 56, 1.0e-4f, 0.75f, 1.0f, 5, ACROSS } }
+            ));
+
 // Backward does not support WITHIN yet.
 /*
 INSTANTIATE_TEST_CASE_P(

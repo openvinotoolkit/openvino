@@ -8,13 +8,19 @@
 
 #int8
 --skip-impl=ref
---reset --dir=FWD_B --mb=2
+--reset --allow-unimpl=true --dir=FWD_B --mb=2
 --attr=irmode=down;oscale=per_oc:2.25;
 --cfg=u8s8u8s32 --batch=deconv_2d
 --cfg=u8s8s8s32 --batch=deconv_2d
 --cfg=u8s8s32s32 --batch=deconv_2d
+--cfg=s8s8u8s32 --batch=deconv_2d
+--cfg=s8s8s8s32 --batch=deconv_2d
+--cfg=s8s8s32s32 --batch=deconv_2d
 --attr=irmode=nearest;oscale=common:2.25;
 --attr=irmode=down;oscale=per_oc:2.25;
 --cfg=u8s8u8s32 --batch=deconv_2d
 --cfg=u8s8s8s32 --batch=deconv_2d
 --cfg=u8s8s32s32 --batch=deconv_2d
+--cfg=s8s8u8s32 --batch=deconv_2d
+--cfg=s8s8s8s32 --batch=deconv_2d
+--cfg=s8s8s32s32 --batch=deconv_2d

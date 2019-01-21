@@ -2,11 +2,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
+
 include("features")
 include("mode")
-if (THREADING STREQUAL "OMP")
-    include("omp")
-endif()
 include("itt")
 
 #64 bits platform
@@ -28,17 +26,15 @@ else()
     SET(ENABLE_MKL_DNN OFF)
 endif()
 
-
 #apple specific
 if (APPLE)
+    set(ENABLE_GNA OFF)
     set(ENABLE_CLDNN OFF)
 endif()
 
 
 #minGW specific - under wine no support for downloading file and applying them using git
 if (WIN32)
-    enable_omp()
-
     if (MINGW)
         SET(ENABLE_CLDNN OFF) # dont have mingw dll for linking
         set(ENABLE_SAMPLES OFF)
@@ -61,7 +57,7 @@ if (LINUX)
 endif ()
 
 if (NOT ENABLE_MKL_DNN)
-    set(GEMM OPENBLAS)
+    set(ENABLE_MKL OFF)
 endif()
 
 #next section set defines to be accesible in c++/c code for certain feature
@@ -93,6 +89,10 @@ if (ENABLE_OBJECT_DETECTION_TESTS)
     add_definitions(-DENABLE_OBJECT_DETECTION_TESTS=1)
 endif()
 
+if (ENABLE_GNA)
+    add_definitions(-DENABLE_GNA)
+endif()
+
 if (DEVELOPMENT_PLUGIN_MODE)
     message (STATUS "Enabled development plugin mode")
 
@@ -112,9 +112,5 @@ if (VERBOSE_BUILD)
     set(CMAKE_VERBOSE_MAKEFILE  ON)
 endif()
 
-if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "SEQ")
-    set(ENABLE_INTEL_OMP OFF)
-    message(STATUS "ENABLE_INTEL_OMP should be disabled if THREADING is TBB or Sequential. ENABLE_INTEL_OMP option is " ${ENABLE_INTEL_OMP})
-endif()
 
 print_enabled_features()

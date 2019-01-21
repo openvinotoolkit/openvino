@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +17,10 @@ public:
         try {
             if (layer->insData.size() != 2 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+
+            if (layer->insData[0].lock()->dims.size() != 4 ||
+                    layer->insData[1].lock()->dims.size() != 4)
+                THROW_IE_EXCEPTION << "PriorBoxClustered supports only 4D blobs!";
 
             widths_ = layer->GetParamAsFloats("width", {});
             heights_ = layer->GetParamAsFloats("height", {});

@@ -91,8 +91,9 @@ struct prefetcher_t {
         int cache_latency;
         switch (cache_type_) {
         case L1: cache_latency = 14; break;
-        case L2: cache_latency = 250; break;
-        case L3: cache_latency = 250; break;
+        case L2:
+        case L3:
+        default: cache_latency = 250; break;
         }
 
         prefetch_distance_ = div_up(cache_latency, nb_cache_lines_to_prefetch_);
@@ -636,12 +637,12 @@ bool jit_avx512_common_conv_winograd_fwd_kernel_f32::post_ops_ok(
         return true; // no post_ops
     case 1:
         return true // relu or sum
-                && implication(jcp.with_eltwise, is_sum(0))
-                && implication(!jcp.with_eltwise, is_eltwise(0) || is_sum(0));
+                && IMPLICATION(jcp.with_eltwise, is_sum(0))
+                && IMPLICATION(!jcp.with_eltwise, is_eltwise(0) || is_sum(0));
     case 2:
         return true // sum->relu or relu->sum
-                && implication(jcp.with_eltwise, is_sum(0) && is_eltwise(1))
-                && implication(!jcp.with_eltwise, false
+                && IMPLICATION(jcp.with_eltwise, is_sum(0) && is_eltwise(1))
+                && IMPLICATION(!jcp.with_eltwise, false
                                    || (is_sum(0) && is_eltwise(1))
                                    || (is_eltwise(0) && is_sum(1)));
     case 3:

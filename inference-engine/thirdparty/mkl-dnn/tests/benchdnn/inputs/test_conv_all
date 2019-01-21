@@ -17,12 +17,17 @@
 # i8 (skx)
 --reset --dir=FWD_B --mb=2
 --skip-impl="ref:gemm"      # ! test jit version only
-
+--allow-unimpl=true
 --cfg=u8s8u8s32  --batch=conv_all
 --cfg=u8s8s8s32  --batch=conv_resnet_50
 --cfg=u8s8s32s32 --batch=conv_googlenet_v3
 --merge=RELU
 --cfg=u8s8s32s32 --batch=conv_vgg_19
+--cfg=s8s8u8s32  --batch=conv_all
+--cfg=s8s8s8s32  --batch=conv_resnet_50
+--cfg=s8s8s32s32 --batch=conv_googlenet_v3
+--merge=RELU
+--cfg=s8s8s32s32 --batch=conv_vgg_19
 
 # s16 (knm)
 --reset --mb=2

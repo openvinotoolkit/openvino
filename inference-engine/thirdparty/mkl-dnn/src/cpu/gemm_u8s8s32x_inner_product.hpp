@@ -59,11 +59,11 @@ struct gemm_u8s8s32x_inner_product_fwd_t: public cpu_primitive_t {
                 && this->desc()->src_desc.data_type == u8
                 && this->desc()->dst_desc.data_type == dst_type
                 && this->desc()->weights_desc.data_type == s8
-                && utils::implication(this->with_bias(), utils::one_of(
+                && IMPLICATION(this->with_bias(), utils::one_of(
                             this->desc()->bias_desc.data_type, f32, s32, s8,
                             u8))
                 && attr()->post_ops_.len_ <= 1
-                && utils::implication(attr()->post_ops_.len_,
+                && IMPLICATION(attr()->post_ops_.len_,
                         attr()->post_ops_.entry_[0].is_relu(true, false))
                 && dense_gemm_consitency_check(src_pd(), weights_pd(),
                         dst_pd());

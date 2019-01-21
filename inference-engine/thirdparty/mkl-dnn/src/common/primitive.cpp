@@ -42,8 +42,8 @@ status_t mkldnn_primitive_create(primitive_t **primitive,
         const auto i_oi = (int)inputs[i].output_index;
         const bool ok = true
             && i_p != nullptr
-            && utils::implication(i_p->kind() == memory, i_oi == 0)
-            && utils::implication(i_p->kind() != memory,
+            && IMPLICATION(i_p->kind() == memory, i_oi == 0)
+            && IMPLICATION(i_p->kind() != memory,
                     i_oi < i_p->pd()->n_outputs());
         if (!ok)
             return invalid_arguments;

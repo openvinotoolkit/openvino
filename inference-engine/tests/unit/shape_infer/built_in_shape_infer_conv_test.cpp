@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +6,7 @@
 #include <inference_engine/shape_infer/built-in/ie_built_in_holder.hpp>
 #include <xml_net_builder.hpp>
 #include <inference_engine/cnn_network_impl.hpp>
-#include <inference_engine/v2_format_parser.h>
+#include <inference_engine/ie_format_parser.h>
 #include <xml_helper.hpp>
 #include <inference_engine/shape_infer/ie_reshaper.hpp>
 #include "built_in_shape_infer_general_test.hpp"
@@ -98,7 +97,7 @@ TEST_P(BuiltInShapeInferConvImplTest, impl) {
     ASSERT_NE(nullptr, impl);
     if (!group) group = 1;
     SizeVector weightsDim{kernel.x * kernel.y * out_channels * inOutShapes.inDims[0][1] / group};
-    blobs["weights"] = make_shared_blob(Precision::UNSPECIFIED, weightsDim);
+    blobs["weights"] = make_shared_blob(Precision::fromType<size_t>(), weightsDim);
     ASSERT_NO_THROW(sts = impl->inferShapes(inOutShapes.inDims, getMapParams(), blobs, outShapes, &resp));
     ASSERT_EQ(int(OK), sts) << resp.msg;
     ASSERT_EQ(inOutShapes.outDims, outShapes);
@@ -106,7 +105,7 @@ TEST_P(BuiltInShapeInferConvImplTest, impl) {
 
 TEST_P(BuiltInShapeInferConvImplTest, batch) {
     auto layerParams = getMapParams();
-    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, dataName, 2);
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork<2>(type, inOutShapes, &layerParams, dataName);
     auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
     sts = cnnNetworkImplPtr->setBatchSizeReshape(BATCH, &resp);
     ASSERT_EQ((int) OK, sts) << resp.msg;
@@ -116,7 +115,7 @@ TEST_P(BuiltInShapeInferConvImplTest, batch) {
 
 TEST_P(BuiltInShapeInferConvImplTest, reshaper) {
     auto layerParams = getMapParams();
-    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, dataName, 2);
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork<2>(type, inOutShapes, &layerParams, dataName);
     auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
     auto inputShapes = setInputShapes(*cnnNetworkImplPtr, newInOutShapes.inDims);
     reshaper->run(inputShapes);
@@ -129,7 +128,7 @@ TEST_P(BuiltInShapeInferConvImplTest, impl_IRv3) {
     ASSERT_NE(nullptr, impl);
     if (!group) group = 1;
     SizeVector weightsDim{kernel.x * kernel.y * out_channels * inOutShapes.inDims[0][1] / group};
-    blobs["weights"] = make_shared_blob(Precision::UNSPECIFIED, weightsDim);
+    blobs["weights"] = make_shared_blob(Precision::fromType<size_t>(), weightsDim);
     ASSERT_NO_THROW(sts = impl->inferShapes(inOutShapes.inDims, getMapParams_IRv3(), blobs, outShapes, &resp));
     ASSERT_EQ(int(OK), sts) << resp.msg;
     ASSERT_EQ(inOutShapes.outDims, outShapes);
@@ -137,7 +136,7 @@ TEST_P(BuiltInShapeInferConvImplTest, impl_IRv3) {
 
 TEST_P(BuiltInShapeInferConvImplTest, batch_IRv3) {
     auto layerParams = getMapParams_IRv3();
-    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, dataName);
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork<3>(type, inOutShapes, &layerParams, dataName);
     auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
     sts = cnnNetworkImplPtr->setBatchSizeReshape(BATCH, &resp);
     ASSERT_EQ((int) OK, sts) << resp.msg;
@@ -147,7 +146,7 @@ TEST_P(BuiltInShapeInferConvImplTest, batch_IRv3) {
 
 TEST_P(BuiltInShapeInferConvImplTest, reshaper_IRv3) {
     auto layerParams = getMapParams_IRv3();
-    auto cnnNetworkImplPtr = buildSingleLayerNetwork(type, inOutShapes, &layerParams, dataName);
+    auto cnnNetworkImplPtr = buildSingleLayerNetwork<3>(type, inOutShapes, &layerParams, dataName);
     auto reshaper = std::make_shared<Reshaper>(*cnnNetworkImplPtr);
     auto inputShapes = setInputShapes(*cnnNetworkImplPtr, newInOutShapes.inDims);
     reshaper->run(inputShapes);

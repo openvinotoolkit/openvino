@@ -14,20 +14,17 @@
  limitations under the License.
 """
 
-import logging as log
-
 import numpy as np
 
+from mo.front.onnx.extractors.concat import concat_ext
 from mo.front.onnx.extractors.const import onnx_const_ext
 from mo.front.onnx.extractors.constant import onnx_constant_ext
+from mo.front.onnx.extractors.dropout import dropout_ext
 from mo.front.onnx.extractors.eltwise import make_tf_eltwise
 from mo.front.onnx.extractors.fused_bn import tf_fused_bn_extractor
 from mo.front.onnx.extractors.matmul import onnx_gemm_ext
 from mo.front.onnx.extractors.placeholder import onnx_placeholder_ext
-from mo.front.onnx.extractors.concat import concat_ext
-from mo.front.onnx.extractors.dropout import dropout_ext
 from mo.front.onnx.extractors.reshape import onnx_reshape_ext
-from mo.front.tf.extractors.softmax import tf_softmax_ext
 from mo.graph.graph import Node
 
 
@@ -48,14 +45,14 @@ onnx_op_extractors = {
         make_tf_eltwise(lambda a, b: a + b, attrs={'type': 'Eltwise', 'operation': 'sum', 'can_be_bias': True})),
     'Relu': node_pb_arg(make_tf_eltwise(lambda v: np.maximum(0, v), attrs={'type': 'ReLU'})),  # 0 is an integer
     'Reshape': onnx_reshape_ext,
-    'Softmax': node_pb_arg(tf_softmax_ext),
 }
 
 
 def common_onnx_fields(node: Node):
     return {
         'kind': 'op',
-        'name': node.id,  # no reliable name for an onnx node, name can be empty, so we use that surrogate built as ID in the loaader
+        'name': node.id,
+    # no reliable name for an onnx node, name can be empty, so we use that surrogate built as ID in the loaader
         'op': node.op if node.has_valid('op') else node.pb.op_type,
         'precision': 'FP32'  # TODO use real precision derived from the model
     }

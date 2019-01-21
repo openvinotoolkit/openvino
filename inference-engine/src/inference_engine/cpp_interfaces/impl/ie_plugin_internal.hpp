@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +16,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/base/ie_executable_network_base.hpp"
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
+#include "ie_memcpy.h"
 
 namespace InferenceEngine {
 
@@ -83,7 +83,8 @@ public:
                         newPtr->getPreProcess()[i]->meanData =
                                 make_blob_with_precision(newPtr->getPreProcess()[i]->meanData->getTensorDesc());
                         newPtr->getPreProcess()[i]->meanData->allocate();
-                        memcpy(newPtr->getPreProcess()[i]->meanData->buffer(), blob->cbuffer(), blob->byteSize());
+                        ie_memcpy(newPtr->getPreProcess()[i]->meanData->buffer(), newPtr->getPreProcess()[i]->meanData->byteSize(),
+                                  blob->cbuffer(), blob->byteSize());
                     }
                 }
                 newData->inputTo.clear();

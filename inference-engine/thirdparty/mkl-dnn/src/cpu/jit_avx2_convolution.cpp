@@ -31,19 +31,22 @@ using namespace mkldnn::impl::status;
 using namespace mkldnn::impl::memory_format;
 using namespace mkldnn::impl::utils;
 
-#define src_blk_off(f, n, c, d, h, w) \
-    conf_.ndims() == 5 \
-        ? (f).blk_off(n, c, d, h, w) \
-        : (f).blk_off(n, c, h, w)
 
+#define src_blk_off(f, n, c, d, h, w) \
+    (conf_.ndims() == 3) \
+    ? (f).blk_off(n, c, w) \
+    : (conf_.ndims() == 4) \
+    ? (f).blk_off(n, c, h, w) \
+    : (f).blk_off(n, c, d, h, w)
+
+#define wht_blk_off_(f, g, ...) \
+    conf_.with_groups() ? (f).blk_off(g, __VA_ARGS__) : (f).blk_off(__VA_ARGS__)
 #define wht_blk_off(f, g, oc, ic, kd, kh, kw) \
-    conf_.ndims() == 5 \
-        ? conf_.with_groups() \
-            ? (f).blk_off(g, oc, ic, kd, kh, kw) \
-            : (f).blk_off(oc, ic, kd, kh, kw) \
-        : conf_.with_groups() \
-            ? (f).blk_off(g, oc, ic, kh, kw) \
-            : (f).blk_off(oc, ic, kh, kw)
+    (conf_.ndims() == 3) \
+    ? wht_blk_off_(f, g, oc, ic, kw) \
+    : (conf_.ndims() == 4) \
+    ? wht_blk_off_(f, g, oc, ic, kh, kw) \
+    : wht_blk_off_(f, g, oc, ic, kd, kh, kw)
 
 template <bool with_relu>
 void _jit_avx2_convolution_fwd_t<with_relu>::execute_forward() {

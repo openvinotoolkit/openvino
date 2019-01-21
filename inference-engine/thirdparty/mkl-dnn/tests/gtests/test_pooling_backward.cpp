@@ -137,8 +137,9 @@ void check_pool_bwd(const pool_bwd_test_params &p, const memory &diff_src,
     const memory::desc ws_d = ws.get_primitive_desc().desc();
 
     auto pd = p.test_pd;
-    data_t *ref_diff_src
-            = new data_t[(size_t)pd.mb * pd.c * pd.id * pd.ih * pd.iw];
+    std::vector<data_t>
+        ref_diff_src_vec((size_t)pd.mb * pd.c * pd.id * pd.ih * pd.iw);
+    data_t *ref_diff_src = &ref_diff_src_vec[0];
 
     auto apply_offset = [=](int index, int offset) {
         return (index > offset) ? index - offset : 0;

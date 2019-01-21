@@ -64,6 +64,8 @@ You can do inference on an image using a trained AlexNet network on FPGA with fa
 ./classification_sample_async -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d HETERO:FPGA,CPU -nireq 2 -ni 200
 ```
 
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+
 ### Outputs
 
 By default the application outputs top-10 inference results for each infer request.
@@ -80,4 +82,4 @@ Then in the loop it starts inference for the current infer request and switch fo
 When inference is done, the application outputs data to the standard output stream.
 
 ## See Also
-* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)
+* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)

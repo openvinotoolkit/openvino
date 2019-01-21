@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +14,9 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <cnn_network_impl.hpp>
+#include <tuple>
+#include <type_traits>
+
 
 namespace InferenceEngine {
 
@@ -31,6 +33,27 @@ template<typename C, typename T>
 bool contains(const C& container, const T& element) {
     return container.find(element) != container.end();
 }
+
+/**
+ * @brief checks that given type is one of specified in variadic template list
+ * @tparam ...
+ */
+template <typename...>
+struct is_one_of {
+    static constexpr bool value = false;
+};
+
+/**
+ * @brief checks that given type is one of specified in variadic template list
+ * @tparam ...
+ */
+template <typename F, typename S, typename... T>
+struct is_one_of<F, S, T...> {
+    static constexpr bool value =
+        std::is_same<F, S>::value || is_one_of<F, T...>::value;
+};
+
+
 
 /**
  * @brief Split graph into subgraphs using provided splitter object

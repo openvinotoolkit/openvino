@@ -33,13 +33,19 @@ Running the application with the empty list of options yields the usage message 
 
 To run the sample, you can use a set of pre-trained and optimized models delivered with the package or a Caffe* public model.
 
-**NOTE**: A public model should be converted to the Inference Engine format (`.xml` + `.bin`) using the Model Optimizer tool. For Model Optimizer documentation, see https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer.
+> **NOTE**: A public model should be converted to the Inference Engine format (`.xml` + `.bin`) using the Model Optimizer tool. For Model Optimizer documentation, see https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer.
 
-For example, to do inference on a CPU with the OpenVINO&trade; toolkit person detection SSD model (`<INSTAL_DIR>/deployment_tools/intel_models/person-detection-retail-00013`), run the following command:
+For example, to do inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
 
 ```sh
-./object_detection_sample_ssd -i <path_to_image>/inputImage.bmp -m person-detection-retail-0013.xml -d CPU
+./object_detection_sample_ssd -i <path_to_image>/inputImage.bmp -m <INSTAL_DIR>/deployment_tools/intel_models/person-detection-retail-0013/FP32/person-detection-retail-0013.xml -d CPU
 ```
+or
+```sh
+./object_detection_sample_ssd -i <path_to_image>/inputImage.jpg -m <INSTALL_DIR>/deployment_tools/intel_models/person-detection-retail-0002/FP32/person-detection-retail-0002.xml -d CPU
+```
+
+> **NOTE**: Before running the sample with another trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 ### Outputs
 
@@ -54,4 +60,4 @@ Engine plugin. When inference is done, the application creates an
 output image and outputs data to the standard output stream.
 
 ## See Also 
-* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)
+* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)

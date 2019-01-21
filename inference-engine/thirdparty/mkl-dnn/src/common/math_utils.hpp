@@ -46,6 +46,16 @@ saturate(const acc_t &x) {
     return (typename utils::remove_reference<data_t>::type)v;
 }
 
+template <typename data_t>
+double saturate(const double &x) {
+    double v = x;
+    if (v < (double)nstl::numeric_limits<data_t>::lowest())
+        v = (double)nstl::numeric_limits<data_t>::lowest();
+    if (v > (double)nstl::numeric_limits<data_t>::max())
+        v = (double)nstl::numeric_limits<data_t>::max();
+    return v;
+}
+
 template <> inline int8_t saturate<int8_t, uint8_t>(const uint8_t &x) {
     return x <= 127u ? x : 127;
 }
@@ -58,6 +68,11 @@ template <typename out_t>
 inline typename utils::enable_if<nstl::is_integral<out_t>::value, out_t>::type
 out_round(float v, round_mode_t rmode = round_mode::nearest)
 { return (out_t)(rmode == round_mode::down ? floorf(v) : nearbyintf(v)); }
+
+template <typename out_t>
+inline typename utils::enable_if<nstl::is_integral<out_t>::value, out_t>::type
+out_round(double v, round_mode_t rmode = round_mode::nearest)
+{ return (out_t)(rmode == round_mode::down ? floor(v) : nearbyint(v)); }
 
 template <typename out_t>
 inline typename utils::enable_if<!nstl::is_integral<out_t>::value, out_t>::type

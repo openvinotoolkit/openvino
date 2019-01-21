@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +6,9 @@
 #include <memory>
 #include <string>
 
-#include <opencv2/opencv.hpp>
 #include <inference_engine.hpp>
-#include <samples/common.hpp>
 #include <ext_list.hpp>
+#include <samples/ocv_common.hpp>
 
 #include "shape_infer_extension.hpp"
 
@@ -96,7 +94,7 @@ int main(int argc, char* argv[]) {
             throw std::logic_error("Incorrect output dimensions for SSD model");
         }
         if (output_info == nullptr) {
-            THROW_IE_EXCEPTION << "[SAMPLES] shared_ptr ouput_info == nullptr";
+            THROW_IE_EXCEPTION << "[SAMPLES] internal error - output information is empty";
         }
 
         output_info->setPrecision(Precision::FP32);
@@ -161,9 +159,9 @@ int main(int argc, char* argv[]) {
                           << image_id << std::endl;
             }
         }
+
         cv::imwrite("hello_shape_infer_ssd_output.jpg", image);
         std::cout << "The resulting image was saved in the file: hello_shape_infer_ssd_output.jpg" << std::endl;
-
         // -----------------------------------------------------------------------------------------------------
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;

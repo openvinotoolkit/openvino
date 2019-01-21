@@ -14,14 +14,11 @@
  limitations under the License.
 """
 
-import logging as log
+import numpy as np
 
-from mo.ops.pad import Pad
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.utils.error import Error
-
-import numpy as np
+from mo.ops.pad import Pad
 
 
 class PadFrontExtractor(FrontExtractorOp):
@@ -36,21 +33,12 @@ class PadFrontExtractor(FrontExtractorOp):
 
         assert pads is not None
 
-        if mode.lower() != 'constant':
-            log.error('Pad.mode != constant for node {}. It is not supported. '
-                'Model conversion is not aborted but the final IR will be not correct.'.format(node.name))
-
-        if value != 0:
-            log.error('Pad.value == {} != 0 for node {}. It is not supported. '
-                'MOdel conversion is not aborted but the final IR will be not correct.'.format(value, node.name))
-
         # MO Pad op and ONNX Pad op have different format for pads values
         # MO Pad has Dx2 where D is the total number of dimensions
         # ONNX Pad pads flat layout, so
         # need to reshape and transpose
 
-        pads = pads.reshape([2,-1])
-        pads = np.transpose(pads)
+        pads = np.transpose(pads.reshape([2, -1]))
 
         Pad.update_node_stat(node, {'mode': mode, 'pads': pads, 'fill_value': value})
         return __class__.enabled

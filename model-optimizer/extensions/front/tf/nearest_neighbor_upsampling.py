@@ -18,7 +18,7 @@ import logging as log
 
 import networkx as nx
 
-from extensions.front.tf.Pack import Pack
+from extensions.front.Pack import Pack
 from extensions.ops.resample import ResampleOp
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import replace_node

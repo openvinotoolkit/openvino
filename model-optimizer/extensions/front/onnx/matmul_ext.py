@@ -24,5 +24,5 @@ class MatMulFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
-        InnerProduct.update_node_stat(node, attrs={'infer': onnx_matmul_infer})
+        InnerProduct.update_node_stat(node, attrs={'op': 'MatMul', 'infer': onnx_matmul_infer, 'type': None})
         return InnerProduct.enabled

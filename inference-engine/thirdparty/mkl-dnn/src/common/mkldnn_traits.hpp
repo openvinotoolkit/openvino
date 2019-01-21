@@ -31,6 +31,7 @@ namespace impl {
 
 template <data_type_t> struct prec_traits {}; /* ::type -> float */
 template <typename> struct data_traits {}; /* ::data_type -> f32 */
+template <int> struct typesize_traits {}; /* ::data_type_size -> f32 */
 template <primitive_kind_t> struct pkind_traits {}; /* ::desc_type, ::query_d */
 
 template <> struct prec_traits<data_type::f32> { typedef float type; };
@@ -50,6 +51,10 @@ template <> struct data_traits<int8_t>
 template <> struct data_traits<uint8_t>
 { static constexpr data_type_t data_type = data_type::u8; };
 
+template <> struct typesize_traits<4> { typedef float type; };
+template <> struct typesize_traits<2> { typedef int16_t type; };
+template <> struct typesize_traits<1> { typedef uint8_t type; };
+
 #define PKIND_TRAITS_INST(op) \
 template <> struct pkind_traits<primitive_kind::op> { \
     typedef CONCAT2(op, _desc_t) desc_type; \
@@ -58,6 +63,7 @@ template <> struct pkind_traits<primitive_kind::op> { \
 PKIND_TRAITS_INST(memory);
 PKIND_TRAITS_INST(convolution);
 PKIND_TRAITS_INST(deconvolution);
+PKIND_TRAITS_INST(shuffle);
 PKIND_TRAITS_INST(eltwise);
 PKIND_TRAITS_INST(depthwise);
 PKIND_TRAITS_INST(softmax);

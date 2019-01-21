@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +20,6 @@
 #include "ie_blob.h"
 #include "ie_device.hpp"
 #include "ie_layers_property.hpp"
-
-#include "ie_icnn_network.hpp"
 
 namespace InferenceEngine {
 /**
@@ -503,6 +500,10 @@ public:
      * @brief Number of groups
      */
     unsigned int _group = 1u;
+    /**
+     * @brief Auto padding type
+     */
+    std::string _auto_pad;
 
     /**
      * @brief Creates a new ConvolutionLayer instance.
@@ -593,6 +594,10 @@ public:
      * @brief A flag that indicates if padding is excluded or not
      */
     bool _exclude_pad = false;
+    /**
+     * @brief Auto padding type
+     */
+    std::string _auto_pad;
 
     /**
     * @brief Creates a new PoolingLayer instance.
@@ -926,61 +931,33 @@ public:
 };
 
 /**
-* @brief This class represents RNN sequence layer
-*/
-class RNNLayer : public WeightableLayer {
-public:
-    CellType cellType;
-
-    /**
-    * @brief An axis by which iteration is performed. Axis=0 means first input blob dimension is sequence, axis=1 means first dimension is batch.
-    */
-    unsigned int _axis = 1;
-
-    using WeightableLayer::WeightableLayer;
-
-    /**
-    * @brief Creates a new RNNLayer instance.
-    */
-    explicit RNNLayer(const LayerParams &p) : WeightableLayer(p) {}
-};
-
-/**
-* @brief This class represents LSTMCell pseudo-layer to be used in TensorIterator
-*/
-class LSTMCell : public WeightableLayer {
-public:
-    using WeightableLayer::WeightableLayer;
-};
-
-class ICNNNetReader;
-/**
-* @brief This class represents TensorIterator layer
-*/
+ * @brief This class represents TensorIterator layer
+ */
 class TensorIterator : public CNNLayer {
 public:
-    using CNNNetReaderPtr = std::shared_ptr<ICNNNetReader>;
-    CNNNetReaderPtr reader;
+    struct PortMap {
+        // Data map rule
+        int from;      /**< Index of exteral data from ins/outs fields of CNNLayer */
+        int to;        /**< Index of internal data in iterator body */
 
-    struct BackEdge {
-        int fromLayer;
-        int fromPort;
-        int toLayer;
-        int toPort;
+        // Iteration rule
+        int axis;      /**< Axis to iterate throught */
+        int stride;    /**< Stride to iterate throught */
+        int start;     /**< Start index of iteration range */
+        int end;       /**< Last index of iteration range  */
+        int part_size; /**< Part size which will be transfered to body subnetwork */
     };
 
-    struct Port {
-        int external_port_id;
-        int internal_layer_id;
-        int internal_port_id;
-        int axis;
-        int part_size;
-        int stride;
+    struct Body {
+        std::vector<DataPtr> inputs;
+        std::vector<DataPtr> outputs;
     };
 
-    std::vector<Port> input_ports;
-    std::vector<Port> output_ports;
-    std::vector<BackEdge> backEdges;
+    std::vector<PortMap> input_port_map;
+    std::vector<PortMap> output_port_map;
+    std::vector<PortMap> back_edges;
+
+    Body body;
 
     using CNNLayer::CNNLayer;
 };
@@ -1045,4 +1022,83 @@ public:
     using WeightableLayer::WeightableLayer;
 };
 
+/**
+ * @brief This class represents a general matrix multiplication operation layer
+ * Formula is: dst := alpha*src1*src2 + beta*src3
+ */
+class GemmLayer : public CNNLayer {
+public:
+    /**
+    * @brief A scale factor of src1 matrix
+    */
+    float alpha = 1.f;
+    /**
+    * @brief A scale factor of src3 matrix
+    */
+    float beta = 1.f;
+    /**
+    * @brief A flag that indicates if the src1 matrix is to be transposed
+    */
+    bool transpose_a = false;
+    /**
+    * @brief A flag that indicates if the src2 matrix is to be transposed
+    */
+    bool transpose_b = false;
+    /**
+    * @brief Creates a new GemmLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+/**
+ * @brief This class represents a standard Pad layer
+ * Adds paddings to input tensor
+ */
+class PadLayer : public CNNLayer {
+public:
+    /**
+     * @enum ePadMode
+     * @brief Defines possible modes of pad operation
+     */
+    enum ePadMode {
+        Constant = 0, Edge, Reflect, Symmetric
+    };
+
+    /**
+    * @brief Size of padding in the beginning of each axis
+    */
+    PropertyVector<unsigned int> pads_begin;
+    /**
+    * @brief Size of padding in the end of each axis
+    */
+    PropertyVector<unsigned int> pads_end;
+    /**
+    * @brief Mode of pad operation
+    */
+    ePadMode pad_mode = Constant;
+    /**
+    * @brief A pad value which is used for filling in Constant mode
+    */
+    float pad_value = 0.0f;
+    /**
+    * @brief Creates a new PadLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+/**
+ * @brief This class represents a standard Gather layer
+ * Gather slices from Dictionary according to Indexes
+ */
+class GatherLayer : public CNNLayer {
+public:
+    /**
+    * @brief The axis in Dictionary to gather Indexes from
+    */
+    int axis = 0;
+    /**
+    * @brief Creates a new GatherLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
 }  // namespace InferenceEngine

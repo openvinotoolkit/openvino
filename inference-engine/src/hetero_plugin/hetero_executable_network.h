@@ -1,12 +1,7 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/**
- * @brief a header file for ExecutableNetwork
- * @file dlia_executable_network.hpp
- */
 #pragma once
 
 #include <memory>

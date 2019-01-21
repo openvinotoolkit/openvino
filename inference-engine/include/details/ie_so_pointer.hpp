@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +85,7 @@ public:
     * @brief The main constructor
     * @param name Name of a shared library file
     */
-    explicit SOPointer(const std::string &name)
+    explicit SOPointer(const file_name_t &name)
         : _so_loader(new Loader(name.c_str()))
         , _pointedObj(details::shared_from_irelease(
             SymbolLoader<Loader>(_so_loader).template instantiateSymbol<T>(SOCreatorTrait<T>::name))) {
@@ -161,6 +160,6 @@ protected:
  * @param name Name of the shared library file
  */
 template <class T>
-inline std::shared_ptr<T> make_so_pointer(const std::string & name) = delete;
+inline std::shared_ptr<T> make_so_pointer(const file_name_t & name) = delete;
 
 }  // namespace InferenceEngine

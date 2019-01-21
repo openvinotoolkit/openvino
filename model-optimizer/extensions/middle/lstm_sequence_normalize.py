@@ -18,6 +18,7 @@ import networkx as nx
 import numpy as np
 from copy import deepcopy
 
+from extensions.middle.decompose_bi_lstm import DecomposeBiLSTM
 from mo.utils.error import Error
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.op import Op
@@ -49,7 +50,8 @@ def permute_before_and_after(inp: Node, middle: Node, out: Node, order):
     permute = Permute(middle.graph, dict(order=inverse_perm(np.array(order))))
 
     middle.graph.remove_edge(middle.id, out.id)
-    new_out = Op.create_data_node(middle.graph, middle, {'shape': out.shape[order]})
+    new_out = Op._create_data_node(middle.graph, name=middle.name + '/WithoutPermute', attrs={'shape': out.shape[order]})
+    middle.graph.add_edge(middle.id, new_out.id, key=0, out=0)
     permute.create_node_with_data([new_out], dict(name=middle.name + '/OutputPermute'), data_nodes=out)
 
 
@@ -57,7 +59,9 @@ class LSTMSequenceNormalize(MiddleReplacementPattern):
     ''' Convert blobs and shapes of ONNX-like LSTM to IE compatible form.
 
         Fuse W, R and optional B input blobs to weights and biases according
-        to IE LSTM specification.
+        to IE LSTM specification. In case of bidirectional LSTM, the resulting
+        blobs are not directly supported by IE, but it will be further processed
+        by a separate transformation to break down to one-directional LSTMs.
 
         The target form of this operation is not normally covered by a dedicated
         layer in IE. It should be further transformed to some other layer
@@ -66,7 +70,7 @@ class LSTMSequenceNormalize(MiddleReplacementPattern):
 
         Post-conditions:
 
-        Inputs have the forllowing order:
+        Inputs have the following order:
             0: input data
             1: weights blob
             2: biases blob
@@ -77,27 +81,32 @@ class LSTMSequenceNormalize(MiddleReplacementPattern):
     enabled = True
 
 
+    def run_after(self):
+        return [
+            DecomposeBiLSTM
+        ]
+
+
     def pattern(self):
         return dict(
             nodes=[
-                ('lstm', dict(kind='op', op='LSTMSequence')),
+                ('lstm', dict(kind='op', op='LSTMSequence', format='onnx')),
                 ('input', dict(kind='data')),
                 ('W', dict(kind='data')),
                 ('R', dict(kind='data')),
-                # don't capture B here as it is optional, as well as extra outputs
-                ('output', dict(kind='data')),
             ],
             edges=[
                 ('input', 'lstm', {'in': 0}),
                 ('W', 'lstm', {'bin': 'W'}),
                 ('R', 'lstm', {'bin': 'R'}),
-                ('lstm', 'output', {'out': 0}),
             ]
         )
 
 
     def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
         self.repack_weights(graph, match)
+        if match['lstm'].has_num_directions:
+            self.squeeze_num_directions(graph, match)
         self.batch_sequence_transpose(graph, match)
         self.check_not_supported_ports(graph, match)
         self.states_squeeze(graph, match)
@@ -109,11 +118,16 @@ class LSTMSequenceNormalize(MiddleReplacementPattern):
         W = match['W'].value.copy()
         R = match['R'].value.copy()
 
+        # bidirectional case should be processed separately before this transformation
+        if lstm.direction not in ['forward', 'reverse']:
+            raise Error('ONNX/LSTM operator with `forward` or `reverse` is supported only. '
+                'Node {} has direction = {} which is not supported.'.format(lstm.name, lstm.direction))
+
         graph.remove_edge(match['W'].id, lstm.id)
         graph.remove_edge(match['R'].id, lstm.id)
 
         # find optional 'B'
-        if len(lstm.in_nodes()) > 3:
+        if 3 in lstm.in_nodes():
             # TODO: check if 'bin': 'B' attribute is assigned to this edge
             B = lstm.in_node(3).value.copy()
             graph.remove_edge(lstm.in_node(3).id, lstm.id)
@@ -132,16 +146,16 @@ class LSTMSequenceNormalize(MiddleReplacementPattern):
 
         W, R = [x.reshape([
                 1,  # 0: num of directions, limitation: should be 1
-                1,  # 1: placeholder for concatenation of W and R matrices
+                1,  # 1: dummy dimension to be aligned with B
                 4,  # 2: four output parts of the matrix for all gates in order: i, o, f, c
                 lstm.hidden_size,  # 3: output size per direction and gate
-                -1])  # 4: input size
+                -1])  # 4: input size/hidden size in W/R
             for x in (W, R)]
 
         input_size = match['input'].shape[2]
         assert input_size == W.shape[-1]
 
-        WR = np.concatenate([W, R], axis=1)
+        WR = np.concatenate([W, R], axis=4)
 
         # Reorder gates: iofc --> fico
         gate_reorder = [2, 0, 3, 1]
@@ -186,11 +200,28 @@ class LSTMSequenceNormalize(MiddleReplacementPattern):
             )
 
 
+    def squeeze_num_directions(self, graph: nx.MultiDiGraph, match: dict):
+        """ Assuming considered LSTM node has num_directions in output shape, remove it. """
+        lstm = match['lstm']
+        # num_directions is at 1st position in output shape, please refer to LSTMSequence op definition
+
+        direction_dim = [1, 0, 0] # index of dimension with direction index
+        for i in lstm.out_nodes():
+            old_data_node = lstm.out_node(i)
+            old_shape = old_data_node.shape.copy()
+            new_shape = np.delete(old_shape, direction_dim[i])
+            data = Op._create_data_node(graph, name=lstm.name + '/Out/{}/'.format(i), attrs={'shape': new_shape})
+            graph.remove_edge(lstm.id, old_data_node.id)
+            graph.add_edge(lstm.id, data.id, key=0, out=i)
+            reshape = Reshape(graph, dict(dim=old_shape))
+            reshape.create_node_with_data([data], dict(name=lstm.name + '/SqueezeNumDirections/{}'.format(i)), data_nodes=[old_data_node])
+
+
     def batch_sequence_transpose(self, graph: nx.MultiDiGraph, match: dict):
 
         lstm = match['lstm']
         inp = match['input']
-        out = match['output']
+        out = lstm.out_node(0)
 
         if lstm.batch_dim == 0:
             assert lstm.sequence_dim == 1

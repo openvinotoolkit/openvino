@@ -29,11 +29,18 @@ namespace cpu {
 
 static inline float fast_negative_powf(float omega, float beta) {
     float Y;
+/*
+ * Y = omega^(-3/4) =
+ * = 1.0f / sqrtf(omega) * sqrtf(1.0f / sqrtf(omega))
+ * = sqrtf(1.0f / sqrtf(omega)) * 1.0f / sqrtf(omega)
+ * = sqrtf(1.0f / sqrtf(omega)) / sqrtf(omega)
+ * = sqrtf(1.0f / sqrtf(omega) / omega)
+ * = sqrtf(1.0f / (sqrtf(omega) * omega))
+ */
     if (beta == 0.75f) {
-        Y = 1.0f / sqrtf(omega);
-        Y *= sqrtf(Y);
+        Y = sqrtf(1.0f / (sqrtf(omega) * omega));
     } else {
-        Y = 1.0f /powf(omega, beta);
+        Y = 1.0f / powf(omega, beta);
     }
     return Y;
 };

@@ -181,7 +181,7 @@ def sub_graph_between_nodes(graph: nx.MultiDiGraph, start_nodes: list, end_nodes
     d = deque(start_nodes)
     extra_start_nodes = []
 
-    nx.set_node_attributes(graph, name='prev', values=None)
+    nx.set_node_attributes(G=graph, name='prev', values=None)
     while len(d) != 0:
         cur_node_name = d.popleft()
         sub_graph_nodes.append(cur_node_name)

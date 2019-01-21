@@ -39,9 +39,12 @@ struct border_gpu : typed_primitive_gpu_impl<border>
 
         b_params.lt_sizes = convert_dim_vector(desc->left_top_sizes);
         b_params.rb_sizes = convert_dim_vector(desc->right_bottom_sizes);
+        b_params.border_value = desc->border_value;
+
         switch (desc->type)
         {
-        case border_type::zero:       b_params.b_type = kernel_selector::border_type::ZERO;       break;
+        case border_type::constant:   b_params.b_type = kernel_selector::border_type::CONSTANT;   break;
+        case border_type::edge:       b_params.b_type = kernel_selector::border_type::EDGE;       break;
         case border_type::mirror:     b_params.b_type = kernel_selector::border_type::MIRROR;     break;
         case border_type::mirror_101: b_params.b_type = kernel_selector::border_type::MIRROR_101; break;
         default:

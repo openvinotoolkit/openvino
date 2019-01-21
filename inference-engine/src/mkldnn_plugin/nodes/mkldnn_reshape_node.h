@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,19 +20,10 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
     bool created() const override;
-    void setDynamicBatchLim(int lim) override;
 
 private:
     static Register<MKLDNNReshapeNode> reg;
-    std::shared_ptr<mkldnn::primitive> srcPrim;
-    std::shared_ptr<mkldnn::primitive> dstPrim;
-    MKLDNNMemoryPtr srcMem;
-    MKLDNNMemoryPtr dstMem;
-
-    MKLDNNMemoryPtr dst_blocked;
-    MKLDNNMemoryPtr src_blocked;
 };
 
 }  // namespace MKLDNNPlugin

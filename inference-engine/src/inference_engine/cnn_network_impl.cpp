@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +13,7 @@
 #include "debug.h"
 #include "graph_tools.hpp"
 #include <vector>
+#include "network_serializer.h"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -100,7 +100,7 @@ void CNNNetworkImpl::validate(int version) {
         std::string inputType = "Input";
         for (auto i : inputs) {
             CNNLayerPtr layer = i.second->getInputData()->creatorLayer.lock();
-            if (!equal(layer->type, inputType)) {
+            if (layer && !equal(layer->type, inputType)) {
                 THROW_IE_EXCEPTION << "Input layer " << layer->name
                                    << " should have Input type but actually its type is " << layer->type;
             }
@@ -197,6 +197,19 @@ CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& ext
     try {
         if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
         _reshaper->AddExtension(extension);
+    } catch (const InferenceEngineException& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
+    }
+    return OK;
+}
+
+StatusCode CNNNetworkImpl::serialize(const std::string &xmlPath, const std::string &binPath, ResponseDesc* resp) const noexcept {
+    try {
+        NetworkSerializer::serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {

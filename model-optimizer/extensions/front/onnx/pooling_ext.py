@@ -57,7 +57,21 @@ class GlobalAveragePoolFrontExtractor(FrontExtractorOp):
         attrs = common_onnx_pool_extractor(node)
         attrs.update({'pooling_convention': 'full',
                       'global_pool': True,
-                      'window': np.array([1, 1, 0, 0], dtype=np.int64)
+                     })
+
+        Pooling.update_node_stat(node, attrs)
+        return __class__.enabled
+
+
+class GlobalMaxPoolFrontExtractor(FrontExtractorOp):
+    op = 'GlobalMaxPool'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        attrs = common_onnx_pool_extractor(node)
+        attrs.update({'pooling_convention': 'full',
+                      'global_pool': True,
                      })
 
         Pooling.update_node_stat(node, attrs)
@@ -94,7 +108,7 @@ def common_onnx_pool_extractor(node):
     exclude_pad = onnx_attr(node, 'count_include_pad', 'i', default=0) == 0
 
     global_pooling = 0
-    if node.op == 'MaxPool':
+    if node.op in ['MaxPool', 'GlobalMaxPool']:
         method = 'max'
     elif node.op in ['AveragePool', 'GlobalAveragePool']:
         method = 'avg'

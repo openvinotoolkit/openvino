@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +48,7 @@ enum Type {
     Concatenation,
     Power,
     Eltwise,
+    Gemm,
     Crop,
     Reshape,
     Tile,
@@ -60,6 +60,7 @@ enum Type {
     Copy,
     MemoryOutput,
     MemoryInput,
+    LSTMCell,
     RNN
 };
 
@@ -86,6 +87,7 @@ static Type TypeFromName(const std::string type) {
             { "Pooling", Pooling },
             { "FullyConnected", FullyConnected },
             { "InnerProduct", FullyConnected },
+            { "Gemm", Gemm },
             { "Softmax", SoftMax },
             { "SoftMax", SoftMax },
             { "Split", Split },
@@ -103,6 +105,7 @@ static Type TypeFromName(const std::string type) {
             { "Flatten", Flatten },
             { "Permute", Permute },
             { "Copy", Copy },
+            { "LSTMCell", LSTMCell },
             { "RNN", RNN },
             { "MemoryInput", MemoryInput},  // for construction from name ctor, arbitrary name is used
             { "Memory", MemoryOutput },  // for construction from layer ctor
@@ -189,6 +192,10 @@ public:
 
     const std::vector <MKLDNNNodePtr> &getMergeWith() {
         return mergedWith;
+    }
+
+    const std::vector <MKLDNNNodePtr> &getFusedWith() {
+        return fusedWith;
     }
 
     const std::string getName() const {
@@ -317,7 +324,7 @@ protected:
         this->type = type;
     }
 
-    int getMaxBatch();
+    virtual int getMaxBatch();
 
     virtual InferenceEngine::TensorDesc getConfiguredInputDesc(const InferenceEngine::LayerConfig& config, size_t idx) const;
     virtual InferenceEngine::TensorDesc getConfiguredOutputDesc(const InferenceEngine::LayerConfig& config, size_t idx) const;
@@ -350,6 +357,8 @@ protected:
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
 
+    InferenceEngine::Blob::Ptr ext_scales;
+
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;
     friend class MKLDNNGraphOptimizer;
@@ -371,8 +380,9 @@ protected:
     public:
         Register() {
             Registry::RegisterNode(
-                Registry::CreatorByLayerFunction([](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) -> MKLDNNNode * {
-                    return new To(layer, eng); } ) );
+                Registry::CreatorByLayerFunction(
+                        [](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng)
+                        -> MKLDNNNode* { return new To(layer, eng); } ) );
         }
     };
 

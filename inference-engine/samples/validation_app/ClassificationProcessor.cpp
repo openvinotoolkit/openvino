@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +30,7 @@ ClassificationProcessor::ClassificationProcessor(const std::string& flags_m, con
             PreprocessingOptions(false, ResizeCropPolicy::ResizeThenCrop, 256, 256), zeroBackground) {
 }
 
-std::shared_ptr<Processor::InferenceMetrics> ClassificationProcessor::Process() {
+std::shared_ptr<Processor::InferenceMetrics> ClassificationProcessor::Process(bool stream_output) {
      slog::info << "Collecting labels" << slog::endl;
      ClassificationSetGenerator generator;
      // try {
@@ -49,7 +48,7 @@ std::shared_ptr<Processor::InferenceMetrics> ClassificationProcessor::Process() 
      std::vector<int> expected(batch);
      std::vector<std::string> files(batch);
 
-     ConsoleProgress progress(validationMap.size());
+     ConsoleProgress progress(validationMap.size(), stream_output);
 
      ClassificationInferenceMetrics im;
 

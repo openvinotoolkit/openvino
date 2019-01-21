@@ -1,5 +1,4 @@
 ﻿// Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +19,7 @@
 #include "ie_plugin.hpp"
 #include "ie_plugin_config.hpp"
 #include "details/caseless.hpp"
+#include <details/ie_cnn_network_tools.h>
 
 #undef min
 #undef max
@@ -116,7 +116,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(InferenceEngine::
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
         plugin = make_ie_compatible_plugin(
-                {1, 4,
+                {1, 5,
 #ifdef CLDNN_VERSION
                  CLDNN_VERSION,
 #else
@@ -139,27 +139,26 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& r
 }
 
 void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
-    details::CNNNetworkIterator i(const_cast<ICNNNetwork *>(&network));
-
     std::vector <CNNLayer::Ptr> concats;
-    std::vector <CNNLayer::Ptr> constantBlobs;
+    std::vector <CNNLayer::Ptr> nextLayerDependent;
 
-    while (i != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *i;
-
+    std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
+    for (auto layer : sortedLayers) {
         if (CaselessEq<std::string>()(layer->type, "DetectionOutput")) {
         } else if (CaselessEq<std::string>()(layer->type, "PriorBox")) {
         } else if (CaselessEq<std::string>()(layer->type, "Proposal")) {
         } else if (CaselessEq<std::string>()(layer->type, "SimplerNMS")) {
         } else if (CaselessEq<std::string>()(layer->type, "Concat")) {
             concats.push_back(layer);
+        } else if (CaselessEq<std::string>()(layer->type, "reshape")) {
+            nextLayerDependent.push_back(layer);
+        } else if (CaselessEq<std::string>()(layer->type, "permute")) {
+            nextLayerDependent.push_back(layer);
         } else if (CaselessEq<std::string>()(layer->type, "Const")) {
-            constantBlobs.push_back(layer);
+            nextLayerDependent.push_back(layer);
         } else if (CLDNNGraph::IsLayerSupported(layer->type)) {
-            res.supportedLayers.insert((*i)->name);
+            res.supportedLayers.insert(layer->name);
         }
-
-        i++;
     }
 
     // evaluation of concats - if all parent layers are supported, only in this case we
@@ -169,7 +168,10 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
         bool supported = true;
         for (DataWeakPtr insData : concat->insData) {
             CNNLayerPtr prev = insData.lock()->getCreatorLayer().lock();
-            if (res.supportedLayers.find(prev->name) == res.supportedLayers.end()) {
+            // verify if previous layer is not supported or if it in the list of not defined layers yet
+            // not defined layers are treated as layers which will be assigned to GPU if next layer is assigned to GPU
+            if (res.supportedLayers.find(prev->name) == res.supportedLayers.end()
+                && std::find(nextLayerDependent.begin(), nextLayerDependent.end(), prev) == nextLayerDependent.end()) {
                 supported = false;
             }
         }
@@ -179,16 +181,21 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
 
     // evaluation of constant blobs - if all consumers are on GPU,
     // then leave it on GPU, else - move to other device
-    for (const auto &cblob : constantBlobs) {
+    for (auto cnl = nextLayerDependent.rbegin();
+        cnl != nextLayerDependent.rend();
+        cnl++) {
         bool supported = true;
-        for (DataPtr out : cblob->outData) {
-            CNNLayerPtr prev = out->getCreatorLayer().lock();
-            if (res.supportedLayers.find(prev->name) == res.supportedLayers.end()) {
-                supported = false;
+        for (DataPtr out : (*cnl)->outData) {
+            for (auto ol : out->inputTo) {
+                if (res.supportedLayers.find(ol.second->name) == res.supportedLayers.end()) {
+                    supported = false;
+                }
             }
         }
+        std::cout << (*cnl)->name << " is " << (supported ? "GPU" : "CPU") << std::endl;
+
         if (supported)
-            res.supportedLayers.insert(cblob->name);
+            res.supportedLayers.insert((*cnl)->name);
     }
 }
 

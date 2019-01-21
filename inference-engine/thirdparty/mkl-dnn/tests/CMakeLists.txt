@@ -23,14 +23,17 @@ if(POLICY CMP0065)
 endif()
 
 # propagate TEST specific flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_TEST_CCXX_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_TEST_CCXX_FLAGS}")
+append(CMAKE_C_FLAGS "${CMAKE_TEST_CCXX_FLAGS}")
+append(CMAKE_CXX_FLAGS "${CMAKE_TEST_CCXX_FLAGS}")
 
 set(CMAKE_TEST_CCXX_NOWARN_FLAGS)
 
 # propagate no warning flags
-set(CMAKE_TEST_CCXX_NOWARN_FLAGS
-    "${CMAKE_TEST_CCXX_NOWARN_FLAGS} ${CMAKE_CCXX_NOWARN_FLAGS}")
+append(CMAKE_TEST_CCXX_NOWARN_FLAGS "${CMAKE_CCXX_NOWARN_FLAGS}")
+
+# propagate sanitizer flags
+append(CMAKE_C_FLAGS "${CMAKE_CCXX_SANITIZER_FLAGS}")
+append(CMAKE_CXX_FLAGS "${CMAKE_CCXX_SANITIZER_FLAGS}")
 
 # allow tests to include internal header files with, e.g.
 # include "src/common/mkldnn_thread.hpp"
@@ -39,28 +42,24 @@ include_directories(${CMAKE_SOURCE_DIR})
 if(UNIX OR MINGW)
     # workaround for Intel Compiler 16.0 that doesn't suppress warning on
     # deprecation with "-Wno-deprecated" compiler flag
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel" AND
-            CMAKE_CXX_COMPILER_VERSION VERSION_LESS "17.0")
-        set(CMAKE_TEST_CCXX_NOWARN_FLAGS
-            "${CMAKE_TEST_CCXX_NOWARN_FLAGS} -diag-disable:1478")
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "17.0")
+        append(CMAKE_TEST_CCXX_NOWARN_FLAGS "-diag-disable:1478")
     else()
-        set(CMAKE_TEST_CCXX_NOWARN_FLAGS
-            "${CMAKE_TEST_CCXX_NOWARN_FLAGS} -Wno-deprecated-declarations")
+        append(CMAKE_TEST_CCXX_NOWARN_FLAGS "-Wno-deprecated-declarations")
     endif()
 elseif(WIN32 AND NOT MINGW)
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-        # 1478: deprecated functions
-        set(CMAKE_TEST_CCXX_NOWARN_FLAGS
-            "${CMAKE_TEST_CCXX_NOWARN_FLAGS} /Qdiag-disable:1478")
+        # 1478, 1786: deprecated functions
+        append(CMAKE_TEST_CCXX_NOWARN_FLAGS "/Qdiag-disable:1478 /Qdiag-disable:1786")
     else()
         # c4244: conversion with possible loss of data
         # c4996: unsafe / deprecated functions
-        set(CMAKE_TEST_CCXX_NOWARN_FLAGS
-            "${CMAKE_TEST_CCXX_NOWARN_FLAGS} /wd4996 /wd4244")
+        append(CMAKE_TEST_CCXX_NOWARN_FLAGS "/wd4996 /wd4244")
     endif()
 endif()
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_TEST_CCXX_NOWARN_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_TEST_CCXX_NOWARN_FLAGS}")
+
+append(CMAKE_C_FLAGS "${CMAKE_TEST_CCXX_NOWARN_FLAGS}")
+append(CMAKE_CXX_FLAGS "${CMAKE_TEST_CCXX_NOWARN_FLAGS}")
 
 register_exe(api-c api.c "test")
 

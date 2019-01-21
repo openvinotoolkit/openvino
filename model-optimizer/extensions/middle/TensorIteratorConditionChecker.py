@@ -66,7 +66,18 @@ class ConditionChecks(MiddleReplacementPattern):
 
         # Check for comparing SS and seq_length source (it should be one tensor)
         # SIMPLE CHECK
-        assert match['Strided_slice_data'].value == match['minimum_data'].value
+        assert match['Strided_slice_data'].value is not None
+        if match['minimum_data'].value is None:
+            log.warning('TF loop doesn\'t have a constant upper bound produced by node {}, or ModelOptimizer '
+                        'cannot detect a constant in this case. Loops with a dynamic number of iterations are not '
+                        'supported, so in the resulting IR, generated TensorIterator will have '
+                        'a maximum number of iterations determined by input tensor size: {}',
+                        match['minimum_data'].soft_get('name'),
+                        match['Strided_slice_data'].value
+            )
+        else:
+            assert match['Strided_slice_data'].value == match['minimum_data'].value, \
+                'Values do not match: {} and {}'.format(match['Strided_slice_data'].value, match['minimum_data'].value)
 
         # SMART CHECK
         # TODO: add here some smart check for tensors equality

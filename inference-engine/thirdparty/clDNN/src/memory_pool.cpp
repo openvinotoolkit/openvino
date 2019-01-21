@@ -129,11 +129,15 @@ namespace cldnn
             }
             auto mem = alloc_memory(layout);
             first_level_cache->second.emplace_back(memory_record({ { id, network_id } }, mem, network_id));
+            // we don't want to store any resources with no parents so memory pool has to store weak pointer of _engine. 
+            _engine->release();
             return mem;            
         }
         auto mem = alloc_memory(layout);
         std::list<memory_record> list = { memory_record({ { id, network_id } },mem, network_id) };
         _padded_pool.emplace(layout, std::move(list));
+        // we don't want to store any resources with no parents so memory pool has to store weak pointer of _engine. 
+        _engine->release();
         return mem;
     }
 

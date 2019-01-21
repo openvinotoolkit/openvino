@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +8,14 @@
 #include <ie_blob.h>
 #include "inference_engine.hpp"
 
-using namespace InferenceEngine;
+namespace InferenceEngine {
+namespace PrecisionUtils {
 
-void PrecisionUtils::f16tof32Arrays(float *dst, const short *src, size_t nelem, float scale, float bias) {
+INFERENCE_ENGINE_API_CPP(void) f16tof32Arrays(float *dst,
+                                              const short *src,
+                                              size_t nelem,
+                                              float scale,
+                                              float bias) {
     const ie_fp16 *_src = reinterpret_cast<const ie_fp16 *>(src);
 
     for (size_t i = 0; i < nelem; i++) {
@@ -19,7 +23,11 @@ void PrecisionUtils::f16tof32Arrays(float *dst, const short *src, size_t nelem, 
     }
 }
 
-void PrecisionUtils::f32tof16Arrays(short *dst, const float *src, size_t nelem, float scale, float bias) {
+INFERENCE_ENGINE_API_CPP(void) f32tof16Arrays(short *dst,
+                                              const float *src,
+                                              size_t nelem,
+                                              float scale,
+                                              float bias) {
     for (size_t i = 0; i < nelem; i++) {
         dst[i] = PrecisionUtils::f32tof16(src[i] * scale + bias);
     }
@@ -31,14 +39,13 @@ void PrecisionUtils::f32tof16Arrays(short *dst, const float *src, size_t nelem, 
 #define EXP_MASK_F32 0x7F800000U
 #define EXP_MASK_F16     0x7C00U
 
-
 // small helper function to represent uint32_t value as float32
 inline float asfloat(uint32_t v) {
     return *reinterpret_cast<float *>(&v);
 }
 
 // Function to convert F32 into F16
-float PrecisionUtils::f16tof32(ie_fp16 x) {
+INFERENCE_ENGINE_API_CPP(float) f16tof32(ie_fp16 x) {
     // this is storage for output result
     uint32_t u = x;
 
@@ -80,7 +87,7 @@ float PrecisionUtils::f16tof32(ie_fp16 x) {
 
 // This function convert f32 to f16 with rounding to nearest value to minimize error
 // the denormal values are converted to 0.
-ie_fp16 PrecisionUtils::f32tof16(float x) {
+INFERENCE_ENGINE_API_CPP(ie_fp16) f32tof16(float x) {
     // create minimal positive normal f16 value in f32 format
     // exp:-14,mantissa:0 -> 2^-14 * 1.0
     static float min16 = asfloat((127 - 14) << 23);
@@ -143,3 +150,7 @@ ie_fp16 PrecisionUtils::f32tof16(float x) {
 
     return v.u | s;
 }
+
+}  // namespace PrecisionUtils
+}  // namespace InferenceEngine
+

@@ -34,7 +34,6 @@ from mo.front.tf.extractors.random_uniform import tf_random_uniform_ext
 from mo.front.tf.extractors.range import tf_range_ext
 from mo.front.tf.extractors.reshape import tf_reshape_ext
 from mo.front.tf.extractors.shape import tf_shape_ext
-from mo.front.tf.extractors.softmax import tf_softmax_ext
 from mo.front.tf.extractors.space_to_batch import tf_space_to_batch_ext, tf_batch_to_space_ext
 from mo.front.tf.extractors.split import tf_split_ext
 from mo.front.tf.extractors.squeeze import tf_squeeze_ext
@@ -95,7 +94,7 @@ tf_op_extractors = {
     'Prod': node_pb_arg(tf_reduce_prod_ext),
     'Const': node_pb_arg(tf_const_ext),
     'Placeholder': node_pb_arg(tf_placeholder_ext),
-    'Identity': node_pb_arg(make_tf_eltwise(lambda v: v)),
+    'Identity': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
     'Add': node_pb_arg(
         make_tf_eltwise(lambda a, b: a + b, attrs={'type': 'Eltwise', 'operation': 'sum', 'can_be_bias': True})),
     'Mul': node_pb_arg(make_tf_eltwise(lambda a, b: a * b, attrs={'type': 'Eltwise', 'operation': 'mul'})),
@@ -111,18 +110,16 @@ tf_op_extractors = {
     'Reshape': node_pb_arg(tf_reshape_ext),
     'Squeeze': node_pb_arg(tf_squeeze_ext),
     'Shape': node_pb_arg(tf_shape_ext),
-    'Softmax': node_pb_arg(tf_softmax_ext),
     'SpaceToBatchND': node_pb_arg(tf_space_to_batch_ext),
     'BatchToSpaceND': node_pb_arg(tf_batch_to_space_ext),
-    'StopGradient': node_pb_arg(make_tf_eltwise(lambda v: v)),
     'Square': node_pb_arg(make_tf_eltwise(lambda a: a * a)),
     'Minimum': node_pb_arg(make_tf_eltwise(lambda a, b: np.minimum(a, b))),  # can use clamp if one argument is const
     'Maximum': node_pb_arg(make_tf_eltwise(lambda a, b: np.maximum(a, b), attrs={'type': 'Eltwise',
                                                                                  'operation': 'max'})),
     'Sum': node_pb_arg(tf_sum_ext),
     'Range': node_pb_arg(tf_range_ext),
-    'ReadVariableOp': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'op': 'Identity'})),
-    'PlaceholderWithDefault': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'op': 'Identity'}))
+    'ReadVariableOp': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
+    'PlaceholderWithDefault': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True}))
 }
 
 

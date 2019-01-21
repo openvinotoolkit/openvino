@@ -38,8 +38,6 @@ class PriorBoxFrontExtractor(FrontExtractorOp):
             'aspect_ratio': np.array(param.aspect_ratio),
             'min_size': np.array(param.min_size),
             'max_size': np.array(param.max_size),
-            'width': list(param.width),
-            'height': list(param.height),
             'flip': int(param.flip),
             'clip': int(param.clip),
             'variance': list(variance),

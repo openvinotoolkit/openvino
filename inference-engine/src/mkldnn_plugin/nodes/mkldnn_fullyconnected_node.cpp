@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,8 +59,11 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     } else if (inDims.ndims() == 4) {
         weightsDims = {fcLayer->_out_num, static_cast<size_t>(inDims[1]), static_cast<size_t>(inDims[2]),
                        static_cast<size_t>(inDims[3])};
+    } else if (inDims.ndims() == 5) {
+        weightsDims = {fcLayer->_out_num, static_cast<size_t>(inDims[1]), static_cast<size_t>(inDims[2]),
+                       static_cast<size_t>(inDims[3]), static_cast<size_t>(inDims[4])};
     } else {
-        THROW_IE_EXCEPTION << "Unsupported source format for FC layer. Expected 4 or 2, got: "
+        THROW_IE_EXCEPTION << "Unsupported source format for FC layer. Expected 5, 4 or 2, got: "
                            << inDims.ndims() << " dims.";
     }
 
@@ -113,10 +115,16 @@ memory::format MKLDNNFullyConnectedNode::weightsFormatForSrcFormat(memory::forma
             return memory::format::oi;
         case memory::format::nchw:
             return memory::format::oihw;
+        case memory::format::ncdhw:
+            return memory::format::oidhw;
         case memory::format::nChw8c:
             return memory::format::oIhw8i;
+        case memory::format::nCdhw8c:
+            return memory::format::oIdhw8i;
         case memory::format::nChw16c:
             return memory::format::oIhw16i;
+        case memory::format::nCdhw16c:
+            return memory::format::oIdhw16i;
         default:
             THROW_IE_EXCEPTION << "Unsupported source format for node " << getName();
     }

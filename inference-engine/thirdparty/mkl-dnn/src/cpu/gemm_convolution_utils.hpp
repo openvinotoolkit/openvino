@@ -33,7 +33,9 @@ namespace jit_gemm_convolution_utils {
     void im2col_3d(jit_gemm_conv_conf_t &jcp, const float *im, float *col,
         int od);
     void im2col(jit_gemm_conv_conf_t &jcp, const float *im, float *col);
-    void im2col_u8(jit_gemm_conv_conf_t &jcp, const uint8_t *im, uint8_t *col);
+    template <typename T>
+    void im2col_u8(jit_gemm_conv_conf_t &jcp, const T *im, uint8_t *col);
+
     void col2im_s32(jit_gemm_conv_conf_t &jcp, const int32_t *col, int32_t *im);
     void col2im_3d(jit_gemm_conv_conf_t &jcp, const float *col, float *im,
         int od);

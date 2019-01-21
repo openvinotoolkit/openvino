@@ -164,12 +164,8 @@ protected:
         auto mem_desc = memory::desc(p.dims, prec, p.memory_format);
         auto mem_prim_desc = memory::primitive_desc(mem_desc, eng);
 
-        // TODO: free
-        auto src_data = new data_t[mem_prim_desc.get_size()];
-        auto dst_data = new data_t[mem_prim_desc.get_size()];
-
-        auto src = memory(mem_prim_desc, src_data);
-        auto dst = memory(mem_prim_desc, dst_data);
+        auto src = memory(mem_prim_desc);
+        auto dst = memory(mem_prim_desc);
 
         auto softmax_desc = softmax_forward::desc(p.aprop_kind, mem_desc,
                     p.axis);
@@ -178,7 +174,7 @@ protected:
         auto softmax = softmax_forward(softmax_prim_desc, src, dst);
 
         auto test_with_given_fill = [&](data_t mean, data_t var) {
-            fill_data<data_t>(mem_prim_desc.get_size(),
+            fill_data<data_t>(mem_prim_desc.get_size() / sizeof(data_t),
                     (data_t *)src.get_data_handle(), mean, var);
 
             stream(stream::kind::lazy).submit({softmax}).wait();
