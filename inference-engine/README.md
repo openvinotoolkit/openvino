@@ -8,6 +8,7 @@ The software was validated on:
 ### Software Requirements
 - [CMake\*](https://cmake.org/download/) 3.9 or higher
 - GCC\* 4.8 or higher to build the Inference Engine
+- Python 2.7 or higher for Inference Engine Python API wrapper
 
 ### Build Steps
 1. Clone submodules:
@@ -29,6 +30,11 @@ You can use the following additional build options:
 - Internal JIT GEMM implementation is used by default.
 - To switch to OpenBLAS\* implementation, use `GEMM=OPENBLAS` option and `BLAS_INCLUDE_DIRS` and `BLAS_LIBRARIES` cmake options to specify path to OpenBLAS headers and library, for example use the following options on CentOS\*: `-DGEMM=OPENBLAS -DBLAS_INCLUDE_DIRS=/usr/include/openblas -DBLAS_LIBRARIES=/usr/lib64/libopenblas.so.0`
 - To switch to optimized MKL-ML\* GEMM implementation, use `GEMM=MKL` and `MKLROOT` cmake options to specify path to unpacked MKL-ML with `include` and `lib` folders, for example use the following options: `-DGEMM=MKL -DMKLROOT=<path_to_MKL>`. MKL-ML\* package can be downloaded [here](https://github.com/intel/mkl-dnn/releases/download/v0.17/mklml_lnx_2019.0.1.20180928.tgz)
+
+- OpenMP threading is used by default. To build Inference Engine with TBB threading, set `-DTHREADING=TBB` option.
+
+- To build Python API wrapper, use -DENABLE_PYTHON=ON option. To specify exact Python version, use the following options: `-DPYTHON_EXECUTABLE=`which python3.6` -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so -DPYTHON_INCLUDE_DIR=/usr/include/python3.6`
+
 - To switch on/off the CPU and GPU plugins, use `cmake` options `-DENABLE_MKL_DNN=ON/OFF` and `-DENABLE_CLDNN=ON/OFF`.
 
 ## Build on Windows\* Systems:
@@ -41,6 +47,7 @@ The software was validated on:
 - [CMake\*](https://cmake.org/download/) 3.9 or higher
 - [OpenBLAS\*](https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download) and [mingw64\* runtime dependencies](https://sourceforge.net/projects/openblas/files/v0.2.14/mingw64_dll.zip/download).
 - [Intel® C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe) 18.0 to build the Inference Engine on Windows.
+- Python 3.4 or higher for Inference Engine Python API wrapper
 
 ### Build Steps
 1. Clone submodules:
@@ -64,10 +71,25 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
     -DICCLIB="C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\compiler\lib" ..
 ```
 
+- Internal JIT GEMM implementation is used by default.
 - To switch to OpenBLAS GEMM implementation, use -DGEMM=OPENBLAS cmake option and specify path to OpenBLAS using `-DBLAS_INCLUDE_DIRS=<OPENBLAS_DIR>\include` and `-DBLAS_LIBRARIES=<OPENBLAS_DIR>\lib\libopenblas.dll.a` options. Prebuilt OpenBLAS\* package can be downloaded [here](https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download), mingw64* runtime dependencies [here](https://sourceforge.net/projects/openblas/files/v0.2.14/mingw64_dll.zip/download)
 - To switch to optimized MKL-ML GEMM implementation, use `GEMM=MKL` and `MKLROOT` cmake options to specify path to unpacked MKL-ML with `include` and `lib` folders, for example use the following options: `-DGEMM=MKL -DMKLROOT=<path_to_MKL>`. MKL-ML\* package can be downloaded [here](https://github.com/intel/mkl-dnn/releases/download/v0.17/mklml_win_2019.0.1.20180928.zip)
 
+- OpenMP threading is used by default. To build Inference Engine with TBB threading, set `-DTHREADING=TBB` option.
+
+- To build Python API wrapper, use -DENABLE_PYTHON=ON option. To specify exact Python version, use the following options: `-DPYTHON_EXECUTABLE="C:\Program Files\Python36\python.exe" -DPYTHON_INCLUDE_DIR="C:\Program Files\Python36\include" -DPYTHON_LIBRARY="C:\Program Files\Python36\libs\python36.lib"`.
+
 6. Build generated solution in Visual Studio 2017 or run `cmake --build . --config Release` to build from the command line.
+
+### Building Inference Engine with Ninja
+
+```sh
+call "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\bin\ipsxe-comp-vars.bat" intel64 vs2017
+set CXX=icl
+set CC=icl
+cmake -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release
+```
 
 Before running the samples on Microsoft\* Windows\*, please add path to OpenMP library (<dldt_repo>/inference-engine/temp/omp/lib) and OpenCV libraries (<dldt_repo>/inference-engine/temp/opencv_4.0.0/bin) to the %PATH% environment variable.
 
