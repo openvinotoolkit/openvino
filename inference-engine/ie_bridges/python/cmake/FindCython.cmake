@@ -1,10 +1,19 @@
-# Find the Cython compiler.
+# Copyright (c) 2016 Intel Corporation
 #
-# This code sets the following variables:
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-#  CYTHON_EXECUTABLE
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-# See also UseCython.cmake
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Following changes were done on top of original file:
+# Add CYTHON_EXECUTABLE searching hints at lines 50 and 51
 
 #=============================================================================
 # Copyright 2011 Kitware, Inc.
@@ -21,7 +30,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #=============================================================================
-
+# Find the Cython compiler.
+#
+# This code sets the following variables:
+#
+#  CYTHON_EXECUTABLE
+#
+# See also UseCython.cmake
 # Use the Cython executable that lives next to the Python executable
 # if it is a local installation.
 find_package( PythonInterp )

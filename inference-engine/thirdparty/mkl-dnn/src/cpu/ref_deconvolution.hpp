@@ -134,9 +134,17 @@ struct ref_deconvolution_fwd_t: public cpu_primitive_t {
                 const deconvolution_desc_t *adesc,
                 const primitive_attr_t *attr,
                 const deconvolution_fwd_pd_t *hint_fwd_pd)
-            : cpu_deconvolution_fwd_pd_t(engine, adesc, attr,
-                    hint_fwd_pd)
+            : cpu_deconvolution_fwd_pd_t(engine, adesc, attr, hint_fwd_pd)
+            , conv_pd_(nullptr)
         {}
+
+        pd_t(const pd_t &other)
+            : cpu_deconvolution_fwd_pd_t(other)
+            , conv_pd_(other.conv_pd_->clone())
+            , conv_supports_bias_(other.conv_supports_bias_)
+        {}
+
+        ~pd_t() { delete conv_pd_; }
 
         DECLARE_DECONVOLUTION_PD_T("ref:any", ref_deconvolution_fwd_t);
 
@@ -165,7 +173,7 @@ struct ref_deconvolution_fwd_t: public cpu_primitive_t {
                     /* only weights in non-double-blocked format are supported */
                     && (wei_fmt == blocked && !is_format_double_blocked(wei_fmt))
                     /* deconv reference code can process only f32 bias */
-                    && utils::implication(with_bias(),
+                    && IMPLICATION(with_bias(),
                             conv_supports_bias_ || output_f32);
                 if (ok)
                     return success;
@@ -210,7 +218,9 @@ struct ref_deconvolution_fwd_t: public cpu_primitive_t {
 
     ref_deconvolution_fwd_t(const pd_t *pd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd) {}
+        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), conv_p_(nullptr) {}
+
+    ~ref_deconvolution_fwd_t() { delete this->conv_p_; }
 
     virtual void execute(event_t *e) {
         switch (conf_.desc()->prop_kind) {
@@ -258,7 +268,14 @@ struct ref_deconvolution_bwd_data_t: public cpu_primitive_t {
                 const primitive_attr_t *attr,
                 const deconvolution_fwd_pd_t *hint_fwd_pd)
             : cpu_deconvolution_bwd_data_pd_t(engine, adesc, attr, hint_fwd_pd)
+            , conv_pd_(nullptr)
         {}
+
+        pd_t(const pd_t &other)
+            : cpu_deconvolution_bwd_data_pd_t(other)
+            , conv_pd_(other.conv_pd_->clone()) {}
+
+        ~pd_t() { delete conv_pd_; }
 
         DECLARE_DECONVOLUTION_PD_T("ref:any", ref_deconvolution_bwd_data_t);
 
@@ -321,7 +338,8 @@ struct ref_deconvolution_bwd_data_t: public cpu_primitive_t {
     };
     ref_deconvolution_bwd_data_t(const pd_t *pd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd) {}
+        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), conv_p_(nullptr) {}
+    ~ref_deconvolution_bwd_data_t() { delete this->conv_p_; }
 
     virtual void execute(event_t *e) {
         switch (conf_.desc()->prop_kind) {
@@ -346,7 +364,14 @@ struct ref_deconvolution_bwd_weights_t: public cpu_primitive_t {
                 const primitive_attr_t *attr,
                 const deconvolution_fwd_pd_t *hint_fwd_pd)
             : cpu_deconvolution_bwd_weights_pd_t(engine, adesc, attr, hint_fwd_pd)
+            , conv_pd_(nullptr)
         {}
+
+        pd_t(const pd_t &other)
+            : cpu_deconvolution_bwd_weights_pd_t(other)
+            , conv_pd_(other.conv_pd_->clone()) {}
+
+        ~pd_t() { delete conv_pd_; }
 
         DECLARE_DECONVOLUTION_PD_T("ref:any", ref_deconvolution_bwd_weights_t);
 
@@ -411,7 +436,9 @@ struct ref_deconvolution_bwd_weights_t: public cpu_primitive_t {
 
     ref_deconvolution_bwd_weights_t(const pd_t *pd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd) {}
+        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd), conv_p_(nullptr) {}
+
+    ~ref_deconvolution_bwd_weights_t() { delete this->conv_p_; }
 
     typedef typename prec_traits<data_type::f32>::type data_t;
 

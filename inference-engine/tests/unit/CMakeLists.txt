@@ -1,6 +1,7 @@
 # Copyright (C) 2018 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0054 NEW)
 
@@ -39,15 +40,24 @@ file(GLOB
         stress_tests/*.cpp
         )
 
-if (ENABLE_MKL_DNN)
-    if (THREADING STREQUAL "OMP")
-        find_package(OpenMP)
-        if (OPENMP_FOUND)
-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-        endif ()
-    endif ()
+if (ENABLE_GNA)
+    file(GLOB
+            GNA_TESTS
+            engines/gna/*cpp
+            )
+    list(APPEND TEST_SRC ${GNA_TESTS})
+    source_group("gna" FILES ${GNA_TESTS})
 
+    find_package(libGNA)
+    include_directories(${libGNA_INCLUDE_DIRS})
+
+    set (GNA_TEST_ENGINE GNAPlugin_test_static)
+endif()
+
+if (ENABLE_MKL_DNN)
+    if (GEMM STREQUAL "MKL")
+        add_definitions(-DUSE_MKL)
+     endif ()
     file(GLOB
             MKLDNN_TESTS
             engines/mkldnn/*.cpp
@@ -87,10 +97,14 @@ include_directories(
         ${IE_MAIN_SOURCE_DIR}/include
         ${IE_MAIN_SOURCE_DIR}/src/inference_engine
         ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin
+        ${IE_MAIN_SOURCE_DIR}/src/gna_plugin
         ${IE_MAIN_SOURCE_DIR}/src/extension
+        ${IE_MAIN_SOURCE_DIR}/src/extension/common
         ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/gflags/include
         mocks)
 add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE} ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE} ${DLAI_TESTS})
+set_ie_threading_interface_for(${TARGET_NAME})
+
 set_target_properties(${TARGET_NAME} PROPERTIES "CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS} -fPIE"
 COMPILE_PDB_NAME ${TARGET_NAME})
 
@@ -111,11 +125,9 @@ else ()
     set(PUGI pugixml)
 endif ()
 
-add_definitions(-DMODELS_PATH="${MODELS_PATH}" -DDATA_PATH="${IE_MAIN_SOURCE_DIR}/tests/data")
+add_definitions(-DMODELS_PATH=\"${MODELS_PATH}\" -DDATA_PATH=\"${IE_MAIN_SOURCE_DIR}/tests/data\")
 
-target_compile_definitions(${TARGET_NAME} PUBLIC -DUSE_STATIC_IE)
-
-target_link_libraries(${TARGET_NAME}
+target_link_libraries(${TARGET_NAME} PRIVATE
         gtest
         gmock
         gtest_main
@@ -128,10 +140,13 @@ target_link_libraries(${TARGET_NAME}
         ${INTEL_ITT_LIBS}
         ${Boost_REGEX_LIBRARY}
         ${TBB_LIBRARY}
-        ${TBBMALLOC_LIBRARY})
+        ${TBBMALLOC_LIBRARY}
+        ${GNA_TEST_ENGINE})
+
+add_dependencies(${TARGET_NAME} ie_cpu_extension)
 
 if (ENABLE_MKL_DNN)
-    target_link_libraries(${TARGET_NAME}
+    target_link_libraries(${TARGET_NAME} PRIVATE
             test_MKLDNNPlugin
             mkldnn)
 endif ()
@@ -140,3 +155,6 @@ add_test(NAME ${TARGET_NAME}
         COMMAND ${TARGET_NAME})
 
 add_dependencies(${TARGET_NAME} mock_engine)
+
+# GAPI unit tests
+add_subdirectory(opencv_test_gapi)

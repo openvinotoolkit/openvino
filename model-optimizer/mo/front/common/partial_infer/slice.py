@@ -71,7 +71,6 @@ def tf_strided_slice_infer(node):
         new_axis_mask.append(False)
 
     value = node.in_node(0).value if node.in_node(0).value is not None else np.zeros(shape)
-
     # fix for the warning: "FutureWarning: Using a non-tuple sequence for multidimensional indexing is deprecated use
     # `arr[tuple(seq)]` instead of `arr[seq]`"
     value = value[tuple(slice_idx)]

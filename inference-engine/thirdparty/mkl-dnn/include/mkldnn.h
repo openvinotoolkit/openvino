@@ -1073,6 +1073,42 @@ mkldnn_status_t MKLDNN_API mkldnn_dilated_deconvolution_backward_weights_desc_in
 
 /** @} */
 
+/** @addtogroup c_api_shuffle Shuffle
+ * A primitive to shuffle data along the axis.
+ * @{ */
+
+/** Initializes a @p shuffle_desc for forward propagation using @p prop_kind,
+ * @p memory descriptor @p data_desc, @p axis and @p group
+ * number.
+ *
+ * Order of inputs:
+ *  - src (#mkldnn_query_src_pd, 0)
+ *
+ * Order of outputs:
+ *  - dst (#mkldnn_query_dst_pd, 0)
+ *
+ */
+mkldnn_status_t MKLDNN_API mkldnn_shuffle_forward_desc_init(
+        mkldnn_shuffle_desc_t *shuffle_desc, mkldnn_prop_kind_t prop_kind,
+        const mkldnn_memory_desc_t *data_desc, int axis, int group_size);
+
+/** Initializes a @p shuffle_desc for backward propagation using @p memory
+ * descriptor @p diff_data_desc, @p axis and @p group number.
+ *
+ *
+ * Order of inputs:
+ *  - diff_dst (#mkldnn_query_diff_dst_pd, 0)
+ *
+ * Order of outputs:
+ *  - diff_src (#mkldnn_query_diff_src_pd, 0)
+ *
+ */
+mkldnn_status_t MKLDNN_API mkldnn_shuffle_backward_desc_init(
+        mkldnn_shuffle_desc_t *shuffle_desc,
+        const mkldnn_memory_desc_t *diff_data_desc, int axis, int group_size);
+
+/** @} */
+
 /** @addtogroup c_api_eltwise Eltwise
  * A primitive to compute element wise operations like parametric rectifier
  * linear unit (ReLU).
@@ -1803,6 +1839,36 @@ mkldnn_status_t MKLDNN_API mkldnn_sgemm(const char *transa, const char *transb,
         const float *B, const int *ldb,
         const float *beta, float *C, const int *ldc);
 
+/** gemm_s8u8s32 and gemm_s8s8s32 perform matrix-matrix multiplication operation
+ * and add the result to a scalar-matrix product. To get the final result,
+ * a vector is added to each row or column of the output matrix.
+ * The operation is defined as:
+ * C := alpha*(op(A) + A_offset) * (op(B) + B_offset) + beta*C + C_offset
+ * where op( X ) = X or op( X ) = X**T,
+ * A_offset is an m-by-k matrix with every element equal to the value oa,
+ * B_offset is an k-by-n matrix with every element equal to the value ob,
+ * C_offset is an m-by-n matrix defined by the oc array, size len:
+ * if offsetc = F: len must be at least 1
+ * if offsetc = C: len must be at least max(1, m)
+ * if offsetc = R: len must be at least max(1, n)
+ * alpha and beta are scalars, and A, B and C are matrices, with op( A )
+ * an m-by-k matrix, op( B ) a k-by-n matrix and C an m-by-n matrix.
+ * @note
+ *      API is different compared to standard BLAS routine
+ *      as it returns mkldnn_status_t for error handling.
+ *      XERBLA is not supported: no error message will be printed
+ *      in case of incorrect parameters */
+mkldnn_status_t MKLDNN_API mkldnn_gemm_s8u8s32(const char *transa,
+        const char *transb, const char *offsetc, const int *M, const int *N,
+        const int *K, const float *alpha, const int8_t *A, const int *lda,
+        const int8_t *ao, const uint8_t *B, const int *ldb, const int8_t *bo,
+        const float *beta, int32_t *c, const int *ldc, const int32_t *co);
+
+mkldnn_status_t MKLDNN_API mkldnn_gemm_s8s8s32(const char *transa,
+        const char *transb, const char *offsetc, const int *M, const int *N,
+        const int *K, const float *alpha, const int8_t *A, const int *lda,
+        const int8_t *ao, const int8_t *B, const int *ldb, const int8_t *bo,
+        const float *beta, int32_t *c, const int *ldc, const int32_t *co);
 /** @} */
 
 /** @} */

@@ -78,7 +78,7 @@ def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: st
         graph.graph['cmd_params'] = argv
         graph.graph['fw'] = 'onnx'
         graph.graph['feature_dim'] = 1 if graph.graph['layout'] == 'NCHW' else 3
-        graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 3
+        graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 4
         # extract basic attributes earlier to enable some passes that relies on them before full attribute
         # extractor is called
         extract_node_attrs(graph, lambda node: (True, common_onnx_fields(node)))

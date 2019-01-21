@@ -1,7 +1,7 @@
 # Image Classification Sample
 
-This topic demonstrates how to build and run the Image Classification sample application, which does 
-inference using image classification networks like AlexNet and GoogLeNet.
+This topic demonstrates how to run the Image Classification sample application, which performs 
+inference using image classification networks such as AlexNet and GoogLeNet.
 
 ## Running
 
@@ -15,36 +15,30 @@ InferenceEngine:
 classification_sample [OPTION]
 Options:
 
-    -h                      
-                            Print a usage message.
-    -i "<path1>" "<path2>"
-                            Required. Path to a folder with images or path to an image files: a .ubyte file for LeNet
-                            and a .bmp file for the other networks.
-    -m "<path>"             
-                            Required. Path to an .xml file with a trained model.
-        -l "<absolute_path>"
-                            Optional. Absolute path to library with MKL-DNN (CPU) custom layers (*.so).
+    -h                        Print a usage message.
+    -i "<path1>" "<path2>"    Required. Path to a folder with images or path to an image files: a .ubyte file for LeNet
+                              and a .bmp file for the other networks.
+    -m "<path>"               Required. Path to an .xml file with a trained model.
+        -l "<absolute_path>"  Optional. Absolute path to library with MKL-DNN (CPU) custom layers (*.so).
         Or
-        -c "<absolute_path>"
-                            Optional. Absolute path to clDNN (GPU) custom layers config (*.xml).
-    -pp "<path>"            
-                            Path to a plugin folder.
-    -d "<device>"           
-                            Specify the target device to infer on; CPU, GPU, FPGA or MYRIAD is acceptable. Sample will look for a suitable plugin for device specified
-    -nt "<integer>"         
-                            Number of top results (default 10)
-    -ni "<integer>"         
-                            Number of iterations (default 1)
-    -pc                     
-                            Enables per-layer performance report
-    -p_msg                  
-                            Enables messages from a plugin
+        -c "<absolute_path>"  Optional. Absolute path to clDNN (GPU) custom layers config (*.xml).
+    -pp "<path>"              Path to a plugin folder.
+    -d "<device>"             Specify the target device to infer on; CPU, GPU, FPGA or MYRIAD is acceptable. Sample will look for a suitable plugin for device specified
+    -nt "<integer>"           Number of top results (default 10)
+    -ni "<integer>"           Number of iterations (default 1)
+    -pc                       Enables per-layer performance report
+    -p_msg                    Enables messages from a plugin
 
 ```
 
-Running the application with the empty list of options yields the usage message given above and an error message.
+Running the application with the empty list of options yields the usage message given above.
 
-You can do inference on an image using a trained AlexNet network on Intel&reg; Processors using the following command:
+To run the sample you can use AlexNet and GoogLeNet models that can be downloaded with the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) or other image classification models. 
+
+> **IMPORTANT**: To run the sample, the model should be first converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+
+For example, to perform inference of an AlexNet model (previously converted to the Inference Engine format) on CPU, use the following command:
+
 ```sh
 ./classification_sample -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml
 ```
@@ -65,4 +59,6 @@ Engine plugin. When inference is done, the application creates an
 output image and outputs data to the standard output stream.
 
 ## See Also 
-* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)
+* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)

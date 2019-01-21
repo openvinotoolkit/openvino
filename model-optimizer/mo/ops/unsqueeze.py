@@ -26,8 +26,6 @@ class Unsqueeze(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
-            'axis': 0,
-            'num_axes': -1,
             'kind': 'op',
             'type': 'Reshape',
             'op': __class__.op,
@@ -35,7 +33,7 @@ class Unsqueeze(Op):
         }, attrs)
 
     def supported_attrs(self):
-        return ['axis', ('dim', lambda node: ', '.join(map(str, node['dim']))), 'num_axes']
+        return [('dim', lambda node: ', '.join(map(str, node['dim'])))]
 
     @staticmethod
     def infer(node):

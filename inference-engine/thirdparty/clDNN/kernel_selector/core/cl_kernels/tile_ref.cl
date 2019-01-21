@@ -33,7 +33,7 @@ KERNEL (tile_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
     {
         UNIT_TYPE save_val = intel_sub_group_shuffle(val, (t*16 + lid)/TILES);
         int offset = group_id*16*TILES + t*16 + lid;
-        if (offset < OUTPUT_SIZE)
+        if (offset < OUTPUT_ELEMENTS)
             output[offset] = save_val;
     }
 #else

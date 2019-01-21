@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +44,7 @@ struct dirent {
 };
 
 class DIR {
-    WIN32_FIND_DATA FindFileData;
+    WIN32_FIND_DATAA FindFileData;
     HANDLE hFind;
     dirent *next;
 
@@ -63,7 +62,7 @@ public:
             ws += "*";
         else
             ws += "\\*";
-        hFind = FindFirstFile(ws.c_str(), &FindFileData);
+        hFind = FindFirstFileA(ws.c_str(), &FindFileData);
         FindFileData.dwReserved0 = hFind != INVALID_HANDLE_VALUE;
     }
 
@@ -87,7 +86,7 @@ public:
         size_t outSize;
         mbstowcs_s(&outSize, wbuf, 4094, FindFileData.cFileName, 4094);
         next = new dirent(wbuf);
-        FindFileData.dwReserved0 = FindNextFile(hFind, &FindFileData);
+        FindFileData.dwReserved0 = FindNextFileA(hFind, &FindFileData);
         return next;
     }
 };

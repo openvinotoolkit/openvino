@@ -36,8 +36,6 @@ if (NOT _tbbmalloc_proxy_ix EQUAL -1)
     endif()
 endif()
 
-set(TBB_INTERFACE_VERSION 10005)
-
 # Intel MKL-DNN changes: use TBBROOT to locate Intel TBB
 # get_filename_component(_tbb_root "${CMAKE_CURRENT_LIST_FILE}" PATH)
 # get_filename_component(_tbb_root "${_tbb_root}" PATH)
@@ -75,11 +73,21 @@ if (WINDOWS_STORE)
     set(_tbb_compiler_subdir ${_tbb_compiler_subdir}_ui)
 endif()
 
-get_filename_component(_tbb_lib_path "${_tbb_root}/bin/${_tbb_arch_subdir}/${_tbb_compiler_subdir}" ABSOLUTE)
+#set conveniance variable to locate TBB files (these are used for a PSXE install)
+get_filename_component(_tbb_lib_path "${_tbb_root}/lib/${_tbb_arch_subdir}/${_tbb_compiler_subdir}" ABSOLUTE)
+get_filename_component(_tbb_inc_path "${_tbb_root}/include/" ABSOLUTE)
+
+
+# we need to check the version of tbb
+file(READ "${_tbb_inc_path}/tbb/tbb_stddef.h" _tbb_stddef)
+string(REGEX REPLACE ".*#define TBB_INTERFACE_VERSION ([0-9]+).*" "\\1" TBB_INTERFACE_VERSION "${_tbb_stddef}")
+if (${TBB_INTERFACE_VERSION} VERSION_LESS 9100)
+    message(FATAL_ERROR "MKL-DNN requires TBB version 2017 or above")
+endif()
 
 foreach (_tbb_component ${TBB_FIND_COMPONENTS})
-    set(_tbb_release_lib "${_tbb_lib_path}/${_tbb_component}.dll")
-    set(_tbb_debug_lib "${_tbb_lib_path}/${_tbb_component}_debug.dll")
+    set(_tbb_release_lib "${_tbb_lib_path}/${_tbb_component}.lib")
+    set(_tbb_debug_lib "${_tbb_lib_path}/${_tbb_component}_debug.lib")
 
     if (EXISTS "${_tbb_release_lib}" AND EXISTS "${_tbb_debug_lib}")
         add_library(TBB::${_tbb_component} SHARED IMPORTED)
@@ -87,9 +95,9 @@ foreach (_tbb_component ${TBB_FIND_COMPONENTS})
                               IMPORTED_CONFIGURATIONS "RELEASE;DEBUG"
                               IMPORTED_LOCATION_RELEASE     "${_tbb_release_lib}"
                               IMPORTED_LOCATION_DEBUG       "${_tbb_debug_lib}"
-                              INTERFACE_INCLUDE_DIRECTORIES "${_tbb_root}/include"
-                              IMPORTED_IMPLIB_RELEASE       "${_tbb_root}/lib/${_tbb_arch_subdir}/${_tbb_compiler_subdir}/${_tbb_component}.lib"
-                              IMPORTED_IMPLIB_DEBUG         "${_tbb_root}/lib/${_tbb_arch_subdir}/${_tbb_compiler_subdir}/${_tbb_component}_debug.lib"
+                              INTERFACE_INCLUDE_DIRECTORIES "${_tbb_inc_path}"
+                              IMPORTED_IMPLIB_RELEASE       "${_tbb_release_lib}"
+                              IMPORTED_IMPLIB_DEBUG         "${_tbb_debug_lib}"
                               INTERFACE_COMPILE_DEFINITIONS "__TBB_NO_IMPLICIT_LINKAGE=1")
 
         # Add internal dependencies for imported targets: TBB::tbbmalloc_proxy -> TBB::tbbmalloc

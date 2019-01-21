@@ -17,6 +17,7 @@
 #ifndef MKLDNN_TEST_COMMON_HPP
 #define MKLDNN_TEST_COMMON_HPP
 
+#include <limits>
 #include <numeric>
 #include <vector>
 #include <cmath>
@@ -59,6 +60,16 @@ template <typename data_t> inline data_t out_round(float x,
 { return (data_t)(rmode == mkldnn_round_down ? floorf(x) : nearbyintf(x)); }
 template <> inline float out_round<float>(float x, mkldnn_round_mode_t rmode)
 { (void)rmode; return x; }
+
+template <typename data_t, typename out_t>
+out_t saturate(const out_t &x) {
+    out_t v = x;
+    if (v <= std::numeric_limits<data_t>::min())
+        v = std::numeric_limits<data_t>::min();
+    if (v > std::numeric_limits<data_t>::max())
+        v = std::numeric_limits<data_t>::max();
+    return v;
+}
 
 inline int right_padding(int i, int o, int k, int p, int s, int d = 0) {
     return (o - 1) * s + (k - 1) * (d + 1) - (p + i - 1);
@@ -226,6 +237,8 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::nChw16c:
     case f::oihw:
     case f::hwio:
+    case f::oIhw8i:
+    case f::oIhw16i:
     case f::OIhw8i8o:
     case f::OIhw16i16o:
     case f::OIhw8i16o2i:
@@ -236,6 +249,7 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::IOhw16o16i:
     case f::Ohwi8o:
     case f::Ohwi16o:
+    case f::OhIw8o4i:
         ndims = 4; break;
     case f::ncdhw:
     case f::ndhwc:
@@ -245,6 +259,8 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::oidhw:
     case f::goihw:
     case f::hwigo:
+    case f::oIdhw8i:
+    case f::oIdhw16i:
     case f::OIdhw8i8o:
     case f::OIdhw16i16o:
     case f::OIdhw8o8i:
@@ -260,6 +276,7 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::gOIhw8o8i:
     case f::gOIhw16o16i:
     case f::gIOhw16o16i:
+    case f::gOhIw8o4i:
         ndims = 5; break;
     case f::gOIdhw8i8o:
     case f::gOIdhw16i16o:

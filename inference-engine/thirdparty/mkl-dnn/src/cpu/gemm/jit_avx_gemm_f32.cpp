@@ -21,7 +21,7 @@
 #include "gemm_utils.hpp"
 #include "jit_avx_gemm_f32.hpp"
 
-#define CACHE_LINE_SIZE 16
+#define CACHE_LINE_SIZE 64
 
 namespace mkldnn {
 namespace impl {
@@ -51,7 +51,7 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
         : jit_generator(code_ptr, code_size)
     {
         const bool is_avx2 = mayiuse(avx2);
-        assert(implication(!is_avx2, mayiuse(avx)));
+        assert(IMPLICATION(!is_avx2, mayiuse(avx)));
 
         const int UNROLL_M = is_avx2 ? 16 : 8;
         const int UNROLL_N = 6;
@@ -128,10 +128,10 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
         // Function for packing if needed
         auto do_pack = [&](
                 int unroll_m, bool isLoad1Unmasked, bool isLoad2Unmasked) {
+            Label pack2, pack3, pack4, pack10;
 
             int regIdx;
             Reg64 reg;
-            inLocalLabel();
 
             mov(BO1, A);
             lea(AO1, ptr[rsp + 256 + OFFSET * SIZE]);
@@ -144,10 +144,10 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
 
             mov(LL, K);
             sar(LL, 2);
-            jle(".pack3", T_NEAR);
+            jle(pack3, T_NEAR);
             align(16);
 
-            L(".pack2");
+            L(pack2);
             if (!isTransA) {
                 for (int i = 0; i < 4; i++) {
                     regIdx = (i % 2 == 0) ? 4 : 6;
@@ -396,16 +396,16 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
 
             add(AO1, unroll_m * 4 * SIZE);
             sub(LL, 1);
-            jg(".pack2", T_NEAR);
+            jg(pack2, T_NEAR);
             align(16);
 
-            L(".pack3");
+            L(pack3);
             mov(LL, K);
             and_(LL, 3);
-            jle(".pack10", T_NEAR);
+            jle(pack10, T_NEAR);
             align(16);
 
-            L(".pack4");
+            L(pack4);
             if (!isTransA) {
                 if (isLoad1Unmasked) {
                     vmovups(ymm4, ptr[BO1 + (0 * 8 - OFFSET) * SIZE]);
@@ -542,12 +542,10 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
 
             add(AO1, unroll_m * SIZE);
             sub(LL, 1);
-            jg(".pack4", T_NEAR);
+            jg(pack4, T_NEAR);
             align(16);
 
-            L(".pack10");
-
-            outLocalLabel();
+            L(pack10);
         };
 
         // Fused multiply add; may become one or two instructions
@@ -1382,8 +1380,6 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                 Ymm reg15 = Ymm(7), Ymm reg16 = Ymm(8), Ymm reg17 = Ymm(9),
                 Ymm reg18 = Ymm(10), Ymm reg19 = Ymm(11), Ymm reg20 = Ymm(12),
                 Ymm reg21 = Ymm(13), Ymm reg22 = Ymm(14), Ymm reg23 = Ymm(15)) {
-            inLocalLabel();
-
             if (!isDirect) {
                 lea(AO1, ptr[rsp + 256 + OFFSET * SIZE]);
             } else {
@@ -1431,20 +1427,23 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
             mov(LL, K);
             sar(LL, 3);
 
+            Label kernel12, kernel13, kernel14, kernel15;
+            Label kernel16, kernel17, kernel18;
+
             sub(LL, SECOND_FETCH);
-            jle(".kernel13", T_NEAR);
+            jle(kernel13, T_NEAR);
             align(16);
 
-            L(".kernel12");
+            L(kernel12);
             innerkernel8(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
                     isDirect, isCopy, useFma, reg00, reg01, reg02, reg03, reg04,
                     reg05, reg06, reg07, reg08, reg09, reg10, reg11, reg12,
                     reg13, reg14, reg15, reg16, reg17, reg18, reg19, reg20,
                     reg21, reg22, reg23);
-            jg(".kernel12", T_NEAR);
+            jg(kernel12, T_NEAR);
             align(16);
 
-            L(".kernel13");
+            L(kernel13);
             prefetcht0(ptr[CO1 + (unroll_m - 1) * SIZE]);
             if (unroll_n >= 2)
                 prefetcht0(ptr[CO1 + LDC + (unroll_m - 1) * SIZE]);
@@ -1458,30 +1457,30 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                 prefetcht0(ptr[CO2 + LDC * 2 + (unroll_m - 1) * SIZE]);
 
             add(LL, SECOND_FETCH);
-            jle(".kernel15", T_NEAR);
+            jle(kernel15, T_NEAR);
             align(16);
 
-            L(".kernel14");
+            L(kernel14);
             innerkernel8(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
                     isDirect, isCopy, useFma, reg00, reg01, reg02, reg03, reg04,
                     reg05, reg06, reg07, reg08, reg09, reg10, reg11, reg12,
                     reg13, reg14, reg15, reg16, reg17, reg18, reg19, reg20,
                     reg21, reg22, reg23);
-            jg(".kernel14", T_NEAR);
+            jg(kernel14, T_NEAR);
             align(16);
 
-            L(".kernel15");
+            L(kernel15);
             test(K, 4);
-            jle(".kernel16", T_NEAR);
+            jle(kernel16, T_NEAR);
             innerkernel4(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
                     isDirect, isCopy, useFma, reg00, reg01, reg02, reg03, reg04,
                     reg05, reg06, reg07, reg08, reg09, reg10, reg11, reg12,
                     reg13, reg14, reg15, reg16, reg17, reg18, reg19, reg20,
                     reg21, reg22, reg23);
 
-            L(".kernel16");
+            L(kernel16);
             test(K, 2);
-            jle(".kernel17", T_NEAR);
+            jle(kernel17, T_NEAR);
             innerkernel2(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
                     isDirect, isCopy, useFma, reg00, reg01, reg02, reg03, reg04,
                     reg05, reg06, reg07, reg08, reg09, reg10, reg11, reg12,
@@ -1489,7 +1488,7 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                     reg21, reg22, reg23);
             align(16);
 
-            L(".kernel17");
+            L(kernel17);
             if (unroll_m == 16) {
                 if (unroll_n <= 3) {
                     vaddps(reg00, reg00, reg12);
@@ -1511,13 +1510,13 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
             }
 
             test(K, 1);
-            jle(".kernel18", T_NEAR);
+            jle(kernel18, T_NEAR);
             innerkernel1(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
                     isDirect, isCopy, useFma, reg00, reg01, reg02, reg03, reg04,
                     reg05, reg06, reg07, reg08, reg09, reg10, reg11);
             align(16);
 
-            L(".kernel18");
+            L(kernel18);
             vbroadcastss(VALPHA, ALPHA);
 
             if (isBetaN) {
@@ -1804,8 +1803,6 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                 sub(BO1, rax);
                 add(BO1, unroll_n * SIZE);
             }
-
-            outLocalLabel();
         };
 
         auto kernel_16x6 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
@@ -1898,11 +1895,17 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
         // Masking is used for tail cases where M is not divisible by 8.
         auto subloop = [&](
                 int unroll_m, bool isLoad1Unmasked, bool isLoad2Unmasked) {
-            inLocalLabel();
-
             if (isTransA) {
                 do_pack(unroll_m, isLoad1Unmasked, isLoad2Unmasked);
             }
+
+            Label subloop11, subloop11mask;
+            Label subloop20, subloop21, subloop22, subloop23;
+            Label subloop24, subloop25;
+            Label subloop30, subloop31, subloop32, subloop33;
+            Label subloop34, subloop35;
+            Label subloop98, subloop98mask;
+            Label subloop99, subloop99mask;
 
             mov(CO1, C);
             lea(CO2, ptr[CO1 + LDC * 2]);
@@ -1916,11 +1919,11 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
             if (!isTransA) {
                 lea(AA, ptr[A + (unroll_m * 2 - 1 - OFFSET) * SIZE]);
                 cmp(M, UNROLL_M);
-                jg(".subloop98", T_NEAR);
+                jg(subloop98, T_NEAR);
 
                 mov(AA, ORIG_A);
                 lea(AA, ptr[AA + (unroll_m - 1 - OFFSET) * SIZE]);
-                L(".subloop98");
+                L(subloop98);
             }
 
             mov(LL, N);
@@ -1928,14 +1931,14 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
             if (!isTransA) {
                 // If N is too small, skip copy operation
                 cmp(LL, UNROLL_N * 3);
-                jle(".subloop30", T_NEAR);
+                jle(subloop30, T_NEAR);
 
                 // If A is not aligned to cache line
                 cmp(FLAG, 0);
-                je(".subloop30", T_NEAR);
+                je(subloop30, T_NEAR);
             } else {
                 cmp(LL, UNROLL_N);
-                jl(".subloop20", T_NEAR);
+                jl(subloop20, T_NEAR);
             }
             align(16);
 
@@ -1959,10 +1962,10 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
 
             sub(I, UNROLL_N);
             cmp(I, UNROLL_N);
-            jl(".subloop20", T_NEAR);
+            jl(subloop20, T_NEAR);
             align(16);
 
-            L(".subloop11");
+            L(subloop11);
             if (unroll_m == 16) {
                 kernel_16x6(unroll_m, UNROLL_N, isLoad1Unmasked,
                         isLoad2Unmasked, false, false);
@@ -1972,12 +1975,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
             }
             sub(I, UNROLL_N);
             cmp(I, UNROLL_N);
-            jge(".subloop11", T_NEAR);
+            jge(subloop11, T_NEAR);
             align(16);
 
-            L(".subloop20");
+            L(subloop20);
             cmp(I, 1);
-            jne(".subloop21", T_NEAR);
+            jne(subloop21, T_NEAR);
             if (unroll_m == 16) {
                 kernel_16x1(unroll_m, 1, isLoad1Unmasked, isLoad2Unmasked,
                         false, false);
@@ -1985,12 +1988,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                 kernel_8x1(unroll_m, 1, isLoad1Unmasked, isLoad2Unmasked, false,
                         false);
             }
-            jmp(".subloop99", T_NEAR);
+            jmp(subloop99, T_NEAR);
             align(16);
 
-            L(".subloop21");
+            L(subloop21);
             cmp(I, 2);
-            jne(".subloop22", T_NEAR);
+            jne(subloop22, T_NEAR);
             if (unroll_m == 16) {
                 kernel_16x2(unroll_m, 2, isLoad1Unmasked, isLoad2Unmasked,
                         false, false);
@@ -1998,12 +2001,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                 kernel_8x2(unroll_m, 2, isLoad1Unmasked, isLoad2Unmasked, false,
                         false);
             }
-            jmp(".subloop99", T_NEAR);
+            jmp(subloop99, T_NEAR);
             align(16);
 
-            L(".subloop22");
+            L(subloop22);
             cmp(I, 3);
-            jne(".subloop23", T_NEAR);
+            jne(subloop23, T_NEAR);
             if (unroll_m == 16) {
                 kernel_16x3(unroll_m, 3, isLoad1Unmasked, isLoad2Unmasked,
                         false, false);
@@ -2011,12 +2014,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                 kernel_8x3(unroll_m, 3, isLoad1Unmasked, isLoad2Unmasked, false,
                         false);
             }
-            jmp(".subloop99", T_NEAR);
+            jmp(subloop99, T_NEAR);
             align(16);
 
-            L(".subloop23");
+            L(subloop23);
             cmp(I, 4);
-            jne(".subloop24", T_NEAR);
+            jne(subloop24, T_NEAR);
             if (unroll_m == 16) {
                 kernel_16x4(unroll_m, 4, isLoad1Unmasked, isLoad2Unmasked,
                         false, false);
@@ -2024,12 +2027,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                 kernel_8x4(unroll_m, 4, isLoad1Unmasked, isLoad2Unmasked, false,
                         false);
             }
-            jmp(".subloop99", T_NEAR);
+            jmp(subloop99, T_NEAR);
             align(16);
 
-            L(".subloop24");
+            L(subloop24);
             cmp(I, 5);
-            jne(".subloop99", T_NEAR);
+            jne(subloop99, T_NEAR);
             if (unroll_m == 16) {
                 kernel_16x5(unroll_m, 5, isLoad1Unmasked, isLoad2Unmasked,
                         false, false);
@@ -2037,16 +2040,16 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                 kernel_8x5(unroll_m, 5, isLoad1Unmasked, isLoad2Unmasked, false,
                         false);
             }
-            jmp(".subloop99", T_NEAR);
+            jmp(subloop99, T_NEAR);
             align(16);
 
             if (!isTransA) {
-                L(".subloop30");
+                L(subloop30);
                 cmp(I, UNROLL_N);
-                jl(".subloop25", T_NEAR);
+                jl(subloop25, T_NEAR);
                 align(16);
 
-                L(".subloop31");
+                L(subloop31);
                 if (unroll_m == 16) {
                     kernel_16x6(unroll_m, UNROLL_N, isLoad1Unmasked,
                             isLoad2Unmasked, true, false);
@@ -2056,12 +2059,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                 }
                 sub(I, UNROLL_N);
                 cmp(I, UNROLL_N);
-                jge(".subloop31", T_NEAR);
+                jge(subloop31, T_NEAR);
                 align(16);
 
-                L(".subloop25");
+                L(subloop25);
                 cmp(I, 1);
-                jne(".subloop32", T_NEAR);
+                jne(subloop32, T_NEAR);
                 if (unroll_m == 16) {
                     kernel_16x1(unroll_m, 1, isLoad1Unmasked, isLoad2Unmasked,
                             true, false);
@@ -2069,12 +2072,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                     kernel_8x1(unroll_m, 1, isLoad1Unmasked, isLoad2Unmasked,
                             true, false);
                 }
-                jmp(".subloop99", T_NEAR);
+                jmp(subloop99, T_NEAR);
                 align(16);
 
-                L(".subloop32");
+                L(subloop32);
                 cmp(I, 2);
-                jne(".subloop33", T_NEAR);
+                jne(subloop33, T_NEAR);
                 if (unroll_m == 16) {
                     kernel_16x2(unroll_m, 2, isLoad1Unmasked, isLoad2Unmasked,
                             true, false);
@@ -2082,12 +2085,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                     kernel_8x2(unroll_m, 2, isLoad1Unmasked, isLoad2Unmasked,
                             true, false);
                 }
-                jmp(".subloop99", T_NEAR);
+                jmp(subloop99, T_NEAR);
                 align(16);
 
-                L(".subloop33");
+                L(subloop33);
                 cmp(I, 3);
-                jne(".subloop34", T_NEAR);
+                jne(subloop34, T_NEAR);
                 if (unroll_m == 16) {
                     kernel_16x3(unroll_m, 3, isLoad1Unmasked, isLoad2Unmasked,
                             true, false);
@@ -2095,12 +2098,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                     kernel_8x3(unroll_m, 3, isLoad1Unmasked, isLoad2Unmasked,
                             true, false);
                 }
-                jmp(".subloop99", T_NEAR);
+                jmp(subloop99, T_NEAR);
                 align(16);
 
-                L(".subloop34");
+                L(subloop34);
                 cmp(I, 4);
-                jne(".subloop35", T_NEAR);
+                jne(subloop35, T_NEAR);
                 if (unroll_m == 16) {
                     kernel_16x4(unroll_m, 4, isLoad1Unmasked, isLoad2Unmasked,
                             true, false);
@@ -2108,12 +2111,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                     kernel_8x4(unroll_m, 4, isLoad1Unmasked, isLoad2Unmasked,
                             true, false);
                 }
-                jmp(".subloop99", T_NEAR);
+                jmp(subloop99, T_NEAR);
                 align(16);
 
-                L(".subloop35");
+                L(subloop35);
                 cmp(I, 5);
-                jne(".subloop99", T_NEAR);
+                jne(subloop99, T_NEAR);
                 if (unroll_m == 16) {
                     kernel_16x5(unroll_m, 5, isLoad1Unmasked, isLoad2Unmasked,
                             true, false);
@@ -2124,7 +2127,7 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
                 align(16);
             }
 
-            L(".subloop99");
+            L(subloop99);
             // Compute address for A
             if (!isTransA) {
                 add(A, unroll_m * SIZE);
@@ -2138,13 +2141,11 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
             if (hasBias) {
                 add(BIAS, unroll_m * SIZE);
             }
-
-            outLocalLabel();
         };
 
-        inLocalLabel();
-
         preamble();
+
+        Label buffer_in_ws, buffer_allocated;
 
         // Get the registers
         mov(B, ARG_B);
@@ -2165,7 +2166,7 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
 #endif
 
         cmp(K, STACK_K_CAPACITY);
-        jg(".buffer_in_ws", T_NEAR);
+        jg(buffer_in_ws, T_NEAR);
 
         // Create buffer and align to 4kB page
         lea(rax, ptr[K * SIZE]);
@@ -2173,12 +2174,12 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
         add(rax, 256);
         sub(rsp, rax);
         and_(rsp, -PAGE_4K);
-        jmp(".buffer_allocated", T_NEAR);
+        jmp(buffer_allocated, T_NEAR);
 
-        L(".buffer_in_ws");
+        L(buffer_in_ws);
         mov(rsp, ARG_WS);
 
-        L(".buffer_allocated");
+        L(buffer_allocated);
 
         mov(ORIG_SP, rbp);
         mov(M, ARG_M);
@@ -2218,43 +2219,45 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
         and_(rax, 0x1f);
         mov(FLAG, rax);
 
+        Label main0, main1, main2, main3, main999;
+
         cmp(M, UNROLL_M);
-        jl(".main0", T_NEAR);
+        jl(main0, T_NEAR);
         align(16);
 
-        L(".main1");
+        L(main1);
         subloop(UNROLL_M, true, true);
         sub(M, UNROLL_M);
         cmp(M, UNROLL_M);
-        jge(".main1", T_NEAR);
+        jge(main1, T_NEAR);
         align(16);
 
-        L(".main0");
+        L(main0);
         cmp(M, 0);
-        jle(".main999", T_NEAR);
+        jle(main999, T_NEAR);
 
         if (UNROLL_M > 8) {
             cmp(M, 8);
-            jle(".main2", T_NEAR);
+            jle(main2, T_NEAR);
 
             sub(M, 8);
             vbroadcastss(VMASK, M);
             vpcmpgtd(VMASK, VMASK, MASK);
 
             subloop(16, true, false);
-            jmp(".main999", T_NEAR);
+            jmp(main999, T_NEAR);
             align(16);
 
-            L(".main2");
+            L(main2);
             cmp(M, 8);
-            jne(".main3", T_NEAR);
+            jne(main3, T_NEAR);
             subloop(8, true, true);
-            jmp(".main999", T_NEAR);
+            jmp(main999, T_NEAR);
         }
 
         align(16);
 
-        L(".main3");
+        L(main3);
         vbroadcastss(VMASK, M);
         if (is_avx2) {
             vpcmpgtd(VMASK, VMASK, MASK);
@@ -2270,15 +2273,13 @@ struct jit_avx_gemm_f32::xbyak_gemm : public jit_generator {
         subloop(8, false, false);
         align(16);
 
-        L(".main999");
+        L(main999);
         // Restore original stack
         mov(rax, ORIG_SP);
         mov(rsp, rax);
 
         vzeroupper();
         postamble();
-
-        outLocalLabel();
 
         ker_ = reinterpret_cast<decltype(ker_)>(
                 const_cast<uint8_t *>(this->getCode()));
@@ -2335,7 +2336,7 @@ void jit_avx_gemm_f32::sgemm_nocopy_driver(const char *transa,
     int BM = 4032;
     int BN = isTransA ? 96 : 48;
     int BK = isTransB ? 96 : 256;
-    const float *curA, *curB, *curBias = NULL;
+    const float *curA, *curB, *curBias = nullptr;
     float *curC;
 
     for (Bk = 0; Bk < k; Bk += sizeK) {
@@ -2376,15 +2377,15 @@ void jit_avx_gemm_f32::sgemm_nocopy_driver(const char *transa,
                     curB = b + Bn + (size_t)Bk * ldb;
                 }
                 curC = c + Bm + (size_t)Bn * ldc;
-                if (bias != NULL) {
+                if (bias != nullptr) {
                     if (Bk == 0) {
                         curBias = bias + Bm;
                     } else {
-                        curBias = NULL;
+                        curBias = nullptr;
                     }
                 }
                 if (Bk == 0) {
-                    if (*beta == 0.0 && bias == NULL)
+                    if (*beta == 0.0 && bias == nullptr)
                         (*ker_b0_)((long long int)sizeM, (long long int)sizeN,
                                 (long long int)sizeK, alpha, curA,
                                 (long long int)lda, curB, (long long int)ldb,
@@ -2431,7 +2432,7 @@ void jit_avx_gemm_f32::sgemm(const char *transa, const char *transb,
     // Determine threading partitioning
     gemm_utils::calc_nthr_nocopy_avx(
             m, n, k, nthr, &nthr_m, &nthr_n, &nthr_k, &MB, &NB, &KB);
-    assert(utils::implication(!mkldnn_thr_syncable(), nthr_k == 1));
+    assert(IMPLICATION(!mkldnn_thr_syncable(), nthr_k == 1));
 
     // May not happen, but just in case
     if (nthr < nthr_m * nthr_n * nthr_k)
@@ -2439,13 +2440,19 @@ void jit_avx_gemm_f32::sgemm(const char *transa, const char *transb,
 
     nthr_mn = nthr_m * nthr_n;
 
-    unsigned int volatile *ompstatus = (unsigned int volatile *)ompstatus_;
-    if (!ompstatus) return;
+    unsigned char * ompstatus_ = nullptr;
+    unsigned char volatile *ompstatus = nullptr;
 
-    float *c_buffers = NULL;
-    float *ws_buffers = NULL;
+    float *c_buffers = nullptr;
+    float *ws_buffers = nullptr;
 
     if (nthr_k > 1) {
+        ompstatus_ = (unsigned char *) malloc(
+                nthr * CACHE_LINE_SIZE,
+                CACHE_LINE_SIZE);
+        ompstatus = (unsigned char volatile *) ompstatus_;
+        assert(ompstatus);
+
         for (int i = 0; i < nthr; i++)
             ompstatus[i * CACHE_LINE_SIZE] = 0;
 
@@ -2466,7 +2473,7 @@ void jit_avx_gemm_f32::sgemm(const char *transa, const char *transb,
         int n_from, n_to, myN;
         int k_from, k_to, myK;
         int cbase, ibase;
-        const float *myA, *myB, *myBias = NULL;
+        const float *myA, *myB, *myBias = nullptr;
         float *myC = C, myBeta;
         float *ws = ws_buffers ?
                 ws_buffers + ithr * ws_size_per_thr / sizeof(float) : 0;
@@ -2528,7 +2535,7 @@ void jit_avx_gemm_f32::sgemm(const char *transa, const char *transb,
                     myC = c_buffers + MB * NB * (cbase + ithr_k - 1);
                     myBeta = 0.0;
                     ld = MB;
-                    myBias = NULL;
+                    myBias = nullptr;
                 }
 
                 sgemm_nocopy_driver(transa, transb, myM, myN, myK, p_alpha, myA,
@@ -2575,8 +2582,8 @@ void jit_avx_gemm_f32::sgemm(const char *transa, const char *transb,
         }
     });
 
-    if (nthr_k > 1)
-        free(c_buffers);
+    free(c_buffers);
+    free(ompstatus_);
     free(ws_buffers);
 }
 
@@ -2602,9 +2609,6 @@ jit_avx_gemm_f32::jit_avx_gemm_f32(
         ker_b0_ = ker_bn_;
     }
     nthrs_ = mkldnn_get_max_threads();
-    ompstatus_ = (unsigned int *)malloc(
-        sizeof(unsigned int *) * nthrs_ * CACHE_LINE_SIZE, 64);
-    assert(ompstatus_);
 }
 
 jit_avx_gemm_f32::~jit_avx_gemm_f32()
@@ -2614,7 +2618,6 @@ jit_avx_gemm_f32::~jit_avx_gemm_f32()
         delete ker_b1_;
     if (beta_ != 0.0 || (beta_ == 0.0 && hasBias_))
         delete ker_b0_;
-    free(ompstatus_);
 }
 
 }

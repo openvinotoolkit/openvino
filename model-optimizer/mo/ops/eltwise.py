@@ -28,7 +28,7 @@ class Eltwise(Op):
         operations = {
             'sum': ('Add', lambda a, b: a + b),
             'mul': ('Mul', lambda a, b: a * b),
-            'max': ('Max', lambda a, b: np.max(a, b))
+            'max': ('Max', lambda a, b: np.maximum(a, b))
         }
 
         super().__init__(graph, {

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +6,15 @@
 
 #include <map>
 #include <string>
+#include <memory>
 
 #include "ie_blob.h"
 #include "ie_input_info.hpp"
 #include "ie_profiling.hpp"
 
 namespace InferenceEngine {
+
+class PreprocEngine;
 
 /**
  * @brief This class stores pre-process information for exact input
@@ -24,6 +26,12 @@ class INFERENCE_ENGINE_API_CLASS(PreProcessData) {
     Blob::Ptr _roiBlob = nullptr;
     Blob::Ptr _tmp1 = nullptr;
     Blob::Ptr _tmp2 = nullptr;
+
+    /**
+     * @brief Pointer-to-implementation (PIMPL) hiding preprocessing implementation details.
+     * BEWARE! Will be shared among copies!
+     */
+    std::shared_ptr<PreprocEngine> _preproc;
 
     InferenceEngine::ProfilingTask perf_resize {"Resize"};
     InferenceEngine::ProfilingTask perf_reorder_before {"Reorder before"};
@@ -48,7 +56,7 @@ public:
      * @param outBlob pre-processed output blob to be used for inference.
      * @param algorithm resize algorithm.
      */
-    void execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm);
+    void execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm, bool serial);
 };
 
 //----------------------------------------------------------------------

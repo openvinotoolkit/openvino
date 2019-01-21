@@ -1,6 +1,8 @@
 # Copyright (C) 2018 Intel Corporation
+#
 # SPDX-License-Identifier: Apache-2.0
 #
+
 if(DEFINED IE_MAIN_SOURCE_DIR AND TARGET inference_engine)
     set(InferenceEngine_INCLUDE_DIRS ${IE_MAIN_SOURCE_DIR}/include)
     set(InferenceEngine_LIBRARIES inference_engine)

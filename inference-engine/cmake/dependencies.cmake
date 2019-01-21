@@ -59,10 +59,12 @@ if (GEMM STREQUAL "MKL")
 if(NOT MKLROOT)
     message(FATAL_ERROR "MKLROOT not found: install MKL and set -DMKLROOT=<path_to_MKL>")
 endif()
+set(MKL ${MKLROOT})
 debug_message(STATUS "mkl_ml=" ${MKLROOT})
 endif ()
 
-if (ENABLE_INTEL_OMP)
+## Intel OMP package
+if (THREADING STREQUAL "OMP")
 if (WIN32)
     RESOLVE_DEPENDENCY(OMP
             ARCHIVE_WIN "iomp.zip"
@@ -80,36 +82,29 @@ log_rpath_from_dir(OMP "${OMP}/lib")
 debug_message(STATUS "intel_omp=" ${OMP})
 endif ()
 
-#TBB package
+## TBB package
 if (THREADING STREQUAL "TBB")
 if (WIN32)
     #TODO: add target_path to be platform specific as well, to avoid following if
     RESOLVE_DEPENDENCY(TBB
-            ARCHIVE_WIN "tbb2018_20180618_win.zip" #TODO: windows zip archive created incorrectly using old name for folder
+            ARCHIVE_WIN "tbb2019_20181010_win.zip" #TODO: windows zip archive created incorrectly using old name for folder
             TARGET_PATH "${TEMP}/tbb"
             ENVIRONMENT "TBBROOT"
             VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
 elseif(LINUX)
     RESOLVE_DEPENDENCY(TBB
-            ARCHIVE_LIN "tbb2018_20180618_lin.tgz"
+            ARCHIVE_LIN "tbb2019_20181010_lin.tgz"
             TARGET_PATH "${TEMP}/tbb"
             ENVIRONMENT "TBBROOT")
 endif()
-set(TBB_INCLUDE_DIRS "${TBB}/include")
-find_path(TBB_INCLUDE_DIRS tbb/tbb.h)
-find_library(TBB_LIBRARIES_RELEASE tbb HINTS "${TBB}/lib")
-if (TBB_INCLUDE_DIRS AND TBB_LIBRARIES_RELEASE)
-    log_rpath_from_dir(TBB "${TBB}/lib")
-else()
-    message("FATAL_ERROR" "TBB is unset")
-endif()
+log_rpath_from_dir(TBB "${TBB}/lib")
 debug_message(STATUS "tbb=" ${TBB})
 endif ()
 
 if (ENABLE_OPENCV)
 if (WIN32)
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_WIN "opencv_4.0.0-0256.zip"
+            ARCHIVE_WIN "opencv_4.0.1-0353.zip"
             TARGET_PATH "${TEMP}/opencv_4.0.0"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
@@ -118,14 +113,21 @@ if (WIN32)
 elseif(LINUX)
 if (${LINUX_OS_NAME} STREQUAL "Ubuntu 16.04")
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_4.0.0-0256_ubuntu16.tgz"
+            ARCHIVE_LIN "opencv_4.0.0-0305_ubuntu16.tgz"
             TARGET_PATH "${TEMP}/opencv_4.0.0_ubuntu"
+            ENVIRONMENT "OpenCV_DIR"
+            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+    log_rpath_from_dir(OPENCV "opencv_4.0.0_ubuntu/lib")
+elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 18.04")
+    RESOLVE_DEPENDENCY(OPENCV
+            ARCHIVE_LIN "opencv_4.0.0-0305_ubuntu18.tgz"
+            TARGET_PATH "${TEMP}/opencv_4.0.0_ubuntu18"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
     log_rpath_from_dir(OPENCV "opencv_4.0.0_ubuntu/lib")
 elseif (${LINUX_OS_NAME} STREQUAL "CentOS 7")
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_4.0.0-0256_centos.tgz"
+            ARCHIVE_LIN "opencv_4.0.0-0305_centos.tgz"
             TARGET_PATH "${TEMP}/opencv_4.0.0_centos"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
@@ -136,6 +138,26 @@ endif()
 debug_message(STATUS "opencv=" ${OPENCV})
 endif()
 
-if (THREADING STREQUAL "OMP")
-    include(omp)
-endif ()
+
+include(ie_parallel)
+
+if (ENABLE_GNA)
+    RESOLVE_DEPENDENCY(GNA
+            ARCHIVE_UNIFIED "gna_20181120.zip"
+            TARGET_PATH "${TEMP}/gna")
+endif()
+
+configure_file(
+        "${CMAKE_SOURCE_DIR}/cmake/share/InferenceEngineConfig.cmake.in"
+        "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
+        @ONLY)
+
+configure_file(
+        "${CMAKE_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
+        "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
+        COPYONLY)
+
+configure_file(
+        "${CMAKE_SOURCE_DIR}/cmake/ie_parallel.cmake"
+        "${CMAKE_BINARY_DIR}/share/ie_parallel.cmake"
+        COPYONLY)

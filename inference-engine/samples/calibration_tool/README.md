@@ -22,6 +22,7 @@ Available options:
       -t "RawOD" to collect only statistics for Object Detection network and write statistics to IR. With this option, a model is not calibrated. For calibration and statisctics collection, use "-t OD" instead
     -i <path>                 Required. Path to a directory with validation images. For Classification models, the directory must contain folders named as labels with images inside or a .txt file with a list of images. For Object Detection models, the dataset must be in VOC format.
     -m <path>                 Required. Path to an .xml file with a trained model, including model name and extension.
+    -lbl <path>               Labels file path. The labels file contains names of the dataset classes
     -l <absolute_path>        Required for CPU custom layers. Absolute path to a shared library with the kernel implementations.
     -c <absolute_path>        Required for GPU custom kernels. Absolute path to an .xml file with the kernel descriptions.
     -d <device>               Target device to infer on: CPU (default), GPU, FPGA, or MYRIAD. The application looks for a suitable plugin for the specified device.
@@ -31,9 +32,10 @@ Available options:
     -ppWidth W                Preprocessing width (overrides -ppSize, used with ppType="ResizeCrop")
     -ppHeight H               Preprocessing height (overrides -ppSize, used with ppType="ResizeCrop")
     --dump                    Dump file names and inference results to a .csv file
-    -subset                  Number of pictures from the whole validation set tocreate the calibration dataset. Default value is 0, which stands forthe whole provided dataset
-    -output <output_IR>      Output name for calibrated model. Default is <original_model_name>_i8.xml|bin
-    -threshold               Threshold for a maximum accuracy drop of quantized model. Must be an integer number (percents) without a percent sign. Default value is 1, which stands for accepted accuracy drop in 1%
+    -subset                   Number of pictures from the whole validation set tocreate the calibration dataset. Default value is 0, which stands forthe whole provided dataset
+    -output <output_IR>       Output name for calibrated model. Default is <original_model_name>_i8.xml|bin
+    -threshold                Threshold for a maximum accuracy drop of quantized model. Must be an integer number (percents) without a percent sign. Default value is 1, which stands for accepted accuracy drop in 1%
+    - stream_output           Flag for printing progress as a plain text.When used, interactive progress bar is replaced with multiline output
 
     Classification-specific options:
       -Czb true               "Zero is a background" flag. Some networks are trained with a modified dataset where the class IDs  are enumerated from 1, but 0 is an undefined "background" class (which is never detected)
@@ -72,18 +74,21 @@ If you decide to use the subset of the given dataset, use the ImageNet-like form
 instead of "folder as classes" format. This brings a more accurate calibration as you are likely to get images
 representing different classes.
 
-For example, to calibrate the pretrained TensorFlow\* `inception_v4_tf.xml` classification model,
-run the following command:
+To run the sample you can use classification models that can be downloaded with the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) or other image classification models.
+
+For example, to calibrate the trained Caffe\* `resnet-50` classification model, run the following command:
 
 ```bash
-./calibration_tool -t C -m inception_v4_tf.xml -i ILSVRC2012_val.txt -Czb false -ppType "ResizeCrop" -ppSize 342 -b 1 -d CPU -subset 2000
+./calibration_tool -t C -m resnet-50.xml -i ILSVRC2012_val.txt -Czb false -ppType "ResizeCrop" -ppSize 342 -b 1 -d CPU -subset 2000
 ```
+
+> **NOTE**: To run the tool for a model, the model should be first converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 ## Calibrate Object Detection Model
 
 This topic demonstrates how to run the Calibration Tool on the Object Detection CNN on a set of images. Please
 review the list of Object Detection models used for validation of the Calibration Tool
-in the [8-bit Inference Introduction](./docs/Inference_Engine_Developer_Guide/Int8Inference.md).
+in the [8-bit Inference Introduction](./docs/IE_DG/Int8Inference.md).
 Any network that can be inferred with the Inference Engine and has the same input and output
 format as the SSD CNN should be supported as well.
 
@@ -100,4 +105,4 @@ Once you have prepared the dataset, you can calibrate the model on it by running
 
 ## See Also
 
-* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)
+* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)

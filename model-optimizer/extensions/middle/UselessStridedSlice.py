@@ -21,7 +21,7 @@ import numpy as np
 
 from extensions.middle.ConvertGroupedStridedSlice import ConvertGroupedStridedSlice
 from extensions.middle.SliceConverter import ConvertSlice
-from mo.graph.graph import erase_node
+from mo.middle.passes.eliminate import remove_op_node_with_data_node
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -46,10 +46,9 @@ class UselessStridedSliceEraser(MiddleReplacementPattern):
         if np.array_equal(input_data_node.shape, output_data_node.shape) and \
                 all(elem.step == 1 for elem in match['strided_slice'].slices):
             log.info("Useless StridedSlice op '{}' has been detected".format(match['strided_slice'].id))
-            # remove inputs to Strided Slice so it has just one input with data so we can use 'erase_node' function
+            # remove inputs to Strided Slice so it has just one input with data so we can use 'remove_op_node' function
             graph.remove_edge(match['strided_slice'].in_node(1).id, match['strided_slice'].id)
             graph.remove_edge(match['strided_slice'].in_node(2).id, match['strided_slice'].id)
             graph.remove_edge(match['strided_slice'].in_node(3).id, match['strided_slice'].id)
 
-            erase_node(match['strided_slice'])
-            erase_node(output_data_node)
+            remove_op_node_with_data_node(graph, match['strided_slice'])

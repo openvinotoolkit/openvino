@@ -22,12 +22,8 @@ import sys
 
 
 def shell(cmd, env=None, cwd=None):
-    kwargs = dict(cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if sys.platform.startswith('linux') or sys.platform == 'darwin':
-        cmd = ['/bin/bash', '-c', "".join(cmd)]
-    else:
-        kwargs.update({'shell': True})
-    print('Running: "{}"'.format(''.join(cmd)))
+    kwargs = dict(cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+    print('Running: "{}"'.format(' '.join(cmd)))
     p = subprocess.Popen(cmd, **kwargs)
     (stdout, stderr) = p.communicate()
     return p.returncode, stdout, stderr
@@ -42,21 +38,19 @@ def get_cli_parser():
 
 
 def build_proto(proto_file_path, python_path):
-    retcode, out, err = shell('protoc -h')
+    retcode, out, err = shell(['protoc', '-h'])
     if retcode:
         print(err)
         return 1
     if not (os.path.exists(proto_file_path) and os.path.isfile(proto_file_path)):
         print('File {} does not exist'.format(proto_file_path))
         return 1
-    if not os.path.exists(proto_file_path):
-        os.makedirs(python_path)
     proto_path = os.path.split(proto_file_path)[0]
     if not proto_path:
         proto_path = os.getcwd()
 
     proto_file = os.path.split(proto_file_path)[1]
-    command = 'protoc {} --python_out={}'.format(proto_file, python_path)
+    command = ['protoc', proto_file, '--python_out={}'.format(python_path)]
 
     retcode, out, err = shell(command, cwd=proto_path)
 
@@ -78,5 +72,8 @@ if __name__ == "__main__":
     argv = get_cli_parser().parse_args()
     proto_file_path = argv.input_proto
     python_path = argv.output
+    if not os.path.exists(python_path):
+        print("Output directory {} does not exist".format(python_path))
+        sys.exit(1)
     status = build_proto(proto_file_path, python_path)
     exit(status)

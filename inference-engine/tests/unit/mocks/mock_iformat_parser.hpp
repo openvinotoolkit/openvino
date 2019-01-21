@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +19,5 @@ struct MockIFormatParser : public InferenceEngine::details::IFormatParser {
     MOCK_METHOD1(Parse, InferenceEngine::details::CNNNetworkImplPtr(pugi::xml_node &));
 
     MOCK_METHOD1(SetWeights, void(const InferenceEngine::TBlob<uint8_t>::Ptr &));
-
-    MOCK_METHOD2(CopyBlobsByName, void(void*, std::string));
 };
 

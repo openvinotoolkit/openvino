@@ -1,9 +1,5 @@
-> Intel MKL-DNN repository migrated to [https://github.com/intel/mkl-dnn](https://github.com/intel/mkl-dnn).
-> The old address will continue to be available and will redirect to the new repo.
-> Please update your links.
-
 # Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN)
-![v0.16 beta](https://img.shields.io/badge/v0.16-beta-orange.svg)
+![v0.17 beta](https://img.shields.io/badge/v0.17-beta-orange.svg)
 
 Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN) is
 an open source performance library for deep learning applications. The library
@@ -29,6 +25,7 @@ of the following deep learning topologies and variations of these.
 | Speech Recognition (experimental)         | DeepSpeech
 | Adversarial Networks                      | DCGAN, 3DGAN
 | Reinforcement Learning                    | A3C
+| Text-to-Speech                            | WaveNet
 
 Intel MKL-DNN is used in the following software products:
 * [Caffe\* Optimized for Intel Architecture](https://github.com/intel/caffe)
@@ -36,11 +33,13 @@ Intel MKL-DNN is used in the following software products:
 * [DeepBench](https://github.com/baidu-research/DeepBench)
 * [PaddlePaddle\*](http://www.paddlepaddle.org)
 * [Tensorflow\*](https://www.tensorflow.org)
-* [Microsoft\* Cognitive Toolkit (CNTK)](https://www.microsoft.com/en-us/cognitive-toolkit/)
-* [Apache\* MXNet](https://mxnet.apache.org/)
-* [OpenVINO(TM) toolkit](https://software.intel.com/en-us/openvino-toolkit)
+* [Microsoft\* Cognitive Toolkit (CNTK)](https://docs.microsoft.com/en-us/cognitive-toolkit)
+* [Apache\* MXNet](https://mxnet.apache.org)
+* [OpenVINO(TM) toolkit](https://01.org/openvinotoolkit)
 * [Intel(R) Nervana(TM) Graph](https://github.com/NervanaSystems/ngraph)
 * [Menoh\*](https://github.com/pfnet-research/menoh)
+* [DeepLearning4J\*](https://deeplearning4j.org)
+* [BigDL](https://github.com/intel-analytics/BigDL)
 
 ## License
 Intel MKL-DNN is licensed under
@@ -68,7 +67,7 @@ without prior notification in future releases:
 * Convolutions with `s16` data type in source, weights or destination
 * Convolutions and auxiliary primitives for 3D spatial data
 * RNN, LSTM and GRU primitives
-* Intel Threading Building (Intel TBB\*) support
+* Intel Threading Building Blocks (Intel TBB\*) support
 
 ## How to Contribute
 We welcome community contributions to Intel MKL-DNN. If you have an idea how to improve the library:
@@ -87,7 +86,7 @@ request will be merged the repository.
 Intel MKL-DNN supports Intel(R) 64 architecture and compatible architectures.
 The library is optimized for the systems based on
 * Intel Atom(R) processor with Intel(R) SSE4.1 support
-* 4th, 5th, 6th and 7th generation Intel(R) Core processor
+* 4th, 5th, 6th, 7th and 8th generation Intel(R) Core processor
 * Intel(R) Xeon(R) processor E5 v3 family (formerly Haswell)
 * Intel Xeon processor E5 v4 family (formerly Broadwell)
 * Intel Xeon Platinum processor family (formerly Skylake)
@@ -100,22 +99,31 @@ The software dependencies are:
 * [Cmake](https://cmake.org/download/) 2.8.0 or later
 * [Doxygen](http://www.stack.nl/~dimitri/doxygen/download.html#srcbin) 1.8.5 or later
 * C++ compiler with C++11 standard support
+* Optional dependencies:
+  * GNU OpenMP\*, LLVM OpenMP\*, or Intel OpenMP
+  * Threading Building Blocks (TBB)
+  * Intel MKL or Intel MKL small libraries
+
+> **Note**
+> Building Intel MKL-DNN with optinal dependencies may introduce additional
+> runtime dependencies for the library. Please refer to corresponding 
+> software system requirements for details.
 
 The software was validated on RedHat\* Enterprise Linux 7 with
-* GNU\* Compiler Collection 4.8, 5.2, 6.1 and 7.2
+* GNU\* Compiler Collection 4.8, 5.4, 6.1, 7.2 and 8.1
 * Clang\* 3.8.0
 * [Intel(R) C/C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe)
-  17.0 and 18.0
+  17.0, 18.0 and 19.0
 
 on Windows Server\* 2012 R2 with
 * Microsoft\* Visual C++ 14.0 (Visual Studio 2015)
 * [Intel(R) C/C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe)
-  17.0 and 18.0
+  17.0 and 19.0
 
 on macOS\* 10.13 (High Sierra) with
-* Apple LLVM version 9.0.0 (XCode 9.0.0)
+* Apple LLVM version 9.2 (XCode 9.2)
 * [Intel C/C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe)
-  18.0 (XCode 8.3.2)
+  18.0 and 19.0
 
 The implementation uses OpenMP\* 4.0 SIMD extensions. We recommend using
 Intel(R) Compiler for the best performance results.
@@ -155,14 +163,20 @@ You might need to set `MKLROOT` environment variable to the path where full
 Intel MKL is installed to help cmake locate the library.
 
 You can choose to build Intel MKL-DNN without binary dependency. The resulting
-version will be fully functional, however performance of certain convolution
-shapes and sizes and inner product relying on SGEMM function may be suboptimal.
+version will be fully functional, however performance of convolutions relying
+on GEMM-based algorithm, inner product, and mkldnn_?gemm functionality may be
+suboptimal.
 
 > **Note**
 >
 > Using Intel MKL small libraries currently work for Intel MKL-DNN built with
 > OpenMP\* only. Building with Intel TBB requires either full Intel MKL library
 > or standalone build.
+>
+> Using Intel MKL or Intel MKL small libraries will introduce additional
+> runtime dependencies. Please refer to Intel MKL 
+> [system requirements](https://software.intel.com/en-us/articles/intel-math-kernel-library-intel-mkl-2019-system-requirements)
+> for additional information.
 
 Intel MKL-DNN uses a CMake-based build system
 
@@ -174,16 +188,28 @@ Here `$CMAKE_OPTIONS` are options to control the build. Along with the standard
 cmake options such as `CMAKE_INSTALL_PREFIX` or `CMAKE_BUILD_TYPE`,
 user can also pass Intel MKL-DNN specific ones:
 
-|Option                 | Possible Values (defaults in bold) | Description
-|:---                   |:---                | :---
-|MKLDNN_LIBRARY_TYPE    | **SHARED**, STATIC | Defines resulting library type
-|MKLDNN_THREADING       | **OMP**, TBB       | Defines threading type
-|WITH_EXAMPLE           | **ON**, OFF        | Controls building examples
-|WITH_TEST              | **ON**, OFF        | Controls building tests
-|VTUNEROOT              | *path*             | Enables integration with Intel(R) Vtune(tm) Amplifier
+|Option                 | Possible Values (defaults in bold)   | Description
+|:---                   |:---                                  | :---
+|MKLDNN_LIBRARY_TYPE    | **SHARED**, STATIC                   | Defines resulting library type
+|MKLDNN_THREADING       | **OMP**, OMP:INTEL, OMP:COMP, TBB    | Defines threading type
+|MKLDNN_USE_MKL         | **DEF**, NONE, ML, FULL, FULL:STATIC | Defines binary dependency on Intel MKL
+|WITH_EXAMPLE           | **ON**, OFF                          | Controls building examples
+|WITH_TEST              | **ON**, OFF                          | Controls building tests
+|ARCH_OPT_FLAGS (\*)    | *compiler flags*                     | Specifies compiler optimization flags
+|VTUNEROOT              | *path*                               | Enables integration with Intel(R) Vtune(tm) Amplifier
 
 Please check [cmake/options.cmake](cmake/options.cmake) for more options
 and details.
+
+> (\*) **WARNING**
+>
+> By default Intel MKL-DNN is built specifically for the processor type of the
+> compiling machine (e.g. `-march=native` in case of GCC). While this option
+> gives better performance, the resulting library can only be run on systems
+> that are instruction-set compatible with the compiling machine.
+>
+> Hence if Intel MKL-DNN is to be shipped to other platforms (e.g. built by
+> Linux distribution maintainers) consider setting ARCH_OPT_FLAGS to "".
 
 Intel MKL-DNN includes unit tests implemented using the googletest framework. To validate your build, run:
 
@@ -270,7 +296,8 @@ Intel MKL-DNN built with Intel TBB doesn't require special handling:
 	g++ -std=c++11 -I${MKLDNNROOT}/include -L${MKLDNNROOT}/lib simple_net.cpp -lmkldnn -ltbb
 ```
 
-Please note that Intel MKL-DNN has limited optimizations done for Intel TBB
+Please note that Intel MKL-DNN requires Intel TBB 2017 or above.
+Also, Intel MKL-DNN has limited optimizations done for Intel TBB
 and has some functional limitations if built with Intel TBB.
 
 Functional limitations:

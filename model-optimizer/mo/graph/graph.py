@@ -15,8 +15,8 @@
 """
 
 import collections
-from copy import deepcopy
 import logging as log
+from copy import deepcopy
 
 import networkx as nx
 import numpy as np
@@ -229,9 +229,23 @@ def get_graph_ops(graph: nx.MultiDiGraph):
     return [Node(graph, node) for node in graph.nodes() if Node(graph, node).soft_get('kind') == 'op']
 
 
+def dict_includes_compare_attrs(attr, attr_probe):
+    if callable(attr_probe) and not isinstance(attr_probe, type):
+        return attr_probe(attr)
+    else:
+        return attr == attr_probe
+
 def dict_includes(big: dict, sub_dict: dict):
-    ''' Searches attributes from sub_dict in big and ensures that all values match. '''
-    return all(big.get(attr, None) == sub_dict.get(attr, None) for attr in sub_dict.keys())
+    ''' Searches attributes from sub_dict in big and ensures that all values match.
+
+        Entries in sub_dict can be of two types: callable or not callable. If callable is specified
+        it is treated as probing function for attribute value from big dictionary by callable(attr) expression.
+        If it is not callable, the values are compared with == operator.
+    '''
+    return all(
+        dict_includes_compare_attrs(big.get(attr, None), sub_dict[attr])
+        for attr in sub_dict.keys()
+    )
 
 
 class NodeWrap:
@@ -330,11 +344,11 @@ class NodeWrap:
         return self[k] if self.has_valid(k) else '<UNKNOWN>'
 
     def edges(self, attrs: dict=None):
-        ''' Get a single edge with specified set of attributes.
+        ''' Get a list of all edges with specified set of attributes.
 
-            If none or multiple edges satisfies this criteria, exception is raised
             Edge is represented as tuple (u, v, d), where u is source node,
-            v is destination node and d is edge attributes.
+            v is destination node and d is edge attributes. The function
+            returns a list of such tuples.
         '''
         edges = list(self.graph.in_edges([self.id], data=True)) + list(self.graph.out_edges([self.id], data=True))
         return [(u, v, d) for u,v,d in edges if dict_includes(d, attrs)]
@@ -349,6 +363,112 @@ class NodeWrap:
         edges = self.edges(attrs)
         assert len(edges) == 1, 'edges: {}, required attributes: {}'.format(edges, attrs)
         return edges[0]
+
+    def insert_node_with_data_before(self, inp, new_op_class: callable, op_before_params: dict = None,
+                                     infer_current: bool = False):
+        """
+        Inserts operation node with op_before_params and data node before current operation
+
+        :param inp: input data node of current node
+        :param new_op_class: class of operation that will be inserted before current operation node
+        :param op_before_params: parameters to be added to operation that will be inserted before current operation
+
+        Before calling:
+        [...] -> inp -> Cur_Op -> Cur_Data -> [...]
+
+        After calling:
+        [...] -> inp -> New_Op_bef -> New_Data_bef -> Cur_Op -> Cur_Data -> [...]
+                    [op_before_params]
+        """
+        graph = self.graph
+        node = Node(graph, self.node)
+        cls_name = new_op_class.op
+        op_before_params = {} if op_before_params is None else op_before_params
+
+        # operating with input
+        new_op_before = new_op_class(graph, op_before_params)
+        edge_attrs = deepcopy(graph.get_edge_data(inp.id, node.id)[0])
+        graph.remove_edge(inp.id, node.id)
+        new_inp = new_op_before.create_node_with_data([inp], {'name': node.name + cls_name + '/Before'})
+        graph.add_edge(new_inp.id, node.id, **edge_attrs)
+        if infer_current:
+            node.infer(node)
+
+    def insert_node_with_data_after(self, out, new_op_class: callable, op_after_params: dict = None):
+        """
+        Inserts operation node with op_after_params and data node after current operation
+
+        :param out: output data node of current node
+        :param new_op_class: class of operation that will be inserted after current operation node
+        :param op_after_params:  parameters to be added to operation that will be inserted after current operation
+
+        Before calling:
+        [...] -> Cur_Op -> Cur_Data -> [...]
+
+        After calling:
+        [...] -> Cur_Op -> Cur_Data -> New_Op_aft -> New_Data_aft(==out) -> [...]
+                                   [op_after_params]
+        """
+        # we import it here because Op imports Node and unique_id from this file
+        from mo.ops.op import Op
+
+        graph = self.graph
+        node = Node(graph, self.node)
+        cls_name = new_op_class.op
+        op_after_params = {} if op_after_params is None else op_after_params
+
+        new_op_after = new_op_class(graph, op_after_params)
+        graph.remove_edge(node.id, out.id)
+        new_out = Op.create_data_node(graph, node)
+        node.infer(node)
+        new_op_after.create_node_with_data([new_out], {'name': node.name + cls_name + '/After'}, data_nodes=out)
+
+    def bracket_with_different_nodes_with_data(self, inp, out, new_op_class_before: callable,
+                                               new_op_class_after: callable,
+                                               op_before_params: dict = None, op_after_params: dict = None):
+        """
+        Inserts one operation node with op_before_params and data node before current operation node and
+        inserts one operation node with op_after_params and data node after current operation node
+        :param inp: input data node of self.node node
+        :param out: output data node of self.node node
+        :param new_op_class_before: class of operation that will be inserted before current operation node
+        :param new_op_class_after: class of operation that will be inserted after current operation node
+        :param op_before_params: parameters to be added to operation that will be inserted before current operation
+        :param op_after_params: parameters to be added to operation that will be inserted after current operation
+
+        Before calling:
+        [...] -> inp -> Cur_Op -> out -> [...]
+
+        After calling:
+        [...] -> inp -> New_Op_bef -> New_Data_bef -> Cur_Op -> Cur_Data -> New_Op_aft -> New_Data_aft(==out) -> [...]
+                    [op_before_params]                                  [op_after_params]
+        """
+        op_before_params = {} if op_before_params is None else op_before_params
+        op_after_params = {} if op_after_params is None else op_after_params
+        self.insert_node_with_data_before(inp, new_op_class_before, op_before_params)
+        self.insert_node_with_data_after(out, new_op_class_after, op_after_params)
+
+    def bracket_op_with_another_op(self, inp, out, new_op_class: callable,
+                                   op_before_params: dict = None, op_after_params: dict = None):
+        """
+        Covers current operation with two similar another ones of class new_op_class:
+        :param inp: input data node of self.node node
+        :param out: output data node of self.node node
+        :param new_op_class: class of operation with which current operation will be covered
+        :param op_before_params: parameters to be added to operation that will be inserted before current operation
+        :param op_after_params: parameters to be added to operation that will be inserted after current operation
+
+        Before calling:
+        [...] -> inp -> Cur_Op -> out -> [...]
+
+        After calling:
+        [...] -> inp -> New_Op_bef -> New_Data_bef -> Cur_Op -> Cur_Data -> New_Op_aft -> New_Data_aft(==out) -> [...]
+                    [op_before_params]                                  [op_after_params]
+        """
+        self.bracket_with_different_nodes_with_data(inp=inp, out=out,
+                                                    new_op_class_before=new_op_class, new_op_class_after=new_op_class,
+                                                    op_before_params=op_before_params, op_after_params=op_after_params)
+
 
 class Node(NodeWrap):
     pass
@@ -419,7 +539,8 @@ def insert_node_after(node: Node, new_node: Node, node_out_port: int = 0):
 def erase_node(node: Node):
     """
     Erases node from the graph and reconnect edges from input node(s) to output node(s)
-    Produces assertion error in case of multiple inputs and outputs node at the same time
+    Produces assertion error if the node being removed has multiple inputs or outputs.
+    The function can be used in the front phase only (when there are no data nodes in the graph).
     :param node: Node to erase
     """
     graph = node.graph
@@ -428,37 +549,32 @@ def erase_node(node: Node):
     inputs = list(graph.in_edges(node_id, data=True))
     outputs = list(graph.out_edges(node_id, data=True))
 
-    assert not (len(inputs) > 1 and len(outputs) > 1)
+    assert node.kind == 'op' and (len(node.out_nodes()) == 0 or list(node.out_nodes().values())[0].kind != 'data'), \
+        "The function must be used before the partial infer when graph doesn't contain data nodes."
+    assert len(node.out_nodes()) <= 1, "The node {} must produce just one output tensor".format(node.soft_get('name'))
+    assert len(inputs) <= 1, "The node {} must have just one input".format(node.soft_get('name'))
 
     if len(outputs) == 0 and len(inputs) != 0:
-        for input, _, attrs in inputs:
-            if Node(graph, node_id).has_and_set('is_output'):
-                if graph.node[input]['kind'] == 'op':
-                    data_nodes = [u for u, v in graph.in_edges(input)]
+        for input_node_id, _, __ in inputs:
+            if node.has_and_set('is_output'):
+                if graph.node[input_node_id]['kind'] == 'op':
+                    data_nodes = [u for u, v in graph.in_edges(input_node_id)]
                     for data in data_nodes:
                         graph.node[data]['is_output'] = graph.node[node_id]['is_output']
                 else:
-                    graph.node[input]['is_output'] = graph.node[node_id]['is_output']
+                    graph.node[input_node_id]['is_output'] = graph.node[node_id]['is_output']
 
     if len(outputs) == 0 or len(inputs) == 0:
         graph.remove_node(node_id)
         return
 
-    if len(outputs) == 1:
-        output = outputs[0][1]
-        for src, noop, attrs in inputs:
-            graph.remove_edge(src, noop)
-            graph.add_edge(src, output, **attrs)
-        graph.remove_node(node_id)
-        return
-
-    if len(inputs) == 1:
-        input = inputs[0][0]
-        for noop, dst, attrs in outputs:
-            graph.remove_edge(noop, dst)
-            graph.add_edge(input, dst, **attrs)
-        graph.remove_node(node_id)
-        return
+    input_node_id = inputs[0][0]
+    for src, dst, attrs in outputs:
+        graph.remove_edge(src, dst)
+        # update the 'out' attribute of the edge from the node being removed
+        attrs['out'] = inputs[0][2]['out']
+        graph.add_edge(input_node_id, dst, **attrs)
+    graph.remove_node(node_id)
 
 
 def replace_node(old_node: Node, new_node: Node, new_node_out_port: int=None):
@@ -475,7 +591,8 @@ def replace_node(old_node: Node, new_node: Node, new_node_out_port: int=None):
         new_edge_attrs = deepcopy(edge_attrs)
         if new_node_out_port is not None:
             assert 'out' not in edge_attrs or edge_attrs['out'] == 0, \
-                'replace_node function can replace old node with a single output port only if new_node_out_port is specified'
+                'replace_node function can replace old node with a single output port only if new_node_out_port is ' \
+                'specified'
             new_edge_attrs.update({'out': new_node_out_port})
         graph.add_edge(new_node.id, dst_node_name, **new_edge_attrs)
 

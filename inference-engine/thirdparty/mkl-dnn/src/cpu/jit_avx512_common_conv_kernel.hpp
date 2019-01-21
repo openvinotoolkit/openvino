@@ -82,6 +82,7 @@ private:
     reg64_t reg_inp_prf = r11;
     reg64_t reg_ker_prf = r12;
     reg64_t reg_out_prf = r13;
+    reg64_t reg_owb = r12;
 
     reg64_t aux_reg_inp = r14;
     reg64_t aux_reg_ker = r15;
@@ -380,8 +381,9 @@ private:
     reg64_t reg_long_offt = r14;
 
     reg64_t ki = r11;
+    reg64_t reg_kd_count = r12;
     reg64_t reg_oi = r12;
-    reg64_t reg_id_count = r13;
+    reg64_t reg_d_index = r13;
     reg64_t reg_input_d = r15;
     reg64_t reg_output_d = rbx;
     reg64_t aux_reg_input = r12;

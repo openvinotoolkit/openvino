@@ -26,21 +26,33 @@
 #define ALGORITHM mkldnn::convolution_direct
 
 #ifdef DIRECTION_FORWARD
+#if defined(FP32)
+#define FMT_DATA_BLOCKED nChw8c
+#define FMT_DATA_BLOCKED16 nChw16c
 #define FMT_WEIGHTS_BLOCKED OIhw8i8o
 #define FMT_WEIGHTS_BLOCKED_G gOIhw8i8o
-#if defined(FP32)
 #define FMT_WEIGHTS_BLOCKED16 OIhw16i16o
 #define FMT_WEIGHTS_BLOCKED16_G gOIhw16i16o
 #elif defined(S16S16S32)
+#define FMT_DATA_BLOCKED nChw8c
+#define FMT_DATA_BLOCKED16 nChw16c
+#define FMT_WEIGHTS_BLOCKED OIhw8i8o
+#define FMT_WEIGHTS_BLOCKED_G gOIhw8i8o
 #define FMT_WEIGHTS_BLOCKED16 OIhw8i16o2i
 #define FMT_WEIGHTS_BLOCKED16_G gOIhw8i16o2i
 #elif defined(U8S8)
+#define FMT_DATA_BLOCKED nhwc
+#define FMT_DATA_BLOCKED16 nhwc
+#define FMT_WEIGHTS_BLOCKED OhIw8o4i
+#define FMT_WEIGHTS_BLOCKED_G gOhIw8o4i
 #define FMT_WEIGHTS_BLOCKED16 OIhw4i16o4i
 #define FMT_WEIGHTS_BLOCKED16_G gOIhw4i16o4i
 #endif
 #define FMT_WEIGHTS_BLOCKED16_IOhw16o16i FMT_WEIGHTS_BLOCKED16
 #define TEST_CASE_NAME_PREFIX Forward
 #elif defined DIRECTION_BACKWARD_DATA
+#define FMT_DATA_BLOCKED nChw8c
+#define FMT_DATA_BLOCKED16 nChw16c
 #define FMT_WEIGHTS_BLOCKED OIhw8o8i
 #define FMT_WEIGHTS_BLOCKED_G gOIhw8o8i
 #if defined(FP32)
@@ -56,6 +68,8 @@
 #endif
 #define TEST_CASE_NAME_PREFIX BackwardData
 #elif defined DIRECTION_BACKWARD_WEIGHTS
+#define FMT_DATA_BLOCKED nChw8c
+#define FMT_DATA_BLOCKED16 nChw16c
 #define FMT_WEIGHTS_BLOCKED OIhw8i8o
 #define FMT_WEIGHTS_BLOCKED_G gOIhw8i8o
 #define FMT_WEIGHTS_BLOCKED16 OIhw16i16o
@@ -67,8 +81,6 @@
 
 #define FMT_BIAS x
 #define FMT_NO_BIAS format_undef
-#define FMT_DATA_BLOCKED nChw8c
-#define FMT_DATA_BLOCKED16 nChw16c
 
 #define CONCAT_WITH_UNDERSCORE_(a,b) a ## _ ## b
 #define CONCAT_WITH_UNDERSCORE(a,b) CONCAT_WITH_UNDERSCORE_(a,b)

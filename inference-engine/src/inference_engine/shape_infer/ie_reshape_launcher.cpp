@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +9,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <details/ie_exception.hpp>
 #include "shape_infer/ie_reshape_launcher.hpp"
 #include "shape_infer/ie_reshape_io_controllers.hpp"
 
@@ -37,8 +37,15 @@ OutputController* DefaultInitializer::createOutputController(const CNNLayer* lay
 ReshapeLauncher::ReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl,
                                  const DefaultInitializer::Ptr& initializer) : _layer(layer), _impl(impl) {
     initializer->check(layer, impl);
-    _iController = initializer->createInputController(layer);
-    _oController = initializer->createOutputController(layer);
+    try {
+        _iController = initializer->createInputController(layer);
+        _oController = initializer->createOutputController(layer);
+    } catch (...) {
+        auto exception = std::current_exception();
+        delete _iController;
+        delete _oController;
+        std::rethrow_exception(exception);
+    }
 }
 
 ReshapeLauncher::~ReshapeLauncher() {

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,6 +159,6 @@ public:
      */
     const UserValue& getUserObject() const;
 private:
-    TensorDesc tensorDesc;
+    mutable TensorDesc tensorDesc;
 };
 }  // namespace InferenceEngine

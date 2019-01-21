@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +7,7 @@
 #include "defs.h"
 #include "softmax.h"
 #include <vector>
+#include "simple_copy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -44,7 +44,7 @@ public:
         int IC = (inputs[0]->getTensorDesc().getDims().size() > 1) ? inputs[0]->getTensorDesc().getDims()[1] : 1;
         int B = (inputs[0]->getTensorDesc().getDims().size() > 0) ? inputs[0]->getTensorDesc().getDims()[0] : 1;
 
-        memcpy(dst_data, src_data, B * IC * IH * IW * sizeof(float));
+        simple_copy(dst_data, outputs[0]->byteSize(), src_data, (size_t)B * IC * IH * IW * sizeof(float));
 
         int end_index = 0;
         int num_ = 0;

@@ -41,11 +41,16 @@ inline void rtus_prepare(conv_pd_t *self, const convolution_desc_t *&conv_d,
     const bool is_bwd_data = self->cdesc()->prop_kind
         == prop_kind::backward_data;
 
+    const int ndims = src_d->ndims;
     bool rtus_applicable = true
-        && (conv_d->strides[0] != 1 || conv_d->strides[1] != 1)
-        && utils::one_of(src_d->format,
-            memory_format::nChw8c, memory_format::nChw16c);
-    for (int d = 2; d < 4; ++d) {
+        && utils::pick(ndims - 3,
+            (conv_d->strides[0] != 1 && !one_of(conv_d->src_desc.data_type,
+                data_type::s16, data_type::s32)),
+            (conv_d->strides[0] != 1 || conv_d->strides[1] != 1))
+        && utils::one_of(src_d->format, memory_format::nCw8c,
+            memory_format::nCw16c, memory_format::nChw8c,
+            memory_format::nChw16c);
+    for (int d = 2; d < ndims; ++d) {
         /* TODO: relax these conditions (by improving reducer) */
         rtus_applicable = rtus_applicable
             && conv_d->padding[0][d - 2] == 0
@@ -55,9 +60,12 @@ inline void rtus_prepare(conv_pd_t *self, const convolution_desc_t *&conv_d,
     if (rtus_applicable) {
         self->rtus_.reduce_src_ = true;
         conv_d = &(self->rtus_.conv_d_ = *conv_d);
-        self->rtus_.conv_d_.strides[0] = self->rtus_.conv_d_.strides[1] = 1;
+        self->rtus_.conv_d_.strides[0] = 1;
+        if (ndims == 4)
+            self->rtus_.conv_d_.strides[1] = 1;
         utils::array_set(self->rtus_.conv_d_.padding[0], 0, 2);
-        utils::array_set(self->rtus_.conv_d_.padding[1], 0, 2);
+        if (ndims == 4)
+            utils::array_set(self->rtus_.conv_d_.padding[1], 0, 2);
         const int ic = src_d->dims[1];
         if (is_bwd_data) {
             src_d = &(self->rtus_.conv_d_.diff_src_desc = *dst_d);
@@ -158,6 +166,8 @@ struct rtus_driver_t: public jit_generator {
 
         cmp(reg_cur_iw, iw_);
         jl(skip_h_step);
+        /* for 1d convolution the loop over h should be skipped */
+        if (src_step_icb_ == iw_) jmp(skip_h_step);
 
         if (src_to_ws_) {
             add(reg_cur_src, (src_step_h_ - iw_) * vlen_);
@@ -239,6 +249,7 @@ inline void init_rtus_driver(conv_t *self) {
     const auto &conf = self->conf_;
     const auto &cd = *conf.cdesc();
     const bool is_bwd_data = cd.prop_kind == prop_kind::backward_data;
+    const int ndims = conf.ndims();
 
     if (!conf.rtus_.reduce_src_) return;
 
@@ -260,16 +271,17 @@ inline void init_rtus_driver(conv_t *self) {
     self->scratch_ = (decltype(self->scratch_))malloc(
             max_threads * self->ws_per_thread_ * typesize, 64);
 
-    const int stride_h = cd.strides[0];
-    const int stride_w = cd.strides[1];
+    const int stride_h = (conf.ndims() == 3) ? 1 : cd.strides[0];
+    const int stride_w = cd.strides[ndims - 3];
 
     const auto &src_d = is_bwd_data ? *conf.diff_src_pd()->desc()
                                     : *conf.src_pd()->desc();
-    assert((isa == avx2 && src_d.format == memory_format::nChw8c)
-           || (isa == avx512_common && src_d.format == memory_format::nChw16c));
+    assert((isa == avx2 && utils::one_of(src_d.format, memory_format::nCw8c,
+        memory_format::nChw8c)) || (isa == avx512_common && utils::one_of(
+            src_d.format, memory_format::nCw16c, memory_format::nChw16c)));
 
-    const int ih = src_d.dims[2];
-    const int iw = src_d.dims[3];
+    const int ih = (ndims == 3) ? 1 : src_d.dims[2];
+    const int iw = src_d.dims[ndims - 1];
 
     const int src_step_h = stride_h * iw;
     const int src_step_icb = ih * iw;

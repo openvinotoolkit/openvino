@@ -51,8 +51,8 @@ def parse_command_line_options(cls):
         base_init_options(self)
 
     def run(self):
-        global  INFERENCE_ENGINE_DIR
-        global  BUNDLE_INFERENCE_ENGINE
+        global INFERENCE_ENGINE_DIR
+        global BUNDLE_INFERENCE_ENGINE
 
         if self.copy_ie_libs:
             BUNDLE_INFERENCE_ENGINE = True
@@ -187,16 +187,14 @@ cmdclass = {
 }
 
 setup(
-    name="inference_engine",
-    version='0.1.1',
+    name="src",
+    version='1.0',
     description='Python inference for Inference Engine',
     packages=find_packages(exclude=['tests']),
     package_data={PACKAGE_NAME: ['*.so', '*.dll', '*dylib*', '*.pyd']},
     include_package_data=True,
     ext_modules=extensions,
     cmdclass=cmdclass,
-    author='', author_email='',
-    tests_require=['pytest'],
     install_requires=list(requirements),
     zip_safe=False,
 )

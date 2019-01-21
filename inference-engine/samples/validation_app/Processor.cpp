@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +49,14 @@ Processor::Processor(const std::string& flags_m, const std::string& flags_d, con
         batch = networkReader.getNetwork().getBatchSize();
     } else {
         // Not zero means "use the specified value"
-        networkReader.getNetwork().setBatchSize(batch);
+        auto network = networkReader.getNetwork();
+        auto input_shapes = network.getInputShapes();
+        std::string input_name;
+        SizeVector input_shape;
+        std::tie(input_name, input_shape) = *input_shapes.begin();
+        input_shape[0] = batch;
+        input_shapes[input_name] = input_shape;
+        network.reshape(input_shapes);
     }
 
     if (inputInfo.size() != 1) {

@@ -24,6 +24,7 @@ from mo.middle.passes.eliminate import merge_data_nodes
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.lin_op import Mul, Add
 from mo.ops.op import Op
+from mo.ops.reshape import Reshape
 
 
 def convert_batch_norm(graph: nx.MultiDiGraph):
@@ -115,7 +116,7 @@ def _fused_batch_norm_decomposition(graph: nx.MultiDiGraph, tinput: Node, toutpu
 def convert_scale_shift_to_mul_add(graph: nx.MultiDiGraph):
     nodes = [Node(graph, node) for node in graph.nodes() if Node(graph, node).soft_get('op') == 'ScaleShift']
     for node in nodes:
-        if node.soft_get('can_be_fused') == False:
+        if node.soft_get('can_be_fused') is False:
             continue
 
         has_biases = True
@@ -128,7 +129,7 @@ def convert_scale_shift_to_mul_add(graph: nx.MultiDiGraph):
         shift_node = node.in_node(2) if has_biases else None
         output_node = node.out_node()
 
-        if all([x == 1 for x in scale_node.value]):
+        if scale_node.has_valid("value") and all([x == 1 for x in scale_node.value]):
             has_weights = False
 
         mul_node = Mul(graph, dict(name=node.name + "/Mul_"))
@@ -140,7 +141,21 @@ def convert_scale_shift_to_mul_add(graph: nx.MultiDiGraph):
 
         # Expand dims for current layout
         broadcast_dims_cnt = len(input_node.shape) - 2 if graph.graph['layout'] == 'NCHW' else 0
-        Op.expand_node_shape(scale_node, broadcast_dims_cnt)
+        if scale_node.has_valid("value"):
+            Op.expand_node_shape(scale_node, broadcast_dims_cnt)
+        else:
+            # insert reshape to make shapes similar
+            reshape_dims = np.zeros(len(input_node.shape), dtype=np.int64)
+            for i in range(0, node.axis):
+                reshape_dims[i] = 1
+            for i in range(node.axis, node.axis + len(scale_node.shape)):
+                reshape_dims[i] = scale_node.shape[i-node.axis]
+            for i in range(node.axis + len(scale_node.shape), len(input_node.shape)):
+                reshape_dims[i] = 1
+            reshape = Reshape(graph, dict(name=scale_node.name+"/Broadcast_",
+                                          dim=reshape_dims))
+            scale_node = reshape.create_node_with_data(inputs=[scale_node])
+
         Op.expand_node_shape(shift_node, broadcast_dims_cnt)
 
         # Connect input->mul->out->add->out

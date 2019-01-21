@@ -166,12 +166,12 @@ int str2desc(desc_t *desc, const char *str, bool is_deconv) {
         d.sw = d.sh;
         d.dw = d.dh;
     } else if (no_h) {
-        d.ih = d.iw;
-        d.kh = d.kw;
-        d.oh = d.ow;
-        d.ph = d.pw;
-        d.sh = d.sw;
-        d.dh = d.dw;
+        d.ih = 1;
+        d.kh = 1;
+        d.oh = 1;
+        d.ph = 0;
+        d.sh = 1;
+        d.dh = 0;
     }
     if (d.id<1) {d.id = 1; d.kd = 1; d.od = 1; d.sd = 1; d.pd = 0; d.dd = 0;}
 

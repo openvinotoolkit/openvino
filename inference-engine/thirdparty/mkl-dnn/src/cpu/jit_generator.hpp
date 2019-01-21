@@ -142,41 +142,10 @@ struct all_same<T, T, Us...> : all_same<T, Us...> { };
 template <typename T>
 struct all_same<T, T> : std::true_type {};
 
-template <size_t len = 64>
-class jit_tagged_label_base {
-public:
-    enum { maxlen = len };
-    template <size_t n, typename... Tags,
-             typename = std::enable_if<all_same<char, Tags...>::value>>
-    jit_tagged_label_base(const char (&base)[n], Tags... tags) {
-        // XXX: This code is ugly but useful
-        constexpr size_t ntags = sizeof...(tags);
-        static_assert(n + ntags < maxlen, "resulting label may be too long");
-        // paste tags first in case base has unexpected null chars
-        paste_tags(tags...);
-        for (size_t i = 0; i < n; i++)
-            label_name_[ntags + i] = base[i];
-        // don't assume that the base string is 0-terminated
-        label_name_[ntags + n] = '\0';
-    }
-    operator const char*() const { return label_name_; }
-    const char *c_str() const { return label_name_; }
-private:
-    char label_name_[maxlen];
-    void paste_tags() { }
-    template <typename... Tags>
-    void paste_tags(char tag, Tags... tags) {
-        label_name_[sizeof...(tags)] = tag;
-        paste_tags(tags...);
-    }
-};
-
 struct jit_code_injection {
     const Xbyak::uint8* code;
     size_t size;
 };
-
-typedef jit_tagged_label_base<> jit_tagged_label;
 
 class jit_generator : public Xbyak::CodeGenerator
 {
@@ -331,16 +300,8 @@ public:
         }
     }
 
-    // Provide overrides for custom jit_tagged_label and C strings rather than
-    // implement a conversion of jit_tagge_label to std::string to avoid
-    // additional C++ runtime dependency
-
-    template <size_t len>
-    void L(const jit_tagged_label_base<len> &label) {
-        Xbyak::CodeGenerator::L(label.c_str());
-    }
-
-    void L(const char *label) { Xbyak::CodeGenerator::L(label); }
+    // Disallow char-based labels completely
+    void L(const char *label) = delete;
     void L(const Xbyak::Label& label) { Xbyak::CodeGenerator::L(label); }
 
     void uni_vpxor(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2,
@@ -407,7 +368,7 @@ public:
         shufps(x, x, 0x0);
     }
     void uni_vbroadcastss(const Xbyak::Ymm &x, const Xbyak::Operand &op) {
-        if (mayiuse(avx2)) {
+        if (op.isMEM() || mayiuse(avx2)) {
             vbroadcastss(x, op);
         } else {
             Xbyak::Xmm t(x.getIdx());
@@ -666,6 +627,108 @@ public:
     }
     void uni_vmovmskps(const Xbyak::Reg &x1, const Xbyak::Ymm &x2) {
         vmovmskps(x1, x2);
+    }
+
+    void uni_vpmovsxbd(const Xbyak::Xmm &x, const Xbyak::Operand &op) {
+        pmovsxbd(x, op);
+    }
+    void uni_vpmovsxbd(const Xbyak::Ymm &x, const Xbyak::Operand &op) {
+        vpmovsxbd(x, op);
+    }
+
+    void uni_vpmovzxbd(const Xbyak::Xmm &x, const Xbyak::Operand &op) {
+        pmovzxbd(x, op);
+    }
+    void uni_vpmovzxbd(const Xbyak::Ymm &x, const Xbyak::Operand &op) {
+        vpmovzxbd(x, op);
+    }
+
+    void uni_vpackssdw(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        packssdw(x1, op);
+    }
+    void uni_vpackssdw(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpackssdw(x1, x2, op);
+    }
+
+    void uni_vpackusdw(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        packusdw(x1, op);
+    }
+    void uni_vpackusdw(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpackusdw(x1, x2, op);
+    }
+
+    void uni_vpacksswb(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        packsswb(x1, op);
+    }
+    void uni_vpacksswb(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpacksswb(x1, x2, op);
+    }
+
+    void uni_vpackuswb(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        packuswb(x1, op);
+    }
+    void uni_vpackuswb(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpackuswb(x1, x2, op);
+    }
+
+    void uni_vpmaxsd(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        pmaxsd(x1, op);
+    }
+    void uni_vpmaxsd(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpmaxsd(x1, x2, op);
+    }
+
+    void uni_vpmaxsb(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        pmaxsb(x1, op);
+    }
+    void uni_vpmaxsb(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpmaxsb(x1, x2, op);
+    }
+
+    void uni_vpmaxub(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        pmaxub(x1, op);
+    }
+    void uni_vpmaxub(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpmaxub(x1, x2, op);
+    }
+
+    void uni_vpmaddubsw(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        pmaddubsw(x1, op);
+    }
+    void uni_vpmaddubsw(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpmaddubsw(x1, x2, op);
+    }
+
+    void uni_vpmaddwd(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        pmaddwd(x1, op);
+    }
+    void uni_vpmaddwd(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpmaddwd(x1, x2, op);
+    }
+
+    void uni_vpmulld(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        pmulld(x1, op);
+    }
+    void uni_vpmulld(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpmulld(x1, x2, op);
+    }
+
+    void uni_vpsubb(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2, const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        psubb(x1, op);
+    }
+    void uni_vpsubb(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2, const Xbyak::Operand &op) {
+        vpsubb(x1, x2, op);
     }
 
     void mul_by_const(const Xbyak::Reg &out,

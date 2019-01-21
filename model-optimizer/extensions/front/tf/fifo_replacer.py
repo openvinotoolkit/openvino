@@ -19,7 +19,7 @@ import networkx as nx
 import numpy as np
 
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import create_edge, erase_node
+from mo.graph.graph import create_edge, erase_node, Node
 from mo.ops.input import Input
 
 
@@ -61,7 +61,7 @@ class FIFOQueue(FrontReplacementSubgraph):
             there is no label_batch node
         """
         true_placeholder_shape = match['placeholder'].shape
-        placeholder_shape = match['fifo_queue'].shape
+        placeholder_shape = match['fifo_queue'].shapes[0]
         assert true_placeholder_shape.ndim <= 1
         if true_placeholder_shape.ndim == 1 and len(true_placeholder_shape) > 1:
             log.warning(
@@ -82,3 +82,37 @@ class FIFOQueue(FrontReplacementSubgraph):
         create_edge(placeholder, match['image_batch'])
         log.info("FIFOQueueV2 pattern was detected. New shape of placeholder {} is {}. Use -b to set batch size if "
                  "needed".format(placeholder.id, placeholder['shape']))
+
+
+class QueueDequeueManyV2(FrontReplacementSubgraph):
+    """
+    Replaces the combination of the FIFOQueueV2 + QueueDequeueManyV2 operations with a number of Placeholders.
+    """
+    enabled = True
+
+    @staticmethod
+    def pattern(**kwargs):
+        return dict(
+            nodes=[
+                ('fifo_queue', dict(op='FIFOQueueV2')),
+                ('queue_deque', dict(op='QueueDequeueManyV2')),
+            ],
+            edges=[
+                ('fifo_queue', 'queue_deque', {'out': 0}),
+            ]
+        )
+
+    @staticmethod
+    def replace_sub_graph(graph: nx.MultiDiGraph, match: dict, **kwargs):
+        inputs_dict = {}
+        for u, v, edge_attrs in graph.out_edges(match['queue_deque'].id, data=True):
+            out_port = edge_attrs['out']
+            shape = match['fifo_queue'].shapes[out_port]
+            if out_port not in inputs_dict:
+                input_op = Input(graph, {'shape': shape.copy()})
+                inputs_dict[out_port] = input_op.create_node([])
+            create_edge(inputs_dict[out_port], Node(graph, v), edge_attrs['out'], edge_attrs['in'], edge_attrs)
+
+        graph.remove_node(match['queue_deque'].id)
+        graph.remove_node(match['fifo_queue'].id)
+

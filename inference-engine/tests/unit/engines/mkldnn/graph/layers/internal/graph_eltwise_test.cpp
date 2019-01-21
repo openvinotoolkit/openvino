@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,12 +18,8 @@ using namespace std;
 using namespace mkldnn;
 
 struct eltwise_test_params {
-    struct {
-        size_t n;
-        size_t c;
-        size_t h;
-        size_t w;
-    } in;
+    // Formats: NCHW, NCDHW
+    vector<size_t> dims;
 
     enum opType {
         Sum = 0, Prod = 1, Max = 2
@@ -100,66 +95,38 @@ void ref_eltwise(const std::vector<InferenceEngine::TBlob<data_t>> &src, Inferen
 class MKLDNNGraphEltwiseTests: public TestsCommon,
                                      public WithParamInterface<eltwise_test_params> {
     std::string model_t = R"V0G0N(
-<net name="EltwiseOnly" version="2" precision="FP32" batch="1">
+<net name="EltwiseOnly" version="3" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="1">
             <output>
-                <port id="1">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                <port id="1">__SRC_DIMS__
                 </port>
             </output>
         </layer>
         <layer name="in2" type="Input" precision="FP32" id="2">
             <output>
-                <port id="2">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                <port id="2">__SRC_DIMS__
                 </port>
             </output>
         </layer>
         <layer name="in3" type="Input" precision="FP32" id="3">
             <output>
-                <port id="3">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                <port id="3">__SRC_DIMS__
                 </port>
             </output>
         </layer>
         <layer name="con" id="4" type="Eltwise" precision="FP32">
-            <elementwise_data operation="_OP_" coeff="_COEFF_"/>
+            <data operation="_OP_" _COEFF_/>
             <input>
-                <port id="1">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                <port id="1">__SRC_DIMS__
                 </port>
-                <port id="2">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                <port id="2">__SRC_DIMS__
                 </port>
-                <port id="3">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                <port id="3">__SRC_DIMS__
                 </port>
             </input>
             <output>
-                <port id="4">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                <port id="4">__SRC_DIMS__
                 </port>
             </output>
         </layer>
@@ -185,12 +152,19 @@ protected:
             op = "max";
         }
 
-        REPLACE_WITH_NUM(model, "_IW_", p.in.w);
-        REPLACE_WITH_NUM(model, "_IH_", p.in.h);
-        REPLACE_WITH_NUM(model, "_IC_", p.in.c);
-        REPLACE_WITH_NUM(model, "_IN_", p.in.n);
+        std::string src_dims;
+        for (auto& dim : p.dims) {
+                src_dims += "\n                    <dim>";
+                src_dims += std::to_string(dim) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS__", src_dims);
+
+        std::string scale;
+        if (!p.scales.empty()) {
+            scale = std::string("coeff=\"") + p.scales + std::string("\"");
+        }
         REPLACE_WITH_STR(model, "_OP_", op);
-        REPLACE_WITH_STR(model, "_COEFF_", p.scales);
+        REPLACE_WITH_STR(model, "_COEFF_", scale);
         return model;
     }
 
@@ -221,9 +195,18 @@ protected:
                 }
             }
 
-            InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
+            InferenceEngine::SizeVector dims_src = p.dims;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.dims.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src1->allocate();
 
             InferenceEngine::TBlob<float>* srcPtr1 = dynamic_cast<InferenceEngine::TBlob<float>*>(src1.get());
@@ -232,7 +215,7 @@ protected:
                 FAIL() << "Cannot cast blob to TBlob<float>.";
 
             fill_data(src1->buffer(), src1->size());
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src2->allocate();
 
             InferenceEngine::TBlob<float>* srcPtr2 = dynamic_cast<InferenceEngine::TBlob<float>*>(src2.get());
@@ -240,7 +223,7 @@ protected:
             if (srcPtr2 == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
             fill_data(src2->buffer(), src2->size());
-            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src3->allocate();
 
             InferenceEngine::TBlob<float>* srcPtr3 = dynamic_cast<InferenceEngine::TBlob<float>*>(src3.get());
@@ -273,7 +256,7 @@ protected:
 
             ref_eltwise(src_vec, dst_ref, p);
 
-            compare(*output, dst_ref);
+            compare(*output, dst_ref, 0.0005f);
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
         }
@@ -338,6 +321,17 @@ INSTANTIATE_TEST_CASE_P(
                             ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(2).desc.getLayout());
                             ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
                         }
+                } },
+                eltwise_test_params{{1, 32, 16, 16, 16}, eltwise_test_params::opType::Sum, "", 3, MKLDNNPlugin::impl_desc_type::ref, {
+                        [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                            ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref, impl.getImplementationType());
+                            ASSERT_EQ(3, impl.getConfig().inConfs.size());
+                            ASSERT_EQ(1, impl.getConfig().outConfs.size());
+                            ASSERT_EQ(InferenceEngine::Layout::NCDHW, impl.getConfig().inConfs.at(0).desc.getLayout());
+                            ASSERT_EQ(InferenceEngine::Layout::NCDHW, impl.getConfig().inConfs.at(1).desc.getLayout());
+                            ASSERT_EQ(InferenceEngine::Layout::NCDHW, impl.getConfig().inConfs.at(2).desc.getLayout());
+                            ASSERT_EQ(InferenceEngine::Layout::NCDHW, impl.getConfig().outConfs.at(0).desc.getLayout());
+                        }
                 } }
         ));
 
@@ -348,7 +342,7 @@ protected:
             TestsCommon::SetUp();
             eltwise_test_params p = ::testing::WithParamInterface<eltwise_test_params>::GetParam();
             std::string model = getModel(p);
-            size_t MB = p.in.n;
+            size_t MB = p.dims[0];
             if (MB < 2)
                 MB = 2;
 
@@ -365,9 +359,18 @@ protected:
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
             graph.CreateGraph(net_reader.getNetwork());
 
-            InferenceEngine::SizeVector dims_src = {MB, p.in.c, p.in.h, p.in.w};
+            InferenceEngine::SizeVector dims_src = p.dims;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.dims.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src1->allocate();
 
             InferenceEngine::TBlob<float>* srcPtr1 = dynamic_cast<InferenceEngine::TBlob<float>*>(src1.get());
@@ -376,7 +379,7 @@ protected:
                 FAIL() << "Cannot cast blob to TBlob<float>.";
 
             fill_data(src1->buffer(), src1->size());
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src2->allocate();
 
             InferenceEngine::TBlob<float>* srcPtr2 = dynamic_cast<InferenceEngine::TBlob<float>*>(src2.get());
@@ -384,7 +387,7 @@ protected:
             if (srcPtr2 == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
             fill_data(src2->buffer(), src2->size());
-            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src3->allocate();
 
             InferenceEngine::TBlob<float>* srcPtr3 = dynamic_cast<InferenceEngine::TBlob<float>*>(src3.get());

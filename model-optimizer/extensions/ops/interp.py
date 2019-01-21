@@ -35,6 +35,7 @@ class InterpOp(Op):
             'op': __class__.op,
             'factor': None,
             'align_corners': 1,
+            'parse_2nd_input': 'value',
             'infer': InterpOp.interp_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -57,7 +58,15 @@ class InterpOp(Op):
         assert len(layout) == 4
         if len(node.in_nodes()) == 2:
             src_shape = node.in_node(0).shape
-            dst_shape = node.in_node(1).value
+            dst_shape = node.in_node(1).shape
+
+            # in Caffe can be 2 inputs too, but shape should be got from shape of the second input
+            if node.parse_2nd_input == 'shape':
+                dst_shape = [dst_shape[get_height_dim(layout, 4)], dst_shape[get_width_dim(layout, 4)]]
+            else:
+                # it is TF case
+                dst_shape = node.in_node(1).value
+
             if src_shape is None or dst_shape is None or len(src_shape) != 4 or len(dst_shape) != 2:
                 log.error(
                     'Node {} with op {} cannot be converted to Resample layer because there is no enough info about '

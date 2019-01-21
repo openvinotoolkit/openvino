@@ -11,6 +11,8 @@ include ("options")
 
 #backed targets
 
+ie_option (ENABLE_GNA "GNA support for inference engine" ON)
+
 ie_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON)
 
 ie_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON)
@@ -22,22 +24,44 @@ ie_option (ENABLE_PROFILING_RAW "Raw counters profiling (just values, no start/s
 #
 
 # "MKL-DNN library might use MKL-ML or OpenBLAS for gemm tasks: MKL|OPENBLAS|JIT"
-if (NOT GEMM STREQUAL "MKL" AND NOT GEMM STREQUAL "OPENBLAS" AND NOT GEMM STREQUAL "JIT")
+if (NOT GEMM STREQUAL "MKL"
+        AND NOT GEMM STREQUAL "OPENBLAS"
+        AND NOT GEMM STREQUAL "JIT")
     set (GEMM "JIT")
-    message(STATUS "GEMM should be set to MKL|OPENBLAS|JIT. Default option is " ${GEMM})
+    message(STATUS "GEMM should be set to MKL, OPENBLAS or JIT. Default option is " ${GEMM})
 endif()
 list (APPEND IE_OPTIONS GEMM)
 
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-if (NOT THREADING STREQUAL "TBB" AND NOT THREADING STREQUAL "OMP" AND NOT THREADING STREQUAL "SEQ")
+if (NOT THREADING STREQUAL "TBB"
+        AND NOT THREADING STREQUAL "OMP"
+        AND NOT THREADING STREQUAL "SEQ")
     set (THREADING "OMP")
-    message(STATUS "THREADING should be set to TBB|OMP|SEQ. Default option is " ${THREADING})
+    message(STATUS "THREADING should be set to TBB, OMP or SEQ. Default option is " ${THREADING})
 endif()
 list (APPEND IE_OPTIONS THREADING)
 
-ie_option (ENABLE_INTEL_OMP "MKL-DNN library based on Intel OMP implementation" ON)
+# Enable postfixes for Debug/Release builds
+set (IE_DEBUG_POSTFIX_WIN "d")
+set (IE_RELEASE_POSTFIX_WIN "")
+set (IE_DEBUG_POSTFIX_LIN "")
+set (IE_RELEASE_POSTFIX_LIN "")
+if (WIN32)
+    set (IE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX_WIN})
+    set (IE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX_WIN})
+else()
+    set (IE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX_LIN})
+    set (IE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX_LIN})
+endif()
+list (APPEND IE_OPTIONS IE_DEBUG_POSTFIX)
+list (APPEND IE_OPTIONS IE_RELEASE_POSTFIX)
 
 ie_option (ENABLE_TESTS "unit and functional tests" OFF)
+
+ie_option (ENABLE_GAPI_TESTS "unit tests for GAPI kernels" OFF)
+
+ie_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF)
+
 
 ie_option (ENABLE_SAMPLES_CORE "console samples core library" ON)
 
@@ -62,6 +86,12 @@ ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
 ie_option (ENABLE_PLUGIN_RPATH "enables rpath information to be present in plugins binary, and in corresponding test_applications" ON)
+
+ie_option (ENABLE_AFFINITY_GENERATOR "enables affinity generator build" OFF)
+
+ie_option (ENABLE_DEBUG_SYMBOLS "generates symbols for debugging" OFF)
+
+ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
 
 #environment variables used
 

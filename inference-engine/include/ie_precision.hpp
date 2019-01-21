@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,20 +79,44 @@ public:
         return Precision(8 * sizeof(T), typeName == nullptr ? typeid(T).name() : typeName);
     }
 
+    /** @brief checks whether given storage class T can be used for store objects of current precision */
+    template <class T>
+    bool hasStorageType(const char * typeName = nullptr) const noexcept {
+        if (sizeof(T) != size()) {
+            return false;
+        }
+#define CASE(x, y) case x: return std::is_same<T, y>()
+#define CASE2(x, y1, y2) case x: return std::is_same<T, y1>() || std::is_same<T, y2>()
+
+        switch (precisionInfo.value) {
+            CASE(FP32, float);
+            CASE2(FP16, int16_t, uint16_t);
+            CASE(I16, int16_t);
+            CASE(I32, int32_t);
+            CASE(U16, uint16_t);
+            CASE(U8, uint8_t);
+            CASE(I8, int8_t);
+            CASE2(Q78, int16_t, uint16_t);
+            default : return areSameStrings(name(), typeName == nullptr ? typeid(T).name() : typeName);
+#undef CASE
+#undef CASE2
+        }
+    }
+
     /** @brief Equality operator with Precision object */
-    bool operator == (const Precision  & p) const noexcept  {
+    bool operator == (const Precision  & p) const noexcept {
         return precisionInfo.value == p &&
             precisionInfo.bitsSize == p.precisionInfo.bitsSize &&
             areSameStrings(precisionInfo.name, p.precisionInfo.name);
     }
 
     /** @brief Equality operator with ePrecision enum value */
-    bool operator == (const ePrecision  p) const noexcept  {
+    bool operator == (const ePrecision  p) const noexcept {
         return precisionInfo.value == p;
     }
 
     /** @brief Inequality operator with ePrecision enum value */
-    bool operator != (const ePrecision   p) const noexcept  {
+    bool operator != (const ePrecision   p) const noexcept {
         return precisionInfo.value != p;
     }
 
@@ -103,7 +126,7 @@ public:
         return *this;
     }
 
-    /** @brief Cust operator to a bool */
+    /** @brief Cast operator to a bool */
     explicit operator bool() const noexcept {
         return precisionInfo.value != UNSPECIFIED;
     }
@@ -113,7 +136,7 @@ public:
         return precisionInfo.value == UNSPECIFIED;
     }
 
-    /** @brief Cust operator to a ePrecision */
+    /** @brief Cast operator to a ePrecision */
     operator Precision::ePrecision  () const noexcept {
         return precisionInfo.value;
     }
@@ -162,7 +185,7 @@ public:
     template<Precision::ePrecision precision>
     static PrecisionInfo makePrecisionInfo(const char * name);
 
-    static bool areSameStrings(const char *l, const char *r) {
+    static bool areSameStrings(const char *l, const char *r) noexcept {
         if (l == r)
             return true;
 
@@ -208,7 +231,7 @@ struct PrecisionTrait<Precision::FP32> {
 
 template<>
 struct PrecisionTrait<Precision::FP16> {
-    using value_type = uint16_t;
+    using value_type = int16_t;
 };
 template<>
 struct PrecisionTrait<Precision::Q78> {

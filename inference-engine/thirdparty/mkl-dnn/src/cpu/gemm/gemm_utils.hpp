@@ -22,8 +22,34 @@ namespace impl {
 namespace cpu {
 
 namespace gemm_utils {
+
+template <typename T, bool isTransA, bool isTransB>
+struct gemm_traits {};
+
+template <bool isTransA, bool isTransB>
+struct gemm_traits<double, isTransA, isTransB> {
+    static constexpr int m = 8;
+    static constexpr int n = 6;
+    static constexpr int BM = 4032;
+    static constexpr int BN = isTransA ? 96 : 192;
+    static constexpr int BK = isTransB ? 96 : 512;
+};
+
+template <bool isTransA, bool isTransB>
+struct gemm_traits<float, isTransA, isTransB> {
+    static constexpr int m = 16;
+    static constexpr int n = 6;
+    static constexpr int BM = 4032;
+    static constexpr int BN = isTransA ? 96 : 48;
+    static constexpr int BK = isTransB ? 96 : 256;
+};
+
+template <typename T>
+using unroll_factor = gemm_traits<T, false, false>;
+
+template <typename data_type>
 void sum_two_matrices(
-        int m, int n, float *p_src, int ld_src, float *p_dst, int ld_dst);
+        int m, int n, data_type *p_src, int ld_src, data_type *p_dst, int ld_dst);
 
 void calc_nthr_nocopy_avx512_common(int m,
         int n, int k, int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k,
@@ -35,6 +61,8 @@ void calc_nthr_nocopy_avx(int m, int n, int k,
 
 void partition_unit_diff(
         int ithr, int nthr, int n, int *t_offset, int *t_block);
+
+inline double saturate(double value, double min, double max);
 };
 
 }

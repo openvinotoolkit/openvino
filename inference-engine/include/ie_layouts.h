@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -218,10 +217,17 @@ public:
      * @param l memory layout
      */
     void setLayout(Layout l) {
-        bool inconsistentLayout = false;
-        switch (layout) {
+        bool inconsistentLayout = true;
+        switch (l) {
             case Layout::C:
                 inconsistentLayout = dims.size() != 1;
+                break;
+            case Layout::BLOCKED:
+                inconsistentLayout = false;
+                break;
+            case Layout::NCDHW:
+            case Layout::NDHWC:
+                inconsistentLayout = dims.size() != 5;
                 break;
             case Layout::OIHW:
             case Layout::NCHW:
@@ -240,7 +246,7 @@ public:
                 break;
         }
         if (inconsistentLayout)
-            THROW_IE_EXCEPTION << "Dims and format are inconsistent.";
+            THROW_IE_EXCEPTION << "Dims(" << std::to_string(dims.size()) << ") and format(" << std::to_string(l) << ") are inconsistent.";
         layout = l;
     }
 

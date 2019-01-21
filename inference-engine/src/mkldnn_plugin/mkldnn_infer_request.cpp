@@ -1,10 +1,10 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_infer_request.h"
 #include "mkldnn_extension_utils.h"
+#include "mkldnn_streams.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -36,83 +36,97 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
     if (!graph || !graph->IsReady()) {
         THROW_IE_EXCEPTION << "Network not loaded.";
     }
+    auto infer = [this] {
+        // execute input pre-processing.
+        execDataPreprocessing(_inputs);
 
-    // execute input pre-processing.
-    execDataPreprocessing(_inputs);
-
-    changeDefaultPtr();
-    // need to retain converted blobs until infer finish
-    std::vector<InferenceEngine::Blob::Ptr> convertedInputs;
-    for (auto input : _inputs) {
-        if (!_networkInputs[input.first]) {
-            THROW_IE_EXCEPTION <<
-                               "input blobs map contains not registered during IInferencePlugin::LoadNetwork blob with name "
-                               << input.first;
-        }
-        /*if (_networkInputs[input.first]->getInputPrecision() != input.second->precision()) {
-            THROW_IE_EXCEPTION << "Different input precision for input " << input.first
-                               << " registered in IInferencePlugin::LoadNetwork network and IInferencePlugin::Infer. "
-                               << _networkInputs[input.first]->getInputPrecision() << " vs "
-                               << input.second->precision();
-        }*/
+        changeDefaultPtr();
+        // need to retain converted blobs until infer finish
+        std::vector<InferenceEngine::Blob::Ptr> convertedInputs;
+        for (auto input : _inputs) {
+            if (!_networkInputs[input.first]) {
+                THROW_IE_EXCEPTION <<
+                                   "input blobs map contains not registered during IInferencePlugin::LoadNetwork blob with name "
+                                   << input.first;
+            }
+            /*if (_networkInputs[input.first]->getInputPrecision() != input.second->precision()) {
+                THROW_IE_EXCEPTION << "Different input precision for input " << input.first
+                                   << " registered in IInferencePlugin::LoadNetwork network and IInferencePlugin::Infer. "
+                                   << _networkInputs[input.first]->getInputPrecision() << " vs "
+                                   << input.second->precision();
+            }*/
 
 
 
-        InferenceEngine::Blob::Ptr iconv;
-        InferenceEngine::TBlob<float> *in_f = nullptr;
-        switch (input.second->precision()) {
-            case InferenceEngine::Precision::FP32:
-                pushInput<float>(input.first, input.second);
-                break;
-            case InferenceEngine::Precision::U16:
-                // U16 is unsupported by mkldnn, so here we convert the blob and send FP32
-                iconv = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
-                        InferenceEngine::Precision::FP32,
-                        input.second->getTensorDesc().getLayout(), input.second->dims());
-                convertedInputs.push_back(iconv);
-                iconv->allocate();
-                in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
-                InferenceEngine::copyToFloat<uint16_t>(in_f->data(), input.second.get());
-                pushInput<float>(input.first, iconv);
-                break;
-            case InferenceEngine::Precision::I16:
-                if (graph->hasMeanImageFor(input.first)) {
-                    // If a mean image exists, we convert the blob and send FP32
+            InferenceEngine::Blob::Ptr iconv;
+            InferenceEngine::TBlob<float> *in_f = nullptr;
+            switch (input.second->precision()) {
+                case InferenceEngine::Precision::FP32:
+                    pushInput<float>(input.first, input.second);
+                    break;
+                case InferenceEngine::Precision::I32:
+                    pushInput<int32_t>(input.first, input.second);
+                    break;
+                case InferenceEngine::Precision::I8:
+                    pushInput<int8_t>(input.first, input.second);
+                    break;
+                case InferenceEngine::Precision::U16:
+                    // U16 is unsupported by mkldnn, so here we convert the blob and send FP32
                     iconv = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
                             InferenceEngine::Precision::FP32,
                             input.second->getTensorDesc().getLayout(), input.second->dims());
                     convertedInputs.push_back(iconv);
                     iconv->allocate();
                     in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
-                    InferenceEngine::copyToFloat<int16_t>(in_f->data(), input.second.get());
+                    InferenceEngine::copyToFloat<uint16_t>(in_f->data(), input.second.get());
                     pushInput<float>(input.first, iconv);
-                } else {
-                    // Instead we can send I16 directly
-                    pushInput<int16_t>(input.first, input.second);
-                }
-                break;
-            case InferenceEngine::Precision::U8:
-                if (graph->hasMeanImageFor(input.first)) {
-                    // If a mean image exists, we convert the blob and send FP32
-                    iconv = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
-                            InferenceEngine::Precision::FP32,
-                            input.second->getTensorDesc().getLayout(), input.second->dims());
-                    convertedInputs.push_back(iconv);
-                    iconv->allocate();
-                    in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
-                    InferenceEngine::copyToFloat<uint8_t>(in_f->data(), input.second.get());
-                    pushInput<float>(input.first, iconv);
-                } else {
-                    // Instead we can send I8 directly
-                    pushInput<uint8_t>(input.first, input.second);
-                }
-                break;
-            default:
-                THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->precision();
+                    break;
+                case InferenceEngine::Precision::I16:
+                    if (graph->hasMeanImageFor(input.first)) {
+                        // If a mean image exists, we convert the blob and send FP32
+                        iconv = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
+                                InferenceEngine::Precision::FP32,
+                                input.second->getTensorDesc().getLayout(), input.second->dims());
+                        convertedInputs.push_back(iconv);
+                        iconv->allocate();
+                        in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
+                        InferenceEngine::copyToFloat<int16_t>(in_f->data(), input.second.get());
+                        pushInput<float>(input.first, iconv);
+                    } else {
+                        // Instead we can send I16 directly
+                        pushInput<int16_t>(input.first, input.second);
+                    }
+                    break;
+                case InferenceEngine::Precision::U8:
+                    if (graph->hasMeanImageFor(input.first)) {
+                        // If a mean image exists, we convert the blob and send FP32
+                        iconv = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
+                                InferenceEngine::Precision::FP32,
+                                input.second->getTensorDesc().getLayout(), input.second->dims());
+                        convertedInputs.push_back(iconv);
+                        iconv->allocate();
+                        in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
+                        InferenceEngine::copyToFloat<uint8_t>(in_f->data(), input.second.get());
+                        pushInput<float>(input.first, iconv);
+                    } else {
+                        // Instead we can send I8 directly
+                        pushInput<uint8_t>(input.first, input.second);
+                    }
+                    break;
+                default:
+                    THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->precision();
+            }
         }
-    }
-    graph->Infer(m_curBatch);
-    graph->PullOutputData(_outputs);
+        graph->Infer(m_curBatch);
+        graph->PullOutputData(_outputs);
+    };
+#if IE_THREAD == IE_THREAD_TBB
+    auto_scope_observing observer(graph->ptrObserver);
+    // a TBB arena is made "this" for Infer call via executing lambda for the arena
+    graph->ptrArena->execute([&] { infer(); });
+#else
+    infer();
+#endif
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::GetPerformanceCounts(

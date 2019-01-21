@@ -51,8 +51,8 @@ KERNEL(border_gpu_ref)(
     const uint out_f  = out_fb % OUTPUT_FEATURE_NUM;
     const uint out_b  = out_fb / OUTPUT_FEATURE_NUM;
 
-#ifdef BORDER_TYPE_ZERO
-    UNIT_TYPE in_val = UNIT_VAL_ZERO;
+#ifdef BORDER_TYPE_CONSTANT
+    UNIT_TYPE in_val = TO_UNIT_TYPE(BORDER_VALUE);
     if (out_x >= blt_sx & out_x < in_lx &
         out_y >= blt_sy & out_y < in_ly &
         out_f >= blt_sf & out_f < in_lf &
@@ -66,6 +66,14 @@ KERNEL(border_gpu_ref)(
         const uint in_pos = GET_DATA_INDEX(INPUT0, in_b, in_f, in_y, in_x);
         in_val = input[in_pos];
     }
+#elif defined BORDER_TYPE_EDGE
+    const uint in_x = (out_x >= blt_sx & out_x < in_lx) ? out_x - blt_sx : (out_x < blt_sx ? 0 : in_sx - 1);
+    const uint in_y = (out_y >= blt_sy & out_y < in_ly) ? out_y - blt_sy : (out_y < blt_sy ? 0 : in_sy - 1);
+    const uint in_f = (out_f >= blt_sf & out_f < in_lf) ? out_f - blt_sf : (out_f < blt_sf ? 0 : in_sf - 1);
+    const uint in_b = (out_b >= blt_sb & out_b < in_lb) ? out_b - blt_sb : (out_b < blt_sb ? 0 : in_sb - 1);
+
+    const uint in_pos = GET_DATA_INDEX(INPUT0, in_b, in_f, in_y, in_x);
+    UNIT_TYPE in_val = input[in_pos];
 #elif defined BORDER_TYPE_MIRROR
     const uint in_x = (out_x >= blt_sx & out_x < in_lx) ? out_x - blt_sx : (out_x < blt_sx ? blt_sx - 1 - out_x : in_sx + in_lx - 1 - out_x);
     const uint in_y = (out_y >= blt_sy & out_y < in_ly) ? out_y - blt_sy : (out_y < blt_sy ? blt_sy - 1 - out_y : in_sy + in_ly - 1 - out_y);

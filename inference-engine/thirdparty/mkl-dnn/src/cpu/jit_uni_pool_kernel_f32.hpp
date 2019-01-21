@@ -73,19 +73,29 @@ private:
     Opmask k_index_mask = Opmask(6);
     Opmask k_store_mask = Opmask(7);
 
+    // Here be some (tame) dragons. This kernel does not follow the regular
+    // OS-agnostic ABI pattern because when isa is sse42 it uses maskmovdqu
+    // instruction which has its destination hardcoded in rdi. Therefore:
+    // - all registers are hardcoded
+    // - on Windows rdi and rcx are swapped to mimic the Unix x86_64 ABI
+    //
+    // While this is only required by the backward pass, the quirk above
+    // is applied to the forward pass as well to keep things simpler.
+
     using reg64_t = const Xbyak::Reg64;
+    reg64_t reg_param      = rdi; // Always mimic the Unix ABI
     reg64_t reg_input      = r8;
     reg64_t aux_reg_input  = r9;
     reg64_t reg_index      = r10;
     reg64_t reg_output     = r12;
     reg64_t reg_kd_pad_shift = r13;
-    reg64_t dst_ptr        = abi_param1;
+    reg64_t dst_ptr        = rdi; // Must be rdi due to maskmovdqu
 
     reg64_t kj      = r14;
     reg64_t oi_iter = r15;
     reg64_t reg_kh  = rax;
     reg64_t reg_k_shift  = rbx;
-    reg64_t tmp_gpr = abi_not_param1;
+    reg64_t tmp_gpr = rcx; // Must be rcx because rdi is used above
     reg64_t reg_ker_area_h = rdx;
 
     reg64_t zero_size = r15;

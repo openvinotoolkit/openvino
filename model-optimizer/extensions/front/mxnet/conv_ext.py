@@ -16,11 +16,10 @@
 
 import numpy as np
 
-from mo.front.common.extractors.utils import layout_attrs
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.ops.convolution import Convolution
-
+from mo.front.common.extractors.utils import layout_attrs
 
 class ConvFrontExtractor(FrontExtractorOp):
     op = 'Convolution'
@@ -31,33 +30,39 @@ class ConvFrontExtractor(FrontExtractorOp):
         attr = get_mxnet_layer_attrs(node.symbol_dict)
 
         kernel = attr.tuple("kernel", int, None)
-        stride = attr.tuple("stride", int, (1, 1))
-        padding = attr.tuple("pad", int, (0, 0))
-        dilate = attr.tuple("dilate", int, (1, 1))
+        stride = attr.tuple("stride", int, tuple(np.ones(len(kernel), dtype=np.int64)))
+        padding = attr.tuple("pad", int, tuple(np.zeros(len(kernel), dtype=np.int64)))
+        dilate = attr.tuple("dilate", int, tuple(np.ones(len(kernel), dtype=np.int64)))
         group = attr.int("num_group", 1)
         output = attr.int("num_filter", None)
         bias_term = attr.str("no_bias", 'False') == 'False'
 
+        final_dilations = np.array([1, 1, *[d for d in dilate]], dtype=np.int64) if dilate is not None else None
+
         node_attrs = {
-            'op': 'Conv2D',
+            'op': __class__.op,
             'bias_addable': True,
             'bias_term': bias_term,
-            'pad': np.array([[0, 0], [0, 0], [padding[0], padding[0]], [padding[1], padding[1]]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[padding[0], padding[0]], [padding[1], padding[1]]], dtype=np.int64),
-            'dilation': np.array([1, 1, dilate[0], dilate[1]], dtype=np.int64),
+            'pad': np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]], dtype=np.int64),
+            'pad_spatial_shape': np.array([[pad, pad] for pad in padding], dtype=np.int64),
+            'dilation': final_dilations,
             'output_spatial_shape': None,
             'output_shape': None,
-            'stride': np.array([1, 1, stride[0], stride[1]], dtype=np.int64),
+            'stride': np.array([1, 1, *[s for s in stride]], dtype=np.int64),
             'group': group,
             'output': output,
-            'kernel_spatial': np.array([kernel[0], kernel[1]], dtype=np.int64),
+            'kernel_spatial': np.array([k for k in kernel], dtype=np.int64),
 
             'input_feature_channel': 1,
             'output_feature_channel': 0,
-            'kernel_spatial_idx': np.array([2, 3], dtype=np.int64),
+            'kernel_spatial_idx': None,
             'reshape_kernel': True,
+
+            'spatial_dims': None,
+            'channel_dims': np.array([1], dtype=np.int64),
+            'batch_dims': np.array([0], dtype=np.int64),
+            'layout': 'NCHW',
         }
-        node_attrs.update(layout_attrs())
 
         # update the attributes of the node
         Convolution.update_node_stat(node, node_attrs)
@@ -75,16 +80,16 @@ class DeconvFrontExtractor(FrontExtractorOp):
                                      (kernel_shape[node.spatial_dims] - 1) * node.dilation[node.spatial_dims]
         padding[node.spatial_dims] = padding[node.spatial_dims] - node.output_spatial_shape;
         padding[node.spatial_dims] = (padding[node.spatial_dims] + 1) / 2
-        return np.array([[0, 0], [0, 0], [padding[2], padding[2]], [padding[3], padding[3]]], dtype=np.int64)
+        return np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding[2:]]], dtype=np.int64)
 
     @staticmethod
     def extract(node):
         attr = get_mxnet_layer_attrs(node.symbol_dict)
 
         kernel = attr.tuple("kernel", int, None)
-        stride = attr.tuple("stride", int, (1, 1))
-        padding = attr.tuple("pad", int, (0, 0))
-        dilate = attr.tuple("dilate", int, (1, 1))
+        stride = attr.tuple("stride", int, tuple(np.ones(len(kernel), dtype=np.int64)))
+        padding = attr.tuple("pad", int, tuple(np.zeros(len(kernel), dtype=np.int64)))
+        dilate = attr.tuple("dilate", int, tuple(np.ones(len(kernel), dtype=np.int64)))
         group = attr.int("num_group", 1)
         output = attr.int("num_filter", None)
         bias_term = attr.str("no_bias", 'True') == 'False'
@@ -92,27 +97,32 @@ class DeconvFrontExtractor(FrontExtractorOp):
         if target_shape:
             target_shape = np.array(target_shape, dtype=np.int64)
 
+        final_dilations = np.array([1, 1, *[d for d in dilate]], dtype=np.int64) if dilate is not None else None
         node_attrs = {
+            'op': __class__.op,
             'type': 'Deconvolution',
-            'op': 'Deconv2D',
             'bias_addable': True,
             'bias_term': bias_term,
-            'pad': np.array([[0, 0], [0, 0], [padding[0], padding[0]], [padding[1], padding[1]]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[padding[0], padding[0]], [padding[1], padding[1]]], dtype=np.int64),
-            'dilation': np.array([1, 1, dilate[0], dilate[1]], dtype=np.int64),
+            'pad': np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]], dtype=np.int64),
+            'pad_spatial_shape': np.array([[pad, pad] for pad in padding], dtype=np.int64),
+            'dilation': final_dilations,
             'output_spatial_shape': target_shape,
             'output_shape': None,
-            'stride': np.array([1, 1, stride[0], stride[1]], dtype=np.int64),
+            'stride': np.array([1, 1, *[s for s in stride]], dtype=np.int64),
             'group': group,
             'output': output,
-            'kernel_spatial': np.array([kernel[0], kernel[1]], dtype=np.int64),
-            'input_feature_channel': 0,
-            'output_feature_channel': 1,
-            'kernel_spatial_idx': np.array([2, 3], dtype=np.int64),
+            'kernel_spatial': np.array([k for k in kernel], dtype=np.int64),
+            'input_feature_channel': 1,
+            'output_feature_channel': 0,
+            'kernel_spatial_idx': None,
             'reshape_kernel': True,
-            'get_pad': DeconvFrontExtractor.get_pad
+
+            'spatial_dims': None,
+            'channel_dims': np.array([1], dtype=np.int64),
+            'batch_dims': np.array([0], dtype=np.int64),
+            'layout': 'NCHW',
+            'get_pad': DeconvFrontExtractor.get_pad,
         }
-        node_attrs.update(layout_attrs())
 
         # update the attributes of the node
         Convolution.update_node_stat(node, node_attrs)

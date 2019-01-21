@@ -114,8 +114,14 @@ def apply_replacements(graph: nx.MultiDiGraph, replacements_type):
             replacer.find_and_replace_pattern(graph)
             check_empty_graph(graph, replacer_cls)
         except Error as err:
-            raise Error('Exception occurred during running replacer "{}": {}'.format(replacement_id, str(err).replace(
-                '[REPLACEMENT_ID]', replacement_id))) from err
+            raise Error('Exception occurred during running replacer "{}" ({}): {}'.format(
+                replacement_id,
+                replacer_cls,
+                str(err).replace('[REPLACEMENT_ID]', replacement_id),
+            )) from err
         except Exception as err:
-            raise Exception('Exception occurred during running replacer "{}": {}'.format(
-                replacement_id, str(err).replace('[REPLACEMENT_ID]', replacement_id))) from err
+            raise Exception('Exception occurred during running replacer "{} ({})": {}'.format(
+                replacement_id,
+                replacer_cls,
+                str(err).replace('[REPLACEMENT_ID]', replacement_id),
+            )) from err

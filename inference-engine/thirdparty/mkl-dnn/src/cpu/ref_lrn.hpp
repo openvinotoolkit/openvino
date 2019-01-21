@@ -69,8 +69,9 @@ struct ref_lrn_fwd_t: public cpu_primitive_t {
         case nChw8c: execute_forward<nChw8c>(); break;
         case nchw: execute_forward<nchw>(); break;
         case nhwc: execute_forward<nhwc>(); break;
-        case any: execute_forward<mkldnn_any>(); break;
-        default: break;
+        // XXX: fix compatibility with 0.14
+        // mkldnn_any is used to call ref code for arbitrary format
+        default: execute_forward<mkldnn_any>();
         }
         e->set_state(event_t::ready);
     }
@@ -117,8 +118,9 @@ struct ref_lrn_bwd_t: public cpu_primitive_t {
         case nChw8c: execute_backward<nChw8c>(); break;
         case nchw: execute_backward<nchw>(); break;
         case nhwc: execute_backward<nhwc>(); break;
-        case any: execute_backward<mkldnn_any>(); break;
-        default: break;
+        // XXX: fix compatibility with 0.14
+        // mkldnn_any is used to call ref code for arbitrary format
+        default: execute_backward<mkldnn_any>();
         }
         e->set_state(event_t::ready);
     }

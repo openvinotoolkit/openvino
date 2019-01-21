@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,11 +81,14 @@ void CpuExtensions::collectTypes(char**& types, unsigned int& size, const std::m
     size = count;
 }
 
+}  // namespace Cpu
+}  // namespace Extensions
+
 
 // Exported function
 INFERENCE_EXTENSION_API(StatusCode) CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept {
     try {
-        ext = new CpuExtensions();
+        ext = new Extensions::Cpu::CpuExtensions();
         return OK;
     } catch (std::exception& ex) {
         if (resp) {
@@ -97,7 +99,15 @@ INFERENCE_EXTENSION_API(StatusCode) CreateExtension(IExtension*& ext, ResponseDe
     }
 }
 
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace InferenceEngine
+// Exported function
+INFERENCE_EXTENSION_API(StatusCode) CreateShapeInferExtension(IShapeInferExtension*& ext, ResponseDesc* resp) noexcept {
+    IExtension * pExt = nullptr;
+    StatusCode  result = CreateExtension(pExt, resp);
+    if (result == OK) {
+        ext = pExt;
+    }
 
+    return result;
+}
+
+}  // namespace InferenceEngine

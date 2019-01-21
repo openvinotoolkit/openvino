@@ -22,6 +22,8 @@
 #include "type_helpers.hpp"
 #include "utils.hpp"
 
+#include "format_traits.hpp"
+
 #include "cpu_memory.hpp"
 
 namespace mkldnn {
@@ -33,11 +35,14 @@ using namespace mkldnn::impl::data_type;
 using namespace mkldnn::impl::status;
 using namespace mkldnn::impl::memory_format;
 
+using dk = data_kind_t;
+using bf = block_format_t;
+
 template <data_type_t dt, memory_format_t fmt>
-typename utils::enable_if<fmt == nChw8c || fmt == nChw16c || fmt == nCdhw8c
-    || fmt == nCdhw16c>::type typed_zero_pad_data(
+typename utils::enable_if<format_traits<fmt>::data_kind == dk::data>::type
+typed_zero_pad_data(
     const memory_desc_wrapper &m_d, typename prec_traits<dt>::type *data) {
-    constexpr int blksize = (fmt == nChw8c || fmt == nCdhw8c) ? 8 : 16;
+    constexpr int blksize = format_traits<fmt>::blk_size;
 
     const auto &dims = m_d.dims();
     const auto &pdims = m_d.blocking_desc().padding_dims;
@@ -58,21 +63,14 @@ typename utils::enable_if<fmt == nChw8c || fmt == nChw16c || fmt == nCdhw8c
 
 template <data_type_t dt, memory_format_t fmt>
 typename utils::enable_if<false
-|| fmt == Ohwi8o || fmt == Oihw16o || fmt == Ohwi16o || fmt == Oidhw16o
-|| fmt == Odhwi16o|| fmt == Odhwi8o || fmt == gOhwi8o || fmt == gOihw16o
-|| fmt == gOhwi16o || fmt == gOidhw16o || fmt == gOdhwi16o || fmt == gOdhwi8o
+|| format_traits<fmt>::blk_fmt == bf::_8o
+|| format_traits<fmt>::blk_fmt == bf::_16o
 >::type typed_zero_pad_weights(const memory_desc_wrapper &m_d,
         typename prec_traits<dt>::type *data) {
-    static constexpr int w_groups = false
-        || fmt == gOhwi8o || fmt == gOihw16o || fmt == gOhwi16o
-        || fmt == gOidhw16o || fmt == gOdhwi16o || fmt == gOdhwi8o;
-
-    constexpr int is_3d = false
-        || fmt == Oidhw16o || fmt == Odhwi16o || fmt == Odhwi8o
-        || fmt == gOidhw16o || fmt == gOdhwi16o || fmt == gOdhwi8o;
-
-    constexpr int blksize = fmt == Ohwi8o || fmt == gOhwi8o
-        || fmt == Odhwi8o || fmt == gOdhwi8o ? 8 : 16;
+    static constexpr int w_groups = format_traits<fmt>::data_kind == dk::gwei;
+    constexpr int is_1d = format_traits<fmt>::ndims_sp == 1;
+    constexpr int is_3d = format_traits<fmt>::ndims_sp == 3;
+    constexpr int blksize = format_traits<fmt>::blk_size;
 
     const auto &dims = m_d.dims();
     const auto &pdims = m_d.blocking_desc().padding_dims;
@@ -81,30 +79,30 @@ typename utils::enable_if<false
     const int NB_OC = pdims[w_groups + 0] / blksize;
     const int IC = dims[w_groups + 1];
     const int D = is_3d ? dims[w_groups + 2] : 1;
-    const int H = dims[w_groups + 2 + is_3d];
-    const int W = dims[w_groups + 3 + is_3d];
+    const int H = is_1d ? 1 : dims[w_groups + 2 + is_3d];
+    const int W = dims[w_groups + 3 - is_1d + is_3d];
 
     const int oc_tail = pdims[w_groups + 0] - dims[w_groups + 0];
 
     parallel_nd(G, IC, D, H, W,
         [&](int g, int ic, int d, int h, int w) {
-        auto x = &data[is_3d
-            ? m_d.blk_off<!w_groups>(g, NB_OC - 1, ic, d, h, w)
-            : m_d.blk_off<!w_groups>(g, NB_OC - 1, ic, h, w) ];
+        auto x = &data[wei_blk_off_like_gwei3D<fmt>(m_d,
+                g, NB_OC - 1, ic, d, h, w)];
         for (int oc = blksize - oc_tail; oc < blksize; ++oc)
             x[oc] = 0;
     });
 }
 
 template <data_type_t dt, memory_format_t fmt>
-typename utils::enable_if<fmt == oIhw8i || fmt == oIhw16i
-    || fmt == oIdhw8i || fmt == oIdhw16i>::type
-typed_zero_pad_weights(const memory_desc_wrapper &m_d,
+typename utils::enable_if<false
+|| format_traits<fmt>::blk_fmt == bf::_8i
+|| format_traits<fmt>::blk_fmt == bf::_16i
+>::type typed_zero_pad_weights(const memory_desc_wrapper &m_d,
         typename prec_traits<dt>::type *data) {
-    constexpr int blksize = fmt == oIhw8i || fmt == oIdhw8i ? 8 : 16;
-
-    static constexpr int w_groups = 0;
-    constexpr int is_3d = fmt == oIdhw8i || fmt == oIdhw16i;
+    static constexpr int w_groups = format_traits<fmt>::data_kind == dk::gwei;
+    constexpr int is_1d = format_traits<fmt>::ndims_sp == 1;
+    constexpr int is_3d = format_traits<fmt>::ndims_sp == 3;
+    constexpr int blksize = format_traits<fmt>::blk_size;
 
     const auto &dims = m_d.dims();
     const auto &pdims = m_d.blocking_desc().padding_dims;
@@ -113,54 +111,30 @@ typed_zero_pad_weights(const memory_desc_wrapper &m_d,
     const int OC = dims[w_groups + 0];
     const int NB_IC = pdims[w_groups + 1] / blksize;
     const int D = is_3d ? dims[w_groups + 2] : 1;
-    const int H = dims[w_groups + 2 + is_3d];
+    const int H = is_1d ? 1 : dims[w_groups + 2 + is_3d];
     const int W = dims[w_groups + 3 + is_3d];
 
     const int ic_tail = pdims[w_groups + 1] - dims[w_groups + 1];
 
     parallel_nd(G, OC, D, H, W,
         [&](int g, int oc, int d, int h, int w) {
-        auto x = &data[is_3d
-            ? m_d.blk_off<!w_groups>(g, oc, NB_IC - 1, d, h, w)
-            : m_d.blk_off<!w_groups>(g, oc, NB_IC - 1, h, w) ];
+        auto x = &data[wei_blk_off_like_gwei3D<fmt>(m_d,
+                g, oc, NB_IC - 1, d, h, w)];
         for (int ic = blksize - ic_tail; ic < blksize; ++ic)
             x[ic] = 0;
     });
 }
 
 template <data_type_t dt, memory_format_t fmt>
-typename utils::enable_if<false
-|| fmt == IOhw16o16i || fmt == gIOhw16o16i
-|| fmt == OIdhw16i16o || fmt == OIdhw16o16i || fmt == OIhw8i8o
-|| fmt == OIhw16i16o || fmt == OIhw4i16o4i || fmt == OIhw8i16o2i
-|| fmt == OIdhw8i16o2i || fmt == OIhw8o16i2o || fmt == OIhw8o8i
-|| fmt == OIhw16o16i || fmt == OIdhw8i8o || fmt == OIdhw8o8i
-|| fmt == gOIhw8i8o
-|| fmt == gOIhw16i16o || fmt == gOIhw4i16o4i || fmt == gOIhw8i16o2i
-|| fmt == gOIdhw8i16o2i || fmt == gOIhw8o16i2o || fmt == gOIhw8o8i
-|| fmt == gOIhw16o16i || fmt == gOIdhw16i16o || fmt == gOIdhw16o16i
-|| fmt == gOIdhw8i8o || fmt == gOIdhw8o8i
->::type typed_zero_pad_weights(const memory_desc_wrapper &m_d,
+typename utils::enable_if<
+block_format_traits<format_traits<fmt>::blk_fmt>::blk_ndims == 2>::type
+typed_zero_pad_weights(const memory_desc_wrapper &m_d,
         typename prec_traits<dt>::type *data) {
     using data_t = typename prec_traits<dt>::type;
-    static constexpr int w_groups = false
-        || fmt == gOIhw8i8o || fmt == gOIhw16i16o || fmt == gOIhw4i16o4i
-        || fmt == gOIhw8i16o2i || fmt == gOIdhw8i16o2i || fmt == gOIhw8o16i2o
-        || fmt == gOIhw8o8i || fmt == gOIhw16o16i || fmt == gIOhw16o16i
-        || fmt == gOIdhw16i16o || fmt == gOIdhw16o16i || fmt == gOIdhw8i8o
-        || fmt == gOIdhw8o8i;
-
-    constexpr int is_3d = false
-        || fmt == OIdhw16i16o || fmt == OIdhw16o16i || fmt == OIdhw8i16o2i
-        || fmt == gOIdhw8i16o2i || fmt == gOIdhw16i16o || fmt == gOIdhw16o16i
-        || fmt == OIdhw8i8o || fmt == OIdhw8o8i || fmt == gOIdhw8i8o
-        || fmt == gOIdhw8o8i;
-
-    constexpr int blksize = (fmt == OIhw8i8o || fmt == OIhw8o8i
-        || fmt == gOIhw8i8o || fmt == gOIhw8o8i || fmt == OIdhw8i8o
-        || fmt == OIdhw8o8i || fmt == gOIdhw8i8o || fmt == gOIdhw8o8i)
-        ? 8 : 16;
-
+    static constexpr int w_groups = format_traits<fmt>::data_kind == dk::gwei;
+    constexpr int is_1d = format_traits<fmt>::ndims_sp == 1;
+    constexpr int is_3d = format_traits<fmt>::ndims_sp == 3;
+    constexpr int blksize = format_traits<fmt>::blk_size;
     const auto &dims = m_d.dims();
     const auto &pdims = m_d.blocking_desc().padding_dims;
 
@@ -168,35 +142,20 @@ typename utils::enable_if<false
     const int NB_OC = pdims[w_groups + 0] / blksize;
     const int NB_IC = pdims[w_groups + 1] / blksize;
     const int D = is_3d ? dims[w_groups + 2] : 1;
-    const int H = dims[w_groups + 2 + is_3d];
-    const int W = dims[w_groups + 3 + is_3d];
-
-    auto index = [&](const int ic, const int oc) {
-        if (utils::one_of(fmt,
-                    OIhw8i16o2i, gOIhw8i16o2i,
-                    OIdhw8i16o2i, gOIdhw8i16o2i))
-            return ((ic / 2) * blksize * 2 + 2 * oc + ic % 2);
-        else if (utils::one_of(fmt, OIhw4i16o4i, gOIhw4i16o4i))
-            return ((ic / 4) * blksize * 4 + oc * 4 + ic % 4);
-        else if (utils::one_of(fmt, OIhw8o16i2o, gOIhw8o16i2o))
-            return ((oc / 2) * blksize * 2 + 2 * ic + oc % 2);
-        else if (utils::one_of(fmt,
-                    OIhw16i16o, gOIhw16i16o, OIhw8i8o, gOIhw8i8o,
-                    OIdhw16i16o, gOIdhw16i16o, OIdhw8i8o, gOIdhw8i8o))
-            return (ic * blksize + oc);
-        else
-            return (oc * blksize + ic);
-    };
+    const int H = is_1d ? 1 : dims[w_groups + 2 + is_3d];
+    const int W = dims[w_groups + 3 - is_1d + is_3d];
 
     auto ker = [&](data_t *d, const int oc_tail, const int ic_tail) {
+#       define blk_off OI_blk_off<format_traits<fmt>::blk_fmt>
         int oc = 0;
         for (; oc < blksize - oc_tail; ++oc) {
             for (int ic = blksize - ic_tail; ic < blksize; ++ic)
-                d[index(ic, oc)] = 0;
+                d[blk_off(oc, ic)] = 0;
         }
         for (; oc < blksize; ++oc)
             for (int ic = 0; ic < blksize; ++ic)
-                d[index(ic, oc)] = 0;
+                d[blk_off(oc, ic)] = 0;
+#       undef blk_off
     };
 
     const int oc_tail = pdims[w_groups + 0] - dims[w_groups + 0];
@@ -205,9 +164,8 @@ typename utils::enable_if<false
     if (ic_tail) {
         parallel_nd(G, NB_OC, D, H, W,
             [&](int g, int nb_oc, int d, int h, int w) {
-            auto x = &data[is_3d
-                ? m_d.blk_off<!w_groups>(g, nb_oc, NB_IC - 1, d, h, w)
-                : m_d.blk_off<!w_groups>(g, nb_oc, NB_IC - 1, h, w) ];
+            auto x = &data[wei_blk_off_like_gwei3D<fmt>(m_d,
+                    g, nb_oc, NB_IC - 1, d, h, w)];
             ker(x, 0, ic_tail);
         });
     }
@@ -215,19 +173,20 @@ typename utils::enable_if<false
     if (oc_tail) {
         parallel_nd(G, NB_IC, D, H, W,
             [&](int g, int nb_ic, int d, int h, int w) {
-            auto x = &data[is_3d
-                ? m_d.blk_off<!w_groups>(g, NB_OC - 1, nb_ic, d, h, w)
-                : m_d.blk_off<!w_groups>(g, NB_OC - 1, nb_ic, h, w) ];
+            auto x = &data[wei_blk_off_like_gwei3D<fmt>(m_d,
+                    g, NB_OC - 1, nb_ic, d, h, w)];
             ker(x, oc_tail, 0);
         });
     }
 }
 
 template <data_type_t dt, memory_format_t fmt>
-typename utils::enable_if<fmt == Goihw8g || fmt == Goihw16g>::type
-typed_zero_pad_weights(const memory_desc_wrapper &m_d,
+typename utils::enable_if<false
+|| format_traits<fmt>::blk_fmt == bf::_8g
+|| format_traits<fmt>::blk_fmt == bf::_16g
+>::type typed_zero_pad_weights(const memory_desc_wrapper &m_d,
         typename prec_traits<dt>::type *data) {
-    constexpr int blksize = fmt == Goihw8g ? 8 : 16;
+    constexpr int blksize = format_traits<fmt>::blk_size;
 
     const auto &dims = m_d.dims();
     const auto &pdims = m_d.blocking_desc().padding_dims;
@@ -308,6 +267,8 @@ status_t cpu_memory_t::typed_zero_pad() {
     /* data */
 #   define MAYBE_DATA(f) if (fmt == f) \
     { typed_zero_pad_data<dt, f>(mpd, data); return success; }
+    MAYBE_DATA(nCw8c);
+    MAYBE_DATA(nCw16c);
     MAYBE_DATA(nChw8c);
     MAYBE_DATA(nCdhw8c);
     MAYBE_DATA(nChw16c);
@@ -330,6 +291,17 @@ status_t cpu_memory_t::typed_zero_pad() {
     MAYBE_WEIGHTS(OIhw8i8o);
     MAYBE_WEIGHTS(OIhw16i16o);
     MAYBE_WEIGHTS(OIhw4i16o4i);
+    MAYBE_WEIGHTS(OIhw4i16o4i_s8s8);
+    MAYBE_WEIGHTS(Owi8o);
+    MAYBE_WEIGHTS(OIw8i8o);
+    MAYBE_WEIGHTS(OIw8o8i);
+    MAYBE_WEIGHTS(OIw16i16o);
+    MAYBE_WEIGHTS(OIw16o16i);
+    MAYBE_WEIGHTS(Oiw16o);
+    MAYBE_WEIGHTS(Owi16o);
+    MAYBE_WEIGHTS(OIw8i16o2i);
+    MAYBE_WEIGHTS(OIw8o16i2o);
+    MAYBE_WEIGHTS(IOw16o16i);
     MAYBE_WEIGHTS(OIhw8i16o2i);
     MAYBE_WEIGHTS(OIdhw8i16o2i);
     MAYBE_WEIGHTS(OIhw8o16i2o);
@@ -342,6 +314,17 @@ status_t cpu_memory_t::typed_zero_pad() {
     MAYBE_WEIGHTS(gOIhw8i8o);
     MAYBE_WEIGHTS(gOIhw16i16o);
     MAYBE_WEIGHTS(gOIhw4i16o4i);
+    MAYBE_WEIGHTS(gOIhw4i16o4i_s8s8);
+    MAYBE_WEIGHTS(gOwi8o);
+    MAYBE_WEIGHTS(gOIw8i8o);
+    MAYBE_WEIGHTS(gOIw8o8i);
+    MAYBE_WEIGHTS(gOIw16i16o);
+    MAYBE_WEIGHTS(gOIw16o16i);
+    MAYBE_WEIGHTS(gOiw16o);
+    MAYBE_WEIGHTS(gOwi16o);
+    MAYBE_WEIGHTS(gOIw8i16o2i);
+    MAYBE_WEIGHTS(gOIw8o16i2o);
+    MAYBE_WEIGHTS(gIOw16o16i);
     MAYBE_WEIGHTS(gOIhw8i16o2i);
     MAYBE_WEIGHTS(gOIdhw8i16o2i);
     MAYBE_WEIGHTS(gOIhw8o16i2o);

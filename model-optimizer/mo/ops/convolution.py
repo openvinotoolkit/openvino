@@ -83,14 +83,12 @@ class Convolution(Op):
         return float_spatial_val_wo_stride / stride_spatial_shape + 1
 
     @staticmethod
-    def calc_deconvolution(node, input_spatial_shape, pad_spatial_shape, kernel_extent, output_padding=None):
+    def calc_deconvolution(node, input_spatial_shape, pad_spatial_shape, kernel_extent):
         ''' Calculates output shape for Deconvolution.
             Verified to be applicable for both Caffe and ONNX with explicitly defined pads.
             If pads are not specified for ONNX operator, this function is not applicable.
         '''
         shape = node.stride[node.spatial_dims] * (input_spatial_shape - 1) + kernel_extent - pad_spatial_shape
-        if output_padding is not None:
-            shape += output_padding
         return shape
 
     @staticmethod
@@ -128,13 +126,18 @@ class Convolution(Op):
         if node.has_valid('reshape_kernel') and node.reshape_kernel:
             if not (node.has_valid('output') and node.has_valid('channel_dims') and node.has_valid(
                     'group') and node.has_valid('kernel_spatial')):
-                log.error('Can\'t reshape kernel due to not all required attrs was set to {} node'.format(node.id))
+                log.error('Cannot reshape kernel due to not all required attrs was set to {} node'.format(node.id))
                 return
             # layout for Convolution weights is OIHW
             kernel_shape = np.array([node.output, input_shape[node.channel_dims].item() / node.group,
                                     *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]], dtype=np.int64)
             if node.type == 'Deconvolution':  # layout for Deconvolution weights is IOHW
                 kernel_shape[[0, 1]] = kernel_shape[[1, 0]]
+
+            if np.prod(kernel_shape) != np.prod(node.in_node(weights_index).value.shape):
+                log.error("Size of weights {} does not match kernel shape: {}\n".format(np.prod(node.in_node(weights_index).value.shape), kernel_shape) +
+                          "    Possible reason is wrong channel number in input shape\n")
+                raise Error("Cannot reshape weights to kernel shape")
 
             node.in_node(weights_index).shape = np.array(kernel_shape)
             node.in_node(weights_index).value = np.reshape(node.in_node(weights_index).value, kernel_shape)
@@ -154,7 +157,7 @@ class Convolution(Op):
         node['kernel_spatial'] = kernel_shape[node.kernel_spatial_idx]
 
         if not node.has_valid('output'):
-            # restore the number of output feature maps from the scond argument that is weights
+            # restore the number of output feature maps from the second argument that is weights
             if node.type in ['Convolution', 'Deconvolution']:
                 node['output'] = kernel_shape[node.output_feature_channel]
             else:
@@ -171,7 +174,7 @@ class Convolution(Op):
             node['stride'] = np.full([len(input_shape)], 1, dtype=np.int64)
         if not node.has_valid('pad'):
             node['pad'] = np.array([[0, 0]] * len(input_shape), dtype=np.int64)
-            node['pad_spatial_shape'] = node.pad[node.spatial_dims]
+        node['pad_spatial_shape'] = node.pad[node.spatial_dims]
 
         input_spatial_shape = input_shape[node.spatial_dims]
         stride_spatial_shape = node.stride[node.spatial_dims]
@@ -205,9 +208,15 @@ class Convolution(Op):
                         return
                 else:
                     output_padding = node.output_padding[node.spatial_dims] if node.has_valid('output_padding') else None
+                    if output_padding is not None:
+                        pad_spatial_shape -= output_padding
+                        for dim in range(len(pad_spatial_shape)):
+                            node.pad_spatial_shape[dim][1] -= pad_spatial_shape[dim]
+                        node.pad[node.spatial_dims] = node.pad_spatial_shape
+                        node['output_padding'] = None
+
                     float_spatial = Convolution.calc_deconvolution(node, input_spatial_shape, pad_spatial_shape,
-                                                                   kernel_extent,
-                                                                   output_padding)
+                                                                   kernel_extent)
                     node['output_spatial_shape'] = int64_array(float_spatial)
             else:
                 return
@@ -249,5 +258,4 @@ class Convolution(Op):
                                                        ])
 
         PermuteAttrs.set_permutation(node.in_node(weights_index), node,
-                                     node.get_weights_permute if node.has_valid('get_weights_permute') else None,
-                                     skip_if_exists=True)
+                                     node.get_weights_permute if node.has_valid('get_weights_permute') else None)

@@ -1,5 +1,4 @@
 ﻿// Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +12,7 @@
 #include <process.h>
 #include <direct.h>
 #include <io.h>
+#include <chrono>
 
 #define strncasecmp _strnicmp
 #define getcwd _getcwd
@@ -20,7 +20,12 @@
 
 #define SecuredGetEnv GetEnvironmentVariableA
 
-static void usleep(long microSecs) { Sleep(microSecs / 1000); }
+#if defined usleep
+#undef usleep
+#endif
+
+#define usleep(m) std::this_thread::sleep_for(std::chrono::microseconds(m))
+
 #else
 
 #include <unistd.h>

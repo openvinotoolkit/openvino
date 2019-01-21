@@ -99,7 +99,7 @@ protected:
 
         for (int i = 0; i < n_; ++i) {
             const memory_desc_wrapper i_d(&src_pds_[i]);
-            if (i_d.is_wino_desc())
+            if (i_d.is_wino_desc() || i_d.is_additional_buffer())
                 return unimplemented;
         }
 

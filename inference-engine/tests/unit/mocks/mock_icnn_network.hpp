@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +40,7 @@ class MockICNNNetwork : public InferenceEngine::ICNNNetwork {
     MOCK_QUALIFIED_METHOD1(getInputShapes, const noexcept, void (InferenceEngine::ICNNNetwork::InputShapes&));
     MOCK_QUALIFIED_METHOD2(reshape, noexcept, InferenceEngine::StatusCode (const InferenceEngine::ICNNNetwork::InputShapes &, InferenceEngine::ResponseDesc *));
     MOCK_QUALIFIED_METHOD2(AddExtension, noexcept, InferenceEngine::StatusCode (const InferenceEngine::IShapeInferExtensionPtr &, InferenceEngine::ResponseDesc *));
+    MOCK_QUALIFIED_METHOD3(serialize, const noexcept, InferenceEngine::StatusCode (const std::string &, const std::string &, InferenceEngine::ResponseDesc*));
 };
 
 /**

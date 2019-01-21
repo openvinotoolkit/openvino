@@ -14,6 +14,7 @@
  limitations under the License.
 """
 
+from mo.front.caffe.collect_attributes import collect_attributes
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.activation import Activation
 
@@ -24,5 +25,9 @@ class ELUFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
-        Activation.update_node_stat(node, {'operation': 'elu'})
+        param = node.pb.elu_param
+        attrs = collect_attributes(param)
+        attrs['operation'] = 'elu'
+
+        Activation.update_node_stat(node, attrs)
         return ELUFrontExtractor.enabled

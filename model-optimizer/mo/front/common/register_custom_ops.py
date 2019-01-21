@@ -53,7 +53,6 @@ def check_for_duplicates(extractors_collection: dict):
     Check if extractors_collection has case-insensitive duplicates, if it does,
     raise exception with information about duplicates
     """
-    assert extractors_collection, 'Extractors collection can not be empty.'
     # Check if extractors_collection is a normal form, that is it doesn't have case-insensitive duplicates
     duplicates, keys = find_case_insensitive_duplicates(extractors_collection)
     if len(duplicates) > 0:

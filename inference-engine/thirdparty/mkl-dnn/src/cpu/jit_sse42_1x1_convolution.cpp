@@ -27,6 +27,11 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
+#define data_blk_off(f, n, c, h, w) \
+    ((ndims == 3) \
+    ? (f).blk_off(n, c, w) \
+    : (f).blk_off(n, c, h, w))
+
 using namespace mkldnn::impl::status;
 using namespace mkldnn::impl::memory_format;
 using namespace mkldnn::impl::utils;
@@ -42,6 +47,7 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward() {
     const memory_desc_wrapper dst_d(conf_.dst_pd());
     const memory_desc_wrapper weights_d(conf_.weights_pd(0));
 
+    const int ndims = src_d.ndims();
     const auto &jcp = kernel_->jcp;
     int MB = conf_.MB();
 
@@ -97,7 +103,7 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward() {
                 par_conv.load_dim = this_block_size(ocb * jcp.oc_block, jcp.oc,
                         load_step * jcp.oc_block);
 
-                const size_t dst_off = dst_d.blk_off(n, _ocb, oh, ow);
+                const size_t dst_off = data_blk_off(dst_d, n, _ocb, oh, ow);
                 par_conv.output_data = &dst[dst_off];
 
                 par_conv.bias_data = &bias[_ocb * jcp.oc_block];
@@ -111,7 +117,7 @@ void _jit_sse42_1x1_convolution_fwd_t<with_relu>::execute_forward() {
                             jcp.ic, nb_ic_blocking * jcp.ic_block);
 
                     const size_t _icb = g * nb_ic + icb;
-                    const size_t src_off = src_d.blk_off(n, _icb, ih, iw);
+                    const size_t src_off = data_blk_off(src_d, n, _icb, ih, iw);
                     par_conv.bcast_data = &src[src_off];
 
                     par_conv.load_data = &weights[conf_.with_groups()

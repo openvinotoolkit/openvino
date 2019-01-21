@@ -15,37 +15,41 @@
 # limitations under the License.
 #===============================================================================
 
-MKLURLROOT="https://github.com/intel/mkl-dnn/releases/download/v0.16/"
-MKLVERSION="2019.0.20180710"
+MKLURLROOT="https://github.com/intel/mkl-dnn/releases/download/v0.17-rc/"
+MKLVERSION="2019.0.1.20180928"
 
 os=`uname`
 if [ "$os" = "Linux" ]; then
-  MKLPACKAGE="mklml_lnx_${MKLVERSION}.tgz"
+  MKLPACKAGE="mklml_lnx_${MKLVERSION}"
 elif [ "$os" = "Darwin" ]; then
-  MKLPACKAGE="mklml_mac_${MKLVERSION}.tgz"
+  MKLPACKAGE="mklml_mac_${MKLVERSION}"
 else
   echo "Cannot identify operating system. Try downloading package manually."
   exit 1
 fi
 
-MKLURL=${MKLURLROOT}${MKLPACKAGE}
+MKLURL=${MKLURLROOT}${MKLPACKAGE}.tgz
 DST=`dirname $0`/../external
 mkdir -p $DST
 DST=`cd $DST;pwd`
 
-if [ -x "$(command -v curl)" ]; then
-  curl -L -o "${DST}/${MKLPACKAGE}" "$MKLURL"
-elif [ -x "$(command -v wget)" ]; then
-  wget -O "${DST}/${MKLPACKAGE}" "$MKLURL"
+if [ ! -e "${DST}/${MKLPACKAGE}/license.txt" ]; then
+  if [ -x "$(command -v curl)" ]; then
+    curl -L -o "${DST}/${MKLPACKAGE}.tgz" "$MKLURL"
+  elif [ -x "$(command -v wget)" ]; then
+    wget -O "${DST}/${MKLPACKAGE}.tgz" "$MKLURL"
+  else
+    echo "curl or wget not available"
+    exit 1
+  fi
+
+  if [ \! $? ]; then
+    echo "Download from $MKLURL to $DST failed"
+    exit 1
+  fi
+
+  tar -xzf "$DST/${MKLPACKAGE}.tgz" -C $DST
+  echo "Downloaded and unpacked Intel(R) MKL small libraries to $DST"
 else
-  echo "curl or wget not available"
-  exit 1
+  echo "Intel(R) MKL small libraries are already installed in $DST"
 fi
-
-if [ \! $? ]; then
-  echo "Download from $MKLURL to $DST failed"
-  exit 1
-fi
-
-tar -xzf "$DST/${MKLPACKAGE}" -C $DST
-echo "Downloaded and unpacked Intel(R) MKL small libraries to $DST"

@@ -71,8 +71,6 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
                 ('Enter_2_less_data', dict(kind='data')),
                 ('minimum', dict(kind='op', op='Minimum')),
                 ('minimum_data', dict(kind='data')),
-                ('Maximum',  dict(kind='op', op='Maximum')),
-                ('Maximum_data', dict(kind='data')),
 
                 ('and', dict(kind='op', op='LogicalAnd')),
                 ('and_data', dict(kind='data')),
@@ -152,8 +150,6 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
                 ('add_2', 'add_2_data'),
                 ('add_2_data', 'NextIteration_2'),
 
-                ('Maximum', 'Maximum_data'),
-                ('Maximum_data', 'minimum'),
                 ('minimum', 'minimum_data'),
                 ('minimum_data', 'Enter_2_less'),
                 ('Enter_2_less', 'Enter_2_less_data'),
@@ -174,6 +170,8 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
     @staticmethod
     def replace_pattern(graph: nx.MultiDiGraph, match: dict):
         log.debug('================== ConditionFind ===============')
+        max_node = match['minimum'].in_node(1).in_node()
+        assert max_node['kind'] == 'op' and max_node['op'] == 'Maximum'
 
         #init_1
         init_1 = match['init_1_data'].value
@@ -205,7 +203,103 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
 
         # Delete useless nodes
         safe_nodes = ['loop_cond_data', 'Identity_2_data', 'Strided_slice', 'Strided_slice_data',
-                      'Maximum', 'Maximum_data', 'minimum', 'minimum_data']
+                      'minimum', 'minimum_data']
+        nodes_for_remove = []
+        for node in match.keys():
+            if node not in safe_nodes:
+                nodes_for_remove.append(match[node].id)
+        graph.remove_nodes_from(nodes_for_remove)
+
+
+class SimpleConditionMather(MiddleReplacementPattern):
+    @staticmethod
+    def pattern():
+        log.debug('+++++++++++++++ SimpleConditionMatching ++++++++++++++++')
+        return dict(
+            nodes=[
+                ('Enter_1_less', dict(kind='op', op='Enter')),
+                ('Strided_slice', dict(kind='op', op='StridedSlice')),
+                ('Strided_slice_data', dict(kind='data')),
+                ('Enter_1_less_data', dict(kind='data')),
+
+                ('Less_1', dict(kind='op', op='Less')),
+                ('Merge_1', dict(kind='op', op='Merge')),
+                ('Merge_1_data', dict(kind='data')),
+                ('Less_1_data', dict(kind='data')),
+
+                ('loop_cond', dict(kind='op', op='LoopCond')),
+                ('loop_cond_data', dict(kind='data')),
+
+                ('init_1', dict(kind='op', op='Const')),
+                ('init_1_data',  dict(kind='data')),
+                ('Enter_1', dict(kind='op', op='Enter')),
+                ('Enter_1_data',  dict(kind='data')),
+
+
+                ('Switch_1', dict(kind='op', op='Switch')),
+                ('Switch_1_data', dict(kind='data')),
+                ('Identity_1', dict(kind='op', op='Identity')),
+                ('Identity_1_data', dict(kind='data')),
+                ('add_1', dict(kind='op', op='Add')),
+                ('add_1_y',  dict(kind='op', op='Const')),
+                ('add_1_y_data', dict(kind='data')),
+                ('add_1_data', dict(kind='data')),
+                ('NextIteration_1', dict(kind='op', op='NextIteration')),
+            ],
+            edges=[
+                ('Strided_slice', 'Strided_slice_data'),
+                ('Strided_slice_data', 'Enter_1_less'),
+                ('Enter_1_less', 'Enter_1_less_data'),
+                ('Enter_1_less_data', 'Less_1'),
+                ('Less_1', 'Less_1_data'),
+                ('Less_1_data', 'loop_cond'),
+
+                ('loop_cond', 'loop_cond_data'),
+                ('loop_cond_data', 'Switch_1'),
+
+                ('init_1', 'init_1_data'),
+                ('init_1_data', 'Enter_1'),
+                ('Enter_1', 'Enter_1_data'),
+                ('Enter_1_data', 'Merge_1'),
+                ('Merge_1', 'Merge_1_data'),
+                ('Merge_1_data', 'Less_1'),
+
+                ('Merge_1_data', 'Switch_1'),
+                ('Switch_1', 'Switch_1_data'),
+                ('Switch_1_data', 'Identity_1'),
+                ('Identity_1', 'Identity_1_data'),
+                ('Identity_1_data', 'add_1'),
+                ('add_1_y', 'add_1_y_data'),
+                ('add_1_y_data', 'add_1'),
+                ('add_1', 'add_1_data'),
+                ('add_1_data', 'NextIteration_1'),
+
+            ],
+        )
+
+    @staticmethod
+    def replace_pattern(graph: nx.MultiDiGraph, match: dict):
+        log.debug('================== SimpleConditionFind ===============')
+        # init_1
+        init_1 = match['init_1_data'].value
+        assert init_1 is not None
+        init_1 = int(init_1)
+
+        # step_1
+        assert match['add_1_y_data'].value is not None
+        step_1 = int(match['add_1_y_data'].value)
+
+        match['loop_cond_data'].value = None
+
+        # Create condition node and delete all useless nodes from condition pattern
+        condition_attrs = dict(iter=dict(init=init_1, step=step_1), \
+                               name=match['loop_cond'].name + '/TensorIteratorCondition_')
+        condition = TensorIteratorCondition(graph, attrs=condition_attrs)
+        condition.create_node_with_data(inputs=[match['Strided_slice_data']],
+                                        data_nodes=[match['loop_cond_data'], match['Identity_1_data']])
+
+        # Delete useless nodes
+        safe_nodes = ['loop_cond_data', 'Identity_1_data', 'Strided_slice', 'Strided_slice_data']
         nodes_for_remove = []
         for node in match.keys():
             if node not in safe_nodes:

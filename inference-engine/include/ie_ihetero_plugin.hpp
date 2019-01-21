@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +79,7 @@ public:
      */
     virtual void QueryNetwork(const std::string &device,
                               const ICNNNetwork &network,
-                              const std::map<std::string, std::string>& config,
+                              const std::map<std::string, std::string>& /*config*/,
                               QueryNetworkResult &res) noexcept {
         QueryNetwork(device, network, res);
     };

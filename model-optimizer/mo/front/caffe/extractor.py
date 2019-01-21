@@ -17,7 +17,6 @@
 from mo.front.caffe.extractors.batchnorm import batch_norm_ext
 from mo.front.caffe.extractors.concat import concat_ext
 from mo.front.caffe.extractors.eltwise import eltwise_ext
-from mo.front.caffe.extractors.flatten import flatten_ext
 from mo.front.caffe.extractors.inner_product import inner_product_ext
 from mo.front.caffe.extractors.input import global_input_ext, input_ext
 from mo.front.caffe.extractors.lrn import lrn_ext
@@ -29,10 +28,9 @@ from mo.front.caffe.extractors.reshape import reshape_ext
 from mo.front.caffe.extractors.roipooling import roipooling_ext
 from mo.front.caffe.extractors.scale import scale_ext
 from mo.front.caffe.extractors.slice import slice_ext
-from mo.front.caffe.extractors.softmax import softmax_ext
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.common.register_custom_ops import extension_op_extractor
-from mo.front.extractor import CaffePythonFrontExtractorOp, FrontExtractorOp
+from mo.front.extractor import CaffePythonFrontExtractorOp
 from mo.graph.graph import Node
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -69,10 +67,8 @@ caffe_type_extractors = {
     # Utility Layers
     'concat': node_pb_arg(concat_ext),
     'eltwise': node_pb_arg(eltwise_ext),
-    'flatten': node_pb_arg(flatten_ext),
     'reshape': node_pb_arg(reshape_ext),
     'slice': node_pb_arg(slice_ext),
-    'softmax': node_pb_arg(softmax_ext),
 
     # Custom, implemented in IE, SSD-specific
     'permute': node_pb_arg(permute_ext),

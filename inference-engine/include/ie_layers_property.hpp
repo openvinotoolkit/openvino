@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +7,8 @@
  * @file ie_layers_property.h
  */
 #pragma once
+
+#include <vector>
 
 namespace InferenceEngine {
 
@@ -32,11 +33,18 @@ public:
         if (len > N) {
             THROW_IE_EXCEPTION << "Property size exceeed limit of: " << N;
         }
-        for (int i = 0; i < len; i++) {
+        for (size_t i = 0; i < len; i++) {
             _axises[i] = val;
             _allocated[i] = true;
         }
         _length = len;
+    }
+
+    explicit PropertyVector(const std::vector<T>& values) {
+        size_t i = 0;
+        for (const auto val : values) {
+            insert(i++, val);
+        }
     }
 
     /**

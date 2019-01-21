@@ -14,3 +14,7 @@ mb20ic4ih8iw8oc6oh4ow8kh3kw3sh2sw1ph1pw1dh1dw0n"dilated_conv:11"
 mb20ic4ih8iw8oc6oh8ow2kh3kw3sh1sw3ph1pw1dh0dw2n"dilated_conv:12"
 mb20ic8ih5iw8oc8oh3ow8kh3kw3ph2pw1dh1dw0n"dilated_conv:13"
 mb20ic8ih8iw5oc8oh8ow2kh3kw3ph1pw3dh0dw2n"dilated_conv:14"
+
+mb20ic16ih1iw8oc6oh1kh1kw3sh1pw0ph0sw1dh0dw2n"dilated_conv1d:15"
+mb20ic32ih1iw8oc8oh1kh1kw3sh1pw0ph0sw1dh0dw1n"dilated_conv1d:16"
+mb20ic32ih1iw8oc8oh1kh1kw3sh1pw0ph0sw1dh0dw2n"dilated_conv1d:17"

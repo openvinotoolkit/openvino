@@ -37,6 +37,14 @@ inline bool is_conv_3d(const prb_t *p)
     return (p->id > 1) ? 1 : 0;
 }
 
+inline bool is_conv_1d(const prb_t *p)
+{
+    return (!is_conv_3d(p) && p->ih == 1 && p->kh == 1
+                   && p->cfg[SRC].dt != mkldnn_s8 // temporary workaround until
+                   && p->cfg[SRC].dt != mkldnn_u8) // int8 jit supports 1d
+            ? 1 : 0;
+}
+
 double get_trust_nz_level(const prb_t *p, data_kind_t kind, bool final_compare)
 {
     if (!final_compare)
@@ -70,6 +78,27 @@ double get_trust_nz_level(const prb_t *p, data_kind_t kind, bool final_compare)
     }
 
     return trust;
+}
+
+inline double get_eps(const prb_t *p, const data_kind_t kind) {
+    if (p->alg & WINO && p->dir & FLAG_WEI) {
+        /*This is an empirical equation derived by observing growth error
+          with increasing 'k' dimension in gemm of winograd*/
+        return p->cfg[kind].eps *
+            (MAX2(1, pow(10, 0.4 * log10(0.125 * p->mb * p->oh * p->ow))));
+    }
+    return p->cfg[kind].eps;
+}
+
+inline void get_result(const prb_t *p, const data_kind_t kind, res_t *r,
+        const diff_norm_t diff_norm) {
+    bool wino_test = (p->alg & WINO)
+        && (diff_norm.rel_diff(norm_t::L2) <= get_eps(p, kind));
+    /* Ignoring elementwise errors for winograd,
+       since large relative error in few elements(which are anyways close to zero)
+       results in false positive failures*/
+    if (wino_test) r->errors = 0;
+    r->state = r->errors ? FAILED : r->state;
 }
 
 inline int compare_dat(const prb_t *p, data_kind_t kind, dnn_mem_t &mem_dt,
@@ -118,13 +147,13 @@ inline int compare_dat(const prb_t *p, data_kind_t kind, dnn_mem_t &mem_dt,
             above_ok += ok;
         } else {
             diff_norm.update(fp, dt);
-            ok = (fabs(fp) > 1e-5 ? rel_diff : diff) <= p->cfg[kind].eps;
+            ok = (fabs(fp) > 1e-5 ? rel_diff : diff) <= get_eps(p, kind);
             in += 1;
             in_ok += ok;
         }
         if (!ok) {
             r->errors++;
-            if (r->errors < 10 || verbose >= 10) {
+            if ((!(p->alg & WINO) && r->errors < 10) || verbose >=10) {
                 int mb_or_g = 0, g_or_oc = 0, c = 0, d = 0, h = 0, w = 0;
                 switch (kind) {
                 case SRC: inv_src_off_f(p, i, mb_or_g, g_or_oc, c, d, h, w); break;
@@ -207,8 +236,7 @@ inline int compare_dat(const prb_t *p, data_kind_t kind, dnn_mem_t &mem_dt,
                 non_zero, (unsigned long)r->total);
     }
 
-    if (r->errors)
-        r->state = FAILED;
+    get_result(p, kind, r, diff_norm);
 
     if (final_compare && r->state == UNTESTED)
         r->state = PASSED; /* optimism */
@@ -234,7 +262,7 @@ int fill_src(const prb_t *p, dnn_mem_t &mem_dt, dnn_mem_t &mem_fp,
     const bool extra_mem = mem_dt.dt() != mem_fp.dt();
     dnn_mem_t *p_mem_00 = extra_mem
         ? new dnn_mem_t(mem_dt.md_, mkldnn_f32,
-            is_conv_3d(p) ? mkldnn_ncdhw : mkldnn_nchw)
+            get_default_format(mem_dt.md_.ndims, DATA))
         : &mem_fp;
     dnn_mem_t &mem_00 = *p_mem_00;
 
@@ -264,12 +292,13 @@ int fill_src(const prb_t *p, dnn_mem_t &mem_dt, dnn_mem_t &mem_fp,
 int fill_wei(const prb_t *p, dnn_mem_t &mem_dt, dnn_mem_t &mem_fp,
     res_t *r) {
     const bool wino_s8 = p->alg == WINO && p->cfg[WEI].dt == mkldnn_s8;
+    const bool s8_s8 = p->cfg[WEI].dt == mkldnn_s8 && p->cfg[SRC].dt == mkldnn_s8;
     const bool diff_data_type = mem_dt.dt() != mem_fp.dt();
-    const bool extra_mem = diff_data_type && !wino_s8;
+    const bool check_reorder = diff_data_type && !wino_s8 && !s8_s8;
 
-    dnn_mem_t *p_mem_00 = extra_mem
+    dnn_mem_t *p_mem_00 = check_reorder
         ? new dnn_mem_t(mem_dt.md_, mkldnn_f32,
-            is_conv_3d(p) ? mkldnn_goidhw : mkldnn_goihw)
+            get_default_format(mem_dt.md_.ndims, GWEI))
         : &mem_fp;
     dnn_mem_t &mem_00 = *p_mem_00;
 
@@ -288,7 +317,7 @@ int fill_wei(const prb_t *p, dnn_mem_t &mem_dt, dnn_mem_t &mem_fp,
     });
 
     SAFE(mem_dt.reorder(mem_00), WARN);
-    if (extra_mem) {
+    if (check_reorder) {
         SAFE(mem_fp.reorder(mem_dt), WARN);
         SAFE(compare_wei(p, mem_fp, mem_00, r), WARN);
         delete &mem_00;
@@ -333,7 +362,7 @@ int fill_dst(const prb_t *p, dnn_mem_t &mem_dt, dnn_mem_t &mem_fp,
     const bool extra_mem = mem_dt.dt() != mem_fp.dt();
     dnn_mem_t *p_mem_00 = extra_mem
         ? new dnn_mem_t(mem_dt.md_, mkldnn_f32,
-            is_conv_3d(p) ? mkldnn_ncdhw : mkldnn_nchw)
+            get_default_format(mem_dt.md_.ndims, DATA))
         : &mem_fp;
     dnn_mem_t &mem_00 = *p_mem_00;
 
@@ -364,44 +393,45 @@ inline int init_pd(const prb_t *p, mkldnn_convolution_desc_t &cd,
         mkldnn_primitive_desc_t &cpd, res_t *r) {
     mkldnn_memory_desc_t src_d, wei_d, bia_d, dst_d;
 
-    int ndims = is_conv_3d(p) ? 5 : 4;
+    int ndims = is_conv_3d(p) ? 5 : is_conv_1d(p) ? 3 : 4;
     mkldnn_dims_t src_dims = {p->mb, p->ic, p->ih, p->iw};
+    mkldnn_dims_t src_1d_dims = {p->mb, p->ic, p->iw};
     mkldnn_dims_t src_3d_dims = {p->mb, p->ic, p->id, p->ih, p->iw};
     mkldnn_dims_t wei_dims = {p->g, p->oc / p->g, p->ic / p->g, p->kh, p->kw};
+    mkldnn_dims_t wei_1d_dims = {p->g, p->oc / p->g, p->ic / p->g, p->kw};
     mkldnn_dims_t wei_3d_dims = {p->g, p->oc / p->g, p->ic / p->g, p->kd, p->kh, p->kw};
     mkldnn_dims_t bia_dims = {p->oc};
     mkldnn_dims_t dst_dims = {p->mb, p->oc, p->oh, p->ow};
+    mkldnn_dims_t dst_1d_dims = {p->mb, p->oc, p->ow};
     mkldnn_dims_t dst_3d_dims = {p->mb, p->oc, p->od, p->oh, p->ow};
 
     DNN_SAFE(mkldnn_memory_desc_init(&src_d, ndims,
-        is_conv_3d(p) ? src_3d_dims : src_dims, p->cfg[SRC].dt, mkldnn_any), WARN);
+        is_conv_3d(p) ? src_3d_dims : is_conv_1d(p) ? src_1d_dims : src_dims,
+        p->cfg[SRC].dt, mkldnn_any), WARN);
     DNN_SAFE(mkldnn_memory_desc_init(&wei_d, ndims + 1,
-        is_conv_3d(p) ? wei_3d_dims : wei_dims, p->cfg[WEI].dt, mkldnn_any), WARN);
-    DNN_SAFE(mkldnn_memory_desc_init(&bia_d, 1, bia_dims, p->cfg[BIA].dt, mkldnn_any), WARN);
+        is_conv_3d(p) ? wei_3d_dims :  is_conv_1d(p) ? wei_1d_dims : wei_dims,
+        p->cfg[WEI].dt, mkldnn_any), WARN);
+    DNN_SAFE(mkldnn_memory_desc_init(&bia_d, 1, bia_dims, p->cfg[BIA].dt,
+        mkldnn_any), WARN);
     DNN_SAFE(mkldnn_memory_desc_init(&dst_d, ndims,
-        is_conv_3d(p) ? dst_3d_dims : dst_dims, p->cfg[DST].dt, mkldnn_any), WARN);
-    int strides_2d[] = {p->sh, p->sw};
-    int dilates_2d[] = {p->dh, p->dw};
-    int padding_2d[] = {p->ph, p->pw};
-    int strides_3d[] = {p->sd, p->sh, p->sw};
-    int dilates_3d[] = {p->dd, p->dh, p->dw};
-    int padding_3d[] = {p->pd, p->ph, p->pw};
+        is_conv_3d(p) ? dst_3d_dims : is_conv_1d(p) ? dst_1d_dims : dst_dims,
+        p->cfg[DST].dt, mkldnn_any), WARN);
+    int strides_nd[] = {p->sd, p->sh, p->sw};
+    int dilates_nd[] = {p->dd, p->dh, p->dw};
+    int padding_nd[] = {p->pd, p->ph, p->pw};
 
     auto bph = [&](int ih, int oh, int kh, int sh, int ph, int dh) {
         return (oh - 1) * sh - ih + ((kh - 1) * (dh + 1) + 1) - ph;
     };
-    int padding_r_3d[] = {
+    int padding_r_nd[] = {
         bph(p->id, p->od, p->kd, p->sd, p->pd, p->dd),
         bph(p->ih, p->oh, p->kh, p->sh, p->ph, p->dh),
         bph(p->iw, p->ow, p->kw, p->sw, p->pw, p->dw)};
-    int padding_r_2d[] = {
-        bph(p->ih, p->oh, p->kh, p->sh, p->ph, p->dh),
-        bph(p->iw, p->ow, p->kw, p->sw, p->pw, p->dw)};
 
-    int *strides = is_conv_3d(p) ? strides_3d : strides_2d;
-    int *dilates = is_conv_3d(p) ? dilates_3d : dilates_2d;
-    int *padding = is_conv_3d(p) ? padding_3d : padding_2d;
-    int *padding_r = is_conv_3d(p) ? padding_r_3d : padding_r_2d;
+    int *strides = strides_nd + (5 - ndims);
+    int *dilates = dilates_nd + (5 - ndims);
+    int *padding = padding_nd + (5 - ndims);
+    int *padding_r = padding_r_nd + (5 - ndims);
 
     mkldnn_alg_kind_t alg = mkldnn_convolution_direct;
     if (p->alg == WINO) alg = mkldnn_convolution_winograd;
@@ -517,8 +547,8 @@ int doit(const prb_t *p, res_t *r) {
         ? new dnn_mem_t(bia_dt_d, p->cfg[BIA].dt) : new dnn_mem_t();
     dnn_mem_t &bia_dt = *p_bia_dt;
 
-    auto src_format = is_conv_3d(p) ? mkldnn_ncdhw : mkldnn_nchw;
-    auto wei_format = is_conv_3d(p) ? mkldnn_goidhw : mkldnn_goihw;
+    auto src_format = get_default_format(src_dt.md_.ndims, DATA);
+    auto wei_format = get_default_format(wei_dt.md_.ndims, GWEI);
 
     const auto fp = mkldnn_f32;
     dnn_mem_t src_fp(src_dt_d, fp, src_format);
@@ -596,6 +626,9 @@ int doit(const prb_t *p, res_t *r) {
             if (stop) break;
         }
     }
+
+    DNN_SAFE(mkldnn_primitive_desc_destroy(cpd), CRIT);
+    DNN_SAFE(mkldnn_primitive_destroy(c), CRIT);
 
     delete p_bia_dt;
     delete p_bia_fp;

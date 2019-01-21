@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +57,7 @@ public:
     Processor(const std::string& flags_m, const std::string& flags_d, const std::string& flags_i, int flags_b,
             InferenceEngine::InferencePlugin plugin, CsvDumper& dumper, const std::string& approach, PreprocessingOptions preprocessingOptions);
 
-    virtual shared_ptr<InferenceMetrics> Process() = 0;
+    virtual shared_ptr<InferenceMetrics> Process(bool stream_output = false) = 0;
     virtual void Report(const InferenceMetrics& im) {
         double averageTime = im.totalTime / im.nRuns;
 

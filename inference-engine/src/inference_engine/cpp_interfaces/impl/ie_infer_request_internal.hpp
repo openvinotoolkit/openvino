@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +15,7 @@
 #include "debug.h"
 #include "cpp_interfaces/exception2status.hpp"
 #include "ie_preprocess_data.hpp"
+#include "ie_memcpy.h"
 
 namespace InferenceEngine {
 
@@ -44,7 +44,8 @@ public:
                         newPtr->getPreProcess()[i]->meanData =
                                 make_blob_with_precision(newPtr->getPreProcess()[i]->meanData->getTensorDesc());
                         newPtr->getPreProcess()[i]->meanData->allocate();
-                        memcpy(newPtr->getPreProcess()[i]->meanData->buffer(), blob->cbuffer(), blob->byteSize());
+                        ie_memcpy(newPtr->getPreProcess()[i]->meanData->buffer(), newPtr->getPreProcess()[i]->meanData->byteSize(),
+                                  blob->cbuffer(), blob->byteSize());
                     }
                 }
                 newData->inputTo.clear();
@@ -168,14 +169,15 @@ public:
     /**
      * @brief Checks and executes input data pre-processing if needed.
      */
-    void execDataPreprocessing(InferenceEngine::BlobMap& inputs) {
+    void execDataPreprocessing(InferenceEngine::BlobMap& inputs, bool serial = false) {
         for (auto &input : inputs) {
             // If there is a pre-process entry for an input then it must be pre-processed
             // using preconfigured resize algorithm.
             auto it = _preProcData.find(input.first);
             if (it != _preProcData.end()) {
                 _preProcData[input.first].execute(input.second,
-                                                  _networkInputs[input.first]->getPreProcess().getResizeAlgorithm());
+                                                  _networkInputs[input.first]->getPreProcess().getResizeAlgorithm(),
+                                                  serial);
             }
         }
     }

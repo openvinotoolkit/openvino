@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +10,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <v2_format_parser.h>
+#include <ie_format_parser.h>
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -47,9 +46,7 @@ public:
         size_t PH = poolLayer._padding[Y_AXIS];
         size_t PW = poolLayer._padding[X_AXIS];
 
-        auto it = poolLayer.params.find("auto_pad");
-        std::string padType;
-        if (it != poolLayer.params.end()) padType = it->second;
+        std::string padType = poolLayer._auto_pad;
         if (padType == "valid") {
             OHTemp = std::ceil((IH - KH + 1.f) / SH);
             OWTemp = std::ceil((IW - KW + 1.f) / SW);
@@ -60,7 +57,7 @@ public:
             OHTemp = std::floor(1.f * IH / SH);
             OWTemp = std::floor(1.f * IW / SW);
         } else {
-            it = std::find_if(
+            auto it = std::find_if(
                 poolLayer.params.begin(),
                 poolLayer.params.end(),
                 [](decltype(*poolLayer.params.begin()) & lhs) {
@@ -70,27 +67,10 @@ public:
             if (it != poolLayer.params.end()) {
                 if (it->second == "floor") isCeil = false;
             }
-
-            auto ir_version = details::BaseCreator::version_;
-            bool isEndPaddingsSet = false;
-            try {
-                if (ir_version == 3) {
-                    auto pads_end = poolLayer.GetParamAsUInts("pads_end");
-                    PR = pads_end[pads_end.size() - 1 - X_AXIS];
-                    PB = pads_end[pads_end.size() - 1 - Y_AXIS];
-                } else if (ir_version < 3) {
-                    PR = poolLayer.GetParamAsInt("pad-r");
-                    PB = poolLayer.GetParamAsInt("pad-b");
-                }
-                isEndPaddingsSet = true;
-            } catch (...) {}
-            if (!isEndPaddingsSet) {
-                OHTemp += (IH + 2.f * PH - KH) / SH;
-                OWTemp += (IW + 2.f * PW - KW) / SW;
-            } else {
-                OHTemp += 1.f * (IH + PH + PB - KH) / SH;
-                OWTemp += 1.f * (IW + PW + PR - KW) / SW;
-            }
+            PR = poolLayer._pads_end[X_AXIS];
+            PB = poolLayer._pads_end[Y_AXIS];
+            OHTemp += 1.f * (IH + PH + PB - KH) / SH;
+            OWTemp += 1.f * (IW + PW + PR - KW) / SW;
             if (isCeil) {
                 OHTemp = std::ceil(OHTemp);
                 OWTemp = std::ceil(OWTemp);

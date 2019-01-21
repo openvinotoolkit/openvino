@@ -59,13 +59,14 @@ def mark_output_reachable_nodes(graph: nx.MultiDiGraph):
     Mark nodes whether they are outputs reachable or not. The node is considered output reachable if it is connected to
     one of the nodes that has attribute is_output=True.
     """
-    nx.set_node_attributes(graph, name='is_output_reachable', values=False)
+    nx.set_node_attributes(G=graph, name='is_output_reachable', values=False)
     outputs = get_nodes_with_attributes(graph, is_output=True)
     log.debug('The following nodes are seeded as output reachable:\n{}'.format('\n'.join(sorted(map(str, outputs)))))
-    nx.set_node_attributes(graph, name='is_output_reachable', values={n: True for n in outputs})
+    nx.set_node_attributes(G=graph, name='is_output_reachable', values={n: True for n in outputs})
+    visited = set()
     for output_name in outputs:
         reverse_dfs(graph, output_name,
-                    lambda graph, node_name: mark_input_nodes(graph, node_name, 'is_output_reachable', True), set())
+                    lambda graph, node_name: mark_input_nodes(graph, node_name, 'is_output_reachable', True), visited)
 
 
 def mark_undead_nodes(graph: nx.MultiDiGraph, undead_types: list):
@@ -76,16 +77,16 @@ def mark_undead_nodes(graph: nx.MultiDiGraph, undead_types: list):
     :param undead_types: list of node types that should be marked as undead.
     :return: updated graph where each has attribute 'is_undead'.
     """
-    nx.set_node_attributes(graph, name='is_undead', values=False)
+    nx.set_node_attributes(G=graph, name='is_undead', values=False)
 
     # mark output nodes as undead
     outputs = get_nodes_with_attributes(graph, is_output=True)
-    nx.set_node_attributes(graph, name='is_undead', values={n: True for n in outputs})
+    nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in outputs})
 
     # mark specifically defined with node type set of nodes
     for type in undead_types:
         node_of_specific_type = get_nodes_with_attributes(graph, type=type)
-        nx.set_node_attributes(graph, name='is_undead', values={n: True for n in node_of_specific_type})
+        nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in node_of_specific_type})
 
     undead_nodes = get_nodes_with_attributes(graph, is_undead=True)
     # propagate 'undead' attribute to children nodes of undead nodes if the node produces constant value
@@ -98,7 +99,7 @@ def mark_undead_nodes(graph: nx.MultiDiGraph, undead_types: list):
 
     # mark input nodes as undead
     inputs = get_nodes_with_attributes(graph, is_input=True)
-    nx.set_node_attributes(graph, name='is_undead', values={n: True for n in inputs})
+    nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in inputs})
 
 
 def mark_const_producer_nodes(graph: nx.MultiDiGraph):
@@ -107,7 +108,7 @@ def mark_const_producer_nodes(graph: nx.MultiDiGraph):
     :param graph: graph to operate on.
     :return: .
     """
-    nx.set_node_attributes(graph, name='is_const_producer', values=True)
+    nx.set_node_attributes(G=graph, name='is_const_producer', values=True)
 
     for n in pseudo_topological_sort(graph):
         node = Node(graph, n)
@@ -142,7 +143,7 @@ def graph_clean_up_tf(graph: nx.MultiDiGraph):
 
 
 def remove_identity_action(graph: nx.MultiDiGraph, matches: dict):
-    remove_op_node(graph, matches['identity'])
+    remove_op_node_with_data_node(graph, matches['identity'])
 
 
 # TODO: unit tests
@@ -171,21 +172,22 @@ def merge_data_nodes(graph: nx.MultiDiGraph, survived: Node, removed: Node):
 
 
 # TODO: unit tests
-def remove_op_node(graph: nx.MultiDiGraph, identity: Node):
-    input = identity.in_node()
-    output = [v for _, v in graph.out_edges(identity.id)]
-    assert len(output) == 1
-    output = Node(graph, output[0])
+def remove_op_node_with_data_node(graph: nx.MultiDiGraph, node_to_remove: Node):
+    assert node_to_remove.kind == 'op'
+    input_data_node = node_to_remove.in_node()
+    output_node = [v for _, v in graph.out_edges(node_to_remove.id)]
+    assert len(output_node) == 1, "Cannot remove node producing two or more output tensors"
+    output_node = Node(graph, output_node[0])
+    assert output_node.kind == 'data', "The function must be used after partial infer"
 
-    graph.remove_edge(input.id, identity.id)
-    graph.remove_edge(identity.id, output.id)
+    graph.remove_edge(input_data_node.id, node_to_remove.id)
+    graph.remove_edge(node_to_remove.id, output_node.id)
 
-    merge_data_nodes(graph, output, input)
+    merge_data_nodes(graph, output_node, input_data_node)
 
     # we just have saved all output edges from 'input' by reconnecting them to 'output', now we can delete 'input'
-    log.debug('Removing op node: {}'.format(identity.id))
-    graph.remove_node(identity.id)
-    graph.remove_node(input.id)
+    log.debug('Removing op node: {}'.format(node_to_remove.id))
+    graph.remove_nodes_from([node_to_remove.id, input_data_node.id])
 
 
 def remove_op_nodes(graph: nx.MultiDiGraph, attrs: dict):
@@ -228,15 +230,3 @@ def remove_useless_split(graph: nx.MultiDiGraph):
         edges=[],
         action=remove_useless_split_action
     )
-
-
-def remove_node_from_graph(graph: nx.MultiDiGraph, previous_node: Node, removing_node: Node):
-    if len(removing_node.out_nodes()) > 0:
-        last_node_out = removing_node.out_node(0)
-        edge_data = graph.get_edge_data(removing_node.id, last_node_out.id)
-        out_port = edge_data[0]['out']
-        in_port = edge_data[0]['in']
-        graph.remove_edge(previous_node.id, removing_node.id)
-        graph.remove_edge(removing_node.id, last_node_out.id)
-        create_edge(previous_node, last_node_out, out_port=out_port, in_port=in_port)
-        graph.remove_node(removing_node.id)

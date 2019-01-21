@@ -71,6 +71,7 @@ class Op(object):
         """
         backend_attrs_mapping = {
             None: self.backend_attrs,
+            4: self.backend_attrs,
             3: self.backend_attrs,
             2: self.backend_attrs_v2
         }
@@ -162,6 +163,8 @@ class Op(object):
         # TODO Preserve debug infor
         inputs_with_edge_attrs = []
         for i, inp in enumerate(inputs):
+            if inp is None:
+                continue
             edge_attr = {'in': i}
             if edge_attrs is not None and i < len(edge_attrs):
                 edge_attr.update(edge_attrs[i])
@@ -194,7 +197,11 @@ class Op(object):
             assert all(old_value is None for old_value in old_data_value) or all(
                 [np.array_equal(old_data_value[id], data_node.value) for id, data_node in enumerate(data_nodes)])
             assert all(old_shape is None for old_shape in old_data_shape) or all(
-                [np.array_equal(old_data_shape[id], data_node.shape) for id, data_node in enumerate(data_nodes)])
+                [np.array_equal(old_data_shape[id], data_node.shape) for id, data_node in enumerate(data_nodes)]), \
+                "After re-inference of {} node, old and new shapes do not match. Old shapes: {}, new shapes: {}.".format(
+                    new_op_node.soft_get('name'),
+                    [old_data_shape[id] for id in range(len(data_nodes))],
+                    [data_node.shape for data_node in data_nodes])
             for data_node in data_nodes:
                 log.debug(
                     'Finished running infer function, data nodes attributes: {}'.format(
@@ -323,6 +330,7 @@ class PermuteAttrs:
     common_attrs_permutation = {
             'dim': common_permutation,
             'pad': common_permutation,
+            'pads': common_permutation,
             'shape': common_permutation,
             'order': lambda node, permutation, attr: permutation.inv[node[attr][permutation.perm]],
             'stride': common_permutation,
@@ -393,7 +401,7 @@ class PermuteAttrs:
         node['permute_attrs'].update_attrs(attrs)
 
     @staticmethod
-    def set_permutation(node1, node2, permutation, skip_if_exists=False):
+    def set_permutation(node1, node2, permutation):
         # This function creates permutation on edge between node1->node2
         edge_attrs = node1.graph.get_edge_data(node1.id, node2.id)[0]
         if 'permutation' not in edge_attrs:
@@ -401,9 +409,10 @@ class PermuteAttrs:
                                    values={(node1.id, node2.id, 0): permutation},
                                    name='permutation')
         else:
-            if skip_if_exists:
-                return
-            raise Error('Permutation already exists in edge between {} and {}'.format(node1.name, node2.name))
+            # If permutation exists we check that given and already set permutations are equal
+            if (edge_attrs['permutation'] is None and permutation is not None) or \
+                not np.array_equal(edge_attrs['permutation'], permutation):
+                raise Error('Permutation already exists in edge between {} and {}'.format(node1.name, node2.name))
 
     @staticmethod
     def get_inverse_permutation(perm):

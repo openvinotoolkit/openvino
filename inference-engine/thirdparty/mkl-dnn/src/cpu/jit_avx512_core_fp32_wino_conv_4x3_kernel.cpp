@@ -1374,12 +1374,12 @@ bool jit_avx512_core_fp32_wino_conv_4x3_fwd_kernel::post_ops_ok(
         return true; // no post_ops
     case 1:
         return true // relu or sum
-                && implication(jcp.with_eltwise, is_sum(0))
-                && implication(!jcp.with_eltwise, is_eltwise(0) || is_sum(0));
+                && IMPLICATION(jcp.with_eltwise, is_sum(0))
+                && IMPLICATION(!jcp.with_eltwise, is_eltwise(0) || is_sum(0));
     case 2:
         return true // sum->relu or relu->sum
-                && implication(jcp.with_eltwise, is_sum(0) && is_eltwise(1))
-                && implication(!jcp.with_eltwise, false
+                && IMPLICATION(jcp.with_eltwise, is_sum(0) && is_eltwise(1))
+                && IMPLICATION(!jcp.with_eltwise, false
                                    || (is_sum(0) && is_eltwise(1))
                                    || (is_eltwise(0) && is_sum(1)));
     case 3:
@@ -1460,6 +1460,7 @@ status_t jit_avx512_core_fp32_wino_conv_4x3_fwd_kernel::init_conf(
         wd.oc2_block = jcp.dimM_block * jcp.dimM_reg_block;
         size_t max_size = sizeof(float) * wd.alpha * wd.alpha * jcp.ic * jcp.oc;
         wd.size = max_size;
+        wd.adj_scale = 1.f;
 
         cpu_memory_t::pd_t new_weights_pd(
             weights_pd.engine(), &expect_wei_md);

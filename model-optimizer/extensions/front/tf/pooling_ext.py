@@ -61,6 +61,19 @@ class MaxPool3DFrontExtractor(FrontExtractorOp):
         return __class__.enabled
 
 
+class AvgPool3DFrontExtractor(FrontExtractorOp):
+    op = 'AvgPool3D'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        attrs = create_pooling_attrs(node, 'avg')
+        attrs.update({'op': __class__.op})
+        # update the attributes of the node
+        Pooling.update_node_stat(node, attrs)
+        return __class__.enabled
+
+
 def create_pooling_attrs(node, pool_method):
     data_format = node.pb.attr["data_format"]
 

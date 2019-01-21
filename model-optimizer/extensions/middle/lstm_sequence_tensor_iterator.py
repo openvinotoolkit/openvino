@@ -16,20 +16,19 @@
 
 import networkx as nx
 import numpy as np
-from copy import deepcopy
 
+from extensions.middle.FusePermutesSequence import FusePermutesSequence
 from extensions.middle.lstm_sequence_normalize import LSTMSequenceNormalize
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
-from mo.ops.permute import Permute
-from mo.ops.reshape import Reshape
+from extensions.middle.mxnet_lstm_sequence_normalize import MXNetLSTMSequenceNormalize
 from extensions.ops.lstm_cell import LSTMCell
 from extensions.ops.tensor_iterator import TensorIterator
-from extensions.middle.FusePermutesSequence import FusePermutesSequence
+from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.op import Op
+from mo.ops.reshape import Reshape
 
 
 class LSTMSequenceTensorIterator(MiddleReplacementPattern):
-    ''' Converts normalized LSTMSequence op to TensorIterator.
+    """ Converts normalized LSTMSequence op to TensorIterator.
 
         Normalized LSTMSequence means that it should be processed by
         LSTMSequenceNormalize transform that ensures its stict form.
@@ -38,18 +37,15 @@ class LSTMSequenceTensorIterator(MiddleReplacementPattern):
         with TensorIterator connected in the same way as an original LSTMSequence
         node and with internal body represented as LSTMCell op node with necessary
         squeezes and unsqueezes around.
-    '''
+    """
 
     enabled = True
 
-
     def run_after(self):
-        return [LSTMSequenceNormalize]
-
+        return [LSTMSequenceNormalize, MXNetLSTMSequenceNormalize]
 
     def run_before(self):
         return [FusePermutesSequence]
-
 
     def pattern(self):
         return dict(
@@ -70,42 +66,94 @@ class LSTMSequenceTensorIterator(MiddleReplacementPattern):
             ]
         )
 
-
     def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
         lstm = match['lstm']
 
         # Build TensorIterator body first
-        body = nx.MultiDiGraph(name=lstm.name + '/sub_graph')
-        inputs = [Op._create_data_node(body, lstm.name + '/inport/' + str(inp), {'shape': lstm.in_node(inp).shape.copy(), 'value': lstm.in_node(inp).value.copy() if lstm.in_node(inp).value is not None else None}) for inp in [0, 3, 4, 1, 2]]
+        body = nx.MultiDiGraph(name=lstm.name + '/sub_graph', layout=graph.graph['layout'])
+        inputs = [Op._create_data_node(body, lstm.name + '/inport/' + str(inp),
+                                       {'shape': lstm.in_node(inp).shape.copy(),
+                                        'value': lstm.in_node(inp).value.copy()
+                                        if lstm.in_node(inp).value is not None and inp in [1, 2] else None})
+                                        for inp in [0, 3, 4, 1, 2]]
         inputs[0].shape[lstm.sequence_dim] = 1
-        input_squeeze = Reshape(body, dict(name=lstm.name + '/input_squeeze', dim=np.delete(inputs[0].shape, lstm.sequence_dim), internal_layer_id=0))
+        reshape_dim = inputs[0].shape.copy()
+        reshape_dim[lstm.batch_dim] = -1
+        reshape_dim = np.delete(reshape_dim, lstm.sequence_dim)
+        input_squeeze = Reshape(
+            body,
+            dict(name=lstm.name + '/input_squeeze', internal_layer_id=0, dim=reshape_dim)
+        )
         inputs[0] = input_squeeze.create_node_with_data([inputs[0]], edge_attrs=[{'internal_port_id': 0}])
-        lstm_cell_op = LSTMCell(body, dict(hidden_size=match['lstm'].hidden_size, name=lstm.name + '/LSTMCell', internal_layer_id=1))
-        outputs = [Op._create_data_node(body, lstm.name + '/outport/' + str(out),  {'shape': lstm.out_node(out).shape.copy() if out in lstm.out_nodes() else lstm.in_node(3).shape.copy()}) for out in [0,1] ]
+        lstm_cell_op = LSTMCell(body, dict(hidden_size=match['lstm'].hidden_size, name=lstm.name + '/LSTMCell',
+                                           internal_layer_id=1))
+        outputs = [Op._create_data_node(body, lstm.name + '/outport/' + str(out),
+                                        {'shape': lstm.out_node(out).shape.copy() if out in lstm.out_nodes()
+                                        else lstm.in_node(3).shape.copy(), 'is_output': True}) for out in [0, 1]]
         unsqueezed_output_shape = outputs[0].shape.copy()
         unsqueezed_output_shape[lstm.sequence_dim] = 1
         squeezed_output_shape = np.delete(unsqueezed_output_shape, lstm.sequence_dim)
         outputs[0].shape = squeezed_output_shape
-        output_unsqueeze = Reshape(body, dict(name=lstm.name + 'output_unsqueeze', dim=unsqueezed_output_shape, internal_layer_id=2))
+        unsqueezed_output_shape[lstm.batch_dim] = -1
+        output_unsqueeze = Reshape(body, dict(name=lstm.name + 'output_unsqueeze', dim=unsqueezed_output_shape,
+                                              internal_layer_id=2))
         # TODO edge attributes should be assigned by the op itself
-        lstm_cell_node = lstm_cell_op.create_node_with_data(inputs, data_nodes=outputs, edge_attrs=[{}, {'internal_port_id': 1}, {'internal_port_id': 2}, {'bin': 'weights'}, {'bin': 'biases'}])
+        lstm_cell_node = lstm_cell_op.create_node_with_data(inputs, data_nodes=outputs,
+                                                            edge_attrs=[{}, {'internal_port_id': 1},
+                                                                        {'internal_port_id': 2}, {'bin': 'weights'},
+                                                                        {'bin': 'biases'}])
         lstm_cell_node[0].in_node().out_edge(0)['internal_port_id'] = 4
         lstm_cell_node[0].in_node().out_edge(1)['internal_port_id'] = 5
         lstm_cell_node[0] = output_unsqueeze.create_node_with_data([lstm_cell_node[0]])
         lstm_cell_node[0].in_node().out_edge(0)['internal_port_id'] = 3
-        
+        lstm_cell_node[0]['is_output'] = True
+
+        assert lstm.direction in ['forward', 'reverse']
+        if lstm.direction == 'forward':
+            stride = 1
+            start = None
+            end = None
+        else:
+            assert lstm.direction == 'reverse'
+            stride = -1
+            start = -1
+            end = 0
+
+        output_port_map = [{
+            'external_port_id': 3,
+            'internal_layer_id': 2,
+            'internal_port_id': 3,
+            'axis': lstm.sequence_dim,
+            'stride': stride,
+            'start': start,
+            'end': end,
+            'part_size': 1,
+        }]
+
+        if len(lstm.out_nodes()) == 3:
+            output_port_map.extend([{
+                'external_port_id': 4,
+                'internal_layer_id': 1,
+                'internal_port_id': 4,
+            }, {
+                'external_port_id': 5,
+                'internal_layer_id': 1,
+                'internal_port_id': 5,
+            }])
+
         ti_op = TensorIterator(graph, {
             'name': lstm.name + '/TensorIterator',
             'body': body,
 
-            # FOR TESTING PURPOSES
             'input_port_map': [
                 {
                     'external_port_id': 0,
                     'internal_layer_id': 0,
                     'internal_port_id': 0,
                     'axis': lstm.sequence_dim,
-                    'stride': 1,
+                    'stride': stride,
+                    'start': start,
+                    'end': end,
                     'part_size': 1,
                 },
                 {
@@ -120,16 +168,8 @@ class LSTMSequenceTensorIterator(MiddleReplacementPattern):
                 },
             ],
 
-            'output_port_map': [
-                {
-                    'external_port_id': 3,
-                    'internal_layer_id': 2,
-                    'internal_port_id': 3,
-                    'axis': lstm.sequence_dim,
-                    'stride': 1,
-                    'part_size': 1,
-                },
-            ],
+            'output_port_map': output_port_map,
+
             'back_edges': [
                 {
                     'from_layer': 1,
@@ -146,6 +186,18 @@ class LSTMSequenceTensorIterator(MiddleReplacementPattern):
             ]
         })
 
-        outs = ti_op.create_node_with_data([lstm.in_node(i) for i in [0, 3, 4]], data_nodes=list(lstm.out_nodes().values()), edge_attrs=[{'external_port_id': 0}, {'external_port_id': 1}, {'external_port_id': 2}])
+        assert sorted(lstm.out_nodes().keys()) == list(range(len(lstm.out_nodes()))), \
+            "There are gaps in output ports of LSTMSequence operation. Node {}".format(lstm.id)
+        outs = ti_op.create_node_with_data([lstm.in_node(i) for i in [0, 3, 4]],
+                                           data_nodes=[lstm.out_node(i) for i in range(len(lstm.out_nodes()))],
+                                           edge_attrs=[{'external_port_id': 0}, {'external_port_id': 1},
+                                                       {'external_port_id': 2}])
+
+        if not isinstance(outs, list):
+            outs = list([outs])
+
         graph.remove_node(lstm.id)
-        outs.in_edge(0)['external_port_id'] = 3
+        outs[0].in_edge(0)['external_port_id'] = 3
+        for i, out in enumerate(outs[1:]):
+            external_port_id = 4 + i
+            out.in_edge()['external_port_id'] = external_port_id

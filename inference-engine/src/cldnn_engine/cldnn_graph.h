@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,6 +142,8 @@ protected:
         MVN,
         Unpooling,
         Tile,
+        Pad,
+        LSTMCell,
         RNN,
         NO_TYPE
     };
@@ -244,7 +245,9 @@ protected:
     void CreateMaxUnpoolingPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void CreateMVNPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void CreateTilePrimitive(InferenceEngine::CNNLayerPtr &layer);
+    void CreatePadPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer);
+    void CreateLSTMCellPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void AddConstantBlobInput(InferenceEngine::CNNLayerPtr &layer);
     void CreateCustomLayerPrimitive(InferenceEngine::CNNLayerPtr &layer, CLDNNCustomLayerPtr customLayer);
 };

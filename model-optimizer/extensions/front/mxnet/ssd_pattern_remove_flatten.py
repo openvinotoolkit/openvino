@@ -18,7 +18,7 @@ import networkx as nx
 
 from extensions.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.middle.passes.eliminate import remove_node_from_graph
+from mo.graph.graph import erase_node
 
 
 class SsdPatternRemoveFlatten(FrontReplacementSubgraph):
@@ -50,4 +50,4 @@ class SsdPatternRemoveFlatten(FrontReplacementSubgraph):
          match : dict
            Patterns which were found in graph structure.
         """
-        remove_node_from_graph(graph, match['multi_box_prior'], match['flatten'])
+        erase_node(match['flatten'])

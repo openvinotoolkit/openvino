@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +18,7 @@ namespace InferenceEngine {
 
 TaskExecutor::TaskExecutor(std::string name) : _isStopped(false), _name(name) {
     _thread = std::make_shared<std::thread>([&] {
+        anotateSetThreadName(("TaskExecutor thread for " + _name).c_str());
         while (!_isStopped) {
             bool isQueueEmpty;
             Task::Ptr currentTask;

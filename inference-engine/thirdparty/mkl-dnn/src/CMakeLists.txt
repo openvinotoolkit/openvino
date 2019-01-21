@@ -33,12 +33,16 @@ include_directories(
     )
 
 # propagate SRC specific flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SRC_CCXX_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_SRC_CCXX_FLAGS}")
+append(CMAKE_C_FLAGS "${CMAKE_SRC_CCXX_FLAGS}")
+append(CMAKE_CXX_FLAGS "${CMAKE_SRC_CCXX_FLAGS}")
 
 # propagate no warning flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_CCXX_NOWARN_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CCXX_NOWARN_FLAGS}")
+append(CMAKE_C_FLAGS "${CMAKE_CCXX_NOWARN_FLAGS}")
+append(CMAKE_CXX_FLAGS "${CMAKE_CCXX_NOWARN_FLAGS}")
+
+# propagate sanitizer flags
+append(CMAKE_C_FLAGS "${CMAKE_CCXX_SANITIZER_FLAGS}")
+append(CMAKE_CXX_FLAGS "${CMAKE_CCXX_SANITIZER_FLAGS}")
 
 if(NOT MKLDNN_VERBOSE)
     add_definitions(-DDISABLE_VERBOSE)
@@ -58,7 +62,7 @@ if(WIN32)
     add_definitions(-DNOMINMAX)
     # Correct 'jnl' macro/jit issue
     if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qlong-double")
+        append(CMAKE_CXX_FLAGS "/Qlong-double")
     endif()
 endif()
 
@@ -66,14 +70,21 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
     # to make computations more stable and to align the jitted code
     # with the reference one use precise division and square root
     # by default
-    file(GLOB FILES_REQUIRED_PREC_DIV_SQRT
+    file(GLOB FILES_REQUIRED_PREC_SQRT
         ${CMAKE_CURRENT_SOURCE_DIR}/cpu/*normalization*.cpp)
+    file(GLOB FILES_REQUIRED_PREC_DIV
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpu/*normalization*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpu/ref_rnn.cpp)
     if(WIN32)
-        set_source_files_properties(${FILES_REQUIRED_PREC_DIV_SQRT}
-            PROPERTIES COMPILE_FLAGS "/Qprec-div /Qprec-sqrt")
+        set_source_files_properties(${FILES_REQUIRED_PREC_SQRT}
+            PROPERTIES COMPILE_FLAGS "/Qprec-sqrt")
+        set_source_files_properties(${FILES_REQUIRED_PREC_DIV}
+            PROPERTIES COMPILE_FLAGS "/Qprec-div")
     else()
-        set_source_files_properties(${FILES_REQUIRED_PREC_DIV_SQRT}
-            PROPERTIES COMPILE_FLAGS "-prec-div -prec-sqrt")
+        set_source_files_properties(${FILES_REQUIRED_PREC_SQRT}
+            PROPERTIES COMPILE_FLAGS "-prec-sqrt")
+        set_source_files_properties(${FILES_REQUIRED_PREC_DIV}
+            PROPERTIES COMPILE_FLAGS "-prec-div")
     endif()
 endif()
 

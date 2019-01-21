@@ -17,9 +17,11 @@
 
 def single_output_infer(node, shape_infer, value_infer=None):
     node.out_node(0).shape = shape_infer(node)
-    if value_infer is not None:
-        node.out_node(0).value = value_infer(node)
 
+    if value_infer is not None and \
+       'value' in node.in_node() and \
+       node.in_node().value is not None:
+        node.out_node(0).value = value_infer(node)
 
 def copy_shape_infer(node):
     """

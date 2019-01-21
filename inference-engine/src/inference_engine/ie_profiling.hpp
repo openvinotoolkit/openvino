@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -264,4 +263,11 @@ inline static void annotateEnd(IttStatic&, IttProfilingTask& t) {
 
 #define IE_PROFILING_AUTO_SCOPE_TASK(PROFILING_TASK) IE_ITT_TASK_SCOPE(PROFILING_TASK); IE_TIMER_SCOPE(PROFILING_TASK.name);
 
+inline static void anotateSetThreadName(const char* name) {
+    #if ENABLE_PROFILING_ITT
+    __itt_thread_set_name(name);
+    #endif
+    // to suppress "unused" warning
+    (void)(name);
+}
 }  // namespace InferenceEngine

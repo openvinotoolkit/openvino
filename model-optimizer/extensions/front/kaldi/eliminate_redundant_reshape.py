@@ -19,7 +19,7 @@ import numpy as np
 
 from extensions.front.kaldi.fuse_repeated_reshape import FuseRepeatedReshapes
 from mo.front.common.replacement import FrontReplacementPattern
-from mo.middle.passes.eliminate import remove_op_node
+from mo.middle.passes.eliminate import remove_op_node_with_data_node
 
 
 class EliminateRedundantReshape(FrontReplacementPattern):
@@ -46,4 +46,4 @@ class EliminateRedundantReshape(FrontReplacementPattern):
         out_node = reshape_node.out_node()
         if not np.array_equal(in_node.shape, out_node.shape):
             return False
-        remove_op_node(graph, reshape_node)
+        remove_op_node_with_data_node(graph, reshape_node)

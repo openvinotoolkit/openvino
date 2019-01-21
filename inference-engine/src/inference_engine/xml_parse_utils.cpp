@@ -1,5 +1,4 @@
 ﻿// Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +14,17 @@ int XMLParseUtils::GetIntAttr(const pugi::xml_node &node, const char *str) {
     return atoi(attr.value());
 }
 
+uint64_t XMLParseUtils::GetUInt64Attr(const pugi::xml_node &node, const char *str) {
+    auto attr = node.attribute(str);
+    if (attr.empty())
+        THROW_IE_EXCEPTION << "node <" << node.name() << "> is missing mandatory attribute: " << str << " at offset "
+                           << node.offset_debug();
+    int64_t value = atoll(attr.value());
+    if (value < 0)
+        THROW_IE_EXCEPTION << "node <" << node.name() << "> has incorrect parameter: " << str << " at offset "
+                           << node.offset_debug();
+    return static_cast<uint64_t>(value);
+}
 
 unsigned int XMLParseUtils::GetUIntAttr(const pugi::xml_node &node, const char *str) {
     auto attr = node.attribute(str);
@@ -69,6 +79,16 @@ int XMLParseUtils::GetIntAttr(const pugi::xml_node &node, const char *str, int d
     auto attr = node.attribute(str);
     if (attr.empty()) return defVal;
     return atoi(attr.value());
+}
+
+uint64_t XMLParseUtils::GetUInt64Attr(const pugi::xml_node &node, const char *str, uint64_t defVal) {
+    auto attr = node.attribute(str);
+    if (attr.empty()) return defVal;
+    int64_t value = atoll(attr.value());
+    if (value < 0)
+        THROW_IE_EXCEPTION << "node <" << node.name() << "> has incorrect parameter: " << str << " at offset "
+                           << node.offset_debug();
+    return static_cast<uint64_t>(value);
 }
 
 unsigned int XMLParseUtils::GetUIntAttr(const pugi::xml_node &node, const char *str, unsigned int defVal) {

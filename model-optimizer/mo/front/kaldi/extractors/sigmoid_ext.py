@@ -18,7 +18,7 @@ from mo.front.extractor import FrontExtractorOp
 from mo.ops.activation import Activation
 
 
-class Sigmoid(FrontExtractorOp):
+class SigmoidFrontExtractor(FrontExtractorOp):
     op = 'sigmoid'
     enabled = True
 

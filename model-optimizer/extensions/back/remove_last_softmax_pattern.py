@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2018 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 import networkx as nx
 
 from mo.back.replacement import BackReplacementPattern
-from mo.middle.passes.eliminate import remove_op_node
+from mo.middle.passes.eliminate import remove_op_node_with_data_node
 
 
 class RemoveLastSoftMaxPattern(BackReplacementPattern):
@@ -50,4 +50,4 @@ class RemoveLastSoftMaxPattern(BackReplacementPattern):
         child = softmax.out_node()
         if not child.has_and_set('is_output'):
             return
-        remove_op_node(graph, softmax)
+        remove_op_node_with_data_node(graph, softmax)

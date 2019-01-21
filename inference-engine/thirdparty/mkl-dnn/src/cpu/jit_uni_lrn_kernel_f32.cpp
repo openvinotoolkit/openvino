@@ -158,13 +158,6 @@ jit_uni_lrn_fwd_kernel_f32<isa>::jit_uni_lrn_fwd_kernel_f32(
     Vmm ydst = Vmm(isa == avx2 ? 11 : 11);
     Vmm ytmp = Vmm(isa == avx2 ? 12 : 12);
 
-    static const char *label[MAX_LOCAL_SIZE] = {
-        ".l00", ".l01", ".l02", ".l03", ".l04", ".l05", ".l06", ".l07",
-        ".l08", ".l09", ".l10", ".l11", ".l12", ".l13", ".l14", ".l15",
-        ".l16", ".l17", ".l18", ".l19", ".l20", ".l21", ".l22", ".l23",
-        ".l24", ".l25", ".l26", ".l27", ".l28", ".l29", ".l30", ".l31"
-    };
-
     this->preamble();
 
     mov(src, ptr[this->param1 + 0]);
@@ -189,11 +182,10 @@ jit_uni_lrn_fwd_kernel_f32<isa>::jit_uni_lrn_fwd_kernel_f32(
     }
 
     int s2 = (J.size - 1) / 2, S2 = J.size - s2 - 1;
-    const char **label_t = &label[0];
-    const char **label_b = &label[s2];
 
     for (int i = 0; i < s2; ++i)
     {
+        Label label_t;
         for (int j = 0; j < s2; ++j) {
             if (isa == avx2) {
                 within_body(-i, S2, -j, S2, J.W, ysum, ydst, ytmp, ysum2, pk);
@@ -203,7 +195,7 @@ jit_uni_lrn_fwd_kernel_f32<isa>::jit_uni_lrn_fwd_kernel_f32(
             }
         }
         mov(w, J.W - J.size + 1);
-        L(label_t[i]);
+        L(label_t);
         if (isa == avx2) {
             within_body(-i, S2, -s2, S2, J.W, ysum, ydst, ytmp, ysum2, pk);
         } else {
@@ -211,7 +203,7 @@ jit_uni_lrn_fwd_kernel_f32<isa>::jit_uni_lrn_fwd_kernel_f32(
         }
         dec(w);
         cmp(w, 0);
-        jne(label_t[i], T_NEAR);
+        jne(label_t, T_NEAR);
         for (int j = J.W - S2; j < J.W; ++j) {
             if (isa == avx2) {
                 within_body(-i, S2, -s2, J.W - 1 - j, J.W,
@@ -223,7 +215,8 @@ jit_uni_lrn_fwd_kernel_f32<isa>::jit_uni_lrn_fwd_kernel_f32(
     }
 
     mov(h, J.H - J.size + 1);
-    L(".lrn_loop_h");
+    Label lrn_loop_h;
+    L(lrn_loop_h);
     for (int j = 0; j < s2; ++j) {
         if (isa == avx2) {
             within_body(-s2, S2, -j, S2, J.W, ysum, ydst, ytmp, ysum2, pk);
@@ -232,7 +225,8 @@ jit_uni_lrn_fwd_kernel_f32<isa>::jit_uni_lrn_fwd_kernel_f32(
         }
     }
     mov(w, J.W - J.size + 1);
-    L(".lrn_loop_w");
+    Label lrn_loop_w;
+    L(lrn_loop_w);
     if (isa == avx2) {
         within_body(-s2, S2, -s2, S2, J.W, ysum, ydst, ytmp, ysum2, pk);
     } else {
@@ -240,7 +234,7 @@ jit_uni_lrn_fwd_kernel_f32<isa>::jit_uni_lrn_fwd_kernel_f32(
     }
     dec(w);
     cmp(w, 0);
-    jne(".lrn_loop_w", T_NEAR);
+    jne(lrn_loop_w, T_NEAR);
     for (int j = J.W - S2; j < J.W; ++j) {
         if (isa == avx2) {
             within_body(-s2, S2, -s2, J.W - 1 - j, J.W,
@@ -251,7 +245,7 @@ jit_uni_lrn_fwd_kernel_f32<isa>::jit_uni_lrn_fwd_kernel_f32(
     }
     dec(h);
     cmp(h, 0);
-    jne(".lrn_loop_h", T_NEAR);
+    jne(lrn_loop_h, T_NEAR);
 
     for (int i = J.H - S2; i < J.H; ++i)
     {
@@ -265,7 +259,8 @@ jit_uni_lrn_fwd_kernel_f32<isa>::jit_uni_lrn_fwd_kernel_f32(
         }
 
         mov(w, J.W - J.size + 1);
-        L(label_b[i - (J.H - S2)]);
+        Label label_b;
+        L(label_b);
         if (isa == avx2) {
             within_body(-s2, J.H - 1 - i, -s2, S2, J.W,
                 ysum, ydst, ytmp, ysum2, pk);
@@ -274,7 +269,7 @@ jit_uni_lrn_fwd_kernel_f32<isa>::jit_uni_lrn_fwd_kernel_f32(
         }
         dec(w);
         cmp(w, 0);
-        jne(label_b[i - (J.H - S2)], T_NEAR);
+        jne(label_b, T_NEAR);
 
         for (int j = J.W - S2; j < J.W; ++j) {
             if (isa == avx2) {
@@ -345,7 +340,9 @@ jit_uni_lrn_fwd_kernel_f32<avx2>::jit_uni_lrn_fwd_kernel_f32(
     }
 
     mov(hw, J.H*J.W);
-    L(".lrn_loop");
+
+    Label lrn_loop;
+    L(lrn_loop);
 
     if (J.version != -1) vmovups(xsrc_prev, ptr[src - J.H*J.W * 32 + 16]);
     vmovups(ysrc, ptr[src]);
@@ -382,7 +379,7 @@ jit_uni_lrn_fwd_kernel_f32<avx2>::jit_uni_lrn_fwd_kernel_f32(
         add(scratch, 32);
     dec(hw);
     cmp(hw, 0);
-    jne(".lrn_loop", T_NEAR);
+    jne(lrn_loop, T_NEAR);
 
     add(t, 64);
     this->postamble();
@@ -451,7 +448,8 @@ jit_uni_lrn_fwd_kernel_f32<sse42>::jit_uni_lrn_fwd_kernel_f32(
     }
 
     mov(hw, J.H*J.W);
-    L(".lrn_loop");
+    Label lrn_loop;
+    L(lrn_loop);
 
     if (J.version != -1) movups(xsrc_prev, ptr[src - J.H*J.W * 32 + 16]);
     movups(xsrc_lo, ptr[src]);
@@ -522,7 +520,7 @@ jit_uni_lrn_fwd_kernel_f32<sse42>::jit_uni_lrn_fwd_kernel_f32(
         add(scratch, 32);
     dec(hw);
     cmp(hw, 0);
-    jne(".lrn_loop", T_NEAR);
+    jne(lrn_loop, T_NEAR);
 
     add(t, 64);
     this->postamble();
@@ -585,7 +583,8 @@ jit_uni_lrn_fwd_kernel_f32<avx2>::jit_uni_lrn_fwd_kernel_f32(
     vfmadd231ps(ysum, yb, yb);
 
     mov(c, J.C / 8 - 1);
-    L(".lrn_loop");
+    Label lrn_loop;
+    L(lrn_loop);
 
     vmovups(yc, ptr[src]);
     vmovups(yd, ptr[src + 4]);
@@ -622,7 +621,7 @@ jit_uni_lrn_fwd_kernel_f32<avx2>::jit_uni_lrn_fwd_kernel_f32(
 
     dec(c);
     cmp(c, 0);
-    jne(".lrn_loop", T_NEAR);
+    jne(lrn_loop, T_NEAR);
 
     vmovups(yc, ptr[src]);
     vfmadd231ps(ysum, yc, yc);
@@ -744,7 +743,8 @@ jit_uni_lrn_fwd_kernel_f32<sse42>::jit_uni_lrn_fwd_kernel_f32(
     addps(xsum_hi, xb_hi);
 
     mov(c, J.C / 8 - 1);
-    L(".lrn_loop");
+    Label lrn_loop;
+    L(lrn_loop);
 
     movups(xc_lo, ptr[src]);
     movups(xc_hi, ptr[src + 4 * sizeof(float)]);
@@ -818,7 +818,7 @@ jit_uni_lrn_fwd_kernel_f32<sse42>::jit_uni_lrn_fwd_kernel_f32(
 
     dec(c);
     cmp(c, 0);
-    jne(".lrn_loop", T_NEAR);
+    jne(lrn_loop, T_NEAR);
 
     movups(xc_lo, ptr[src]);
     movups(xc_hi, ptr[src + 4 * sizeof(float)]);
@@ -945,6 +945,33 @@ void jit_uni_lrn_fwd_kernel_f32<avx2>::nchw_body(
 }
 
 template<>
+void jit_uni_lrn_fwd_kernel_f32<avx2>::nchw_tail_sse42(
+    int tail, Xbyak::Reg64 reg_dst, Xbyak::Xmm xtail_lo, Xbyak::Xmm xtail_hi)
+{}
+
+template<>
+void jit_uni_lrn_fwd_kernel_f32<sse42>::nchw_tail_sse42(
+    int tail, Xbyak::Reg64 reg_dst, Xbyak::Xmm xtail_lo, Xbyak::Xmm xtail_hi)
+{
+    Xbyak::Xmm xmm_tmp = xmm10;
+    movaps(xmm_tmp, xtail_lo);
+    size_t offset = 0;
+
+    if (tail > 4) {
+        movups(ptr[reg_dst], xtail_lo);
+        movaps(xmm_tmp, xtail_hi);
+        offset += 4 * sizeof(float);
+        tail -= 4;
+    }
+    movss(ptr[reg_dst + offset], xmm_tmp);
+    for (int i = 1; i < tail; i++)
+    {
+        psrldq(xmm_tmp, 4);
+        movss(ptr[reg_dst + offset + i * sizeof(float)], xmm_tmp);
+    }
+}
+
+template<>
 void jit_uni_lrn_fwd_kernel_f32<sse42>::nchw_body_sse42(
     int tail, int HW, prop_kind_t pk,
     Xbyak::Xmm xmask_lo, Xbyak::Xmm xmask_hi,
@@ -957,8 +984,6 @@ void jit_uni_lrn_fwd_kernel_f32<sse42>::nchw_body_sse42(
     Xbyak::Xmm xbase_hi = xmm7;
     Xbyak::Xmm xtmp_lo = xmm8;
     Xbyak::Xmm xtmp_hi = xmm9;
-    Xbyak::Xmm xtmp2_lo = xmm10;
-    Xbyak::Xmm xtmp2_hi = xmm11;
     Xbyak::Xmm xa_lo = xmm6;
     Xbyak::Xmm xa_hi = xmm7;
     Xbyak::Xmm xb_lo = xmm8;
@@ -990,20 +1015,7 @@ void jit_uni_lrn_fwd_kernel_f32<sse42>::nchw_body_sse42(
     if (pk != prop_kind::forward_inference)
     {
         if (tail != 0) {
-            movaps(xtmp_lo, xmask_lo);
-            movaps(xtmp_hi, xmask_hi);
-            movups(xtmp2_lo, ptr[scratch]);
-            movups(xtmp2_hi, ptr[scratch + 4 * sizeof(float)]);
-            andnps(xtmp_lo, xtmp2_lo);
-            andnps(xtmp_hi, xtmp2_hi);
-            movaps(xtmp2_lo, xbase_lo);
-            movaps(xtmp2_hi, xbase_hi);
-            andps(xtmp2_lo, xmask_lo);
-            andps(xtmp2_hi, xmask_hi);
-            orps(xtmp_lo, xtmp2_lo);
-            orps(xtmp_hi, xtmp2_hi);
-            movups(ptr[scratch], xtmp_lo);
-            movups(ptr[scratch + 4 * sizeof(float)], xtmp_hi);
+            nchw_tail_sse42(tail, scratch, xbase_lo, xbase_hi);
         }
         else {
             movups(ptr[scratch], xbase_lo);
@@ -1026,20 +1038,7 @@ void jit_uni_lrn_fwd_kernel_f32<sse42>::nchw_body_sse42(
     movaps(xdst_hi, xtmp_hi);
 
     if (tail != 0) {
-        movaps(xtmp_lo, xmask_lo);
-        movaps(xtmp_hi, xmask_hi);
-        movups(xtmp2_lo, ptr[dst]);
-        movups(xtmp2_hi, ptr[dst + 4 * sizeof(float)]);
-        andnps(xtmp_lo, xtmp2_lo);
-        andnps(xtmp_hi, xtmp2_hi);
-        movaps(xtmp2_lo, xdst_lo);
-        movaps(xtmp2_hi, xdst_hi);
-        andps(xtmp2_lo, xmask_lo);
-        andps(xtmp2_hi, xmask_hi);
-        orps(xtmp_lo, xtmp2_lo);
-        orps(xtmp_hi, xtmp2_hi);
-        movups(ptr[dst], xtmp_lo);
-        movups(ptr[dst + 4 * sizeof(float)], xtmp_hi);
+        nchw_tail_sse42(tail, dst, xdst_lo, xdst_hi);
     }
     else {
         movups(ptr[dst], xdst_lo);
@@ -1145,7 +1144,8 @@ jit_uni_lrn_fwd_kernel_f32<avx2>::jit_uni_lrn_fwd_kernel_f32(
     vfmadd231ps(ysum, yd, yd);
 
     mov(c, J.C - 2);
-    L(".lrn_loop");
+    Label lrn_loop;
+    L(lrn_loop);
 
     if (J.tail != 0)
         vmaskmovps(ye, ymask, ptr[src + J.HW * 8]);
@@ -1160,7 +1160,7 @@ jit_uni_lrn_fwd_kernel_f32<avx2>::jit_uni_lrn_fwd_kernel_f32(
         add(scratch, J.HW * 4);
     dec(c);
     cmp(c, 0);
-    jne(".lrn_loop", T_NEAR);
+    jne(lrn_loop, T_NEAR);
 
     vxorps(ye, ye, ye);
 
@@ -1290,7 +1290,8 @@ jit_uni_lrn_fwd_kernel_f32<sse42>::jit_uni_lrn_fwd_kernel_f32(
     addps(xsum_hi, xd_hi); // xsum <- xsum + xa^2+xb^2+xc^2+xd^2+xe^2
 
     mov(c, J.C - 2);
-    L(".lrn_loop");
+    Label lrn_loop;
+    L(lrn_loop);
 
     if (J.tail != 0) {
         movups(xe_lo, ptr[src + J.HW * 8]);
@@ -1313,7 +1314,7 @@ jit_uni_lrn_fwd_kernel_f32<sse42>::jit_uni_lrn_fwd_kernel_f32(
         add(scratch, J.HW * 4);
     dec(c);
     cmp(c, 0);
-    jne(".lrn_loop", T_NEAR);
+    jne(lrn_loop, T_NEAR);
 
     xorps(xe_lo, xe_lo);
     xorps(xe_hi, xe_hi);
@@ -1388,20 +1389,16 @@ jit_uni_lrn_bwd_kernel_f32<isa>::jit_uni_lrn_bwd_kernel_f32(
     bool is_first = J.version == -1 || J.version == -2;
     bool is_last = J.version == +1 || J.version == -2;
 
-    char tag = '\0';
     if (is_first || is_single) {
         vxorps(xsrc_prev, xsrc_prev, xsrc_prev);
         vmovups(ptr[t + 0], xsrc_prev);
-        tag = 'f';
     }
     if (is_last || is_single) {
         vxorps(xsrc_next, xsrc_next, xsrc_next);
         vmovups(ptr[t + 48], xsrc_next);
-        tag = 'l';
     }
     mov(hw, this->use_h_parallelizm ? J.W : J.H*J.W);
-
-    jit_tagged_label lrn_loop("lrn_loop", tag);
+    Label lrn_loop;
     L(lrn_loop);
     {
         if (!is_first && !is_single) {

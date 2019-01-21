@@ -1,6 +1,7 @@
 # Copyright (C) 2018 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 set (TARGET_NAME "mock_engine")
 
 file (GLOB LIBRARY_SRC
@@ -15,9 +16,8 @@ file (GLOB LIBRARY_HEADERS
 
 if(UNIX)
     list(REMOVE_ITEM LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/dllmain.cpp)
-else()
-    add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_API)
 endif()
+add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_API)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +24,9 @@ public:
         try {
             if (layer->insData.size() != 1 || layer->outData.size() != 1)
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+
+            if (layer->insData[0].lock()->dims.size() < 2 || layer->insData[0].lock()->dims.size() > 4)
+                THROW_IE_EXCEPTION << "Normalize supports from 2D to 4D blobs!";
 
             weights = std::dynamic_pointer_cast<TBlob<float>>(layer->blobs.at("weights"));
             if (!weights)

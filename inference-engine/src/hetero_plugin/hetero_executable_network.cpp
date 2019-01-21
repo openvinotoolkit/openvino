@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,6 +89,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(InferenceEngine::ICNNNetwork &n
     load(network, config, extensions, listener);
 }
 
+void dla_layer_colorer(const CNNLayerPtr layer,
+                       ordered_properties &printed_properties,
+                       ordered_properties &node_properties);
+
 void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
                                    const std::map<std::string, std::string> &config,
                                    const std::vector<InferenceEngine::IExtensionPtr> &extensions,
@@ -126,6 +129,14 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
             fbPolicy.setAffinity(config, network);
         } else {
             THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+        }
+    } else {
+        if (dumpDotFile) {
+            std::stringstream stream(std::stringstream::out);
+            stream << "hetero_affinity_" << network.getName() << ".dot";
+
+            std::ofstream file(stream.str().c_str());
+            saveGraphToDot(network, file, dla_layer_colorer);
         }
     }
 
@@ -226,6 +237,7 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
         // set precision for intermediate data (not for external) to FP32
         // later on we have to add Plugin::getPreferableInputPrecision(network) and
         // Plugin::getPreferableOutputPrecision(network) and set precision based on this info
+        // TODO(amalyshe) add clever selectino of precision for intermediate blobs
         for (auto &&it : clonedInputs) {
             if (externalInputsData.find(it.first) == externalInputsData.end()) {
                 it.second->setInputPrecision(Precision::FP32);
@@ -242,6 +254,7 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
 
         // Temporal solution until each plugin starts to support desirable precision
         // Only for CPU registered device we are changing all FP16 types to FP32 and convert blobs if any
+        // TODO(amalyshe) remove this hack to preoper network.setPrecision(FP16) and feeding to CPU plugin
         if (affinity == "CPU") {
             tempNetwork->setPrecision(Precision::FP32);
             details::CNNNetworkIterator itcpu(reinterpret_cast<ICNNNetwork *>(tempNetwork.get()));

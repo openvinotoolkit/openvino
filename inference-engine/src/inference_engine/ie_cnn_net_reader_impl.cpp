@@ -1,5 +1,4 @@
 ﻿// Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +11,7 @@
 #include "debug.h"
 #include "parsers.h"
 #include <ie_cnn_net_reader_impl.h>
-#include "v2_format_parser.h"
+#include "ie_format_parser.h"
 #include <file_utils.h>
 #include <ie_plugin.hpp>
 #include "xml_parse_utils.h"
@@ -73,11 +72,11 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const void* model, size_t size, Respons
 }
 
 StatusCode CNNNetReaderImpl::ReadWeights(const char* filepath, ResponseDesc* resp) noexcept {
-    long long fileSize = FileUtils::fileSize(filepath);
-    if (fileSize == 0)
-        return OK;
+    int64_t fileSize = FileUtils::fileSize(filepath);
+
     if (fileSize < 0)
-        return DescriptionBuffer(resp) << "filesize for: " << filepath << " - " << fileSize << "<0";
+        return DescriptionBuffer(resp) << "filesize for: " << filepath << " - " << fileSize
+                                       << "<0. Please, check weights file existence.";
 
     if (network.get() == nullptr) {
         return DescriptionBuffer(resp) << "network is empty";
@@ -142,7 +141,7 @@ StatusCode CNNNetReaderImpl::ReadNetwork(pugi::xml_document& xmlDoc) {
 
         _version = GetFileVersion(root);
         if (_version < 1) THROW_IE_EXCEPTION << "deprecated IR version: " << _version;
-        if (_version > 3) THROW_IE_EXCEPTION << "cannot parse future versions: " << _version;
+        if (_version > 4) THROW_IE_EXCEPTION << "cannot parse future versions: " << _version;
         _parser = parserCreator->create(_version);
         network = _parser->Parse(root);
         name = network->getName();
@@ -169,42 +168,8 @@ StatusCode CNNNetReaderImpl::ReadNetwork(pugi::xml_document& xmlDoc) {
     return OK;
 }
 
-StatusCode CNNNetReaderImpl::ReadSubNetwork(pugi::xml_node &xmlRoot) {
-    description.clear();
-
-    try {
-        _parser = parserCreator->create(_version);
-        network = _parser->Parse(xmlRoot);
-        name = network->getName();
-        // network->validate(version);
-        parseSuccess = true;
-    }
-    catch (const std::string& err) {
-        description = err;
-        parseSuccess = false;
-        return GENERAL_ERROR;
-    }
-    catch (const InferenceEngineException& e) {
-        description = e.what();
-        parseSuccess = false;
-        return GENERAL_ERROR;
-    }
-    catch (const std::exception& e) {
-        description = e.what();
-        parseSuccess = false;
-        return GENERAL_ERROR;
-    }
-    catch (...) {
-        description = "Unknown exception thrown";
-        parseSuccess = false;
-        return UNEXPECTED;
-    }
-
-    return OK;
-}
-
 std::shared_ptr<IFormatParser> V2FormatParserCreator::create(int version) {
-    return std::make_shared<V2FormatParser>(version);
+    return std::make_shared<FormatParser>(version);
 }
 
 INFERENCE_ENGINE_API(InferenceEngine::ICNNNetReader*) InferenceEngine::CreateCNNNetReader() noexcept {

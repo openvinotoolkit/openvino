@@ -60,8 +60,8 @@ status_t mkldnn_rnn_cell_desc_init(rnn_cell_desc_t *rnn_cell_desc,
     bool args_ok = true
             && one_of(cell_kind, vanilla_rnn, vanilla_lstm, vanilla_gru,
                     gru_linear_before_reset)
-            && implication(cell_kind == vanilla_rnn,
-                       one_of(act_f, eltwise_relu, eltwise_tanh));
+            && IMPLICATION(cell_kind == vanilla_rnn,
+                    one_of(act_f, eltwise_relu, eltwise_tanh, eltwise_logistic));
     if (!args_ok)
         return status::invalid_arguments;
 
@@ -137,13 +137,13 @@ status_t MKLDNN_API mkldnn_rnn_forward_desc_init(mkldnn_rnn_desc_t *rnn_desc,
             && DIC == weights_layer_desc->dims[4]
             && DIC == weights_iter_desc->dims[4]
             && DLC == dst_layer_desc->dims[2] && L == weights_iter_desc->dims[0]
-            && implication(!is_zero_md(dst_iter_desc), true
+            && IMPLICATION(!is_zero_md(dst_iter_desc), true
                                && DIC == dst_iter_desc->dims[4]
                                && L == dst_iter_desc->dims[0])
-            && implication(!is_zero_md(bias_desc), L == bias_desc->dims[0])
-            && implication(
+            && IMPLICATION(!is_zero_md(bias_desc), L == bias_desc->dims[0])
+            && IMPLICATION(
                        !is_zero_md(src_iter_desc), L == src_iter_desc->dims[0])
-            && implication(rnn_cell_desc->cell_kind == alg_kind::vanilla_gru,
+            && IMPLICATION(rnn_cell_desc->cell_kind == alg_kind::vanilla_gru,
                        DIC == weights_iter_desc->dims[2]);
     if (!args_ok)
         return invalid_arguments;
@@ -222,13 +222,13 @@ status_t MKLDNN_API mkldnn_rnn_backward_desc_init(mkldnn_rnn_desc_t *rnn_desc,
             && DIC == weights_layer_desc->dims[4]
             && DIC == weights_iter_desc->dims[4]
             && DLC == dst_layer_desc->dims[2] && L == weights_iter_desc->dims[0]
-            && implication(!is_zero_md(dst_iter_desc), true
+            && IMPLICATION(!is_zero_md(dst_iter_desc), true
                                && DIC == dst_iter_desc->dims[4]
                                && L == dst_iter_desc->dims[0])
-            && implication(!is_zero_md(bias_desc), L == bias_desc->dims[0])
-            && implication(
+            && IMPLICATION(!is_zero_md(bias_desc), L == bias_desc->dims[0])
+            && IMPLICATION(
                        !is_zero_md(src_iter_desc), L == src_iter_desc->dims[0])
-            && implication(rnn_cell_desc->cell_kind == alg_kind::vanilla_gru,
+            && IMPLICATION(rnn_cell_desc->cell_kind == alg_kind::vanilla_gru,
                        DIC == weights_iter_desc->dims[2]);
     if (!args_ok)
         return invalid_arguments;

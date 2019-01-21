@@ -67,15 +67,18 @@ void ref_depthwise_fwd_t<data_type>::execute_forward() {
 
     const int MB = conf_.MB();
     const int C = conf_.C();
+    const int D = conf_.D();
     const int H = conf_.H();
     const int W = conf_.W();
     const auto alg_kind = conf_.desc()->alg_kind;
 
-    parallel_nd(MB, C, H, W,
-        [&](int n, int c, int h, int w) {
+    parallel_nd(MB, C, D, H, W,
+        [&](int n, int c, int d, int h, int w) {
         size_t data_off = data_d.ndims() == 4
                         ? data_d.off(n, c, h, w)
-                        : data_d.off(n, c);
+                        : data_d.ndims() == 5
+                            ? data_d.off(n, c, d, h, w)
+                            : data_d.off(n, c);
 
         data_t s_val = src[data_off];
         data_t w_val = weights[weights_d.off(c)];

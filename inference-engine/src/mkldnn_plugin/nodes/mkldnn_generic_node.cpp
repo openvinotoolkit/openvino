@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,8 +82,7 @@ bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
     if (getCnnLayer() && extMgr) {
         // We should save extension manager in otder to avoid situation when
         // it will destroyed before extensibility primitives
-        extensionManager = extMgr;
-        extFactory.reset(extensionManager->CreateExtensionFactory(getCnnLayer()));
+        extFactory.reset(extMgr->CreateExtensionFactory(getCnnLayer()));
 
         if (extFactory)
             setType(Generic);
@@ -147,11 +145,6 @@ void MKLDNNGenericNode::execLayer() {
     }
 }
 
-MKLDNNGenericNode::~MKLDNNGenericNode() {
-    extFactory.reset();
-    extensionManager.reset();
-}
-
 void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
     InferenceEngine::LayerConfig rightConfig = config;
     InferenceEngine::StatusCode rc;
@@ -204,13 +197,5 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
     }
     if (isConst) {
         constant = ConstantType::Const;
-    }
-}
-
-void MKLDNNGenericNode::initOptimalPrimitiveDescriptor() {
-    auto descriptor = getSelectedPrimitiveDescriptor();
-    if (descriptor != nullptr) {
-        auto config = descriptor->getConfig();
-        initDescriptor(config);
     }
 }

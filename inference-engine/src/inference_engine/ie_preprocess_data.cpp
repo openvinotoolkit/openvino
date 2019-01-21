@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +8,12 @@
 #ifdef HAVE_SSE
 #include "ie_preprocess_data_sse42.hpp"
 #endif
+#include "ie_preprocess_gapi.hpp"
 
 #include <algorithm>
 
 namespace InferenceEngine {
+
 namespace Resize {
 
 template<typename data_t> static inline data_t saturate_cast(float res);
@@ -27,7 +28,7 @@ template<> inline uint8_t saturate_cast(float res) {
 }
 
 template<typename data_t = float>
-void resize_bilinear_fp32(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer) {
+void resize_bilinear(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer) {
     Border border = {BORDER_REPLICATE, 0};
 
     auto dstDims = outBlob->getTensorDesc().getDims();
@@ -61,8 +62,8 @@ void resize_bilinear_fp32(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* bu
     auto scale_x = static_cast<float>(src_full_width) / dst_full_width;
     auto scale_y = static_cast<float>(src_full_height) / dst_full_height;
 
-    auto* xofs = reinterpret_cast<int16_t*>(buffer);
-    auto* yofs = reinterpret_cast<int32_t*>(xofs + dwidth);
+    auto* xofs = reinterpret_cast<int32_t*>(buffer);
+    auto* yofs = xofs + dwidth;
     auto* alpha = reinterpret_cast<float*>(yofs + dheight);
     auto* beta = alpha + dwidth;
     auto* tptr = beta + dheight;
@@ -83,7 +84,7 @@ void resize_bilinear_fp32(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* bu
             sx0 = (std::max)(src_full_width - 2, 0);
         }
 
-        xofs[dx - dst_go_x] = (int16_t)(sx0 - src_go_x);
+        xofs[dx - dst_go_x] = sx0 - src_go_x;
         alpha[dx - dst_go_x] = fx;
     }
 
@@ -103,7 +104,7 @@ void resize_bilinear_fp32(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* bu
             sy0 = (std::max)(src_full_height - 2, 0);
         }
 
-        yofs[dy - dst_go_y] = (sy0 - src_go_y);
+        yofs[dy - dst_go_y] = sy0 - src_go_y;
         beta[dy - dst_go_y] = fy;
     }
 
@@ -282,7 +283,7 @@ int computeResizeAreaTabFP32(int src_go, int dst_go, int ssize, int dsize, float
 }
 
 template<typename data_t = float>
-void resize_area_fp32_downscale(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer) {
+void resize_area_downscale(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer) {
     auto dstDims = outBlob->getTensorDesc().getDims();
     auto srcDims = inBlob->getTensorDesc().getDims();
 
@@ -591,54 +592,93 @@ size_t resize_get_buffer_size(Blob::Ptr inBlob, Blob::Ptr outBlob, const ResizeA
     float scale_x = static_cast<float>(dstDims[3]) / srcDims[3];
     float scale_y = static_cast<float>(dstDims[2]) / srcDims[2];
 
-    size_t buffer_size;
-    if ((scale_x >= 1 || scale_y >= 1) && algorithm == RESIZE_AREA) {
-        buffer_size = (dstDims[3] + dstDims[2])*(sizeof(int) + sizeof(float)*2) + 2*dstDims[3] * sizeof(float);
-    } else if (inBlob->getTensorDesc().getPrecision() == Precision::U8) {
-        if (algorithm == RESIZE_BILINEAR) {
-            buffer_size = (sizeof(int16_t) * 4 + sizeof(uint8_t *)) * dstDims[3] +
-                          (sizeof(int32_t) + sizeof(int16_t)) * dstDims[2] +
-                          sizeof(uint32_t) * dstDims[3] +
-                          (((srcDims[3] + 7) / 8) * 8 * 8) +
-                          sizeof(uint8_t) * 12;
+    auto resize_bilinear_u8_buffer_size = [&]() {
+        size_t buffer_size = (sizeof(int16_t) * 4 + sizeof(uint8_t *)) * dstDims[3] +
+                             (sizeof(int32_t) + sizeof(int16_t)) * dstDims[2] +
+                             sizeof(uint32_t) * dstDims[3] +
+                             (((srcDims[3] + 7) / 8) * 8 * 8) +
+                             sizeof(uint8_t) * 12;
+
+        return buffer_size;
+    };
+
+    auto resize_bilinear_fp32_buffer_size = [&]() {
+        size_t buffer_size = (sizeof(float) + sizeof(float *)) * dstDims[3] +
+                             (sizeof(int32_t) + sizeof(float)) * dstDims[2] +
+                             (((srcDims[3] + 1) / 2) * 2 * 2) * sizeof(float);
+
+        return buffer_size;
+    };
+
+    auto resize_area_u8_downscale_sse_buffer_size = [&]() {
+        const int dwidth = dstDims[3];
+        const int dheight = dstDims[2];
+        const int swidth = srcDims[3];
+
+        const int dst_go_x = 0;
+        const int dst_go_y = 0;
+
+        int x_max_count = getResizeAreaTabSize(dst_go_x, src_full_width, dwidth, static_cast<float>(src_full_width) / dst_full_width) + 1;
+        int y_max_count = getResizeAreaTabSize(dst_go_y, src_full_height, dheight, static_cast<float>(src_full_height) / dst_full_height) + 1;
+
+        size_t si_buf_size = sizeof(uint16_t) * dwidth + sizeof(uint16_t) * dheight;
+        size_t alpha_buf_size =
+                sizeof(uint16_t) * (dwidth * x_max_count + 8 * 16) + sizeof(uint16_t) * dheight * y_max_count;
+        size_t vert_sum_buf_size = sizeof(uint16_t) * (swidth * 2);
+        size_t alpha_array_buf_size = sizeof(uint16_t) * 4 * dwidth;
+        size_t sxid_array_buf_size = sizeof(uint16_t) * 4 * 4 * dwidth;
+
+        size_t buffer_size = si_buf_size +
+                             alpha_buf_size +
+                             vert_sum_buf_size +
+                             alpha_array_buf_size +
+                             sxid_array_buf_size;
+
+        return buffer_size;
+    };
+
+    auto resize_area_downscale_buffer_size = [&]() {
+        size_t buffer_size = sizeof(float) * (srcDims[3]) +
+                             sizeof(uint32_t) * (dstDims[3] * 2 + 1) +
+                             sizeof(float) * ((srcDims[3] + srcDims[2]) * 4) +
+                             sizeof(float) * ((srcDims[3] + srcDims[2]) * 2);
+
+        return buffer_size;
+    };
+
+    auto resize_area_upscale_buffer_size = [&]() {
+        size_t buffer_size = (dstDims[3] + dstDims[2])*(sizeof(int) + sizeof(float)*2) + 2*dstDims[3] * sizeof(float);
+
+        return buffer_size;
+    };
+
+    if (algorithm == RESIZE_BILINEAR) {
+        if (inBlob->getTensorDesc().getPrecision() == Precision::U8) {
+            return resize_bilinear_u8_buffer_size();
         } else {
-            const int dwidth = dstDims[3];
-            const int dheight = dstDims[2];
-            const int swidth = srcDims[3];
-
-            const int dst_go_x = 0;
-            const int dst_go_y = 0;
-
-            int x_max_count = getResizeAreaTabSize(dst_go_x, src_full_width, dwidth, static_cast<float>(src_full_width) / dst_full_width) + 1;
-            int y_max_count = getResizeAreaTabSize(dst_go_y, src_full_height, dheight, static_cast<float>(src_full_height) / dst_full_height) + 1;
-
-            size_t si_buf_size = sizeof(uint16_t) * dwidth + sizeof(uint16_t) * dheight;
-            size_t alpha_buf_size =
-                    sizeof(uint16_t) * (dwidth * x_max_count + 8 * 16) + sizeof(uint16_t) * dheight * y_max_count;
-            size_t vert_sum_buf_size = sizeof(uint16_t) * (swidth * 2);
-            size_t alpha_array_buf_size = sizeof(uint16_t) * 4 * dwidth;
-            size_t sxid_array_buf_size = sizeof(uint16_t) * 4 * 4 * dwidth;
-
-            buffer_size = si_buf_size +
-                          alpha_buf_size +
-                          vert_sum_buf_size +
-                          alpha_array_buf_size +
-                          sxid_array_buf_size;
+            return resize_bilinear_fp32_buffer_size();
         }
-    } else {
-        if (algorithm == RESIZE_BILINEAR) {
-            buffer_size = (sizeof(float) + sizeof(float *)) * dstDims[3] +
-                          (sizeof(int32_t) + sizeof(float)) * dstDims[2] +
-                          (((srcDims[3] + 1) / 2) * 2 * 2) * sizeof(float);
+    } else if (algorithm == RESIZE_AREA) {
+        if (inBlob->getTensorDesc().getPrecision() == Precision::U8) {
+            if (scale_x <= 1 && scale_y <= 1) {
+#ifdef HAVE_SSE
+                if (with_cpu_x86_sse42() && scale_x < 1 && scale_y < 1)
+                    return resize_area_u8_downscale_sse_buffer_size();
+                else
+#endif
+                    return resize_area_downscale_buffer_size();
+            } else {
+                return resize_area_upscale_buffer_size();
+            }
         } else {
-            buffer_size = sizeof(float) * (srcDims[3]) +
-                          sizeof(uint32_t) * (dstDims[3] * 2 + 1) +
-                          sizeof(float) * ((srcDims[3] + srcDims[2]) * 4) +
-                          sizeof(float) * ((srcDims[3] + srcDims[2]) * 2);
+            if (scale_x <= 1 && scale_y <= 1)
+                return resize_area_downscale_buffer_size();
+            else
+                return resize_area_upscale_buffer_size();
         }
     }
 
-    return buffer_size;
+    return 0;
 }
 
 void resize(Blob::Ptr inBlob, Blob::Ptr outBlob, const ResizeAlgorithm &algorithm) {
@@ -670,25 +710,25 @@ void resize(Blob::Ptr inBlob, Blob::Ptr outBlob, const ResizeAlgorithm &algorith
                 Resize::resize_bilinear_u8(inBlob, outBlob, buffer);
             else
 #endif
-                resize_bilinear_fp32<uint8_t>(inBlob, outBlob, buffer);
+                resize_bilinear<uint8_t>(inBlob, outBlob, buffer);
         } else {
-            resize_bilinear_fp32(inBlob, outBlob, buffer);
+            resize_bilinear<float>(inBlob, outBlob, buffer);
         }
     } else if (algorithm == RESIZE_AREA) {
         if (inBlob->getTensorDesc().getPrecision() == Precision::U8) {
-            if (scale_x < 1 && scale_y < 1) {
+            if (scale_x <= 1 && scale_y <= 1) {
 #ifdef HAVE_SSE
-                if (with_cpu_x86_sse42())
+                if (with_cpu_x86_sse42() && scale_x < 1 && scale_y < 1)
                     Resize::resize_area_u8_downscale(inBlob, outBlob, buffer);
                 else
 #endif
-                    resize_area_fp32_downscale<uint8_t>(inBlob, outBlob, buffer);
+                    resize_area_downscale<uint8_t>(inBlob, outBlob, buffer);
             } else {
                 resize_area_upscale<uint8_t>(inBlob, outBlob, buffer);
             }
         } else {
-            if (scale_x < 1 && scale_y < 1)
-                resize_area_fp32_downscale(inBlob, outBlob, buffer);
+            if (scale_x <= 1 && scale_y <= 1)
+                resize_area_downscale<float>(inBlob, outBlob, buffer);
             else
                 resize_area_upscale<float>(inBlob, outBlob, buffer);
         }
@@ -711,7 +751,7 @@ Blob::Ptr PreProcessData::getRoiBlob() const {
     return _roiBlob;
 }
 
-void PreProcessData::execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm) {
+void PreProcessData::execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm, bool serial) {
     IE_PROFILING_AUTO_SCOPE_TASK(perf_preprocessing)
 
     if (algorithm == NO_RESIZE) {
@@ -720,6 +760,13 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorith
 
     if (_roiBlob == nullptr) {
         THROW_IE_EXCEPTION << "Input pre-processing is called without ROI blob set";
+    }
+
+    if (!_preproc) {
+        _preproc.reset(new PreprocEngine);
+    }
+    if (_preproc->preprocessWithGAPI(_roiBlob, outBlob, algorithm, serial)) {
+        return;
     }
 
     Blob::Ptr res_in, res_out;

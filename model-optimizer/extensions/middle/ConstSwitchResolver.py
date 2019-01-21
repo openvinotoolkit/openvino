@@ -16,9 +16,10 @@
 
 import networkx as nx
 
-from mo.graph.graph import erase_node, Node
-from mo.middle.passes.eliminate import remove_op_node
+from mo.graph.graph import Node
+from mo.middle.passes.eliminate import remove_op_node_with_data_node
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.utils.graph import pseudo_topological_sort
 
 
 class ConstSwitchEraser(MiddleReplacementPattern):
@@ -28,10 +29,10 @@ class ConstSwitchEraser(MiddleReplacementPattern):
     enabled = True
 
     def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
-        for n in nx.topological_sort(graph):
+        for n in pseudo_topological_sort(graph):
             if graph.node[n]['kind'] == 'data' or graph.node[n]['op'] != 'Switch':
                 continue
             switch_op_node = Node(graph, n)
             pred_id_data_node = switch_op_node.in_node(1)
-            erase_node(pred_id_data_node)
-            remove_op_node(graph, switch_op_node)
+            graph.remove_edge(pred_id_data_node.id, switch_op_node.id)
+            remove_op_node_with_data_node(graph, switch_op_node)

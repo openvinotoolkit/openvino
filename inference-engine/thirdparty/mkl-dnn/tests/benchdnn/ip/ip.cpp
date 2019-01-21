@@ -366,6 +366,9 @@ int doit(const prb_t *p, res_t *r) {
         }
     }
 
+    DNN_SAFE(mkldnn_primitive_desc_destroy(ippd), CRIT);
+    DNN_SAFE(mkldnn_primitive_destroy(ip), CRIT);
+
     return OK;
 }
 

@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,9 +38,20 @@ void MKLDNNDepthwiseNode::getSupportedDescriptors() {
     SizeVector weightDims = { (long unsigned int)parentOutDims[1] };
     MKLDNNDims blocked_weightDims(weightDims);
 
+    auto * wLayer = dynamic_cast<InferenceEngine::WeightableLayer*>(getCnnLayer().get());
+    if (wLayer == nullptr)
+        THROW_IE_EXCEPTION << "Cannot get weightable layer for node " << getName() << ".";
+
+    InferenceEngine::Blob::Ptr blb = wLayer->_weights;
+    if (blb)
+        realWeightSize = blb->size();
     internalBlobs.push_back(createInternalBlob(weightDims, true));
-    if (isWithBiases())
+    if (isWithBiases()) {
+        InferenceEngine::Blob::Ptr blb = wLayer->_biases;
+        if (blb)
+            realBiasSize = blb->size();
         internalBlobs.push_back(createInternalBlob(weightDims, false));
+    }
 
     for (auto format : getAvailableFormatsForDims(parentOutDims)) {
         MKLDNNMemoryDesc in_candidate{parentOutDims, inputDataType, format};
@@ -66,13 +76,15 @@ void MKLDNNDepthwiseNode::createPrimitive() {
 
     if (isBroadcast()) {
         float broadcastValue = static_cast<float*>(internalBlobMemory[0]->GetData())[0];
-        for (int i = 1; i < internalBlobMemory[0]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
+        int blbSize = internalBlobMemory[0]->GetPrimitiveDescriptor().desc().data.dims[0];
+        for (int i = 1; i < blbSize && realWeightSize != blbSize; i++) {
             static_cast<float*>(internalBlobMemory[0]->GetData())[i] = broadcastValue;
         }
 
         if (isWithBiases()) {
+            blbSize = internalBlobMemory[1]->GetPrimitiveDescriptor().desc().data.dims[0];
             broadcastValue = static_cast<float*>(internalBlobMemory[1]->GetData())[0];
-            for (int i = 1; i < internalBlobMemory[1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
+            for (int i = 1; i < blbSize && realBiasSize != blbSize; i++) {
                 static_cast<float*>(internalBlobMemory[1]->GetData())[i] = broadcastValue;
             }
         }

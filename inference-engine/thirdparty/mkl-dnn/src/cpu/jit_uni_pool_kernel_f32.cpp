@@ -69,6 +69,10 @@ status_t jit_uni_pool_kernel_f32<isa>::init_conf(jit_pool_conf_t &jpp,
     jpp.f_pad = (ndims == 5 ) ? pd.padding[0][0] : 0;
     jpp.t_pad = pd.padding[0][ndims-4];
     jpp.l_pad = pd.padding[0][ndims-3];
+    jpp.back_pad = (ndims == 5) ? pd.padding[1][0] : 0;
+    // TODO fix this case
+    if (jpp.back_pad != 0)
+        return status::unimplemented;
     jpp.b_pad = pd.padding[1][ndims-4];
     jpp.r_pad = pd.padding[1][ndims-3];
 
@@ -79,7 +83,7 @@ status_t jit_uni_pool_kernel_f32<isa>::init_conf(jit_pool_conf_t &jpp,
     jpp.ind_dt = pooling_index_data_type(&pd);
 
     jpp.simple_alg = jpp.is_training
-        || utils::implication(jpp.is_backward, jpp.kd <= jpp.stride_d);
+        || IMPLICATION(jpp.is_backward, jpp.kd <= jpp.stride_d);
 
     jpp.c_block = simd_w;
 
@@ -152,7 +156,7 @@ inline void jit_uni_pool_kernel_f32<isa>::avg_step(int ur_w, int pad_l,
         push(reg_input);
         push(reg_output);
         mov(aux_reg_input_d, reg_input);
-        mov(ki, ptr[this->param1 + GET_OFF(kd_padding)]);
+        mov(ki, ptr[reg_param + GET_OFF(kd_padding)]);
         L(kd_label);
         mov(aux_reg_input, aux_reg_input_d);
     } else {
@@ -237,7 +241,7 @@ inline void jit_uni_pool_kernel_f32<isa>::max_step_fwd(int ur_w, int pad_l,
         push(reg_input);
         push(reg_output);
         mov(aux_reg_input_d, reg_input);
-        mov(ki, ptr[this->param1 + GET_OFF(kd_padding)]);
+        mov(ki, ptr[reg_param + GET_OFF(kd_padding)]);
         L(kd_label);
         mov(aux_reg_input, aux_reg_input_d);
     } else {
@@ -296,7 +300,7 @@ inline void jit_uni_pool_kernel_f32<isa>::max_step_fwd(int ur_w, int pad_l,
     {
         add(aux_reg_input_d,  sizeof(float) * jpp.ih * iw * c_block);
         if (jpp.is_training) {
-            mov(tmp_gpr, ptr[this->param1 + GET_OFF(kd_padding_shift)]);
+            mov(tmp_gpr, ptr[reg_param + GET_OFF(kd_padding_shift)]);
             movq(xmm_tmp, tmp_gpr);
             uni_vpbroadcastd(vmm_tmp, xmm_tmp);
             if (isa == avx && !mayiuse(avx2)) {
@@ -398,12 +402,14 @@ inline void jit_uni_pool_kernel_f32<isa>::max_step_bwd(int ur_w, int pad_l,
     if (jpp.simple_alg && jpp.ndims == 5) {
         push(reg_input);
         push(reg_output);
-        /*Save this->param1 as it is used in maskmovdqu*/
-        if (isa == sse42)
-            push(this->param1);
+        if (isa == sse42) {
+            // Save rdi since it is used in maskmovdqu
+            assert(dst_ptr == rdi);
+            push(dst_ptr);
+        }
         mov(aux_reg_input_d, reg_input);
-        mov(ki, ptr[this->param1 + GET_OFF(kd_padding)]);
-        mov(reg_kd_pad_shift, ptr[this->param1 + GET_OFF(kd_padding_shift)]);
+        mov(ki, ptr[reg_param + GET_OFF(kd_padding)]);
+        mov(reg_kd_pad_shift, ptr[reg_param + GET_OFF(kd_padding_shift)]);
         L(kd_label);
         mov(aux_reg_input, aux_reg_input_d);
     } else {
@@ -476,8 +482,11 @@ inline void jit_uni_pool_kernel_f32<isa>::max_step_bwd(int ur_w, int pad_l,
         dec(ki);
         cmp(ki, 0);
         jg(kd_label, T_NEAR);
-        if (isa == sse42)
-            pop(this->param1);
+        if (isa == sse42) {
+            // Save rdi since it is used in maskmovdqu
+            assert(dst_ptr == rdi);
+            pop(dst_ptr);
+        }
         pop(reg_output);
         pop(reg_input);
     }
@@ -489,12 +498,12 @@ void jit_uni_pool_kernel_f32<isa>::maybe_zero_diff_src() {
     Label l_skip, l_zero;
 
     auto reg_oh = tmp_gpr;
-    mov(reg_oh, ptr[this->param1 + GET_OFF(oh)]);
+    mov(reg_oh, ptr[reg_param + GET_OFF(oh)]);
     cmp(reg_oh, 0);
     jz(l_skip, T_NEAR);
 
     if (jpp.ndims == 5) {
-        mov(zero_size, ptr[this->param1 + GET_OFF(oh)]);
+        mov(zero_size, ptr[reg_param + GET_OFF(oh)]);
         mov(tmp_gpr, jpp.ih * jpp.iw * jpp.c_block * sizeof(float));
         imul(zero_size, tmp_gpr);
     }
@@ -540,13 +549,21 @@ void jit_uni_pool_kernel_f32<isa>::generate() {
 
     int vlen = cpu_isa_traits<isa>::vlen;
 
-    mov(reg_input, ptr[this->param1 + GET_OFF(src)]);
-    mov(reg_output, ptr[this->param1 + GET_OFF(dst)]);
+#if defined(_WIN32)
+    // Always mimic the Unix ABI (see the note about maskmovdqu in the header
+    // file).
+    xor_(rdi, rcx);
+    xor_(rcx, rdi);
+    xor_(rdi, rcx);
+#endif
+
+    mov(reg_input, ptr[reg_param + GET_OFF(src)]);
+    mov(reg_output, ptr[reg_param + GET_OFF(dst)]);
     if (jpp.alg == pooling_max && (jpp.is_training || jpp.is_backward))
-        mov(reg_index, ptr[this->param1 + GET_OFF(indices)]);
-    mov(reg_kh, ptr[this->param1 + GET_OFF(kh_padding)]);
-    mov(reg_k_shift, ptr[this->param1 + GET_OFF(kh_padding_shift)]);
-    mov(reg_ker_area_h, ptr[this->param1 + GET_OFF(ker_area_h)]);
+        mov(reg_index, ptr[reg_param + GET_OFF(indices)]);
+    mov(reg_kh, ptr[reg_param + GET_OFF(kh_padding)]);
+    mov(reg_k_shift, ptr[reg_param + GET_OFF(kh_padding_shift)]);
+    mov(reg_ker_area_h, ptr[reg_param + GET_OFF(ker_area_h)]);
 
     if (jpp.is_backward)
         maybe_zero_diff_src();

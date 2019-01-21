@@ -31,12 +31,16 @@ namespace cldnn
 /// @brief Type of border that will be added to the input by border layer / primitive.
 enum class border_type : std::int32_t
 {
-    /// @brief All points in the border are set to zero.
-    zero = cldnn_border_zero,
+    /// @brief All points in the border are set to constant value.
+    constant = cldnn_border_constant,
     /// @brief Border is constructed as an mirror of image (edge is also mirrored).
     /// @details Size of border in any dimension cannot be larger than size of
     ///          input in the same dimension.
     mirror = cldnn_border_mirror,
+    /// @brief Border is constructed as an replication of edge.
+    /// @details Size of border in any dimension cannot be larger than size of
+    ///          input in the same dimension.
+    edge = cldnn_border_edge,
     /// @brief Border is constructed as an mirror of image (edge is NOT mirrored).
     /// @details Size of border in any dimension cannot be larger than size of
     ///          input in the same dimension decreased by @c 1.
@@ -71,41 +75,22 @@ struct border : public primitive_base<border, CLDNN_PRIMITIVE_DESC(border)>
     /// @param right_bottom_sizes Sizes of border that needs to be added from right
     ///                           (in X dimension) and from bottom (in Y dimension).
     /// @param type               Type of added border.
+    /// @param border_value       Value of elements which is used for paddings
     /// @param output_padding     Optional padding for output from primitive.
     border(
         const primitive_id& id,
         const primitive_id& input,
-        const tensor& left_top_sizes     = {0, 0, 0, 0},
-        const tensor& right_bottom_sizes = {0, 0, 0, 0},
-        const border_type type           = border_type::zero,
-        const padding& output_padding    = padding()
+        const tensor& left_top_sizes,
+        const tensor& right_bottom_sizes,
+        const border_type type,
+        const float border_value = 0.0f,
+        const padding& output_padding = padding()
     )
         : primitive_base(id, {input}, output_padding),
           left_top_sizes(left_top_sizes),
           right_bottom_sizes(right_bottom_sizes),
-          type(type)
-    {
-    }
-
-    /// @brief Constructs border primitive / layer.
-    ///
-    /// @param id                 An identifier of new primitive.
-    /// @param input              An identifier of primitive which is an input for newly created
-    ///                           border primitive.
-    /// @param x_y_sizes          Sizes of border that needs to be added from left and right
-    ///                           (in X dimension) and from top and bottom (in Y dimension).
-    ///                           Created border is simmetric (the same size of border applied
-    ///                           from both sides of input).
-    /// @param type               Type of added border.
-    /// @param output_padding     Optional padding for output from primitive.
-    border(
-        const primitive_id& id,
-        const primitive_id& input,
-        const tensor& x_y_sizes,
-        const border_type type        = border_type::zero,
-        const padding& output_padding = padding()
-    )
-        : border(id, input, x_y_sizes, x_y_sizes, type, output_padding)
+          type(type),
+          border_value(border_value)
     {
     }
 
@@ -114,7 +99,8 @@ struct border : public primitive_base<border, CLDNN_PRIMITIVE_DESC(border)>
         : primitive_base(dto),
           left_top_sizes(dto->left_top_sizes),
           right_bottom_sizes(dto->right_bottom_sizes),
-          type(static_cast<border_type>(dto->border_type))
+          type(static_cast<border_type>(dto->border_type)),
+          border_value(dto->border_value)
     {
     }
 
@@ -124,13 +110,15 @@ struct border : public primitive_base<border, CLDNN_PRIMITIVE_DESC(border)>
     tensor right_bottom_sizes;
     /// @brief Type of border that needs to be added to the input.
     border_type type;
-
+    /// @brief Border value that is used in constant mode.
+    float border_value;
 protected:
     void update_dto(dto& dto) const override
     {
         dto.left_top_sizes     = left_top_sizes;
         dto.right_bottom_sizes = right_bottom_sizes;
         dto.border_type        = static_cast<cldnn_border_type>(type);
+        dto.border_value       = border_value;
     }
 };
 /// @}

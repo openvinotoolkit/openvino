@@ -1,5 +1,4 @@
 // Copyright (C) 2018 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +10,7 @@
 #include <mock_icnn_network.hpp>
 #include <../graph_tools/graph_test_base.hpp>
 #include <shape_infer/mock_reshaper_launcher.hpp>
+#include <shape_infer/ie_reshaper.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -95,7 +95,7 @@ public:
     ResponseDesc resp;
     static const std::string TEST_NAME;
     MockIShapeInferImpl::Ptr impl;
-    Reshaper::Ptr reshaper;
+    ReshaperPtr reshaper;
 };
 
 const std::string ReshaperTest::TEST_NAME = "TEST_NAME";

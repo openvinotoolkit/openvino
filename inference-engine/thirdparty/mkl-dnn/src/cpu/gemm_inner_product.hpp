@@ -52,11 +52,11 @@ struct gemm_inner_product_fwd_t: public cpu_primitive_t {
                 && everyone_is(data_type, desc()->src_desc.data_type,
                         desc()->weights_desc.data_type,
                         desc()->dst_desc.data_type)
-                && implication(this->with_bias(),
+                && IMPLICATION(this->with_bias(),
                         data_type == desc()->bias_desc.data_type)
                 && attr()->output_scales_.has_default_values()
                 && attr()->post_ops_.len_ <= 1
-                && utils::implication(attr()->post_ops_.len_ == 1,
+                && IMPLICATION(attr()->post_ops_.len_ == 1,
                         attr()->post_ops_.entry_[0].is_relu(true, false))
                 && dense_gemm_consitency_check(src_pd(), weights_pd(),
                         dst_pd());

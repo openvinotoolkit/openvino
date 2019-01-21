@@ -29,6 +29,7 @@ class Slice(Op):
 
     def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
         super().__init__(graph, {
+            'type': __class__.op,
             'op': 'Slice',
             'infer': __class__.infer
         }, attrs)
