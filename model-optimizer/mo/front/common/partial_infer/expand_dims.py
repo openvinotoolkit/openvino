@@ -44,7 +44,11 @@ def tf_expand_dims_infer(node):
     if expand_axis is None:
         return
 
-    output_node.shape = np.insert(input_node.shape, expand_axis, [1])
+    if expand_axis == -1:
+      output_node.shape = np.append(input_node.shape, [1])
+    else:
+      output_node.shape = np.insert(input_node.shape, expand_axis, [1])
+
     # convert data type of the shape to int64 explicitly
     output_node.shape = output_node.shape.astype(np.int64)
     if input_node.value is not None:
