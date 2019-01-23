@@ -11,7 +11,7 @@ Project structure:
         |-- mo
             |-- back - Back-End logic: contains IR emitting logic
             |-- front - Front-End logic: contains matching between Framework-specific layers and IR specific, 
-                        calculationof output shapes for each registered layer
+                        calculation of output shapes for each registered layer
             |-- graph - Graph utilities to work with internal IR representation
             |-- middle - Graph transformations - optimizations of the model
             |-- ops - Model Optimizer operation classes
