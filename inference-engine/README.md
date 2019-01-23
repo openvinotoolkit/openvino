@@ -1,3 +1,18 @@
+## Repository components
+
+The Inference Engine can infer models in different formats with various input and output formats.
+
+The open source version of Inference Engine includes the following plugins:
+
+| PLUGIN               | DEVICE TYPES |
+| ---------------------| -------------|
+| CPU plugin           | Intel® Xeon® with Intel® AVX2 and AVX512, Intel® Core™ Processors with Intel® AVX2, Intel® Atom® Processors with Intel® SSE |
+| GPU plugin           | Intel® Processor Graphics, including Intel® HD Graphics and Intel® Iris® Graphics |
+| GNA plugin           | Intel® Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel® Pentium® Silver processor J5005, Intel® Celeron® processor J4005, Intel® Core™ i3-8121U processor |
+| Heterogeneous plugin | Heterogeneous plugin enables computing for inference on one network on several Intel® devices. |
+
+Inference Engine plugins for Intel® FPGA and Intel® Movidius™ Neural Compute Stick are distributed only in a binary form as a part of [Intel® Distribution of OpenVINO™](https://software.intel.com/en-us/openvino-toolkit).
+
 ## Build on Linux\* Systems
 
 The software was validated on:
