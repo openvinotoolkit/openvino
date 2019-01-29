@@ -71,11 +71,7 @@ if (WIN32)
             ENVIRONMENT "OMP"
             VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
 elseif(LINUX)
-    RESOLVE_DEPENDENCY(OMP
-            ARCHIVE_LIN "iomp.tgz"
-            TARGET_PATH "${TEMP}/omp"
-            ENVIRONMENT "OMP"
-            VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    set(OMP "-fopenmp")
 else(APPLE)
     RESOLVE_DEPENDENCY(OMP
             ARCHIVE_MAC "iomp_20190130_mac.tgz"
