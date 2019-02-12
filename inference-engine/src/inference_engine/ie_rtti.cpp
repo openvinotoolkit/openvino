@@ -70,6 +70,11 @@ FillLayer::~FillLayer() {}
 SelectLayer::~SelectLayer() {}
 BroadcastLayer::~BroadcastLayer() {}
 QuantizeLayer::~QuantizeLayer() {}
+SigmoidLayer::~SigmoidLayer() {}
+DivByNLayer::~DivByNLayer() {}
+LogLayer::~LogLayer() {}
+ExpLayer::~ExpLayer() {}
+TanHLayer::~TanHLayer() {}
 MathLayer::~MathLayer() {}
 ReduceLayer::~ReduceLayer() {}
 TopKLayer::~TopKLayer() {}

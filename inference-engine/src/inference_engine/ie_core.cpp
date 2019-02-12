@@ -15,7 +15,9 @@
 #include <utility>
 #include <vector>
 
+#if defined(ENABLE_NGRAPH)
 #include <ngraph/opsets/opset.hpp>
+#endif
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
 #include "details/caseless.hpp"
 #include "details/ie_exception_conversion.hpp"
@@ -232,7 +234,6 @@ public:
      */
     InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
         IE_SUPPRESS_DEPRECATED_START
-
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             THROW_IE_EXCEPTION << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
@@ -368,6 +369,7 @@ public:
     }
 
     void addExtension(const IExtensionPtr& extension) {
+#if defined(ENABLE_NGRAPH)
         std::map<std::string, ngraph::OpSet> opsets;
         try {
             opsets = extension->getOpSets();
@@ -377,6 +379,7 @@ public:
                 THROW_IE_EXCEPTION << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
             opsetNames.insert(it.first);
         }
+#endif
         extensions.emplace_back(extension);
     }
 

@@ -20,7 +20,7 @@ void QuantizeAffine16(float *ptr_float_weights,
                       uint32_t num_columns_padded) {
     uint32_t num_saturate = 0;
 
-    if (*ptr_weight_scale_factor == 1.0) {
+/*    if (*ptr_weight_scale_factor == 1.0) {
         // scale factor for weights is not calculated yet
         float mean_weight = 0.0;
         float mean_weight_squared = 0.0;
@@ -48,7 +48,7 @@ void QuantizeAffine16(float *ptr_float_weights,
             *ptr_weight_scale_factor = static_cast<float>(MAX_VAL_2B_WEIGHT) / max_weight;
         }
         *ptr_output_scale_factor = input_scale_factor * *ptr_weight_scale_factor;
-    }
+    }*/
 
     for (uint32_t row = 0; row < num_rows; row++) {
         for (uint32_t col = 0; col < num_columns; col++) {
@@ -108,19 +108,32 @@ float ScaleFactorForQuantization(void *ptr_float_memory, float target_max, size_
     float *ptr_float_feat = reinterpret_cast<float *>(ptr_float_memory);
     float max = 0.0;
     float scale_factor;
+    float min = 0.0;
+    size_t i;
 
-    for (size_t i = 0; i < num_elements; i++) {
-        if (fabs(ptr_float_feat[i]) > max) {
-            max = fabs(ptr_float_feat[i]);
+    for ( i = 0;i < num_elements;i++) {
+	    min = fabs(ptr_float_feat[i]);
+	    if (min != 0.0f) {
+		break;
+	    }
+    }
+
+    for (; i < num_elements; i++) {
+	if (fabs(ptr_float_feat[i]) < min && ptr_float_feat[i] != 0) {
+	    min = fabs(ptr_float_feat[i]);
+	}
+    }
+
+    if (min == 0.0) {
+        scale_factor = 1.0f;
+    } else {
+	if( min < 1) {
+            scale_factor = 1 / min;
+        }
+	else {
+            scale_factor = 1.0f;
         }
     }
-
-    if (max == 0) {
-        scale_factor = -1.0f;  // need to handle all zeros as a special case
-    } else {
-        scale_factor = target_max / max;
-    }
-
     return (scale_factor);
 }
 

@@ -501,11 +501,11 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         // auto idx = std::distance(outputsDataMap.begin(), outputPort);
         auto & desc = outputsDesc[idx];
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-
         desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
         desc.orientation = component.orientation_out;
         desc.num_bytes_per_element = component.num_bytes_per_output;
         desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+        
         // TODO: this need to be fixed
         desc.num_elements = component.num_rows_out;
 
@@ -696,7 +696,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     DumpXNNToFile();
 
 #ifdef PLOT
-    dnn->WriteGraphWizModel("gna-blob.dot");
+    dnn->WriteGraphWizModel("/data/local/tmp/gna-blob.dot");
 #endif
 #if GNA_LIB_VER == 2
     createRequestConfigsForGnaModels();

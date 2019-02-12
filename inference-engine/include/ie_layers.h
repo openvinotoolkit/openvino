@@ -2079,4 +2079,93 @@ public:
     virtual ~ScatterLayer();
 };
 
+class TanHLayer : public CNNLayer {
+public:
+    /**
+    * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
+    * @param prms Initial layer parameters
+    */
+    //explicit TanHLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
+
+    using CNNLayer::CNNLayer;
+
+    virtual ~TanHLayer();
+
+    /**
+     * @brief Negative slope is used to takle negative inputs instead of setting them to 0
+     */
+    float negative_slope;
+};
+
+class SigmoidLayer : public CNNLayer {
+public:
+    /**
+    * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
+    * @param prms Initial layer parameters
+    */
+    //explicit SigmoidLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
+
+    using CNNLayer::CNNLayer;
+
+    virtual ~SigmoidLayer();
+
+    /**
+     * @brief Negative slope is used to takle negative inputs instead of setting them to 0
+     */
+    float negative_slope;
+ };
+
+class DivByNLayer : public CNNLayer {
+public:
+    /**
+    * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
+    * @param prms Initial layer parameters
+    */
+    // explicit LogLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
+
+    using CNNLayer::CNNLayer;
+
+    virtual ~DivByNLayer();
+
+    /**
+     * @brief Negative slope is used to takle negative inputs instead of setting them to 0
+     */
+    float negative_slope;
+};
+
+class ExpLayer : public CNNLayer {
+public:
+    /**
+    * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
+    * @param prms Initial layer parameters
+    */
+    // explicit LogLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
+
+    using CNNLayer::CNNLayer;
+
+    virtual ~ExpLayer();
+    /**
+     * @brief Negative slope is used to takle negative inputs instead of setting them to 0
+     */
+    float negative_slope;
+};
+
+class LogLayer : public CNNLayer {
+public:
+    /**
+    * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
+    * @param prms Initial layer parameters
+    */
+    // explicit LogLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
+
+    using CNNLayer::CNNLayer;
+
+    virtual ~LogLayer();
+
+    /**
+     * @brief Negative slope is used to takle negative inputs instead of setting them to 0
+     */
+    float negative_slope;
+  };
+ 
 }  // namespace InferenceEngine
