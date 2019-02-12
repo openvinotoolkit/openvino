@@ -818,6 +818,7 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, boo
         THROW_IE_EXCEPTION << "Input pre-processing is called without ROI blob set";
     }
 
+#if !defined (GAPI_STANDALONE) //OPENVINO change by Android team
     batchSize = PreprocEngine::getCorrectBatchSize(batchSize, _roiBlob);
 
     if (!_preproc) {
@@ -826,7 +827,7 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, boo
     if (_preproc->preprocessWithGAPI(_roiBlob, outBlob, algorithm, fmt, serial, batchSize)) {
         return;
     }
-
+#endif
     if (batchSize > 1) {
         THROW_IE_EXCEPTION << "Batch pre-processing is unsupported in this mode. "
                               "Use default pre-processing instead to process batches.";
@@ -885,11 +886,12 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, boo
 
 void PreProcessData::isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) {
     // if G-API pre-processing is used, let it check that pre-processing is applicable
+#if !defined (GAPI_STANDALONE) //OPENVINO change by Android team
     if (PreprocEngine::useGAPI()) {
         PreprocEngine::checkApplicabilityGAPI(src, dst);
         return;
     }
-
+#endif
     if (!src->is<MemoryBlob>() || !dst->is<MemoryBlob>()) {
         THROW_IE_EXCEPTION << "Preprocessing is not applicable. Source and destination blobs must "
                               "be memory blobs";

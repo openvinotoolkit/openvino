@@ -138,9 +138,7 @@ public:
      * @return true if type of value is correct
      */
     template <class T>
-    bool is() const {
-        return empty() ? false : ptr->is(typeid(T));
-    }
+    bool is() const;
 
     /**
      * Dynamic cast to specified type
@@ -280,65 +278,36 @@ private:
     struct RealData : Any, std::tuple<T> {
         using std::tuple<T>::tuple;
 
-        bool is(const std::type_info& id) const override {
-            return id == typeid(T);
-        }
-        Any* copy() const override {
-            return new RealData {get()};
-        }
-
-        T& get() & {
-            return std::get<0>(*static_cast<std::tuple<T>*>(this));
-        }
-
-        const T& get() const& {
-            return std::get<0>(*static_cast<const std::tuple<T>*>(this));
-        }
+        bool is(const std::type_info& id) const override;
+        Any* copy() const override;
+        T& get() &;
+        const T& get() const&;
 
         template <class U>
-        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const {
-            THROW_IE_EXCEPTION << "Parameter doesn't contain equal operator";
-        }
+        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const ;
 
         template <class U>
-        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const {
-            return dyn_cast<U>(&left) == dyn_cast<U>(&rhs);
-        }
+        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const;
+        
 
-        bool operator==(const Any& rhs) const override {
-            return rhs.is(typeid(T)) && equal<T>(*this, rhs);
-        }
+        bool operator==(const Any& rhs) const override;
     };
 
     template <typename T>
     static T& dyn_cast(Any* obj) {
         if (obj == nullptr) THROW_IE_EXCEPTION << "Parameter is empty!";
-        return dynamic_cast<RealData<T>&>(*obj).get();
+        return static_cast<RealData<T>&>(*obj).get();
     }
 
     template <typename T>
     static const T& dyn_cast(const Any* obj) {
         if (obj == nullptr) THROW_IE_EXCEPTION << "Parameter is empty!";
-        return dynamic_cast<const RealData<T>&>(*obj).get();
+        return static_cast<const RealData<T>&>(*obj).get();
     }
 
     Any* ptr = nullptr;
 };
 
-#ifdef __clang__
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<float>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<uint32_t>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::string>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<unsigned long>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<int>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<std::string>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<unsigned long>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(
-    InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(
-    InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
-#endif  // __clang__
+
 
 }  // namespace InferenceEngine

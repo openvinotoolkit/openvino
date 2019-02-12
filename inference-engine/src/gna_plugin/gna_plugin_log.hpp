@@ -6,6 +6,32 @@
 
 #include <ostream>
 #include <details/ie_exception.hpp>
+#include "sys/timeb.h"
+typedef struct {
+    std::string sName;
+    std::string sType;  //  if wgt/bias/filt/pwl is writeable, then do not write it to file
+    void *pAddress;
+    uint32_t nBytes;
+} intel_memory_region_t;
+
+typedef unsigned long long time_tsc;
+
+
+typedef struct
+{
+    time_tsc            start;      // time value on profiler start
+    time_tsc            stop;       // time value on profiler stop
+    time_tsc            passed;     // time passed between start and stop
+} intel_gna_profiler_tsc;
+
+typedef struct timeb    time_rtc;
+
+typedef struct
+{
+    time_rtc            start;      // time value on profiler start
+    time_rtc            stop;       // time value on profiler stop
+    time_rtc            passed;     // time passed between start and stop
+} intel_gna_profiler_rtc;
 
 // #define GNA_DEBUG
 #ifdef  GNA_DEBUG

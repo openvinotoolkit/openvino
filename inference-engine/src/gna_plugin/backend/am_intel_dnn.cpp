@@ -1928,17 +1928,17 @@ std::string GNAPluginNS::backend::AMIntelDNN::getDumpFilePrefix(const std::strin
 #else
             '/';
 #endif
-    return std::string(".") + pathSeparator + folder + pathSeparator + std::to_string(dump_write_index) + pathSeparator;
+    return std::string("") + pathSeparator + folder + pathSeparator + std::to_string(dump_write_index) + pathSeparator;
 }
 
 std::string GNAPluginNS::backend::AMIntelDNN::getDumpFilePrefixGNA() {
-    return getDumpFilePrefix("gna_layers");
+    return getDumpFilePrefix("/data/local/tmp/gna_layers");
 }
 
 std::string GNAPluginNS::backend::AMIntelDNN::getDumpFolderName() {
-    return getDumpFilePrefix("layers");
+    return getDumpFilePrefix("/data/local/tmp/layers");
 }
 
 std::string GNAPluginNS::backend::AMIntelDNN::getRefFolderName() {
-    return getDumpFilePrefix("ref_layers");
+    return getDumpFilePrefix("/data/local/tmp/ref_layers");
 }

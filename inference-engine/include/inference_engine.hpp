@@ -72,14 +72,6 @@ inline void TopResults(unsigned int n, TBlob<T>& input, std::vector<unsigned>& o
     }
 }
 
-#define TBLOB_TOP_RESULT(precision)                                                           \
-    case InferenceEngine::Precision::precision: {                                             \
-        using myBlobType = InferenceEngine::PrecisionTrait<Precision::precision>::value_type; \
-        TBlob<myBlobType>& tblob = dynamic_cast<TBlob<myBlobType>&>(input);                   \
-        TopResults(n, tblob, output);                                                         \
-        break;                                                                                \
-    }
-
 /**
  * @deprecated InferenceEngine utility functions are not a part of public API
  * @brief Gets the top n results from a blob
@@ -88,27 +80,8 @@ inline void TopResults(unsigned int n, TBlob<T>& input, std::vector<unsigned>& o
  * @param input 1D blob that contains probabilities
  * @param output Vector of indexes for the top n places
  */
-INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020 R2")
-inline void TopResults(unsigned int n, Blob& input, std::vector<unsigned>& output) {
-    IE_SUPPRESS_DEPRECATED_START
-    switch (input.getTensorDesc().getPrecision()) {
-        TBLOB_TOP_RESULT(FP32);
-        TBLOB_TOP_RESULT(FP16);
-        TBLOB_TOP_RESULT(Q78);
-        TBLOB_TOP_RESULT(I16);
-        TBLOB_TOP_RESULT(U8);
-        TBLOB_TOP_RESULT(I8);
-        TBLOB_TOP_RESULT(U16);
-        TBLOB_TOP_RESULT(I32);
-    default:
-        THROW_IE_EXCEPTION << "cannot locate blob for precision: " << input.getTensorDesc().getPrecision();
-    }
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-#undef TBLOB_TOP_RESULT
-
+void TopResults(unsigned int n, Blob& input, std::vector<unsigned>& output);
+ 
 /**
  * @deprecated InferenceEngine utility functions are not a part of public API
  * @brief Copies a 8-bit RGB image to the blob.
@@ -171,18 +144,7 @@ void copyFromRGB8(uint8_t* RGB8, size_t RGB8_size, InferenceEngine::TBlob<data_t
  */
 INFERENCE_ENGINE_DEPRECATED(
     "InferenceEngine utility functions are not a part of public API. Will be removed in 2020 R2")
-inline void ConvertImageToInput(unsigned char* imgBufRGB8, size_t lengthbytesSize, Blob& input) {
-    IE_SUPPRESS_DEPRECATED_START
-    TBlob<float>* float_input = dynamic_cast<TBlob<float>*>(&input);
-    if (float_input != nullptr) copyFromRGB8(imgBufRGB8, lengthbytesSize, float_input);
-
-    TBlob<short>* short_input = dynamic_cast<TBlob<short>*>(&input);
-    if (short_input != nullptr) copyFromRGB8(imgBufRGB8, lengthbytesSize, short_input);
-
-    TBlob<uint8_t>* byte_input = dynamic_cast<TBlob<uint8_t>*>(&input);
-    if (byte_input != nullptr) copyFromRGB8(imgBufRGB8, lengthbytesSize, byte_input);
-    IE_SUPPRESS_DEPRECATED_END
-}
+void ConvertImageToInput(unsigned char* imgBufRGB8, size_t lengthbytesSize, Blob& input);
 
 /**
  * @deprecated InferenceEngine utility functions are not a part of public API
@@ -200,8 +162,13 @@ void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
     }
     const InferenceEngine::TBlob<T>* t_blob = dynamic_cast<const InferenceEngine::TBlob<T>*>(src);
     if (t_blob == nullptr) {
+#if defined(__ANDROID__)
+	    std::cout << "in t_blob is nullptr" << std::endl;
+	    // input type mismatch with actual input
+#else
         THROW_IE_EXCEPTION << "input type is " << src->getTensorDesc().getPrecision() << " but input is not "
                            << typeid(T).name();
+#endif
     }
 
     const T* srcPtr = t_blob->readOnly();

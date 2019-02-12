@@ -87,7 +87,7 @@ public:
     }
 
     void SetBlob(const char* name, const Blob::Ptr& data) override {
-        CheckBusy();
+	CheckBusy();
         SetBlob_ThreadUnsafe(name, data);
     }
 

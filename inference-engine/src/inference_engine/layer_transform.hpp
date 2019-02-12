@@ -31,7 +31,7 @@ using AllLayers =
                ReshapeLayer*, TileLayer*, ScaleShiftLayer*, PReLULayer*, PowerLayer*, BatchNormalizationLayer*,
                ClampLayer*, TensorIterator*, LSTMCell*, GRUCell*, RNNCell*, RNNSequenceLayer*, QuantizeLayer*,
                BinaryConvolutionLayer*, WeightableLayer*, OneHotLayer*, MathLayer*, ReduceLayer*, UniqueLayer*,
-               NonMaxSuppressionLayer*, ScatterLayer*, CNNLayer*>;
+               NonMaxSuppressionLayer*, ScatterLayer*, TanHLayer*, SigmoidLayer*, CNNLayer*>;
 
 /**
  * @brief checks whether type inxed as P has a parent among element in range I..N

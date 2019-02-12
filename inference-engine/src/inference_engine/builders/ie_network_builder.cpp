@@ -466,7 +466,7 @@ void Builder::Network::validate() {
     }
 
     if (sts != OK) THROW_IE_EXCEPTION << resp.msg;
-
+    
     // Check all parameters
     for (const auto& layer : getLayers()) {
         try {

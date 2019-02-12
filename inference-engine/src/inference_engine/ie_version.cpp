@@ -6,6 +6,9 @@
 
 namespace InferenceEngine {
 
+#if defined(__ANDROID__)
+#define CI_BUILD_NUMBER "custom-master-android-nn"
+#endif
 const Version* GetInferenceEngineVersion() noexcept {
     // Use local static variable to make sure it is always properly initialized
     // even if called from global constructor

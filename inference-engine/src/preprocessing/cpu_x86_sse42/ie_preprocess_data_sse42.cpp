@@ -4,9 +4,11 @@
 
 #include "ie_preprocess_data.hpp"
 #include "ie_preprocess_data_sse42.hpp"
-
+#if defined(__ANDROID__)
+#include <immintrin.h> // SSE 4.2
+#else
 #include <nmmintrin.h>  // SSE 4.2
-
+#endif
 #include <stdint.h>
 
 namespace InferenceEngine {

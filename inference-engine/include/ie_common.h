@@ -99,7 +99,10 @@ enum Layout : uint8_t {
 
     // Single image layout (for mean image)
     CHW = 128,
-
+ //for depth conv 2d
+#if defined(__ANDROID__)
+    IHWO = 160,
+#endif
     // 2D
     HW = 192,
     NC = 193,

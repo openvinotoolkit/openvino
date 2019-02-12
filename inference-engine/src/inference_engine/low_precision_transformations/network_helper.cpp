@@ -291,7 +291,7 @@ size_t CNNNetworkHelper::getIndex(const CNNLayer& layer) {
         }
     }
 
-    THROW_IE_EXCEPTION << "not found";
+    THROW_IE_EXCEPTION << "getIndex not found";
 }
 
 std::vector<CNNLayerPtr> CNNNetworkHelper::transformFakeQuantizeToConst(TransformationContext& context,
@@ -437,7 +437,7 @@ std::vector<CNNLayerPtr> CNNNetworkHelper::getLayers(const CNNLayer& parent, con
         }
 
         if (parents.size() == 0) {
-            THROW_IE_EXCEPTION << "not found";
+            THROW_IE_EXCEPTION << "getLayers not found";
         }
 
         if (parents.size() != 1ul) {

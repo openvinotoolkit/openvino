@@ -13,6 +13,9 @@
 
 namespace InferenceEngine {
 
+
+
+
 namespace Builder {
 
 IE_SUPPRESS_DEPRECATED_START
@@ -79,6 +82,7 @@ Layer builderFromCNNLayer(const CNNLayerPtr& cnnLayer) {
     return layer;
 }
 
+
 std::map<std::string, std::string> convertParameters2Strings(const std::map<std::string, Parameter>& parameters) {
     std::map<std::string, std::string> oldParams;
     for (const auto& param : parameters) {
@@ -96,7 +100,7 @@ std::map<std::string, std::string> convertParameters2Strings(const std::map<std:
             oldParams[param.first] = Builder::convertParameter2String<unsigned int>(param.second);
         } else if (param.second.is<size_t>() || param.second.is<std::vector<size_t>>()) {
             oldParams[param.first] = Builder::convertParameter2String<size_t>(param.second);
-        } else if (param.second.is<bool>() || param.second.is<std::vector<bool>>()) {
+        } else if (param.second.is<bool>()  || param.second.is<std::vector<bool>>()) {
             oldParams[param.first] = Builder::convertParameter2String<bool>(param.second);
         } else {
             THROW_IE_EXCEPTION << "Parameter " << param.first << " has unsupported parameter type!";

@@ -146,12 +146,6 @@ void PrintGnaNetwork(intel_nnet_type_t *ptr_nnet) {
     }
 }
 
-typedef struct {
-    std::string sName;
-    std::string sType;  //  if wgt/bias/filt/pwl is writeable, then do not write it to file
-    void *pAddress;
-    uint32_t nBytes;
-} intel_memory_region_t;
 
 void AddBufferEntry(std::vector<intel_memory_region_t> &vBuffer,
                     const std::string &sName,

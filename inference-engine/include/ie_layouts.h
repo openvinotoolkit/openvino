@@ -360,4 +360,9 @@ private:
     BlockingDesc blockingDesc;
 };
 
+static const size_t I_N = 3;
+static const size_t I_C = 2;
+static const size_t I_H = 1;
+static const size_t I_W = 0;
+
 }  // namespace InferenceEngine

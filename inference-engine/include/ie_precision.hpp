@@ -82,47 +82,11 @@ public:
 
     /** @brief Creates custom precision with specific underlined type */
     template <class T>
-    static Precision fromType(const char* typeName = nullptr) {
-        return Precision(8 * sizeof(T), typeName == nullptr ? typeid(T).name() : typeName);
-    }
+    static Precision fromType(const char * typeName = nullptr);
 
     /** @brief checks whether given storage class T can be used to store objects of current precision */
     template <class T>
-    bool hasStorageType(const char* typeName = nullptr) const noexcept {
-        try {
-            if (precisionInfo.value != BIN) {
-                if (sizeof(T) != size()) {
-                    return false;
-                }
-            }
-#define CASE(x, y) \
-    case x:        \
-        return std::is_same<T, y>()
-#define CASE2(x, y1, y2) \
-    case x:              \
-        return std::is_same<T, y1>() || std::is_same<T, y2>()
-
-            switch (precisionInfo.value) {
-                CASE(FP32, float);
-                CASE2(FP16, int16_t, uint16_t);
-                CASE(I16, int16_t);
-                CASE(I32, int32_t);
-                CASE(I64, int64_t);
-                CASE(U16, uint16_t);
-                CASE(U8, uint8_t);
-                CASE(I8, int8_t);
-                CASE(BOOL, uint8_t);
-                CASE2(Q78, int16_t, uint16_t);
-                CASE2(BIN, int8_t, uint8_t);
-            default:
-                return areSameStrings(name(), typeName == nullptr ? typeid(T).name() : typeName);
-#undef CASE
-#undef CASE2
-            }
-        } catch (...) {
-            return false;
-        }
-    }
+    bool hasStorageType(const char* typeName = nullptr) const noexcept; 
 
     /** @brief Equality operator with Precision object */
     bool operator==(const Precision& p) const noexcept {

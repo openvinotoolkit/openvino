@@ -158,7 +158,8 @@ ReshapeLauncher::Ptr Reshaper::getLauncherByLayerName(const std::string& layerNa
 
 StatusCode Reshaper::run(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) {
     if (network) {
-        return networkShapeInfer(inputShapes, resp);
+        std::cout << "Reshaper::run networkShapeInfer" << "\n";
+	   return networkShapeInfer(inputShapes, resp);
     }
 
     // WA: In another case we should change the registration logic of shape implementations
@@ -291,7 +292,7 @@ StatusCode Reshaper::networkShapeInfer(const std::map<std::string, SizeVector>& 
             if (dim.size() < inputShape.size()) dim.emplace_back(inputShapeTotal);
             layer->getParameters()["dim"] = dim;
         }
-
+	
         std::map<std::string, std::string> params =
             InferenceEngine::Builder::convertParameters2Strings(layer->getParameters());
         if (layer->getType() == "Split") {
@@ -363,10 +364,11 @@ StatusCode Reshaper::networkShapeInfer(const std::map<std::string, SizeVector>& 
             if (!it.second.is<Blob::CPtr>()) continue;
             blobs[it.first] = std::const_pointer_cast<Blob>(it.second.as<Blob::CPtr>());
         }
-
         StatusCode sts = impl->inferShapes(inBlobs, params, blobs, outShapes, resp);
-        if (sts != OK) return sts;
-
+        if (sts != OK) {
+            std::cout << "inferShapes sts != OK" << std::endl;
+            return sts;
+        }
         if (outShapes.size() != layer->getOutputPorts().size())
             return DescriptionBuffer(GENERAL_ERROR, resp) << "Cannot infer shapes! The number of output shapes is not "
                                                              "equal the number of output ports for layer "

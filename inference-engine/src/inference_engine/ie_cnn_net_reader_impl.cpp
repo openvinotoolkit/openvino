@@ -13,7 +13,9 @@
 #include <utility>
 #include <vector>
 
+#if defined(ENABLE_NGRAPH)
 #include "cnn_network_ngraph_impl.hpp"
+#endif
 #include "debug.h"
 #include "details/os/os_filesystem.hpp"
 #include "ie_format_parser.h"

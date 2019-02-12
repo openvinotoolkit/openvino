@@ -4,7 +4,11 @@
 
 #include "blob_transform_sse42.hpp"
 
+#if defined(__ANDROID__)
+#include <immintrin.h> // SSE 4.2
+#else
 #include <nmmintrin.h>  // SSE 4.2
+#endif
 
 namespace InferenceEngine {
 
