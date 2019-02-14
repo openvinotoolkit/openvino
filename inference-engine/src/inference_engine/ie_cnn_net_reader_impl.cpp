@@ -96,6 +96,27 @@ StatusCode CNNNetReaderImpl::ReadWeights(const char* filepath, ResponseDesc* res
     return SetWeights(weightsPtr, resp);
 }
 
+StatusCode CNNNetReaderImpl::ReadWeights(const void* weights, size_t size, ResponseDesc* resp) noexcept {
+    if (size < 0) {
+        return DescriptionBuffer(resp) << "Weights buffer size - " << size <<
+                                     "<0. Please, check the weights buffer and size.";
+    }
+
+    if (NULL == weights) {
+        return DescriptionBuffer(resp) << "Weights buffer is null";
+    }
+
+    if (network.get() == nullptr) {
+        return DescriptionBuffer(resp) << "network is empty";
+    }
+
+    TBlob<uint8_t>::Ptr weightsPtr(new TBlob<uint8_t>(Precision::U8, C, {size}));
+    weightsPtr->allocate();
+    memcpy(weightsPtr->buffer(), weights, size);
+
+    return SetWeights(weightsPtr, resp);
+}
+
 StatusCode CNNNetReaderImpl::ReadNetwork(const char* filepath, ResponseDesc* resp) noexcept {
     if (network) {
         return DescriptionBuffer(NETWORK_NOT_READ, resp) << "Network has been read already, use new reader instance to read new network.";

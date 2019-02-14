@@ -68,6 +68,14 @@ public:
     }
 
     /**
+     * @brief Wraps original method
+     * ICNNNetReader::ReadWeights(const void*, size_t, ResponseDesc*)
+     */
+    void ReadWeights(const void *weights, size_t size) {
+        CALL_STATUS_FNC(ReadWeights, weights, size);
+    }
+
+    /**
     * @brief Gets a copy of built network object
     * @return A copy of the CNNNetwork object to be loaded
      */

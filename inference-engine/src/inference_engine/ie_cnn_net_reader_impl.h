@@ -43,6 +43,8 @@ public:
 
     StatusCode ReadWeights(const char *filepath, ResponseDesc *resp) noexcept override;
 
+    StatusCode ReadWeights(const void *weights, size_t size, ResponseDesc *resp)noexcept override;
+
     ICNNNetwork *getNetwork(ResponseDesc *resp) noexcept override {
         return network.get();
     }

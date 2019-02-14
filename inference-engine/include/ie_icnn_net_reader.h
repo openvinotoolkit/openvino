@@ -66,6 +66,18 @@ public:
     virtual StatusCode ReadWeights(const char *filepath, ResponseDesc *resp) noexcept = 0;
 
     /**
+     * @brief Loads and sets the weights buffer directly from the memory contains the .bin file.
+     * Weights Blob must always be of bytes - the casting to precision is done per-layer to support mixed
+     * networks and to ease of use.
+     * This method can be called more than once to reflect updates in the .bin.
+     * @param weights Pointer to a bytes array with the weights
+     * @param size Size of the bytes array in bytes
+     * @param resp Response message
+     * @return Result code
+     */
+    virtual StatusCode ReadWeights(const void *weights, size_t size, ResponseDesc *resp) noexcept = 0;
+
+    /**
      * @brief Returns a pointer to the built network
      * @param resp Response message
      */
