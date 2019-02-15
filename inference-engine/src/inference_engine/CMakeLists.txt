@@ -67,7 +67,9 @@ set_ie_threading_interface_for(${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml fluid ade ${CMAKE_DL_LIBS} ${INTEL_ITT_LIBS})
 
 # Properties->C/C++->General->Additional Include Directories
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
+target_include_directories(${TARGET_NAME} PUBLIC
+                                          $<BUILD_INTERFACE:${IE_MAIN_SOURCE_DIR}/include>
+                                          $<INSTALL_INTERFACE:include/${TARGET_NAME}>
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                   "${IE_MAIN_SOURCE_DIR}/src/dumper")
 
@@ -119,3 +121,11 @@ configure_file(
     "${CMAKE_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
     "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
     COPYONLY)
+
+install(TARGETS ${TARGET_NAME} EXPORT ${EXPORT_NAME} LIBRARY DESTINATION lib64)
+install(DIRECTORY ${PUBLIC_HEADERS_DIR}/ DESTINATION include/${TARGET_NAME} FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+install(FILES
+    "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
+    "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
+    DESTINATION ${ConfigPackageLocation})
+

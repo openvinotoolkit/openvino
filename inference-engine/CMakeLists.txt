@@ -144,6 +144,16 @@ endif(UNIX)
 add_subdirectory(src)
 add_subdirectory(tests)
 add_subdirectory(thirdparty)
+
+if (INSTALL_SAMPLE_APPS)
+    #Install cpp samples
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/samples/ DESTINATION share/openvino/inference_engine/cpp_samples/
+    PATTERN "CMakeCache.txt" EXCLUDE PATTERN "CMakeFiles" EXCLUDE PATTERN "cmake_install.cmake" EXCLUDE PATTERN "Makefile" EXCLUDE)
+
+    #Install python samples
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/ie_bridges/python/sample/ DESTINATION share/openvino/inference_engine/python_samples)
+endif()
+
 if (ENABLE_SAMPLES_CORE)
     set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
 

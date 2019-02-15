@@ -7,6 +7,8 @@
 set (CMAKE_CXX_STANDARD 11)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 ####################################
+set(ConfigPackageLocation lib64/cmake/InferenceEngine)
+set(EXPORT_NAME inference_engine)
 
 add_subdirectory(inference_engine)
 
@@ -33,5 +35,8 @@ set(InferenceEngine_SRC_DIRS ${CMAKE_SOURCE_DIR}/src)
 function(set_target_cpu_flags TARGET_NAME)
 endfunction()
 
-add_subdirectory(extension EXCLUDE_FROM_ALL)
+add_subdirectory(extension)
+install(EXPORT ${EXPORT_NAME} DESTINATION ${ConfigPackageLocation} NAMESPACE IE:: FILE targets.cmake)
+
 add_library(IE::ie_cpu_extension ALIAS ie_cpu_extension)
+
