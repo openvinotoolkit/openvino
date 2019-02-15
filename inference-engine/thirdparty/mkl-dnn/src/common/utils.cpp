@@ -25,7 +25,10 @@
 #include <malloc.h>
 #include <windows.h>
 #endif
+
+#if defined(__x86_64__) || defined(_M_X64)
 #include "xmmintrin.h"
+#endif
 
 #include "utils.hpp"
 #include "mkldnn_thread.hpp"
@@ -92,6 +95,7 @@ FILE *mkldnn_fopen(const char *filename, const char *mode) {
 THREAD_LOCAL unsigned int mxcsr_save;
 
 void set_rnd_mode(round_mode_t rnd_mode) {
+#if defined(__x86_64__) || defined(_M_X64)
     mxcsr_save = _mm_getcsr();
     unsigned int mxcsr = mxcsr_save & ~(3u << 13);
     switch (rnd_mode) {
@@ -100,10 +104,13 @@ void set_rnd_mode(round_mode_t rnd_mode) {
     default: assert(!"unreachable");
     }
     if (mxcsr != mxcsr_save) _mm_setcsr(mxcsr);
+#endif
 }
 
 void restore_rnd_mode() {
+#if defined(__x86_64__) || defined(_M_X64)
     _mm_setcsr(mxcsr_save);
+#endif
 }
 
 void *malloc(size_t size, int alignment) {

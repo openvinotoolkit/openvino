@@ -54,6 +54,11 @@
 */
 #include "xbyak.h"
 
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+        #define XBYAK_INTEL_CPU_SPECIFIC
+#endif
+
+#ifdef XBYAK_INTEL_CPU_SPECIFIC
 #ifdef _MSC_VER
 	#if (_MSC_VER < 1400) && defined(XBYAK32)
 		static inline __declspec(naked) void __cpuid(int[4], int)
@@ -92,6 +97,7 @@
 		#endif
 	#endif
 #endif
+#endif
 
 namespace Xbyak { namespace util {
 
@@ -110,7 +116,7 @@ class Cpu {
 	}
 	void setFamily()
 	{
-		unsigned int data[4];
+		unsigned int data[4] = {};
 		getCpuid(1, data);
 		stepping = data[0] & mask(4);
 		model = (data[0] >> 4) & mask(4);
@@ -142,7 +148,7 @@ class Cpu {
 		const unsigned int UNIFIED_CACHE = 3;
 		unsigned int smt_width = 0;
 		unsigned int n_cores = 0;
-		unsigned int data[4];
+		unsigned int data[4] = {};
 
 		/*
 			if leaf 11 exists, we use it to get the number of smt cores and cores on socket
@@ -221,30 +227,45 @@ public:
 	*/
 	static inline void getCpuid(unsigned int eaxIn, unsigned int data[4])
 	{
-#ifdef _MSC_VER
+#ifdef XBYAK_INTEL_CPU_SPECIFIC
+	#ifdef _MSC_VER
 		__cpuid(reinterpret_cast<int*>(data), eaxIn);
-#else
+	#else
 		__cpuid(eaxIn, data[0], data[1], data[2], data[3]);
+	#endif
+#else
+		(void)eaxIn;
+		(void)data;
 #endif
 	}
 	static inline void getCpuidEx(unsigned int eaxIn, unsigned int ecxIn, unsigned int data[4])
 	{
-#ifdef _MSC_VER
+#ifdef XBYAK_INTEL_CPU_SPECIFIC
+	#ifdef _MSC_VER
 		__cpuidex(reinterpret_cast<int*>(data), eaxIn, ecxIn);
-#else
+	#else
 		__cpuid_count(eaxIn, ecxIn, data[0], data[1], data[2], data[3]);
+	#endif
+#else
+		(void)eaxIn;
+		(void)ecxIn;
+		(void)data;
 #endif
 	}
 	static inline uint64 getXfeature()
 	{
-#ifdef _MSC_VER
+#ifdef XBYAK_INTEL_CPU_SPECIFIC
+	#ifdef _MSC_VER
 		return _xgetbv(0);
-#else
+	#else
 		unsigned int eax, edx;
 		// xgetvb is not support on gcc 4.2
 //		__asm__ volatile("xgetbv" : "=a"(eax), "=d"(edx) : "c"(0));
 		__asm__ volatile(".byte 0x0f, 0x01, 0xd0" : "=a"(eax), "=d"(edx) : "c"(0));
 		return ((uint64)edx << 32) | eax;
+	#endif
+#else
+		return 0;
 #endif
 	}
 	typedef uint64 Type;
@@ -317,7 +338,7 @@ public:
 		: type_(NONE)
 		, data_cache_levels(0)
 	{
-		unsigned int data[4];
+		unsigned int data[4] = {};
 		const unsigned int& EAX = data[0];
 		const unsigned int& EBX = data[1];
 		const unsigned int& ECX = data[2];
@@ -425,12 +446,17 @@ class Clock {
 public:
 	static inline uint64 getRdtsc()
 	{
-#ifdef _MSC_VER
+#ifdef XBYAK_INTEL_CPU_SPECIFIC
+	#ifdef _MSC_VER
 		return __rdtsc();
-#else
+	#else
 		unsigned int eax, edx;
 		__asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx));
 		return ((uint64)edx << 32) | eax;
+	#endif
+#else
+		// TODO: Need another impl of Clock or rdtsc-equivalent for non-x86 cpu
+		return 0;
 #endif
 	}
 	Clock()

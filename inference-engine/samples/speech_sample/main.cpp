@@ -259,7 +259,7 @@ float StdDevRelError(score_error_t error) {
                  - (error.sumRelError / error.numScores) * (error.sumRelError / error.numScores)));
 }
 
-#if !defined(__arm__) && !defined(_M_ARM)
+#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
 #include <intrin.h>
 #include <windows.h>
@@ -340,7 +340,7 @@ void printPerformanceCounters(std::map<std::string,
         InferenceEngine::InferenceEngineProfileInfo> const &utterancePerfMap,
                               size_t callsNum,
                               std::ostream &stream) {
-#if !defined(__arm__) && !defined(_M_ARM)
+#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << "" << "Counter descriptions";
     stream << std::setw(22) << "Utt scoring time";
