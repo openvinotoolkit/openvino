@@ -28,6 +28,7 @@ The software was validated on:
 ### Build Steps
 1. Clone submodules:
     ```sh
+    cd dldt/inference-engine
     git submodule init
     git submodule update --recursive
     ```
@@ -51,6 +52,24 @@ You can use the following additional build options:
 - To build Python API wrapper, use -DENABLE_PYTHON=ON option. To specify exact Python version, use the following options: `-DPYTHON_EXECUTABLE=`which python3.6` -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so -DPYTHON_INCLUDE_DIR=/usr/include/python3.6`
 
 - To switch on/off the CPU and GPU plugins, use `cmake` options `-DENABLE_MKL_DNN=ON/OFF` and `-DENABLE_CLDNN=ON/OFF`.
+
+5. Adding to your project
+
+    For CMake projects, set an environment variable `InferenceEngine_DIR`:
+
+    ```sh
+    export InferenceEngine_DIR=/path/to/dldt/inference-engine/build/
+    ```
+
+    Then you can find Inference Engine by `find_package`:
+
+    ```cmake
+    find_package(InferenceEngine)
+
+    include_directories(${InferenceEngine_INCLUDE_DIRS})
+
+    target_link_libraries(${PROJECT_NAME} ${InferenceEngine_LIBRARIES} dl)
+    ```
 
 ## Build on Windows\* Systems:
 
