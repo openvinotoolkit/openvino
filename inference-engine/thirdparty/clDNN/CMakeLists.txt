@@ -757,8 +757,6 @@ foreach(__CLDNN_CompilerFlagName IN ITEMS "CMAKE_CXX_FLAGS" "CMAKE_C_FLAGS")
         MultiProcessorCompilation
         DeadCodeEliminate
         ExtensionsEnabled
-        TreatWarnAsErrorEnabled
-        WarnLevel4
         NoFastMath
         StackProtector
     )
@@ -914,7 +912,7 @@ if((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^C
       CMAKE_CXX_FLAGS
       ALL_PATTERN ""
       SET_RAW
-        -stdlib=libc++
+        -stdlib=libstdc++
     )
 endif()
 
@@ -973,7 +971,6 @@ if((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^C
         -Wl,-headerpad_max_install_names
     )
 
-  list(APPEND CLDNN__SYSTEM_LINK_LIBRARIES "c++" "c++abi" "supc++" "dl")
 endif()
 
 unset(__CLDNN_LinkerFlagName)
