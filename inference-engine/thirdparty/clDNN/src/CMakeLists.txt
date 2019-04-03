@@ -247,17 +247,39 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRAR
 
 # ========================================== Installation ==============================================
 
+if(UNIX)
+  include(GNUInstallDirs)
+endif(UNIX)
+
+
 # API headers.
-install(DIRECTORY "${CLDNN__API_DIR}/"
+if(UNIX)
+  install(DIRECTORY "${CLDNN__API_DIR}/"
+      DESTINATION "${CMAKE_INSTALL_FULL_INCLUDEDIR}/clDNN"
+      FILE_PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
+    )
+else()
+  install(DIRECTORY "${CLDNN__API_DIR}/"
     DESTINATION "include/clDNN"
     FILE_PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
   )
+endif(UNIX)
+
 # Binaries.
-install(TARGETS "${CLDNN_BUILD__PROJ}"
-    ARCHIVE DESTINATION "lib"
-    LIBRARY DESTINATION "lib"
-    RUNTIME DESTINATION "bin"
-    INCLUDES DESTINATION "include/clDNN"
-  )
+if(UNIX)
+  install(TARGETS "${CLDNN_BUILD__PROJ}"
+      ARCHIVE DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}"
+      LIBRARY DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}"
+      RUNTIME DESTINATION "${CMAKE_INSTALL_FULL_BINDIR}"
+      INCLUDES DESTINATION "${CMAKE_INSTALL_FULL_INCLUDEDIR}/clDNN"
+    )
+else()
+  install(TARGETS "${CLDNN_BUILD__PROJ}"
+      ARCHIVE DESTINATION "lib"
+      LIBRARY DESTINATION "lib"
+      RUNTIME DESTINATION "bin"
+      INCLUDES DESTINATION "include/clDNN"
+    )
+endif(UNIX)
 
 # ======================================================================================================
