@@ -93,7 +93,8 @@ set(CLDNN__GTEST_DIR     "${CLDNN__COMMON_DIR}/googletest-fused")
 # Build targets settings.
 
 # Path which points to default root directory for compilation output.
-set(CLDNN_BUILD__DEFAULT_OUT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/build/out")
+set(CLDNN_BUILD__DEFAULT_OUT_ROOT "${CMAKE_BINARY_DIR}")
+set(CLDNN__OUTPUT_DIR, "${CMAKE_BINARY_DIR}")
 
 # Prefix for all targets in internal pass.
 set(CLDNN_BUILD__PROJ_NAME_PREFIX "")
