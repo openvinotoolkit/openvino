@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ TEST(pooling_forward_gpu, basic_max_byxf_f32_wsiz3x3_wstr1x1_i1x3x3x8_nopad) {
     //  Expected output:
     //  [ 8.0, 0.0, 0.0, 4,0, 0,5, -0.5, -0.5, -0.5 ]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32,  format::byxf,{ 1, 8, 3, 3 } });
 
@@ -99,7 +99,7 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz3x3_wstr1x1_i3x3x1x1_nopad) {
     //  Expected output:
     //  [ 2.0]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32,  format::yxfb, { 1, 1, 3, 3 } });
 
@@ -122,9 +122,47 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz3x3_wstr1x1_i3x3x1x1_nopad) {
     EXPECT_EQ(2.0f, output_ptr[0]);
 }
 
+TEST(pooling_forward_gpu, basic_max_yxfb_f32_global_i3x3x1x1_nopad) {
+    //  Brief test description.
+    //
+    //  Pool mode: max
+    //  Global pooling: true
+    //  Padding: none
+    //
+    //  Input data:
+    //  [-0.5,  1.0,  0.5]
+    //  [ 2.0,  1.5, -0.5]
+    //  [ 0.0, -1.0,  0.5]
+    //
+    //  Expected output:
+    //  [ 2.0]
+
+    const auto& engine = get_test_engine();
+
+    auto input_prim = memory::allocate(engine, { data_types::f32,  format::yxfb,{ 1, 1, 3, 3 } });
+
+    topology topology;
+    topology.add(input_layout("input_prim", input_prim.get_layout()));
+    topology.add(pooling("pool_prim", "input_prim", pooling_mode::max));
+
+    network network(engine, topology);
+    set_values(input_prim, { -0.5f, 1.0f, 0.5f, 2.0f, 1.5f, -0.5f, 0.0f, -1.0f, 0.5f });
+    network.set_input_data("input_prim", input_prim);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto output_ptr = output_prim.pointer<float>();
+
+    EXPECT_EQ(2.0f, output_ptr[0]);
+}
+
 TEST(pooling_forward_gpu, basic_max_pooling_int8) {
 
-    engine engine;
+    const auto& engine = get_test_engine();
     layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1,1,3,3 } };
     layout out_layout = { type_to_data_type<float>::value,format::byxf,{ 1,1,1,1 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1,1,3,3 } };
@@ -171,7 +209,7 @@ TEST(pooling_forward_gpu, basic_max_pooling_int8) {
 
 TEST(pooling_forward_gpu, basic_avg_pooling_int8) {
 
-    engine engine;
+    const auto& engine = get_test_engine();
     layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1,1,3,3 } };
     layout out_layout = { type_to_data_type<float>::value,format::byxf,{ 1,1,1,1 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1,1,3,3 } };
@@ -235,7 +273,7 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr1x1_i3x3x1x1_nopad) {
     //  [ 2.0,  1.5]
     //  [ 2.0,  1.5]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 3, 3 } });
 
@@ -279,7 +317,7 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr2x2_i4x4x1x1_nopad) {
     //  [ 2.0,  0.5]
     //  [ 0.5,  0.5]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 4, 4 } });
 
@@ -333,7 +371,7 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr1x1_i3x3x2x2_nopad) {
     //  [ 0.5,  1.0]         [ 1.0,  0.5]
     //  [-0.5,  1.5]         [ 1.0,  0.0]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 3, 3 } });
 
@@ -383,7 +421,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i2x2x1x1_zeropad)
     //  [ 1.5, -0.5]
     //  [   -1, 0.5]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
 
@@ -428,7 +466,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
     //  [ 1.5,  -0.5]
     //  [   1,  -0.5]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 3, 3 } });
 
@@ -477,7 +515,7 @@ TEST(pooling_forward_gpu, basic_avg_yxfb_f32_wsiz2x2_wstr1x1_i3x3x1x1_nopad) {
     //  [ 1.0,   0.625]
     //  [ 1.625, 0.875]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 3, 3 } });
 
@@ -522,7 +560,7 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i2x2x1x1_zeropad)
     //  [ 0.375, -0.125]
     //  [ -0.25,  0.125]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
 
@@ -567,7 +605,7 @@ TEST(pooling_forward_gpu, offsets_avg_bfyx_f32_wsiz3x3_wstr3x3_i1x1x3x3_zeropad)
     //  [ 0.177777, -0.133333]
     //  [ 0.333333,  0.55]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 3, 3 } });
 
@@ -615,7 +653,7 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
     //  [  0.375,    0.5]
     //  [ -0.125, -1.125]
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_prim = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 3, 3 } });
 
@@ -664,7 +702,7 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i2x2x1x1_out
     //  [0, 0, 0, 0, 0, 0]
     //  [0, 0, 0, 0, 0, 0]
 
-    engine engine;
+    const auto& engine = get_test_engine();
     std::vector<format> formats_to_test = { format::yxfb , format::bfyx };
 
     for (std::vector<format>::iterator it = formats_to_test.begin(); it != formats_to_test.end(); ++it)
@@ -725,7 +763,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_out
     //  [0, 1, -0.5, 0, 0]
     //  [0, 0, 0, 0, 0]
 
-    engine engine;
+    const auto& engine = get_test_engine();
     std::vector<format> formats_to_test = { format::yxfb , format::bfyx };
 
     for (std::vector<format>::iterator it = formats_to_test.begin(); it != formats_to_test.end(); ++it)
@@ -795,7 +833,7 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i2x2x1x1_inp
     //  [0, 0, 0, 0, 0, 0]
     //  [0, 0, 0, 0, 0, 0]
 
-    engine engine;
+    const auto& engine = get_test_engine();
     std::vector<format> formats_to_test = { format::yxfb , format::bfyx };
 
     for (std::vector<format>::iterator it = formats_to_test.begin(); it != formats_to_test.end(); ++it)
@@ -858,7 +896,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inp
     //  [0, 1, -0.5, 0]
     //  [0, 0, 0, 0, 0]
 
-    engine engine;
+    const auto& engine = get_test_engine();
     std::vector<format> formats_to_test = { format::yxfb , format::bfyx };
 
     for (std::vector<format>::iterator it = formats_to_test.begin(); it != formats_to_test.end(); ++it)
@@ -929,7 +967,7 @@ TEST(pooling_forward_gpu, avg_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i2x2x1x1_inpad2x1_ou
     //  [0, 0, 0, 0, 0, 0]
     //  [0, 0, 0, 0, 0, 0]
 
-    engine engine;
+    const auto& engine = get_test_engine();
     std::vector<format> formats_to_test = { format::yxfb , format::bfyx };
 
     for (std::vector<format>::iterator it = formats_to_test.begin(); it != formats_to_test.end(); ++it)
@@ -997,7 +1035,7 @@ TEST(pooling_forward_gpu, max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inpad2x1_ou
     //  [0, 12, 14, 16, 0]
     //  [0, 0, 0, 0, 0]
 
-    engine engine;
+    const auto& engine = get_test_engine();
     std::vector<format> formats_to_test = { format::yxfb , format::bfyx };
 
     for (std::vector<format>::iterator it = formats_to_test.begin(); it != formats_to_test.end(); ++it)
@@ -1067,7 +1105,7 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax) {
     //  f1: b0:  10  11   b1:   21    23
 
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
     auto arg_max = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
@@ -1146,7 +1184,7 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_input_padding) {
     //  f1: b0:  10  11   b1:   21    23
 
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
     auto arg_max = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
@@ -1226,7 +1264,7 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_output_padding) {
     //  f1: b0:  10  11   b1:   21    23
 
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
     auto arg_max = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
@@ -1316,7 +1354,7 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_with_output_size) {
     //  f1: b0:  10  11   b1:   21    23
 
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
     auto arg_max = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
@@ -1498,6 +1536,133 @@ TEST(pooling_forward_gpu, yxfb_average_without_padding_i3x3_w2x2_s3x3_o1x1_fp16)
 TEST(pooling_forward_gpu, yxfb_average_without_padding_i1x1_w3x3_s1x1_o1x1_fp16)
 {
     generic_average_wo_padding_test<FLOAT16>(format::yxfb, spatial(1, 1), spatial(1, 1), spatial(3, 3), tensor{ 0,0,1,1 }, tensor{ 0,0,-1,-1 });
+}
+
+TEST(pooling_forward_gpu, b_fs_yx_fsv4)
+{
+    int B_array[] = {  16,    4, 0 };  // Batch
+    int F_array[] = {  64, 2048, 0 };  // Features
+    int I_array[] = { 112,    7, 0 };  // Input MxM data sizes
+    int W_array[] = {   7,    3, 0 };  // Filter (a-ka weights) sizes
+    int S_array[] = {   1,    2, 0 };  // Strides
+    for (int j = 0; F_array[j]; j++) {
+        int in_B = B_array[j];
+
+        int in_F = F_array[j];
+
+        int in_X = I_array[j],
+            in_Y = in_X;
+
+        int W_X = W_array[j],
+            W_Y = W_X;
+
+        int S_X = S_array[j],
+            S_Y = S_X;
+
+        // Input data init
+        std::vector<char> Data(in_B * in_F * in_X * in_Y);
+        for (size_t i = 0; i < Data.size(); i++)
+            Data[i] = static_cast<char>(i);
+        std::vector<char> DataGold(Data);
+
+        // Expected "gold" output and IMAD output.
+        std::vector<char>  vGoldOutput;
+        std::vector<char>  vTestOutput;
+
+        engine   engine;
+
+        // "Golden" Pooling
+        {
+            // Mem initialization
+            // This is user data, no kernels here
+            auto input = memory::allocate(engine,
+                                          { data_types::i8,
+                                              format::bfyx,
+                                              { in_B, in_F, in_X, in_Y } });
+            set_values(input, std::move(DataGold));
+
+            auto pool = pooling("pool_GOLD",
+                                 "input",
+                                 pooling_mode::max,
+                                 { 1, 1, W_X, W_Y },  // kernel_size
+                                 { 1, 1, S_X, S_Y }); // stride
+
+            // Create a topology with a simple Convolution layer
+            topology topology(input_layout("input", input.get_layout()),
+                              pool);
+
+            // Network processing
+            network network(engine, topology);
+            network.set_input_data("input", input);
+            //network_exe(network, vGoldOutput, "pool_GOLD");
+            auto outputs = network.execute();
+            auto searchC = outputs.find("pool_GOLD");
+            ASSERT_FALSE(searchC == outputs.end());
+            auto output = outputs.begin()->second.get_memory();
+            auto output_ptr = output.pointer<char>();
+            vGoldOutput.reserve(output_ptr.size());
+            for (size_t i = 0; i < output_ptr.size(); i++)
+                vGoldOutput.push_back(output_ptr[i]);
+        }
+
+        //
+        // IMAD Pooling
+        //
+        {
+            topology topology;
+
+            // Mem initialization
+            // This is user data, no kernels here
+            auto input = memory::allocate(engine,
+                                          { data_types::i8,
+                                              format::bfyx,
+                                              { in_B, in_F, in_X, in_Y } });
+            set_values(input, std::move(Data));
+
+            // Add input to topology
+            topology.add(
+                input_layout("input", input.get_layout()));
+
+            // Reorder (a-ka swizzelling) input to MMAD/IMAD Pooling format
+            topology.add(reorder("reorder_Swizzelled",
+                         "input",
+                         layout(data_types::i8,
+                                format::b_fs_yx_fsv4,
+                                { in_B, in_F, in_X, in_Y })));
+
+            // Add Convoluiton to topology
+            topology.add(pooling("pool_IMAD",
+                                 "reorder_Swizzelled",
+                                 pooling_mode::max,
+                                 { 1, 1, W_X, W_Y },  // kernel_size
+                                 { 1, 1, S_X, S_Y })); // stride
+
+            // Back reordering (a-ka unswizzelling) output from MMAD/IMAD pooling
+            topology.add(reorder("reorder_UnSwizzelled",
+                                 "pool_IMAD",
+                                 layout(data_types::i8,
+                                        format::bfyx,
+                                        { in_B, in_F, in_X, in_Y })));
+
+            network network(engine, topology);
+            network.set_input_data("input", input);
+            //network_exe(network, vTestOutput, "reorder_UnSwizzelled");
+            auto outputs = network.execute();
+            auto searchC = outputs.find("reorder_UnSwizzelled");
+            ASSERT_FALSE(searchC == outputs.end());
+            auto output = outputs.begin()->second.get_memory();
+            auto output_ptr = output.pointer<char>();
+            vTestOutput.reserve(output_ptr.size());
+            for (size_t i = 0; i < output_ptr.size(); i++)
+                vTestOutput.push_back(output_ptr[i]);
+        }
+
+        // Result validation
+        ASSERT_TRUE(vGoldOutput.size() == vTestOutput.size());
+        for (size_t i = 0; i < vGoldOutput.size(); i++)
+            ASSERT_TRUE(vTestOutput[i] == vGoldOutput[i]);
+
+    } // for (int j = 0; F_array[j]; i++)
 }
 
 

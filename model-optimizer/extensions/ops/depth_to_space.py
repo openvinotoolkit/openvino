@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,19 +16,21 @@
 
 import logging as log
 
-import networkx as nx
 import numpy as np
 
-from mo.graph.graph import Node
+from mo.front.common.partial_infer.utils import int64_array
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class DepthToSpaceOp(Op):
     op = 'DepthToSpace'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'op': __class__.op,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
             'infer': DepthToSpaceOp.depth_to_space_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -50,4 +52,4 @@ class DepthToSpaceOp(Op):
         out_shape = [N, int(H * block_size), int(W * block_size), int(C / (block_size ** 2))]
         if np.prod(in_shape) != np.prod(out_shape):
             return
-        node.out_node().shape = out_shape
+        node.out_node().shape = int64_array(out_shape)

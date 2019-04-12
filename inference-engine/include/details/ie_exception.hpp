@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,21 @@
     if (!(EXPRESSION)) throw InferenceEngine::details::InferenceEngineException(__FILE__, __LINE__) << "AssertionFailed: " << #EXPRESSION  // NOLINT
 #else
 #include <cassert>
+
+class NullStream {
+ public :
+    template <class T>
+    NullStream & operator << (const T &obj) noexcept {
+        return *this;
+    }
+
+    NullStream &  operator<< (std::ostream & (*manip)(std::ostream &)) noexcept {
+        return *this;
+    }
+};
+
 #define IE_ASSERT(EXPRESSION)\
-    assert((EXPRESSION)); std::stringstream()
+    assert((EXPRESSION)); NullStream()
 #endif  // NDEBUG
 
 namespace InferenceEngine {

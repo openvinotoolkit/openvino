@@ -49,6 +49,7 @@ mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim,
     : parent(dprim, prog), mem(api_cast(dprim->mem.get()))
 {
     recalc_output_layout(false);
+    can_share_buffer(false);
     fill_memory();
 }
 

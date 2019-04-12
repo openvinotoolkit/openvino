@@ -167,7 +167,7 @@ namespace kernel_selector
         kernel.workGroups.global = { runInfo.gws0, runInfo.gws1, runInfo.gws2 };
         kernel.workGroups.local = { runInfo.lws0, runInfo.lws1, runInfo.lws2 };
 
-        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, ROUND_ROBIN);
+        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
         kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
         kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;

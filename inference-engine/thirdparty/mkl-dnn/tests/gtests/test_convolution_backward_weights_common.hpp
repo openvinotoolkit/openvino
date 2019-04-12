@@ -172,7 +172,7 @@ protected:
         check_zero_tail<data_t_src>(1, c_src.get());
         check_zero_tail<data_t_diff_weights>(1, c_diff_weights.get());
 
-        std::vector<int> padR = {
+        std::vector<ptrdiff_t> padR = {
             right_padding(cd.ih, cd.oh, cd.kh, cd.padh, cd.strh, cd.dilh),
             right_padding(cd.iw, cd.ow, cd.kw, cd.padw, cd.strw, cd.dilw)
         };

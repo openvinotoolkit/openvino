@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,16 +17,14 @@
 import os
 import json
 
-import networkx as nx
 import numpy as np
 import mxnet as mx
 import logging as log
 
-from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params
+from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states
 from mo.front.mxnet.extractor import common_mxnet_fields
 from mo.front.mxnet.nd_to_params import build_params_file
-from mo.graph.graph import Node
-from mo.graph.graph import unique_id
+from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
@@ -97,7 +95,10 @@ def symbol2nx(model_nodes, model_params, input_names: str = ''):
     else:
         input_names = input_names.split(',')
 
-    graph = nx.MultiDiGraph()
+    rnn_states = init_rnn_states(model_nodes)
+    names_rnn_states = list(rnn_states.keys())
+
+    graph = Graph()
     # as mxnet contain input layers as index of layer, for correct set up edges, we need provide index of layer with name of  graph node
     index_node_keys = {}
     for i, node in enumerate(model_nodes):
@@ -105,7 +106,9 @@ def symbol2nx(model_nodes, model_params, input_names: str = ''):
             node['value'] = np.array(model_params._arg_params[node['name']].asnumpy(), dtype=np.float32)
         elif node['name'] in model_params._aux_params and node['name'] not in input_names:
             node['value'] = np.array(model_params._aux_params[node['name']].asnumpy(), dtype=np.float32)
-        node_name = unique_id(graph, node['name'])
+        elif node['name'] in names_rnn_states:
+            node['value'] = np.zeros(rnn_states[node['name']])
+        node_name = graph.unique_id(node['name'])
         graph.add_node(node_name, **symbol_attrs(node))
         graph.node[node_name].update(common_mxnet_fields(Node(graph, node_name)))
         index_node_keys[i] = node_name
@@ -119,7 +122,7 @@ def symbol2nx(model_nodes, model_params, input_names: str = ''):
     return graph
 
 
-def find_output_node(graph: nx.MultiDiGraph, src_input_index):
+def find_output_node(graph: Graph, src_input_index):
     for i, attrs in (list(graph.nodes(data=True))[src_input_index + 1:]):
         for input_index in attrs['symbol_dict']['inputs']:
             if input_index[0] == src_input_index:

@@ -39,7 +39,7 @@ status_t depthwise_desc_init(depthwise_desc_t *depthwise_desc, prop_kind_t prop_
         && one_of(alg_kind, depthwise_scale_shift, depthwise_prelu);
     if (!args_ok) return invalid_arguments;
 
-    depthwise_desc_t dd = {};
+    auto dd = depthwise_desc_t();
     dd.primitive_kind = primitive_kind::depthwise;
     dd.prop_kind = prop_kind;
     dd.alg_kind = alg_kind;
@@ -62,7 +62,7 @@ status_t depthwise_desc_init(depthwise_desc_t *depthwise_desc, prop_kind_t prop_
 
 status_t mkldnn_depthwise_forward_desc_init(depthwise_desc_t *depthwise_desc,
         prop_kind_t prop_kind, alg_kind_t alg_kind,
-        const memory_desc_t *src_desc, const memory_desc_t *dst_desc,  const memory_desc_t *weights_desc,
+        const memory_desc_t *src_desc, const memory_desc_t *dst_desc, const memory_desc_t *weights_desc,
         const memory_desc_t *bias_desc) {
     if (!one_of(prop_kind, forward_training, forward_inference))
         return invalid_arguments;

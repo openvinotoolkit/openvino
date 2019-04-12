@@ -1,9 +1,7 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-
-cmake_minimum_required (VERSION 2.8)
 
 include ("download")
 
@@ -15,7 +13,7 @@ function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHI
 
   if (NOT DEFINED HAS_ENV)
     if (ARCHIVE)
-      #TODO: check wether this is platform specific binary with same name per or it is in common folder
+      #TODO: check whether this is platform specific binary with same name per or it is in common folder
       DownloadAndExtract(${COMPONENT} ${ARCHIVE} ${TARGET_PATH} result_path ${FOLDER})
     else()
       DownloadAndExtractPlatformSpecific(${COMPONENT} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${TARGET_PATH} result_path  ${FOLDER})
@@ -130,11 +128,3 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
   endif()
 
 endfunction(RESOLVE_DEPENDENCY)
-
-function (resolve_model_dependency network archive network_model_path)
-  RESOLVE_DEPENDENCY(${network_model_path}
-        ARCHIVE "models_archives/${archive}"
-        TARGET_PATH "${MODELS_PATH}/${network}")
-  string (REPLACE ${MODELS_PATH} "" relative_path ${${network_model_path}})
-  set(${network_model_path} ".${relative_path}" PARENT_SCOPE)
-endfunction()

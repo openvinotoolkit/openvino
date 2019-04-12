@@ -32,6 +32,8 @@ namespace kernel_selector
         {
             float epsilon;
             bool with_inv_var;
+			bool with_scale_shift;
+			bool with_mean_var_out = false;
         };
 
         DedicatedParams batchNormParams;

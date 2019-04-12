@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,9 +66,11 @@ public:
      * @param stat - The statistic for normalization
      * @param layersToInt8 - list of layers planned to be executed in int8. if layer is absent in this
      *                     map, it is assumed that it will be executed in int8
+     * @param convertFullyConnected - should the FullyConnected layers be converted into Int8 or not
      */
     void validateInt8Config(const InferenceEngine::NetworkStatsMap &stat,
-                                    const std::map<std::string, bool>& layersToInt8);
+                                    const std::map<std::string, bool>& layersToInt8,
+                                    bool convertFullyConnected);
 
     /**
      * Statistic collected in the collectFP32Statistic is processed with threshold passed as a parameter
@@ -105,7 +107,7 @@ protected:
     InferenceEngine::InferRequest _inferRequestI8C;
     int _cBatch = 0;
 
-    int _nPictures;
+    size_t _nPictures;
 
 private:
     /**

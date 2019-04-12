@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ nodes_attributes = {
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'placeholder_3': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
     'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
 }
 
 
@@ -79,9 +80,9 @@ class BFSTests(unittest.TestCase):
                              ('scaleshift_1_data', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
-                             ('add_1', 'add_1_data')
-                             ],
-                            {'add_1_data': {'is_output': True}})
+                             ('add_1', 'add_1_data'),
+                             ('add_1_data', 'op_output')
+                             ])
 
         res = forward_bfs(Node(graph, 'placeholder_1'), ['ScaleShift', 'Mul'], ['Add'])
         self.assertTrue(len(res) == 1 and res[0].id == 'add_1', 'Add operation was not found by bfs')
@@ -105,9 +106,9 @@ class BFSTests(unittest.TestCase):
                              ('scaleshift_1_data', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
-                             ('add_1', 'add_1_data')
-                             ],
-                            {'add_1_data': {'is_output': True}})
+                             ('add_1', 'add_1_data'),
+                             ('add_1_data', 'op_output')
+                             ])
 
         res = backward_bfs(Node(graph, 'add_1_data'), ['Add', 'ScaleShift', 'Mul'], ['Placeholder'])
         self.assertTrue(len(res) == 1 and res[0].id == 'placeholder_1', 'Placeholder operation was not found by bfs')
@@ -139,9 +140,9 @@ class BFSTests(unittest.TestCase):
                              ('mul_2', 'mul_2_data'),
                              ('add_1_data', 'concat_1'),
                              ('mul_2_data', 'concat_1'),
-                             ('concat_1', 'concat_1_data')
-                             ],
-                            {'concat_1_data': {'is_output': True}})
+                             ('concat_1', 'concat_1_data'),
+                             ('concat_1_data', 'op_output')
+                             ])
 
         res = forward_bfs(Node(graph, 'placeholder_1'), ['ScaleShift', 'Mul', 'Add'], ['Concat'])
         self.assertTrue(len(res) == 1 and res[0].id == 'concat_1', 'Probably Concat operation was not found by bfs')
@@ -178,9 +179,9 @@ class BFSTests(unittest.TestCase):
                              ('mul_2', 'mul_2_data'),
                              ('add_1_data', 'concat_1'),
                              ('mul_2_data', 'concat_1'),
-                             ('concat_1', 'concat_1_data')
-                             ],
-                            {'concat_1_data': {'is_output': True}})
+                             ('concat_1', 'concat_1_data'),
+                             ('concat_1_data', 'op_output')
+                             ])
 
         res = backward_bfs(Node(graph, 'concat_1'), ['ScaleShift', 'Mul', 'Add'], ['Placeholder'])
         self.assertTrue(len(res) == 0, 'Smth went wrong with bfs')
@@ -216,9 +217,9 @@ class BFSTests(unittest.TestCase):
                              ('mul_2', 'mul_2_data'),
                              ('add_1_data', 'concat_1'),
                              ('mul_2_data', 'concat_1'),
-                             ('concat_1', 'concat_1_data')
-                             ],
-                            {'concat_1_data': {'is_output': True}})
+                             ('concat_1', 'concat_1_data'),
+                             ('concat_1_data', 'op_output')
+                             ])
 
         res = backward_bfs(Node(graph, 'concat_1'), ['Mul', 'Add'], ['Placeholder'])
         self.assertTrue(len(res) == 0, 'Smth went wrong with bfs')
@@ -248,9 +249,9 @@ class BFSTests(unittest.TestCase):
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
                              ('add_1', 'add_1_data'),
-                             ('add_1_data', 'placeholder_1')
-                             ],
-                            {'add_1_data': {'is_output': True}})
+                             ('add_1_data', 'placeholder_1'),
+                             ('add_1_data', 'op_output')
+                             ])
 
         res = backward_bfs(Node(graph, 'add_1_data'), ['Add', 'ScaleShift', 'Mul', 'Placeholder'], ['Conv2D'])
         self.assertTrue(len(res) == 0, 'Sholdn\'t find any nodes due to cycle in graph')
@@ -268,9 +269,9 @@ class GetNextOperationTests(unittest.TestCase):
                              ('scaleshift_1_data', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
-                             ('add_1', 'add_1_data')
-                             ],
-                            {'add_1_data': {'is_output': True}})
+                             ('add_1', 'add_1_data'),
+                             ('add_1_data', 'op_output')
+                             ])
 
         res = get_next_operation(Node(graph, 'mul_1'))
         self.assertTrue(len(res) == 1 and res[0].id == 'add_1', 'get_nex_operation returned wrong op')
@@ -283,9 +284,9 @@ class GetNextOperationTests(unittest.TestCase):
                              ('placeholder_1_data', 'add_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
-                             ('add_1', 'add_1_data')
-                             ],
-                            {'add_1_data': {'is_output': True}})
+                             ('add_1', 'add_1_data'),
+                             ('add_1_data', 'op_output')
+                             ])
 
         res = get_next_operation(Node(graph, 'placeholder_1'))
         self.assertTrue(len(res) == 2 and all([x.id in ['add_1', 'mul_1'] for x in res]),
@@ -300,8 +301,8 @@ class GetNextOperationTests(unittest.TestCase):
                              ('placeholder_1_data', 'mul_1'),
                              ('placeholder_2_data', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
-                             ],
-                            {'mul_1_data': {'is_output': True}})
+                             ('mul_1_data', 'op_output')
+                             ])
 
         res = get_next_operation(Node(graph, 'placeholder_1'))
         self.assertTrue(len(res) == 1 and res[0].id == 'mul_1', 'get_nex_operation returned wrong op')

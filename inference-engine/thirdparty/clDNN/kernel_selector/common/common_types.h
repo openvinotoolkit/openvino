@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +40,8 @@ namespace kernel_selector
         ACTIVATION,
         SOFT_MAX,
         ELTWISE,
+        FUSED_CONV_BN_SCALE,
+        FUSED_CONV_ELTWISE,
         TABLE_LOOKUP,
         REORDER,
         RESHAPE,
@@ -63,7 +65,16 @@ namespace kernel_selector
         SELECT,
         BROADCAST,
         GEMM,
-        INDEX_SELECT
+        INDEX_SELECT,
+        PYRAMID_ROI_ALIGN,
+        CONTRACT,
+        ONE_HOT,
+        DETECTION_OUTPUT,
+        GATHER,
+        DEPTH_TO_SPACE,
+        SHUFFLE_CHANNELS,
+        STRIDED_SLICE,
+        REVERSE_SEQUENCE
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,6 +103,7 @@ namespace kernel_selector
         F16,
         F32,
         INT8,
+        UINT8,
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,9 +131,10 @@ namespace kernel_selector
         ACOS,
         COSH,
         LOG,
-		LOG2,
+        LOG2,
         EXP,
         NONE,
+        NOT,
         NONE_GRAD
     };
 
@@ -243,7 +256,17 @@ namespace kernel_selector
         MODULU,
         SQRT,
         RSQRT,
-        ASSIGN
+        ASSIGN,
+        EQ,
+        NE,
+        LT,
+        LE,
+        GT,
+        GE,
+        LOGIC_AND,
+        LOGIC_OR,
+        LOGIC_XOR,
+        SQUARED_DIFF
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -288,7 +311,7 @@ namespace kernel_selector
     enum class MeanSubtractMode
     {
         NONE,
-        INSIDE_PARAMS, // the index is feature id (modulu size) 
+        INSIDE_PARAMS, // the index is feature id (modulu size)
         IN_BUFFER,
     };
 
@@ -299,7 +322,7 @@ namespace kernel_selector
     {
         NONE,
         SUB,
-        MUL, 
+        MUL,
         DIV,
     };
 
@@ -357,18 +380,6 @@ namespace kernel_selector
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // NonLinearParams
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct NonLinearParams
-    {
-        float m = 1.f;
-        float n = 0.f;
-
-        NonLinearParams() = default;
-        NonLinearParams(const float m, const float n) : m(m), n(n) {}
-    };
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Size
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     template <typename T>
@@ -409,4 +420,27 @@ namespace kernel_selector
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     using uSize  = Size<std::uint32_t>;
     using stSize = Size<std::size_t>;
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ContractMode
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    enum class ContractMode
+    {
+        SUM,
+        PRODUCT,
+        ALL,
+        ANY,
+        MAX,
+    };
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // GatherAxis
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    enum class GatherAxis
+    {
+        X,
+        Y,
+        FEATURE,
+        BATCH,
+    };
 }

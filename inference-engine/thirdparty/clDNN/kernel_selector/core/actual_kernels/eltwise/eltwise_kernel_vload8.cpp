@@ -123,7 +123,7 @@ namespace kernel_selector {
         auto& kernel = kd.kernels[0];
         kernel.workGroups.global = { std::max(newParams.inputs[0].LogicalSize()/8, (size_t)1), 1, 1 };
         kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global);
-        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, ROUND_ROBIN);
+        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
         kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
         kd.estimatedTime = FORCE_PRIORITY_8;

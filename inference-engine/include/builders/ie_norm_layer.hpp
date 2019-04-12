@@ -1,11 +1,11 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <builders/ie_layer_fragment.hpp>
-#include <ie_inetwork.hpp>
+#include <builders/ie_layer_decorator.hpp>
+#include <ie_network.hpp>
 #include <string>
 
 namespace InferenceEngine {
@@ -14,7 +14,7 @@ namespace Builder {
 /**
  * @brief The class represents a builder for Norm layer
  */
-class INFERENCE_ENGINE_API_CLASS(NormLayer): public LayerFragment {
+class INFERENCE_ENGINE_API_CLASS(NormLayer): public LayerDecorator {
 public:
     /**
      * @brief The enum defines all Norm types
@@ -30,9 +30,14 @@ public:
     explicit NormLayer(const std::string& name = "");
     /**
      * @brief The constructor creates a builder from generic builder
-     * @param genLayer generic builder
+     * @param layer pointer to generic builder
      */
-    explicit NormLayer(Layer& genLayer);
+    explicit NormLayer(const Layer::Ptr& layer);
+    /**
+     * @brief The constructor creates a builder from generic builder
+     * @param layer constant pointer to generic builder
+     */
+    explicit NormLayer(const Layer::CPtr& layer);
     /**
      * @brief Sets the name for the layer
      * @param name Layer name

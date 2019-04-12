@@ -28,16 +28,16 @@ namespace impl {
 namespace cpu {
 
 template <cpu_isa_t isa>
-void jit_uni_roi_pooling_fwd_t<isa>::execute_forward() {
+void jit_uni_roi_pooling_fwd_t<isa>::execute_forward() const {
     auto src_data = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto src_roi = reinterpret_cast<const data_t*>(this->input_memory(1));
     auto dst = reinterpret_cast<data_t*>(this->memory(0));
 
-    const memory_desc_wrapper src_d(conf_.src_pd(0));
-    const memory_desc_wrapper src_roi_d(conf_.src_pd(1));
-    const memory_desc_wrapper dst_d(conf_.dst_pd());
+    const memory_desc_wrapper src_d(pd()->src_pd(0));
+    const memory_desc_wrapper src_roi_d(pd()->src_pd(1));
+    const memory_desc_wrapper dst_d(pd()->dst_pd());
 
-    const auto &jpp = conf_.jpp_;
+    const auto &jpp = pd()->jpp_;
 
     int cb_work = utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
     int MB = jpp.mb;
@@ -68,7 +68,7 @@ void jit_uni_roi_pooling_fwd_t<isa>::execute_forward() {
         utils::nd_iterator_init(start, n, MB, cbb, cb_work, oh, jpp.oh, ow, jpp.ow);
 
         for (int iwork = start; iwork < end; iwork++) {
-            jit_roi_pool_call_s arg = {};
+            auto arg = jit_roi_pool_call_s();
 
             int cb = cbb * jpp.nb_c_blocking;
             int cb_num = jpp.nb_c_blocking;

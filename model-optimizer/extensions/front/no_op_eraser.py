@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import logging as log
 import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import erase_node
+from mo.graph.graph import Graph
 
 
 class NoOpEraser(FrontReplacementSubgraph):
@@ -35,7 +35,7 @@ class NoOpEraser(FrontReplacementSubgraph):
         )
 
     @staticmethod
-    def replace_sub_graph(graph: nx.MultiDiGraph, match: dict):
-        erase_node(match['output'])
-        erase_node(match['noop'])
+    def replace_sub_graph(graph: Graph, match: dict):
+        graph.erase_node(match['output'])
+        graph.erase_node(match['noop'])
         log.info("NoOp node \"{}\" was removed from the graph".format(match['noop'].id))

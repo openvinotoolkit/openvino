@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,14 @@ using namespace InferenceEngine::details;
 CNNNetworkImpl::CNNNetworkImpl(): _targetDevice(TargetDevice::eDefault), _stats(new CNNNetworkStatsImpl()) {
 }
 
+CNNNetworkImpl::~CNNNetworkImpl() {
+    for (auto& data : _data) {
+        for (auto& input : data.second->getInputTo()) {
+            input.second.reset();
+        }
+    }
+}
+
 void CNNNetworkImpl::getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept {
     out = _outputData;
 }
@@ -32,6 +40,16 @@ void CNNNetworkImpl::getInputsInfo(InputsDataMap& inputs) const noexcept {
 
 void CNNNetworkImpl::addLayer(const CNNLayerPtr& layer) noexcept {
     _layers[layer->name] = layer;
+}
+
+void CNNNetworkImpl::removeLayer(const string& layerName) {
+    auto it = _layers.find(layerName);
+    if (it != _layers.end()) { _layers.erase(it); }
+}
+
+void CNNNetworkImpl::removeData(const string& dataName) {
+    auto it = _data.find(dataName);
+    if (it != _data.end()) { _data.erase(it); }
 }
 
 void CNNNetworkImpl::validate(int version) {

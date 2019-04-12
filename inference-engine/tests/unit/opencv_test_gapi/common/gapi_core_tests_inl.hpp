@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,7 @@
 
 #include "blob_factory.hpp"
 #include "blob_transform.hpp"
-#include "ie_preprocess.hpp"
 #include "ie_preprocess_data.hpp"
-#include "ie_preprocess_gapi_kernels.hpp"
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
@@ -23,7 +21,7 @@
 
 #include <chrono>
 
-#define CV_MAT_CHANNELS(flags) (((flags) >> CV_CN_SHIFT) + 1)
+#include <fluid_test_computations.hpp>
 
 // Can be set externally (via CMake) if built with -DGAPI_TEST_PERF=ON
 #ifndef PERF_TEST
@@ -107,14 +105,27 @@ static cv::String typeToString(int type)
 }
 #endif  // PERF_TEST
 
+namespace {
+
+test::Mat to_test(cv::Mat& mat) { return {mat.rows, mat.cols, mat.type(), mat.data}; }
+std::vector<test::Mat> to_test(std::vector<cv::Mat>& mats)
+{
+    std::vector<test::Mat> test_mats(mats.size());
+    for (int i = 0; i < mats.size(); i++) {
+        test_mats[i] = to_test(mats[i]);
+    }
+    return test_mats;
+}
+
+} // anonymous namespace
+
 TEST_P(ResizeTestGAPI, AccuracyTest)
 {
     int type = 0, interp = 0;
     cv::Size sz_in, sz_out;
     double tolerance = 0.0;
-    cv::GCompileArgs compile_args;
     std::pair<cv::Size, cv::Size> sizes;
-    std::tie(type, interp, sizes, tolerance, compile_args) = GetParam();
+    std::tie(type, interp, sizes, tolerance) = GetParam();
     std::tie(sz_in, sz_out) = sizes;
 
     cv::Mat in_mat1 (sz_in, type );
@@ -127,42 +138,12 @@ TEST_P(ResizeTestGAPI, AccuracyTest)
     cv::Mat out_mat_ocv(sz_out, type);
 
     // G-API code //////////////////////////////////////////////////////////////
-    cv::GMat in, out;
-    switch (CV_MAT_CHANNELS(type))
-    {
-    case 1:
-        out = InferenceEngine::gapi::ScalePlane::on(in, type, sz_in, sz_out, interp);
-        break;
-    case 3:
-        {
-        int depth = CV_MAT_DEPTH(type);
-        int type1 = CV_MAKE_TYPE(depth, 1);
-        cv::GMat in0, in1, in2, out0, out1, out2;
-        std::tie(in0, in1, in2) = InferenceEngine::gapi::Split3::on(in);
-        out0 = InferenceEngine::gapi::ScalePlane::on(in0, type1, sz_in, sz_out, interp);
-        out1 = InferenceEngine::gapi::ScalePlane::on(in1, type1, sz_in, sz_out, interp);
-        out2 = InferenceEngine::gapi::ScalePlane::on(in2, type1, sz_in, sz_out, interp);
-        out = InferenceEngine::gapi::Merge3::on(out0, out1, out2);
-        }
-        break;
-    default: CV_Assert(!"ERROR: unsupported number of channels!");
-    }
-
-    cv::GComputation c(in, out);
-
-    // compile graph, and test once
-
-    auto own_in_mat1 = cv::to_own(in_mat1);
-    auto own_out_mat = cv::to_own(out_mat);
-
-    std::vector<cv::gapi::own::Mat> v_in  = { own_in_mat1 };
-    std::vector<cv::gapi::own::Mat> v_out = { own_out_mat };
-
-    c.apply(v_in, v_out, std::move(compile_args));
+    FluidResizeComputation rc(to_test(in_mat1), to_test(out_mat), interp);
+    rc.warmUp();
 
 #if PERF_TEST
     // iterate testing, and print performance
-    test_ms([&](){ c.apply(v_in, v_out); },
+    test_ms([&](){ rc.apply(); },
             100, "Resize GAPI %s %s %dx%d -> %dx%d",
             interpToString(interp).c_str(), typeToString(type).c_str(),
             sz_in.width, sz_in.height, sz_out.width, sz_out.height);
@@ -180,299 +161,75 @@ TEST_P(ResizeTestGAPI, AccuracyTest)
     }
 }
 
-TEST_P(Split2TestGAPI, AccuracyTest)
+TEST_P(SplitTestGAPI, AccuracyTest)
 {
-    int depth = std::get<0>(GetParam());
-    cv::Size sz_in = std::get<1>(GetParam());
-    auto compile_args = std::get<2>(GetParam());
+    const auto params = GetParam();
+    int planes  = std::get<0>(params);
+    int depth   = std::get<1>(params);
+    cv::Size sz = std::get<2>(params);
 
-    int type1 = CV_MAKE_TYPE(depth, 1);
-    int type2 = CV_MAKE_TYPE(depth, 2);
-    initMatrixRandU(type2, sz_in, type1);
+    int srcType = CV_MAKE_TYPE(depth, planes);
+    int dstType = CV_MAKE_TYPE(depth, 1);
 
-    cv::Mat out_mat2 = cv::Mat(sz_in, type1);
-    cv::Mat out_mat_ocv2 = cv::Mat(sz_in, type1);
+    cv::Mat in_mat(sz, srcType);
+    cv::randn(in_mat, cv::Scalar::all(127), cv::Scalar::all(40.f));
+
+    std::vector<cv::Mat> out_mats_gapi(planes, cv::Mat::zeros(sz, dstType));
+    std::vector<cv::Mat> out_mats_ocv (planes, cv::Mat::zeros(sz, dstType));
 
     // G-API code //////////////////////////////////////////////////////////////
-    cv::GMat in1, out1, out2;
-    std::tie(out1, out2) = InferenceEngine::gapi::Split2::on(in1);
-    cv::GComputation c(cv::GIn(in1), cv::GOut(out1, out2));
-
-    // compile graph, and test once
-
-    auto own_in_mat1      = cv::to_own(in_mat1);
-    auto own_out_mat_gapi = cv::to_own(out_mat_gapi);
-    auto own_out_mat2     = cv::to_own(out_mat2);
-
-    std::vector<cv::gapi::own::Mat> v_in  = { own_in_mat1 };
-    std::vector<cv::gapi::own::Mat> v_out = { own_out_mat_gapi, own_out_mat2 };
-
-    c.apply(v_in, v_out, std::move(compile_args));
+    FluidSplitComputation sc(to_test(in_mat), to_test(out_mats_gapi));
+    sc.warmUp();
 
 #if PERF_TEST
     // iterate testing, and print performance
-    test_ms([&](){ c.apply(v_in, v_out); },
-        400, "Split GAPI %s %dx%d", typeToString(type2).c_str(), sz_in.width, sz_in.height);
+    test_ms([&](){ sc.apply(); },
+        400, "Split GAPI %s %dx%d", typeToString(srcType).c_str(), sz.width, sz.height);
 #endif
 
     // OpenCV code /////////////////////////////////////////////////////////////
     {
-        std::vector<cv::Mat> out_mats_ocv = {out_mat_ocv, out_mat_ocv2};
-        cv::split(in_mat1, out_mats_ocv);
+        cv::split(in_mat, out_mats_ocv);
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv  != out_mat_gapi));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv2 != out_mat2));
+        for (int p = 0; p < planes; p++) {
+            EXPECT_EQ(0, cv::countNonZero(out_mats_ocv[p]  != out_mats_gapi[p]));
+        }
     }
 }
 
-TEST_P(Split3TestGAPI, AccuracyTest)
+TEST_P(MergeTestGAPI, AccuracyTest)
 {
-    int depth = std::get<0>(GetParam());
-    cv::Size sz_in = std::get<1>(GetParam());
-    auto compile_args = std::get<2>(GetParam());
+    const auto params = GetParam();
+    int planes  = std::get<0>(params);
+    int depth   = std::get<1>(params);
+    cv::Size sz = std::get<2>(params);
 
-    int type1 = CV_MAKE_TYPE(depth, 1);
-    int type3 = CV_MAKE_TYPE(depth, 3);
-    initMatrixRandU(type3, sz_in, type1);
+    int srcType = CV_MAKE_TYPE(depth, 1);
+    int dstType = CV_MAKE_TYPE(depth, planes);
 
-    cv::Mat out_mat2 = cv::Mat(sz_in, type1);
-    cv::Mat out_mat3 = cv::Mat(sz_in, type1);
-    cv::Mat out_mat_ocv2 = cv::Mat(sz_in, type1);
-    cv::Mat out_mat_ocv3 = cv::Mat(sz_in, type1);
+    std::vector<cv::Mat> in_mats(planes, cv::Mat(sz, srcType));
+    for (int p = 0; p < planes; p++) {
+        cv::randn(in_mats[p], cv::Scalar::all(127), cv::Scalar::all(40.f));
+    }
+
+    cv::Mat out_mat_ocv  = cv::Mat::zeros(sz, dstType);
+    cv::Mat out_mat_gapi = cv::Mat::zeros(sz, dstType);
 
     // G-API code //////////////////////////////////////////////////////////////
-    cv::GMat in1, out1, out2, out3;
-    std::tie(out1, out2, out3) = InferenceEngine::gapi::Split3::on(in1);
-    cv::GComputation c(cv::GIn(in1), cv::GOut(out1, out2, out3));
-
-    // compile graph, and test once
-
-    auto own_in_mat1      = cv::to_own(in_mat1);
-    auto own_out_mat_gapi = cv::to_own(out_mat_gapi);
-    auto own_out_mat2     = cv::to_own(out_mat2);
-    auto own_out_mat3     = cv::to_own(out_mat3);
-
-    std::vector<cv::gapi::own::Mat> v_in  = { own_in_mat1 };
-    std::vector<cv::gapi::own::Mat> v_out = { own_out_mat_gapi, own_out_mat2, own_out_mat3 };
-
-    c.apply(v_in, v_out, std::move(compile_args));
+    FluidMergeComputation mc(to_test(in_mats), to_test(out_mat_gapi));
+    mc.warmUp();
 
 #if PERF_TEST
     // iterate testing, and print performance
-    test_ms([&](){ c.apply(v_in, v_out); },
-        400, "Split GAPI %s %dx%d", typeToString(type3).c_str(), sz_in.width, sz_in.height);
+    test_ms([&](){ mc.apply(); },
+        400, "Merge GAPI %s %dx%d", typeToString(dstType).c_str(), sz.width, sz.height);
 #endif
 
     // OpenCV code /////////////////////////////////////////////////////////////
     {
-        std::vector<cv::Mat> out_mats_ocv = {out_mat_ocv, out_mat_ocv2, out_mat_ocv3};
-        cv::split(in_mat1, out_mats_ocv);
-    }
-    // Comparison //////////////////////////////////////////////////////////////
-    {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv  != out_mat_gapi));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv2 != out_mat2));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv3 != out_mat3));
-    }
-}
-
-TEST_P(Split4TestGAPI, AccuracyTest)
-{
-    int depth = std::get<0>(GetParam());
-    cv::Size sz_in = std::get<1>(GetParam());
-    auto compile_args = std::get<2>(GetParam());
-
-    int type1 = CV_MAKE_TYPE(depth, 1);
-    int type4 = CV_MAKE_TYPE(depth, 4);
-    initMatrixRandU(type4, sz_in, type1);
-
-    cv::Mat out_mat2 = cv::Mat(sz_in, type1);
-    cv::Mat out_mat3 = cv::Mat(sz_in, type1);
-    cv::Mat out_mat4 = cv::Mat(sz_in, type1);
-    cv::Mat out_mat_ocv2 = cv::Mat(sz_in, type1);
-    cv::Mat out_mat_ocv3 = cv::Mat(sz_in, type1);
-    cv::Mat out_mat_ocv4 = cv::Mat(sz_in, type1);
-
-    // G-API code //////////////////////////////////////////////////////////////
-    cv::GMat in1, out1, out2, out3, out4;
-    std::tie(out1, out2, out3, out4) = InferenceEngine::gapi::Split4::on(in1);
-    cv::GComputation c(cv::GIn(in1), cv::GOut(out1, out2, out3, out4));
-
-    // compile graph, and test once
-
-    auto own_in_mat1      = cv::to_own(in_mat1);
-    auto own_out_mat_gapi = cv::to_own(out_mat_gapi);
-    auto own_out_mat2     = cv::to_own(out_mat2);
-    auto own_out_mat3     = cv::to_own(out_mat3);
-    auto own_out_mat4     = cv::to_own(out_mat4);
-
-    std::vector<cv::gapi::own::Mat> v_in  = { own_in_mat1 };
-    std::vector<cv::gapi::own::Mat> v_out = { own_out_mat_gapi, own_out_mat2,
-                                                  own_out_mat3, own_out_mat4 };
-
-    c.apply(v_in, v_out, std::move(compile_args));
-
-#if PERF_TEST
-    // iterate testing, and print performance
-    test_ms([&](){ c.apply(v_in, v_out); },
-        400, "Split GAPI %s %dx%d", typeToString(type4).c_str(), sz_in.width, sz_in.height);
-#endif
-
-    // OpenCV code /////////////////////////////////////////////////////////////
-    {
-        std::vector<cv::Mat> out_mats_ocv = {out_mat_ocv, out_mat_ocv2, out_mat_ocv3, out_mat_ocv4};
-        cv::split(in_mat1, out_mats_ocv);
-    }
-    // Comparison //////////////////////////////////////////////////////////////
-    {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv  != out_mat_gapi));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv2 != out_mat2));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv3 != out_mat3));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv4 != out_mat4));
-    }
-}
-
-TEST_P(Merge2TestGAPI, AccuracyTest)
-{
-    int depth = std::get<0>(GetParam());
-    cv::Size sz_in = std::get<1>(GetParam());
-    auto compile_args = std::get<2>(GetParam());
-
-    int type1 = CV_MAKE_TYPE(depth, 1);
-    int type2 = CV_MAKE_TYPE(depth, 2);
-    initMatsRandU(type1, sz_in, type2);
-
-    // G-API code //////////////////////////////////////////////////////////////
-    cv::GMat in1, in2;
-    auto out = InferenceEngine::gapi::Merge2::on(in1, in2);
-    cv::GComputation c(cv::GIn(in1, in2), cv::GOut(out));
-
-    // compile graph, and test once
-
-    auto own_in_mat1      = cv::to_own(in_mat1);
-    auto own_in_mat2      = cv::to_own(in_mat2);
-    auto own_out_mat_gapi = cv::to_own(out_mat_gapi);
-
-    std::vector<cv::gapi::own::Mat> v_in  = { own_in_mat1, own_in_mat2 };
-    std::vector<cv::gapi::own::Mat> v_out = { own_out_mat_gapi };
-
-    c.apply(v_in, v_out, std::move(compile_args));
-
-#if PERF_TEST
-    // iterate testing, and print performance
-    test_ms([&](){ c.apply(v_in, v_out); },
-        400, "Merge GAPI %s %dx%d", typeToString(type2).c_str(), sz_in.width, sz_in.height);
-#endif
-
-    // OpenCV code /////////////////////////////////////////////////////////////
-    {
-        std::vector<cv::Mat> in_mats_ocv = {in_mat1, in_mat2};
-        cv::merge(in_mats_ocv, out_mat_ocv);
-    }
-    // Comparison //////////////////////////////////////////////////////////////
-    {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
-    }
-}
-
-TEST_P(Merge3TestGAPI, AccuracyTest)
-{
-    int depth = std::get<0>(GetParam());
-    cv::Size sz_in = std::get<1>(GetParam());
-    auto compile_args = std::get<2>(GetParam());
-
-    int type1 = CV_MAKE_TYPE(depth, 1);
-    int type3 = CV_MAKE_TYPE(depth, 3);
-    initMatsRandU(type1, sz_in, type3);
-
-    cv::Scalar mean = cv::Scalar::all(127);
-    cv::Scalar stddev = cv::Scalar::all(40.f);
-
-    cv::Mat in_mat3(sz_in,  type1);
-    cv::randn(in_mat3, mean, stddev);
-
-    // G-API code //////////////////////////////////////////////////////////////
-    cv::GMat in1, in2, in3;
-    auto out = InferenceEngine::gapi::Merge3::on(in1, in2, in3);
-    cv::GComputation c(cv::GIn(in1, in2, in3), cv::GOut(out));
-
-    // compile graph, and test once
-
-    auto own_in_mat1      = cv::to_own(in_mat1);
-    auto own_in_mat2      = cv::to_own(in_mat2);
-    auto own_in_mat3      = cv::to_own(in_mat3);
-    auto own_out_mat_gapi = cv::to_own(out_mat_gapi);
-
-    std::vector<cv::gapi::own::Mat> v_in  = { own_in_mat1, own_in_mat2, own_in_mat3 };
-    std::vector<cv::gapi::own::Mat> v_out = { own_out_mat_gapi };
-
-    c.apply(v_in, v_out, std::move(compile_args));
-
-#if PERF_TEST
-    // iterate testing, and print performance
-    test_ms([&](){ c.apply(v_in, v_out); },
-        400, "Merge GAPI %s %dx%d", typeToString(type3).c_str(), sz_in.width, sz_in.height);
-#endif
-
-    // OpenCV code /////////////////////////////////////////////////////////////
-    {
-        std::vector<cv::Mat> in_mats_ocv = {in_mat1, in_mat2, in_mat3};
-        cv::merge(in_mats_ocv, out_mat_ocv);
-    }
-    // Comparison //////////////////////////////////////////////////////////////
-    {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
-    }
-}
-
-TEST_P(Merge4TestGAPI, AccuracyTest)
-{
-    int depth = std::get<0>(GetParam());
-    cv::Size sz_in = std::get<1>(GetParam());
-    auto compile_args = std::get<2>(GetParam());
-
-    int type1 = CV_MAKE_TYPE(depth, 1);
-    int type4 = CV_MAKE_TYPE(depth, 4);
-    initMatsRandU(type1, sz_in, type4);
-
-    cv::Scalar mean = cv::Scalar::all(127);
-    cv::Scalar stddev = cv::Scalar::all(40.f);
-
-    cv::Mat in_mat3(sz_in,  type1);
-    cv::Mat in_mat4(sz_in,  type1);
-    cv::randn(in_mat3, mean, stddev);
-    cv::randn(in_mat4, mean, stddev);
-
-    // G-API code //////////////////////////////////////////////////////////////
-    cv::GMat in1, in2, in3, in4;
-    auto out = InferenceEngine::gapi::Merge4::on(in1, in2, in3, in4);
-    cv::GComputation c(cv::GIn(in1, in2, in3, in4), cv::GOut(out));
-
-    // compile graph, and test once
-
-    auto own_in_mat1      = cv::to_own(in_mat1);
-    auto own_in_mat2      = cv::to_own(in_mat2);
-    auto own_in_mat3      = cv::to_own(in_mat3);
-    auto own_in_mat4      = cv::to_own(in_mat4);
-    auto own_out_mat_gapi = cv::to_own(out_mat_gapi);
-
-    std::vector<cv::gapi::own::Mat> v_in  = { own_in_mat1, own_in_mat2, own_in_mat3, own_in_mat4 };
-    std::vector<cv::gapi::own::Mat> v_out = { own_out_mat_gapi };
-
-    c.apply(v_in, v_out, std::move(compile_args));
-
-#if PERF_TEST
-    // iterate testing, and print performance
-    test_ms([&](){ c.apply(v_in, v_out); },
-        400, "Merge GAPI %s %dx%d", typeToString(type4).c_str(), sz_in.width, sz_in.height);
-#endif
-
-    // OpenCV code /////////////////////////////////////////////////////////////
-    {
-        std::vector<cv::Mat> in_mats_ocv = {in_mat1, in_mat2, in_mat3, in_mat4};
-        cv::merge(in_mats_ocv, out_mat_ocv);
+        cv::merge(in_mats, out_mat_ocv);
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
@@ -534,11 +291,11 @@ TEST_P(ResizeTestIE, AccuracyTest)
     ResizeAlgorithm algorithm = cv::INTER_AREA == interp ? RESIZE_AREA : RESIZE_BILINEAR;
 
     // test once to warm-up cache
-    preprocess.execute(out_blob, algorithm);
+    preprocess.execute(out_blob, algorithm, false);
 
 #if PERF_TEST
     // iterate testing, and print performance
-    test_ms([&](){ preprocess.execute(out_blob, algorithm); },
+    test_ms([&](){ preprocess.execute(out_blob, algorithm, false); },
             100, "Resize IE %s %s %dx%d -> %dx%d",
             interpToString(interp).c_str(), typeToString(type).c_str(),
             sz_in.width, sz_in.height, sz_out.width, sz_out.height);
@@ -827,7 +584,7 @@ TEST_P(PreprocTest, Performance)
     preprocess.setRoiBlob(in_blob);
 
     // test once to warm-up cache
-    preprocess.execute(out_blob, interp);
+    preprocess.execute(out_blob, interp, false);
 
     switch (prec)
     {
@@ -859,7 +616,7 @@ TEST_P(PreprocTest, Performance)
     const auto in_layout_str = layout_to_str(in_layout);
     const auto out_layout_str = layout_to_str(out_layout);
 
-    test_ms([&]() { preprocess.execute(out_blob, interp); },
+    test_ms([&]() { preprocess.execute(out_blob, interp, false); },
             300,
             "Preproc %s %d %s %s %dx%d %s %dx%d",
             type_str.c_str(),

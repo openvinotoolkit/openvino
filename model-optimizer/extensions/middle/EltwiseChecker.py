@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,18 +14,10 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
-from copy import deepcopy
 
-from extensions.middle.EltwiseInputNormalization import EltwiseInputNormalize
-from extensions.middle.EltwiseInputReshape import EltwiseInputReshape, Eltwise1DInputReshape
-from mo.front.common.layout import get_features_dim, shape_for_layout
-from mo.graph.graph import Node, get_sorted_inputs
-from mo.middle.passes.fusing.helpers import get_value_id
+from mo.graph.graph import Node, Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
-from mo.ops.reshape import Reshape
 
 
 class EltwiseChecker(MiddleReplacementPattern):
@@ -33,12 +25,17 @@ class EltwiseChecker(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
+        from extensions.middle.EltwiseInputReshape import Eltwise1DInputReshape
         return [Eltwise1DInputReshape]
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
+    def run_before(self):
+        from extensions.middle.pass_separator import MiddleFinish
+        return [MiddleFinish]
+
+    def find_and_replace_pattern(self, graph: Graph):
         eltwise_nodes = [Node(graph, node) for node in graph.node if Node(graph, node).soft_get('type') == 'Eltwise']
         for node in eltwise_nodes:
-            raw_inputs = [(inp, attr) for inp, attr in get_sorted_inputs(node)
+            raw_inputs = [(inp, attr) for inp, attr in node.get_sorted_inputs()
                           if 'control_flow_edge' not in attr or not attr['control_flow_edge']]
             shapes = [node.graph.node[inp]['shape'] for inp, attr in raw_inputs]
 

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,6 +113,11 @@ public:
         pp.poolType                 = cldnn_2_pool_type(primitive->mode);
         pp.remainderAction          = kernel_selector::pool_remainder::CEIL;
 
+        if (primitive->global_pooling) {
+            primitive->size.spatial[0] = input_sizes.spatial[0];
+            primitive->size.spatial[1] = input_sizes.spatial[1];
+        }
+
         //check if last pooling window goes outside of input size + padding. If so the avg pooling size will be adjusted to that.
         auto dynamic_mode = (((output_sizes.spatial[0] - 1) * stride.spatial[0]) + primitive->size.spatial[0]) > -2 * input_offset.spatial[0] + input_sizes.spatial[0] ||
             (((output_sizes.spatial[1] - 1) * stride.spatial[1]) + primitive->size.spatial[1]) > -2 * input_offset.spatial[1] + input_sizes.spatial[1];
@@ -174,6 +179,8 @@ namespace {
             // MMAD
             implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), pooling_gpu::create);
             implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), pooling_gpu::create);
+            implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), pooling_gpu::create);
+            implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), pooling_gpu::create);
         }
         ~attach() {}
     };

@@ -1,9 +1,8 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0054 NEW)
 
 #features trigger supported by build system
@@ -14,7 +13,7 @@ include(debug)
 include(dependency_solver)
 
 #prepare temporary folder
-if (DEFINED ENV{${DL_SDK_TEMP}})
+if (DEFINED ENV{${DL_SDK_TEMP}} AND NOT $ENV{${DL_SDK_TEMP}} STREQUAL "")
     if (WIN32)
         string(REPLACE "\\" "\\\\" TEMP $ENV{${DL_SDK_TEMP}})
     else(WIN32)
@@ -37,9 +36,6 @@ if (ENABLE_SAME_BRANCH_FOR_MODELS)
 else()
     set(MODELS_BRANCH "master")
 endif()
-
-set(MODELS_PATH "${TEMP}/models")
-debug_message(STATUS "MODELS_PATH=" ${MODELS_PATH})
 
 ## enable cblas_gemm from OpenBLAS package
 if (GEMM STREQUAL "OPENBLAS")
@@ -77,6 +73,12 @@ elseif(LINUX)
             TARGET_PATH "${TEMP}/omp"
             ENVIRONMENT "OMP"
             VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+else(APPLE)
+    RESOLVE_DEPENDENCY(OMP
+            ARCHIVE_MAC "iomp_20190130_mac.tgz"
+            TARGET_PATH "${TEMP}/omp"
+            ENVIRONMENT "OMP"
+            VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
 endif()
 log_rpath_from_dir(OMP "${OMP}/lib")
 debug_message(STATUS "intel_omp=" ${OMP})
@@ -96,6 +98,12 @@ elseif(LINUX)
             ARCHIVE_LIN "tbb2019_20181010_lin.tgz"
             TARGET_PATH "${TEMP}/tbb"
             ENVIRONMENT "TBBROOT")
+else(APPLE)
+    RESOLVE_DEPENDENCY(TBB
+            ARCHIVE_MAC "tbb2019_20190130_mac.tgz"
+            TARGET_PATH "${TEMP}/tbb"
+            ENVIRONMENT "TBBROOT"
+            VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
 endif()
 log_rpath_from_dir(TBB "${TBB}/lib")
 debug_message(STATUS "tbb=" ${TBB})
@@ -104,34 +112,51 @@ endif ()
 if (ENABLE_OPENCV)
 if (WIN32)
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_WIN "opencv_4.0.1-0353.zip"
-            TARGET_PATH "${TEMP}/opencv_4.0.0"
+            ARCHIVE_WIN "opencv_4.1.0-0437.zip"
+            TARGET_PATH "${TEMP}/opencv_4.1.0"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "\\opencv_4.0.0\\bin")
+    log_rpath_from_dir(OPENCV "\\opencv_4.1.0\\bin")
+    set( ENV{OpenCV_DIR} ${OPENCV}/cmake )
+elseif(APPLE)
+    RESOLVE_DEPENDENCY(OPENCV
+            ARCHIVE_MAC "opencv_4.1.0-0437_osx.tar.xz"
+            TARGET_PATH "${TEMP}/opencv_4.1.0_osx"
+            ENVIRONMENT "OpenCV_DIR"
+            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+    log_rpath_from_dir(OPENCV "opencv_4.1.0_osx/lib")
     set( ENV{OpenCV_DIR} ${OPENCV}/cmake )
 elseif(LINUX)
 if (${LINUX_OS_NAME} STREQUAL "Ubuntu 16.04")
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_4.0.0-0305_ubuntu16.tgz"
-            TARGET_PATH "${TEMP}/opencv_4.0.0_ubuntu"
+            ARCHIVE_LIN "opencv_4.1.0-0437_ubuntu16.tar.xz"
+            TARGET_PATH "${TEMP}/opencv_4.1.0_ubuntu16"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "opencv_4.0.0_ubuntu/lib")
+    log_rpath_from_dir(OPENCV "opencv_4.1.0_ubuntu16/lib")
 elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 18.04")
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_4.0.0-0305_ubuntu18.tgz"
-            TARGET_PATH "${TEMP}/opencv_4.0.0_ubuntu18"
+            ARCHIVE_LIN "opencv_4.1.0-0437_ubuntu18.tar.xz"
+            TARGET_PATH "${TEMP}/opencv_4.1.0_ubuntu18"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "opencv_4.0.0_ubuntu/lib")
+    log_rpath_from_dir(OPENCV "opencv_4.1.0_ubuntu18/lib")
 elseif (${LINUX_OS_NAME} STREQUAL "CentOS 7")
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_4.0.0-0305_centos.tgz"
-            TARGET_PATH "${TEMP}/opencv_4.0.0_centos"
+            ARCHIVE_LIN "opencv_4.1.0-0437_centos7.tar.xz"
+            TARGET_PATH "${TEMP}/opencv_4.1.0_centos"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "opencv_4.0.0_centos/lib")
+    log_rpath_from_dir(OPENCV "opencv_4.1.0_centos/lib")
+elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7l" AND
+        (${LINUX_OS_NAME} STREQUAL "Debian 9" OR
+         ${LINUX_OS_NAME} STREQUAL "Raspbian 9"))
+    RESOLVE_DEPENDENCY(OPENCV
+            ARCHIVE_LIN "opencv_4.1.0-0437_debian9arm.tar.xz"
+            TARGET_PATH "${TEMP}/opencv_4.1.0_debian9arm"
+            ENVIRONMENT "OpenCV_DIR"
+            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+    log_rpath_from_dir(OPENCV "opencv_4.1.0_debian9arm/lib")
 endif()
     set( ENV{OpenCV_DIR} ${OPENCV}/cmake )
 endif()

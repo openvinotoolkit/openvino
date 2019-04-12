@@ -1,5 +1,7 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+//  pwl_design.cpp : simple activation function designer
 //
 
 #include "pwl.h"

@@ -51,7 +51,7 @@ TEST(fully_connected_grad_input_gpu, basic_bfyx) {
     //  -1.125  5.625   10.125
 
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });

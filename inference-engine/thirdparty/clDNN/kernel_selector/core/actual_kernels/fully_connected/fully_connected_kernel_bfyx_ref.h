@@ -17,9 +17,9 @@
 #pragma once
 
 #include "fully_connected_kernel_base.h"
- 
+
 namespace kernel_selector {
-    
+
     class FullyConnected_bfyx_Ref : public FullyConnectedKernelBase
     {
     public:
@@ -28,9 +28,9 @@ namespace kernel_selector {
         FullyConnected_bfyx_Ref() : Parent("fully_connected_gpu_bfyx_ref") {}
 
         KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        ParamsKey GetSupportedKey() const override;
-        
+
     protected:
-        std::unique_ptr<DispatchData> SetDefault(const fully_connected_params& params) const override;
+        ParamsKey GetSupportedKey() const override;
+        DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
     };
 }

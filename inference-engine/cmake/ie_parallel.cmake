@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -94,7 +94,13 @@ function(set_ie_threading_interface_for TARGET_NAME)
                 endif ()
             endif ()
         endif ()
+
     endif ()
 
     target_compile_definitions(${TARGET_NAME} PUBLIC -DIE_THREAD=${IE_THREAD_DEFINE})
+
+    if (NOT THREADING STREQUAL "SEQ")
+        find_package(Threads REQUIRED)
+        target_link_libraries(${TARGET_NAME} PUBLIC ${CMAKE_THREAD_LIBS_INIT})
+    endif()
 endfunction(set_ie_threading_interface_for)

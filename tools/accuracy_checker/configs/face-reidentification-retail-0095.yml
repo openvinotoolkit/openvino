@@ -1,0 +1,74 @@
+models:
+  - name: face-reidentification-retail-0095
+
+    launchers:
+      - framework: dlsdk
+        tags:
+          - FP32
+        device: CPU
+        model:   face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.xml
+        weights: face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.bin
+        adapter: reid
+
+      - framework: dlsdk
+        tags:
+          - GPU32
+        device: GPU
+        model:   face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.xml
+        weights: face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.bin
+        adapter: reid
+
+      - framework: dlsdk
+        tags:
+          - GPU16
+        device: GPU
+        model:   face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.xml
+        weights: face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.bin
+        adapter: reid
+
+      - framework: dlsdk
+        device: MYRIAD
+        model:   face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.xml
+        weights: face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.bin
+        adapter: reid
+
+      - framework: dlsdk
+        device: HDDL
+        model:   face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.xml
+        weights: face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.bin
+        adapter: reid
+
+      - framework: dlsdk
+        tags:
+          - FPGA16
+        device: HETERO:FPGA,CPU
+        model:   face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.xml
+        weights: face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.bin
+        adapter: reid
+        bitstream: 2019R1_A10DK_FP16_SSD300.aocx
+
+      - framework: dlsdk
+        tags:
+          - FPGA11
+        device: HETERO:FPGA,CPU
+        model:   face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.xml
+        weights: face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.bin
+        adapter: reid
+        bitstream: 2019R1_A10DK_FP11_CaffeMobileNet.aocx
+
+    datasets:
+      - name: lfw
+        data_source: LFW/lfw
+        annotation_conversion:
+          converter: face_reid_pairwise
+          pairs_file: LFW/annotation/pairs.txt
+          landmarks_file: LFW/annotation/lfw_landmark.txt
+
+        preprocessing:
+          - type: point_alignment
+            size: 400
+          - type: resize
+            size: 128
+
+        metrics:
+          - type: pairwise_accuracy_subsets

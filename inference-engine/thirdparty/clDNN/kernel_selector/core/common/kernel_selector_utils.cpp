@@ -21,93 +21,11 @@
 
 namespace kernel_selector {
 
-    bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const DataTensor& reqDesc)
-    {
-        assert(params.inputs.size() == 1);
-
-        bool properPadding =
-            reqDesc.X().pad.before <= params.inputs[0].X().pad.before &&
-            reqDesc.Y().pad.before <= params.inputs[0].Y().pad.before &&
-            reqDesc.Feature().pad.before <= params.inputs[0].Feature().pad.before &&
-            reqDesc.Batch().pad.before <= params.inputs[0].Batch().pad.before;
-
-        properPadding &=
-            reqDesc.X().pad.after <= params.inputs[0].X().pad.after &&
-            reqDesc.Y().pad.after <= params.inputs[0].Y().pad.after &&
-            reqDesc.Feature().pad.after <= params.inputs[0].Feature().pad.after &&
-            reqDesc.Batch().pad.after <= params.inputs[0].Batch().pad.after;
-
-        properPadding &= ((params.padding.x == 0 && params.padding.y == 0) || params.inputs[0].GetPaddedVal() == 0.f);
-
-        return properPadding;
-    }
-
-    DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp)
-    {
-        assert(cp.inputs.size() == 1);
-        assert(cp.inputs[0].GetDims().size() == 4U);
-
-        DataTensor t = cp.inputs[0];
-        std::vector<Tensor::Pad> pad{ { 0,0 },{ 0,0 },{ 0,0 },{ 0,0 } };
-
-        pad[0].before = cp.padding.x;
-        pad[1].before = cp.padding.y;
-
-        const auto inputLimitX = (cp.output.X().v - 1) * cp.stride.x + (cp.filterSize.x - 1) * cp.dilation.x + 1;
-        const auto inputLimitY = (cp.output.Y().v - 1) * cp.stride.y + (cp.filterSize.y - 1) * cp.dilation.y + 1;
-
-        pad[0].after = (size_t)std::max((int)inputLimitX - (int)t.X().v - (int)pad[0].before, (int)0);
-        pad[1].after = (size_t)std::max((int)inputLimitY - (int)t.Y().v - (int)pad[1].before, (int)0);
-
-        Tensor::NDims dims(4);
-        const Tensor::NDims& orgDims = cp.inputs[0].GetDims();
-        size_t pitch = 1;
-        for (size_t i = 0; i < dims.size(); i++)
-        {
-            dims[i].pad = pad[i];
-            dims[i].v = orgDims[i].v;
-            dims[i].pitch = pitch;
-            pitch *= dims[i].LogicalDimPadded();
-        }
-
-        return{ dims, t.GetDType(), t.GetLayout() };
-    }
-
-    bool CovolutionCheckInput(const Params& p, const optional_params& o)
-    {
-        const convolution_params& params = static_cast<const convolution_params&>(p);
-        const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
-
-        const auto req_input = GetConvolutionBFYXPaddedTensor(params);
-        const bool bProperInputDesc = CheckConvolutionPaddedInputDesc(params, req_input);
-        const bool bInputPadded = optParams.allowInputReordering || bProperInputDesc;
-
-        if (!bInputPadded)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    bool CovolutionUpdateInputParams(convolution_params& params)
-    {
-        const auto req_input = GetConvolutionBFYXPaddedTensor(params);
-        const bool bProperInputDesc = CheckConvolutionPaddedInputDesc(params, req_input);
-
-        if (!bProperInputDesc)
-        {
-            params.inputs[0] = req_input;
-            return true;
-        }
-
-        return false;
-    }
-
-    WeightsType DataTypeToWeightsType(Datatype t)
+    static WeightsType DataTypeToWeightsType(Datatype t)
     {
         switch (t)
         {
+        case Datatype::UINT8:   return WeightsType::UINT8;
         case Datatype::INT8:    return WeightsType::INT8;
         case Datatype::F16:     return WeightsType::F16;
         case Datatype::F32:     return WeightsType::F32;
@@ -116,9 +34,10 @@ namespace kernel_selector {
         }
     }
 
-    bool CheckWeights(const WeightsTensor& tensor, WeightsType reqType, std::vector<WeightsLayout> reqLayouts)
+    static bool CheckWeights(const WeightsTensor& tensor, WeightsType reqType, std::vector<WeightsLayout> reqLayouts, const ParamsKey& paramsKey)
     {
-        if (reqType != tensor.GetDType())
+        if ((reqType != tensor.GetDType()) &&
+            !(paramsKey.isEnabledDifferentInputWeightsTypes()))
         {
             return false;
         }
@@ -170,7 +89,7 @@ namespace kernel_selector {
         return true;
     }
 
-    bool UpdateWeightsParams(weight_bias_params& newParams, const optional_params& options, std::vector<WeightsLayout> layouts, WeightsReorderParams& weightsReorderParams)
+    bool UpdateWeightsParams(weight_bias_params& newParams, const optional_params& options, std::vector<WeightsLayout> layouts, WeightsReorderParams& weightsReorderParams, const ParamsKey& paramsKey)
     {
         //validate if weights type is image and if device supports requested sizes
         for (auto& requested_layout : layouts)
@@ -184,8 +103,8 @@ namespace kernel_selector {
         const weight_bias_optional_params& optParams = static_cast<const weight_bias_optional_params&>(options);
 
         const auto dtype = DataTypeToWeightsType(newParams.inputs[0].GetDType());
-        bool bProperWeights = CheckWeights(newParams.weights, dtype, layouts);
-
+        bool bProperWeights = CheckWeights(
+                                  newParams.weights, dtype, layouts, paramsKey);
         if (!bProperWeights)
         {
             if (!optParams.allowStaticInputReordering)
@@ -274,7 +193,7 @@ namespace kernel_selector {
     std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws)
     {
         const size_t lws_max = 256;
-        const size_t optimal_lws_values[] = { 256, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 3, 2, 1 };
+        const size_t optimal_lws_values[] = { 256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1 };
         size_t total_lws = 1;
         std::vector<size_t> lws;
         for (size_t i = 0; i < gws.size(); ++i)

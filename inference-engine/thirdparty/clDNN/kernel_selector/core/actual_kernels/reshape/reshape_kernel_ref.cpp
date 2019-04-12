@@ -66,7 +66,7 @@ namespace kernel_selector
 
         kernel.workGroups.global = { gws[0], gws[1], gws[2] * gws[3] };
         kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global);
-        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, ROUND_ROBIN);
+        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
         kernel.arguments = GetArgsDesc(1, false, false);
         
         kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;

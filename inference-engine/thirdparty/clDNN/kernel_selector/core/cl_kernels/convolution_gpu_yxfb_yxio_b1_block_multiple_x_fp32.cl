@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "include/include_all.cl"
+#include "include/sub_group.cl"
 
 __attribute__((reqd_work_group_size(LOCAL_WORK_GROUP_SIZE, 1, 1)))
 KERNEL(convolution_gpu_yxfb_yxio_b1_block_multiple_x)(

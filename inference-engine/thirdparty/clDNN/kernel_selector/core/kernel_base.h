@@ -40,7 +40,17 @@ namespace kernel_selector
             return GetKernelsData(params, options);
         }
 
-        virtual ParamsKey GetSupportedKey() const = 0;
+        virtual bool Supports(const Params& params, const optional_params& options) const
+        {
+            const ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
+            return GetSupportedKey().Support(requireKey);
+        }
+
+        bool SupportsTuning() const
+        {
+            return GetSupportedKey().TuningSupport();
+        }
+
         virtual const std::string GetName() const { return kernelName; }
 
         static const primitive_db& get_db() { return db; }
@@ -50,6 +60,7 @@ namespace kernel_selector
         const std::string kernelName;
 
         static size_t UniqeID() { return counter++; } // TODO: use interlocked
+        virtual ParamsKey GetSupportedKey() const = 0;
         
     private:
         static size_t counter;

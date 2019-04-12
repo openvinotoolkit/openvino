@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,7 @@ public:
         delete this;
     }
 
-    std::shared_ptr<unsigned char> getData(int width, int height) override;
+    std::shared_ptr<unsigned char> getData(size_t width, size_t height) override;
 };
 }  // namespace FormatReader
 #endif

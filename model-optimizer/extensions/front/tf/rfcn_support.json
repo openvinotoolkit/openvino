@@ -36,6 +36,9 @@
     },
     {
         "custom_attributes": {
+            "clip_before_nms": true,
+            "clip_after_nms": false,
+            "do_not_swap_proposals": true
         },
         "id": "ObjectDetectionAPIProposalReplacement",
         "include_inputs_to_sub_graph": true,
@@ -57,7 +60,10 @@
     },
     {
         "custom_attributes": {
-            "coordinates_swap_method": "add_convolution"
+            "clip_before_nms": true,
+            "clip_after_nms": false,
+            "coordinates_swap_method": "add_convolution",
+            "swap_proposals": true
         },
         "id": "ObjectDetectionAPIDetectionOutputReplacement",
         "inputs": [

@@ -63,6 +63,20 @@ struct primitive_type_base : ::cldnn_primitive_type
         return engine.create_primitive_impl(node.as<PType>());
     }
 
+    bool does_an_implementation_exist(engine_impl& engine, const cldnn::program_node& node) const override
+    {
+        if (node.type() != this)
+            throw std::invalid_argument("primitive_type_base::choose_impl: primitive type mismatch");
+        return engine.does_an_implementation_exist(node.as<PType>());
+    }
+
+    bool does_possible_implementation_exist(engine_impl& engine, const cldnn::program_node& node) const override
+    {
+        if (node.type() != this)
+            throw std::invalid_argument("primitive_type_base::choose_impl: primitive type mismatch");
+        return engine.does_possible_implementation_exist(node.as<PType>());
+    }
+
     cldnn::layout calc_output_layout(const cldnn::program_node& node) const override
     {
         if (node.type() != this)

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,11 +14,10 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
 from mo.ops.reshape import Reshape
 
 
@@ -31,7 +30,7 @@ class SwapAxesMiddleReplacer(MiddleReplacementPattern):
             edges=[],
         )
 
-    def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(self, graph: Graph, match: dict):
         """
             Replace swapaxes layer:
             swapaxes -> Reshape
@@ -47,5 +46,6 @@ class SwapAxesMiddleReplacer(MiddleReplacementPattern):
         graph.remove_edge(swapaxes_in_node.id, swapaxes.id)
         graph.remove_edge(swapaxes.id, swapaxes_out_node.id)
         Reshape(graph, {'dim': np.array(swapaxes_in_node.shape)}).create_node_with_data(inputs=[swapaxes_in_node],
-                                                                                      data_nodes=[swapaxes_out_node],
-                                                                                      edge_attrs=[input_edge_attrs, output_edge_attrs])
+                                                                                        data_nodes=[swapaxes_out_node],
+                                                                                        edge_attrs=[input_edge_attrs,
+                                                                                                    output_edge_attrs])

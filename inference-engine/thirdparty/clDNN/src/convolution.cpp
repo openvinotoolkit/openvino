@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,6 +31,8 @@ primitive_type_id convolution_type_id()
 
 layout convolution_inst::calc_output_layout(convolution_node const& node)
 {
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for convolution_node!");
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
@@ -103,8 +105,16 @@ layout convolution_inst::calc_output_layout(convolution_node const& node)
     auto output_range = calc_sliding_window_output_range<swor_mode::all>(
         input_layout.size, filter_size, input_offset, stride, dilation, true, 1);
 
-    tensor output_size(input_layout.size.batch[0], number_of_features,
-                       output_range.spatial[0], output_range.spatial[1]);
+    tensor::value_type output_features = desc->output_size.feature[0] != 0 ? desc->output_size.feature[0] : number_of_features;
+    tensor output_size = tensor(input_layout.size.batch[0], output_features,
+        output_range.spatial[0], output_range.spatial[1]);
+
+    // due to performance reason for using fs_bs_yx_bsv4_fsv32 first convolution have 3 features, so first conv layer will take byxf and return fs_bs_yx_bsv4_fsv32
+    if (input_layout.data_type == data_types::i8 && input_layout.format == format::byx8_f4 && input_layout.size.batch[0] % 4 == 0 && input_layout.size.feature[0] == 3)
+    {
+        return layout{ input_layout.data_type, cldnn::format::fs_bs_yx_bsv4_fsv32, output_size };
+    }
+
     return { input_layout.data_type, input_layout.format, output_size };
 }
 
@@ -122,6 +132,8 @@ std::string convolution_inst::to_string(convolution_node const& node)
     json_composite conv_info;
     conv_info.add("stride", strd.to_string());
     conv_info.add("input offset", desc->input_offset.to_string());
+    conv_info.add("padding above", desc->padding_above.to_string());
+    conv_info.add("padding below", desc->padding_below.to_string());
     conv_info.add("split", split);
     conv_info.add("dilation", dilation.to_string());
     conv_info.add("with activation", activation);
@@ -148,8 +160,8 @@ convolution_inst::typed_primitive_inst(network_impl& network, convolution_node c
     auto output_inst = node.get_output_layout();
     auto output_size = output_inst.size;
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input number of dimensions", input_inst.size.raw.size(), "output number of dimensions", output_inst.size.raw.size(), "Input/output dims mismtach");
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Stride number of dimensions", stride.raw.size(), "output number of dimensions", output_inst.size.raw.size(), "stride/output dims mismtach");
+    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input number of dimensions", input_inst.size.raw.size(), "output number of dimensions", output_inst.size.raw.size(), "Input/output dims mismatch");
+    CLDNN_ERROR_NOT_EQUAL(node.id(), "Stride number of dimensions", stride.raw.size(), "output number of dimensions", output_inst.size.raw.size(), "stride/output dims mismatch");
 
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++)
@@ -162,18 +174,24 @@ convolution_inst::typed_primitive_inst(network_impl& network, convolution_node c
             CLDNN_ERROR_NOT_EQUAL(node.id(), "Bias feature[0]", bias_inst.size.feature[0], "expected size of feature", 1, "Biases isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(), "Bias spatial[1]", bias_inst.size.spatial[1], "expected size of spatial[1]", 1, "Biases isn't 1D vector.");
           
-            CLDNN_ERROR_NOT_EQUAL(node.id(), "Bias spatial[0]", bias_inst.size.spatial[0], "expected feature map number", output_size.feature[0] / split, "Bias/fm mismtach");
+            CLDNN_ERROR_NOT_EQUAL(node.id(), "Bias spatial[0]", bias_inst.size.spatial[0], "expected feature map number", output_size.feature[0] / split, "Bias/fm mismatch");
         }
 
         auto input_offset = argument.input_offset;
 
-        CLDNN_ERROR_NOT_EQUAL(node.id(), "Weights number of dimensions", filter_inst.size.raw.size(), "output number of dimensions", output_inst.size.raw.size(), "Weights/output dims mismtach");
+        CLDNN_ERROR_NOT_EQUAL(node.id(), "Weights number of dimensions", filter_inst.size.raw.size(), "output number of dimensions", output_inst.size.raw.size(), "Weights/output dims mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Convolution padding mode", node.get_output_layout().data_padding.filling_value(), "padding value", 0.0f, "Unknown padding mode.");
-        CLDNN_ERROR_NOT_EQUAL(node.id(), "Input offset number of dimensions", input_offset.raw.size(), "input number of dimensions", input_inst.size.raw.size(), "Input offset/ input size mismtach");
+        CLDNN_ERROR_NOT_EQUAL(node.id(), "Input offset number of dimensions", input_offset.raw.size(), "input number of dimensions", input_inst.size.raw.size(), "Input offset/ input size mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Output feature size", output_size.feature.size(), "expected feature size", 1, "Only one-dimensional features are supported");
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Output batch size", output_size.batch.size(), "expected output size", 1, "Only one-dimensional batch size are supported");
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Weights spatial size", filter_inst.size.spatial.size(), "expected weights spatial size", 2, "Weights have to have 2 dimensions in spatial domain.");
-        CLDNN_ERROR_LESS_THAN(node.id(), "Weights feature maps number", (input_inst.size.feature[0] - input_offset.feature[0]) / split, "input feature maps number", filter_inst.size.feature[0], "Weights/ifm mismtach");
+        CLDNN_ERROR_LESS_THAN(node.id(), "Weights feature maps number", (input_inst.size.feature[0] - input_offset.feature[0]) / split, "input feature maps number", filter_inst.size.feature[0], "Weights/ifm mismatch");
+        if (filter_inst.format == format::bf_lyx_yx) // local convolution
+        {
+            auto local = filter_inst.size.local;
+            CLDNN_ERROR_NOT_EQUAL(node.id(), "Number of local x dimension", local[0], "output x dimension", output_inst.size.spatial[0], "Weights/output dims mismatch");
+            CLDNN_ERROR_NOT_EQUAL(node.id(), "Number of local y dimension", local[1], "output y dimension", output_inst.size.spatial[1], "Weights/output dims mismatch");
+        }
     }
 }
 }

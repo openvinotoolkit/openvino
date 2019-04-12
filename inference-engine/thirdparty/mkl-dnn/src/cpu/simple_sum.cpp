@@ -22,16 +22,16 @@ namespace impl {
 namespace cpu {
 
 template <data_type_t data_type>
-void simple_sum_t<data_type>::execute() {
+void simple_sum_t<data_type>::execute() const {
     auto output = reinterpret_cast<data_t *>(this->memory());
-    const int num_arrs = conf_.n_inputs();
-    const memory_desc_wrapper o_d(conf_.dst_pd());
+    const int num_arrs = pd()->n_inputs();
+    const memory_desc_wrapper o_d(pd()->dst_pd());
     output += o_d.blk_off(0);
     const size_t nelems = o_d.nelems();
     const data_t *input_ptrs[max_num_arrs];
 
     for (int a = 0; a < num_arrs; ++a) {
-        const memory_desc_wrapper i_d(conf_.src_pd(a));
+        const memory_desc_wrapper i_d(pd()->src_pd(a));
 
         input_ptrs[a] = reinterpret_cast<const data_t *>(
                 this->input_memory(a)) + i_d.blk_off(0);
@@ -41,7 +41,7 @@ void simple_sum_t<data_type>::execute() {
     const size_t blocks_number = nelems / block_size;
     const size_t tail = nelems % block_size;
 
-    const auto &scales = conf_.scales_;
+    const auto &scales = pd()->scales_;
     parallel(0, [&](const int ithr, const int nthr) {
         size_t start{0}, end{0};
         balance211(blocks_number, nthr, ithr, start, end);

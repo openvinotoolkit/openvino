@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ class ResampleShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit ResampleShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -30,10 +30,24 @@ public:
         CNNLayer cnnLayer(lp);
         cnnLayer.params = params;
         cnnLayer.type = _type;
-        validate(&cnnLayer, inShapes, params, blobs);
-        // TODO: validate param and number of inputs (1)
-        auto scale = static_cast<size_t>(cnnLayer.GetParamAsInt("factor"));
-        outShapes.push_back({inShapes[0][0], inShapes[0][1], inShapes[0][2] * scale, inShapes[0][3] * scale});
+        validate(&cnnLayer, inBlobs, params, blobs);
+        SizeVector outShape;
+        if (inBlobs.size() == 2) {
+            auto* buffer = inBlobs[1]->cbuffer().as<float*>();
+            if (buffer != nullptr) {
+                for (int i = 0; i < inBlobs[1]->size(); i++) {
+                    outShape.push_back(static_cast<unsigned long>(buffer[i]));
+                }
+            } else {
+                THROW_IE_EXCEPTION << "Second input must have allocated data";
+            }
+        } else {
+            auto scale = static_cast<size_t>(cnnLayer.GetParamAsInt("factor"));
+            outShape = {inShapes[0][0], inShapes[0][1]};
+            for (int i = 2; i < inShapes[0].size(); i++)
+                outShape.push_back(inShapes[0][i] * scale);
+        }
+        outShapes.push_back(outShape);
     }
 };
 

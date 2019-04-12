@@ -59,7 +59,7 @@ auto conv1_src_md = memory::desc({conv1_src_tz},
 /* similarly create conv_weights_md and conv_dst_md in format::any */
 ~~~
 
-6. Create a convolution descriptor by specifying the algorithm, propagation
+6. Create a convolution descriptor by specifying the algorithm([convolution algorithms](@ref winograd_convolution), propagation
    kind, shapes of input, weights, bias, output, convolution strides,
    padding, and kind of padding. Propagation kind is set to *forward_inference*
    -optimized for inference execution and omits computations that are only necessary

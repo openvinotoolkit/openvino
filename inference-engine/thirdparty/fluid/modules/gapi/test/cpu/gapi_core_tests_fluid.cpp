@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 
 
 #include "../test_precomp.hpp"
@@ -121,7 +121,8 @@ INSTANTIATE_TEST_CASE_P(AddWeightedTestFluid, AddWeightedTest,
                                        cv::Size(128, 128)),
                                 Values(-1, CV_8U, CV_32F),
                                 testing::Bool(),
-                                Values(0.5000005),
+                                Values(Tolerance_FloatRel_IntAbs(1e-5, 2).to_compare_f()),
+                                //Values(0.5000005),
                                 Values(cv::compile_args(CORE_FLUID))));
 
 INSTANTIATE_TEST_CASE_P(LUTTestFluid, LUTTest,

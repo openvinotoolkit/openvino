@@ -1,9 +1,9 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(InferenceEngine_VERSION 1.5.0)
+set(InferenceEngine_VERSION 1.6.0)
 set(PACKAGE_VERSION ${InferenceEngine_VERSION})
 
 set(PACKAGE_VERSION_EXACT False)

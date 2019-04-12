@@ -18,6 +18,10 @@
 #include <unordered_map>
 #include <string>
 #include <cassert>
+#include <time.h>
+#include <limits>
+#include <chrono>
+#include "istreamwrapper.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -25,10 +29,18 @@
 #include <SetupAPI.h>
 #include <devguid.h>
 #include <cstring>
-#elif defined(__linux__)
-#include <fstream>
+#else
+#include <unistd.h>
+#include <limits.h>
+#include <link.h>
+#include <dlfcn.h>
 #endif
+
+#include <fstream>
 #include <iostream>
+#include <utility>
+
+
 namespace cldnn { namespace gpu{
 
 namespace {
@@ -118,40 +130,55 @@ std::string to_string_hex(int val)
     return std::string("0x") + &buf[i];
 }
 
-struct device_info
-{
-    engine_info_internal::models model;
-    engine_info_internal::architectures arch;
-    engine_info_internal::configurations config;
-    std::string code;
-};
-
 #include "mode.inc"
 
-const device_info& get_device_info(int device_id)
-{
-#define GEN_DEVICE(code, dev_id, model, arch, conf) { dev_id, {engine_info_internal::model, engine_info_internal::arch, engine_info_internal::conf, #code} },
-    static const std::unordered_map<int, device_info> device_map
+std::shared_ptr<rapidjson::Document> get_cache_from_file(uint32_t compute_units_count, const gpu_toolkit& context) {
+    std::string tuning_cache_path = context.get_configuration().tuning_cache_path;
+    if (tuning_cache_path.compare("cache.json") == 0)
     {
-#include "gpu_devices.inc"
-    };
-#undef GEN_DEVICE
-    
-    auto it = device_map.find(device_id);
-    if (it == device_map.end())
+#ifdef _WIN32
+        char path[MAX_PATH];
+        HMODULE hm = NULL;
+        GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                          GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                          (LPCSTR)&get_cache_from_file, &hm);
+        GetModuleFileName(hm, path, sizeof(path));
+        std::string bin_path(path);
+        tuning_cache_path = bin_path.substr(0, bin_path.find_last_of("\\")) + "\\cache.json";
+#else
+        Dl_info dl_info;
+        dladdr((void*)device_info_failed_msg, &dl_info);
+        std::string bin_path(dl_info.dli_fname);
+        tuning_cache_path = bin_path.substr(0, bin_path.find_last_of("/")) + "/cache.json";
+#endif
+    }
+    rapidjson::Document cacheFile;
+    rapidjson::Document cacheDeviceData;
+    auto computeUnits = std::to_string(compute_units_count);
+    std::ifstream f(tuning_cache_path);
+    if (f.good())
     {
-        if (public_caps)
+        rapidjson::IStreamWrapper isw{ f };
+        cacheFile.ParseStream(isw);
+        auto errorCode = cacheFile.GetParseError();
+        if (!cacheFile.HasMember(computeUnits.c_str()) && errorCode == 0)
         {
-            throw std::runtime_error(std::string(device_info_failed_msg) + " - unsupported device id: " + to_string_hex(device_id) + ". Note: HD5xx+ devices are supported");
+            computeUnits = "24";
+        }
+        if (cacheFile.HasMember(computeUnits.c_str()) && errorCode == 0)
+        {
+            cacheDeviceData.CopyFrom(cacheFile[computeUnits.c_str()], cacheDeviceData.GetAllocator());
         }
         else
         {
-            std::cerr << "[WARNING]. Device ID (" << to_string_hex(device_id) << ") not supported. Pretending to behave like SKL GT2." << std::endl;
-            int new_device_id = 6433;
-            return device_map.at(new_device_id);
+            cacheDeviceData.Parse("{}");
         }
     }
-    return device_map.at(device_id);
+    else
+    {
+        cacheDeviceData.Parse("{}");
+    }
+    return std::make_shared < rapidjson::Document>(std::move(cacheDeviceData));
 }
 
 } // namespace <anonymous>
@@ -160,13 +187,17 @@ engine_info_internal::engine_info_internal(const gpu_toolkit& context)
 {
     auto device_id = get_gpu_device_id();
     if (0 == device_id) throw std::runtime_error(device_info_failed_msg);
-    auto& dev_info = get_device_info(device_id);
-    model = dev_info.model;
-    architecture = dev_info.arch;
-    configuration = dev_info.config;
     dev_id = to_string_hex(device_id);
     driver_version = context.device().getInfo<CL_DRIVER_VERSION>();
 
+    compute_units_count = context.device().getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
+    try {
+        device_cache = get_cache_from_file(compute_units_count, context);
+    }
+    catch (...){
+        std::cout << "[WARNING] error during parsing cache file, tuning data won't be used" << std::endl;
+        device_cache->Parse("{}");
+    }
     cores_count = static_cast<uint32_t>(context.device().getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>());
     core_frequency = static_cast<uint32_t>(context.device().getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>());
 

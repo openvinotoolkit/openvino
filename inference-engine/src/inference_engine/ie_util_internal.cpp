@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,6 +137,16 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
         &layerCloneImpl<GemmLayer              >,
         &layerCloneImpl<PadLayer               >,
         &layerCloneImpl<GatherLayer            >,
+        &layerCloneImpl<StridedSliceLayer      >,
+        &layerCloneImpl<ShuffleChannelsLayer   >,
+        &layerCloneImpl<DepthToSpaceLayer      >,
+        &layerCloneImpl<SpaceToDepthLayer      >,
+        &layerCloneImpl<ReverseSequenceLayer   >,
+        &layerCloneImpl<SqueezeLayer           >,
+        &layerCloneImpl<UnsqueezeLayer         >,
+        &layerCloneImpl<RangeLayer             >,
+        &layerCloneImpl<FillLayer              >,
+        &layerCloneImpl<ExpandLayer            >,
         &layerCloneImpl<ClampLayer             >,
         &layerCloneImpl<ReLULayer              >,
         &layerCloneImpl<SoftMaxLayer           >,
@@ -149,6 +159,11 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
         &layerCloneImpl<PoolingLayer           >,
         &layerCloneImpl<DeconvolutionLayer     >,
         &layerCloneImpl<ConvolutionLayer       >,
+        &layerCloneImpl<TensorIterator         >,
+        &layerCloneImpl<RNNSequenceLayer       >,
+        &layerCloneImpl<RNNCellBase            >,
+        &layerCloneImpl<QuantizeLayer          >,
+        &layerCloneImpl<BinaryConvolutionLayer >,
         &layerCloneImpl<WeightableLayer        >,
         &layerCloneImpl<CNNLayer               >
     };
@@ -169,8 +184,13 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork &network) {
         layers.push_back(*i);
         i++;
     }
+
+    InferenceEngine::ICNNNetworkStats* pstatsSrc = nullptr;
+    if (StatusCode::OK != network.getStats(&pstatsSrc, nullptr)) {
+        pstatsSrc = nullptr;
+    }
     // copy of the network
-    details::CNNNetworkImplPtr net = cloneNet(layers);
+    details::CNNNetworkImplPtr net = cloneNet(layers, pstatsSrc);
     // going over output layers and duplicatig them:
     OutputsDataMap outputs;
     network.getOutputsInfo(outputs);
@@ -194,21 +214,12 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork &network) {
         }
     }
 
-    // cloning of statistics
-    InferenceEngine::ICNNNetworkStats* pstatsSrc = nullptr, *pstatsTarget = nullptr;
-    StatusCode s = network.getStats(&pstatsSrc, nullptr);
-    if (s == StatusCode::OK && pstatsSrc && !pstatsSrc->isEmpty()) {
-        StatusCode st = net->getStats(&pstatsTarget, nullptr);
-        if (st == StatusCode::OK && pstatsTarget) {
-            pstatsTarget->setNodesStats(pstatsSrc->getNodesStats());
-        }
-    }
-
     return net;
 }
 
 
 details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
+                                    const ICNNNetworkStats* networkStats,
                                     std::function<CNNLayerPtr(const CNNLayer&)> layerCloner) {
     // TODO layerCloner std::function is heavy and can be replaced with
     // llvm::function_ref-like lightweight callable when we add one
@@ -319,6 +330,15 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
 
     net->resolveOutput();
 
+    // cloning of statistics
+    InferenceEngine::ICNNNetworkStats* pstatsTarget = nullptr;
+    if (networkStats != nullptr && !networkStats->isEmpty()) {
+        StatusCode st = net->getStats(&pstatsTarget, nullptr);
+        if (st == StatusCode::OK && pstatsTarget) {
+            pstatsTarget->setNodesStats(networkStats->getNodesStats());
+        }
+    }
+
     return net;
 }
 
@@ -413,9 +433,10 @@ struct NodePrinter {
     }
 
     string cleanNodeName_(string node_name) const {
-        // remove dot and dash symbols form node name. It is incorrectly displayed in xdot
+        // remove dot and dash symbols from node name. It is incorrectly displayed in xdot
         node_name.erase(remove(node_name.begin(), node_name.end(), '.'), node_name.end());
         std::replace(node_name.begin(), node_name.end(), '-', '_');
+        std::replace(node_name.begin(), node_name.end(), ':', '_');
         return node_name;
     }
 
@@ -462,6 +483,45 @@ struct NodePrinter {
 
             if (negative_slope != 0.0f)
                 printed_properties.emplace_back("negative_slope", std::to_string(negative_slope));
+        } else if (type == "Eltwise") {
+            auto* eltwise = dynamic_cast<EltwiseLayer*>(layer.get());
+
+            std::string operation;
+
+            if (eltwise->_operation == EltwiseLayer::Sum)
+                operation = "Sum";
+            else if (eltwise->_operation == EltwiseLayer::Prod)
+                operation = "Prod";
+            else if (eltwise->_operation == EltwiseLayer::Max)
+                operation = "Max";
+            else if (eltwise->_operation == EltwiseLayer::Sub)
+                operation = "Sub";
+            else if (eltwise->_operation == EltwiseLayer::Min)
+                operation = "Min";
+            else if (eltwise->_operation == EltwiseLayer::Div)
+                operation = "Div";
+            else if (eltwise->_operation == EltwiseLayer::Squared_diff)
+                operation = "Squared_diff";
+            else if (eltwise->_operation == EltwiseLayer::Equal)
+                operation = "Equal";
+            else if (eltwise->_operation == EltwiseLayer::Not_equal)
+                operation = "Not_equal";
+            else if (eltwise->_operation == EltwiseLayer::Less)
+                operation = "Less";
+            else if (eltwise->_operation == EltwiseLayer::Less_equal)
+                operation = "Less_equal";
+            else if (eltwise->_operation == EltwiseLayer::Greater)
+                operation = "Greater";
+            else if (eltwise->_operation == EltwiseLayer::Greater_equal)
+                operation = "Greater_equal";
+            else if (eltwise->_operation == EltwiseLayer::Logical_AND)
+                operation = "Logical_AND";
+            else if (eltwise->_operation == EltwiseLayer::Logical_OR)
+                operation = "Logical_OR";
+            else if (eltwise->_operation == EltwiseLayer::Logical_XOR)
+                operation = "Logical_XOR";
+
+            printed_properties.emplace_back("operation", operation);
         }
 
         if (layer_cb != nullptr) {
@@ -483,9 +543,9 @@ struct NodePrinter {
         };
 
         std::stringstream dims_ss;
-        size_t idx = data->dims.size();
+        size_t idx = data->getTensorDesc().getDims().size();
         dims_ss << '[';
-        for (auto &dim : data->dims) {
+        for (auto &dim : data->getTensorDesc().getDims()) {
             dims_ss << dim << ((--idx) != 0u ? ", " : "");
         }
         dims_ss << ']';
@@ -499,20 +559,20 @@ struct NodePrinter {
     void printNode(string const &node_name, const string &node_title,
                    ordered_properties const &node_properties,
                    ordered_properties const &printed_properties) {
-        // normalization of names, removing all prohinited symbols like "/"
+        // normalization of names, removing all prohibited symbols like "/"
         string nodeNameN = node_name;
         std::replace(nodeNameN.begin(), nodeNameN.end(), '/', '_');
         string dataNameN = node_title;
         std::replace(dataNameN.begin(), dataNameN.end(), '/', '_');
 
         out << '\t' << nodeNameN << " [";
-        for (auto &node_propertie : node_properties) {
-            out << node_propertie.first << "=\"" << node_propertie.second << "\", ";
+        for (auto &node_property : node_properties) {
+            out << node_property.first << "=\"" << node_property.second << "\", ";
         }
 
         out << "label=\"" << node_title;
-        for (auto &printed_propertie : printed_properties) {
-            out << "\\n" << printed_propertie.first << ": " << printed_propertie.second;
+        for (auto &printed_property : printed_properties) {
+            out << "\\n" << printed_property.first << ": " << printed_property.second;
         }
         out << "\"];\n";
     }
@@ -539,17 +599,10 @@ void saveGraphToDot(InferenceEngine::ICNNNetwork &network, std::ostream &out, pr
         }
     }
 
-    std::vector<std::pair<CNNLayerPtr, std::string>> perf_info;
-    auto store_perf_info = [&](CNNLayerPtr layer) {
-        auto perf = layer->params.find("perf");
-        if (perf != layer->params.end()) perf_info.push_back({layer, perf->second});
-    };
-
     out << "strict digraph Network {\n";
     // Traverse graph and print nodes
     for (const auto &layer : details::CNNNetSortTopologically(network)) {
         printer.printLayerNode(layer);
-        store_perf_info(layer);
 
         // Print output Data Object
         for (auto &dataptr : layer->outData) {
@@ -571,28 +624,6 @@ void saveGraphToDot(InferenceEngine::ICNNNetwork &network, std::ostream &out, pr
             printer.printEdge(layer, dataptr, true);
         }
     }
-
-    if (!perf_info.empty()) {
-        out << "// Performance statistic" << std::endl;
-        out << "node [shape=plain, fontsize=24]" << std::endl;
-
-        for (auto &p : perf_info) {
-            auto &perf = p.second;
-            auto &name = p.first->name;
-            auto layer_name = "layer_" + name;
-            auto perf_name = "perf_" + name;
-            // {rank=same; perf_conv1 [label="133  mcs"]; layer_conv1;}
-            out << "{rank=same; " << perf_name << " [label=\"" << perf << "\"]; "
-                << layer_name << ";}" << std::endl;
-        }
-
-        out << std::endl << "edge[style=invis];" << std::endl;
-        auto p = perf_info.begin();
-        out << "perf_" + p->first->name;
-        for (; p != perf_info.end(); p++)
-            out << " -> perf_" + p->first->name;
-    }
-
     out << "}" << std::endl;
 }
 

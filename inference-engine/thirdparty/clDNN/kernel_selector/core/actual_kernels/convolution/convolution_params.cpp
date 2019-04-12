@@ -56,7 +56,7 @@ namespace kernel_selector
             k.EnableDilation();
         }
 
-        if (depthwiseSeparableOpt)
+        if (depthwise_separable_opt)
         {
             k.EnableDepthwiseSeparableOpt();
         }
@@ -74,6 +74,16 @@ namespace kernel_selector
         if (output_calibration)
         {
             k.EnableOutputCalibration();
+        }
+
+        if (local_convolution)
+        {
+            k.EnableLocalConvolution();
+        }
+
+        if (groups > 1 && !depthwise_separable_opt)
+        {
+            k.EnableGroupedConvolution();
         }
 
         return k;

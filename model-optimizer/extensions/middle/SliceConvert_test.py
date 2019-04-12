@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,18 +25,23 @@ from mo.ops.slice import Slice
 nodes_attributes = {
     # input data
     'placeholder_1': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_2': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
+    'placeholder_3': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Slice layer
     'slice': {'type': 'Slice', 'kind': 'op', 'op': 'Slice'},
     'slice_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Output operation
     'output_op': {'type': 'Const', 'value': None, 'kind': 'op', 'op': 'Const'},
     'output_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
     # Crop layer
     'crop': {'type': 'Crop', 'kind': 'op', 'op': 'Crop', 'axis': None, 'offset': None, 'dim': None},
     'dim': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # StridedSlice layer
-    'strided_slice': {'type': 'StridedSlice', 'kind': 'op', 'op': 'StridedSlice', 'slices': None,
+    'strided_slice': {'kind': 'op', 'op': 'StridedSlice', 'slices': None,
                       'shrink_axis_mask': None}
 }
 
@@ -53,11 +58,11 @@ class ConvertSliceTests(unittest.TestCase):
                              ('placeholder_1_data', 'slice'),
                              ('slice', 'slice_data'),
                              ('slice_data', 'output_op'),
-                             ('output_op', 'output_data')
+                             ('output_op', 'output_data'),
+                             ('output_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([4, 5, 6])},
                              'slice': {'start': np.array([1, 2, 3]), 'end': np.array([3, 4, 4]), 'axis': None},
-                             'output_op': {'is_output': True},
                              }
                             )
         slice_node = Node(graph, 'slice')
@@ -71,12 +76,11 @@ class ConvertSliceTests(unittest.TestCase):
                                  ('placeholder_1_data', 'crop'),
                                  ('crop', 'slice_data'),
                                  ('slice_data', 'output_op'),
-                                 ('output_op', 'output_data')
+                                 ('output_op', 'output_data'),
+                                 ('output_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([4, 5, 6])},
-                                 'crop': {'axis': np.array([0, 1, 2]), 'offset': np.array([1, 2, 3]),
-                                          },
-                                 'output_op': {'is_output': True},
+                                 'crop': {'axis': np.array([0, 1, 2]), 'offset': np.array([1, 2, 3])},
                                  'dim': {'dim': np.array([2, 2, 1])},
                                  }
                                 )
@@ -93,11 +97,11 @@ class ConvertSliceTests(unittest.TestCase):
                              ('placeholder_1_data', 'slice'),
                              ('slice', 'slice_data'),
                              ('slice_data', 'output_op'),
-                             ('output_op', 'output_data')
+                             ('output_op', 'output_data'),
+                             ('output_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([4, 5, 6])},
-                             'slice': {'start': np.array([1]), 'end': np.array([3]), 'axis': None},
-                             'output_op': {'is_output': True}
+                             'slice': {'start': np.array([1]), 'end': np.array([3]), 'axis': None}
                              }
                             )
         slice_node = Node(graph, 'slice')
@@ -108,15 +112,19 @@ class ConvertSliceTests(unittest.TestCase):
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
+                                 ('placeholder_2', 'placeholder_2_data'),
+                                 ('placeholder_3', 'placeholder_3_data'),
                                  ('placeholder_1_data', 'strided_slice'),
+                                 ('placeholder_2_data', 'strided_slice'),
+                                 ('placeholder_3_data', 'strided_slice'),
                                  ('strided_slice', 'slice_data'),
                                  ('slice_data', 'output_op'),
-                                 ('output_op', 'output_data')
+                                 ('output_op', 'output_data'),
+                                 ('output_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([4, 5, 6])},
                                  'strided_slice': {'slices': np.array([slice(1, 3, 1),slice(0, 5, 1),slice(0, 6, 1)]),
                                                    'shrink_axis_mask': np.array([False, False, False])},
-                                 'output_op': {'is_output': True}
                                  }
                                 )
 

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
+from mo.graph.graph import Graph
 from mo.middle.pattern_match import apply_pattern
 
 
@@ -52,7 +52,7 @@ def move_scaleshift_to_preprocess_action(graph, match):
         graph.graph['mean_values'] = mean_values
 
 
-def move_scaleshift_to_preprocess(graph: nx.MultiDiGraph):
+def move_scaleshift_to_preprocess(graph: Graph):
     """
     This function finds scaleshift layer after input layer and if it has weights with ones, it deletes scaleshift layer
     and creates graph dict attribute : {'input':np.array(...), 'input2': ... }

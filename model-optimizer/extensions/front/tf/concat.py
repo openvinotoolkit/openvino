@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.graph.graph import Graph
 
 
 class Concat(FrontReplacementSubgraph):
@@ -28,7 +27,7 @@ class Concat(FrontReplacementSubgraph):
             edges=[]
         )
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         """
         There are Concat and ConcatV2 operations in TensorFlow
         The main difference is incoming port of tensor representing axis of concatenation

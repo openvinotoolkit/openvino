@@ -22,7 +22,7 @@
 namespace cldnn { namespace gpu {
 
 gpu_buffer::gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout)
-    : memory_impl(engine, layout)
+    : memory_impl(engine, layout, false)
     , _context(engine->get_context())
     , _lock_count(0)
     , _buffer(_context->context(), CL_MEM_READ_WRITE, size())
@@ -34,7 +34,7 @@ gpu_buffer::gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine, const layo
 }
 
 gpu_buffer::gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine, const layout& new_layout, const cl::Buffer& buffer)
-    : memory_impl(engine, new_layout)
+    : memory_impl(engine, new_layout, true)
     , _context(engine->get_context())
     , _lock_count(0)
     , _buffer(buffer)
@@ -67,7 +67,7 @@ void gpu_buffer::fill(unsigned char pattern, event_impl::ptr ev) {
 }
 
 gpu_image2d::gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout)
-    : memory_impl(engine, layout)
+    : memory_impl(engine, layout, false)
     , _context(engine->get_context())
     , _lock_count(0)
     , _mapped_ptr(nullptr)
@@ -110,7 +110,7 @@ gpu_image2d::gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const la
 }
 
 gpu_image2d::gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const layout& new_layout, const cl::Image2D& buffer)
-    : memory_impl(engine, new_layout)
+    : memory_impl(engine, new_layout, true)
     , _context(engine->get_context())
     , _lock_count(0)
     , _buffer(buffer)

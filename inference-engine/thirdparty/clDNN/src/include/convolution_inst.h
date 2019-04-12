@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,9 @@ public:
         , transposed(false)
         , input_qf(this->get_primitive()->input_quantization_factor)
         , output_qf(this->get_primitive()->output_quantization_factor)
+        , groups(this->get_primitive()->groups)
     {
+        support_padding(true);
     }
 
     void set_split(int32_t node_split) { split = node_split; }
@@ -48,6 +50,9 @@ public:
 
     void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
+
+    void set_groups(uint32_t node_groups) { groups = node_groups; }
+    uint32_t get_groups() const { return groups; }
 
     program_node& input() const { return get_dependency(0); }
 
@@ -107,6 +112,7 @@ private:
     bool transposed;
     float input_qf;
     float output_qf;
+    uint32_t groups;
 };
 
 using convolution_node = typed_program_node<convolution>;
@@ -125,34 +131,50 @@ public:
 
     memory_impl& weights_memory(size_t index) const
     {
-        if (static_cast<int32_t>(index) >= node.get_split())
-            throw std::range_error("weights offset too big");
-        
-        return dep_memory(1 + index);
+        if (node.get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node.get_split())
+                throw std::range_error("weights offset too big");
+            return dep_memory(1 + index);
+        }
+        else { // all weights are in one buffer
+            return dep_memory(1);
+        }
     }
 
     memory_impl& bias_memory(size_t index) const
     { 
-        if (static_cast<int32_t>(index) >= node.get_split())
-            throw std::range_error("bias offset too big");
-
-        return dep_memory(1 + node.get_split() + index);
+        if (node.get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node.get_split())
+                throw std::range_error("bias offset too big");
+            return dep_memory(1 + node.get_split() + index);
+        }
+        else { // all bias are in one buffer
+            return dep_memory(2);
+        }
     }
 
     memory_impl& weights_quantization_factors_memory(size_t index) const
     {
-        if (static_cast<int32_t>(index) >= node.get_split())
-            throw std::range_error("quantization factors offset too big");
-
-        return dep_memory(1 + 2*node.get_split() + index);
+        if (node.get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node.get_split())
+                throw std::range_error("quantization factors offset too big");
+            return dep_memory(1 + 2 * node.get_split() + index);
+        }
+        else { // all quantization_factors are in one buffer
+            return dep_memory(3);
+        };
     }
 
     memory_impl& output_calibration_factors_memory(size_t index) const
     {
-        if (static_cast<int32_t>(index) >= node.get_split())
-            throw std::range_error("quantization factors offset too big");
-
-        return dep_memory(1 + 3 * node.get_split() + index);
+        if (node.get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node.get_split())
+                throw std::range_error("quantization factors offset too big");
+            return dep_memory(1 + 3 * node.get_split() + index);
+        }
+        else { // all calibration_factors are in one buffer
+            return dep_memory(4);
+        }
     }
 
     bool bias_term() const

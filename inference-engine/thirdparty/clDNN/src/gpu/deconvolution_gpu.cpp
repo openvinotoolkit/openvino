@@ -32,9 +32,9 @@ struct deconvolution_gpu : typed_primitive_gpu_impl<deconvolution>
 protected:
 
     // TODO: share it with convolution and fully connected
-    virtual bool validate(typed_primitive_inst<deconvolution>& instance) const override
+    virtual bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override
     {
-        bool res = parent::validate(instance);
+        bool res = true;
 
         CLDNN_ERROR_NOT_EQUAL(_outer.id(), "deconvolution filling value", _outer.get_output_layout().data_padding.filling_value(), "padding mode", 0.0f, "Unknown padding mode in deconvolution.");
         // Check whether all memory elements use the same unit type (FP16 or FP32).
@@ -62,6 +62,11 @@ protected:
     virtual int32_t get_split() const override
     { 
         return _outer.get_split(); 
+    }
+
+    virtual uint32_t get_groups() const override
+    {
+        return _outer.get_groups();
     }
 
 public:
@@ -93,18 +98,21 @@ public:
         const tensor dilation = {0,0,1,1};
 #endif
         const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
+        const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
 
         const auto& input_offset = primitive->input_offset;
+        const auto& groups = primitive->groups;
 
-        auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(arg, depthwise_separable_opt ? 1 : split);
+        auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(arg, (groups > 1 && !depthwise_separable_opt) ? groups : actual_split, groups);
         auto deconv_optional_params = get_default_weights_bias_optional_params<kernel_selector::deconvolution_optional_params>(arg.get_program());
 
         if(primitive->with_activation)
-            convert_activation_func_params(primitive, deconv_params);
+            convert_activation_func_params(primitive, deconv_params.activation);
 
-        deconv_params.depthwiseSeparableOpt = depthwise_separable_opt;
+        deconv_params.depthwise_separable_opt = depthwise_separable_opt;
 
         deconv_params.split = split;
+        deconv_params.groups = groups;
         deconv_params.filterSize = {
             (uint32_t)weights_size.spatial[0],
             (uint32_t)weights_size.spatial[1],
@@ -136,8 +144,7 @@ public:
         auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
-
+        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with these arguments");
         auto deconv = new deconvolution_gpu(arg, best_kernels[0]);
 
         return deconv;

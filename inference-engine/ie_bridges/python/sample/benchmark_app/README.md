@@ -1,4 +1,4 @@
-# Benchmark Application Demo
+# Benchmark Application Python* Demo
 
 This topic demonstrates how to run the Benchmark Application demo, which performs inference using convolutional networks.
 
@@ -8,6 +8,7 @@ This topic demonstrates how to run the Benchmark Application demo, which perform
 
 Upon the start-up, the application reads command-line parameters and loads a network and images to the Inference Engine plugin. The number of infer requests and execution approach depend on a mode defined with the `-api` command-line parameter.
 
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Specify Input Shapes** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ### Synchronous API
 For synchronous mode, the primary metric is latency. The application creates one infer request and executes the `Infer` method. A number of executions is defined by one of the two values:
@@ -30,37 +31,69 @@ The infer requests are executed asynchronously. `Wait` method is used to wait fo
 ## Running
 
 Running the application with the `-h` or `--help`' option yields the following usage message:
-```python3 benchmark_app.py -h
+```python3 benchmark_app.py -h```
 
-benchmark_app [OPTION]
+The command yields the following usage message:
+```
+   usage: benchmark_app.py [-h] -i PATH_TO_IMAGES -m PATH_TO_MODEL
+                        [-c PATH_TO_CLDNN_CONFIG] [-l PATH_TO_EXTENSION]
+                        [-api {sync,async}] [-d TARGET_DEVICE]
+                        [-niter NUMBER_ITERATIONS]
+                        [-nireq NUMBER_INFER_REQUESTS]
+                        [-nthreads NUMBER_THREADS] [-b BATCH_SIZE]
+                        [-pin {YES,NO}]
+
 Options:
-
-    -h, --help                                       Print a usage message
-    -i, --path_to_images "<path>"                    Required. Path to a folder with images or to image files.
-    -m, --path_to_model "<path>"                     Required. Path to an .xml file with a trained model.
-    -pp "<path>"                                     Path to a plugin folder.
-    -api, --api_type "<sync/async>"                  Required. Enable using sync/async API.
-    -d, --target_device "<device>"                   Specify a target device to infer on: CPU, GPU, FPGA or MYRIAD. Use "-d HETERO:<comma separated devices list>" format to specify HETERO plugin. The application looks for a suitable plugin for the specified device.
-    -niter, --number_iterations "<integer>"          Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
-    -nireq, --number_infer_requests "<integer>"      Optional. Number of infer requests (default value is 2).
-    -l, --path_to_extension "<absolute_path>"        Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
-          Or
-    -c, --path_to_cldnn_config "<absolute_path>"     Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
-    -b, --batch_size "<integer>"                     Optional. Batch size value. If not specified, the batch size value is determined from IR.
-    -nthreads, --number_threads "<integer>"          Number of threads to use for inference on the CPU (including Hetero cases).
-    -pin {YES,NO}, --infer_threads_pinning {YES,NO}  Optional. Enable ("YES" is default value) or disable ("NO")CPU threads pinning for CPU-involved inference.
+  -h, --help            Show this help message and exit.
+  -i PATH_TO_IMAGES, --path_to_images PATH_TO_IMAGES
+                        Required. Path to a folder with images or to image
+                        files.
+  -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
+                        Required. Path to an .xml file with a trained model.
+  -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
+                        Optional. Required for GPU custom kernels. Absolute
+                        path to an .xml file with the kernels description.
+  -l PATH_TO_EXTENSION, --path_to_extension PATH_TO_EXTENSION
+                        Optional. Required for GPU custom kernels. Absolute
+                        path to an .xml file with the kernels description.
+  -api {sync,async}, --api_type {sync,async}
+                        Optional. Enable using sync/async API. Default value
+                        is sync
+  -d TARGET_DEVICE, --target_device TARGET_DEVICE
+                        Optional. Specify a target device to infer on: CPU,
+                        GPU, FPGA, HDDL or MYRIAD. Use "-d HETERO:<comma
+                        separated devices list>" format to specify HETERO
+                        plugin. The application looks for a suitable plugin
+                        for the specified device.
+  -niter NUMBER_ITERATIONS, --number_iterations NUMBER_ITERATIONS
+                        Optional. Number of iterations. If not specified, the
+                        number of iterations is calculated depending on a
+                        device.
+  -nireq NUMBER_INFER_REQUESTS, --number_infer_requests NUMBER_INFER_REQUESTS
+                        Optional. Number of infer requests (default value is
+                        2).
+  -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
+                        Number of threads to use for inference on the CPU
+                        (including Hetero cases).
+  -b BATCH_SIZE, --batch_size BATCH_SIZE
+                        Optional. Batch size value. If not specified, the
+                        batch size value is determined from IR
+  -pin {YES,NO}, --infer_threads_pinning {YES,NO}
+                        Optional. Enable ("YES" is default value) or disable
+                        ("NO")CPU threads pinning for CPU-involved inference.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-To run the demo, you can use one-layer public models or one-layer pre-trained and optimized models delivered with the package that support images as input.
+To run the demo, you can use public or pre-trained models. To download the pre-trained models, use the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
+
+> **NOTE**: Before running the demo with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 For example, to do inference on an image using a trained network with multiple outputs on CPU, run the following command:
 
-```python3 benchmark_app.py -i <path_to_image>/inputImage.bmp -m <path_to_model>/multiple-output.xml -d CPU
 ```
-
-> **NOTE**: Public models should be first converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+python3 benchmark_app.py -i <path_to_image>/inputImage.bmp -m <path_to_model>/multiple-output.xml -d CPU
+```
 
 ## Demo Output
 
@@ -79,3 +112,5 @@ For asynchronous API, the application outputs only throughput:
 
 ## See Also
 * [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)

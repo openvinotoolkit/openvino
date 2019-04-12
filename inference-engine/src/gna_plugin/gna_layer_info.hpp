@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ class LayerInfo {
     bool has32BOutput() const noexcept {
         IS_VALID();
         static  InferenceEngine::details::caseless_set<std::string> layersWith32BOutputs =
-                {"FullyConnected", "InnerProduct", "Eltwise", "ScaleShift", "Convolution", "Pooling"};
+                {"FullyConnected", "InnerProduct", "AffineFilter", "Eltwise", "ScaleShift", "Convolution", "Pooling"};
         return (layersWith32BOutputs.find(layer->type) != layersWith32BOutputs.end()) ||
                                                             (isCrop() && isCropAffined());
     }
@@ -88,6 +88,11 @@ class LayerInfo {
         IS_VALID();
         return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "input");
     }
+    bool isScaleShift() const noexcept {
+        IS_VALID();
+        return nullptr != as<const InferenceEngine::ScaleShiftLayer*>();
+    }
+
     bool isEltwise() const noexcept {
         IS_VALID();
         return nullptr != as<const InferenceEngine::EltwiseLayer*>();
@@ -111,9 +116,6 @@ class LayerInfo {
     bool isFullyConnected() const noexcept {
         return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "FullyConnected") ||
                 InferenceEngine::details::CaselessEq<std::string>()(layer->type, "InnerProduct");
-    }
-    bool isConvolutional() const noexcept {
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "Convolution");
     }
     bool isSplit() const noexcept {
         IS_VALID();
@@ -155,7 +157,7 @@ class LayerInfo {
     bool isCropAffined() const noexcept {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
-        return (ALIGN(cropOffset, 8) != cropOffset);
+        return (ALIGN64(cropOffset) != cropOffset);
     }
     bool isCopy() const noexcept {
         IS_VALID();
