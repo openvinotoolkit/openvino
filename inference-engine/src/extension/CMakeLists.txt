@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,7 +11,22 @@ if (NOT(IE_MAIN_SOURCE_DIR))
     # to use C++11 if samples are built outside of IE repo
     set (CMAKE_CXX_STANDARD 11)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
-    set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+    if (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
+        set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+    endif()
+endif()
+
+# treating warnings as errors
+if (WIN32)
+    if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267") #disable some warnings
+    endif()
+else()
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+endif()
+
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
 
 file(GLOB_RECURSE SRC *.cpp)

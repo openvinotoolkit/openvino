@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,11 +28,16 @@ public:
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
 
+protected:
+    std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const override;
+
 private:
     static Register<MKLDNNFullyConnectedNode> reg;
     InferenceEngine::SizeVector weightsDims;
     InferenceEngine::SizeVector biasesDims;
     mkldnn::memory::format weightsFormatForSrcFormat(mkldnn::memory::format sourceFormat);
+
+    InferenceEngine::Blob::Ptr wScale, oScale;
 };
 
 }  // namespace MKLDNNPlugin

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'data'},
                     'node_2': {'type': 'Identity', 'value': None, 'kind': 'data'},
                     'pbc': {'type': 'PriorBoxClustered', 'value': None, 'kind': 'op'},
-                    'node_3': {'type': 'Identity', 'value': None, 'kind': 'data'}
+                    'node_3': {'type': 'Identity', 'value': None, 'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
                     }
 
 
@@ -35,9 +36,11 @@ class TestPriorBoxClusteredPartialInfer(unittest.TestCase):
                             [
                                 ('node_1', 'pbc'),
                                 ('node_2', 'pbc'),
-                                ('pbc', 'node_3')],
+                                ('pbc', 'node_3'),
+                                ('node_3', 'op_output')
+                             ],
                             {
-                                'node_3': {'is_output': True, 'shape': None},
+                                'node_3': {'shape': None},
                                 'node_1': {'shape': np.array([1, 384, 19, 19])},
                                 'node_2': {'shape': np.array([1, 3, 300, 300])},
                                 'pbc': {'flip': 0, 'clip': 0, 'variance': [0.1, 0.1, 0.2, 0.2],
@@ -58,9 +61,11 @@ class TestPriorBoxClusteredPartialInfer(unittest.TestCase):
                             [
                                 ('node_1', 'pbc'),
                                 ('node_2', 'pbc'),
-                                ('pbc', 'node_3')],
+                                ('pbc', 'node_3'),
+                                ('node_3', 'op_output')
+                             ],
                             {
-                                'node_3': {'is_output': True, 'shape': None},
+                                'node_3': {'shape': None},
                                 'node_1': {'shape': np.array([1, 19, 19, 384])},
                                 'node_2': {'shape': np.array([1, 300, 300, 3])},
                                 'pbc': {'flip': 0, 'clip': 0, 'variance': [0.1, 0.1, 0.2, 0.2],

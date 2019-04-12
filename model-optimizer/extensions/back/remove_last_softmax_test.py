@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -31,14 +31,19 @@ class KaldiRemoveLastSoftMaxTest(unittest.TestCase):
         },
         'output_node': {
             'kind': 'data'
+        },
+        'op_output': {
+            'kind': 'op',
+            'op': 'OpOutput'
         }
     }
 
     def test_remove_last_SoftMax(self):
         graph = build_graph(self.nodes, [
             ('input_node', 'softmax_node'),
-            ('softmax_node', 'output_node')
-        ], {'output_node': {'is_output': True}})
+            ('softmax_node', 'output_node'),
+            ('output_node', 'op_output')
+        ])
         RemoveLastSoftMaxPattern().find_and_replace_pattern(graph)
         self.assertNotIn('softmax_node', graph.node)
 

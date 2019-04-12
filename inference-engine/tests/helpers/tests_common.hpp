@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,83 @@
 	#include "Psapi.h"
 #endif
 
-class TestsCommon : public ::testing::Test {
+class BaseTestCreator {
+protected:
+    std::string _type;
 public:
+    explicit BaseTestCreator(const std::string& type) : _type(type) {}
+
+    virtual InferenceEngine::CNNLayerPtr create(const std::string& type)  = 0;
+
+    virtual bool shouldCreate(const std::string& type) = 0;
+};
+
+template<class LT>
+class LayerTestCreator : public BaseTestCreator {
+public:
+    explicit LayerTestCreator(const std::string& type) : BaseTestCreator(type) {}
+
+    InferenceEngine::CNNLayerPtr create(const std::string& type) override {
+        InferenceEngine::LayerParams params;
+        params.type = type;
+        return std::make_shared<LT>(params);
+    }
+
+    bool shouldCreate(const std::string& type) override {
+        return type == _type;
+    }
+};
+
+class TestsCommon : public ::testing::Test {
+private:
+    static std::vector<std::shared_ptr<BaseTestCreator>>& getCreators() {
+        // there should be unique_ptr but it cant be used with initializer lists
+        static std::vector<std::shared_ptr<BaseTestCreator> > creators = {
+                std::make_shared<LayerTestCreator<InferenceEngine::PowerLayer>>("Power"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ConvolutionLayer>>("Convolution"),
+                std::make_shared<LayerTestCreator<InferenceEngine::DeconvolutionLayer>>("Deconvolution"),
+                std::make_shared<LayerTestCreator<InferenceEngine::PoolingLayer>>("Pooling"),
+                std::make_shared<LayerTestCreator<InferenceEngine::FullyConnectedLayer>>("InnerProduct"),
+                std::make_shared<LayerTestCreator<InferenceEngine::FullyConnectedLayer>>("FullyConnected"),
+                std::make_shared<LayerTestCreator<InferenceEngine::NormLayer>>("LRN"),
+                std::make_shared<LayerTestCreator<InferenceEngine::NormLayer>>("Norm"),
+                std::make_shared<LayerTestCreator<InferenceEngine::SoftMaxLayer>>("Softmax"),
+                std::make_shared<LayerTestCreator<InferenceEngine::SoftMaxLayer>>("SoftMax"),
+                std::make_shared<LayerTestCreator<InferenceEngine::GRNLayer>>("GRN"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MVNLayer>>("MVN"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReLULayer>>("ReLU"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ClampLayer>>("Clamp"),
+                std::make_shared<LayerTestCreator<InferenceEngine::SplitLayer>>("Split"),
+                std::make_shared<LayerTestCreator<InferenceEngine::SplitLayer>>("Slice"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ConcatLayer>>("Concat"),
+                std::make_shared<LayerTestCreator<InferenceEngine::EltwiseLayer>>("Eltwise"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ScaleShiftLayer>>("ScaleShift"),
+                std::make_shared<LayerTestCreator<InferenceEngine::PReLULayer>>("PReLU"),
+                std::make_shared<LayerTestCreator<InferenceEngine::CropLayer>>("Crop"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReshapeLayer>>("Reshape"),
+                std::make_shared<LayerTestCreator<InferenceEngine::TileLayer>>("Tile"),
+                std::make_shared<LayerTestCreator<InferenceEngine::BatchNormalizationLayer>>("BatchNormalization"),
+                std::make_shared<LayerTestCreator<InferenceEngine::GemmLayer>>("Gemm"),
+                std::make_shared<LayerTestCreator<InferenceEngine::PadLayer>>("Pad"),
+                std::make_shared<LayerTestCreator<InferenceEngine::GatherLayer>>("Gather"),
+                std::make_shared<LayerTestCreator<InferenceEngine::StridedSliceLayer>>("StridedSlice"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ShuffleChannelsLayer>>("ShuffleChannels"),
+                std::make_shared<LayerTestCreator<InferenceEngine::DepthToSpaceLayer>>("DepthToSpace"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReverseSequenceLayer>>("ReverseSequence")
+        };
+        return creators;
+    }
+public:
+    static InferenceEngine::CNNLayer::Ptr createLayer(const std::string& type) {
+        for (auto& creator : getCreators()) {
+            if (!creator->shouldCreate(type))
+                continue;
+            return creator->create(type);
+        }
+        static LayerTestCreator<InferenceEngine::GenericLayer> genericCreator("");
+        return genericCreator.create(type);
+    }
+
     static size_t parseLine(char* line) {
         // This assumes that a digit will be found and the line ends in " Kb".
         size_t i = strlen(line);
@@ -56,12 +131,12 @@ public:
         return result;
     }
 #ifdef _WIN32
-	static size_t getVmSizeInKBWin() {
-		PROCESS_MEMORY_COUNTERS pmc;
-		pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
-		GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
-		return pmc.WorkingSetSize;
-	}
+        static size_t getVmSizeInKBWin() {
+                PROCESS_MEMORY_COUNTERS pmc;
+                pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
+                GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
+                return pmc.WorkingSetSize;
+	    }
 #endif
 
  public:
@@ -135,8 +210,8 @@ public:
         return make_so_name(input);
     }
 
-    static void fill_data(InferenceEngine::Blob::Ptr blob) {
-        fill_data(blob->buffer().as<float*>(), blob->size());
+    static void fill_data(InferenceEngine::Blob::Ptr& blob) {
+        fill_data(blob->buffer().as<float*>(), blob->byteSize() / sizeof(float));
     }
 
     static void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
@@ -146,6 +221,25 @@ public:
             } else {
                 data[i] = sin((float)i);
             }
+        }
+    }
+
+    static void fill_data_non_zero(int32_t *data, size_t size, int n) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = n*i%254+1;
+        }
+    }
+
+    static void fill_data_bin(float *data, size_t size) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = sinf((float)i) > 0.f ? 1.f : -1.f;
+        }
+    }
+
+    static void fill_data_bin_packed(int8_t *data, size_t size) {
+        int nbits = 8;
+        for (size_t i = 0; i < div_up(size, nbits); i++) {
+            data[i] = static_cast<int8_t>(i % 255);
         }
     }
 
@@ -168,7 +262,6 @@ public:
     }
 
     static void compare(InferenceEngine::Blob &res, InferenceEngine::Blob &ref, float max_diff = 0.01f) {
-
         float *res_ptr = res.buffer().as<float*>();
         size_t res_size = res.size();
 
@@ -183,7 +276,6 @@ public:
     }
 
     static void compare_NRMSD(InferenceEngine::Blob &res, InferenceEngine::Blob &ref, float max_nrmsd = 0.01f) {
-
         float *res_ptr = res.buffer().as<float*>();
         size_t res_size = res.size();
 
@@ -224,8 +316,7 @@ public:
         }
     }
 
-    void replace(std::string& str, const std::string& from, const std::string& to)
-    {
+    void replace(std::string& str, const std::string& from, const std::string& to) {
         std::string::size_type pos = 0;
 
         while((pos = str.find(from, pos)) != std::string::npos) {
@@ -326,6 +417,11 @@ public:
         return sts;
     }
 
+    template <typename T, typename U>
+    static inline T div_up(const T a, const U b) {
+        assert(b);
+        return (a + b - 1) / b;
+    }
 };
 
 

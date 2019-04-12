@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,7 +24,8 @@ from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'argmax': {'type': 'ArgMax', 'kind': 'op'},
-                    'node_3': {'type': 'Identity', 'kind': 'op'}
+                    'node_3': {'type': 'Identity', 'kind': 'op'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
                     }
 
 
@@ -32,8 +33,10 @@ class TestArgMaxOp(unittest.TestCase):
     def test_caffe_argmax_axis(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'argmax'),
-                             ('argmax', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('argmax', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 1025, 2049])},
                              'argmax': {
                                  'out_max_val': True,
@@ -52,8 +55,10 @@ class TestArgMaxOp(unittest.TestCase):
     def test_caffe_argmax_axis_negative(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'argmax'),
-                             ('argmax', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('argmax', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 1025, 2049])},
                              'argmax': {
                                  'out_max_val': True,
@@ -73,8 +78,10 @@ class TestArgMaxOp(unittest.TestCase):
     def test_caffe_argmax_no_axis(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'argmax'),
-                             ('argmax', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('argmax', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 1025, 2049])},
                              'argmax': {
                                  'out_max_val': True,
@@ -92,8 +99,10 @@ class TestArgMaxOp(unittest.TestCase):
     def test_caffe_argmax_extend_shape(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'argmax'),
-                             ('argmax', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('argmax', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3])},
                              'argmax': {
                                  'out_max_val': True,
@@ -111,8 +120,10 @@ class TestArgMaxOp(unittest.TestCase):
     def test_caffe_argmax_out_max_val_false(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'argmax'),
-                             ('argmax', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('argmax', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3])},
                              'argmax': {
                                  'out_max_val': False,
@@ -130,8 +141,10 @@ class TestArgMaxOp(unittest.TestCase):
     def test_caffe_argmax_no_shape(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'argmax'),
-                             ('argmax', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('argmax', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': None},
                              'argmax': {
                                  'out_max_val': False,

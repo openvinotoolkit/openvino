@@ -3,7 +3,7 @@
 --mb=2
 --dir=FWD_D --batch=conv_mobilenet_dw
 --dir=BWD_D --batch=conv_mobilenet_dw
---merge=RELU
+--attr=post_ops='relu'
 --dir=FWD_D --batch=conv_mobilenet_dw # +relu
 
 #post-ops
@@ -30,8 +30,11 @@
 --dir=FWD_B
 --attr=irmode=down;oscale=per_oc:2.25;post_ops='sum:1.5;relu'
 --cfg=u8s8u8s32 --batch=conv_mobilenet_dw
---cfg=u8s8f32s32 --batch=conv_mobilenet_dw
+--cfg=s8s8f32s32 --batch=conv_mobilenet_dw
 --dir=FWD_D
 --attr=irmode=nearest;oscale=common:2.25;post_ops='sum:1.5'
 --cfg=u8s8s8s32 --batch=conv_mobilenet_dw
---cfg=u8s8s32s32 --batch=conv_mobilenet_dw
+--cfg=s8s8s32s32 --batch=conv_mobilenet_dw
+
+--cfg=u8s8s8s32 g8mb1ic8ih112iw112oc8oh112ow112kh3kw3sh1sw1ph1pw1n"depthwise:conv1"
+--cfg=s8s8u8s32 g8mb1ic8ih112iw112oc8oh112ow112kh3kw3sh1sw1ph1pw1n"depthwise:conv1"

@@ -22,6 +22,7 @@
 #include <vector>
 #include <iostream>
 
+
 namespace instrumentation {
     // initalize dumping directory for whole run
     const std::string logger::dump_dir = DUMP_DIRECTORY;
@@ -303,7 +304,7 @@ namespace instrumentation {
         auto i_size = mem_arg.size.batch[0]; //batch = input feature map
         auto x_size = mem_arg.size.spatial[0]; // spatial_x = output feature map
         auto weights_size = mem_arg.size.count();
-        int xsv = 8, bsv = 8; 
+        int xsv = 8, bsv = 8;
         unsigned int input_it = 0, input_i_it= 0 , input_o_it = 0;
         for (cldnn::tensor::value_type it = 0; it < weights_size; it++)
         {
@@ -371,9 +372,10 @@ namespace instrumentation {
     }
 
     template <class T>
-    void dump(const cldnn::memory& mem, std::vector<std::vector<std::stringstream>>& streams)
+    void dump(const cldnn::memory& mem, std::vector<std::vector<std::string>>& dump_strings)
     {
         auto mem_ptr = mem.pointer<T>();
+        std::stringstream stream;
 
         auto&& pitches = mem.get_layout().get_pitches();
         auto&& size = mem.get_layout().size;
@@ -386,39 +388,40 @@ namespace instrumentation {
                     for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x)
                     {
                         unsigned int input_it = b*pitches.batch[0] + f*pitches.feature[0] + y*pitches.spatial[1] + x*pitches.spatial[0];
-                        streams[b][f] << convert_element(mem_ptr[input_it]) << " ";
+                        stream << convert_element(mem_ptr[input_it]) << " ";
                         input_it++;
                     }
-                    streams[b][f] << std::endl;
+                    stream << std::endl;
+                    dump_strings[b][f] = stream.str();
                 }
             }
         }
     }
 
     void logger::log_memory_to_file(const cldnn::memory& mem, std::string prefix, bool single_batch, cldnn::tensor::value_type batch_id, bool single_feature, cldnn::tensor::value_type feature_id)
-    {        
+    {
         auto batch = mem.get_layout().size.batch[0];
         auto feature = mem.get_layout().size.feature[0];
         auto eng_type =  "gpu" ;
-        std::vector<std::vector<std::stringstream>> streams(batch);
+        std::vector<std::vector<std::string>> dump_strings(batch);
         for(cldnn::tensor::value_type b = 0; b < batch; b++)
         {
-            streams[b].resize(feature);
+            dump_strings[b].resize(feature);
         }
 
         if (mem.get_layout().data_type == cldnn::data_types::f32)
-            dump<float>(mem, streams);
+            dump<float>(mem, dump_strings);
         else
-            dump<half_t>(mem, streams);
+            dump<half_t>(mem, dump_strings);
 
         for (cldnn::tensor::value_type b = 0; b < batch; b++)
             for (cldnn::tensor::value_type f = 0; f < feature; f++)
             {
-                if ((!single_batch || b == batch_id) && (!single_feature || f == feature_id))
+                if (!single_batch || (b == batch_id && f == feature_id))
                 {
                     std::string filename((dump_dir + "/" + prefix + "_" + eng_type + "_b" + std::to_string(b) + "_f" + std::to_string(f) + ".txt"));
-                    std::ofstream file_stream = std::ofstream(filename, std::ios::out);
-                    file_stream << streams[b][f].str();
+                    std::ofstream file_stream(filename);
+                    file_stream << dump_strings[b][f];
                     file_stream.close();
                 }
             }

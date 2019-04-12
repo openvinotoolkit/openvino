@@ -16,8 +16,13 @@
 
 #include "include/include_all.cl"
 
+#ifdef INPUT_STRIDED
+#define GET_INDEX(src) \
+    GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(src, d4, d3, d2 * CAT(src, _STRIDE_Y), d1 * CAT(src, _STRIDE_X)) 
+#else
 #define GET_INDEX(src) \
     GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(src, d4, d3, d2, d1) 
+#endif
 
 int16 FUNC(get_int16)(const __global UNIT_TYPE* src, uint idx)
 {

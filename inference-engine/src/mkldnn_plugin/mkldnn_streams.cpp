@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ bool check_env_variables() {
 #if !(defined(__APPLE__) || defined(_WIN32))
 /* Get the cores affinity mask for the current process */
 bool get_process_mask(int& ncpus, cpu_set_t*& mask) {
-    for (ncpus = sizeof(cpu_set_t) / CHAR_BIT; ncpus < 1024 /* reasonable limit of #cores*/; ncpus <<= 1) {
+    for (ncpus = sizeof(cpu_set_t) / CHAR_BIT; ncpus < 32768 /* reasonable limit of #cores*/; ncpus <<= 1) {
         mask = CPU_ALLOC(ncpus);
         if (!mask) return false;
 
@@ -61,6 +61,8 @@ bool pin_current_thread_by_mask(int ncores, const cpu_set_t* proc_mask) {
 /* Pin thread to a spare core in the round-robin scheme, while respecting the given process mask.
  * The function can also handle the hyper-threading (by populating the physical cores first) */
 bool pin_thread_to_vacant_core(int thr_idx, int hyperthreads, int ncores, const cpu_set_t* proc_mask) {
+    if (proc_mask == nullptr)
+        return false;
     const size_t size = CPU_ALLOC_SIZE(ncores);
     const int num_cpus = CPU_COUNT_S(size, proc_mask);
     thr_idx %= num_cpus;  // To limit unique number in [; num_cpus-1] range
@@ -337,6 +339,7 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::SetBlob(const char *name, const 
         }
 
         if (foundInput->getPreProcess().getResizeAlgorithm() != InferenceEngine::ResizeAlgorithm::NO_RESIZE) {
+            PreProcessData::isApplicable(data, _inputs[name]);
             // Stores the given blob as ROI blob. It will be used to fill in network input during pre-processing.
             _preProcData[name].setRoiBlob(data);
         } else {

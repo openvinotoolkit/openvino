@@ -16,116 +16,12 @@
 
 #include "gtest/gtest.h"
 #include "mkldnn_test_common.hpp"
-
+#include "math_utils.hpp"
 #include "mkldnn.hpp"
 
+using namespace mkldnn::impl::math;
+
 namespace mkldnn {
-
-template <typename T, typename A> inline T relu_fwd(T s, A alpha) {
-    return s > 0 ? s : static_cast<T>(s * alpha);
-}
-template <typename T, typename A> inline T relu_bwd(T dd, T s, A alpha) {
-    return s > 0 ? dd : static_cast<T>(dd * alpha);
-}
-template <typename T> T tanh_fwd(T s) {
-    return static_cast<T>(::tanhf((float)s));
-}
-template <typename T> T tanh_bwd(T dd, T s) {
-    const float th = ::tanhf((float)s);
-    return static_cast<T>(dd * (1 - th) * (1 + th));
-}
-
-template <typename T, typename A> T elu_fwd(T s, A alpha) {
-    return s > 0 ? s : static_cast<T>(alpha * (::expf(s) - 1));
-}
-template <typename T, typename A> T elu_bwd(T dd, T s, A alpha) {
-    return static_cast<T>(dd * (s > 0 ? 1 : alpha * ::expf(s)));
-}
-
-template <typename T>
-T square_fwd(T s) {
-    return s * s;
-}
-
-template <typename T>
-T square_bwd(T dd, T s) {
-    return dd * 2*s;
-}
-
-template <typename T>
-T abs_fwd(T s) {
-    return s > 0 ? s : -s;;
-}
-
-template <typename T>
-T abs_bwd(T dd, T s) {
-    return dd * (s > 0 ? 1 : s < 0 ? -1 : 0);
-}
-
-template <typename T>
-T sqrt_fwd(T s) {
-    return s > 0 ? ::sqrtf(s) : 0;
-}
-
-template <typename T>
-T sqrt_bwd(T dd, T s) {
-    return s > 0 ? dd / (2 * ::sqrtf(s)) : 0;
-}
-
-template <typename T, typename A>
-T linear_fwd(T s, A alpha, A beta) {
-    return alpha * s + beta;
-}
-
-template <typename T, typename A>
-T linear_bwd(T dd, T s, A alpha, A beta) {
-    (void) s;
-    (void) beta;
-    return dd * alpha;
-}
-
-template <typename T, typename A>
-T bounded_relu_fwd(T s, A alpha) {
-    s = s > 0 ? s : 0;
-    return s > alpha ? alpha : s;
-}
-
-template <typename T, typename A>
-T bounded_relu_bwd(T dd, T s, A alpha) {
-    return dd * ((0 < s && s < alpha) ? 1 : 0);
-}
-
-template <typename T>
-T soft_relu_fwd(T s) {
-    return s < (T)logf(FLT_MAX) ? log1pf(::expf(s)) : s;
-}
-
-template <typename T>
-T soft_relu_bwd(T dd, T s) {
-    return dd / (1 + ::expf(-s));
-}
-
-template <typename T>
-T logistic_fwd(T s) {
-    T v = (T)(::expf(- (float)s));
-    return 1 / (1 + v);
-}
-
-template <typename T>
-T logistic_bwd(T dd, T s) {
-    T v = logistic_fwd<T>(s);
-    return dd * v * (1 - v);
-}
-
-template <typename T, typename A>
-T clamp_fwd(T s, A alpha, A beta) {
-    return s > alpha ? (T)(alpha) : s < beta ? (T)(beta) : s;
-}
-
-template <typename T, typename A>
-T clamp_bwd(T dd, T s, A alpha, A beta) {
-    return dd * ((beta < s && s < alpha) ? 1 : 0);
-}
 
 template <typename data_t>
 struct eltwise_test_params {
@@ -141,7 +37,7 @@ struct eltwise_test_params {
 
 size_t n_elems(const memory::desc &md) {
     size_t p = 1;
-    const int *pdims = md.data.layout_desc.blocking.padding_dims;
+    const ptrdiff_t *pdims = md.data.layout_desc.blocking.padding_dims;
     for (int i = 0; i < md.data.ndims; ++i)
         p *= (size_t)(pdims[i]);
     return p;
@@ -172,6 +68,8 @@ void check_eltwise_fwd(const eltwise_test_params<data_t> &p,
         case eltwise_soft_relu:   ref_d = soft_relu_fwd(s);               break;
         case eltwise_logistic:    ref_d = logistic_fwd(s);                break;
         case eltwise_clamp:       ref_d = clamp_fwd(s, p.alpha, p.beta);  break;
+        case eltwise_exp:         ref_d = exp_fwd(s);                     break;
+        case eltwise_not:         ref_d = not_fwd(s);                     break;
         default: assert(!"unknown alg_kind");
         }
         dst_data[i] = ref_d;
@@ -236,6 +134,7 @@ void check_eltwise_bwd(const eltwise_test_params<data_t> &p,
             break;
         case eltwise_logistic: ref_ds = logistic_bwd(ref_dd, ref_s); break;
         case eltwise_clamp: ref_ds = clamp_bwd(ref_dd, ref_s, p.alpha, p.beta); break;
+        case eltwise_exp: ref_ds = exp_bwd(ref_dd, ref_s); break;
         default: assert(!"unknown alg_kind");
         }
         EXPECT_NEAR(diff_src_data[map_index(diff_data_d, i)], ref_ds, 1.e-6);
@@ -289,7 +188,7 @@ protected:
 
         data_t data_median = data_t(0);
         data_t data_deviation
-                = p.alg_kind == eltwise_elu ? data_t(1) : data_t(200);
+                = p.alg_kind == eltwise_elu || p.alg_kind == eltwise_exp ? data_t(1) : data_t(200);
         fill_data<data_t>(n_elems(*data_desc), (data_t *)src->get_data_handle(),
                 data_median, data_deviation);
         check_zero_tail<data_t>(1, *src);
@@ -366,13 +265,16 @@ TEST_P(eltwise_test_float, TestsEltwise)
     EXPAND(PARAMS(eltwise_square, __VA_ARGS__)), \
     EXPAND(PARAMS(eltwise_abs, __VA_ARGS__))
 
+
 #define PARAMS_ALL_ALG_SDPART(...) \
     EXPAND(PARAMS(eltwise_sqrt, __VA_ARGS__)), \
     EXPAND(PARAMS(eltwise_linear, __VA_ARGS__)), \
     EXPAND(PARAMS(eltwise_soft_relu, __VA_ARGS__)), \
     EXPAND(PARAMS(eltwise_bounded_relu, __VA_ARGS__)), \
     EXPAND(PARAMS(eltwise_logistic, __VA_ARGS__)), \
-    EXPAND(PARAMS(eltwise_clamp, __VA_ARGS__))
+    EXPAND(PARAMS(eltwise_clamp, __VA_ARGS__)), \
+    EXPAND(PARAMS(eltwise_exp, __VA_ARGS__))
+
 
 #define INST_TEST_CASE(str, ...) INSTANTIATE_TEST_CASE_P( \
         str, eltwise_test_float, ::testing::Values(__VA_ARGS__))

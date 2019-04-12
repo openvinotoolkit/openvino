@@ -77,7 +77,7 @@ namespace tests
                     {
                         values.push_back(static_cast<float>(multipler + j));
                     }
-                    tests::set_values_per_batch_and_feature<float>(input_mems[i], generic_params->input_layouts[i], values);
+                    tests::set_values_per_batch_and_feature<float>(input_mems[i], values);
                     multipler = values.size();
                 }
                 else
@@ -87,7 +87,7 @@ namespace tests
                     {
                         values.push_back(FLOAT16(static_cast<float>(multipler + j)));
                     }
-                    tests::set_values_per_batch_and_feature<FLOAT16>(input_mems[i], generic_params->input_layouts[i], values);
+                    tests::set_values_per_batch_and_feature<FLOAT16>(input_mems[i], values);
                     multipler = values.size();
                 }        
             }                        
@@ -276,7 +276,7 @@ namespace tests
         return{ p, calc_offfset(layout, p) };
     }
 
-    size_t generic_test::get_linear_index(const layout & layout, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc)
+    size_t generic_test::get_linear_index(const layout&, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc)
     {
         return 
             desc.offset + 
@@ -309,7 +309,9 @@ namespace tests
         //{ format::yx,{ 8,8 } } , { format::yx,{ 9,9 } } , { format::yx,{ 10,10 } } , { format::yx,{ 11,11 } } , { format::yx,{ 12,12 } } , { format::yx,{ 13,13 } } ,
         //{ format::yx,{ 14,14 } } , { format::yx,{ 15,15 } } , { format::yx,{ 16,16 } } };
 
-        for (cldnn::data_types data_type : test_data_types())
+        auto data_types = test_data_types();
+
+        for (cldnn::data_types data_type : data_types)
         {
             for (cldnn::format fmt : test_input_formats)
             {
@@ -327,6 +329,12 @@ namespace tests
         }        
 
         return all_generic_params;
+    }
+
+    const cldnn::engine & get_test_engine()
+    {
+        static const cldnn::engine engine;
+        return engine;
     }
 
     const std::string test_dump::name() const
@@ -377,8 +385,7 @@ namespace tests
         std::vector<cldnn::data_types> result;
         result.push_back(cldnn::data_types::f32);
         
-        cldnn::engine temp;
-        if(temp.get_info().supports_fp16)
+        if(get_test_engine().get_info().supports_fp16)
         {
             result.push_back(cldnn::data_types::f16);
         }

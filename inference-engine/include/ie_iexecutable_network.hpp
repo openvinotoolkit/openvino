@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "ie_common.h"
 #include "ie_primitive_info.hpp"
 #include "ie_iinfer_request.hpp"
+#include "ie_icnn_network.hpp"
 #include "ie_imemory_state.hpp"
 #include "ie_input_info.hpp"
 #include <string>
@@ -73,12 +74,20 @@ public:
     virtual StatusCode Export(const std::string& modelFileName, ResponseDesc *resp) noexcept = 0;
 
     /**
-    * @brief Gets the mapping of IR layer names to implemented kernels
+    * @brief Get the mapping of IR layer names to implemented kernels
     * @param deployedTopology Map of PrimitiveInfo objects that represent the deployed topology
     * @param resp Optional: pointer to an already allocated object to contain information in case of failure
     * @return Status code of the operation: OK (0) for success
     */
     virtual StatusCode GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &deployedTopology, ResponseDesc *resp) noexcept = 0;
+
+    /**
+    * @brief Get executable graph information from a device
+    * @param graphPtr network ptr to store executable graph information
+    * @param resp Optional: pointer to an already allocated object to contain information in case of failure
+    * @return Status code of the operation: OK (0) for success
+    */
+    virtual StatusCode GetExecGraphInfo(ICNNNetwork::Ptr &graphPtr, ResponseDesc *resp) noexcept = 0;
 
     /**
      * @brief Gets state control interface for given executable network, State control essential for recurrent networks

@@ -90,6 +90,11 @@ public:
             return false;
     }
 
+    bool output_grad_w() const
+    {
+        return get_primitive()->output_grad_w;
+    }
+
 private:
     int32_t split;
     bool depthwise_sep_opt;
@@ -164,6 +169,11 @@ public:
             return true;
         else
             return false;
+    }
+
+    bool output_grad_w() const
+    {
+        return argument.output_grad_w;
     }
 };
 

@@ -15,7 +15,6 @@
 */
 
 #include "fully_connected_kernel_bs_f_bsv16_b1.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector 
 {
@@ -58,13 +57,13 @@ namespace kernel_selector
         return cldnn_jit;
     }
 
-    std::unique_ptr<FullyConnected_bs_f_bsv16_b1::FullyConnectedKernelBase::DispatchData> FullyConnected_bs_f_bsv16_b1::SetDefault(const fully_connected_params& arg) const
+    FullyConnected_bs_f_bsv16_b1::DispatchData FullyConnected_bs_f_bsv16_b1::SetDefault(const fully_connected_params& arg, int ) const
     {
-        auto run_info = std::unique_ptr<DispatchData>(new DispatchData(*FullyConnectedKernelBase::SetDefault(arg)));
+        DispatchData run_info = FullyConnectedKernelBase::SetDefault(arg);
 
         // Properties of chunk and unit.
         const     char*    chunk_type           = "uint";
-        const     uint32_t unit_byte_size       = run_info->fp16UnitUsed ? sizeof(short) : sizeof(float);
+        const     uint32_t unit_byte_size       = run_info.fp16UnitUsed ? sizeof(short) : sizeof(float);
         constexpr uint32_t chunk_byte_size      = sizeof(uint32_t);
         constexpr uint32_t sub_group_size       = 16;
         const     uint32_t units_per_chunk      = chunk_byte_size / unit_byte_size;
@@ -76,28 +75,37 @@ namespace kernel_selector
         const auto response_size = arg.output.Feature().v;
         auto rg_count = CeilDiv(response_size, responses_per_sg_exec);
 
-        run_info->lws0 = sub_group_size;
+        run_info.lws0 = sub_group_size;
         // Number of work items needed to process all response groups.
-        run_info->gws0 = rg_count * sub_group_size;
-        run_info->lws1 = run_info->lws2 = 1;
-        run_info->gws1 = run_info->gws2 = 1;
+        run_info.gws0 = rg_count * sub_group_size;
+        run_info.lws1 = run_info.lws2 = 1;
+        run_info.gws1 = run_info.gws2 = 1;
 
-        auto& kd = run_info;
-        kd->unit_byte_size              = unit_byte_size;
-        kd->chunk_type                  = chunk_type;
-        kd->chunk_byte_size             = chunk_byte_size;
-        kd->units_per_chunk             = units_per_chunk;
-        kd->bytes_per_sg_read           = sub_group_size * chunk_byte_size;
-        kd->units_per_sg_read           = units_per_sg_read;
-        kd->responses_per_sg_exec       = responses_per_sg_exec;
-        kd->in_chunk_prefetch_size      = 2;
-        kd->filter_chunk_prefetch_size  = responses_per_sg_exec;
+        run_info.unit_byte_size              = unit_byte_size;
+        run_info.chunk_type                  = chunk_type;
+        run_info.chunk_byte_size             = chunk_byte_size;
+        run_info.units_per_chunk             = units_per_chunk;
+        run_info.bytes_per_sg_read           = sub_group_size * chunk_byte_size;
+        run_info.units_per_sg_read           = units_per_sg_read;
+        run_info.responses_per_sg_exec       = responses_per_sg_exec;
+        run_info.in_chunk_prefetch_size      = 2;
+        run_info.filter_chunk_prefetch_size  = responses_per_sg_exec;
 
-        return std::move(run_info);
+        return run_info;
     }
 
     KernelsData FullyConnected_bs_f_bsv16_b1::GetKernelsData(const Params& params, const optional_params& optParams) const
     {
-        return GetCommonKernelsData(params, optParams, DataLayout::bf, {WeightsLayout::os_i_osv16}, FORCE_PRIORITY_5);
+        KernelsData res = {};
+        for (size_t i = 0; i < autoTuneOptions.size(); i++)
+        {
+            KernelsData kd = GetTunedKernelsDataByIndex(params, optParams, DataLayout::bf, { WeightsLayout::os_i_osv16 }, FORCE_PRIORITY_5, (int)i);
+            if (!kd.empty())
+            {
+                res.emplace_back(kd[0]);
+    }
+}
+
+        return res;
     }
 }

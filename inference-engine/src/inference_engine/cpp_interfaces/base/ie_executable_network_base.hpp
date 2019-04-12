@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,10 @@ public:
     StatusCode GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &deployedTopology,
                                  ResponseDesc *resp) noexcept override {
         TO_STATUS(_impl->GetMappedTopology(deployedTopology));
+    }
+
+    StatusCode GetExecGraphInfo(ICNNNetwork::Ptr &graphPtr, ResponseDesc *resp) noexcept override {
+        TO_STATUS(_impl->GetExecGraphInfo(graphPtr));
     }
 
     StatusCode  QueryState(IMemoryState::Ptr & pState, size_t idx

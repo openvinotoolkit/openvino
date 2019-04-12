@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from extensions.back.ConvolutionReshaper import ConvolutionReshaper
 from extensions.back.TileReshaper import TileReshaper
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.layout import get_width_dim, get_height_dim, get_features_dim, indices_mapping
+from mo.graph.graph import Graph
 from mo.ops.op import PermuteAttrs
 from mo.ops.permute import Permute
 
@@ -46,7 +47,7 @@ class PermuteForReshape(BackReplacementPattern):
         )
 
     @staticmethod
-    def replace_pattern(graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(graph: Graph, match: dict):
         reshape = match['reshape']
         assert len(reshape.in_nodes()) > 0
         if graph.graph['layout'] == 'NCHW' or reshape.has_and_set('nchw_layout') or\

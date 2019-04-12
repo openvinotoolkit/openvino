@@ -52,11 +52,11 @@ struct mkldnn_primitive: public mkldnn::impl::c_compatible {
 
     mkldnn_primitive(const mkldnn::impl::primitive_desc_t *pd,
             const input_vector &inputs, const output_vector &outputs)
-        : pd_(pd)
+        : pd_(pd->clone())
         , inputs_(inputs)
         , outputs_(outputs)
     {}
-    virtual ~mkldnn_primitive() {}
+    virtual ~mkldnn_primitive() { delete pd_; }
 
     /** returns primitive's engine */
     mkldnn::impl::engine_t *engine() const { return pd_->engine(); }
@@ -79,7 +79,7 @@ struct mkldnn_primitive: public mkldnn::impl::c_compatible {
      *   Suppose engine has a task pool and for some reasons submission failed.
      *   In this case primitive will set @p e's state to event::error
      */
-    virtual void execute(mkldnn::impl::event_t *e) = 0;
+    virtual void execute(mkldnn::impl::event_t *e) const = 0;
 
     /** returns data handle. Applicable for memory primitives only. */
     virtual mkldnn::impl::status_t get_data_handle(void **handle) const {

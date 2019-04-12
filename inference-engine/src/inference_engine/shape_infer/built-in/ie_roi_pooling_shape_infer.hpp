@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ class RoiPoolingShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit RoiPoolingShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -30,12 +30,16 @@ public:
         CNNLayer cnnLayer(lp);
         cnnLayer.params = params;
         cnnLayer.type = _type;
-        validate(&cnnLayer, inShapes, params, blobs);
+        validate(&cnnLayer, inBlobs, params, blobs);
 
-        int pooled_h = cnnLayer.GetParamAsInt("pooled_h");
-        int pooled_w = cnnLayer.GetParamAsInt("pooled_w");
-        outShapes.push_back(
-                {inShapes[1][0], inShapes[0][1], static_cast<size_t>(pooled_h), static_cast<size_t>(pooled_w)});
+        SizeVector out_shapes = {inShapes[1][0], inShapes[0][1]};
+        for (auto attr : {"pooled_d", "pooled_h", "pooled_w"}) {  // desired IR format: pooled="...,d,h,w"
+            int pooled = cnnLayer.GetParamAsInt(attr, -1);
+            if (pooled >= 0) {
+                out_shapes.push_back(static_cast<size_t>(pooled));
+            }
+        }
+        outShapes.push_back(out_shapes);
     }
 };
 

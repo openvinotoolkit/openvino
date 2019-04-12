@@ -1,5 +1,17 @@
-// Copyright (C) 2018 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2019 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #include "hetero_executable_network.h"
@@ -208,10 +220,17 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
             _deviceLoaders[affinity]->SetLogCallback(*listener);
     }
 
+    InferenceEngine::ICNNNetworkStats* networkStats = nullptr;
+    if (StatusCode::OK != network.getStats(&networkStats, nullptr)) {
+        networkStats = nullptr;
+    }
+
+
     for (auto &&subgraph : subgraphs) {
         auto affinity = (*subgraph.begin())->affinity;
         tempLayers.assign(subgraph.begin(), subgraph.end());
-        auto tempNetwork = cloneNet(tempLayers);
+        auto tempNetwork = cloneNet(tempLayers, networkStats);
+        tempNetwork->setName(network.getName() + "_" + std::to_string(std::distance(subgraphs.data(), &subgraph)));
         // restoring some outputs from original net if they are not marked as output automatically
         // this might happen if output was set manually for origin network and
         // it doesn't go to next subgraph

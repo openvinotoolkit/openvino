@@ -15,10 +15,7 @@
 #pragma once
 
 #include "api/C/cldnn.h"
-#include "api/CPP/program.hpp"
-
-#include "gpu/ocl_toolkit.h"
-#include "program_impl.h"
+#include "api/CPP/tensor.hpp"
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
@@ -27,6 +24,16 @@
 #include <cstdint>
 
 using namespace cldnn;
+
+namespace cldnn
+{
+    enum class data_types : size_t;
+    enum class tuning_mode;
+    struct format;
+    struct layout;
+    struct program_impl;
+    struct program_node;
+}
 
 namespace kernel_selector
 {
@@ -63,6 +70,7 @@ namespace kernel_selector
     using tuning_mode                       = kernel_selector::TuningMode;
     using sample_type                       = kernel_selector::SampleType;
     using border_type                       = kernel_selector::BorderType;
+    using gather_axis                       = kernel_selector::GatherAxis;
 
     using data_tensor                       = kernel_selector::DataTensor;
     using weights_tensor                    = kernel_selector::WeightsTensor;
@@ -74,6 +82,8 @@ namespace kernel_selector
     using params                            = kernel_selector::Params;
     using weights_reorder_params            = kernel_selector::WeightsReorderParams;
     using generic_kernel_params             = kernel_selector::GenericKernelParams;
+
+    struct training_params;
 }
 
 kernel_selector::data_type to_data_type(data_types dt);
@@ -104,59 +114,45 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t)
 }
 
 template <typename p_type>
-inline void convert_activation_func_params(const p_type primitive, kernel_selector::base_params& params)
+inline void convert_activation_func_params(const p_type primitive, kernel_selector::base_activation_params& params)
 {
     const float negative_slope = primitive->activation_negative_slope;
     if (negative_slope != 0.0f)
     {
-        params.activationParams.m = negative_slope;
-        params.activationFunc = kernel_selector::activation_function::RELU_NEGATIVE_SLOPE;
+        params.m = negative_slope;
+        params.function = kernel_selector::activation_function::RELU_NEGATIVE_SLOPE;
     }
     else
     {
-        params.activationFunc = kernel_selector::activation_function::RELU;
+        params.function = kernel_selector::activation_function::RELU;
     }
 }
 
 template <typename arg_t>
-inline void convert_fused_activation_func_params(const arg_t& arg, kernel_selector::base_params& params)
+inline void convert_fused_activation_func_params(const arg_t& arg, kernel_selector::base_activation_params& params)
 {
-    params.activationParams.m = arg.get_fused_activation_params().a;
-    params.activationParams.n = arg.get_fused_activation_params().b;
-    params.activationFunc = get_kernel_selector_activation_param(arg.get_fused_activation_func());
+    params.m = arg.get_fused_activation_params().a;
+    params.n = arg.get_fused_activation_params().b;
+    params.function = get_kernel_selector_activation_param(arg.get_fused_activation_func());
 }
 
 template <typename p_type>
-inline void convert_new_activation_func(const p_type primitive, kernel_selector::base_params& params)
+inline void convert_new_activation_func(const p_type primitive, kernel_selector::base_activation_params& params)
 {
-    params.activationFunc = get_kernel_selector_activation_param(primitive->activation_func);
-    params.activationParams.m = primitive->additional_params.a;
-    params.activationParams.n = primitive->additional_params.b;
+    params.function = get_kernel_selector_activation_param(primitive->activation_func);
+    params.m = primitive->additional_params.a;
+    params.n = primitive->additional_params.b;
 }
+
+void set_params(const program_node& node, kernel_selector::params& params);
 
 template <typename params_t, typename arg_t>
 inline params_t get_default_params(const arg_t& arg, uint32_t split = 1)
 {
     params_t params;
 
-    const auto& context = arg.get_program().get_engine().get_context();
-    const auto& engine_info = context->get_engine_info();
+    set_params(arg, params);
 
-    params.engineInfo.bSubGroupSupport      = context->extension_supported("cl_intel_subgroups");
-    params.engineInfo.bSubGroupShortSupport = context->extension_supported("cl_intel_subgroups_short");
-    params.engineInfo.bFP16Support          = context->extension_supported("cl_khr_fp16");
-    params.engineInfo.bFP64Support          = context->extension_supported("cl_khr_fp64");
-    params.engineInfo.bIMADSupport          = engine_info.supports_imad != 0;
-    params.engineInfo.bIMMADSupport         = engine_info.supports_immad != 0;
-    params.engineInfo.bImageSupport         = engine_info.supports_image != 0;
-    params.engineInfo.maxWorkGroupSize      = engine_info.max_work_group_size;
-    params.engineInfo.maxLocalMemSize       = engine_info.max_local_mem_size;
-    params.engineInfo.maxImage2dWidth       = engine_info.max_image2d_width;
-    params.engineInfo.maxImage2dHeight      = engine_info.max_image2d_height;
-    params.engineInfo.deviceId              = engine_info.dev_id;
-    params.engineInfo.driverVersion         = engine_info.driver_version;
-    params.engineInfo.hostVersion           = to_host_version(cldnn::get_version());
-    
     const auto& input_layout    = arg.input().get_output_layout();
     const auto& output_layout   = arg.get_output_layout();
 
@@ -165,63 +161,61 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1)
 
     params.layerID = arg.id();
 
-    convert_fused_activation_func_params(arg, params);
+    convert_fused_activation_func_params(arg, params.activation);
 
     return params;
 }
 
 template <typename params_t, typename arg_t>
-inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split = 1)
+inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1)
 {
     params_t params = get_default_params<params_t>(arg, split);
-
     const auto& weights_layout = arg.weights().get_output_layout();
-    params.weights = convert_weights_tensor(weights_layout);
+    if (groups == 1) {
+        params.weights = convert_weights_tensor(weights_layout);
+    }
+    else {
+        params.weights = convert_weights_tensor(layout(weights_layout.data_type, weights_layout.format,
+            { weights_layout.size.batch[0]/(int)groups, weights_layout.size.feature[0], weights_layout.size.spatial[0], weights_layout.size.spatial[1] }
+        ));
+    }
 
     if (arg.bias_term())
     {
         const auto& bias_layout = arg.bias().get_output_layout();
         // bias per output is not supported on cldnn
-        params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());
+        if (groups == 1) {
+            params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());        }
+        else {
+            params.bias.push_back(convert_data_tensor(
+                layout(
+                    bias_layout.data_type, bias_layout.format,
+                    { bias_layout.size.batch[0], bias_layout.size.feature[0], bias_layout.size.spatial[0]/(int)groups, bias_layout.size.spatial[1] }
+                )).FlattenFeatureAndSpatials()
+            );
+        }
     }
 
     return params;
 }
 
+void set_learning_params(const program_node& node, kernel_selector::training_params& params, bool use_momentum);
+
 template <typename params_t, typename arg_t>
 inline params_t get_default_learning_params(const arg_t& arg, uint32_t split = 1)
 {
 	params_t params = get_weights_bias_default_params<params_t>(arg, split);
-
-	const auto learning_params = arg.get_program().get_options().template get<build_option_type::learning_config>()->params;
-
-	if (arg.use_momentum())
-	{
-		params.use_momentum = true;
-	}
-
-	params.momentum_factor = learning_params.momentum;
-	params.weights_decay = learning_params.weights_decay;
-
+    set_learning_params(arg, params, arg.use_momentum());
 	return params;
 }
+
+void set_optional_params(const program_impl& program, kernel_selector::optional_params& params);
 
 template <typename optional_params_t>
 inline optional_params_t get_default_optional_params(const program_impl& program)
 {
     optional_params_t params;
-    
-    const auto& context = program.get_engine().get_context();
-
-    params.meaningfulKernelsNames       = context->get_configuration().meaningful_kernels_names;
-    params.allowStaticInputReordering   = program.get_options().get<build_option_type::optimize_data>()->enabled();
-    params.allowInputReordering         = false;
-    params.allowOutputReordering        = false;
-    
-    const auto& tuning_config = program.get_options().get<build_option_type::tuning_config>();
-    params.tuningParams.mode = to_tuning_mode(tuning_config->config.mode);
-    params.tuningParams.cacheFilePath = tuning_config->config.cache_file_path;
-
+    set_optional_params(program, params);
     return params;
 }
 

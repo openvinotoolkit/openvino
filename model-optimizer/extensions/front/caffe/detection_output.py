@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -140,6 +140,8 @@ class DetectionOutputFrontExtractor(FrontExtractorOp):
             attrs['input_height'] = param.input_height
         if 'normalized' in fields:
             attrs['normalized'] = int(param.normalized)
+        if 'objectness_score' in fields:
+            attrs['objectness_score'] = param.objectness_score
 
         mapping_rule = merge_attrs(param, attrs)
 

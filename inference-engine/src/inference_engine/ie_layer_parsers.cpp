@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,7 @@ CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerPar
 
     static caseless_map<std::string, std::shared_ptr<BaseCreator>> activationCreators = {
         {"relu", std::make_shared<LayerCreator<ReLULayer>>("ReLU")},
+        {"relu6", std::make_shared<LayerCreator<ReLU6Layer>>("ReLU6")},
         {"prelu", std::make_shared<LayerCreator<PReLULayer>>("PReLU")},
         {"clamp", std::make_shared<LayerCreator<ClampLayer>>("Clamp")},
         {"elu", std::make_shared<LayerCreator<CNNLayer>>("ELU")},

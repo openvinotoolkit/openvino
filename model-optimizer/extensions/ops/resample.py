@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,22 +16,22 @@
 
 import logging as log
 
-import networkx as nx
-
 from extensions.ops.resize_factor_utils import factor_update
 from mo.front.common.layout import get_batch_dim, get_features_dim, get_height_dim, get_width_dim, shape_for_layout
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class ResampleOp(Op):
     op = 'Resample'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
             'factor': None,
+            'in_ports_count': 2,
+            'out_ports_count': 1,
             'infer': ResampleOp.resample_infer
         }
         super().__init__(graph, mandatory_props, attrs)

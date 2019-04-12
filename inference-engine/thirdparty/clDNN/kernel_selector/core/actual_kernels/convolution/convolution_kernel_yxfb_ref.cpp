@@ -39,11 +39,12 @@ namespace kernel_selector
         k.EnableDilation();
         k.EnableDepthwiseSeparableOpt();
         k.DisableTuning();
+        k.EnableGroupedConvolution();
         return k;
     }
 
     KernelsData ConvolutionKernel_yxfb_Ref::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        return GetCommonKernelsData(params, options);
+        return GetTunedKernelsDataByIndex(params, options);
     }
 }

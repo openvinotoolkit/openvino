@@ -40,7 +40,7 @@ struct cpu_reorder_pd_t: public reorder_pd_t {
         , input_pd_(*input_pd), output_pd_(*output_pd) {}
     virtual ~cpu_reorder_pd_t() {}
 
-    virtual status_t init() const {
+    virtual status_t init() {
         const auto &post_ops = attr()->post_ops_;
         bool args_ok = true
             && IMPLICATION(post_ops.len_ != 0,

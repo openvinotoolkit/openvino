@@ -39,6 +39,7 @@ struct network_impl : public refcounted_obj<network_impl>
 public:
     network_impl(const program_impl& program, bool is_internal = false);
     network_impl(engine_impl& engine, const topology_impl& topo, const build_options& options = build_options(), bool is_internal = false);
+    network_impl(engine_impl& engine, const std::set<std::shared_ptr<program_node>>& nodes, const build_options & options, bool is_internal);
 
     const program_impl& get_program() const { return *_program; }
     engine_impl& get_engine() const { return _program->get_engine(); }
@@ -61,19 +62,19 @@ public:
     std::vector<primitive_id> get_all_primitive_ids() const;
     std::vector<primitive_id> get_all_primitive_org_ids() const;
     void execute(const std::vector<event_impl::ptr>& events);
-
+    void validate_primitives();
     // Implementation specific calls
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::string get_primitive_info(const primitive_id& id) const;
     const event_impl::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<program_node*>& nodes);
-    event_impl::ptr execute_primitive(const std::shared_ptr<primitive_inst>& primitive, const std::vector<event_impl::ptr>& events);
+    void execute_primitive(const std::shared_ptr<primitive_inst>& primitive, const std::vector<event_impl::ptr>& events);
     void allocate_primitives();
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
+    void build_exec_order();    
     bool is_internal() const { return _internal; }
-
 private:
     uint32_t net_id = 0; 
     const program_impl::cptr _program;
@@ -89,6 +90,10 @@ private:
     std::unordered_map<primitive_id, event_impl::ptr> _events;
 
     void allocate_primitive_instance(program_node const& node);
+    void add_to_exec_order(const primitive_id& id);
+    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id);
+    std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id);
+    void check_names();
 };
 }
 

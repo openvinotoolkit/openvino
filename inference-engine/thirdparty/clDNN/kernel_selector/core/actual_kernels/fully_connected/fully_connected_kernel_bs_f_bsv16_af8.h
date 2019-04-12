@@ -26,10 +26,10 @@ namespace kernel_selector {
         FullyConnected_bs_f_bsv16_af8() : FullyConnectedBlockKernelBase("fully_connected_gpu_bs_f_bsv16_af8_vload") {}
 
         KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        ParamsKey GetSupportedKey() const override;
-    
+
     protected:
+        ParamsKey GetSupportedKey() const override;
         bool Validate(const Params& p, const optional_params& o) const override;
-        std::unique_ptr<DispatchData> SetDefault(const fully_connected_params& arg) const override;
+        DispatchData SetDefault(const fully_connected_params& arg, int autoTuneIndex = -1) const override;
     };
 }

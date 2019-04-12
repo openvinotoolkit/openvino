@@ -59,7 +59,7 @@ TEST(reorder_gpu_f32, basic)
     //  b1 f1: 12    8
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
     layout output_layout(data_types::f32, format::bfyx,{ 2,2,2,2 });
@@ -145,7 +145,7 @@ TEST(reorder_gpu_f32, basic_subtract) {
     //  b1 f1: 10    7
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32,  format::yxfb, { 2, 2, 2, 2 } });
     layout output_layout( data_types::f32, format::bfyx, {2,2,2,2} );
@@ -234,7 +234,7 @@ TEST(reorder_gpu_f32, basic_subtract_value) {
     //  b1 f1:  9.5  5.5
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
     layout output_layout(data_types::f32, format::bfyx,{ 2,2,2,2 });
@@ -318,7 +318,7 @@ TEST(reorder_gpu_f16, basic_subtract_f32_output_f32) {
     //  b1 f1: 10    7
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     if (!engine.get_info().supports_fp16)
     {
@@ -413,7 +413,7 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
     //  b1 f1:  9.5  5.5
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
     if (!engine.get_info().supports_fp16)
     {
         std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
@@ -482,7 +482,7 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
     //  Output is expected to contain the same value as input in range of indices from 0x0000 to 0xF801.
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     if (!engine.get_info().supports_fp16)
     {
@@ -562,7 +562,7 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
 
 TEST(reorder_gpu, basic_convert_int8) {
 
-    engine engine;
+    const auto& engine = get_test_engine();
     layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1,1,3,3 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1,1,3,3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
@@ -620,7 +620,7 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
 	//
 	const int kernel_size = 5;
 	const int feature_size = 4;
-	engine engine;
+	const auto& engine = get_test_engine();
 
 	if (!engine.get_info().supports_fp16)
 	{
@@ -751,7 +751,7 @@ TEST(reorder_gpu_f32, basic_yxfb_to_bfyx_input_padding)
     //  f1: b0:  5    6  b1:   1.5  5.2
     //  f1: b0:  7    8  b1:   12   8
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
     layout output_layout(data_types::f32, format::bfyx, { 2,2,2,2 });
@@ -830,7 +830,7 @@ TEST(reorder_gpu_f32, basic_bfyx_to_yxfb_input_padding)
     //  b1 f1: 12    8
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
     layout output_layout(data_types::f32, format::yxfb, { 2,2,2,2 });
@@ -910,7 +910,34 @@ TEST(reorder_gpu_opt, basic_remove_redundant)
     EXPECT_TRUE(outputs.at("r2").get_memory().get_layout().format == format::yxfb);
 }
 
-TEST(reorder_gpu_opt, basic_remove_redundant_due_to_implicit_reorders)
+TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
+{
+    engine eng;
+
+    memory in = memory::allocate(eng, { data_types::f32, format::bfyx, tensor{ 1, 1, 2, 1 } });
+    set_values(in, { -1.0f, -1.0f });
+    memory scale_mem = memory::allocate(eng, { data_types::f32, format::bfyx, tensor{1, 1, 1, 1 } });
+    set_values(scale_mem, { 2.0f });
+    topology tpl{
+        input_layout("in", in.get_layout()),
+        reorder("r1", "in", format::bfyx, data_types::f32),
+        activation("relu", "r1", cldnn_activation_func::activation_relu_negative_slope, {0.01f, 0.0f}),
+        data("scale_data", scale_mem),
+        scale("output", "relu", "scale_data")
+    };
+
+    build_options opts;
+    opts.set_option(build_option::optimize_data(true));
+
+    network net(eng, tpl, opts);
+    net.set_input_data("in", in);
+    auto outputs = net.execute();
+    auto out_ptr = outputs.begin()->second.get_memory().pointer<float>();
+    EXPECT_FLOAT_EQ(out_ptr[0], -0.02f);
+    EXPECT_FLOAT_EQ(out_ptr[1], -0.02f);
+}
+
+TEST(reorder_gpu_opt, basic_do_not_remove_redundant_due_it_is_output)
 {
     engine eng;
 
@@ -920,7 +947,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_due_to_implicit_reorders)
         input_layout("in", in.get_layout()),
         convolution("conv", "in", { "weights" }),
         data("weights", weights),
-        reorder("r1", "conv", format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
+        reorder("r1", "conv", format::bfyx, data_types::f32) //reoder is output - do not optimize
     };
 
     build_options opts;
@@ -931,8 +958,10 @@ TEST(reorder_gpu_opt, basic_remove_redundant_due_to_implicit_reorders)
     auto outputs = net.execute();
     auto executed_primitives = net.get_executed_primitives();
 
-    //remove redundant reorder optimization should replace redundant reorder node with convolution
-    EXPECT_TRUE(executed_primitives.count("conv") == 0);
+    //all pirmitives in this test needs to be executed
+    EXPECT_TRUE(executed_primitives.count("conv") == 1);
+    EXPECT_TRUE(executed_primitives.count("in") == 1);
+    EXPECT_TRUE(executed_primitives.count("r1") == 1);
     ASSERT_TRUE(outputs.count("r1") == 1);
     EXPECT_TRUE(outputs.at("r1").get_memory().get_layout().format == format::bfyx);
 }
@@ -965,6 +994,35 @@ TEST(reorder_gpu_opt, basic_remove_redundant_output_due_to_implicit_reorders)
     EXPECT_TRUE(outputs.at("r1").get_memory().get_layout().format == format::bfyx);
 }
 
+TEST(reorder_gpu_opt, basic_remove_redundant_due_to_implicit_reorders)
+{
+    engine eng;
+
+    memory in = memory::allocate(eng, { data_types::f32, format::yxfb, tensor{ 1, 2, 2, 1 } });
+    memory weights = memory::allocate(eng, { data_types::f32, format::bfyx, tensor{ 1, 2, 2, 1 } });
+    topology tpl{
+        input_layout("in", in.get_layout()),
+        convolution("conv", "in",{ "weights" }),
+        data("weights", weights),
+        reorder("r1", "conv", format::bfyx, data_types::f32), //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
+        softmax("output", "r1")
+    };
+
+    build_options opts;
+    opts.set_option(build_option::optimize_data(true));
+
+    network net(eng, tpl, opts);
+    net.set_input_data("in", in);
+    auto outputs = net.execute();
+    auto executed_primitives = net.get_executed_primitives();
+
+    //remove redundant reorder optimization should remove r1 node
+    EXPECT_TRUE(executed_primitives.count("r1") == 0);
+    //all pirmitives in this test needs to be executed
+    ASSERT_TRUE(outputs.count("output") == 1);
+    EXPECT_TRUE(outputs.at("output").get_memory().get_layout().format == format::bfyx);
+}
+
 TEST(reorder_gpu_opt, non_trivial_remove_redundant)
 {
     engine eng;
@@ -987,7 +1045,7 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
 
     ASSERT_TRUE(executed_primitives.count("in") == 1);
     //ASSERT_TRUE(all_primitives.at("r1") == "_optimized_");
-    EXPECT_TRUE(executed_primitives.at("in") == outputs.at("r1").get_event());
+    EXPECT_TRUE(executed_primitives.at("in") != outputs.at("r1").get_event());
     ASSERT_TRUE(outputs.count("r1") == 1);
     EXPECT_TRUE(outputs.at("r1").get_memory().get_layout().format == format::bfyx);
 }
@@ -1129,7 +1187,7 @@ TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
 TEST(reorder_gpu_i32, basic)
 {
     //  Test for converting data types f32->i32
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
     layout output_layout(data_types::i32, format::bfyx, { 2,2,2,2 });
@@ -1170,7 +1228,7 @@ TEST(reorder_gpu_i32, basic)
 TEST(reorder_gpu_i64, basic)
 {
     //  Test for converting data types f32->i64
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
     layout output_layout(data_types::i64, format::bfyx, { 2,2,2,2 });
@@ -1232,6 +1290,8 @@ public:
     static std::vector<std::tuple<test_params*, cldnn::primitive*>> generate_specific_test_params()
     {
         generic_test::generate_generic_test_params(all_generic_params);
+
+        const auto data_types = test_data_types();
         
         for (const auto& test_param : all_generic_params)
         {
@@ -1239,7 +1299,7 @@ public:
 
             std::vector<cldnn::layout> output_layouts = {};
 
-            for (const auto& dt : test_data_types())
+            for (const auto& dt : data_types)
             {
                 for (const auto& fmt : generic_test::test_input_formats)
                 {
@@ -1280,7 +1340,7 @@ public:
         assert(mean == "");
         assert(subtract_per_feature.size() == 0);
         
-        auto output = memory::allocate(engine, cldnn::layout(reorder->output_data_type, inputs[0].get_layout().format, inputs[0].get_layout().size));
+        auto output = memory::allocate(engine, cldnn::layout(*reorder->output_data_type, inputs[0].get_layout().format, inputs[0].get_layout().size));
 
         cldnn::pointer<InputType> input_mem = inputs[0].pointer<InputType>();
         cldnn::pointer<OutputType> output_mem = output.pointer<OutputType>();
@@ -1299,7 +1359,7 @@ public:
     {
         if (generic_params->data_type == data_types::f32)
         {
-            if (((cldnn::reorder*)layer_params)->output_data_type == data_types::f32)
+            if (*layer_params->output_data_type == data_types::f32)
             {
                 return generate_reference_typed<float, float>(inputs);
             }
@@ -1310,7 +1370,7 @@ public:
         }
         else
         {
-            if (((cldnn::reorder*)layer_params)->output_data_type == data_types::f32)
+            if (*layer_params->output_data_type == data_types::f32)
             {
                 return generate_reference_typed<FLOAT16, float>(inputs);
             }

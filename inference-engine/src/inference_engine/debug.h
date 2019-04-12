@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,6 @@
 #include "ie_algorithm.hpp"
 
 #ifdef _WIN32
-#include <winsock2.h>
 #include <windows.h>
 
 #define POSIX_EPOCH_AS_FILETIME 116444736000000000ULL

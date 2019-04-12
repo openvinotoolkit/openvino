@@ -26,6 +26,7 @@ namespace kernel_selector {
         ScaleGradWeightsKernelRef() : ScaleGradWeightsKernelBase("scale_grad_weights_gpu_ref") {}
         virtual ~ScaleGradWeightsKernelRef() {}
 
+    protected:
         virtual ParamsKey GetSupportedKey() const override;
     };
 }

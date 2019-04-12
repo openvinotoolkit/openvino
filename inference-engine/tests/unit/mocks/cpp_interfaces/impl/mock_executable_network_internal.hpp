@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,6 @@ public:
     MOCK_METHOD1(CreateInferRequest, void(IInferRequest::Ptr &));
     MOCK_METHOD1(Export, void(const std::string &));
     MOCK_METHOD1(GetMappedTopology, void(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &));
-
+    MOCK_METHOD1(GetExecGraphInfo, void(ICNNNetwork::Ptr &));
 };
 

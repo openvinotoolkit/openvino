@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -34,7 +34,9 @@ include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn
         ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu
         ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include
+        ${CMAKE_BINARY_DIR}/include/
 )
 
 if (GEMM STREQUAL "MKL")
@@ -64,3 +66,5 @@ target_compile_definitions(test_${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
 target_link_libraries(test_${TARGET_NAME} PRIVATE inference_engine_s mkldnn)
 
 set_target_properties(test_${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME test_${TARGET_NAME})
+
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

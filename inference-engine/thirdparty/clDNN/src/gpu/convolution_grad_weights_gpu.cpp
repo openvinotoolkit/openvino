@@ -31,9 +31,9 @@ struct convolution_grad_weights_gpu : typed_primitive_gpu_impl<convolution_grad_
 
 protected:
 
-    virtual bool validate(typed_primitive_inst<convolution_grad_weights>& instance) const override
+    virtual bool validate_impl(const typed_primitive_inst<convolution_grad_weights>& instance) const override
     {
-        bool res = parent::validate(instance);
+        bool res = true;
 
         CLDNN_ERROR_NOT_EQUAL(_outer.id(), "convolution_grad_weights filling value", _outer.get_output_layout().data_padding.filling_value(), "padding mode", 0.0f, "Unknown padding mode in convolution_grad_weights.");
         // Check whether all memory elements use the same unit type (FP16 or FP32).
@@ -96,13 +96,15 @@ public:
         const tensor dilation = {0,0,1,1};
 #endif
         const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
+        const auto output_grad_w = arg.output_grad_w();
 
         const auto& input_offset = primitive->input_offset;
 
         auto conv_grad_weights_params = get_default_learning_params<kernel_selector::convolution_grad_weights_params>(arg, depthwise_separable_opt ? 1 : split);
         auto conv_grad_weights_optional_params = get_default_learning_optional_params<kernel_selector::convolution_grad_weights_optional_params>(arg.get_program());
 
-        conv_grad_weights_params.depthwiseSeparableOpt = depthwise_separable_opt;
+        conv_grad_weights_params.depthwise_separable_opt = depthwise_separable_opt;
+        conv_grad_weights_params.output_grad_w = output_grad_w;
 
         conv_grad_weights_params.gradient = true;
         conv_grad_weights_params.inputs.push_back(convert_data_tensor(arg.get_dependency(1).get_output_layout()));

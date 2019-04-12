@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -107,6 +107,46 @@ void cldnn_change_input_layout(cldnn_topology topology, cldnn_primitive_id id, c
     });
 }
 
+static void primitive_id_vector_to_char_array(
+    char* names,
+    size_t size,
+    size_t* size_ret,
+    cldnn_status* status,
+    const std::vector<primitive_id>& vec)
+{
+    *size_ret = std::accumulate(
+        std::begin(vec),
+        std::end(vec),
+        size_t(1), // final zero symbol
+        [](size_t acc, const cldnn::primitive_id& id)
+    {
+        return acc + id.size() + 1; // plus zero symbol
+    });
+
+    if (size < *size_ret)
+    {
+        if (status) *status = CLDNN_INVALID_ARG;
+        return;
+    }
+
+    size_t i = 0;
+    for (auto& id : vec)
+    {
+        // workaround for Microsoft VC++
+#if defined _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
+        i += id.copy(names + i, size - i - 2);
+#if defined _MSC_VER
+#pragma warning(pop)
+#endif
+        names[i++] = 0; // plus zero symbol
+        assert(i < size);
+    }
+    names[i] = 0; // final zero symbol
+}
+
 void cldnn_get_primitive_ids(cldnn_topology topology, char* ids, size_t size, size_t* size_ret, cldnn_status* status)
 {
     return exception_handler(CLDNN_ERROR, status, [&]()
@@ -114,38 +154,8 @@ void cldnn_get_primitive_ids(cldnn_topology topology, char* ids, size_t size, si
         SHOULD_NOT_BE_NULL(topology, "Topology");
         auto ids_size = api_cast(topology)->get_primitives().size();
         SHOULD_NOT_EQUAL_0(ids_size, "Primitives number");
-        auto& primitives_ids = api_cast(topology)->get_primitives_id();
-        *size_ret = std::accumulate(
-            std::begin(primitives_ids),
-            std::end(primitives_ids),
-            size_t(1), //final zero symbol
-            [](size_t acc, const cldnn::primitive_id& id)
-            {
-                return acc + id.size() + 1; // plus zero symbol
-            });
-
-        if (size < *size_ret)
-        {
-            if (status) *status = CLDNN_INVALID_ARG;
-            return;
-        }
-
-        size_t i = 0;
-        for (auto& id : primitives_ids)
-        {
-            // workaround for Microsoft VC++
-#if defined _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4996)
-#endif
-            i += id.copy(ids + i, size - i - 2);
-#if defined _MSC_VER
-#pragma warning(pop)
-#endif
-            ids[i++] = 0; // plus zero symbol
-            assert(i < size);
-        }
-        ids[i] = 0; // final zero symbol
+        auto&& primitives_ids = api_cast(topology)->get_primitives_id();
+        primitive_id_vector_to_char_array(ids, size, size_ret, status, primitives_ids);
     });
 }
 
@@ -206,19 +216,19 @@ cldnn_engine cldnn_create_engine(/*cldnn_engine_type*/ int32_t type, uint32_t en
 
 void cldnn_retain_engine(cldnn_engine engine, cldnn_status* status)
 {
-        exception_handler(CLDNN_ERROR, status, [&]() 
-        { 
+        exception_handler(CLDNN_ERROR, status, [&]()
+        {
             SHOULD_NOT_BE_NULL(engine, "Engine");
-            api_cast(engine)->add_ref(); 
+            api_cast(engine)->add_ref();
         });
 }
 
 void cldnn_release_engine(cldnn_engine engine, cldnn_status* status)
 {
-        exception_handler(CLDNN_ERROR, status, [&]() 
-        { 
+        exception_handler(CLDNN_ERROR, status, [&]()
+        {
             SHOULD_NOT_BE_NULL(engine, "Engine");
-            api_cast(engine)->release(); 
+            api_cast(engine)->release();
         });
 }
 
@@ -296,19 +306,19 @@ CLDNN_API int32_t cldnn_is_user_event(cldnn_event event, cldnn_status * status)
 void cldnn_retain_event(cldnn_event event, cldnn_status* status)
 {
 
-    exception_handler(CLDNN_ERROR, status, [&]() 
-    { 
+    exception_handler(CLDNN_ERROR, status, [&]()
+    {
         SHOULD_NOT_BE_NULL(event, "Event");
-        api_cast(event)->add_ref(); 
+        api_cast(event)->add_ref();
     });
 }
 
 void cldnn_release_event(cldnn_event event, cldnn_status* status)
 {
-    exception_handler(CLDNN_ERROR, status, [&]() 
-    { 
+    exception_handler(CLDNN_ERROR, status, [&]()
+    {
         SHOULD_NOT_BE_NULL(event, "Event");
-        api_cast(event)->release(); 
+        api_cast(event)->release();
     });
 }
 
@@ -447,10 +457,10 @@ void cldnn_set_network_input(cldnn_network network, cldnn_primitive_id id, cldnn
 {
     exception_handler(CLDNN_ERROR, status, [&]()
     {
+        SHOULD_NOT_BE_NULL(mem, "Mem");
         auto mem_size = api_cast(mem)->size();
         SHOULD_NOT_BE_NULL(network,     "Network");
         SHOULD_NOT_BE_NULL(id,          "Id");
-        SHOULD_NOT_BE_NULL(mem,         "Mem");
         SHOULD_NOT_EQUAL_0(mem_size,    "Memory size");
         api_cast(network)->set_input_data(id, *api_cast(mem));
     });
@@ -466,7 +476,7 @@ void cldnn_set_learning_rate(cldnn_network network, float lr, cldnn_status* stat
 
 float cldnn_get_learning_rate(cldnn_network network, cldnn_status* status)
 {
-    return exception_handler<float>(CLDNN_ERROR, status, 0, [&]() 
+    return exception_handler<float>(CLDNN_ERROR, status, 0, [&]()
     {
         return api_cast(network)->get_learning_rate();
     });
@@ -485,7 +495,7 @@ cldnn_engine cldnn_get_network_engine(cldnn_network network, cldnn_status* statu
 cldnn_program cldnn_get_network_program(cldnn_network network, cldnn_status* status)
 {
     return exception_handler<cldnn_program>(CLDNN_ERROR, status, nullptr, [&]()
-    {   
+    {
         SHOULD_NOT_BE_NULL(network, "Network");
         refcounted_obj_ptr<cldnn::program_impl> ptr{const_cast<cldnn::program_impl*>(&api_cast(network)->get_program())};
         return api_cast(ptr.detach());
@@ -509,7 +519,7 @@ void cldnn_get_primitive_info(cldnn_network network, cldnn_primitive_id prim_id,
         size_t i = 0;
         for (const auto c : prim_info)
         {
-            info[i++] = c; 
+            info[i++] = c;
             assert(i < size);
         }
         info[i] = 0; // final zero symbol
@@ -520,41 +530,10 @@ void cldnn_get_network_output_names(cldnn_network network, char* names, size_t s
 {
     exception_handler(CLDNN_ERROR, status, [&]()
     {
-        auto output_size = api_cast(network)->get_output_ids().size();
-        SHOULD_NOT_BE_NULL(network,        "Network");
-        SHOULD_NOT_EQUAL_0(output_size, "Output size");
+        SHOULD_NOT_BE_NULL(network, "Network");
         auto&& output_ids = api_cast(network)->get_output_ids();
-        *size_ret = std::accumulate(
-            std::begin(output_ids),
-            std::end(output_ids),
-            size_t(1), // final zero symbol
-            [](size_t acc, const cldnn::primitive_id& id)
-            {
-                return acc + id.size() + 1; // plus zero symbol
-            });
-
-        if(size < *size_ret)
-        {
-            if (status) *status = CLDNN_INVALID_ARG;
-            return;
-        }
-
-        size_t i = 0;
-        for(auto& id: output_ids)
-        {
-// workaround for Microsoft VC++
-#if defined _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4996)
-#endif
-            i += id.copy(names + i, size - i - 2);
-#if defined _MSC_VER
-#pragma warning(pop)
-#endif
-            names[i++] = 0; // plus zero symbol
-            assert(i < size);
-        }
-        names[i] = 0; // final zero symbol
+        SHOULD_NOT_EQUAL_0(output_ids.size(), "Output size");
+        primitive_id_vector_to_char_array(names, size, size_ret, status, output_ids);
     });
 }
 
@@ -562,41 +541,10 @@ void cldnn_get_network_executed_primitive_names(cldnn_network network, char* nam
 {
     exception_handler(CLDNN_ERROR, status, [&]()
     {
-        auto primitives_size = api_cast(network)->get_executed_primitive_ids().size();
         SHOULD_NOT_BE_NULL(network, "Network");
-        SHOULD_NOT_EQUAL_0(primitives_size, "Primitives size");
         auto&& primitive_ids = api_cast(network)->get_executed_primitive_ids();
-        *size_ret = std::accumulate(
-            std::begin(primitive_ids),
-            std::end(primitive_ids),
-            size_t(1), // final zero symbol
-            [](size_t acc, const cldnn::primitive_id& id)
-        {
-            return acc + id.size() + 1; // plus zero symbol
-        });
-
-        if (size < *size_ret)
-        {
-            if (status) *status = CLDNN_INVALID_ARG;
-            return;
-        }
-
-        size_t i = 0;
-        for (auto& id : primitive_ids)
-        {
-            // workaround for Microsoft VC++
-#if defined _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4996)
-#endif
-            i += id.copy(names + i, size - i - 2);
-#if defined _MSC_VER
-#pragma warning(pop)
-#endif
-            names[i++] = 0; // plus zero symbol
-            assert(i < size);
-        }
-        names[i] = 0; // final zero symbol
+        SHOULD_NOT_EQUAL_0(primitive_ids.size(), "Primitives size");
+        primitive_id_vector_to_char_array(names, size, size_ret, status, primitive_ids);
     });
 }
 
@@ -604,41 +552,10 @@ void cldnn_get_network_all_primitive_names(cldnn_network network, char* names, s
 {
     exception_handler(CLDNN_ERROR, status, [&]()
     {
-        auto primitives_size = api_cast(network)->get_all_primitive_ids().size();
         SHOULD_NOT_BE_NULL(network, "Network");
-        SHOULD_NOT_EQUAL_0(primitives_size, "Primitives size");
         auto&& primitive_ids = api_cast(network)->get_all_primitive_ids();
-        *size_ret = std::accumulate(
-            std::begin(primitive_ids),
-            std::end(primitive_ids),
-            size_t(1), // final zero symbol
-            [](size_t acc, const cldnn::primitive_id& id)
-        {
-            return acc + id.size() + 1; // plus zero symbol
-        });
-
-        if (size < *size_ret)
-        {
-            if (status) *status = CLDNN_INVALID_ARG;
-            return;
-        }
-
-        size_t i = 0;
-        for (auto& id : primitive_ids)
-        {
-            // workaround for Microsoft VC++
-#if defined _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4996)
-#endif
-            i += id.copy(names + i, size - i - 2);
-#if defined _MSC_VER
-#pragma warning(pop)
-#endif
-            names[i++] = 0; // plus zero symbol
-            assert(i < size);
-        }
-        names[i] = 0; // final zero symbol
+        SHOULD_NOT_EQUAL_0(primitive_ids.size(), "Primitives size");
+        primitive_id_vector_to_char_array(names, size, size_ret, status, primitive_ids);
     });
 }
 
@@ -646,41 +563,10 @@ void cldnn_get_network_all_primitive_org_names(cldnn_network network, char* name
 {
     exception_handler(CLDNN_ERROR, status, [&]()
     {
-        auto primitives_size = api_cast(network)->get_all_primitive_org_ids().size();
         SHOULD_NOT_BE_NULL(network, "Network");
-        SHOULD_NOT_EQUAL_0(primitives_size, "Primitives size");
         auto&& primitive_ids = api_cast(network)->get_all_primitive_org_ids();
-        *size_ret = std::accumulate(
-            std::begin(primitive_ids),
-            std::end(primitive_ids),
-            size_t(1), // final zero symbol
-            [](size_t acc, const cldnn::primitive_id& id)
-        {
-            return acc + id.size() + 1; // plus zero symbol
-        });
-
-        if (size < *size_ret)
-        {
-            if (status) *status = CLDNN_INVALID_ARG;
-            return;
-        }
-
-        size_t i = 0;
-        for (auto& id : primitive_ids)
-        {
-            // workaround for Microsoft VC++
-#if defined _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4996)
-#endif
-            i += id.copy(names + i, size - i - 2);
-#if defined _MSC_VER
-#pragma warning(pop)
-#endif
-            names[i++] = 0; // plus zero symbol
-            assert(i < size);
-        }
-        names[i] = 0; // final zero symbol
+        SHOULD_NOT_EQUAL_0(primitive_ids.size(), "Primitives size");
+        primitive_id_vector_to_char_array(names, size, size_ret, status, primitive_ids);
     });
 }
 
@@ -770,7 +656,7 @@ cldnn_memory cldnn_attach_memory(cldnn_layout layout, void* pointer, size_t size
     return exception_handler<cldnn_memory>(CLDNN_ERROR, status, nullptr, [&]()
     {
         cldnn::layout layout_obj(layout);
-        if (layout_obj.bytes_count() > size) 
+        if (layout_obj.bytes_count() > size)
             throw std::invalid_argument("buffer size does not match layout size");
         return api_cast(new cldnn::simple_attached_memory(layout_obj, pointer));
     });
@@ -914,6 +800,8 @@ PRIMITIVE_TYPE_ID_CALL_IMPL(deconvolution)
 PRIMITIVE_TYPE_ID_CALL_IMPL(concatenation)
 PRIMITIVE_TYPE_ID_CALL_IMPL(eltwise)
 PRIMITIVE_TYPE_ID_CALL_IMPL(fully_connected)
+PRIMITIVE_TYPE_ID_CALL_IMPL(fused_conv_bn_scale)
+PRIMITIVE_TYPE_ID_CALL_IMPL(fused_conv_eltwise)
 PRIMITIVE_TYPE_ID_CALL_IMPL(input_layout)
 PRIMITIVE_TYPE_ID_CALL_IMPL(lookup_table)
 PRIMITIVE_TYPE_ID_CALL_IMPL(lrn)
@@ -932,6 +820,7 @@ PRIMITIVE_TYPE_ID_CALL_IMPL(proposal)
 PRIMITIVE_TYPE_ID_CALL_IMPL(roi_pooling)
 PRIMITIVE_TYPE_ID_CALL_IMPL(prior_box)
 PRIMITIVE_TYPE_ID_CALL_IMPL(detection_output)
+PRIMITIVE_TYPE_ID_CALL_IMPL(detection_output_sort)
 PRIMITIVE_TYPE_ID_CALL_IMPL(normalize)
 PRIMITIVE_TYPE_ID_CALL_IMPL(generic_layer)
 PRIMITIVE_TYPE_ID_CALL_IMPL(custom_gpu_primitive)
@@ -950,3 +839,12 @@ PRIMITIVE_TYPE_ID_CALL_IMPL(tile)
 PRIMITIVE_TYPE_ID_CALL_IMPL(gemm)
 PRIMITIVE_TYPE_ID_CALL_IMPL(select)
 PRIMITIVE_TYPE_ID_CALL_IMPL(index_select)
+PRIMITIVE_TYPE_ID_CALL_IMPL(condition)
+PRIMITIVE_TYPE_ID_CALL_IMPL(pyramid_roi_align)
+PRIMITIVE_TYPE_ID_CALL_IMPL(contract)
+PRIMITIVE_TYPE_ID_CALL_IMPL(one_hot)
+PRIMITIVE_TYPE_ID_CALL_IMPL(gather)
+PRIMITIVE_TYPE_ID_CALL_IMPL(depth_to_space)
+PRIMITIVE_TYPE_ID_CALL_IMPL(shuffle_channels)
+PRIMITIVE_TYPE_ID_CALL_IMPL(strided_slice)
+PRIMITIVE_TYPE_ID_CALL_IMPL(reverse_sequence)

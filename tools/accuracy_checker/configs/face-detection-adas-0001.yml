@@ -1,0 +1,94 @@
+models:
+  - name: face-detection-adas-0001
+
+    launchers:
+      - framework: dlsdk
+        tags:
+          - FP32
+        device: CPU
+        model:   face-detection-adas-0001/FP32/face-detection-adas-0001.xml
+        weights: face-detection-adas-0001/FP32/face-detection-adas-0001.bin
+        adapter: ssd
+        cpu_extensions: AUTO
+
+      - framework: dlsdk
+        tags:
+          - INT8
+        device: CPU
+        model:   face-detection-adas-0001/INT8/face-detection-adas-0001.xml
+        weights: face-detection-adas-0001/INT8/face-detection-adas-0001.bin
+        adapter: ssd
+        cpu_extensions: AUTO
+
+      - framework: dlsdk
+        tags:
+          - GPU32
+        device: GPU
+        model:   face-detection-adas-0001/FP32/face-detection-adas-0001.xml
+        weights: face-detection-adas-0001/FP32/face-detection-adas-0001.bin
+        adapter: ssd
+
+      - framework: dlsdk
+        tags:
+          - GPU16
+        device: GPU
+        model:   face-detection-adas-0001/FP16/face-detection-adas-0001.xml
+        weights: face-detection-adas-0001/FP16/face-detection-adas-0001.bin
+        adapter: ssd
+
+      - framework: dlsdk
+        device: MYRIAD
+        model:   face-detection-adas-0001/FP16/face-detection-adas-0001.xml
+        weights: face-detection-adas-0001/FP16/face-detection-adas-0001.bin
+        adapter: ssd
+
+      - framework: dlsdk
+        device: HDDL
+        model:   face-detection-adas-0001/FP16/face-detection-adas-0001.xml
+        weights: face-detection-adas-0001/FP16/face-detection-adas-0001.bin
+        adapter: ssd
+
+      - framework: dlsdk
+        tags:
+          - FPGA16
+        device: HETERO:FPGA,CPU
+        model:   face-detection-adas-0001/FP32/face-detection-adas-0001.xml
+        weights: face-detection-adas-0001/FP32/face-detection-adas-0001.bin
+        adapter: ssd
+        cpu_extensions: AUTO
+        bitstream: 2019R1_A10DK_FP16_MobileNet_Clamp.aocx
+
+      - framework: dlsdk
+        tags:
+          - FPGA11
+        device: HETERO:FPGA,CPU
+        model:   face-detection-adas-0001/FP32/face-detection-adas-0001.xml
+        weights: face-detection-adas-0001/FP32/face-detection-adas-0001.bin
+        adapter: ssd
+        cpu_extensions: AUTO
+        bitstream: 2019R1_A10DK_FP11_ELU.aocx
+
+    datasets:
+      - name: wider
+        data_source: WIDER_val/images
+        annotation_conversion:
+          converter: wider
+          annotation_file: wider_face_split/wider_face_val_bbx_gt.txt
+
+        preprocessing:
+          - type: resize
+            dst_width: 672
+            dst_height: 384
+
+        postprocessing:
+          - type: resize_prediction_boxes
+          - type: filter
+            height_range: 100
+            apply_to: annotation
+
+        metrics:
+          - type: map
+            ignore_difficult: True
+            include_boundaries: False
+            allow_multiple_matches_per_ignored: True
+            use_filtered_tp: True

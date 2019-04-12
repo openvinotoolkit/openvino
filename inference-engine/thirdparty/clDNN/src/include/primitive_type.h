@@ -40,6 +40,8 @@ struct cldnn_primitive_type
     virtual std::shared_ptr<cldnn::program_node> create_node(cldnn::program_impl& program, const std::shared_ptr<cldnn::primitive> prim) const = 0;
     virtual std::shared_ptr<cldnn::primitive_inst> create_instance(cldnn::network_impl& network, const cldnn::program_node& node) const = 0;
     virtual std::unique_ptr<cldnn::primitive_impl> choose_impl(cldnn::engine_impl& engine, const cldnn::program_node& node) const = 0;    
+    virtual bool does_an_implementation_exist(cldnn::engine_impl& engine, const cldnn::program_node& node) const = 0;
+    virtual bool does_possible_implementation_exist(cldnn::engine_impl& engine, const cldnn::program_node& node) const = 0;
     virtual cldnn::layout calc_output_layout(const cldnn::program_node& node) const = 0;
     virtual std::string to_string(const cldnn::program_node& node) const = 0;
 

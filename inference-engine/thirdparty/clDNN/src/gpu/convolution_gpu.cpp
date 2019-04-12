@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,13 +32,17 @@ struct convolution_gpu : typed_primitive_gpu_impl<convolution>
 
 protected:
 
-    virtual bool validate(typed_primitive_inst<convolution>& instance) const override
+    virtual bool validate_impl(const typed_primitive_inst<convolution>& instance) const override
     {
-        bool res = parent::validate(instance);
+        bool res = true;
+
+        auto outer_id = _outer.id();
+        auto data_type = instance.node.input().get_output_layout().data_type;
 
         // Check whether all memory elements use the same unit type (FP16 or FP32).
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(), "Input memory", instance.node.input().get_output_layout().data_type, "output memory", instance.node.get_output_layout().data_type, "");
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(), "Input memory", instance.node.input().get_output_layout().data_type, "filter memory", instance.weights_memory(0).get_layout().data_type, "");
+        CLDNN_ERROR_DATA_TYPES_MISMATCH(outer_id, "Input memory", data_type, "output memory", instance.node.get_output_layout().data_type, "");
+        // Integer signed/unsigned is ok for convoluiton
+        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id, "Input memory", data_type, "filter memory", instance.weights_memory(0).get_layout().data_type, "");
 
         return res;
     }
@@ -59,6 +63,11 @@ protected:
         return _outer.get_split(); 
     }
 
+    virtual uint32_t get_groups() const override
+    {
+        return _outer.get_groups();
+    }
+
 public:
 
     static primitive_impl* create(const convolution_node &arg)
@@ -72,6 +81,7 @@ public:
         const auto& stride          = primitive->stride;
         const auto& dilation        = primitive->dilation;
         const auto& input_offset    = primitive->input_offset;
+        const auto& groups           = primitive->groups;
 
         const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
         const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
@@ -80,22 +90,24 @@ public:
 
         assert(arg.get_output_layout().size.feature[0] / primitive->split() == weights_layout.size.batch[0]);
 
-        auto conv_params = get_weights_bias_default_params<kernel_selector::convolution_params>(arg, actual_split);
+        auto conv_params = get_weights_bias_default_params<kernel_selector::convolution_params>(arg, (groups > 1 && !depthwise_separable_opt) ? groups : actual_split, groups);
         auto conv_optional_params = get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
 
         const auto additional_offset = tensor::max(input_offset, 0);
         if (additional_offset != 0)
         {
-            conv_params.inputs[0] = convert_data_tensor(input_layout, actual_split, additional_offset);
+            conv_params.inputs[0] = convert_data_tensor(input_layout, (groups > 1 && !depthwise_separable_opt) ? groups : actual_split, additional_offset);
         }
 
         if(primitive->with_activation)
-            convert_activation_func_params(primitive, conv_params);
+            convert_activation_func_params(primitive, conv_params.activation);
 
-        conv_params.depthwiseSeparableOpt = depthwise_separable_opt;
+        conv_params.depthwise_separable_opt = depthwise_separable_opt;
         conv_params.transposed = transposed;
 
+        conv_params.local_convolution = weights_size.local[0] > 1 || weights_size.local[1] > 1;
         conv_params.split = split;
+        conv_params.groups = groups;
         conv_params.filterSize = {
             (uint32_t)weights_size.spatial[0],
             (uint32_t)weights_size.spatial[1],
@@ -141,8 +153,7 @@ public:
 
         kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
 		
-        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
-
+        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with these arguments");
         auto conv = new convolution_gpu(arg, best_kernels[0]);
 
         return conv;
@@ -165,7 +176,12 @@ namespace{
             implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), convolution_gpu::create);
             // MMAD
             implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), convolution_gpu::create);
+            implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byx8_f4), convolution_gpu::create);
+
             implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), convolution_gpu::create);
+            implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), convolution_gpu::create);
+            implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), convolution_gpu::create);
+            implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), convolution_gpu::create);
         }
         ~attach() {}
     };

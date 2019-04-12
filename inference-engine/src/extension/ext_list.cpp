@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,8 @@ void CpuExtensions::AddShapeInferImpl(std::string name, const IShapeInferImpl::P
 
 void CpuExtensions::GetVersion(const Version*& versionInfo) const noexcept {
     static Version ExtensionDescription = {
-            { 1, 0 },    // extension API version
-            "1.0",
+            { 1, 6 },    // extension API version
+            "1.6",
             "ie-cpu-ext"  // extension description message
     };
 

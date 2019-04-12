@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import networkx as nx
 from extensions.front.mxnet.ssd_pattern_remove_flatten import SsdPatternRemoveFlatten
 from extensions.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import create_edge
+from mo.graph.graph import Graph
 from mo.ops.reshape import Reshape
 
 
@@ -40,7 +40,7 @@ class SsdPatternFlattenSoftmaxActivation(FrontReplacementSubgraph):
             ]
         )
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         """
         Need to find the pattern: SoftmaxActivation -> DetectionOutput
         DetectionOutput in IE expects flattened input from SoftMax, that is why there is the need to add
@@ -48,7 +48,7 @@ class SsdPatternFlattenSoftmaxActivation(FrontReplacementSubgraph):
 
         Parameters
         ----------
-        graph : nx.MultiDiGraph
+        graph : Graph
            Graph with loaded model.
          match : dict
            Patterns which were found in graph structure.
@@ -70,4 +70,4 @@ class SsdPatternFlattenSoftmaxActivation(FrontReplacementSubgraph):
         new_reshape_op = Reshape(graph, {'symbol_dict': symbol_node})
         new_reshape_node = new_reshape_op.create_node([softmax_activation])
         new_reshape_node['dim'] = [0, -1]
-        create_edge(new_reshape_node, multi_box_detection, in_port=in_port, out_port=out_port)
+        graph.create_edge(new_reshape_node, multi_box_detection, in_port=in_port, out_port=out_port)

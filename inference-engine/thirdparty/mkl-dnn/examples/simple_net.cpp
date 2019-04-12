@@ -45,7 +45,7 @@ void simple_net(int times = 100) {
     memory::dims conv1_bias_tz = { 96 };
     memory::dims conv1_dst_tz = { batch, 96, 55, 55 };
     memory::dims conv1_strides = { 4, 4 };
-    auto conv1_padding = { 0, 0 };
+    memory::dims conv1_padding = { 0, 0 };
 
     /* Allocate input and output buffers for user data */
     std::vector<float> user_src(batch * 3 * 227 * 227);
@@ -165,7 +165,7 @@ void simple_net(int times = 100) {
     memory::dims pool1_dst_tz = { batch, 96, 27, 27 };
     memory::dims pool1_kernel = { 3, 3 };
     memory::dims pool1_strides = { 2, 2 };
-    auto pool_padding = { 0, 0 };
+    memory::dims pool_padding = { 0, 0 };
 
     auto pool1_dst_md = memory::desc(
             { pool1_dst_tz }, memory::data_type::f32, memory::format::any);
@@ -191,7 +191,7 @@ void simple_net(int times = 100) {
     memory::dims conv2_bias_tz = { 256 };
     memory::dims conv2_dst_tz = { batch, 256, 27, 27 };
     memory::dims conv2_strides = { 1, 1 };
-    auto conv2_padding = { 2, 2 };
+    memory::dims conv2_padding = { 2, 2 };
 
     std::vector<float> conv2_weights(std::accumulate(
             conv2_weights_tz.begin(), conv2_weights_tz.end(), 1,
@@ -300,7 +300,7 @@ void simple_net(int times = 100) {
     memory::dims pool2_dst_tz = { batch, 256, 13, 13 };
     memory::dims pool2_kernel = { 3, 3 };
     memory::dims pool2_strides = { 2, 2 };
-    auto pool2_padding = { 0, 0 };
+    memory::dims pool2_padding = { 0, 0 };
 
     auto pool2_dst_md = memory::desc(
             { pool2_dst_tz }, memory::data_type::f32, memory::format::any);
@@ -328,7 +328,7 @@ void simple_net(int times = 100) {
     memory::dims conv3_bias_tz = { 384 };
     memory::dims conv3_dst_tz = { batch, 384, 13, 13 };
     memory::dims conv3_strides = { 1, 1 };
-    auto conv3_padding = { 1, 1 };
+    memory::dims conv3_padding = { 1, 1 };
 
     std::vector<float> conv3_weights(std::accumulate(
             conv3_weights_tz.begin(), conv3_weights_tz.end(), 1,
@@ -415,7 +415,7 @@ void simple_net(int times = 100) {
     memory::dims conv4_bias_tz = { 384 };
     memory::dims conv4_dst_tz = { batch, 384, 13, 13 };
     memory::dims conv4_strides = { 1, 1 };
-    auto conv4_padding = { 1, 1 };
+    memory::dims conv4_padding = { 1, 1 };
 
     std::vector<float> conv4_weights(std::accumulate(
             conv4_weights_tz.begin(), conv4_weights_tz.end(), 1,
@@ -501,7 +501,7 @@ void simple_net(int times = 100) {
     memory::dims conv5_bias_tz = { 256 };
     memory::dims conv5_dst_tz = { batch, 256, 13, 13 };
     memory::dims conv5_strides = { 1, 1 };
-    auto conv5_padding = { 1, 1 };
+    memory::dims conv5_padding = { 1, 1 };
 
     std::vector<float> conv5_weights(std::accumulate(
             conv5_weights_tz.begin(), conv5_weights_tz.end(), 1,
@@ -586,7 +586,7 @@ void simple_net(int times = 100) {
     memory::dims pool5_dst_tz = { batch, 256, 6, 6 };
     memory::dims pool5_kernel = { 3, 3 };
     memory::dims pool5_strides = { 2, 2 };
-    auto pool5_padding = { 0, 0 };
+    memory::dims pool5_padding = { 0, 0 };
 
     std::vector<float> pool5_dst(std::accumulate(pool5_dst_tz.begin(),
             pool5_dst_tz.end(), 1, std::multiplies<uint32_t>()));

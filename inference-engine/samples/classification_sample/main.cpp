@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <chrono>
 #include <memory>
 #include <string>
+#include <limits>
 
 #include <inference_engine.hpp>
 #include <ext_list.hpp>
@@ -15,6 +16,7 @@
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
+#include <samples/classification_results.h>
 
 #include "classification_sample.h"
 
@@ -68,7 +70,7 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 1. Load Plugin for inference engine -------------------------------------
         slog::info << "Loading plugin" << slog::endl;
-        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp, "../../../lib/intel64" , "" }).getPluginByDevice(FLAGS_d);
+        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
         if (FLAGS_p_msg) {
             static_cast<InferenceEngine::InferenceEnginePluginPtr>(plugin)->SetLogCallback(error_listener);
         }
@@ -242,7 +244,7 @@ int main(int argc, char *argv[]) {
 
         double total = 0.0;
         /** Start inference & calc performance **/
-        for (int iter = 0; iter < FLAGS_ni; ++iter) {
+        for (size_t iter = 0; iter < FLAGS_ni; ++iter) {
             auto t0 = Time::now();
             infer_request.Infer();
             auto t1 = Time::now();
@@ -256,24 +258,16 @@ int main(int argc, char *argv[]) {
         slog::info << "Processing output blobs" << slog::endl;
 
         const Blob::Ptr output_blob = infer_request.GetBlob(firstOutputName);
-        auto output_data = output_blob->buffer().as<PrecisionTrait<Precision::FP32>::value_type*>();
 
         /** Validating -nt value **/
-        const int resultsCnt = output_blob->size() / batchSize;
+        const size_t resultsCnt = output_blob->size() / batchSize;
         if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
             slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than " \
                       << resultsCnt+1 << " and more than 0)\n            will be used maximal value : " << resultsCnt;
             FLAGS_nt = resultsCnt;
         }
 
-        /** This vector stores id's of top N results **/
-        std::vector<unsigned> results;
-        TopResults(FLAGS_nt, *output_blob, results);
-
-        std::cout << std::endl << "Top " << FLAGS_nt << " results:" << std::endl << std::endl;
-
         /** Read labels from file (e.x. AlexNet.labels) **/
-        bool labelsEnabled = false;
         std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
         std::vector<std::string> labels;
 
@@ -285,26 +279,17 @@ int main(int argc, char *argv[]) {
                 trim(strLine);
                 labels.push_back(strLine);
             }
-            labelsEnabled = true;
         }
 
-        /** Print the result iterating over each batch **/
-        for (int image_id = 0; image_id < batchSize; ++image_id) {
-            std::cout << "Image " << imageNames[image_id] << std::endl << std::endl;
-            for (size_t id = image_id * FLAGS_nt, cnt = 0; cnt < FLAGS_nt; ++cnt, ++id) {
-                std::cout.precision(7);
-                /** Getting probability for resulting class **/
-                const auto result = output_data[results[id] + image_id*(output_blob->size() / batchSize)];
-                std::cout << std::left << std::fixed << results[id] << " " << result;
-                if (labelsEnabled) {
-                    std::cout << " label " << labels[results[id]] << std::endl;
-                } else {
-                    std::cout << " label #" << results[id] << std::endl;
-                }
-            }
-            std::cout << std::endl;
-        }
+        ClassificationResult classificationResult(output_blob, imageNames,
+                                                  batchSize, FLAGS_nt,
+                                                  labels);
+        classificationResult.print();
+
         // -----------------------------------------------------------------------------------------------------
+        if (std::fabs(total) < std::numeric_limits<double>::epsilon()) {
+            throw std::logic_error("total can't be equal to zero");
+        }
         std::cout << std::endl << "total inference time: " << total << std::endl;
         std::cout << "Average running time of one iteration: " << total / static_cast<double>(FLAGS_ni) << " ms" << std::endl;
         std::cout << std::endl << "Throughput: " << 1000 * static_cast<double>(FLAGS_ni) * batchSize / total << " FPS" << std::endl;

@@ -1,0 +1,114 @@
+models:
+  - name: human-pose-estimation-0001
+
+    launchers:
+      - framework: dlsdk
+        tags:
+          - FP32
+        device: CPU
+        model:   human-pose-estimation-0001/FP32/human-pose-estimation-0001.xml
+        weights: human-pose-estimation-0001/FP32/human-pose-estimation-0001.bin
+        allow_reshape_input: True
+        adapter:
+          type: human_pose_estimation
+          part_affinity_fields_out: Mconv7_stage2_L1
+          keypoints_heatmap_out: Mconv7_stage2_L2
+
+      - framework: dlsdk
+        tags:
+          - GPU32
+        device: GPU
+        model:   human-pose-estimation-0001/FP32/human-pose-estimation-0001.xml
+        weights: human-pose-estimation-0001/FP32/human-pose-estimation-0001.bin
+        allow_reshape_input: True
+        adapter:
+          type: human_pose_estimation
+          part_affinity_fields_out: Mconv7_stage2_L1
+          keypoints_heatmap_out: Mconv7_stage2_L2
+
+      - framework: dlsdk
+        tags:
+          - GPU16
+        device: GPU
+        model:   human-pose-estimation-0001/FP16/human-pose-estimation-0001.xml
+        weights: human-pose-estimation-0001/FP16/human-pose-estimation-0001.bin
+        allow_reshape_input: True
+        adapter:
+          type: human_pose_estimation
+          part_affinity_fields_out: Mconv7_stage2_L1
+          keypoints_heatmap_out: Mconv7_stage2_L2
+
+      - framework: dlsdk
+        device: MYRIAD
+        model:   human-pose-estimation-0001/FP16/human-pose-estimation-0001.xml
+        weights: human-pose-estimation-0001/FP16/human-pose-estimation-0001.bin
+        allow_reshape_input: True
+        adapter:
+          type: human_pose_estimation
+          part_affinity_fields_out: Mconv7_stage2_L1
+          keypoints_heatmap_out: Mconv7_stage2_L2
+
+      - framework: dlsdk
+        device: HDDL
+        model:   human-pose-estimation-0001/FP16/human-pose-estimation-0001.xml
+        weights: human-pose-estimation-0001/FP16/human-pose-estimation-0001.bin
+        allow_reshape_input: True
+        adapter:
+          type: human_pose_estimation
+          part_affinity_fields_out: Mconv7_stage2_L1
+          keypoints_heatmap_out: Mconv7_stage2_L2
+
+      - framework: dlsdk
+        tags:
+          - FPGA16
+        device: HETERO:FPGA,CPU
+        model:   human-pose-estimation-0001/FP32/human-pose-estimation-0001.xml
+        weights: human-pose-estimation-0001/FP32/human-pose-estimation-0001.bin
+        allow_reshape_input: True
+        adapter:
+          type: human_pose_estimation
+          part_affinity_fields_out: Mconv7_stage2_L1
+          keypoints_heatmap_out: Mconv7_stage2_L2
+        bitstream: 2019R1_A10DK_FP16_ELU.aocx
+
+      - framework: dlsdk
+        tags:
+          - FPGA11
+        device: HETERO:FPGA,CPU
+        model:   human-pose-estimation-0001/FP32/human-pose-estimation-0001.xml
+        weights: human-pose-estimation-0001/FP32/human-pose-estimation-0001.bin
+        allow_reshape_input: True
+        adapter:
+          type: human_pose_estimation
+          part_affinity_fields_out: Mconv7_stage2_L1
+          keypoints_heatmap_out: Mconv7_stage2_L2
+        bitstream: 2019R1_A10DK_FP11_ELU.aocx
+
+
+    datasets:
+      - name: ms_coco_keypoints
+        data_source: val2017
+        annotation_conversion:
+          converter: mscoco_keypoints
+          annotation_file: person_keypoints_val2017.json
+
+        preprocessing:
+          - type: resize
+            size: 368
+            interpolation: CUBIC
+            aspect_ratio_scale: width
+          - type: padding
+            stride: 8
+
+        postprocessing:
+          - type: filter
+            apply_to: annotation
+            area_range: 1, 10000000000
+          - type: filter
+            apply_to: prediction
+            area_range: 1, 10000000000
+
+        metrics:
+          - name: AP
+            type: coco_precision
+            max_detections: 20

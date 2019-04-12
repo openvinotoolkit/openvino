@@ -25,6 +25,8 @@ namespace kernel_selector
         BorderKernelRef() : BorderKernelBase("border_gpu_ref") {}
 
         KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+
+    protected:
         ParamsKey GetSupportedKey() const override;
     };
 }

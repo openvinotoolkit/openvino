@@ -22,6 +22,8 @@ if(platform_cmake_included)
 endif()
 set(platform_cmake_included true)
 
+include("cmake/utils.cmake")
+
 add_definitions(-DMKLDNN_DLL -DMKLDNN_DLL_EXPORTS)
 
 # UNIT8_MAX-like macros are a part of the C99 standard and not a part of the
@@ -50,6 +52,8 @@ if(MSVC)
         set(DEF_ARCH_OPT_FLAGS "-QxHOST")
         # disable: loop was not vectorized with "simd"
         append(CMAKE_CCXX_NOWARN_FLAGS "-Qdiag-disable:15552")
+        # disable: unknown pragma
+        append(CMAKE_CCXX_NOWARN_FLAGS "-Qdiag-disable:3180")
     endif()
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         # Clang cannot vectorize some loops with #pragma omp simd and gets
@@ -58,7 +62,8 @@ if(MSVC)
         append(CMAKE_CCXX_FLAGS "-Wno-pass-failed")
     endif()
 elseif(UNIX OR MINGW)
-    append(CMAKE_CCXX_FLAGS "-Wall -Werror -Wno-unknown-pragmas")
+    append(CMAKE_CCXX_FLAGS "-Wall -Wno-unknown-pragmas")
+    append_if_product(CMAKE_CCXX_FLAGS "-Werror")
     append(CMAKE_CCXX_FLAGS "-fvisibility=internal")
     append(CMAKE_C_FLAGS "-std=c99")
     append(CMAKE_CXX_FLAGS "-std=c++11 -fvisibility-inlines-hidden")
@@ -123,11 +128,6 @@ elseif(UNIX OR MINGW)
         # disable `was not vectorized: vectorization seems inefficient` remark
         append(CMAKE_CCXX_NOWARN_FLAGS "-diag-disable:15335")
     endif()
-endif()
-
-if(WIN32)
-    string(REPLACE ";" "\;" ENV_PATH "$ENV{PATH}")
-    set(CTESTCONFIG_PATH "${CTESTCONFIG_PATH}\;${MKLDLLPATH}\;${ENV_PATH}")
 endif()
 
 if(UNIX OR MINGW)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,8 +111,9 @@ public:
         #endif
     }
 
+    InferenceEngine::ICNNNetwork::Ptr dump() const;
+
 protected:
-    MKLDNNNodePtr FindNodeWithName(const std::string& name) const;
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
     void SortTopologically();
 
@@ -144,6 +145,8 @@ protected:
     #endif
     mkldnn::engine eng;
 
+    void Replicate(const ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void InitGraph();
     void InitNodes();
     void InitEdges();
     void Allocate();
@@ -164,8 +167,6 @@ private:
         InferenceEngine::CNNLayerPtr cnnLayer;
         size_t outIdx;
     };
-    void ParseNode(const InferenceEngine::CNNLayerPtr& cnnLayer, MKLDNNNodePtr& parent,
-                   const MKLDNNExtensionManager::Ptr& extMgr, size_t outIdx, std::vector<ParsedLayer>& layers);
 };
 
 
@@ -187,6 +188,8 @@ public:
     }
 
     void setProperty(const std::map<std::string, std::string> &properties);
+
+    void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
 
 protected:
     std::vector<MKLDNNGraph::Ptr> graphs;

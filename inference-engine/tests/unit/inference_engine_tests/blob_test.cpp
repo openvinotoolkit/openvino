@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -309,6 +309,11 @@ TEST_F(BlobTests, canMakeSharedBlob) {
     ASSERT_EQ(blob1->size(), 0);
     ASSERT_EQ(blob2->size(), 1);
     ASSERT_EQ(blob3->size(), 0);
+}
+
+TEST_F(BlobTests, cannotCreateBlobWithIncorrectPrecision) {
+    InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP16, {1, 3, 227, 227}, Layout::NCHW);
+    ASSERT_THROW(InferenceEngine::make_shared_blob<float>(desc), InferenceEngine::details::InferenceEngineException);
 }
 
 TEST_F(BlobTests, canUseBlobInMoveSemantics) {

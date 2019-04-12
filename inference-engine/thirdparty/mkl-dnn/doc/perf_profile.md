@@ -90,39 +90,42 @@ To dump JIT-kernels set MKLDNN_JIT_DUMP environment variable to `1`. For example
 ```
 
 This will produce the following output files:
-    mkldnn_dump_jit_avx2_conv_fwd_kernel_f32.0.bin
-    mkldnn_dump_jit_uni_lrn_fwd_kernel_f32.2.bin
+
+    mkldnn_dump_jit_uni_reorder_kernel_f32.0.bin
+    mkldnn_dump_jit_avx2_conv_fwd_kernel_f32.1.bin
+    mkldnn_dump_jit_uni_relu_kernel_f32.2.bin
     mkldnn_dump_jit_uni_lrn_fwd_kernel_f32.3.bin
     mkldnn_dump_jit_uni_lrn_fwd_kernel_f32.4.bin
-    mkldnn_dump_jit_uni_pool_kernel_f32.5.bin
-    mkldnn_dump_jit_uni_relu_kernel_f32.1.bin
-    
+    mkldnn_dump_jit_uni_lrn_fwd_kernel_f32.5.bin
+    mkldnn_dump_jit_uni_reorder_kernel_f32.6.bin
+    mkldnn_dump_jit_uni_pool_kernel_f32.7.bin
+
 To open these files any disassembler can be used. For example:
 
 ```
-    $ xed -ir mkldnn_dump_jit_avx2_conv_fwd_kernel_f32.0.bin
-    XDIS 0: PUSH      BASE       53                       push ebx
-    XDIS 1: PUSH      BASE       55                       push ebp
-    XDIS 2: BINARY    BASE       41                       inc ecx
-    XDIS 3: PUSH      BASE       54                       push esp
-    XDIS 4: BINARY    BASE       41                       inc ecx
-    XDIS 5: PUSH      BASE       55                       push ebp
-    XDIS 6: BINARY    BASE       41                       inc ecx
-    XDIS 7: PUSH      BASE       56                       push esi
-    XDIS 8: BINARY    BASE       41                       inc ecx
-    XDIS 9: PUSH      BASE       57                       push edi
-    XDIS a: BINARY    BASE       48                       dec eax
-    XDIS b: DATAXFER  BASE       8B07                     mov eax, dword ptr [edi]
-    XDIS d: BINARY    BASE       48                       dec eax
-    XDIS e: DATAXFER  BASE       8B7708                   mov esi, dword ptr [edi+0x8]
-    XDIS 11: BINARY    BASE       48                       dec eax
-    XDIS 12: DATAXFER  BASE       8B5710                   mov edx, dword ptr [edi+0x10]
-    XDIS 15: BINARY    BASE       48                       dec eax
-    XDIS 16: DATAXFER  BASE       8B5F18                   mov ebx, dword ptr [edi+0x18]
-    XDIS 19: BINARY    BASE       48                       dec eax
-    XDIS 1a: DATAXFER  BASE       8B4F40                   mov ecx, dword ptr [edi+0x40]
-    XDIS 1d: BINARY    BASE       44                       inc esp
-    XDIS 1e: DATAXFER  BASE       8B6F70                   mov ebp, dword ptr [edi+0x70]
+    $ xed -64 -ir mkldnn_dump_jit_avx2_conv_fwd_kernel_f32.1.bin
+    XDIS 0: PUSH      BASE       53                       push rbx
+    XDIS 1: PUSH      BASE       55                       push rbp
+    XDIS 2: PUSH      BASE       4154                     push r12
+    XDIS 4: PUSH      BASE       4155                     push r13
+    XDIS 6: PUSH      BASE       4156                     push r14
+    XDIS 8: PUSH      BASE       4157                     push r15
+    XDIS a: DATAXFER  BASE       488B07                   mov rax, qword ptr [rdi]
+    XDIS d: DATAXFER  BASE       488B7708                 mov rsi, qword ptr [rdi+0x8]
+    XDIS 11: DATAXFER  BASE       488B5710                 mov rdx, qword ptr [rdi+0x10]
+    XDIS 15: DATAXFER  BASE       488B5F18                 mov rbx, qword ptr [rdi+0x18]
+    XDIS 19: DATAXFER  BASE       488B8F98000000           mov rcx, qword ptr [rdi+0x98]
+    XDIS 20: DATAXFER  BASE       448BAF00010000           mov r13d, dword ptr [rdi+0x100]
+    XDIS 27: DATAXFER  BASE       4C8BB7D0000000           mov r14, qword ptr [rdi+0xd0]
+    XDIS 2e: BINARY    BASE       4983FE04                 cmp r14, 0x4
+    XDIS 32: COND_BR   BASE       0F85EF030000             jnz 0x427
+    XDIS 38: LOGICAL   BASE       4D31DB                   xor r11, r11
+    XDIS 3b: LOGICAL   BASE       41F7C510000000           test r13d, 0x10
+    XDIS 42: COND_BR   BASE       0F8558000000             jnz 0xa0
+    XDIS 48: DATAXFER  AVX        C5FC1006                 vmovups ymm0, ymmword ptr [rsi]
+    XDIS 4c: DATAXFER  AVX        C5FC104E20               vmovups ymm1, ymmword ptr [rsi+0x20]
+    XDIS 51: DATAXFER  AVX        C5FC105640               vmovups ymm2, ymmword ptr [rsi+0x40]
+    XDIS 56: DATAXFER  AVX        C5FC109E207A0100         vmovups ymm3, ymmword ptr [rsi+0x17a20]
     ...
 ```
 

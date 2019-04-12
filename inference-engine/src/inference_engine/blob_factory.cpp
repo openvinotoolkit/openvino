@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,11 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::Tenso
 
 InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::TensorDesc& desc, void *ptr) {
     return make_blob_with_precision(desc.getPrecision(), desc, ptr);
+}
+
+
+InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::TensorDesc& desc, const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
+    return make_blob_with_precision(desc.getPrecision(), desc, alloc);
 }
 
 InferenceEngine::Layout plain_layout(InferenceEngine::SizeVector dims) {

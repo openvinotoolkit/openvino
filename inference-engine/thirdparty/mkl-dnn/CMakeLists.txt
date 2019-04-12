@@ -16,6 +16,10 @@
 
 cmake_minimum_required(VERSION 2.8)
 
+if(POLICY CMP0022)
+    cmake_policy(SET CMP0022 NEW)
+endif()
+
 if(POLICY CMP0054)
     cmake_policy(SET CMP0054 NEW)
 endif()
@@ -40,7 +44,7 @@ endif()
 
 set(PROJECT_NAME "Intel(R) MKL-DNN")
 set(PROJECT_FULL_NAME "Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN)")
-set(PROJECT_VERSION "0.17")
+set(PROJECT_VERSION "0.18.0")
 
 set(LIB_NAME mkldnn)
 
@@ -64,6 +68,9 @@ set(CMAKE_SRC_CCXX_FLAGS)       # SRC specifics
 set(CMAKE_EXAMPLE_CCXX_FLAGS)   # EXAMPLE specifics
 set(CMAKE_TEST_CCXX_FLAGS)      # TESTS specifics
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 include("cmake/utils.cmake")
 include("cmake/options.cmake")
 include("cmake/OpenMP.cmake")
@@ -73,6 +80,7 @@ include("cmake/SDL.cmake")
 include("cmake/MKL.cmake")
 include("cmake/Doxygen.cmake")
 include("cmake/profiling.cmake")
+include("cmake/version.cmake")
 
 enable_testing()
 
@@ -82,4 +90,5 @@ add_subdirectory(src)
 add_subdirectory(examples)
 add_subdirectory(tests)
 
-install(FILES LICENSE DESTINATION share/doc/${LIB_NAME})
+# Cannot use CMAKE_INSTALL_DOCDIR since it uses PROJECT_NAME and not LIB_NAME
+install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/doc/${LIB_NAME})

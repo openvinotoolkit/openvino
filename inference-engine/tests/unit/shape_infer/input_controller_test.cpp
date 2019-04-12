@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ TEST_F(InputControllerTest, canPushShapes) {
     ASSERT_NO_THROW(controller.setShapeByName(inDims, TEST_NAME));
 }
 
-TEST_F(InputControllerTest, throwOnGetWithNotEnoughShapes) {
+TEST_F(InputControllerTest, DISABLED_throwOnGetWithNotEnoughShapes) {
     InputController controller({notEmptyData, notEmptyData}, TEST_NAME);
     controller.setShapeByName(inDims, TEST_NAME);
     ASSERT_THROW(controller.getShapes(true), InferenceEngineException);
@@ -57,7 +57,7 @@ TEST_F(InputControllerTest, canGetChanges) {
     ASSERT_NO_THROW(controller.getShapes(true));
 }
 
-TEST_F(InputControllerTest, throwOnApplyWithNotEnoughShapes) {
+TEST_F(InputControllerTest, DISABLED_throwOnApplyWithNotEnoughShapes) {
     InputController controller({notEmptyData, notEmptyData}, TEST_NAME);
     controller.setShapeByName(inDims, TEST_NAME);
     ASSERT_THROW(controller.applyChanges(), InferenceEngineException);
@@ -72,7 +72,7 @@ TEST_F(InputControllerTest, canApplyChanges) {
 TEST_F(InputControllerTest, canResetShapes) {
     InputController controller({notEmptyData}, TEST_NAME);
     controller.setShapeByName(inDims, TEST_NAME);
-    ASSERT_FALSE(controller.getShapes(true).empty());
+    ASSERT_EQ(controller.getShapes(true)[0], inDims);
     ASSERT_NO_THROW(controller.reset());
-    ASSERT_THROW(controller.getShapes(true), InferenceEngineException);
+    ASSERT_NE(controller.getShapes(true)[0], inDims);
 }

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,16 +43,16 @@ void err_details::cldnn_print_error_message(const std::string& file, int line, c
 
 void error_message(const std::string& file, int line, const std::string& instance_id, const std::string& message)
 {
-        std::stringstream error_msg;
-        error_msg << message << std::endl;
-        err_details::cldnn_print_error_message(file, line, instance_id, error_msg);
+    std::stringstream error_msg;
+    error_msg << message << std::endl;
+    err_details::cldnn_print_error_message(file, line, instance_id, error_msg);
 }
 
 void error_on_not_supported_fp16(const std::string& file, int line, const std::string& instance_id, uint8_t supp_fp16, bool fp16_used)
 {
-    std::stringstream error_msg;
     if (!supp_fp16 && fp16_used)
     {
+        std::stringstream error_msg;
         error_msg << "GPU device does not support half precision floating-point formats (cl_khr_fp16 extension)" << std::endl;
         err_details::cldnn_print_error_message(file, line, instance_id, error_msg);
     }
@@ -60,20 +60,23 @@ void error_on_not_supported_fp16(const std::string& file, int line, const std::s
 
 void error_on_bool(const std::string& file, int line, const std::string& instance_id, const std::string& condition_id, bool condition, const std::string& additional_message)
 {
-    std::stringstream error_msg;
     if (condition)
     {
+        std::stringstream error_msg;
         auto condition_to_string = [](const bool& condi)->std::string { return condi ? "true" : "false"; };
         error_msg << condition_id << "(" << condition_to_string(condition) << ") should be " << condition_to_string(!condition) << std::endl;
         err_details::cldnn_print_error_message(file, line, instance_id, error_msg, additional_message);
     }
 }
 
-void error_on_mismatching_data_types(const std::string& file, int line, const std::string& instance_id, const std::string& data_format_1_id, data_types data_format_1, const std::string& data_format_2_id, data_types data_format_2, const std::string& additional_message)
+void error_on_mismatching_data_types(const std::string& file, int line, const std::string& instance_id, const std::string& data_format_1_id, data_types data_format_1, const std::string& data_format_2_id, data_types data_format_2, const std::string& additional_message, bool ignore_sign)
 {
-    std::stringstream error_msg;
-    if (data_format_1 != data_format_2)
+    if (data_format_1 != data_format_2 &&
+        !ignore_sign &&
+         ((data_format_1 == data_types::i8 && data_format_2 == data_types::u8) ||
+          (data_format_1 == data_types::u8 && data_format_2 == data_types::i8)))
     {
+        std::stringstream error_msg;
         error_msg << "Data formats are incompatible." << std::endl;
         error_msg << data_format_1_id << " format is: " << data_type_traits::name(data_format_1) << ", " << data_format_2_id << " is: " << data_type_traits::name(data_format_2) << std::endl;
         error_msg << "Data formats should be the same!" << std::endl;
@@ -101,18 +104,18 @@ void error_on_tensor_dims_less_than_other_tensor_dims(const std::string& file, i
         errors.push_back("Spatial y");
     }
 
-    std::stringstream error_msg;
     if (!errors.empty())
     {
-                error_msg << tensor_id << " sizes: " << tens << std::endl;
-                error_msg << tensor_to_compare_to_id << " sizes: " << tens_to_compre << std::endl;
-                error_msg << "All " << tensor_id << " dimensions should not be less than " << tensor_to_compare_to_id << " dimensions." << std::endl;
-                error_msg << "Mismatching dimensions: ";
-                for (size_t i = 0; i < errors.size(); i++)
-                {
-                    error_msg << errors.at(i) << std::endl;
-                }
-                err_details::cldnn_print_error_message(file, line, instance_id, error_msg, additional_message);
+        std::stringstream error_msg;
+        error_msg << tensor_id << " sizes: " << tens << std::endl;
+        error_msg << tensor_to_compare_to_id << " sizes: " << tens_to_compre << std::endl;
+        error_msg << "All " << tensor_id << " dimensions should not be less than " << tensor_to_compare_to_id << " dimensions." << std::endl;
+        error_msg << "Mismatching dimensions: ";
+        for (size_t i = 0; i < errors.size(); i++)
+        {
+            error_msg << errors.at(i) << std::endl;
+        }
+        err_details::cldnn_print_error_message(file, line, instance_id, error_msg, additional_message);
     }
 }
 
@@ -136,9 +139,9 @@ void error_on_tensor_dims_greater_than_other_tensor_dims(const std::string& file
         errors.push_back("Spatial y");
     }
 
-    std::stringstream error_msg;
     if (!errors.empty())
     {
+        std::stringstream error_msg;
         error_msg << tensor_id << " sizes: " << tens << std::endl;
         error_msg << tensor_to_compare_to_id << " sizes: " << tens_to_compre << std::endl;
         error_msg << "All " << tensor_id << " dimensions should not be greater than " << tensor_to_compare_to_id << std::endl;
@@ -171,9 +174,9 @@ void error_on_tensor_dims_not_dividable_by_other_tensor_dims(const std::string& 
         errors.push_back("Spatial y");
     }
 
-    std::stringstream error_msg;
     if (!errors.empty())
     {
+        std::stringstream error_msg;
         error_msg << tensor_id << " sizes: " << tens << std::endl;
         error_msg << tensor_to_compare_to_id << " sizes: " << tens_to_compre << std::endl;
         error_msg << "All " << tensor_id << " dimensions must be dividable by corresponding dimensions from " << tensor_to_compare_to_id << std::endl;

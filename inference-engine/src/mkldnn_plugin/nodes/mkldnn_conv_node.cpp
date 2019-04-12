@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,8 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng)
-        : MKLDNNNode(layer, eng), withBiases(false) {
+        : MKLDNNNode(layer, eng), withBiases(false), withSum(false),  dw_conv_iw(0), dw_conv_ih(0),
+        dw_conv_oc(0), isDW(false), isMerged(false), withActivation(false), convLayer(nullptr), isGrouped(false) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });
@@ -41,7 +42,7 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr&
         auto ois = layer->blobs.find("oi-scale");
         if ((getCnnLayer()->outData[0]->getPrecision() == Precision::I8 || getCnnLayer()->outData[0]->getPrecision() == Precision::U8)
             && ois == layer->blobs.end()) {
-            THROW_IE_EXCEPTION << "Internal error of graph quantization - missmatch of intermediate scales and next layer type for convolution "
+            THROW_IE_EXCEPTION << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for convolution "
                 << getCnnLayer()->name;
         }
         if (ois != layer->blobs.end()) {
@@ -262,7 +263,7 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
             auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
 
             if (initWeights) {
-                MKLDNNDims depthwiseDims({static_cast<int>(rnd_up(biasesDims[0], 16))});
+                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(biasesDims[0], 16))});
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
@@ -320,27 +321,25 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
         if (convolutionNode) {
             auto* convLayer = reinterpret_cast<ConvolutionLayer*>(convolutionNode->getCnnLayer().get());
 
+            auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(convLayer->precision);
+            auto biasPrc = memory::data_type::s32;
+
             if (initWeights) {
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                MKLDNNDims dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                PostOpsIntBlobMemory[blob_idx]->Create(dwWeightsDims, memory::data_type::f32,
-                                                            memory::format::Goihw8g);
+                MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                PostOpsIntBlobMemory[blob_idx]->Create(dwWeightsDims, weightsPrc, memory::format::Goihw8g);
 
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::goihw,
-                                                             convLayer->_weights->buffer(),
-                                                             dwWeightsDims.size() *
-                                                             MKLDNNExtensionUtils::sizeOfDataType(
-                                                                     memory::data_type::f32));
+                Blob::Ptr weights = convLayer->blobs.find("weights")->second;
+                Blob::Ptr biases = convLayer->blobs.find("biases")->second;
+
+                PostOpsIntBlobMemory[blob_idx]->SetData(weightsPrc, memory::goihw, weights->buffer(),
+                                                        dwWeightsDims.size() * MKLDNNExtensionUtils::sizeOfDataType(weightsPrc));
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 MKLDNNDims dwBiasesDims({dw_conv_oc});
-                PostOpsIntBlobMemory[blob_idx + 1]->Create(dwBiasesDims, memory::data_type::f32,
-                                                                memory::format::x);
-                PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
-                                                                 convLayer->_biases->buffer(),
-                                                                 dwBiasesDims.size() *
-                                                                 MKLDNNExtensionUtils::sizeOfDataType(
-                                                                         memory::data_type::f32));
+                PostOpsIntBlobMemory[blob_idx + 1]->Create(dwBiasesDims, biasPrc, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx + 1]->SetData(biasPrc, memory::x, biases->buffer(),
+                                                            dwBiasesDims.size() * MKLDNNExtensionUtils::sizeOfDataType(biasPrc));
                 ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
                                    dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
                                    (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
@@ -353,6 +352,46 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                                    nullptr,
                                    nullptr);
             }
+
+            if (convolutionNode->wScale != nullptr) {
+                float* wScaleData = static_cast<float*>(convolutionNode->wScale->buffer());
+
+                std::vector<float> oScaleDataVector;
+                std::vector<float> oShiftDataVector;
+                if (convolutionNode->getCnnLayer()->precision == Precision::I8 &&
+                    convolutionNode->getCnnLayer()->outData[0]->getPrecision() != Precision::FP32) {
+                    float *oScaleData = static_cast<float *>(convolutionNode->oScale->buffer());
+
+                    for (size_t c = 0; c < convolutionNode->wScale->size(); c++) {
+                        oScaleDataVector.push_back(wScaleData[c] / oScaleData[c]);
+                        oShiftDataVector.push_back(0.f);
+                    }
+                } else {
+                    for (size_t c = 0; c < convolutionNode->wScale->size(); c++) {
+                        oScaleDataVector.push_back(wScaleData[c]);
+                        oShiftDataVector.push_back(0.f);
+                    }
+                }
+
+                MKLDNNDims oScaleDims({static_cast<ptrdiff_t>(rnd_up(biasesDims[0], 16))});
+
+                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+                PostOpsIntBlobMemory[blob_idx]->Create(oScaleDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x, &oScaleDataVector[0],
+                                                        oScaleDataVector.size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+                PostOpsIntBlobMemory[blob_idx + 1]->Create(oScaleDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x, &oShiftDataVector[0],
+                                                            oShiftDataVector.size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+                ops.append_depthwise(depthwise_scale_shift,
+                                     (const float *)PostOpsIntBlobMemory[blob_idx]->GetData(),
+                                     (const float *)PostOpsIntBlobMemory[blob_idx + 1]->GetData());
+
+                blob_idx += 2;
+            }
+
             for (auto &dwConvFusedNode : convolutionNode->fusedWith) {
                 auto* dwConvActivationNode = dynamic_cast<MKLDNNActivationNode *>(dwConvFusedNode.get());
                 if (dwConvActivationNode) {
