@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 1. Load Plugin for inference engine -------------------------------------
-        InferencePlugin plugin = PluginDispatcher({"../../../lib/intel64", ""}).getPluginByDevice(device_name);
+        InferencePlugin plugin = PluginDispatcher().getPluginByDevice(device_name);
         IExtensionPtr cpuExtension, inPlaceExtension;
         if (device_name == "CPU") {
             cpuExtension = std::make_shared<Extensions::Cpu::CpuExtensions>();
@@ -53,7 +53,6 @@ int main(int argc, char* argv[]) {
 
         // --------------------------- Resize network to match image sizes and given batch----------------------
         if (device_name == "CPU") {
-            // register shape inference functions (SpatialTransformer) from CPU Extension
             network.AddExtension(cpuExtension);
             // register sample's custom shape inference (CustomReLU)
             network.AddExtension(inPlaceExtension);
@@ -121,7 +120,7 @@ int main(int argc, char* argv[]) {
 
         // --------------------------- 6. Prepare input --------------------------------------------------------
         Blob::Ptr input = infer_request.GetBlob(input_name);
-        for (int b = 0; b < batch_size; b++) {
+        for (size_t b = 0; b < batch_size; b++) {
             matU8ToBlob<uint8_t>(image, input, b);
         }
         // -----------------------------------------------------------------------------------------------------

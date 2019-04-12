@@ -26,6 +26,11 @@ if (NOT(IE_MAIN_SOURCE_DIR))
     if(NOT(WIN32))
         set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE})
     endif()
+else()
+    if (UNIX OR APPLE)
+        # cython generated files requires public visibility. Force visibility required.
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fvisibility=default")
+    endif()
 endif()
 
 include (UseCython)
@@ -46,4 +51,3 @@ find_package (InferenceEngine REQUIRED)
 
 set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory (src/openvino/inference_engine)
-add_subdirectory (src/openvino/inference_engine/dnn_builder)

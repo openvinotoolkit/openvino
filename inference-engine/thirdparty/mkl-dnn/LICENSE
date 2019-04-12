@@ -199,3 +199,17 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+   ============================================================================
+    
+   Intel MKL-DNN includes components with separate copyright 
+   notices and license terms.
+   
+   XByak, 3-clause BSD license
+   Copyright (c) 2007 MITSUNARI Shigeo
+   See full copyright notice and license text in src/cpu/xbyak/COPYRIGHT
+   
+   gtest, 3-clause BSD license
+   Copyright 2008, Google Inc.
+   See full copyright notice and license text in tests/gtests/gtest/LICENSE
+   

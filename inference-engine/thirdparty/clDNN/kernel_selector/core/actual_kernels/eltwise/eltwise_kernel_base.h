@@ -90,12 +90,14 @@ namespace kernel_selector
         std::vector<eltwise_params::Node> operations;
         std::vector<float> coefficients;
         std::vector<UpdateInputData> updateInputIds;
- 
+        std::vector<uSize> stride;
+
         bool  layoutBased = false;
         bool  int8_quantization = false;
         bool  output_calibration = false;
         float output_quantization_factor = 1.0f;
-        
+        bool  broadcast = false;
+
         MultiDataTensor output_calibration_factors;
         virtual ParamsKey GetParamsKey() const;
     };

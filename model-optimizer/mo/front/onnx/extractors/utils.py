@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
+import numpy as np
 
 from mo.graph.graph import Node
 from mo.utils.error import Error
@@ -47,3 +49,25 @@ def get_onnx_autopad(auto_pad):
     if auto_pad == 'notset':
         auto_pad = None
     return auto_pad
+
+
+def get_onnx_datatype_as_numpy(value):
+    datatype_to_numpy = {
+                         1: np.float32,
+                         9: np.bool,
+                         11: np.double,
+                         10: np.float16,
+                         5: np.int16,
+                         6: np.int32,
+                         7: np.int64,
+                         3: np.int8,
+                         8: np.ubyte,
+                         4: np.uint16,
+                         12: np.uint32,
+                         13: np.uint64,
+                         2: np.uint8,
+                         }
+    try:
+        return datatype_to_numpy[value]
+    except KeyError:
+        raise Error("Incorrect value {} for Datatype enum".format(value))

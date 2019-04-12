@@ -36,7 +36,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node)
     auto input_layout = node.input().get_output_layout();
     auto ifmt = input_layout.format;
 
-    auto odt = node.get_primitive()->output_data_type;
+    auto odt = *node.get_primitive()->output_data_type;
     auto ofmt = node.get_primitive()->output_format;
     auto op = node.get_primitive()->output_padding;
 

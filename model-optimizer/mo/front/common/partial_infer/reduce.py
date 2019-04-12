@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -35,6 +35,6 @@ def tf_reduce_infer(node, op=None):
         output_shape = np.delete(output_shape, axis)
     node.out_node().shape = output_shape
     if op is not None and node.in_node(0).value is not None:
-        node.out_node(0).value = np.array([op(node.in_node(0).value, (*axis,))],
+        node.out_node(0).value = np.array(op(node.in_node(0).value, (*axis,)),
                                           dtype=node.in_node(0).value.dtype)  # TODO extend to multi-dimensional axis
         log.debug("value: {}".format(node.out_node(0).value))

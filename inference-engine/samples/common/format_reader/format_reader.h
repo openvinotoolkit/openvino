@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include<iostream>
+#include <iostream>
 
 #if defined(_WIN32)
 # ifdef IMPLEMENT_FORMAT_READER
@@ -62,7 +62,7 @@ public:
      * @return shared pointer with input data
      * @In case of using OpenCV, parameters width and height will be used for image resizing
      */
-    virtual std::shared_ptr<unsigned char> getData(int width = 0, int height = 0) = 0;
+    virtual std::shared_ptr<unsigned char> getData(size_t width = 0, size_t height = 0) = 0;
 
     /**
      * \brief Get size

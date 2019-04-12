@@ -69,3 +69,13 @@
 # MKLDNN-1074: FPE for mb1 with ih < sh or iw < sw
 --reset --dir=FWD_D mb1_g1ic128oc256_ih1oh1kh3sh2dh0ph1_iw1ow1kw3sw2dw0pw1
 
+#MKLDNN-1184 grouped convolutions with small input-channel and
+# non-blocked src format
+--reset --dir=FWD_D
+#AVX2
+mb1_g2ic4oc16_ih8oh6kh3sh1dh0ph0_iw8ow6kw3sw1dw0pw0
+#AVX512
+mb1_g2ic16oc32_ih8oh8kh3sh1dh0ph1_iw8ow8kw3sw1dw0pw1
+mb1_g2ic8oc32_ih8oh8kh3sh1dh0ph1_iw8ow8kw3sw1dw0pw1
+mb1_g2ic4oc32_ih8oh8kh3sh1dh0ph1_iw8ow8kw3sw1dw0pw1
+mb1_g2ic22oc32_ih8oh6kh3sh1dh0ph0_iw8ow6kw3sw1dw0pw0

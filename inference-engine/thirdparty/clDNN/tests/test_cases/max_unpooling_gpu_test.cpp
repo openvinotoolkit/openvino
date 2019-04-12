@@ -57,7 +57,7 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2) {
     //  f1: b0:  0    0  0   b1:   0    0    0
     //  f1: b0:  0    8  16  b1:   12   0    17
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
     auto arg_max = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
@@ -139,7 +139,7 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2_output_padding) {
     //  f1: b0:  0    0  0   b1:   0    0    0
     //  f1: b0:  0    8  16  b1:   12   0    17
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
     auto arg_max = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
@@ -230,7 +230,7 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2_output_size) {
     //  f1: b0:  0    0  0   b1:   0    0    0
     //  f1: b0:  0    8  16  b1:   12   0    17
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
     auto arg_max = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
@@ -311,7 +311,7 @@ TEST(max_unpooling_gpu, basic_in2x3x2x2_fp16) {
     //  f1: b0:  0    0  0   b1:   0    0    0
     //  f1: b0:  0    8  16  b1:   12   0    17
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx,{ 2, 2, 2, 1 } });
     auto arg_max = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
@@ -392,7 +392,7 @@ TEST(max_unpooling_gpu, basic_in2x2x3x2_max_with_argmax_pooling_unpooling) {
     //  f1: b0:  0    8  16  b1:   12   0    17
 
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
     auto arg_max = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });

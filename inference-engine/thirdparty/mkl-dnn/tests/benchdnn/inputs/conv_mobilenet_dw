@@ -9,4 +9,3 @@ g256mb1ic256ih28iw28oc256oh14ow14kh3kw3sh2sw2ph1pw1n"mobilenet:conv4_2/dw"
 g512mb1ic512ih14iw14oc512oh14ow14kh3kw3sh1sw1ph1pw1n"mobilenet:conv5_1/dw"
 g512mb1ic512ih14iw14oc512oh7ow7kh3kw3sh2sw2ph1pw1n"mobilenet:conv5_6/dw"
 g1024mb1ic1024ih7iw7oc1024oh7ow7kh3kw3sh1sw1ph1pw1n"mobilenet:conv6/dw"
-

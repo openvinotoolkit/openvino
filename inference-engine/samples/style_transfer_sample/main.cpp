@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 1. Load Plugin for inference engine -------------------------------------
         slog::info << "Loading plugin" << slog::endl;
-        InferencePlugin plugin = PluginDispatcher({FLAGS_pp, "../../../lib/intel64", ""}).getPluginByDevice(FLAGS_d);
+        InferencePlugin plugin = PluginDispatcher({FLAGS_pp}).getPluginByDevice(FLAGS_d);
 
         /** Printing plugin version **/
         printPluginVersion(plugin, std::cout);
@@ -213,7 +213,7 @@ int main(int argc, char *argv[]) {
 
         double total = 0.0;
         /** Start inference & calc performance **/
-        for (int iter = 0; iter < FLAGS_ni; ++iter) {
+        for (size_t iter = 0; iter < FLAGS_ni; ++iter) {
             auto t0 = Time::now();
             infer_request.Infer();
             auto t1 = Time::now();
@@ -274,7 +274,10 @@ int main(int argc, char *argv[]) {
                 if (!outFile.is_open()) {
                     throw new std::runtime_error("Cannot create " + out_img_name);
                 }
-                std::vector<unsigned char> data_img2(data_img.begin(), data_img.end());
+                std::vector<unsigned char> data_img2;
+                for (float i : data_img) {
+                    data_img2.push_back(static_cast<unsigned char>(i));
+                }
                 writeOutputBmp(data_img2.data(), H, W, outFile);
                 outFile.close();
                 slog::info << "Image " << out_img_name << " created!" << slog::endl;

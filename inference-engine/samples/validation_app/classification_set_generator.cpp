@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,8 @@ std::vector<std::pair<int, std::string>> ClassificationSetGenerator::validationM
         try {
             classId = std::stoi(line.substr(pos + 1));
         } catch (const std::invalid_argument& e) {
-            THROW_USER_EXCEPTION(1) << "Invalid class id specified at line " << lineNumber << ":\n> " << line;
+            THROW_USER_EXCEPTION(1) << "Invalid class id specified at line " << lineNumber << ":\n> " << line
+                                    << " Error: " << e.what();
         }
         imgPath = line.substr(0, pos);
         validationMap.push_back({ classId, dir + imgPath });

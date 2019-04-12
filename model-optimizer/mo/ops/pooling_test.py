@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
                     'pool': {'type': 'Pooling', 'value': None, 'kind': 'op'},
                     'node_2': {'value': None, 'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
                     }
 
 
@@ -32,8 +33,10 @@ class TestPoolingPartialInfer(unittest.TestCase):
     def test_pooling_infer(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'pool'),
-                             ('pool', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None},
+                             ('pool', 'node_2'),
+                             ('node_2', 'op_output')
+                             ],
+                            {'node_2': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 256, 256])},
                              'pool': {'window': np.array([1, 1, 1, 1]), 'stride': np.array([1, 1, 2, 2]),
                                       'pad': np.array([[0, 0], [0, 0], [3, 3], [3, 3]]),
@@ -56,8 +59,10 @@ class TestPoolingPartialInfer(unittest.TestCase):
     def test_pooling_infer_decrement_input_spatial(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'pool'),
-                             ('pool', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None},
+                             ('pool', 'node_2'),
+                             ('node_2', 'op_output')
+                             ],
+                            {'node_2': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 224, 224])},
                              'pool': {'window': np.array([1, 1, 1, 1]), 'stride': np.array([1, 1, 3, 3]),
                                       'pad': np.array([[0, 0], [0, 0], [3, 3], [3, 3]]),
@@ -80,8 +85,10 @@ class TestPoolingPartialInfer(unittest.TestCase):
     def test_pooling_infer_no_convention(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'pool'),
-                             ('pool', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None},
+                             ('pool', 'node_2'),
+                             ('node_2', 'op_output')
+                             ],
+                            {'node_2': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 256, 256])},
                              'pool': {'window': np.array([1, 1, 1, 1]), 'stride': np.array([1, 1, 2, 2]),
                                       'pad': np.array([[0, 0], [0, 0], [3, 3], [3, 3]]),
@@ -103,8 +110,10 @@ class TestPoolingPartialInfer(unittest.TestCase):
     def test_pooling_infer_no_shape(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'pool'),
-                             ('pool', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None},
+                             ('pool', 'node_2'),
+                             ('node_2', 'op_output')
+                             ],
+                            {'node_2': {'shape': None},
                              'node_1': {'shape': None},
                              'pool': {'window': np.array([1, 1, 1, 1]), 'stride': np.array([1, 1, 2, 2]),
                                       'pad': np.array([[0, 0], [0, 0], [3, 3], [3, 3]]),

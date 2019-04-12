@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ const TensorDesc& Data::getTensorDesc() const {
 }
 
 bool Data::isInitialized() const {
-    return !dims.empty() || !tensorDesc.getDims().empty();
+    return !dims.empty() || !tensorDesc.getDims().empty() || layout == SCALAR;
 }
 
 void Data::setDims(const SizeVector &a_dims) {
@@ -82,6 +82,14 @@ void Data::setBatchSize(size_t batch_size) {
 void Data::setLayout(Layout layout) {
     tensorDesc.setLayout(layout);
     this->layout = layout;
+}
+
+void Data::reshape(const SizeVector &a_dims, Layout a_layout) {
+    dims = a_dims;
+    layout = a_layout;
+    std::reverse(dims.begin(), dims.end());
+
+    tensorDesc.reshape(a_dims, layout);
 }
 
 CNNLayerWeakPtr &Data::getCreatorLayer() {

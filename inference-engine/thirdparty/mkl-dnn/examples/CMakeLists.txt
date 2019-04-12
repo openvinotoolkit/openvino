@@ -26,7 +26,7 @@ append(CMAKE_CXX_FLAGS "${CMAKE_EXAMPLE_CCXX_FLAGS}")
 append(CMAKE_C_FLAGS "${CMAKE_CCXX_SANITIZER_FLAGS}")
 append(CMAKE_CXX_FLAGS "${CMAKE_CCXX_SANITIZER_FLAGS}")
 
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/include)
 
 set_if(UNIX LIBM m)
 
@@ -35,8 +35,6 @@ register_exe(simple-net-cpp simple_net.cpp "test")
 register_exe(simple-training-net-c simple_training_net.c "test" ${LIBM})
 register_exe(simple-training-net-cpp simple_training_net.cpp "test" ${LIBM})
 register_exe(simple-net-int8-cpp simple_net_int8.cpp "test")
-
-if(HAVE_MKL)
-    register_exe(simple-rnn-cpp simple_rnn.cpp "test")
-    register_exe(simple-rnn-training-cpp simple_rnn_training.cpp "test")
-endif()
+register_exe(simple-rnn-cpp simple_rnn.cpp "test")
+register_exe(simple-rnn-int8-cpp simple_rnn_int8.cpp "test")
+register_exe(simple-rnn-training-cpp simple_rnn_training.cpp "test")

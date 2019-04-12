@@ -30,9 +30,9 @@ namespace kernel_selector
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
         virtual KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
         virtual KernelsData GetTunedKernelsDataByIndex(const Params& params, const optional_params& options, int autoTuneIndex) const override;
-        virtual ParamsKey GetSupportedKey() const override;
-    
+
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         bool Validate(const Params&, const optional_params&) const override;
         std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&)  const override { return{ WeightsLayout::oiyx }; }
         JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;

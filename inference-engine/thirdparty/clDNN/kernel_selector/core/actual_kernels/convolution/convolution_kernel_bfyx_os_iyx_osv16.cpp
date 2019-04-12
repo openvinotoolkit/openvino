@@ -15,8 +15,6 @@
 */
 
 #include "convolution_kernel_bfyx_os_iyx_osv16.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
 
 namespace kernel_selector 
 {
@@ -29,21 +27,21 @@ namespace kernel_selector
         std::vector<size_t> blockWidthSizes = { 1,2,4,5,6,8,10,12,14,16 };
         std::vector<size_t> blockHeightSizes = { 1,2,3,4,5 };
         std::vector<size_t> prefetchSizes = { 1,2,3,4,5,6,8,10 };
-        std::vector<std::string> executionModes = { /*AGE_BASED ,*/ ROUND_ROBIN };
+        std::vector<std::string> executionModes = ConvolutionKernelBase::autoTuneOptions;
         const size_t maxBlockSize = 60;
 
-        for (auto blockWidth : blockWidthSizes)
+        for (auto executionMode : executionModes)
         {
-            for (auto blockHeight : blockHeightSizes)
+            for (auto blockWidth : blockWidthSizes)
             {
-                for (auto prefetch : prefetchSizes)
+                for (auto blockHeight : blockHeightSizes)
                 {
-                    for (auto executionMode : executionModes)
+                    for (auto prefetch : prefetchSizes)
                     {
-                        if (blockWidth * blockHeight <= maxBlockSize)
-                        {
-                            autoTuneOptions.emplace_back(AutoTuneOption{ blockWidth, blockHeight, prefetch, executionMode });
-                        }
+                            if (blockWidth * blockHeight <= maxBlockSize)
+                            {
+                                autoTuneOptions.emplace_back(AutoTuneOption{ blockWidth, blockHeight, prefetch, executionMode });
+                            }
                     }
                 }
             }
@@ -124,7 +122,7 @@ namespace kernel_selector
             return autoTuneOptions[autoTuneIndex];
         }
 
-        AutoTuneOption option = { 0, 0, 0, ROUND_ROBIN };
+        AutoTuneOption option = { 0, 0, 0, DEFAULT };
 
         const convolution_params& cp = static_cast<const convolution_params&>(p);
 
@@ -252,11 +250,6 @@ namespace kernel_selector
         return jit;
     }
 
-    KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetTunedKernelsDataByIndex(const Params& params, const optional_params& options, const int autoTuneIndex) const
-    {
-        return GetCommonKernelsData(params, options, GetAutoTuneOptions(params, autoTuneIndex).exeMode, autoTuneIndex);
-    }
-
     std::vector<WeightsLayout> ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedWeightLayouts(const convolution_params& params) const
     {
         if (!params.transposed)
@@ -271,7 +264,7 @@ namespace kernel_selector
 
     KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        return GetTunedKernelsDataByIndex(params, options, -1);
+        return GetTunedKernelsDataByIndex(params, options);
     }
 
     KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const
@@ -283,7 +276,7 @@ namespace kernel_selector
 
         KernelsData res = {};
 
-        for (size_t i = 0 ; i < autoTuneOptions.size(); i++)
+        for (size_t i = 0; i < autoTuneOptions.size(); i++)
         {
             KernelsData kd = GetTunedKernelsDataByIndex(params, options, (int)i);
             if (!kd.empty())
@@ -292,9 +285,7 @@ namespace kernel_selector
             }
         }
 
-        KernelsData defaultKds = GetKernelsData(params, options);
-        res.insert(res.end(), defaultKds.begin(), defaultKds.end());
-
         return res;
     }
+
 }

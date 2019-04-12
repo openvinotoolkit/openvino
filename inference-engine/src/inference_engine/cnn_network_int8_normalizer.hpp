@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ public:
     * Returns if we can quantize layer basing on information of existing statistic before and after
     * layers
     */
-    bool canLayerBeQuantized(const std::string &layerName) const;
+    bool canLayerBeQuantized(CNNLayer::Ptr layer) const;
 
     /**
      * The topology is allowed to be changed, we need to modify statistic accordingly
@@ -163,15 +163,15 @@ private:
 
 public:
     /** main function for calling of quantization */
-    void NormalizeNetwork(ICNNNetwork& network, ICNNNetworkStats& netStats);
+    static void NormalizeNetwork(ICNNNetwork& network, ICNNNetworkStats& netStats);
 
 protected:
     /** Helper function to add scaleshifts and other layers for transformatin of topology */
-    void AddLayerToCNNNetworkBeforeLayer(CNNLayer::Ptr newLayer, CNNLayer::Ptr successor, size_t port);
+    static void AddLayerToCNNNetworkBeforeLayer(CNNLayer::Ptr newLayer, CNNLayer::Ptr successor, size_t port);
     /** Helper function to add scaleshifts and other layers for transformatin of topology */
-    void AddLayerToCNNNetworkAfterData(DataPtr pData, CNNLayer::Ptr layer, const std::string& nextLayerName);
+    static void AddLayerToCNNNetworkAfterData(DataPtr pData, CNNLayer::Ptr layer, const std::string& nextLayerName);
     /**  Adds ScaleShift between two specified layers  */
-    void AddScaleShiftBetween(CNNNetwork& net, const CNNLayerPtr layer1, const CNNLayerPtr layer2, CNNStatisticHelper& statHelper);
+    static void AddScaleShiftBetween(CNNNetwork& net, const CNNLayerPtr layer1, const CNNLayerPtr layer2, CNNStatisticHelper& statHelper);
 
 
     /**
@@ -181,28 +181,31 @@ protected:
      * data
      * o-scale - multiplication on this scale will convert above denormalized fp32 to i8 for next layer
      */
-    void QuantizeConvolution(CNNLayer::Ptr convolution, CNNStatisticHelper& statHelper);
+    static void QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr convolution, CNNStatisticHelper& statHelper);
 
     /**  Adds ScaleShifts everywhere */
-    void AddScaleShifts(CNNNetwork& net, CNNStatisticHelper& statHelper);
+    static void AddScaleShifts(CNNNetwork& net, CNNStatisticHelper& statHelper);
+
+    /**  Convert ReLu-like Clamps to ReLu layers */
+    static void ClampsToReLU(CNNNetwork& net, CNNStatisticHelper& statHelper);
 
     /**
      * Goes over all layers and mark which layers will be executed in FP32/I8 and marks data between
      * layers to I8/U8/FP32
      */
-    void DefinesExecutionPrecision(CNNNetwork& net, CNNStatisticHelper& statHelper);
+    static void DefinesExecutionPrecision(CNNNetwork& net, CNNStatisticHelper& statHelper);
 
     /**
      * Since o-scales exist only for convolutins, we need to propagate them down oever concats and
      * linear layers
      */
-    void PropagateScaleFactors(CNNNetwork& net, const CNNStatisticHelper& statHelper);
+    static void PropagateScaleFactors(CNNNetwork& net, const CNNStatisticHelper& statHelper);
 
     /**
      * Normalizes and quantizes srcData using scales for normalization and int8blob precision for
      * quantization
      */
-    void ScaleDataToInt(const float* srcData, size_t srcSize, Blob::Ptr int8blob, const std::vector<float>& scales);
+    static void ScaleDataToInt(const float* srcData, size_t srcSize, Blob::Ptr int8blob, const std::vector<float>& scales);
 
     /**
      * Replaces all ScaleShifts layers met in the model to the depth-wise convolution with the same
@@ -216,23 +219,34 @@ protected:
      * This conversion allows to avoid introductin one more i8 primitive - ScaleShift accepting i8 input
      * and producing i8 output
      */
-    void replaceScaleShiftByDWConvolution(CNNNetwork& net);
+    static void replaceScaleShiftByDWConvolution(CNNNetwork& net);
 
     /** Helper function which creates DW/Grouped/regular convolution by passed weights and biases */
-    CNNLayer::Ptr createDWConvolutionForScale(const std::string& layerName, size_t channels, float *weights, float *biases);
+    static CNNLayer::Ptr createDWConvolutionForScale(const std::string& layerName, size_t channels, float *weights, float *biases);
+
+    /**
+     * Verifies if layer produces data to layers which marked as float
+     */
+    static bool layerProducesFloat(const CNNLayer::Ptr layer);
 
     /**
     * Returns tails from I8 to FP32 until convolution - it is the most performed approach because
     * convolution can convert to FP32 for free, while adding one more scale will decrease performance
     */
-    void returnTailToFP32(CNNLayer::Ptr layer);
+    static void returnTailToFP32(const CNNLayer::Ptr layer);
 
     /**
      * Verifies if next layer has type which potentially can be fused with convolution
      * and if activation is supported for int8
      * @return true if layer does not have improper activation for fusion
      */
-    bool isNextFusionAllowed(CNNLayer::Ptr layer) const;
+    static bool isNextFusionAllowed(const CNNLayer::Ptr& layer);
+
+public:
+    /**
+     * Returns true for a "relu-like" clamp layer i.e. a clamp with minimum = 0
+     */
+    static bool isReLULikeClamp(CNNLayer::Ptr layer);
 };
 
 typedef std::shared_ptr<CNNNetworkInt8Normalizer> CNNNetworkNormalizerPtr;

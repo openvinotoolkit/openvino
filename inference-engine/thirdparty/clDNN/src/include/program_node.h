@@ -22,12 +22,12 @@
 
 #include "meta_utils.h"
 
-#define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
-
 namespace cldnn
 {
 
 struct program_impl;
+class reorder_inputs;
+class graph_initializations;
 
 template <class T>
 struct typed_program_node;
@@ -51,8 +51,14 @@ class xml_composite;
 */
 struct program_node
 {
-    friend struct program_impl;
-    friend class constants_propagator;
+    friend struct program_impl;                     // to be removed when possible
+    friend class compile_graph;                     // to be removed when possible
+    friend class graph_initializations;             // to be removed when possible
+    friend class prepare_primitive_fusing;          // to be removed when possible
+    friend class prepare_conv_eltw_fusing;          // to be removed when possible
+    friend class prepare_conv_eltw_read_write_opt;  // to be removed when possible
+    friend class propagate_constants;               // to be removed when possible
+    friend class post_optimize_weights;             // to be removed when possible - requires an access to selected_impl
 
     template <class PType>
     friend struct typed_program_node;
@@ -82,10 +88,10 @@ public:
     std::vector<program_node*> const& get_dependencies() const { return dependencies; }
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
 
-    //replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep, detach_whole_branch)
-    void replace_dependency(size_t idx, program_node& new_dep, bool detach_whole_branch = false);
-    //searches for 'old_dep' in dependencies list of 'this' and replaces it with 'new_dep', calls program::remove_if_dangling(old_dep, detach_whole_branch)
-    void replace_dependency(program_node const& old_dep, program_node& new_dep, bool detach_whole_branch = false);
+    //replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
+    void replace_dependency(size_t idx, program_node& new_dep);
+    //searches for 'old_dep' in dependencies list of 'this' and replaces it with 'new_dep', calls program::remove_if_dangling(old_dep)
+    void replace_dependency(program_node const& old_dep, program_node& new_dep);
 
     std::vector<primitive_id> get_dependencies_ids() const;
 
@@ -113,8 +119,7 @@ public:
     std::list<const program_node*> const& get_users() const { return reinterpret_cast<const std::list<const program_node*>&>(users); }
 
     std::unique_ptr<json_composite> desc_to_json() const;
-	std::unique_ptr<xml_composite> desc_to_xml() const;
-    //do not modify primitive directly to keep synchronisation wit graph
+    //do not modify primitive directly to keep synchronisation with graph
     std::shared_ptr<const primitive> get_primitive() const { return desc; }
     //primitive modification functions
     void set_output_padding(padding const& padd)
@@ -132,7 +137,7 @@ public:
     //only calculated output layout (for external usage), does not modify/use cached output layout nor invalidate users
     layout calc_output_layout() const;
 
-    //uses cached output layout if vlid, if not calls 'calc_output_layout' and stores its result + invalidate all users if layout has changed and @p invalidate_users_if_changed is set to true
+    //uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all users if layout has changed and @p invalidate_users_if_changed is set to true
     layout get_output_layout(bool invalidate_users_if_changed = true);
     //returns cached output layout if valid, otherwise throws an exception
     layout get_output_layout() const;
@@ -159,7 +164,6 @@ public:
     bool is_output() const { return output; }
 
     bool is_valid_output_layout() const { return valid_output_layout; }
-    uint32_t get_processing_num() const { return processing_num; }
 
     uint8_t mark(uint8_t val = 1) { uint8_t ret = user_mark; user_mark = val; return ret; }
     void unmark() { user_mark = 0; }
@@ -183,19 +187,25 @@ public:
         return fused_activation.additional_params;
     }
 
+    // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
     void can_be_optimized(bool opt) { optimized = opt; }
 
+    // check/set if the node's buffer can be shared during the memory pool optimization
+    bool can_share_buffer() const { return share_buffer; }
+    void can_share_buffer(bool share) { share_buffer = share; }
+
+    // check/set if the node support padding in x,y,b and f
+    bool support_padding() const { return _support_padding; }
+    void support_padding(bool support) { _support_padding = support; }
+
     primitive_id get_org_primitive_id() const { return org_id; }
-    void set_org_primitive_id(primitive_id org_prim_id) 
-    {
-        org_id = org_prim_id;
-    }
 
     bool is_constant() const { return constant; }
-    bool has_non_const_user() const { return (!constant || constant_frontier); }
-    //returns true if this node is within main data flow of the network (i.e. it does not describe helper data like convolution's weights etc.)
+    
+    // returns true if this node is within main data flow of the network (i.e. it does not describe helper data like convolution's weights etc.)
     bool is_in_data_flow() const { return data_flow; }
+
     //conversion from generic to specific
     template <class To, class..., class = typename std::enable_if<!std::is_same<To, primitive>::value>::type>
     typed_program_node<To>& as()
@@ -248,28 +258,22 @@ protected:
     std::vector<program_node*> dependencies;
     std::list<program_node*> users;
 
-#if defined(__GNUC__) && (GCC_VERSION < 40900)
-    std::list<program_node*>::iterator processing_itr;
-#else
-    std::list<program_node*>::const_iterator processing_itr;
-#endif
-    uint32_t processing_num = 0;
-
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::set<primitive_id> memory_dependencies;  
+    std::set<primitive_id> memory_dependencies;
 
     bool constant = false;
-    bool constant_frontier = false;
     bool data_flow = false;
 
     bool output = false;
     uint8_t user_mark = 0;
     bool optimized = false;
+    bool share_buffer = true;
+    bool _support_padding = false;
 
     mutable bool has_reused_memory = false;
     mutable uint32_t reused_memory_color = 0;
 
-    primitive_id org_id = "";
+    const primitive_id org_id;
 
     struct fused_activation_params
     {
@@ -288,8 +292,9 @@ namespace details
     struct api_typed_program_node_base : public program_node
     {
         static_assert(meta::is_api_primitive<PType>::value, "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from cldnn::internal_primitive");
+        friend class cldnn::graph_initializations;
         friend struct cldnn::program_impl;
-
+        friend class cldnn::reorder_inputs;
     public:
         using program_node::program_node;
 

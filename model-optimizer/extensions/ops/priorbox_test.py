@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,8 +24,9 @@ from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'data'},
                     'pb': {'type': 'PriorBox', 'value': None, 'kind': 'op'},
-                    'node_3': {'type': 'Identity', 'value': None, 'kind': 'data'}
-                   }
+                    'node_3': {'type': 'Identity', 'value': None, 'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+                    }
 
 
 class TestPriorBoxPartialInfer(unittest.TestCase):
@@ -33,9 +34,11 @@ class TestPriorBoxPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [
                                 ('node_1', 'pb'),
-                                ('pb', 'node_3')],
+                                ('pb', 'node_3'),
+                                ('node_3', 'op_output')
+                            ],
                             {
-                                'node_3': {'is_output': True, 'shape': None},
+                                'node_3': {'shape': None},
                                 'node_1': {'shape': np.array([1, 384, 19, 19])},
                                 'pb': {
                                     'aspect_ratio': np.array([1]),
@@ -47,7 +50,7 @@ class TestPriorBoxPartialInfer(unittest.TestCase):
         graph.graph['layout'] = 'NCHW'
         pb_node = Node(graph, 'pb')
         PriorBoxOp.priorbox_infer(pb_node)
-        exp_shape = np.array([1, 2, 4*19*19*2])
+        exp_shape = np.array([1, 2, 4 * 19 * 19 * 2])
         res_shape = graph.node['node_3']['shape']
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])
@@ -56,9 +59,11 @@ class TestPriorBoxPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [
                                 ('node_1', 'pb'),
-                                ('pb', 'node_3')],
+                                ('pb', 'node_3'),
+                                ('node_3', 'op_output')
+                            ],
                             {
-                                'node_3': {'is_output': True, 'shape': None},
+                                'node_3': {'shape': None},
                                 'node_1': {'shape': np.array([1, 384, 19, 19])},
                                 'pb': {
                                     'aspect_ratio': np.array([1, 2, 0.5]),
@@ -70,7 +75,7 @@ class TestPriorBoxPartialInfer(unittest.TestCase):
         graph.graph['layout'] = 'NCHW'
         pb_node = Node(graph, 'pb')
         PriorBoxOp.priorbox_infer(pb_node)
-        exp_shape = np.array([1, 2, 4*19*19*4])
+        exp_shape = np.array([1, 2, 4 * 19 * 19 * 4])
         res_shape = graph.node['node_3']['shape']
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])
@@ -79,9 +84,11 @@ class TestPriorBoxPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [
                                 ('node_1', 'pb'),
-                                ('pb', 'node_3')],
+                                ('pb', 'node_3'),
+                                ('node_3', 'op_output')
+                            ],
                             {
-                                'node_3': {'is_output': True, 'shape': None},
+                                'node_3': {'shape': None},
                                 'node_1': {'shape': np.array([1, 19, 19, 384])},
                                 'pb': {
                                     'aspect_ratio': np.array([1]),
@@ -93,7 +100,7 @@ class TestPriorBoxPartialInfer(unittest.TestCase):
         graph.graph['layout'] = 'NHWC'
         pb_node = Node(graph, 'pb')
         PriorBoxOp.priorbox_infer(pb_node)
-        exp_shape = np.array([1, 2, 4*19*19*2])
+        exp_shape = np.array([1, 2, 4 * 19 * 19 * 2])
         res_shape = graph.node['node_3']['shape']
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])
@@ -102,9 +109,11 @@ class TestPriorBoxPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [
                                 ('node_1', 'pb'),
-                                ('pb', 'node_3')],
+                                ('pb', 'node_3'),
+                                ('node_3', 'op_output')
+                            ],
                             {
-                                'node_3': {'is_output': True, 'shape': None},
+                                'node_3': {'shape': None},
                                 'node_1': {'shape': np.array([1, 19, 19, 384])},
                                 'pb': {
                                     'aspect_ratio': np.array([1, 2, 0.5]),
@@ -116,7 +125,7 @@ class TestPriorBoxPartialInfer(unittest.TestCase):
         graph.graph['layout'] = 'NHWC'
         pb_node = Node(graph, 'pb')
         PriorBoxOp.priorbox_infer(pb_node)
-        exp_shape = np.array([1, 2, 4*19*19*4])
+        exp_shape = np.array([1, 2, 4 * 19 * 19 * 4])
         res_shape = graph.node['node_3']['shape']
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])

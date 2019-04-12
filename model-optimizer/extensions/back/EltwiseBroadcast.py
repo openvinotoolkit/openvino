@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import networkx as nx
 import numpy as np
 
 from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import unique_id, Node
+from mo.graph.graph import Node, Graph
 from mo.ops.tile import Tile
 
 
@@ -36,7 +36,7 @@ class EltwiseBroadcast(BackReplacementPattern):
         )
 
     @staticmethod
-    def replace_pattern(graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(graph: Graph, match: dict):
         node = match['op']
         shapes = [in_node.shape for _, in_node in node.in_nodes().items()]
         out_shape = node.out_node().shape
@@ -69,7 +69,7 @@ class EltwiseBroadcast(BackReplacementPattern):
                 if shapes[input_idx][i] == 1 and out_shape[i] > 1:
                     new_op = tile.create_node([input], dict(axis=i, tiles=out_shape[i]))
                     # add a data node following a new operation node
-                    data_id = unique_id(graph, node.name)
+                    data_id = graph.unique_id(node.name)
                     graph.add_node(data_id, kind='data', shape=None, value=None)
                     new_data = Node(graph, data_id)
                     graph.add_edge(new_op.id, new_data.id, **{'out': 0})

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,10 @@ private:
     void FuseConvolutionAndActivation(MKLDNNGraph &graph);
     void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
+    void FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph);
     void FuseBatchNormWithScale(MKLDNNGraph& graph);
     void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
+    void FuseFullyConnectedAndActivation(MKLDNNGraph &graph);
     void RemoveIdentityOperator(MKLDNNGraph& graph);
 
     void RemoveIOScaleShifts(MKLDNNGraph& graph);

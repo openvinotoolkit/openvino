@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,11 +16,10 @@
 
 import logging as log
 
-import networkx as nx
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
 
@@ -34,11 +33,13 @@ class Reduce(Op):
         'sum': np.sum,
     }
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'op': 'Reduce',
             'reduce_type': None,
             'infer': __class__.infer,
+            'in_ports_count': 2,
+            'out_ports_count': 1,
         }, attrs)
 
     @staticmethod
@@ -71,7 +72,7 @@ class Reduce(Op):
                 output_node.value = Reduce.reduce_method_map[reduce_type.lower()](input_node.value,
                                                                                   axis=tuple(node.axis),
                                                                                   keepdims=node.keep_dims)
-                output_node.shape = output_node.value.shape
+                output_node.shape = np.array(output_node.value.shape, dtype=np.int64)
             else:
                 log.error('Reduce type {} is not supported for node {}'.format(reduce_type, node.id))
                 return

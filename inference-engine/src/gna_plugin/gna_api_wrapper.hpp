@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,9 @@ class CPPWrapper<intel_nnet_type_t> {
      * @param n - number  of layers
      */
     explicit CPPWrapper(size_t n) {
+        if (n == 0) {
+            THROW_GNA_EXCEPTION << "Can't allocate array of intel_nnet_layer_t objects of zero length";
+        }
         obj.pLayers = reinterpret_cast<intel_nnet_layer_t *>(_mm_malloc(n * sizeof(intel_nnet_layer_t), 64));
         if (obj.pLayers == nullptr) {
             THROW_GNA_EXCEPTION << "out of memory in while allocating "<< n << " GNA layers";

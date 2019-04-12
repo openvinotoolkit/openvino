@@ -15,7 +15,6 @@
 */
 
 #include "fully_connected_kernel_bs_f_bsv16_af8.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector 
 {
@@ -36,17 +35,17 @@ namespace kernel_selector
         return k;
     }
 
-    std::unique_ptr<FullyConnected_bs_f_bsv16_af8::DispatchData> FullyConnected_bs_f_bsv16_af8::SetDefault(const fully_connected_params& arg) const
+    FullyConnected_bs_f_bsv16_af8::DispatchData FullyConnected_bs_f_bsv16_af8::SetDefault(const fully_connected_params& arg, int ) const
     {
         auto kd = FullyConnectedBlockKernelBase::SetDefault(arg);
 
         size_t groups_per_batches = GetLocalGroupsSize(arg);
-        kd->gws0 = Align(arg.output.LogicalSize() / (GetBatchesPerWorkItem(arg) * groups_per_batches), 16);
-        kd->gws1 = groups_per_batches;
-        kd->lws0 = 16;
-        kd->lws1 = 1;
+        kd.gws0 = Align(arg.output.LogicalSize() / (GetBatchesPerWorkItem(arg) * groups_per_batches), 16);
+        kd.gws1 = groups_per_batches;
+        kd.lws0 = 16;
+        kd.lws1 = 1;
 
-        return std::move(kd);
+        return kd;
     }
     
     static bool check_input_layout(const DataTensor& t)
@@ -86,6 +85,16 @@ namespace kernel_selector
 
     KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params, const optional_params& optParams) const
     {   
-        return GetCommonKernelsData(params, optParams, DataLayout::bs_f_bsv16__af8, { WeightsLayout::os_i_osv16__ai8 }, FORCE_PRIORITY_2);
+        KernelsData res = {};
+        for (size_t i = 0; i < autoTuneOptions.size(); i++)
+        {
+            KernelsData kd = GetTunedKernelsDataByIndex(params, optParams, DataLayout::bs_f_bsv16__af8, { WeightsLayout::os_i_osv16__ai8 }, FORCE_PRIORITY_2, (int)i);
+            if (!kd.empty())
+            {
+                res.emplace_back(kd[0]);
+            }
+        }
+
+        return res;
     }
 }

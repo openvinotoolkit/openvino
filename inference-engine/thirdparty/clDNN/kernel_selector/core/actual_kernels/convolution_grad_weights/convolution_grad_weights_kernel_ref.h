@@ -26,6 +26,8 @@ namespace kernel_selector {
         ConvolutionGradWeightsKernelRef() : ConvolutionGradWeightsKernelBase("convolution_grad_weights_ref") {}
         virtual ~ConvolutionGradWeightsKernelRef() {}
 
+
+    protected:
         virtual ParamsKey GetSupportedKey() const override;
     };
 }

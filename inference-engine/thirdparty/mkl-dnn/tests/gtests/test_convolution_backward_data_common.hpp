@@ -119,7 +119,7 @@ protected:
         auto c_weights = test_memory(c_weights_desc, eng);
         auto c_diff_dst = test_memory(c_dst_desc, eng);
 
-        std::vector<int> padR = {
+        std::vector<ptrdiff_t> padR = {
             right_padding(cd.ih, cd.oh, cd.kh, cd.padh, cd.strh, cd.dilh),
             right_padding(cd.iw, cd.ow, cd.kw, cd.padw, cd.strw, cd.dilw)
         };

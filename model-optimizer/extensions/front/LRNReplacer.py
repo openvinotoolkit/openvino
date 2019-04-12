@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import numpy as np
 import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
+from mo.graph.graph import Graph
 from mo.ops.lin_op import Mul
 from mo.ops.const import Const
 
@@ -26,7 +27,7 @@ class LRNReplacer(FrontReplacementOp):
     op = 'LRN'
     enabled = True
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['op']
 
         if not node.has_valid('bias') or (node.has_valid('bias') and node.bias == 1):

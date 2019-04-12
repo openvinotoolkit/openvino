@@ -44,7 +44,7 @@ TEST(fully_connected_grad_weights_gpu, basic_bfyx) {
     //  Input_grad:
     //   1.5   0.75  -2.25  3
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 4, 1 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 3, 1 } });
@@ -125,7 +125,7 @@ TEST(fully_connected_grad_weights_gpu, basic_bfyx_b8) {
     //   1.5   0.75  -2.25  3
     //   1   1  1  1
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 8, 1, 4, 1 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 8, 1, 3, 1 } });
@@ -206,7 +206,7 @@ TEST(fully_connected_grad_weights_gpu, basic_bfyx_no_bias) {
     //  Input_grad:
     //   1.5   0.75  -2.25  3
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });

@@ -40,7 +40,7 @@ bool memory_desc_sanity_check(int ndims,const dims_t dims,
     bool ok = true
         && dims != nullptr
         && 0 < ndims && ndims <= TENSOR_MAX_DIMS
-        && one_of(data_type, f32, s32, s16, s8, u8)
+        && one_of(data_type, f32, s32, s16, s8, u8, bin)
         && format != memory_format::undef;
     if (!ok) return false;
     for (int d = 0; d < ndims; ++d)
@@ -77,8 +77,7 @@ status_t mkldnn_memory_desc_init(memory_desc_t *memory_desc, int ndims,
     md.format = format;
 
     status_t status = success;
-    if (one_of(format, memory_format::undef, blocked, ldigo_p, ldgoi_p,
-                wino_fmt)) {
+    if (one_of(format, memory_format::undef, blocked, wino_fmt, rnn_packed)) {
         status = invalid_arguments;
     } else if (format == any) {
         // nop

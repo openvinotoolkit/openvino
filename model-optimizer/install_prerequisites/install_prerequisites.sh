@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2018 Intel Corporation
+# Copyright (c) 2019 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -82,7 +82,11 @@ if [[ $V_ENV -eq 1 ]]; then
     echo
     echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv/bin/activate\""
 else
-    sudo -E $python_binary -m pip install -r $SCRIPTDIR/../requirements${postfix}.txt
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        python3 -m pip install -r $SCRIPTDIR/../requirements${postfix}.txt
+    else
+        sudo -E $python_binary -m pip install -r $SCRIPTDIR/../requirements${postfix}.txt
+    fi
     echo [WARNING] All Model Optimizer dependencies are installed globally.
     echo [WARNING] If you want to keep Model Optimizer in separate sandbox
     echo [WARNING] run install_prerequisites.sh venv "{caffe|tf|mxnet|kaldi|onnx}"

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -168,6 +168,15 @@ class TestAttrDictionary(unittest.TestCase):
         self.assertEqual(1, l[0])
         self.assertEqual(2, l[1])
         self.assertEqual(3, l[2])
+
+    def testIntWithAttrNone(self):
+        attrs = {
+            "something": "None"
+        }
+
+        attr_dict = AttrDictionary(attrs)
+        attr = attr_dict.int("something", None)
+        self.assertEqual(None, attr)
 
 
 class TestUtils(unittest.TestCase):

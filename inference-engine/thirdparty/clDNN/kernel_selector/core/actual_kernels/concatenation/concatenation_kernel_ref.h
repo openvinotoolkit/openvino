@@ -27,8 +27,8 @@ namespace kernel_selector {
         virtual ~ConcatenationKernelRef() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         JitConstants GetJitConstants(const concatenation_params& params) const override;
     };
 }

@@ -52,7 +52,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
 
@@ -119,7 +119,7 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     //  f1: b0:  1.5     1.5    0.5  b1:   1.75   1.75   1
     //  f1: b0:  1.5     1.5    0.5  b1:   1.75   1.75   1
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
 
@@ -191,7 +191,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     //  f0: b0:  0.625   -0.5  -1.125   b1:   0  -1.6875  -1.6875
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
 
@@ -272,7 +272,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx,{ 2, 2, 2, 1 } });
 

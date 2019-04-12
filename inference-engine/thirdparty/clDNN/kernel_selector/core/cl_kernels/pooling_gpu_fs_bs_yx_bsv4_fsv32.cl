@@ -43,8 +43,8 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32)(
     const uint bf   = (uint)get_global_id(2);
 	// we process 4 features per workitem that's why we need to divide it
     const uint aligned32_features = ((INPUT0_FEATURE_NUM + 31) / 32) * 32;
-    const uint f    = 4 * (bf % (aligned32_features / 4));
-    const uint b_block = bf / (aligned32_features / 4);
+    const uint f    = (get_global_id(2) * 4) % aligned32_features;
+    const uint b = 4 * ((get_global_id(2) * 4) / aligned32_features);
     
     if (x >= OUTPUT_SIZE_X)
     {
@@ -54,11 +54,7 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32)(
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
     
-    int4 result[4];
-    for(uint b = 0; b < 4; b++)
-    {
-        result[b] = INIT_VAL;
-    }
+    int4 result[4] = { INIT_VAL };
 
 #ifdef CHECK_BOUNDRY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
@@ -71,7 +67,7 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32)(
     uint num_elementes = 0;
 #endif
 
-    const uint batch_and_feature_offset = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(INPUT0, b_block * 4, f, 0, 0);
+    const uint batch_and_feature_offset = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(INPUT0, b, f, 0, 0);
     for(uint j = 0; j < POOL_SIZE_Y; j++)
     {
         int input_offset_y = offset_y + j;
@@ -110,7 +106,7 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32)(
     const uint num_elementes = (hend - offset_y) * (wend - offset_x);
 #endif
 #else
-    uint input_idx = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(INPUT0, b_block * 4, f, offset_y, offset_x);
+    uint input_idx = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(INPUT0, b, f, offset_y, offset_x);
 
     for(uint j = 0; j < POOL_SIZE_Y; j++)
     {
@@ -156,14 +152,18 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32)(
     #endif
 #endif
 
-for(uint b = 0; b < 4; b++)
-{
-    for(uint op = 0; op < 4; op++)
+    int4 char_result;
+    for(uint b = 0; b < 4; b++)
     {
-        const uint output_pos = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(OUTPUT, b_block*4 + b, f+op, y, x);
-        output[output_pos] = ACTIVATION(convert_char(result[b][op]), NL_M ,NL_N);
+        char4 char_res = as_char4(char_result[b]);
+        for(uint op = 0; op < 4; op++)
+        {
+            char_res[op] = ACTIVATION(convert_char(result[b][op]), NL_M ,NL_N);
+        }
+        char_result[b] = as_int(char_res);
     }
-}
+    const uint output_pos = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(OUTPUT, b, f, y, x);
+    intel_sub_group_block_write4((__global uint*)(output + output_pos), as_uint4(char_result));																						
 }
 
 #undef INIT_VAL

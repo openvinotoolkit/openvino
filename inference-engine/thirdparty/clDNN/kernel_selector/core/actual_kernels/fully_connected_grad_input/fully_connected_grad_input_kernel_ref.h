@@ -26,6 +26,8 @@ namespace kernel_selector {
         FullyConnectedGradInputKernelRef() : FullyConnectedGradInputKernelBase("fully_connected_grad_input_gpu_ref") {}
         virtual ~FullyConnectedGradInputKernelRef() {}
 
+
+    protected:
         virtual ParamsKey GetSupportedKey() const override;
     };
 }

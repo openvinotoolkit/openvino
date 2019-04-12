@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'node_2': {'type': 'Identity', 'value': None, 'kind': 'data'},
                     'interp': {'type': 'Interp', 'kind': 'op', 'factor': None, 'parse_2nd_input': 'value'},
-                    'node_3': {'type': 'Identity', 'shape': None, 'value': None, 'kind': 'data'}
+                    'node_3': {'type': 'Identity', 'shape': None, 'value': None, 'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
                     }
 
 
@@ -33,8 +34,10 @@ class TestInterpOp(unittest.TestCase):
     def test_caffe_interp_infer_shrink(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'interp'),
-                             ('interp', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('interp', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 1025, 2049])},
                              'interp': {'shrink_factor': 2,
                                         'height': 0,
@@ -55,8 +58,10 @@ class TestInterpOp(unittest.TestCase):
     def test_caffe_interp_infer_wh(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'interp'),
-                             ('interp', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('interp', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 1024, 1, 1])},
                              'interp': {'width': 65,
                                         'height': 33,
@@ -77,8 +82,10 @@ class TestInterpOp(unittest.TestCase):
     def test_caffe_interp_infer_zoom(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'interp'),
-                             ('interp', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('interp', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 256, 33, 65])},
                              'interp': {'zoom_factor': 2,
                                         'height': 0,
@@ -99,8 +106,10 @@ class TestInterpOp(unittest.TestCase):
     def test_caffe_interp_infer_zoom_shrink(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'interp'),
-                             ('interp', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('interp', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 256, 33, 65])},
                              'interp': {'zoom_factor': 2,
                                         'height': 0,
@@ -121,8 +130,10 @@ class TestInterpOp(unittest.TestCase):
     def test_caffe_interp_infer_zoom_shrink_error(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'interp'),
-                             ('interp', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('interp', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 256, 33, 65])},
                              'interp': {'zoom_factor': 0,
                                         'height': 0,
@@ -140,8 +151,10 @@ class TestInterpOp(unittest.TestCase):
     def test_caffe_interp_infer_zoom_default(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'interp'),
-                             ('interp', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('interp', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 256, 33, 65])},
                              'interp': {'zoom_factor': 1,
                                         'height': 0,
@@ -164,8 +177,10 @@ class TestInterpOp(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'interp'),
                              ('node_2', 'interp'),
-                             ('interp', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('interp', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 256, 33, 66])},
                              'node_2': {'shape': np.array([1, 1, 3, 6])},
                              'interp': {'zoom_factor': 1,

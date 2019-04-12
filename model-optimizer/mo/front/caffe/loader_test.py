@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -156,5 +156,5 @@ class TestLoader(unittest.TestCase):
         proto = caffe_pb2.NetParameter()
         text_format.Merge(proto_str_multi_input + proto_same_name_layers, proto)
         graph, input_shapes = caffe_pb_to_nx(proto, None)
-        # 6 nodes because: 2 inputs + 2 convolutions + 2 output nodes  
-        np.testing.assert_equal(len(graph.nodes()), 6)
+        # 6 nodes because: 2 inputs + 2 convolutions
+        np.testing.assert_equal(len(graph.nodes()), 4)

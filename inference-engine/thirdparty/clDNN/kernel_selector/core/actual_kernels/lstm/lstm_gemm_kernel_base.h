@@ -35,6 +35,8 @@ namespace kernel_selector
         bool hasBias = false;
         bool hasHidden = false;
         uint32_t direction = 0;
+        uint32_t input_direction = 0; // for bidirectional node fusion in stacked LSTMs
+        uint32_t hidden_direction = 0;
 
         void SetBias(const DataTensor& v) {
             bias = v;

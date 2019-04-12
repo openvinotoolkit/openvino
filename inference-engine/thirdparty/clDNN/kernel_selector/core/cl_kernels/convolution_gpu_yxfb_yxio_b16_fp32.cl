@@ -14,6 +14,7 @@
 
 
 #include "include/include_all.cl"
+#include "include/sub_group.cl"
 
 KERNEL(convolution_gpu_yxfb_yxio_b16)(
     const __global float* input,

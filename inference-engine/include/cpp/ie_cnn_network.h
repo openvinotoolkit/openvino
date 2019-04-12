@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,6 +107,14 @@ public:
      */
     size_t layerCount() const {
         return actual->layerCount();
+    }
+
+    /**
+     * @brief Wraps original method
+     * ICNNNetwork::getName
+     */
+    const std::string& getName() const noexcept {
+        return actual->getName();
     }
 
     /**
@@ -222,9 +230,10 @@ public:
     /**
      * @brief Serialize network to IR and weights files.
      * @param xmlPath Path to output IR file.
-     * @param binPath Path to output weights file.
+     * @param binPath Path to output weights file. The parameter is skipped in case
+     * of executable graph info serialization.
      */
-    void serialize(const std::string &xmlPath, const std::string &binPath) const {
+    void serialize(const std::string &xmlPath, const std::string &binPath = "") const {
         CALL_STATUS_FNC(serialize, xmlPath, binPath);
     }
 

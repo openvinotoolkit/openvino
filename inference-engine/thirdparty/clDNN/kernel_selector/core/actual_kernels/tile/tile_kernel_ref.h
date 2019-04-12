@@ -53,6 +53,8 @@ namespace kernel_selector
         virtual JitConstants GetJitConstants(const tile_params& params) const;
         virtual CommonDispatchData SetDefault(const tile_params& params, const optional_params&) const;
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+
+    protected:
         virtual ParamsKey GetSupportedKey() const override;
     };
 }

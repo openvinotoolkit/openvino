@@ -25,6 +25,8 @@ namespace kernel_selector
         BroadcastKernelRef() : BroadcastKernelBase("broadcast_gpu_ref") {}
 
         KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+
+    protected:
         ParamsKey GetSupportedKey() const override;
     };
 }

@@ -223,7 +223,7 @@ TEST(index_select_gpu, basic_along_b_3_executes_bfyx)
     indices: {1, 1, 4, 1}
     output: {4, 2, 3, 4}
     */
-    engine engine;
+    const auto& engine = get_test_engine();
     constexpr auto in_size_b = 5;
     constexpr auto in_size_f = 2;
     constexpr auto in_size_x = 3;
@@ -299,7 +299,7 @@ TEST(index_select_gpu, basic_along_f_3_executes_bfyx)
     indices: {1, 1, 10, 1}
     output: {2, 10, 3, 3}
     */
-    engine engine;
+    const auto& engine = get_test_engine();
     constexpr auto in_size_b = 2;
     constexpr auto in_size_f = 5;
     constexpr auto in_size_x = 3;
@@ -375,7 +375,7 @@ TEST(index_select_gpu, basic_along_x_3_executes_bfyx)
     indices: {1, 1, 3, 1}
     output: {3, 4, 3, 5}
     */
-    engine engine;
+    const auto& engine = get_test_engine();
     constexpr auto in_size_b = 3;
     constexpr auto in_size_f = 4;
     constexpr auto in_size_x = 6;
@@ -451,7 +451,7 @@ TEST(index_select_gpu, basic_along_y_3_executes_bfyx)
     indices: {1, 1, 5, 1}
     output: {2, 4, 4, 5}
     */
-    engine engine;
+    const auto& engine = get_test_engine();
     constexpr auto in_size_b = 2;
     constexpr auto in_size_f = 4;
     constexpr auto in_size_x = 4;
@@ -527,7 +527,7 @@ TEST(index_select_gpu, basic_along_b_3_executes_yxfb)
     indices: {1, 1, 4, 1}
     output: {4, 2, 3, 4}
     */
-    engine engine;
+    const auto& engine = get_test_engine();
     constexpr auto in_size_b = 5;
     constexpr auto in_size_f = 2;
     constexpr auto in_size_x = 3;
@@ -604,7 +604,7 @@ TEST(index_select_gpu, basic_along_f_3_executes_yxfb)
     indices: {1, 1, 10, 1}
     output: {2, 10, 3, 3}
     */
-    engine engine;
+    const auto& engine = get_test_engine();
     constexpr auto in_size_b = 2;
     constexpr auto in_size_f = 5;
     constexpr auto in_size_x = 3;
@@ -681,7 +681,7 @@ TEST(index_select_gpu, basic_along_x_3_executes_yxfb)
     indices: {1, 1, 3, 1}
     output: {3, 4, 3, 5}
     */
-    engine engine;
+    const auto& engine = get_test_engine();
     constexpr auto in_size_b = 3;
     constexpr auto in_size_f = 4;
     constexpr auto in_size_x = 6;
@@ -757,7 +757,7 @@ TEST(index_select_gpu, basic_along_y_3_executes_yxfb)
     indices: {1, 1, 5, 1}
     output: {2, 4, 4, 5}
     */
-    engine engine;
+    const auto& engine = get_test_engine();
     constexpr auto in_size_b = 2;
     constexpr auto in_size_f = 4;
     constexpr auto in_size_x = 4;
@@ -824,5 +824,864 @@ TEST(index_select_gpu, basic_along_y_3_executes_yxfb)
         {
             EXPECT_EQ(output_ptr[i], ref[i]);
         }
+    }
+}
+
+TEST(index_select_gpu, reverse_along_b_bfyx)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 4, 2 } });
+
+    std::vector<float> input_data = {
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+
+        8.f,  9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f, 15.f,
+
+
+
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f,
+
+        24.f, 25.f, 26.f, 27.f,
+        28.f, 29.f, 30.f, 31.f,
+    };
+
+    std::vector<float> out_data = {
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f,
+
+        24.f, 25.f, 26.f, 27.f,
+        28.f, 29.f, 30.f, 31.f,
+
+        
+
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+
+        8.f,  9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f, 15.f,
+    };
+
+    constexpr auto axis = index_select_axis_name::along_b;
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+    
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(index_select_gpu, reverse_along_f_bfyx)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 3, 4 } });
+
+    std::vector<float> input_data = {
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f
+    };
+
+    std::vector<float> out_data = {
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f,
+
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f
+    };
+
+    constexpr auto axis = index_select_axis_name::along_f;
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(index_select_gpu, reverse_along_y_bfyx)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 4, 3 } });
+
+    std::vector<float> input_data = {
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f
+    };
+
+    std::vector<float> out_data = {
+        8.f,  9.f, 10.f, 11.f,
+        4.f,  5.f,  6.f,  7.f,
+        0.f,  1.f,  2.f,  3.f,
+        
+        20.f, 21.f, 22.f, 23.f,
+        16.f, 17.f, 18.f, 19.f,
+        12.f, 13.f, 14.f, 15.f
+    };
+
+    constexpr auto axis = index_select_axis_name::along_y;
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(index_select_gpu, reverse_along_x_bfyx)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 4, 3 } });
+
+    std::vector<float> input_data = {
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f
+    };
+
+    std::vector<float> out_data = {
+        3.f,  2.f,  1.f,  0.f,
+        7.f,  6.f,  5.f,  4.f,
+        11.f,  10.f, 9.f, 8.f,
+
+        15.f, 14.f, 13.f, 12.f,
+        19.f, 18.f, 17.f, 16.f,
+        23.f, 22.f, 21.f, 20.f
+    };
+
+    constexpr auto axis = index_select_axis_name::along_x;
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+
+TEST(index_select_gpu, reverse_along_y_yxfb)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 4, 2, 2, 2 } });
+
+    std::vector<float> input_data = {
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+
+        8.f,  9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f, 15.f,
+
+
+
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f,
+
+        24.f, 25.f, 26.f, 27.f,
+        28.f, 29.f, 30.f, 31.f,
+    };
+
+    std::vector<float> out_data = {
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f,
+
+        24.f, 25.f, 26.f, 27.f,
+        28.f, 29.f, 30.f, 31.f,
+
+
+
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+
+        8.f,  9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f, 15.f,
+    };
+
+    constexpr auto axis = index_select_axis_name::along_y;
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(index_select_gpu, reverse_along_x_yxfb)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 3, 4, 2, 1 } });
+
+    std::vector<float> input_data = {
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f
+    };
+
+    std::vector<float> out_data = {
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f,
+
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f
+    };
+
+    constexpr auto axis = index_select_axis_name::along_x;
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(index_select_gpu, reverse_along_f_yxfb)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 4, 3, 2, 1 } });
+
+    std::vector<float> input_data = {
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f
+    };
+
+    std::vector<float> out_data = {
+        8.f,  9.f, 10.f, 11.f,
+        4.f,  5.f,  6.f,  7.f,
+        0.f,  1.f,  2.f,  3.f,
+
+        20.f, 21.f, 22.f, 23.f,
+        16.f, 17.f, 18.f, 19.f,
+        12.f, 13.f, 14.f, 15.f
+    };
+
+    constexpr auto axis = index_select_axis_name::along_f;
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(index_select_gpu, reverse_along_b_yxfb)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 4, 3, 2, 1 } });
+
+    std::vector<float> input_data = {
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f
+    };
+
+    std::vector<float> out_data = {
+        3.f,  2.f,  1.f,  0.f,
+        7.f,  6.f,  5.f,  4.f,
+        11.f,  10.f, 9.f, 8.f,
+
+        15.f, 14.f, 13.f, 12.f,
+        19.f, 18.f, 17.f, 16.f,
+        23.f, 22.f, 21.f, 20.f
+    };
+
+    constexpr auto axis = index_select_axis_name::along_b;
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+
+TEST(index_select_gpu, reverse_along_yx_bfyx)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 4, 3 } });
+
+    std::vector<float> input_data = {
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f
+    };
+
+    std::vector<float> out_data = {
+        11.f,  10.f, 9.f, 8.f,
+        7.f,  6.f,  5.f,  4.f,
+        3.f,  2.f,  1.f,  0.f,
+
+        23.f, 22.f, 21.f, 20.f,
+        19.f, 18.f, 17.f, 16.f,
+        15.f, 14.f, 13.f, 12.f
+    };
+
+    std::vector<index_select_axis_name> axis = { index_select_axis_name::along_y, index_select_axis_name::along_x };
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(index_select_gpu, reverse_along_fyx_bfyx)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 4, 3 } });
+
+    std::vector<float> input_data = {
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f
+    };
+
+    std::vector<float> out_data = {
+        23.f, 22.f, 21.f, 20.f,
+        19.f, 18.f, 17.f, 16.f,
+        15.f, 14.f, 13.f, 12.f,
+
+        11.f,  10.f, 9.f, 8.f,
+        7.f,  6.f,  5.f,  4.f,
+        3.f,  2.f,  1.f,  0.f
+    };
+
+    std::vector<index_select_axis_name> axis = { index_select_axis_name::along_f, index_select_axis_name::along_y, index_select_axis_name::along_x };
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(index_select_gpu, reverse_along_bfyx_bfyx)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 3, 3, 4, 3 } });
+
+    std::vector<float> input_data = {
+        // b0f0
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+        // f1
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f,
+        // f2
+        24.f, 25.f, 26.f, 27.f,
+        28.f, 29.f, 30.f, 31.f,
+        32.f, 33.f, 34.f, 35.f,
+
+        // b1f0
+        36.f, 37.f, 38.f, 39.f,
+        40.f, 41.f, 42.f, 43.f,
+        44.f, 45.f, 46.f, 47.f,
+        // f1
+        48.f, 49.f, 50.f, 51.f,
+        52.f, 53.f, 54.f, 55.f,
+        56.f, 57.f, 58.f, 59.f,
+        // f2
+        60.f, 61.f, 62.f, 63.f,
+        64.f, 65.f, 66.f, 67.f,
+        68.f, 69.f, 70.f, 71.f,
+
+        // b2f0
+        72.f, 73.f, 74.f, 75.f,
+        76.f, 77.f, 78.f, 79.f,
+        80.f, 81.f, 82.f, 83.f,
+        // f1
+        84.f, 85.f, 86.f, 87.f,
+        88.f, 89.f, 90.f, 91.f,
+        92.f, 93.f, 94.f, 95.f,
+        // f2
+        96.f, 97.f, 98.f, 99.f,
+        100.f, 101.f, 102.f, 103.f,
+        104.f, 105.f, 106.f, 107.f
+    };
+
+    std::vector<float> out_data = {
+        107.f, 106.f, 105.f, 104.f,
+        103.f, 102.f, 101.f, 100.f,
+        99.f, 98.f, 97.f, 96.f,
+
+        95.f, 94.f, 93.f, 92.f,
+        91.f, 90.f, 89.f, 88.f,
+        87.f, 86.f, 85.f, 84.f,
+
+        83.f, 82.f, 81.f, 80.f,
+        79.f, 78.f, 77.f, 76.f,
+        75.f, 74.f, 73.f, 72.f,
+
+
+        71.f, 70.f, 69.f, 68.f,
+        67.f, 66.f, 65.f, 64.f,
+        63.f, 62.f, 61.f, 60.f,
+
+        59.f, 58.f, 57.f, 56.f,
+        55.f, 54.f, 53.f, 52.f,
+        51.f, 50.f, 49.f, 48.f,
+
+        47.f, 46.f, 45.f, 44.f,
+        43.f, 42.f, 41.f, 40.f,
+        39.f, 38.f, 37.f, 36.f,
+
+        
+        35.f, 34.f, 33.f, 32.f,
+        31.f, 30.f, 29.f, 28.f,
+        27.f, 26.f, 25.f, 24.f,
+        
+        23.f, 22.f, 21.f, 20.f,
+        19.f, 18.f, 17.f, 16.f,
+        15.f, 14.f, 13.f, 12.f,
+
+        11.f,  10.f, 9.f, 8.f,
+        7.f,  6.f,  5.f,  4.f,
+        3.f,  2.f,  1.f,  0.f
+    };
+
+    std::vector<index_select_axis_name> axis = { index_select_axis_name::along_b, index_select_axis_name::along_f, index_select_axis_name::along_y, index_select_axis_name::along_x };
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(index_select_gpu, reverse_along_bfx_yxfb)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 4, 3, 3, 3 } });
+
+    std::vector<float> input_data = {
+        // y0x0
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+        // x1
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f,
+        // x2
+        24.f, 25.f, 26.f, 27.f,
+        28.f, 29.f, 30.f, 31.f,
+        32.f, 33.f, 34.f, 35.f,
+
+        // y1x0
+        36.f, 37.f, 38.f, 39.f,
+        40.f, 41.f, 42.f, 43.f,
+        44.f, 45.f, 46.f, 47.f,
+        // x1
+        48.f, 49.f, 50.f, 51.f,
+        52.f, 53.f, 54.f, 55.f,
+        56.f, 57.f, 58.f, 59.f,
+        // x2
+        60.f, 61.f, 62.f, 63.f,
+        64.f, 65.f, 66.f, 67.f,
+        68.f, 69.f, 70.f, 71.f,
+
+        // y2x0
+        72.f, 73.f, 74.f, 75.f,
+        76.f, 77.f, 78.f, 79.f,
+        80.f, 81.f, 82.f, 83.f,
+        // x1
+        84.f, 85.f, 86.f, 87.f,
+        88.f, 89.f, 90.f, 91.f,
+        92.f, 93.f, 94.f, 95.f,
+        // x2
+        96.f, 97.f, 98.f, 99.f,
+        100.f, 101.f, 102.f, 103.f,
+        104.f, 105.f, 106.f, 107.f
+    };
+
+    std::vector<float> out_data = {
+        35.f, 34.f, 33.f, 32.f,
+        31.f, 30.f, 29.f, 28.f,
+        27.f, 26.f, 25.f, 24.f,
+
+        23.f, 22.f, 21.f, 20.f,
+        19.f, 18.f, 17.f, 16.f,
+        15.f, 14.f, 13.f, 12.f,
+
+        11.f,  10.f, 9.f, 8.f,
+        7.f,  6.f,  5.f,  4.f,
+        3.f,  2.f,  1.f,  0.f,
+
+
+        71.f, 70.f, 69.f, 68.f,
+        67.f, 66.f, 65.f, 64.f,
+        63.f, 62.f, 61.f, 60.f,
+
+        59.f, 58.f, 57.f, 56.f,
+        55.f, 54.f, 53.f, 52.f,
+        51.f, 50.f, 49.f, 48.f,
+
+        47.f, 46.f, 45.f, 44.f,
+        43.f, 42.f, 41.f, 40.f,
+        39.f, 38.f, 37.f, 36.f,
+
+
+        107.f, 106.f, 105.f, 104.f,
+        103.f, 102.f, 101.f, 100.f,
+        99.f, 98.f, 97.f, 96.f,
+
+        95.f, 94.f, 93.f, 92.f,
+        91.f, 90.f, 89.f, 88.f,
+        87.f, 86.f, 85.f, 84.f,
+
+        83.f, 82.f, 81.f, 80.f,
+        79.f, 78.f, 77.f, 76.f,
+        75.f, 74.f, 73.f, 72.f
+    };
+
+    std::vector<index_select_axis_name> axis = { index_select_axis_name::along_f, index_select_axis_name::along_b, index_select_axis_name::along_x };
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(index_select_gpu, reverse_along_bfyx_yxfb)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 4, 3, 3, 3 } });
+
+    std::vector<float> input_data = {
+        // y0x0
+        0.f,  1.f,  2.f,  3.f,
+        4.f,  5.f,  6.f,  7.f,
+        8.f,  9.f, 10.f, 11.f,
+        // x1
+        12.f, 13.f, 14.f, 15.f,
+        16.f, 17.f, 18.f, 19.f,
+        20.f, 21.f, 22.f, 23.f,
+        // x2
+        24.f, 25.f, 26.f, 27.f,
+        28.f, 29.f, 30.f, 31.f,
+        32.f, 33.f, 34.f, 35.f,
+
+        // y1x0
+        36.f, 37.f, 38.f, 39.f,
+        40.f, 41.f, 42.f, 43.f,
+        44.f, 45.f, 46.f, 47.f,
+        // x1
+        48.f, 49.f, 50.f, 51.f,
+        52.f, 53.f, 54.f, 55.f,
+        56.f, 57.f, 58.f, 59.f,
+        // x2
+        60.f, 61.f, 62.f, 63.f,
+        64.f, 65.f, 66.f, 67.f,
+        68.f, 69.f, 70.f, 71.f,
+
+        // y2x0
+        72.f, 73.f, 74.f, 75.f,
+        76.f, 77.f, 78.f, 79.f,
+        80.f, 81.f, 82.f, 83.f,
+        // x1
+        84.f, 85.f, 86.f, 87.f,
+        88.f, 89.f, 90.f, 91.f,
+        92.f, 93.f, 94.f, 95.f,
+        // x2
+        96.f, 97.f, 98.f, 99.f,
+        100.f, 101.f, 102.f, 103.f,
+        104.f, 105.f, 106.f, 107.f
+    };
+
+    std::vector<float> out_data = {
+        107.f, 106.f, 105.f, 104.f,
+        103.f, 102.f, 101.f, 100.f,
+        99.f, 98.f, 97.f, 96.f,
+
+        95.f, 94.f, 93.f, 92.f,
+        91.f, 90.f, 89.f, 88.f,
+        87.f, 86.f, 85.f, 84.f,
+
+        83.f, 82.f, 81.f, 80.f,
+        79.f, 78.f, 77.f, 76.f,
+        75.f, 74.f, 73.f, 72.f,
+
+
+        71.f, 70.f, 69.f, 68.f,
+        67.f, 66.f, 65.f, 64.f,
+        63.f, 62.f, 61.f, 60.f,
+
+        59.f, 58.f, 57.f, 56.f,
+        55.f, 54.f, 53.f, 52.f,
+        51.f, 50.f, 49.f, 48.f,
+
+        47.f, 46.f, 45.f, 44.f,
+        43.f, 42.f, 41.f, 40.f,
+        39.f, 38.f, 37.f, 36.f,
+
+
+        35.f, 34.f, 33.f, 32.f,
+        31.f, 30.f, 29.f, 28.f,
+        27.f, 26.f, 25.f, 24.f,
+
+        23.f, 22.f, 21.f, 20.f,
+        19.f, 18.f, 17.f, 16.f,
+        15.f, 14.f, 13.f, 12.f,
+
+        11.f,  10.f, 9.f, 8.f,
+        7.f,  6.f,  5.f,  4.f,
+        3.f,  2.f,  1.f,  0.f
+    };
+
+    std::vector<index_select_axis_name> axis = { index_select_axis_name::along_b, index_select_axis_name::along_f, index_select_axis_name::along_y, index_select_axis_name::along_x };
+
+    topology topo;
+    topo.add(
+        input_layout("input", input.get_layout())
+    );
+    topo.add(
+        index_select("index_select", "input", axis)
+    );
+
+    network net(engine, topo);
+
+    set_values(input, input_data);
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+    auto output_mem = outputs.at("index_select").get_memory();
+    auto output_ptr = output_mem.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_EQ(output_ptr[i], out_data[i]);
     }
 }

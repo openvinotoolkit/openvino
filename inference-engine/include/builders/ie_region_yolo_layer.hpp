@@ -1,11 +1,11 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <builders/ie_layer_fragment.hpp>
-#include <ie_inetwork.hpp>
+#include <builders/ie_layer_decorator.hpp>
+#include <ie_network.hpp>
 #include <string>
 #include <vector>
 
@@ -15,7 +15,7 @@ namespace Builder {
 /**
  * @brief The class represents a builder for RegionYolo layer
  */
-class INFERENCE_ENGINE_API_CLASS(RegionYoloLayer): public LayerFragment {
+class INFERENCE_ENGINE_API_CLASS(RegionYoloLayer): public LayerDecorator {
 public:
     /**
      * @brief The constructor creates a builder with the name
@@ -24,9 +24,14 @@ public:
     explicit RegionYoloLayer(const std::string& name = "");
     /**
      * @brief The constructor creates a builder from generic builder
-     * @param genLayer generic builder
+     * @param layer pointer to generic builder
      */
-    explicit RegionYoloLayer(Layer& genLayer);
+    explicit RegionYoloLayer(const Layer::Ptr& layer);
+    /**
+     * @brief The constructor creates a builder from generic builder
+     * @param layer constant pointer to generic builder
+     */
+    explicit RegionYoloLayer(const Layer::CPtr& layer);
     /**
      * @brief Sets the name for the layer
      * @param name Layer name

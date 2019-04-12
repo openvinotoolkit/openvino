@@ -7,7 +7,7 @@
 
 include (CheckCXXSourceRuns)
 
-if(NOT WIN32)
+if(NOT WIN32 AND NOT APPLE)
     set(CMAKE_REQUIRED_FLAGS "-std=c++11")
 endif()
 
@@ -204,14 +204,14 @@ private:
             }
 
             // load bitset with flags for function 0x80000001
-            if (nExIds_ >= 0x80000001)
+            if ((unsigned)nExIds_ >= 0x80000001)
             {
                 f_81_ECX_ = extdata_[1][2];
                 f_81_EDX_ = extdata_[1][3];
             }
 
             // Interpret CPU brand string if reported
-            if (nExIds_ >= 0x80000004)
+            if ((unsigned)nExIds_ >= 0x80000004)
             {
                 memcpy(brand +  0, extdata_[2].data(), sizeof(cpui));
                 memcpy(brand + 16, extdata_[3].data(), sizeof(cpui));
@@ -248,7 +248,7 @@ const InstructionSet::InstructionSet_Internal InstructionSet::CPU_Rep;
 // Print out supported instruction set extensions
 int main()
 {
-    std::ofstream fo(\"cpuid.txt\");
+    std::ofstream fo(\"${CMAKE_BINARY_DIR}/cpuid.txt\");
     auto& outstream = fo;//std::cout;
 
     auto support_message = [&outstream](std::string isa_feature, bool is_supported) {

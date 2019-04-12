@@ -219,6 +219,14 @@ void simple_net() {
                            memory::format::ldigo), cpu_engine },
                          user_common_weights_layer.data());
 
+    std::vector<float> user_common_weights_iter(
+            tz_volume(common_weights_iter_dims),
+            1.0f);
+    auto user_common_weights_iter_memory
+        = mkldnn::memory({ formatted_md(common_weights_iter_dims,
+                           memory::format::ldigo), cpu_engine },
+                         user_common_weights_layer.data());
+
     std::vector<float> user_common_bias(
             tz_volume(common_bias_dims),
             1.0f);
@@ -325,10 +333,22 @@ void simple_net() {
         reorder_common_weights_layer = true;
     }
 
-    // Assume same memory would work for weights between leftmost and rightmost
-    // Allocate memory here based on the layout suggested by the primitive.
-    auto common_weights_iter_memory
-        = mkldnn::memory(leftmost_prim_desc.weights_iter_primitive_desc());
+    auto common_weights_iter_memory = user_common_weights_iter_memory;
+    primitive common_weights_iter_reorder;
+    auto reorder_common_weights_iter = false;
+    if (memory::primitive_desc(
+            leftmost_prim_desc.weights_iter_primitive_desc())
+        != memory::primitive_desc(
+            common_weights_iter_memory.get_primitive_desc())
+    ) {
+        common_weights_iter_memory
+            = mkldnn::memory(leftmost_prim_desc.weights_iter_primitive_desc());
+        common_weights_iter_reorder
+            = reorder(user_common_weights_iter_memory,
+                        common_weights_iter_memory);
+        reorder_common_weights_iter = true;
+    }
+
 
     auto common_bias_memory = user_common_bias_memory;
     primitive common_bias_reorder;
@@ -426,6 +446,8 @@ void simple_net() {
     // Enqueue primitives for forward execution
     if (reorder_common_weights_layer)
         fwd_net.push_back(common_weights_layer_reorder);
+    if (reorder_common_weights_iter)
+        fwd_net.push_back(common_weights_iter_reorder);
     if (reorder_common_bias)
         fwd_net.push_back(common_bias_reorder);
     if (reorder_leftmost_dst_layer)
