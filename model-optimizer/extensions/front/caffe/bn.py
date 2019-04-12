@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,12 +14,11 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.scale_shift import ScaleShiftOp
 from mo.utils.error import Error
 
@@ -31,7 +30,7 @@ class BNToScaleShift(FrontReplacementOp):
     op = "BN"
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    def replace_op(self, graph: Graph, node: Node):
         attrs = {'name': node.id + "/ScaleShift_"}
 
         param = graph.node[node.id]['pb'].bn_param

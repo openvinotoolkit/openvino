@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'value': 2, 'kind': 'data'},
                     'node_2': {'value': 3, 'kind': 'data'},
                     'eltw_1': {'type': 'Eltwise', 'kind': 'op'},
-                    'node_3': {'value': None, 'kind': 'data'}
+                    'node_3': {'value': None, 'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
                     }
 
 
@@ -34,8 +35,10 @@ class TestEltwiseInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'eltw_1'),
                              ('node_2', 'eltw_1'),
-                             ('eltw_1', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('eltw_1', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 256, 256])},
                              'node_2': {'shape': np.array([1, 3, 256, 256])},
                              'eltw_1': {}
@@ -59,8 +62,10 @@ class TestEltwiseInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'eltw_1'),
                              ('node_2', 'eltw_1'),
-                             ('eltw_1', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('eltw_1', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 256, 256])},
                              'node_2': {'shape': np.array([1, 3, 256, 256])}
                              })
@@ -81,8 +86,10 @@ class TestEltwiseInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'eltw_1'),
                              ('node_2', 'eltw_1'),
-                             ('eltw_1', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('eltw_1', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 256, 256])},
                              'node_2': {'shape': np.array([1, 3, 256, 256])}
                              })
@@ -103,8 +110,10 @@ class TestEltwiseInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'eltw_1'),
                              ('node_2', 'eltw_1'),
-                             ('eltw_1', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('eltw_1', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 256, 256]), 'value': None},
                              'node_2': {'shape': np.array([1, 3, 256, 256])}
                              })
@@ -124,8 +133,10 @@ class TestEltwiseInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'eltw_1'),
                              ('node_2', 'eltw_1'),
-                             ('eltw_1', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('eltw_1', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 257, 256])},
                              'node_2': {'shape': np.array([1, 3, 256, 257])}
                              })

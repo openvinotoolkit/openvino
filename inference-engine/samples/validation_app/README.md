@@ -15,6 +15,8 @@ Possible use cases of the tool:
 * Use Validation Application as another sample: although the code is much more complex than in classification and object
   detection samples, the source code is open and can be re-used.
 
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Specify Input Shapes** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+
 ## Validation Application Options
 
 The Validation Application provides the following command-line interface (CLI):
@@ -31,8 +33,8 @@ Available options:
     -m <path>                 Required. Path to an .xml file with a trained model
     -lbl <path>               Labels file path. The labels file contains names of the dataset classes
     -l <absolute_path>        Required for CPU custom layers. Absolute path to a shared library with the kernel implementations
-    -c <absolute_path>        Required for GPU custom kernels.Absolute path to an .xml file with the kernel descriptions.
-    -d <device>               Target device to infer on: CPU (default), GPU, FPGA, or MYRIAD. The application looks for a suitable plugin for the specified device.
+    -c <absolute_path>        Required for GPU custom kernels. Absolute path to an .xml file with the kernel descriptions.
+    -d <device>               Target device to infer on: CPU (default), GPU, FPGA, HDDL or MYRIAD. The application looks for a suitable plugin for the specified device.
     -b N                      Batch size value. If not specified, the batch size value is taken from IR
     -ppType <type>            Preprocessing type. Options: "None", "Resize", "ResizeCrop"
     -ppSize N                 Preprocessing size (used with ppType="ResizeCrop")
@@ -57,6 +59,8 @@ The tool options are divided into two categories:
 
 ## General Workflow
 
+> **NOTE**: By default, Inference Engine samples expect input images to have BGR channels order. If you trained you model to work with images in RGB order, you need to manually rearrange the default channels order in the sample application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to [When to Specify Input Shapes](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md#when_to_reverse_input_channels).
+
 When executed, the Validation Application perform the following steps:
 
 1. Loads a model to an Inference Engine plugin
@@ -64,7 +68,6 @@ When executed, the Validation Application perform the following steps:
     - if you specified a directory, the application tries to load labels first. To do this, it searches for the file
       with the same name as a model, but with `.labels` extension (instead of `.xml`).
       Then it searches for the specified folder, detects its sub-folders named as known labels, and adds all images from these sub-folders to the validation set. When there are no such sub-folders, validation set is considered empty.
-
     - if you specified a `.txt` file, the application reads this file expecting every line to be in the correct format.
       For more information about the format, refer to the <a href="#preparing">Preparing the Dataset</a> section below.
 
@@ -195,6 +198,8 @@ Save this file as `VOC_SSD_Classes.txt`.
 
 ## Validate Classification Models
 
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+
 Once you have prepared the dataset (refer to the <a href="#preparing">Preparing the Dataset</a> section above),
 run the following command to infer a classification model on the selected dataset:
 ```bash
@@ -205,6 +210,8 @@ run the following command to infer a classification model on the selected datase
 
 > **NOTE**: Validation Application was validated with SSD CNN. Any network that can be inferred by the Inference Engine
 > and has the same input and output format as one of these should be supported as well.
+
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 Once you have prepared the dataset (refer to the <a href="#preparing">Preparing the Dataset</a> section above),
 run the following command to infer an Object Detection model on the selected dataset:

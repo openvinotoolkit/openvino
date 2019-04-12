@@ -28,9 +28,9 @@ namespace kernel_selector
         virtual ~SoftmaxKernel_fb() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         virtual bool Validate(const Params& p, const optional_params& o) const override;
         DispatchData SetDefault(const softmax_params& params, const optional_params& optParams) const override;
     };

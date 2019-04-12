@@ -1,0 +1,76 @@
+models:
+  - name: person-reidentification-retail-0079
+
+    launchers:
+      - framework: dlsdk
+        tags:
+          - FP32
+        device: CPU
+        model:   person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.xml
+        weights: person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.bin
+        adapter: reid
+
+      - framework: dlsdk
+        tags:
+          - GPU32
+        device: GPU
+        model:   person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.xml
+        weights: person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.bin
+        adapter: reid
+
+      - framework: dlsdk
+        tags:
+          - GPU16
+        device: GPU
+        model:   person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.xml
+        weights: person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.bin
+        adapter: reid
+
+      - framework: dlsdk
+        device: MYRIAD
+        model:   person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.xml
+        weights: person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.bin
+        adapter: reid
+
+      - framework: dlsdk
+        device: HDDL
+        model:   person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.xml
+        weights: person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.bin
+        adapter: reid
+
+      - framework: dlsdk
+        tags:
+          - FPGA16
+        device: HETERO:FPGA,CPU
+        model:   person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.xml
+        weights: person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.bin
+        adapter: reid
+        bitstream: 2019R1_A10DK_FP16_RMNet.aocx
+
+      - framework: dlsdk
+        tags:
+          - FPGA11
+        device: HETERO:FPGA,CPU
+        model:   person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.xml
+        weights: person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.bin
+        adapter: reid
+        bitstream: 2019R1_A10DK_FP11_ELU.aocx
+
+    datasets:
+      - name: market1501
+        data_source: Market-1501-v15.09.15
+        annoation_conversion:
+          converter: market1501
+          data_dir: Market-1501-v15.09.15
+
+        preprocessing:
+          - type: resize
+            dst_width: 64
+            dst_height: 160
+
+        metrics:
+          - name: rank@1
+            type: cmc
+            top_k: 1
+
+          - type: reid_map

@@ -26,6 +26,7 @@ template <>
 struct typed_program_node<generic_layer> : public typed_program_node_base<generic_layer>
 {
     using parent = typed_program_node_base<generic_layer>;
+    typed_program_node(const std::shared_ptr<generic_layer> prim, program_impl& prog);
 public:
     using parent::parent;
 

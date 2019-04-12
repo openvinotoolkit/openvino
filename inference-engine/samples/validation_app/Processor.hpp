@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,9 @@
 
 #include "inference_engine.hpp"
 
-#include "csv_dumper.hpp"
+#include "samples/csv_dumper.hpp"
 #include "image_decoder.hpp"
-#include "console_progress.hpp"
+#include "samples/console_progress.hpp"
 
 using namespace std;
 
@@ -36,7 +36,7 @@ protected:
     std::string modelFileName;
     std::string targetDevice;
     std::string imagesPath;
-    int batch;
+    size_t batch;
     InferenceEngine::InferRequest inferRequest;
     InferenceEngine::InputsDataMap inputInfo;
     InferenceEngine::OutputsDataMap outInfo;

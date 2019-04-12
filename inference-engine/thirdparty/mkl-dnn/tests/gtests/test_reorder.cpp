@@ -29,7 +29,7 @@ inline void check_reorder(const memory::desc &md_i, const memory::desc &md_o,
         const data_i_t *src, const data_o_t *dst)
 {
     const int ndims = md_i.data.ndims;
-    const int *dims = md_i.data.dims;
+    const ptrdiff_t *dims = md_i.data.dims;
     const size_t nelems = std::accumulate(
             dims, dims + ndims, size_t(1), std::multiplies<size_t>());
 
@@ -333,7 +333,11 @@ TEST_P(reorder_simple_test_weights_f32_f32_1, TestsReorder) { }
 INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_weights_f32_f32_1,
         ::testing::Values(
             cfg_f32{eng::cpu, fmt::goihw, fmt::Goihw16g, {32, 32, 32, 3, 3}},
-            cfg_f32{eng::cpu, fmt::Goihw16g, fmt::goihw, {32, 32, 32, 3, 3}}
+            cfg_f32{eng::cpu, fmt::Goihw16g, fmt::goihw, {32, 32, 32, 3, 3}},
+            cfg_f32{eng::cpu, fmt::oihw, fmt::iohw, {32, 32, 3, 3}},
+            cfg_f32{eng::cpu, fmt::iohw, fmt::oihw, {32, 32, 3, 3}},
+            cfg_f32{eng::cpu, fmt::goihw, fmt::giohw, {2, 32, 32, 3, 3}},
+            cfg_f32{eng::cpu, fmt::giohw, fmt::goihw, {2, 32, 32, 3, 3}}
             )
         );
 

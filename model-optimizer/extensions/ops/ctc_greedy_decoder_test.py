@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'node_2': {'type': 'Identity', 'kind': 'op'},
                     'ctc': {'type': 'CTCGreedyDecoder', 'kind': 'op'},
-                    'node_3': {'type': 'Identity', 'kind': 'op'}
+                    'node_3': {'type': 'Identity', 'kind': 'op'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
                     }
 
 
@@ -35,9 +36,11 @@ class TestConcatPartialInfer(unittest.TestCase):
                             [
                                 ('node_1', 'ctc'),
                                 ('node_2', 'ctc'),
-                                ('ctc', 'node_3')],
+                                ('ctc', 'node_3'),
+                                ('node_3', 'op_output')
+                            ],
                             {
-                                'node_3': {'is_output': True, 'shape': None},
+                                'node_3': {'shape': None},
                                 'node_1': {'shape': np.array([88, 2, 71])},
                                 'node_2': {'shape': np.array([88, 2])},
                                 'ctc': {'ctc_merge_repeated': 1}

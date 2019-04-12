@@ -28,9 +28,9 @@ namespace kernel_selector {
         virtual ~ConvolutionKernel_bfyx_Direct_10_10_12() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override { return{ WeightsLayout::i_yxs_os_yxsv2_osv16 }; }
 
         JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;

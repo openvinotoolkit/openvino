@@ -41,7 +41,7 @@ TEST(upsampling_gpu, basic_in2x3x2x2_nearest) {
     //  f1: b0:  7    8  -16   b1:   12   9     -17
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
 
@@ -112,7 +112,7 @@ TEST(upsampling_gpu, basic_in2x3x2x2_bilinear) {
     //  f0: b0:  3    4
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
 

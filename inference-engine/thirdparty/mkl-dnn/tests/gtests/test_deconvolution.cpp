@@ -120,7 +120,7 @@ private:
 
    std::shared_ptr<engine> eng;
    bool with_bias;
-   std::vector<int> padR;
+   std::vector<ptrdiff_t> padR;
 protected:
     virtual void SetUp() {
         auto p = ::testing::TestWithParam<deconvolution_test_params>::GetParam();

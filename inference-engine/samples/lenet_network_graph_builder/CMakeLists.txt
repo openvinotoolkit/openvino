@@ -1,8 +1,6 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-
-cmake_minimum_required(VERSION 2.8)
 
 set (TARGET_NAME "lenet_network_graph_builder")
 

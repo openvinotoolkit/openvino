@@ -28,6 +28,9 @@ primitive_type_id softmax_loss_grad_type_id()
 
 layout softmax_loss_grad_inst::calc_output_layout(softmax_loss_grad_node const& node)
 {
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for "
+              "softmax_loss_grad_node!");
     return node.input().get_non_padded_output_layout();
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,7 @@ public:
             // todo: make sure 'name' exists in this map...
             if (_meanImages.find(name) != _meanImages.end()) {
                 if (in->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
-                    _meanImages[name].Subtract(outDims, reinterpret_cast<float *>(inter_data_ptr));
+                    _meanImages[name].Subtract(outDims, reinterpret_cast<float *>(inter_data_ptr), in->getTensorDesc().getLayout());
                 } else {
                     THROW_IE_EXCEPTION << "Mean image of type " << in->getTensorDesc().getPrecision().name() << " is unsupported";
                 }
@@ -89,13 +89,6 @@ public:
     }
 
     void Infer(const InferenceEngine::BlobMap& inputs, InferenceEngine::BlobMap& result, int batch = -1) {
-        for (auto it = result.begin(); it != result.end(); it++) {
-            InferenceEngine::TBlob<float> *out = dynamic_cast<InferenceEngine::TBlob<float> *>((*it).second.get());
-            if (out == nullptr) {
-                FAIL() << "Output data precision not supported. Expected float.";
-            }
-        }
-
         try {
             // need to retain converted blobs until infer finish
             std::vector<InferenceEngine::Blob::Ptr> convertedInputs;

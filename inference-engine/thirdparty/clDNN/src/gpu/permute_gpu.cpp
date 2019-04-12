@@ -36,13 +36,8 @@ struct permute_gpu : typed_primitive_gpu_impl<permute>
         auto permute_params = get_default_params<kernel_selector::permute_params>(arg);
         auto permute_optional_params = get_default_optional_params<kernel_selector::permute_optional_params>(arg.get_program());
 
-        uint16_t max_input_index = (uint16_t)(permute_params.inputs[0].GetDims().size() - 1);
         const auto& permute_order = arg.get_primitive()->permute_order;
-        for (size_t i = 0; i < permute_order.size(); i++)
-        {
-            auto order = permute_order[permute_order.size() - 1 - i];
-            permute_params.order.push_back(max_input_index - order);
-        }
+        permute_params.order = permute_order;
         auto& kernel_selector = kernel_selector::permute_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(permute_params, permute_optional_params);
 

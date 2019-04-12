@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,13 +16,11 @@
 
 import logging as log
 
-import networkx as nx
-
 from extensions.front.squared_difference import SquaredDifference
 from extensions.front.sub import Sub
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Node, replace_node
-from mo.ops.div import Div
+from mo.graph.graph import Node, Graph
+from extensions.front.div import Div
 from mo.ops.op import Op
 
 
@@ -57,7 +55,7 @@ class MVNUnrolled(FrontReplacementSubgraph):
             ])
 
     @staticmethod
-    def replace_sub_graph(graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(graph: Graph, match: dict):
         MVN = Op.get_op_class_by_name('MVN')
 
         mvn = MVN(graph, dict(
@@ -74,7 +72,7 @@ class MVNUnrolled(FrontReplacementSubgraph):
 
         new_subgraph = mvn.create_node([match['mean'].in_node(0), mean_reduction, variance_reduction, pow2, eps])
 
-        replace_node(match['truediv'], new_subgraph)
+        match['truediv'].replace_node(new_subgraph)
 
     @staticmethod
     def infer(node: Node):

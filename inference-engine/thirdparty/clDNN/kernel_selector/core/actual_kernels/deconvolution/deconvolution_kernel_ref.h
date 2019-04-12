@@ -26,9 +26,8 @@ namespace kernel_selector {
         DeconvolutionKernelRef() : DeconvolutionKernelBase("deconvolution_gpu_ref") {}
         virtual ~DeconvolutionKernelRef() {}
 
-        virtual ParamsKey GetSupportedKey() const override;
-
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         CommonDispatchData SetDefault(const deconvolution_params& params) const override;
         JitConstants GetJitConstants(const deconvolution_params& params) const override;
     };

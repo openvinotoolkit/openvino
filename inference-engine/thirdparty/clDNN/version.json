@@ -3,7 +3,7 @@
 {
     "major": 1,            # clDNN major version (major version of API).
     "minor": 4,            # clDNN minor version (correlated with major API version of Inference Engine).
-    "build": 14,           # clDNN build version (correlated with ordinal numeber of public release of clDNN).
+    "build": 23,           # clDNN build version (correlated with ordinal numeber of public release of clDNN).
     "revision_base":    0, # Offset that will be subtracted from environment variable provided by build system.
     "revision_min":    -1  # Minumum value of revision. Computed value of revision will be clamped from below by this value.
 }

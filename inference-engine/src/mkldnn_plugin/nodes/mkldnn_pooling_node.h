@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,10 +30,10 @@ private:
     static Register<MKLDNNPoolingNode> reg;
     InferenceEngine::PoolingLayer::PoolType type;
     bool exclude_pad;
-    std::vector<int> stride;
-    std::vector<int> paddingL;
-    std::vector<int> paddingR;
-    std::vector<int> kernel;
+    std::vector<ptrdiff_t> stride;
+    std::vector<ptrdiff_t> paddingL;
+    std::vector<ptrdiff_t> paddingR;
+    std::vector<ptrdiff_t> kernel;
 };
 
 }  // namespace MKLDNNPlugin

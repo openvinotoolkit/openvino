@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,11 +22,11 @@ struct CropData {
 
 typedef std::vector<CropData> CropParams;
 
-struct InOutData {
+struct InOutShapes {
     std::vector<std::vector<size_t>> inDims;
     std::vector<std::vector<size_t>> outDims;
 
-    friend std::ostream& operator<<(std::ostream& os, InOutData const& inout) {
+    friend std::ostream& operator<<(std::ostream& os, InOutShapes const& inout) {
         auto dumpVec = [](const std::vector<size_t>& vec) -> std::string {
             if (vec.empty()) return "[]";
             std::stringstream oss;
@@ -137,7 +137,7 @@ public:
      * @param type - string with type of the layer
      * @param shapes - reference to the structure with input and output shapes
      */
-    explicit LayerDesc(std::string type, InOutData& shapes, IDManager &id_manager);
+    explicit LayerDesc(std::string type, InOutShapes& shapes, IDManager &id_manager);
 
     /**
      * @brief Resets current input and output ports to iterate over all input and output ports
@@ -252,7 +252,7 @@ public:
         return EdgesBuilder(exp.node("edges"), layersDesc);
     }
 
-    XmlNetBuilder& cropLayer(CropParams params, const InOutData& inout) {
+    XmlNetBuilder& cropLayer(CropParams params, const InOutShapes& inout) {
         std::map<std::string, std::string> generalParams;
         for (CropData crop : params) {
             generalParams["axis"] = std::to_string(crop.axis);
@@ -262,7 +262,7 @@ public:
         return addLayer("Crop", "", &generalParams, inout, 0, 0, "crop-data");
     }
 
-    XmlNetBuilder& convolutionLayer(const std::string& precision, const InOutData& inout) {
+    XmlNetBuilder& convolutionLayer(const std::string& precision, const InOutShapes& inout) {
         std::map<std::string, std::string> params{
                 {"stride-x", "4"},
                 {"stride-y", "4"},
@@ -275,7 +275,7 @@ public:
         return addLayer("Convolution", precision, &params, inout, 0, 0, "convolution_data");
     }
 
-    XmlNetBuilder& poolingLayer(const InOutData& inout) {
+    XmlNetBuilder& poolingLayer(const InOutShapes& inout) {
         std::map<std::string, std::string> params{
                 {"stride-x", "4"},
                 {"stride-y", "4"},
@@ -289,7 +289,7 @@ public:
 
     struct TIPortMap { int from_l, from_p, to_l, to_p, axis, stride, start, end; };
 
-    XmlNetBuilder& TILayer(InOutData inout,
+    XmlNetBuilder& TILayer(InOutShapes inout,
                            std::string body,
                            std::vector<TIPortMap> inMap,
                            std::vector<TIPortMap> outMap,
@@ -329,7 +329,7 @@ public:
     XmlNetBuilder& addLayer(const std::string& type,
                             const std::string& precision,
                             std::map<std::string, std::string>* params,
-                            InOutData inout,
+                            InOutShapes inout,
                             int weightsSize = 0,
                             int biasesSize = 0,
                             std::string layerDataName = "data",
@@ -361,7 +361,7 @@ public:
     }
 
     XmlNetBuilder& addInputLayer(const std::string& precision, const std::vector<size_t>& out) {
-        InOutData inout{};
+        InOutShapes inout{};
         inout.outDims.push_back(out);
         return addLayer("Input", precision, nullptr, inout);
     }

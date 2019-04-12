@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ class FormatParserTest : public TestsCommon {
     void assertParseFail(const std::string& fileContent) {
         try {
             parse(fileContent);
-            FAIL() << "Parser didn't trow";
+            FAIL() << "Parser didn't throw";
         } catch (const std::exception& ex) {
             SUCCEED() << ex.what();
         }
@@ -69,7 +69,7 @@ class FormatParserTest : public TestsCommon {
     void assertSetWeightsFail(const InferenceEngine::TBlob<uint8_t>::Ptr& binBlob) {
         try {
             parser->SetWeights(binBlob);
-            FAIL() << "Parser didn't trow";
+            FAIL() << "Parser didn't throw";
         } catch (const std::exception& ex) {
             SUCCEED() << ex.what();
         }

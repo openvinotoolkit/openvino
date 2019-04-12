@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 import networkx as nx
 
+from mo.graph.graph import Graph
 from mo.middle.pattern_match import apply_pattern
 
 
@@ -24,7 +25,7 @@ class ReplacementPattern(object):
     # All intermediate infrastructure classes should be here
     excluded_replacers = []
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
+    def find_and_replace_pattern(self, graph: Graph):
         apply_pattern(graph, **self.pattern(), action=self.replace_pattern)  # pylint: disable=no-member
 
     def run_before(self):

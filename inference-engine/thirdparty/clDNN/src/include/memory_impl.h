@@ -27,10 +27,15 @@ namespace cldnn
 
 struct memory_impl : refcounted_obj<memory_impl>
 {
-    memory_impl(const engine_impl::ptr& engine, layout layout): _engine(engine), _layout(layout){}
+    memory_impl(const engine_impl::ptr& engine, layout layout, bool reused=false)
+        : _engine(engine)
+        , _layout(layout)
+        , _reused(reused)
+    {}
+
     virtual ~memory_impl()
     {
-        if (_engine != nullptr)
+        if (_engine != nullptr && !_reused) 
         {
             _engine->get_memory_pool().subtract_memory_used(_layout.bytes_count());
         }
@@ -45,6 +50,8 @@ struct memory_impl : refcounted_obj<memory_impl>
 protected:
     const engine_impl::ptr _engine;
     const layout _layout;
+private:
+    bool _reused;
 };
 
 struct simple_attached_memory : memory_impl

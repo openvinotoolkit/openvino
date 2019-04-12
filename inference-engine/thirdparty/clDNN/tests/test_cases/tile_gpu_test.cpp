@@ -69,7 +69,7 @@ void tile_ref(const memory& input, memory& output, tile::tile_axis axis, int num
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
     auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
@@ -99,7 +99,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
     auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 4, 2, 2 } });
@@ -132,7 +132,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
     auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
@@ -165,7 +165,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
     auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 4 } });
@@ -197,7 +197,7 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 1 } });
     auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 4 } });

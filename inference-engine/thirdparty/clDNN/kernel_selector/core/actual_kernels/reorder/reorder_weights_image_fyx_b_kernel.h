@@ -26,7 +26,9 @@ namespace kernel_selector
         ReorderWeightsImage_fyx_b_Kernel() : ReorderKernelBase("reorder_weights_image_2d_c4_fyx_b") {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
         virtual DispatchData SetDefault(const reorder_weights_params& arg) const override;
+
+    protected:
+        virtual ParamsKey GetSupportedKey() const override;
     };
 }

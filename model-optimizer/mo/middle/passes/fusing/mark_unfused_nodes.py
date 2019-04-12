@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,10 +15,9 @@
 """
 
 import logging as log
-import networkx as nx
 import re
 
-from mo.graph.graph import get_graph_ops, Node
+from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import get_value_id
 
 
@@ -36,9 +35,9 @@ def _check_lin_op(node: Node, layout: str):
         log.info('[ FUSING ] Node {} marked as fusable'.format(node.id))
 
 
-def mark_unfused_nodes(graph: nx.MultiDiGraph, regex_masks: str):
+def mark_unfused_nodes(graph: Graph, regex_masks: str):
     regex_masks = [] if not regex_masks else regex_masks.split(',')
-    nodes = get_graph_ops(graph)
+    nodes = graph.get_op_nodes()
     for node in nodes:
         if node.has_valid('can_be_fused'):
             continue

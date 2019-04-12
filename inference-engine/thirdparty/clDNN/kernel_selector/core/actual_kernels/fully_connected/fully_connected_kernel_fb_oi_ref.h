@@ -26,6 +26,8 @@ namespace kernel_selector {
         FullyConnected_fb_oi_ref() : FullyConnectedKernelBase("fully_connected_gpu_fb_oi_ref") {}
 
         KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+
+    protected:
         ParamsKey GetSupportedKey() const override;
     };
 }

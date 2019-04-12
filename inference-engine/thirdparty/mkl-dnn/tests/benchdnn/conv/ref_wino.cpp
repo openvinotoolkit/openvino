@@ -422,10 +422,6 @@ void compute_wino_ref_fwd(const prb_t *p, dnn_mem_t &src_m, dnn_mem_t &wei_m,
                                             ((float *)bia_m)[bia_off] :
                                             0.f;
 
-                                    if (p->merge == RELU && conv_res < 0) {
-                                        conv_res = 0.f;
-                                    }
-
                                     const auto &ops = p->attr.post_ops;
                                     for (int idx = 0; idx < ops.len; ++idx) {
                                         using pk = attr_t::post_ops_t::kind_t;

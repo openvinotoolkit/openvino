@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,7 +27,8 @@ nodes_attributes = {'node_1': {'kind': 'data'},
                     'node_3': {'kind': 'data'},
                     'node_4': {'kind': 'data'},
                     'roipool': {'type': 'ROIPooling', 'kind': 'op', 'pooled_h': None, 'pooled_w': None},
-                    'output': {'value': None, 'kind': 'data'}
+                    'output': {'value': None, 'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
                     }
 
 
@@ -36,8 +37,10 @@ class TestRoipoolingInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'roipool'),
                              ('node_2', 'roipool'),
-                             ('roipool', 'output')],
-                            {'output': {'is_output': True, 'shape': None},
+                             ('roipool', 'output'),
+                             ('output', 'op_output')
+                             ],
+                            {'output': {'shape': None},
                              'node_1': {'shape': np.array([1, 256, 20, 20])},
                              'node_2': {'shape': np.array([150, 5])},
                              'roipool': {'pooled_h': 6, 'pooled_w': 6}
@@ -55,8 +58,10 @@ class TestRoipoolingInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'roipool'),
                              ('node_2', 'roipool'),
-                             ('roipool', 'output')],
-                            {'output': {'is_output': True, 'shape': None},
+                             ('roipool', 'output'),
+                             ('output', 'op_output')
+                             ],
+                            {'output': {'shape': None},
                              'node_1': {'shape': None},
                              'node_2': {'shape': np.array([1, 256])},
                              'roipool': {'pooled_h': 6, 'pooled_w': 6}
@@ -74,8 +79,10 @@ class TestRoipoolingInfer(unittest.TestCase):
                              ('node_2', 'roipool'),
                              ('node_3', 'roipool'),
                              ('node_4', 'roipool'),
-                             ('roipool', 'output')],
-                            {'output': {'is_output': True, 'shape': None},
+                             ('roipool', 'output'),
+                             ('output', 'op_output')
+                             ],
+                            {'output': {'shape': None},
                              'node_1': {'shape': np.array([1, 20, 20, 256])},
                              'node_2': {'shape': np.array([150, 5])},
                              'node_3': {'shape': np.array([150])},

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -35,8 +35,8 @@ class NormalizeComponentFrontExtractor(FrontExtractorOp):
         d_scaled = dim * target_rms ** 2
         in_norm = np.zeros([dim], np.float64)
         in_norm += 1.0 / d_scaled
-        in_norm = np.maximum(in_norm, 2. ** (-66))
-        in_norm = np.power(in_norm, -0.5)
+        in_norm = np.maximum(in_norm, 2. ** (-66))  # pylint: disable=assignment-from-no-return
+        in_norm = np.power(in_norm, -0.5)  # pylint: disable=assignment-from-no-return
         attrs = {}
         embed_input(attrs, 1, 'weights', in_norm)
         ScaleShiftOp.update_node_stat(node, attrs)

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 
 import logging as log
 
-import networkx as nx
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array, float_array, mark_input_bins, assign_dims_to_weights, \
     tf_window_op_pad_infer
 from mo.front.extractor import spatial_getter
 from mo.front.onnx.extractors.utils import get_backend_pad
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
 
@@ -31,12 +30,16 @@ from mo.utils.error import Error
 class Convolution(Op):
     op = 'Convolution'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
             'infer': __class__.infer,
+            'multiplication_transparent': True,
+            'multiplication_transparent_ports': [(0, 0), (1, 0)],
+            'in_ports_count': 3,
+            'out_ports_count': 1,
         }, attrs)
 
     def backend_attrs(self):
@@ -49,7 +52,10 @@ class Convolution(Op):
 
            ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0)))),
            ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1)))),
-           'output'
+           'output',
+           'pad_value',
+           'mode',
+           'input',
         ]
 
     def backend_attrs_v2(self):
@@ -176,6 +182,9 @@ class Convolution(Op):
             node['pad'] = np.array([[0, 0]] * len(input_shape), dtype=np.int64)
         node['pad_spatial_shape'] = node.pad[node.spatial_dims]
 
+        if not node.has_valid('output_padding'):
+            node['output_padding'] = np.full([len(input_shape)], 0, dtype=np.int64)
+
         input_spatial_shape = input_shape[node.spatial_dims]
         stride_spatial_shape = node.stride[node.spatial_dims]
 
@@ -185,9 +194,11 @@ class Convolution(Op):
         # Caffe do not use auto_pad attribute
         if node.has_valid('auto_pad') and not node.has_valid('output_spatial_shape'):
             node['pad_spatial_shape'], node['output_spatial_shape'] = tf_window_op_pad_infer(input_spatial_shape,
-                                                                                       kernel_extent,
-                                                                                       stride_spatial_shape,
-                                                                                       node.auto_pad)
+                                                                                             kernel_extent,
+                                                                                             stride_spatial_shape,
+                                                                                             node.auto_pad,
+                                                                                             node.type == 'Deconvolution')
+
             pad = np.zeros((len(input_shape), 2), dtype=np.int64)
             pad[node.spatial_dims] = node.pad_spatial_shape
             node.pad = pad
@@ -208,7 +219,7 @@ class Convolution(Op):
                         return
                 else:
                     output_padding = node.output_padding[node.spatial_dims] if node.has_valid('output_padding') else None
-                    if output_padding is not None:
+                    if output_padding is not None and any(output_padding):
                         pad_spatial_shape -= output_padding
                         for dim in range(len(pad_spatial_shape)):
                             node.pad_spatial_shape[dim][1] -= pad_spatial_shape[dim]
@@ -226,14 +237,14 @@ class Convolution(Op):
         if node.has_valid('get_group'):
             node['group'] = node.get_group(node)
         output_shape = np.full_like(input_shape, -1, dtype=np.int64)
-        output_shape[node.batch_dims] = input_shape[node.batch_dims]
-        output_shape[node.spatial_dims] = node.output_spatial_shape
+        output_shape[node.batch_dims] = input_shape[node.batch_dims]  # pylint: disable=unsupported-assignment-operation
+        output_shape[node.spatial_dims] = node.output_spatial_shape  # pylint: disable=unsupported-assignment-operation
 
         # For cases when output attribute wasn't set in extractor we should specify get_output_feature_dim attribute
         # this attribute should store lambda node: ... (check tf convolution extractor)
         if node.has_valid('get_output_feature_dim'):
             node['output'] = node.get_output_feature_dim(node)
-        output_shape[node.channel_dims] = node.output
+        output_shape[node.channel_dims] = node.output  # pylint: disable=unsupported-assignment-operation
         node['output_shape'] = output_shape
 
         for n in node.out_nodes():

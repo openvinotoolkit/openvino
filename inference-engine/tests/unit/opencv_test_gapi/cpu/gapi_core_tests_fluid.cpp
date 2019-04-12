@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,45 +101,23 @@ INSTANTIATE_TEST_CASE_P(ResizeTestFluid_U8, ResizeTestGAPI,
                         Combine(Values(CV_8UC1, CV_8UC3),
                                 Values(cv::INTER_LINEAR, cv::INTER_AREA),
                                 Values(TEST_RESIZE_PAIRS),
-                                Values(1), // error not more than 1 unit
-                                Values(cv::compile_args(CORE_FLUID))));
+                                Values(1))); // error not more than 1 unit
 
 INSTANTIATE_TEST_CASE_P(ResizeTestFluid_F32, ResizeTestGAPI,
                         Combine(Values(CV_32FC1, CV_32FC3),
                                 Values(cv::INTER_LINEAR, cv::INTER_AREA),
                                 Values(TEST_RESIZE_PAIRS),
-                                Values(0.015), // accuracy like ~1.5%
-                                Values(cv::compile_args(CORE_FLUID))));
+                                Values(0.015))); // accuracy like ~1.5%
 
-INSTANTIATE_TEST_CASE_P(Split2TestFluid, Split2TestGAPI,
-                        Combine(Values(CV_8U, CV_32F),
-                                Values(TEST_SIZES),
-                                Values(cv::compile_args(CORE_FLUID))));
+INSTANTIATE_TEST_CASE_P(SplitTestFluid, SplitTestGAPI,
+                        Combine(Values(2, 3, 4),
+                                Values(CV_8U, CV_32F),
+                                Values(TEST_SIZES)));
 
-INSTANTIATE_TEST_CASE_P(Split3TestFluid, Split3TestGAPI,
-                        Combine(Values(CV_8U, CV_32F),
-                                Values(TEST_SIZES),
-                                Values(cv::compile_args(CORE_FLUID))));
-
-INSTANTIATE_TEST_CASE_P(Split4TestFluid, Split4TestGAPI,
-                        Combine(Values(CV_8U, CV_32F),
-                                Values(TEST_SIZES),
-                                Values(cv::compile_args(CORE_FLUID))));
-
-INSTANTIATE_TEST_CASE_P(Merge2TestFluid, Merge2TestGAPI,
-                        Combine(Values(CV_8U, CV_32F),
-                                Values(TEST_SIZES),
-                                Values(cv::compile_args(CORE_FLUID))));
-
-INSTANTIATE_TEST_CASE_P(Merge3TestFluid, Merge3TestGAPI,
-                        Combine(Values(CV_8U, CV_32F),
-                                Values(TEST_SIZES),
-                                Values(cv::compile_args(CORE_FLUID))));
-
-INSTANTIATE_TEST_CASE_P(Merge4TestFluid, Merge4TestGAPI,
-                        Combine(Values(CV_8U, CV_32F),
-                                Values(TEST_SIZES),
-                                Values(cv::compile_args(CORE_FLUID))));
+INSTANTIATE_TEST_CASE_P(MergeTestFluid, MergeTestGAPI,
+                        Combine(Values(2, 3, 4),
+                                Values(CV_8U, CV_32F),
+                                Values(TEST_SIZES)));
 
 //----------------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -37,6 +37,6 @@ class FIFOQueueV2Extractor(FrontExtractorOp):
             if len(shape) == 3:
                 result_shapes.append(np.array([1, shape[0].size, shape[1].size, shape[2].size], dtype=np.int64))
             else:
-                result_shapes.append(np.array(shape, dtype=np.int64))
+                result_shapes.append(np.array([dim.size for dim in shape], dtype=np.int64))
         Op.update_node_stat(node, {'shapes': result_shapes, 'types': extracted_types})
         return __class__.enabled

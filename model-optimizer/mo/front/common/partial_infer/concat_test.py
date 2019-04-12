@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'kind': 'data', 'value': None},
                     'node_2': {'kind': 'data', 'value': None},
                     'concat': {'type': 'Concat', 'kind': 'op'},
-                    'node_3': {'kind': 'data'}
+                    'node_3': {'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
                     }
 
 
@@ -34,8 +35,10 @@ class TestConcatPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
-                             ('concat', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('concat', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': np.array([1, 3, 227, 227])},
                              'concat': {'axis': 2}
@@ -52,8 +55,10 @@ class TestConcatPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
-                             ('concat', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('concat', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': np.array([1, 3, 227, 227])},
                              'concat': {'axis': -1}
@@ -70,8 +75,10 @@ class TestConcatPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
-                             ('concat', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('concat', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': np.array([1, 2, 227, 227])},
                              'concat': {'axis': 2}
@@ -86,8 +93,10 @@ class TestConcatPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
-                             ('concat', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('concat', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': None},
                              'concat': {'axis': 2}

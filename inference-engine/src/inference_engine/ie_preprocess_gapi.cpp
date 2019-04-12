@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,27 +72,43 @@ inline int get_cv_depth(const InferenceEngine::TensorDesc &ie_desc) {
     }
 }
 
-std::vector<cv::gapi::own::Mat> bind_to_blob(Blob::Ptr &blob) {
+std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(Blob::Ptr &blob, int batch_size) {
+    if (batch_size <= 0) {
+        return {};
+    }
+
     const auto& ie_desc     = blob->getTensorDesc();
     const auto& ie_desc_blk = ie_desc.getBlockingDesc();
     const auto     desc     = G::decompose(blob);
     const auto cv_depth     = get_cv_depth(ie_desc);
     const auto stride       = desc.s.H*blob->element_size();
     const auto planeSize    = cv::gapi::own::Size(desc.d.W, desc.d.H);
+    // Note: operating with strides (desc.s) rather than dimensions (desc.d) which is vital for ROI
+    //       blobs (data buffer is shared but dimensions are different due to ROI != original image)
+    const auto batch_offset = desc.s.N * blob->element_size();
 
+    std::vector<std::vector<cv::gapi::own::Mat>> result(batch_size);
 
-    uint8_t* ptr = static_cast<uint8_t*>(blob->buffer());
-    ptr += blob->element_size()*ie_desc_blk.getOffsetPadding();
+    uint8_t* blob_ptr = static_cast<uint8_t*>(blob->buffer());
+    blob_ptr += blob->element_size()*ie_desc_blk.getOffsetPadding();
 
-    std::vector<cv::gapi::own::Mat> result;
-    if (blob->layout() == NHWC) {
-        result.emplace_back(planeSize.height, planeSize.width, CV_MAKETYPE(cv_depth, desc.d.C), ptr, stride);
-    } else {  // NCHW
-        const auto planeType = CV_MAKETYPE(cv_depth, 1);
-        for (size_t ch = 0; ch < desc.d.C; ch++) {
-            cv::gapi::own::Mat plane(planeSize.height, planeSize.width, planeType, ptr + ch*desc.s.C*blob->element_size(), stride);
-            result.emplace_back(plane);
+    for (int i = 0; i < batch_size; ++i) {
+        uint8_t* curr_data_ptr = blob_ptr + i * batch_offset;
+
+        std::vector<cv::gapi::own::Mat> planes;
+        if (blob->layout() == NHWC) {
+            planes.emplace_back(planeSize.height, planeSize.width, CV_MAKETYPE(cv_depth, desc.d.C),
+                curr_data_ptr, stride);
+        } else {  // NCHW
+            const auto planeType = CV_MAKETYPE(cv_depth, 1);
+            for (size_t ch = 0; ch < desc.d.C; ch++) {
+                cv::gapi::own::Mat plane(planeSize.height, planeSize.width, planeType,
+                    curr_data_ptr + ch*desc.s.C*blob->element_size(), stride);
+                planes.emplace_back(plane);
+            }
         }
+
+        result[i] = std::move(planes);
     }
     return result;
 }
@@ -203,13 +219,13 @@ InferenceEngine::PreprocEngine::Update InferenceEngine::PreprocEngine::needUpdat
 
     BlobDesc last_in;
     BlobDesc last_out;
-    ResizeAlgorithm last_algo;
+    ResizeAlgorithm last_algo = ResizeAlgorithm::NO_RESIZE;
     std::tie(last_in, last_out, last_algo) = *_lastCall;
 
     CallDesc newCall = newCallOrig;
     BlobDesc new_in;
     BlobDesc new_out;
-    ResizeAlgorithm new_algo;
+    ResizeAlgorithm new_algo = ResizeAlgorithm::NO_RESIZE;
     std::tie(new_in, new_out, new_algo) = newCall;
 
     // Declare two empty vectors per each call
@@ -259,7 +275,8 @@ InferenceEngine::PreprocEngine::Update InferenceEngine::PreprocEngine::needUpdat
     return Update::NOTHING;
 }
 
-bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm, bool omp_serial) {
+bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+        const ResizeAlgorithm &algorithm, bool omp_serial, int batch_size) {
     static const bool NO_GAPI = [](const char *str) -> bool {
         std::string var(str ? str : "");
         return var == "N" || var == "NO" || var == "OFF" || var == "0";
@@ -280,6 +297,20 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
         in_desc = G::decompose(inBlob),
         out_desc = G::decompose(outBlob);
 
+    // according to the IE's current design, input blob batch size _must_ match networks's expected
+    // batch size, even if the actual processing batch size (set on infer request) is different.
+    if (in_desc.d.N != out_desc.d.N) {
+        THROW_IE_EXCEPTION  << "Input blob batch size is invalid: (input blob) "
+                            << in_desc.d.N << " != " << out_desc.d.N << " (expected by network)";
+    }
+
+    // sanity check batch_size
+    if (batch_size > in_desc.d.N || batch_size > out_desc.d.N) {
+        THROW_IE_EXCEPTION  << "Provided batch size is invaid: (provided)"
+                            << batch_size << " > " << out_desc.d.N << " (expected by network)";
+    }
+
+    // CallDesc doesn't change within batch
     CallDesc thisCall = CallDesc{ BlobDesc{ in_desc_ie.getPrecision(),
                                             inBlob->layout(),
                                             in_desc_ie.getDims() },
@@ -288,9 +319,6 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
                                             out_desc_ie.getDims() },
                                   algorithm };
     const Update update = needUpdate(thisCall);
-
-    std::vector<cv::gapi::own::Mat> input_plane_mats  = bind_to_blob(inBlob);
-    std::vector<cv::gapi::own::Mat> output_plane_mats = bind_to_blob(outBlob);
 
     Opt<cv::GComputation> _lastComputation;
     if (Update::REBUILD == update || Update::RESHAPE == update) {
@@ -307,6 +335,8 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
                                                                   get_cv_depth(in_desc_ie)));
         }
     }
+    auto batched_input_plane_mats  = bind_to_blob(inBlob, batch_size);
+    auto batched_output_plane_mats = bind_to_blob(outBlob, batch_size);
 
     const int thread_num =
             #if IE_THREAD == IE_THREAD_OMP
@@ -323,7 +353,7 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
     // that an actual number of threads will be as assumed, so it
     // possible that all slices are processed by the same thread.
     //
-    parallel_nt_static(thread_num , [&, this](int slice_n, const int total_slices){
+    parallel_nt_static(thread_num , [&, this](int slice_n, const int total_slices) {
         IE_PROFILING_AUTO_SCOPE_TASK(_perf_exec_tile);
 
         auto& compiled = _lastComp[slice_n];
@@ -331,21 +361,28 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
             //  need to compile (or reshape) own object for a particular ROI
             IE_PROFILING_AUTO_SCOPE_TASK(_perf_graph_compiling);
 
-            auto meta_of = [](std::vector<cv::gapi::own::Mat> const& ins){
-                std::vector<cv::GMetaArg> rslt{ins.size()}; rslt.clear();
-                for (auto& m : ins) {
-                    rslt.emplace_back(descr_of(m));
-                }
-                return rslt;
-            };
-
             using cv::gapi::own::Rect;
 
-            const auto lines_per_thread = output_plane_mats[0].rows / total_slices;
-            const auto remainder = output_plane_mats[0].rows - total_slices * lines_per_thread;
-            const auto roi_height = lines_per_thread + ((slice_n == total_slices -1) ?  remainder : 0);
+            // current design implies all images in batch are equal
+            const auto& input_plane_mats = batched_input_plane_mats[0];
+            const auto& output_plane_mats = batched_output_plane_mats[0];
 
-            auto roi = Rect{0, slice_n * lines_per_thread, output_plane_mats[0].cols, roi_height};
+            auto lines_per_thread = output_plane_mats[0].rows / total_slices;
+            const auto remainder = output_plane_mats[0].rows - total_slices * lines_per_thread;
+
+            // remainder shows how many threads must calculate 1 additional row. now these additions
+            // must also be addressed in rect's Y coordinate:
+            int roi_y = 0;
+            if (slice_n < remainder) {
+                lines_per_thread++;  // 1 additional row
+                roi_y = slice_n * lines_per_thread;  // all previous rois have lines+1 rows
+            } else {
+                // remainder rois have lines+1 rows, the rest prior to slice_n have lines rows
+                roi_y =
+                    remainder * (lines_per_thread + 1) + (slice_n - remainder) * lines_per_thread;
+            }
+
+            auto roi = Rect{0, roi_y, output_plane_mats[0].cols, lines_per_thread};
             std::vector<Rect> rois(output_plane_mats.size(), roi);
 
             // TODO: make a ROI a runtime argument to avoid
@@ -353,20 +390,25 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
             auto args = cv::compile_args(gapi::preprocKernels(), cv::GFluidOutputRois{std::move(rois)});
             if (Update::REBUILD == update) {
                 auto& computation = _lastComputation.value();
-                compiled = computation.compile(meta_of(input_plane_mats), std::move(args));
+                compiled = computation.compile(descr_of(input_plane_mats), std::move(args));
             } else {
                 IE_ASSERT(compiled);
-                compiled.reshape(meta_of(input_plane_mats), std::move(args));
+                compiled.reshape(descr_of(input_plane_mats), std::move(args));
             }
         }
 
-        cv::GRunArgs call_ins;
-        cv::GRunArgsP call_outs;
-        for (const auto & m : input_plane_mats) { call_ins.emplace_back(m);}
-        for (auto & m : output_plane_mats) { call_outs.emplace_back(&m);}
+        for (int i = 0; i < batch_size; ++i) {
+            const std::vector<cv::gapi::own::Mat>& input_plane_mats = batched_input_plane_mats[i];
+            std::vector<cv::gapi::own::Mat>& output_plane_mats = batched_output_plane_mats[i];
 
-        IE_PROFILING_AUTO_SCOPE_TASK(_perf_exec_graph);
-        compiled(std::move(call_ins), std::move(call_outs));
+            cv::GRunArgs call_ins;
+            cv::GRunArgsP call_outs;
+            for (const auto & m : input_plane_mats) { call_ins.emplace_back(m);}
+            for (auto & m : output_plane_mats) { call_outs.emplace_back(&m);}
+
+            IE_PROFILING_AUTO_SCOPE_TASK(_perf_exec_graph);
+            compiled(std::move(call_ins), std::move(call_outs));
+        }
     });
 
     return true;

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  limitations under the License.
 """
 
-import networkx as nx
-
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
@@ -26,12 +25,11 @@ class Output(Op):
     """
     op = 'OpOutput'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict = None):
+    def __init__(self, graph: Graph, attrs: dict = None):
         super().__init__(graph, {
-            'type': __class__.op,
             'op': __class__.op,
-            'is_output': True,
-            'infer': None,
+            'infer': lambda x: None,
             'value': None,
             'data_type': None,
+            'in_ports_count': 1,
         }, attrs)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,11 @@
 #include <fstream>
 #include <streambuf>
 #include <climits>
+
+#ifdef _WIN32
+# include <windows.h>
+#endif
+
 #include "simple_math.h"
 
 using namespace InferenceEngine;

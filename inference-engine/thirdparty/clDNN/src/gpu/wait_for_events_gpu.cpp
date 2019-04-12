@@ -36,6 +36,11 @@ public:
         return events_waiter.run(events);
     }
 
+    bool validate(const primitive_inst&) const override
+    {
+        return true;
+    }
+
     static primitive_impl* create_data(const data_node& data)
     {
         return new wait_for_events_gpu(data);

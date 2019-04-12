@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "ie_preprocess_data_sse42.hpp"
 #endif
 #include "ie_preprocess_gapi.hpp"
+#include "debug.h"
 
 #include <algorithm>
 
@@ -751,7 +752,8 @@ Blob::Ptr PreProcessData::getRoiBlob() const {
     return _roiBlob;
 }
 
-void PreProcessData::execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm, bool serial) {
+void PreProcessData::execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm, bool serial,
+        int batchSize) {
     IE_PROFILING_AUTO_SCOPE_TASK(perf_preprocessing)
 
     if (algorithm == NO_RESIZE) {
@@ -762,11 +764,26 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorith
         THROW_IE_EXCEPTION << "Input pre-processing is called without ROI blob set";
     }
 
+    if (batchSize == 0) {
+        THROW_IE_EXCEPTION << "Input pre-processing is called with invalid batch size "
+                           << batchSize;
+    }
+
+    if (batchSize < 0) {
+        // if batch_size is unspecified, process the whole input blob
+        batchSize = static_cast<int>(_roiBlob->getTensorDesc().getDims()[0]);
+    }
+
     if (!_preproc) {
         _preproc.reset(new PreprocEngine);
     }
-    if (_preproc->preprocessWithGAPI(_roiBlob, outBlob, algorithm, serial)) {
+    if (_preproc->preprocessWithGAPI(_roiBlob, outBlob, algorithm, serial, batchSize)) {
         return;
+    }
+
+    if (batchSize > 1) {
+        THROW_IE_EXCEPTION <<   "Batch pre-processing is unsupported in this mode. "
+                                "Use default pre-processing instead to process batches.";
     }
 
     Blob::Ptr res_in, res_out;
@@ -812,6 +829,23 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorith
         IE_PROFILING_AUTO_SCOPE_TASK(perf_reorder_after)
         blob_copy(_tmp2, outBlob);
     }
+}
+
+void PreProcessData::isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) {
+    auto &src_dims = src->getTensorDesc().getDims();
+    auto &dst_dims = dst->getTensorDesc().getDims();
+
+    if (src_dims.size() != dst_dims.size())
+        THROW_IE_EXCEPTION << "Preprocessing is not applicable. Source and destination blobs have different "
+                              "number of dimensions";
+
+    if (src_dims.size() != 4)
+        THROW_IE_EXCEPTION << "Preprocessing is not applicable. Only 4D tensors are supported.";
+
+    if (src_dims[0] != dst_dims[0] || src_dims[1] != dst_dims[1])
+        THROW_IE_EXCEPTION << "Preprocessing is not applicable. Wrong shape. Network expected 4D input tensor with "
+                              "shape [" << dst_dims[0] << "," << dst_dims[1] <<",H,W] but provided tensor has "
+                              "shape "  << details::dumpVec(src_dims) << ".";
 }
 
 }  // namespace InferenceEngine

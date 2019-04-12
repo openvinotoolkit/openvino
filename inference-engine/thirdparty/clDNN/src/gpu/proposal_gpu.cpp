@@ -16,7 +16,6 @@
 
 #include "proposal_inst.h"
 #include "kernel.h"
-#include "kd_selector.h"
 #include "implementation_map.h"
 #include "network_impl.h"
 #include "engine_impl.h"
@@ -38,7 +37,7 @@ namespace {
     *                                                                          *
     ****************************************************************************/
 
-    inline const float & clamp(const float & v, const float & lower, const float & upper)
+    inline const float& clamp(const float & v, const float & lower, const float & upper)
     {
         return std::max(lower, std::min(v, upper));
     }
@@ -54,22 +53,22 @@ namespace {
     {
         float x0, y0, x1, y1;
 
-        inline float area() const 
-        { 
-            return std::max(0.f, y1 - y0 + 1.f) * std::max(0.f, x1 - x0 + 1.f); 
+        inline float area() const
+        {
+            return std::max(0.f, y1 - y0 + 1.f) * std::max(0.f, x1 - x0 + 1.f);
         }
     };
 
     struct delta_t { float shift_x, shift_y, log_w, log_h; };
 
-    struct proposal_t 
-    { 
+    struct proposal_t
+    {
         proposal_t() = default;
         proposal_t(const roi_t& r, const float c, const size_t& o) : roi(r), confidence(c), ord(o) {}
 
-        roi_t roi; 
-        float confidence; 
-        size_t ord; 
+        roi_t roi;
+        float confidence;
+        size_t ord;
     };
 
     inline float float_read_helper(const float* mem)
@@ -124,7 +123,8 @@ namespace {
             int img_w,
             int img_h,
             float coordinates_offset,
-            bool initial_clip)
+            bool initial_clip,
+            bool clip_before_nms)
     {
         float x0 = box.start_x + anchor_shift_x;
         float y0 = box.start_y + anchor_shift_y;
@@ -149,10 +149,20 @@ namespace {
         const float half_pred_w = std::exp(delta.log_w) * anchor_w * .5f;
         const float half_pred_h = std::exp(delta.log_h) * anchor_h * .5f;
 
-        return { clamp(pred_center_x - half_pred_w, 0.f, img_w - coordinates_offset),
-                 clamp(pred_center_y - half_pred_h, 0.f, img_h - coordinates_offset),
-                 clamp(pred_center_x + half_pred_w, 0.f, img_w - coordinates_offset),
-                 clamp(pred_center_y + half_pred_h, 0.f, img_h - coordinates_offset) };
+        float new_x0 = pred_center_x - half_pred_w;
+        float new_y0 = pred_center_y - half_pred_h;
+        float new_x1 = pred_center_x + half_pred_w;
+        float new_y1 = pred_center_y + half_pred_h;
+
+        if (clip_before_nms)
+        {
+            new_x0 = clamp(new_x0, 0.f, img_w - coordinates_offset);
+            new_y0 = clamp(new_y0, 0.f, img_h - coordinates_offset);
+            new_x1 = clamp(new_x1, 0.f, img_w - coordinates_offset);
+            new_y1 = clamp(new_y1, 0.f, img_h - coordinates_offset);
+        }
+
+        return { new_x0, new_y0, new_x1, new_y1 };
     }
 
     std::vector<roi_t> perform_nms(
@@ -242,11 +252,13 @@ struct proposal_gpu : typed_primitive_impl<proposal>
 
         bool swap_xy = instance.argument.swap_xy;
         bool initial_clip = instance.argument.initial_clip;
+        bool clip_before_nms = instance.argument.clip_before_nms;
+        bool clip_after_nms = instance.argument.clip_after_nms;
         float coordinates_offset = instance.argument.coordinates_offset;
         float box_coordinate_scale = instance.argument.box_coordinate_scale;
         float box_size_scale = instance.argument.box_size_scale;
 
-        if (image_info.get_layout().count() == 4)
+        if (image_info.get_layout().size.feature[0] == 4)
         {
             img_w = static_cast<int>(float_read_helper(image_info_mem + proposal_inst::image_info_width_index) + EPSILON);
             img_h = static_cast<int>(float_read_helper(image_info_mem + proposal_inst::image_info_height_index) + EPSILON);
@@ -262,13 +274,13 @@ struct proposal_gpu : typed_primitive_impl<proposal>
             scaled_min_bbox_size *= img_z;
 
             min_bbox_x = scaled_min_bbox_size;
-            if (image_info.get_layout().count() > proposal_inst::image_info_scale_min_bbox_x)
+            if (image_info.get_layout().size.feature[0] > proposal_inst::image_info_scale_min_bbox_x)
             {
                 min_bbox_x = static_cast<int>(min_bbox_x * float_read_helper(image_info_mem + proposal_inst::image_info_scale_min_bbox_x));
             }
 
             min_bbox_y = scaled_min_bbox_size;
-            if (image_info.get_layout().count() > proposal_inst::image_info_scale_min_bbox_y)
+            if (image_info.get_layout().size.feature[0] > proposal_inst::image_info_scale_min_bbox_y)
             {
                 min_bbox_y = static_cast<int>(min_bbox_y * float_read_helper(image_info_mem + proposal_inst::image_info_scale_min_bbox_y));
             }
@@ -291,67 +303,80 @@ struct proposal_gpu : typed_primitive_impl<proposal>
         const dtype* cls_scores_mem = cls_scores_ptr.data();
         const dtype* bbox_pred_mem  = bbox_pred_ptr.data();
 
-        std::vector<proposal_t> sorted_proposals_confidence;
-        sorted_proposals_confidence.reserve(fm_h * fm_w * anchors_num);
-        for (int y = 0; y < fm_h; ++y)
+        for (int n = 0; n < score_size.batch[0]; n++)
         {
-            for (int x = 0; x < fm_w; ++x)
+            std::vector<proposal_t> sorted_proposals_confidence;
+            size_t num_proposals = fm_h * fm_w * anchors_num;
+            sorted_proposals_confidence.reserve(num_proposals);
+            for (int y = 0; y < fm_h; ++y)
             {
-                const int anchor_shift_x = (swap_xy ? y : x) * instance.argument.feature_stride;
-                const int anchor_shift_y = (swap_xy ? x : y) * instance.argument.feature_stride;
-                const int location_index = y * fm_w + x;
-
-                // we assume proposals are grouped by window location
-                for (unsigned int anchor_index = 0; anchor_index < anchors_num ; anchor_index++)
+                for (int x = 0; x < fm_w; ++x)
                 {
-                    float dx0 = float_read_helper(bbox_pred_mem + location_index + fm_sz * (anchor_index * 4 + 0)) / box_coordinate_scale;
-                    float dy0 = float_read_helper(bbox_pred_mem + location_index + fm_sz * (anchor_index * 4 + 1)) / box_coordinate_scale;
-                    float dx1 = float_read_helper(bbox_pred_mem + location_index + fm_sz * (anchor_index * 4 + 2)) / box_size_scale;
-                    float dy1 = float_read_helper(bbox_pred_mem + location_index + fm_sz * (anchor_index * 4 + 3)) / box_size_scale;
+                    const int anchor_shift_x = (swap_xy ? y : x) * instance.argument.feature_stride;
+                    const int anchor_shift_y = (swap_xy ? x : y) * instance.argument.feature_stride;
+                    const int location_index = y * fm_w + x;
 
-                    delta_t bbox_delta { dx0, dy0, dx1, dy1 };
+                    // we assume proposals are grouped by window location
+                    for (unsigned int anchor_index = 0; anchor_index < anchors_num ; anchor_index++)
+                    {
+                        float dx0 = float_read_helper(bbox_pred_mem + n*num_proposals*4 + location_index + fm_sz * (anchor_index * 4 + 0)) / box_coordinate_scale;
+                        float dy0 = float_read_helper(bbox_pred_mem + n*num_proposals*4 + location_index + fm_sz * (anchor_index * 4 + 1)) / box_coordinate_scale;
+                        float dx1 = float_read_helper(bbox_pred_mem + n*num_proposals*4 + location_index + fm_sz * (anchor_index * 4 + 2)) / box_size_scale;
+                        float dy1 = float_read_helper(bbox_pred_mem + n*num_proposals*4 + location_index + fm_sz * (anchor_index * 4 + 3)) / box_size_scale;
 
-                    const roi_t& roi = gen_bbox(anchors[anchor_index], bbox_delta, anchor_shift_x, anchor_shift_y,
-                                                img_w, img_h, coordinates_offset, initial_clip);
+                        delta_t bbox_delta { dx0, dy0, dx1, dy1 };
 
-                    int bbox_w = (int)(roi.x1 - roi.x0 + coordinates_offset);
-                    int bbox_h = (int)(roi.y1 - roi.y0 + coordinates_offset);
+                        const roi_t& roi = gen_bbox(anchors[anchor_index], bbox_delta, anchor_shift_x, anchor_shift_y,
+                                                    img_w, img_h, coordinates_offset, initial_clip, clip_before_nms);
 
-                    unsigned int scores_index = location_index + fm_sz * (anchor_index + (unsigned int)anchors_num);
-                    float proposal_confidence = (min_bbox_x <= bbox_w)* (min_bbox_y <= bbox_h) * float_read_helper(cls_scores_mem + scores_index);
-                    sorted_proposals_confidence.emplace_back(roi, proposal_confidence, sorted_proposals_confidence.size());
+                        int bbox_w = (int)(roi.x1 - roi.x0 + coordinates_offset);
+                        int bbox_h = (int)(roi.y1 - roi.y0 + coordinates_offset);
+
+                        size_t scores_index = n*num_proposals * 2 + location_index + fm_sz * (anchor_index + anchors_num);
+                        float proposal_confidence = (min_bbox_x <= bbox_w)* (min_bbox_y <= bbox_h) * float_read_helper(cls_scores_mem + scores_index);
+                        sorted_proposals_confidence.emplace_back(roi, proposal_confidence, sorted_proposals_confidence.size());
+                    }
                 }
             }
-        }
 
-        size_t pre_nms = std::min(instance.argument.pre_nms_topn, (int)sorted_proposals_confidence.size());
-        sort_and_keep_n_items(sorted_proposals_confidence, pre_nms);
-        const std::vector<roi_t>& res = perform_nms(sorted_proposals_confidence, instance.argument.iou_threshold,
-                                                    instance.argument.post_nms_topn, coordinates_offset);
+            size_t pre_nms = std::min(instance.argument.pre_nms_topn, (int)sorted_proposals_confidence.size());
+            sort_and_keep_n_items(sorted_proposals_confidence, pre_nms);
+            std::vector<roi_t> res = perform_nms(sorted_proposals_confidence, instance.argument.iou_threshold,
+                                                 instance.argument.post_nms_topn, coordinates_offset);
 
-        auto& output = instance.output_memory();
+            auto& output = instance.output_memory();
 
-        mem_lock<dtype> output_ptr{ output };
-        dtype* top_data = output_ptr.data();
+            mem_lock<dtype> output_ptr{ output };
+            dtype* top_data = output_ptr.data() + n*instance.argument.post_nms_topn*5;
 
-        size_t res_num_rois = res.size();
+            size_t res_num_rois = res.size();
 
-        for (size_t i = 0; i < res_num_rois; ++i)
-        {
-            float_write_helper(top_data + 5 * i + 0, 0.0f);
-            float_write_helper(top_data + 5 * i + 1, res[i].x0);
-            float_write_helper(top_data + 5 * i + 2, res[i].y0);
-            float_write_helper(top_data + 5 * i + 3, res[i].x1);
-            float_write_helper(top_data + 5 * i + 4, res[i].y1);
-        }
 
-        for (size_t i = res_num_rois; i < (size_t)instance.argument.post_nms_topn; i++)
-        {
-            float_write_helper(top_data + 5*i + 0, -1.0f);
-            float_write_helper(top_data + 5*i + 1,  0.0f);
-            float_write_helper(top_data + 5*i + 2,  0.0f);
-            float_write_helper(top_data + 5*i + 3,  0.0f);
-            float_write_helper(top_data + 5*i + 4,  0.0f);
+            for (size_t i = 0; i < res_num_rois; ++i)
+            {
+                if (clip_after_nms)
+                {
+                    res[i].x0 = clamp(res[i].x0, 0.0f, float(img_w));
+                    res[i].y0 = clamp(res[i].y0, 0.0f, float(img_h));
+                    res[i].x1 = clamp(res[i].x1, 0.0f, float(img_w));
+                    res[i].y1 = clamp(res[i].y1, 0.0f, float(img_h));
+                }
+
+                float_write_helper(top_data + 5 * i + 0, float(n));
+                float_write_helper(top_data + 5 * i + 1, res[i].x0 / (instance.argument.normalize ? img_w : 1.0f));
+                float_write_helper(top_data + 5 * i + 2, res[i].y0 / (instance.argument.normalize ? img_h : 1.0f));
+                float_write_helper(top_data + 5 * i + 3, res[i].x1 / (instance.argument.normalize ? img_w : 1.0f));
+                float_write_helper(top_data + 5 * i + 4, res[i].y1 / (instance.argument.normalize ? img_h : 1.0f));
+            }
+
+            for (size_t i = res_num_rois; i < (size_t)instance.argument.post_nms_topn; i++)
+            {
+                float_write_helper(top_data + 5*i + 0, -1.0f);
+                float_write_helper(top_data + 5*i + 1,  0.0f);
+                float_write_helper(top_data + 5*i + 2,  0.0f);
+                float_write_helper(top_data + 5*i + 3,  0.0f);
+                float_write_helper(top_data + 5*i + 4,  0.0f);
+            }
         }
     }
 
@@ -380,17 +405,15 @@ struct proposal_gpu : typed_primitive_impl<proposal>
     static primitive_impl* create(const proposal_node& arg)
     {
         const layout & l = arg.image_info().get_output_layout();
-        const size_t count = l.size.count();
+        const size_t count = static_cast<size_t>(l.size.feature[0]);
 
         //Supported image_info sizes and components meaning:
         // - image_info[3] = { img_height, img_width, img_depth }
         // - image_info[4] = { img_height, img_width, scale_min_bbox_y, scale_min_bbox_x }
         // - image_info[6] = { img_height, img_width, img_depth, scale_min_bbox_y, scale_min_bbox_x, scale_depth_index }
-        if ((size_t)l.size.feature[0] != count || (count != 3 && count != 4 && count != 6)) {
+        if (count != 3 && count != 4 && count != 6) {
             CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
         }
-        CLDNN_ERROR_BOOL(arg.id(), "Batching", !hasSingleBatchOutput(arg.bbox_pred()), "Proposal doesn't support batching.");
-        CLDNN_ERROR_BOOL(arg.id(), "Batching", !hasSingleBatchOutput(arg.cls_score()), "Proposal doesn't support batching.");
 
         return new proposal_gpu(arg);
     }

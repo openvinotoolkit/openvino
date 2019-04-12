@@ -21,6 +21,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdint.h>
+
+#if defined(__x86_64__) || defined(_M_X64)
+#define MKLDNN_X86_64
+#endif
 
 #define MSAN_ENABLED 0
 #if defined(__has_feature)
@@ -50,15 +55,8 @@ static_assert(sizeof(void*) == 8, "Intel(R) MKL-DNN supports 64 bit only");
 
 #define IMPLICATION(cause, effect) (!(cause) || !!(effect))
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__GNUC__)
 #define __PRETTY_FUNCTION__ __FUNCSIG__
-#endif
-
-#ifdef __APPLE__
-// older XCode doesn't support thread_local
-#define THREAD_LOCAL __thread
-#else
-#define THREAD_LOCAL thread_local
 #endif
 
 namespace utils {
@@ -181,6 +179,9 @@ inline typename remove_reference<T>::type rnd_dn(const T a, const U b) {
     return (a / b) * b;
 }
 
+template <typename T> T *align_ptr(T *ptr, uintptr_t alignment)
+{ return (T *)(((uintptr_t)ptr + alignment - 1) & ~(alignment - 1)); }
+
 template <typename T, typename U, typename V>
 inline U this_block_size(const T offset, const U max, const V block_size) {
     assert(offset < max);
@@ -245,6 +246,24 @@ inline T pick(size_t i, const T &x0, Args &&... args) {
     return i == 0 ? x0 : pick(i - 1, utils::forward<Args>(args)...);
 }
 
+template <typename T>
+T pick_by_prop_kind(prop_kind_t prop_kind, const T &val_fwd_inference,
+        const T &val_fwd_training, const T &val_bwd_d, const T &val_bwd_w) {
+    switch (prop_kind) {
+    case prop_kind::forward_inference: return val_fwd_inference;
+    case prop_kind::forward_training: return val_fwd_training;
+    case prop_kind::backward_data: return val_bwd_d;
+    case prop_kind::backward_weights: return val_bwd_w;
+    default: assert(!"unsupported prop_kind");
+    }
+    return T();
+}
+
+template <typename T>
+T pick_by_prop_kind(prop_kind_t prop_kind,
+        const T &val_fwd, const T &val_bwd_d, const T &val_bwd_w)
+{ return pick_by_prop_kind(prop_kind, val_fwd, val_fwd, val_bwd_d, val_bwd_w); }
+
 template <typename Telem, size_t Tdims>
 struct array_offset_calculator {
     template <typename... Targs>
@@ -287,6 +306,7 @@ private:
 
 void *malloc(size_t size, int alignment);
 void free(void *p);
+int32_t mkldnn_fetch_and_add(int32_t *dst, int32_t val);
 
 struct c_compatible {
     enum { default_alignment = 64 };

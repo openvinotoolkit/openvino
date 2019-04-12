@@ -28,9 +28,9 @@ namespace kernel_selector
         virtual ~ActivationKernelOpt() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         static const int NUM_COLS_WI = 4;
         virtual DispatchData SetDefault(const activation_params& arg) const override;
         virtual bool Validate(const Params& p, const optional_params& o) const override;

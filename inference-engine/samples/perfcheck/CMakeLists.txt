@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,7 +25,6 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(${TARGET_NAME}
-        PRIVATE "-Weverything"
         PRIVATE "-Wno-c++98-compat"
         PRIVATE "-Wno-global-constructors"
         PRIVATE "-Wno-missing-variable-declarations"

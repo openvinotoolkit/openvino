@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 
 
 #ifndef GFLUIDUTILS_HPP
@@ -10,7 +10,7 @@
 
 #include <limits>
 #include <type_traits>
-#include <opencv2/gapi/util/compiler_hints.hpp> //UNUSED
+#include <opencv2/gapi/util/compiler_hints.hpp> //suppress_unused_warning
 #include <opencv2/gapi/own/saturate.hpp>
 
 namespace cv {

@@ -30,6 +30,8 @@ primitive_type_id select_type_id()
 
 layout select_inst::calc_output_layout(select_node const& node)
 {
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for select_node!");
     return node.input().get_non_padded_output_layout();
 }
 

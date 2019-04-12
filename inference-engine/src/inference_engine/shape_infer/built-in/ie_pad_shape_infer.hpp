@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ class PadShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit PadShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -28,7 +28,7 @@ public:
         PadLayer padLayer(lp);
         padLayer.params = params;
         padLayer.type = _type;
-        validate(&padLayer, inShapes, params, blobs);
+        validate(&padLayer, inBlobs, params, blobs);
 
         outShapes.push_back(inShapes[0]);
         for (size_t i = 0; i < outShapes[0].size(); i++) {

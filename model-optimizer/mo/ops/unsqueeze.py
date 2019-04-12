@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.squeeze import tf_squeeze_infer
 from mo.ops.op import Op, PermuteAttrs
 
 
@@ -29,11 +28,10 @@ class Unsqueeze(Op):
             'kind': 'op',
             'type': 'Reshape',
             'op': __class__.op,
+            'in_ports_count': 2,
+            'out_ports_count': 1,
             'infer': __class__.infer
         }, attrs)
-
-    def supported_attrs(self):
-        return [('dim', lambda node: ', '.join(map(str, node['dim'])))]
 
     @staticmethod
     def infer(node):

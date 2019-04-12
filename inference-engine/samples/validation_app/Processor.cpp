@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,8 @@ using namespace InferenceEngine;
 Processor::Processor(const std::string& flags_m, const std::string& flags_d, const std::string& flags_i, int flags_b,
         InferencePlugin plugin, CsvDumper& dumper, const std::string& approach, PreprocessingOptions preprocessingOptions)
 
-    : targetDevice(flags_d), modelFileName(flags_m), imagesPath(flags_i), batch(flags_b),
-      plugin(plugin), dumper(dumper), approach(approach), preprocessingOptions(preprocessingOptions) {
+    : modelFileName(flags_m), targetDevice(flags_d), imagesPath(flags_i), batch(flags_b),
+      preprocessingOptions(preprocessingOptions), dumper(dumper), plugin(plugin), approach(approach) {
 
     // --------------------Load network (Generated xml/bin files)-------------------------------------------
     slog::info << "Loading network files" << slog::endl;

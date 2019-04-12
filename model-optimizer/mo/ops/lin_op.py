@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,32 +17,40 @@
 import networkx as nx
 import numpy as np
 
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 from mo.front.common.partial_infer.eltwise import eltwise_infer
 
 
 class LinOp(Op):
     enabled = False
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'can_be_bias': True,
             'can_be_fused': True,
             'type': 'Eltwise',
             'infer': None,
+            'in_ports_count': 2,
+            'out_ports_count': 1,
         }, attrs)
 
     def supported_attrs(self):
         return ['operation']
 
+
 class Add(LinOp):
     enabled = False
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    op = 'Add'
+
+    def __init__(self, graph: Graph, attrs: dict):
         attrs.update({'op': 'Add', 'operation': 'sum', 'infer': lambda node: eltwise_infer(node, lambda a, b: a + b)})
         super().__init__(graph, attrs)
 
 
 class Mul(LinOp):
     enabled = False
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    op = 'Mul'
+
+    def __init__(self, graph: Graph, attrs: dict):
         attrs.update({'op': 'Mul', 'operation': 'mul', 'infer': lambda node: eltwise_infer(node, lambda a, b: a*b)})
         super().__init__(graph, attrs)

@@ -15,7 +15,6 @@
 */
 
 #include "fully_connected_kernel_fb_oi_b8_ref.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector 
 {
@@ -35,17 +34,17 @@ namespace kernel_selector
         return k;
     }
 
-    std::unique_ptr<FullyConnected_fb_oi_b8_ref::DispatchData> FullyConnected_fb_oi_b8_ref::SetDefault(const fully_connected_params& arg) const
+    FullyConnected_fb_oi_b8_ref::DispatchData FullyConnected_fb_oi_b8_ref::SetDefault(const fully_connected_params& arg, int ) const
     {
         auto kd = FullyConnectedKernelBase::SetDefault(arg);
 
         const auto& output = arg.output;
-        kd->gws0 = output.Batch().v;
-        kd->gws1 = output.LogicalSize() / kd->gws0;
-        kd->lws0 = 8;
-        kd->lws1 = 1;
+        kd.gws0 = output.Batch().v;
+        kd.gws1 = output.LogicalSize() / kd.gws0;
+        kd.lws0 = 8;
+        kd.lws1 = 1;
 
-        return std::move(kd);
+        return kd;
     }
 
     bool FullyConnected_fb_oi_b8_ref::Validate(const Params& p, const optional_params& o) const
@@ -67,6 +66,15 @@ namespace kernel_selector
 
     KernelsData FullyConnected_fb_oi_b8_ref::GetKernelsData(const Params& params, const optional_params& optParams) const
     {
-        return GetCommonKernelsData(params, optParams, DataLayout::fb, { WeightsLayout::oi }, FORCE_PRIORITY_6);
+        KernelsData res = {};
+        for (size_t i = 0; i < autoTuneOptions.size(); i++)
+        {
+            KernelsData kd = GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, { WeightsLayout::oi }, FORCE_PRIORITY_6, (int)i);
+            if (!kd.empty())
+            {
+                res.emplace_back(kd[0]);
+            }
+        }
+        return res;
     }
 }

@@ -56,10 +56,9 @@ namespace kernel_selector
 
         using DispatchData = CommonDispatchData;        
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
-
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         virtual JitConstants GetJitConstants(const reorg_yolo_params& params) const;
     };
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include <fstream>
 #include <sstream>
 #include "ie_icnn_network_stats.hpp"
-#include "ie_layers_prv.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -335,6 +334,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
                             pars_info.inputPorts[i].dims,
                             pars_info.inputPorts[i].precision,
                             TensorDesc::getLayoutByDims(pars_info.inputPorts[i].dims)));
+                    data->setDims(pars_info.inputPorts[i].dims);
 
                     layer->insData[i] = data;
                     data->inputTo[layer->name] = layer;
@@ -353,6 +353,17 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
 
     if (!_network->allLayers().size())
         THROW_IE_EXCEPTION << "Incorrect model! Network doesn't contain layers.";
+
+    size_t inputLayersNum(0);
+    CaselessEq<std::string> cmp;
+    for (const auto& kvp : _network->allLayers()) {
+        const CNNLayer::Ptr& layer = kvp.second;
+        if (cmp(layer->type, "Input") || cmp(layer->type, "Const"))
+            inputLayersNum++;
+    }
+
+    if (!inputLayersNum && !cmp(root.name(), "body"))
+        THROW_IE_EXCEPTION << "Incorrect model! Network doesn't contain input layers.";
 
     // check all input ports are occupied
     for (const auto& kvp : _network->allLayers()) {
@@ -378,7 +389,10 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     OutputsDataMap outputsInfo;
     _network->getOutputsInfo(outputsInfo);
     for (auto outputInfo : outputsInfo) {
-        outputInfo.second->setPrecision(Precision::FP32);
+        if (outputInfo.second->getPrecision() != Precision::FP32 &&
+            outputInfo.second->getPrecision() != Precision::I32) {
+            outputInfo.second->setPrecision(Precision::FP32);
+        }
     }
 
     if (_version == 1) {
@@ -414,11 +428,13 @@ inline Blob::Ptr GetTypedBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, con
 Blob::Ptr FormatParser::GetBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, const WeightSegment& segment) const {
     if (segment.precision == Precision::FP32) {
         return GetTypedBlobFromSegment<float>(weights, segment);
+    } else if (segment.precision == Precision::I32) {
+        return GetTypedBlobFromSegment<int32_t>(weights, segment);
     } else if (segment.precision == Precision::I16 || segment.precision == Precision::Q78 || segment.precision == Precision::FP16) {
         return GetTypedBlobFromSegment<short>(weights, segment);
     } else if (segment.precision == Precision::U8) {
         return GetTypedBlobFromSegment<uint8_t>(weights, segment);
-    } else if (segment.precision == Precision::I8) {
+    } else if (segment.precision == Precision::I8 || segment.precision == Precision::BIN) {
         return GetTypedBlobFromSegment<int8_t>(weights, segment);
     } else {
         THROW_IE_EXCEPTION << "precision " << segment.precision << " is not supported...";
@@ -436,7 +452,18 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
         WeightableLayer* pWL = dynamic_cast<WeightableLayer*>(kvp.second.get());
         if (pWL != nullptr) {
             if (lprms.blobs.find("weights") != lprms.blobs.end()) {
-                pWL->_weights = GetBlobFromSegment(weights, lprms.blobs["weights"]);
+                if (lprms.prms.type == "BinaryConvolution") {
+                    auto segment = lprms.blobs["weights"];
+                    if (segment.getEnd() > weights->size())
+                        THROW_IE_EXCEPTION << "segment exceeds given buffer limits. Please, validate weights file";
+                    size_t noOfElement = segment.size;
+                    SizeVector w_dims({noOfElement});
+                    typename TBlobProxy<uint8_t>::Ptr binBlob(new TBlobProxy<uint8_t>(Precision::BIN, Layout::C, weights, segment.start, w_dims));
+
+                    pWL->_weights = binBlob;
+                } else {
+                    pWL->_weights = GetBlobFromSegment(weights, lprms.blobs["weights"]);
+                }
                 pWL->blobs["weights"] = pWL->_weights;
             }
             if (lprms.blobs.find("biases") != lprms.blobs.end()) {
@@ -486,10 +513,6 @@ void FormatParser::ParseDims(SizeVector& dims, const pugi::xml_node &parentNode)
                 << node.offset_debug();
         }
         dims.push_back(dim);
-    }
-
-    if (dims.empty()) {
-        THROW_IE_EXCEPTION << "input must have dimensions";
     }
 
     if (_version == 1)
@@ -670,6 +693,15 @@ const std::vector<std::shared_ptr<BaseCreator> >& FormatParser::getCreators() co
         std::make_shared<LayerCreator<GemmLayer>>("Gemm"),
         std::make_shared<LayerCreator<PadLayer>>("Pad"),
         std::make_shared<LayerCreator<GatherLayer>>("Gather"),
+        std::make_shared<LayerCreator<StridedSliceLayer>>("StridedSlice"),
+        std::make_shared<LayerCreator<ShuffleChannelsLayer>>("ShuffleChannels"),
+        std::make_shared<LayerCreator<DepthToSpaceLayer>>("DepthToSpace"),
+        std::make_shared<LayerCreator<SpaceToDepthLayer>>("SpaceToDepth"),
+        std::make_shared<LayerCreator<ReverseSequenceLayer>>("ReverseSequence"),
+        std::make_shared<LayerCreator<SqueezeLayer>>("Squeeze"),
+        std::make_shared<LayerCreator<UnsqueezeLayer>>("Unsqueeze"),
+        std::make_shared<LayerCreator<RangeLayer>>("Range"),
+        std::make_shared<LayerCreator<ExpandLayer>>("Expand"),
         std::make_shared<LayerCreator<ScaleShiftLayer>>("ScaleShift"),
         std::make_shared<LayerCreator<PReLULayer>>("PReLU"),
         std::make_shared<LayerCreator<CropLayer>>("Crop"),
@@ -680,7 +712,13 @@ const std::vector<std::shared_ptr<BaseCreator> >& FormatParser::getCreators() co
         std::make_shared<LayerCreator<BatchNormalizationLayer>>("BatchNormalization"),
         std::make_shared<TILayerCreator>("TensorIterator"),
         std::make_shared<LayerCreator<LSTMCell>>("LSTMCell"),
-        std::make_shared<LayerCreator<RNNLayer>>("RNN"),
+        std::make_shared<LayerCreator<GRUCell>>("GRUCell"),
+        std::make_shared<LayerCreator<RNNCell>>("RNNCell"),
+        std::make_shared<LayerCreator<RNNSequenceLayer>>("RNNSequence"),
+        std::make_shared<LayerCreator<RNNSequenceLayer>>("GRUSequence"),
+        std::make_shared<LayerCreator<RNNSequenceLayer>>("LSTMSequence"),
+        std::make_shared<LayerCreator<QuantizeLayer>>("Quantize"),
+        std::make_shared<LayerCreator<BinaryConvolutionLayer>>("BinaryConvolution"),
     };
     return creators;
 }

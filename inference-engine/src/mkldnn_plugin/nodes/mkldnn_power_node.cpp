@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ void MKLDNNPowerNode::createPrimitive() {
 void MKLDNNPowerNode::execute(mkldnn::stream strm) {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
     auto& dstMemory = getChildEdgeAt(0)->getMemory();
-    const int data_size = srcMemory.GetSize() / sizeof(float) / srcMemory.GetDims()[0] * batchToProcess();
+    const size_t data_size = srcMemory.GetSize() / sizeof(float) / srcMemory.GetDims()[0] * batchToProcess();
 
     const auto *src_ptr = reinterpret_cast<const float*>(srcMemory.GetData()) +
             srcMemory.GetDescriptor().data.layout_desc.blocking.offset_padding;
@@ -97,11 +97,11 @@ void MKLDNNPowerNode::execute(mkldnn::stream strm) {
             dstMemory.GetDescriptor().data.layout_desc.blocking.offset_padding;
 
     if (power == 1.0f) {
-        parallel_for(data_size, [&](int i) {
+        parallel_for(data_size, [&](size_t i) {
             dst_ptr[i] = src_ptr[i] * scale + shift;
         });
     } else {
-        parallel_for(data_size, [&](int i) {
+        parallel_for(data_size, [&](size_t i) {
             dst_ptr[i] = pow(src_ptr[i] * scale + shift, power);
         });
     }

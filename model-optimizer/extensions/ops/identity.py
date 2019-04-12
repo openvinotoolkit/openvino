@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,27 +13,24 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-import networkx as nx
-
-from mo.front.common.partial_infer.elemental import copy_shape_infer
+from mo.front.common.partial_infer.elemental import copy_shape_infer, copy_value
+from mo.graph.graph import Graph
 from mo.ops.op import Op
-from mo.front.common.partial_infer.utils import mark_input_bins
 
 
 class IdentityOp(Op):
     op = 'Identity'
     enabled = True
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
             'op': __class__.op,
             'identity': True,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
             'infer': IdentityOp.shape_infer
         }, attrs)
 
     @staticmethod
     def shape_infer(node):
-        copy_shape_infer(node)
-
+        copy_shape_infer(node, value_infer=copy_value)

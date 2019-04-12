@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -65,10 +65,6 @@ if (ENABLE_PROFILING_RAW)
     add_definitions(-DENABLE_PROFILING_RAW=1)
 endif()
 
-if (ENABLE_GTEST_PATCHES)
-    add_definitions(-DENABLE_GTEST_PATCHES=1)
-endif()
-
 if (ENABLE_CLDNN)
     add_definitions(-DENABLE_CLDNN=1)
 endif()
@@ -77,20 +73,12 @@ if (ENABLE_MKL_DNN)
     add_definitions(-DENABLE_MKL_DNN=1)
 endif()
 
-if (ENABLE_STRESS_UNIT_TESTS)
-    add_definitions(-DENABLE_STRESS_UNIT_TESTS=1)
-endif()
-
-if (ENABLE_SEGMENTATION_TESTS)
-    add_definitions(-DENABLE_SEGMENTATION_TESTS=1)
-endif()
-
-if (ENABLE_OBJECT_DETECTION_TESTS)
-    add_definitions(-DENABLE_OBJECT_DETECTION_TESTS=1)
-endif()
-
 if (ENABLE_GNA)
     add_definitions(-DENABLE_GNA)
+endif()
+
+if (ENABLE_SAMPLES)
+    set (ENABLE_SAMPLES_CORE ON)
 endif()
 
 if (DEVELOPMENT_PLUGIN_MODE)
@@ -111,6 +99,5 @@ endif()
 if (VERBOSE_BUILD)
     set(CMAKE_VERBOSE_MAKEFILE  ON)
 endif()
-
 
 print_enabled_features()
