@@ -27,8 +27,8 @@ namespace kernel_selector
         virtual ~EltwiseKernel_fs_bs_yx_bsv4_fsv32() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         JitConstants GetJitConstants(const eltwise_params& params) const override;
         virtual DispatchData SetDefault(const eltwise_params& params) const override;
     };

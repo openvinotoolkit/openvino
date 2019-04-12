@@ -25,11 +25,13 @@ namespace cldnn
 template <>
 struct typed_program_node<scale> : public typed_program_node_base<scale>
 {
+private:
     using parent = typed_program_node_base<scale>;
 
 public:
     using parent::parent;
 
+    typed_program_node(const std::shared_ptr<scale> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
     program_node& input() const { return get_dependency(0); }
     program_node& scale_in() const { return get_dependency(1); }
     program_node& bias() const { return get_dependency(2); }

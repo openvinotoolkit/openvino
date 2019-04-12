@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "include/include_all.cl"
+#include "include/sub_group.cl"
 
 #if FP16_UNIT_USED
     #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))

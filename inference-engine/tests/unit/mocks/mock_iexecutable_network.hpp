@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,4 +22,5 @@ public:
     MOCK_QUALIFIED_METHOD2(GetMappedTopology, noexcept, StatusCode(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &, ResponseDesc*));
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void ());
     MOCK_QUALIFIED_METHOD3(QueryState, noexcept, StatusCode(IMemoryState::Ptr &, size_t  , ResponseDesc*));
+    MOCK_QUALIFIED_METHOD2(GetExecGraphInfo, noexcept, StatusCode(ICNNNetwork::Ptr &, ResponseDesc*));
 };

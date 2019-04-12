@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 import logging as log
 
-import networkx as nx
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.layout import get_batch_dim, get_features_dim
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.pooling import Pooling
 from mo.ops.power import Power
@@ -39,6 +39,14 @@ class ReduceReplacer(MiddleReplacementPattern):
         'sum': 'avg'
     }
 
+    def run_after(self):
+        from extensions.middle.pass_separator import MiddleStart
+        return [MiddleStart]
+
+    def run_before(self):
+        from extensions.middle.pass_separator import MiddleFinish
+        return [MiddleFinish]
+
     def pattern(self):
         return dict(
             nodes=[
@@ -47,7 +55,7 @@ class ReduceReplacer(MiddleReplacementPattern):
             edges=[]
         )
 
-    def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(self, graph: Graph, match: dict):
         node = match['reduce']
         if not node.has_valid('reduce_type') or node.reduce_type.lower() not in self.supported_reduce_types:
             log.error("Reduce type {} is not supported for node {}".format(node.soft_get('reduce_type'), node.id))

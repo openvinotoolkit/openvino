@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
-from mo.ops.op import Op
 from mo.front.common.partial_infer.expand_dims import tf_expand_dims_infer
+from mo.ops.op import Op
 
 
 class ExpandDims(Op):
@@ -28,8 +28,6 @@ class ExpandDims(Op):
             'op': __class__.op,
             'infer': tf_expand_dims_infer,
             'expand_axis': None,
+            'in_ports_count': 2,
+            'out_ports_count': 1,
         }, attrs)
-
-    def supported_attrs(self):
-        # TODO ugly copying from Reshape op
-        return [('dim', lambda node: ', '.join(map(str, node['dim'])))]

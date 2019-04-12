@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,7 @@ struct conv_common_params {
     std::string auto_pad;
     size_t group;
     size_t out_c;
+    bool with_bias;
 };
 
 struct pool_common_params {
@@ -64,6 +65,11 @@ struct pool_common_params {
     std::string auto_pad;
     bool avg;
     bool exclude_pad;
+};
+
+struct eltwise_common_params {
+    std::string operation;
+    std::vector<float> coeff;
 };
 
 #define PRETTY_PARAM(name, type)                                                            \
@@ -104,7 +110,7 @@ template<int Version = 3>
 inline InferenceEngine::details::CNNNetworkImplPtr
 buildSingleLayerNetworkCommon(InferenceEngine::details::IFormatParser *parser,
                               const std::string &layerType,
-                              const testing::InOutData &inOutShapes,
+                              const testing::InOutShapes &inOutShapes,
                               std::map<std::string, std::string> *params,
                               const std::string &layerDataName = "data",
                               const InferenceEngine::Precision &precision = InferenceEngine::Precision::FP32,

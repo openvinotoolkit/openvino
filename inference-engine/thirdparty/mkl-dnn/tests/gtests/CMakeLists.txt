@@ -45,7 +45,6 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_softmax_backward.cpp
                               test_eltwise.cpp
                               test_depthwise.cpp
-                              test_relu.cpp
                               test_lrn_forward.cpp
                               test_lrn_backward.cpp
                               test_pooling_forward.cpp
@@ -61,9 +60,8 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_convolution_forward_s16s16s32.cpp
                               test_convolution_forward_u8s8s32.cpp
                               test_convolution_forward_u8s8fp.cpp
-                              test_convolution_relu_forward_f32.cpp
-                              test_convolution_relu_forward_neg_slope_f32.cpp
-                              test_convolution_relu_forward_s16s16s32.cpp
+                              test_convolution_eltwise_forward_f32.cpp
+                              test_convolution_eltwise_forward_x8s8f32s32.cpp
                               test_convolution_backward_data_f32.cpp
                               test_convolution_backward_data_s16s16s32.cpp
                               test_convolution_backward_weights_f32.cpp
@@ -72,10 +70,23 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_gemm_f32.cpp
                               test_gemm_s8u8s32.cpp
                               test_gemm_s8s8s32.cpp
+                              test_rnn_forward.cpp
                               test_roi_pooling_forward.cpp
-                              test_convolution_eltwise_forward_f32.cpp
                               test_convolution_depthwise_forward_f32.cpp
+                              test_convolution_depthwise_forward_x8s8f32s32.cpp
                               test_convolution_dw_conv_f32.cpp
+                              test_convolution_dw_conv_u8s8s32.cpp
+                              test_binary_convolution_forward.cpp
+                              test_binary_convolution_eltwise_forward.cpp
+                              test_binary_convolution_depthwise_forward.cpp
+                              test_binary_convolution_sum_forward.cpp
+                              test_binary_convolution_binarization_forward.cpp
+                              test_binarization.cpp
+                              test_binary_convolution_dw_conv_forward.cpp
+                              test_binary_convolution_dw_conv_eltwise_forward.cpp
+                              test_binary_convolution_dw_conv_depthwise_forward.cpp
+                              test_binary_convolution_dw_conv_sum_forward.cpp
+                              test_binary_convolution_dw_conv_binarization_forward.cpp
                               ) #temporary
 
 foreach(TEST_FILE ${PRIM_TEST_CASES_SRC})

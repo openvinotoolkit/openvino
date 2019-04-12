@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -299,7 +299,7 @@ static void permute_to_034152(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPt
     }
 }
 
-std::map<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl> MKLDNNPermuteNode::OptimizedCases = {
+std::multimap<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl> MKLDNNPermuteNode::OptimizedCases = {
         {{0, 2, 3, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_0231, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return true;
         })},  // NCHW -> NHWC case
@@ -329,26 +329,28 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
     auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
     auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
 
-    auto perm = OptimizedCases.find(order);
-    if (perm != OptimizedCases.end() && perm->second.isValidParams(srcMemPtr, dstMemPtr)) {
-        perm->second.execute(batchToProcess(), srcMemPtr, dstMemPtr);
-    } else {
-        auto srcBlob = getParentEdgeAt(0)->getBlob();
-        TensorDesc srcDesc = srcBlob->getTensorDesc();
-
-        SizeVector& dims = srcDesc.getDims();
-        InferenceEngine::SizeVector orderedDims;
-        for (auto ord : order) {
-            orderedDims.push_back(dims[ord]);
+    for (const auto &impl : OptimizedCases) {
+        if (impl.first == order && impl.second.isValidParams(srcMemPtr, dstMemPtr)) {
+            impl.second.execute(batchToProcess(), srcMemPtr, dstMemPtr);
+            return;
         }
-        TensorDesc dstDesc(InferenceEngine::Precision::FP32, dims, {orderedDims, order});
-
-        int dataSize = srcBlob->size() / srcDesc.getDims()[0] * batchToProcess();
-
-        parallel_for(dataSize, [&](int i) {
-            dst_data[dstDesc.offset(i)] = src_data[srcDesc.offset(i)];
-        });
     }
+
+    auto srcBlob = getParentEdgeAt(0)->getBlob();
+    TensorDesc srcDesc = srcBlob->getTensorDesc();
+
+    SizeVector& dims = srcDesc.getDims();
+    InferenceEngine::SizeVector orderedDims;
+    for (auto ord : order) {
+        orderedDims.push_back(dims[ord]);
+    }
+    TensorDesc dstDesc(InferenceEngine::Precision::FP32, dims, {orderedDims, order});
+
+    int dataSize = srcBlob->size() / srcDesc.getDims()[0] * batchToProcess();
+
+    parallel_for(dataSize, [&](int i) {
+        dst_data[dstDesc.offset(i)] = src_data[srcDesc.offset(i)];
+    });
 }
 
 bool MKLDNNPermuteNode::created() const {

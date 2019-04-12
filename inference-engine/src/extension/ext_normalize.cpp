@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,8 @@ public:
             weights = std::dynamic_pointer_cast<TBlob<float>>(layer->blobs.at("weights"));
             if (!weights)
                 THROW_IE_EXCEPTION << layer->name << " weights is empty!";
-            across_spatial = static_cast<bool>(layer->GetParamAsInt("across_spatial"));
-            channel_shared = static_cast<bool>(layer->GetParamAsInt("channel_shared"));
+            across_spatial = layer->GetParamAsBool("across_spatial", false);
+            channel_shared = layer->GetParamAsBool("channel_shared", false);
             eps = layer->GetParamAsFloat("eps");
 
             addConfig(layer, {{ConfLayout::PLN, false, 0}}, {{ConfLayout::PLN, false, 0}}, true);
@@ -82,9 +82,6 @@ public:
         const int C = static_cast<int>(dims[1]);
         const int H = static_cast<int>(dims.size() > 2 ? dims[2] : 1);
         const int W = static_cast<int>(dims.size() > 3 ? dims[3] : 1);
-
-        const int HW = H*W;
-        const int CHW = C*HW;
 
         for (int n = 0; n < N; n++) {
             const float* psrc = src + n*C*H*W;
@@ -220,7 +217,7 @@ private:
 
     bool across_spatial = true;
     bool channel_shared = true;
-    float eps = 1e-10;
+    float eps = 1e-10f;
 };
 
 REG_FACTORY_FOR(ImplFactory<NormalizeImpl>, Normalize);

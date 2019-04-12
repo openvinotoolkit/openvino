@@ -34,6 +34,7 @@ class typed_program_node<detection_output> : public typed_program_node_base<dete
 public:
     using parent::parent;
 
+    program_node& input() const { return get_dependency(0); }
     program_node& location() const { return get_dependency(0); }
     program_node& confidence() const { return get_dependency(1); }
     program_node& prior_box() const { return get_dependency(2); }
@@ -59,5 +60,39 @@ public:
 };
 
 using detection_output_inst = typed_primitive_inst<detection_output>;
+
+template <>
+class typed_program_node<detection_output_sort> : public typed_program_node_base<detection_output_sort>
+{
+    using parent = typed_program_node_base<detection_output_sort>;
+
+public:
+    using parent::parent;
+
+    program_node& input() const { return get_dependency(0); }
+};
+
+using detection_output_sort_node = typed_program_node<detection_output_sort>;
+
+template <>
+class typed_primitive_inst<detection_output_sort> : public typed_primitive_inst_base<detection_output_sort>
+{
+    using parent = typed_primitive_inst_base<detection_output_sort>;
+
+public:
+    static layout calc_output_layout(detection_output_sort_node const& node);
+    static std::string to_string(detection_output_sort_node const& node);
+
+public:
+    typed_primitive_inst(network_impl& network, detection_output_sort_node const& node);
+};
+
+using detection_output_sort_inst = typed_primitive_inst<detection_output_sort>;
+
+namespace gpu {
+    primitive_impl* runDetectOutCpu(const detection_output_node& arg);
+    primitive_impl* runDetectOutGpu(const detection_output_node& arg, kernel_selector::KernelData kernel);
+    primitive_impl* runDetectOutSortGpu(const detection_output_sort_node& arg, kernel_selector::KernelData kernel);
+}
 
 }

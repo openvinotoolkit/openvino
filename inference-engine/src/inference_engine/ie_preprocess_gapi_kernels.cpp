@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -585,7 +585,6 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
                               reinterpret_cast<const float*>(alpha),
                               reinterpret_cast<const int*>(mapsx),
                               reinterpret_cast<const float*>(beta),
-                              reinterpret_cast<float*>(tmp),
                               inSz, outSz, lpi);
             return;
         }

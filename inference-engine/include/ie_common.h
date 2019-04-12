@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,6 +84,9 @@ enum Layout : uint8_t {
 
     // weight layouts
     OIHW = 64,
+
+    // Scalar
+    SCALAR = 95,
 
     // bias layouts
     C = 96,

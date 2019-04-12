@@ -15,7 +15,6 @@
 */
 
 #include "convolution_kernel_byxf_af32_depthwise.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
     
@@ -52,7 +51,7 @@ namespace kernel_selector {
         const convolution_params& params = static_cast<const convolution_params&>(p);
 
         // this kernel is designed for quantization use case
-        if (!params.depthwiseSeparableOpt)
+        if (!params.depthwise_separable_opt)
             return false;
 
         return true;
@@ -60,7 +59,7 @@ namespace kernel_selector {
 
     KernelsData ConvolutionKernel_byxf_af32_depthiwise::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        KernelsData kd = GetCommonKernelsData(params, options);
+        KernelsData kd = GetTunedKernelsDataByIndex(params, options);
         if(!kd.empty())
             kd[0].estimatedTime = FORCE_PRIORITY_3;
         return kd;

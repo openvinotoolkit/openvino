@@ -1,2 +1,4 @@
 networkx>=1.11
 numpy==1.13.0
+test-generator==0.1.1
+defusedxml>=0.5.0

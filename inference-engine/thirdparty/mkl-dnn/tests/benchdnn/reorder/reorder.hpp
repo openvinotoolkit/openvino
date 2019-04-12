@@ -28,7 +28,7 @@
 
 namespace reorder {
 
-using dims_t = std::vector<int>;
+using dims_t = std::vector<ptrdiff_t>;
 
 struct dt_conf_s {
     mkldnn_data_type_t dt;

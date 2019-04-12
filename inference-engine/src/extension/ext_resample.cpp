@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ public:
                 THROW_IE_EXCEPTION << "Resample supports only 4D blobs!";
 
             type = layer->GetParamAsString("type");
-            antialias = static_cast<bool>(layer->GetParamAsInt("antialias"));
+            antialias = layer->GetParamAsBool("antialias", false);
 
 #if defined(HAVE_AVX512F)
             auto blk_layout = ConfLayout::BLK16;
@@ -58,6 +58,7 @@ public:
 #undef IN
 #endif
         Layout layout = inputs[0]->layout();
+        Precision precision = inputs[0]->precision();
 
         size_t IN = inputs[0]->getTensorDesc().getDims()[0];
         size_t IC = inputs[0]->getTensorDesc().getDims()[1];
@@ -68,7 +69,11 @@ public:
         size_t OW = outputs[0]->getTensorDesc().getDims()[3];
 
         if (IW == OW && IH == OH && type == "caffe.ResampleParameter.LINEAR") {
-            simple_copy(dst_data, outputs[0]->byteSize(), src_data, IN * IC * IH * IW * sizeof(float));
+            size_t size = IN * IC * IH * IW;
+            if (inputs[0]->getTensorDesc().getPrecision() == Precision::FP32) {
+                size *= sizeof(float);
+            }
+            simple_copy(dst_data, outputs[0]->byteSize(), src_data, size);
             return OK;
         }
 
@@ -79,14 +84,24 @@ public:
 
         if (type == "caffe.ResampleParameter.NEAREST") {
             if (!isDownsample && fx == 0.25f && fy == 0.25f) {
-                if (layout == NCHW) {
-                    Upsample_Nearest_PLN<4>(src_data, dst_data, IN, IC, IH, IW);
+                if (layout == NCHW || layout == NHWC) {
+                    if (precision == Precision::FP32) {
+                        Upsample_Nearest_PLN<float, 4>(src_data, dst_data, IN, IC, IH, IW, layout);
+                    } else {
+                        Upsample_Nearest_PLN<uint8_t, 4>(reinterpret_cast<const uint8_t*>(src_data),
+                                                         reinterpret_cast<uint8_t*>(dst_data), IN, IC, IH, IW, layout);
+                    }
                 } else {
                     Upsample_Nearest_BLK<4>(src_data, dst_data, IN, IC, IH, IW);
                 }
             } else if (!isDownsample && fx == 0.5f && fy == 0.5f) {
-                if (layout == NCHW) {
-                    Upsample_Nearest_PLN<2>(src_data, dst_data, IN, IC, IH, IW);
+                if (layout == NCHW || layout == NHWC) {
+                    if (precision == Precision::FP32) {
+                        Upsample_Nearest_PLN<float, 2>(src_data, dst_data, IN, IC, IH, IW, layout);
+                    } else {
+                        Upsample_Nearest_PLN<uint8_t, 2>(reinterpret_cast<const uint8_t*>(src_data),
+                                                         reinterpret_cast<uint8_t*>(dst_data), IN, IC, IH, IW, layout);
+                    }
                 } else {
                     Upsample_Nearest_BLK<2>(src_data, dst_data, IN, IC, IH, IW);
                 }
@@ -143,8 +158,8 @@ private:
                         float ax = 1.0f / (antialias ? fx : 1.0f);
                         float ay = 1.0f / (antialias ? fy : 1.0f);
 
-                        int rx = (fx < 1.0f) ? 2 : ceil(static_cast<float>(kernel_width) / ax);
-                        int ry = (fy < 1.0f) ? 2 : ceil(static_cast<float>(kernel_width) / ay);
+                        int rx = (fx < 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ax));
+                        int ry = (fy < 1.0f) ? 2 : static_cast<int>(ceil(static_cast<float>(kernel_width) / ay));
 
                         for (int y = iy_r - ry; y <= iy_r + ry; y++) {
                             for (int x = ix_r - rx; x <= ix_r + rx; x++) {
@@ -169,13 +184,13 @@ private:
     }
 
     static void NearestNeighborKernel_PLN(const float *in_ptr_, float *out_ptr_, int B, int C, int IH, int IW, float fx, float fy, int OH, int OW) {
-        for (size_t b = 0; b < B; b++) {
-            for (size_t c = 0; c < C; c++) {
+        for (int b = 0; b < B; b++) {
+            for (int c = 0; c < C; c++) {
                 const float *in_ptr = in_ptr_ + IW * IH * C * b + IW * IH * c;
                 float *out_ptr = out_ptr_ + OW * OH * C * b + OW * OH * c;
 
-                for (size_t oy = 0; oy < OH; oy++) {
-                    for (size_t ox = 0; ox < OW; ox++) {
+                for (int oy = 0; oy < OH; oy++) {
+                    for (int ox = 0; ox < OW; ox++) {
                         float ix = ox * fx + fy / 2.0f - 0.5f;
                         float iy = oy * fy + fx / 2.0f - 0.5f;
 
@@ -191,15 +206,15 @@ private:
 
     static void NearestNeighborKernel_BLK(const float *in_ptr_, float *out_ptr_, int B, int C, int IH, int IW, float fx, float fy, int OH, int OW) {
         int blk_size = 8;
-        size_t CB = (size_t)div_up(C, blk_size);
+        int CB = div_up(C, blk_size);
 
-        for (size_t b = 0; b < B; b++) {
-            for (size_t cb = 0; cb < CB; cb++) {
+        for (int b = 0; b < B; b++) {
+            for (int cb = 0; cb < CB; cb++) {
                 const float *in_ptr = in_ptr_ + IW * IH * CB * blk_size * b + IW * IH * cb * blk_size;
                 float *out_ptr = out_ptr_ + OW * OH * CB * blk_size * b + OW * OH * cb * blk_size;
 
-                for (size_t oy = 0; oy < OH; oy++) {
-                    for (size_t ox = 0; ox < OW; ox++) {
+                for (int oy = 0; oy < OH; oy++) {
+                    for (int ox = 0; ox < OW; ox++) {
                         float ix = ox * fx + fy / 2.0f - 0.5f;
                         float iy = oy * fy + fx / 2.0f - 0.5f;
 
@@ -217,27 +232,64 @@ private:
         }
     }
 
-    template <int factor>
-    static void Upsample_Nearest_PLN(const float *in_ptr_, float *out_ptr_, int B, int C, int IH, int IW) {
+    template <typename T, int factor>
+    static void Upsample_Nearest_PLN(const T *in_ptr_, T *out_ptr_, int B, int C, int IH, int IW, Layout layout) {
         int OH = factor * IH;
         int OW = factor * IW;
 
-        for (size_t b = 0; b < B; b++) {
-            for (size_t c = 0; c < C; c++) {
-                const float *in_ptr = in_ptr_ + IW * IH * C * b + IW * IH * c;
-                float *out_ptr = out_ptr_ + OW * OH * C * b + OW * OH * c;
+        if (layout == NCHW) {
+            for (int b = 0; b < B; b++) {
+                for (int c = 0; c < C; c++) {
+                    const T *in_ptr = in_ptr_ + IW * IH * C * b + IW * IH * c;
+                    T *out_ptr = out_ptr_ + OW * OH * C * b + OW * OH * c;
 
-                for (size_t iy = 0; iy < IH; iy++) {
-                    for (size_t ix = 0; ix < IW; ix++) {
-                        size_t oy = factor * iy;
-                        size_t ox = factor * ix;
-                        float value = in_ptr[iy * IW + ix];
+                    for (int iy = 0; iy < IH; iy++) {
+                        for (int ix = 0; ix < IW; ix++) {
+                            int oy = factor * iy;
+                            int ox = factor * ix;
+                            float value = in_ptr[iy * IW + ix];
 
-                        for (int fh = 0; fh < factor; fh++) {
-                            for (int fw = 0; fw < factor; fw++) {
-                                out_ptr[(oy + fh) * OW + ox + fw] = value;
+                            for (int fh = 0; fh < factor; fh++) {
+                                for (int fw = 0; fw < factor; fw++) {
+                                    out_ptr[(oy + fh) * OW + ox + fw] = static_cast<T>(value);
+                                }
                             }
                         }
+                    }
+                }
+            }
+        } else {
+            int block_size = C;
+            int block_size_bytes = block_size * sizeof(T);
+
+            int ICIWIH = C * IW * IH;
+            int OWOH = OW * OH;
+            int OCOWOH = C * OWOH;
+
+            int stepX = factor;
+            int stepY = factor;
+
+#ifdef _OPENMP
+#pragma omp parallel for collapse(2)
+#endif
+            for (int mb = 0; mb < B; mb++) {
+                for (int oh = 0; oh < OH; oh += stepY) {
+                    size_t dst_off = mb * OCOWOH + (oh * OW) * block_size;
+                    size_t src_off = mb * ICIWIH + (oh / stepY * IW) * block_size;
+
+                    for (int ow = 0; ow < OW; ow += stepX) {
+                        size_t dst_off_curr = dst_off + ow * block_size;
+                        size_t src_off_curr = src_off + ow / stepX * block_size;
+
+                        memcpy(&out_ptr_[dst_off_curr], &in_ptr_[src_off_curr], block_size_bytes);
+
+                        for (int owx = 1; owx < stepX; owx++) {
+                            memcpy(&out_ptr_[dst_off_curr + block_size * owx], &in_ptr_[src_off_curr], block_size_bytes);
+                        }
+                    }
+
+                    for (int ohy = 1; ohy < stepY; ohy++) {
+                        memcpy(&out_ptr_[dst_off + OW * block_size * ohy], &out_ptr_[dst_off], block_size_bytes * OW);
                     }
                 }
             }
@@ -268,10 +320,10 @@ private:
                 const float *in_ptr = in_ptr_ + IW * IH * CB * blk_size * b + IW * IH * cb * blk_size;
                 float *out_ptr = out_ptr_ + OW * OH * CB * blk_size * b + OW * OH * cb * blk_size;
 
-                for (size_t iy = 0; iy < IH; iy++) {
-                    for (size_t ix = 0; ix < IW; ix++) {
-                        size_t oy = factor * iy;
-                        size_t ox = factor * ix;
+                for (int iy = 0; iy < IH; iy++) {
+                    for (int ix = 0; ix < IW; ix++) {
+                        int oy = factor * iy;
+                        int ox = factor * ix;
 
                         vec_type vsrc = _mm_uni_loadu_ps(in_ptr + iy * IW * blk_size + ix * blk_size);
 

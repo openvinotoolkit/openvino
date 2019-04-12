@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,15 +23,18 @@ from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'SimplerNMS_1': {'type': 'SimplerNMS', 'kind': 'op'},
-                    'node_1': {'type': 'Identity', 'kind': 'op'}
+                    'node_1': {'type': 'Identity', 'kind': 'op'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
                     }
 
 
 class TestSimplerNMSInfer(unittest.TestCase):
     def test_simplernms_infer_ideal(self):
         graph = build_graph(nodes_attributes,
-                            [('SimplerNMS_1', 'node_1')],
-                            {'node_1': {'is_output': True, 'shape': None},
+                            [('SimplerNMS_1', 'node_1'),
+                             ('node_1', 'op_output')
+                             ],
+                            {'node_1': {'shape': None},
                              'SimplerNMS_1': {'feat_stride': 16, 'post_nms_topn': 150, 'scale': [1, 2, 3]}
                              })
 
@@ -46,8 +49,10 @@ class TestSimplerNMSInfer(unittest.TestCase):
 
     def test_simplernms_infer_no_shape(self):
         graph = build_graph(nodes_attributes,
-                            [('SimplerNMS_1', 'node_1')],
-                            {'node_1': {'is_output': True, 'shape': None},
+                            [('SimplerNMS_1', 'node_1'),
+                             ('node_1', 'op_output')
+                             ],
+                            {'node_1': {'shape': None},
                              'SimplerNMS_1': {'feat_stride': 12, 'post_nms_topn': 150, 'scale': [1, 2, 3]}
                              })
 

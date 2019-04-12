@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ public:
         I8 = 50,    /**< 8bit signed integer value */
         U16 = 60,   /**< 16bit unsigned integer value */
         I32 = 70,   /**< 32bit signed integer value */
+        BIN = 71,   /**< 1bit integer value */
         CUSTOM = 80 /**< custom precision has it's own name and size of elements */
     };
 
@@ -79,11 +80,13 @@ public:
         return Precision(8 * sizeof(T), typeName == nullptr ? typeid(T).name() : typeName);
     }
 
-    /** @brief checks whether given storage class T can be used for store objects of current precision */
+    /** @brief checks whether given storage class T can be used to store objects of current precision */
     template <class T>
     bool hasStorageType(const char * typeName = nullptr) const noexcept {
-        if (sizeof(T) != size()) {
-            return false;
+        if (precisionInfo.value != BIN) {
+            if (sizeof(T) != size()) {
+                return false;
+            }
         }
 #define CASE(x, y) case x: return std::is_same<T, y>()
 #define CASE2(x, y1, y2) case x: return std::is_same<T, y1>() || std::is_same<T, y2>()
@@ -97,6 +100,7 @@ public:
             CASE(U8, uint8_t);
             CASE(I8, int8_t);
             CASE2(Q78, int16_t, uint16_t);
+            CASE2(BIN, int8_t, uint8_t);
             default : return areSameStrings(name(), typeName == nullptr ? typeid(T).name() : typeName);
 #undef CASE
 #undef CASE2
@@ -159,6 +163,7 @@ public:
             PRECISION_NAME(FP32),
             PRECISION_NAME(FP16),
             PRECISION_NAME(MIXED),
+            PRECISION_NAME(BIN),
 #undef      PRECISION_NAME
         };
         auto i = names.find(str);
@@ -210,6 +215,7 @@ public:
             CASE(I8);
             CASE(Q78);
             CASE(MIXED);
+            CASE(BIN);
             default : return makePrecisionInfo<UNSPECIFIED>("UNSPECIFIED");
 #undef CASE
         }
@@ -257,6 +263,10 @@ template<>
 struct PrecisionTrait<Precision::I32> {
     using value_type = int32_t;
 };
+template<>
+struct PrecisionTrait<Precision::BIN> {
+    using value_type = int8_t;
+};
 
 template<class T>
 inline uint8_t type_size_or_zero() {
@@ -295,7 +305,9 @@ template<Precision::ePrecision precision>
 inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char *name) {
     Precision::PrecisionInfo info;
     info.name = name;
-    info.bitsSize = 8 * type_size_or_zero<typename PrecisionTrait<precision>::value_type>();
+
+    int nBits = precision == BIN ? 1 : 8;
+    info.bitsSize = nBits * type_size_or_zero<typename PrecisionTrait<precision>::value_type>();
     info.isFloat = is_floating<precision>();
     info.value = precision;
     return info;

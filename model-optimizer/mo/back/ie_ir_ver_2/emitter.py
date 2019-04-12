@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,60 +15,16 @@
 """
 
 import hashlib
-import xml.dom.minidom
+from defusedxml.minidom import parseString
 from xml.etree.ElementTree import Element, SubElement, tostring
 
-from mo.front.extractor import update_ie_fields
 from mo.graph.graph import *
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 
 
-def create_const_nodes(graph: nx.MultiDiGraph, start_data_nodes_are_not_allowed: bool=True):
-    """
-    Adds layers with type 'Const' that produce blob from 'bin' file. The pass finds data nodes with one output which
-    doesn't have edge with 'bin' attribute and generate Const op node before the node and data node before the Const
-    node. The data node before 'Const' node is needed because the op node dumps input tensors to bin file.
-    :param graph: input graph.
-    :return: None
-    """
-    for node_name in list(graph.nodes()):
-        node = NodeWrap(graph, node_name)
-        if (
-                node.has('kind') and
-                node.kind == 'data' and (
-                (len(node.out_edges()) == 1 and 'bin' not in node.out_edge(0)) or
-                node.has_and_set('is_output')
-        ) and
-                len(node.in_nodes()) == 0):
-
-            if node.has_valid('value'):
-                const_node_name = node.id + '_const'
-                log.debug("Added Const node '{}'".format(const_node_name))
-                graph.add_node(const_node_name, name=const_node_name, type='Const', kind='op', op='Const',
-                               precision="FP32")
-                update_ie_fields(node.graph.node[const_node_name])
-                graph.add_edges_from([(const_node_name, node.id, {'out': 0})])
-                copy_data_node_name = unique_id(graph, node.id + '_copy_')
-                graph.add_node(copy_data_node_name, kind='data', precision="FP32", shape=np.array(node.shape),
-                               value=np.array(node.value))
-                if node.has_valid('force_precision'):
-                    Node(graph, copy_data_node_name)['force_precision'] = node.force_precision
-                    Node(graph, const_node_name)['force_precision'] = node.force_precision
-                graph.add_edges_from([(copy_data_node_name, const_node_name, {'in': 0, 'bin': 'custom'})])
-            elif start_data_nodes_are_not_allowed:
-                log.debug('node = {}'.format(node.graph.node[node.id]))
-                # TODO for body sub-graph it shouldn't be reported as an error
-                raise Error(
-                    'Discovered data node without inputs and value, node.name = {}, consumer.name = {}. ' +
-                    refer_to_faq_msg(23),
-                    node.soft_get('name'),
-                    node.out_node().soft_get('name') if len(node.out_nodes()) else "<no consumer>"
-                )
-
-
-def serialize_constants(graph: nx.MultiDiGraph, bin_file_name:str, data_type=np.float32):
+def serialize_constants(graph: Graph, bin_file_name:str, data_type=np.float32):
     """
     Found all data constants that has output edges with 'bin' attribute.
     Serialize content for such constants to a binary file with name bin_file_name in
@@ -86,10 +42,10 @@ def serialize_constants(graph: nx.MultiDiGraph, bin_file_name:str, data_type=np.
         serialize_constants_recursively(graph, bin_file, data_type, bin_hashes)
 
 
-def serialize_constants_recursively(graph: nx.MultiDiGraph, bin_file, data_type, bin_hashes):
+def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashes):
     nodes = sorted(graph.nodes())
     for node in nodes:
-        node = NodeWrap(graph, node)
+        node = Node(graph, node)
 
         if node.kind == 'data' and node.value is not None and any('bin' in d for u, v, d in graph.out_edges(node.node, data=True)):
             blob = node.value
@@ -118,7 +74,7 @@ def serialize_constants_recursively(graph: nx.MultiDiGraph, bin_file, data_type,
     # separate loop for sub-graph to dump them after all blobs for more natural blob offset ordering
     # TODO: implement strict order for all blobs in entier IR
     for node in nodes:
-        node = NodeWrap(graph, node)
+        node = Node(graph, node)
         # Dump blobs recursively if sub-graphs are present in the node
         if node.has_valid('sub_graphs'):
             for sub_graph_attr_name in node.sub_graphs:
@@ -140,7 +96,7 @@ def serialize_mean_image(bin_file_name: str, mean_data=[]):
         return mean_offset, mean_size
 
 
-def xml_shape(shape: np.ndarray, element: xml.etree.ElementTree.Element):
+def xml_shape(shape: np.ndarray, element: Element):
     for d in shape:
         dim = SubElement(element, 'dim')
         if d <= 0:
@@ -154,10 +110,10 @@ def xml_shape(shape: np.ndarray, element: xml.etree.ElementTree.Element):
         dim.text = str(d)
 
 
-def xml_ports(node: Node, element: xml.etree.ElementTree.Element, edges: xml.etree.ElementTree.Element):
+def xml_ports(node: Node, element: Element, edges: Element):
     # input ports
     inputs = None  # will create input section only if at least one input is available
-    for u, d in get_sorted_inputs(node):
+    for u, d in node.get_sorted_inputs():
         if 'bin' not in d and ('xml_skip' not in d or not d['xml_skip']):
             if inputs is None:
                 inputs = SubElement(element, 'input')
@@ -180,7 +136,7 @@ def xml_ports(node: Node, element: xml.etree.ElementTree.Element, edges: xml.etr
 
     # output ports
     outputs = None
-    for v, d in get_sorted_outputs(node):
+    for v, d in node.get_sorted_outputs():
         if 'xml_skip' not in d or not d['xml_skip']:
             if outputs is None:
                 outputs = SubElement(element, 'output')
@@ -192,9 +148,9 @@ def xml_ports(node: Node, element: xml.etree.ElementTree.Element, edges: xml.etr
             xml_shape(node.graph.node[v]['shape'], port)
 
 
-def xml_consts(graph: nx.MultiDiGraph, node: Node, element: xml.etree.ElementTree.Element):
+def xml_consts(graph: Graph, node: Node, element: Element):
     blobs = None  # sub-element that will be created on-demand
-    for u, d in get_sorted_inputs(node):
+    for u, d in node.get_sorted_inputs():
         if 'bin' in d:
             if not blobs:
                 blobs = SubElement(element, 'blobs')
@@ -213,11 +169,11 @@ def soft_get(node, attr):
 
 
 def serialize_element(
-        graph: nx.MultiDiGraph,
+        graph: Graph,
         node,
         schema: list,
-        parent_element: xml.etree.ElementTree.Element,
-        edges: xml.etree.ElementTree.Element,
+        parent_element: Element,
+        edges: Element,
         unsupported):
 
     name, attrs, subelements = schema
@@ -265,11 +221,11 @@ def serialize_meta_list(graph, node, schema, element, edges, unsupported):
 
 
 def serialize_node_attributes(
-        graph: nx.MultiDiGraph,  # the current network graph
+        graph: Graph,  # the current network graph
         node,   # dictionry-like object that should be serialized
         schema: list,
-        parent_element: xml.etree.ElementTree.Element,
-        edges: xml.etree.ElementTree.Element,
+        parent_element: Element,
+        edges: Element,
         unsupported):
 
     try:
@@ -303,7 +259,7 @@ def serialize_node_attributes(
         ) from e
 
 
-def create_pre_process_block_for_image(net: xml.etree.ElementTree.Element, ref_layer_names: list, mean_offset: tuple,
+def create_pre_process_block_for_image(net: Element, ref_layer_names: list, mean_offset: tuple,
                                        mean_size: tuple):
     pre_process = SubElement(net, 'pre-process')
     pre_process.set('mean-precision', 'FP32')  # TODO: to think about need to output FP16 mean values
@@ -346,14 +302,27 @@ def create_pre_process_block(net, ref_layer_name, means, scales=None):
     return pre_process
 
 
-def add_meta_data(net: xml.etree.ElementTree.Element, meta_info: dict):
+def add_quantization_statistics(graph, net_element):
+    if 'statistics' in graph.graph:
+        stats = SubElement(net_element, 'statistics')
+        for tensor, interval in graph.graph['statistics'].items():
+            layer = SubElement(stats, 'layer')
+            name = SubElement(layer, 'name')
+            name.text = tensor
+            min = SubElement(layer, 'min')
+            min.text = interval['min']
+            max = SubElement(layer, 'max')
+            max.text = interval['max']
+        log.info('Statistics were inserted to IR')
+
+
+def add_meta_data(net: Element, meta_info: dict):
     meta = SubElement(net, 'meta_data')
     SubElement(meta, 'MO_version').set('value', get_version())
     parameters = SubElement(meta, 'cli_parameters')
     [SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
      key != 'unset']
     SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
-
 
 
 def serialize_network(graph, net_element, unsupported):
@@ -363,7 +332,7 @@ def serialize_network(graph, net_element, unsupported):
         return
     nodes = sorted(graph.nodes())
     for node in nodes:
-        node = NodeWrap(graph, node)
+        node = Node(graph, node)
         if not node.has('IE'):
             continue
         if node.kind == 'op' and (not node.has('type') or node.type is None):
@@ -375,7 +344,7 @@ def serialize_network(graph, net_element, unsupported):
             raise Error(str(e).replace('<SUB-ELEMENT>', '{} (id = {})'.format(node.soft_get('name'), node.id))) from e
 
 
-def generate_ie_ir(graph: nx.MultiDiGraph, file_name: str, input_names: tuple = (), mean_offset: tuple = (),
+def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_offset: tuple = (),
                    mean_size: tuple = (), meta_info: dict = dict()):
     """
     Extracts IE/IR attributes from kind='op' nodes in three ways:
@@ -408,27 +377,28 @@ def generate_ie_ir(graph: nx.MultiDiGraph, file_name: str, input_names: tuple = 
     unsupported = UnsupportedOps(graph)
 
     serialize_network(graph, net, unsupported)
+    add_quantization_statistics(graph, net)
     add_meta_data(net, meta_info)
     xml_string = tostring(net)
-    xml_doc = xml.dom.minidom.parseString(xml_string)  # ugly?
+    xml_doc = parseString(xml_string)
     pretty_xml_as_string = xml_doc.toprettyxml()
     if len(unsupported.unsupported):
         log.debug('Partially correct IR XML:\n{}'.format(pretty_xml_as_string))
-        unsupported.report(log.error, "List of operations that cannot be converted to IE IR:")
-        raise Error('Part of the nodes was not translated to IE. Stopped. ' +
+        unsupported.report(log.error, "List of operations that cannot be converted to Inference Engine IR:")
+        raise Error('Part of the nodes was not converted to IR. Stopped. ' +
                     refer_to_faq_msg(24))
     with open(file_name, 'w') as file:
         file.write(pretty_xml_as_string)
 
 
-def port_renumber(graph: nx.MultiDiGraph):
+def port_renumber(graph: Graph):
     for node in list(graph.nodes()):
-        node = NodeWrap(graph, node)
+        node = Node(graph, node)
         if node.kind == 'op':
             base = 0
-            for u, d in get_sorted_inputs(node):
+            for u, d in node.get_sorted_inputs():
                 d['in'] = base
                 base += 1
-            for v, d in get_sorted_outputs(node):
+            for v, d in node.get_sorted_outputs():
                 d['out'] = base
                 base += 1

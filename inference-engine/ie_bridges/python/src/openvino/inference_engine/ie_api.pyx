@@ -32,7 +32,7 @@ cdef dict_to_c_map(py_dict):
     return c_map
 
 supported_precisions = ["FP32", "FP16", "Q78", "I32", "I16", "I8", "U32", "U16"]
-supported_layouts = ["NCHW", "NHWC", "OIHW", "C", "CHW", "HW", "NC", "CN", "BLOCKED"]
+supported_layouts = ["NCHW", "NHWC", "OIHW", "C", "CHW", "HW", "NC", "CN", "BLOCKED", "NCDHW"]
 known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO', 'HDDL']
 
 def get_version():
@@ -218,6 +218,10 @@ cdef class InferRequest:
             outputs[output] = self._get_blob_buffer(output.encode()).to_numpy()
         return deepcopy(outputs)
 
+    @property
+    def latency(self):
+        return self.impl.exec_time
+
     def set_batch(self, size):
         if size <= 0:
             raise ValueError("Batch size should be positive integer number but {} specified".format(size))
@@ -225,6 +229,7 @@ cdef class InferRequest:
 
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
+            assert k in self._inputs_list, "No input with name {} found in network".format(k)
             self.inputs[k][:] = v
 
 
@@ -357,6 +362,7 @@ cdef class IENetwork:
         cdef vector[size_t] c_shape
         net_inputs = self.inputs
         for input, shape in input_shapes.items():
+            c_shape = []
             if input not in net_inputs:
                 raise AttributeError("Specified {} layer not in network inputs {}! ".format(input, net_inputs))
             for v in shape:
@@ -396,7 +402,7 @@ cdef class IEPlugin:
         if config:
             for k, v in config.items():
                 c_config[to_std_string(k)] = to_std_string(v)
-
+        exec_net.plugin_impl = self.impl
         exec_net.impl = move(self.impl.load(network.impl, num_requests, c_config))
         exec_net.inputs = network.inputs.keys()
         exec_net.outputs = list(network.outputs.keys())

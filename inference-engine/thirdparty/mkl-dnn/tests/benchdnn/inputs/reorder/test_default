@@ -8,6 +8,9 @@
 --fmt=oihw,hwio 2x64x3x3
 --fmt=goihw,gOIhw16i16o 3x32x32x2x2
 
+--both-dir-fmt=true
+--ifmt=nChw8c --ofmt=nChw16c 2x40x3x3  # blocked with tail
+
 --attr=irmode=down;oscale=common:0.
 --fmt=nchw,nhwc,nChw8c,nChw16c 2x64x3x3
 --fmt=oihw,hwio 2x64x3x3

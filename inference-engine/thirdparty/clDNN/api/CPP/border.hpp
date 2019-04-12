@@ -33,18 +33,19 @@ enum class border_type : std::int32_t
 {
     /// @brief All points in the border are set to constant value.
     constant = cldnn_border_constant,
+    zero = cldnn_border_zero,
     /// @brief Border is constructed as an mirror of image (edge is also mirrored).
     /// @details Size of border in any dimension cannot be larger than size of
     ///          input in the same dimension.
     mirror = cldnn_border_mirror,
-    /// @brief Border is constructed as an replication of edge.
-    /// @details Size of border in any dimension cannot be larger than size of
-    ///          input in the same dimension.
-    edge = cldnn_border_edge,
     /// @brief Border is constructed as an mirror of image (edge is NOT mirrored).
     /// @details Size of border in any dimension cannot be larger than size of
     ///          input in the same dimension decreased by @c 1.
-    mirror_101 = cldnn_border_mirror_101
+    mirror_101 = cldnn_border_mirror_101,
+    /// @brief Border is constructed as an replication of edge.
+    /// @details Size of border in any dimension cannot be larger than size of
+    ///          input in the same dimension.
+    edge = cldnn_border_edge
 };
 
 
@@ -80,9 +81,9 @@ struct border : public primitive_base<border, CLDNN_PRIMITIVE_DESC(border)>
     border(
         const primitive_id& id,
         const primitive_id& input,
-        const tensor& left_top_sizes,
-        const tensor& right_bottom_sizes,
-        const border_type type,
+        const tensor& left_top_sizes = { 0, 0, 0, 0 },
+        const tensor& right_bottom_sizes = { 0, 0, 0, 0 },
+        const border_type type = border_type::constant,
         const float border_value = 0.0f,
         const padding& output_padding = padding()
     )
@@ -91,6 +92,28 @@ struct border : public primitive_base<border, CLDNN_PRIMITIVE_DESC(border)>
           right_bottom_sizes(right_bottom_sizes),
           type(type),
           border_value(border_value)
+    {
+    }
+
+    /// @brief Constructs border primitive / layer.
+    ///
+    /// @param id                 An identifier of new primitive.
+    /// @param input              An identifier of primitive which is an input for newly created
+    ///                           border primitive.
+    /// @param x_y_sizes          Sizes of border that needs to be added from left and right
+    ///                           (in X dimension) and from top and bottom (in Y dimension).
+    ///                           Created border is simmetric (the same size of border applied
+    ///                           from both sides of input).
+    /// @param type               Type of added border.
+    /// @param output_padding     Optional padding for output from primitive.
+    border(
+        const primitive_id& id,
+        const primitive_id& input,
+        const tensor& x_y_sizes,
+        const border_type type = border_type::constant,
+        const padding& output_padding = padding()
+    )
+        : border(id, input, x_y_sizes, x_y_sizes, type, 0.0f, output_padding)
     {
     }
 

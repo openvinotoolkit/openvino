@@ -41,7 +41,7 @@ namespace kernel_selector
 
         const pooling_params& params = static_cast<const pooling_params&>(p);
 
-        if (params.activationFunc != ActivationFunction::NONE)
+        if (params.activation.function != ActivationFunction::NONE)
         {
             return{};
         }

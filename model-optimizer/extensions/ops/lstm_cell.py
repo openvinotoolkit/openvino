@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import networkx as nx
 
 from mo.front.common.partial_infer.utils import mark_input_bins
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
 
@@ -40,17 +40,32 @@ class LSTMCell(Op):
     '''
     op = 'LSTMCell'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
-            'infer': __class__.infer
+            'infer': __class__.infer,
+            'in_ports_count': 5,
+            'out_ports_count': 2,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
         return [
             'hidden_size',  # number of the elements in hidden cell size
+            'activations',
+            'activation_alpha',
+            'activation_beta',
+            'clip',
+        ]
+
+    def backend_attrs(self):
+        return [
+            'hidden_size',  # number of the elements in hidden cell size
+            ('activations', lambda node: ','.join(node.activations) if node.activations is not None else None),
+            'activation_alpha',
+            'activation_beta',
+            'clip',
         ]
 
     @staticmethod

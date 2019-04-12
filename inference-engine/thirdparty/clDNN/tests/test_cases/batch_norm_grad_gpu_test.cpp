@@ -51,7 +51,7 @@ TEST(batch_normalization_backward_gpu, basic_in2x2x2x3) {
     //  f0: 0.1491862
     //  f1: 0.0966454
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
     auto grad_input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });

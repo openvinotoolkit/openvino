@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,6 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_forward::desc> desc);
     operator std::shared_ptr<mkldnn::convolution_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_relu_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::convolution_relu_forward::desc>();
-
     MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc> desc,
                      std::shared_ptr<mkldnn::convolution_forward::primitive_desc> prim);
     operator std::shared_ptr<mkldnn::convolution_backward_data::desc>();
@@ -34,9 +31,6 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::pooling_forward::desc> desc);
     operator std::shared_ptr<mkldnn::pooling_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::relu_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::relu_forward::desc>();
-
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::roi_pooling_forward::desc> desc);
     operator std::shared_ptr<mkldnn::roi_pooling_forward::desc>();
 
@@ -48,6 +42,15 @@ public:
 
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::rnn_forward::desc> desc);
     operator std::shared_ptr<mkldnn::rnn_forward::desc>();
+
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::eltwise_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::eltwise_forward::desc>();
+
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::binarization_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::binarization_forward::desc>();
+
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::binary_convolution_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::binary_convolution_forward::desc>();
 
     mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine,
             const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) const;

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.partial_infer.transpose import transpose_infer
 from mo.front.extractor import attr_getter
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
@@ -25,12 +24,14 @@ class Permute(Op):
     op = 'Permute'
     enabled = False
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'order': None,
             'type': __class__.op,
             'op': __class__.op,
             'infer': self.infer,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
         }, attrs)
 
     def supported_attrs(self):

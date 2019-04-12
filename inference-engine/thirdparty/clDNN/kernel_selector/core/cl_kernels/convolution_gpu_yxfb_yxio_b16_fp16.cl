@@ -14,6 +14,7 @@
 
 
 #include "include/include_all.cl"
+#include "include/sub_group.cl"
 
 __attribute__((intel_reqd_sub_group_size(16)))
 __attribute__((reqd_work_group_size(16, 1, 1)))
@@ -31,15 +32,15 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
     // get_global_size(1) -> Output size in X-dimension.
     // get_global_size(2) -> Output size in Y-dimension.
     // get_global_id(0)   -> Id of work item computing single spatial point of output indicated by get_global_id(1), get_global_id(2).
-    // get_global_id(1)   -> Current x-position in output.
-    // get_global_id(2)   -> Current y-position in output.
+    // get_group_id(1)   -> Current x-position in output.
+    // get_group_id(2)   -> Current y-position in output.
     //
     // WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS -> Number of work items needed to compute entire one batch for at least one feature and one spatial point.
     //                                           (this number in current implementation computes also OFM_PER_WORK_ITEM output features at the same time).
     // FILTER_ARRAY_NUM                       -> Number of filters groups (split size).
 
-    const uint out_x = get_global_id(1);
-    const uint out_y = get_global_id(2);
+    const uint out_x = get_group_id(1);
+    const uint out_y = get_group_id(2);
 
     const uint output_f_size = OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM;
     const uint output_x_size = OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X;
@@ -140,6 +141,15 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
     }
 
 #if defined(USE_BLOCK_READ_2) || defined(USE_BLOCK_READ_1)
+    #if BATCHES_PER_WORK_ITEM == 4
+        uint _out_id = OUTPUT_VIEW_OFFSET + out_id;
+        for(uint i = 0; i < 16; i++)
+        {
+            *(__global uint*)(output + _out_id) = as_uint((half2)(_data[0][i], _data[1][i]));
+            *(__global uint*)(output + _out_id + 32) = as_uint((half2)(_data[2][i], _data[3][i]));
+            _out_id += OUTPUT_FEATURE_PITCH;
+        }
+    #else
     for(uint s = 0; s < BATCHES_PER_WORK_ITEM / 2; s++)
     {
         uint _out_id = OUTPUT_VIEW_OFFSET + out_id + chunk_size * s * LOCAL_WORK_GROUP_SIZE;
@@ -160,6 +170,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
         *(__global uint*)(output + _out_id) = as_uint((half2)(_data[chunk_size * s].se, _data[chunk_size * s + 1].se)); _out_id += OUTPUT_FEATURE_PITCH;
         *(__global uint*)(output + _out_id) = as_uint((half2)(_data[chunk_size * s].sf, _data[chunk_size * s + 1].sf)); _out_id += OUTPUT_FEATURE_PITCH;
     }
+    #endif
 #else
     for(uint s = 0; s < BATCHES_PER_WORK_ITEM; s++)
     {

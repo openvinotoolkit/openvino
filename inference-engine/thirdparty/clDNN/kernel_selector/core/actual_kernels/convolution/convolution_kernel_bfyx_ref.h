@@ -27,9 +27,9 @@ namespace kernel_selector {
         virtual ~ConvolutionKernel_bfyx_Ref() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override
         {
             return{
@@ -37,6 +37,7 @@ namespace kernel_selector {
                 WeightsLayout::yxio,
                 WeightsLayout::iyxo,
                 WeightsLayout::oyxi,
+                WeightsLayout::bf_lyx_yx,
             };
         }
     };

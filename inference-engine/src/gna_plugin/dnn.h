@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -251,7 +251,8 @@ class AmIntelDnn {
           softmax_type(kSoftmaxNone),
           ptr_sumgroup_sizes(NULL),
           num_sumgroup_sizes(0),
-          ptr_priors(NULL) {
+          ptr_priors(NULL),
+          ptr_dnn_memory_(NULL) {
     }
 
     ~AmIntelDnn() {

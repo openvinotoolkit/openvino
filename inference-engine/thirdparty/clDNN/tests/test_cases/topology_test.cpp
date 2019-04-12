@@ -445,11 +445,11 @@ protected:
     cldnn::layout* output_layout;
     std::vector<unsigned> generator;
 
-    static cldnn::engine engine;
+    static const cldnn::engine& engine;
     static std::vector<cldnn::layout*> all_output_layouts;//just for tear-down
 };
 
-cldnn::engine topology_test::engine;
+const cldnn::engine& topology_test::engine = tests::get_test_engine();
 std::vector<cldnn::layout*> topology_test::all_output_layouts = {};
 
 std::vector<topology_test::topology_generator::topology_layer_type*> topology_test::topology_generator::layer_types = {

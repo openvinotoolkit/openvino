@@ -15,7 +15,6 @@
 */
 
 #include "fully_connected_kernel_bf_io_input_spatial.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector 
 {
@@ -36,18 +35,18 @@ namespace kernel_selector
         return k;
     }
 
-    std::unique_ptr<FullyConnected_bf_io_input_spatial::DispatchData> FullyConnected_bf_io_input_spatial::SetDefault(const fully_connected_params& arg) const
+    FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spatial::SetDefault(const fully_connected_params& arg, int ) const
     {
         auto kd = FullyConnectedKernelBase::SetDefault(arg);
 
-        kd->gws0 = Align(arg.output.LogicalSize() / arg.inputs[0].Batch().v, 16);
-        kd->gws1 = arg.inputs[0].Batch().v;
-        kd->gws2 = 1;
-        kd->lws0 = 16;
-        kd->lws1 = 1;
-        kd->lws2 = 1;
+        kd.gws0 = Align(arg.output.LogicalSize() / arg.inputs[0].Batch().v, 16);
+        kd.gws1 = arg.inputs[0].Batch().v;
+        kd.gws2 = 1;
+        kd.lws0 = 16;
+        kd.lws1 = 1;
+        kd.lws2 = 1;
 
-        kd->effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+        kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
         const auto &input = arg.inputs[0];
         const auto &output = arg.output;
@@ -56,11 +55,11 @@ namespace kernel_selector
         {
             if ((input.LogicalSize() / output.Batch().v >= 9216) && (output.Feature().v >= 4096))
             {
-                kd->effiency = FORCE_PRIORITY_1;
+                kd.effiency = FORCE_PRIORITY_1;
             }
         }
 
-        return std::move(kd);
+        return kd;
     }
 
     bool FullyConnected_bf_io_input_spatial::Validate(const Params& p, const optional_params& o) const
@@ -85,10 +84,21 @@ namespace kernel_selector
 
     KernelsData FullyConnected_bf_io_input_spatial::GetKernelsData(const Params& params, const optional_params& optParams) const
     {
+        KernelsData res = {};
         const auto& orgParams = static_cast<const fully_connected_params&>(params);
 
         const auto& input = orgParams.inputs[0];
         const auto& output = orgParams.output;
+
+        for (size_t i = 0; i < autoTuneOptions.size(); i++)
+        {
+
+            KernelsData kd = GetTunedKernelsDataByIndex(params, optParams, DataLayout::bf, { WeightsLayout::io }, DONT_USE_IF_HAVE_SOMETHING_ELSE, (int)i);
+            if (!kd.empty())
+            {
+                res.emplace_back(kd[0]);
+            }
+        }
 
         if (input.GetLayout() == DataLayout::bfyx)
         {
@@ -96,10 +106,20 @@ namespace kernel_selector
             {
                 if ((input.LogicalSize() / output.Batch().v >= 9216) && (output.Feature().v >= 4096))
                 {
-                    return GetCommonKernelsData(params, optParams, DataLayout::bf, { WeightsLayout::io }, FORCE_PRIORITY_1);
+                    for (size_t i = 0; i < autoTuneOptions.size(); i++)
+                    {
+                        KernelsData kd = GetTunedKernelsDataByIndex(params, optParams, DataLayout::bf, { WeightsLayout::io }, FORCE_PRIORITY_1, (int)i+3);
+                        if (!kd.empty())
+                        {
+                            res.emplace_back(kd[0]);
+                        }
+                    }
                 }
             }
         }
-        return GetCommonKernelsData(params, optParams, DataLayout::bf, { WeightsLayout::io });
+       
+
+
+        return res;
     }
 }

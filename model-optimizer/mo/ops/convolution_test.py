@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,7 +27,8 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'conv_input': {'value': None, 'kind': 'data'},
                     'conv_node': {'type': 'Convolution', 'kind': 'op'},
                     'conv_weights': {'value': FakeValue(None), 'kind': 'data'},
-                    'conv_output': {'value': None, 'kind': 'data'}
+                    'conv_output': {'value': None, 'kind': 'data'},
+                    'output_op': { 'kind': 'op', 'op': 'OpOutput'}
                     }
 
 
@@ -36,8 +37,10 @@ class TestConvolutionPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('conv_input', 'conv_node'),
                              ('conv_weights', 'conv_node'),
-                             ('conv_node', 'conv_output')],
-                            {'conv_output': {'is_output': True, 'shape': None},
+                             ('conv_node', 'conv_output'),
+                             ('conv_output', 'op_output')
+                             ],
+                            {'conv_output': {'shape': None},
                              'conv_input': {'shape': np.array([1, 3, 227, 227])},
                              'conv_weights': {'shape': np.array([64, 3, 3, 3]),
                                               'dim_attrs': ['spatial_dims', 'channel_dims', 'batch_dims', 'axis']},
@@ -65,8 +68,10 @@ class TestConvolutionPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('conv_input', 'conv_node'),
                              ('conv_weights', 'conv_node'),
-                             ('conv_node', 'conv_output')],
-                            {'conv_output': {'is_output': True, 'shape': None},
+                             ('conv_node', 'conv_output'),
+                             ('conv_output', 'op_output')
+                             ],
+                            {'conv_output': {'shape': None},
                              'conv_input': {'shape': None},
                              'conv_weights': {'shape': None,
                                               'dim_attrs': ['spatial_dims', 'channel_dims', 'batch_dims', 'axis']},
@@ -89,8 +94,10 @@ class TestConvolutionPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('conv_input', 'conv_node'),
                              ('conv_weights', 'conv_node'),
-                             ('conv_node', 'conv_output')],
-                            {'conv_output': {'is_output': True, 'shape': None},
+                             ('conv_node', 'conv_output'),
+                             ('conv_output', 'op_output')
+                             ],
+                            {'conv_output': {'shape': None},
                              'conv_input': {'shape': np.array([1, 21, 16, 16])},
                              'conv_weights': {'shape': np.array([1, 21, 4, 4]),
                                               'dim_attrs': ['spatial_dims', 'channel_dims', 'batch_dims', 'axis']},
@@ -127,8 +134,10 @@ class TestConvolutionPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('conv_input', 'conv_node'),
                              ('conv_weights', 'conv_node'),
-                             ('conv_node', 'conv_output')],
-                            {'conv_output': {'is_output': True, 'shape': None},
+                             ('conv_node', 'conv_output'),
+                             ('conv_output', 'op_output')
+                             ],
+                            {'conv_output': {'shape': None},
                              'conv_input': {'shape': None},
                              'conv_weights': {'shape': np.array([1, 21, 16, 16]),
                                               'dim_attrs': ['spatial_dims', 'channel_dims', 'batch_dims', 'axis']},
@@ -153,11 +162,11 @@ class TestConvolutionPartialInfer(unittest.TestCase):
                             [
                                 ('conv_input', 'conv_node'),
                                 ('conv_weights', 'conv_node'),
-                                ('conv_node', 'conv_output')
+                                ('conv_node', 'conv_output'),
+                                ('conv_output', 'op_output')
                             ],
                             {
                                 'conv_output': {
-                                    'is_output': True,
                                     'shape': None
                                 },
                                 'conv_input': {
@@ -227,11 +236,11 @@ class TestConvolutionPartialInfer(unittest.TestCase):
                             [
                                 ('conv_input', 'conv_node'),
                                 ('conv_weights', 'conv_node'),
-                                ('conv_node', 'conv_output')
+                                ('conv_node', 'conv_output'),
+                                ('conv_output', 'op_output')
                             ],
                             {
                                 'conv_output': {
-                                    'is_output': True,
                                     'shape': None
                                 },
                                 'conv_input': {
@@ -301,11 +310,11 @@ class TestConvolutionPartialInfer(unittest.TestCase):
                             [
                                 ('conv_input', 'conv_node'),
                                 ('conv_weights', 'conv_node'),
-                                ('conv_node', 'conv_output')
+                                ('conv_node', 'conv_output'),
+                                ('conv_output', 'op_output')
                             ],
                             {
                                 'conv_output': {
-                                    'is_output': True,
                                     'shape': None
                                 },
                                 'conv_input': {

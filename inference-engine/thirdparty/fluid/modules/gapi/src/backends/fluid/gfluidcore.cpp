@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 
 #if !defined(GAPI_STANDALONE)
 
@@ -340,7 +340,7 @@ static void run_arithm_s3(uchar out[], const uchar in[], int width, const uchar 
         v_store_interleave(&out[3*w], x, y, z);
     }
 #endif
-    UNUSED(v_op);
+    cv::util::suppress_unused_warning(v_op);
     for (; w < width; w++)
     {
         out[3*w    ] = saturate<uchar>( s_op(in[3*w    ], scalar[0]) );
@@ -386,7 +386,7 @@ static void run_arithm_s1(uchar out[], const float in[], int width, const float 
         v_store(&out[w], uc);
     }
 #endif
-    UNUSED(v_op);
+    cv::util::suppress_unused_warning(v_op);
     for (; w < width; w++)
     {
         out[w] = saturate<uchar>(s_op(in[w], scalar[0]), std::roundf);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,7 +73,6 @@ void calcRowLinear_32F(float *dst[],
                  const float  alpha[],
                  const int    mapsx[],
                  const float  beta[],
-                       float  tmp[],
                  const Size & inSz,
                  const Size & outSz,
                        int    lpi);

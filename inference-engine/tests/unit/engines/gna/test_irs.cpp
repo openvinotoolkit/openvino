@@ -1,6 +1,34 @@
-// Copyright (C) 2018 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
+/*
+ * INTEL CONFIDENTIAL
+ * Copyright (C) 2018-2019 Intel Corporation.
+ *
+ * The source code contained or described herein and all documents
+ * related to the source code ("Material") are owned by Intel Corporation
+ * or its suppliers or licensors. Title to the Material remains with
+ * Intel Corporation or its suppliers and licensors. The Material may
+ * contain trade secrets and proprietary and confidential information
+ * of Intel Corporation and its suppliers and licensors, and is protected
+ * by worldwide copyright and trade secret laws and treaty provisions.
+ * No part of the Material may be used, copied, reproduced, modified,
+ * published, uploaded, posted, transmitted, distributed, or disclosed
+ * in any way without Intel's prior express written permission.
+ *
+ * No license under any patent, copyright, trade secret or other
+ * intellectual property right is granted to or conferred upon you by
+ * disclosure or delivery of the Materials, either expressly, by implication,
+ * inducement, estoppel or otherwise. Any license under such intellectual
+ * property rights must be express and approved by Intel in writing.
+ *
+ * Include any supplier copyright notices as supplier requires Intel to use.
+ *
+ * Include supplier trademarks or logos as supplier requires Intel to use,
+ * preceded by an asterisk. An asterisked footnote can be added as follows:
+ * *Third Party trademarks are the property of their respective owners.
+ *
+ * Unless otherwise agreed by Intel in writing, you may not remove or alter
+ * this notice or any other notice embedded in Materials by Intel or Intel's
+ * suppliers or licensors in any way.
+ */
 
 #include "test_irs.hpp"
 
@@ -342,7 +370,7 @@ std::string eltwiseToMemoryModel() {
 
 std::string activationAfterSplitModel() {
     return R"V0G0N(
-    <Net Name="activationAfterSplit" version="2" precision="FP32" batch="1">
+    <net Name="activationAfterSplit" version="2" precision="FP32" batch="1">
         <layers>
             <layer name="input_1" type="input" id="0" precision="FP32">
                 <output>
@@ -420,7 +448,7 @@ std::string activationAfterSplitModel() {
             <edge from-layer="12" from-port="2" to-layer="38" to-port="82" />
             <edge from-layer="38" from-port="83" to-layer="11" to-port="1" />
         </edges>
-    </Net>
+    </net>
     )V0G0N";
 }
 
@@ -505,6 +533,104 @@ std::string FCWithPaddingAfterSplitModel() {
     )V0G0N";
 }
 
+std::string FCBeforeSplitModel() {
+    return R"V0G0N(
+    <Net Name="FCBeforeSplitModel" version="2" precision="FP32" batch="1">
+        <layers>
+            <layer name="input_1" type="input" id="0" precision="FP32">
+                <output>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>20</dim>
+                    </port>
+                </output>
+            </layer>
+            <layer name="FullyConnected_1" id="1" type="InnerProduct" precision="FP32">
+                <fc out-size="20" />
+                <biases offset="0" size="80" />
+                <weights offset="80" size="1600" />
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>20</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>20</dim>
+                    </port>
+                </output>
+            </layer>
+            <layer name="Split_1" type="Split" id="2" precision="FP32">
+                <data axis="1" />
+                <input>
+                    <port id="0">
+                        <!--connected to input-->
+                        <dim>1</dim>
+                        <dim>20</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <!--connected to eltwise-->
+                        <dim>1</dim>
+                        <dim>10</dim>
+                    </port>
+                    <port id="2">
+                        <!--connected to fc-->
+                        <dim>1</dim>
+                        <dim>10</dim>
+                    </port>
+                </output>
+            </layer>
+            <layer name="FullyConnected_2" id="11" type="InnerProduct" precision="FP32">
+                <fc out-size="10" />
+                <biases offset="1600" size="40" />
+                <weights offset="1640" size="400" />
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>10</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>10</dim>
+                    </port>
+                </output>
+            </layer>
+            <layer name="Eltwise_8" type="Eltwise" id="21" precision="FP32">
+                <data operation="sum" />
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>10</dim>
+                    </port>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>10</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="2">
+                        <dim>1</dim>
+                        <dim>10</dim>
+                    </port>
+                </output>
+            </layer>
+        </layers>
+        <edges>
+            <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+            <edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+            <edge from-layer="2" from-port="1" to-layer="21" to-port="0" />
+            <edge from-layer="2" from-port="2" to-layer="11" to-port="0" />
+            <edge from-layer="11" from-port="1" to-layer="21" to-port="1" />
+        </edges>
+    </Net>
+    )V0G0N";
+}
 std::string twoFCWithPaddingAfterSliceModel() {
     return R"V0G0N(
     <Net Name="twoFCWithPaddingAfterSliceModel" version="2" precision="FP32" batch="1">
@@ -1803,6 +1929,7 @@ std::string TFLeakyReluModel() {
     </net>
     )V0G0N";
 }
+
 std::string maxpoolAfterRelu() {
     return R"V0G0N(
 <?xml version="1.0" ?>
@@ -2319,6 +2446,7 @@ std::string doubleConcatModel() {
     )V0G0N";
 }
 
+
 std::string cropWithoutOffsetModel() {
     return R"V0G0N(
     <Net Name="cropWithoutOffsetModel" version="2" precision="FP32" batch="1">
@@ -2675,4 +2803,498 @@ std::string copyModel() {
     </Net>
     )V0G0N";
 }
+
+std::string two_inputs_to_concat() {
+    return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="N" version="2">
+	<layers>
+		<layer id="0" name="input_1" precision="FP32" type="input">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>600</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="input_2" precision="FP32" type="input">
+			<output>
+				<port id="2">
+					<dim>1</dim>
+					<dim>600</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data out-size="600"/>
+			<input>
+				<port id="3">
+					<dim>1</dim>
+					<dim>600</dim>
+				</port>
+			</input>
+			<input>
+				<port id="4">
+					<dim>1</dim>
+					<dim>600</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5">
+					<dim>1</dim>
+					<dim>1200</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="5" name="tanh_6" precision="FP32" type="Activation">
+			<data type="tanh"/>
+			<input>
+				<port id="10">
+					<dim>1</dim>
+					<dim>600</dim>
+				</port>
+			</input>
+			<output>
+				<port id="11">
+					<dim>1</dim>
+					<dim>600</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="1" to-layer="2" to-port="3"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="4"/>
+		<edge from-layer="2" from-port="5" to-layer="5" to-port="10"/>
+	</edges>
+</net>
+    )V0G0N";
+
+}
+
+std::string two_inputs_to_affine() {
+    return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="" version="2">
+	<layers>
+		<layer id="0" name="input_1" precision="FP32" type="input">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="input_2" precision="FP32" type="input">
+			<output>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="affinetransform_3" precision="FP32" type="FullyConnected">
+			<data out-size="10"/>
+			<input>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="400"/>
+			</blobs>
+		</layer>
+		<layer id="3" name="affinetransform_4" precision="FP32" type="FullyConnected">
+			<data out-size="600"/>
+			<input>
+				<port id="5">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="6">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="400" size="400"/>
+			</blobs>
+		</layer>
+		<layer id="4" name="add_5" precision="FP32" type="Eltwise">
+			<data operation="sum"/>
+			<input>
+				<port id="7">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="9">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="1" to-layer="2" to-port="3"/>
+		<edge from-layer="1" from-port="2" to-layer="3" to-port="5"/>
+		<edge from-layer="2" from-port="4" to-layer="4" to-port="7"/>
+		<edge from-layer="3" from-port="6" to-layer="4" to-port="8"/>
+	</edges>
+</net>
+    )V0G0N";
+
+}
+
+
+std::string affineAfterConvNoPermute() {
+    return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model" version="2">
+	<layers>
+		<layer id="0" name="Placeholder" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>126</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="conv1" precision="FP32" type="Convolution">
+			<data dilation-x="1" dilation-y="1" group="1" kernel-x="5" kernel-y="1" output="128" pad-x="0" pad-y="0" stride="1,1,1,1" stride-x="1" stride-y="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>126</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>122</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="327680"/>
+				<biases offset="327680" size="512"/>
+			</blobs>
+		</layer>
+		<layer id="2" name="conv1_node/Relu" precision="FP32" type="ReLU">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>122</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>122</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="pool1_node/MaxPool" precision="FP32" type="Pooling">
+			<data exclude-pad="true" kernel-x="2" kernel-y="1" pad-x="0" pad-y="0" pool-method="max" stride="1,1,1,2" stride-x="2" stride-y="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>122</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>61</dim>
+				</port>
+			</output>
+		</layer>
+
+        <layer id="4" name="Reshape_3" precision="FP32" type="Reshape">
+            <data axis="0" dim="1,7808" num_axes="-1"/>
+            <input>
+            <port id="0">
+                <dim>1</dim>
+                <dim>128</dim>
+                <dim>1</dim>
+                <dim>61</dim>
+            </port>
+            </input>
+            <output>
+            <port id="1">
+                <dim>1</dim>
+                <dim>7808</dim>
+            </port>
+            </output>
+        </layer>
+
+        <layer name="FullyConnected" id="5" type="InnerProduct" precision="FP32">
+
+            <fc out-size="10" />
+
+            <biases offset="328192" size="40" />
+            <weights offset="328232" size="312320" />
+
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>7808</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </output>
+        </layer>
+        </layers>
+        <edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+		<edge from-layer="2" from-port="1" to-layer="3" to-port="0"/>
+        <edge from-layer="3" from-port="1" to-layer="4" to-port="0"/>
+        <edge from-layer="4" from-port="1" to-layer="5" to-port="0"/>
+        </edges>
+    </net>
+
+    )V0G0N";
+}
+
+std::string affineAfterConvWithPermute() {
+    return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model" version="2">
+	<layers>
+		<layer id="0" name="Placeholder" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>126</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="conv1" precision="FP32" type="Convolution">
+			<data dilation-x="1" dilation-y="1" group="1" kernel-x="5" kernel-y="1" output="128" pad-x="0" pad-y="0" stride="1,1,1,1" stride-x="1" stride-y="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>126</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>122</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="327680"/>
+				<biases offset="327680" size="512"/>
+			</blobs>
+		</layer>
+		<layer id="2" name="conv1_node/Relu" precision="FP32" type="ReLU">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>122</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>122</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="pool1_node/MaxPool" precision="FP32" type="Pooling">
+			<data exclude-pad="true" kernel-x="2" kernel-y="1" pad-x="0" pad-y="0" pool-method="max" stride="1,1,1,2" stride-x="2" stride-y="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>122</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>61</dim>
+				</port>
+			</output>
+		</layer>
+
+		<layer id="4" name="maxpoolingcomponent32/Permute" precision="FP32" type="Permute">
+			<data order="0,3,2,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>1</dim>
+					<dim>61</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>61</dim>
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+
+        <layer id="5" name="Reshape_3" precision="FP32" type="Reshape">
+            <data axis="0" dim="1,7808" num_axes="-1"/>
+            <input>
+            <port id="0">
+                <dim>1</dim>
+                <dim>61</dim>
+                <dim>1</dim>
+                <dim>128</dim>
+            </port>
+            </input>
+            <output>
+            <port id="1">
+                <dim>1</dim>
+                <dim>7808</dim>
+            </port>
+            </output>
+        </layer>
+
+        <layer name="FullyConnected" id="6" type="InnerProduct" precision="FP32">
+
+            <fc out-size="10" />
+
+            <biases offset="328192" size="40" />
+            <weights offset="328232" size="312320" />
+
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>7808</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </output>
+        </layer>
+        </layers>
+        <edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+		<edge from-layer="2" from-port="1" to-layer="3" to-port="0"/>
+        <edge from-layer="3" from-port="1" to-layer="4" to-port="0"/>
+        <edge from-layer="4" from-port="1" to-layer="5" to-port="0"/>
+        <edge from-layer="5" from-port="1" to-layer="6" to-port="0"/>
+        </edges>
+    </net>
+
+    )V0G0N";
+}
+
+
+
+std::string ScaleShift3DModel() {
+    return R"V0G0N(
+   <?xml version="1.0" ?>
+<net batch="1" name="frozen_model" version="4">
+	<layers>
+		<layer id="0" name="reshape_1_input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>40</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="conv1d_1/convolution/Squeeze" precision="FP32" type="Reshape">
+			<data dim="1,5,8"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>40</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>5</dim>
+					<dim>8</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="conv1d_1/add" precision="FP32" type="ScaleShift">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>5</dim>
+					<dim>8</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>5</dim>
+					<dim>8</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="32"/>
+				<biases offset="32" size="32"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+	</edges>
+</net>
+
+    )V0G0N";
+}
+
 }  // namespace GNATestIRs

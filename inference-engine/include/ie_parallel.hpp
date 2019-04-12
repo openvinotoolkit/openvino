@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,8 +149,8 @@ R parallel_sum(const T0 D0, R &input, F func) {
 #if IE_THREAD == IE_THREAD_OMP
     #pragma omp parallel for reduction(+ : sum) schedule(static)
 #endif
-    for (T0_IT dim1 = 0; dim1 < D0; dim1++) {
-        sum += func(dim1);
+    for (T0_IT dim1 = 0; dim1 < static_cast<T0_IT>(D0); dim1++) {
+        sum += static_cast<R>(func(dim1));
     }
     return sum;
 #endif
@@ -230,9 +230,9 @@ R parallel_sum3d(const T0 D0, const T1 D1, const T2 D2, R input, F func) {
 #if IE_THREAD == IE_THREAD_OMP
     #pragma omp parallel for collapse(3) reduction(+ : sum) schedule(static)
 #endif
-    for (T0_IT dim1 = 0; dim1 < D0; dim1++) {
-        for (T1_IT dim2 = 0; dim2 < D1; dim2++) {
-            for (T2_IT dim3 = 0; dim3 < D2; dim3++) {
+    for (T0_IT dim1 = 0; dim1 < static_cast<T0_IT>(D0); dim1++) {
+        for (T1_IT dim2 = 0; dim2 < static_cast<T1_IT>(D1); dim2++) {
+            for (T2_IT dim3 = 0; dim3 < static_cast<T2_IT>(D2); dim3++) {
                 sum += func(dim1, dim2, dim3);
             }
         }

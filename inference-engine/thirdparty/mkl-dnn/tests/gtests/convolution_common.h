@@ -18,12 +18,24 @@
 
 #include "mkldnn.hpp"
 
+#if defined(WITH_DW_CONV)
+#define EXPAND_FORMATS(src, conv1_weights, conv1_bias, conv2_weights, conv2_bias, dst) \
+    { mkldnn::memory::format::src, mkldnn::memory::format::conv1_weights, mkldnn::memory::format::conv1_bias, \
+    mkldnn::memory::format::conv2_weights, mkldnn::memory::format::conv2_bias, mkldnn::memory::format::dst }
+#else
 #define EXPAND_FORMATS(src, weights, bias, dst) \
     { mkldnn::memory::format::src, mkldnn::memory::format::weights, \
     mkldnn::memory::format::bias, mkldnn::memory::format::dst }
+#endif
+
+#define EXPAND_ARGS(args) args
 
 #define ENGINE mkldnn::engine::kind::cpu
+#if defined(BIN)
+#define ALGORITHM mkldnn::binary_convolution_direct
+#else
 #define ALGORITHM mkldnn::convolution_direct
+#endif
 
 #ifdef DIRECTION_FORWARD
 #if defined(FP32)
@@ -47,6 +59,15 @@
 #define FMT_WEIGHTS_BLOCKED_G gOhIw8o4i
 #define FMT_WEIGHTS_BLOCKED16 OIhw4i16o4i
 #define FMT_WEIGHTS_BLOCKED16_G gOIhw4i16o4i
+#elif defined(BIN)
+#define FMT_DATA_BLOCKED nhwc
+#define FMT_DATA_BLOCKED16 nhwc
+#define FMT_WEIGHTS_BLOCKED OhIw8o32i
+#define FMT_WEIGHTS_BLOCKED_G OhIw8o32i
+#define FMT_WEIGHTS_BLOCKED16 OhIw16o32i
+#define FMT_WEIGHTS_BLOCKED16_G OhIw16o32i
+#define FMT_WEIGHTS_DW_BLOCKED Goihw8g
+#define FMT_WEIGHTS_DW_BLOCKED16 Goihw16g
 #endif
 #define FMT_WEIGHTS_BLOCKED16_IOhw16o16i FMT_WEIGHTS_BLOCKED16
 #define TEST_CASE_NAME_PREFIX Forward
@@ -85,42 +106,104 @@
 #define CONCAT_WITH_UNDERSCORE_(a,b) a ## _ ## b
 #define CONCAT_WITH_UNDERSCORE(a,b) CONCAT_WITH_UNDERSCORE_(a,b)
 
+#if defined(BIN)
+#define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_CASE_P( \
+        str, binary_convolution_test, ::testing::Values(__VA_ARGS__))
+#define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
+        CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
+#else
 #define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_CASE_P( \
         str, convolution_test, ::testing::Values(__VA_ARGS__))
 #define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
+#endif
 
 #define INST_TEST_CASE_3D_(str, ...) INSTANTIATE_TEST_CASE_P( \
         str, convolution_test_3d, ::testing::Values(__VA_ARGS__))
 #define INST_TEST_CASE_3D(str, ...) INST_TEST_CASE_3D_( \
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
 
-#ifndef NEGATIVE_SLOPE
-#define NEGATIVE_SLOPE 0.0f
+#if defined(BIN)
+#define PAD_VALUE -1.0f
+#define ELTWISE_ALGORITHM mkldnn::algorithm_undef
+#define DEPTHWISE_ALGORITHM mkldnn::algorithm_undef
+#define BINARIZATION_ALGORITHM mkldnn::algorithm_undef
+#define ELTWISE_ALPHA 0.5f
+#define ELTWISE_BETA 0.1f
+
+#if defined(WITH_SUM)
+#define WITH_SUM_BOOL true
 #else
-#undef INST_TEST_CASE
-#define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
-        CONCAT_WITH_UNDERSCORE(CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, \
-        str), neg_slope),  __VA_ARGS__)
+#define WITH_SUM_BOOL false
 #endif
 
+#if defined(WITH_ELTWISE)
+#if defined(WITH_DW_CONV)
+#define PARAMS(elt_alg, src, conv1_weights, conv1_bias, conv2_weights, conv2_bias, dst, ...) \
+    test_binary_convolution_dw_conv_params_t { ENGINE, ALGORITHM, elt_alg, ELTWISE_ALPHA, ELTWISE_BETA, DEPTHWISE_ALGORITHM, WITH_SUM_BOOL, BINARIZATION_ALGORITHM, \
+    EXPAND_FORMATS(src, conv1_weights, conv1_bias, conv2_weights, conv2_bias, dst), \
+    {__VA_ARGS__} }
+#else
+#define PARAMS(elt_alg, src, weights, bias, dst, ...) \
+    test_binary_convolution_params_t { ENGINE, ALGORITHM, PAD_VALUE, elt_alg, ELTWISE_ALPHA, ELTWISE_BETA, DEPTHWISE_ALGORITHM, WITH_SUM_BOOL, BINARIZATION_ALGORITHM, \
+    EXPAND_FORMATS(src, weights, bias, dst), \
+    {__VA_ARGS__} }
+#endif
+#elif defined(WITH_DEPTHWISE)
+#if defined(WITH_DW_CONV)
+#define PARAMS(dep_alg, src, conv1_weights, conv1_bias, conv2_weights, conv2_bias, dst, ...) \
+    test_binary_convolution_dw_conv_params_t { ENGINE, ALGORITHM, ELTWISE_ALGORITHM, ELTWISE_ALPHA, ELTWISE_BETA, dep_alg, WITH_SUM_BOOL, BINARIZATION_ALGORITHM, \
+    EXPAND_FORMATS(src, conv1_weights, conv1_bias, conv2_weights, conv2_bias, dst), \
+    {__VA_ARGS__} }
+#else
+#define PARAMS(dep_alg, src, weights, bias, dst, ...) \
+    test_binary_convolution_params_t { ENGINE, ALGORITHM, PAD_VALUE, ELTWISE_ALGORITHM, ELTWISE_ALPHA, ELTWISE_BETA, dep_alg, WITH_SUM_BOOL, BINARIZATION_ALGORITHM, \
+    EXPAND_FORMATS(src, weights, bias, dst), \
+    {__VA_ARGS__} }
+#endif
+#elif defined(WITH_BINARIZATION)
+#if defined(WITH_DW_CONV)
+#define PARAMS(bin_alg, src, conv1_weights, conv1_bias, conv2_weights, conv2_bias, dst, ...) \
+    test_binary_convolution_dw_conv_params_t { ENGINE, ALGORITHM, ELTWISE_ALGORITHM, ELTWISE_ALPHA, ELTWISE_BETA, DEPTHWISE_ALGORITHM, WITH_SUM_BOOL, bin_alg, \
+    EXPAND_FORMATS(src, conv1_weights, conv1_bias, conv2_weights, conv2_bias, dst), \
+    {__VA_ARGS__} }
+#else
+#define PARAMS(bin_alg, src, weights, bias, dst, ...) \
+    test_binary_convolution_params_t { ENGINE, ALGORITHM, PAD_VALUE, ELTWISE_ALGORITHM, ELTWISE_ALPHA, ELTWISE_BETA, DEPTHWISE_ALGORITHM, WITH_SUM_BOOL, bin_alg, \
+    EXPAND_FORMATS(src, weights, bias, dst), \
+    {__VA_ARGS__} }
+#endif
+#else
+#if defined(WITH_DW_CONV)
+#define PARAMS(src, conv1_weights, conv1_bias, conv2_weights, conv2_bias, dst, ...) \
+    test_binary_convolution_dw_conv_params_t { ENGINE, ALGORITHM, ELTWISE_ALGORITHM, ELTWISE_ALPHA, ELTWISE_BETA, DEPTHWISE_ALGORITHM, WITH_SUM_BOOL, BINARIZATION_ALGORITHM, \
+    EXPAND_FORMATS(src, conv1_weights, conv1_bias, conv2_weights, conv2_bias, dst), \
+    {__VA_ARGS__} }
+#else
 #define PARAMS(src, weights, bias, dst, ...) \
-    test_convolution_params_t { ENGINE, ALGORITHM, NEGATIVE_SLOPE, \
+    test_binary_convolution_params_t { ENGINE, ALGORITHM, PAD_VALUE, ELTWISE_ALGORITHM, ELTWISE_ALPHA, ELTWISE_BETA, DEPTHWISE_ALGORITHM, WITH_SUM_BOOL, BINARIZATION_ALGORITHM, \
+    EXPAND_FORMATS(src, weights, bias, dst), \
+    {__VA_ARGS__} }
+#endif
+#endif
+#else
+#define PARAMS(src, weights, bias, dst, ...) \
+    test_convolution_params_t { ENGINE, ALGORITHM, \
     EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
     {__VA_ARGS__} }
+#endif
 
 #define PARAMS_3D(src, weights, bias, dst, ...) \
-    test_convolution_params_t_3d { ENGINE, ALGORITHM, NEGATIVE_SLOPE, \
+    test_convolution_params_t_3d { ENGINE, ALGORITHM, \
     EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
     {__VA_ARGS__} }
-
 #define PARAMS_EXPECT_FAIL(src, weights, bias, dst, code, ...) \
-    test_convolution_params_t { ENGINE, ALGORITHM, NEGATIVE_SLOPE, \
+    test_convolution_params_t { ENGINE, ALGORITHM, \
     EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
     {__VA_ARGS__}, true, code }
 
 #define PARAMS_ATTR(src, weights, bias, dst, round_mode, scale, policy, ...) \
-    test_convolution_params_t { ENGINE, ALGORITHM, NEGATIVE_SLOPE, \
+    test_convolution_params_t { ENGINE, ALGORITHM, \
     EXPAND_FORMATS(src, weights, bias, dst), \
     {mkldnn::round_mode, scale, test_convolution_attr_t::scale_t::policy}, \
     {__VA_ARGS__} }
@@ -128,7 +211,11 @@
 #ifdef TEST_PARAM_ATTR
 #include "convolution_attr.h"
 #else
+
+#if !defined(BIN)
 #include "convolution_simple_small.h"
+#endif
+
 #endif
 //#include "convolution_alexnet.h"
 //#include "convolution_googlenet_v1.h"

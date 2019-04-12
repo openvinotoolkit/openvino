@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -11,7 +11,11 @@ if (ENABLE_SANITIZER)
     if (SANITIZE_RECOVER_SUPPORTED)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
     endif()
-    set(SANITIZER_LINKER_FLAGS "-fsanitize=address -fuse-ld=gold")
+
+    set(SANITIZER_LINKER_FLAGS "-fsanitize=address")
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=gold")
+    endif()
 
     set(CMAKE_CC_FLAGS "${CMAKE_CC_FLAGS} ${SANITIZER_COMPILER_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZER_COMPILER_FLAGS}")

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,15 +42,19 @@ private:
     /** Direction of iteration through sequence dimension */
     mkldnn::rnn_direction direction = mkldnn::unidirectional;
 
+    /** RNN Cell desc (type/activation_alg/clip)*/
+    mkldnn::rnn_cell::desc cell_desc { mkldnn::algorithm::vanilla_lstm };
+
     // Internal attributes
-    int N = 0;   /**< Batch value */
-    int T = 0;   /**< Sequence value */
-    int DC = 0;  /**< Input data channel size */
-    int SC = 0;  /**< State channel size value */
-    const int G = 4;   /**< Gate size. 4 for LSTM */
-    const int L = 1;   /**< What is it??. Constant for mkldnn impl */
-    const int D = 1;   /**< Num of direction. 1 or 2 */
-    const int S = 2;   /**< Num of state. 2 for LSTM (hidden and sell state). */
+    ptrdiff_t N = 0;   /**< Batch value */
+    ptrdiff_t T = 0;   /**< Sequence value */
+    ptrdiff_t DC = 0;  /**< Input data channel size */
+    ptrdiff_t SC = 0;  /**< State channel size value */
+    ptrdiff_t G = 0;   /**< Gate size. LSTM - 4, GRU - 3, RNN - 1 */
+    ptrdiff_t Gb = 0;  /**< Gate size for biases. Gb = GRU_lbr ? G+1 : G */
+    ptrdiff_t S = 2;   /**< Num of state. LSTM - 2, GRU & RNN - 1 */
+    const ptrdiff_t L = 1;   /**< What is it??. Constant for mkldnn impl */
+    const ptrdiff_t D = 1;   /**< Num of direction. 1 or 2 */
 
     MKLDNNMemoryDesc in_data_d;
     MKLDNNMemoryDesc out_data_d;

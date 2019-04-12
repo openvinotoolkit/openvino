@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,13 +13,22 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
 from mo.middle.replacement import MiddleReplacementPattern
 
 next_ops = ['NextIteration', 'TensorArrayWriteV3']
 
 
 class DeleteSelect(MiddleReplacementPattern):
+    enabled = True
+    graph_condition = [lambda graph: graph.graph['is_cyclic']]
+
+    def run_after(self):
+        from extensions.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
+        return [AddIsCyclicAttribute]
+
+    def run_before(self):
+        return []
+
     @staticmethod
     def pattern():
         return dict(

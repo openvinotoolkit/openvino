@@ -15,7 +15,6 @@
 */
 
 #include "convolution_kernel_1x1_gemm_MMAD.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
     
@@ -82,7 +81,7 @@ namespace kernel_selector {
         const auto of_maps = arg.output.Feature().v;
         const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-        runInfo.effiency = FORCE_PRIORITY_1;
+        runInfo.effiency = FORCE_PRIORITY_2;
 
         runInfo.gws0 = RoundUp(arg.output.X().v * arg.output.Y().v, 8) / 8;
         runInfo.gws1 = of_threads_per_batch * arg.output.Batch().v;
@@ -111,6 +110,6 @@ namespace kernel_selector {
 
     KernelsData ConvolutionKernel_1x1_gemm_MMAD::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        return GetCommonKernelsData(params, options);
+        return GetTunedKernelsDataByIndex(params, options);
     }
 }

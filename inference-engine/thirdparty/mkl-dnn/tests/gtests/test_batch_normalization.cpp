@@ -152,7 +152,7 @@ void check_bnrm_bwd(const test_bnrm_params_t &p,
 {
     const test_bnrm_sizes_t &bp = p.sizes;
     const bool use_weights = flags & use_scale_shift;
-    const bool calculate_diff_stats = !(flags & omit_stats);
+    const bool calculate_diff_stats = !(flags & use_global_stats);
 
     const data_t *src_data = (const data_t *)src.get_data_handle();
     const data_t *weights_data = use_weights ? (const data_t *)weights.get_data_handle() : nullptr;
@@ -316,11 +316,11 @@ protected:
         Forward(use_scale_shift | use_global_stats, training);
 
         Backward(0u, backward_data);
-        Backward(omit_stats, backward_data);
+        Backward(use_global_stats, backward_data);
         Backward(use_scale_shift, backward);
         Backward(use_scale_shift, backward_data);
-        Backward(use_scale_shift | omit_stats, backward);
-        Backward(use_scale_shift | omit_stats, backward_data);
+        Backward(use_scale_shift | use_global_stats, backward);
+        Backward(use_scale_shift | use_global_stats, backward_data);
 
     }
 

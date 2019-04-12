@@ -53,7 +53,7 @@ namespace kernel_selector
         const auto& inputNlParams = params.inputActivationParams;
 
         jit.AddConstants({
-            MakeJitConstant("PARAMS_NUM", GetActivationAdditionalParamsNumber(params.activationFunc)),
+            MakeJitConstant("PARAMS_NUM", GetActivationAdditionalParamsNumber(params.activation.function)),
         });
 
         if (!inputNlParams.empty())

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,7 +26,8 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
                     'inner': {'type': 'FullyConnected', 'value': None, 'kind': 'op'},
                     'node_2': {'value': FakeValue(None), 'kind': 'data'},
-                    'node_3': {'value': None, 'kind': 'data'}
+                    'node_3': {'value': None, 'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
                     }
 
 
@@ -35,8 +36,10 @@ class TestInnerPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'inner'),
                              ('node_2', 'inner'),
-                             ('inner', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('inner', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 256, 256])},
                              'node_2': {'shape': np.array([1, 3, 256, 256]),
                                         'dim_attrs': ['spatial_dims', 'channel_dims', 'batch_dims', 'axis']},
@@ -60,8 +63,10 @@ class TestInnerPartialInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'inner'),
                              ('node_2', 'inner'),
-                             ('inner', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('inner', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': None},
                              'node_2': {'shape': np.array([1, 3, 256, 256])},
                              'inner': {'out-size': 4}

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -29,6 +29,10 @@ def tf_reshape_shape_infer(node):
 
     input_shape = node.in_node(0).shape
     reshape_output = node.in_node(1).value if len(node.in_nodes()) > 1 else node.dim
+
+    # In case if Reshape operation was created with two inputs and dim attr wasn't set, we set in automatically
+    if not node.has_valid('dim'):
+        node['dim'] = reshape_output.copy()
 
     if node.in_node(0).shape is None:
         return None
@@ -67,9 +71,5 @@ def tf_reshape_shape_infer(node):
     PermuteAttrs.create_permute_attrs(node, attrs=[('dim', 'output:0')])
 
     output_shape = int64_array(output_shape)
-
-    # In case if Reshape operation was created with two inputs and dim attr wasn't set, we set in automatically
-    if not node.has_valid('dim'):
-        node['dim'] = output_shape
 
     return output_shape
