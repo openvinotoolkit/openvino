@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018 Intel Corporation
+﻿// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,7 +141,7 @@ StatusCode CNNNetReaderImpl::ReadNetwork(pugi::xml_document& xmlDoc) {
 
         _version = GetFileVersion(root);
         if (_version < 1) THROW_IE_EXCEPTION << "deprecated IR version: " << _version;
-        if (_version > 4) THROW_IE_EXCEPTION << "cannot parse future versions: " << _version;
+        if (_version > 5) THROW_IE_EXCEPTION << "cannot parse future versions: " << _version;
         _parser = parserCreator->create(_version);
         network = _parser->Parse(root);
         name = network->getName();

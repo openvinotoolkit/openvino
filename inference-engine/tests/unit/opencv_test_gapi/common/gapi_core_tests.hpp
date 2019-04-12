@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,9 @@
 namespace opencv_test
 {
 
-struct ResizeTestGAPI: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, double, cv::GCompileArgs>> {};
-
-struct Split2TestGAPI: public TestParams<std::tuple<int, cv::Size, cv::GCompileArgs>> {};
-struct Split3TestGAPI: public TestParams<std::tuple<int, cv::Size, cv::GCompileArgs>> {};
-struct Split4TestGAPI: public TestParams<std::tuple<int, cv::Size, cv::GCompileArgs>> {};
-
-struct Merge2TestGAPI: public TestParams<std::tuple<int, cv::Size, cv::GCompileArgs>> {};
-struct Merge3TestGAPI: public TestParams<std::tuple<int, cv::Size, cv::GCompileArgs>> {};
-struct Merge4TestGAPI: public TestParams<std::tuple<int, cv::Size, cv::GCompileArgs>> {};
+struct ResizeTestGAPI: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, double>> {};
+struct SplitTestGAPI: public TestParams<std::tuple<int, int, cv::Size>> {};
+struct MergeTestGAPI: public TestParams<std::tuple<int, int, cv::Size>> {};
 
 //------------------------------------------------------------------------------
 

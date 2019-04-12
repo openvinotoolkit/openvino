@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ cv::Size addToBlob(std::string name, int batch_pos, Blob& blob, PreprocessingOpt
 
     // TODO This is a dirty hack to support VOC2007 (where no file extension is put into annotation).
     //      Rewrite.
-    if (name.find('.') == -1) tryName = name + ".JPEG";
+    if (name.find('.') == std::string::npos) tryName = name + ".JPEG";
 
     orig_image = imread(tryName, loadMode);
 
@@ -70,7 +70,7 @@ cv::Size addToBlob(std::string name, int batch_pos, Blob& blob, PreprocessingOpt
         THROW_IE_EXCEPTION << "Unsupported ResizeCropPolicy value";
     }
 
-    float scaleFactor = preprocessingOptions.scaleValuesTo01 ? 255.0 : 1.0;
+    float scaleFactor = preprocessingOptions.scaleValuesTo01 ? 255.0f : 1.0f;
 
     for (int c = 0; c < channels; c++) {
         for (int h = 0; h < height; h++) {
@@ -106,7 +106,7 @@ std::map<std::string, cv::Size> convertToBlob(std::vector<std::string> names, in
     }
 
     std::map<std::string, Size> res;
-    for (int b = 0; b < names.size(); b++) {
+    for (size_t b = 0; b < names.size(); b++) {
         std::string name = names[b];
         Size orig_size = add_func(name, batch_pos + b, blob, preprocessingOptions);
         res.insert(std::pair<std::string, Size>(name, orig_size));

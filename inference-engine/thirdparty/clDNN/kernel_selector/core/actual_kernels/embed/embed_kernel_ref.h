@@ -36,8 +36,8 @@ namespace kernel_selector
         {
         };
 
-        virtual ParamsKey GetSupportedKey() const override;
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
         virtual JitConstants GetJitConstants(const embed_params& params) const;
         virtual DispatchData SetDefault(const embed_params& params) const;

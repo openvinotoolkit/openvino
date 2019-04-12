@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,11 +15,22 @@
 """
 
 import networkx as nx
+
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 
 
 class AddIsCyclicAttribute(MiddleReplacementPattern):
+    enabled = True
+
+    def run_after(self):
+        from extensions.middle.DeleteControlFlowEdges import DeleteControlFlowEdges
+        return [DeleteControlFlowEdges]
+
+    def run_before(self):
+        return []
+
     @staticmethod
-    def find_and_replace_pattern(graph: nx.MultiDiGraph):
+    def find_and_replace_pattern(graph: Graph):
         is_acyclic = nx.is_directed_acyclic_graph(graph)
         graph.graph['is_cyclic'] = not is_acyclic

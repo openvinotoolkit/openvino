@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace GNAPluginNS;
 
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
-        plugin = make_ie_compatible_plugin({1, 5, "GNAPlugin", "GNAPlugin"}, make_shared<GNAPluginInternal>());
+        plugin = make_ie_compatible_plugin({1, 6, "GNAPlugin", "GNAPlugin"}, make_shared<GNAPluginInternal>());
         return OK;
     }
     catch (std::exception &ex) {

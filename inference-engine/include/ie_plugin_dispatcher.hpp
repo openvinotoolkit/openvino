@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ public:
      * @brief A constructor
      * @param pp Vector of paths to plugin directories
      */
-    explicit PluginDispatcher(const std::vector<file_name_t> &pp) : pluginDirs(pp) {}
+    explicit PluginDispatcher(const std::vector<file_name_t> &pp = {file_name_t()}) : pluginDirs(pp) {}
 
     /**
     * @brief Loads a plugin from plugin directories

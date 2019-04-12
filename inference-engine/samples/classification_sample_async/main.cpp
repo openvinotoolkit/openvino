@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,7 @@
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
+#include <samples/classification_results.h>
 
 #include <sys/stat.h>
 #include <ext_list.hpp>
@@ -84,7 +85,7 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 1. Load Plugin for inference engine -------------------------------------
         slog::info << "Loading plugin" << slog::endl;
-        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp, "../../../lib/intel64" , "" }).getPluginByDevice(FLAGS_d);
+        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
         if (FLAGS_p_msg) {
             static_cast<InferenceEngine::InferenceEnginePluginPtr>(plugin)->SetLogCallback(error_listener);
         }
@@ -254,7 +255,7 @@ int main(int argc, char *argv[]) {
         size_t currentInfer = 0;
         size_t prevInfer = (FLAGS_nireq > 1) ? 1 : 0;
 
-        for (int iter = 0; iter < FLAGS_ni + FLAGS_nireq; ++iter) {
+        for (size_t iter = 0; iter < FLAGS_ni + FLAGS_nireq; ++iter) {
             if (iter < FLAGS_ni) {
                 inferRequests[currentInfer].StartAsync();
             }
@@ -280,20 +281,14 @@ int main(int argc, char *argv[]) {
 
         for (size_t i = 0; i < FLAGS_nireq; i++) {
             /** Validating -nt value **/
-            const int resultsCnt = outputBlobs[i]->size() / batchSize;
+            const size_t resultsCnt = outputBlobs[i]->size() / batchSize;
             if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
                 slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than " \
                           << resultsCnt+1 << " and more than 0)\n            will be used maximal value : " << resultsCnt << slog::endl;
                 FLAGS_nt = resultsCnt;
             }
-            /** This vector stores id's of top N results **/
-            std::vector<unsigned> results;
-            TopResults(FLAGS_nt, *outputBlobs[i], results);
-
-            std::cout << std::endl << "Top " << FLAGS_nt << " results:" << std::endl << std::endl;
 
             /** Read labels from file (e.x. AlexNet.labels) **/
-            bool labelsEnabled = false;
             std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
             std::vector<std::string> labels;
 
@@ -305,26 +300,12 @@ int main(int argc, char *argv[]) {
                     trim(strLine);
                     labels.push_back(strLine);
                 }
-                labelsEnabled = true;
             }
 
-            /** Print the result iterating over each batch **/
-            for (int image_id = 0; image_id < batchSize; ++image_id) {
-                std::cout << "Image " << imageNames[image_id] << std::endl << std::endl;
-                for (size_t id = image_id * FLAGS_nt, cnt = 0; cnt < FLAGS_nt; ++cnt, ++id) {
-                    std::cout.precision(7);
-                    /** Getting probability for resulting class **/
-                    auto result = outputBlobs[i]->buffer().
-                            as<PrecisionTrait<Precision::FP32>::value_type*>()[results[id] + image_id*(outputBlobs[i]->size() / batchSize)];
-                    std::cout << std::left << std::fixed << results[id] << " " << result;
-                    if (labelsEnabled) {
-                        std::cout << " label " << labels[results[id]] << std::endl;
-                    } else {
-                        std::cout << " label #" << results[id] << std::endl;
-                    }
-                }
-                std::cout << std::endl;
-            }
+            ClassificationResult classificationResult(outputBlobs[i], imageNames,
+                                                      batchSize, FLAGS_nt,
+                                                      labels);
+            classificationResult.print();
         }
         // -----------------------------------------------------------------------------------------------------
         std::cout << std::endl << "total inference time: " << total << std::endl;
@@ -335,8 +316,7 @@ int main(int argc, char *argv[]) {
         std::map<std::string, InferenceEngineProfileInfo> performanceMap;
         if (FLAGS_pc) {
             for (size_t nireq = 0; nireq < FLAGS_nireq; nireq++) {
-                performanceMap = inferRequests[nireq].GetPerformanceCounts();
-                printPerformanceCounts(performanceMap, std::cout);
+                printPerformanceCounts(inferRequests[nireq], std::cout);
             }
         }
     }

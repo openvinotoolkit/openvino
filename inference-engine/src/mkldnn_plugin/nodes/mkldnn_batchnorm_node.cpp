@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,6 +71,8 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
         InferenceEngine::TBlob<float>::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
         internalBlob->allocate();
         float * data = internalBlob->buffer();
+        if (data == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get memory!";
 
         InferenceEngine::Blob::Ptr blb = scshLayer->_weights;
         if (blb == nullptr)

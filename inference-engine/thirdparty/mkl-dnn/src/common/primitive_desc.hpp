@@ -20,6 +20,7 @@
 #include "mkldnn.h"
 
 #include "c_types_map.hpp"
+#include "memory_tracking.hpp"
 #include "nstl.hpp"
 #include "type_helpers.hpp"
 #include "primitive_attr.hpp"
@@ -46,6 +47,11 @@ struct mkldnn_primitive_desc: public mkldnn::impl::c_compatible {
 
     virtual void init_info() {}
     const char *info() const { return info_; }
+
+    mkldnn::impl::memory_tracking::registry_t &scratchpad_registry()
+    { return scratchpad_registry_; }
+    const mkldnn::impl::memory_tracking::registry_t &scratchpad_registry() const
+    { return scratchpad_registry_; }
 
     virtual const mkldnn::impl::op_desc_t *op_desc() const = 0;
 
@@ -101,6 +107,8 @@ protected:
     mkldnn::impl::primitive_kind_t kind_;
 
     char info_[MKLDNN_VERBOSE_BUF_LEN];
+
+    mkldnn::impl::memory_tracking::registry_t scratchpad_registry_;
 };
 
 #define DECLARE_COMMON_PD_t(impl_name, ...) \

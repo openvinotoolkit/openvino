@@ -26,6 +26,7 @@ template <>
 struct typed_program_node<concatenation> : public typed_program_node_base<concatenation>
 {
     using parent = typed_program_node_base<concatenation>;
+    typed_program_node(const std::shared_ptr<concatenation> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
 
 public:
     using parent::parent;

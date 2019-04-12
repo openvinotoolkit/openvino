@@ -1,10 +1,23 @@
-// Copyright (C) 2018 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2016-2018 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #include <vector>
 #include <gtest/gtest.h>
 #include <inference_engine/layer_transform.hpp>
+#include <gna-api-types-xnn.h>
 #include "gna_plugin/quantization/model_quantizer.hpp"
 #include "gna_plugin/quantization/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
@@ -123,7 +136,7 @@ TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
 
     auto weights = make_shared_blob<uint8_t >(Precision::U8, C, {440});
     weights->allocate();
-    fillWeights(weights, 100);
+    fillWeights(weights, {100});
     net_reader.SetWeights(weights);
 
     auto newNet = q.quantize(net_reader.getNetwork(), 1000);
@@ -190,41 +203,16 @@ TEST_F(I16QuantisationTest, SplitFollowedByActivation_DummyDiagonalAffineInserti
         .inNotCompactMode().gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
 }
 
-TEST_F(I16QuantisationTest, SplitFollowedByFCAndEltwiseOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<float> expected_result = {12.0, 12.0, 12.0, 12.0, 12.0,
-                                          12.0, 12.0, 12.0, 12.0, 12.0};
-    assert_that().onInferModel(FCWithPaddingAfterSplitModel())
-        .inNotCompactMode().gna().propagate_forward().onCPU()
-        .called_with_input_and_expected_output(input_data, expected_result);
-}
-
-TEST_F(I16QuantisationTest, SliceFollowedByFCAndEltwiseOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<float> expected_result = {14.0, 14.0, 14.0, 14.0, 14.0, 14.0, 14.0, 14.0};
-    assert_that().onInferModel(FCWithPaddingAfterSliceModel())
-        .inNotCompactMode().gna().propagate_forward().onCPU()
-        .called_with_input_and_expected_output(input_data, expected_result);
-}
-
-TEST_F(I16QuantisationTest, SliceFollowedByAlignedFCAndEltwiseOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<float> expected_result = {18.0, 18.0, 18.0, 18.0};
-    assert_that().onInferModel(SliceModelWithAlignedOutputs())
-        .inNotCompactMode().gna().propagate_forward().onCPU()
-        .called_with_input_and_expected_output(input_data, expected_result);
-}
-
-TEST_F(I16QuantisationTest, SliceFollowedBy2FCsAnd2EltwisesOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<float> expected_result = {27.0, 27.0, 27.0, 27.0, 27.0, 27.0, 27.0, 27.0};
+TEST_F(I16QuantisationTest, DISABLED_SliceFollowedBy2FCsAnd2Eltwises_AlignedFilterInsertion) {
     assert_that().onInferModel(twoFCWithPaddingAfterSliceModel())
-        .inNotCompactMode().gna().propagate_forward().onCPU()
-        .called_with_input_and_expected_output(input_data, expected_result);
+        .inNotCompactMode().gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
+}
+
+// ToDo requires implementation of aligning filter for concat inputs and improvement of
+// qunatization/scaling algorithm for concat
+TEST_F(I16QuantisationTest, DISABLED_DoubleConcatPropageteForwardWithSuccess_AlignedFilterInsertion) {
+    assert_that().onInferModel(doubleConcatModel())
+        .inNotCompactMode().gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
 }
 
 TEST_F(I16QuantisationTest, EltwiseSumm_onlyOneIdentityInsertion) {
@@ -253,36 +241,24 @@ TEST_F(I16QuantisationTest, EltwiseMull_willInsertTwoIdentities) {
         .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().twice();
 }
 
-TEST_F(I16QuantisationTest, ConcatPropagateForwardWithSuccessOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<float> expected_result = {121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0};
+TEST_F(I16QuantisationTest, multiple_inputs_supported) {
+    assert_that().onInferModel(two_inputs_to_affine())
+        .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
+}
+TEST_F(I16QuantisationTest, multiple_inputs_can_handle_individual_scale_factors) {
+    std::vector<float> input_data  = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    std::vector<float> input2_data = {2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0};
+    std::vector<float> result      = {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
 
-    assert_that().onInferModel(concatModel())
-        .inNotCompactMode().gna().propagate_forward().onCPU()
-        .called_with_input_and_expected_output(input_data, expected_result);
+    assert_that().onInferModel(two_inputs_to_affine())
+        .inNotCompactMode().gna().propagate_forward()
+        .called_with().inputScale("input_1", 2).And()
+        .inputScale("input_2", 2).returns().result().filledWith(16384).that().equal_to(result);
 }
 
-TEST_F(I16QuantisationTest, DoubleConcatPropageteForwardWithSuccessOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<float> expected_result = {141.0, 141.0, 141.0, 141.0, 141.0,
-                                          141.0, 141.0, 141.0, 141.0, 141.0,
-                                          141.0, 141.0, 141.0, 141.0, 141.0,
-                                          141.0, 141.0, 141.0, 141.0, 141.0,
-                                          141.0, 141.0, 141.0, 141.0, 141.0,
-                                          141.0, 141.0, 141.0, 141.0, 141.0,
-                                          141.0, 141.0, 141.0, 141.0, 141.0,
-                                          141.0, 141.0, 141.0, 141.0, 141.0};
-
-    assert_that().onInferModel(doubleConcatModel())
-        .inNotCompactMode().gna().propagate_forward().onCPU()
-        .called_with_input_and_expected_output(input_data, expected_result);
+TEST_F(I16QuantisationTest, DISABLED_multiple_inputs_into_concat_supported) {
+    assert_that().onInferModel(two_inputs_to_concat())
+        .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
 }
 
 TEST_F(I16QuantisationTest, ScaleShift_Affine_WillResultInIdentityInsertion) {
@@ -306,76 +282,52 @@ TEST_F(I16QuantisationTest, AffineWith2AffineOutputs_ResultInOnlyOneIdentityInse
         .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().twice();
 }
 
+TEST_F(I16QuantisationTest, ScaleShiftWithBroadcast_ResultInDiagonalInsertion) {
+
+    auto & affineWeights = storage<std::vector<uint16_t>>();
+
+    affineWeights = {
+        2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384,
+        2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384,
+        2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384,
+        2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384,
+        2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384,
+    };
+
+    assert_that().onInferModel(ScaleShift3DModel()).withWeigthsPattern({1.0f,2.0f,3.0f,4.0f,5.0f,6.0f,7.0f,8.0f})
+        .inNotCompactMode().gna().propagate_forward().called_with().called_with().affine_weights_eq(affineWeights);
+}
+
 // TODO: this mode not required in rel life scenarios so far
 TEST_F(I16QuantisationTest, DISABLED_AffineWithOutputToMemoryAndToAnotherNode_ResultInCopyInsertion) {
     assert_that().onInferModel(affineToMemoryModel()).inNotCompactMode().gna().propagate_forward().
         called_with().copy_inserted_into_nnet();
 }
 
-TEST_F(I16QuantisationTest, CropWithoutOffsetPropagateForwardWithSuccessOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    std::vector<float> expected_result = {11.0, 11.0, 11.0, 11.0, 11.0,
-                                          11.0, 11.0, 11.0, 11.0, 11.0};
+TEST_F(I16QuantisationTest, DISABLED_permutationOfWeightsBetweenConvAndAffine) {
+    auto & affineWeights = storage<std::vector<uint16_t>>();
 
-    assert_that().onInferModel(cropWithoutOffsetModel())
-    .inNotCompactMode().gna().propagate_forward().onCPU()
-    .called_with_input_and_expected_output(input_data, expected_result);
+    // least likely that width and height both are multiple of 7
+    auto weigthsPattern = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f};
+
+    // here weights are transpozed
+    save().onInferModel(affineAfterConvNoPermute()).withWeigthsPattern(weigthsPattern)
+        .inNotCompactMode().from().propagate_forward().affine_weights_transpozed({128, 61}).to(affineWeights);
+
+    // here weights shouldn't be transposed
+    assert_that().onInferModel(affineAfterConvWithPermute()).withWeigthsPattern(weigthsPattern)
+        .inNotCompactMode().gna().propagate_forward().called_with().affine_weights_eq(affineWeights);
 }
 
-TEST_F(I16QuantisationTest, CropWithAlignedOffsetPropagateForwardWithSuccessOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    std::vector<float> expected_result = {3.0, 3.0, 3.0, 3.0, 3.0,
-                                          3.0, 3.0, 3.0, 3.0, 3.0};
+TEST_F(I16QuantisationTest, DISABLED_noPermutationOfWeightsBetweenConvAndAffineIfPermuteLayerWithCorrectArgs) {
+    auto & affineWeights = storage<std::vector<uint16_t>>();
 
-    assert_that().onInferModel(cropWithAlignedOffsetModel())
-    .inNotCompactMode().gna().propagate_forward().onCPU()
-    .called_with_input_and_expected_output(input_data, expected_result);
-}
+    // least likely that width and height both are multiple of 7
+    auto weigthsPattern = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f};
 
-TEST_F(I16QuantisationTest, CropWithOffsetPropagateForwardWithSuccessOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                     0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    std::vector<float> expected_result = {7.0, 7.0, 7.0, 7.0, 7.0,
-                                          7.0, 7.0, 7.0, 7.0, 7.0};
+    save().onInferModel(affineAfterConvWithPermute()).withWeigthsPattern(weigthsPattern)
+        .inNotCompactMode().from().propagate_forward().affine_weights().to(affineWeights);
 
-    assert_that().onInferModel(cropWithOffsetModel())
-    .inNotCompactMode().gna().propagate_forward().onCPU()
-    .called_with_input_and_expected_output(input_data, expected_result);
-}
-
-TEST_F(I16QuantisationTest, CropWithMaxOffsetPropagateForwardWithSuccessOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    std::vector<float> expected_result = {1.0, 1.0, 1.0, 1.0, 1.0,
-                                          1.0, 1.0, 1.0, 1.0, 1.0};
-
-    assert_that().onInferModel(cropWithMaxOffsetModel())
-    .inNotCompactMode().gna().propagate_forward().onCPU()
-    .called_with_input_and_expected_output(input_data, expected_result);
-}
-
-TEST_F(I16QuantisationTest, CropWithOffsetAfterFCPropagateForwardWithSuccessOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    std::vector<float> expected_result = {111.0, 111.0, 111.0, 111.0, 111.0,
-                                          111.0, 111.0, 111.0, 111.0, 111.0};
-
-    assert_that().onInferModel(cropWithOffsetExtendedModel())
-    .inNotCompactMode().gna().propagate_forward().onCPU()
-    .called_with_input_and_expected_output(input_data, expected_result);
-}
-
-TEST_F(I16QuantisationTest, CopySimpleCasePropagateForwardWithSuccessOnCPU) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    std::vector<float> expected_result = {12.0, 12.0, 12.0, 12.0, 12.0,
-                                          12.0, 12.0, 12.0, 12.0, 12.0,
-                                          11.0, 11.0, 11.0, 11.0, 11.0,
-                                          11.0, 11.0, 11.0, 11.0, 11.0,};
-
-    assert_that().onInferModel(copyModel())
-    .inNotCompactMode().gna().propagate_forward().onCPU()
-    .called_with_input_and_expected_output(input_data, expected_result);
+    assert_that().onInferModel(affineAfterConvNoPermute()).withWeigthsPattern(weigthsPattern)
+        .inNotCompactMode().gna().propagate_forward().called_with().affine_weights_transposed(affineWeights, {128, 61});
 }

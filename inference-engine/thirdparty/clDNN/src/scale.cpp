@@ -29,6 +29,8 @@ primitive_type_id scale_type_id()
 
 layout scale_inst::calc_output_layout(scale_node const& node)
 {
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for scale_node!");
     auto result = node.input().get_non_padded_output_layout();
 
     auto scale_sizes = node.scale_in().get_non_padded_output_layout().size;

@@ -1,10 +1,14 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #if defined(_WIN32)
+
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
 
 #include <winsock2.h>
 #include <windows.h>

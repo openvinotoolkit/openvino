@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,14 +13,24 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging as log
 
 import numpy as np
-import logging as log
+
 from mo.middle.replacement import MiddleReplacementPattern
 
 
 class ConditionChecks(MiddleReplacementPattern):
     enabled = True
+    graph_condition = [lambda graph: graph.graph['is_cyclic']]
+
+    def run_after(self):
+        from extensions.middle.TensorIteratorBackEdge import BackEdgesMatching
+        return [BackEdgesMatching]
+
+    def run_before(self):
+        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        return [TensorIteratorMerge]
 
     @staticmethod
     def pattern():
@@ -54,7 +64,7 @@ class ConditionChecks(MiddleReplacementPattern):
 
     @staticmethod
     def replace_pattern(graph, match: dict):
-        #Check for SS params
+        # Check for SS params
         # Sanity check that we iterate over axis of some tensor
         ss = match['Strided_slice']
         params = ss.in_nodes()
@@ -62,7 +72,7 @@ class ConditionChecks(MiddleReplacementPattern):
         assert np.all(params[2].in_node().value == 1)
         assert np.all(params[3].in_node().value == 1)
 
-        #Check Maximum/Minimum params
+        # Check Maximum/Minimum params
 
         # Check for comparing SS and seq_length source (it should be one tensor)
         # SIMPLE CHECK
@@ -71,10 +81,9 @@ class ConditionChecks(MiddleReplacementPattern):
             log.warning('TF loop doesn\'t have a constant upper bound produced by node {}, or ModelOptimizer '
                         'cannot detect a constant in this case. Loops with a dynamic number of iterations are not '
                         'supported, so in the resulting IR, generated TensorIterator will have '
-                        'a maximum number of iterations determined by input tensor size: {}',
-                        match['minimum_data'].soft_get('name'),
-                        match['Strided_slice_data'].value
-            )
+                        'a maximum number of iterations determined by input tensor size: {}'
+                        ''.format(match['minimum_data'].soft_get('name'), match['Strided_slice_data'].value)
+                        )
         else:
             assert match['Strided_slice_data'].value == match['minimum_data'].value, \
                 'Values do not match: {} and {}'.format(match['Strided_slice_data'].value, match['minimum_data'].value)
@@ -82,7 +91,7 @@ class ConditionChecks(MiddleReplacementPattern):
         # SMART CHECK
         # TODO: add here some smart check for tensors equality
 
-        #Check that bound for Condition and Inputs/Outputs sizes match
+        # Check that bound for Condition and Inputs/Outputs sizes match
         condition_time = match['condition'].out_node(0)
         inputs_and_outputs = condition_time.out_nodes()
         type_list = ['TensorIteratorInput', 'TensorIteratorOutput']

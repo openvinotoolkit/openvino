@@ -37,7 +37,7 @@ See modifiers at the same place.
 | %D            | expanded problem descriptor (parameters in csv format)
 | %n            | problem name
 | %z            | direction
-| %f            | flags
+| %F            | flags
 | %q            | data type (precision)
 | %f            | data format (layout)
 | %@t           | time in ms
@@ -100,7 +100,7 @@ void perf_report(const prb_t *p, const res_t *r, const char *pstr) {
             DPRINT("%s", p->name);
         else if (c == 'z')
             DPRINT("%s", dir2str(p->dir));
-        else if (c == 'f')
+        else if (c == 'F')
             DPRINT("%s", flags2str(p->flags));
         else if (c == 'q')
             DPRINT("%s", dt2str(p->dt));

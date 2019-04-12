@@ -28,9 +28,9 @@ namespace kernel_selector {
         virtual ~ConvolutionKernel_Winograd_2x3_s1() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override { return{ WeightsLayout::winograd_2x3_s1_weights }; }
 
         JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;

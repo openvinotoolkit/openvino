@@ -33,11 +33,11 @@ using namespace mkldnn::impl::memory_format;
 using namespace mkldnn::impl::utils;
 
 template <cpu_isa_t isa>
-jit_uni_softmax_fwd_t<isa>::jit_uni_softmax_fwd_t(const pd_t *pd,
+jit_uni_softmax_fwd_t<isa>::jit_uni_softmax_fwd_t(const pd_t *apd,
         const input_vector &inputs, const output_vector &outputs)
-    : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd)
+        : cpu_primitive_t(apd, inputs, outputs)
 {
-    kernel_ = new jit_uni_softmax_kernel_f32<isa>(conf_.jpp_);
+    kernel_ = new jit_uni_softmax_kernel_f32<isa>(pd()->jpp_);
 }
 
 template <cpu_isa_t isa>
@@ -46,16 +46,16 @@ jit_uni_softmax_fwd_t<isa>::~jit_uni_softmax_fwd_t() {
 }
 
 template <cpu_isa_t isa>
-void jit_uni_softmax_fwd_t<isa>::execute_forward()
+void jit_uni_softmax_fwd_t<isa>::execute_forward() const
 {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto dst = reinterpret_cast<data_t *>(this->memory(0));
 
-    const memory_desc_wrapper data_d(conf_.src_pd());
+    const memory_desc_wrapper data_d(pd()->src_pd());
 
-    const auto &jpp = conf_.jpp_;
+    const auto &jpp = pd()->jpp_;
 
-    size_t outer_size = utils::array_product(conf_.src_pd()->desc()->dims, conf_.desc()->softmax_axis);
+    size_t outer_size = utils::array_product(pd()->src_pd()->desc()->dims, pd()->desc()->softmax_axis);
 
     size_t dim = jpp.channels * jpp.inner_size;
 
@@ -70,7 +70,7 @@ void jit_uni_softmax_fwd_t<isa>::execute_forward()
             nd_iterator_init(start, ou, outer_size);
 
             for (size_t iwork = start; iwork < end; ++iwork) {
-                jit_softmax_call_s args{};
+                auto args = jit_softmax_call_s();
                 args.channels = jpp.channels;
                 args.work = jpp.inner_size;
                 size_t off = data_d.off_l(ou * dim);
@@ -99,7 +99,7 @@ void jit_uni_softmax_fwd_t<isa>::execute_forward()
             for (size_t iwork = start; iwork < end; ++iwork) {
                 size_t work = nstl::min(jpp.outer_block, outer_size - oub * jpp.outer_block);
 
-                jit_softmax_call_s args{};
+                auto args = jit_softmax_call_s();
                 args.channels = jpp.channels;
                 args.work = work;
                 size_t off = data_d.off_l(oub * jpp.outer_block * dim);

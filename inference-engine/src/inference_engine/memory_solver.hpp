@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,10 +57,10 @@ public:
         int finish;
 
         /** Size of data. In abstract unit of measure (byte, simd, cache line, ...) */
-        int size;
+        int64_t size;
 
         /** Box identifier, unique for each box. Will be used to querying calculated offset. */
-        int id;
+        int64_t id;
     };
 
     explicit MemorySolver(const std::vector<Box>& boxes);
@@ -69,21 +69,21 @@ public:
      * @brief Solve memory location with maximal reuse.
      * @return Size of common memory blob required for storing all
      */
-    int solve();
+    int64_t solve();
 
     /** Provides calculated offset for specified box id */
-    int getOffset(int id) const;
+    int64_t getOffset(int id) const;
 
     /** Additional info. Max sum of box sizes required for any time stamp. */
-    int maxDepth();
+    int64_t maxDepth();
     /** Additional info. Max num of boxes required for any time stamp. */
-    int maxTopDepth();
+    int64_t maxTopDepth();
 
 private:
     std::vector<Box> _boxes;
-    std::map<int, int> _offsets;
-    int _top_depth = -1;
-    int _depth = -1;
+    std::map<int64_t, int64_t> _offsets;
+    int64_t _top_depth = -1;
+    int64_t _depth = -1;
     int _time_duration = -1;
 
     void calcDepth();

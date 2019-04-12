@@ -1,5 +1,5 @@
 ﻿/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #pragma once
 
 #include "common_types.h"
+#include "common_tools.h"
 #include <vector>
 #include <assert.h>
 #include <numeric>
@@ -48,7 +49,9 @@ namespace kernel_selector
             brfyx,              // 4D+batch
             winograd_2x3_s1_data, //winograd convolution input, F(2,3) -- filter 3x3 with stride 1
             byxf_af32, // for MMAD convolution
+            byx8_f4, // for MMAD convolution
             fs_bs_yx_bsv4_fsv32, // for batched MMAD
+            b_fs_yx_fsv4,        // reordering format for swizzled input for convolution using IMAD
             DataLayoutCount // NMBER OF ELEMENTS IN ENUM
         };
 
@@ -64,6 +67,8 @@ namespace kernel_selector
             iyxo,
             yxio,
             os_iyx_osv16,
+            os_iyx_osv32,
+            os_iyx_osv64,
             os_iyx_osv16_rotate_180,
             os_i_osv16,
             os_i_osv8__ai8,         // TODO can we drop the alignment form layout name?
@@ -79,8 +84,13 @@ namespace kernel_selector
             image_2d_weights_winograd_6x3_s1_fbxyb, // image 2d winograd convolution weights for fused kernel, F(2, 3) --filter 3x3 with stride 1
             image_2d_weights_winograd_6x3_s1_xfbyb, // image 2d winograd convolution weights for fused kernel, F(2, 3) --filter 3x3 with stride 1
             os_is_yx_isa8_osv8_isv4, // for MMAD convolution
-            is_o_yx_isv32, // for MMAD 1x1 convolutions
-            WeightsLayoutCount // NMBER OF ELEMENTS IN ENUM
+            os_is_yx_isa8_osv8_isv4_swizzled_by_4, // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28, 1,5...
+            is_o_yx_isv32,           // for MMAD 1x1 convolutions
+            is_o32_yx_isv32_swizzled_by_4,           // for MMAD 1x1 convolutions swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28, 1,5...
+            os_is_y_x8_osv8_isv4, // for MMAD convolutions
+            bf_lyx_yx,               // local convolution
+            os_is_yx_osv16_isv4,     // swizzled weights for convolution using IMAD
+            WeightsLayoutCount       // NMBER OF ELEMENTS IN ENUM
         };
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -126,6 +136,8 @@ namespace kernel_selector
             Y   = 1,
             IFM = 2,
             OFM = 3,
+            LX = 4,
+            LY = 5,
         };
 
         inline bool SimpleLayout(WeightsLayout l)
@@ -495,6 +507,8 @@ namespace kernel_selector
             Dim Y()   const { return Extract(layout, WeightsChannelName::Y, dims); }
             Dim IFM() const { return Extract(layout, WeightsChannelName::IFM, dims); }
             Dim OFM() const { return Extract(layout, WeightsChannelName::OFM, dims); }
+            Dim LX()  const { return Extract(layout, WeightsChannelName::LX, dims); }
+            Dim LY()  const { return Extract(layout, WeightsChannelName::LY, dims); }
 
             static inline Dim Extract(WeightsLayout l, WeightsChannelName channel, const NDims& d)
             {
@@ -512,7 +526,7 @@ namespace kernel_selector
             }
         private:
             static NDims GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l);
-            static std::array<std::array<int, 4>, WeightsLayout::WeightsLayoutCount> weightsChannelArray;
+            static std::array<std::array<int, 6>, WeightsLayout::WeightsLayoutCount> weightsChannelArray;
         };
     }
 }

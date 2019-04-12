@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,12 +39,16 @@ public:
         }
     }
 
+    StatusCode init(LayerConfig& config, ResponseDesc *resp) noexcept override {
+        return OK;
+    }
+
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
                        ResponseDesc *resp) noexcept override {
         int num_priors_ = widths_.size();
 
         if (variance_.empty())
-            variance_.push_back(0.1);
+            variance_.push_back(0.1f);
 
         // Execute
         const int layer_width = inputs[0]->getTensorDesc().getDims()[3];
@@ -73,10 +77,10 @@ public:
                     float box_width = widths_[s];
                     float box_height = heights_[s];
 
-                    float xmin = (center_x - box_width / 2.) / img_width;
-                    float ymin = (center_y - box_height / 2.) / img_height;
-                    float xmax = (center_x + box_width / 2.) / img_width;
-                    float ymax = (center_y + box_height / 2.) / img_height;
+                    float xmin = (center_x - box_width / 2.0f) / img_width;
+                    float ymin = (center_y - box_height / 2.0f) / img_height;
+                    float xmax = (center_x + box_width / 2.0f) / img_width;
+                    float ymax = (center_y + box_height / 2.0f) / img_height;
 
                     if (clip_) {
                         xmin = std::min(std::max(xmin, 0.0f), 1.0f);

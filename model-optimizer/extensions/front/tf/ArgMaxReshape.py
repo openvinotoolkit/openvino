@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,13 +15,11 @@
 """
 
 import logging as log
-import networkx as nx
 import numpy as np
 
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.squeeze import Squeeze
-from mo.graph.graph import insert_node_after
 
 
 class ArgMaxReshape(FrontReplacementOp):
@@ -32,17 +30,17 @@ class ArgMaxReshape(FrontReplacementOp):
     op = "ArgMax"
     enabled = True
 
-    def nodes_to_remove(self, graph: nx.MultiDiGraph, match: dict):
+    def nodes_to_remove(self, graph: Graph, match: dict):
         # do not remove matched node
         return []
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    def replace_op(self, graph: Graph, node: Node):
         squeeze_op = Squeeze(graph, dict())
         squeeze_op.attrs['old_infer'] = squeeze_op.attrs['infer']
         squeeze_op.attrs['infer'] = __class__.do_infer
 
         squeeze_node = squeeze_op.create_node([], dict(name=node.name + '/Squeeze'))
-        insert_node_after(node, squeeze_node)
+        node.insert_node_after(squeeze_node)
         return []
 
     @staticmethod

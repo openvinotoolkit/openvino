@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ nodes_attributes = {
                         'slices': [slice(0, 4, 1), slice(0, 5, 1), slice(0, 6, 1)]},
     'strided_slice_2_data': {'value': None, 'shape': np.array([4, 5, 6]), 'kind': 'data'},
     # Output operation
-    'output_op': {'type': 'OpOutput', 'kind': 'op', 'op': 'OpOutput', 'output_op': {'is_output': True}},
+    'output_op': {'kind': 'op', 'op': 'OpOutput'},
 }
 
 

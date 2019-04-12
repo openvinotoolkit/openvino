@@ -43,7 +43,7 @@ void verify_int(const int32_t &output_value, const int32_t &value)
 template <class ElemType>
 void generic_reshape_test(format fmt, tensor const& input_size, tensor const& reshape_size, bool in_place, padding const& input_padd = padding(), padding const& output_padd = padding())
 {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     //allocate input memory
     auto data_type = data_types::f32;
@@ -501,7 +501,7 @@ TEST(reshape_gpu_f32, multiple_users_with_reorder) {
     //  b1f0:  0.0
     //  b1f1:  4.0
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto batch_num = 2;
     auto feature_num = 2;
     auto x_size = 1;
@@ -536,4 +536,49 @@ TEST(reshape_gpu_f32, multiple_users_with_reorder) {
 
     for (size_t i = 0; i < out2.size(); i++)
         EXPECT_EQ(output_ptr_2[i], out2[i]);
+}
+
+TEST(reshape_gpu_f32, calc_output_shape) {
+
+    //  INPUT(bfyx,2x2x1x1) -- RESHAPE(1, 1, 0, -1)  
+
+    //  Input:
+    //  b0f0: -1.0
+    //  b0f1:  2.0
+    //  b1f0: -3.0
+    //  b1f1:  4.0
+    //
+    // output_shape (1, 1, 1, 4)
+
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 1, 1 } });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(reshape("reshape", "input", tensor(1, 1, 0, -1)));
+
+    set_values(input, { -1.f, 2.f, -3.f, 4.f });
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reshape");
+
+    auto output = outputs.at("reshape").get_memory();
+
+    EXPECT_TRUE(output.get_layout().data_type == input.get_layout().data_type);
+    EXPECT_TRUE(output.get_layout().format == input.get_layout().format);
+
+    ASSERT_TRUE(output.get_layout().size == tensor(1, 1, 1, 4));
+
+    float answers[4] = { -1.f, 2.f, -3.f, 4.f };
+
+    auto output_ptr = output.pointer<float>();
+    for (int i = 0; i < 4; i++)
+    {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
 }

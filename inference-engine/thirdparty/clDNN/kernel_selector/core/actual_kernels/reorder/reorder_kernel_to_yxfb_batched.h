@@ -24,10 +24,10 @@ namespace kernel_selector
     {
     public:
         ReorderKernel_to_yxfb_batched() : ReorderKernelBase("reorder_data_to_yxfb_batched") {}
-        virtual ParamsKey GetSupportedKey() const override;
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         virtual JitConstants GetJitConstants(const reorder_params& params) const override;
         virtual DispatchData SetDefault(const reorder_params& arg) const override;
         bool Validate(const Params& p, const optional_params& o) const override;

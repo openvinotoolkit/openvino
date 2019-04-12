@@ -1,11 +1,11 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <builders/ie_layer_fragment.hpp>
-#include <ie_inetwork.hpp>
+#include <builders/ie_layer_decorator.hpp>
+#include <ie_network.hpp>
 #include <vector>
 #include <string>
 
@@ -15,7 +15,7 @@ namespace Builder {
 /**
  * @brief The class represents a builder for ArgMax layer
  */
-class INFERENCE_ENGINE_API_CLASS(ConvolutionLayer): public LayerFragment {
+class INFERENCE_ENGINE_API_CLASS(ConvolutionLayer): public LayerDecorator {
 public:
     /**
      * @brief The constructor creates a builder with the name
@@ -24,33 +24,20 @@ public:
     explicit ConvolutionLayer(const std::string& name = "");
     /**
      * @brief The constructor creates a builder from generic builder
-     * @param genLayer generic builder
+     * @param layer pointer to generic builder
      */
-    explicit ConvolutionLayer(Layer& genLayer);
+    explicit ConvolutionLayer(const Layer::Ptr& layer);
     /**
-     * @brief Operator creates generic layer builder
-     * @return Generic layer builder
+     * @brief The constructor creates a builder from generic builder
+     * @param layer constant pointer to generic builder
      */
-    operator Layer() const override;
+    explicit ConvolutionLayer(const Layer::CPtr& layer);
     /**
      * @brief Sets the name for the layer
      * @param name Layer name
      * @return reference to layer builder
      */
     ConvolutionLayer& setName(const std::string& name);
-
-    /**
-     * @brief Sets weights for layer
-     * @param weights Constant blob with weights
-     * @return reference to layer builder
-     */
-    ConvolutionLayer& setWeights(const Blob::CPtr& weights);
-    /**
-     * @brief Sets biases for layer
-     * @param biases Constant blob with biases
-     * @return reference to layer builder
-     */
-    ConvolutionLayer& setBiases(const Blob::CPtr& biases);
 
     /**
      * @brief Returns input port
@@ -151,12 +138,6 @@ public:
      * @return reference to layer builder
      */
     ConvolutionLayer& setOutDepth(size_t outDepth);
-
-    /**
-     * @brief Validates layer before creation
-     * @param layer generic layer builder
-     */
-    static void validate(const Layer& layer);
 };
 
 }  // namespace Builder

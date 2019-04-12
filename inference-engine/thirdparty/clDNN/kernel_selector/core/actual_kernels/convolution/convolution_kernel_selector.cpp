@@ -16,16 +16,18 @@
 
 #include "convolution_kernel_selector.h"
 #include "convolution_kernel_bfyx_ref.h"
+#include "convolution_kernel_bfyx_1x1_opt.h"
 #include "convolution_kernel_bfyx_gemm_like.h"
 #include "convolution_kernel_bfyx_direct_10_12_16.h"
 #include "convolution_kernel_bfyx_os_iyx_osv16.h"
+#include "convolution_kernel_bfyx_os_iyx_osv16_2_sg.h"
 #include "convolution_kernel_yxfb_ref.h"
 #include "convolution_kernel_yxfb_yxio_b16.h"
 #include "convolution_kernel_yxfb_yxio_b8.h"
 #include "convolution_kernel_yxfb_yxio_b1_block.h"
 #include "convolution_kernel_yxfb_yxio_b1_block_multiple_x.h"
 #include "convolution_kernel_tutorial.h"
-#include "convolution_kernel_bfyx_3x3_dw_opt.h"
+//#include "convolution_kernel_bfyx_3x3_dw_opt.h"
 #include "convolution_kernel_winograd_2x3_s1.h"
 #include "convolution_kernel_bfyx_1x1.h"
 #include "convolution_kernel_bfyx_1x1_gemm_buf.h"
@@ -37,23 +39,36 @@
 #include "convolution_kernel_byxf_af32_depthwise.h"
 #include "convolution_kernel_mmad_batched.h"
 #include "convolution_kernel_bfyx_depthwise_weights_lwg.h"
+#include "convolution_kernel_mmad_slm_2x14_rep4.h"
+#include "convolution_kernel_mmad_slm_7x7_rep4.h"
+#include "convolution_kernel_byxf_fs_bs_yx_bsv4_fsv32.h"
+#include "convolution_kernel_mmad_batched_block.h"
+#include "convolution_kernel_mmad_batched_block_1x1.h"
+#include "convolution_kernel_mmad_32x32sg_128x128wg_slm_int8.h"
+#include "convolution_kernel_mmad_32x32sg_224x128wg_slm_int8.h"
+#include "convolution_kernel_mmad_32x32sg_slm_int8.h"
+#include "convolution_kernel_byx8_f4__fs_bs_yx_bsv4_fsv32.h"
+#include "convolution_kernel_imad_3x3.h"
+#include "convolution_kernel_imad_1x1.h"
+#include "convolution_kernel_imad_7x7.h"
 
-#include <iostream>
- 
 namespace kernel_selector 
 {
     convolution_kernel_selector::convolution_kernel_selector()
     {
         Attach<ConvolutionKernel_bfyx_Ref>();
+        Attach<convolution_kernel_bfyx_1x1_opt>();
         Attach<ConvolutionKernel_bfyx_GEMMLike>();
         Attach<ConvolutionKernel_bfyx_Direct_10_10_12>();
         Attach<ConvolutionKernel_bfyx_os_iyx_osv16>();
+        // commented out to not get in our way, will enable in future after autotuning
+//        Attach<ConvolutionKernel_bfyx_os_iyx_osv16_2_sg>();
         Attach<ConvolutionKernel_yxfb_Ref>();
         Attach<ConvolutionKernel_yxfb_yxio_b16>();
         Attach<ConvolutionKernel_yxfb_yxio_b8>();
         //Attach<ConvolutionKernel_yxfb_yxio_b1_block>(); // TODO: need to finish integration
         Attach<ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x>();
-        Attach<ConvolutionKernel_bfyx_3x3_dw_opt>();
+        //Attach<ConvolutionKernel_bfyx_3x3_dw_opt>();
         Attach<ConvolutionKernel_Winograd_2x3_s1>();
         Attach<ConvolutionKernel_Winograd_2x3_s1_fused>();
         Attach<ConvolutionKernel_Winograd_6x3_s1_fused>();
@@ -65,13 +80,23 @@ namespace kernel_selector
         Attach<ConvolutionKernel_byxf_af32_depthiwise>();
         Attach<ConvolutionKernel_mmad_batched>();
         Attach<ConvolutionKernel_bfyx_depthwise_weights_lwg>();
+        Attach<ConvolutionKernel_mmad_slm_2x14_rep4>();
+        Attach<ConvolutionKernel_mmad_slm_7x7_rep4>();
+        Attach<ConvolutionKernel_mmad_32x32sg_128x128wg_slm_int8>();
+        Attach<ConvolutionKernel_mmad_32x32sg_224x128wg_slm_int8>();
+        Attach<ConvolutionKernel_byxf_fs_bs_yx_bsv4_fsv32>();
+        Attach<ConvolutionKernel_byx8_f4__fs_bs_yx_bsv4_fsv32>();
+        Attach<ConvolutionKernel_mmad_batched_block>();
+        Attach<ConvolutionKernel_mmad_batched_block_1x1>();
+//        Attach<ConvolutionKernel_mmad_32x32sg_slm_int8>();
         //Attach<ConvolutionKernel_Tutorial>(); //In order to use this implementation for tutorial purposes please uncomment this line
+        Attach<ConvolutionKernel_imad_3x3>();
+        Attach<ConvolutionKernel_imad_1x1>();
+        Attach<ConvolutionKernel_imad_7x7>();
     }
 
     KernelsData convolution_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
     {
-        //const ConvolutionParams& orgParams = static_cast<const ConvolutionParams&>(params);
-        //std::cout << orgParams.to_string() << std::endl;
         return GetAutoTuneBestKernel(params, options, KernelType::CONVOLUTION);
     }
 }

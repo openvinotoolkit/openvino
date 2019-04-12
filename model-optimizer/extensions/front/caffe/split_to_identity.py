@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.replacement import FrontReplacementOp
+from mo.graph.graph import Graph
 
 
 class SplitToIdentity(FrontReplacementOp):
@@ -31,7 +30,7 @@ class SplitToIdentity(FrontReplacementOp):
     op = "Split"
     enabled = True
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         split_node = match['op']
         split_node.op = 'Identity'
         for u, v, edge_attrs in split_node.graph.out_edges(split_node.id, data=True):

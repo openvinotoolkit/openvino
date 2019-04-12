@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@ import logging as log
 import networkx as nx
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import get_sorted_inputs, Node
+from mo.graph.graph import Node
 
 
 def eltwise_infer(node, op=None, **kwargs):
-    raw_inputs = [(inp, attr) for inp, attr in get_sorted_inputs(node)
+    raw_inputs = [(inp, attr) for inp, attr in node.get_sorted_inputs()
               if 'control_flow_edge' not in attr or not attr['control_flow_edge']]
     inputs = [Node(node.graph, inp) for inp, attr in raw_inputs]
     shapes = [node.graph.node[inp]['shape'] for inp, attr in raw_inputs]

@@ -63,7 +63,7 @@ struct batch_normalization_pd_t: public primitive_desc_t {
     inline bool use_scaleshift() const
     { return desc_.flags & mkldnn_use_scaleshift; }
 
-    inline bool omit_stats() const { return desc_.flags & mkldnn_omit_stats; }
+    inline bool use_global_stats() const { return desc_.flags & mkldnn_use_global_stats; }
 
     inline bool is_training() const
     { return desc_.prop_kind == prop_kind::forward_training; }

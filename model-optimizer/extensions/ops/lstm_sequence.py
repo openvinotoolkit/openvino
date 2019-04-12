@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,15 +14,11 @@
  limitations under the License.
 """
 
-import logging as log
-
-import networkx as nx
 import numpy as np
 
 from mo.front.common.partial_infer.utils import mark_input_bins
-from mo.graph.graph import Node
+from mo.graph.graph import Node, add_opoutput, Graph
 from mo.ops.op import Op
-from mo.utils.utils import refer_to_faq_msg
 
 
 class LSTMSequence(Op):
@@ -46,14 +42,19 @@ class LSTMSequence(Op):
     """
     op = 'LSTMSequence'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': '__LSTMSequence',   # should be never emitted to IR; for debugging purposes
             'op': __class__.op,
             'blobs_wrb': False,
             'has_num_directions': False,
             'direction': 'forward',
-            'infer': __class__.infer
+            'num_layers': 1,
+            'infer': __class__.infer,
+            'blob_bidirectional_split': lambda node: (
+                LSTMSequence.split_helper(node, 0, 'forward'),
+                LSTMSequence.split_helper(node, 1, 'reverse')
+            )
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -74,13 +75,21 @@ class LSTMSequence(Op):
         ]
 
     @staticmethod
+    def split_helper(node, index: int, direction: str):
+        return Op._create_data_node(
+            node.graph,
+            name=node.name + '/SplittedBiLSTM/{}/'.format(direction),
+            attrs={'value': node.value[index], 'shape': np.array(node.value[index].shape, dtype=np.int64)}
+        )
+
+    @staticmethod
     def infer(node: Node):
         # there are limitations coming from ONNX LSTM definition and normalization rules
         assert len(node.in_nodes()) >= 3  # X, W and R
         assert len(node.in_nodes()) <= 7
         assert len(node.out_nodes()) <= 3
         assert node.batch_dim <= 1
-        assert node.sequence_dim <=1
+        assert node.sequence_dim <= 1
         assert node.batch_dim != node.sequence_dim
 
         assert node.direction in ['forward', 'reverse', 'bidirectional']
@@ -91,11 +100,21 @@ class LSTMSequence(Op):
             mark_input_bins(node)
         input_shape = node.in_node(0).shape
         assert len(input_shape) == 3
+
+        for port in [2, 3]:
+            if port in node.in_nodes() and len(node.in_node(port).in_nodes()) > 0 and \
+               'zero_shapes' in node.in_node(port).in_node():
+                for i in node.in_node(port).in_node().zero_shapes:
+                    if node.in_node(port).shape[i] != input_shape[i]:
+                        node.in_node(port).value = np.repeat(node.in_node(port).value, input_shape[i], axis=i)
+                        node.in_node(port).shape[i] = input_shape[i]
+
         out_shape = np.array([input_shape[node.sequence_dim], input_shape[node.batch_dim], node.hidden_size], dtype=np.int64)
         assert not node.has_num_directions or node.sequence_dim == 0, \
             'If has_num_directions == True, then node.sequence_dim should be equal 0, but it is {}'.format(
                 node.sequence_dim)
         num_directions = 2 if node.direction in ['bidirectional'] else 1
+        num_layers = node.num_layers
         if node.has_num_directions:
             # insert extra dimension to output shape for num_directions
             out_shape = np.insert(out_shape, 1, np.int64(num_directions))
@@ -103,15 +122,16 @@ class LSTMSequence(Op):
         # extra outputs for hidden/cell states
         state_size = np.array([input_shape[1], node.hidden_size], dtype=np.int64)
         if node.has_num_directions:
-            state_size = np.insert(state_size, 0, num_directions)
+            state_size = np.insert(state_size, 0, num_directions*num_layers)
         for i in [1,2]:
             if i not in node.out_nodes():
                 data_node = Op._create_data_node(
                     node.graph,
                     name=node.node+'/ExtraOutput/' + str(i),
-                    attrs={'is_output': True, 'executable': None}
+                    attrs={'executable': True}
                 )
                 node.graph.add_edge(node.id, data_node.id, key=0, out=i)
+                add_opoutput(node.graph, data_node.id, 0, False)
             else:
                 data_node = node.out_node(i)
             data_node.shape = state_size.copy()

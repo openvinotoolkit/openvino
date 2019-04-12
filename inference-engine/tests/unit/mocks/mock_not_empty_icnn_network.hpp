@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,16 @@ public:
     static constexpr const char* OUTPUT_BLOB_NAME = "first_output";
     MOCK_QUALIFIED_METHOD0(getPrecision, const noexcept, Precision ());
     void getOutputsInfo(OutputsDataMap& out) const noexcept override {
-        out[OUTPUT_BLOB_NAME] = nullptr;
+        auto data = std::make_shared<Data>("", Precision::UNSPECIFIED);
+        data->getInputTo()[""] = std::make_shared<CNNLayer>(LayerParams{});
+        out[OUTPUT_BLOB_NAME] = data;
     };
     void getInputsInfo(InputsDataMap &inputs) const noexcept override {
-        inputs[INPUT_BLOB_NAME] = nullptr;
+        auto inputInfo = std::make_shared<InputInfo>();
+        auto data = std::make_shared<Data>("", Precision::UNSPECIFIED);
+        data->getInputTo()[""] = std::make_shared<CNNLayer>(LayerParams{});
+        inputInfo->setInputData(data);
+        inputs[INPUT_BLOB_NAME] = inputInfo;
     };
     MOCK_QUALIFIED_METHOD1(getInput, const noexcept, InputInfo::Ptr (const std::string &inputName));
     MOCK_QUALIFIED_METHOD2(getName, const noexcept, void (char* pName, size_t len));

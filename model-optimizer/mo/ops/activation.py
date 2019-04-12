@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,11 +14,10 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
@@ -37,14 +36,17 @@ class Activation(Op):
         'tanh': lambda x: np.tanh(x),
         'elu': lambda x, alpha: Activation.elu(x, alpha),
         'sigmoid': lambda x: 1 / (1 + np.exp(-x)),
-        'relu6': lambda x: np.maximum(0, np.minimum(x, 6))
+        'relu6': lambda x: np.maximum(0, np.minimum(x, 6)),
+        'exp': lambda x: np.exp(x),
     }
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': __class__.op,
             'op': __class__.op,
-            'infer': Activation.infer
+            'infer': Activation.infer,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
         }, attrs)
 
     @classmethod

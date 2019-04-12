@@ -28,18 +28,18 @@ namespace cpu {
 
 typedef float data_t;
 
-void ref_deconvolution_fwd_t::compute_fwd_bias() {
+void ref_deconvolution_fwd_t::compute_fwd_bias() const {
     auto bias = reinterpret_cast<const data_t *>(this->input_memory(2));
     auto dst = reinterpret_cast<data_t *>(this->memory());
-    const memory_desc_wrapper dst_d(conf_.dst_pd());
+    const memory_desc_wrapper dst_d(pd()->dst_pd());
 
-    const int G = conf_.G();
-    const int MB = conf_.MB();
-    const int OH = conf_.OH();
-    const int OW = conf_.OW();
-    const int OD = conf_.OD();
-    const int OC = conf_.OC() / G;
-    const int ndims = conf_.desc()->src_desc.ndims;
+    const int G = pd()->G();
+    const int MB = pd()->MB();
+    const int OH = pd()->OH();
+    const int OW = pd()->OW();
+    const int OD = pd()->OD();
+    const int OC = pd()->OC() / G;
+    const int ndims = pd()->desc()->src_desc.ndims;
 
     parallel_nd(MB, G, OC, OD, OH, OW,
         [&](int mb, int g, int oc, int od, int oh, int ow) {
@@ -51,15 +51,15 @@ void ref_deconvolution_fwd_t::compute_fwd_bias() {
     });
 }
 
-void ref_deconvolution_fwd_t::compute_fwd_bias_ncdhw() {
+void ref_deconvolution_fwd_t::compute_fwd_bias_ncdhw() const {
     auto bias = reinterpret_cast<const data_t *>(this->input_memory(2));
     auto dst = reinterpret_cast<data_t *>(this->memory());
 
-    const memory_desc_wrapper dst_d(conf_.dst_pd());
+    const memory_desc_wrapper dst_d(pd()->dst_pd());
 
-    const int MB = conf_.MB();
-    const int OC = conf_.OC();
-    const int SP = conf_.OW()*conf_.OH()*conf_.OD();
+    const int MB = pd()->MB();
+    const int OC = pd()->OC();
+    const int SP = pd()->OW()*pd()->OH()*pd()->OD();
 
     parallel_nd(MB, OC, [&](int mb, int oc) {
         PRAGMA_OMP_SIMD()
@@ -71,15 +71,15 @@ void ref_deconvolution_fwd_t::compute_fwd_bias_ncdhw() {
 }
 
 template <int blksize>
-void ref_deconvolution_fwd_t::compute_fwd_bias_nCdhwXc() {
+void ref_deconvolution_fwd_t::compute_fwd_bias_nCdhwXc() const {
     auto bias = reinterpret_cast<const data_t *>(this->input_memory(2));
     auto dst = reinterpret_cast<data_t *>(this->memory());
 
-    const memory_desc_wrapper dst_d(conf_.dst_pd());
+    const memory_desc_wrapper dst_d(pd()->dst_pd());
 
-    const int MB = conf_.MB();
-    const int OC = conf_.OC();
-    const int SP = conf_.OW() * conf_.OH() * conf_.OD();
+    const int MB = pd()->MB();
+    const int OC = pd()->OC();
+    const int SP = pd()->OW() * pd()->OH() * pd()->OD();
 
     const ptrdiff_t stride_mb = dst_d.blocking_desc().strides[0][0];
 
@@ -95,18 +95,18 @@ void ref_deconvolution_fwd_t::compute_fwd_bias_nCdhwXc() {
     });
 }
 
-void ref_deconvolution_bwd_weights_t::compute_bwd_bias() {
+void ref_deconvolution_bwd_weights_t::compute_bwd_bias() const {
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(1));
     auto diff_bias = reinterpret_cast<data_t *>(this->memory(1));
-    const memory_desc_wrapper diff_dst_d(conf_.diff_dst_pd());
+    const memory_desc_wrapper diff_dst_d(pd()->diff_dst_pd());
 
-    const int G = conf_.G();
-    const int MB = conf_.MB();
-    const int OH = conf_.OH();
-    const int OW = conf_.OW();
-    const int OC = conf_.OC() / G;
-    const int OD = conf_.OD();
-    const int ndims = conf_.desc()->src_desc.ndims;
+    const int G = pd()->G();
+    const int MB = pd()->MB();
+    const int OH = pd()->OH();
+    const int OW = pd()->OW();
+    const int OC = pd()->OC() / G;
+    const int OD = pd()->OD();
+    const int ndims = pd()->desc()->src_desc.ndims;
 
     parallel_nd(G, OC, [&](int g, int oc) {
         data_t db = 0;
@@ -128,15 +128,15 @@ void ref_deconvolution_bwd_weights_t::compute_bwd_bias() {
     });
 }
 
-void ref_deconvolution_bwd_weights_t::compute_bwd_bias_ncdhw() {
+void ref_deconvolution_bwd_weights_t::compute_bwd_bias_ncdhw() const {
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(1));
     auto diff_bias = reinterpret_cast<data_t *>(this->memory(1));
 
-    const memory_desc_wrapper diff_dst_d(conf_.diff_dst_pd());
+    const memory_desc_wrapper diff_dst_d(pd()->diff_dst_pd());
 
-    const int OC = conf_.OC();
-    const int MB = conf_.MB();
-    const int SP = conf_.OH()*conf_.OW()*conf_.OD();
+    const int OC = pd()->OC();
+    const int MB = pd()->MB();
+    const int SP = pd()->OH()*pd()->OW()*pd()->OD();
 
     parallel_nd(OC, [&](int oc) {
         data_t db = 0;
@@ -152,15 +152,15 @@ void ref_deconvolution_bwd_weights_t::compute_bwd_bias_ncdhw() {
 }
 
 template <int blksize>
-void ref_deconvolution_bwd_weights_t::compute_bwd_bias_nCdhwXc() {
+void ref_deconvolution_bwd_weights_t::compute_bwd_bias_nCdhwXc() const {
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(1));
     auto diff_bias = reinterpret_cast<data_t *>(this->memory(1));
 
-    const memory_desc_wrapper diff_dst_d(conf_.diff_dst_pd());
+    const memory_desc_wrapper diff_dst_d(pd()->diff_dst_pd());
 
-    const int OC = conf_.OC();
-    const int MB = conf_.MB();
-    const int SP = conf_.OH() * conf_.OW() * conf_.OD();
+    const int OC = pd()->OC();
+    const int MB = pd()->MB();
+    const int SP = pd()->OH() * pd()->OW() * pd()->OD();
 
     const ptrdiff_t stride_mb = diff_dst_d.blocking_desc().strides[0][0];
 
@@ -185,10 +185,10 @@ void ref_deconvolution_bwd_weights_t::compute_bwd_bias_nCdhwXc() {
     });
 }
 
-template void ref_deconvolution_fwd_t::compute_fwd_bias_nCdhwXc<8>();
-template void ref_deconvolution_fwd_t::compute_fwd_bias_nCdhwXc<16>();
-template void ref_deconvolution_bwd_weights_t::compute_bwd_bias_nCdhwXc<8>();
-template void ref_deconvolution_bwd_weights_t::compute_bwd_bias_nCdhwXc<16>();
+template void ref_deconvolution_fwd_t::compute_fwd_bias_nCdhwXc<8>() const;
+template void ref_deconvolution_fwd_t::compute_fwd_bias_nCdhwXc<16>() const;
+template void ref_deconvolution_bwd_weights_t::compute_bwd_bias_nCdhwXc<8>() const;
+template void ref_deconvolution_bwd_weights_t::compute_bwd_bias_nCdhwXc<16>() const;
 
 }
 }

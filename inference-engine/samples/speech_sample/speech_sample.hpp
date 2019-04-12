@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 #else
 #include <dirent.h>
 #endif
-
-#define DEFAULT_PATH_P "./lib"
 
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
@@ -34,8 +32,11 @@ static const char plugin_message[] = "Plugin name. For example MKLDNNPlugin. If 
                                      "the sample will look for this plugin only";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] = "Specify the target device to infer on; CPU, GPU, GNA_AUTO, GNA_HW, GNA_SW, GNA_SW_EXACT is acceptable. " \
-                                            "Sample will look for a suitable plugin for device specified";
+static const char target_device_message[] = "Specify a target device to infer on. CPU, GPU, GNA_AUTO, GNA_HW, GNA_SW, "
+                                            "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
+                                            " as a secondary (e.g. HETERO:GNA,CPU) are supported. The sample will look "
+                                            "for a suitable plugin for device specified.";
+
 /// @brief message for performance counters
 static const char performance_counter_message[] = "Enables per-layer performance report";
 
@@ -74,6 +75,11 @@ static const char batch_size_message[] = "Batch size 1-8 (default 1)";
 static const char infer_num_threads_message[] = "Optional. Number of threads to use for concurrent async" \
 " inference requests on the GNA.";
 
+/// @brief message for context window argument
+static const char context_window_message[] = "Optional. Number of frames for context windows (default is 0). " \
+                                             "Works only with context window networks."
+                                             " If you use the cw flag, then batch size and nthreads arguments are ignored.";
+
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -91,7 +97,7 @@ DEFINE_string(p, "", plugin_message);
 
 /// \brief Define parameter for set path to plugins <br>
 /// Default is ./lib
-DEFINE_string(pp, DEFAULT_PATH_P, plugin_path_message);
+DEFINE_string(pp, "", plugin_path_message);
 
 /// \brief device the target device to infer on <br>
 DEFINE_string(d, "GNA_AUTO", target_device_message);
@@ -133,6 +139,9 @@ DEFINE_int32(bs, 1, batch_size_message);
 /// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
 DEFINE_int32(nthreads, 1, infer_num_threads_message);
 
+/// @brief Batch size (default 0)
+DEFINE_int32(cw, 0, context_window_message);
+
 /**
  * \brief This function show a help message
  */
@@ -159,5 +168,6 @@ static void showUsage() {
     std::cout << "    -wg \"<path>\"            " << write_gna_model_message << std::endl;
     std::cout << "    -we \"<path>\"            " << write_embedded_model_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
+    std::cout << "    -cw \"<integer>\"         " << context_window_message << std::endl;
 }
 

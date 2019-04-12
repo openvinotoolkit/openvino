@@ -1,5 +1,17 @@
-// Copyright (C) 2018 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2016-2018 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #include <vector>
@@ -133,4 +145,10 @@ TEST_F(GNAConfigTest, canMatchWithSingleMultipleOMPThreads) {
         .inNotCompactMode()
         .enable_omp_multithreading()
         .gna().propagate_forward().called_without().pwl_inserted_into_nnet();
+}
+
+TEST_F(GNAConfigTest, failToCreatePluginWithDifferentInputScaleFactors) {
+    assert_that().creating().gna_plugin()
+        .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR))+"_1", 1000)
+        .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR))+"_2", 2000).throws();
 }

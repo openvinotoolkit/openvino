@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace InferenceEngine {
 
 StagedTask::StagedTask() : Task(), _stages(0) {}
 
-StagedTask::StagedTask(std::function<void()> function, size_t stages) : Task(function), _stages(stages) {
+StagedTask::StagedTask(std::function<void()> function, size_t stages) : Task(function), _stages(stages), _stage(0) {
     if (!function) THROW_IE_EXCEPTION << "Failed to create StagedTask object with null function";
     resetStages();
 }

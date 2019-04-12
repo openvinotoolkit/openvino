@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,45 +23,45 @@ static const char image_message[] = "Required. Path to a folder with images or p
                                     "and a .bmp file for the other networks.";
 
 /// @brief message for plugin_path argument
-static const char plugin_path_message[] = "Path to a plugin folder.";
+static const char plugin_path_message[] = "Optional. Path to a plugin folder.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model.";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] = "Specify the target device to infer on; CPU, GPU, FPGA or MYRIAD is acceptable. " \
-                                            "Sample will look for a suitable plugin for device specified (CPU by default)";
+static const char target_device_message[] = "Optional. Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD is acceptable. " \
+                                            "Sample will look for a suitable plugin for device specified. Default value is CPU";
 
 /// @brief message for performance counters
-static const char performance_counter_message[] = "Enables per-layer performance report";
+static const char performance_counter_message[] = "Optional. Enables per-layer performance report";
 
 /// @brief message for top results number
-static const char ntop_message[] = "Number of top results (default 10)";
+static const char ntop_message[] = "Optional. Number of top results. Default value is 10.";
 
 /// @brief message for iterations count
-static const char iterations_count_message[] = "Number of iterations (default 1)";
+static const char iterations_count_message[] = "Optional. Number of iterations. Default value is 1.";
 
 /// @brief message for iterations count
-static const char ninfer_request_message[] = "Number of infer request for pipelined mode (default 1)";
+static const char ninfer_request_message[] = "Optional. Number of infer request for pipelined mode. Default value is 1.";
 
 /// @brief message for #threads for CPU inference
 static const char infer_num_threads_message[] = "Optional. Number of threads to use for inference on the CPU "
-                                                "(including Hetero cases).";
+                                                "(including HETERO cases).";
 
 /// @brief message for clDNN custom kernels desc
-static const char custom_cldnn_message[] = "Required for clDNN (GPU)-targeted custom kernels."\
-                                            "Absolute path to the xml file with the kernels desc.";
+static const char custom_cldnn_message[] = "Required for GPU custom kernels."\
+                                            "Absolute path to the .xml file with kernels description";
 
 /// @brief message for user library argument
-static const char custom_cpu_library_message[] = "Required for MKLDNN (CPU)-targeted custom layers." \
-                                                 "Absolute path to a shared library with the kernels impl.";
+static const char custom_cpu_library_message[] = "Required for CPU custom layers." \
+                                                 "Absolute path to a shared library with the kernels implementation";
 
 // @brief message for CPU threads pinning option
-static const char cpu_threads_pinning_message[] = "Optional. Enable (\"YES\"default) or disable (\"NO\")" \
+static const char cpu_threads_pinning_message[] = "Optional. Enable (\"YES\", default) or disable (\"NO\")" \
                                                   "CPU threads pinning for CPU-involved inference.";
 
 /// @brief message for plugin messages
-static const char plugin_message[] = "Enables messages from a plugin";
+static const char plugin_message[] = "Optional. Enables messages from a plugin";
 
 
 /// @brief Define flag for showing help message <br>
@@ -82,7 +82,7 @@ DEFINE_string(pp, "", plugin_path_message);
 DEFINE_string(d, "CPU", target_device_message);
 
 /// @brief Top results number (default 10) <br>
-DEFINE_int32(nt, 10, ntop_message);
+DEFINE_uint32(nt, 10, ntop_message);
 
 /// @brief Enable per-layer performance report
 DEFINE_bool(pc, false, performance_counter_message);
@@ -96,10 +96,10 @@ DEFINE_string(c, "", custom_cldnn_message);
 DEFINE_string(l, "", custom_cpu_library_message);
 
 /// @brief Iterations count (default 1)
-DEFINE_int32(ni, 1, iterations_count_message);
+DEFINE_uint32(ni, 1, iterations_count_message);
 
 /// @brief Number of infer requests
-DEFINE_int32(nireq, 1, ninfer_request_message);
+DEFINE_uint32(nireq, 1, ninfer_request_message);
 
 /// @brief Enable plugin messages
 DEFINE_bool(p_msg, false, plugin_message);

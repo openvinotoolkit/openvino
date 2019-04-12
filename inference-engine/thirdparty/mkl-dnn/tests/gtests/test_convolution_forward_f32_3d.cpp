@@ -82,4 +82,34 @@ INST_TEST_CASE_3D(SimpleSmall_Blocked16,
         2, 1, 32, 13, 13, 13, 48, 11, 11, 11, 3, 3, 3, 0, 0, 0, 1, 1, 1)
 );
 
+INST_TEST_CASE_3D(SimpleSmall_NCDHW_PLANAR,
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 1, 79, 79, 79, 1, 77, 77, 79, 5, 5, 5, 1, 1, 2, 1, 1, 1, 0, 0, 0),
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 1, 79, 79, 79, 1, 75, 79, 75, 5, 5, 5, 2, 0, 2, 1, 1, 1, 0, 0, 0),
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 9, 68, 68, 68, 1, 50, 50, 50, 5, 5, 5, 18, 18, 18, 1, 1, 1, 8, 8, 8),
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 1, 75, 63, 91, 1, 73, 61, 91, 5, 5, 5, 1, 1, 2, 1, 1, 1, 0, 0, 0),
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 1, 58, 41, 37, 1, 58, 37, 37, 5, 5, 5, 2, 0, 2, 1, 1, 1, 0, 0, 0),
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 9, 68, 34, 48, 1, 50, 16, 30, 5, 5, 5, 18, 18, 18, 1, 1, 1, 8, 8, 8)
+);
+
+INST_TEST_CASE_3D(SimpleSmall_NCDHW_MSD,
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 1, 79, 79, 79, 1, 79, 79, 79, 5, 5, 5, 2, 2, 2, 1, 1, 1, 0, 0, 0),
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 2, 77, 77, 77, 1, 77, 77, 77, 5, 5, 5, 4, 4, 4, 1, 1, 1, 1, 1, 1),
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 3, 50, 50, 50, 1, 50, 50, 50, 5, 5, 5, 6, 6, 6, 1, 1, 1, 2, 2, 2),
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 8, 30, 30, 30, 1, 30, 30, 30, 5, 5, 5, 16, 16, 16, 1, 1, 1, 7, 7, 7),
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 40, 15, 15, 15, 1, 15, 15, 15, 5, 5, 5, 20, 20, 20, 1, 1, 1, 9, 9, 9),
+    PARAMS_3D(ncdhw, oidhw, FMT_BIAS, ncdhw,
+        2, 1, 41, 111, 111, 111, 1, 111, 111, 111, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0)
+);
+
 }

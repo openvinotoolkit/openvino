@@ -10,7 +10,7 @@ After inference stage, Perfcheck sample computes total time of execution, divide
 
 ## Running
 
-Running the application with the <code>-h</code> option yields the following usage message:
+Running the application with the `-h` option yields the following usage message:
 
 ```sh
 ./perfcheck -h
@@ -37,13 +37,15 @@ perfcheck [OPTIONS]
 
 Running the application with the empty list of options yields an error message.
 
-You can use the following command to do inference on Intel® Processors on images from a folder using a trained Faster R-CNN network:
+To run the sample, you can use public or pre-trained models. To download the pre-trained models, use the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
+
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+
+You can use the following command to do inference on CPU on images from a folder using a trained Faster R-CNN network:
 
 ```sh
 ./perfcheck -m <path_to_model>/faster_rcnn.xml -inputs_dir <path_to_inputs> -d CPU
 ```
-
-> **NOTE**: Public models should be first converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer).
 
 ## Sample Output
 
@@ -63,11 +65,13 @@ Example of sample output:
 Total time:     8954.61 ms
 Num iterations: 1000
 Batch:          1
-Min fps:        110.558
-Avg fps:        111.674
-Max fps:        112.791
+Min FPS:        110.558
+Avg FPS:        111.674
+Max FPS:        112.791
 ```
 
 ## See Also
 
 * [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)

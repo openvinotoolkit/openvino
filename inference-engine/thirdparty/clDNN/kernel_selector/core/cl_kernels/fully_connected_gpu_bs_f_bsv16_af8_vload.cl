@@ -14,54 +14,30 @@
 
 
 #include "include/include_all.cl"
+#include "include/sub_group.cl"
 
-#if FP16_UNIT_USED
-    // Block read - currently block is 4 bytes aligned.
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
+// Block read - currently block is 4 bytes aligned.
+#define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
 
-    #define MULTIPLY_BLOCKS_16x8(_result, _blockA, _blockB)  \
-    {   \
-        const half16 acol0 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s0 ); \
-        const half16 acol1 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s1 ); \
-        const half16 acol2 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s2 ); \
-        const half16 acol3 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s3 ); \
-        const half16 acol4 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s4 ); \
-        const half16 acol5 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s5 ); \
-        const half16 acol6 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s6 ); \
-        const half16 acol7 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s7 ); \
-        _result = fma( _blockB.s0, acol0, _result ); \
-        _result = fma( _blockB.s1, acol1, _result ); \
-        _result = fma( _blockB.s2, acol2, _result ); \
-        _result = fma( _blockB.s3, acol3, _result ); \
-        _result = fma( _blockB.s4, acol4, _result ); \
-        _result = fma( _blockB.s5, acol5, _result ); \
-        _result = fma( _blockB.s6, acol6, _result ); \
-        _result = fma( _blockB.s7, acol7, _result ); \
-    }
-#else
-    // Block read - currently block is 4 bytes aligned.
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_float8(intel_sub_group_block_read8((const __global uint*)(ptr) + (byte_offset)))
-
-    #define MULTIPLY_BLOCKS_8x8(_result, _blockA, _blockB)  \
-    {   \
-        const float8 acol0 = TRANSPOSE_BLOCK_8( _blockA.s0 ); \
-        const float8 acol1 = TRANSPOSE_BLOCK_8( _blockA.s1 ); \
-        const float8 acol2 = TRANSPOSE_BLOCK_8( _blockA.s2 ); \
-        const float8 acol3 = TRANSPOSE_BLOCK_8( _blockA.s3 ); \
-        const float8 acol4 = TRANSPOSE_BLOCK_8( _blockA.s4 ); \
-        const float8 acol5 = TRANSPOSE_BLOCK_8( _blockA.s5 ); \
-        const float8 acol6 = TRANSPOSE_BLOCK_8( _blockA.s6 ); \
-        const float8 acol7 = TRANSPOSE_BLOCK_8( _blockA.s7 ); \
-        _result = mad( _blockB.s0, acol0, _result ); \
-        _result = mad( _blockB.s1, acol1, _result ); \
-        _result = mad( _blockB.s2, acol2, _result ); \
-        _result = mad( _blockB.s3, acol3, _result ); \
-        _result = mad( _blockB.s4, acol4, _result ); \
-        _result = mad( _blockB.s5, acol5, _result ); \
-        _result = mad( _blockB.s6, acol6, _result ); \
-        _result = mad( _blockB.s7, acol7, _result ); \
-    }
-#endif
+#define MULTIPLY_BLOCKS_16x8(_result, _blockA, _blockB)  \
+{   \
+    const half16 acol0 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s0 ); \
+    const half16 acol1 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s1 ); \
+    const half16 acol2 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s2 ); \
+    const half16 acol3 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s3 ); \
+    const half16 acol4 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s4 ); \
+    const half16 acol5 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s5 ); \
+    const half16 acol6 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s6 ); \
+    const half16 acol7 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s7 ); \
+    _result = fma( _blockB.s0, acol0, _result ); \
+    _result = fma( _blockB.s1, acol1, _result ); \
+    _result = fma( _blockB.s2, acol2, _result ); \
+    _result = fma( _blockB.s3, acol3, _result ); \
+    _result = fma( _blockB.s4, acol4, _result ); \
+    _result = fma( _blockB.s5, acol5, _result ); \
+    _result = fma( _blockB.s6, acol6, _result ); \
+    _result = fma( _blockB.s7, acol7, _result ); \
+}
 
 #define SUB_GROUP_SIZE 16
 
@@ -115,7 +91,4 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv16_vload)(
 
 #undef SUB_GROUP_SIZE
 #undef ALIGNED_BLOCK_READ8
-#undef MAKE_VECTOR_TYPE
-#undef CONCAT_TOKEN
-#undef CONCAT_TOKEN_HANDLER1
-#undef MULTIPLY_BLOCKS_16x16
+#undef MULTIPLY_BLOCKS_16x8

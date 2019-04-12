@@ -60,7 +60,7 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     //  f1: b0:   15  16.5  b1:  22    16.5     
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
@@ -153,7 +153,7 @@ void add_basic_in2x2x2x2_with_reorder()
     //  f1: b0:   15  16.5  b1:  22    16.5     
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
@@ -266,7 +266,7 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
     //  f1: b0:   15  16.5  b1:  22    16.5     
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
@@ -359,7 +359,7 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
     //  f1: b0:   15  16.5  b1:  22    16.5     
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
@@ -452,7 +452,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
     //  f1: b0:   15  16.5  b1:  22    16.5     
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
 
@@ -521,5 +521,76 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
     for (int i = 0; i < 16; i++)
     {
         EXPECT_TRUE(are_equal(input_ptr[i] + 7, output_ptr[i]));
+    }
+}
+
+TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input2 = memory::allocate(engine, { data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
+
+    std::string kernel_code =
+        R"__krnl(
+            __kernel void add_kernel(const __global uchar* input0, const __global uchar* input1, __global uchar* output)
+            {
+                const unsigned idx = get_global_id(0);
+                output[idx] = input0[idx] + input1[idx];
+            }
+        )__krnl";
+    std::string entry_point = "add_kernel";
+    std::vector<cldnn_arg> parameters = { { arg_input, 0 },{ arg_input, 1 },{ arg_output, 0 } };
+    layout output_layout = { data_types::u8, format::yxfb,{ 2, 2, 2, 2 } };
+    std::vector<size_t> gws = { output_layout.count() };
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(custom_gpu_primitive(
+        "user_kernel",
+        { "input", "input2" },
+        { kernel_code },
+        entry_point,
+        parameters,
+        "-cl-mad-enable",
+        output_layout,
+        gws));
+
+    set_values<unsigned char>(input, {
+          1,   0,   5,    1,
+        200, 100, 160,  150,
+        130,   0, 175,   12,
+          4, 100,   8,  180
+    });
+
+    set_values<unsigned char>(input2, {
+         0,  2,  0,  2,
+        55, 75, 20,  4,
+        15, 17, 80, 10,
+         2, 60,  0, 20 
+    });
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "user_kernel");
+
+    auto output = outputs.at("user_kernel").get_memory();
+
+    unsigned char answers[16] = {
+          1,   2,   5,   3,
+        255, 175, 180, 154,
+        145,  17, 255,  22,
+          6, 160,   8, 200
+    };
+
+    auto output_ptr = output.pointer<unsigned char>();
+
+    for (int i = 0; i < 16; i++)
+    {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }

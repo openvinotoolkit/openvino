@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -141,6 +141,7 @@ def writable_dir(path: str):
         else:
             raise Error('The directory "{}" is not writable'.format(cur_path))
 
+
 def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser()
@@ -236,6 +237,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--disable_gfusing',
                               help='Turn off fusing of grouped convolutions',
                               action='store_true')
+    common_group.add_argument('--enable_concat_optimization',
+                              help='Turn on concat optimization',
+                              action='store_true')
     common_group.add_argument('--move_to_preprocess',
                               help='Move mean values to IR preprocess section',
                               action='store_true')
@@ -272,6 +276,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    ' deployment scenarios. Use it at your own discretion. By default, without this'
                                    ' option, the Model Optimizer generates IR V3.',
                               action='store_true')
+    common_group.add_argument('--keep_shape_ops',
+                              help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
+                                   'This feature makes model reshapable in Inference Engine',
+                              action='store_true', default=False)
     return parser
 
 
@@ -311,7 +319,6 @@ def get_caffe_cli_options():
 def get_tf_cli_options():
     d = {
         'input_model_is_text': '- Input model in text protobuf format',
-        'offload_unsupported_operations_to_tf': '- Offload unsupported operations',
         'tensorflow_subgraph_patterns': '- Patterns to offload',
         'tensorflow_operation_patterns': '- Operations to offload',
         'tensorflow_custom_operations_config_update': '- Update the configuration file with input/output node names',
@@ -435,9 +442,6 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     tf_group.add_argument('--saved_model_tags', type=str, default=None,
                           help="Group of tag(s) of the MetaGraphDef to load, in string format, separated by ','. "
                                "For tag-set contains multiple tags, all tags must be passed in.")
-    tf_group.add_argument('--offload_unsupported_operations_to_tf',
-                          help='TensorFlow*: automatically offload unsupported operations to TensorFlow*',
-                          action='store_true')
     tf_group.add_argument('--tensorflow_subgraph_patterns',
                           help='TensorFlow*: a list of comma separated patterns that will be applied to ' +
                                'TensorFlow* node names to ' +

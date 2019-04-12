@@ -33,6 +33,22 @@
 using namespace cldnn;
 using namespace tests;
 
+void validate_output(std::vector<float> expected_weights_vec, std::map<primitive_id, network_output> outputs)
+{
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "conv_grad_weights");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_ptr = output_prim.pointer<float>();
+
+    for (unsigned int i = 0; i < expected_weights_vec.size(); i++)
+    {
+        float x = float_round(expected_weights_vec[i]);
+        float y = float_round(output_ptr[i]);
+        EXPECT_FLOAT_EQ(x, y) << "on weights verification" << random_seed << std::endl;
+    }
+}
+
 TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1) {
     //  Filter : 2x2
     //  Input grad  : 1x2x2x2
@@ -47,7 +63,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_p
     //  8  0.5
     //  6  9
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
@@ -123,7 +139,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in8x1x2x2_bfyx_stride2_p
     //  8  0.5
     //  6  9
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
@@ -195,7 +211,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_p
     //  8  0.5
     //  6  9
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 2, 2 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
@@ -257,7 +273,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_p
     //  Bias:
     //  0
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.001f;
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
 
@@ -275,10 +291,12 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_p
         mutable_data("biases", biases),
         convolution("conv", "input_reordered", { "weights" }, { "biases" }, { 1, 1, 1, 1 }, { 0, 0, -1, -1 }),
         convolution_grad_input("conv_grad_input", "conv", { "weights" }, { 1, 1, 1, 1 }, { 0, 0, -1, -1 }),
-        convolution_grad_weights("conv_grad_weights", "conv", "input_reordered", { "weights" }, { "biases" }, { 1, 1, 1, 1 }, { 0, 0, -1, -1 })
+        convolution_grad_weights("conv_grad_weights", "conv", "input_reordered", { "weights" }, { "biases" }, { 1, 1, 1, 1 },
+        { 0, 0, -1, -1 }, { 1,1,1,1 }, "conv_grad_input")
     );
-
-    network network(engine, topology);
+    build_options opt;
+    opt.set_option(build_option::outputs({ "conv_grad_input", "conv_grad_weights" }));
+    network network(engine, topology, opt);
     network.set_input_data("input", input);
     network.set_learning_rate(lr);
 
@@ -329,7 +347,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_p
     //  8  0.5    1  2
     //  6  9      3  4
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 2, 2 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 2, 2 } });
@@ -424,7 +442,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz1x1_in1x2x5x5_bfyx_stride2_p
     //  5  6   7  8
     //  9  10 11 11
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 5, 5 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 4 } });
@@ -515,7 +533,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in32x1x2x2_yxfb_stride1)
     // y2: x1: 0.5  0.6  0.7  0.9  1    1.1  0.7  0.9  0.1  1.9  0.6  0.5  0.4  0.1  0.1  1.7  0.5  0.4  0.5  0.6  0.7  0.8  0.8  1.7  1.8  1.2  2.1  0.5  0.2  0.9  1.5  1.6
     // y2: x2: 0.5  0.6  0.7  0.9  1    1.1  0.7  0.9  0.1  1.9  0.1  1.7  0.5  0.4  0.4  0.1  0.1  1.7  0.5  0.4  0.5  0.6  1.2  2.1  0.5  0.2  0.9  0.4  0.1  1.2  1.7  1.8
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::yxfb,{ 32, 1, 2, 2 } });
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 32, 1, 3, 3 } });
@@ -597,7 +615,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz3x3_in2x1x3x3_bfyx_stride1_p
     //  0.5  0.6  0.7  0.9  1    1.1  0.7  0.9  0.1
     //  0.7  0.8  0.8  1.7  1.8  1.2  2.1  0.5  0.2
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 3 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 3, 3 } });
@@ -679,7 +697,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz3x3_in2x1x3x3_bfyx_stride1_p
     //  0.5  0.6  0.7  0.9  1    1.1  0.7  0.9  0.1
     //  0.7  0.8  0.8  1.7  1.8  1.2  2.1  0.5  0.2
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 3 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 3, 3 } });
@@ -781,7 +799,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz7x7_in2x1x7x7_bfyx_stride1_p
     // b0:f0: 0.7  0.8  0.8  0.7  0.8  0.2  0.1    b0:f1: 0.4  0.6  0.1  0.2  0.1  0.1  0.7
     // b0:f0: 0.5  0.6  0.7  0.9  0.   0.1  0.7    b0:f1: 0.5  0.3  0.7  0.5  0.4  0.1  0.7
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 7, 7 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 7, 7 } });
@@ -927,7 +945,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz7x7_in2x1x7x7_bfyx_stride1_p
     // b0:f0: 0.7  0.8  0.8  0.7  0.8  0.2  0.1    b0:f1: 0.4  0.6  0.1  0.2  0.1  0.1  0.7
     // b0:f0: 0.5  0.6  0.7  0.9  0.   0.1  0.7    b0:f1: 0.5  0.3  0.7  0.5  0.4  0.1  0.7
 
-    engine engine;
+    const auto& engine = get_test_engine();
     float lr = 0.00001f;
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 7, 7 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 7, 7 } });
@@ -1043,4 +1061,53 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz7x7_in2x1x7x7_bfyx_stride1_p
         float x = float_round(expected_bias_vec[i] * lr), y = float_round(biases_ptr[i]);
         EXPECT_FLOAT_EQ(x, -y) << "on biases verification" << random_seed << std::endl;
     }
+}
+
+TEST(convolution_grad_weights_f32_fw_gpu, ngraph_2d_1item_2iterations) {
+    //  Filter : 2x1x2x2
+    //  Input grad  : 1x2x4x2
+    //  Input  : 1x1x5x3
+    //  Stride : 1x1
+
+    const auto& engine = get_test_engine();
+    auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 4, 2 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 5, 3 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
+
+   
+    topology topology(
+        input_layout("input_grad", input_grad.get_layout()),
+        data("input", input),
+        mutable_data("weights", weights),
+        convolution_grad_weights("conv_grad_weights", "input_grad", "input", { "weights" }, { 1,1,1,1 }, { 0,0,0,0 }, { 1,1,1,1 }, true)
+    );
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+    
+
+    // set values for first iteration
+    set_values(input,
+        { 0.671875f, 0.546875f, -0.5625f, -0.359375f, -0.09375f, 0.546875f, -0.546875f, 0.890625f, 0.828125f, -0.546875f, 1.f, -0.078125f, -0.890625f, 0.40625f, -0.359375f });
+    set_values(input_grad,
+        {   1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 
+            0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f });
+    network.set_input_data("input_grad", input_grad);
+    std::vector<float> expected_weights_vec =
+    {   0.671875f, 0.546875f, 0.546875f, -0.546875f,
+        0.f, 0.f, 0.f, 0.f };
+    auto outputs = network.execute();
+    validate_output(expected_weights_vec, outputs);
+
+    // set values for second iteration
+    set_values(input_grad,
+        {   0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+            0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f });
+    network.set_input_data("input_grad", input_grad);
+    expected_weights_vec = 
+    {   0.f, 0.f, 0.f, 0.f,
+        0.828125f, -0.546875f, 0.40625f, -0.359375f };
+    outputs =  network.execute();
+    validate_output(expected_weights_vec, outputs);
 }
