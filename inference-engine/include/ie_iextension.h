@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -161,11 +161,21 @@ public:
     /**
      * @brief check that reshape can be applied, that parameters and shapes are valid
      */
-    virtual StatusCode inferShapes(const std::vector<SizeVector>& inShapes,
-                                   const std::map<std::string, std::string>& params,
-                                   const std::map<std::string, Blob::Ptr>& blobs,
-                                   std::vector<SizeVector>& outShapes,
-                                   ResponseDesc* resp) noexcept = 0;
+    virtual StatusCode inferShapes(const std::vector<Blob::CPtr>& /*inBlobs*/,
+                                   const std::map<std::string, std::string>& /*params*/,
+                                   const std::map<std::string, Blob::Ptr>& /*blobs*/,
+                                   std::vector<SizeVector>& /*outShapes*/,
+                                   ResponseDesc* /*resp*/) noexcept { return NOT_IMPLEMENTED; }  // For backward-compatibility
+
+    /**
+     * @deprecated
+     * @brief check that reshape can be applied, that parameters and shapes are valid
+     */
+    virtual StatusCode inferShapes(const std::vector<SizeVector>& /*inShapes*/,
+                                   const std::map<std::string, std::string>& /*params*/,
+                                   const std::map<std::string, Blob::Ptr>& /*blobs*/,
+                                   std::vector<SizeVector>& /*outShapes*/,
+                                   ResponseDesc* /*resp*/) noexcept { return NOT_IMPLEMENTED; }  // For backward-compatibility
 };
 
 /**

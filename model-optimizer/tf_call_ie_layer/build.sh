@@ -59,9 +59,9 @@ else
 fi
 
 set -e # exit if something goes wrong
-if [ "x$INTEL_CVSDK_DIR" = "x" ]; then
-    echo "ERROR: INTEL_CVSDK_DIR environment variable is not set"
-    echo "Please, run the 'source <CVSDK_install_dir>/bin/setupvars.sh'"
+if [ "x$INTEL_OPENVINO_DIR" = "x" ]; then
+    echo "ERROR: INTEL_OPENVINO_DIR environment variable is not set"
+    echo "Please, run the 'source <OpenVINO_install_dir>/bin/setupvars.sh'"
     exit 1
 fi
 
@@ -71,7 +71,7 @@ if [ "x$TF_ROOT_DIR" == 'x' ]; then
     exit 1
 fi
 
-IE_HEADERS_SRC_DIR=$INTEL_CVSDK_DIR/inference_engine/include
+IE_HEADERS_SRC_DIR=$INTEL_OPENVINO_DIR/inference_engine/include
 if [ ! -e $IE_HEADERS_SRC_DIR ]; then
     echo "ERROR: Inference Engine headers files '$IE_HEADERS_SRC_DIR' doesn't exist"
     exit 1

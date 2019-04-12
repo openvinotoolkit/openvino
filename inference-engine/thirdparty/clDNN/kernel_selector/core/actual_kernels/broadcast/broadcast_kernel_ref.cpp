@@ -25,20 +25,22 @@ namespace kernel_selector
         k.EnableInputDataType(Datatype::F32);
         k.EnableInputDataType(Datatype::INT8);
         k.EnableInputDataType(Datatype::UINT8);
+        k.EnableInputDataType(Datatype::INT32);
+        k.EnableInputDataType(Datatype::INT64);
 
         k.EnableOutputDataType(Datatype::F32);
         k.EnableOutputDataType(Datatype::F16);
         k.EnableOutputDataType(Datatype::INT8);
         k.EnableOutputDataType(Datatype::UINT8);
+        k.EnableOutputDataType(Datatype::INT32);
+        k.EnableOutputDataType(Datatype::INT64);
 
         k.EnableInputLayout(DataLayout::bfyx);
-        k.EnableInputLayout(DataLayout::yxfb);
-        k.EnableInputLayout(DataLayout::byxf);
 
         k.EnableOutputLayout(DataLayout::bfyx);
-        k.EnableOutputLayout(DataLayout::yxfb);
-        k.EnableOutputLayout(DataLayout::byxf);
 
+        k.EnableTensorOffset();
+        k.EnableTensorPitches();
         k.EnableBatching();
 
         return k;

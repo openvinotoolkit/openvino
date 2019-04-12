@@ -1,17 +1,15 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-
-cmake_minimum_required (VERSION 2.8)
 
 function (extract archive_path unpacked_path folder result)
   # Slurped from a generated extract-TARGET.cmake file.
   if (NOT EXISTS ${unpacked_path})
     get_filename_component(unpacked_dir ${unpacked_path} DIRECTORY)
-    
+
     file(MAKE_DIRECTORY ${unpacked_path})
-    
+
     message(STATUS "extracting...
          src='${archive_path}'
          dst='${unpacked_path}'")

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,10 @@ public:
     }
 
     void GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &deployedTopology) override {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    }
+
+    void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 

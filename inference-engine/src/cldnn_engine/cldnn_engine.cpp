@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018 Intel Corporation
+﻿// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,12 +116,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(InferenceEngine::
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
         plugin = make_ie_compatible_plugin(
-                {1, 5,
-#ifdef CLDNN_VERSION
-                 CLDNN_VERSION,
-#else
+                {1, 6,
                  CI_BUILD_NUMBER,
-#endif
                  "clDNNPlugin"}, std::make_shared<clDNNEngine>());
         return OK;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,9 @@ public:
             _nms_threshold = layer->GetParamAsFloat("nms_threshold");
             _confidence_threshold = layer->GetParamAsFloat("confidence_threshold", -FLT_MAX);
             _share_location = layer->GetParamsAsBool("share_location", true);
-            _clip = layer->GetParamsAsBool("clip", false);
+            _clip_before_nms = layer->GetParamsAsBool("clip_before_nms", false) ||
+                               layer->GetParamsAsBool("clip", false);  // for backward compatibility
+            _clip_after_nms = layer->GetParamsAsBool("clip_after_nms", false);
             _decrease_label_id = layer->GetParamsAsBool("decrease_label_id", false);
             _normalized = layer->GetParamsAsBool("normalized", true);
             _image_height = layer->GetParamAsInt("input_height", 1);
@@ -53,12 +55,15 @@ public:
             _code_type = (code_type_str == "caffe.PriorBoxParameter.CENTER_SIZE" ? CodeType::CENTER_SIZE
                                                                                  : CodeType::CORNER);
 
-            _num_priors = static_cast<int>(layer->insData[idx_priors].lock()->dims[0] / _prior_size);
+            _num_priors = static_cast<int>(layer->insData[idx_priors].lock()->getDims().back() / _prior_size);
+            _priors_batches = layer->insData[idx_priors].lock()->getDims().front() != 1;
 
-            if (_num_priors * _num_loc_classes * 4 != layer->insData[idx_location].lock()->dims[0])
-                THROW_IE_EXCEPTION << "Number of priors must match number of location predictions.";
+            if (_num_priors * _num_loc_classes * 4 != static_cast<int>(layer->insData[idx_location].lock()->getDims()[1]))
+                THROW_IE_EXCEPTION << "Number of priors must match number of location predictions ("
+                                   << _num_priors * _num_loc_classes * 4 << " vs "
+                                   << layer->insData[idx_location].lock()->getDims()[1] << ")";
 
-            if (_num_priors * _num_classes != layer->insData[idx_confidence].lock()->dims[0])
+            if (_num_priors * _num_classes != static_cast<int>(layer->insData[idx_confidence].lock()->dims[0]))
                 THROW_IE_EXCEPTION << "Number of priors must match number of confidence predictions.";
 
             if (_decrease_label_id && _background_label_id != 0)
@@ -131,10 +136,14 @@ public:
         int *indices_data          = _indices->buffer();
         int *num_priors_actual     = _num_priors_actual->buffer();
 
-        const float *prior_variances = prior_data + _num_priors*_prior_size;
-        const float *ppriors = prior_data;
-
         for (int n = 0; n < N; ++n) {
+            const float *ppriors = prior_data;
+            const float *prior_variances = prior_data + _num_priors*_prior_size;
+            if (_priors_batches) {
+                ppriors += _variance_encoded_in_target ? n*_num_priors*_prior_size : 2*n*_num_priors*_prior_size;
+                prior_variances += _variance_encoded_in_target ? 0 : n*_num_priors*_prior_size;
+            }
+
             if (_share_location) {
                 const float *ploc = loc_data + n*4*_num_priors;
                 float *pboxes = decoded_bboxes_data + n*4*_num_priors;
@@ -227,7 +236,7 @@ public:
                 // Store the new indices.
                 memset(detections_data + n*_num_classes, 0, _num_classes * sizeof(int));
 
-                for (int j = 0; j < conf_index_class_map.size(); ++j) {
+                for (size_t j = 0; j < conf_index_class_map.size(); ++j) {
                     int label = conf_index_class_map[j].second.first;
                     int idx = conf_index_class_map[j].second.second;
                     int *pindices = indices_data + n * _num_classes * _num_priors + label * _num_priors;
@@ -260,8 +269,8 @@ public:
                 for (int i = 0; i < detections_data[n*_num_classes + c]; ++i) {
                     int idx = pindices[c*_num_priors + i];
 
-                    dst_data[count * DETECTION_SIZE + 0] = n;
-                    dst_data[count * DETECTION_SIZE + 1] = _decrease_label_id ? c-1 : c;
+                    dst_data[count * DETECTION_SIZE + 0] = static_cast<float>(n);
+                    dst_data[count * DETECTION_SIZE + 1] = static_cast<float>(_decrease_label_id ? c-1 : c);
                     dst_data[count * DETECTION_SIZE + 2] = pconf[c*_num_priors + idx];
 
                     float xmin = _share_location ? pboxes[idx*4 + 0] :
@@ -272,6 +281,13 @@ public:
                                  pboxes[c*4*_num_priors + idx*4 + 2];
                     float ymax = _share_location ? pboxes[idx*4 + 3] :
                                  pboxes[c*4*_num_priors + idx*4 + 3];
+
+                    if (_clip_after_nms) {
+                        xmin = std::max(0.0f, std::min(1.0f, xmin));
+                        ymin = std::max(0.0f, std::min(1.0f, ymin));
+                        xmax = std::max(0.0f, std::min(1.0f, xmax));
+                        ymax = std::max(0.0f, std::min(1.0f, ymax));
+                    }
 
                     dst_data[count * DETECTION_SIZE + 3] = xmin;
                     dst_data[count * DETECTION_SIZE + 4] = ymin;
@@ -304,8 +320,9 @@ private:
     int _keep_top_k = 0;
     int _code_type = 0;
 
-    bool _share_location = false;
-    bool _clip = false;
+    bool _share_location    = false;
+    bool _clip_before_nms   = false;  // clip bounding boxes before nms step
+    bool _clip_after_nms    = false;  // clip bounding boxes after nms step
     bool _decrease_label_id = false;
 
     int _image_width = 0;
@@ -320,6 +337,7 @@ private:
     int _num = 0;
     int _num_loc_classes = 0;
     int _num_priors = 0;
+    bool _priors_batches = false;
 
     enum CodeType {
         CORNER = 1,
@@ -477,7 +495,7 @@ void DetectionOutputImpl::decodeBBoxes(const float *prior_data,
             new_ymax = decode_bbox_center_y + decode_bbox_height / 2.0f;
         }
 
-        if (_clip) {
+        if (_clip_before_nms) {
             new_xmin = std::max(0.0f, std::min(1.0f, new_xmin));
             new_ymin = std::max(0.0f, std::min(1.0f, new_ymin));
             new_xmax = std::max(0.0f, std::min(1.0f, new_xmax));

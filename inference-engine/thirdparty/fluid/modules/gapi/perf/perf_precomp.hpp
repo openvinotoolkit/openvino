@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 
 
 #ifndef __OPENCV_GAPI_PERF_PRECOMP_HPP__
@@ -17,6 +17,8 @@
 #include "opencv2/gapi/core.hpp"
 #include "opencv2/gapi/cpu/gcpukernel.hpp"
 #include "opencv2/gapi/gpu/ggpukernel.hpp"
+#include "opencv2/gapi/gpu/imgproc.hpp"
+#include "opencv2/gapi/gpu/core.hpp"
 #include "opencv2/gapi/operators.hpp"
 
 #include "opencv2/gapi/fluid/core.hpp"

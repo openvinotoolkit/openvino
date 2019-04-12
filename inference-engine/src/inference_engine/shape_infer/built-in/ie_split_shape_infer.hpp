@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ class SplitShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit SplitShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -29,7 +29,7 @@ public:
         SplitLayer splitLayer(lp);
         splitLayer.params = params;
         splitLayer.type = _type;
-        validate(&splitLayer, inShapes, params, blobs);
+        validate(&splitLayer, inBlobs, params, blobs);
 
         std::vector<int> out_sizes = splitLayer.GetParamAsInts("out_sizes", {});
         if (out_sizes.empty())

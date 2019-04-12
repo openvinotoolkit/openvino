@@ -31,6 +31,9 @@ namespace cldnn
 
     layout lookup_table_inst::calc_output_layout(lookup_table_node const& node)
     {
+        assert((bool)node.get_primitive()->output_data_type == false
+               && "Output data type forcing is not supported for "
+                  "lookup_table_node!");
         auto desc = node.get_primitive();
 
         auto input_data_layout = node.input().get_output_layout();

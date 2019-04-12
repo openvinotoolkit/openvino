@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ from extensions.front.mxnet.ssd_pattern_flatten_softmax_activation import SsdPat
 from extensions.front.mxnet.ssd_pattern_remove_flatten import SsdPatternRemoveFlatten
 from extensions.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import create_edge
+from mo.graph.graph import Graph
 
 
 class SsdPatternRemoveTranspose(FrontReplacementSubgraph):
@@ -42,7 +42,7 @@ class SsdPatternRemoveTranspose(FrontReplacementSubgraph):
             ]
         )
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         """
         Need to find each occurrence of pattern:
         transpose -> SoftmaxActivation -> _contrib_MultiBoxDetection
@@ -52,7 +52,7 @@ class SsdPatternRemoveTranspose(FrontReplacementSubgraph):
 
         Parameters
         ----------
-        graph : nx.MultiDiGraph
+        graph : Graph
            Graph with loaded model.
          match : dict
            Patterns which were found in graph structure.
@@ -64,4 +64,4 @@ class SsdPatternRemoveTranspose(FrontReplacementSubgraph):
         graph.remove_edge(transpose_in_node.id, transpose_node.id)
         graph.remove_edge(transpose_node.id, softmax_activation.id)
         graph.remove_node(transpose_node.id)
-        create_edge(transpose_in_node, softmax_activation)
+        graph.create_edge(transpose_in_node, softmax_activation)

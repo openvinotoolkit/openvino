@@ -28,6 +28,8 @@ namespace kernel_selector {
 
         virtual DispatchData SetDefault(const convolution_grad_weights_params& params) const override;
         virtual bool Validate(const Params& p, const optional_params& o) const override;
+
+    protected:
         virtual ParamsKey GetSupportedKey() const override;
     };
 }

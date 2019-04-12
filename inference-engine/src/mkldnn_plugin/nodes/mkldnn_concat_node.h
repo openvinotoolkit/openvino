@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@ public:
     void createPrimitive() override;
     void selectOptimalPrimitiveDescriptor() override;
     bool created() const override;
+    void execute(mkldnn::stream strm) override;
 
     bool isOptimized() const;
 

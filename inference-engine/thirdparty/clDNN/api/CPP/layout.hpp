@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,40 @@ enum class data_types : size_t
     i64 = cldnn_i64,
     f16 = cldnn_f16,
     f32 = cldnn_f32,
+};
+
+class optional_data_type
+{
+    // Must be the same as the undrelying type of `data_types`.
+    using storage_type = size_t;
+
+    // Implicitly assumes that this value is not used in the `data_types`.
+    static constexpr auto non_specified_type =
+        std::numeric_limits<storage_type>::max();
+
+public:
+    optional_data_type()
+        : storage(non_specified_type)
+    {}
+
+    optional_data_type(data_types type)
+        : storage(static_cast<storage_type>(type))
+    {}
+
+    operator bool() const { return storage != non_specified_type; }
+
+    // Similarly to std::optional does *not* verify that the object has the type
+    // set. Unlike it, though, returns the value instead of pointer/reference.
+    data_types operator*() const { return static_cast<data_types>(storage); }
+
+    optional_data_type& operator=(const data_types new_type)
+    {
+        storage = static_cast<storage_type>(new_type);
+        return *this;
+    }
+
+private:
+    storage_type storage;
 };
 
 /// Converts C++ type to @ref data_types .
@@ -98,6 +132,8 @@ struct data_type_traits
         {
         case data_types::i8:
             return "i8";
+        case data_types::u8:
+            return "u8";
         case data_types::i32:
             return "i32";
         case data_types::i64:
@@ -312,6 +348,11 @@ struct layout
             sizes[3] = align_to(sizes[3], 32);
         }
 
+        if (format == format::byx8_f4)
+        {
+            sizes[3] = align_to(sizes[3], 4);
+            sizes[2] = align_to(sizes[2], 8);
+        }
         std::vector<tensor::value_type> pitches(sizes.size(), tensor::value_type(1));
         std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches.rbegin() + 1, std::multiplies<tensor::value_type>());
         return{ format, pitches };
@@ -352,6 +393,14 @@ struct layout
         {
             sizes[0] = align_to(sizes[0], 16);
         }
+        else if (this->format == cldnn::format::os_iyx_osv32 && !is_aligned_to(sizes[0], 32))
+        {
+            sizes[0] = align_to(sizes[0], 32);
+        }
+        else if (this->format == cldnn::format::os_iyx_osv64 && !is_aligned_to(sizes[0], 64))
+        {
+            sizes[0] = align_to(sizes[0], 64);
+        }
         else if (this->format == cldnn::format::bs_xs_xsv8_bsv8 && !(is_aligned_to(sizes[0], 8) && is_aligned_to(sizes[2], 8)))
         {
             sizes[0] = align_to(sizes[0], 8);
@@ -376,19 +425,48 @@ struct layout
         {
             sizes[1] = align_to(sizes[1], 32);
         }
+        else if (this->format == cldnn::format::byx8_f4 && (!is_aligned_to(sizes[1], 4) || !is_aligned_to(sizes[2], 8)))
+        {
+            // for this case we want to make sure, that with padding we're aligned to 8 in x
+            auto lp = data_padding.lower_size().spatial[0];
+            auto up = data_padding.upper_size().spatial[0];
+            sizes[1] = align_to(sizes[1], 4);
+            sizes[2] = align_to(lp + up + sizes[2], 8);
+            sizes[2] -= lp + up;
+        }
         else if (this->format == cldnn::format::fs_bs_yx_bsv4_fsv32 && (!(is_aligned_to(sizes[1], 32)) || !(is_aligned_to(sizes[0], 4)) ) )
         {
             sizes[1] = align_to(sizes[1], 32);
             sizes[0] = align_to(sizes[0], 4);
+        }
+        else if (this->format == cldnn::format::b_fs_yx_fsv4 && !(is_aligned_to(sizes[1], 4)))
+        {
+            sizes[1] = align_to(sizes[1], 4);
         }
         else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && !(is_aligned_to(sizes[0], 8)) && !(is_aligned_to(sizes[1], 32)))
         {
             sizes[0] = align_to(sizes[0], 8);
             sizes[1] = align_to(sizes[1], 32);
         }
+        else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && !(is_aligned_to(sizes[0], 32)) && !(is_aligned_to(sizes[1], 32)))
+        {
+            sizes[0] = align_to(sizes[0], 32);
+            sizes[1] = align_to(sizes[1], 32);
+        }
         else if (this->format == cldnn::format::is_o_yx_isv32 && !(is_aligned_to(sizes[1], 32)))
         {
             sizes[1] = align_to(sizes[1], 32);
+        }
+        else if (this->format == cldnn::format::is_o32_yx_isv32_swizzled_by_4 && (!is_aligned_to(sizes[1], 32) || !(is_aligned_to(sizes[0], 32))))
+        {
+            sizes[0] = align_to(sizes[0], 32);
+            sizes[1] = align_to(sizes[1], 32);
+        }
+        else if (this->format == cldnn::format::os_is_y_x8_osv8_isv4)
+        {
+            sizes[1] = align_to(sizes[1], 4);
+            sizes[0] = align_to(sizes[0], 8);
+            sizes[2] = align_to(sizes[2], 8);
         }
         return std::accumulate(
             sizes.begin(),

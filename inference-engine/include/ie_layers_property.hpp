@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,13 @@ public:
     explicit PropertyVector(const std::vector<T>& values) {
         size_t i = 0;
         for (const auto val : values) {
+            insert(i++, val);
+        }
+    }
+
+    PropertyVector(std::initializer_list<int> init_list) {
+        size_t i = 0;
+        for (const auto val : init_list) {
             insert(i++, val);
         }
     }

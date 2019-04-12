@@ -27,8 +27,10 @@ namespace kernel_selector {
         virtual ~ConcatenationKernel_depth_bfyx_no_pitch() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
         virtual DispatchData SetDefault(const concatenation_params& params) const override;
         virtual bool Validate(const Params& p, const optional_params& o) const override;
+
+    protected:
+        virtual ParamsKey GetSupportedKey() const override;
     };
 }

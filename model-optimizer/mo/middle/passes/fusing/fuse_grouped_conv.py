@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,14 +21,14 @@ import networkx as nx
 import numpy as np
 
 from mo.front.extractor import add_attrs_props
-from mo.graph.graph import Node, unique_id, get_inputs
+from mo.graph.graph import Node, Graph
 from mo.middle.passes.eliminate import graph_clean_up
 from mo.utils.graph import pseudo_topological_sort
 from mo.middle.passes.fusing.helpers import get_next_operation, get_tensor_id
 
 
 # TODO: unit tests
-def concat_convolutions(graph: nx.MultiDiGraph, start_node: Node, last_node: Node):
+def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
     """
     This function converts group of convolutions into one
     """
@@ -130,10 +130,10 @@ def concat_convolutions(graph: nx.MultiDiGraph, start_node: Node, last_node: Nod
 
 
 # TODO: unit tests
-def grouped_convolutions_fusing(graph: nx.MultiDiGraph):
+def grouped_convolutions_fusing(graph: Graph):
     while True:
         is_fused = False
-        graph_clean_up(graph, ['TFCustomSubgraphCall'])
+        graph_clean_up(graph, ['TFCustomSubgraphCall', 'Shape'])
         nodes = pseudo_topological_sort(graph)
         for idx in nodes:
             node = Node(graph, idx)

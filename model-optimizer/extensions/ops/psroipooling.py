@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,17 +17,20 @@
 import networkx as nx
 
 from mo.front.common.layout import get_batch_dim, shape_for_layout
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class PSROIPoolingOp(Op):
     op = 'PSROIPooling'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'mode': 'average',
+            'in_ports_count': 2,
+            'out_ports_count': 1,
             'infer': PSROIPoolingOp.psroipooling_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -36,7 +39,10 @@ class PSROIPoolingOp(Op):
         return [
             'spatial_scale',
             'output_dim',
-            'group_size'
+            'group_size',
+            'mode',
+            'spatial_bins_x',
+            'spatial_bins_y',
         ]
 
     @staticmethod

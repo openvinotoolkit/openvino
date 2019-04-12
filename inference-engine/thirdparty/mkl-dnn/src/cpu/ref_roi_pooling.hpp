@@ -52,22 +52,22 @@ struct ref_roi_pooling_fwd_t: public cpu_primitive_t {
         }
     };
 
-    ref_roi_pooling_fwd_t(const pd_t *pd, const input_vector &inputs,
-                          const output_vector &outputs)
-            : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd) { }
+    ref_roi_pooling_fwd_t(const pd_t *apd, const input_vector &inputs,
+            const output_vector &outputs)
+        : cpu_primitive_t(apd, inputs, outputs) { }
 
     typedef typename prec_traits<data_type>::type data_t;
 
     ~ref_roi_pooling_fwd_t() { }
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         execute_forward_generic();
         e->set_state(event_t::ready);
     }
     
 private:
-    void execute_forward_generic();
-    pd_t conf_;
+    void execute_forward_generic() const;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 };
 
 }

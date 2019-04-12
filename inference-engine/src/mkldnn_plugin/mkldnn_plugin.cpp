@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,12 +92,8 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc *resp) noexcept {
     try {
         plugin = make_ie_compatible_plugin(
-                {{1, 5},
-#ifdef MKL_VERSION
-                 MKL_VERSION,
-#else
+                {{1, 6},
                  CI_BUILD_NUMBER,
-#endif
                  "MKLDNNPlugin"}, std::make_shared<Engine>());
         return OK;
     }

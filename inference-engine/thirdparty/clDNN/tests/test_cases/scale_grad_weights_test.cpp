@@ -52,7 +52,7 @@ TEST(scale_grad_weights_gpu, basic_in2x3x2x2) {
     //  f0: 0.1
     //  f1: 0.6  
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
     auto grad_input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
@@ -137,7 +137,7 @@ TEST(scale_grad_weights_gpu, basic_in2x3x2x2_bias) {
     //  f0: 1
     //  f1: 0.5
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
     auto grad_input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
@@ -237,7 +237,7 @@ TEST(scale_grad_weights_gpu, basic_in2x3x2x2_bias_momentum) {
     //  f0: 1
     //  f1: 0.5
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
     auto grad_input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });

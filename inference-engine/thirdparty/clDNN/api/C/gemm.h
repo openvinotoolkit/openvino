@@ -34,12 +34,6 @@ extern "C" {
 /// @brief Performs forward attention layer.
 
 CLDNN_BEGIN_PRIMITIVE_DESC(gemm)
-/// @brief Primitive id containing first matrix
-cldnn_primitive_id input1;
-/// @brief Primitive id containing second matrix
-cldnn_primitive_id input2;
-/// @brief Primitive id containing output matrix bias
-cldnn_primitive_id input3;
 /// @brief Variable containing ALPHA parameter
 float alpha;
 /// @brief Variable containing BETA parameter
@@ -48,9 +42,6 @@ float beta;
 bool transpose_input1;
 /// @brief Flag for transposing second input matrix
 bool transpose_input2;
-// NOT SUPPORTED YET
-// /// @brief The sequence output for the hidden. This is not clearly specified in the ONNX definition.
-// uint32_t output_sequence;
 CLDNN_END_PRIMITIVE_DESC(gemm)
 
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(gemm);

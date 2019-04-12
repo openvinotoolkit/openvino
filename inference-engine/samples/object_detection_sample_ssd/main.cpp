@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 3. Load Plugin for inference engine -------------------------------------
         slog::info << "Loading plugin" << slog::endl;
-        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp, "../../../lib/intel64" , "" }).getPluginByDevice(FLAGS_d);
+        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
         if (FLAGS_p_msg) {
             static_cast<InferenceEngine::InferenceEnginePluginPtr>(plugin)->SetLogCallback(error_listener);
         }
@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
          */
         std::string imageInputName, imInfoInputName;
 
-        InputInfo::Ptr inputInfo = inputsInfo.begin()->second;
+        InputInfo::Ptr inputInfo = nullptr;
 
         SizeVector inputImageDims;
         /** Stores input image **/
@@ -159,6 +159,8 @@ int main(int argc, char *argv[]) {
             /** Working with first input tensor that stores image **/
             if (item.second->getInputData()->getTensorDesc().getDims().size() == 4) {
                 imageInputName = item.first;
+
+                inputInfo = item.second;
 
                 slog::info << "Batch size is " << std::to_string(networkReader.getNetwork().getBatchSize()) << slog::endl;
 
@@ -170,11 +172,14 @@ int main(int argc, char *argv[]) {
 
                 Precision inputPrecision = Precision::FP32;
                 item.second->setPrecision(inputPrecision);
-                if ((item.second->getTensorDesc().getDims()[1] != 3 && item.second->getTensorDesc().getDims()[1] != 6) ||
-                     item.second->getTensorDesc().getDims()[0] != 1) {
+                if ((item.second->getTensorDesc().getDims()[1] != 3 && item.second->getTensorDesc().getDims()[1] != 6)) {
                     throw std::logic_error("Invalid input info. Should be 3 or 6 values length");
                 }
             }
+        }
+
+        if (inputInfo == nullptr) {
+            inputInfo = inputsInfo.begin()->second;
         }
         // -----------------------------------------------------------------------------------------------------
 
@@ -226,7 +231,7 @@ int main(int argc, char *argv[]) {
         // --------------------------- 9. Prepare input --------------------------------------------------------
         /** Collect images data ptrs **/
         std::vector<std::shared_ptr<unsigned char>> imagesData, originalImagesData;
-        std::vector<int> imageWidths, imageHeights;
+        std::vector<size_t> imageWidths, imageHeights;
         for (auto & i : images) {
             FormatReader::ReaderPtr reader(i.c_str());
             if (reader.get() == nullptr) {
@@ -285,7 +290,7 @@ int main(int argc, char *argv[]) {
             for (size_t image_id = 0; image_id < std::min(imagesData.size(), batchSize); ++image_id) {
                 p[image_id * imInfoDim + 0] = static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[2]);
                 p[image_id * imInfoDim + 1] = static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[3]);
-                for (int k = 2; k < imInfoDim; k++) {
+                for (size_t k = 2; k < imInfoDim; k++) {
                     p[image_id * imInfoDim + k] = 1.0f;  // all scale factors are set to 1.0
                 }
             }
@@ -301,7 +306,7 @@ int main(int argc, char *argv[]) {
 
         double total = 0.0;
         /** Start inference & calc performance **/
-        for (int iter = 0; iter < FLAGS_ni; ++iter) {
+        for (size_t iter = 0; iter < FLAGS_ni; ++iter) {
             auto t0 = Time::now();
             infer_request.Infer();
             auto t1 = Time::now();
@@ -322,28 +327,28 @@ int main(int argc, char *argv[]) {
 
         /* Each detection has image_id that denotes processed image */
         for (int curProposal = 0; curProposal < maxProposalCount; curProposal++) {
-            float image_id = detection[curProposal * objectSize + 0];
+            auto image_id = static_cast<int>(detection[curProposal * objectSize + 0]);
             if (image_id < 0) {
                 break;
             }
 
-            float label = detection[curProposal * objectSize + 1];
             float confidence = detection[curProposal * objectSize + 2];
-            float xmin = detection[curProposal * objectSize + 3] * imageWidths[image_id];
-            float ymin = detection[curProposal * objectSize + 4] * imageHeights[image_id];
-            float xmax = detection[curProposal * objectSize + 5] * imageWidths[image_id];
-            float ymax = detection[curProposal * objectSize + 6] * imageHeights[image_id];
+            auto label = static_cast<int>(detection[curProposal * objectSize + 1]);
+            auto xmin = static_cast<int>(detection[curProposal * objectSize + 3] * imageWidths[image_id]);
+            auto ymin = static_cast<int>(detection[curProposal * objectSize + 4] * imageHeights[image_id]);
+            auto xmax = static_cast<int>(detection[curProposal * objectSize + 5] * imageWidths[image_id]);
+            auto ymax = static_cast<int>(detection[curProposal * objectSize + 6] * imageHeights[image_id]);
 
             std::cout << "[" << curProposal << "," << label << "] element, prob = " << confidence <<
                 "    (" << xmin << "," << ymin << ")-(" << xmax << "," << ymax << ")" << " batch id : " << image_id;
 
             if (confidence > 0.5) {
                 /** Drawing only objects with >50% probability **/
-                classes[image_id].push_back(static_cast<int>(label));
-                boxes[image_id].push_back(static_cast<int>(xmin));
-                boxes[image_id].push_back(static_cast<int>(ymin));
-                boxes[image_id].push_back(static_cast<int>(xmax - xmin));
-                boxes[image_id].push_back(static_cast<int>(ymax - ymin));
+                classes[image_id].push_back(label);
+                boxes[image_id].push_back(xmin);
+                boxes[image_id].push_back(ymin);
+                boxes[image_id].push_back(xmax - xmin);
+                boxes[image_id].push_back(ymax - ymin);
                 std::cout << " WILL BE PRINTED!";
             }
             std::cout << std::endl;

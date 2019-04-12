@@ -1,0 +1,8 @@
+py-cpuinfo
+numpy
+progress
+pyyaml
+opencv-python
+shapely
+sklearn
+xmltodict

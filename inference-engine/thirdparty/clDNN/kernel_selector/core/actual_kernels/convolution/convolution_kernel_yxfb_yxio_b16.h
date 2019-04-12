@@ -28,9 +28,9 @@ namespace kernel_selector {
         virtual ~ConvolutionKernel_yxfb_yxio_b16() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
-    
+
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override { return{ WeightsLayout::yxio }; }
         std::string GetKernelName(const convolution_params&) const override;
         bool Validate(const Params& p, const optional_params& o) const override;

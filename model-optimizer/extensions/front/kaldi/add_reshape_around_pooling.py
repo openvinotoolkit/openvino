@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,8 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.pooling import Pooling
 from mo.ops.reshape import Reshape
 
@@ -39,7 +37,7 @@ class ReplacePoolingReshape(FrontReplacementOp):
     op = "Pooling"
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node) -> list:
+    def replace_op(self, graph: Graph, node: Node) -> list:
         input_node = node.in_node(0)
 
         input_reshape_node = Reshape(graph,
@@ -48,7 +46,7 @@ class ReplacePoolingReshape(FrontReplacementOp):
                                          'infer': Reshape.kaldi_infer
                                      }).create_node([input_node])
 
-        pooling_node = Pooling(graph, graph.nodes[node.id]).create_node([input_reshape_node])
+        pooling_node = Pooling(graph, graph.node[node.id]).create_node([input_reshape_node])
 
         output_reshape_node = Reshape(graph,
                                       {

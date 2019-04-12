@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,6 +58,9 @@ bool is_batch_after_spatial(const std::string order)
 
 layout fully_connected_inst::calc_output_layout(fully_connected_node const& node)
 {
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for "
+              "fully_connected_node!");
     auto desc = node.get_primitive();
     
     auto input_layout = node.input().get_output_layout();
@@ -104,7 +107,7 @@ fully_connected_inst::typed_primitive_inst(network_impl& network, fully_connecte
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
 
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "input format", input_layout.format.value, "expected format", format::yxfb, format::bfyx, format::byxf_af32, format::fs_bs_yx_bsv4_fsv32);
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "input format", input_layout.format.value, "expected format", format::yxfb, format::bfyx, format::byxf_af32, format::fs_bs_yx_bsv4_fsv32, format::b_fs_yx_fsv4);
     CLDNN_ERROR_NOT_EQUAL(node.id(), "Input size", input_layout.size.raw.size(), "output size", output_layout.size.raw.size(), "");
 }
 }

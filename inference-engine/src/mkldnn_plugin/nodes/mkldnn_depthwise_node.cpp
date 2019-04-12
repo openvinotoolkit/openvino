@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,11 @@ void MKLDNNDepthwiseNode::getSupportedDescriptors() {
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     auto parentOutDims = getParentEdgeAt(0)->getDims();
+
+    if (getParentEdges().size() != 1)
+        THROW_IE_EXCEPTION << "Cannot create layer " << getName() << ": Incorrect number of inputs!";
+    if (parentOutDims != getChildEdgeAt(0)->getDims())
+        THROW_IE_EXCEPTION << "Cannot create layer " << getName() << ": Incorrect dimensions!";
 
     SizeVector weightDims = { (long unsigned int)parentOutDims[1] };
     MKLDNNDims blocked_weightDims(weightDims);
@@ -76,7 +81,7 @@ void MKLDNNDepthwiseNode::createPrimitive() {
 
     if (isBroadcast()) {
         float broadcastValue = static_cast<float*>(internalBlobMemory[0]->GetData())[0];
-        int blbSize = internalBlobMemory[0]->GetPrimitiveDescriptor().desc().data.dims[0];
+        size_t blbSize = internalBlobMemory[0]->GetPrimitiveDescriptor().desc().data.dims[0];
         for (int i = 1; i < blbSize && realWeightSize != blbSize; i++) {
             static_cast<float*>(internalBlobMemory[0]->GetData())[i] = broadcastValue;
         }
@@ -87,6 +92,15 @@ void MKLDNNDepthwiseNode::createPrimitive() {
             for (int i = 1; i < blbSize && realBiasSize != blbSize; i++) {
                 static_cast<float*>(internalBlobMemory[1]->GetData())[i] = broadcastValue;
             }
+        }
+    } else {
+        size_t blbSize = internalBlobMemory[0]->GetPrimitiveDescriptor().desc().data.dims[0];
+        if (realWeightSize != blbSize)
+            THROW_IE_EXCEPTION << "Cannot create layer " << getName() << ": Incorrect weights!";
+        if (isWithBiases()) {
+            blbSize = internalBlobMemory[1]->GetPrimitiveDescriptor().desc().data.dims[0];
+            if (realBiasSize != blbSize)
+                THROW_IE_EXCEPTION << "Cannot create layer " << getName() << ": Incorrect biases!";
         }
     }
 

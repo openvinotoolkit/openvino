@@ -27,9 +27,9 @@ namespace kernel_selector
         virtual ~MVNKernelRef() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         std::string GetKernelName(const mvn_params&) const override;
     };
 }

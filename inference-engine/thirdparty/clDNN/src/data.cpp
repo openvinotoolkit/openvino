@@ -48,6 +48,7 @@ data_node::typed_program_node(const std::shared_ptr<data> dprim, program_impl& p
     : parent(dprim, prog), mem(api_cast(dprim->mem.get()))
 {
     constant = true;
+    can_share_buffer(false);
     recalc_output_layout(false);
 }
 

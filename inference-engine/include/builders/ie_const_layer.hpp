@@ -1,11 +1,11 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <builders/ie_layer_fragment.hpp>
-#include <ie_inetwork.hpp>
+#include <builders/ie_layer_decorator.hpp>
+#include <ie_network.hpp>
 #include <string>
 
 namespace InferenceEngine {
@@ -14,7 +14,7 @@ namespace Builder {
 /**
  * @brief The class represents a builder for Const layer
  */
-class INFERENCE_ENGINE_API_CLASS(ConstLayer): public LayerFragment {
+class INFERENCE_ENGINE_API_CLASS(ConstLayer): public LayerDecorator {
 public:
     /**
      * @brief The constructor creates a builder with the name
@@ -23,9 +23,14 @@ public:
     explicit ConstLayer(const std::string& name = "");
     /**
      * @brief The constructor creates a builder from generic builder
-     * @param genLayer generic builder
+     * @param layer pointer to generic builder
      */
-    explicit ConstLayer(Layer& genLayer);
+    explicit ConstLayer(const Layer::Ptr& layer);
+    /**
+     * @brief The constructor creates a builder from generic builder
+     * @param layer constant pointer to generic builder
+     */
+    explicit ConstLayer(const Layer::CPtr& layer);
     /**
      * @brief Sets the name for the layer
      * @param name Layer name
@@ -51,6 +56,12 @@ public:
      * @return reference to layer builder
      */
     ConstLayer& setData(const Blob::CPtr& data);
+
+    /**
+     * @brief Returns constant data
+     * @return constant blob with data
+     */
+    const Blob::CPtr& getData() const;
 };
 
 }  // namespace Builder

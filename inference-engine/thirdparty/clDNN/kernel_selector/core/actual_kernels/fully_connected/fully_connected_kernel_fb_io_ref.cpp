@@ -15,7 +15,6 @@
 */
 
 #include "fully_connected_kernel_fb_io_ref.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector 
 {
@@ -42,7 +41,15 @@ namespace kernel_selector
         //       (fb == fyxb flatten fyx, not yxfb flatten yxf).
         //       the order of the add operation cause some numeric changes. in order to avoid them right now we use yxfb/oiyx instead.
         // return GetCommonKernelsData(params, optParams, DataLayout::fb, WeightsLayout::io, FORCE_PRIORITY_6);
-
-        return GetCommonKernelsData(params, optParams, DataLayout::yxfb, { WeightsLayout::yxio }, FORCE_PRIORITY_6);
+        KernelsData res = {};
+        for (size_t i = 0; i < autoTuneOptions.size(); i++)
+        {
+            KernelsData kd = GetTunedKernelsDataByIndex(params, optParams, DataLayout::yxfb, { WeightsLayout::yxio }, FORCE_PRIORITY_6, (int)i);
+            if (!kd.empty())
+            {
+                res.emplace_back(kd[0]);
+            }
+        }
+        return res;
     }
 }

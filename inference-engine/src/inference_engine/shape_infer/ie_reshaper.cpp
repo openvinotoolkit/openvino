@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,20 +10,53 @@
 #include <ie_layers.h>
 #include <graph_tools.hpp>
 #include <debug.h>
+#include <functional>
+#include <blob_factory.hpp>
 
 #include "shape_infer/built-in/ie_built_in_holder.hpp"
 #include "shape_infer/ie_reshaper.hpp"
 #include "details/caseless.hpp"
 #include "details/ie_cnn_network_tools.h"
 #include "ie_reshaper.hpp"
+#include "ie_cnn_layer_builder.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace ShapeInfer;
 
-Reshaper::Reshaper(const Context &context, Network::Ptr& network): ctx(context), network(network) {}
+Reshaper::Reshaper(Builder::Network* network): network(network) {}
 
-Reshaper::Reshaper(ICNNNetwork& network, const LauncherCreator::Ptr& launcherCreator) {
+static std::vector<CNNLayerPtr> SortTopologicallyStartsFrom(const std::vector<DataPtr> &inputs) {
+    std::vector<CNNLayerPtr> all_layers;
+    CNNNetForestDFS(inputs, [&](CNNLayerPtr  current){
+        all_layers.push_back(current);
+    }, false);
+    std::reverse(all_layers.begin(), all_layers.end());
+    return all_layers;
+}
+
+Reshaper::Reshaper(std::vector<DataPtr> insDatas, const LauncherCreator::Ptr& launcherCreator): network(nullptr) {
+    auto builtIn = std::make_shared<BuiltInShapeInferHolder>();
+    _allTypes = getTypeNamesFromExtension(builtIn);
+    _extensions.push_back(builtIn);
+
+    _allSortedLayers = SortTopologicallyStartsFrom(insDatas);
+    for (auto &in_data : insDatas) {
+        for (auto layer : in_data->inputTo) {
+            _inputLayers.insert(layer.second);
+        }
+    }
+
+    if (_inputLayers.empty() || _allSortedLayers.empty())
+        THROW_IE_EXCEPTION << "Unsupported model for shape inference: failed to collect inputs and layers";
+
+    for (auto const& currentLayer : _allSortedLayers) {
+        auto createdLauncher = launcherCreator->createNotInputLauncher(currentLayer.get(), _extensions);
+        _launchers.insert(createdLauncher);
+    }
+}
+
+Reshaper::Reshaper(ICNNNetwork& network, const LauncherCreator::Ptr& launcherCreator): network(nullptr) {
     auto builtIn = std::make_shared<BuiltInShapeInferHolder>();
     _allTypes = getTypeNamesFromExtension(builtIn);
     _extensions.push_back(builtIn);
@@ -55,7 +88,7 @@ void Reshaper::AddExtension(const IShapeInferExtensionPtr& extension) {
     if (!extension) THROW_IE_EXCEPTION << "Failed to add empty shape infer extension";
 
     if (network) {
-        ctx.addExtension(extension);
+        network->getContext().addExtension(extension);
         return;
     }
 
@@ -139,6 +172,7 @@ StatusCode Reshaper::run(const std::map<std::string, SizeVector>& inputShapes, R
     for (auto& layer : _allSortedLayers) {
         auto foundLauncher = getLauncherByLayerName(layer->name);
         foundLauncher->reshape(_launchers);
+        foundLauncher->constInfer(_launchers);
     }
 
     // apply changes
@@ -149,11 +183,60 @@ StatusCode Reshaper::run(const std::map<std::string, SizeVector>& inputShapes, R
     return OK;
 }
 
+StatusCode Reshaper::runNoApply(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) {
+    // Reset all shapes from previous run
+    for (const auto& launcher : _launchers) {
+        launcher->reset();
+    }
+
+    // Set new input shapes
+    for (auto const& input : _inputLayers) {
+        std::string layerName = input->name;
+        for (auto const& inData_w : input->insData) {
+            auto inData = inData_w.lock();
+            auto dataName = inData->name;
+            auto foundShapeIt = inputShapes.find(dataName);
+            auto foundLauncher = getLauncherByLayerName(layerName);
+            if (foundShapeIt != inputShapes.end()) {
+                foundLauncher->setShapeByName(foundShapeIt->second, dataName);
+            } else {
+                foundLauncher->setIRShapeByName(dataName);
+            }
+        }
+    }
+
+    // do reshape
+    for (auto& layer : _allSortedLayers) {
+        auto foundLauncher = getLauncherByLayerName(layer->name);
+        foundLauncher->reshape(_launchers);
+    }
+    return OK;
+}
+
+StatusCode Reshaper::apply(ResponseDesc* resp) {
+    // apply changes
+    for (auto& layer : _allSortedLayers) {
+        auto foundLauncher = getLauncherByLayerName(layer->name);
+        foundLauncher->applyChanges(layer.get());
+    }
+    return OK;
+}
+
+SizeVector Reshaper::getResultShapeFor(DataPtr &data, ResponseDesc* resp) {
+    auto creator_layer = data->creatorLayer.lock();
+    std::string creator_layer_name;
+    if (creator_layer) {
+        creator_layer_name = creator_layer->name;
+    }
+    auto foundLauncher = getLauncherByLayerName(creator_layer_name);
+    return foundLauncher->getShapeByName(data->getName());
+}
+
 StatusCode Reshaper::networkShapeInfer(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) {
     if (!network)
         return DescriptionBuffer(GENERAL_ERROR, resp) << "Cannot infer shapes! Network is not loaded.";
-    std::vector<Layer> propagatedLayers;
-    Network propagatedNetwork(*network);
+    std::vector<Builder::Layer> propagatedLayers;
+    Builder::Network propagatedNetwork(*network);
 
     // Set new input shapes
     for (auto& layer : propagatedNetwork) {
@@ -164,12 +247,78 @@ StatusCode Reshaper::networkShapeInfer(const std::map<std::string, SizeVector>& 
         if (layer->getOutputPorts().size() != 1)
             return DescriptionBuffer(GENERAL_ERROR, resp) << "Cannot infer shapes! Input layers can have only one output port.";
 
-        layer->getOutputPorts()[0].shape() = inputShapes.find(layer->getName())->second;
+        layer->getOutputPorts()[0].setShape(inputShapes.find(layer->getName())->second);
+    }
+
+    std::map<idx_t, std::map<std::string, std::string>> preparedParams;
+    // Prepare params for split layer
+    for (auto& layer : propagatedNetwork) {
+        if ((layer->getType() == "Reshape" || layer->getType() == "Flatten") &&
+            layer->getInputPorts().size() != 2 && !layer->getInputPorts()[0].shape().empty() &&
+            layer->getParameters().find("axis") != layer->getParameters().end() &&
+            (layer->getParameters().find("dim") == layer->getParameters().end() ||
+             layer->getParameters().at("dim").as<std::vector<int>>().empty())) {
+            auto inputShape = layer->getInputPorts()[0].shape();
+            size_t inputShapeTotal = std::accumulate(inputShape.begin(), inputShape.end(), 1lu,
+                                                     std::multiplies<size_t>());
+            std::vector<int> dim;
+            size_t axis = layer->getParameters().at("axis");
+            for (size_t i = 0; i < axis; i++) {
+                dim.emplace_back(inputShape[i]);
+                inputShapeTotal /= inputShape[i];
+            }
+            if (dim.size() < inputShape.size())
+                dim.emplace_back(inputShapeTotal);
+            layer->getParameters()["dim"] = dim;
+        }
+
+        std::map<std::string, std::string> params = InferenceEngine::Builder::convertParameters2Strings(layer->getParameters());
+        if (layer->getType() == "Split") {
+            Builder::SplitLayer splitLayer(layer);
+            std::vector<size_t> sizes;
+            size_t axisSize = splitLayer.getInputPort().shape()[splitLayer.getAxis()];
+            size_t uninitOuts(0);
+            for (const auto& port : layer->getOutputPorts()) {
+                if (port.shape().empty()) {
+                    sizes.push_back(0);
+                    uninitOuts++;
+                } else if (port.shape().size() <= splitLayer.getAxis()) {
+                    THROW_IE_EXCEPTION << "Incorrect output shapes in Split layer " << layer->getName();
+                } else {
+                    sizes.push_back(port.shape()[splitLayer.getAxis()]);
+                    axisSize -= port.shape()[splitLayer.getAxis()];
+                }
+            }
+
+            if ((axisSize && !uninitOuts) || (axisSize && uninitOuts && axisSize % uninitOuts))
+                THROW_IE_EXCEPTION << "Incorrect output shapes in Split layer " << layer->getName();
+
+            size_t commonSize = uninitOuts != 0 ? axisSize / uninitOuts : 0;
+            for (size_t i = 0; i < sizes.size() && commonSize; i++) {
+                if (!sizes[i])
+                    sizes[i] = commonSize;
+            }
+
+            std::string out_sizes;
+            for (const auto& size : sizes) {
+                if (!out_sizes.empty())
+                    out_sizes += ",";
+                out_sizes += std::to_string(size);
+            }
+            if (!out_sizes.empty())
+                params["out_sizes"] = out_sizes;
+        }
+
+        preparedParams[layer->getId()] = params;
     }
 
     // Try to propagate shapes
     for (auto& layer : propagatedNetwork) {
-        const auto impl = ctx.getShapeInferImpl(layer->getType());
+        // constant layer does not change during the shape inference and also the Const blob always has C layout and
+        // doesn't know its real shape, so don't run shape propagation for it
+        if (details::CaselessEq<std::string>()(layer->getType(), "Const"))
+            continue;
+        const auto impl = network->getContext().getShapeInferImpl(layer->getType());
         if (!impl)
             return DescriptionBuffer(NOT_FOUND, resp) <<
                         "Cannot infer shapes! Shape infer implementation was not found for type " << layer->getType() << ".";
@@ -178,33 +327,43 @@ StatusCode Reshaper::networkShapeInfer(const std::map<std::string, SizeVector>& 
         std::map<std::string, std::string> params;
         std::map<std::string, Blob::Ptr> blobs;
 
+        std::vector<Blob::CPtr> inBlobs;
         for (const auto& inPort : layer->getInputPorts().empty() ? layer->getOutputPorts() : layer->getInputPorts()) {
-            inShapes.push_back(inPort.shape());
+            if (inPort.getParameters().find("type") == inPort.getParameters().end()) {
+                inBlobs.push_back(inPort.getData()->getData());
+            }
         }
-        if (layer->getParameters()) {
-            for (const auto& it  : layer->getParameters()->getParameters()) {
-                params[it.first] = it.second;
-            }
-            for (const auto& it  : layer->getParameters()->getConstantData()) {
-                blobs[it.first] = std::const_pointer_cast<Blob>(it.second);
-            }
+        params = preparedParams[layer->getId()];
+
+        for (const auto& port : layer->getInputPorts()) {
+            if (port.getParameters().find("type") == port.getParameters().end() ||
+                    port.getData()->getData()->cbuffer() == nullptr)
+                continue;
+            blobs[port.getParameters().at("type")] = port.getData()->getData();
+        }
+        for (const auto& it  : layer->getParameters()) {
+            if (!it.second.is<Blob::CPtr>())
+                continue;
+            blobs[it.first] = std::const_pointer_cast<Blob>(it.second.as<Blob::CPtr>());
         }
 
-        StatusCode sts = impl->inferShapes(inShapes, params, blobs, outShapes, resp);
+        StatusCode sts = impl->inferShapes(inBlobs, params, blobs, outShapes, resp);
         if (sts != OK)
             return sts;
 
         if (outShapes.size() != layer->getOutputPorts().size())
-            return DescriptionBuffer(GENERAL_ERROR, resp) << "Cannot infer shapes! The number of output shapes is not equal the number of output ports.";
+            return DescriptionBuffer(GENERAL_ERROR, resp) << "Cannot infer shapes! The number of output shapes is not "
+                                                             "equal the number of output ports for layer "
+                                                             << layer->getName();
 
         for (size_t i = 0; i < outShapes.size(); i++) {
-            layer->getOutputPorts()[i].shape() = outShapes[i];
+            layer->getOutputPorts()[i].setShape(outShapes[i]);
         }
         for (const auto& connection : propagatedNetwork.getLayerConnections(layer->getId())) {
             if (connection.from().layerId() != layer->getId())
                 continue;
             auto nextLayer = propagatedNetwork.getLayer(connection.to().layerId());
-            nextLayer->getInputPorts()[connection.to().portId()].shape() = outShapes[connection.from().portId()];
+            nextLayer->getInputPorts()[connection.to().portId()].setShape(outShapes[connection.from().portId()]);
         }
     }
 
@@ -212,10 +371,10 @@ StatusCode Reshaper::networkShapeInfer(const std::map<std::string, SizeVector>& 
     for (auto& layer : *network) {
         const auto& propagatedLayer = propagatedNetwork.getLayer(layer->getId());
         for (size_t i = 0; i < layer->getInputPorts().size(); i++) {
-            layer->getInputPorts()[i].shape() = propagatedLayer->getInputPorts()[i].shape();
+            layer->getInputPorts()[i].setShape(propagatedLayer->getInputPorts()[i].shape());
         }
         for (size_t i = 0; i < layer->getOutputPorts().size(); i++) {
-            layer->getOutputPorts()[i].shape() = propagatedLayer->getOutputPorts()[i].shape();
+            layer->getOutputPorts()[i].setShape(propagatedLayer->getOutputPorts()[i].shape());
         }
     }
     return OK;

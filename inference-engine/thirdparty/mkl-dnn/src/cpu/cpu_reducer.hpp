@@ -20,6 +20,7 @@
 #include <assert.h>
 
 #include "c_types_map.hpp"
+#include "memory_tracking.hpp"
 #include "mkldnn_thread.hpp"
 #include "mkldnn_types.h"
 #include "nstl.hpp"
@@ -63,12 +64,23 @@ namespace cpu {
  * Intel(R) TBB) the # of thread per group is enforced to be 1.
  */
 struct reduce_balancer_t {
+    reduce_balancer_t() { init(1, 1, 1, 1, 0); } /* trivial balance */
     reduce_balancer_t(int nthr, int job_size, int njobs, int reduction_size,
             size_t max_buffer_size)
-        : syncable_(mkldnn_thr_syncable()), nthr_(nthr), job_size_(job_size)
-        , njobs_(njobs), reduction_size_(reduction_size)
-        , max_buffer_size_(max_buffer_size)
-    { balance(); }
+    { init(nthr, job_size, njobs, reduction_size, max_buffer_size); }
+
+    reduce_balancer_t &init(int nthr, int job_size, int njobs,
+            int reduction_size, size_t max_buffer_size)
+    {
+        syncable_ = mkldnn_thr_syncable();
+        nthr_ = nthr;
+        job_size_ = job_size;
+        njobs_ = njobs;
+        reduction_size_ = reduction_size;
+        max_buffer_size_ = max_buffer_size;
+        balance();
+        return *this;
+    }
 
     bool syncable_;
     int nthr_;
@@ -154,14 +166,29 @@ template <impl::data_type_t data_type>
 struct cpu_reducer_t {
     typedef typename prec_traits<data_type>::type data_t;
 
-    cpu_reducer_t(const reduce_balancer_t &balancer);
+    struct conf_t {
+        conf_t() = default;
+        conf_t &init(const reduce_balancer_t &balancer)
+        { balancer_ = balancer; return *this; }
+
+        void init_scratchpad(memory_tracking::registrar_t &scratchpad) const;
+
+        reduce_balancer_t balancer_;
+    };
+
+    cpu_reducer_t(const conf_t &conf);
     ~cpu_reducer_t();
 
-    /** allocates internal buffer for partial computations. */
-    void allocate_workspace();
+    /** initializes reducer.
+     * Must be called from a single thread prior to actual usage */
+    void init(const memory_tracking::grantor_t &scratchpad) const {
+        if (balancer().nthr_per_group_ == 1) return;
 
-    /** deallocates internal buffer. */
-    void deallocate_workspace() { if (workspace_) free(workspace_); }
+        auto bctx = scratchpad.template get<simple_barrier::ctx_t>(
+                memory_tracking::names::key_reducer_space_bctx);
+        for (int i = 0; i < balancer().ngroups_; ++i)
+            simple_barrier::ctx_init(&bctx[i]);
+    }
 
     /** for given thread returns the pointer where to put partial results.
      * Reduction destination @p dst must be provided as well (master threads
@@ -172,86 +199,118 @@ struct cpu_reducer_t {
      *        threads should start writing from the very beginning of returned
      *        address.
      */
-    data_t *get_local_ptr(int ithr, data_t *dst);
+    data_t *get_local_ptr(int ithr, data_t *dst,
+            const memory_tracking::grantor_t &scratchpad) const;
 
     /** performs the reduction with built-in synchronization. */
-    void reduce(int ithr, data_t *dst) {
-        bool redundant_reduction = balancer_.nthr_per_group_ == 1
-            || balancer_.idle(ithr);
+    void reduce(int ithr, data_t *dst,
+            const memory_tracking::grantor_t &scratchpad) const {
+        bool redundant_reduction = balancer().nthr_per_group_ == 1
+            || balancer().idle(ithr);
         if (redundant_reduction) return;
 
-        simple_barrier::barrier(&barriers_[balancer_.group_id(ithr)],
-                balancer_.nthr_per_group_);
-        reduce_nolock(ithr, dst);
+        auto bctx = scratchpad.template get<simple_barrier::ctx_t>(
+                memory_tracking::names::key_reducer_space_bctx);
+        simple_barrier::barrier(&bctx[balancer().group_id(ithr)],
+                balancer().nthr_per_group_);
+
+        reduce_nolock(ithr, dst, scratchpad);
     }
 
-    reduce_balancer_t balancer_;
+    const reduce_balancer_t &balancer() const { return conf_.balancer_; }
 
 private:
-    size_t ws_per_thread() const
-    { return balancer_.njobs_per_group_ub_ * balancer_.job_size_; }
+    static size_t space_per_thread(const reduce_balancer_t &balancer)
+    { return balancer.njobs_per_group_ub_ * balancer.job_size_; }
 
-    data_t *workspace_; /** data_t[nthr_][njobs_per_group_ub_][jobs_size_] */
+    /* The scratchpad is organized as follows:
+     *
+     * data_t space[nthr_][njobs_per_group_ub_][jobs_size_];
+     * simple_barrier::ctx_t barriers[groups_]; */
+
+    const conf_t conf_;
     reducer_2d_driver_t<data_type> *drv_;
-    simple_barrier::ctx_t *barriers_; /** barrier::ctx_t[groups_] */
 
-    void reduce_nolock(int ithr, data_t *dst);
+    void reduce_nolock(int ithr, data_t *dst,
+            const memory_tracking::grantor_t &scratchpad) const;
 };
 
 template <impl::data_type_t data_type>
 struct cpu_reducer_2d_t {
     typedef typename prec_traits<data_type>::type data_t;
 
-    cpu_reducer_2d_t(const reduce_balancer_t &balancer, int job_size_x,
-            int job_size_y, int x_block, int dst_x, int dst_y,
-            bool master_uses_dst);
+    struct conf_t {
+        conf_t() = default;
+        conf_t &init(const reduce_balancer_t &balancer, int job_size_x,
+                int job_size_y, int x_block, int dst_x, int dst_y) {
+            balancer_ = balancer;
+            job_size_x_ = job_size_x;
+            job_size_y_ = job_size_y;
+            x_block_ = x_block;
+            dst_x_ = dst_x;
+            dst_y_ = dst_y;
+            return *this;
+        }
+
+        void init_scratchpad(memory_tracking::registrar_t &scratchpad) const;
+
+        reduce_balancer_t balancer_;
+        int job_size_x_, job_size_y_, x_block_, dst_x_, dst_y_;
+    };
+
+    cpu_reducer_2d_t(const conf_t &conf);
     ~cpu_reducer_2d_t();
 
-    /** allocates internal buffer for partial computations. */
-    void allocate_workspace();
+    /** initializes reducer.
+     * Must be called from a single thread prior to actual usage */
+    void init(const memory_tracking::grantor_t &scratchpad) const {
+        if (balancer().nthr_per_group_ == 1) return;
 
-    /** deallocates internal buffer. */
-    void deallocate_workspace() { if (workspace_) free(workspace_); }
-
-    /** for given thread returns the pointer where to put partial results.
-     * Depending on @p master_uses_dst_ returned pointer for master threads
-     * would be either equal to the destination memory or to the workspace (in
-     * contrast, cpu_reducer_t struct always use destination memory for master
-     * threads).
-     *
-     * @note: @p master_uses_dst_ == #false is unimplemented at the moment
-     */
-    data_t *get_local_ptr(int ithr, data_t *dst);
-
-    /** performs the reduction with built-in synchronization. */
-    void reduce(int ithr, data_t *dst) {
-        bool redundant_reduction = balancer_.nthr_per_group_ == 1
-            || balancer_.idle(ithr);
-        if (redundant_reduction) return;
-
-        simple_barrier::barrier(&barriers_[balancer_.group_id(ithr)],
-                balancer_.nthr_per_group_);
-        reduce_nolock(ithr, dst);
+        auto bctx = scratchpad.template get<simple_barrier::ctx_t>(
+                memory_tracking::names::key_reducer_space_bctx);
+        for (int i = 0; i < balancer().ngroups_; ++i)
+            simple_barrier::ctx_init(&bctx[i]);
     }
 
-    reduce_balancer_t balancer_;
-    bool master_uses_dst_;
+    /** for given thread returns the pointer where to put partial results */
+    data_t *get_local_ptr(int ithr,
+            const memory_tracking::grantor_t &scratchpad) const;
+
+    /** performs the reduction with built-in synchronization. */
+    void reduce(int ithr, data_t *dst,
+            const memory_tracking::grantor_t &scratchpad) const {
+        bool redundant_reduction = balancer().nthr_per_group_ == 1
+            || balancer().idle(ithr);
+        if (redundant_reduction) return;
+
+        auto bctx = scratchpad.template get<simple_barrier::ctx_t>(
+                memory_tracking::names::key_reducer_space_bctx);
+        simple_barrier::barrier(&bctx[balancer().group_id(ithr)],
+                balancer().nthr_per_group_);
+
+        reduce_nolock(ithr, dst, scratchpad);
+    }
+
+    const reduce_balancer_t &balancer() const { return conf_.balancer_; }
 
 private:
-    int job_size_x_, job_size_y_, x_block_, dst_x_, dst_y_;
+    static size_t space_per_thread(const reduce_balancer_t &balancer)
+    { return balancer.njobs_per_group_ub_ * balancer.job_size_; }
 
-    size_t ws_per_thread() const
-    { return balancer_.njobs_per_group_ub_ * balancer_.job_size_; }
+    /* The scratchpad is organized as follows:
+     *
+     * data_t space[nthr_][njobs_per_group_ub_][jobs_size_];
+     * simple_barrier::ctx_t barriers[groups_]; */
 
-    data_t *workspace_; /** data_t[nthr_][njobs_per_group_ub_][jobs_size_] */
+    const conf_t conf_;
     reducer_2d_driver_t<data_type> *drv_;
-    simple_barrier::ctx_t *barriers_; /** barrier::ctx_t[groups_] */
 
-    int choose_x_blocking(int nx, int ny, int nthr_per_grp);
-    void reduce_block(const data_t* wspace_base,
-            data_t *dst, int job, int start_y, int start_x,
-            int ny_start, int nx_start, int ny_step, int nx_step);
-    void reduce_nolock(int ithr, data_t *dst);
+    int choose_x_blocking(int nx, int ny, int nthr_per_grp) const;
+    void reduce_block(const data_t* space_base, data_t *dst,
+            int job, int start_y, int start_x,
+            int ny_start, int nx_start, int ny_step, int nx_step) const;
+    void reduce_nolock(int ithr, data_t *dst,
+            const memory_tracking::grantor_t &scratchpad) const;
 };
 
 /** simple 1d accumulator: y[:] += x[:] */

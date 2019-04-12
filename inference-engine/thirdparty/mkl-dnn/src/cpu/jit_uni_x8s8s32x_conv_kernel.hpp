@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2018-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@
 #include "jit_generator.hpp"
 #include "jit_primitive_conf.hpp"
 #include "cpu_memory.hpp"
+#include "jit_uni_eltwise.hpp"
+#include "jit_uni_depthwise.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -28,11 +30,21 @@ namespace cpu {
 
 template <cpu_isa_t isa>
 struct jit_uni_x8s8s32x_conv_fwd_kernel: public jit_generator {
-    jit_uni_x8s8s32x_conv_fwd_kernel(jit_conv_conf_t ajcp,
-            const primitive_attr_t &attr): jcp(ajcp), attr_(attr)
+    jit_uni_x8s8s32x_conv_fwd_kernel(jit_conv_conf_t ajcp, jit_conv_conf_t ajcp_dw,
+            const primitive_attr_t &attr): jcp(ajcp), jcp_dw(ajcp_dw), attr_(attr)
     {
         this->generate();
         jit_ker = (void (*)(jit_conv_call_s *))this->getCode();
+    }
+
+    ~jit_uni_x8s8s32x_conv_fwd_kernel() {
+        for (auto inj : eltwise_injectors)
+           delete inj;
+        eltwise_injectors.clear();
+
+        for (auto inj : depthwise_injectors)
+            delete inj;
+        depthwise_injectors.clear();
     }
 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_x8s8s32x_conv_fwd_kernel)
@@ -45,11 +57,12 @@ struct jit_uni_x8s8s32x_conv_fwd_kernel: public jit_generator {
             cpu_memory_t::pd_t &weights_pd,
             cpu_memory_t::pd_t &dst_pd,
             cpu_memory_t::pd_t &bias_pd,
-            const primitive_attr_t &attr,
-            bool with_relu = false,
-            float relu_negative_slope = 0.);
+            const primitive_attr_t &attr);
+    static void init_scratchpad(memory_tracking::registrar_t &scratchpad,
+            const jit_conv_conf_t &jcp, const jit_conv_conf_t &jcp_dw, const primitive_attr_t &attr);
 
     jit_conv_conf_t jcp;
+    jit_conv_conf_t jcp_dw;
     const primitive_attr_t &attr_;
     void (*jit_ker)(jit_conv_call_s *);
 
@@ -81,30 +94,30 @@ private:
     reg64_t reg_oi_iter = r11;
     reg64_t reg_ic_iter = r15;
     reg64_t reg_compensation_base = abi_not_param1;
-    reg64_t reg_oc = r12;
+    reg64_t reg_oc_work = r12;
     reg64_t imm_addr64 = rbx;
 
     reg8_t reg_tmp_8 = r14b;
     reg32_t reg_tmp_32 = r14d;
     reg64_t reg_tmp_64 = r14;
 
-    Vmm vmm_zero = Vmm(14);
+    reg64_t reg_oc_off = r10;
+    reg64_t reg_d_weights = aux_reg_kernel;
+    reg64_t reg_d_bias = aux_reg_input;
+
     Vmm vmm_one = Vmm(15);
     Vmm vmm_bias_alpha = Vmm(13);
     Vmm vmm_shift = Vmm(14);
-    Vmm vmm_mask = Vmm(13);
     Vmm vmm_bias = Vmm(15);
-    Vmm vmm_reminder_dst = Vmm(11);
-    Ymm ymm_reminder_dst = Ymm(11);
     Ymm ymm_tmp = Ymm(10);
     Vmm vmm_scale = Vmm(12);
     Vmm vmm_comp = Vmm(12);
     Vmm vmm_prev_dst = Vmm(12);
 
-    inline Vmm get_src_reg(int idx) { return Vmm(idx + 8); }
-    inline Vmm get_ker_reg(int idx) { return Vmm(idx + 11); }
-    inline Vmm get_tmp_reg(int idx) { return Vmm(idx + 12); }
-    inline Vmm get_acc_reg(int idx) { return Vmm(idx + 0); }
+    inline Vmm get_src_reg(int idx) { return Vmm(idx + 9); }
+    inline Vmm get_ker_reg(int idx) { return Vmm(idx + 0); }
+    inline Vmm get_tmp_reg(int idx) { return Vmm(idx + 13); }
+    inline Vmm get_acc_reg(int idx) { return Vmm(idx + 1); }
 
     inline void cvt2ps(data_type_t type_in, Vmm ymm_in, const Xbyak::Operand &op, bool scalar_load);
     inline void store_dst(const Xbyak::Address &op, Vmm vmm_dst, bool scalar_store);
@@ -116,11 +129,12 @@ private:
     inline void width_blk_step(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step);
     inline void solve_common(int oc_blocks, int oc_step);
 
-    bool maybe_relu(int position);
-
     void generate();
 
     void prepare_table();
+
+    nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
+    nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
 
     Xbyak::Label l_table;
 };

@@ -17,7 +17,11 @@ when cross-compiling this library for another platform.
 
  * ArgMax
  * CTCGreedyDecoder
+ * DepthToSpace
  * DetectionOutput
+ * Expand
+ * Fill
+ * Gather
  * GRN
  * Interp
  * MVN
@@ -28,11 +32,17 @@ when cross-compiling this library for another platform.
  * PriorBoxClustered
  * Proposal
  * PSROIPooling
- * Region Yolo
- * Reorg Yolo
+ * Range
+ * RegionYolo
+ * ReorgYolo
  * Resample
+ * ReverseSequence
+ * ShuffleChannels
  * SimplerNMS
- * SpatialTransformer
+ * SpaceToDepth
+ * Squeeze
+ * StridedSlice
+ * Unsqueeze
 
 In order to add a new layer, you can use [the extensibility mechanism](./docs/IE_DG/Integrate_your_kernels_into_IE.md).
 

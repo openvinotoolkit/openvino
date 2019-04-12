@@ -1,0 +1,40 @@
+models:
+  - name: ssd_mobilenet_v1_coco
+
+    # list of launchers for your topology.
+    launchers:
+        # launcher framework (e.g. caffe, dlsdk)
+      - framework: dlsdk
+        # device for infer (e.g. for dlsdk cpu, gpu, hetero:cpu, gpu ...)
+        device: CPU
+        # topology IR (*.prototxt for caffe, *.xml for InferenceEngine, etc)
+        # path to topology is prefixed with directory, specified in "-m/--models" option
+        tf_model:   ssd_mobilenet_v1_coco.pb
+        # launcher returns raw result, so it should be converted
+        # to an appropriate representation with adapter
+        adapter: ssd
+        cpu_extensions: AUTO
+        mo_params:
+            data_type: FP32
+            tensorflow_use_custom_operations_config: ssd_v2_support.json
+            tensorflow_object_detection_api_pipeline_config: ssd_mobilenet_v1_coco.config
+
+    # metrics, preprocessing and postprocessing are typically dataset specific, so dataset field
+    # specifies data and all other steps required to validate topology
+    # there is typically definitions file, which contains options for common datasets and which is merged
+    # during evaluation, but since "sample_dataset" is not used anywhere else, this config contains full definition
+    datasets:
+      # uniquely distinguishable name for dataset
+      # note that all other steps are specific for this dataset only
+      # if you need to test topology on multiple datasets, you need to specify
+      # every step explicitly for each dataset
+      - name: COCO2017_90cl_bkgr
+
+        # list of metrics, calculated on dataset
+        metrics:
+          - type: map
+            integral: 11point
+            ignore_difficult: True
+            presenter: print_scalar
+
+          - type: coco_precision

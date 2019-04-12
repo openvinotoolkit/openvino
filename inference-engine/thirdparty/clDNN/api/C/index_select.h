@@ -18,6 +18,7 @@
 
 #include "cldnn.h"
 
+#include <stdbool.h>
 
 /// @addtogroup c_api C API
 /// @{
@@ -29,15 +30,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/// @brief Axis which index_select primitive will index.
-typedef enum /*:int32_t*/
-{
-    cldnn_along_b,
-    cldnn_along_f,
-    cldnn_along_x,
-    cldnn_along_y,
-} cldnn_index_select_axis;
 
 /// @brief Select index, which will be copied to the output..
 ///
@@ -64,8 +56,12 @@ typedef enum /*:int32_t*/
 /// @n Breaking any of this conditions will cause exeption throw.
 CLDNN_BEGIN_PRIMITIVE_DESC(index_select)
 
-/// @brief Axis of index selecting.
-cldnn_index_select_axis axis;
+/// @brief A list of axes of index selecting.
+index_select_axis_name_arr axis;
+/// @brief Number of axes of index selecting.
+int axis_num;
+/// @brief Do index_select in reverse order on axis.
+bool reverse;
 
 CLDNN_END_PRIMITIVE_DESC(index_select)
 

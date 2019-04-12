@@ -1,9 +1,8 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_builders.hpp>
-#include <ie_network.hpp>
 #include "graph_tools.hpp"
 
 #include <unordered_map>
@@ -33,28 +32,35 @@ Builder::Network::Network(const std::string &name): Builder::Network(Context(), 
 Builder::Network::Network(const INetwork &network): Builder::Network(Context(), network) {}
 Builder::Network::Network(const ICNNNetwork &network): Builder::Network(Context(), network) {}
 
-Builder::Network::Network(const Context& ieContext, const std::string &name): ctx(ieContext), name(name), version(3) {}
+Builder::Network::Network(const Context& ieContext, const std::string &name) {
+    parameters["name"] = name;
+    parameters["context"] = ieContext;
+    parameters["version"] = 3;
+    parameters["layers"] = std::vector<Layer::Ptr>();
+    parameters["connections"] = std::vector<Connection>();
+}
 
-Builder::Network::Network(const Context& ieContext, const INetwork &network): ctx(ieContext), name(network.getName()), version(3) {
+Builder::Network::Network(const Context& ieContext, const INetwork &network): Network(ieContext, network.getName()) {
     for (const auto& layer : network) {
-        layers.push_back(Layer(layer));
+        parameters["layers"].as<std::vector<Layer::Ptr>>().push_back(std::make_shared<Layer>(layer));
         const auto layerConnections = network.getLayerConnections(layer->getId());
         for (const auto& connection : layerConnections) {
             bool found = false;
-            for (const auto& con : connections) {
+            for (const auto& con : parameters["connections"].as<std::vector<Connection>>()) {
                 if (con == connection) {
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                connections.push_back(connection);
+                parameters["connections"].as<std::vector<Connection>>().push_back(connection);
             }
         }
     }
 }
 
-Builder::Network::Network(const Context& ieContext, const ICNNNetwork &network): ctx(ieContext), name(network.getName()), version(0) {
+Builder::Network::Network(const Context& ieContext, const ICNNNetwork &network): Network(ieContext, network.getName()) {
+    parameters["version"] = 0;
     auto allInputs = CNNNetGetAllInputLayers(network);
     InputsDataMap inputs;
     network.getInputsInfo(inputs);
@@ -66,7 +72,6 @@ Builder::Network::Network(const Context& ieContext, const ICNNNetwork &network):
     std::vector<CNNLayerPtr> queueLayers;
 
     auto createGenericFromCNNLayer = [&](const CNNLayerPtr& cnnLayer) {
-        std::vector<Port> inputPorts;
         for (const auto& data : cnnLayer->insData) {
             auto lockedData = data.lock();
             if (!lockedData)
@@ -74,155 +79,49 @@ Builder::Network::Network(const Context& ieContext, const ICNNNetwork &network):
             if (dataPtrs.find(lockedData.get()) == dataPtrs.end()) {
                 dataPtrs.insert(lockedData.get());
             }
-            inputPorts.emplace_back(lockedData->getTensorDesc().getDims());
         }
-        std::vector<Port> outputPorts;
         for (const auto& data : cnnLayer->outData) {
             if (dataPtrs.find(data.get()) == dataPtrs.end()) {
                 dataPtrs.insert(data.get());
             }
-            outputPorts.push_back(Port(data->getTensorDesc().getDims()));
         }
-
-        std::map<std::string, Parameter> params;
-        for (const auto& it : cnnLayer->params) {
-            params[it.first] = it.second;
+        std::map<std::string, Blob::Ptr> blobs = cnnLayer->blobs;
+        size_t inputsCount(0);
+        for (const auto& data : cnnLayer->insData) {
+            auto lockedData = data.lock();
+            if (!lockedData)
+                continue;
+            inputsCount++;
         }
-        const auto layer = Layer(cnnLayer->type, cnnLayer->name)
-                .setInputPorts(inputPorts).setOutputPorts(outputPorts)
-                .setParameters(params).setConstantData(cnnLayer->blobs);
+        const auto layer = builderFromCNNLayer(cnnLayer);
         idx_t layerId = addLayer(layer);
+
+        if (blobs.find("weights") != blobs.end()) {
+            idx_t constLayerId = addLayer(ConstLayer("weights").setData(blobs["weights"]));
+            connect({constLayerId}, {layerId, inputsCount++});
+        }
+        if (blobs.find("biases") != blobs.end()) {
+            if (blobs.find("weights") == blobs.end()) ++inputsCount;
+
+            idx_t constLayerId = addLayer(ConstLayer("biases").setData(blobs["biases"]));
+            connect({constLayerId}, {layerId, inputsCount++});
+        }
+        for (const auto& it : blobs) {
+            if (it.first == "weights" || it.first == "biases")
+                continue;
+            idx_t constLayerId = addLayer(ConstLayer(it.first).setData(it.second));
+            connect({constLayerId}, {layerId, inputsCount++});
+        }
         name2id[layer.getName()] = layerId;
         return layerId;
     };
 
     auto addPreProcessFor = [&](const InputInfo::Ptr& inputInfo) {
         auto inputLayer = getLayer(name2id[inputInfo->name()]);
-        if (inputLayer.getType().empty() && inputLayer.getName().empty())
+        if (inputLayer->getType().empty() && inputLayer->getName().empty())
             return;
 
-        ResizeAlgorithm alg = inputInfo->getPreProcess().getResizeAlgorithm();
-        std::string algStr;
-        switch (alg) {
-            case RESIZE_BILINEAR:
-                algStr = "RESIZE_BILINEAR";
-                break;
-            case RESIZE_AREA:
-                algStr = "RESIZE_AREA";
-                break;
-            default:
-                break;
-        }
-
-        if (!algStr.empty())
-            inputLayer.getParameters()["resize_alg"] = algStr;
-
-        switch (inputInfo->getPreProcess().getMeanVariant()) {
-            case MEAN_IMAGE: {
-                auto meanWidth = inputInfo->getPreProcess()[0]->meanData->dims()[0];
-                auto meanHeight = inputInfo->getPreProcess()[0]->meanData->dims()[1];
-
-                TensorDesc desc(Precision::FP32, inputLayer.getOutputPorts()[0].shape(), Layout::NCHW);
-                Blob::Ptr meanBuffer = make_blob_with_precision(desc);
-                meanBuffer->allocate();
-                auto *meanData = meanBuffer->buffer().as<float *>();
-                for (unsigned channel = 0; channel < inputInfo->getPreProcess().getNumberOfChannels(); channel++) {
-                    Blob::Ptr meanBlob = inputInfo->getPreProcess()[channel]->meanData;
-                    if (!meanBlob || meanBlob->precision() != Precision::FP32)
-                        THROW_IE_EXCEPTION << "mean image not provided or not in Float 32";
-                    if (meanBlob->size() != meanHeight*meanWidth) {
-                        THROW_IE_EXCEPTION << "mean image size does not match expected network input, expecting " << meanWidth << " x " << meanHeight;
-                    }
-                    ie_memcpy(meanData + channel*meanBlob->size(),
-                            meanBuffer->byteSize() - channel*meanBlob->size() * sizeof(float),
-                            meanBlob->buffer(),
-                            meanBlob->byteSize());
-                }
-
-                // WA for batch != 1
-                // Reshape for new batch is not supported for models with mean image
-                size_t noBatchSize = desc.getBlockingDesc().getStrides()[0];
-                for (size_t b = 1; b < inputLayer.getOutputPorts()[0].shape()[0]; b++) {
-                    ie_memcpy(meanData + noBatchSize*b,
-                              meanBuffer->byteSize() - noBatchSize * b * sizeof(float),
-                              meanData,
-                              noBatchSize * sizeof(float));
-                }
-
-                std::vector<PortInfo> outPorts;
-                std::vector<Connection> inputConnections = getLayerConnections(inputLayer.getId());
-                for (const auto& connection : inputConnections) {
-                    outPorts.push_back(connection.to());
-                    disconnect(connection);
-                }
-
-                idx_t constId = addLayer(Builder::ConstLayer(inputLayer.getName() + "_mean_image")
-                                                 .setPort(inputLayer.getOutputPorts()[0]).setData(meanBuffer));
-                idx_t constNegId = addLayer({{constId}}, Builder::PowerLayer(inputLayer.getName() + "_mean_image_neg")
-                                                 .setPort(inputLayer.getOutputPorts()[0]).setScale(-1));
-
-                idx_t eltwiseId = addLayer({{inputLayer.getId()}, {constNegId}},
-                        Builder::EltwiseLayer(inputLayer.getName() + "_mean_image_elt")
-                             .setInputPorts({inputLayer.getOutputPorts()[0], inputLayer.getOutputPorts()[0]})
-                             .setOutputPort(inputLayer.getOutputPorts()[0])
-                             .setEltwiseType(Builder::EltwiseLayer::EltwiseType::SUM));
-
-                for (const auto& port : outPorts) {
-                    connect({eltwiseId}, port);
-                }
-            }
-                break;
-            case MEAN_VALUE: {
-                TensorDesc desc(Precision::FP32, {inputInfo->getPreProcess().getNumberOfChannels()}, Layout::C);
-                Blob::Ptr mean = make_blob_with_precision(desc);
-                mean->allocate();
-                Blob::Ptr scale = make_blob_with_precision(desc);
-                scale->allocate();
-                Blob::Ptr emptyScale = make_blob_with_precision(desc);
-                emptyScale->allocate();
-                auto *meanData = mean->buffer().as<float *>();
-                auto *scaleData = scale->buffer().as<float *>();
-                auto *emptyScaleData = emptyScale->buffer().as<float *>();
-                bool noMean = true;
-                bool noScale = true;
-                for (size_t i = 0; i < inputInfo->getPreProcess().getNumberOfChannels(); i++) {
-                    meanData[i] = -inputInfo->getPreProcess()[i]->meanValue;
-                    noMean = noMean && (meanData[i] == 0);
-                    scaleData[i] = inputInfo->getPreProcess()[i]->stdScale;
-                    emptyScaleData[i] = 1;
-                    noScale = noScale && (scaleData[i] == 1);
-                }
-                std::vector<PortInfo> outPorts;
-                std::vector<Connection> inputConnections = getLayerConnections(inputLayer.getId());
-                for (const auto& connection : inputConnections) {
-                    outPorts.push_back(connection.to());
-                    disconnect(connection);
-                }
-
-                idx_t meanId = inputLayer.getId();
-                if (!noMean) {
-                    meanId = addLayer({{inputLayer.getId()}},
-                                            Builder::ScaleShiftLayer(inputLayer.getName() + "_mean_value")
-                                                    .setPort(inputLayer.getOutputPorts()[0])
-                                                    .setBiases(mean).setWeights(emptyScale));
-                }
-
-                idx_t scaleId = meanId;
-                if (!noScale) {
-                    scaleId = addLayer({{meanId}},
-                                             Builder::ScaleShiftLayer(inputLayer.getName() + "_scale_value")
-                                                     .setPort(inputLayer.getOutputPorts()[0])
-                                                     .setWeights(scale));
-                }
-
-                for (const auto& port : outPorts) {
-                    connect({scaleId}, port);
-                }
-            }
-                break;
-            default:
-                break;
-        }
+        inputLayer->getParameters()["preProcess"] = inputInfo->getPreProcess();
     };
 
     for (auto input : inputs) {
@@ -300,10 +199,10 @@ Builder::Network::Network(const Context& ieContext, const ICNNNetwork &network):
             THROW_IE_EXCEPTION << "Cannot find output layer " << creator->name;
 
         auto lastLayer = getLayer(name2id[creator->name]);
-        if (lastLayer.getName() == "" && lastLayer.getType().empty())
+        if (lastLayer->getName() == "" && lastLayer->getType().empty())
             THROW_IE_EXCEPTION << "Cannot find output layer " << creator->name;
 
-        std::string name = "out_" + lastLayer.getName();
+        std::string name = "out_" + lastLayer->getName();
 
         CNNLayerPtr cnnOutLayer(new CNNLayer({name, "Output", creator->outData[0]->getPrecision()}));
         cnnOutLayer->insData.push_back((*it).second);
@@ -318,7 +217,7 @@ Builder::Network::Network(const Context& ieContext, const ICNNNetwork &network):
             }
         }
 
-        connections.push_back(Connection({lastLayer.getId(), inIdx}, {outLayerId}));
+        parameters["connections"].as<std::vector<Connection>>().push_back(Connection({lastLayer->getId(), inIdx}, {outLayerId}));
     }
 
     for (const auto dataPtr : dataPtrs) {
@@ -349,21 +248,21 @@ Builder::Network::Network(const Context& ieContext, const ICNNNetwork &network):
                     break;
                 }
             }
-            connections.push_back(Connection({name2id[cnnInputLayer->name], inIdx}, {name2id[it.second->name], outIdx}));
+            parameters["connections"].as<std::vector<Connection>>()
+                .push_back(Connection({name2id[cnnInputLayer->name], inIdx}, {name2id[it.second->name], outIdx}));
         }
     }
 
-    for (auto input : inputs) {
+    for (const auto &input : inputs) {
         addPreProcessFor(input.second);
     }
 }
 
-std::vector<Builder::Layer>& Builder::Network::getLayers() {
-    return layers;
+const std::vector<Builder::Layer::Ptr>& Builder::Network::getLayers() const {
+    return parameters.at("layers").as<std::vector<Layer::Ptr>>();
 }
-
-const std::vector<Builder::Layer>& Builder::Network::getLayers() const {
-    return layers;
+std::vector<Builder::Layer::Ptr>& Builder::Network::getLayers() {
+    return parameters["layers"].as<std::vector<Layer::Ptr>>();
 }
 
 idx_t Builder::Network::addLayer(const std::vector<PortInfo> &inputs,
@@ -380,10 +279,11 @@ idx_t Builder::Network::addLayer(const Layer& layer) {
         if (defaultId == (std::numeric_limits<idx_t>::max)())
             defaultId = 0;
 
-        auto it = layers.begin();
-        while (it != layers.end()) {
-            for (it = layers.begin(); it != layers.end(); it++) {
-                if (it->getId() == defaultId) {
+        auto it = parameters["layers"].as<std::vector<Layer::Ptr>>().begin();
+        while (it != parameters["layers"].as<std::vector<Layer::Ptr>>().end()) {
+            for (it = parameters["layers"].as<std::vector<Layer::Ptr>>().begin();
+                    it != parameters["layers"].as<std::vector<Layer::Ptr>>().end(); it++) {
+                if ((*it)->getId() == defaultId) {
                     defaultId++;
                     break;
                 }
@@ -399,8 +299,8 @@ idx_t Builder::Network::addLayer(const Layer& layer) {
         bool nameIsUnique(false);
         while (!nameIsUnique) {
             nameIsUnique = true;
-            for (const auto& layer : layers) {
-                if (generatedName == layer.getName()) {
+            for (const auto& layer : parameters["layers"].as<std::vector<Layer::Ptr>>()) {
+                if (generatedName == layer->getName()) {
                     nameIsUnique = false;
                     generatedName += "_" + idName;
                 }
@@ -410,83 +310,131 @@ idx_t Builder::Network::addLayer(const Layer& layer) {
     };
     idx_t generatedId = getAvailableId(layer.getId());
     const auto name = generateAvailableName(layer.getName(), generatedId);
-    layers.emplace_back(generatedId, layer);
-    layers[layers.size() - 1].getName() = name;
+    parameters["layers"].as<std::vector<Layer::Ptr>>().emplace_back(std::make_shared<Layer>(generatedId, layer));
+    parameters["layers"].as<std::vector<Layer::Ptr>>()[parameters["layers"].as<std::vector<Layer::Ptr>>().size() - 1]->setName(name);
     return generatedId;
 }
 
 void Builder::Network::connect(const PortInfo& input, const PortInfo& output) {
-    connections.emplace_back(input, output);
+    const auto mergePortData = [&]() -> bool {
+        const auto blobEqualOrEmpty = [](const Blob::Ptr& ref, const Blob::Ptr& test) -> bool {
+            return (ref->size() == test->size() || test->size() == 0) &&
+                   (!memcmp(ref->cbuffer(), test->cbuffer(), test->byteSize())) &&
+                   (ref->getTensorDesc().getPrecision() == test->getTensorDesc().getPrecision() ||
+                    test->getTensorDesc().getPrecision() == Precision::UNSPECIFIED) &&
+                   (ref->getTensorDesc().getLayout() == test->getTensorDesc().getLayout() ||
+                    test->getTensorDesc().getLayout() == Layout::ANY) &&
+                   (ref->getTensorDesc().getDims() == test->getTensorDesc().getDims() ||
+                    test->getTensorDesc().getDims().empty()) &&
+                   (ref->cbuffer().as<char *>() == test->cbuffer().as<char *>() ||
+                    test->cbuffer() == nullptr);
+        };
+
+        const auto srcPortData = getLayer(input.layerId())->getOutputPorts()[input.portId()].getData();
+        const auto dstPortData = getLayer(output.layerId())->getInputPorts()[output.portId()].getData();
+        if (srcPortData == dstPortData)
+            return true;
+
+        if (srcPortData->getParameters() != dstPortData->getParameters() &&
+                !srcPortData->getParameters().empty() &&
+                !dstPortData->getParameters().empty())
+            return false;
+
+        size_t srcDataCount(0), dstDataCount(0);
+        if (!srcPortData->getParameters().empty()) srcDataCount++;
+        if (!dstPortData->getParameters().empty()) dstDataCount++;
+
+        const auto srcBlb = srcPortData->getData();
+        const auto dstBlb = dstPortData->getData();
+        if (srcBlb == dstBlb || (srcBlb->size() == dstBlb->size() &&
+                srcBlb->getTensorDesc() == dstBlb->getTensorDesc() &&
+                ((srcBlb->cbuffer().as<char *>() == dstBlb->cbuffer().as<char *>()) ||
+                    (srcBlb->cbuffer() != nullptr && dstBlb->cbuffer() != nullptr &&
+                    !memcmp(srcBlb->cbuffer(), dstBlb->cbuffer(), dstBlb->byteSize()))))) {
+            srcDataCount++;
+            dstDataCount++;
+        } else if (blobEqualOrEmpty(srcBlb, dstBlb)) {
+            srcDataCount++;
+        } else if (blobEqualOrEmpty(dstBlb, srcBlb)) {
+            dstDataCount++;
+        } else {
+            return false;
+        }
+
+        if (dstDataCount > srcDataCount) {
+            // Change source and all src destination data
+            for (const auto& connection : getLayerConnections(input.layerId())) {
+                if (connection.from() != input)
+                    continue;
+                getLayer(connection.to().layerId())->getInputPorts()[connection.to().portId()].setData(dstPortData);
+            }
+            getLayer(input.layerId())->getOutputPorts()[input.portId()].setData(dstPortData);
+        } else {
+            // Change destination data
+            getLayer(output.layerId())->getInputPorts()[output.portId()].setData(srcPortData);
+        }
+
+        return true;
+    };
+
+    if (!mergePortData())
+        THROW_IE_EXCEPTION << "Cannot connect two ports with different data!";
+
+    parameters["connections"].as<std::vector<Connection>>().emplace_back(input, output);
 }
 
 void Builder::Network::removeLayer(idx_t layerId) {
-    auto it = layers.begin();
-    for (; it != layers.end(); it++) {
-        if (it->getId() == layerId) {
+    auto it = parameters["layers"].as<std::vector<Layer::Ptr>>().begin();
+    for (; it != parameters["layers"].as<std::vector<Layer::Ptr>>().end(); it++) {
+        if ((*it)->getId() == layerId) {
             break;
         }
     }
-    if (it != layers.end())
-        layers.erase(it);
+    if (it != parameters["layers"].as<std::vector<Layer::Ptr>>().end())
+        parameters["layers"].as<std::vector<Layer::Ptr>>().erase(it);
 }
 
 void Builder::Network::disconnect(const Connection& connection) {
-    auto it = connections.begin();
-    for (; it != connections.end(); it++) {
+    auto it = parameters["connections"].as<std::vector<Connection>>().begin();
+    for (; it != parameters["connections"].as<std::vector<Connection>>().end(); it++) {
         if (connection == *it)
             break;
     }
-    if (it != connections.end())
-        connections.erase(it);
+    if (it != parameters["connections"].as<std::vector<Connection>>().end())
+        parameters["connections"].as<std::vector<Connection>>().erase(it);
+
+    try {
+        auto layer = getLayer(connection.to().layerId());
+        layer->getInputPorts()[connection.to().portId()].setData(std::make_shared<PortData>());
+    } catch (InferenceEngine::details::InferenceEngineException& ex) {}
 }
 
-const INetwork::Ptr Builder::Network::build() const {
+const INetwork::CPtr Builder::Network::build() {
+    validate();
+    InferenceEngine::Builder::Network::Ptr network =
+            std::make_shared<InferenceEngine::Builder::Network>(static_cast<const INetwork&>(*this));
+    return network;
+}
+
+void Builder::Network::validate() {
     // Check that all ports are connected
-    for (const auto& layer : layers) {
-        std::vector<bool> existInCon(layer.getInputPorts().size());
-        std::vector<bool> existOutCon(layer.getOutputPorts().size());
-
-        const auto layerConnections = getLayerConnections(layer.getId());
-        for (const auto& connection : layerConnections) {
-            if (connection.from().layerId() == layer.getId()) {
-                existOutCon[connection.from().portId()] = true;
-                getLayer(connection.to().layerId());
-            }
-            if (connection.to().layerId() == layer.getId()) {
-                existInCon[connection.to().portId()] = true;
-                getLayer(connection.from().layerId());
-            }
-        }
-        bool allPortsConnected = true;
-        for (const auto& cons : {existInCon, existOutCon}) {
-            for (const auto &existCon : cons) {
-                allPortsConnected = allPortsConnected && existCon;
-            }
-        }
-        if (!allPortsConnected)
-            THROW_IE_EXCEPTION << "Not all ports of layer " << layer.getName() << " were connected!";
-    }
-
-    InferenceEngine::details::Network::Ptr network = std::make_shared<InferenceEngine::details::Network>(ctx, name);
-    for (const auto& layer : layers) {
-        network->addLayer(layer.build());
-    }
-    for (const auto& connection : connections) {
-        network->addConnection(connection);
-    }
-
-    // Check that all ports are connected
-    for (const auto& layer : *network) {
+    for (const auto& layer : getLayers()) {
         std::vector<bool> existInCon(layer->getInputPorts().size());
+        for (size_t i = 0; i < layer->getInputPorts().size(); i++) {
+            if (layer->getInputPorts()[i].getParameters().find("type") != layer->getInputPorts()[i].getParameters().end())
+                existInCon[i] = true;
+        }
         std::vector<bool> existOutCon(layer->getOutputPorts().size());
 
-        const auto layerConnections = network->getLayerConnections(layer->getId());
+        const auto layerConnections = getLayerConnections(layer->getId());
         for (const auto& connection : layerConnections) {
             if (connection.from().layerId() == layer->getId()) {
                 existOutCon[connection.from().portId()] = true;
+                getLayer(connection.to().layerId());
             }
             if (connection.to().layerId() == layer->getId()) {
                 existInCon[connection.to().portId()] = true;
+                getLayer(connection.from().layerId());
             }
         }
         bool allPortsConnected = true;
@@ -499,25 +447,32 @@ const INetwork::Ptr Builder::Network::build() const {
             THROW_IE_EXCEPTION << "Not all ports of layer " << layer->getName() << " were connected!";
     }
 
-    std::map<std::string, SizeVector> inputShapes;
-    for (const auto& input : network->getInputs())
-        inputShapes[input->getName()] = input->getOutputPorts()[0].shape();
-
-    if (version) {
-        details::BaseCreator::version_ = version;
+    // Check all layers
+    for (const auto& connection : getConnections()) {
+        if (!getLayer(connection.to().layerId()))
+            THROW_IE_EXCEPTION << "Cannot find layer with id: " << connection.to().layerId();
+        if (!getLayer(connection.from().layerId()))
+            THROW_IE_EXCEPTION << "Cannot find layer with id: " << connection.from().layerId();
     }
 
-    ShapeInfer::Reshaper reshaper(ctx, network);
+    std::map<std::string, SizeVector> inputShapes;
+    for (const auto& input : getInputs())
+        inputShapes[input->getName()] = input->getOutputPorts()[0].shape();
+
+    if (parameters.at("version").as<int>()) {
+        details::BaseCreator::version_ = parameters.at("version");
+    }
+
+    ShapeInfer::Reshaper reshaper(this);
     ResponseDesc resp;
     StatusCode sts = reshaper.run(inputShapes, &resp);
     // Not all implementations may be registered if all shapes were read from IR.
     if (sts == NOT_FOUND) {
         bool allShapesLooksGood = true;
-        for (const auto& connection : network->getConnections()) {
-            if (network->getLayer(connection.from().layerId())->
-                    getOutputPorts()[connection.from().portId()].shape() !=
-                network->getLayer(connection.to().layerId())->
-                        getInputPorts()[connection.to().portId()].shape()) {
+        for (const auto& connection : getConnections()) {
+            if (getLayer(connection.from().layerId())->getOutputPorts()[connection.from().portId()].shape() !=
+                getLayer(connection.to().layerId())->getInputPorts()[connection.to().portId()].shape() ||
+                getLayer(connection.to().layerId())->getInputPorts()[connection.to().portId()].shape().empty()) {
                 allShapesLooksGood = false;
                 break;
             }
@@ -529,30 +484,19 @@ const INetwork::Ptr Builder::Network::build() const {
     if (sts != OK)
         THROW_IE_EXCEPTION << resp.msg;
 
-    return std::static_pointer_cast<INetwork>(network);
-}
-
-const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork::Ptr& network) {
-    std::unique_ptr<details::CNNNetworkImpl> cnnNetworkImpl(new details::CNNNetworkImpl());
-
-    Precision detectedPrecision = Precision::FP32;
-    for (const auto& layer : *network) {
-        const auto& params = layer->getParameters();
-        if (!params)
-            continue;
-        Precision prc = Precision::UNSPECIFIED;
-        for (const auto& blobIterator : params->getConstantData()) {
-            if (blobIterator.second) {
-                prc = blobIterator.second->precision();
-                break;
-            }
-        }
-        if (prc != Precision::UNSPECIFIED) {
-            detectedPrecision = prc;
-            break;
+    // Check all parameters
+    for (const auto& layer : getLayers()) {
+        try {
+            layer->build();
+        } catch(InferenceEngine::details::InferenceEngineException& ex) {
+            THROW_IE_EXCEPTION << "Cannot build layer " << layer->getName() << ": " << ex.what();
+        } catch(std::bad_cast& ex) {
+            THROW_IE_EXCEPTION << "Cannot build layer " << layer->getName() << ": " << ex.what();
         }
     }
+}
 
+const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork::CPtr& network) {
     auto createCNNLayer = [](const std::shared_ptr<const ILayer>& layer, Precision precision) {
         static std::vector<std::shared_ptr<BaseConverter>> convertors = {
                 std::make_shared<LayerConverter<InferenceEngine::PowerLayer>>("Power"),
@@ -578,7 +522,9 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
                 std::make_shared<LayerConverter<InferenceEngine::ReshapeLayer>>("Reshape"),
                 std::make_shared<LayerConverter<InferenceEngine::ReshapeLayer>>("Flatten"),
                 std::make_shared<LayerConverter<InferenceEngine::TileLayer>>("Tile"),
+                std::make_shared<LayerConverter<InferenceEngine::PadLayer>>("Pad"),
                 std::make_shared<ActivationConverter>(),
+                std::make_shared<RNNSequenceConverter>(),
                 std::make_shared<LayerConverter<InferenceEngine::BatchNormalizationLayer>>("BatchNormalization"),
         };
         for (auto &convertor : convertors) {
@@ -590,11 +536,65 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
         return genericCreator.createLayer(layer, precision);
     };
 
+    auto keep_input_info = [](std::unique_ptr<details::CNNNetworkImpl>& network, DataPtr &in_data,
+            PreProcessInfo preProc) {
+        InputInfo::Ptr info(new InputInfo());
+        info->getPreProcess() = preProc;
+        info->setInputData(in_data);
+        Precision prc = info->getInputPrecision();
+
+        // Convert precision into native format (keep element size)
+        prc = prc == Precision::Q78 ? Precision::I16 :
+              prc == Precision::FP16 ? Precision::FP32 :
+              static_cast<Precision::ePrecision>(prc);
+
+        info->setInputPrecision(prc);
+        network->setInputInfo(info);
+    };
+
+    std::unique_ptr<details::CNNNetworkImpl> cnnNetworkImpl(new details::CNNNetworkImpl());
+
+    Precision detectedPrecision = Precision::UNSPECIFIED;
+    for (const auto& layer : *network) {
+        for (const auto& port : layer->getInputPorts()) {
+            Precision prc = port.getData()->getData()->getTensorDesc().getPrecision();
+            if (prc != Precision::UNSPECIFIED) {
+                detectedPrecision = prc;
+                break;
+            }
+        }
+        for (const auto& port : layer->getOutputPorts()) {
+            Precision prc = port.getData()->getData()->getTensorDesc().getPrecision();
+            if (prc != Precision::UNSPECIFIED) {
+                detectedPrecision = prc;
+                break;
+            }
+        }
+        if (detectedPrecision != Precision::UNSPECIFIED)
+            break;
+    }
+    if (detectedPrecision == Precision::UNSPECIFIED)
+        detectedPrecision = Precision::FP32;
+
+    details::CaselessEq<std::string> eq;
     cnnNetworkImpl->setName(network->getName());
     cnnNetworkImpl->setPrecision(Precision::UNSPECIFIED);
     for (const auto& layer : *network) {
-        if (details::CaselessEq<std::string>()(layer->getType(), "Output"))
+        bool isInternalLayer = eq(layer->getType(), "Const");
+        for (const auto& connection : network->getLayerConnections(layer->getId())) {
+            if (!isInternalLayer)
+                break;
+            if (connection.from().layerId() != layer->getId())
+                continue;
+            const auto& port = network->getLayer(connection.to().layerId())->getInputPorts()[connection.to().portId()];
+            isInternalLayer = isInternalLayer &&
+                    port.getParameters().find("type") != port.getParameters().end();
+        }
+        isInternalLayer = isInternalLayer || eq(layer->getType(), "Output");
+
+        if (isInternalLayer)
             continue;
+
         CNNLayerPtr cnnLayer = createCNNLayer(layer, detectedPrecision);
         if (cnnNetworkImpl->getPrecision() == Precision::UNSPECIFIED) {
             cnnNetworkImpl->setPrecision(cnnLayer->precision);
@@ -606,10 +606,13 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
         auto connections = network->getLayerConnections(layer->getId());
         std::unordered_set<idx_t> inputNum, outputNum;
         for (const auto& connection : connections) {
-            if (connection.from().layerId() != layer->getId())
-                inputNum.insert(connection.to().portId());
-            else
+            if (connection.from().layerId() != layer->getId()) {
+                const auto& port = layer->getInputPorts()[connection.to().portId()];
+                if (port.getParameters().find("type") == port.getParameters().end())
+                    inputNum.insert(connection.to().portId());
+            } else {
                 outputNum.insert(connection.from().portId());
+            }
         }
         cnnLayer->insData.resize(inputNum.size());
         cnnLayer->outData.resize(outputNum.size());
@@ -620,8 +623,8 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
         auto connections = network->getLayerConnections(layer->getId());
         CNNLayerPtr cnnLayer;
         StatusCode sts = cnnNetworkImpl->getLayerByName(layer->getName().c_str(), cnnLayer, nullptr);
-        details::CaselessEq<std::string> eq;
-        if (sts != OK && eq(layer->getType(), "Output"))
+
+        if (sts != OK && (eq(layer->getType(), "Output") || eq(layer->getType(), "Const")))
             continue;
         else if (sts != OK)
             THROW_IE_EXCEPTION << "Cannot find CNNLayer by name " << layer->getName();
@@ -634,24 +637,31 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
 
             CNNLayerPtr cnnOutLayer;
             sts = cnnNetworkImpl->getLayerByName(outLayer->getName().c_str(), cnnOutLayer, nullptr);
-            if (sts != OK && !eq(outLayer->getType(), "Output"))
+            if (sts != OK && !eq(outLayer->getType(), "Output") && !eq(layer->getType(), "Const"))
                 THROW_IE_EXCEPTION << "Cannot find CNNLayer by name " << outLayer->getName();
 
             std::string dataName = layer->getName();
             if (cnnLayer->outData.size() > 1) {
-                dataName += "_" + std::to_string(connection.from().portId());
+                dataName += "." + std::to_string(connection.from().portId());
             }
             DataPtr& data = cnnNetworkImpl->getData(dataName);
             if (!data) {
                 TensorDesc dataDesc(detectedPrecision, layer->getOutputPorts()[connection.from().portId()].shape(),
                                     TensorDesc::getLayoutByDims(layer->getOutputPorts()[connection.from().portId()].shape()));
-                data = std::make_shared<Data>(layer->getName(), dataDesc);
+                data = std::make_shared<Data>(dataName, dataDesc);
                 data->creatorLayer = cnnLayer;
             }
             cnnLayer->outData[connection.from().portId()] = data;
+
+            idx_t realPortId(0);
+            const auto inputPorts = outLayer->getInputPorts();
+            for (size_t i = 0; i < connection.to().portId() && i < inputPorts.size(); i++) {
+                if (inputPorts[i].getParameters().find("type") == inputPorts[i].getParameters().end())
+                    realPortId++;
+            }
             if (cnnOutLayer) {
                 data->inputTo[outLayer->getName()] = cnnOutLayer;
-                cnnOutLayer->insData[connection.to().portId()] = data;
+                cnnOutLayer->insData[realPortId] = data;
             } else {
                 cnnNetworkImpl->addOutput(data->getName());
             }
@@ -659,38 +669,161 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
 
         cnnLayer->validateLayer();
         if (eq(cnnLayer->type, "Input")) {
-            InputInfo::Ptr inputInfo(new InputInfo());
-            inputInfo->setInputData(*cnnLayer->outData.begin());
-            cnnNetworkImpl->setInputInfo(inputInfo);
+            PreProcessInfo preProc;
+            if (layer->getParameters().find("preProcess") != layer->getParameters().end())
+                preProc = layer->getParameters().at("preProcess");
+            keep_input_info(cnnNetworkImpl, *cnnLayer->outData.begin(), preProc);
+        }
+    }
+
+    // Set default output precision to FP32 (for back-compatibility)
+    OutputsDataMap outputsInfo;
+    cnnNetworkImpl->getOutputsInfo(outputsInfo);
+    for (auto outputInfo : outputsInfo) {
+        if (outputInfo.second->getPrecision() != Precision::FP32 &&
+            outputInfo.second->getPrecision() != Precision::I32) {
+            outputInfo.second->setPrecision(Precision::FP32);
         }
     }
 
     return std::shared_ptr<ICNNNetwork>(cnnNetworkImpl.release());
 }
 
-Builder::Network::operator const INetwork::Ptr() const {
+Builder::Network::operator const INetwork::CPtr() {
     return build();
 }
 
-const Builder::Layer &Builder::Network::getLayer(idx_t layerId) const {
+const ILayer::CPtr Builder::Network::getLayer(idx_t layerId) const noexcept {
+    try {
+        for (auto& layer : getLayers()) {
+            if (layer->getId() == layerId)
+                return layer->build();
+        }
+    } catch(...) {}
+
+    return nullptr;
+}
+
+Builder::Layer::Ptr Builder::Network::getLayer(idx_t layerId) {
     for (auto& layer : getLayers()) {
-        if (layer.getId() == layerId)
+        if (layer->getId() == layerId)
             return layer;
     }
     THROW_IE_EXCEPTION << "Cannot find layer with id: " << layerId;
 }
 
-Builder::Layer &Builder::Network::getLayer(idx_t layerId) {
-    for (auto& layer : getLayers()) {
-        if (layer.getId() == layerId)
-            return layer;
+const std::string& Builder::Network::getName() const noexcept {
+    return parameters.at("name");
+}
+
+const Context& Builder::Network::getContext() const noexcept {
+    return parameters.at("context");
+}
+
+Context& Builder::Network::getContext() noexcept {
+    return parameters.at("context");
+}
+
+Builder::Network::const_iterator Builder::Network::begin() const noexcept {
+    try {
+        return Network::const_iterator(this);
+    } catch (...) {
+        return Network::const_iterator(this, true);
     }
-    THROW_IE_EXCEPTION << "Cannot find layer with id: " << layerId;
+}
+
+
+Builder::Network::const_iterator Builder::Network::end() const noexcept {
+    return Network::const_iterator(this, true);
+}
+
+size_t Builder::Network::size() const noexcept {
+    return static_cast<size_t>(std::distance(std::begin(*this), std::end(*this)));
+}
+
+Builder::Network::iterator Builder::Network::begin() {
+    return Network::iterator(this);
+}
+
+Builder::Network::iterator Builder::Network::end() {
+    return Network::iterator(this, true);
+}
+
+const std::vector<ILayer::CPtr> Builder::Network::getInputs() const noexcept {
+    std::vector<ILayer::CPtr> inputs;
+    for (const auto& layer : parameters.at("layers").as<std::vector<Layer::Ptr>>()) {
+        bool isInputLayer = true;
+        for (const auto& connection : getLayerConnections(layer->getId())) {
+            if (connection.to().layerId() == layer->getId()) {
+                isInputLayer = false;
+                break;
+            }
+        }
+        if (isInputLayer) {
+            inputs.push_back(layer->build());
+        }
+    }
+    return inputs;
+}
+
+std::vector<Builder::Layer::Ptr> Builder::Network::getInputs() {
+    std::vector<Builder::Layer::Ptr> inputs;
+    for (auto& layer : parameters.at("layers").as<std::vector<Layer::Ptr>>()) {
+        bool isInputLayer = true;
+        for (const auto& connection : getLayerConnections(layer->getId())) {
+            if (connection.to().layerId() == layer->getId()) {
+                isInputLayer = false;
+                break;
+            }
+        }
+        if (isInputLayer) {
+            inputs.push_back(layer);
+        }
+    }
+    return inputs;
+}
+
+const std::vector<ILayer::CPtr> Builder::Network::getOutputs() const noexcept {
+    std::vector<ILayer::CPtr> outputs;
+    for (const auto& layer : parameters.at("layers").as<std::vector<Layer::Ptr>>()) {
+        bool isOutputLayer = true;
+        for (const auto& connection : getLayerConnections(layer->getId())) {
+            if (connection.from().layerId() == layer->getId()) {
+                isOutputLayer = false;
+                break;
+            }
+        }
+        if (isOutputLayer) {
+            outputs.push_back(layer->build());
+        }
+    }
+    return outputs;
+}
+
+std::vector<Builder::Layer::Ptr> Builder::Network::getOutputs() {
+    std::vector<Builder::Layer::Ptr> outputs;
+    for (auto& layer : parameters.at("layers").as<std::vector<Layer::Ptr>>()) {
+        bool isOutputLayer = true;
+        for (const auto& connection : getLayerConnections(layer->getId())) {
+            if (connection.from().layerId() == layer->getId()) {
+                isOutputLayer = false;
+                break;
+            }
+        }
+        if (isOutputLayer) {
+            outputs.push_back(layer);
+        }
+    }
+    return outputs;
+}
+
+const std::vector<Connection>& Builder::Network::getConnections() const {
+    return parameters.at("connections").as<std::vector<Connection>>();
 }
 
 const std::vector<Connection> Builder::Network::getLayerConnections(idx_t layerId) const noexcept {
     std::vector<Connection> layerConnections;
-    for (const auto connection : connections) {
+    for (const auto connection : parameters.at("connections").as<std::vector<Connection>>()) {
         if (connection.from().layerId() == layerId || connection.to().layerId() == layerId)
             layerConnections.push_back(connection);
     }

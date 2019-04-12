@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -37,7 +37,8 @@ class FakePythonParam:
 
 nodes_attributes = {'input': {'kind': 'data'},
                     'pool_1': {'type': 'Pooling', 'kind': 'op'},
-                    'output': {'kind': 'data'}
+                    'output': {'kind': 'data'},
+                    'op_output': {'kind': 'op', 'op': 'OpOutput'},
                     }
 
 
@@ -60,10 +61,12 @@ class TestExtractor(unittest.TestCase):
         }
         graph = build_graph(nodes_attributes,
                             [('input', 'pool_1'),
-                             ('pool_1', 'output')],
+                             ('pool_1', 'output'),
+                             ('output', 'op_output')
+                             ],
                             {'input': {'shape': input_shape},
                              'pool_1': {**params, 'spatial_dims': [2, 3]},
-                             'output': {'is_output': True, 'shape': None}})
+                             'output': {'shape': None}})
         pool_1_node = Node(graph, 'pool_1')
         for param in params.keys():
             if type(params[param]) is np.ndarray:
@@ -89,10 +92,12 @@ class TestExtractor(unittest.TestCase):
         }
         graph = build_graph(nodes,
                             [('input', 'reshape'),
-                             ('reshape', 'output')],
+                             ('reshape', 'output'),
+                             ('output', 'op_output')
+                             ],
                             {'input': {'shape': input_shape},
                              'reshape': {**params, 'spatial_dims': [2, 3]},
-                             'output': {'is_output': True, 'shape': None}})
+                             'output': {'shape': None}})
         pool_1_node = Node(graph, 'reshape')
         for param in params.keys():
             if type(params[param]) is list:
@@ -244,8 +249,9 @@ class TestInputAddition(unittest.TestCase):
             'conv_1_data': {'kind': 'data', 'value': True, 'shape': np.array([-1, 224, 224, 3])},
             'relu_1': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder'},
             'relu_1_data': {'kind': 'data', 'value': None, 'shape': np.array([-1, 112, 112, 64])},
-            'output': {'type': 'SoftMax', 'kind': 'op', 'op': 'NotPlaceholder', 'is_output': True},
-            'output_data': {'name': 'output_data', 'kind': 'data', 'shape': np.array([-1, 112, 112, 64])}
+            'output': {'type': 'SoftMax', 'kind': 'op', 'op': 'NotPlaceholder'},
+            'output_data': {'name': 'output_data', 'kind': 'data', 'shape': np.array([-1, 112, 112, 64])},
+            'op_output': {'kind': 'op', 'op': 'OpOutput'}
         }
         edges = [
             ('old_input', 'old_input_data'),
@@ -254,7 +260,8 @@ class TestInputAddition(unittest.TestCase):
             ('conv_1_data', 'relu_1'),
             ('relu_1', 'relu_1_data'),
             ('relu_1_data', 'output'),
-            ('output', 'output_data')
+            ('output', 'output_data'),
+            ('output_data', 'op_output')
         ]
         graph = build_graph(nodes, edges)
         add_input_ops(graph=graph, user_defined_inputs=inputs, before_infer=False)
@@ -277,7 +284,7 @@ class TestInputAddition(unittest.TestCase):
             'node_2': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
             'node_3': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
             'node_4': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
-            'output': {'type': 'Identity', 'kind': 'op', 'op': 'OpOutput', 'is_output': True}
+            'output': {'kind': 'op', 'op': 'OpOutput'}
         }
         edges = [
             ('input_1', 'node_1'),
@@ -309,7 +316,7 @@ class TestInputAddition(unittest.TestCase):
             'node_2': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
             'node_3': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
             'node_4': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
-            'output': {'type': 'Identity', 'kind': 'op', 'op': 'OpOutput', 'is_output': True},
+            'output': { 'kind': 'op', 'op': 'OpOutput'},
             'input_3': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'}
         }
         edges = [

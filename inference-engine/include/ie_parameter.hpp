@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,13 @@
 
 #include <details/ie_exception.hpp>
 #include <algorithm>
+#include <typeinfo>
 #include <iterator>
+#include <utility>
 #include <vector>
 #include <cctype>
 #include <string>
+#include <tuple>
 #include <map>
 
 namespace InferenceEngine {
@@ -29,337 +32,245 @@ public:
     Parameter() = default;
 
     /**
-     * @brief The constructor creates a Parameter object with string value
-     * @param value string value
+     * @brief Move constructor
+     * @param parameter Parameter object
      */
-    Parameter(const std::string& value): initialized(true), value(value) {}         // NOLINT
+    Parameter(Parameter &&parameter) noexcept: ptr(std::move(parameter.ptr)) {}
 
     /**
-     * @brief The constructor creates a Parameter object with template value
-     * @param value template value
+     * @brief Copy constructor
+     * @param parameter Parameter object
      */
-    template <class T>
-    Parameter(const T& value): initialized(true), value(std::to_string(value)) {}   // NOLINT
-
-    /**
-     * @brief The constructor creates a Parameter object with a vector of template values
-     * @param values vector of template values
-     */
-    template <class T>
-    Parameter(const std::vector<T>& values): initialized(true) {                    // NOLINT
-        for (const auto& val : values) {
-            if (!value.empty())
-                value += ",";
-            value += std::to_string(val);
-        }
+    Parameter(const Parameter &parameter) {
+        *this = parameter;
     }
 
     /**
-     * @brief The cast to string object
-     * Throws exception if parameter was not found.
-     * @return string value
+     * @brief Constructor creates parameter with object
+     * @tparam T Parameter type
+     * @tparam U Identity type-transformation
+     * @param parameter object
      */
-    operator std::string() const {                                                  // NOLINT
-        return asString();
+    template<class T>
+    Parameter(T&& parameter) {                                      // NOLINT
+        ptr = new RealData<typename std::decay<T>::type>(std::forward<T>(parameter));
     }
 
     /**
-     * @brief Returns a string value for the given parameter or returns the default one
-     * @param def Default value of the parameter if not found
-     * @return A string value
+     * @brief Constructor creates string parameter from char *
+     * @param str char array
      */
-    std::string asString(std::string def) const {
-        if (!initialized) {
-            return def;
-        }
-        return value;
+    Parameter(const char *str): Parameter(std::string(str)) {}      // NOLINT
+
+    /**
+     * @brief Destructor
+     */
+    virtual ~Parameter() {
+        clear();
     }
 
     /**
-     * @brief Returns a string value for the given parameter.
-     * Throws exception if parameter was not found.
-     * @return A string value
+     * Copy operator for Parameter
+     * @param parameter Parameter object
+     * @return Parameter
      */
-    std::string asString() const {
-        if (!initialized) {
-            THROW_IE_EXCEPTION << "Parameter was not initialized!";
+    Parameter& operator=(const Parameter& parameter) {
+        if (this == &parameter) {
+            return *this;
         }
-        return value;
+        clear();
+        if (!parameter.empty())
+            ptr = parameter.ptr->copy();
+        return *this;
     }
 
     /**
-     * @brief Gets float value for the given parameter
-     * @param def - default value of the parameter if not found
-     * @return float value
+     * Remove a value from parameter
      */
-    float asFloat(float def) const {
-        std::string val = asString(std::to_string(def));
-        try {
-            return std::stof(val);
-        } catch (...) {
-            THROW_IE_EXCEPTION << "Value " << val << " cannot be casted to float.";
-        }
+    void clear() {
+        delete ptr;
+        ptr = nullptr;
     }
 
     /**
-     * @brief Returns a float value for the given layer parameter
-     * @return A float value for the specified parameter
+     * Checks that parameter contains a value
+     * @return false if parameter contains a value else false
      */
-    float asFloat() const {
-        std::string val = asString();
-        try {
-            return std::stof(val);
-        } catch (...) {
-            THROW_IE_EXCEPTION << "Value " << val << " cannot be casted to float.";
-        }
+    bool empty() const noexcept {
+        return nullptr == ptr;
     }
 
     /**
-     * @brief Returns a vector of float values for the given parameter or returns the default value
-     * @param def Default value of the parameter if not found
-     * @return vector of float values
+     * Checks the type of value
+     * @tparam T Type of value
+     * @return true if type of value is correct
      */
-    std::vector<float> asFloats(std::vector<float> def) const {
-        std::string vals = asString("");
-        std::vector<float> result;
-        std::istringstream stream(vals);
-        std::string str;
-        if (vals.empty())
-            return def;
-        while (getline(stream, str, ',')) {
-            try {
-                result.push_back(std::stof(str));
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Value " << vals << " cannot be casted to floats.";
-            }
-        }
-        return result;
+    template<class T>
+    bool is() const {
+        return empty() ? false : ptr->is(typeid(T));
     }
 
     /**
-     * @brief Returns a vector of float values for the given parameter
-     * @return vector of float values
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
      */
-    std::vector<float> asFloats() const {
-        std::string vals = asString();
-        std::vector<float> result;
-        std::istringstream stream(vals);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            try {
-                result.push_back(std::stof(str));
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Value " << vals << " cannot be casted to floats.";
-            }
-        }
-        return result;
+    template<typename T>
+    T &&as() && {
+        return std::move(dyn_cast<T>(ptr));
     }
 
     /**
-     * @brief Returns an integer value for the given parameter or returns the default value
-     * @param def Default value of the parameter if not found
-     * @return An int value for the specified parameter
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
      */
-    int asInt(int def) const {
-        std::string val = asString(std::to_string(def));
-        try {
-            return std::stoi(val);
-        } catch (...) {
-            THROW_IE_EXCEPTION << "Value " << val << " cannot be casted to int.";
-        }
+    template<class T>
+    T& as() & {
+        return dyn_cast<T>(ptr);
+    }
+    /**
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
+     */
+    template<class T>
+    const T& as() const & {
+        return dyn_cast<T>(ptr);
     }
 
     /**
-     * @brief Returns an integer value for the given parameter
-     * @return An int value for the specified parameter
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
      */
-    int asInt() const {
-        std::string val = asString();
-        try {
-            return std::stoi(val);
-        } catch (...) {
-            THROW_IE_EXCEPTION << "Value " << val << " cannot be casted to int.";
-        }
-    }
-
-
-    /**
-     * @brief Returns a vector of int values for the given parameter or returns the default value
-     * @param def Default value of the parameter if not found
-     * @return vector of int values
-     */
-    std::vector<int> asInts(std::vector<int> def) const {
-        std::string vals = asString("");
-        std::vector<int> result;
-        std::istringstream stream(vals);
-        std::string str;
-        if (vals.empty())
-            return def;
-        while (getline(stream, str, ',')) {
-            try {
-                result.push_back(std::stoi(str));
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Value " << vals << " cannot be casted to ints.";
-            }
-        }
-        return result;
+    template<class T>
+    operator T&&() && {
+        return std::move(dyn_cast<typename std::remove_cv<T>::type>(ptr));
     }
 
     /**
-     * @brief Returns a vector of int values for the given parameter
-     * @return vector of int values
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
      */
-    std::vector<int> asInts() const {
-        std::string vals = asString();
-        std::vector<int> result;
-        std::istringstream stream(vals);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            try {
-                result.push_back(std::stoi(str));
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Value " << vals <<  " cannot be casted to ints.";
-            }
-        }
-        return result;
-    }
-    /**
-     * @brief Returns an unsigned integer value for the given parameter or returns the default value
-     * @param def Default value of the parameter if not found
-     * @return An unsigned integer value for the specified parameter
-     */
-    unsigned int asUInt(unsigned int def) const {
-        std::string val = asString(std::to_string(def));
-        std::string message = "Value " + val + " cannot be casted to unsigned int.";
-        try {
-            int value = std::stoi(val);
-            if (value < 0) {
-                THROW_IE_EXCEPTION << message;
-            }
-            return static_cast<unsigned int>(value);
-        } catch (...) {
-            THROW_IE_EXCEPTION << message;
-        }
+    template<class T>
+    operator T&() & {
+        return dyn_cast<typename std::remove_cv<T>::type>(ptr);
     }
 
     /**
-     * @brief Returns an unsigned integer value for the given parameter
-     * @return An unsigned integer value for the specified parameter
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
      */
-    unsigned int asUInt() const {
-        std::string val = asString();
-        std::string message = "Value " + val + " cannot be casted to unsigned int.";
-        try {
-            int value = std::stoi(val);
-            if (value < 0) {
-                THROW_IE_EXCEPTION << message;
-            }
-            return static_cast<unsigned int>(value);
-        } catch (...) {
-            THROW_IE_EXCEPTION << message;
-        }
-    }
-
-
-    /**
-     * @brief Returns a vector of unsigned int values for the given parameter or returns the default value
-     * @param def Default value of the parameter if not found
-     * @return vector of unsigned int values
-     */
-    std::vector<unsigned int> asUInts(std::vector<unsigned int> def) const {
-        std::string vals = asString("");
-        std::vector<unsigned int> result;
-        std::istringstream stream(vals);
-        std::string str;
-        std::string message = "Value " + vals +  " cannot be casted to unsigned ints.";
-        if (vals.empty())
-            return def;
-        while (getline(stream, str, ',')) {
-            try {
-                int value = std::stoi(str);
-                if (value < 0) {
-                    THROW_IE_EXCEPTION << message;
-                }
-                result.push_back(static_cast<unsigned int>(value));
-            } catch (...) {
-                THROW_IE_EXCEPTION << message;
-            }
-        }
-        return result;
+    template<class T> operator const T&() const & {
+        return dyn_cast<typename std::remove_cv<T>::type>(ptr);
     }
 
     /**
-     * @brief Returns a vector of unsigned int values for the given parameter
-     * @return vector of unsigned int values
+     * Dynamic cast to specified type
+     * @tparam T type
+     * @return casted object
      */
-    std::vector<unsigned int> asUInts() const {
-        std::string vals = asString();
-        std::vector<unsigned int> result;
-        std::istringstream stream(vals);
-        std::string str;
-        std::string message = "Value " + vals +  " cannot be casted to unsigned ints.";
-        while (getline(stream, str, ',')) {
-            try {
-                int value = std::stoi(str);
-                if (value < 0) {
-                    THROW_IE_EXCEPTION << message;
-                }
-                result.push_back(static_cast<unsigned int>(value));
-            } catch (...) {
-                THROW_IE_EXCEPTION << message;
-            }
-        }
-        return result;
+    template<class T> operator T&() const & {
+        return dyn_cast<typename std::remove_cv<T>::type>(ptr);
     }
 
     /**
-     * @brief Returns an boolean value for the given parameter.
-     * The valid values are (true, false, 1, 0).
-     * @param def Default value of the parameter if not found
-     * @return An bool value for the specified parameter
+     * @brief The comparison operator for the Parameter
+     * @param rhs object to compare
+     * @return true if objects are equal
      */
-    bool asBool(bool def) const {
-        std::string val = asString(std::to_string(def));
-        std::string loweredCaseValue;
-        std::transform(val.begin(), val.end(), std::back_inserter(loweredCaseValue), [](char value) {
-            return std::tolower(value);
-        });
-
-        bool result = false;
-
-        if (!(std::istringstream(loweredCaseValue) >> std::boolalpha >> result)) {
-            // attempting parse using non alpha bool
-            return static_cast<bool>(asInt(def));
-        }
-
-        return result;
+    bool operator == (const Parameter& rhs) const {
+        return *ptr == *(rhs.ptr);
     }
-
     /**
-     * @brief Returns an boolean value for the given parameter.
-     * The valid values are (true, false, 1, 0).
-     * @return An bool value for the specified parameter
+     * @brief The comparison operator for the Parameter
+     * @param rhs object to compare
+     * @return true if objects aren't equal
      */
-    bool asBool() const {
-        std::string val = asString();
-        std::string loweredCaseValue;
-        std::transform(val.begin(), val.end(), std::back_inserter(loweredCaseValue), [](char value) {
-            return std::tolower(value);
-        });
-
-        bool result = false;
-
-        if (!(std::istringstream(loweredCaseValue) >> std::boolalpha >> result)) {
-            // attempting parse using non alpha bool
-            return static_cast<bool>(asInt());
-        }
-
-        return result;
+    bool operator != (const Parameter& rhs) const {
+        return !(*this == rhs);
     }
 
 private:
-    bool initialized;
-    std::string value;
+    template<class T, class EqualTo>
+    struct CheckOperatorEqual {
+        template<class U, class V>
+        static auto test(U*) -> decltype(std::declval<U>() == std::declval<V>()) {
+            return false;
+        }
+
+        template<typename, typename>
+        static auto test(...) -> std::false_type {
+            return {};
+        }
+
+        using type = typename std::is_same<bool, decltype(test<T, EqualTo>(nullptr))>::type;
+    };
+
+    template<class T, class EqualTo = T>
+    struct HasOperatorEqual : CheckOperatorEqual<T, EqualTo>::type {};
+
+    struct Any {
+        virtual ~Any() = default;
+        virtual bool is(const std::type_info&) const = 0;
+        virtual Any *copy() const = 0;
+        virtual bool operator==(const Any& rhs) const = 0;
+    };
+
+    template<class T>
+    struct RealData: Any, std::tuple<T> {
+        using std::tuple<T>::tuple;
+
+        bool is(const std::type_info& id) const override {
+            return id == typeid(T);
+        }
+        Any *copy() const override {
+            return new RealData{get()};
+        }
+
+        T& get() & {
+            return std::get<0>(*this);
+        }
+
+        const T& get() const & {
+            return std::get<0>(*this);
+        }
+
+        template <class U>
+        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type
+        equal(const Any& left, const Any& rhs) const {
+            THROW_IE_EXCEPTION << "Parameter doesn't contain equal operator";
+        }
+
+        template <class U>
+        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type
+        equal(const Any& left, const Any& rhs) const {
+            return dyn_cast<U>(&left) == dyn_cast<U>(&rhs);
+        }
+
+        bool operator==(const Any& rhs) const override {
+            return rhs.is(typeid(T)) && equal<T>(*this, rhs);
+        }
+    };
+
+    template<typename T>
+    static T &dyn_cast(Any* obj) {
+        if (obj == nullptr)
+            THROW_IE_EXCEPTION << "Parameter is empty!";
+        return dynamic_cast<RealData<T>&>(*obj).get();
+    }
+
+    template<typename T>
+    static const T &dyn_cast(const Any* obj) {
+        if (obj == nullptr)
+            THROW_IE_EXCEPTION << "Parameter is empty!";
+        return dynamic_cast<const RealData<T> &>(*obj).get();
+    }
+
+    Any *ptr = nullptr;
 };
 
 }  // namespace InferenceEngine

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ public:
     explicit PadImpl(const CNNLayer* layer) {
         try {
             if (layer->insData.empty() || layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
 
             pads_begin = layer->GetParamAsUInts("pads_begin");
             std::vector<unsigned int> pads_end = layer->GetParamAsUInts("pads_end");
@@ -28,7 +28,7 @@ public:
             src_dims = layer->insData[0].lock()->getTensorDesc().getDims();
             dst_dims = layer->outData[0]->getTensorDesc().getDims();
             if (src_dims.size() != dst_dims.size() || pads_begin.size() != src_dims.size())
-                THROW_IE_EXCEPTION << "Incorrect number of input/output dimensions!";
+                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimensions!";
 
             std::string pad_mode = layer->GetParamAsString("pad_mode");
             if (pad_mode == "constant") {

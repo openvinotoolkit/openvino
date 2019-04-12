@@ -15,7 +15,6 @@
 */
 
 #include "fully_connected_kernel_fb_oi_ref.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector 
 {
@@ -38,6 +37,15 @@ namespace kernel_selector
 
     KernelsData FullyConnected_fb_oi_ref::GetKernelsData(const Params& params, const optional_params& optParams) const
     {
-        return GetCommonKernelsData(params, optParams, DataLayout::fb, { WeightsLayout::oi });
+        KernelsData res = {};
+        for (size_t i = 0; i < autoTuneOptions.size(); i++)
+        {
+            KernelsData kd = GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, { WeightsLayout::oi }, DONT_USE_IF_HAVE_SOMETHING_ELSE, (int)i);
+            if (!kd.empty())
+            {
+                res.emplace_back(kd[0]);
+            }
+        }
+        return res;
     }
 }

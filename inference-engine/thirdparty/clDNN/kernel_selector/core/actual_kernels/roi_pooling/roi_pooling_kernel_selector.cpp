@@ -1,5 +1,5 @@
 ﻿/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@
 
 #include "roi_pooling_kernel_selector.h"
 #include "roi_pooling_kernel_ref.h"
- 
-namespace kernel_selector 
+#include "roi_pooling_kernel_ps_ref.h"
+
+namespace kernel_selector
 {
     roi_pooling_kernel_selector::roi_pooling_kernel_selector()
     {
         Attach<ROIPoolingKernelRef>();
+        Attach<PSROIPoolingKernelRef>();
     }
 
     KernelsData roi_pooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const

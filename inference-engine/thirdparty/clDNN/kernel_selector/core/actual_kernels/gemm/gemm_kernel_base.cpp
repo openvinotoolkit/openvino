@@ -89,7 +89,7 @@ namespace kernel_selector
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         auto& kernel = k_data.kernels[0];
-        FillCLKernelData(kernel, run_info, params.engineInfo, kernelName, jit, entry_point, ROUND_ROBIN, false, false, (uint32_t)prim_params.inputs.size());
+        FillCLKernelData(kernel, run_info, params.engineInfo, kernelName, jit, entry_point, DEFAULT, false, false, (uint32_t)prim_params.inputs.size());
 
         k_data.estimatedTime = estimated_time;
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,11 +23,16 @@
 #include <vector>
 #include <set>
 
+
 #include <iostream>
 #include <algorithm>
 
 #include <sstream>
-#include <inference_engine.hpp>
+#include <chrono>
+#include "inference_engine.hpp"
+
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
 
 namespace InferenceEnginePython {
 struct IENetLayer {
@@ -111,7 +116,8 @@ struct IENetwork {
 
 struct InferRequestWrap {
     InferenceEngine::IInferRequest::Ptr request_ptr;
-
+    Time::time_point start_time;
+    double exec_time;
     void infer();
 
     void infer_async();

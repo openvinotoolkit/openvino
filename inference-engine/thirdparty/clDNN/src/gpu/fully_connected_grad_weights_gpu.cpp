@@ -33,9 +33,9 @@ struct fully_connected_grad_weights_gpu : typed_primitive_gpu_impl<fully_connect
 
 protected:
 
-    virtual bool validate(typed_primitive_inst<fully_connected_grad_weights>& instance) const override
+    virtual bool validate_impl(const typed_primitive_inst<fully_connected_grad_weights>& instance) const override
     {
-        bool res = parent::validate(instance);
+        bool res = true;
 
         if (instance.use_momentum())
         {

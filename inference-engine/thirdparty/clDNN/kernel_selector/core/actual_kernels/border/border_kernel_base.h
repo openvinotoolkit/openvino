@@ -32,7 +32,9 @@ namespace kernel_selector
 
 
         border_params()
-            : base_params(KernelType::BORDER)
+            : base_params(KernelType::BORDER),
+            b_type(BorderType::CONSTANT),
+            border_value(0.0f)
         {
         }
 

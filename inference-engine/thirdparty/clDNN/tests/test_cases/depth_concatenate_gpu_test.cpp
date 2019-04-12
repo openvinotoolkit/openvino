@@ -20,6 +20,10 @@
 #include "api/CPP/memory.hpp"
 #include <api/CPP/input_layout.hpp>
 #include "api/CPP/concatenation.hpp"
+#include "api/CPP/convolution.hpp"
+#include "api/CPP/data.hpp"
+#include "api/CPP/pooling.hpp"
+#include "api/CPP/upsampling.hpp"
 #include <api/CPP/topology.hpp>
 #include <api/CPP/network.hpp>
 #include <api/CPP/engine.hpp>
@@ -63,7 +67,7 @@ TEST(depth_concatenate_f32_gpu, test01) {
     //  0   -0.2  :f4
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input1 = memory::allocate(engine, {data_types::f32, format::yxfb, { 2,2,1,1 }});
     auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2,3,1,1 }});
 
@@ -123,7 +127,7 @@ void concat_basic_with_reorder()
     //  0    0  :f4
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input1 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2,2,1,1 } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2,3,1,1 } });
     auto outs = { 2.0f, 3.0f, 0.0f, 1.0f, 1.0f, 4.0f, -4.0f, -7.0f, 0.0f, 0.0f };
@@ -200,7 +204,7 @@ TEST(depth_concatenate_f32_gpu, test02) {
     //  0   -0.2  :f7
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input1 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2,2,1,1 } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2,3,1,1 } });
     auto input3 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2,3,1,1 } });
@@ -246,12 +250,47 @@ TEST(depth_concatenate_f32_gpu, test02) {
     EXPECT_FLOAT_EQ(-0.2f, output_ptr[15]);
 }
 
+TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool)
+{
+    engine engine;
+    auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
+    auto weights = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 2, 1 } });
+
+    set_values(input1, { 16.0f, 32.0f, 128.0f, 256.0f });
+    set_values(weights, { .1f, .2f });
+    topology topology;
+    topology.add(input_layout("input1", input1.get_layout()));
+    topology.add(pooling("pool1", "input1",
+        cldnn::pooling_mode::max,
+        { 1,1,2,1 },          /*kernel*/
+        { 1,1,1,1 }           /*stride*/
+    ));
+    topology.add(upsampling("unpool1", "input1", 1, 0, upsampling_sample_type::nearest));
+    topology.add(concatenation("concat1", { "pool1", "unpool1" }, cldnn::concatenation::along_x));
+    topology.add(data("weights", weights)),
+    topology.add(convolution("conv", "concat1", { "weights" }));
+
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(true));
+    network network(engine, topology, options);
+    network.set_input_data("input1", input1);
+
+    auto outputs = network.execute({});
+    auto output = outputs.at("conv").get_memory();
+    std::vector<float> out_ref = { 6.4f, 8.f, 51.2f, 64.f };
+    auto output_ptr = output.pointer<float>();
+    for (int i=0; i<4; i++)
+    {
+        EXPECT_NEAR(output_ptr[i], out_ref[i], 1e-3);
+    }
+}
+
 TEST(depth_concatenate_f32_gpu, test03_cascade_concat_opt) {
     //  Test for cascade concatenation optimization.
     //  Despite having concatenations one after another and connected to different non padded activation primitives,
     //  graph should remove all concatenations from execution.
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1,2,2,1 } });
 
     set_values(input1, { 16.0f, 32.0f, 128.0f, 256.0f });
@@ -305,7 +344,7 @@ TEST(depth_concatenate_f32_gpu, test03_cascade_concat_opt) {
 TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
     // 2 inputs of size 3x10x10 concatenated on f axis with fused relu
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1,3,10,10 } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1,3,10,10 } });
 
@@ -345,11 +384,10 @@ TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
     }
 }
 
-
 TEST(depth_concatenate_f32_gpu, test05_different_formats) {
     // 2 inputs of size 3x10x10 concatenated on f axis 
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1,3,2,2 } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1,3,2,2 } });
 
@@ -397,6 +435,237 @@ TEST(depth_concatenate_f32_gpu, test05_different_formats) {
 
 }
 
+TEST(depth_concatenate_i32_gpu, optimize_data01) {
+
+    const auto& engine = get_test_engine();
+    build_options build_opt;
+    auto input = memory::allocate(engine, { data_types::i32, format::bfyx,{ 1,1,1,1 } });
+
+    topology topology;
+    topology.add(
+        input_layout("input", input.get_layout())
+    );
+    topology.add(cldnn::concatenation("int1", { "input" }, cldnn::concatenation::along_f));
+    topology.add(cldnn::concatenation("result1", { "int1" }, cldnn::concatenation::along_f));
+    topology.add(cldnn::concatenation("result2", { "int1" }, cldnn::concatenation::along_f));
+
+
+    std::vector<int> input_data = { 4 };
+    std::vector<int> out_data = { 4 };
+    set_values(input, input_data);
+
+    build_opt.set_option(build_option::optimize_data(true));
+    network network(engine, topology, build_opt);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    for (auto& it : outputs)
+    {
+        auto output_ptr = it.second.get_memory().pointer<int>();
+        EXPECT_EQ(output_ptr[0], out_data[0]);
+    }
+}
+
+TEST(depth_concatenate_i32_gpu, optimize_data02) {
+
+    const auto& engine = get_test_engine();
+    build_options build_opt;
+    auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx,{ 1,1,2,2 } });
+    auto input2 = memory::allocate(engine, { data_types::i32, format::bfyx,{ 1,1,2,2 } });
+    auto input3 = memory::allocate(engine, { data_types::i32, format::bfyx,{ 1,1,2,2 } });
+    auto input4 = memory::allocate(engine, { data_types::i32, format::bfyx,{ 1,1,2,2 } });
+
+    topology topology;
+    topology.add(
+        input_layout("input1", input1.get_layout())
+    );
+    topology.add(
+        input_layout("input2", input2.get_layout())
+    );
+    topology.add(
+        input_layout("input3", input3.get_layout())
+    );
+    topology.add(
+        input_layout("input4", input4.get_layout())
+    );
+
+    topology.add(cldnn::concatenation("concat1", { "input1", "input2" }, cldnn::concatenation::along_x));
+    topology.add(cldnn::concatenation("concat2", { "input3", "input4" }, cldnn::concatenation::along_x));
+    topology.add(cldnn::concatenation("concat3", { "input2", "input4" }, cldnn::concatenation::along_x));
+
+    topology.add(cldnn::concatenation("concat4", { "concat1", "concat2" }, cldnn::concatenation::along_x));
+    topology.add(cldnn::concatenation("concat5", { "concat2", "concat3" }, cldnn::concatenation::along_x));
+
+    topology.add(cldnn::concatenation("concat6", { "concat4", "concat5" }, cldnn::concatenation::along_x));
+
+    std::vector<int> input_data1 =
+    { 1, 2,
+      3, 4 };
+
+    std::vector<int> input_data2 =
+    { 5, 6,
+      7, 8 };
+
+    std::vector<int> input_data3 =
+    { 9, 10,
+     11, 12 };
+
+    std::vector<int> input_data4 =
+    { 12, 14,
+      15, 16 };
+
+    std::vector<int> c6_data =
+    { 1, 2, 5, 6,  9, 10, 12, 14,  9, 10, 12, 14, 5, 6, 12, 14,
+      3, 4, 7, 8, 11, 12, 15, 16, 11, 12, 15, 16, 7, 8, 15, 16 };
+
+    set_values(input1, input_data1);
+    set_values(input2, input_data2);
+    set_values(input3, input_data3);
+    set_values(input4, input_data4);
+
+    build_opt.set_option(build_option::optimize_data(true));
+    network network(engine, topology, build_opt);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    network.set_input_data("input3", input3);
+    network.set_input_data("input4", input4);
+    auto outputs = network.execute();
+
+    auto output_concat6 = outputs.at("concat6").get_memory().pointer<int>();
+
+    for (size_t i = 0; i < output_concat6.size(); i++) {
+        EXPECT_EQ(output_concat6[i], c6_data[i]);
+    }
+}
+
+TEST(depth_concatenate_i32_gpu, optimize_data03) {
+
+    const auto& engine = get_test_engine();
+    build_options build_opt;
+    auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx,{ 1,1,2,2 } });
+
+    topology topology;
+    topology.add(
+        input_layout("input1", input1.get_layout())
+    );
+
+    topology.add(cldnn::concatenation("concat1", { "input1" }, cldnn::concatenation::along_x));
+
+    topology.add(cldnn::concatenation("concat2", { "concat1" }, cldnn::concatenation::along_x));
+    topology.add(cldnn::concatenation("concat3", { "concat1" }, cldnn::concatenation::along_x));
+
+    topology.add(cldnn::concatenation("concat4", { "concat3" }, cldnn::concatenation::along_x));
+
+    std::vector<int> input_data1 =
+    { 1, 2,
+      3, 4 };
+
+    std::vector<int> output_data =
+    { 1, 2,
+      3, 4 };
+
+    set_values(input1, input_data1);
+
+    build_opt.set_option(build_option::optimize_data(true));
+    network network(engine, topology, build_opt);
+    network.set_input_data("input1", input1);
+
+    auto outputs = network.execute();
+
+    for (auto& it : outputs)
+    {
+        auto output_ptr = it.second.get_memory().pointer<int>();
+        for (size_t i = 0; i < output_ptr.size(); i++) {
+            EXPECT_EQ(output_ptr[i], output_data[i]);
+        }
+    }
+}
+
+TEST(depth_concatenate_i32_gpu, optimize_data04) {
+
+    const auto& engine = get_test_engine();
+    build_options build_opt;
+    auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx,{ 1,1,2,2 } });
+
+    topology topology;
+    topology.add(
+        input_layout("input1", input1.get_layout())
+    );
+
+    topology.add(cldnn::concatenation("concat1", { "input1" }, cldnn::concatenation::along_x));
+
+    topology.add(cldnn::concatenation("concat2", { "concat1" }, cldnn::concatenation::along_x));
+    topology.add(cldnn::concatenation("concat3", { "concat1" }, cldnn::concatenation::along_x));
+
+    topology.add(cldnn::concatenation("concat4", { "concat2", "concat3" }, cldnn::concatenation::along_x));
+
+    std::vector<int> input_data1 =
+    { 1, 2,
+      3, 4 };
+
+    std::vector<int> output_data =
+    { 1, 2, 1, 2,
+      3, 4, 3, 4 };
+
+    set_values(input1, input_data1);
+
+    build_opt.set_option(build_option::optimize_data(true));
+    network network(engine, topology, build_opt);
+    network.set_input_data("input1", input1);
+
+    auto outputs = network.execute();
+
+    for (auto& it : outputs)
+    {
+        auto output_ptr = it.second.get_memory().pointer<int>();
+        for (size_t i = 0; i < output_ptr.size(); i++) {
+            EXPECT_EQ(output_ptr[i], output_data[i]);
+        }
+    }
+}
+
+TEST(depth_concatenate_i32_gpu, optimize_data05) {
+
+    const auto& engine = get_test_engine();
+    build_options build_opt;
+    auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx,{ 1,1,2,2 } });
+
+    topology topology;
+    topology.add(
+        input_layout("input1", input1.get_layout())
+    );
+
+    topology.add(cldnn::concatenation("concat1", { "input1" }, cldnn::concatenation::along_x));
+
+    topology.add(cldnn::concatenation("concat2", { "concat1" }, cldnn::concatenation::along_x));
+    topology.add(cldnn::concatenation("concat3", { "concat1" }, cldnn::concatenation::along_x));
+
+    topology.add(cldnn::concatenation("concat4", { "concat2", "concat3" }, cldnn::concatenation::along_x));
+    topology.add(cldnn::concatenation("concat5", { "concat1", "concat4" }, cldnn::concatenation::along_x));
+
+    std::vector<int> input_data1 =
+    { 1, 2,
+      3, 4 };
+
+    std::vector<int> c5_data =
+    { 1, 2, 1, 2, 1, 2,
+      3, 4, 3, 4, 3, 4 };
+
+    set_values(input1, input_data1);
+
+    build_opt.set_option(build_option::optimize_data(true));
+    network network(engine, topology, build_opt);
+    network.set_input_data("input1", input1);
+
+    auto outputs = network.execute();
+
+    auto output_concat5 = outputs.at("concat5").get_memory().pointer<int>();
+
+    for (size_t i = 0; i < output_concat5.size(); i++) {
+        EXPECT_EQ(output_concat5[i], c5_data[i]);
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                                                                          //
 //                      Exhaustive Negative Matrix tests                    //
@@ -409,7 +678,7 @@ static network setup_depth_concatatenate_network(const std::vector<data_types> d
     assert(dts.size() == ts.size());
     const size_t sz = ts.size();
 
-    engine engine;
+    const auto& engine = get_test_engine();
     topology topology;
 
     std::vector<std::string> input_names;
@@ -504,7 +773,9 @@ public:
     {
         std::vector<tests::test_params*> all_generic_params;
 
-        for (cldnn::data_types dt : test_data_types())
+        auto data_types = test_data_types();
+
+        for (cldnn::data_types dt : data_types)
         for (int32_t b : test_batch_sizes)
         for (tensor & t : test_input_sizes)
         {

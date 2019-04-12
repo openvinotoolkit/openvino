@@ -30,6 +30,9 @@ primitive_type_id fully_connected_grad_input_type_id()
 
 layout fully_connected_grad_input_inst::calc_output_layout(fully_connected_grad_input_node const& node)
 {
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for "
+              "fully_connected_grad_input_node!");
     auto desc = node.get_primitive();
     
     auto input_layout = node.input().get_output_layout();

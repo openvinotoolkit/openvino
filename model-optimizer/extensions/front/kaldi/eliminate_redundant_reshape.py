@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from extensions.front.kaldi.fuse_repeated_reshape import FuseRepeatedReshapes
 from mo.front.common.replacement import FrontReplacementPattern
+from mo.graph.graph import Graph
 from mo.middle.passes.eliminate import remove_op_node_with_data_node
 
 
@@ -40,7 +40,7 @@ class EliminateRedundantReshape(FrontReplacementPattern):
         )
 
     @staticmethod
-    def replace_pattern(graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(graph: Graph, match: dict):
         reshape_node = match['reshape']
         in_node = reshape_node.in_node()
         out_node = reshape_node.out_node()

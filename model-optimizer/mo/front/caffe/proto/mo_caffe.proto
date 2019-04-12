@@ -1031,6 +1031,8 @@ message DetectionOutputParameter {
   optional int32 input_height = 14 [default = -1];
   // If false, bboxes need to be normalized
   optional bool normalized = 15 [default = true];
+  //the objectness score is used for the anchor refinement module to filter easy negative anchor.
+  optional float objectness_score = 16 [default = 0.01];
 }
 
 message DropoutParameter {

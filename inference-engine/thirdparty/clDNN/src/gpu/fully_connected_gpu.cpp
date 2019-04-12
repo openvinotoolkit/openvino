@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -92,7 +92,7 @@ public:
         fc_optional_params.allowInputReordering = true;
 
         if(arg.get_primitive()->with_activation)
-            convert_activation_func_params(arg.get_primitive(), fc_params);
+            convert_activation_func_params(arg.get_primitive(), fc_params.activation);
 
         fc_params.output = fc_params.output.FlattenFeatureAndSpatials();
 
@@ -154,6 +154,9 @@ namespace {
                 // MMAD
                 { std::make_tuple(engine_types::ocl, data_types::i8,  format::byxf_af32), val_fw },
                 { std::make_tuple(engine_types::ocl, data_types::i8,  format::fs_bs_yx_bsv4_fsv32), val_fw },
+                // IMAD
+                { std::make_tuple(engine_types::ocl, data_types::i8,  format::b_fs_yx_fsv4), val_fw },
+                { std::make_tuple(engine_types::ocl, data_types::u8,  format::b_fs_yx_fsv4), val_fw },
             });
         }
         ~attach() {}

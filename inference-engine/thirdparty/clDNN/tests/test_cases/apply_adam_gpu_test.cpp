@@ -34,7 +34,7 @@ using namespace tests;
 TEST(apply_adam_gpu, basic_in2x2x3x2_bfyx) {
     // Test creates topology with two apply adam primitives (t = [0, 1]) with the same output variable which is updated.
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
     auto var = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });

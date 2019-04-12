@@ -1,8 +1,6 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-
-cmake_minimum_required(VERSION 2.8)
 
 set (TARGET_NAME "speech_sample")
 
@@ -30,7 +28,7 @@ add_dependencies(${TARGET_NAME} gflags)
 set_target_properties(${TARGET_NAME} PROPERTIES "CMAKE_CXX_FLAGS" "${CMAKE_CXX_FLAGS} -fPIE"
 COMPILE_PDB_NAME ${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} ${InferenceEngine_LIBRARIES} gflags)
+target_link_libraries(${TARGET_NAME} ${InferenceEngine_LIBRARIES} IE::ie_cpu_extension gflags)
 
 if(UNIX)
     target_link_libraries( ${TARGET_NAME} ${LIB_DL} pthread)

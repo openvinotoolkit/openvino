@@ -32,7 +32,7 @@
 
 #include "mkl_version.h"
 
-#define USE_MKL_PACKED_GEMM (INTEL_MKL_VERSION >= 20170000)
+#define USE_MKL_PACKED_GEMM 0
 #define USE_MKL_IGEMM \
     (INTEL_MKL_VERSION >= 20180000 && __INTEL_MKL_BUILD_DATE >= 20170628)
 

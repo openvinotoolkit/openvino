@@ -40,8 +40,8 @@ dims_t str2dims(const char *str) {
 void dims2str(const dims_t &dims, char *buffer) {
     int rem_len = max_dims_len;
     for (size_t d = 0; d < dims.size() - 1; ++d)
-        DPRINT("%dx", dims[d]);
-    DPRINT("%d", dims[dims.size() - 1]);
+        DPRINT("%tdx", dims[d]);
+    DPRINT("%td", dims[dims.size() - 1]);
 }
 
 void prb2str(const prb_t *p, const res_t *res, char *buffer) {

@@ -33,6 +33,7 @@ cdef class IENetwork:
 
 cdef class ExecutableNetwork:
     cdef unique_ptr[C.IEExecNetwork] impl
+    cdef C.IEPlugin plugin_impl
     cdef public:
         _requests, inputs, outputs
 

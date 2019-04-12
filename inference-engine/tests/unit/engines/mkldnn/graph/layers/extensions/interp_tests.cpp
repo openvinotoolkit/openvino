@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,7 +136,7 @@ class MKLDNNCPUExtInterpTests: public TestsCommon, public WithParamInterface<int
             </output>
         </layer>
         <layer name="interp1" id="1" type="Interp" precision="FP32">
-            <data pad_beg="_PB_" pad_end="_PE_"/>
+            <data pad_beg="_PB_" pad_end="_PE_" height="_OH_" width="_OW_"/>
 
             <input>
                 <port id="1">

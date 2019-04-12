@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,8 @@ class InferRequestInternal : virtual public IInferRequestInternal {
 public:
     typedef std::shared_ptr<InferRequestInternal> Ptr;
 
-    InferRequestInternal(InputsDataMap networkInputs, OutputsDataMap networkOutputs) {
+    InferRequestInternal(InputsDataMap networkInputs, OutputsDataMap networkOutputs)
+            : m_curBatch(-1) {
         // We should copy maps in order to avoid modifications in the future.
         for (const auto &it : networkInputs) {
             InputInfo::Ptr newPtr;
@@ -101,6 +102,7 @@ public:
             }
 
             if (foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE) {
+                PreProcessData::isApplicable(data, _inputs[name]);
                 // Stores the given blob as ROI blob. It will be used to fill in network input during pre-processing.
                 _preProcData[name].setRoiBlob(data);
             } else {
@@ -177,7 +179,8 @@ public:
             if (it != _preProcData.end()) {
                 _preProcData[input.first].execute(input.second,
                                                   _networkInputs[input.first]->getPreProcess().getResizeAlgorithm(),
-                                                  serial);
+                                                  serial,
+                                                  m_curBatch);
             }
         }
     }
@@ -189,6 +192,7 @@ protected:
     InferenceEngine::BlobMap _outputs;
     ExecutableNetworkInternalPtr _exeNetwork;
     std::map<std::string, PreProcessData> _preProcData;  // pre-process data per input
+    int m_curBatch;  // current batch value used in dynamic batching
 
 protected:
     /**

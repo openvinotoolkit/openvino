@@ -28,10 +28,10 @@ namespace kernel_selector {
         FullyConnectedKernelMMAD() : Parent("fully_connected_gpu_MMAD") {}
 
         KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        ParamsKey GetSupportedKey() const override;
-        
+
     protected:
+        ParamsKey GetSupportedKey() const override;
         JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
-        std::unique_ptr<DispatchData> SetDefault(const fully_connected_params& params) const override;
+        DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
     };
 }

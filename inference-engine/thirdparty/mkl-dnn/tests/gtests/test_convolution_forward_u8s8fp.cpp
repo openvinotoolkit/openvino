@@ -28,7 +28,6 @@ TEST_P(convolution_test, TestConvolution)
 {
 }
 
-//#define TEST_PARAM_ATTR
 #define U8S8
 #define DIRECTION_FORWARD
 #include "convolution_common.h"

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -42,4 +42,4 @@ class TestSsdPatternFlattenSoftmaxActivation(unittest.TestCase):
         pattern.find_and_replace_pattern(graph)
         flatten_name = list(graph.nodes())[-1]
         self.assertTrue(graph.has_node(flatten_name))
-        self.assertFalse(graph.has_edge(Node(graph, 'softmax_activation').id, Node(graph, 'multi_box_detection').id))
+        self.assertFalse(graph.has_edge(Node(graph, 'node_softmax_activation').id, Node(graph, 'node_multi_box_detection').id))

@@ -1,5 +1,5 @@
 ﻿/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include "eltwise_kernel_ref.h"
 #include "eltwise_kernel_vload8.h"
 #include "eltwise_kernel_fs_bs_yx_bsv4_fsv32.h"
+#include "eltwise_kernel_b_fs_yx_fsv4.h"
 
 namespace kernel_selector 
 {
@@ -26,6 +27,7 @@ namespace kernel_selector
         Attach<EltwiseKernelRef>();
         Attach<EltwiseKernel_vload8>();
         Attach<EltwiseKernel_fs_bs_yx_bsv4_fsv32>();
+        Attach<EltwiseKernel_b_fs_yx_fsv4>();
     }
 
     KernelsData eltwise_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const

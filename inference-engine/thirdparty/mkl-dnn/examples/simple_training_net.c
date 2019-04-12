@@ -78,7 +78,7 @@ void _free(void *ptr) {
 }
 #endif
 
-static size_t product(int *arr, size_t size)
+static size_t product(ptrdiff_t *arr, size_t size)
 {
     size_t prod = 1;
     for (size_t i = 0; i < size; ++i)
@@ -86,7 +86,7 @@ static size_t product(int *arr, size_t size)
     return prod;
 }
 
-static void init_net_data(float *data, uint32_t dim, const int *dims)
+static void init_net_data(float *data, uint32_t dim, const ptrdiff_t *dims)
 {
     if (dim == 1) {
         for (int i = 0; i < dims[0]; ++i) {
@@ -107,7 +107,7 @@ static void init_net_data(float *data, uint32_t dim, const int *dims)
     }
 }
 
-static void init_data_memory(uint32_t dim, const int *dims,
+static void init_data_memory(uint32_t dim, const ptrdiff_t *dims,
                              mkldnn_memory_format_t user_fmt,
                              mkldnn_data_type_t data_type,
                              mkldnn_engine_t engine, float *data,
@@ -177,8 +177,8 @@ mkldnn_status_t simple_net()
     mkldnn_engine_t engine;
     CHECK(mkldnn_engine_create(&engine, mkldnn_cpu, 0 /* idx */));
 
-    int net_src_sizes[4] = { BATCH, IC, CONV_IH, CONV_IW };
-    int net_dst_sizes[4] = { BATCH, OC, POOL_OH, POOL_OW };
+    ptrdiff_t net_src_sizes[4] = { BATCH, IC, CONV_IH, CONV_IW };
+    ptrdiff_t net_dst_sizes[4] = { BATCH, OC, POOL_OH, POOL_OW };
 
     float *net_src =
         (float *)aligned_malloc(product(net_src_sizes,4)*sizeof(float), 64);
@@ -195,12 +195,12 @@ mkldnn_status_t simple_net()
      * {BATCH, OC, CONV_OH, CONV_OW}
      * strides: {CONV_STRIDE, CONV_STRIDE}
      */
-    int *conv_user_src_sizes = net_src_sizes;
-    int conv_user_weights_sizes[4] = { OC, IC, 11, 11 };
-    int conv_bias_sizes[4] = { OC };
-    int conv_user_dst_sizes[4] = { BATCH, OC, CONV_OH, CONV_OW };
-    int conv_strides[2] = { CONV_STRIDE, CONV_STRIDE };
-    int conv_padding[2] = { CONV_PAD, CONV_PAD };
+    ptrdiff_t *conv_user_src_sizes = net_src_sizes;
+    ptrdiff_t conv_user_weights_sizes[4] = { OC, IC, 11, 11 };
+    ptrdiff_t conv_bias_sizes[4] = { OC };
+    ptrdiff_t conv_user_dst_sizes[4] = { BATCH, OC, CONV_OH, CONV_OW };
+    ptrdiff_t conv_strides[2] = { CONV_STRIDE, CONV_STRIDE };
+    ptrdiff_t conv_padding[2] = { CONV_PAD, CONV_PAD };
 
     float *conv_src = net_src;
     float *conv_weights = (float *)aligned_malloc(
@@ -394,10 +394,10 @@ mkldnn_status_t simple_net()
      * kernel: {3, 3}
      * strides: {POOL_STRIDE, POOL_STRIDE}
      */
-    int32_t *pool_dst_sizes = net_dst_sizes;
-    int32_t pool_kernel[2] = { 3, 3 };
-    int32_t pool_strides[2] = { POOL_STRIDE, POOL_STRIDE };
-    int32_t pool_padding[2] = { POOL_PAD, POOL_PAD };
+    ptrdiff_t *pool_dst_sizes = net_dst_sizes;
+    ptrdiff_t pool_kernel[2] = { 3, 3 };
+    ptrdiff_t pool_strides[2] = { POOL_STRIDE, POOL_STRIDE };
+    ptrdiff_t pool_padding[2] = { POOL_PAD, POOL_PAD };
 
     /* create pooling src memory descriptor using dst descriptor
      *  from previous primitive */

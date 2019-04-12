@@ -29,6 +29,8 @@
 
 namespace rnn {
 
+extern const char *perf_template;
+
 enum alg_t { VANILLA_RNN, VANILLA_LSTM, VANILLA_GRU, LBR_GRU };
 alg_t str2alg(const char *str);
 const char *alg2str(alg_t alg);
@@ -38,6 +40,9 @@ enum activation_t { RELU, LOGISTIC, TANH };
 activation_t str2activation(const char *str);
 const char *activation2str(activation_t alg);
 mkldnn_alg_kind_t activation2kind(activation_t alg);
+
+mkldnn_prop_kind_t str2prop(const char *str);
+const char *prop2str(mkldnn_prop_kind_t prop);
 
 mkldnn_rnn_direction_t str2direction(const char *str);
 const char *direction2str(mkldnn_rnn_direction_t direction);
@@ -104,15 +109,15 @@ enum rnn_data_kind_t {
     weights_input,
     weights_states,
     bias,
-    dst_last_layer,
     dst_last_iteration,
+    dst_last_layer,
     dst_diff_input,
     dst_diff_states,
     dst_diff_weights_input,
     dst_diff_weights_states,
     dst_diff_bias,
-    diff_last_layer,
     diff_last_iteration,
+    diff_last_layer,
     data_kind_total // should be last to provide the total number of data kinds
 };
 
@@ -149,20 +154,46 @@ typedef struct dt_conf_t {
     mkldnn_data_type_t dt;
     int min, max; /* representative */
     int f_min, f_max; /* fill range */
-    int f_base; /* fill base, use 0 */
-    int f_step; /* fill step, use 1 */
-    double f_sparsity; /* amount of non-zeros, default 0.25 */
+    float f_mean, f_var; /* mean and variance of normally distributed data */
     double eps; /* acceptable error */
 } _dt_conf_t[data_kind_total];
 
 extern const _dt_conf_t conf_f32;
+extern const _dt_conf_t conf_u8u8u8u8;
+extern const _dt_conf_t conf_u8u8u8f32;
+extern const _dt_conf_t conf_f32u8f32f32;
+extern const _dt_conf_t conf_f32u8f32u8;
+
+const dt_conf_t *str2cfg(const char *str);
+const char *cfg2str(const dt_conf_t *cfg);
+
+enum policy_t { NONE = 0, COMMON, PER_OC };
+policy_t str2policy(const char *str);
+const char *policy2str(attr_t::scale_t::policy_t policy);
 
 struct rnn_prb_t : public rnn_desc_t {
     rnn_prb_t(const rnn_desc_t desc, const dt_conf_t *cfg,
             mkldnn_prop_kind_t prop, alg_t alg,
-            mkldnn_rnn_direction_t direction, activation_t activation)
-        : rnn_desc_t(desc), cfg(cfg), prop(prop), alg(alg),
-        direction(direction), activation(activation){
+            mkldnn_rnn_direction_t direction, activation_t activation,
+            const attr_t &attr, policy_t scale_policy, int mb = 0)
+        : rnn_desc_t(desc)
+        , cfg(cfg)
+        , prop(prop)
+        , alg(alg)
+        , direction(direction)
+        , activation(activation)
+        , attr(attr)
+        , scale_policy(scale_policy) {
+        if (mb) this->mb = mb;
+        wei_oc_scales = NULL;
+        if (scale_policy == PER_OC)
+            wei_oc_scales
+                    = (float *)zmalloc(sizeof(float) * dic * n_gates(), 64);
+        set_qparams(-1., 1.);
+    }
+    ~rnn_prb_t() {
+        if (wei_oc_scales)
+            zfree(wei_oc_scales);
     }
 
     int n_directions() const {
@@ -178,14 +209,24 @@ struct rnn_prb_t : public rnn_desc_t {
                 4 :
                 (alg == VANILLA_GRU || alg == LBR_GRU ? 3 : 1);
     }
+    int n_bias() const {
+        return alg == LBR_GRU ? n_gates() + 1 : n_gates();
+    }
 
     const dt_conf_t *cfg;
     mkldnn_prop_kind_t prop;
     alg_t alg;
     mkldnn_rnn_direction_t direction;
     activation_t activation;
+    attr_t attr;
+    policy_t scale_policy;
+
+    float data_scale, data_shift;
+    float wei_scale;
+    float *wei_oc_scales;
 
 private:
+    void set_qparams(float fp_min, float fp_max);
     rnn_prb_t(const rnn_prb_t &) = delete;
     rnn_prb_t &operator=(const rnn_prb_t &) = delete;
 };
@@ -301,7 +342,7 @@ inline void inv_ldwOcIc_off_f(const rnn_prb_t *p, size_t off, int &l, int &d,
 
 // bias: mkldnn_ldgo
 inline size_t ldgo_off_f(const rnn_prb_t *p, int l, int d, int b, int c) {
-    return (((size_t)l * p->n_directions() + d) * p->n_gates() + b) * p->sic
+    return (((size_t)l * p->n_directions() + d) * p->n_bias() + b) * p->sic
             + c;
 }
 
@@ -309,8 +350,8 @@ inline void inv_ldgo_off_f(
         const rnn_prb_t *p, size_t off, int &l, int &d, int &b, int &c) {
     c = off % p->sic;
     off /= p->sic;
-    b = off % p->n_gates();
-    off /= p->n_gates();
+    b = off % p->n_bias();
+    off /= p->n_bias();
     d = off % p->n_directions();
     off /= p->n_directions();
     l = off % p->n_layer;

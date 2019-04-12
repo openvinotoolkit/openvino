@@ -15,7 +15,6 @@
 */
 
 #include "convolution_kernel_mmad_batched.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
     
@@ -49,7 +48,7 @@ namespace kernel_selector {
         const auto of_maps = arg.output.Feature().v;
         const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-        runInfo.effiency = FORCE_PRIORITY_3;
+        runInfo.effiency = FORCE_PRIORITY_6;
 
         runInfo.gws0 = arg.output.X().v;
         runInfo.gws1 = arg.output.Y().v;
@@ -89,9 +88,9 @@ namespace kernel_selector {
 
     KernelsData ConvolutionKernel_mmad_batched::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        KernelsData kd = GetCommonKernelsData(params, options);
+        KernelsData kd = GetTunedKernelsDataByIndex(params, options);
         if(!kd.empty())
-            kd[0].estimatedTime = FORCE_PRIORITY_3;
+            kd[0].estimatedTime = FORCE_PRIORITY_6;
         return kd;
     }
 }

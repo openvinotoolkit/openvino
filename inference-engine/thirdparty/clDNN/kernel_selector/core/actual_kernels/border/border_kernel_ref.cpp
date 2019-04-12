@@ -39,9 +39,9 @@ namespace kernel_selector
         k.EnableOutputLayout(DataLayout::yxfb);
         k.EnableOutputLayout(DataLayout::byxf);
 
-        k.EnableBatching();
         k.EnableTensorOffset();
         k.EnableTensorPitches();
+        k.EnableBatching();
 
         return k;
     }

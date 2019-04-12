@@ -50,6 +50,7 @@ namespace kernel_selector
         switch (wt)
         {
         case WeightsType::INT8:
+        case WeightsType::UINT8:
             return 1;
         case WeightsType::F16:
             return 2;

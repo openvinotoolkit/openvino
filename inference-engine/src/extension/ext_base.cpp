@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,6 +80,8 @@ void ExtLayerBase::addConfig(const CNNLayer* layer, std::vector<DataConfigurator
         std::vector<size_t> order(blocks.size());
         for (size_t i = 0; i < order.size(); i++) order[i] = i;
 
+        const bool isInt8 = (data->getPrecision() == Precision::I8 || data->getPrecision() == Precision::U8);
+
         if (conf.layout == ConfLayout::BLK8 || conf.layout == ConfLayout::BLK16) {
             if (data_dims.size() < 4 && data_dims.size() > 5)
                 THROW_IE_EXCEPTION << "Inapplicable blocking layout."
@@ -91,10 +93,17 @@ void ExtLayerBase::addConfig(const CNNLayer* layer, std::vector<DataConfigurator
             order.push_back(1);
             blocks[1] = div_up(blocks[1], blk_size);
             blocks.push_back(blk_size);
+        } else if (isInt8) {
+            order = {0, 2, 3, 1};
+            size_t tmp = blocks[1];
+            blocks[1] = blocks[3];
+            blocks[3] = tmp;
+
+            conf.layout = ConfLayout::PLN;
         }
 
         // All extension layers support only FP32 precision!
-        InferenceEngine::Precision precision = conf.constant ? data_desc.getPrecision() : InferenceEngine::Precision(InferenceEngine::Precision::FP32);
+        InferenceEngine::Precision precision = data_desc.getPrecision();
         if (conf.layout == ConfLayout::ANY) {
             dataConfig.desc = TensorDesc(precision, data_dims, InferenceEngine::Layout::ANY);
         } else {
@@ -103,10 +112,10 @@ void ExtLayerBase::addConfig(const CNNLayer* layer, std::vector<DataConfigurator
         port.push_back(dataConfig);
     };
 
-    for (int i = 0; i < in_l.size(); i++)
+    for (size_t i = 0; i < in_l.size(); i++)
         fill_port(config.inConfs, in_l[i], layer->insData[i].lock());
 
-    for (int i = 0; i < out_l.size(); i++)
+    for (size_t i = 0; i < out_l.size(); i++)
         fill_port(config.outConfs, out_l[i], layer->outData[i]);
 
     config.dynBatchSupport = dynBatchSupport;

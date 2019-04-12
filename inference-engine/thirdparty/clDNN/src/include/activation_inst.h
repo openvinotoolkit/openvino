@@ -26,6 +26,7 @@ template <>
 struct typed_program_node<activation> : public typed_program_node_base<activation>
 {
     using parent = typed_program_node_base<activation>;
+    typed_program_node(const std::shared_ptr<activation> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
 
 public:
     using parent::parent;

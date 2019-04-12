@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -356,15 +356,6 @@ INSTANTIATE_TEST_CASE_P(
                                  {3, 3}, {1, 2}, {0, 0}, {0, 0}, 20, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit },
                 conv_test_params{{1, 1, 32, 16},
                                  {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit },
-#ifdef USE_MKL
-                conv_test_params{{1, 9, 16, 32},
-                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 6, MKLDNNPlugin::impl_desc_type::gemm,
-                                 {MKLDNNPlugin::impl_desc_type::gemm_any,
-                                  MKLDNNPlugin::impl_desc_type::gemm_blas,
-                                  MKLDNNPlugin::impl_desc_type::gemm_avx512,
-                                  MKLDNNPlugin::impl_desc_type::gemm_avx2,
-                                  MKLDNNPlugin::impl_desc_type::gemm_sse42} },
-#endif
                 conv_test_params{{1, 9, 32, 16},
                                  {2, 4}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::ref_any,
                                  {MKLDNNPlugin::impl_desc_type::ref_any} },
@@ -372,7 +363,7 @@ INSTANTIATE_TEST_CASE_P(
                                  {3, 3}, {1, 1}, {1, 1}, {0, 0}, 64, 1, "", 3, MKLDNNPlugin::impl_desc_type::ref_any,
                                  {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd, MKLDNNPlugin::impl_desc_type::ref_any}},
                 // 5D
-        /*9*/   conv_test_params{{1, 3, 15, 20, 20},
+        /*8*/   conv_test_params{{1, 3, 15, 20, 20},
                                  {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::ref_any,
                                  {MKLDNNPlugin::impl_desc_type::ref_any} },
                 conv_test_params{{1, 24, 15, 20, 20},
@@ -385,9 +376,16 @@ INSTANTIATE_TEST_CASE_P(
                                  {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit },
                 conv_test_params{{1, 24, 15, 25, 20},
                                  {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit },
-        /*14*/  conv_test_params{{1, 32, 15, 25, 20},
+        /*13*/  conv_test_params{{1, 32, 15, 25, 20},
                                  {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit },
 #ifdef USE_MKL
+                conv_test_params{{1, 9, 16, 32},
+                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 6, MKLDNNPlugin::impl_desc_type::gemm,
+                                 {MKLDNNPlugin::impl_desc_type::gemm_any,
+                                  MKLDNNPlugin::impl_desc_type::gemm_blas,
+                                  MKLDNNPlugin::impl_desc_type::gemm_avx512,
+                                  MKLDNNPlugin::impl_desc_type::gemm_avx2,
+                                  MKLDNNPlugin::impl_desc_type::gemm_sse42} },
                 conv_test_params{{1, 5, 15, 20, 20},
                                  {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas },
                 conv_test_params{{1, 5, 15, 20, 20},
@@ -405,7 +403,6 @@ INSTANTIATE_TEST_CASE_P(
                 conv_test_params{{1, 16, 30, 30, 10},
                                  {5, 5, 5}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2}, 16, 1, "", 2, MKLDNNPlugin::impl_desc_type::ref_any,
                                  {MKLDNNPlugin::impl_desc_type::ref_any} }));
-
 
 class MKLDNNGraphDynBatchConvolutionTests: public MKLDNNGraphConvolutionTests {
 protected:
@@ -515,6 +512,7 @@ INSTANTIATE_TEST_CASE_P(
                 conv_test_params{{1, 1, 32, 16},
                                  {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit,
                                  {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
+#ifdef USE_MKL
                 conv_test_params{{1, 9, 16, 32},
                                  {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 7, MKLDNNPlugin::impl_desc_type::gemm,
                                  {MKLDNNPlugin::impl_desc_type::gemm_any,
@@ -523,5 +521,6 @@ INSTANTIATE_TEST_CASE_P(
                                   MKLDNNPlugin::impl_desc_type::gemm_avx2,
                                   MKLDNNPlugin::impl_desc_type::gemm_sse42}
                 },
+#endif
                 conv_test_params{{1, 9, 32, 16},
                                  {2, 4}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::ref_any, {MKLDNNPlugin::impl_desc_type::ref_any} }));

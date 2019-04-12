@@ -1,109 +1,12 @@
-# Automatic Speech Recognition Sample
+# Automatic Speech Recognition C++ Sample
 
 This topic shows how to run the speech sample application, which
 demonstrates acoustic model inference based on Kaldi\* neural networks
 and speech feature vectors.
 
-## Running
+## How It Works
 
-### Usage
-
-Running the application with the `-h` option yields the following
-usage message:
-
-```sh
-$ ./speech_sample -h
-InferenceEngine: 
-    API version ............ <version>
-    Build .................. <number>
-
-speech_sample [OPTION]
-Options:
-
-    -h                      Print a usage message.
-    -i "<path>"             Required. Path to an .ark file.
-    -m "<path>"             Required. Path to an .xml file with a trained model (required if -rg is missing).
-    -o "<path>"             Output file name (default name is scores.ark).
-    -l "<absolute_path>"    Required for MKLDNN (CPU)-targeted custom layers.Absolute path to a shared library with the kernels impl.
-    -d "<device>"           Specify the target device to infer on; CPU, GPU, GNA_AUTO, GNA_HW, GNA_SW, GNA_SW_EXACT is acceptable. Sample will look for a suitable plugin for device specified
-    -p                      Plugin name. For example MKLDNNPlugin. If this parameter is pointed, the sample will look for this plugin only
-    -pp                     Path to a plugin folder.
-    -pc                     Enables performance report
-    -q "<mode>"             Input quantization mode:  static (default), dynamic, or user (use with -sf).
-    -qb "<integer>"         Weight bits for quantization:  8 or 16 (default)
-    -sf "<double>"          Optional user-specified input scale factor for quantization (use with -q user).
-    -bs "<integer>"         Batch size 1-8 (default 1)
-    -r "<path>"             Read reference score .ark file and compare scores.
-    -rg "<path>"            Read GNA model from file using path/filename provided (required if -m is missing).
-    -wg "<path>"            Write GNA model to file using path/filename provided.
-    -we "<path>"            Write GNA embedded model to file using path/filename provided.
-    -nthreads "<integer>"   Optional. Number of threads to use for concurrent async inference requests on the GNA.
-
-```
-
-Running the application with the empty list of options yields the
-usage message given above and an error message.
-
-### Model Preparation
-
-> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-
-You can use the following model optimizer command to convert a Kaldi
-nnet1 or nnet2 neural network to Intel IR format:
-
-```sh
-$ python3 mo.py --framework kaldi --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
-```
-
-Assuming that the model optimizer (`mo.py`), Kaldi-trained neural
-network, `wsj_dnn5b_smbr.nnet`, and Kaldi class counts file,
-`wsj_dnn5b_smbr.counts`, are in the working directory this produces
-the Intel IR network consisting of `wsj_dnn5b_smbr.xml` and
-`wsj_dnn5b_smbr.bin`.
-
-The following pretrained models are available:
-
-* wsj\_dnn5b\_smbr
-* rm\_lstm4f
-* rm\_cnn4a\_smbr
-
-All of them can be downloaded from [https://download.01.org/openvinotoolkit/2018_R3/models_contrib/GNA/](https://download.01.org/openvinotoolkit/2018_R3/models_contrib/GNA/).
-
-
-### Speech Inference
-
-Once the IR is created, you can use the following command to do
-inference on Intel^&reg; Processors with the GNA co-processor (or
-emulation library):
-
-```sh
-$ ./speech_sample -d GNA_AUTO -bs 2 -i wsj_dnn5b_smbr_dev93_10.ark -m wsj_dnn5b_smbr_fp32.xml -o scores.ark -r wsj_dnn5b_smbr_dev93_scores_10.ark
-```
-
-Here, the floating point Kaldi-generated reference neural network
-scores (`wsj_dnn5b_smbr_dev93_scores_10.ark`) corresponding to the input
-feature file (`wsj_dnn5b_smbr_dev93_10.ark`) are assumed to be available
-for comparison.
-
-### Sample Output
-
-The acoustic log likelihood sequences for all utterances are stored in
-the Kaldi ARK file, `scores.ark`.  If the `-r` option is used, a report on
-the statistical score error is generated for each utterance such as
-the following:
-
-``` sh
-Utterance 0: 4k0c0301
-   Average inference time per frame: 6.26867 ms
-         max error: 0.0667191
-         avg error: 0.00473641
-     avg rms error: 0.00602212
-       stdev error: 0.00393488
-```
-
-## How it works
-
-Upon the start-up the speech_sample application reads command line parameters
+Upon the start-up, the application reads command line parameters
 and loads a Kaldi-trained neural network along with Kaldi ARK speech
 feature vector file to the Inference Engine plugin. It then performs
 inference on all speech utterances stored in the input ARK
@@ -170,12 +73,109 @@ In addition to performing inference directly from a GNA model file, these option
 - Convert from IR format to embedded format model file (`-m`, `-we`)
 - Convert from GNA format to embedded format model file (`-rg`, `-we`)
 
+
+## Running
+
+Running the application with the `-h` option yields the following
+usage message:
+
+```sh
+$ ./speech_sample -h
+InferenceEngine:
+    API version ............ <version>
+    Build .................. <number>
+
+speech_sample [OPTION]
+Options:
+
+    -h                      Print a usage message.
+    -i "<path>"             Required. Path to an .ark file.
+    -m "<path>"             Required. Path to an .xml file with a trained model (required if -rg is missing).
+    -o "<path>"             Optional. Output file name (default name is "scores.ark").
+    -l "<absolute_path>"    Required for CPU custom layers. Absolute path to a shared library with the kernel implementations.
+    -d "<device>"           Optional. Specify a target device to infer on. CPU, GPU, GNA_AUTO, GNA_HW, GNA_SW, GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.
+    -p                      Optional. Plugin name. For example, GPU. If this parameter is set, the sample will look for this plugin only
+    -pp                     Optional. Path to a plugin folder.
+    -pc                     Optional. Enables performance report
+    -q "<mode>"             Optional. Input quantization mode:  "static" (default), "dynamic", or "user" (use with -sf).
+    -qb "<integer>"         Optional. Weight bits for quantization:  8 or 16 (default)
+    -sf "<double>"          Optional. Input scale factor for quantization (use with -q user).
+    -bs "<integer>"         Optional. Batch size 1-8 (default 1)
+    -r "<path>"             Optional. Read reference score .ark file and compare scores.
+    -rg "<path>"            Optional. Read GNA model from file using path/filename provided (required if -m is missing).
+    -wg "<path>"            Optional. Write GNA model to file using path/filename provided.
+    -we "<path>"            Optional. Write GNA embedded model to file using path/filename provided.
+    -nthreads "<integer>"   Optional. Number of threads to use for concurrent async inference requests on the GNA.
+    -cw "<integer>"         Optional. Number of frames for context windows (default is 0). Works only with context window networks. If you use the cw flag, the batch size and nthreads arguments are ignored.
+
+```
+
+Running the application with the empty list of options yields the
+usage message given above and an error message.
+
+### Model Preparation
+
+You can use the following model optimizer command to convert a Kaldi
+nnet1 or nnet2 neural network to Intel IR format:
+
+```sh
+$ python3 mo.py --framework kaldi --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
+```
+
+Assuming that the model optimizer (`mo.py`), Kaldi-trained neural
+network, `wsj_dnn5b_smbr.nnet`, and Kaldi class counts file,
+`wsj_dnn5b_smbr.counts`, are in the working directory this produces
+the Intel IR network consisting of `wsj_dnn5b_smbr.xml` and
+`wsj_dnn5b_smbr.bin`.
+
+The following pre-trained models are available:
+
+* wsj\_dnn5b\_smbr
+* rm\_lstm4f
+* rm\_cnn4a\_smbr
+
+All of them can be downloaded from [https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi](https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi) or using the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) .
+
+
+### Speech Inference
+
+Once the IR is created, you can use the following command to do
+inference on Intel^&reg; Processors with the GNA co-processor (or
+emulation library):
+
+```sh
+$ ./speech_sample -d GNA_AUTO -bs 2 -i wsj_dnn5b_smbr_dev93_10.ark -m wsj_dnn5b_smbr_fp32.xml -o scores.ark -r wsj_dnn5b_smbr_dev93_scores_10.ark
+```
+
+Here, the floating point Kaldi-generated reference neural network
+scores (`wsj_dnn5b_smbr_dev93_scores_10.ark`) corresponding to the input
+feature file (`wsj_dnn5b_smbr_dev93_10.ark`) are assumed to be available
+for comparison.
+
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+
+## Sample Output
+
+The acoustic log likelihood sequences for all utterances are stored in
+the Kaldi ARK file, `scores.ark`.  If the `-r` option is used, a report on
+the statistical score error is generated for each utterance such as
+the following:
+
+``` sh
+Utterance 0: 4k0c0301
+   Average inference time per frame: 6.26867 ms
+         max error: 0.0667191
+         avg error: 0.00473641
+     avg rms error: 0.00602212
+       stdev error: 0.00393488
+```
+
 ## Use of Sample in Kaldi* Speech Recognition Pipeline
 
 The Wall Street Journal DNN model used in this example was prepared
 using the Kaldi s5 recipe and the Kaldi Nnet (nnet1) framework.  It is
 possible to recognize speech by substituting the `speech_sample` for
-Kaldi's nnet-forward command.  Since the speech_sample does not yet 
+Kaldi's nnet-forward command.  Since the speech_sample does not yet
 use pipes, it is necessary to use temporary files for speaker-
 transformed feature vectors and scores when running the Kaldi speech
 recognition pipeline.  The following operations assume that feature
@@ -199,10 +199,7 @@ latgen-faster-mapped --max-active=7000 --max-mem=50000000 --beam=13.0 --lattice-
 cat out.txt | utils/int2sym.pl -f 2- words.txt | sed s:\<UNK\>::g | compute-wer --text --mode=present ark:test_filt.txt ark,p:-
 ```
 
-## Links 
-
-- [Main Page](index.html)
-- [Use of the Inference Engine](./docs/IE_DG/Integrate_with_customer_application.md)
-- [Intel's Deep Learning Model Optimizer Developer Guide](https://software.intel.com/en-us/model-optimizer-devguide)
-- [Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-- [Deep Learning Deployment Toolkit Web Page](https://software.intel.com/en-us/computer-vision-sdk)
+## See Also
+* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)

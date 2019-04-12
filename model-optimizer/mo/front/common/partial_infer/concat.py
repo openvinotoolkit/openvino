@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -46,8 +46,8 @@ def concat_infer(node):
     node.axis = axis
 
     mask = np.zeros_like(shape, dtype=np.bool)
-    mask[axis] = True
-    not_mask = np.logical_not(mask)
+    mask[axis] = True  # pylint: disable=unsupported-assignment-operation
+    not_mask = np.logical_not(mask)  # pylint: disable=assignment-from-no-return
     for s in shapes[1:]:
         if np.all(shape[not_mask] == s[not_mask]):  # TODO handle -1 in a special way
             shape[mask] += s[mask]

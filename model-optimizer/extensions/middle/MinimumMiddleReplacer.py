@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  limitations under the License.
 """
 
-import networkx as nx
-
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.eltwise import Eltwise
 from mo.ops.power import Power
@@ -25,6 +24,14 @@ class MinimumMiddleReplacer(MiddleReplacementPattern):
     op = "Minimum"
     enabled = True
 
+    def run_after(self):
+        from extensions.middle.pass_separator import MiddleStart
+        return [MiddleStart]
+
+    def run_before(self):
+        from extensions.middle.pass_separator import MiddleFinish
+        return [MiddleFinish]
+
     def pattern(self):
         return dict(
             nodes=[
@@ -33,7 +40,7 @@ class MinimumMiddleReplacer(MiddleReplacementPattern):
             edges=[]
         )
 
-    def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(self, graph: Graph, match: dict):
         node = match['minimum']
         # Constant propagation case
         if node.in_node(0).value is not None and node.in_node(1).value is not None:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -263,9 +263,9 @@ public:
         const float* delta_pred = src_delta->buffer().as<const float*>();
         const float* im_info = inputs[2]->buffer().as<const float*>();
 
-        int IW = im_info[1];
-        int IH = im_info[0];
-        int IS = im_info[2];
+        int IW = static_cast<int>(im_info[1]);
+        int IH = static_cast<int>(im_info[0]);
+        int IS = static_cast<int>(im_info[2]);
 
         int scaled_min_bbox_size = min_box_size_ * IS;
 
@@ -293,8 +293,8 @@ public:
                     simpler_nms_roi_t tmp_roi = simpler_nms_gen_bbox(anchors[anchor_index], bbox_delta, anchor_shift_x, anchor_shift_y);
                     simpler_nms_roi_t roi = tmp_roi.clamp({ 0, 0, static_cast<float>(IW - 1), static_cast<float>(IH - 1)});
 
-                    int bbox_w = roi.x1 - roi.x0 + 1;
-                    int bbox_h = roi.y1 - roi.y0 + 1;
+                    int bbox_w = static_cast<int>(roi.x1 - roi.x0) + 1;
+                    int bbox_h = static_cast<int>(roi.y1 - roi.y0) + 1;
 
                     if (bbox_w >= scaled_min_bbox_size && bbox_h >= scaled_min_bbox_size) {
                         simpler_nms_proposal_t proposal { roi, proposal_confidence, sorted_proposals_confidence.size() };

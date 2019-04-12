@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import networkx as nx
 
 from extensions.front.squared_difference import SquaredDifference
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Node, replace_node
+from mo.graph.graph import Node, Graph
 from mo.ops.eltwise import Eltwise
 from mo.ops.op import Op
 
@@ -53,7 +53,7 @@ class MVN(FrontReplacementSubgraph):
                 ('squeeze_variance', 'fbn', {'in': 4}),
             ])
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         fbn = match['fbn']
         input = fbn.in_node(0)
         log.debug('Found potential MVN pattern after {} with name {}'.format(input.op, input.name))
@@ -87,8 +87,7 @@ class MVN(FrontReplacementSubgraph):
             ]),
             input_beta
         ])
-
-        replace_node(fbn, new_subgraph)
+        fbn.replace_node(new_subgraph)
 
     @staticmethod
     def infer(node: Node):

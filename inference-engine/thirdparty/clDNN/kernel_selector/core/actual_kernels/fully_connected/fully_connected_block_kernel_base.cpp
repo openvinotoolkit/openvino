@@ -15,8 +15,6 @@
 */
 
 #include "fully_connected_block_kernel_base.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
 
 namespace kernel_selector 
 {
@@ -32,4 +30,5 @@ namespace kernel_selector
 
         return cldnnJit;
     }
+
 }

@@ -94,7 +94,7 @@ template <typename Dtype>
 TestRunnerProposal<Dtype>::TestRunnerProposal() :
                             _cls_scores_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 18, 23, 14 } ),
                             _bbox_pred_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 36, 23, 14 } ),
-                            _image_info_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 1, 3, 1 } ),
+                            _image_info_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 3, 1, 1 } ),
                             _test_layer(layer_name, 
                                         cls_scores_name, 
                                         bbox_pred_name,

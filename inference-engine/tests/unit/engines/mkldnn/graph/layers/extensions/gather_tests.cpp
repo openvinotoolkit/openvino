@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,13 +32,6 @@ struct gather_test_params {
     std::vector<std::function<void(MKLDNNPlugin::PrimitiveDescInfo)>> comp;
 };
 
-
-inline void clipping(int *idx, const int min, const int max) {
-    (*idx) = ((*idx) > min) ? (*idx) : min;
-    (*idx) = ((*idx) < max) ? (*idx) : (max - 1);
-    return;
-}
-
 template <typename data_t>
 void ref_gather(InferenceEngine::TBlob<data_t> &srcIdx, InferenceEngine::TBlob<float> &srcDct, InferenceEngine::TBlob<float> &dst, size_t axis) {
     size_t i, j;
@@ -70,15 +63,20 @@ void ref_gather(InferenceEngine::TBlob<data_t> &srcIdx, InferenceEngine::TBlob<f
 
     //  The gathering process
     for (i = 0; i < src_size; i++) {
-        int idx = static_cast<int>(src_dataIdx[i]);
+        unsigned int idx = static_cast<unsigned int>(src_dataIdx[i]);
 
         //  Index clipping
-        clipping(&idx, 0, indexRange);
-
-        //  Copying data to destination from Dictionary
-        for (j = 0; j < numDictionaries; j++) {
-            memcpy(&dst_data[dataLength * (i + j * src_size)],
-                   &src_dataDict[dataLength * (idx + j * indexRange)], sizeof(float)*dataLength);
+        if (idx < indexRange)
+        {
+            //  Copying data to destination from Dictionary
+            for (j = 0; j < numDictionaries; j++) {
+                memcpy(&dst_data[dataLength * (i + j * src_size)],
+                       &src_dataDict[dataLength * (idx + j * indexRange)], sizeof(float) * dataLength);
+            }
+        } else {
+            for (j = 0; j < numDictionaries; j++) {
+                std::fill_n(&dst_data[dataLength * (i + j * src_size)], dataLength, 0.0f);
+            }
         }
     }
 }
@@ -313,9 +311,6 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::Values(
                 gather_test_params{ "FP32", {1, 1, 12, 256}, {1, 1, 71, 16}, 0, {1, 12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
                 gather_test_params{  "I32", {1, 1, 12, 256}, {1, 1, 71, 16}, 0, {1, 12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{  "I16", {1, 1, 12, 256}, {1, 1, 71, 16}, 0, {1, 12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{   "U8", {1, 1, 12, 256}, {1, 1, 71, 16}, 0, {1, 12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{   "I8", {1, 1, 12, 256}, {1, 1, 71, 16}, 0, {1, 12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
                 gather_test_params{  "I32", {12, 256}, {71, 16}, 0, {12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
                 gather_test_params{  "I32", {3, 4}, {2, 5, 6}, 0, {3, 4, 5, 6}, 1, MKLDNNPlugin::impl_desc_type::unknown },
                 gather_test_params{  "I32", {3, 4}, {5, 1}, 0, {3, 4, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown },

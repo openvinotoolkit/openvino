@@ -24,6 +24,8 @@
 #include "memory_impl.h"
 #include "program_impl.h"
 
+#include "program_node.h"
+
 #include "gpu/memory_gpu.h"
 namespace cldnn
 {
@@ -69,6 +71,8 @@ namespace cldnn
             }
         }
     }
+    memory_pool::~memory_pool()
+    { }
 
     bool memory_pool::has_conflict(const memory_set& a, const std::set<primitive_id>& b, uint32_t b_network_id)
     {   

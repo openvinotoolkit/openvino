@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ template <>
 class typed_primitive_inst<eltwise> : public typed_primitive_inst_base<eltwise>
 {
     using parent = typed_primitive_inst_base<eltwise>;
+    static void check_inputs_count(eltwise_node const &node);
 
 public:
     static layout calc_output_layout(eltwise_node const& node);

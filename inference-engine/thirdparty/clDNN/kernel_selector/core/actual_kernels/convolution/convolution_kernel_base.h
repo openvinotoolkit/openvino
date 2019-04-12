@@ -56,6 +56,11 @@ namespace kernel_selector
                 GEMMStyle  gemmStyle;
             };
         };
+        
+        std::string GetAutoTuneOptions(int autoTuneIndex) const;
+        std::vector<std::string> autoTuneOptions = { DEFAULT, NO_PRERA_SCH, AGE_BASED };
+        virtual KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
+        virtual KernelsData GetTunedKernelsDataByIndex(const Params& params, const optional_params& options, int autoTuneIndex = -1) const override;
     
     protected:
         virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const = 0;
@@ -66,6 +71,11 @@ namespace kernel_selector
         virtual DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const;
         static bool CheckWorkGroups(const DispatchData&);
         static bool CheckPitchForSplitOnly(const convolution_params& params);
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params& options, const std::string exeMode = ROUND_ROBIN, int autoTuneIndex = -1) const;
+        KernelsData GetCommonKernelsData(const Params& params, const optional_params& options, const std::string exeMode = DEFAULT, int autoTuneIndex = -1) const;
     };
+
+    bool CovolutionCheckInput(const Params& p, const optional_params& o);
+    bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const DataTensor& reqDesc);
+    bool CovolutionUpdateInputParams(convolution_params& params);
+
 }

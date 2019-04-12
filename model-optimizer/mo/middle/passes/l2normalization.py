@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,16 +14,15 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.front.extractor import add_attrs_props
 from mo.front.extractor import update_ie_fields
-from mo.graph.graph import Node, unique_id
+from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import apply_pattern
 
 
-def l2_norm_to_norm_action(graph: nx.MultiDiGraph, match: dict):
+def l2_norm_to_norm_action(graph: Graph, match: dict):
     input_data_name = match['input'].node
     output_data_name = match['l2_normalize_data'].node
 
@@ -33,18 +32,17 @@ def l2_norm_to_norm_action(graph: nx.MultiDiGraph, match: dict):
         return 1
     y = match['maximum_y_data'].value
 
-    normalize_id = unique_id(graph)
+    normalize_id = graph.unique_id()
     graph.add_node(normalize_id,
                    **add_attrs_props(
-                       dict(kind='op', precision="FP32", type='Normalize', name=str(unique_id(graph, 'normalize')),
+                       dict(kind='op', precision="FP32", type='Normalize', name=str(graph.unique_id('normalize')),
                             op='Normalize', shape=None, eps=str(y), across_spatial=str(0), channel_shared=str(0),
-                            data_type=None,
-                            infer=None)))
-    normalize_data_id = unique_id(graph)
+                            data_type=None, infer=None, in_ports_count=2, out_ports_count=1)))
+    normalize_data_id = graph.unique_id()
 
     graph.add_node(normalize_data_id, **add_attrs_props(graph.node[output_data_name]))
     update_ie_fields(graph.node[normalize_id])
-    weights_id = unique_id(graph, 'weights_')
+    weights_id = graph.unique_id('weights_')
     graph.add_node(weights_id, **add_attrs_props(
         dict(kind='data', precision="FP32", name=weights_id, value=None, shape=None, data_type=None, infer=None)))
     wnode = Node(graph, weights_id)
@@ -65,7 +63,7 @@ def l2_norm_to_norm_action(graph: nx.MultiDiGraph, match: dict):
         graph.add_edge(normalize_data_id, owner, **attr)
 
 
-def l2_norm_to_norm(graph: nx.MultiDiGraph):
+def l2_norm_to_norm(graph: Graph):
     apply_pattern(
         graph,
         nodes=[
@@ -79,13 +77,10 @@ def l2_norm_to_norm(graph: nx.MultiDiGraph):
             ('rsqrt_data', dict(kind='data')),
             ('square', dict(kind='op', op='Square')),
             ('square_data', dict(kind='data')),
-            ('sum', dict(kind='op', op='Sum')),
+            ('sum', dict(kind='op', op='Reduce', reduce_type='sum')),
             ('sum_data', dict(kind='data')),
-            ('range_data', dict(kind='data')),
-
         ],
         edges=[
-            ('range_data', 'sum'),
             ('input', 'square'),
             ('square', 'square_data'),
             ('square_data', 'sum'),

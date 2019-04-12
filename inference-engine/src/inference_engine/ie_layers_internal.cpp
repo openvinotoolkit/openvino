@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,7 +98,8 @@ class PaddingsUpdater {
 
 Paddings getPaddingsImpl(const CNNLayer &layer) {
     Paddings actual;
-    details::visitActualLayer(std::tuple <DeconvolutionLayer*, ConvolutionLayer*, PoolingLayer*, CNNLayer*>(), layer, PaddingsUpdater(actual));
+    details::visitActualLayer(std::tuple <DeconvolutionLayer*, ConvolutionLayer*, BinaryConvolutionLayer*, PoolingLayer*,
+            CNNLayer*>(), layer, PaddingsUpdater(actual));
     return actual;
 }
 

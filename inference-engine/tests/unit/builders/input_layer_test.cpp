@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,6 @@ TEST_F(InputLayerBuilderTest, getExistsLayerFromNetworkBuilder) {
     ASSERT_EQ(inBuilderFromNetwork.getPort().shape(), Port({1, 3, 3, 3}).shape());
     inBuilderFromNetwork.setPort(Port({1, 3, 4, 4}));
     ASSERT_EQ(inBuilderFromNetwork.getPort().shape(), Port({1, 3, 4, 4}).shape());
-    ASSERT_EQ(network.getLayer(inId).getOutputPorts()[0].shape(), Port({1, 3, 4, 4}).shape());
+    ASSERT_EQ(network.getLayer(inId)->getOutputPorts()[0].shape(), Port({1, 3, 4, 4}).shape());
     ASSERT_EQ(inBuilder.getPort().shape(), Port({1, 3, 3, 3}).shape());
 }

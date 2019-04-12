@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,9 @@ TensorDesc::TensorDesc(const Precision &precision, SizeVector dims, const Blocki
     layout = Layout::BLOCKED;
     if (dims.size() == blockingDesc.getBlockDims().size()) {
         switch (dims.size()) {
+            case 0:
+                layout = Layout::SCALAR;
+                break;
             case 1:
                 layout = Layout::C;
                 break;
@@ -97,6 +100,7 @@ TensorDesc::TensorDesc(const Precision &precision, SizeVector dims, const Blocki
 
 TensorDesc::TensorDesc() {
     this->layout = Layout::ANY;
+    precision = Precision::UNSPECIFIED;
 }
 
 void TensorDesc::setDims(const SizeVector &dims) {
@@ -129,6 +133,8 @@ bool TensorDesc::operator!=(const TensorDesc &rhs) const {
 
 Layout TensorDesc::getLayoutByDims(SizeVector dims) {
     switch (dims.size()) {
+        case 0:
+            return Layout::SCALAR;
         case 1:
             return Layout::C;
         case 2:
@@ -246,6 +252,7 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout): offsetPadding
     SizeVector l_order;
     SizeVector l_dims;
     switch (layout) {
+        case Layout::SCALAR:
         case Layout::ANY:
             return;
         case Layout::C:

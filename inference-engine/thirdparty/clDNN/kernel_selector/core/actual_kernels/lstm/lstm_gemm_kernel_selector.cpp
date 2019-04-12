@@ -16,12 +16,16 @@
 
 #include "lstm_gemm_kernel_selector.h"
 #include "lstm_gemm_kernel_ref.h"
+#include "lstm_gemv_gpu_subgroup1x64_bfyx_ff_SIMD16.h"
+#include "lstm_gemv_gpu_subgroup1x64_bfyx_hh_SIMD16.h"
 
 namespace kernel_selector
 {
     lstm_gemm_kernel_selector::lstm_gemm_kernel_selector()
     {
         Attach<LSTMGemmKernelRef>();
+        Attach<LSTMGemvKernel_subgroup1x64_bfyx_ff_SIMD16>();
+        Attach<LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16>();
     }
 
     KernelsData lstm_gemm_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const

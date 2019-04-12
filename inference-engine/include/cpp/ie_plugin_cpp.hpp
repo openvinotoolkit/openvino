@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,6 +77,7 @@ public:
     }
 
     /**
+     * @deprecated Loads IExecutableNetwork to create IInferRequest.
      * @brief Wraps original method
      * IInferencePlugin::Infer(const BlobMap&, BlobMap&, ResponseDesc *resp)
      */

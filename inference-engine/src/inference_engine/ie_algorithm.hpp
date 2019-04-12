@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,5 +38,11 @@ auto product(TIterator beg, TIterator en) -> typename std::remove_reference<decl
                            static_cast<typename std::remove_reference<decltype(*beg)>::type>(1),
                            std::multiplies<typename std::remove_reference<decltype(*beg)>::type>());
 }
+
+inline void clipping(int* idx, const int min, const int max) {
+    (*idx) = ((*idx) > min) ? (*idx) : min;
+    (*idx) = ((*idx) < max) ? (*idx) : (max - 1);
+}
+
 }  // namespace details
 }  // namespace InferenceEngine

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,124 +15,12 @@
 #include <tests_common.hpp>
 #include <graph_transformer.h>
 #include "ie_utils.hpp"
+#include "util_test.hpp"
+#include "graph_tools.hpp"
 
 namespace IE = InferenceEngine;
 
 namespace {
-class NetBuilder {
-    using LayersMap = std::unordered_map<std::string, IE::CNNLayerPtr>;
-    using DataMap = std::unordered_map<std::string, IE::DataPtr>;
-    using InputsSet = std::unordered_set<IE::InputInfo::Ptr>;
-    LayersMap _layers;
-    DataMap _data;
-    InputsSet _inputs;
-public:
-    NetBuilder() = default;
-    NetBuilder(const NetBuilder&) = delete;
-
-    template<typename... Args>
-    NetBuilder& data(Args&&... args) {
-        auto newData = std::make_shared<IE::Data>(std::forward<Args>(args)...);
-        assert(!IE::contains(_data, newData->getName()));
-        _data[newData->getName()] = newData;
-        return *this;
-    }
-
-    template<typename T,typename... Args>
-    NetBuilder& layer(Args&&... args) {
-        auto newLayer = std::make_shared<T>(std::forward<Args>(args)...);
-        assert(!IE::contains(_layers, newLayer->name));
-        _layers[newLayer->name] = std::static_pointer_cast<IE::CNNLayer>(newLayer);
-        return *this;
-    }
-
-    const LayersMap& getLayersMap() const {
-        return _layers;
-    }
-
-    const DataMap& getDataMap() const {
-        return _data;
-    }
-
-    NetBuilder& linkDataTo(const std::string& dataName,
-                           const std::string& nextlayerName) {
-        assert(IE::contains(_layers, nextlayerName));
-        assert(IE::contains(_data,   dataName));
-
-        auto nextlayer = _layers[nextlayerName];
-        auto data = _data[dataName];
-
-        nextlayer->insData.push_back(data);
-        data->getInputTo().insert({nextlayerName, nextlayer});
-        return *this;
-    }
-
-    NetBuilder& linkToData(const std::string& prevlayerName,
-                           const std::string& dataName) {
-        assert(IE::contains(_layers, prevlayerName));
-        assert(IE::contains(_data,   dataName));
-
-        auto prevlayer = _layers[prevlayerName];
-        auto data = _data[dataName];
-        assert(nullptr == data->getCreatorLayer().lock());
-
-        prevlayer->outData.push_back(data);
-        data->getCreatorLayer() = prevlayer;
-        return *this;
-    }
-
-    NetBuilder& linkLayers(const std::string& prevlayerName,
-                           const std::string& nextlayerName,
-                           const std::string& dataName) {
-        linkToData(prevlayerName, dataName);
-        linkDataTo(dataName, nextlayerName);
-        return *this;
-    }
-
-    NetBuilder& linkData(const std::string& prevDataName,
-                         const std::string& nextDataName,
-                         const std::string& layerName) {
-        linkDataTo(prevDataName, layerName);
-        linkToData(layerName, nextDataName);
-        return *this;
-    }
-
-    template<typename... Args>
-    NetBuilder& addInput(const std::string& dataName, Args&&... args) {
-        assert(!dataName.empty());
-        assert(IE::contains(_data, dataName));
-        auto input = std::make_shared<IE::InputInfo>(
-                         std::forward<Args>(args)...);
-        input->setInputData(_data[dataName]);
-        _inputs.insert(std::move(input));
-        return *this;
-    }
-
-    IE::details::CNNNetworkImplPtr finalize() {
-        auto net = std::make_shared<IE::details::CNNNetworkImpl>();
-
-        for (auto&& it: _data) {
-            auto& data = it.second;
-            net->getData(it.first) = data;
-            if (nullptr == data->getCreatorLayer().lock()) {
-                auto input  = std::make_shared<IE::InputInfo>();
-                input->setInputData(data);
-                net->setInputInfo(input);
-            }
-        }
-        for (auto&& it: _layers) {
-            net->addLayer(it.second);
-        }
-        for (auto& i : _inputs) {
-            net->setInputInfo(std::move(i));
-        }
-
-        net->resolveOutput();
-
-        return net;
-    }
-};
-
 bool checkLayers(const std::vector<IE::CNNLayerPtr>& layers, std::initializer_list<const char*> layersToCheck) {
     if (layers.size() != layersToCheck.size()) {
         return false;
@@ -537,7 +425,7 @@ TEST(UtilTests, cloneNet) {
 
     {
         auto layer = getLayer(net, "layer1");
-        auto cloned = IE::cloneNet({layer});
+        auto cloned = IE::cloneNet({layer}, nullptr);
         EXPECT_EQ(2, cloned->layerCount());
         auto clonedLayer = getLayer(cloned, "layer1");
         ASSERT_NE(nullptr, clonedLayer);
@@ -555,7 +443,7 @@ TEST(UtilTests, cloneNet) {
     {
         auto layer1 = getLayer(net, "layer1");
         auto layer2 = getLayer(net, "layer2");
-        auto cloned = IE::cloneNet({layer1,layer2});
+        auto cloned = IE::cloneNet({layer1,layer2}, nullptr);
         EXPECT_EQ(4, cloned->layerCount());
         auto clonedLayer1 = getLayer(cloned, "layer1");
         auto clonedLayer2 = getLayer(cloned, "layer2");
@@ -576,7 +464,7 @@ TEST(UtilTests, cloneNet) {
     {
         auto layer4 = getLayer(net, "layer4");
         auto layer5 = getLayer(net, "layer5");
-        auto cloned = IE::cloneNet({layer4,layer5});
+        auto cloned = IE::cloneNet({layer4,layer5}, nullptr);
         EXPECT_EQ(4, cloned->layerCount());
         auto clonedLayer4 = getLayer(cloned, "layer4");
         auto clonedLayer5 = getLayer(cloned, "layer5");
@@ -608,7 +496,7 @@ TEST(UtilTests, cloneNet) {
     }
     {
         auto layer3 = getLayer(net, "layer3");
-        auto cloned = IE::cloneNet({layer3});
+        auto cloned = IE::cloneNet({layer3}, nullptr);
         EXPECT_EQ(2, cloned->layerCount());
         auto clonedLayer3 = getLayer(cloned, "layer3");
         ASSERT_NE(nullptr, clonedLayer3);
@@ -638,7 +526,7 @@ TEST(UtilTests, cloneNet) {
         auto layer5 = getLayer(net, "layer5");
         auto layer6 = getLayer(net, "layer6");
         auto layer7 = getLayer(net, "layer7");
-        auto cloned = IE::cloneNet({layer1,layer2,layer3,layer4,layer5,layer6,layer7});
+        auto cloned = IE::cloneNet({layer1,layer2,layer3,layer4,layer5,layer6,layer7}, nullptr);
         EXPECT_EQ(9, cloned->layerCount());
         auto clonedLayer1 = getLayer(cloned, "layer1");
         auto clonedLayer2 = getLayer(cloned, "layer2");
@@ -771,7 +659,7 @@ TEST(UtilTests, cloneNet_input) {
 
     auto cloned = IE::cloneNet({getLayer(net, "layer1"),
                                 getLayer(net, "layer2"),
-                                getLayer(net, "layer3")});
+                                getLayer(net, "layer3")}, nullptr);
 
     ASSERT_EQ(6, cloned->layerCount());
     ASSERT_NE(nullptr, getLayer(cloned, "input1"));
@@ -825,7 +713,7 @@ TEST(UtilTests, cloneNet_const) {
 
     auto cloned = IE::cloneNet({getLayer(net, "layer1"),
                                 getLayer(net, "layer2"),
-                                getLayer(net, "layer3")});
+                                getLayer(net, "layer3")}, nullptr);
 
     ASSERT_EQ(6, cloned->layerCount());
     ASSERT_NE(nullptr, getLayer(cloned, "input1"));
@@ -1673,7 +1561,7 @@ TEST(UtilTests, replaceLayerWithNewLayer) {
         auto newLayer1 = std::make_shared<IE::CNNLayer>(IE::LayerParams{"layer1", "dummy", IE::Precision::UNSPECIFIED});
         auto layer1    = layers.find("layer1");
         EXPECT_TRUE(layer1 != layers.end());
-        IE::replaceLayerWithNewLayer(*net, layer1->second, newLayer1);
+        CNNNetSubstituteLayer(*net, layer1->second, newLayer1);
         IE::CNNLayerPtr layer1Check = nullptr;
         net->getLayerByName("layer1", layer1Check, nullptr);
         ASSERT_EQ(layer1Check, newLayer1);
@@ -1685,7 +1573,7 @@ TEST(UtilTests, replaceLayerWithNewLayer) {
         auto newLayer2 = std::make_shared<IE::CNNLayer>(IE::LayerParams{"layer2", "dummy", IE::Precision::UNSPECIFIED});
         auto layer2    = layers.find("layer2");
         EXPECT_TRUE(layer2 != layers.end());
-        IE::replaceLayerWithNewLayer(*net, layer2->second, newLayer2);
+        CNNNetSubstituteLayer(*net, layer2->second, newLayer2);
         IE::CNNLayerPtr layer2Check = nullptr;
         net->getLayerByName("layer2", layer2Check, nullptr);
         ASSERT_EQ(layer2Check, newLayer2);
@@ -1697,7 +1585,7 @@ TEST(UtilTests, replaceLayerWithNewLayer) {
         auto newLayer3 = std::make_shared<IE::CNNLayer>(IE::LayerParams{"layer3", "dummy", IE::Precision::UNSPECIFIED});
         auto layer3    = layers.find("layer3");
         EXPECT_TRUE(layer3 != layers.end());
-        IE::replaceLayerWithNewLayer(*net, layer3->second, newLayer3);
+        CNNNetSubstituteLayer(*net, layer3->second, newLayer3);
         IE::CNNLayerPtr layer3Check = nullptr;
         net->getLayerByName("layer3", layer3Check, nullptr);
         ASSERT_EQ(layer3Check, newLayer3);

@@ -23,13 +23,15 @@ namespace cldnn
 {
 
 template <>
-class typed_program_node<crop> : public typed_program_node_base<crop>
+struct typed_program_node<crop> : public typed_program_node_base<crop>
 {
+private:
     using parent = typed_program_node_base<crop>;
 
 public:
     using parent::parent;
 
+    typed_program_node(const std::shared_ptr<crop> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
     program_node& input() const { return get_dependency(0); }
 };
 

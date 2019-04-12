@@ -24,6 +24,8 @@ ic25oc24_ih13oh12kh3ph0_n"tails_conv:17"
 ic27oc30_ih13oh13kh3ph1_n"tails_conv:18"
 ic28oc20_ih13oh12kh3ph0_n"tails_conv:19"
 ic29oc65_ih13oh13kh3ph1_n"tails_conv:20"
+g64ic512oc512_ih240oh120kh3sh2dh0ph1_n"tails_conv:21"
+g128ic512oc512_ih240oh120kh3sh2dh0ph1_n"tails_conv:22"
 
 # conv 1x1
 ic32oc13_ih13oh13kh1ph0_n"tails_conv_1x1:1"

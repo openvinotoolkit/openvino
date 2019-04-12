@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,7 +113,7 @@ static UNUSED InferenceEngine::InferenceEnginePluginPtr selectPlugin(const std::
  * @param filepath - full file name
  * @return filename without extension
  */
-static std::string fileNameNoExt(const std::string &filepath) {
+static UNUSED std::string fileNameNoExt(const std::string &filepath) {
     auto pos = filepath.rfind('.');
     if (pos == std::string::npos) return filepath;
     return filepath.substr(0, pos);
@@ -640,6 +640,19 @@ inline double getDurationOf(std::function<void()> func) {
     return std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1, 1000>>>(fs).count();
 }
 
+static std::vector<std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>>
+perfCountersSorted(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap) {
+    using perfItem = std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>;
+    std::vector<perfItem> sorted;
+    for (auto &kvp : perfMap) sorted.push_back(kvp);
+
+    std::stable_sort(sorted.begin(), sorted.end(),
+                     [](const perfItem& l, const perfItem& r) {
+                         return l.second.execution_index < r.second.execution_index;
+                     });
+
+    return sorted;
+}
 
 static UNUSED void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& performanceMap,
                                           std::ostream &stream,
@@ -649,7 +662,10 @@ static UNUSED void printPerformanceCounts(const std::map<std::string, InferenceE
     if (bshowHeader) {
         stream << std::endl << "performance counts:" << std::endl << std::endl;
     }
-    for (const auto & it : performanceMap) {
+
+    auto performanceMapSorted = perfCountersSorted(performanceMap);
+
+    for (const auto & it : performanceMapSorted) {
         std::string toPrint(it.first);
         const int maxLayerName = 30;
 
@@ -683,17 +699,17 @@ static UNUSED void printPerformanceCounts(const std::map<std::string, InferenceE
 }
 
 static UNUSED void printPerformanceCounts(InferenceEngine::InferRequest request, std::ostream &stream) {
-    auto perfomanceMap = request.GetPerformanceCounts();
-    printPerformanceCounts(perfomanceMap, stream);
+    auto performanceMap = request.GetPerformanceCounts();
+    printPerformanceCounts(performanceMap, stream);
 }
 
 /**
  * @deprecated
  */
 static UNUSED void printPerformanceCountsPlugin(InferenceEngine::InferenceEnginePluginPtr plugin, std::ostream &stream) {
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfomanceMap;
-    plugin->GetPerformanceCounts(perfomanceMap, nullptr);
-    printPerformanceCounts(perfomanceMap, stream);
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> performanceMap;
+    plugin->GetPerformanceCounts(performanceMap, nullptr);
+    printPerformanceCounts(performanceMap, stream);
 }
 
 /**
@@ -883,7 +899,7 @@ public:
             for (auto desObj = desiredObjects.alist.begin(); desObj != desiredObjects.alist.end(); desObj++, j++) {
                 double iou = DetectedObject::ioU(detObj, *desObj);
                 if (iou > overlap_max) {
-                    overlap_max = iou;
+                    overlap_max = static_cast<float>(iou);
                     jmax = j;
                     desmax = desObj;
                 }
@@ -964,7 +980,7 @@ public:
                         break;
                     } else {
                         if (max_precs[j] < prec[i]) {
-                            max_precs[j] = prec[i];
+                            max_precs[j] = static_cast<float>(prec[i]);
                         }
                     }
                 }
@@ -1014,10 +1030,10 @@ static UNUSED void addRectangles(unsigned char *data, size_t height, size_t widt
     for (size_t i = 0; i < detectedObjects.size(); i++) {
         int cls = detectedObjects[i].objectType % colors.size();
 
-        int xmin = detectedObjects[i].xmin * width;
-        int xmax = detectedObjects[i].xmax * width;
-        int ymin = detectedObjects[i].ymin * height;
-        int ymax = detectedObjects[i].ymax * height;
+        int xmin = static_cast<int>(detectedObjects[i].xmin * width);
+        int xmax = static_cast<int>(detectedObjects[i].xmax * width);
+        int ymin = static_cast<int>(detectedObjects[i].ymin * height);
+        int ymax = static_cast<int>(detectedObjects[i].ymax * height);
 
         size_t shift_first = ymin*width * 3;
         size_t shift_second = ymax*width * 3;

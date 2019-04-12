@@ -37,7 +37,7 @@
     } \
 } while(0)
 
-static size_t product(int *arr, size_t size) {
+static size_t product(ptrdiff_t *arr, size_t size) {
     size_t prod = 1;
     for (size_t i = 0; i < size; ++i) prod *= arr[i];
     return prod;
@@ -92,12 +92,12 @@ void test2() {
 
     const int mb = 2;
     const int groups = 2;
-    int c3_src_sizes[4] = {mb, 256, 13, 13};
-    int c3_weights_sizes[] = {groups, 384/groups, 256/groups, 3, 3};
-    int c3_bias_sizes[1] = {384};
-    int strides[] = {1, 1};
-    int32_t  padding[] = {0, 0}; // set proper values
-    int c3_dst_sizes[4] = {mb, 384,
+    ptrdiff_t c3_src_sizes[4] = {mb, 256, 13, 13};
+    ptrdiff_t c3_weights_sizes[] = {groups, 384/groups, 256/groups, 3, 3};
+    ptrdiff_t c3_bias_sizes[1] = {384};
+    ptrdiff_t strides[] = {1, 1};
+    ptrdiff_t  padding[] = {0, 0}; // set proper values
+    ptrdiff_t c3_dst_sizes[4] = {mb, 384,
         (c3_src_sizes[2] + 2*padding[0] - c3_weights_sizes[3])/strides[0] + 1,
         (c3_src_sizes[3] + 2*padding[1] - c3_weights_sizes[4])/strides[1] + 1
     };
@@ -249,7 +249,7 @@ void test2() {
 
 void test3() {
     const int mb = 2;
-    int l2_data_sizes[4] = {mb, 256, 13, 13};
+    ptrdiff_t l2_data_sizes[4] = {mb, 256, 13, 13};
 
     real_t *src = (real_t*)calloc(product(l2_data_sizes, 4), sizeof(real_t));
     real_t *dst = (real_t*)calloc(product(l2_data_sizes, 4), sizeof(real_t));

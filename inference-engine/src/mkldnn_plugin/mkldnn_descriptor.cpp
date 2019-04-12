@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,19 +47,6 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_forward::
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_forward::desc>() {
     DescFwdImpl<mkldnn::convolution_forward::desc> *typeDesc =
             dynamic_cast<DescFwdImpl<mkldnn::convolution_forward::desc> *>(desc.get());
-    if (typeDesc == nullptr) {
-        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
-    }
-    return typeDesc->getPtr();
-}
-
-MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_relu_forward::desc> desc) {
-    this->desc.reset(new DescFwdImpl<mkldnn::convolution_relu_forward::desc>(desc));
-}
-
-MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_relu_forward::desc>() {
-    DescFwdImpl<mkldnn::convolution_relu_forward::desc> *typeDesc =
-            dynamic_cast<DescFwdImpl<mkldnn::convolution_relu_forward::desc> *>(desc.get());
     if (typeDesc == nullptr) {
         THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
@@ -132,19 +119,6 @@ MKLDNNDescriptor::operator std::shared_ptr<mkldnn::pooling_forward::desc>() {
     return typeDesc->getPtr();
 }
 
-MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::relu_forward::desc> desc) {
-    this->desc.reset(new DescFwdImpl<mkldnn::relu_forward::desc>(desc));
-}
-
-MKLDNNDescriptor::operator std::shared_ptr<mkldnn::relu_forward::desc>() {
-    DescFwdImpl<mkldnn::relu_forward::desc> *typeDesc =
-            dynamic_cast<DescFwdImpl<mkldnn::relu_forward::desc> *>(desc.get());
-    if (typeDesc == nullptr) {
-        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
-    }
-    return typeDesc->getPtr();
-}
-
 MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::roi_pooling_forward::desc> desc) {
     this->desc.reset(new DescFwdImpl<mkldnn::roi_pooling_forward::desc>(desc));
 }
@@ -191,6 +165,43 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::rnn_forward::desc> de
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::rnn_forward::desc>() {
     DescFwdImpl<mkldnn::rnn_forward::desc> *typeDesc =
             dynamic_cast<DescFwdImpl<mkldnn::rnn_forward::desc> *>(desc.get());
+    if (typeDesc == nullptr) {
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::eltwise_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::eltwise_forward::desc>(desc));
+}
+
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::eltwise_forward::desc>() {
+    DescFwdImpl<mkldnn::eltwise_forward::desc> *typeDesc =
+            dynamic_cast<DescFwdImpl<mkldnn::eltwise_forward::desc> *>(desc.get());
+        if (typeDesc == nullptr) {
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::binarization_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::binarization_forward::desc>(desc));
+}
+
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::binarization_forward::desc>() {
+    auto *typeDesc = dynamic_cast<DescFwdImpl<mkldnn::binarization_forward::desc> *>(desc.get());
+    if (typeDesc == nullptr) {
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::binary_convolution_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::binary_convolution_forward::desc>(desc));
+}
+
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::binary_convolution_forward::desc>() {
+    auto *typeDesc = dynamic_cast<DescFwdImpl<mkldnn::binary_convolution_forward::desc> *>(desc.get());
     if (typeDesc == nullptr) {
         THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }

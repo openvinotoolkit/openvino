@@ -1,5 +1,17 @@
-// Copyright (C) 2018 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2016-2018 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #include <mock_icnn_network.hpp>
@@ -16,10 +28,14 @@
 #include "matchers/pwl_quantization_metrics_matcher.hpp"
 #include "matchers/conv_matcher.hpp"
 #include "matchers/pool_matcher.hpp"
+#include "matchers/fill_with_data.hpp"
+#include "matchers/weights_matcher.hpp"
 
 #include <gmock/gmock-generated-actions.h>
 #include <gmock/gmock-more-actions.h>
 #include "gmock/gmock.h"
+#include "matchers/input_data_matcher.hpp"
+#include <inference_engine/blob_factory.hpp>
 
 using namespace std;
 using namespace InferenceEngine;
@@ -30,10 +46,10 @@ class NullAllocator : public IAllocator {
  void * ptr = nullptr;
 public:
     NullAllocator() {
-        ptr = malloc(1);
+        ptr = new char[1];
     }
     ~NullAllocator() {
-        free(ptr);
+        delete[] static_cast<char*>(ptr);
     }
     void * lock(void * handle, LockOp = LOCK_FOR_WRITE)  noexcept override {
         return ptr;
@@ -56,8 +72,11 @@ void GNAPropagateMatcher :: match() {
     try {
         // matching gna propagate forward call.
         GNAPlugin plugin(_env.config);
+        plugin.SetPolicy(_env.policy);
         size_t inputSize = 10;
         size_t outputSize = 10;
+        InputsDataMap inputsInfo;
+        OutputsDataMap  outputsInfo;
 
         auto loadNetworkFromIR = [&] () {
             CNNNetReader net_reader;
@@ -90,7 +109,11 @@ void GNAPropagateMatcher :: match() {
             auto weights = make_shared_blob<uint8_t >(Precision::U8, C, {weightsSize});
 
             weights->allocate();
-            GNATest::fillWeights(weights);
+            if (!_env.weightsFillPattern.empty()) {
+                GNATest::fillWeights(weights, _env.weightsFillPattern);
+            } else {
+                GNATest::fillWeights(weights);
+            }
             net_reader.SetWeights(weights);
 
             net_reader.getNetwork().setTargetDevice(_env.target_device);
@@ -101,18 +124,23 @@ void GNAPropagateMatcher :: match() {
             }
 
             plugin.LoadNetwork(net_reader.getNetwork());
+
+            inputsInfo = net_reader.getNetwork().getInputsInfo();
+            outputsInfo = net_reader.getNetwork().getOutputsInfo();
         };
 
         auto loadNetworkFromAOT = [&] () {
-            plugin.ImportNetwork(_env.importedModelFileName);
+            auto sp = plugin.ImportNetwork(_env.importedModelFileName);
+            inputsInfo = plugin.GetInputs();
+            outputsInfo = plugin.GetOutputs();
         };
 
-        TBlob<float>::Ptr input, output;
+        std::map<std::string, Blob::Ptr> input;
+        TBlob<float>::Ptr output;
         size_t in_N = 1;
         size_t out_N = in_N;
         size_t in_C;
         size_t out_C;
-
 
         auto loadNetwork = [&]() {
             if (!_env.importedModelFileName.empty()) {
@@ -120,16 +148,36 @@ void GNAPropagateMatcher :: match() {
             } else {
                 ASSERT_NO_FATAL_FAILURE(loadNetworkFromIR());
             }
-            in_C = _env.matchOutput == true ? _env.input_init.size(): inputSize;
-            out_C = _env.matchOutput == true ? _env.expected_output.size(): outputSize;
+            const int channel_idx = 0;
+            bool haveInputs = !_env.input_init.empty();
+            for (auto && info :inputsInfo) {
+                decltype(_env.input_init)::iterator it;
+                auto & inputBlob = input[info.first];
+                if (haveInputs) {
+                    if (inputsInfo.size() != 1) {
+                        ASSERT_NE(it = _env.input_init.find(info.first), _env.input_init.end());
+                    } else {
+                        ASSERT_NE(0, _env.input_init.size());
+                        it = _env.input_init.begin();
+                    }
+                    in_C = it->second.size();
+                    ASSERT_EQ(in_C, info.second->getDims()[channel_idx]);
+                }
 
-            input.reset(new TBlob<float>(Precision::FP32, NC, {in_C, in_N}));
-            input->allocate();
-
-            if(_env.matchOutput == true) {
-                std::copy_n(_env.input_init.cbegin(), in_N * in_C, input->buffer().as<float *>());
+                inputBlob = make_blob_with_precision(_env.input_precision, info.second->getLayout(), info.second->getDims());
+                inputBlob->allocate();
+                if (haveInputs) {
+                    if (_env.input_precision == Precision::FP32) {
+                        std::copy_n(it->second.cbegin(), in_N * in_C, inputBlob->buffer().as<float *>());
+                    } else if (_env.input_precision == Precision::U8) {
+                        std::copy_n(it->second.cbegin(), in_N * in_C, inputBlob->buffer().as<uint8_t *>());
+                    } else {
+                        std::logic_error(std::string("Unsupported input precision: ") + _env.input_precision.name());
+                    }
+                }
             }
 
+            out_C = _env.matchOutput == true ? _env.expected_output.size(): outputSize;
             output.reset(new TBlob<float>(Precision::FP32, NC, {out_C, out_N}));
             output->allocate();
         };
@@ -199,6 +247,21 @@ void GNAPropagateMatcher :: match() {
                         EXPECT_CALL(mockApi, GNAPropagateForward(_, _, _, _, _, _))
                             .WillOnce(DoAll(SaveArgPointee<1>(savedNet), Return(GNA_NOERROR)));
                         break;
+                    case GnaPluginTestEnvironment::matchInputData :
+                        combined->add(new InputDataMatcher(_env.input_processed));
+                        break;
+                    case GnaPluginTestEnvironment::fillOutputValues :
+                        combined->add(new OutputFiller(_env.fillValue, _env.fillValue));
+                        break;
+                    case GnaPluginTestEnvironment::matchAffineWeightsTranspose:
+                        HasWeightsTranspozed(combined, _env.transposedData, _env.transposeArgs);
+                        break;
+                    case GnaPluginTestEnvironment::matchAffineWeights:
+                        HasWeightsEq(combined, _env.transposedData);
+                        break;
+                    case GnaPluginTestEnvironment::saveAffineWeights:
+                        SaveWeights(combined, _env.transposedData, _env.transposedArgsForSaving);
+                        break;
                     default:
                         EXPECT_CALL(mockApi, GNAPropagateForward(_, _, _, _, _, _))
                             .WillOnce(Return(GNA_NOERROR));
@@ -211,15 +274,39 @@ void GNAPropagateMatcher :: match() {
         }
 
         loadNetwork();
-        plugin.Infer(*input, *output);
-        if(_env.matchOutput == true) {
+
+        if (!inputsInfo.empty()) {
+            BlobMap  input_blob_map;
+            BlobMap  output_blob_map;
+            for (auto info : inputsInfo) {
+                size_t current_size = InferenceEngine::details::product(info.second->getTensorDesc().getDims());
+                input_blob_map[info.first] = input[info.first];
+            }
+            size_t offset = 0;
+            for (auto info : outputsInfo) {
+                size_t current_size = InferenceEngine::details::product(info.second->getTensorDesc().getDims());
+                output_blob_map[info.first] = make_shared_blob<float>(
+                    info.second->getPrecision(), NC,
+                    {1, details::product(info.second->getDims())}, output->data() + offset, current_size * sizeof(float));
+                offset += current_size;
+            }
+
+            plugin.Infer(input_blob_map, output_blob_map);
+
+        } else {
+            plugin.Infer(*input.begin()->second, *output);
+        }
+
+
+        if (_env.matchOutput) {
             std::vector<float> actual_output(output->size());
 
             std::copy_n(output->cbuffer().as<float *>(), out_C * out_N, actual_output.begin());
 
-            ASSERT_EQ(true,
-                    std::equal(_env.expected_output.begin(), _env.expected_output.end(), actual_output.begin())
-                  );
+            for (auto ref = _env.expected_output.begin(); ref != _env.expected_output.end(); ref++ ) {
+                auto idx = std::distance( _env.expected_output.begin(), ref);
+                ASSERT_FLOAT_EQ(*ref, actual_output[idx]) << "at "<< idx;
+            }
         }
 
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;

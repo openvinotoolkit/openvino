@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,17 +21,16 @@ import networkx as nx
 import numpy as np
 
 from mo.front.extractor import add_attrs_props
-from mo.graph.graph import Node, unique_id
 from mo.middle.passes.eliminate import graph_clean_up
 from mo.utils.graph import pseudo_topological_sort
 from mo.ops.lin_op import Mul, Add
 from mo.middle.passes.eliminate import merge_data_nodes
 from mo.ops.op import Op
-from mo.graph.graph import dump_graph_for_graphviz
+from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import backward_bfs, forward_bfs, get_tensor_id, get_value_id
 
 
-def _fuse_linear_sequence(graph: nx.MultiDiGraph, start_node: Node):
+def _fuse_linear_sequence(graph: Graph, start_node: Node):
     """
     This function finds the sequence of Mul/Add operations and replaces this sequence with two ops (Mul->Add).
     :param graph:
@@ -125,7 +124,7 @@ def _fuse_linear_sequence(graph: nx.MultiDiGraph, start_node: Node):
     return True
 
 
-def fuse_mul_add_sequence(graph: nx.MultiDiGraph):
+def fuse_mul_add_sequence(graph: Graph):
     """
     This function finds first valid Mul/Add node and pass it to fuse_linear_sequence where full sequence will be found
     """

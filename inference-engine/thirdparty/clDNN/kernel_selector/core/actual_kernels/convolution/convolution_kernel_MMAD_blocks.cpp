@@ -15,7 +15,6 @@
 */
 
 #include "convolution_kernel_MMAD_blocks.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector 
 {
@@ -25,21 +24,21 @@ namespace kernel_selector
         std::vector<size_t> blockWidthSizes = { 1,2,4,5,6,8,10,12,14,16,18,20,22,24,26,28,30,32 };
         std::vector<size_t> blockHeightSizes = { 1,2,3,4,5,6,7,8,9,10 };
         std::vector<size_t> prefetchSizes = { 1,2,3,4,5,6,8,10 };
-        std::vector<std::string> executionModes = { /*AGE_BASED ,*/ ROUND_ROBIN };
+        std::vector<std::string> executionModes = ConvolutionKernelBase::autoTuneOptions;
         const size_t maxBlockSize = 240;
-
-        for (auto blockWidth : blockWidthSizes)
+        for (auto executionMode : executionModes)
         {
-            for (auto blockHeight : blockHeightSizes)
+            for (auto blockWidth : blockWidthSizes)
             {
-                for (auto prefetch : prefetchSizes)
+                for (auto blockHeight : blockHeightSizes)
                 {
-                    for (auto executionMode : executionModes)
+                    for (auto prefetch : prefetchSizes)
                     {
                         if (blockWidth * blockHeight <= maxBlockSize)
                         {
                             autoTuneOptions.emplace_back(AutoTuneOption{ blockWidth, blockHeight, prefetch, executionMode });
                         }
+                   
                     }
                 }
             }
@@ -110,7 +109,7 @@ namespace kernel_selector
         // Sub-group size used by "convolution_gpu_mmad_blocks" kernel.
         constexpr size_t sub_group_size = 16;
 
-        AutoTuneOption option = { 0, 0, 0, ROUND_ROBIN };
+        AutoTuneOption option = { 0, 0, 0, DEFAULT };
 
         const convolution_params& cp = static_cast<const convolution_params&>(p);
 
@@ -255,14 +254,9 @@ namespace kernel_selector
         return jit;
     }
 
-    KernelsData ConvolutionKernel_MMAD_blocks::GetTunedKernelsDataByIndex(const Params& params, const optional_params& options, const int autoTuneIndex) const
-    {
-        return GetCommonKernelsData(params, options, GetAutoTuneOptions(params, autoTuneIndex).exeMode, autoTuneIndex);
-    }
-
     KernelsData ConvolutionKernel_MMAD_blocks::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        KernelsData kd = GetCommonKernelsData(params, options);
+        KernelsData kd = GetTunedKernelsDataByIndex(params, options);
         if (!kd.empty())
             kd[0].estimatedTime = FORCE_PRIORITY_2;
     
@@ -286,9 +280,6 @@ namespace kernel_selector
                 res.emplace_back(kd[0]);
             }
         }
-
-        KernelsData defaultKds = GetKernelsData(params, options);
-        res.insert(res.end(), defaultKds.begin(), defaultKds.end());
 
         return res;
     }

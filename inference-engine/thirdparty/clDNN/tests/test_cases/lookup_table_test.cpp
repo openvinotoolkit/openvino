@@ -32,7 +32,7 @@ using namespace tests;
 TEST(lookup_table_base, base) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 3, batch_num = 2;
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { batch_num, feature_num, x_size , y_size } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, {2, 1, 1, 1} });
@@ -83,7 +83,7 @@ TEST(lookup_table_base, base) {
 TEST(lookup_table_num, base) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 3, batch_num = 2, number_of_values = 3;
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 3, 1 } });
@@ -160,7 +160,7 @@ TEST(lookup_table_num, base) {
 TEST(lookup_table_with_arg_max, base) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 3, batch_num = 2;
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
@@ -207,7 +207,7 @@ TEST(lookup_table_with_arg_max, base) {
 TEST(lookup_table_axis, base) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 3, batch_num = 2, number_of_values = 2;
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 3, 2, 2 } });

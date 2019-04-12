@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,12 +16,10 @@
 
 import logging as log
 
-import networkx as nx
-
 from extensions.front.sub import Sub
 from extensions.ops.prelu import PreluOp
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import replace_node
+from mo.graph.graph import Graph
 from mo.middle.pattern_match import check_node_usages_out_of_match
 
 
@@ -49,7 +47,7 @@ class PReLU(FrontReplacementSubgraph):
             ]
         )
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         consumers = [n for n in match if n not in ['mul', 'op', 'add'] and not check_node_usages_out_of_match(match, n)]
         if consumers:
             log.warning('PReLU pattern was detected. Non pattern consumers of nodes: "{}" were found. Won\'t replace'
@@ -57,7 +55,7 @@ class PReLU(FrontReplacementSubgraph):
             return
         gamma = match['mul'].in_node(0) if match['mul'].in_node(1).id == match['neg_1'].id else match['mul'].in_node(1)
         prelu_node = PreluOp(graph, {'name': '{}/PReLU'.format(match['add'].id)}).create_node([match['op'], gamma])
-        replace_node(match['add'], prelu_node)
+        match['add'].replace_node(prelu_node)
         log.debug('PReLU pattern starting from "{}" was collapsed to "{}"'.format(match['op'].id, prelu_node.id))
 
 
@@ -89,7 +87,7 @@ class PReLUWithAbs(FrontReplacementSubgraph):
             ]
         )
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         consumers = [n for n in match if
                      n not in ['mul', 'mul_1', 'op', 'add', 'abs', 'sub'] and not check_node_usages_out_of_match(match,
                                                                                                                  n)]
@@ -99,5 +97,5 @@ class PReLUWithAbs(FrontReplacementSubgraph):
             return
         gamma = match['mul'].in_node(0) if match['mul'].in_node(1).id == match['sub'].id else match['mul'].in_node(1)
         prelu_node = PreluOp(graph, {'name': '{}/PReLU'.format(match['add'].id)}).create_node([match['op'], gamma])
-        replace_node(match['add'], prelu_node)
+        match['add'].replace_node(prelu_node)
         log.debug('PReLUWithAbs pattern starting from "{}" was collapsed to "{}"'.format(match['op'].id, prelu_node.id))

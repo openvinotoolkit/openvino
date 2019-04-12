@@ -31,6 +31,12 @@ primitive_type_id generic_layer_type_id()
     return &instance;
 }
 
+generic_layer_node::typed_program_node(const std::shared_ptr<generic_layer> prim, program_impl& prog)
+    : parent(prim, prog)
+{
+    can_share_buffer(false);
+}
+
 generic_layer_inst::typed_primitive_inst(network_impl& network, generic_layer_node const& node)
     : parent(network, node)
 {

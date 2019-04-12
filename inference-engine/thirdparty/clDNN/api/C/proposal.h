@@ -47,8 +47,11 @@ CLDNN_BEGIN_PRIMITIVE_DESC(proposal)
     float box_size_scale;
     uint32_t swap_xy;
     uint32_t initial_clip;
+    uint32_t clip_before_nms;
+    uint32_t clip_after_nms;
     uint32_t round_ratios;
     uint32_t shift_anchors;
+    uint32_t normalize;
 CLDNN_END_PRIMITIVE_DESC(proposal)
 
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(proposal);

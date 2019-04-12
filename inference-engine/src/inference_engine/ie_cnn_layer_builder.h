@@ -1,19 +1,72 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <details/caseless.hpp>
-#include <ie_inetwork.hpp>
+#include <ie_network.hpp>
+#include <ie_builders.hpp>
 #include <ie_layers.h>
 #include <ie_blob.h>
 #include <memory>
 #include <string>
+#include <vector>
+#include <map>
 
 namespace InferenceEngine {
 
 namespace Builder {
+
+template<class T>
+inline std::string convertParameter2String(const Parameter& parameter) {
+    if (parameter.is<std::vector<T>>()) {
+        std::vector<T> params = parameter.as<std::vector<T>>();
+        std::string result;
+        for (const auto& param : params) {
+            if (!result.empty())
+                result += ",";
+            result += convertParameter2String<T>(param);
+        }
+        return result;
+    }
+    return std::to_string(parameter.as<T>());
+}
+template<>
+inline std::string convertParameter2String<std::string>(const Parameter& parameter) {
+    return parameter.as<std::string>();
+}
+
+std::map<std::string, std::string> convertParameters2Strings(const std::map<std::string, Parameter>& parameters);
+Layer builderFromCNNLayer(const CNNLayerPtr& cnnLayer);
+
+struct ConvertersHolder {
+    details::caseless_map<std::string, std::function<void(const CNNLayerPtr& cnnLayer, Layer&)>> converters;
+};
+
+/**
+ * @brief This class registers layer validators
+ */
+class ConverterRegister {
+public:
+    /**
+     * @brief The constructor registers new layer validator
+     * @param type Layer type
+     * @param validator Layer validator
+     */
+    explicit ConverterRegister(const std::string& type, const std::function<void(const CNNLayerPtr&, Layer&)>& converter);
+
+    static void convert(const CNNLayerPtr& cnnLayer, Layer& layer) {
+        if (getConvertersHolder().converters.find(layer.getType()) != getConvertersHolder().converters.end())
+            getConvertersHolder().converters[layer.getType()](cnnLayer, layer);
+    }
+
+private:
+    static ConvertersHolder& getConvertersHolder();
+};
+
+#define REG_CONVERTER_FOR(__type, __converter) \
+static InferenceEngine::Builder::ConverterRegister _reg_converter_##__type(#__type, __converter)
 
 class BaseConverter {
 public:
@@ -37,20 +90,30 @@ public:
 
         auto * weightLayerPtr = dynamic_cast<WeightableLayer *>(res.get());
 
-        for (auto& it : layer->getParameters()->getConstantData()) {
-            res->blobs[it.first] = std::const_pointer_cast<Blob>(it.second);
+        for (const auto& port : layer->getInputPorts()) {
+            if (port.getParameters().find("type") == port.getParameters().end() ||
+                    port.getData()->getData()->cbuffer() == nullptr)
+                continue;
+            res->blobs[port.getParameters().at("type")] = port.getData()->getData();
             if (weightLayerPtr == nullptr)
                 continue;
-            if (it.first == "weights") {
-                weightLayerPtr->_weights =  std::const_pointer_cast<Blob>(it.second);
-            } else if (it.first == "biases") {
-                weightLayerPtr->_biases =  std::const_pointer_cast<Blob>(it.second);
+            if (port.getParameters().at("type").as<std::string>() == "weights") {
+                weightLayerPtr->_weights = port.getData()->getData();
+            } else if (port.getParameters().at("type").as<std::string>() == "biases") {
+                weightLayerPtr->_biases = port.getData()->getData();
             }
         }
 
-        for (const auto& it : layer->getParameters()->getParameters()) {
-            res->params[it.first] = it.second;
+        // For constant layers
+        for (auto& it : layer->getParameters()) {
+            if (it.second.is<Blob::CPtr>()) {
+                res->blobs[it.first] = std::const_pointer_cast<Blob>(it.second.as<Blob::CPtr>());
+            } else if (it.second.is<Blob::Ptr>()) {
+                res->blobs[it.first] = it.second.as<Blob::Ptr>();
+            }
         }
+
+        res->params = convertParameters2Strings(layer->getParameters());
         return res;
     }
 
@@ -75,13 +138,13 @@ public:
                 {"tanh", std::make_shared<LayerConverter<InferenceEngine::CNNLayer>>("TanH")},
         };
 
-        auto typeIt = layer->getParameters()->getParameters().find("type");
-        if (typeIt == layer->getParameters()->getParameters().end())
+        auto typeIt = layer->getParameters().find("type");
+        if (typeIt == layer->getParameters().end())
             THROW_IE_EXCEPTION << "Unsupported Activation layer. Type is unknown.";
 
         auto activationBuilder = activationCreators.find(typeIt->second);
         if (activationBuilder == activationCreators.end()) {
-            THROW_IE_EXCEPTION << "Unsupported Activation layer type: " << typeIt->second.asString();
+            THROW_IE_EXCEPTION << "Unsupported Activation layer type: " << typeIt->second.as<std::string>();
         }
 
         auto activation = activationBuilder->second->createLayer(layer, precision);
@@ -95,6 +158,29 @@ public:
     bool canCreate(const std::string& nodeType) const override {
         details::CaselessEq<std::string> comparator;
         return comparator(nodeType, type);
+    }
+};
+
+class RNNSequenceConverter: public BaseConverter {
+public:
+    RNNSequenceConverter(): BaseConverter("RNN") {}
+
+    CNNLayer::Ptr createLayer(const std::shared_ptr<const ILayer>& layer, Precision precision) override {
+        auto rnnLayer = LayerConverter<InferenceEngine::RNNSequenceLayer>("RNN").createLayer(layer, precision);
+        rnnLayer->type = "RNN";
+        std::string type = layer->getType();
+        size_t pos = type.find("Sequence");
+        if (pos != std::string::npos)
+            type.erase(pos);
+        rnnLayer->params["cell_type"] = type;
+        return rnnLayer;
+    }
+
+    bool canCreate(const std::string& nodeType) const override {
+        static const details::caseless_set<std::string> supportedRnnTypes {
+            "LSTMSequence", "GRUSequence", "RNNSequence"
+        };
+        return supportedRnnTypes.find(nodeType) != supportedRnnTypes.end();
     }
 };
 

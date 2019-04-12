@@ -26,8 +26,13 @@
 #define STRINGIFy(s) #s
 #define STRINGIFY(s) STRINGIFy(s)
 
-#define PRAGMA_MACRo(x) _Pragma(#x)
-#define PRAGMA_MACRO(x) PRAGMA_MACRo(x)
+#ifdef _MSC_VER
+#   define PRAGMA_MACRo(x) __pragma(x)
+#   define PRAGMA_MACRO(x) PRAGMA_MACRo(x)
+#else
+#   define PRAGMA_MACRo(x) _Pragma(#x)
+#   define PRAGMA_MACRO(x) PRAGMA_MACRo(x)
+#endif
 
 #endif
 

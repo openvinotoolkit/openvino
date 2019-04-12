@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,11 +15,9 @@
 """
 import numpy as np
 
-import networkx as nx
-
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.activation import Activation
 from mo.ops.clamp import Clamp
 from mo.ops.eltwise import Eltwise
@@ -50,7 +48,15 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
     op = "LSTMCell"
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    # we need to rewrite this transform to fit unified pipeline (it should be a part of traditional FRONT phase)
+    def run_before(self):
+        from extensions.front.output_cut import OutputCut
+        return [OutputCut]
+
+    def run_after(self):
+        return []
+
+    def replace_op(self, graph: Graph, node: Node):
         input_node = node.in_node()
 
         memory_pair_input = unique_id('id')
@@ -102,7 +108,8 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         #     |____(4)Eltwise(sum)
         split_joined_input = Split(graph, {'name': 'join_input_split',
                                            'axis': 1,
-                                           'num_split': 4
+                                           'num_split': 4,
+                                           'out_ports_count': 4,
                                            }).create_node([join_input_prev_state_sum])
 
         prev_lstm_state = Memory(graph, {'name': 'prev_memory_state',

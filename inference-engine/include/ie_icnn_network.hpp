@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,8 @@ using OutputsDataMap = std::map<std::string, DataPtr>;
  */
 class ICNNNetwork : public details::IRelease {
 public:
+    using Ptr = std::shared_ptr<ICNNNetwork>;
+
     /**
      * @brief Returns the main network operating precision.
      * This may be MIXED if not homogeneous.

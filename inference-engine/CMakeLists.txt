@@ -1,12 +1,14 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 3.3)
+cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 project(InferenceEngine)
 
 set(DEV_BUILD TRUE)
+
+include(CTest)
 
 ## WA for problem with gtest submodule. It cannot detect uint32 type.
 ## remove Gtest submodule and this two lines together
@@ -133,25 +135,28 @@ set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 include (sanitizer)
 
 include(CheckCXXCompilerFlag)
-if(UNIX)
-    CHECK_CXX_COMPILER_FLAG("-fvisibility=hidden" COMPILER_SUPPORTS_VISIBILITY)
-    if (COMPILER_SUPPORTS_VISIBILITY)
-        #add_definitions(-fvisibility=hidden) todo: should be hidden? if so define default visibiliti explicite for each funtion
-        add_definitions(-fvisibility=default)
-    endif(COMPILER_SUPPORTS_VISIBILITY)
-endif(UNIX)
+
+include(cpplint)
 
 add_subdirectory(src)
 add_subdirectory(tests)
 add_subdirectory(thirdparty)
-if (ENABLE_SAMPLES_CORE)
-    set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
+set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
 
-    #to be able to link
-    set (LIB_FOLDER ${IE_MAIN_SOURCE_DIR}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION}/lib)
-    add_subdirectory(samples)
-endif()
+#to be able to link
+set (LIB_FOLDER ${IE_MAIN_SOURCE_DIR}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION}/lib)
+
+# gflags and format_reader targets are kept inside of samples directory and
+# they must be built even if samples build is disabled (required for tests and tools).
+add_subdirectory(samples)
+
+file(GLOB_RECURSE SAMPLES_SOURCES samples/*.cpp samples/*.hpp samples/*.h)
+add_cpplint_target(sample_cpplint
+    FOR_SOURCES ${SAMPLES_SOURCES}
+    EXCLUDE_PATTERNS "thirdparty/*" "pugixml/*")
 
 if (ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
+
+add_cpplint_report_target()

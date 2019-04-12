@@ -36,18 +36,19 @@ typedef enum /*:int32_t*/
 {
     /// @brief All points in the border are set to constant value.
     cldnn_border_constant,
+    cldnn_border_zero = cldnn_border_constant, /// keep bwd compatibilty 
     /// @brief Border is constructed as an mirror of image (edge is also mirrored).
     /// @details Size of border in any dimension cannot be larger than size of
     ///          input in the same dimension.
     cldnn_border_mirror,
-    /// @brief Border is constructed as an replication of edge.
-    /// @details Size of border in any dimension cannot be larger than size of
-    ///          input in the same dimension.
-    cldnn_border_edge,
     /// @brief Border is constructed as an mirror of image (edge is NOT mirrored).
     /// @details Size of border in any dimension cannot be larger than size of
     ///          input in the same dimension decreased by @c 1.
-    cldnn_border_mirror_101
+    cldnn_border_mirror_101,
+    /// @brief Border is constructed as an replication of edge.
+    /// @details Size of border in any dimension cannot be larger than size of
+    ///          input in the same dimension.
+    cldnn_border_edge
 } cldnn_border_type;
 
 

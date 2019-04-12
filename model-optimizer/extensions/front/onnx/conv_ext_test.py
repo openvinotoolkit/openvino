@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -46,13 +46,11 @@ class ConvTransposeONNXExtractorTest(unittest.TestCase):
             dict(
                 type='Deconvolution',
                 pad=[[0, 0], [0, 0], [1, 3], [2, 4]],
-                pad_spatial_shape=[[1, 3], [2, 4]],
-                kernel_spatial=[5, 6],
                 bias_term=None,
                 output_shape=None,
-                output_padding=[0, 0, 0, 0],
-                dilation=[1, 1, 1, 1],
-                stride=[1, 1, 1, 1],
+                output_padding=None,
+                dilation=None,
+                stride=None,
                 output_spatial_shape=None,
                 group=1
             )
@@ -74,8 +72,7 @@ class ConvTransposeONNXExtractorTest(unittest.TestCase):
     def test_all_valid_default(self):
         inp, ref = self._base_attrs()
         del inp['pads']
-        ref['pad'] = [[0, 0], [0, 0], [0, 0], [0, 0]]
-        ref['pad_spatial_shape'] = [[0, 0], [0, 0]]
+        del ref['pad']
         out = self._extract(inp)
         self._match(out, ref)
 
@@ -111,8 +108,7 @@ class ConvTransposeONNXExtractorTest(unittest.TestCase):
         inp['auto_pad'] = 'SAME_UPPER'
 
         ref['auto_pad'] = 'same_upper'
-        ref['pad'] = [[0, 0], [0, 0], [0, 0], [0, 0]]
-        ref['pad_spatial_shape'] = [[0, 0], [0, 0]]
+        del ref['pad']
 
         out = self._extract(inp)
         self._match(out, ref)

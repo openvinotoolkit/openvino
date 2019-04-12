@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.back.replacement import BackReplacementPattern
+from mo.graph.graph import Graph
 
 
 class ShufflenetReLUReorder(BackReplacementPattern):
@@ -50,7 +50,7 @@ class ShufflenetReLUReorder(BackReplacementPattern):
                    ]
         )
 
-    def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(self, graph: Graph, match: dict):
         relu = match['relu']
         reshape1 = match['reshape1']
         reshape2_data = match['reshape2_data']

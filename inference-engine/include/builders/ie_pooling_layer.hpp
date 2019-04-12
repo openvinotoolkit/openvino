@@ -1,11 +1,11 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <builders/ie_layer_fragment.hpp>
-#include <ie_inetwork.hpp>
+#include <builders/ie_layer_decorator.hpp>
+#include <ie_network.hpp>
 #include <vector>
 #include <string>
 
@@ -15,7 +15,7 @@ namespace Builder {
 /**
  * @brief The class represents a builder for Pooling layer
  */
-class INFERENCE_ENGINE_API_CLASS(PoolingLayer): public LayerFragment {
+class INFERENCE_ENGINE_API_CLASS(PoolingLayer): public LayerDecorator {
 public:
     /**
      * @brief The enum defines available pooling types
@@ -40,9 +40,14 @@ public:
     explicit PoolingLayer(const std::string& name = "");
     /**
      * @brief The constructor creates a builder from generic builder
-     * @param genLayer generic builder
+     * @param layer pointer to generic builder
      */
-    explicit PoolingLayer(Layer& genLayer);
+    explicit PoolingLayer(const Layer::Ptr& layer);
+    /**
+     * @brief The constructor creates a builder from generic builder
+     * @param layer constant pointer to generic builder
+     */
+    explicit PoolingLayer(const Layer::CPtr& layer);
     /**
      * @brief Operator creates generic layer builder
      * @return Generic layer builder
@@ -154,12 +159,6 @@ public:
      * @return reference to layer builder
      */
     PoolingLayer& setExcludePad(bool exclude);
-
-    /**
-     * @brief Validates layer before creation
-     * @param layer generic layer builder
-     */
-    static void validate(const Layer& layer);
 
 private:
     PoolingType type;

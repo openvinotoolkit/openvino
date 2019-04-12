@@ -128,6 +128,15 @@ set(VTUNEROOT "" CACHE STRING
 # Miscellaneous
 # =============
 
+option(BENCHDNN_USE_RDPMC
+    "enables rdpms counter to report precise cpu frequency in benchdnn.
+     CAUTION: may not work on all cpus (hence disabled by default)"
+    OFF) # disabled by default
+
+# =============
+# Developer flags
+# =============
+
 set(MKLDNN_USE_CLANG_SANITIZER "" CACHE STRING
     "instructs build system to use a Clang sanitizer. Possible values:
     Address: enables MemorySanitizer
@@ -136,8 +145,7 @@ set(MKLDNN_USE_CLANG_SANITIZER "" CACHE STRING
     Undefined: enables UndefinedBehaviourSanitizer
     This feature is experimental and is only available on Linux.")
 
-
-option(BENCHDNN_USE_RDPMC
-    "enables rdpms counter to report precise cpu frequency in benchdnn.
-     CAUTION: may not work on all cpus (hence disabled by default)"
-    OFF) # disabled by default
+option(MKLDNN_PRODUCT_BUILD_MODE
+    "Enables/disables product build mode. For example,
+    setting MKLDNN_PRODUCT_BUILD_MODE=OFF makes warnings non-fatal"
+    ON)

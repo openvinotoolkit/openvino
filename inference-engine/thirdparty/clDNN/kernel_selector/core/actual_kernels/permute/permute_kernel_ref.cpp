@@ -1,5 +1,5 @@
 ﻿/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,12 +42,8 @@ namespace kernel_selector
 
     inline JitConstants MakePermuteJitConstants(const permute_params& params)
     {
-        JitConstants jit = MakeBaseParamsJitConstants(params);
-
-        jit.AddConstants({
-            MakeJitConstant("PERMUTE_ORDER", params.order)
-        });
-
+        JitConstants jit = MakeBaseParamsJitConstants(params);;
+        jit.AddConstant(MakeJitConstant("PERMUTE_ORDER", params.order));
         return jit;
     }
 
@@ -65,20 +61,10 @@ namespace kernel_selector
 
         const auto& in = newParams.inputs[0];
         auto& kernel = kd.kernels[0];
-        std::vector<size_t> gws;
-        for (const auto& o : in.GetDims())
-        {
-            gws.push_back(o.v);
-        }
-        
-        for (size_t i = gws.size(); i < 4; i++)
-        {
-            gws.push_back(1U);
-        }
 
-        kernel.workGroups.global = { gws[0], gws[1], gws[2] * gws[3] };
+        kernel.workGroups.global = { in.Y().v, in.X().v, in.Feature().v * in.Batch().v};
         kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global);
-        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, ROUND_ROBIN);
+        kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
         kernel.arguments = GetArgsDesc(1, false, false);
         
         kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;

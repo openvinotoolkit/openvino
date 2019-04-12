@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,27 +14,26 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from extensions.ops.lstm_cell import LSTMCell
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Node, replace_node, get_inputs_with_ports
+from mo.graph.graph import Node, Graph
 from mo.ops.output import Output
 
 
 class BasicLSTMCell(FrontReplacementSubgraph):
     enabled = True
 
+    # When the deprecated IR version was requested, we configure only those phases that can lead
+    # to functional regressions in the version 2. BasicLSTMCell is one such transformation;
+    # when it is turned off, the body of TF basic_lstm_cell is converted as-is in a decomposed form,
+    # and should work in version 2.
+    graph_condition = [lambda graph: graph.graph['ir_version'] != 2]
+
     # list of names of all original nodes that are supported by IE
     # this list is collected gradually by a separate transformation
     # original name in this case is a selected node in the pattern
     # that is returned from anchor() function
     instances_supported_by_IE = []
-
-    # True if transformation should be activated only for instances collected in supported_by_IE list
-    # It will be set to True by a separate transformation
-    second_round = False
-
 
     def __init__(self):
 
@@ -49,7 +48,6 @@ class BasicLSTMCell(FrontReplacementSubgraph):
         __class__.extra_inputs = ['concat_axis', 'split_axis', 'shift_const']
 
         __class__.outputs = ['mul_2', 'add_1']
-
 
     def pattern(self):
         return dict(
@@ -87,10 +85,10 @@ class BasicLSTMCell(FrontReplacementSubgraph):
                 ('biasadd', 'split', {'in': 1}),
 
                 # This important block specifies how gates are ordered in TF graph
-                ('split', 'sigmoid_1', {'out': 0}),   # i
-                ('split', 'tanh_0', {'out': 1}),      # c
-                ('split', 'shift', {'out': 2}),       # f (this is unbiased f, there is an extra addition here)
-                ('split', 'sigmoid_2', {'out': 3}),   # o
+                ('split', 'sigmoid_1', {'out': 0}),  # i
+                ('split', 'tanh_0', {'out': 1}),  # c
+                ('split', 'shift', {'out': 2}),  # f (this is unbiased f, there is an extra addition here)
+                ('split', 'sigmoid_2', {'out': 3}),  # o
 
                 ('shift_const', 'shift', {}),
                 ('shift', 'sigmoid_0', {}),
@@ -107,25 +105,6 @@ class BasicLSTMCell(FrontReplacementSubgraph):
                 ('sigmoid_2', 'mul_2', {}),
             ])
 
-
-    @staticmethod
-    def mark_supported_by_IE(node: Node):
-        """ Mark a given node as a supported LSTMCell by setting attribute `supported_by_IE`.
-            The node original name is also included in the list of all supported by IE LSTMCell
-            instances for possible second round of the network conversion.
-        """
-        assert node.has_valid('original_name'), \
-            'Node {} doesn\'t have a reference to original FW operation name; bad LSTMCell'.format(node.soft_get('name'))
-        __class__.instances_supported_by_IE.append(node.original_name)
-        node['supported_by_IE'] = True
-
-
-    @staticmethod
-    def finalize_first_round():
-        """ Switch the mode of this pattern into `second stage` where only supported patterns are converted. """
-        __class__.second_round = True
-
-
     @staticmethod
     def anchor():
         """ Mnemonic name in the pattern that is used as an anchor name for this pattern in the original graph.
@@ -133,8 +112,7 @@ class BasicLSTMCell(FrontReplacementSubgraph):
         """
         return 'concat'
 
-
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
 
         # node that is used to identify this pattern application instance for switching between supported
         # and not supported LSTMCell sub-graphs; this value will be searched in __class__.instances_supported_by_IE.
@@ -142,25 +120,17 @@ class BasicLSTMCell(FrontReplacementSubgraph):
         assert anchor_node.has_valid('name'), \
             'LSTMCell anchor node {} does\'t have attribute name; such nodes are not supported.'
 
-        if __class__.second_round and anchor_node.name not in __class__.instances_supported_by_IE:
-            # at the second round of conversion we apply pattern selectively: only instances from
-            # __class__.instances_supported_by_IE are allowed for conversion; all others should be skipped
-            return
-
         match['input_op'] = match['concat'].in_node(0)
         match['input_hidden_state'] = match['concat'].in_node(1)
-        match['input_cell_state'] = match['mul_0'].in_node(0) if match['mul_0'].in_node(0).id != match['sigmoid_0'].id \
-            else match['mul_0'].in_node(1)
+        match['input_cell_state'] = match['mul_0'].in_node(0) \
+            if match['mul_0'].in_node(0).id != match['sigmoid_0'].id else match['mul_0'].in_node(1)
 
         pattern_edges = self.pattern()['edges']
         pattern_edges.extend([('input_op', 'concat'), ('input_cell_state', 'mul_0'), ('input_hidden_state', 'concat')])
-        inputs = get_inputs_with_ports(graph, match, pattern_edges, __class__.inputs + __class__.extra_inputs)
+        inputs = graph.get_inputs_with_ports(match, pattern_edges, __class__.inputs + __class__.extra_inputs)
 
         lstm_op = LSTMCell(graph, dict(
-            name=match['concat'].name + '/LSTMCell',
-            mark_supported_by_IE=__class__.mark_supported_by_IE,
-            original_name=anchor_node.name,
-            finalize_first_round=__class__.finalize_first_round,
+            name=match['concat'].name + '/LSTMCell', activations=None,
         ))
         lstm_node = lstm_op.create_node(inputs)
         lstm_node['old_infer'] = lstm_node.infer
@@ -172,7 +142,7 @@ class BasicLSTMCell(FrontReplacementSubgraph):
         graph.remove_node(match['tanh_1'].id)
 
         for i, output in enumerate(__class__.outputs):
-            replace_node(match[output], lstm_node, i)
+            match[output].replace_node(lstm_node, i)
 
         # Because of LSTMCell specification, this layer MUST have 2 outputs.
         # => we need to create fake consumers for LSTMCell
@@ -185,7 +155,6 @@ class BasicLSTMCell(FrontReplacementSubgraph):
         lstm_node['tf'] = True
         lstm_node['extra_inputs'] = {name: match[name].id for name in __class__.extra_inputs}
         lstm_node['inputs'] = {name: match[name].id for name in __class__.inputs}
-
 
     @staticmethod
     def infer(node: Node):

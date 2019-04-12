@@ -41,12 +41,13 @@ public:
     float out_buffer[out_size];
     float expected_buffer[out_size];
 
-    cldnn::engine engine;
+    const cldnn::engine& engine;
     cldnn::memory input;
+
     //neural::primitive output = memory::allocate({ memory::format::xb_f32, {output_b, {{output_x}}, 1}});
 
     softmax_gpu_xb_f32_test_fixture()
-        :engine()
+        : engine(get_test_engine())
         ,input(memory::allocate(engine, { data_types::f32, format::yxfb, { input_b, 1, input_x, 1}}))
     {}
 
@@ -191,7 +192,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 3,
         batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
@@ -264,7 +265,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_y) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 3,
         batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
@@ -359,7 +360,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_f) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 3,
         batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
@@ -447,7 +448,7 @@ TEST(softmax_gpu_yxfb_f32, normalize_f) {
 
     static const int32_t x_size = 1, y_size = 2, feature_num = 1,
         batch_num = 12, buf_size = x_size*y_size * batch_num * feature_num;
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ batch_num, feature_num, y_size , x_size } });
     topology topology;

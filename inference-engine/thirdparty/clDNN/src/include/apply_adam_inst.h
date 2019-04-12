@@ -25,6 +25,7 @@ namespace cldnn
 template <>
 struct typed_program_node<apply_adam> : public typed_program_node_base<apply_adam>
 {
+    typed_program_node(const std::shared_ptr<apply_adam> prim, program_impl& prog);
     using parent = typed_program_node_base<apply_adam>;
 
 public:

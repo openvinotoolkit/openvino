@@ -50,7 +50,7 @@ struct upsampling_gpu : typed_primitive_gpu_impl<upsampling>
         
         const auto& primitive = arg.get_primitive();
         if(primitive->with_activation)
-            convert_activation_func_params(primitive, us_params);
+            convert_activation_func_params(primitive, us_params.activation);
 
         us_params.scale = primitive->scale;
         us_params.num_filter = primitive->num_filter;

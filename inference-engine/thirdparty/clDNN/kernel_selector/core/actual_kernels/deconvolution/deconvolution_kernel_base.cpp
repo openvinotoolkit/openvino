@@ -56,8 +56,9 @@ namespace kernel_selector
             MakeJitConstant("DILATION",                     dp.dilation),
             MakeJitConstant("FILTER_ARRAY_NUM",             dp.split),
             MakeJitConstant("INPUT0_OFFSET_WITH_PADDING",   input_offset_with_padding),
-            MakeJitConstant("DEPTHWISE_SEPARABLE_OPT",      dp.depthwiseSeparableOpt),
-            MakeJitConstant("FUSED_ELTWISE",                dp.fused_eltwise)
+            MakeJitConstant("DEPTHWISE_SEPARABLE_OPT",      dp.depthwise_separable_opt),
+            MakeJitConstant("FUSED_ELTWISE",                dp.fused_eltwise),
+            MakeJitConstant("GROUPED",                      (dp.groups > 1) ? 1 : 0)
         });
 
         return jit;
@@ -120,7 +121,7 @@ namespace kernel_selector
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         auto& kernel = kd.kernels[0];
-        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, ROUND_ROBIN, true, !newParams.bias.empty());
+        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, DEFAULT, true, !newParams.bias.empty());
         kernel.arguments.push_back({ ArgumentDescriptor::Types::SPLIT, 0 });
         if (orgParams.fused_eltwise)
             kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });

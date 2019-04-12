@@ -21,6 +21,8 @@
 #include "jit_generator.hpp"
 #include "jit_primitive_conf.hpp"
 #include "type_helpers.hpp"
+#include "jit_uni_eltwise.hpp"
+#include "jit_uni_depthwise.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -36,6 +38,16 @@ struct jit_uni_x8s8s32x_dw_conv_fwd_kernel: public jit_generator {
         jit_ker = (void (*)(jit_conv_call_s *))this->getCode();
     }
 
+    ~jit_uni_x8s8s32x_dw_conv_fwd_kernel() {
+        for (auto inj : eltwise_injectors)
+           delete inj;
+        eltwise_injectors.clear();
+
+        for (auto inj : depthwise_injectors)
+            delete inj;
+        depthwise_injectors.clear();
+    }
+
     static bool post_ops_ok(jit_conv_conf_t &jcp,
             const primitive_attr_t &attr);
     static status_t init_conf(jit_conv_conf_t &jcp,
@@ -43,8 +55,7 @@ struct jit_uni_x8s8s32x_dw_conv_fwd_kernel: public jit_generator {
             const memory_desc_wrapper &weights_d,
             const memory_desc_wrapper &dst_d,
             const memory_desc_wrapper &bias_pd,
-            const primitive_attr_t &attr,
-            bool with_relu = false, float relu_negative_slope = 0.f);
+            const primitive_attr_t &attr);
 
     jit_conv_conf_t jcp;
     const primitive_attr_t &attr_;
@@ -84,6 +95,12 @@ private:
     reg64_t reg_tmp_64 = r15;
     reg8_t reg_tmp_8 = r15b;
 
+    reg64_t imm_addr64 = r10;
+
+    reg64_t reg_oc_off = iter_kw;
+    reg64_t reg_d_weights = aux1_reg_kernel;
+    reg64_t reg_d_bias = aux_reg_input;
+
     Vmm vmm_zero = Vmm(0);
     Vmm vmm_bias = Vmm(3);
     Vmm vmm_scale = Vmm(2);
@@ -99,11 +116,16 @@ private:
     inline void load_src(int ur_ch_blocks, int ch_step, int ur_w);
     inline void apply_filter(int ur_ch_blocks, int ch_step, int ur_w);
     inline void apply_filter_unrolled(int ur_ch_blocks, int ch_step, int ur_w);
-    inline bool maybe_relu(int position);
     inline void store_dst(int ur_ch_blocks, int ch_step, int ur_w);
     inline void loop_body(int ur_ch_blocks, int ch_step);
 
+    inline void prepare_table();
     void generate();
+
+    nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
+    nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
+
+    Xbyak::Label l_table;
 };
 
 }

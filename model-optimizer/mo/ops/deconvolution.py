@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 """
 
 import logging as log
-import networkx as nx
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array, float_array, mark_input_bins, assign_dims_to_weights, \
@@ -23,19 +22,21 @@ from mo.front.common.partial_infer.utils import int64_array, float_array, mark_i
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.front.extractor import spatial_getter
 from mo.utils.error import Error
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 
 
 class Deconvolution(Op):
     op = 'Deconvolution'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
             'infer': __class__.infer,
+            'in_ports_count': 3,
+            'out_ports_count': 1,
         }, attrs)
 
     def backend_attrs(self):

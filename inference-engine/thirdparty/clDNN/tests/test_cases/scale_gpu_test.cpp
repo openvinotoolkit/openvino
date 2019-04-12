@@ -47,7 +47,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_same_size) {
     //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5     
     //  f1: b0:  1.6    1.7  1.75   b1:   1.8   1.9   2
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 3, 2 } });
     auto scale_input = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 3, 2 } });
@@ -107,7 +107,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_same_size_bfyx) {
     //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5     
     //  f1: b0:  1.6    1.7  1.75   b1:   1.8   1.9   2
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
     auto scale_input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
@@ -165,7 +165,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_same_size_scale_bfyx) {
     //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5     
     //  f1: b0:  1.6    1.7  1.75   b1:   1.8   1.9   2
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto batch_num = 2;
     auto feature_num = 2;
@@ -243,7 +243,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_same_size_bias_term) {
     //  f1: b0:  3.1    3.2  3.25   b1:   3.3   3.4   3.5     
     //  f1: b0:  4.6    4.7  4.75   b1:   4.8   4.9   4
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 3, 2 } });
     auto scale_input = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 3, 2 } });
@@ -313,7 +313,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_scalar) {
     //  Scale:
     //  0.1    0.2
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto batch_num = 2;
     auto feature_num = 2;
@@ -378,7 +378,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_y) {
     //  Scale:
     //  0.1    0.2
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto batch_num = 2;
     auto feature_num = 2;
@@ -445,7 +445,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_fb) {
     //  f0b0: 0.1   f0b1: 0.2
     //  f1b0: 0.5   f1b1: 2.0
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto batch_num = 2;
     auto feature_num = 2;
@@ -511,7 +511,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_f) {
     //  Scale: per feature
     //  f0bx: 0.1   f1bx: 0.2
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto batch_num = 2;
     auto feature_num = 2;
@@ -578,7 +578,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_x) {
     //  Scale:
     //  0.1    0.2  0.25
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto batch_num = 2;
     auto feature_num = 2;
@@ -646,7 +646,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_xy) {
     //  f0:  0.1    0.2  0.25
     //  f0:  0.6    0.7  0.75
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto batch_num = 2;
     auto feature_num = 2;
@@ -719,7 +719,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_batch1) {
     //  f1: b0:  1.1    1.2  1.25    
     //  f1: b0:  1.6    1.7  1.75
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto batch_num = 2;
     auto feature_num = 2;
@@ -793,7 +793,7 @@ TEST(scale_gpu, basic_in2x3_scale_same_size_bx) {
     //  b0: -0.1 3.2  7
     //  b1: 0    1   -1
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 3, 1 } });
     auto scale_input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 3, 1 } });
@@ -857,7 +857,7 @@ TEST(scale_gpu, basic_in2x3_scale_same_size_xb) {
     //  x0: -0.1  3.2   7
     //  x1: 0       1  -1
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 3, 1, 2, 1 } });
     auto scale_input = memory::allocate(engine, { data_types::f32, format::yxfb, { 3, 1, 2, 1 } });
@@ -919,7 +919,7 @@ TEST(scale_gpu, basic_in2x3_scale_single_value_bx) {
     //  Bias:
     //  -0.1
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 3, 1 } });
     auto scale_input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
@@ -979,7 +979,7 @@ TEST(scale_gpu, basic_in2x3_scale_single_value_xb) {
     //  Bias:
     //  -0.1
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 3, 1, 2, 1 } });
     auto scale_input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 1, 1 } });
@@ -1036,7 +1036,7 @@ TEST(scale_gpu, basic_in2x3_scale_same_size_no_bias_bx) {
     //  b0: 3.1   0.2   0.17
     //  b1: 10     -3      1
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 3, 1 } });
     auto scale_input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 3, 1 } });
@@ -1086,7 +1086,7 @@ TEST(scale_gpu, basic_in2x3_scale_same_size_no_bias_xb) {
     //  x0: 3.1    0.2   0.17
     //  x1: 10      -3      1
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 3, 1, 2, 1 } });
     auto scale_input = memory::allocate(engine, { data_types::f32, format::yxfb, { 3, 1, 2, 1 } });
@@ -1139,7 +1139,7 @@ TEST(scale_gpu, basic_in2x3x2x2_scale_yxfb_bfyx_same_size_padding) {
     //  0.1    0.2
     //  0.6    0.5
      
-    engine engine;
+    const auto& engine = get_test_engine();
     std::vector<format> formats_to_test = { format::yxfb , format::bfyx };
 
     for (std::vector<format>::iterator it = formats_to_test.begin(); it != formats_to_test.end(); ++it)
@@ -1204,7 +1204,7 @@ static network setup_scale_network(
     bool pass_bias          //TODO: a WA for lack of std::optional<tensor> bias
 )
 {
-    engine engine;
+    const auto& engine = get_test_engine();
     topology topology;
 
     auto input_mem = memory::allocate(engine, { dt, f, input_tensor });
@@ -1327,7 +1327,9 @@ public:
 
         std::vector<tests::test_params*> all_generic_params;
 
-        for (cldnn::data_types dt : test_data_types())
+        auto data_types = test_data_types();
+
+        for (cldnn::data_types dt : data_types)
         for (tensor & t : test_input_sizes)
         {
             std::vector<std::vector<int>> attempted_dims;

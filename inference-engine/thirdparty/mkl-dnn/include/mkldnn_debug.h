@@ -67,6 +67,7 @@ const char MKLDNN_API *mkldnn_fmt2str(mkldnn_memory_format_t v);
 const char MKLDNN_API *mkldnn_prop_kind2str(mkldnn_prop_kind_t v);
 const char MKLDNN_API *mkldnn_prim_kind2str(mkldnn_primitive_kind_t v);
 const char MKLDNN_API *mkldnn_alg_kind2str(mkldnn_alg_kind_t v);
+const char MKLDNN_API *mkldnn_rnn_direction2str(mkldnn_rnn_direction_t v);
 
 #ifdef __cplusplus
 }

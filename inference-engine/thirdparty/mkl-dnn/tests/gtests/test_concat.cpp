@@ -39,7 +39,7 @@ class concat_test: public ::testing::TestWithParam<concat_test_params> {
         const data_t *dst_data = (const data_t *)dst.get_data_handle();
         const auto &dst_d = dst.get_primitive_desc().desc();
         const auto dst_dims = dst_d.data.dims;
-        const int* dst_pdims = dst_d.data.layout_desc.blocking.padding_dims;
+        const ptrdiff_t* dst_pdims = dst_d.data.layout_desc.blocking.padding_dims;
 
         int acc_concat_dim = 0;
         const auto ndims = dst_d.data.ndims;
@@ -47,8 +47,8 @@ class concat_test: public ::testing::TestWithParam<concat_test_params> {
         for (size_t num = 0; num < srcs.size(); num++) {
             const data_t *src_data = (const data_t *)srcs[num].get_data_handle();
             const auto &src_d = srcs[num].get_primitive_desc().desc();
-            const int* src_dims = src_d.data.dims;
-            const int* src_pdims = src_d.data.layout_desc.blocking.padding_dims;
+            const ptrdiff_t* src_dims = src_d.data.dims;
+            const ptrdiff_t* src_pdims = src_d.data.layout_desc.blocking.padding_dims;
 
             auto N = src_dims[0];
             auto C = src_dims[1];

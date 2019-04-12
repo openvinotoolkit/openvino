@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -110,27 +110,28 @@ class ConvTransposeFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
-
-        int64array = lambda x: np.array(x, dtype=np.int64)
-
-        pads = onnx_attr(node, 'pads', 'ints', dst_type=int64array)
+        pads = onnx_attr(node, 'pads', 'ints', dst_type=int64_array)
         auto_pad = onnx_attr(node, 'auto_pad', 's', default=None, dst_type=get_onnx_autopad)
 
-        if pads is None:
-            pads = np.array([0, 0, 0, 0], dtype=np.int64)
+        if pads is not None:
+            if len(pads) % 2 != 0:
+                raise Error(
+                    'ConvTranspose node {} specifies pads = {} which has odd number of elements. The model is not correct.',
+                    node.soft_get('name'),
+                    pads
+                )
+            pads = pads.reshape([2, -1])
+            pads = np.transpose(pads)
 
-        if len(pads) % 2 != 0:
-            raise Error(
-                'ConvTranspose node {} specifies pads = {} which has odd number of elements. The model is not correct.',
-                node.soft_get('name'),
-                pads
-            )
+        final_pads = int64_array([[0, 0], [0, 0], *pads]) if pads is not None else None
 
-        pads = pads.reshape([2, -1])
-        pads = np.transpose(pads)
-        dilations = int64array(onnx_attr(node, 'dilations', 'ints', default=[1, 1]))
-        strides = int64array(onnx_attr(node, 'strides', 'ints', default=[1, 1]))
-        kernel_shape = onnx_attr(node, 'kernel_shape', 'ints', dst_type=int64array)
+        dilations = onnx_attr(node, 'dilations', 'ints', default=None)
+        final_dilations = int64_array([1, 1, *dilations]) if dilations is not None else None
+
+        strides = onnx_attr(node, 'strides', 'ints', default=None)
+        final_strides = int64_array([1, 1, *strides]) if strides is not None else None
+
+        kernel_shape = onnx_attr(node, 'kernel_shape', 'ints', dst_type=int64_array)
 
         if kernel_shape is None:
             raise Error(
@@ -138,9 +139,10 @@ class ConvTransposeFrontExtractor(FrontExtractorOp):
                 node.soft_get('name')
             )
 
-        output_padding = onnx_attr(node, 'output_padding', 'ints', default=[0, 0])
+        output_padding = onnx_attr(node, 'output_padding', 'ints', default=None)
+        final_output_padding = int64_array([0, 0, *output_padding]) if output_padding is not None else None
 
-        output_shape = onnx_attr(node, 'output_shape', 'ints', default=None, dst_type=int64array)
+        output_shape = onnx_attr(node, 'output_shape', 'ints', default=None, dst_type=int64_array)
 
         attrs = {
             'type': 'Deconvolution',
@@ -148,26 +150,24 @@ class ConvTransposeFrontExtractor(FrontExtractorOp):
             'auto_pad': auto_pad,
             'bias_addable': True,
             'bias_term': None,  # will be deduced later; not really needed
-            'pad': int64array([[0, 0], [0, 0], pads[0], pads[1]]),
-            'pad_spatial_shape': int64array([pads[0], pads[1]]),
-            'dilation': int64array([1, 1, dilations[0], dilations[1]]),
+            'pad': final_pads,
+            'dilation': final_dilations,
             'output_spatial_shape': output_shape,
             'output_shape': None,
-            'output_padding': int64array([0, 0, output_padding[0], output_padding[1]]),
-            'stride': int64array([1, 1, strides[0], strides[1]]),
+            'output_padding': final_output_padding,
+            'stride': final_strides,
             'group': onnx_attr(node, 'group', 'i', default=1),
             'output': None,
-            'spatial_dims': int64array([2, 3]),
-            'channel_dims': int64array([1]),
-            'batch_dims': int64array([0]),
-            'kernel_spatial': int64array([kernel_shape[0], kernel_shape[1]]),  # TODO WARNING Don't misuse X/Y
+
+            'spatial_dims': None,  # Will be calculated in infer function
+            'channel_dims': int64_array([1]),
+            'batch_dims': int64_array([0]),
+            'layout': 'NCHW',
 
             'input_feature_channel': 0,
             'output_feature_channel': 1,
-            'kernel_spatial_idx': np.array([2, 3]),
             'get_pad': ConvTransposeFrontExtractor.get_pad
         }
-        attrs.update(layout_attrs())
 
         # update the attributes of the node
         Convolution.update_node_stat(node, attrs)

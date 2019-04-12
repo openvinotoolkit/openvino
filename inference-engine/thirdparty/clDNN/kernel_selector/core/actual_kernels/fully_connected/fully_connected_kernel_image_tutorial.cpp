@@ -40,30 +40,38 @@ namespace kernel_selector
         return k;
     }
 
-    std::unique_ptr<FullyConnected_image_tutorial::Parent::DispatchData> FullyConnected_image_tutorial::SetDefault(const fully_connected_params& params) const
+    FullyConnected_image_tutorial::DispatchData FullyConnected_image_tutorial::SetDefault(const fully_connected_params& params, int ) const
     {
         auto runInfo = Parent::SetDefault(params);
         
         std::vector<size_t> global = { params.output.Feature().v, params.output.Batch().v };
         std::vector<size_t> local  = GetOptimalLocalWorkGroupSizes(global);
 
-        runInfo->gws0 = global[0];
-        runInfo->gws1 = global[1];
-        runInfo->gws2 = 1;
+        runInfo.gws0 = global[0];
+        runInfo.gws1 = global[1];
+        runInfo.gws2 = 1;
 
-        runInfo->lws0 = local[0];
-        runInfo->lws1 = local[1];
-        runInfo->lws2 = 1;
+        runInfo.lws0 = local[0];
+        runInfo.lws1 = local[1];
+        runInfo.lws2 = 1;
 
-        runInfo->effiency = TUTORIAL_PRIORITY;
+        runInfo.effiency = TUTORIAL_PRIORITY;
 
-        return std::move(runInfo);
+        return runInfo;
     }
 
     KernelsData FullyConnected_image_tutorial::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        return GetCommonKernelsData(params, options, DataLayout::bfyx,
-        { WeightsLayout::image_2d_weights_c4_fyx_b }
-        );
+        KernelsData res = {};
+        for (size_t i = 0; i < autoTuneOptions.size(); i++)
+        {
+            KernelsData kd = GetTunedKernelsDataByIndex(params, options, DataLayout::bfyx,
+                { WeightsLayout::image_2d_weights_c4_fyx_b }, DONT_USE_IF_HAVE_SOMETHING_ELSE, (int)i);
+            if (!kd.empty())
+            {
+                res.emplace_back(kd[0]);
+            }
+        }
+        return res;
     }
 }

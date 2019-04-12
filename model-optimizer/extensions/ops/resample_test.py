@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,7 +24,8 @@ from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'resample': {'type': 'Resample', 'kind': 'op'},
-                    'node_3': {'type': 'Identity', 'kind': 'op'}
+                    'node_3': {'type': 'Identity', 'kind': 'op'},
+                    'op_output': {'kind': 'op', 'op': 'OpOutput'},
                     }
 
 
@@ -32,8 +33,10 @@ class TestResampleOp(unittest.TestCase):
     def test_tf_resample_infer(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'resample'),
-                             ('resample', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('resample', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'resample': {'antialias': 1,
                                           'height': 384,
@@ -54,8 +57,10 @@ class TestResampleOp(unittest.TestCase):
         factor = 3.0
         graph = build_graph(nodes_attributes,
                             [('node_1', 'resample'),
-                             ('resample', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('resample', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 224, 227])},
                              'resample': {'antialias': 1,
                                           'resample_type': 'LINEAR',
@@ -77,8 +82,10 @@ class TestResampleOp(unittest.TestCase):
         graph = build_graph(new_attrs,
                             [('node_1', 'resample'),
                              ('new_shape', 'resample'),
-                             ('resample', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('resample', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 224, 227, 3])},
                              'resample': {'antialias': 1,
                                           'resample_type': 'LINEAR',

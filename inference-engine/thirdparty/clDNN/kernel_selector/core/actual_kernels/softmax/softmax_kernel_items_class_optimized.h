@@ -28,9 +28,9 @@ namespace kernel_selector
         virtual ~SoftmaxKerneItemsClassOptimized() {}
 
         KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        ParamsKey GetSupportedKey() const override;
 
     protected:
+        ParamsKey GetSupportedKey() const override;
         JitConstants GetJitConstants(const softmax_params& params, DispatchData kd) const override;
         DispatchData SetDefault(const softmax_params& params, const optional_params& optParams) const override;
     };

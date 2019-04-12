@@ -1,11 +1,9 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
 #module to locate GNA libraries
-
-cmake_minimum_required(VERSION 2.8)
 
 if (WIN32)
     set(GNA_PLATFORM_DIR win64)

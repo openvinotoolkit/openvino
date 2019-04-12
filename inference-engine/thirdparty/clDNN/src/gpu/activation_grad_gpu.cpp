@@ -52,16 +52,16 @@ struct activation_grad_gpu : typed_primitive_gpu_impl<activation_grad>
 
         activation_grad_params.gradient = true;
         activation_grad_params.inputs.push_back(convert_data_tensor(arg.get_dependency(1).get_output_layout()));
-        activation_grad_params.activationFunc = get_kernel_selector_activation_grad_param(primitive->activation_grad_func);
-        activation_grad_params.activationParams.m = primitive->additional_params.a;
-        activation_grad_params.activationParams.n = primitive->additional_params.b;
+        activation_grad_params.activation.function = get_kernel_selector_activation_grad_param(primitive->activation_grad_func);
+        activation_grad_params.activation.m = primitive->additional_params.a;
+        activation_grad_params.activation.n = primitive->additional_params.b;
 
         if (arg.is_parameterized())
         {
             const auto& slope_layout = arg.slope_input().get_output_layout();
             const auto& output_layout = arg.get_output_layout();
 
-            const auto params_num = kernel_selector::GetActivationAdditionalParamsNumber(activation_grad_params.activationFunc);
+            const auto params_num = kernel_selector::GetActivationAdditionalParamsNumber(activation_grad_params.activation.function);
 
             CLDNN_ERROR_LESS_THAN(arg.id(), "Slope layout size count", slope_layout.size.count(), "output_layout.size.feature[0] * params_num", static_cast<size_t>(output_layout.size.feature[0] * params_num), "Error - not enough data inside additional params buffer");
 

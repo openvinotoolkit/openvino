@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <memory>
 #include <utility>
 #include "ie_layers.h"
-#include "ie_layers_prv.h"
 
 namespace InferenceEngine {
 
@@ -31,6 +30,16 @@ using AllLayers = std::tuple <
     GemmLayer*,
     PadLayer*,
     GatherLayer*,
+    StridedSliceLayer*,
+    ShuffleChannelsLayer*,
+    DepthToSpaceLayer*,
+    SpaceToDepthLayer*,
+    ReverseSequenceLayer*,
+    SqueezeLayer*,
+    UnsqueezeLayer*,
+    RangeLayer*,
+    FillLayer*,
+    ExpandLayer*,
     ConcatLayer*,
     SplitLayer*,
     NormLayer*,
@@ -49,7 +58,11 @@ using AllLayers = std::tuple <
     ClampLayer*,
     TensorIterator*,
     LSTMCell*,
-    RNNLayer*,
+    GRUCell*,
+    RNNCell*,
+    RNNSequenceLayer*,
+    QuantizeLayer*,
+    BinaryConvolutionLayer*,
     WeightableLayer*,
     CNNLayer*
 >;

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,11 +16,10 @@
 
 import unittest
 
-import networkx as nx
-
 from extensions.front.tf.ObjectDetectionAPI import calculate_shape_keeping_aspect_ratio, \
     calculate_placeholder_spatial_shape
 from mo.front.subgraph_matcher import SubgraphMatch
+from mo.graph.graph import Graph
 from mo.utils.custom_replacement_config import CustomReplacementDescriptor
 from mo.utils.error import Error
 
@@ -91,7 +90,7 @@ class TestCalculateShape(unittest.TestCase):
 
 class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
     def setUp(self):
-        self.graph = nx.MultiDiGraph()
+        self.graph = Graph()
         self.graph.graph['user_shapes'] = None
         self.replacement_desc = CustomReplacementDescriptor('dummy_id', {})
         self.match = SubgraphMatch(self.graph, self.replacement_desc, [], [], [], '')

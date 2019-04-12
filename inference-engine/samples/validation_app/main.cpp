@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,6 @@ using namespace InferenceEngine;
 
 using InferenceEngine::details::InferenceEngineException;
 
-#define DEFAULT_PATH_P "./lib"
-
 /// @brief Message for help argument
 static const char help_message[] = "Print a help message";
 /// @brief Message for images argument
@@ -53,7 +51,7 @@ static const char model_message[] = "Required. Path to an .xml file with a train
 static const char plugin_message[] = "Plugin name. For example, CPU. If this parameter is passed, "
                                      "the sample looks for a specified plugin only.";
 /// @brief Message for assigning cnn calculation to device
-static const char target_device_message[] = "Target device to infer on: CPU (default), GPU, FPGA, or MYRIAD."
+static const char target_device_message[] = "Target device to infer on: CPU (default), GPU, FPGA, HDDL or MYRIAD."
                                             " The application looks for a suitable plugin for the specified device.";
 /// @brief Message for label argument
 static const char label_message[] = "Path to a file with labels for a model";
@@ -123,7 +121,7 @@ DEFINE_string(p, "", plugin_message);
 DEFINE_string(OCl, "", label_message);
 /// @brief Define parameter for a path to plugins <br>
 /// Default is ./lib
-DEFINE_string(pp, DEFAULT_PATH_P, plugin_path_message);
+DEFINE_string(pp, "", plugin_path_message);
 /// @brief Define parameter for a target device to infer on <br>
 DEFINE_string(d, "CPU", target_device_message);
 /// @brief Define parameter for batch size <br>
@@ -267,7 +265,7 @@ int main(int argc, char *argv[]) {
         // ---------------------Loading plugin for Inference Engine------------------------------------------------
         slog::info << "Loading plugin" << slog::endl;
         /** Loading the library with extensions if provided**/
-        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp, "../../../lib/intel64", "" }).getPluginByDevice(FLAGS_d);
+        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
 
         /** Loading default extensions **/
         if (FLAGS_d.find("CPU") != std::string::npos) {
@@ -358,7 +356,6 @@ int main(int argc, char *argv[]) {
             showUsage();
             return ex.list().begin()->exitCode();
         } else {
-            const char* s = ex.what();
             slog::err << "Input problems: \n" << ex.what() << slog::endl;
             showUsage();
             return ex.list().begin()->exitCode();

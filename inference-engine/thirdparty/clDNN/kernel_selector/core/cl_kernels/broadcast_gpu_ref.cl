@@ -16,16 +16,21 @@
 
 
 KERNEL(broadcast_gpu_ref)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output)
+    const __global INPUT0_TYPE* input,
+    __global INPUT0_TYPE* output)
 {
     // [CONSTEXPR]
     // Input sizes:
-    const uint in_sx = INPUT0_SIZE_X;
-    const uint in_sy = INPUT0_SIZE_Y;
-    const uint in_sf = INPUT0_FEATURE_NUM;
-    const uint in_sb = INPUT0_BATCH_NUM;
+    uint4 input_indices;
+    input_indices[0] = INPUT0_BATCH_NUM;
+    input_indices[1] = INPUT0_FEATURE_NUM;
+    input_indices[2] = INPUT0_SIZE_Y;
+    input_indices[3] = INPUT0_SIZE_X;
 
+    const uint in_sx = input_indices[BROADCAST_ORDER[3]];
+    const uint in_sy = input_indices[BROADCAST_ORDER[2]];
+    const uint in_sf = input_indices[BROADCAST_ORDER[1]];
+    const uint in_sb = input_indices[BROADCAST_ORDER[0]];
 
     const uint out_x  = (uint) get_global_id(0);
     const uint out_y  = (uint) get_global_id(1);
@@ -40,9 +45,8 @@ KERNEL(broadcast_gpu_ref)(
     const uint in_f = out_f % in_sf;
     const uint in_b = out_b % in_sb;
 
-    const uint in_pos  = GET_DATA_INDEX(INPUT0, in_b,  in_f,  in_y,  in_x);
+    const uint in_pos =  INPUT0_OFFSET + in_x + in_sx * (in_y + in_sy * (in_f + in_sf * in_b));
     const uint out_pos = GET_DATA_INDEX(OUTPUT, out_b, out_f, out_y, out_x);
-
 
     output[out_pos] = input[in_pos];
 }

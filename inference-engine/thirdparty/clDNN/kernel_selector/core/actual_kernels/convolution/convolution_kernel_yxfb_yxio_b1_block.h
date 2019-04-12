@@ -27,9 +27,9 @@ namespace kernel_selector {
         virtual ~ConvolutionKernel_yxfb_yxio_b1_block() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
-    
+
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
         virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override { return{ WeightsLayout::yxio }; }
         DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;

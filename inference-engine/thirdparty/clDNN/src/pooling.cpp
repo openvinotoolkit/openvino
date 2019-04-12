@@ -30,6 +30,8 @@ primitive_type_id pooling_type_id()
 
 layout pooling_inst::calc_output_layout(parent::typed_node const& node)
 {
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for pooling_node!");
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
@@ -48,6 +50,11 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node)
         auto argmax_layout = node.argmax().get_output_layout();
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Argmax data type", static_cast<size_t>(argmax_layout.data_type), "expected to be fp32", static_cast<size_t>(data_types::f32), "Argmax data type is not fp32.");
         CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "Input_layout.format", input_layout.format.value, "argmax_layout.format", argmax_layout.format);
+    }
+
+    if (desc->global_pooling) {
+        window_size.spatial[0] = input_layout.size.spatial[0];
+        window_size.spatial[1] = input_layout.size.spatial[1];	
     }
 
     // TODO: Consider moving general parameter verification to arguments constructor.

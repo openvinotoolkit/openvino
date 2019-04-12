@@ -144,26 +144,23 @@ int doit(const prb_t *p, res_t *r) {
            ? mkldnn_nc
            : get_default_format(ndims, fmt2data_kind(p->fmt));
 
-    dnn_mem_t data_fp(src_dt_d, fp, src_format),
-              data_dt(src_dt_d);
-    dnn_mem_t d_data_fp(src_dt_d, fp, src_format),
-              d_data_dt(src_dt_d);
+    dnn_mem_t src_fp(src_dt_d, fp, src_format), src_dt(src_dt_d);
+    dnn_mem_t dst_fp(src_dt_d, fp, src_format), dst_dt(src_dt_d);
 
-    SAFE(fill_memory(p, data_fp), WARN);
+    SAFE(fill_memory(p, src_fp), WARN);
 
     mkldnn_primitive_at_t inputs[1];
     const_mkldnn_primitive_t outputs[1];
-    SAFE(data_dt.reorder(data_fp), WARN);
-    inputs[0] = {data_dt.p_, 0};
-    outputs[0] = d_data_dt.p_;
+    SAFE(src_dt.reorder(src_fp), WARN);
+    inputs[0] = {src_dt.p_, 0};
+    outputs[0] = dst_dt.p_;
     DNN_SAFE(mkldnn_primitive_create(&s, spd, inputs, outputs), WARN);
     DNN_SAFE_V(mkldnn_primitive_desc_destroy(spd));
     SAFE(execute(s), WARN);
     if (bench_mode & CORR) {
-        compute_shuffle(p, data_fp, d_data_fp);
-        dnn_mem_t data(d_data_dt.md_, fp, src_format);
-        SAFE(data.reorder(d_data_dt), WARN);
-        SAFE(compare(p, d_data_fp, data, r), WARN);
+        compute_shuffle(p, src_fp, dst_fp);
+        dnn_mem_t data(dst_dt, fp, src_format);
+        SAFE(compare(p, dst_fp, data, r), WARN);
     }
 
     if (bench_mode & PERF) {

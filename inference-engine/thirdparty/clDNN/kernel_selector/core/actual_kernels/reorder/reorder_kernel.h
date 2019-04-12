@@ -27,7 +27,9 @@ namespace kernel_selector
         virtual ~ReorderKernelRef() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
         virtual JitConstants GetJitConstants(const reorder_params& params) const override;
+
+    protected:
+        virtual ParamsKey GetSupportedKey() const override;
     };
 }

@@ -15,8 +15,6 @@
 */
 
 #include "convolution_kernel_bfyx_direct_10_12_16.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
 
 namespace kernel_selector {
 
@@ -111,6 +109,6 @@ namespace kernel_selector {
 
     KernelsData ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        return GetCommonKernelsData(params, options, AGE_BASED);
+        return GetTunedKernelsDataByIndex(params, options);
     }
 }

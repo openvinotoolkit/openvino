@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
                     'node_2': {'value': None, 'kind': 'data'},
                     'crop_1': {'type': 'Crop', 'kind': 'op'},
-                    'node_3': {'value': None, 'kind': 'data'}
+                    'node_3': {'value': None, 'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
                     }
 
 
@@ -34,8 +35,10 @@ class TestCropInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'crop_1'),
                              ('node_2', 'crop_1'),
-                             ('crop_1', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('crop_1', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 2, 500, 500])},
                              'node_2': {'shape': np.array([1, 2, 256, 256])},
                              'crop_1': {'axis': 2, 'offset': [0, 0], 'dim': None}
@@ -57,8 +60,10 @@ class TestCropInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'crop_1'),
                              ('node_2', 'crop_1'),
-                             ('crop_1', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('crop_1', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 2, 500, 500])},
                              'node_2': {'shape': np.array([1, 2, 256, 256])},
                              'crop_1': {'axis': -1, 'offset': [0, 0], 'dim': None}
@@ -80,8 +85,10 @@ class TestCropInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'crop_1'),
                              ('node_2', 'crop_1'),
-                             ('crop_1', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('crop_1', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 2, 500, 500])},
                              'node_2': {'shape': None},
                              'crop_1': {'axis': 2, 'offset': [0, 0], 'dim': None}
@@ -95,8 +102,10 @@ class TestCropInfer(unittest.TestCase):
     def test_crop_infer_one_shape(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'crop_1'),
-                             ('crop_1', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('crop_1', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 2, 500, 500])},
                              'crop_1': {'axis': 2, 'offset': [0], 'dim': None}
                              })
@@ -110,8 +119,10 @@ class TestCropInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'crop_1'),
                              ('node_2', 'crop_1'),
-                             ('crop_1', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('crop_1', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 2, 500, 500])},
                              'node_2': {'shape': np.array([1, 2, 256, 256])},
                              'crop_1': {'axis': 2, 'offset': [300], 'dim': None}

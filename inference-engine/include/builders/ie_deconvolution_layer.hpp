@@ -1,11 +1,11 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <builders/ie_convolution_layer.hpp>
-#include <ie_inetwork.hpp>
+#include <ie_network.hpp>
 #include <string>
 
 namespace InferenceEngine {
@@ -23,9 +23,14 @@ public:
     explicit DeconvolutionLayer(const std::string& name = "");
     /**
      * @brief The constructor creates a builder from generic builder
-     * @param genLayer generic builder
+     * @param layer pointer to generic builder
      */
-    explicit DeconvolutionLayer(Layer& genLayer);
+    explicit DeconvolutionLayer(const Layer::Ptr& layer);
+    /**
+     * @brief The constructor creates a builder from generic builder
+     * @param layer constant pointer to generic builder
+     */
+    explicit DeconvolutionLayer(const Layer::CPtr& layer);
 };
 
 }  // namespace Builder

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace InferenceEngine;
 
 namespace CLDNNPlugin {
 
-const std::string CLDNNInferRequest::fp32_suffix = "_fp32";
+const char CLDNNInferRequest::fp32_suffix[] = "_fp32";
 
 Blob::Ptr CLDNNInferRequest::createInputBlob(const TensorDesc& desc, uint8_t* mem_ptr) {
     const Layout l = desc.getLayout();
@@ -156,20 +156,21 @@ void CLDNNInferRequest::copyInputData(std::shared_ptr<cldnn::network> network,
     size_t n = (bi == nullptr) ? inputBlob.size() : bi->buf_size;
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
+    cldnn::primitive_id internalName = "Input:" + inputName;
     switch (inputBlob.precision()) {
     case Precision::FP32: {
         float* blob_ptr = const_cast<float*>(inputBlob.cbuffer().as<const float*>()) + offset;
-        network->set_input_data(inputName, cldnn::memory::attach(inputLayout, blob_ptr, n));
+        network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
         break;
     }
     case Precision::FP16: {
         uint16_t* blob_ptr = const_cast<uint16_t*>(inputBlob.cbuffer().as<const uint16_t*>()) + offset;
-        network->set_input_data(inputName, cldnn::memory::attach(inputLayout, blob_ptr, n));
+        network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
         break;
     }
     case Precision::U8: {
         uint8_t* blob_ptr = const_cast<uint8_t*>(inputBlob.cbuffer().as<const uint8_t*>()) + offset;
-        network->set_input_data(inputName, cldnn::memory::attach(inputLayout, blob_ptr, n));
+        network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
         break;
     }
     default:
@@ -361,10 +362,10 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
 CLDNNInferRequest::CLDNNInferRequest(InferenceEnv env, bool useProfiling,
                                      InputsDataMap networkInputs, OutputsDataMap networkOutputs)
         : InferRequestInternal(networkInputs, networkOutputs),
-          m_curBatch(-1),
           m_env(env),
           m_useProfiling(useProfiling) {
     if (m_env.m_max_batch > 1) {
+        SetBatch(m_env.m_max_batch);
         AllocateInputsDyn();
         AllocateOutputsDyn();
     } else {
@@ -440,20 +441,18 @@ void CLDNNInferRequest::execAndParse() {
 
         // Get profiling info for all layers
         for (auto &profiledID : m_env.profilingIDs) {
-            std::string impl = implementationsMap.at(profiledID);
-            impl.copy(m_env.perfMap[profiledID].exec_type, impl.length());
-
+            auto& perfCount = m_env.perfMap[profiledID].second;
             // Change status if layer wasn't executed by cldnn engine
-            if (executedPrimitives.find(profiledID) == executedPrimitives.end()) {
+            if (perfCount.num == 0 &&
+                executedPrimitives.find(profiledID) == executedPrimitives.end()) {
                 if (allPrimitives.find(profiledID) != allPrimitives.end() &&
                     allPrimitives.at(profiledID) == "_optimized_") {
                     // Layer was marked as optimized by cldnn
-                    m_env.perfMap[profiledID].status = InferenceEngineProfileInfo::OPTIMIZED_OUT;
+                    perfCount.status = InferenceEngineProfileInfo::OPTIMIZED_OUT;
                 } else {
                     // Layer wasn't run for some reason
-                    m_env.perfMap[profiledID].status = InferenceEngineProfileInfo::NOT_RUN;
+                    perfCount.status = InferenceEngineProfileInfo::NOT_RUN;
                 }
-                m_env.perfMap[profiledID].cpu_uSec = m_env.perfMap[profiledID].realTime_uSec = 0;
                 continue;
             }
 
@@ -468,17 +467,17 @@ void CLDNNInferRequest::execAndParse() {
                 auto count = std::chrono::duration_cast<duration_t>(interval.value->value()).count();
 
                 if (interval.name == "submission") {
-                    m_env.perfMap[profiledID].cpu_uSec = count;
+                    perfCount.cpu_uSec += count;
                 } else if (interval.name == "executing") {
-                    m_env.perfMap[profiledID].realTime_uSec = count;
+                    perfCount.realTime_uSec += count;
                 } else if (interval.name == "duration") {  // "duration" is used for CPU layers
-                    m_env.perfMap[profiledID].cpu_uSec = count;
-                    static const std::string cpuExecType("CPU");
-                    memset(m_env.perfMap[profiledID].exec_type, 0, sizeof(m_env.perfMap[profiledID].exec_type));
-                    cpuExecType.copy(m_env.perfMap[profiledID].exec_type,
-                        cpuExecType.length());  // Override execType as CPU
+                    perfCount.cpu_uSec += count;
+
+                    if (perfCount.num == 0)
+                        perfCount.isCPU = true;
                 }
             }
+            perfCount.num++;
         }
     }
 }
@@ -543,7 +542,32 @@ void CLDNNInferRequest::GetPerformanceCounts(
     if (!m_useProfiling) {
         THROW_IE_EXCEPTION << "Performance counters were not enabled";
     } else {
-        perfMap = m_env.perfMap;
+        unsigned i = 0;
+        for (auto& profiledID : m_env.profilingIDs) {
+            const auto& layerName = m_env.perfMap.at(profiledID).first;
+            if (layerName.length() == 0)    // no layer directly associated
+                continue;
+
+            const auto& perfCounter = m_env.perfMap.at(profiledID).second;
+            auto& extPerfEntry = perfMap[layerName];
+
+            // copy layer implementation
+            if (perfCounter.isCPU) {
+                static const std::string cpuExecType("CPU");
+                memset(extPerfEntry.exec_type, 0, sizeof(extPerfEntry.exec_type));
+                cpuExecType.copy(extPerfEntry.exec_type, cpuExecType.length());  // Override execType as CPU
+            } else {
+                std::string impl = implementationsMap.at(profiledID);
+                impl.copy(extPerfEntry.exec_type, impl.length());
+            }
+
+            extPerfEntry.execution_index = i++;
+            extPerfEntry.status = perfCounter.status;
+            extPerfEntry.cpu_uSec = perfCounter.cpu_avg();
+            extPerfEntry.realTime_uSec = perfCounter.realTime_avg();
+
+            perfCounter.layerType.copy(extPerfEntry.layer_type, perfCounter.layerType.length());
+        }
     }
 }
 
@@ -564,20 +588,21 @@ void CLDNNInferRequest::PrepareInput(const cldnn::primitive_id &inputName, const
         return (blob_ptr == mem_ptr) && (blob.byteSize() == memory.size());
     };
 
+    cldnn::primitive_id internalName = "Input:" + inputName;
     const cldnn::memory& memory = inputsMemory.at(inputName);
     if (inputBlob.precision() == Precision::I16) {
         // clDNN doesn't support I16 input precision, so we always have to convert input data to fp32 precision
         const cldnn::memory& fp32_mem = inputsMemory.at(inputName+fp32_suffix);
         cldnn::pointer<float> ptr = fp32_mem.pointer<float>();
         InferenceEngine::copyToFloat<int16_t>(ptr.data(), &inputBlob);
-        m_env.network->set_input_data(inputName, fp32_mem);
+        m_env.network->set_input_data(internalName, fp32_mem);
     } else if (is_same_buffer(inputBlob, memory)) {
         // If input memory was allocated by cldnn engine and wasn't overwritten by user set_input_data method won't copy input data.
         switch (inputBlob.precision()) {
             case Precision::FP32:
             case Precision::FP16:
             case Precision::U8: {
-                m_env.network->set_input_data(inputName, memory);
+                m_env.network->set_input_data(internalName, memory);
                 break;
             }
             default:

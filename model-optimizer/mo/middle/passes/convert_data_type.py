@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,11 +15,9 @@
 """
 
 import logging as log
-
-import networkx as nx
 import numpy as np
 
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
@@ -28,6 +26,8 @@ SUPPORTED_DATA_TYPES = {
     'half': (np.float16, 'FP16'),
     'FP32': (np.float32, 'FP32'),
     'FP16': (np.float16, 'FP16'),
+    'I32': (np.int32, 'I32'),
+    'uint8': (np.uint8, 'UI8'),
 }
 
 
@@ -39,7 +39,7 @@ def data_type_str_to_precision(data_type_str: str):
     return SUPPORTED_DATA_TYPES[data_type_str][1] if data_type_str in SUPPORTED_DATA_TYPES else None
 
 
-def convert_blob(graph: nx.MultiDiGraph, node: Node, data_type: type):
+def convert_blob(graph: Graph, node: Node, data_type: type):
     out_edges = graph.out_edges(node.node, data=True)
 
     # if the data.value is used as binary weights
@@ -70,7 +70,7 @@ def convert_blob(graph: nx.MultiDiGraph, node: Node, data_type: type):
             node.value = new_blob
 
 
-def convert(graph: nx.MultiDiGraph, data_type_str: str):
+def convert(graph: Graph, data_type_str: str):
     for node_name, node_attrs in graph.nodes(data=True):
         node = Node(graph, node_name)
         # if the data type is forcibly set then use it

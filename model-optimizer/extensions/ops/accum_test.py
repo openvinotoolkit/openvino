@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,20 +24,26 @@ from mo.utils.unittest.graph import build_graph
 
 wrong_attrs_graph = {'node_1': {'type': 'Identity', 'kind': 'op'},
                      'accum': {'type': 'Accum', 'kind': 'op'},
-                     'node_3': {'type': 'Identity', 'kind': 'op'}}
+                     'node_3': {'type': 'Identity', 'kind': 'op'},
+                     'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+                     }
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'node_2': {'type': 'Identity', 'kind': 'op'},
                     'accum': {'type': 'Accum', 'kind': 'op'},
-                    'node_3': {'type': 'Identity', 'kind': 'op'}}
+                    'node_3': {'type': 'Identity', 'kind': 'op'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+                    }
 
 
 class TestAccumOp(unittest.TestCase):
     def test_accum_infer_assertion(self):
         graph = build_graph(wrong_attrs_graph,
                             [('node_1', 'accum'),
-                             ('accum', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('accum', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'accum': {
                                  'top_height': 0,
@@ -54,8 +60,10 @@ class TestAccumOp(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'accum'),
                              ('node_2', 'accum'),
-                             ('accum', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('accum', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': np.array([1, 3, 227, 227])},
                              'accum': {
@@ -77,8 +85,10 @@ class TestAccumOp(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'accum'),
                              ('node_2', 'accum'),
-                             ('accum', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('accum', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': np.array([1, 3, 227, 227])},
                              'accum': {
@@ -100,8 +110,10 @@ class TestAccumOp(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'accum'),
                              ('node_2', 'accum'),
-                             ('accum', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('accum', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': np.array([1, 3, 227, 227])},
                              'accum': {

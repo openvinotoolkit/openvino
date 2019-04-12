@@ -31,20 +31,20 @@ namespace impl {
 namespace cpu {
 
 template <impl::data_type_t data_type>
-void ref_roi_pooling_fwd_t<data_type>::execute_forward_generic() {
+void ref_roi_pooling_fwd_t<data_type>::execute_forward_generic() const {
     int roi_idx = 1;
     int data_idx = 0;
 
-    const memory_desc_wrapper dst_d(conf_.dst_pd());
-    memory_desc_wrapper src_data_d = conf_.src_pd(data_idx);
-    memory_desc_wrapper src_roi_d = conf_.src_pd(roi_idx);
+    const memory_desc_wrapper dst_d(pd()->dst_pd());
+    memory_desc_wrapper src_data_d = pd()->src_pd(data_idx);
+    memory_desc_wrapper src_roi_d = pd()->src_pd(roi_idx);
 
     if (src_roi_d.dims()[0] < src_data_d.dims()[0]) {
         roi_idx = 0;
         data_idx = 1;
 
-        src_data_d = conf_.src_pd(data_idx);
-        src_roi_d = conf_.src_pd(roi_idx);
+        src_data_d = pd()->src_pd(data_idx);
+        src_roi_d = pd()->src_pd(roi_idx);
     }
 
     auto dst = reinterpret_cast<data_t*>(this->memory(0));
@@ -57,9 +57,9 @@ void ref_roi_pooling_fwd_t<data_type>::execute_forward_generic() {
 
     int ROIS = src_roi_d.dims()[0];
 
-    double spatial_scale = conf_.spatialScale();
-    int pooled_h = conf_.pooledH();
-    int pooled_w = conf_.pooledW();
+    double spatial_scale = pd()->spatialScale();
+    int pooled_h = pd()->pooledH();
+    int pooled_w = pd()->pooledW();
 
     for (size_t i = 0; i < dst_d.size() / sizeof(data_t); i++) {
         dst[i] = -FLT_MAX;
@@ -94,7 +94,7 @@ void ref_roi_pooling_fwd_t<data_type>::execute_forward_generic() {
         const data_t* src_roi_ptr = &src_roi[roi_off];
         int roi_batch_ind = src_roi_ptr[0];
 
-        if (conf_.desc()->alg_kind == mkldnn_roi_pooling_max) {
+        if (pd()->desc()->alg_kind == mkldnn_roi_pooling_max) {
             int roi_start_w = round(src_roi_ptr[1] * spatial_scale);
             int roi_start_h = round(src_roi_ptr[2] * spatial_scale);
             int roi_end_w = round(src_roi_ptr[3] * spatial_scale);
@@ -152,7 +152,7 @@ void ref_roi_pooling_fwd_t<data_type>::execute_forward_generic() {
                     }
                 }
             }
-        } else if (conf_.desc()->alg_kind == mkldnn_roi_pooling_bilinear) {
+        } else if (pd()->desc()->alg_kind == mkldnn_roi_pooling_bilinear) {
             float roi_start_w_ = src_roi_ptr[1];
             float roi_start_h_ = src_roi_ptr[2];
             float roi_end_w_   = src_roi_ptr[3];

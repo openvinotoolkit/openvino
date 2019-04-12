@@ -22,6 +22,7 @@ function yes_or_no {
 # install dependencies
 if [[ -f /etc/lsb-release ]]; then
     # Ubuntu
+    system_ver=`cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2`
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
@@ -40,7 +41,6 @@ if [[ -f /etc/lsb-release ]]; then
             automake \
             libtool \
             autoconf \
-            libpng12-dev \
             libcairo2-dev \
             libpango1.0-dev \
             libglib2.0-dev \
@@ -52,6 +52,11 @@ if [[ -f /etc/lsb-release ]]; then
             gstreamer1.0-plugins-base \
             libusb-1.0-0-dev \
             libopenblas-dev
+    if [ $system_ver = "18.04" ]; then
+	    sudo -E apt-get install -y libpng-dev
+    else
+	    sudo -E apt-get install -y libpng12-dev
+    fi
 else
     # CentOS 7.x
     sudo -E yum install -y centos-release-scl epel-release

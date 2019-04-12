@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@
 #include <memory>
 #include <vector>
 
-#include <ie_inetwork.hpp>
+#include <ie_network.hpp>
 
 namespace InferenceEngine {
 namespace details {
@@ -33,23 +33,22 @@ public:
             allInputs.push_back(std::dynamic_pointer_cast<LT>(input));
         }
 
-        bool res = forestDFS(allInputs, [&](std::shared_ptr<LT> current) {
+        forestDFS(allInputs, [&](std::shared_ptr<LT> current) {
             sortedLayers.push_back(current);
         }, false);
-
-        if (!res) {
-            THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
-        }
 
         std::reverse(std::begin(sortedLayers), std::end(sortedLayers));
         currentLayer = getNextLayer();
     }
+
     bool operator!=(const INetworkIterator& that) const {
         return !operator==(that);
     }
+
     bool operator==(const INetworkIterator& that) const {
         return network == that.network && currentLayer == that.currentLayer;
     }
+
     typename INetworkIterator::reference operator*() {
         if (nullptr == currentLayer) {
             THROW_IE_EXCEPTION << "iterator out of bound";
@@ -79,27 +78,24 @@ private:
     }
 
     template<class T>
-    inline bool forestDFS(const std::vector<std::shared_ptr<LT>>& heads, const T &visit, bool bVisitBefore) {
+    inline void forestDFS(const std::vector<std::shared_ptr<LT>>& heads, const T &visit, bool bVisitBefore) {
         if (heads.empty()) {
-            return true;
+            return;
         }
 
         std::unordered_map<idx_t, bool> visited;
         for (auto & layer : heads) {
-            if (!DFS(visited, layer, visit, bVisitBefore)) {
-                return false;
-            }
+            DFS(visited, layer, visit, bVisitBefore);
         }
-        return true;
     }
 
     template<class T>
-    inline bool DFS(std::unordered_map<idx_t, bool> &visited,
+    inline void DFS(std::unordered_map<idx_t, bool> &visited,
                     const std::shared_ptr<LT> &layer,
                     const T &visit,
                     bool visitBefore) {
         if (layer == nullptr) {
-            return true;
+            return;
         }
 
         if (visitBefore)
@@ -111,25 +107,24 @@ private:
                 continue;
             }
             const auto outLayer = network->getLayer(connection.to().layerId());
+            if (!outLayer)
+                THROW_IE_EXCEPTION << "Couldn't get layer with id: " << connection.to().layerId();
             auto i = visited.find(outLayer->getId());
             if (i != visited.end()) {
                 /**
                  * cycle detected we entered still not completed node
                  */
                 if (!i->second) {
-                    return false;
+                    THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
                 }
                 continue;
             }
 
-            if (!DFS(visited, outLayer, visit, visitBefore)) {
-                return false;
-            }
+            DFS(visited, outLayer, visit, visitBefore);
         }
         if (!visitBefore)
             visit(layer);
         visited[layer->getId()] = true;
-        return true;
     }
 };
 

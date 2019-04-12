@@ -28,9 +28,9 @@ namespace kernel_selector
         virtual ~SoftmaxKernelRef() {}
 
         KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        ParamsKey GetSupportedKey() const override;
 
     protected:
+        ParamsKey GetSupportedKey() const override;
         DispatchData SetDefault(const softmax_params& params, const optional_params& optParams) const override;
     };
 }

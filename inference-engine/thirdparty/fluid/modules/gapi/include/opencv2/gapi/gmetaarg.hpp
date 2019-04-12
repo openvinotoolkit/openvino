@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GMETAARG_HPP
@@ -37,7 +37,7 @@ using GMetaArg = util::variant
     , GScalarDesc
     , GArrayDesc
     >;
-std::ostream& operator<<(std::ostream& os, const GMetaArg &);
+GAPI_EXPORTS std::ostream& operator<<(std::ostream& os, const GMetaArg &);
 
 using GMetaArgs = std::vector<GMetaArg>;
 
@@ -60,6 +60,15 @@ namespace detail
     using are_meta_descrs_but_last = all_satisfy<is_meta_descr, typename all_but_last<Ts...>::type>;
 
 } // namespace detail
+
+class Mat;
+class UMat;
+GAPI_EXPORTS cv::GMetaArgs descr_of(const std::vector<cv::Mat> &vec);
+GAPI_EXPORTS cv::GMetaArgs descr_of(const std::vector<cv::UMat> &vec);
+namespace gapi { namespace own {
+    class Mat;
+    GAPI_EXPORTS cv::GMetaArgs descr_of(const std::vector<Mat> &vec);
+}} // namespace gapi::own
 
 } // namespace cv
 

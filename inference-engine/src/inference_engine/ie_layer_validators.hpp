@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,8 +47,7 @@ public:
      * @note: This function doesn't touch ins and out Data of the layer.
      * Throws exception if the check fails
      */
-    virtual void checkShapes(const CNNLayer* layer,
-                             const std::vector<SizeVector>& inShapes) const {}
+    virtual void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {}
 
     /**
      * @brief Checks correspondence of all parameters in the aggregate, except output shapes.
@@ -86,41 +85,6 @@ private:
     InferenceEngine::details::caseless_unordered_map<std::string, LayerValidator::Ptr> _validators;
 };
 
-static void checkWeakData(const DataWeakPtr& data) {
-}
-
-static void checkData(const DataPtr& data) {
-}
-
-
-/**
- * @brief Checks that input Data is not empty and pointers are not null, number of inputs correspond number of input shapes, dimensions in Data are not empty
- */
-static void checkInputs(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) {
-    // TODO: not finished implementation
-    if (layer->insData.size() != inShapes.size())
-        THROW_IE_EXCEPTION << "Number of layer's inputs don't correspond number of new input shapes";
-
-    auto inData = layer->insData[0].lock();
-    bool isCorrect = false;
-    SizeVector inDims, inShape;
-    if (inData) {
-        inDims = inData->getDims();
-        inShape = inShapes[0];
-        isCorrect = inShape.size() == inDims.size() && !inShape.empty() && !inDims.empty();
-    }
-
-    if (!isCorrect)
-        THROW_IE_EXCEPTION << " Failed with invalid shapes: shapes are empty"
-                                  << "new input shape size=" << inShape.size() << ", input shape size in IR="
-                                  << inDims.size();
-}
-
-/**
- * @brief Checks that output Data is not empty and pointers are not null, number of outputs correspond number of output shapes, dimensions in Data are not empty
- */
-static void checkOutputs(const CNNLayer* layer, const std::vector<SizeVector>& outShapes) {}
-
 static void getInOutShapes(const CNNLayer* layer, InOutDims& inOutShapes) {
     inOutShapes.inDims.clear();
     inOutShapes.outDims.clear();
@@ -155,6 +119,8 @@ public:
     void checkCorrespondence(const CNNLayer* layer,
                              const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(DeconvolutionValidator) : public ConvolutionValidator {
@@ -168,6 +134,8 @@ public:
     void checkCorrespondence(const CNNLayer* layer,
                              const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 
@@ -176,6 +144,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 
     explicit PoolingValidator(const std::string& _type);
 };
@@ -191,6 +161,8 @@ public:
     void checkCorrespondence(const CNNLayer* layer,
                              const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(CropValidator) : public LayerValidator {
@@ -211,6 +183,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(BatchNormalizationValidator) : public LayerValidator {
@@ -220,6 +194,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(PowerValidator) : public LayerValidator {
@@ -229,6 +205,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(PReLUValidator) : public LayerValidator {
@@ -238,6 +216,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(ScaleShiftValidator) : public LayerValidator {
@@ -247,6 +227,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(ReshapeValidator) : public LayerValidator {
@@ -265,6 +247,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(ClampValidator) : public LayerValidator {
@@ -273,7 +257,7 @@ public:
 
     void parseParams(CNNLayer* layer) override;
 
-    void checkParams(const CNNLayer* layer) override;
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(ReLUValidator) : public LayerValidator {
@@ -283,6 +267,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(MVNValidator) : public LayerValidator {
@@ -292,6 +278,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(GRNValidator) : public LayerValidator {
@@ -301,6 +289,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(SoftMaxValidator) : public LayerValidator {
@@ -310,6 +300,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(NormValidator) : public LayerValidator {
@@ -319,6 +311,8 @@ public:
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class INFERENCE_ENGINE_API_CLASS(SplitValidator) : public LayerValidator {
@@ -376,13 +370,441 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
-class INFERENCE_ENGINE_API_CLASS(RNNValidator) : public LayerValidator {
+class INFERENCE_ENGINE_API_CLASS(StridedSliceValidator) : public LayerValidator {
 public:
-    explicit RNNValidator(const std::string& _type);
+    explicit StridedSliceValidator(const std::string& _type);
 
     void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ShuffleChannelsValidator) : public LayerValidator {
+public:
+    explicit ShuffleChannelsValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(DepthToSpaceValidator) : public LayerValidator {
+public:
+    explicit DepthToSpaceValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(SpaceToDepthValidator) : public LayerValidator {
+public:
+    explicit SpaceToDepthValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ReverseSequenceValidator) : public LayerValidator {
+public:
+    explicit ReverseSequenceValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(SqueezeValidator) : public LayerValidator {
+public:
+    explicit SqueezeValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(UnsqueezeValidator) : public LayerValidator {
+public:
+    explicit UnsqueezeValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(RangeValidator) : public LayerValidator {
+public:
+    explicit RangeValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(FillValidator) : public LayerValidator {
+public:
+    explicit FillValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ExpandValidator) : public LayerValidator {
+public:
+    explicit ExpandValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+template<RNNSequenceLayer::CellType CELL>
+class INFERENCE_ENGINE_API_CLASS(RNNBaseValidator) : public LayerValidator {
+public:
+    explicit RNNBaseValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkCorrespondence(const CNNLayer* layer,
+                             const std::map<std::string, Blob::Ptr>& blobs,
+                             const std::vector<SizeVector>& inShapes) const override;
+
+protected:
+    static std::vector<std::string> def_acts;  // Default values for cell gate activations
+    static std::vector<float> def_alpha;  // Default activation alpha parameter
+    static std::vector<float> def_beta;   // Default activation beta parameter
+    static size_t G;   // gate number
+    static size_t NS;  // state number
+};
+
+template<RNNSequenceLayer::CellType CELL>
+class INFERENCE_ENGINE_API_CLASS(RNNCellValidator) : public RNNBaseValidator<CELL> {
+public:
+    explicit RNNCellValidator(const std::string& _type);
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+extern template class INFERENCE_ENGINE_API_CLASS(RNNCellValidator)<RNNSequenceLayer::LSTM>;
+extern template class INFERENCE_ENGINE_API_CLASS(RNNCellValidator)<RNNSequenceLayer::GRU>;
+extern template class INFERENCE_ENGINE_API_CLASS(RNNCellValidator)<RNNSequenceLayer::RNN>;
+
+template<RNNSequenceLayer::CellType CELL>
+class INFERENCE_ENGINE_API_CLASS(RNNSequenceValidator) : public RNNBaseValidator<CELL> {
+public:
+    explicit RNNSequenceValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+extern template class INFERENCE_ENGINE_API_CLASS(RNNSequenceValidator)<RNNSequenceLayer::LSTM>;
+extern template class INFERENCE_ENGINE_API_CLASS(RNNSequenceValidator)<RNNSequenceLayer::GRU>;
+extern template class INFERENCE_ENGINE_API_CLASS(RNNSequenceValidator)<RNNSequenceLayer::RNN>;
+
+class INFERENCE_ENGINE_API_CLASS(ArgMaxValidator) : public LayerValidator {
+public:
+    explicit ArgMaxValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(CTCGreedyDecoderValidator) : public LayerValidator {
+public:
+    explicit CTCGreedyDecoderValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(DetectionOutputValidator) : public LayerValidator {
+public:
+    explicit DetectionOutputValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(InterpValidator) : public LayerValidator {
+public:
+    explicit InterpValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(PermuteValidator) : public LayerValidator {
+public:
+    explicit PermuteValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(PriorBoxValidator) : public LayerValidator {
+public:
+    explicit PriorBoxValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(PriorBoxClusteredValidator) : public LayerValidator {
+public:
+    explicit PriorBoxClusteredValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ProposalValidator) : public LayerValidator {
+public:
+    explicit ProposalValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(PSROIPoolingValidator) : public LayerValidator {
+public:
+    explicit PSROIPoolingValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(RegionYoloValidator) : public LayerValidator {
+public:
+    explicit RegionYoloValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ReorgYoloValidator) : public LayerValidator {
+public:
+    explicit ReorgYoloValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ResampleValidator) : public LayerValidator {
+public:
+    explicit ResampleValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ROIPoolingValidator) : public LayerValidator {
+public:
+    explicit ROIPoolingValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(SimplerNMSValidator) : public LayerValidator {
+public:
+    explicit SimplerNMSValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(SpatialTransformerValidator) : public LayerValidator {
+public:
+    explicit SpatialTransformerValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(UpsamplingValidator) : public LayerValidator {
+public:
+    explicit UpsamplingValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ActivationValidator) : public LayerValidator {
+public:
+    explicit ActivationValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ConstValidator) : public LayerValidator {
+public:
+    explicit ConstValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ELUValidator) : public LayerValidator {
+public:
+    explicit ELUValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(InputValidator) : public LayerValidator {
+public:
+    explicit InputValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(MemoryValidator) : public LayerValidator {
+public:
+    explicit MemoryValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(NormalizeValidator) : public LayerValidator {
+public:
+    explicit NormalizeValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(CopyValidator) : public LayerValidator {
+public:
+    explicit CopyValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(PowerFileValidator) : public LayerValidator {
+public:
+    explicit PowerFileValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ReLU6Validator) : public LayerValidator {
+public:
+    explicit ReLU6Validator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(SigmoidValidator) : public LayerValidator {
+public:
+    explicit SigmoidValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(TanHValidator) : public LayerValidator {
+public:
+    explicit TanHValidator(const std::string& _type);
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(UnpoolingValidator) : public LayerValidator {
+public:
+    explicit UnpoolingValidator(const std::string& _type);
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(QuantizeValidator) : public LayerValidator {
+public:
+    explicit QuantizeValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(BinaryConvolutionValidator) : public LayerValidator {
+public:
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    explicit BinaryConvolutionValidator(const std::string& _type);
+
+    void checkCorrespondence(const CNNLayer* layer,
+                             const std::map<std::string, Blob::Ptr>& blobs,
+                             const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
@@ -398,34 +820,79 @@ public:
 #define REG_LAYER_VALIDATOR_FOR_TYPE(__validator, __type) \
 static ValidatorRegisterBase<__validator> __reg__##__type(#__type)
 
+REG_LAYER_VALIDATOR_FOR_TYPE(ActivationValidator, Activation);
+REG_LAYER_VALIDATOR_FOR_TYPE(ArgMaxValidator, ArgMax);
+REG_LAYER_VALIDATOR_FOR_TYPE(BatchNormalizationValidator, BatchNormalization);
+REG_LAYER_VALIDATOR_FOR_TYPE(CTCGreedyDecoderValidator, CTCGreedyDecoder);
+REG_LAYER_VALIDATOR_FOR_TYPE(ClampValidator, Clamp);
+REG_LAYER_VALIDATOR_FOR_TYPE(ConcatValidator, Concat);
+REG_LAYER_VALIDATOR_FOR_TYPE(ConstValidator, Const);
 REG_LAYER_VALIDATOR_FOR_TYPE(ConvolutionValidator, Convolution);
+REG_LAYER_VALIDATOR_FOR_TYPE(CopyValidator, Copy);
+REG_LAYER_VALIDATOR_FOR_TYPE(CropValidator, Crop);
 REG_LAYER_VALIDATOR_FOR_TYPE(DeconvolutionValidator, Deconvolution);
-REG_LAYER_VALIDATOR_FOR_TYPE(PoolingValidator, Pooling);
+REG_LAYER_VALIDATOR_FOR_TYPE(DetectionOutputValidator, DetectionOutput);
+REG_LAYER_VALIDATOR_FOR_TYPE(ELUValidator, ELU);
+REG_LAYER_VALIDATOR_FOR_TYPE(EltwiseValidator, Eltwise);
 REG_LAYER_VALIDATOR_FOR_TYPE(FullyConnectedValidator, InnerProduct);
 REG_LAYER_VALIDATOR_FOR_TYPE(FullyConnectedValidator, FullyConnected);
-REG_LAYER_VALIDATOR_FOR_TYPE(CropValidator, Crop);
-REG_LAYER_VALIDATOR_FOR_TYPE(BatchNormalizationValidator, BatchNormalization);
-REG_LAYER_VALIDATOR_FOR_TYPE(PowerValidator, Power);
-REG_LAYER_VALIDATOR_FOR_TYPE(PReLUValidator, PReLU);
-REG_LAYER_VALIDATOR_FOR_TYPE(ScaleShiftValidator, ScaleShift);
-REG_LAYER_VALIDATOR_FOR_TYPE(TileValidator, Tile);
-REG_LAYER_VALIDATOR_FOR_TYPE(ReshapeValidator, Reshape);
-REG_LAYER_VALIDATOR_FOR_TYPE(ReshapeValidator, Flatten);
-REG_LAYER_VALIDATOR_FOR_TYPE(EltwiseValidator, Eltwise);
-REG_LAYER_VALIDATOR_FOR_TYPE(ClampValidator, Clamp);
-REG_LAYER_VALIDATOR_FOR_TYPE(ReLUValidator, ReLU);
-REG_LAYER_VALIDATOR_FOR_TYPE(MVNValidator, MVN);
 REG_LAYER_VALIDATOR_FOR_TYPE(GRNValidator, GRN);
-REG_LAYER_VALIDATOR_FOR_TYPE(SoftMaxValidator, SoftMax);
+REG_LAYER_VALIDATOR_FOR_TYPE(InputValidator, Input);
+REG_LAYER_VALIDATOR_FOR_TYPE(InterpValidator, Interp);
+REG_LAYER_VALIDATOR_FOR_TYPE(MVNValidator, MVN);
+REG_LAYER_VALIDATOR_FOR_TYPE(MemoryValidator, Memory);
 REG_LAYER_VALIDATOR_FOR_TYPE(NormValidator, Norm);
 REG_LAYER_VALIDATOR_FOR_TYPE(NormValidator, LRN);
+REG_LAYER_VALIDATOR_FOR_TYPE(NormalizeValidator, Normalize);
+REG_LAYER_VALIDATOR_FOR_TYPE(PReLUValidator, PReLU);
+REG_LAYER_VALIDATOR_FOR_TYPE(PSROIPoolingValidator, PSROIPooling);
+REG_LAYER_VALIDATOR_FOR_TYPE(PermuteValidator, Permute);
+REG_LAYER_VALIDATOR_FOR_TYPE(PoolingValidator, Pooling);
+REG_LAYER_VALIDATOR_FOR_TYPE(PowerValidator, Power);
+REG_LAYER_VALIDATOR_FOR_TYPE(PowerFileValidator, PowerFile);
+REG_LAYER_VALIDATOR_FOR_TYPE(PriorBoxClusteredValidator, PriorBoxClustered);
+REG_LAYER_VALIDATOR_FOR_TYPE(PriorBoxValidator, PriorBox);
+REG_LAYER_VALIDATOR_FOR_TYPE(ProposalValidator, Proposal);
+REG_LAYER_VALIDATOR_FOR_TYPE(ROIPoolingValidator, ROIPooling);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReLUValidator, ReLU);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReLU6Validator, ReLU6);
+REG_LAYER_VALIDATOR_FOR_TYPE(RegionYoloValidator, RegionYolo);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReorgYoloValidator, ReorgYolo);
+REG_LAYER_VALIDATOR_FOR_TYPE(ResampleValidator, Resample);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReshapeValidator, Reshape);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReshapeValidator, Flatten);
+REG_LAYER_VALIDATOR_FOR_TYPE(ScaleShiftValidator, ScaleShift);
+REG_LAYER_VALIDATOR_FOR_TYPE(SigmoidValidator, Sigmoid);
+REG_LAYER_VALIDATOR_FOR_TYPE(SigmoidValidator, Logistic);
+REG_LAYER_VALIDATOR_FOR_TYPE(SimplerNMSValidator, SimplerNMS);
+REG_LAYER_VALIDATOR_FOR_TYPE(SoftMaxValidator, SoftMax);
+REG_LAYER_VALIDATOR_FOR_TYPE(SpatialTransformerValidator, SpatialTransformer);
 REG_LAYER_VALIDATOR_FOR_TYPE(SplitValidator, Split);
 REG_LAYER_VALIDATOR_FOR_TYPE(SplitValidator, Slice);
-REG_LAYER_VALIDATOR_FOR_TYPE(ConcatValidator, Concat);
 REG_LAYER_VALIDATOR_FOR_TYPE(GemmValidator, Gemm);
 REG_LAYER_VALIDATOR_FOR_TYPE(PadValidator, Pad);
 REG_LAYER_VALIDATOR_FOR_TYPE(GatherValidator, Gather);
-REG_LAYER_VALIDATOR_FOR_TYPE(RNNValidator, RNN);
-
+REG_LAYER_VALIDATOR_FOR_TYPE(StridedSliceValidator, StridedSlice);
+REG_LAYER_VALIDATOR_FOR_TYPE(ShuffleChannelsValidator, ShuffleChannels);
+REG_LAYER_VALIDATOR_FOR_TYPE(DepthToSpaceValidator, DepthToSpace);
+REG_LAYER_VALIDATOR_FOR_TYPE(SpaceToDepthValidator, SpaceToDepth);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReverseSequenceValidator, ReverseSequence);
+REG_LAYER_VALIDATOR_FOR_TYPE(RNNCellValidator<RNNSequenceLayer::RNN>, RNNCell);
+REG_LAYER_VALIDATOR_FOR_TYPE(RNNCellValidator<RNNSequenceLayer::GRU>, GRUCell);
+REG_LAYER_VALIDATOR_FOR_TYPE(RNNCellValidator<RNNSequenceLayer::LSTM>, LSTMCell);
+REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::RNN>, RNNSequence);
+REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::GRU>, GRUSequence);
+REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::LSTM>, LSTMSequence);
+REG_LAYER_VALIDATOR_FOR_TYPE(SqueezeValidator, Squeeze);
+REG_LAYER_VALIDATOR_FOR_TYPE(UnsqueezeValidator, Unsqueeze);
+REG_LAYER_VALIDATOR_FOR_TYPE(RangeValidator, Range);
+REG_LAYER_VALIDATOR_FOR_TYPE(FillValidator, Fill);
+REG_LAYER_VALIDATOR_FOR_TYPE(ExpandValidator, Expand);
+REG_LAYER_VALIDATOR_FOR_TYPE(TanHValidator, TanH);
+REG_LAYER_VALIDATOR_FOR_TYPE(TileValidator, Tile);
+REG_LAYER_VALIDATOR_FOR_TYPE(UnpoolingValidator, Unpooling);
+REG_LAYER_VALIDATOR_FOR_TYPE(UpsamplingValidator, Upsampling);
+REG_LAYER_VALIDATOR_FOR_TYPE(QuantizeValidator, Quantize);
+REG_LAYER_VALIDATOR_FOR_TYPE(BinaryConvolutionValidator, BinaryConvolution);
 }  // namespace details
 }  // namespace InferenceEngine

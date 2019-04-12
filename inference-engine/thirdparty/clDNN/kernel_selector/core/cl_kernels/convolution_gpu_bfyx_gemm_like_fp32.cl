@@ -15,6 +15,7 @@
 */
 
 #include "include/include_all.cl"
+#include "include/sub_group.cl"
 
 #define TILE_M          2
 #define TILE_K          FILTER_SIZE_X

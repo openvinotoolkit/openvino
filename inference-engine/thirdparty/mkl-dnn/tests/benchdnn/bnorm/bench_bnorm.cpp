@@ -41,7 +41,7 @@ attr_t attr;
 const char *pattern = NULL;
 const char *skip_impl = "";
 bool allow_unimpl = false;
-const char *perf_template = "perf,%n,%z,%f,%q,%f,%D,%-t,%0t";
+const char *perf_template = "perf,%n,%z,%F,%q,%f,%D,%-t,%0t";
 
 void reset_parameters() {
     check_alg = ALG_AUTO;

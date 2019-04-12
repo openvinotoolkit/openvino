@@ -47,20 +47,20 @@ struct jit_uni_lrn_fwd_t: public cpu_primitive_t {
         virtual status_t init() override;
     };
 
-    jit_uni_lrn_fwd_t(const pd_t *pd, const input_vector &inputs,
+    jit_uni_lrn_fwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs);
     ~jit_uni_lrn_fwd_t();
 
     typedef typename prec_traits<data_type::f32>::type data_t;
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         execute_forward();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_forward();
-    pd_t conf_;
+    void execute_forward() const;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 
     jit_uni_lrn_fwd_kernel_f32<isa> *ker_, *ker_first_, *ker_last_;
 };
@@ -79,20 +79,20 @@ struct jit_uni_lrn_bwd_t: public cpu_primitive_t {
         virtual status_t init() override;
     };
 
-    jit_uni_lrn_bwd_t(const pd_t *pd, const input_vector &inputs,
+    jit_uni_lrn_bwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs);
     ~jit_uni_lrn_bwd_t();
 
     typedef typename prec_traits<data_type::f32>::type data_t;
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         execute_backward();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_backward();
-    pd_t conf_;
+    void execute_backward() const;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 
     jit_uni_lrn_bwd_kernel_f32<isa> *ker_, *ker_first_, *ker_last_;
 };

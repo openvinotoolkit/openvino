@@ -19,25 +19,23 @@
 #include <atomic>
 #include <mutex>
 #include <map>
-#include "kernel_selector_common.h"
+#include "kernel_selector_common.h" 
+#include "document.h"
+
 
 namespace kernel_selector 
 {
-    struct tuning_data // this could be replaced with 
-    {
-        std::map<std::string, std::tuple<std::string, int>> td;
-    };
 
     class AutoTuner
     {
     public:
         AutoTuner() = default;
-        std::tuple<std::string, int> LoadKernelOnline(const TuningMode tuningMode, const std::string& tuningFilePath, const std::string& deviceID, const std::string& driverVersion, const std::string& hostVersion, const std::string& hash);
-        void StoreKernel(const std::string& tuningFilePath, const std::string& hash, const std::string& implementationName, const int tuneIndex);
-        std::tuple<std::string, int> LoadKernelOffline(const std::string& deviceID, const std::string& hash);
+        std::tuple<std::string, int> LoadKernelOnline(const TuningMode tuningMode, const std::string& tuningFilePath, const uint32_t computeUnitsCount, const std::string& hash);
+        void StoreKernel(const std::string& tuningFilePath, const std::string& hash, std::string implementationName, const int tuneIndex, const uint32_t computeUnitsCount);
+        std::tuple<std::string, int> LoadKernelOffline(std::shared_ptr<rapidjson::Document> cache, const std::string& hash);
 
     private:    
-        std::map<std::string, tuning_data> onlineCache; // Tuning file name -> kernel/config per hash (hash -> [implementation name, tuning index])
+        std::shared_ptr<rapidjson::Document> onlineCache; // Tuning file name -> kernel/config per hash (hash -> [implementation name, tuning index])
         std::mutex mutex; // Mutex to synchronize cache updates
         
         /*

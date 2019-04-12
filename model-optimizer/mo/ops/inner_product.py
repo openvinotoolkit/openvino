@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.partial_infer.inner_product import caffe_inner_product
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
@@ -24,12 +23,14 @@ class InnerProduct(Op):
     op = 'FullyConnected'
     enabled = True
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': 'FullyConnected',
             'op': 'FullyConnected',
             'out-size': None,
             'layout': 'NCHW',
+            'in_ports_count': 3,
+            'out_ports_count': 1,
             'infer': caffe_inner_product
         }, attrs)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,8 @@ public:
             if (layer->insData.size() != 1 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
-            across_channels = static_cast<bool>(layer->GetParamAsInt("across_channels"));
-            normalize_variance = static_cast<bool>(layer->GetParamAsInt("normalize_variance"));
+            across_channels = layer->GetParamAsBool("across_channels", false);
+            normalize_variance = layer->GetParamAsBool("normalize_variance", false);
             eps = layer->GetParamAsFloat("eps");
 
 #if defined(HAVE_AVX512F)
@@ -87,7 +87,7 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, const SizeVector& 
         size_t cb = b * C3;
         if (across_channels) {
             double mean = 0.0;
-            mean = parallel_sum(C, mean, [&](int c)->double {
+            mean = parallel_sum(C, mean, [&](size_t c)->double {
                 double mean_internal = 0.0;
                 size_t cc = cb + c * C2;
                 for (size_t d = 0lu; d < D; d++) {
@@ -111,7 +111,7 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, const SizeVector& 
                         size_t ch = cd + h * W;
                         for (size_t w = 0lu; w < W; w++) {
                             size_t cw = ch + w;
-                            dst_data[cw] = src_data[cw] - mean;
+                            dst_data[cw] = src_data[cw] - static_cast<float>(mean);
                         }
                     }
                 }
@@ -138,7 +138,7 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, const SizeVector& 
                         size_t ch = cd + h * W;
                         for (size_t w = 0lu; w < W; w++) {
                             size_t cw = ch + w;
-                            dst_data[cw] = src_data[cw] - mean;
+                            dst_data[cw] = src_data[cw] - static_cast<float>(mean);
                         }
                     }
                 }
@@ -152,7 +152,7 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, const SizeVector& 
             size_t cb = b * C3;
             if (across_channels) {
                 double variance = 0.0;
-                variance = parallel_sum(C, variance, [&](int c)->double {
+                variance = parallel_sum(C, variance, [&](size_t c)->double {
                     double variance_internal = 0.0;
                     size_t cc = cb + c * C2;
                     for (size_t d = 0lu; d < D; d++) {
@@ -177,7 +177,7 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, const SizeVector& 
                         for (size_t h = 0lu; h < H; h++) {
                             size_t ch = cd + h * W;
                             for (size_t w = 0lu; w < W; w++) {
-                                dst_data[ch + w] /= variance;
+                                dst_data[ch + w] /= static_cast<float>(variance);
                             }
                         }
                     }
@@ -204,7 +204,7 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, const SizeVector& 
                         for (size_t h = 0lu; h < H; h++) {
                             size_t ch = cd + h * W;
                             for (size_t w = 0lu; w < W; w++) {
-                                dst_data[ch + w] /= variance;
+                                dst_data[ch + w] /= static_cast<float>(variance);
                             }
                         }
                     }
@@ -233,13 +233,12 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
     size_t H = (dims_size > 3) ? dims[dims_size - 2] : 1lu;
     size_t W = (dims_size > 2) ? dims[dims_size - 1] : 1lu;
 
-    int CB = div_up(C, static_cast<int>(blk_size));
+    int CB = div_up(static_cast<int>(C), static_cast<int>(blk_size));
 
     size_t C0 = W * blk_size;
     size_t C1 = C0 * H;
     size_t C2 = C1 * D;
     size_t C3 = C2 * CB;
-    size_t C4 = D * H * W;
     size_t C5 = C * D * H * W;
 
     if (normalize_variance) {
@@ -265,9 +264,8 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
                 double variance = 0.0;
                 variance = parallel_sum3d(CB, D, H, variance, [&](size_t cb, size_t d, size_t h)->double {
                     size_t ccbd = ccb + cb * C2 + d * C1 + h * C0;
-                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
                     double variance_internal = 0.0;
-                    for (size_t w = 0lu; w < W; w++) {
+                    for (size_t w = 0lu, min_cb = std::min(blk_size, C - cb * blk_size); w < W; w++) {
                         size_t cw = ccbd + w * blk_size;
                         for (size_t c = 0lu; c < min_cb; c++) {
                             variance_internal += std::pow(static_cast<double>(src_data[cw + c]) - mean, 2);
@@ -282,19 +280,17 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
 
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
                     size_t ccbd = ccb + cb * C2 + d * C1 + h * C0;
-                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
-                    for (size_t w = 0lu; w < W; w++) {
+                    for (size_t w = 0lu, min_cb = std::min(blk_size, C - cb * blk_size); w < W; w++) {
                         size_t cw = ccbd + w * blk_size;
                         for (size_t c = 0lu; c < min_cb; c++) {
                             size_t src_offset = cw + c;
 
-                            dst_data[src_offset] = (static_cast<double>(src_data[src_offset]) - mean) / variance;
+                            dst_data[src_offset] = static_cast<float>((static_cast<double>(src_data[src_offset]) - mean) / variance);
                         }
                     }
                 });
             } else {
                 parallel_for(CB, [&](size_t cb) {
-                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
                     size_t src_off = ccb + cb * C2;
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
                     vec_type vmean = _mm_uni_setzero_ps();
@@ -344,6 +340,7 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
                         }
                     }
 #else
+                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
                     for (size_t c = 0; c < min_cb; c++) {
                         size_t cc = src_off + c;
 
@@ -358,6 +355,7 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
                             }
                         }
 
+                        size_t C4 = D * H * W;
                         mean /= static_cast<double>(C4);
 
                         double variance = 0.0;
@@ -382,7 +380,7 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
                                 size_t ch = cd + h * C0;
                                 for (size_t w = 0lu; w < W; w++) {
                                     size_t index = ch + w * blk_size;
-                                    dst_data[index] = (src_data[index] - mean) / variance;
+                                    dst_data[index] = (src_data[index] - static_cast<float>(mean)) / static_cast<float>(variance);
                                 }
                             }
                         }
@@ -398,9 +396,8 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
                 double mean = 0.0;
                 mean = parallel_sum3d(CB, D, H, mean, [&](size_t cb, size_t d, size_t h)->double {
                     size_t ccbd = ccb + cb * C2 + d * C1 + h * C0;
-                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
                     double mean_internal = 0.f;
-                    for (size_t w = 0lu; w < W; w++) {
+                    for (size_t w = 0lu, min_cb = std::min(blk_size, C - cb * blk_size); w < W; w++) {
                         size_t cw = ccbd + w * blk_size;
                         for (size_t c = 0lu; c < min_cb; c++) {
                             mean_internal += src_data[cw + c];
@@ -413,19 +410,17 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
 
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
                     size_t ccbd = ccb + cb * C2 + d * C1 + h * C0;
-                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
-                    for (size_t w = 0lu; w < W; w++) {
+                    for (size_t w = 0lu, min_cb = std::min(blk_size, C - cb * blk_size); w < W; w++) {
                         size_t cw = ccbd + w * blk_size;
                         for (size_t c = 0lu; c < min_cb; c++) {
                             size_t src_offset = cw + c;
 
-                            dst_data[src_offset] = src_data[src_offset] - mean;
+                            dst_data[src_offset] = src_data[src_offset] - static_cast<float>(mean);
                         }
                     }
                 });
             } else {
                 parallel_for(CB, [&](size_t cb) {
-                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
                     size_t src_off = ccb + cb * C2;
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
                     vec_type vmean = _mm_uni_setzero_ps();
@@ -455,6 +450,7 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
                         }
                     }
 #else
+                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
                     for (size_t c = 0lu; c < min_cb; c++) {
                         size_t cc = src_off + c;
                         double mean = 0.0;
@@ -468,6 +464,7 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
                             }
                         }
 
+                        size_t C4 = D * H * W;
                         mean /= static_cast<double>(C4);
 
                         for (size_t d = 0lu; d < D; d++) {
@@ -476,7 +473,7 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& 
                                 size_t ch = cd + h * C0;
                                 for (size_t w = 0lu; w < W; w++) {
                                     size_t index = ch + w * blk_size;
-                                    dst_data[index] = src_data[index] - mean;
+                                    dst_data[index] = src_data[index] - static_cast<float>(mean);
                                 }
                             }
                         }

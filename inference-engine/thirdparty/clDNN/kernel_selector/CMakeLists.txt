@@ -43,7 +43,7 @@ file(GLOB __CLDNN_Sources__main
     "${__CLDNN_Directory__main}/*.hpp"
     "${__CLDNN_Directory__main}/*.cpp"
   )
-  
+
 set(__CLDNN_Directory__core           "${__CLDNN_Directory__main}/core")
 set(__CLDNN_Label__core               "core")
 file(GLOB __CLDNN_Sources__core
@@ -59,7 +59,7 @@ file(GLOB __CLDNN_Sources__common
     "${__CLDNN_Directory__common}/*.hpp"
     "${__CLDNN_Directory__common}/*.cpp"
   )
-  
+
 set(__CLDNN_Directory__core_common          "${__CLDNN_Directory__core}/common")
 set(__CLDNN_Label__core_common              "${__CLDNN_Label__core}\\common")
 file(GLOB __CLDNN_Sources__core_common
@@ -87,7 +87,7 @@ foreach(__CLDNN_FilePath ${__CLDNN_Sources__actual_kernels})
   string(REPLACE ";" "\;" __CLDNN_FilePath "${__CLDNN_FilePath}") # [WA#1] Must escape ; again if occurred in item.
   get_filename_component(__CLDNN_FileDir "${__CLDNN_FilePath}" DIRECTORY)
   get_filename_component(__CLDNN_DirName "${__CLDNN_FileDir}" NAME)
-  
+
   set(__CLDNN_FileLabel "${__CLDNN_Label__actual_kernels}\\${__CLDNN_DirName}")
   source_group("${__CLDNN_FileLabel}" FILES ${__CLDNN_FilePath})
 endforeach()
@@ -137,7 +137,7 @@ include_directories(
     "${__CLDNN_Directory__main}"
     "${__CLDNN_Directory__core}"
     "${__CLDNN_Directory__core}/common"
-	"${__CLDNN_Directory__core}/cache"
+    "${__CLDNN_Directory__core}/cache"
     "${__CLDNN_Directory__actual_kernels}"
     "${__CLDNN_Directory__common}"
   )
@@ -165,7 +165,6 @@ endif()
 target_link_libraries("${CLDNN_BUILD__PROJ}" ${CLDNN__SYSTEM_LINK_LIBRARIES})
 
 # =================================== Custom pre- and post-steps =======================================
-
 add_custom_command(OUTPUT "${__CLDNN_CGDirectory__cg_cache}/${__CLDNN_File__cg_cache__prim_db}"
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${__CLDNN_CGDirectory__cg_cache}"
     COMMAND "${PYTHON_EXECUTABLE}" "${__CLDNN_Directory__core_common}/primitive_db_gen.py" -out_path "${__CLDNN_CGDirectory__cg_cache}" -out_file_name "${__CLDNN_File__cg_cache__prim_db}" -kernels "${__CLDNN_Directory__cl_kernels}"
@@ -177,5 +176,17 @@ add_custom_command(OUTPUT "${__CLDNN_Directory__cg_cache}/${__CLDNN_File__cg_cac
     DEPENDS "${__CLDNN_CGDirectory__cg_cache}/${__CLDNN_File__cg_cache__prim_db}" ${__CLDNN_Sources__cl_kernels} "${__CLDNN_Directory__core_common}/primitive_db_gen.py"
     COMMENT "Updating file if the file changed (${__CLDNN_File__cg_cache__prim_db}) ..."
   )
+if(WIN32)
+  set(CLDNN_CACHE_PATH "${CLDNN__OUTPUT_BIN_DIR}/$<CONFIGURATION>")
+else((NOT ANDROID) AND (UNIX))
+  set(CLDNN_CACHE_PATH "${CLDNN__OUTPUT_LIB_DIR}/")
+endif()
+
+message(STATUS "[CACHE COMMAND]: " "${CMAKE_COMMAND} -E copy_if_different ${__CLDNN_Directory__core}/cache/cache.json ${CLDNN_CACHE_PATH}")
+
+add_custom_command(
+    TARGET "${CLDNN_BUILD__PROJ}" POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${__CLDNN_Directory__core}/cache/cache.json ${CLDNN_CACHE_PATH})
+
 
 # ======================================================================================================

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,7 @@ namespace details {
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl) : public ICNNNetwork {
 public:
     CNNNetworkImpl();
+    ~CNNNetworkImpl() override;
     Precision getPrecision() const noexcept override {
         return precision;
     }
@@ -50,6 +51,10 @@ public:
 
     void setInputInfo(InputInfo::Ptr data) {
         _inputData[data->name()] = data;
+    }
+
+    void removeInputInfo(const std::string& name) {
+        _inputData.erase(name);
     }
 
     void getName(char* pName, size_t len) const noexcept override {
@@ -84,6 +89,10 @@ public:
     }
 
     void addLayer(const CNNLayerPtr& layer) noexcept override;
+
+    void removeLayer(const std::string& layerName);
+
+    void removeData(const std::string& dataName);
 
     StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
 

@@ -14,10 +14,6 @@
 // limitations under the License.
 */
 
-#if defined(cl_khr_fp16)
-#pragma OPENCL EXTENSION cl_khr_fp16 : enable
-#endif
-
 // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
 #if !defined(ACCUMULATOR_TYPE)
     #define ACCUMULATOR_TYPE float

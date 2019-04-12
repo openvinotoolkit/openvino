@@ -5,24 +5,20 @@ set (TARGET_NAME "ie_api")
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
 set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
-set_source_files_properties(
-    ie_api_impl_defs.pxd
-    ie_api_impl.hpp
-    ie_api_impl.cpp
-    ie_api.pyx
-    ie_api.pxd
+file(GLOB SOURCE
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        )
 
-  PROPERTIES CYTHON_IS_CXX TRUE
+set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX TRUE
 )
 
-cython_add_module (
-    ${TARGET_NAME}
+## Compatibility with python 2.7 which has depricated "register" specifier
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    add_definitions("-Wno-register")
+endif()
 
-    ie_api_impl_defs.pxd
-    ie_api_impl.hpp
-    ie_api_impl.cpp
-    ie_api.pyx
-)
+cython_add_module (${TARGET_NAME} ${SOURCE})
 
 set_target_properties (${TARGET_NAME} PROPERTIES CXX_STANDARD 11 LINKER_LANGUAGE CXX)
 target_link_libraries (${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})

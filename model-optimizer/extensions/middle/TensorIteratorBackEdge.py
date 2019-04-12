@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,9 +16,8 @@
 
 import logging as log
 
-import networkx as nx
-
 from extensions.ops.TensorIterator_ops import TensorIteratorBackEdge, TensorIteratorOutput
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -44,6 +43,15 @@ class BackEdgesMatching(MiddleReplacementPattern):
        TensorIteratorCondition--
     """
     enabled = True
+    graph_condition = [lambda graph: graph.graph['is_cyclic']]
+
+    def run_after(self):
+        from extensions.middle.TensorIteratorCondition import SimpleConditionMatcher
+        return [SimpleConditionMatcher]
+
+    def run_before(self):
+        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        return [TensorIteratorMerge]
 
     @staticmethod
     def pattern():
@@ -83,7 +91,7 @@ class BackEdgesMatching(MiddleReplacementPattern):
             ]
         )
 
-    def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(self, graph: Graph, match: dict):
         log.debug('================== BackEdgeFind ===============')
 
         nodes_for_remove = []

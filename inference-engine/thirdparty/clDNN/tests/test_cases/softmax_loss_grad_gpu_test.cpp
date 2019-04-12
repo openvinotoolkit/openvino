@@ -31,7 +31,7 @@ using namespace tests;
 
 TEST(softmax_loss_grad_f32_fw_gpu, basic1) {
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 4, 1 } });
     auto labels = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 1, 1 } });

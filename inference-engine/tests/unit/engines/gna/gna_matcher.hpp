@@ -1,5 +1,17 @@
-// Copyright (C) 2018 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2016-2018 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #pragma once
@@ -47,7 +59,12 @@ class GnaPluginTestEnvironment {
         matchPwlQuantizeMetrics,
         matchCopyInserted,
         matchDiagonalInserted,
-        saveArgs
+        saveArgs,
+        matchInputData,
+        fillOutputValues,
+        matchAffineWeightsTranspose,
+        matchAffineWeights,
+        saveAffineWeights
     };
     std::vector<MatchWhat> whatToMatch;
     enum {
@@ -68,14 +85,22 @@ class GnaPluginTestEnvironment {
     bool exportNetworkOnly = false;
     std::function<void (InferenceEngine::CNNNetwork &)> cb;
     std::map<std::string, std::string> config;
+    GNAPluginNS::Policy policy;
     bool matchThrows = false;
     uint32_t proc_type = static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE);
     std::string importedModelFileName;
     bool is_profiling_enabled = false;
     bool matchOutput = false;
     bool is_setup_of_omp_theads_expected = false;
-    std::vector<float> input_init;
+    std::vector<int16_t> input_processed;
+    InferenceEngine::Precision input_precision = InferenceEngine::Precision::FP32;
+    std::map<std::string, std::vector<float>> input_init;
     std::vector<float> expected_output;
+    int16_t fillValue = 0;
+    std::vector<float> weightsFillPattern;
+    std::pair<int, int> transposeArgs;
+    std::pair<int, int> transposedArgsForSaving;
+    std::vector<uint16_t>* transposedData;
 };
 
 class GNATestBase {
@@ -103,7 +128,7 @@ class GNATestConfigurability : public GNATestBase{
         return *dynamic_cast<T*>(this);
     }
     template <class VType>
-    T & withGNAConfig(const std::string keyName, const VType &value) {
+    T & withGNAConfig(const std::string &keyName, const VType &value) {
         std::stringstream ss;
         ss << value;
         _env.config[keyName] = ss.str();
@@ -153,6 +178,22 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         return *this;
     }
 
+    GNAPropagateMatcher & returns() {
+        return *this;
+    }
+
+    GNAPropagateMatcher & And() {
+        return *this;
+    }
+
+    GNAPropagateMatcher & that() {
+        return *this;
+    }
+
+    GNAPropagateMatcher & result() {
+        return *this;
+    }
+
     GNAPropagateMatcher & called_with() {
         return *this;
     }
@@ -161,11 +202,35 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         _env.matchInserted = false;
         return *this;
     }
+    /**
+     * @brief gna_propagate_forward will fill all output pointers of 16 bits with this value
+     */
+    GNAPropagateMatcher & filledWith(int16_t valueToFill) {
+        _env.fillValue = valueToFill;
+        getMatcher() = GnaPluginTestEnvironment::fillOutputValues;
+        return *this;
+    }
 
-    GNAPropagateMatcher & called_with_input_and_expected_output(std::vector<float>& input_data,
-                                                                std::vector<float>& expect) {
+    GNAPropagateMatcher & equal_to(const std::vector<float>& expect) {
         _env.matchOutput = true;
-        _env.input_init = input_data;
+        _env.expected_output = expect;
+        return *this;
+    }
+
+    GNAPropagateMatcher & input(const std::string & inputName, const std::vector<float>& inputData) {
+        _env.input_init[inputName] = inputData;
+        return *this;
+    }
+
+    GNAPropagateMatcher & inputScale(const std::string & inputName, float scaleFactor) {
+        _env.config[std::string(GNA_CONFIG_KEY(SCALE_FACTOR)) + "_" + inputName] = std::to_string(scaleFactor);
+        return *this;
+    }
+
+    GNAPropagateMatcher & called_with_input_and_expected_output(const std::vector<float>& input_data,
+                                                                const std::vector<float>& expect) {
+        _env.matchOutput = true;
+        _env.input_init["any_input_name"] = input_data;
         _env.expected_output = expect;
         return *this;
     }
@@ -234,8 +299,44 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         return *this;
     }
 
+    GNAPropagateMatcher &preprocessed_input_data(std::vector<float> input_init, std::vector<int16_t> input_processed,
+                                                 InferenceEngine::Precision inputPrecision) {
+        getMatcher() = GnaPluginTestEnvironment::matchInputData;
+        _env.input_processed = std::move(input_processed);
+        _env.input_init["placeholder"] = std::move(input_init);
+        _env.input_precision = inputPrecision;
+        return *this;
+    }
+
     GNAPropagateMatcher & copy_inserted_into_nnet() {
         getMatcher() = GnaPluginTestEnvironment::matchCopyInserted;
+        return *this;
+    }
+
+
+    GNAPropagateMatcher & affine_weights_transpozed(std::pair<int, int> &&transpozedArgs) {
+        getMatcher() = GnaPluginTestEnvironment::saveAffineWeights;
+        _env.transposedArgsForSaving = std::move(transpozedArgs);
+
+        return *this;
+    }
+
+    GNAPropagateMatcher & affine_weights() {
+        getMatcher() = GnaPluginTestEnvironment::saveAffineWeights;
+        return *this;
+    }
+
+    GNAPropagateMatcher & affine_weights_eq(std::vector<uint16_t> & sourceWeights) {
+        getMatcher() = GnaPluginTestEnvironment::matchAffineWeights;
+        _env.transposedData = &sourceWeights;
+        return *this;
+    }
+
+
+    GNAPropagateMatcher & affine_weights_transposed(std::vector<uint16_t> & sourceWeights, std::pair<int,int> transposeData) {
+        getMatcher() = GnaPluginTestEnvironment::matchAffineWeightsTranspose;
+        _env.transposeArgs = transposeData;
+        _env.transposedData = &sourceWeights;
         return *this;
     }
 
@@ -270,6 +371,13 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         this->savedNet = savedNet;
         return *this;
     }
+
+    GNAPropagateMatcher & to(std::vector<uint16_t> & sourceWeights) {
+        _env.transposedData = &sourceWeights;
+        return *this;
+    }
+
+
 
     GNAPropagateMatcher & onCPU() {
         _env.target_device = InferenceEngine::TargetDevice::eCPU;
@@ -371,14 +479,29 @@ class GNAQueryStateMatcher : public GNADumpXNNMatcher {
 class GNATest : public ::testing::Test, public GNATestConfigurability<GNATest>  {
     using base = GNATestConfigurability<GNATest>;
     using base::_env;
-    std::list<std::vector<uint8_t>> dataUsedInMatchers;
+    class XStorage {
+     public:
+        std::vector<uint8_t> data;
+        std::function<void (void *)> destroyer;
+       ~XStorage() {
+           destroyer(&data.front());
+       }
+    };
+    std::list<XStorage> dataUsedInMatchers;
     std::list<std::shared_ptr<GNATestBase>> returnedMatchers;
 
  public:
     template <class T>
     T & storage () {
-        dataUsedInMatchers.push_back(std::vector<uint8_t >(sizeof(T)));
-        return *reinterpret_cast<T*> (&dataUsedInMatchers.back().front());
+        dataUsedInMatchers.push_back({std::vector<uint8_t >(sizeof(T)), [](void * toDestroy) {
+            reinterpret_cast<T*>(toDestroy)->~T();
+        }});
+
+        auto ptr = reinterpret_cast<T*> (&dataUsedInMatchers.back().data.front());
+        // sad to say we are not using destructors here so data might leak
+        new(ptr) T;
+
+        return *ptr;
     }
     GNATest()  : base(GnaPluginTestEnvironment()) {}
     GNATest & as() {
@@ -397,6 +520,9 @@ class GNATest : public ::testing::Test, public GNATestConfigurability<GNATest>  
     }
     GNATest & save_args() {
         getMatcher() = GnaPluginTestEnvironment::saveArgs;
+        return *this;
+    }
+    GNATest & save() {
         return *this;
     }
 
@@ -436,6 +562,10 @@ class GNATest : public ::testing::Test, public GNATestConfigurability<GNATest>  
                            std::function<void (InferenceEngine::CNNNetwork &)> _cb = [](InferenceEngine::CNNNetwork & net){}) {
         _env.model = _model;
         _env.cb = _cb;
+        return *this;
+    }
+    GNATest &  withWeigthsPattern(std::vector<float> && initializer) {
+        _env.weightsFillPattern = std::move(initializer);
         return *this;
     }
     GNATest & gna() {
@@ -484,7 +614,16 @@ class GNATest : public ::testing::Test, public GNATestConfigurability<GNATest>  
         return dynamic_cast<GNAPluginAOTMatcher&>(*returnedMatchers.back());
     }
 
-    static void fillWeights(InferenceEngine::Blob::Ptr weights, float value = 1) {
-        std::fill_n(weights->buffer().as<float*>(), weights->byteSize()/sizeof(float), value);
+    static void fillWeights(InferenceEngine::Blob::Ptr weights, std::vector<float> pattern = {1.f}) {
+        float * p = weights->buffer().as<float *>();
+        float * pEnd = p + weights->byteSize() / sizeof(float);
+
+        for(; p!=pEnd ;) {
+            for (int i = 0; i != (weights->byteSize() / sizeof(float) / 3) + 1; i++) {
+                for (int j = 0; j != pattern.size() && p != pEnd; j++, p++) {
+                    *p = pattern[j];
+                }
+            }
+        }
     }
 };

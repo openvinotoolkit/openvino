@@ -48,7 +48,40 @@
 --direction=left2right
 --activation=TANH
 --prop=FWD_D --batch=rnn_small
---prop=BWD_DW --batch=rnn_small
+# --prop=BWD_DW --batch=rnn_small
+
+# LSTM int8
+--reset --alg=VANILLA_LSTM
+--direction=left2right
+--activation=TANH
+--cfg=u8u8u8u8
+--allow-unimpl=true
+--attr=irmode=nearest --scaling=common
+--prop=FWD_D --batch=rnn_small
+
+--reset --alg=VANILLA_LSTM
+--direction=left2right
+--activation=TANH
+--allow-unimpl=true
+--cfg=u8u8u8f32
+--attr=irmode=down --scaling=common
+--prop=FWD_D --batch=rnn_small
+
+--reset --alg=VANILLA_LSTM
+--direction=left2right
+--activation=TANH
+--allow-unimpl=true
+--cfg=f32u8f32u8
+--attr=irmode=down --scaling=per_oc
+--prop=FWD_D --batch=rnn_small
+
+--reset --alg=VANILLA_LSTM
+--direction=left2right
+--activation=TANH
+--allow-unimpl=true
+--cfg=f32u8f32f32
+--attr=irmode=nearest --scaling=per_oc
+--prop=FWD_D --batch=rnn_small
 
 # GRU
 --reset --alg=VANILLA_GRU

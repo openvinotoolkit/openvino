@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,10 +6,13 @@ set (TARGET_NAME "inference_engine")
 
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/transform/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/transform/transformations/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/builders/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/built-in/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/const_infer/*.cpp
       )
 
 file (GLOB LIBRARY_HEADERS
@@ -18,6 +21,7 @@ file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/*.hpp
        ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/*.hpp
        ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/built-in/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/const_infer/*.hpp
        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/base/*.hpp
        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/impl/*.hpp
        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/interface/*.hpp
@@ -33,9 +37,15 @@ if( (NOT DEFINED ENABLE_SSE42) OR ENABLE_SSE42)
            ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.hpp
           )
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42)
-    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/blob_transform_sse42.cpp PROPERTIES COMPILE_FLAGS -msse4.2)
-    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_data_sse42.cpp PROPERTIES COMPILE_FLAGS -msse4.2)
-    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_gapi_kernels_sse42.cpp PROPERTIES COMPILE_FLAGS -msse4.2)
+    if (WIN32)
+        set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/blob_transform_sse42.cpp"
+                "${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_data_sse42.cpp"
+                "${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_gapi_kernels_sse42.cpp" PROPERTIES COMPILE_FLAGS /arch:SSE2)
+    else()
+        set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/blob_transform_sse42.cpp"
+                "${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_data_sse42.cpp"
+                "${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_gapi_kernels_sse42.cpp" PROPERTIES COMPILE_FLAGS -msse4.2)
+    endif()
     add_definitions(-DHAVE_SSE=1)
 endif()
 
@@ -64,7 +74,7 @@ add_library(${TARGET_NAME} SHARED
             ${PUBLIC_HEADERS})
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml fluid ade ${CMAKE_DL_LIBS} ${INTEL_ITT_LIBS})
+target_link_libraries(${TARGET_NAME} PRIVATE fluid ade ${INTEL_ITT_LIBS} PUBLIC pugixml ${CMAKE_DL_LIBS})
 
 # Properties->C/C++->General->Additional Include Directories
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
@@ -105,7 +115,8 @@ target_compile_definitions(${TARGET_NAME}_s PUBLIC -DUSE_STATIC_IE)
 set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE fluid
-                                       PRIVATE ade)
+                                       PRIVATE ade
+                                       PRIVATE ${INTEL_ITT_LIBS})
 
 # export targets
 export(TARGETS ${TARGET_NAME} NAMESPACE IE:: FILE "${CMAKE_BINARY_DIR}/targets.cmake")
@@ -119,3 +130,5 @@ configure_file(
     "${CMAKE_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
     "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
     COPYONLY)
+
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

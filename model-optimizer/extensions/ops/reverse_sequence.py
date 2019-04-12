@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,38 +14,38 @@
  limitations under the License.
 """
 
-import logging as log
-import networkx as nx
-import numpy as np
-
-from mo.graph.graph import Node
-from mo.ops.op import Op, PermuteAttrs
+from mo.graph.graph import Graph
+from mo.ops.op import Op
 
 
 class ReverseSequence(Op):
     op = 'ReverseSequence'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            #'type': not set, there shouldn't be translated to real layer
-            'seq_dim': None,
-            'batch_dim': None,
+            'type': __class__.op,
+            'seq_axis': None,
+            'batch_axis': 0,
             'op': __class__.op,
+            'in_ports_count': 2,
+            'out_ports_count': 1,
             'infer': __class__.infer,
+            'in_ports_count': 2,
+            'out_ports_count': 1,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
         return [
+            'seq_axis', 'batch_axis',
         ]
-
+    
     @staticmethod
     def infer(node):
-        if not node.has_valid('seq_dim'):
-            assert 1 in node.in_nodes()
-            assert node.in_node(1).has_valid('value')
-            assert node.in_node(1).value.size == 1
-            node['seq_dim'] = node.in_node(1).value.item()
-            node.graph.remove_edge(node.in_node(1).id, node.id)
+        input_data_shape = node.in_node(0).shape
+        assert input_data_shape is not None
+        assert node.has_valid('seq_axis')
+        assert node.has_valid('batch_axis')
+
         assert len(node.out_nodes()) == 1
-        node.out_node().shape = node.in_node().shape.copy()
+        node.out_node().shape = input_data_shape.copy()

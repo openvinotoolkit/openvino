@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -41,6 +41,9 @@ nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
                     'tf_slice_size': {'value': None, 'shape': None, 'kind': 'data'},
                     'tf_slice': {'kind': 'op'},
                     'tf_slice_output': {'value': None, 'shape': None, 'kind': 'data'},
+                    'op_output': {'kind': 'op', 'op': 'OpOutput'},
+                    'op_output_1': {'kind': 'op', 'op': 'OpOutput'},
+                    'op_output_2': {'kind': 'op', 'op': 'OpOutput'}
                     }
 
 tf_slice_edges = [('tf_slice_input', 'tf_slice'), ('tf_slice_begin', 'tf_slice'), ('tf_slice_size', 'tf_slice'),
@@ -52,10 +55,13 @@ class TestSSliceInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'Slice_node'),
                              ('Slice_node', 'node_2'),
-                             ('Slice_node', 'node_3')],
+                             ('Slice_node', 'node_3'),
+                             ('node_2', 'op_output'),
+                             ('node_3', 'op_output_1')
+                             ],
                             {'node_1': {'shape': np.array([1, 288, 56, 56])},
-                             'node_2': {'is_output': True, 'shape': None},
-                             'node_3': {'is_output': True, 'shape': None},
+                             'node_2': {'shape': None},
+                             'node_3': {'shape': None},
                              'Slice_node': {'axis': 1, 'slice_point': np.array([256])}
                              })
 
@@ -77,10 +83,13 @@ class TestSSliceInfer(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'Slice_node'),
                              ('Slice_node', 'node_2'),
-                             ('Slice_node', 'node_3')],
+                             ('Slice_node', 'node_3'),
+                             ('node_2', 'op_output'),
+                             ('node_3', 'op_output_1')
+                             ],
                             {'node_1': {'shape': np.array([1, 288, 56, 56])},
-                             'node_2': {'is_output': True, 'shape': None},
-                             'node_3': {'is_output': True, 'shape': None},
+                             'node_2': {'shape': None},
+                             'node_3': {'shape': None},
                              'Slice_node': {'axis': 1, 'slice_point': []}
                              })
 
@@ -102,11 +111,15 @@ class TestSSliceInfer(unittest.TestCase):
                             [('node_1', 'Slice_node'),
                              ('Slice_node', 'node_2'),
                              ('Slice_node', 'node_3'),
-                             ('Slice_node', 'node_4')],
+                             ('Slice_node', 'node_4'),
+                             ('node_2', 'op_output'),
+                             ('node_3', 'op_output_1'),
+                             ('node_2', 'op_output_2')
+                             ],
                             {'node_1': {'shape': np.array([1, 288, 56, 56])},
-                             'node_2': {'is_output': True, 'shape': None},
-                             'node_3': {'is_output': True, 'shape': None},
-                             'node_4': {'is_output': True, 'shape': None},
+                             'node_2': {'shape': None},
+                             'node_3': {'shape': None},
+                             'node_4': {'shape': None},
                              'Slice_node': {'axis': 1, 'slice_point': []}
                              })
 
@@ -132,11 +145,15 @@ class TestSSliceInfer(unittest.TestCase):
                             [('node_1', 'Slice_node'),
                              ('Slice_node', 'node_2'),
                              ('Slice_node', 'node_3'),
-                             ('Slice_node', 'node_4')],
+                             ('Slice_node', 'node_4'),
+                             ('node_2', 'op_output'),
+                             ('node_3', 'op_output_1'),
+                             ('node_2', 'op_output_2')
+                             ],
                             {'node_1': {'shape': np.array([1, 288, 56, 56])},
-                             'node_2': {'is_output': True, 'shape': None},
-                             'node_3': {'is_output': True, 'shape': None},
-                             'node_4': {'is_output': True, 'shape': None},
+                             'node_2': {'shape': None},
+                             'node_3': {'shape': None},
+                             'node_4': {'shape': None},
                              'Slice_node': {'axis': 1, 'slice_point': [100, 150]}
                              })
 
@@ -168,15 +185,16 @@ class TestTFStridedSliceInfer(unittest.TestCase):
                             ('sslice_end_1', 'sslice_1'),
                             ('sslice_stride_1', 'sslice_1'),
                             ('sslice_1', 'sslice_data_1'),
+                            ('sslice_data_1', 'op_output')
                             ],
-                           {'sslice_data_1': {'is_output': True},
+                           {
                             'sslice_input': {'value': np.array([1, 34, 34, 62]),
                                              'shape': np.array([3])},
                             'sslice_begin_1': {'value': np.array([0]), 'shape': np.array([1])},
                             'sslice_end_1': {'value': np.array([4]), 'shape': np.array([1])},
                             'sslice_stride_1': {'value': np.array([1]), 'shape': np.array([1])},
-                            'sslice_1': {'shrink_axis_mask': 0, 'ellipsis_mask': 0, 'new_axis_mask': 0,
-                                         'begin_mask': 0, 'end_mask': 0},
+                            'sslice_1': {'shrink_axis_mask': [0], 'ellipsis_mask': [0], 'new_axis_mask': [0],
+                                         'begin_mask': [1], 'end_mask': [1]},
                             })
 
     def build_test_graph(self):
@@ -186,17 +204,18 @@ class TestTFStridedSliceInfer(unittest.TestCase):
                             ('sslice_end_1', 'sslice_1'),
                             ('sslice_stride_1', 'sslice_1'),
                             ('sslice_1', 'sslice_data_1'),
+                            ('sslice_data_1', 'op_output')
                             ],
-                           {'sslice_data_1': {'is_output': True},
+                           {
                             'sslice_input': {'value': None, 'shape': np.array([1, 35, 35, 3])},
                             'sslice_begin_1': {'value': np.array([0, 0, 0, 0]), 'shape': np.array([4])},
                             'sslice_end_1': {'value': np.array([1, 34, 30, 2]), 'shape': np.array([4])},
                             'sslice_stride_1': {'value': np.array([1, 1, 1, 1]),
                                                 'shape': np.array([4])},
-                            'sslice_1': {'shrink_axis_mask': 0, 'ellipsis_mask': 0, 'new_axis_mask': 0,
-                                         'begin_mask': 0, 'end_mask': 0},
+                            'sslice_1': {'shrink_axis_mask': [0], 'ellipsis_mask': [0], 'new_axis_mask': [0],
+                                         'begin_mask': [1], 'end_mask': [1]},
                             })
- 
+
     def build_test_graph_dim_beg(self):
         return build_graph(nodes_attributes,
                            [('sslice_input', 'sslice_1'),
@@ -204,17 +223,17 @@ class TestTFStridedSliceInfer(unittest.TestCase):
                             ('sslice_end_1', 'sslice_1'),
                             ('sslice_stride_1', 'sslice_1'),
                             ('sslice_1', 'sslice_data_1'),
+                            ('sslice_data_1', 'op_output')
                             ],
-                           {'sslice_data_1': {'is_output': True},
+                           {
                             'sslice_input': {'value': np.array([[1, 34, 34, 62]]),
                                              'shape': np.array([1, 4])},
                             'sslice_begin_1': {'value': np.array([0]), 'shape': np.array([1])},
                             'sslice_end_1': {'value': np.array([4]), 'shape': np.array([1])},
                             'sslice_stride_1': {'value': np.array([1]), 'shape': np.array([1])},
-                            'sslice_1': {'shrink_axis_mask': 0, 'ellipsis_mask': 0, 'new_axis_mask': 0,
-                                         'begin_mask': 0, 'end_mask': 0},
+                            'sslice_1': {'shrink_axis_mask': [0], 'ellipsis_mask': [0], 'new_axis_mask': [0],
+                                         'begin_mask': [1], 'end_mask': [1]},
                             })
-
 
     def test_slice_infer_1(self):
         graph = self.build_test_graph()
@@ -225,7 +244,7 @@ class TestTFStridedSliceInfer(unittest.TestCase):
     def test_slice_infer_2(self):
         graph = self.build_test_graph()
         node = Node(graph, 'sslice_1')
-        node.end_mask = 6  # 0110
+        node.end_mask = [1, 0, 0, 1]  # 6
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([1, 35, 35, 2])), 'Wrong output shape detected')
 
@@ -233,7 +252,7 @@ class TestTFStridedSliceInfer(unittest.TestCase):
         graph = self.build_test_graph()
         node = Node(graph, 'sslice_1')
         node.in_node(1).value = np.array([0, 10, 10, 0])
-        node.end_mask = 6  # 0110
+        node.end_mask = [1, 0, 0, 1]  # 6
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([1, 25, 25, 2])), 'Wrong output shape detected')
 
@@ -241,7 +260,7 @@ class TestTFStridedSliceInfer(unittest.TestCase):
         graph = self.build_test_graph()
         node = Node(graph, 'sslice_1')
         node.in_node(1).value = np.array([0, 10, 10, 0])
-        node.begin_mask = 6  # 0110
+        node.begin_mask = [1, 0, 0, 1]  # 6
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([1, 34, 30, 2])), 'Wrong output shape detected')
 
@@ -249,8 +268,8 @@ class TestTFStridedSliceInfer(unittest.TestCase):
         graph = self.build_test_graph()
         node = Node(graph, 'sslice_1')
         node.in_node(1).value = np.array([0, 10, 10, 0])
-        node.begin_mask = 15  # 1111
-        node.end_mask = 15  # 1111
+        node.begin_mask = [0, 0, 0, 0]  # 15
+        node.end_mask = [0, 0, 0, 0]  # 15
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([1, 35, 35, 3])), 'Wrong output shape detected')
 
@@ -273,7 +292,7 @@ class TestTFStridedSliceInfer(unittest.TestCase):
     def test_slice_infer_8(self):
         graph = self.build_test_graph2()
         node = Node(graph, 'sslice_1')
-        node.new_axis_mask = 1
+        node.new_axis_mask = [1]
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([1, 4])), 'Wrong output shape detected')
         self.assertTrue(np.array_equal(node.out_node().value, np.array([[1, 34, 34, 62]])),
@@ -282,59 +301,57 @@ class TestTFStridedSliceInfer(unittest.TestCase):
     def test_slice_infer_9(self):
         graph = self.build_test_graph()
         node = Node(graph, 'sslice_1')
-        node.begin_mask = 15  # 1111
-        node.end_mask = 15  # 1111
-        node.shrink_axis_mask = 1
+        node.begin_mask = [0, 0, 0, 0]  # 15
+        node.end_mask = [0, 0, 0, 0]  # 15
+        node.shrink_axis_mask = [1]
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([35, 35, 3])), 'Wrong output shape detected')
 
     def test_slice_infer_10(self):
         graph = self.build_test_graph()
         node = Node(graph, 'sslice_1')
-        node.begin_mask = 15  # 1111
-        node.end_mask = 15  # 1111
-        node.shrink_axis_mask = 1
-        node.new_axis_mask = 8
+        node.begin_mask = [0, 0, 0, 0]  # 15
+        node.end_mask = [0, 0, 0, 0]  # 15
+        node.shrink_axis_mask = [1, 0, 0, 0]
+        node.new_axis_mask = [0, 0, 0, 1]  # 8
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([35, 35, 1, 3])), 'Wrong output shape detected')
 
     def test_slice_infer_11(self):
         graph = self.build_test_graph()
         node = Node(graph, 'sslice_1')
-        node.begin_mask = 15  # 1111
-        node.end_mask = 15  # 1111
-        node.shrink_axis_mask = 5  # 0101
+        node.begin_mask = [0, 0, 0, 0]  # 15
+        node.end_mask = [0, 0, 0, 0]  # 15
+        node.shrink_axis_mask = [1, 0, 1, 0]  # 5
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([35, 3])), 'Wrong output shape detected')
 
     def test_slice_infer_12(self):
         graph = self.build_test_graph()
         node = Node(graph, 'sslice_1')
-        node.begin_mask = 15  # 1111
-        node.end_mask = 15  # 1111
-        node.shrink_axis_mask = 7  # 0111
+        node.begin_mask = [0, 0, 0, 0]  # 15
+        node.end_mask = [0, 0, 0, 0]  # 15
+        node.shrink_axis_mask = [1, 1, 1, 0]  # 7
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([3])), 'Wrong output shape detected')
 
     def test_slice_infer_13(self):
         graph = self.build_test_graph2()
         node = Node(graph, 'sslice_1')
-        # node.in_node(0).value = np.array([1])
         node.in_node(1).value = np.array([1])
-        node.shrink_axis_mask = 1
+        node.shrink_axis_mask = [1]
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([])), 'Wrong output shape detected')
         self.assertTrue(np.array_equal(node.out_node().value, np.array(34)), 'Wrong output shape detected')
 
-    def test_slice_infer_14(self):  
+    def test_slice_infer_14(self):
         graph = self.build_test_graph2()
         node = Node(graph, 'sslice_1')
-        # node.in_node(0).value = np.array([1])
         node.in_node(3).value = np.array([-1])
-        node.end_mask=1
-        node.begin_mask=1
-        node.in_node(0).shape=[4]
-        tf_strided_slice_infer(node) 
+        node.end_mask = [0]
+        node.begin_mask = [0]
+        node.in_node(0).shape = [4]
+        tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([4])), 'Wrong output shape detected')
         print(node.out_node().value)
         self.assertTrue(np.array_equal(node.out_node().value, np.array([62, 34, 34, 1])), 'Wrong output shape detected')
@@ -342,8 +359,7 @@ class TestTFStridedSliceInfer(unittest.TestCase):
     def test_slice_infer_dim_beg(self):
         graph = self.build_test_graph_dim_beg()
         node = Node(graph, 'sslice_1')
-        # node.in_node(0).value = np.array([1])
-        node.shrink_axis_mask = 1
+        node.shrink_axis_mask = [1]
         tf_strided_slice_infer(node)
         self.assertTrue(np.array_equal(node.out_node().shape, np.array([4])), 'Wrong output shape detected')
         self.assertTrue(np.array_equal(node.out_node().value, np.array([1, 34, 34, 62])), 'Wrong output shape detected')

@@ -349,20 +349,20 @@ status_t jit_avx512_common_lrn_fwd_t::pd_t::init() {
     return args_ok_across ? success : unimplemented;
 }
 
-jit_avx512_common_lrn_fwd_t::jit_avx512_common_lrn_fwd_t(const pd_t *pd,
+jit_avx512_common_lrn_fwd_t::jit_avx512_common_lrn_fwd_t(const pd_t *apd,
         const input_vector &inputs, const output_vector &outputs)
-    : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd)
+    : cpu_primitive_t(apd, inputs, outputs)
     , use_h_parallelism(0), ker_(nullptr), ker_first_(nullptr)
     , ker_last_(nullptr) {
     using namespace alg_kind;
-    const int C = conf_.C();
-    const int H = conf_.H();
-    const int W = conf_.W();
-    const int ls = conf_.desc()->local_size;
-    const float alpha = conf_.desc()->lrn_alpha / ls;
-    const float k = conf_.desc()->lrn_k;
+    const int C = pd()->C();
+    const int H = pd()->H();
+    const int W = pd()->W();
+    const int ls = pd()->desc()->local_size;
+    const float alpha = pd()->desc()->lrn_alpha / ls;
+    const float k = pd()->desc()->lrn_k;
 
-    auto pk = conf_.desc()->prop_kind;
+    auto pk = pd()->desc()->prop_kind;
 
     use_h_parallelism = H > 28 ? 1 : 0;
 
@@ -382,15 +382,15 @@ jit_avx512_common_lrn_fwd_t::jit_avx512_common_lrn_fwd_t(const pd_t *pd,
 jit_avx512_common_lrn_fwd_t::~jit_avx512_common_lrn_fwd_t()
 { delete ker_; delete ker_first_; delete ker_last_; }
 
-void jit_avx512_common_lrn_fwd_t::execute_forward() {
+void jit_avx512_common_lrn_fwd_t::execute_forward() const {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto dst = reinterpret_cast<data_t*>(this->memory(0));
     auto ws = reinterpret_cast<data_t*>(this->memory(1));
 
-    const int N = conf_.MB();
-    const int C = conf_.C();
-    const int H = conf_.H();
-    const int W = conf_.W();
+    const int N = pd()->MB();
+    const int C = pd()->C();
+    const int H = pd()->H();
+    const int W = pd()->W();
 
     parallel(0, [&](const int ithr, const int nthr) {
         size_t start{0}, end{0};
@@ -761,17 +761,17 @@ status_t jit_avx512_common_lrn_bwd_t::pd_t::init() {
     return args_ok_across ? success : unimplemented;
 }
 
-jit_avx512_common_lrn_bwd_t::jit_avx512_common_lrn_bwd_t(const pd_t *pd,
+jit_avx512_common_lrn_bwd_t::jit_avx512_common_lrn_bwd_t(const pd_t *apd,
         const input_vector &inputs, const output_vector &outputs)
-    : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd)
+    : cpu_primitive_t(apd, inputs, outputs)
     , use_h_parallelism(0),  ker_(nullptr), ker_first_(nullptr)
     , ker_last_(nullptr) {
-    const int C = conf_.C();
-    const int H = conf_.H();
-    const int W = conf_.W();
-    const int ls = conf_.desc()->local_size;
-    const float alpha = conf_.desc()->lrn_alpha / ls;
-    const float beta = conf_.desc()->lrn_beta;
+    const int C = pd()->C();
+    const int H = pd()->H();
+    const int W = pd()->W();
+    const int ls = pd()->desc()->local_size;
+    const float alpha = pd()->desc()->lrn_alpha / ls;
+    const float beta = pd()->desc()->lrn_beta;
 
     use_h_parallelism = H > 28 ? 1 : 0;
 
@@ -791,16 +791,16 @@ jit_avx512_common_lrn_bwd_t::jit_avx512_common_lrn_bwd_t(const pd_t *pd,
 jit_avx512_common_lrn_bwd_t::~jit_avx512_common_lrn_bwd_t()
 { delete ker_; delete ker_first_; delete ker_last_; }
 
-void jit_avx512_common_lrn_bwd_t::execute_backward() {
+void jit_avx512_common_lrn_bwd_t::execute_backward() const {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(1));
     auto ws = reinterpret_cast<const data_t *>(this->input_memory(2));
     auto diff_src = reinterpret_cast<data_t *>(this->memory(0));
 
-    const int N = conf_.MB();
-    const int C = conf_.C();
-    const int H = conf_.H();
-    const int W = conf_.W();
+    const int N = pd()->MB();
+    const int C = pd()->C();
+    const int H = pd()->H();
+    const int W = pd()->W();
 
     parallel(0, [&](const int ithr, const int nthr) {
         size_t start{0}, end{0};

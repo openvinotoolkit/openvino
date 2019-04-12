@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,13 +16,9 @@
 
 from mo.front.common.replacement import FrontReplacementOp, FrontReplacementSubgraph, FrontReplacementPattern
 from mo.front.extractor import FrontExtractorOp, MXNetCustomFrontExtractorOp
-from mo.ops.op import Op
-from mo.utils import class_registration
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.back.replacement import BackReplacementPattern
 
 
-def update_registration():
-    class_registration.update_registration([Op, FrontExtractorOp, FrontReplacementOp, FrontReplacementSubgraph,
-                                            MXNetCustomFrontExtractorOp, MiddleReplacementPattern,
-                                            BackReplacementPattern, FrontReplacementPattern])
+def get_front_classes():
+    front_classes = [FrontExtractorOp, FrontReplacementOp, FrontReplacementSubgraph, MXNetCustomFrontExtractorOp,
+                     FrontReplacementPattern]
+    return front_classes

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,10 +35,10 @@ private:
     bool withGroups;
     bool isDW;
     size_t groupNum = 1;
-    std::vector<int> stride;
-    std::vector<int> paddingL;
-    std::vector<int> dilation;
-    std::vector<int> paddingR;
+    std::vector<ptrdiff_t> stride;
+    std::vector<ptrdiff_t> paddingL;
+    std::vector<ptrdiff_t> dilation;
+    std::vector<ptrdiff_t> paddingR;
     MKLDNNDims weightsDims;
     static Register<MKLDNNDeconvolutionNode> reg;
     InferenceEngine::Blob::Ptr biases;

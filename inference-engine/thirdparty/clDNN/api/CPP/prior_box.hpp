@@ -91,6 +91,9 @@ struct prior_box : public primitive_base<prior_box, CLDNN_PRIMITIVE_DESC(prior_b
             if (!already_exist) {
                 this->aspect_ratios.push_back(new_aspect_ratio);
                 if (flip) {
+                    if (std::fabs(new_aspect_ratio) < std::numeric_limits<float>::epsilon()) {
+                        throw std::runtime_error("prior_box aspect ratio can't be zero!");
+                    }
                     this->aspect_ratios.push_back(1.f / new_aspect_ratio);
                 }
             }

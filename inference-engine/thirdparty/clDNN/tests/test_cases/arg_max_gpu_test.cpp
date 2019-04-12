@@ -33,7 +33,7 @@ using namespace tests;
 TEST(arg_max_gpu, base) {
 	//  Input  : 2x3x2x2
 	static const int32_t x_size = 2, y_size = 2, feature_num = 3, batch_num = 2;
-	engine engine;
+	const auto& engine = get_test_engine();
 
 	auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
 	topology topology;
@@ -85,7 +85,7 @@ TEST(arg_max_gpu, base) {
 TEST(arg_max_gpu_batch_one, base) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 5, batch_num = 1, top_k = 8;
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
@@ -164,7 +164,7 @@ TEST(arg_max_gpu_batch_one, base) {
 TEST(arg_max_gpu_top_k, base) {
 	//  Input  : 2x3x2x2
 	static const int32_t x_size = 2, y_size = 2, feature_num = 5, batch_num = 2;
-	engine engine;
+	const auto& engine = get_test_engine();
 	const int top_k = 8;
 	auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
 	topology topology;
@@ -249,7 +249,7 @@ TEST(arg_max_gpu_min, base) {
 	//  Input  : 2x3x2x2
 	static const int32_t x_size = 2, y_size = 2, feature_num = 4,
 		batch_num = 2;
-	engine engine;
+	const auto& engine = get_test_engine();
 
 	auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
 	topology topology;
@@ -303,7 +303,7 @@ TEST(arg_max_gpu_min, base) {
 TEST(arg_max_gpu_min_top_k, base) {
 	//  Input  : 2x3x2x2
 	static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
-	engine engine;
+	const auto& engine = get_test_engine();
 	const int top_k = 3;
 	auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
 	topology topology;
@@ -385,7 +385,7 @@ TEST(arg_max_gpu_min_top_k, base) {
 TEST(arg_max_gpu_min_axis_batch, base) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
-    engine engine;
+    const auto& engine = get_test_engine();
     const int top_k = 2;
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
     topology topology;

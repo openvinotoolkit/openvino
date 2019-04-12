@@ -33,7 +33,7 @@ status_t roi_pooling_desc_init(roi_pooling_desc_t *roi_pool_desc,
         memory_desc_t *src_descs, int num_src, const memory_desc_t *dst_desc,
         int pooled_h, int pooled_w, double spatial_scale) {
     
-    roi_pooling_desc_t pd = {};
+    auto pd = roi_pooling_desc_t();
     pd.primitive_kind = primitive_kind::roi_pooling;
     pd.prop_kind = prop_kind;
     pd.pooled_h = pooled_h;

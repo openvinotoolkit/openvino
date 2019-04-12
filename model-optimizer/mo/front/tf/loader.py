@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@ import logging as log
 import os
 import re
 
-import networkx as nx
-
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 
@@ -30,7 +28,7 @@ except ImportError:
                 refer_to_faq_msg(42))
 
 from google.protobuf import text_format
-from mo.graph.graph import create_graph_with_nodes
+from mo.graph.graph import create_graph_with_nodes, Graph
 from mo.utils.summarize_graph import summarize_graph
 
 
@@ -258,22 +256,17 @@ def protobuf2nx(pb: tf.GraphDef):
     return graph
 
 
-def variables_to_constants(graph: nx.MultiDiGraph, variables_values: dict):
+def variables_to_constants(graph: Graph, variables_values: dict):
     """
     Converts `Variable<V2>` operations to FakeConst operations with `value` from `variables_values` dictionary
     :param graph: graph to operate on
     :param variables_values: dictionary with variable names as keys and np.array data as values
     """
-    variable_operations = ['Variable', 'VariableV2']
-    for node_name in graph.nodes():
-        node_attr_dict = graph.node[node_name]
-        if 'op' not in node_attr_dict:
-            continue
-        op_name = node_attr_dict['op']
-        if op_name not in variable_operations:
-            continue
+    for node in graph.get_op_nodes(op='FakeConst'):
+        node_name = node.name
+
         if node_name not in variables_values:
-            log.debug("There is no value for '{}': {} in checkpoint variable values".format(op_name, node_name))
+            log.debug("There is no value for '{}': {} in checkpoint variable values".format(node.op, node_name))
             continue
-        graph.node[node_name]['op'] = 'FakeConst'
-        graph.node[node_name]['value'] = variables_values[node_name]
+
+        node['value'] = variables_values[node_name]

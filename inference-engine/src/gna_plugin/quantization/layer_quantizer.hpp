@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -198,6 +198,11 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
     }
     uint32_t num_rows = isDiagonal ? 1 : wl->outData[0]->getDims()[1];
     uint32_t num_columns = wl->insData[0].lock().get()->getDims()[1];
+
+    if (wl->type == "AffineFilter") {
+        // for affine filter layer insdata size not equal to actual coded in input layer
+        num_columns = wl->_weights->size() / num_rows;
+    }
 
     if (isDiagonal) {
         std::swap(num_rows, num_columns);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,6 +94,7 @@ INFERENCE_ENGINE_API_CPP(CNNLayerPtr) clonelayer(const CNNLayer& source);
  */
 INFERENCE_ENGINE_API_CPP(InferenceEngine::details::CNNNetworkImplPtr)
 cloneNet(const std::vector<InferenceEngine::CNNLayerPtr>& layers,
+         const ICNNNetworkStats* networkStats,
          std::function<CNNLayerPtr(const CNNLayer&)> layerCloner = clonelayer);
 
 /**

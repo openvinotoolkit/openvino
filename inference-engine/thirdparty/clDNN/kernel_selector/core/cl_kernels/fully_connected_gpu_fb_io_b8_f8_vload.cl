@@ -14,6 +14,7 @@
 
 
 #include "include/include_all.cl"
+#include "include/sub_group.cl"
 
 #if FP16_UNIT_USED
     #define MULTIPLY_BLOCKS_8x8(_result, _blockA, _blockB)  \

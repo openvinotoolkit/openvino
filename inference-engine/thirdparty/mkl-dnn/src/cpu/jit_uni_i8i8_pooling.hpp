@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2017-2018 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,13 +14,14 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef CPU_JIT_uni_I8I8_POOLING_HPP
-#define CPU_JIT_uni_I8I8_POOLING_HPP
+#ifndef CPU_JIT_UNI_I8I8_POOLING_HPP
+#define CPU_JIT_UNI_I8I8_POOLING_HPP
 
 #include "c_types_map.hpp"
+#include "cpu_isa_traits.hpp"
 #include "cpu_pooling_pd.hpp"
 #include "cpu_engine.hpp"
-#include "jit_generator.hpp"
+
 #include "jit_primitive_conf.hpp"
 
 namespace mkldnn {
@@ -28,7 +29,7 @@ namespace impl {
 namespace cpu {
 
 template <cpu_isa_t isa>
-struct jit_uni_i8i8_pool_fwd_ker_t;
+struct jit_uni_i8i8_pooling_fwd_ker_t;
 
 template <cpu_isa_t isa>
 struct jit_uni_i8i8_pooling_fwd_t : public cpu_primitive_t {
@@ -40,11 +41,12 @@ struct jit_uni_i8i8_pooling_fwd_t : public cpu_primitive_t {
 
         DECLARE_COMMON_PD_T(
                 JIT_IMPL_NAME_HELPER("jit:", isa, ""),
-                jit_uni_i8i8_pooling_fwd_t);
+                jit_uni_i8i8_pooling_fwd_t<isa>);
 
         virtual status_t init() override {
             assert(this->engine()->kind() == engine_kind::cpu);
             bool ok = true
+                && mayiuse(isa)
                 && desc()->src_desc.ndims == 4
                 && set_default_params() == status::success
                 && desc()->prop_kind == prop_kind::forward_inference
@@ -75,20 +77,20 @@ struct jit_uni_i8i8_pooling_fwd_t : public cpu_primitive_t {
         }
     };
 
-    jit_uni_i8i8_pooling_fwd_t(const pd_t *pd,
+    jit_uni_i8i8_pooling_fwd_t(const pd_t *apd,
             const input_vector &inputs, const output_vector &outputs);
     ~jit_uni_i8i8_pooling_fwd_t();
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         execute_forward();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_forward();
-    pd_t conf_;
+    void execute_forward() const;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 
-    jit_uni_i8i8_pool_fwd_ker_t<isa> *ker_;
+    jit_uni_i8i8_pooling_fwd_ker_t<isa> *ker_;
 };
 
 }

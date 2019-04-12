@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,18 +20,18 @@ import os
 import networkx as nx
 import numpy as np
 
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.find_inputs import find_inputs
 from mo.utils.utils import refer_to_faq_msg
 
 
-def get_node_top(graph: nx.MultiDiGraph, name: str):
+def get_node_top(graph: Graph, name: str):
     node = Node(graph, name)
     return node.out_edge()['name'] if node else None
 
 
-def build_net(graph: nx.DiGraph):
+def build_net(graph: Graph):
     try:
         if not hasattr(os.environ, 'GLOG_minloglevel'):
             os.environ['GLOG_minloglevel'] = '2'
@@ -80,7 +80,7 @@ def build_net(graph: nx.DiGraph):
     graph.__setattr__('caffe_net', net)
 
 
-def get_net(graph: nx.DiGraph):
+def get_net(graph: Graph):
     if not graph:
         return None
 
@@ -101,6 +101,9 @@ def caffe_native_node_infer(node: Node):
     node node to infer the shape for
 
     """
+    log.error("Caffe fallback is deprecated. It will be removed in future releases. Please use extensions for unsupported layers.\n" +
+              "See more information in the \"Custom Layers in the Model Optimizer\" chapter of the Model Optimizer Developer Guide",
+              extra={'is_warning': True})
     log.info('Called "caffe_native_node_infer" for node "{}"'.format(node.id))
 
     graph = node.graph

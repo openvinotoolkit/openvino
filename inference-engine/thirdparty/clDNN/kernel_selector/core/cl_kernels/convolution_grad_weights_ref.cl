@@ -93,13 +93,16 @@ KERNEL(convolution_grad_weights_gpu_ref)(
 #endif
     }
 
-#if MOMENTUM
-    float update_gradient_w = lr * (grad_w + DECAY_RATE * filter[weights_idx]) + prev_grad_w[weights_idx] * MOMENTUM_FACTOR;
-    filter[weights_idx] -= update_gradient_w;
-    prev_grad_w[weights_idx] = update_gradient_w;
+#if OUTPUT_GRAD_W
+    output[weights_idx] = grad_w;
 #else
-    filter[weights_idx] -= lr * grad_w + DECAY_RATE * lr * filter[weights_idx];
-#endif
+    #if MOMENTUM
+        float update_gradient_w = lr * (grad_w + DECAY_RATE * filter[weights_idx]) + prev_grad_w[weights_idx] * MOMENTUM_FACTOR;
+        filter[weights_idx] -= update_gradient_w;
+        prev_grad_w[weights_idx] = update_gradient_w;
+    #else
+        filter[weights_idx] -= lr * grad_w + DECAY_RATE * lr * filter[weights_idx];
+    #endif
 
 #if BIAS_TERM
         if(ifm == 0 && id_x == 0 && id_y == 0)
@@ -112,6 +115,8 @@ KERNEL(convolution_grad_weights_gpu_ref)(
         bias[ofm] -= lr * grad_b;
 #endif
         }
+#endif
+
 #endif
 
 }

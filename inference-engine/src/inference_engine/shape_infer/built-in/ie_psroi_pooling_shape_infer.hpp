@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ class PSRoiPoolingShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit PSRoiPoolingShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -30,7 +30,7 @@ public:
         CNNLayer cnnLayer(lp);
         cnnLayer.params = params;
         cnnLayer.type = _type;
-        validate(&cnnLayer, inShapes, params, blobs);
+        validate(&cnnLayer, inBlobs, params, blobs);
         size_t output_dim = static_cast<size_t>(cnnLayer.GetParamAsInt("output_dim"));
         size_t group_size = static_cast<size_t>(cnnLayer.GetParamAsInt("group_size"));
         outShapes.push_back({inShapes[1][0], output_dim, group_size, group_size});

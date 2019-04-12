@@ -50,7 +50,7 @@ for (uint i = 0; i < Y1; ++i)
 		value = fma(input0[in0_idx], input1[in1_idx], value);
 	}
 #if TRANSPOSE_INPUT1 && TRANSPOSE_INPUT2
-	uint out_idx = y * X1 + x + b * X1 * Y2;
+	uint out_idx = x * Y2 + y + b * X1 * Y2;
 #elif TRANSPOSE_INPUT1
 	uint out_idx = x * X2 + y + b * X1 * Y1;
 #elif TRANSPOSE_INPUT2

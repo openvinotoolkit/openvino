@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ nodes_bool = {
     '3': {'name': 'node_2', 'kind': 'op', 'op': 'NotPlaceholder'},
     '4': {'name': 'node_3', 'kind': 'op', 'op': 'NotPlaceholder'},
     '5': {'name': 'node_4', 'kind': 'op', 'op': 'NotPlaceholder'},
-    '6': {'name': 'output1', 'kind': 'op', 'op': 'OpOutput', 'is_output': True},
-    '7': {'name': 'output2', 'kind': 'op', 'op': 'OpOutput', 'is_output': True}
+    '6': {'name': 'output1', 'kind': 'op', 'op': 'OpOutput', 'type': 'OpOutput'},
+    '7': {'name': 'output2', 'kind': 'op', 'op': 'OpOutput', 'type': 'OpOutput'}
 
 }
 edges = {
@@ -46,7 +46,7 @@ class TestFreezePlaceholderValue(unittest.TestCase):
         graph = build_graph(nodes_bool, edges)
         graph.graph['fw'] = 'tf'
         tested_class = FreezePlaceholderValue()
-        tested_class.replacement_dict = {'input1': 'True'}
+        graph.graph['freeze_placeholder'] = {'input1': 'True'}
         before_pattern = graph.nodes()
         tested_class.find_and_replace_pattern(graph=graph)
         after_pattern = graph.nodes()
@@ -65,7 +65,7 @@ class TestFreezePlaceholderValue(unittest.TestCase):
         graph = build_graph(nodes_bool, edges)
         graph.graph['fw'] = 'tf'
         tested_class = FreezePlaceholderValue()
-        tested_class.replacement_dict = {'input1': 'False'}
+        graph.graph['freeze_placeholder'] = {'input1': 'False'}
         before_pattern = graph.nodes()
         tested_class.find_and_replace_pattern(graph=graph)
         after_pattern = graph.nodes()
@@ -84,7 +84,7 @@ class TestFreezePlaceholderValue(unittest.TestCase):
         graph = build_graph(nodes_bool, edges)
         graph.graph['fw'] = 'tf'
         tested_class = FreezePlaceholderValue()
-        tested_class.replacement_dict = {'input1': 'False', 'input2': 'True'}
+        graph.graph['freeze_placeholder'] = {'input1': 'False', 'input2': 'True'}
         before_pattern = graph.nodes()
         tested_class.find_and_replace_pattern(graph=graph)
         after_pattern = graph.nodes()

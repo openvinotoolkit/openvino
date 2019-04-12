@@ -33,12 +33,14 @@ namespace kernel_selector
         uSize    dilation;
         uSize    padding;
         uint32_t split = 1;
-        bool     depthwiseSeparableOpt = false;
+        bool     depthwise_separable_opt = false;
         bool     transposed = false;
         bool     int8_quantization = false;
         bool     output_calibration = false;
+        bool     local_convolution = false;
         float    input_quantization_factor = 1.0f;
         float    output_quantization_factor = 1.0f;
+        uint32_t groups = 1;
 
         MultiDataTensor weights_quantization_factors;
         MultiDataTensor output_calibration_factors;

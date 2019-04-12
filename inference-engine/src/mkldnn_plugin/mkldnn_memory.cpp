@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format format, co
             GetDataType() != dataType) {
         auto memData = GetDescriptor().data;
 
-        std::vector<int> dims(memData.dims, memData.dims + memData.ndims);
+        std::vector<ptrdiff_t> dims(memData.dims, memData.dims + memData.ndims);
 
         auto dataType = GetDataType();
 
@@ -220,7 +220,7 @@ bool MKLDNNMemory::isConsistant(memory::dims dims, memory::format format) {
 
 bool MKLDNNMemory::IsPlainFormat(memory::format format) {
     std::vector<memory::format> plains = {memory::nc, memory::nchw, memory::ncdhw, memory::nhwc, memory::ndhwc, memory::chwn,
-        memory::oi, memory::io, memory::oihw, memory::oidhw, memory::ihwo,
+        memory::oi, memory::io, memory::oihw, memory::oidhw, memory::ihwo, memory::tnc,
         memory::goihw,
         memory::blocked};
 
@@ -252,6 +252,7 @@ memory::format MKLDNNMemory::GetPlainFormat(memory::dims dims) {
 
 InferenceEngine::Layout MKLDNNMemory::GetPlainLayout(memory::dims dims) {
     switch (dims.size()) {
+        case 0: return Layout::SCALAR;
         case 1: return Layout::C;
         case 2: return Layout::NC;
         case 3: return Layout::CHW;
@@ -290,7 +291,7 @@ void MKLDNNMemory::CreateBlockingDesc(memory::desc &desc) {
         const int prev_idx = perm[ndims - d];
         const int curr_idx = perm[ndims - 1 - d];
 
-        blk.strides[0][curr_idx] = dims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)(1, dims[prev_idx]);
+        blk.strides[0][curr_idx] = dims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)((ptrdiff_t)1, dims[prev_idx]);
     }
 }
 memory::format MKLDNNMemory::Convert(const InferenceEngine::Layout layout) {
@@ -457,6 +458,9 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
         case mkldnn_s32:
             precision = Precision::I32;
             break;
+        case mkldnn_bin:
+            precision = Precision::BIN;
+            break;
         default:
             THROW_IE_EXCEPTION << "Cannot cast to TensorDesc. Unsupported precision!";
     }
@@ -510,10 +514,17 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
         case memory::nhwc:
             layout = Layout::NHWC;
             order = {0, 2, 3, 1};
-            blkDims = {static_cast<size_t>(dims[0]),
-                       static_cast<size_t>(dims[2]),
-                       static_cast<size_t>(dims[3]),
-                       static_cast<size_t>(dims[1])};
+            if (precision == Precision::BIN) {
+                blkDims = {static_cast<size_t>(dims[0]),
+                           static_cast<size_t>(dims[2]),
+                           static_cast<size_t>(dims[3]),
+                           static_cast<size_t>(rnd_up(dims[1], 8))};
+            } else {
+                blkDims = {static_cast<size_t>(dims[0]),
+                           static_cast<size_t>(dims[2]),
+                           static_cast<size_t>(dims[3]),
+                           static_cast<size_t>(dims[1])};
+            }
             break;
         case memory::ndhwc:
             layout = Layout::NDHWC;
@@ -621,7 +632,9 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         case Precision::I32:
             data_type = mkldnn::memory::data_type::s32;
             break;
-
+        case Precision::BIN:
+            data_type = mkldnn::memory::data_type::bin;
+            break;
         default:
             THROW_IE_EXCEPTION << "Cannot create MKLDNNMemoryDesc from TensorDesc. Unsupported precision!";
     }
@@ -651,6 +664,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         case OIHW:
             mkldnnFormat = memory::format::oihw;
             break;
+        case SCALAR:
         case C:
             mkldnnFormat = memory::format::x;
             break;
@@ -764,7 +778,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
             const int prev_idx = perm[realDims.ndims() - d];
             const int curr_idx = perm[realDims.ndims() - 1 - d];
 
-            blk.strides[0][curr_idx] = realDims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)(1, realDims[prev_idx]);
+            blk.strides[0][curr_idx] = realDims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)((ptrdiff_t)1, realDims[prev_idx]);
         }
     } else {
         desc = MKLDNNMemoryDesc(realDims, data_type, mkldnnFormat);
@@ -772,12 +786,12 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
 
     desc.data.layout_desc.blocking.offset_padding = tDesc.getBlockingDesc().getOffsetPadding();
     for (size_t i = 0; i < tDesc.getBlockingDesc().getOffsetPaddingToData().size() && i < TENSOR_MAX_DIMS; i++) {
-        desc.data.layout_desc.blocking.offset_padding_to_data[i] = static_cast<int>(offsetsToData[i]);
+        desc.data.layout_desc.blocking.offset_padding_to_data[i] = static_cast<ptrdiff_t>(offsetsToData[i]);
     }
 
     if (notDefault) {
         for (size_t i = 0; i < strides.size() && i < desc.data.ndims; i++) {
-            desc.data.layout_desc.blocking.strides[0][i] = static_cast<int>(strides[order[i]]);
+            desc.data.layout_desc.blocking.strides[0][i] = static_cast<ptrdiff_t>(strides[order[i]]);
         }
     }
 }

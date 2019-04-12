@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GMODEL_HPP
@@ -61,7 +61,6 @@ struct Op
     std::vector<RcDesc> outs; // TODO: Introduce a new type for resource references
 
     cv::gapi::GBackend  backend;
-    util::any           opaque;
 };
 
 struct Data

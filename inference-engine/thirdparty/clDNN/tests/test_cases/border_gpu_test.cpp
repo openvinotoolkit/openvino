@@ -73,7 +73,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
@@ -149,7 +149,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant_non_constant) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
@@ -225,7 +225,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
@@ -301,7 +301,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror_101) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
@@ -379,7 +379,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_edge) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
@@ -454,7 +454,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
@@ -524,7 +524,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
@@ -590,7 +590,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror_101) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;
@@ -656,7 +656,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_edge) {
     constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
     constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
 
-    engine engine;
+    const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {in_size_b, in_size_f, in_size_x, in_size_y}});
 
     topology topology;

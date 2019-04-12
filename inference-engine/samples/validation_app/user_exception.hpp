@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,7 +85,7 @@ public:
             ss << _list.back().what();
         } else {
             auto iter = _list.begin();
-            for (int i = 0; i < _list.size() - 1; i++) {
+            for (size_t i = 0; i < _list.size() - 1; i++) {
                 ss << "\t* " << (*iter++).what() << std::endl;
             }
             ss << "\t* " << _list.back().what();

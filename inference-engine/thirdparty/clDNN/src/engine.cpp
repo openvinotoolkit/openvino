@@ -40,6 +40,8 @@ gpu_toolkit_config convert_configuration(const engine_configuration conf)
     result.ocl_sources_dumps_dir = conf.sources_dumps_dir;
     result.priority_mode = static_cast<cldnn_priority_mode_type>(conf.priority_mode);
     result.throttle_mode = static_cast<cldnn_throttle_mode_type>(conf.throttle_mode);
+    result.user_context = static_cast<cl::Context*>(conf.context);
+    result.tuning_cache_path = conf.tuning_cache_path;
     return result;
 }
 
@@ -48,6 +50,15 @@ engine_impl::engine_impl(const engine_configuration& conf)
     , _context(gpu_toolkit::create(convert_configuration(conf)))
     , _memory_pool(*this)
 { }
+
+engine_impl::~engine_impl()
+{ 
+    /*
+        Engine, which is main owner of context deallocate events pool manually, because
+        of the event_impl <-> gpu_toolkit dependencies.
+    */
+    _context->release_events_pool();
+}
 
 memory_impl::ptr engine_impl::allocate_memory(layout layout)
 {
@@ -96,7 +107,7 @@ bool engine_impl::is_the_same_buffer(const memory_impl& mem1, const memory_impl&
 event_impl::ptr engine_impl::create_user_event(bool set)
 {
     try {
-        return{ new gpu::user_event(get_context(), set), false };
+        return _context->create_user_event(set);
     }
     catch (cl::Error const& err) {
         throw gpu::ocl_error(err);
@@ -113,19 +124,29 @@ void engine_impl::release_pending_memory()
     get_context()->release_pending_memory();
 }
 
-program_impl::ptr engine_impl::build_program(const topology_impl& topology, const build_options& options, bool is_internal)
+program_impl::ptr engine_impl::build_program(const topology_impl& topology, const build_options& options, bool is_internal, bool no_optimizations)
 {
-    return{ new program_impl(*this, topology, options, is_internal), false };
+    return{ new program_impl(*this, topology, options, is_internal, no_optimizations), false };
 }
 
-network_impl::ptr engine_impl::build_network(const topology_impl& topology, const build_options& options, bool internal_network)
+program_impl::ptr engine_impl::build_program(const std::set<std::shared_ptr<program_node>>& nodes, const build_options& options, bool is_internal)
 {
-    return{ new network_impl(*this, topology, options, internal_network), false };
+    return{ new program_impl(*this, nodes, options, is_internal), false };
 }
 
-network_impl::ptr engine_impl::allocate_network(const program_impl& program)
+network_impl::ptr engine_impl::build_network(const topology_impl& topology, const build_options& options, bool is_internal)
 {
-    return{ new network_impl(program), false };
+    return{ new network_impl(*this, topology, options, is_internal), false };
+}
+
+network_impl::ptr engine_impl::build_network(const std::set<std::shared_ptr<program_node>>& nodes, const build_options& options, bool is_internal)
+{
+    return{ new network_impl(*this, nodes, options, is_internal), false };
+}
+
+network_impl::ptr engine_impl::allocate_network(const program_impl& program, bool is_internal)
+{
+    return{ new network_impl(program, is_internal), false };
 }
 
 void engine_impl::wait_for_events(std::vector<event_impl::ptr> const & events)

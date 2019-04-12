@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import logging as log
 import networkx as nx
 import onnx
 
-from mo.graph.graph import create_graph_with_nodes, unique_id
+from mo.graph.graph import create_graph_with_nodes, Graph
 from mo.utils.error import Error, FrameworkError
 
 
@@ -64,7 +64,7 @@ def protobuf2nx(pb):
     # convert initializers to a NX graph for easier control of model consistency and to use it as a dictionary later
     initializers = create_graph_with_nodes(pb.graph.initializer, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
 
-    graph = nx.MultiDiGraph()
+    graph = Graph()
 
     # maps a tensor name to a node produced it and the node port: str -> (node_id, node_port)
     data_nodes_map = {}
@@ -95,7 +95,7 @@ def protobuf2nx(pb):
     # important)
     for node in pb.graph.node:
         # create an NX node
-        id = unique_id(graph, node_id(node))
+        id = graph.unique_id(node_id(node))
         graph.add_node(id, pb=node, kind='op')
 
         # add incoming edges based on data_nodes_map

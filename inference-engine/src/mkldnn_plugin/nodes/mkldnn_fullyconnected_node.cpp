@@ -1,13 +1,15 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_fullyconnected_node.h"
+#include "mkldnn_activation_node.h"
 #include "desc_iterator.hpp"
 #include <ie_layers.h>
 #include <string>
 #include <vector>
 #include <mkldnn_extension_utils.h>
+#include <mkldnn.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -22,6 +24,25 @@ MKLDNNFullyConnectedNode::MKLDNNFullyConnectedNode(const InferenceEngine::CNNLay
             return MKLDNNMemoryDesc();
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(1).desc());
     });
+
+    auto ws = layer->blobs.find("w-scale");
+    if (ws != layer->blobs.end()) {
+        wScale = ws->second;
+    }
+
+    // Trying to find oi-scale
+    if (getCnnLayer()->type == "FullyConnected" && getCnnLayer()->precision == Precision::I8) {
+        auto ois = layer->blobs.find("oi-scale");
+        if ((getCnnLayer()->outData[0]->getPrecision() == Precision::I8 || getCnnLayer()->outData[0]->getPrecision() == Precision::U8)
+            && ois == layer->blobs.end()) {
+            THROW_IE_EXCEPTION << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for fully connected "
+                << getCnnLayer()->name;
+        }
+        if (ois != layer->blobs.end()) {
+            // If we can find an oi-scale, then the next layer has to be an INT8.
+            oScale = ois->second;
+        }
+    }
 }
 
 void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
@@ -29,12 +50,8 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     auto * fcLayer = dynamic_cast<FullyConnectedLayer*>(getCnnLayer().get());
@@ -75,6 +92,27 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         internalBlobs.push_back(createInternalBlob(biasesDims, false));
     }
 
+    Blob::Ptr weights = this->getCnnLayer()->blobs.find("weights")->second;
+    if (weights->precision() == Precision::I8) {
+        // The weights blob has incorrect dims, so we have to fix it
+        TensorDesc wdesc = internalBlobs[0]->getTensorDesc();
+        wdesc.setPrecision(Precision::I8);
+        InferenceEngine::TBlob<int8_t>::Ptr reshapedInt8Weights =
+                InferenceEngine::TBlob<int8_t>::Ptr(
+                        new InferenceEngine::TBlob<int8_t>(wdesc, static_cast<int8_t*>(weights->buffer()), weights->byteSize()));
+
+        internalBlobs[0] = reshapedInt8Weights;
+        if (withBiases) {
+            Blob::Ptr biases = this->getCnnLayer()->blobs.find("biases")->second;
+            TensorDesc bdesc = internalBlobs[1]->getTensorDesc();
+            bdesc.setPrecision(Precision::I32);
+            InferenceEngine::TBlob<int32_t>::Ptr reshapedInt32Biases =
+                    InferenceEngine::TBlob<int32_t>::Ptr(
+                            new InferenceEngine::TBlob<int32_t>(bdesc, static_cast<int32_t*>(biases->buffer()), biases->byteSize()));
+            internalBlobs[1] = reshapedInt32Biases;
+        }
+    }
+
     for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getDims())) {
         MKLDNNMemoryDesc in_candidate(inDims, inputDataType, format);
         MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getDims(), outputDataType, memory::any);
@@ -87,16 +125,24 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
     if (prim)
         return;
 
-    auto prim_desc = createPrimitiveDescriptor<inner_product_forward::primitive_desc, inner_product_forward::desc>();
+    std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
+    std::shared_ptr<inner_product_forward::primitive_desc> prim_desc;
+    if (attr == nullptr) {
+        prim_desc = std::make_shared<inner_product_forward::primitive_desc>(
+                createPrimitiveDescriptor<inner_product_forward::primitive_desc, inner_product_forward::desc>(*attr));
+    } else {
+        prim_desc = std::make_shared<inner_product_forward::primitive_desc>(
+                createPrimitiveDescriptor<inner_product_forward::primitive_desc, inner_product_forward::desc>(*attr));
+    }
 
     if (internalBlobs.size() > 1) {
-        prim.reset(new inner_product_forward(prim_desc,
+        prim.reset(new inner_product_forward(*prim_desc,
                                              getParentEdgeAt(0)->getMemory().GetPrimitive(),
                                              internalBlobMemory[0]->GetPrimitive(),
                                              internalBlobMemory[1]->GetPrimitive(),
                                              getChildEdgeAt(0)->getMemory().GetPrimitive()));
     } else {
-        prim.reset(new inner_product_forward(prim_desc,
+        prim.reset(new inner_product_forward(*prim_desc,
                                              getParentEdgeAt(0)->getMemory().GetPrimitive(),
                                              internalBlobMemory[0]->GetPrimitive(),
                                              getChildEdgeAt(0)->getMemory().GetPrimitive()));
@@ -104,7 +150,8 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
 }
 
 bool MKLDNNFullyConnectedNode::created() const {
-    return getType() == FullyConnected;
+    return getType() == FullyConnected ||
+            getType() == FullyConnected_Activation;
 }
 
 memory::format MKLDNNFullyConnectedNode::weightsFormatForSrcFormat(memory::format sourceFormat) {
@@ -164,16 +211,74 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
     return implPriorities;
 }
 
+std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveAttr() const {
+    auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
+    bool scaled = false;
+    if (wScale != nullptr) {
+       float* wScaleData = static_cast<float*>(wScale->buffer());
+
+       std::vector<float> oScaleDataVector;
+       if (getCnnLayer()->precision == Precision::I8 && getCnnLayer()->outData[0]->getPrecision() != Precision::FP32) {
+           float *oScaleData = static_cast<float *>(oScale->buffer());
+
+           for (size_t c = 0; c < wScale->size(); c++) {
+               oScaleDataVector.push_back(wScaleData[c] / oScaleData[c]);
+           }
+       } else {
+           for (size_t c = 0; c < wScale->size(); c++) {
+               oScaleDataVector.push_back(wScaleData[c]);
+           }
+       }
+
+       attr->set_int_output_round_mode(mkldnn::round_nearest);
+       attr->set_output_scales(1 << 1 /*through C dim*/, oScaleDataVector);
+    }
+    mkldnn::post_ops ops;
+    for (auto &node : fusedWith) {
+        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
+        if (activationNode) {
+            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(),
+                               activationNode->getBeta());
+        }
+        attr->set_post_ops(ops);
+    }
+    return attr;
+}
+
 void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
                                                 const std::vector<InferenceEngine::TensorDesc> &outputDesc) {
-    MKLDNNMemoryDesc in_candidate(inputDesc[0]);
-    MKLDNNMemoryDesc out_candidate(outputDesc[0]);
+    TensorDesc inDesc = inputDesc[0], outDesc = outputDesc[0];
+    mkldnn::memory::data_type wdt = MKLDNNExtensionUtils::IEPrecisionToDataType(inDesc.getPrecision());
+    mkldnn::memory::data_type bdt = MKLDNNExtensionUtils::IEPrecisionToDataType(inDesc.getPrecision());
+
+    Blob::Ptr weights = this->getCnnLayer()->blobs.find("weights")->second;
+
+    if (weights->precision() == Precision::I8) {
+        wdt = memory::s8;
+        bdt = memory::s32;
+
+        Precision outPrec;
+        if (getCnnLayer()->outData[0]->getPrecision() == Precision::FP32) {
+            outPrec = Precision::FP32;
+        } else {
+            // define precision accordninly normalizer
+            // TODO(amalyshe) do we need to have separate flow for last in int8 chain or not?
+            outPrec = outDesc.getPrecision();
+        }
+
+        inDesc = TensorDesc(inDesc.getPrecision() , inputDesc[0].getDims(), inputDesc[0].getBlockingDesc());
+        outDesc = TensorDesc(outPrec, outputDesc[0].getDims(), Layout::NC/*, outputDesc[0].getBlockingDesc()*/);
+    }
+
+    MKLDNNMemoryDesc in_candidate(inDesc);
+    MKLDNNMemoryDesc out_candidate(outDesc);
+
     memory::format weights_fmt = weightsFormatForSrcFormat(in_candidate.getFormat());
 
-    MKLDNNMemoryDesc wgh_candidate(MKLDNNDims(weightsDims), in_candidate.getDataType(), weights_fmt);
-    MKLDNNMemoryDesc bias_candidate(MKLDNNDims(biasesDims), in_candidate.getDataType(), memory::any);
+    MKLDNNMemoryDesc wgh_candidate(MKLDNNDims(weightsDims), wdt, weights_fmt);
 
     if (internalBlobs.size() > 1) {
+        MKLDNNMemoryDesc bias_candidate(MKLDNNDims(biasesDims), bdt, memory::any);
         MKLDNNDescriptor desc(std::shared_ptr<inner_product_forward::desc>(
                 new inner_product_forward::desc(prop_kind::forward_scoring, in_candidate, wgh_candidate,
                                                 bias_candidate, out_candidate)));

@@ -18,6 +18,7 @@
 #ifndef ROI_POOLING_H
 #define ROI_POOLING_H
 
+#include <stdbool.h>
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -34,16 +35,20 @@ extern "C" {
 CLDNN_BEGIN_PRIMITIVE_DESC(roi_pooling)
 /// @brief Pooling method. See #cldnn_pooling_mode.
 int32_t mode;
-
+/// @brief True, if pooling is position sensitive (PSROIPoolng)
+bool position_sensitive;
 /// @brief Output width.
 int pooled_width;
 /// @brief Output height.
 int pooled_height;
+/// @brief Count of sub bins in x spatial dimension
+int spatial_bins_x;
+/// @brief Count of sub bins in y spatial dimension
+int spatial_bins_y;
+/// @brief Output features count (applied for position sensitive case only)
+int output_dim;
 /// @brief Ratio of the coordinates used in RoIs to the width (and height) of the input data.
 float spatial_scale;
-
-/// @brief Group size as defined by PSRoIPooling when > 0, else if 0 means regular RoIPooling.
-int group_sz;
 CLDNN_END_PRIMITIVE_DESC(roi_pooling)
 
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(roi_pooling);

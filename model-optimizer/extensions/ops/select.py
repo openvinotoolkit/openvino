@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import networkx as nx
 import numpy as np
 
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
 
@@ -25,9 +25,11 @@ from mo.utils.error import Error
 class Select(Op):
     op = 'Select'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'op': __class__.op,
+            'in_ports_count': 3,
+            'out_ports_count': 1,
             'infer': __class__.infer,
         }
         super().__init__(graph, mandatory_props, attrs)

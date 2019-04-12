@@ -349,6 +349,18 @@ inline std::vector<uint16_t> uint16_t_arr_to_vector(const cldnn_uint16_t_arr& ar
     return result;
 }
 
+///
+/// \brief Converts C API uint8_t array to std::vector<uint8_t>
+///
+inline std::vector<uint8_t> uint8_t_arr_to_vector(const cldnn_uint8_t_arr& arr)
+{
+    std::vector<uint8_t> result(arr.size);
+    for (size_t i = 0; i < arr.size; i++)
+    {
+        result[i] = arr.data[i];
+    }
+    return result;
+}
 
 ///
 /// \brief Converts std::vector<float> to C API float_array
@@ -367,11 +379,31 @@ inline cldnn_uint16_t_arr uint16_t_vector_to_arr(const std::vector<uint16_t>& st
 }
 
 ///
+/// \brief Converts std::vector<uint8_t> to C API uint8_t array
+///
+inline cldnn_uint8_t_arr uint8_t_vector_to_arr(const std::vector<uint8_t>& stor)
+{
+    return{ stor.data(), stor.size() };
+}
+
+///
 /// \brief Converts std::vector<tensor> to C API tensor_array
 ///
 inline cldnn_tensor_arr tensor_vector_to_arr(const std::vector<cldnn_tensor>& stor)
 {
     return cldnn_tensor_arr{ stor.data(), stor.size() };
+}
+
+///
+/// \brief Converts C API tensor_array to std::vector of C API tensor
+///
+inline std::vector<cldnn_tensor> tensor_arr_to_cldnn_vector(const cldnn_tensor_arr& arr)
+{
+    std::vector<cldnn_tensor> result(arr.size);
+    for (size_t i = 0; i < arr.size; i++)
+        result[i] = arr.data[i];
+
+    return result;
 }
 
 /// @}

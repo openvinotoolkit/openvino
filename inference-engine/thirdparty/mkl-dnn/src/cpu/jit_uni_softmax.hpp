@@ -76,20 +76,20 @@ struct jit_uni_softmax_fwd_t : public cpu_primitive_t {
         jit_softmax_conf_t jpp_;
     };
 
-    jit_uni_softmax_fwd_t(const pd_t *pd, const input_vector &inputs,
+    jit_uni_softmax_fwd_t(const pd_t *apd, const input_vector &inputs,
                        const output_vector &outputs);
     ~jit_uni_softmax_fwd_t();
 
     using data_t = prec_traits<data_type::f32>::type;
 
-    virtual void execute(event_t *e) override {
+    virtual void execute(event_t *e) const override {
         execute_forward();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_forward();
-    pd_t conf_;
+    void execute_forward() const;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
     jit_uni_softmax_kernel_f32<isa> *kernel_;
 };
 

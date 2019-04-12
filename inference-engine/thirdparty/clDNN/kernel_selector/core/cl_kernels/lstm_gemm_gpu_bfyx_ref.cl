@@ -43,14 +43,14 @@ KERNEL(lstm_gemm)(
 
     ACCUMULATOR_TYPE dotProd = 0;
     for(uint x = 0; x < INPUT0_SIZE_X; ++x ) {
-      const uint input_idx     = GET_DATA_INDEX(INPUT0, b, 0, 0, x);
+      const uint input_idx     = GET_DATA_INDEX(INPUT0, b, 0, INPUT_DIRECTION, x);
       const uint weights_idx   = GET_DATA_INDEX(WEIGHTS, 0, DIRECTION, y, x);
       dotProd += (ACCUMULATOR_TYPE)(input[input_idx] * weights[weights_idx]);
     }
 
 #if HIDDEN_TERM
     for(uint x = 0; x < HIDDEN_SIZE_X; ++x ) {
-      const uint hidden_idx    = GET_DATA_INDEX(HIDDEN, b, 0, 0, x);
+      const uint hidden_idx    = GET_DATA_INDEX(HIDDEN, b, 0, HIDDEN_DIRECTION, x);
       const uint recurrent_idx = GET_DATA_INDEX(RECURRENT, 0, DIRECTION, y, x);
       dotProd += (ACCUMULATOR_TYPE)(hidden[hidden_idx] * recurrent[recurrent_idx]);
     }

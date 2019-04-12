@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <utility>
 #include <limits>
 #include <string>
+#include <map>
 #include "gna_layer_info.hpp"
 #include "ie_layers.h"
 #include "gna_plugin_log.hpp"
@@ -53,6 +54,25 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
     const float identity_scale_factor = 2049.0f;
     const float k = 5;
     const float k_identity = 6;
+
+ protected :
+    static bool fp32eq(float p1, float p2) {
+        return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+    }
+    float getActivationScale(GNAPluginNS::LayerInfo const&  layer, QuantizedLayerParams const* qunatizedParams) {
+            // todo: calculate proper scale factor where we need to expand it a bit to be safe to stay in int16 weights
+            // set the initial value
+            float result = 1.0f;
+            result = (layer.isIdentity()) ? identity_scale_factor : activation_scale_factor;
+            // if activation is one from relu family, we need to apply heuruistic to avoid activation output overflow
+            if (layer.isRelu() &&
+                    static_cast<uint64_t>(result * qunatizedParams->_src_quant.scale)
+                                                                > std::numeric_limits<int32_t>::max()-1) {
+                result = (result * 0.5);
+            }
+            return result;
+    }
+
  public :
     bool operator()(InferenceEngine::CNNLayer *cnnLayer, int weightsSize, float inputScaleFactor, ScaleFactorUpdateResult &result) {
         if ( !cnnLayer ) {
@@ -62,21 +82,43 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         // TODO: current approach set input scale factor for true input layer(s) equals to provided factor,
         auto quant = getInjectedData<QuantizedLayerParams>(*cnnLayer);
         if (InferenceEngine::details::CaselessEq<std::string>()(cnnLayer->type, "Memory")) {
-            // for memory output layer need to verify it's input scale factor
-            if (CNNNetHasPrevLayer(cnnLayer)) {
+             if (CNNNetHasPrevLayer(cnnLayer)) {
                 auto prevLayer = CNNNetPrevLayer(cnnLayer);
+                auto prevInfo = LayerInfo(prevLayer);
                 auto inputQuant = getInjectedData<QuantizedLayerParams>(prevLayer);
-                if (inputQuant->_dst_quant.scale != activation_scale_factor) {
-                    gnawarn() << "[WARNING] quantization error : input scale factor ( " << inputQuant->_dst_quant.scale <<") "
-                                       << " for " << cnnLayer->name << ", that is child of " << prevLayer->name <<" doesnt match : "
-                                       << activation_scale_factor << std::endl;
-                    inputQuant->_dst_quant.scale = activation_scale_factor;
-                    // restarting from that activation;
-                    result = ScaleFactorUpdateResult(prevLayer.get());
+               // locating corresponding memory layers ith same ID
+                for (auto && input : CNNNetGetAllInputLayers(cnnLayer)) {
+                    LayerInfo ll(input);
+                    if (!ll.isMemory() ||
+                        !InferenceEngine::details::CaselessEq<std::string>()(input->params["id"], cnnLayer->params["id"])) {
+                        continue;
+                    }
+
+                    auto quantSibling = getInjectedData<QuantizedLayerParams>(input);
+
+                    // after restarting from memory input - quant is fine
+                    if (fp32eq(quantSibling->_dst_quant.scale, inputQuant->_dst_quant.scale)) {
+                        quant->_src_quant.scale = quant->_dst_quant.scale = inputQuant->_dst_quant.scale;
+                        return true;
+                    }
+
+                    if (!fp32eq(quantSibling->_dst_quant.scale, 1)) {
+                        // means we already restarted propagation from that memory layer - we cannot do mach here
+                        THROW_GNA_EXCEPTION << "quantization error : input scale factor ( " << inputQuant->_dst_quant.scale <<") "
+                                  << " for " << cnnLayer->name << ", that is child of " << prevLayer->name <<" doesnt match : "
+                                  << activation_scale_factor;
+                    }
+
+                    gnawarn() << "[INFO] quantization : input scale factor (" << inputQuant->_dst_quant.scale <<")"
+                              << " for " << cnnLayer->name << ", that is child of " << prevLayer->name <<" doesnt match : "
+                              << activation_scale_factor << ", restarting from corresponding memory: "<< input->name << std::endl;
+
+                    // try updating memory input layer scale factor and restart from it
+                    quantSibling->_src_quant.scale = quantSibling->_dst_quant.scale = inputQuant->_dst_quant.scale;
+                    result = ScaleFactorUpdateResult(input.get());
                     return true;
                 }
             }
-            quant->_src_quant.scale = quant->_dst_quant.scale = activation_scale_factor;
             return true;
         }
 
@@ -93,13 +135,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         if (layerInfo.isActivation()) {
             // todo: calculate proper scale factor where we need to expand it a bit to be safe to stay in int16 weights
             // set the initial value
-            quant->_dst_quant.scale = layerInfo.isIdentity() ? identity_scale_factor:activation_scale_factor;
-            // if activation is one from relu family, we need to apply heuruistic to avoid activation output overflow
-            if (layerInfo.isRelu() &&
-                    static_cast<uint64_t>(quant->_dst_quant.scale * quant->_src_quant.scale)
-                                                                > std::numeric_limits<int32_t>::max()-1) {
-                quant->_dst_quant.scale = (quant->_dst_quant.scale * 0.5);
-            }
+            quant->_dst_quant.scale = getActivationScale(layerInfo, quant);
         }
         return true;
     }
@@ -170,7 +206,7 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
                             }
 
                             // if we are here it means that we are in the port 1
-                            if (info.isFullyConnected() || info.isConvolutional()) {
+                            if (info.isFullyConnected() || info.isConvolution()) {
                                 auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*in);
                                 auto newOutputScale = quantParams->_dst_quant.scale * maxValue;
                                 auto newWeightScale = newOutputScale / quantDataForInputLayer->_src_quant.scale;
@@ -188,6 +224,53 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
             }
             default : THROW_GNA_EXCEPTION << "Unsupported Eltwise layer for quantisation: " << eltwiseLayer->_operation;
         }
+        return true;
+    }
+};
+
+template<>
+class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
+ public:
+    bool operator()(InferenceEngine::ConcatLayer* concatLayer, int weightsSize, float inputScaleFactor, ScaleFactorUpdateResult &result) {
+        if ( !concatLayer ) {
+            THROW_GNA_EXCEPTION << "Incorrect Concat Layer pointer \n";
+        }
+        auto in0 = InferenceEngine::CNNNetPrevLayer(concatLayer, 0);
+        auto in1 = InferenceEngine::CNNNetPrevLayer(concatLayer, 1);
+        auto infoIn0 = LayerInfo(in0);
+        auto infoIn1 = LayerInfo(in1);
+        auto quantParams0 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0);
+        auto quantParams1 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in1);
+        GNAPluginNS::QuantizedLayerParams* sourceQuantParams = NULL;
+        auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
+
+        if (quantParams0->_dst_quant.scale == quantParams1->_dst_quant.scale) {
+            return true;
+        } else if (infoIn0.isInput() && infoIn1.isInput()) {
+            THROW_GNA_EXCEPTION << "Two Input layers has different scales in concat!!! \n";
+        }
+
+        int i = 0;
+        if (infoIn0.isInput()) {
+            sourceQuantParams = quantParams0;
+        } else if (infoIn1.isInput()) {
+            ++i;
+            sourceQuantParams = quantParams1;
+        }
+
+        if (!sourceQuantParams) {
+            THROW_GNA_EXCEPTION << "Concat quantization for this case need to be implemented!!! \n";
+        }
+        auto destinationQuantParams =
+                InferenceEngine::getInjectedData<QuantizedLayerParams>(InferenceEngine::CNNNetPrevLayer(concatLayer, !i));
+        InferenceEngine::CNNLayerPtr in = InferenceEngine::CNNNetPrevLayer(concatLayer, !i);
+
+        quantData->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
+        quantData->_src_quant.scale = sourceQuantParams->_dst_quant.scale;
+
+        destinationQuantParams->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
+        result = ScaleFactorUpdateResult(in.get());
+
         return true;
     }
 };

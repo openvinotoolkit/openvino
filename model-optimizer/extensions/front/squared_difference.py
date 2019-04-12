@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.eltwise import Eltwise
 from mo.ops.power import Power
 
@@ -31,7 +31,7 @@ class SquaredDifference(FrontReplacementOp):
     op = "SquaredDifference"
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    def replace_op(self, graph: Graph, node: Node):
         negate = Power(graph, dict(scale=-1, name=node.name + '/negate_'))
         add = Eltwise(graph, dict(operation='sum', name=node.name + '/add_'))
         squared = Power(graph, dict(power=2, name=node.name + '/squared_'))

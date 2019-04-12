@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,14 +17,15 @@
 import collections
 import logging as log
 
-import networkx as nx
 import numpy as np
 
 from mo.front.extractor import update_attrs
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.activation import Activation
+from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.convolution import Convolution
+from mo.ops.crop import Crop
 from mo.ops.reshape import Reshape
 from mo.ops.softmax import Softmax
 from mo.utils.error import Error
@@ -55,6 +56,7 @@ def squeeze_reshape_and_concat(start_nodes: list):
                     assert new_shape[2] == 1
                     new_shape = np.delete(new_shape, 2)
                     cur_node.in_node(1).value = new_shape
+                    cur_node.in_node(1).shape = np.array(new_shape.shape, dtype=np.int64)
                     cur_node['dim'] = new_shape.copy()
                     # run infer function once again
                     cur_node.infer(cur_node)
@@ -72,7 +74,7 @@ def squeeze_reshape_and_concat(start_nodes: list):
             q.append(node)
 
 
-def add_convolution_to_swap_xy_coordinates(graph: nx.MultiDiGraph, input_node: Node, coordinates_size: int):
+def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coordinates_size: int):
     """
     The function add convolution node after the node 'input_node' to swap xy coordinates of the boxes produced
     by the node 'input_node'. It is expected that box coordinates are located in the fastest changing dimension of the
@@ -121,7 +123,26 @@ def add_convolution_to_swap_xy_coordinates(graph: nx.MultiDiGraph, input_node: N
     return conv_op.create_node([input_reshape_4d_node, conv_filter_const_node], dict(name=input_node.name + "/conv"))
 
 
-def add_activation_function_after_node(graph: nx.MultiDiGraph, node: Node, activation_function: str):
+def add_fake_background_loc(graph: Graph, input_node: Node):
+    """
+    DetectionOutput layer expects that box coordinates contains coordinates of boxes for the "background" class also,
+    but in the TensorFlow\* Object Detection API the tensor contains information about real object classes only.
+    The function copies a slice of the output data of the node 'input_node' and then concats it to the beginning of the
+    data. The data in this slice is not used by the Detection Output layer so the actual values are not important. This
+    approach allows the model to be reshape-able and does not introduce many layers.
+    "background" class box coordinates.
+    :param graph: graph to operate on.
+    :param input_node: node producing the boxes coordinates.
+    :return convolution node that adds slice of data for the "background" class.
+    """
+    crop_op = Crop(graph, dict(axis=np.array([1]), offset=np.array([0]), dim=np.array([1]), nchw_layout=True))
+    crop_node = crop_op.create_node([input_node], dict(name='crop_locs'))
+
+    concat_op = Concat(graph, dict(axis=1, in_ports_count=2, nchw_layout=True))
+    return concat_op.create_node([crop_node, input_node], dict(name=input_node.id + '/locs_with_fake_background'))
+
+
+def add_activation_function_after_node(graph: Graph, node: Node, activation_function: str):
     """
     The function adds node with activation function defined by string 'activation_function' which gets input from the
     node 'node'.

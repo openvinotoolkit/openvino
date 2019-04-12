@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,7 +76,10 @@ public:
     }
 
     void* GetData() const {
-        return prim->get_data_handle();
+        void* data = prim->get_data_handle();
+        if (data == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get memory!";
+        return data;
     }
 
     mkldnn::memory::data_type GetDataType() const {
@@ -92,7 +95,7 @@ public:
     mkldnn::memory::dims GetDims() const {
         auto data = GetDescriptor().data;
 
-        return std::vector<int>(data.dims, data.dims + data.ndims);
+        return std::vector<ptrdiff_t>(data.dims, data.dims + data.ndims);
     }
 
     void Create(mkldnn::memory::dims dims, mkldnn::memory::data_type data_type, mkldnn::memory::format format,

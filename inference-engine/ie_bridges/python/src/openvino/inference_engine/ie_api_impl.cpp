@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ std::map<std::string, InferenceEngine::Layout> layout_map = {{"ANY",     Inferen
                                                              {"HW",      InferenceEngine::Layout::HW},
                                                              {"NC",      InferenceEngine::Layout::NC},
                                                              {"CN",      InferenceEngine::Layout::CN},
+                                                             {"NCDHW",   InferenceEngine::Layout::NCDHW},
                                                              {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
 #define stringify(name) # name
 #define IE_CHECK_CALL(expr) {                       \
@@ -301,7 +302,6 @@ InferenceEnginePython::IEPlugin::load(const InferenceEnginePython::IENetwork &ne
     InferenceEngine::ResponseDesc response;
     auto exec_network = InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(net.name,
                                                                                                  num_requests);
-
     IE_CHECK_CALL(actual->LoadNetwork(exec_network->actual, net.actual, config, &response))
 
     for (size_t i = 0; i < num_requests; ++i) {
@@ -322,9 +322,8 @@ InferenceEnginePython::IEExecNetwork::IEExecNetwork(const std::string &name, siz
 }
 
 void InferenceEnginePython::IEExecNetwork::infer() {
-    InferenceEngine::ResponseDesc response;
     InferRequestWrap &request = infer_requests[0];
-    request.request_ptr->Infer(&response);
+    request.infer();
 }
 
 
@@ -340,13 +339,33 @@ void InferenceEnginePython::InferRequestWrap::setBatch(int size) {
     IE_CHECK_CALL(request_ptr->SetBatch(size, &response));
 }
 
+void latency_callback(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code){
+    if (code != InferenceEngine::StatusCode::OK) {
+        THROW_IE_EXCEPTION << "Async Infer Request failed with status code " << code;
+    }
+    InferenceEnginePython::InferRequestWrap *requestWrap;
+    InferenceEngine::ResponseDesc dsc;
+    request->GetUserData(reinterpret_cast<void**>(&requestWrap), &dsc);
+    auto end_time = Time::now();
+    auto execTime = std::chrono::duration_cast<ns>(end_time - requestWrap->start_time);
+    requestWrap->exec_time = static_cast<double>(execTime.count()) * 0.000001;
+}
+
 void InferenceEnginePython::InferRequestWrap::infer() {
     InferenceEngine::ResponseDesc response;
+    start_time = Time::now();
     IE_CHECK_CALL(request_ptr->Infer(&response));
+    auto end_time = Time::now();
+    auto execTime = std::chrono::duration_cast<ns>(end_time - start_time);
+    exec_time = static_cast<double>(execTime.count()) * 0.000001;
 }
+
 
 void InferenceEnginePython::InferRequestWrap::infer_async() {
     InferenceEngine::ResponseDesc response;
+    start_time = Time::now();
+    IE_CHECK_CALL(request_ptr->SetUserData(this, &response));
+    request_ptr->SetCompletionCallback(latency_callback);
     IE_CHECK_CALL(request_ptr->StartAsync(&response));
 }
 

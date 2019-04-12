@@ -43,7 +43,7 @@ TEST(activation_grad_f16_fw_gpu, basic_bfyx_all_functions)
     //  a: 0.5, b: 2.5
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_grad = memory::allocate(engine, { data_types::f16, format::bfyx,{ 1, 1, 5, 4 } });
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx,{ 1, 1, 5, 4 } });
@@ -142,7 +142,7 @@ TEST(activation_grad_f32_fw_gpu, basic_bfyx_all_functions)
     //  a: 0.5, b: 2.5
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 5, 4 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 5, 4 } });

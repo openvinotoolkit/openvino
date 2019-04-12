@@ -43,6 +43,8 @@ inline int mkldnn_get_thread_num() { return 0; }
 inline int mkldnn_in_parallel() { return 0; }
 inline void mkldnn_thr_barrier() {}
 
+#define PRAGMA_OMP(...)
+
 #elif MKLDNN_THR == MKLDNN_THR_OMP
 #include <omp.h>
 #define MKLDNN_THR_SYNC 1
@@ -54,6 +56,8 @@ inline int mkldnn_in_parallel() { return omp_in_parallel(); }
 inline void mkldnn_thr_barrier() {
 #   pragma omp barrier
 }
+
+#define PRAGMA_OMP(...) PRAGMA_MACRO(CHAIN2(omp, __VA_ARGS__))
 
 #elif MKLDNN_THR == MKLDNN_THR_TBB
 #include "tbb/task_arena.h"
@@ -67,6 +71,9 @@ inline int mkldnn_get_thread_num()
 { return tbb::this_task_arena::current_thread_index(); }
 inline int mkldnn_in_parallel() { return 0; }
 inline void mkldnn_thr_barrier() { assert(!"no barrier in TBB"); }
+
+#define PRAGMA_OMP(...)
+
 #endif
 
 /* MSVC still supports omp 2.0 only */

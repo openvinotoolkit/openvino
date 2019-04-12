@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,8 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.lin_op import Mul
 from mo.ops.const import Const
 
@@ -26,7 +24,7 @@ class MulScalarFrontReplacer(FrontReplacementOp):
     op = '_mul_scalar'
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    def replace_op(self, graph: Graph, node: Node):
         in_node = node.in_node()
         out_nodes = [node for node in node.out_nodes().values()]
         graph.remove_edge(node.in_node().id, node.id)

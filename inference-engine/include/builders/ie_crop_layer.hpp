@@ -1,11 +1,11 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <builders/ie_layer_fragment.hpp>
-#include <ie_inetwork.hpp>
+#include <builders/ie_layer_decorator.hpp>
+#include <ie_network.hpp>
 #include <string>
 #include <vector>
 
@@ -15,7 +15,7 @@ namespace Builder {
 /**
  * @brief The class represents a builder for Crop layer
  */
-class INFERENCE_ENGINE_API_CLASS(CropLayer): public LayerFragment {
+class INFERENCE_ENGINE_API_CLASS(CropLayer): public LayerDecorator {
 public:
     /**
      * @brief The constructor creates a builder with the name
@@ -24,9 +24,14 @@ public:
     explicit CropLayer(const std::string& name = "");
     /**
      * @brief The constructor creates a builder from generic builder
-     * @param genLayer generic builder
+     * @param layer pointer to generic builder
      */
-    explicit CropLayer(Layer& genLayer);
+    explicit CropLayer(const Layer::Ptr& layer);
+    /**
+     * @brief The constructor creates a builder from generic builder
+     * @param layer constant pointer to generic builder
+     */
+    explicit CropLayer(const Layer::CPtr& layer);
     /**
      * @brief Sets the name for the layer
      * @param name Layer name
@@ -78,12 +83,6 @@ public:
      * @return reference to layer builder
      */
     CropLayer& setOffset(const std::vector<size_t>& offsets);
-
-    /**
-     * @brief Validates layer before creation
-     * @param layer generic layer builder
-     */
-    static void validate(const Layer& layer);
 };
 
 }  // namespace Builder

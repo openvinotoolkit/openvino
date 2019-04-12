@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,11 +20,9 @@ import numpy as np
 
 from mo.front.common.partial_infer.concat import concat_infer
 from mo.graph.graph import Node
-from mo.middle.passes.infer import override_placeholder_shapes, partial_infer, add_mean_scale_values, scale_input, \
-    check_for_cycle
-from mo.utils.cli_parser import get_mean_scale_dictionary, parse_tuple_pairs
+from mo.middle.passes.infer import override_placeholder_shapes, partial_infer
 from mo.utils.error import Error
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_1_data': {'value': None, 'kind': 'data', 'data_type': None},
@@ -50,6 +48,7 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'mul_1': {'type': None, 'kind': 'op', 'op': 'Mul'},
                     'mul_1_w': {'value': None, 'shape': None, 'kind': 'data'},
                     'mul_1_data': {'value': None, 'shape': None, 'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput', 'infer': lambda x: None}
                     }
 
 
@@ -59,8 +58,10 @@ class TestInferPass(unittest.TestCase):
         Test for overriding shape in placeholder by shape from user_shapes.
         """
         graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None},
+                            [('node_1', 'node_2'),
+                             ('node_2', 'op_output')
+                             ],
+                            {'node_2': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Placeholder'}
                              },
                             nodes_with_edges_only=True)
@@ -76,8 +77,10 @@ class TestInferPass(unittest.TestCase):
         Test for case when user_shapes is not defined.
         """
         graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None, 'op': 'Placeholder'},
+                            [('node_1', 'node_2'),
+                             ('node_2', 'op_output')
+                             ],
+                            {'node_2': {'shape': None, 'op': 'Placeholder'},
                              'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Placeholder'}
                              },
                             nodes_with_edges_only=True)
@@ -92,8 +95,10 @@ class TestInferPass(unittest.TestCase):
         Test for case when user_shapes is not None, but it shouldn't rewrite shapes.
         """
         graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None},
+                            [('node_1', 'node_2'),
+                             ('node_2', 'op_output')
+                             ],
+                            {'node_2': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Placeholder'}
                              },
                             nodes_with_edges_only=True)
@@ -106,8 +111,10 @@ class TestInferPass(unittest.TestCase):
 
     def test_override_placeholder_shapes_dict(self):
         graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None, 'op': 'Placeholder'},
+                            [('node_1', 'node_2'),
+                             ('node_2', 'op_output')
+                             ],
+                            {'node_2': {'shape': None, 'op': 'Placeholder'},
                              'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Placeholder'}
                              },
                             nodes_with_edges_only=True)
@@ -185,8 +192,10 @@ class TestInferPass(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
-                             ('concat', 'node_3')],
-                            {'node_3': {'kind': 'data', 'is_output': True, 'shape': None, 'infer': None},
+                             ('concat', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'kind': 'data', 'shape': None, 'infer': None},
                              'node_1': {'kind': 'data', 'shape': np.array([1, 3, 227, 227]), 'infer': None},
                              'node_2': {'kind': 'data', 'shape': np.array([1, 3, 227, 227]), 'infer': None},
                              'concat': {'kind': 'op', 'axis': 2, 'infer': concat_infer}
@@ -219,8 +228,10 @@ class TestInferPass(unittest.TestCase):
 
     def test_partial_infer_no_shape(self):
         graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None, 'infer': None},
+                            [('node_1', 'node_2'),
+                             ('node_2', 'op_output')
+                             ],
+                            {'node_2': {'shape': None, 'infer': None},
                              'node_1': {'shape': None, 'infer': None}
                              },
                             nodes_with_edges_only=True)
@@ -231,8 +242,10 @@ class TestInferPass(unittest.TestCase):
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
                              ('concat', 'node_3'),
-                             ('node_3', 'concat')],
-                            {'node_3': {'kind': 'data', 'is_output': True, 'shape': None, 'infer': None},
+                             ('node_3', 'concat'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'kind': 'data', 'shape': None, 'infer': None},
                              'node_1': {'kind': 'data', 'shape': np.array([1, 3, 227, 227]), 'infer': None},
                              'node_2': {'kind': 'data', 'shape': np.array([1, 3, 227, 227]), 'infer': None},
                              'concat': {'kind': 'op', 'axis': 2, 'infer': concat_infer}
@@ -242,268 +255,17 @@ class TestInferPass(unittest.TestCase):
         start_node = 'concat'
         self.assertRaises(Error, partial_infer, graph, start_node)
 
-    def test_add_mean_scale_values_with_data_name(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None, 'data_type': None},
-                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Placeholder', 'name': 'data',
-                                        'data_type': None}
-                             },
-                            nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
-        mean_values = parse_tuple_pairs('(124,117,104)')
-        scale_values = parse_tuple_pairs('')
 
-        # input = 'data'
-        mean_scale = get_mean_scale_dictionary(mean_values, scale_values, None)
-        self.assertEqual(len(graph), 2)
-        add_mean_scale_values(graph, mean_scale)
-        self.assertEqual(len(graph), 5)
-
-    def test_add_mean_scale_values_without_data_name(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_2')],
-                            {'node_2': {'is_output': True, 'shape': None, 'data_type': None},
-                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Placeholder', 'name': 'data',
-                                        'data_type': None}
-                             },
-                            nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
-        mean_values = parse_tuple_pairs('(124,117,104)')
-        scale_values = parse_tuple_pairs('')
-        # input = None
-        mean_scale = get_mean_scale_dictionary(mean_values, scale_values, None)
-        self.assertEqual(len(graph), 2)
-        add_mean_scale_values(graph, mean_scale)
-        self.assertEqual(len(graph), 5)
-
-    def test_add_mean_scale_values1(self):
-        graph = build_graph(nodes_attributes,
-                            [('pl_1', 'pl_1_data'), ('pl_2', 'pl_2_data')],
-                            {'pl_1_data': {'shape': np.array([1, 3, 38, 38]), 'infer': None},
-                             'pl_2_data': {'shape': np.array([1, 6]), 'infer': None},
-                             'pl_1': {'shape': np.array([1,3,38,38])},
-                             'pl_2': {'shape': np.array([1,6])},
-                             },
-                            nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
-        add_mean_scale_values(graph,
-                              {'pl_1': {'mean': np.array([1., 2., 3.])}, 'pl_2': {'mean': np.array([0., 0., 0.])}})
-        mul_op_cnt = 0
-        add_op_cnt = 0
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Mul':
-                mul_op_cnt += 1
-            if node.has_valid('op') and node.op == 'Add':
-                add_op_cnt += 1
-
-        self.assertEqual(add_op_cnt, 1, "Found more than one Add op in graph")
-        self.assertEqual(mul_op_cnt, 0, "Found Mul op in graph")
-
-    def test_optimize_scale_and_add_mean_values(self):
-        graph = build_graph(
-            nodes_attributes,
-            [
-                ('pl_1', 'pl_1_data')
-            ],
-            {
-                'pl_1_data': {
-                    'shape': np.array([1, 3, 38, 38]),
-                    'infer': None
-                },
-                'pl_1': {
-                    'shape': np.array([1,3,38,38])
-                }
-            },
-            nodes_with_edges_only=True
-        )
-        graph.graph['layout'] = 'NCHW'
-        add_mean_scale_values(graph,
-                              {
-                                  'pl_1': {
-                                      'scale': np.array([1.]),
-                                      'mean': np.array([1., 2., 3.])
-                                  }
-                              })
-        mul_op_cnt = 0
-        add_op_cnt = 0
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Mul':
-                mul_op_cnt += 1
-            if node.has_valid('op') and node.op == 'Add':
-                add_op_cnt += 1
-
-        self.assertEqual(add_op_cnt, 1, "Found more than one Add op in graph")
-        self.assertEqual(mul_op_cnt, 0, "Found Mul op in graph")
-
-    def test_optimize_mean_and_add_scale_values(self):
-        graph = build_graph(
-            nodes_attributes,
-            [
-                ('pl_1', 'pl_1_data')
-            ],
-            {
-                'pl_1_data': {
-                    'shape': np.array([1, 3, 38, 38]),
-                    'infer': None
-                },
-                'pl_1': {
-                    'shape': np.array([1,3,38,38])
-                }
-            },
-            nodes_with_edges_only=True
-        )
-        graph.graph['layout'] = 'NCHW'
-        add_mean_scale_values(graph,
-                              {
-                                  'pl_1': {
-                                      'scale': np.array([1.43]),
-                                      'mean': np.array([0., 0., 0.])
-                                  }
-                              })
-        mul_op_cnt = 0
-        add_op_cnt = 0
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Mul':
-                mul_op_cnt += 1
-            if node.has_valid('op') and node.op == 'Add':
-                add_op_cnt += 1
-
-        self.assertEqual(add_op_cnt, 0, "Found more than one Add op in graph")
-        self.assertEqual(mul_op_cnt, 1, "Found Mul op in graph")
-
-    def test_add_mean_scale_values3(self):
-        graph = build_graph(nodes_attributes,
-                            [('pl_1', 'pl_1_data')],
-                            {'pl_1_data': {'shape': np.array([1, 3, 38, 38]), 'infer': None},
-                             'pl_1': {'shape': np.array([1,3,38,38])},
-                             },
-                            nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
-        add_mean_scale_values(graph, [[np.array([1., 2., 3.]), np.array([1., 2., 3.])]])
-
-        mul_op_cnt = 0
-        add_op_cnt = 0
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Mul':
-                mul_op_cnt += 1
-            if node.has_valid('op') and node.op == 'Add':
-                add_op_cnt += 1
-
-        self.assertEqual(add_op_cnt, 1, "Found more than one Add op in graph")
-        self.assertEqual(mul_op_cnt, 1, "Found more than one Nul op in graph")
-
-    def test_add_mean_scale_values_cut_graph(self):
-        """
-        Test case when user cutted start of the network and specified mean/scale value to the new input node 'node_3'.
-        """
-        graph = build_graph(nodes_attributes,
-                            [('pl_1', 'pl_1_data'),
-                             ('pl_2', 'pl_2_data'),
-                             ('pl_2_data', 'node_3'),
-                             ('node_3', 'node_3_data'),
-                             ('pl_1_data', 'node_1'),
-                             ('node_3_data', 'node_1'),
-                             ],
-                            {'pl_1_data': {'shape': np.array([1, 3, 38, 38]), 'infer': None},
-                             'pl_2_data': {'shape': np.array([1, 3, 38, 38]), 'infer': None},
-                             'pl_2': {'initial_node_name': 'node_3', 'shape': np.array([1,3,38,38])},
-                             'pl_1': {'shape': np.array([1,3,38,38])},
-                             },
-                            nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
-        add_mean_scale_values(graph, {'pl_1': {'mean': np.array([1, 2, 3])}, 'node_3': {'scale': np.array([1, 2, 3])}})
-
-        mul_op_cnt = 0
-        add_op_cnt = 0
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Mul':
-                mul_op_cnt += 1
-            if node.has_valid('op') and node.op == 'Add':
-                add_op_cnt += 1
-
-        self.assertEqual(add_op_cnt, 1, "There should be exactly one Add op")
-        self.assertEqual(mul_op_cnt, 1, "There should be exactly one Mul op")
-        self.assertEqual(Node(graph, 'pl_2').out_node().out_node().op, 'Mul', "The Mul op should be added after pl_2")
-        self.assertEqual(Node(graph, 'pl_1').out_node().out_node().op, 'Add', "The Add op should be added after pl_1")
-
-
-class ScaleInputTests(unittest.TestCase):
-    def test_scale_input_1(self):
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data')],
-                            {'placeholder_1_data': {'is_output': True},
-                             'placeholder_1': {'shape': np.array([1, 3, 224, 224])}
-                            },
-                            nodes_with_edges_only=True)
-
-        graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'mul_1_data'),
-                                 ('mul_1_data', 'mul_1'),
-                                 ('mul_1_w', 'mul_1'),
-                                 ('mul_1', 'placeholder_1_data')],
-                                {'mul_1_w': {'shape': np.array([1, 1, 1]), 'value': np.array([1 / 255])},
-                                 'placeholder_1_data': {'is_output': True}},
-                                nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
-        scale_input(graph, 255)
-        (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1_data')
-        self.assertTrue(flag, resp)
-
-    def test_scale_input_2(self):
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data')],
-                            {'placeholder_1_data': {'is_output': True}},
-                            nodes_with_edges_only=True)
-
-        graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'placeholder_1_data')],
-                                {'placeholder_1_data': {'is_output': True}},
-                                nodes_with_edges_only=True)
-
-        scale_input(graph, 1)
-        (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1_data')
-        self.assertTrue(flag, resp)
-
-    def test_check_for_cycle1(self):
-        # cyclic case
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_1_data'),
-                             ('node_1_data', 'node_3'),
-                             ('node_3', 'node_3_data'),
-                             ('node_3_data', 'node_1')],
-                            nodes_with_edges_only=True)
-        with self.assertRaisesRegex(Error, 'Graph contains a cycle. Can not proceed.*'):
-            check_for_cycle(graph)
-
-    def test_check_for_cycle2(self):
-        # acyclic case
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'node_1_data'),
-                             ('node_1_data', 'node_3'),
-                             ('node_3', 'node_3_data'),
-                             ('node_3_data', 'mul_1'),
-                             ('mul_1_w', 'mul_1'),
-                             ('mul_1', 'mul_1_data')
-                             ],
-                            nodes_with_edges_only=True)
-        try:
-            check_for_cycle(graph)
-        except Error:
-            self.fail("Unexpected Error raised")
-
+class CycleTest(unittest.TestCase):
     def test_is_not_fully_inferred_param(self):
         # Node that have is_not_fully_inferred=True
         graph = build_graph(nodes_attributes,
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
-                             ('concat', 'node_3')],
-                            {'node_3': {'kind': 'data', 'is_output': True, 'shape': None, 'infer': None},
+                             ('concat', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'kind': 'data', 'shape': None, 'infer': None},
                              'node_1': {'kind': 'data', 'shape': np.array([1, 3, 227, 227]), 'infer': None},
                              'node_2': {'kind': 'data', 'shape': np.array([1, 3, 227, 227]), 'infer': None},
                              'concat': {'kind': 'op', 'axis': 2, 'infer': concat_infer, 'is_not_fully_inferred': True}

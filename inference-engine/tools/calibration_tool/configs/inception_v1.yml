@@ -1,0 +1,29 @@
+models:
+  - name: GoogleNet_v1
+
+    # list of launchers for your topology.
+    launchers:
+        # launcher framework (e.g. caffe, dlsdk)
+      - framework: dlsdk
+        # device for infer (e.g. for dlsdk cpu, gpu, hetero:cpu, gpu ...)
+        device: CPU
+        # topology IR (*.prototxt for caffe, *.xml for InferenceEngine, etc)
+        # path to topology is prefixed with directory, specified in "-m/--models" option
+        tf_model: inception_v1.pb
+        # launcher returns raw result, so it should be converted
+        # to an appropriate representation with adapter
+        adapter: classification
+        mo_params:
+            data_type: FP32
+            input_shape: "(1, 224, 224, 3)"
+
+    # metrics, preprocessing and postprocessing are typically dataset specific, so dataset field
+    # specifies data and all other steps required to validate topology
+    # there is typically definitions file, which contains options for common datasets and which is merged
+    # during evaluation, but since "sample_dataset" is not used anywhere else, this config contains full definition
+    datasets:
+      # uniquely distinguishable name for dataset
+      # note that all other steps are specific for this dataset only
+      # if you need to test topology on multiple datasets, you need to specify
+      # every step explicitly for each dataset
+      - name: classification_dataset_1001classes

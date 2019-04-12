@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -54,71 +54,26 @@ else()
     set(THREADING "@THREADING@")
 
     # check whether setvars.sh is sourced
-    if(NOT IE_ROOT_DIR AND (DEFINED ENV{InferenceEngine_DIR} OR InferenceEngine_DIR OR DEFINED ENV{INTEL_CVSDK_DIR}))
+    if(NOT IE_ROOT_DIR AND (DEFINED ENV{InferenceEngine_DIR} OR InferenceEngine_DIR OR DEFINED ENV{INTEL_OPENVINO_DIR}))
         if (EXISTS "${InferenceEngine_DIR}")
             # InferenceEngine_DIR manually set via command line params
             set(IE_ROOT_DIR "${InferenceEngine_DIR}/..")
         elseif (EXISTS "$ENV{InferenceEngine_DIR}")
             # InferenceEngine_DIR manually set via env
             set(IE_ROOT_DIR "$ENV{InferenceEngine_DIR}/..")
-        elseif (EXISTS "$ENV{INTEL_CVSDK_DIR}/inference_engine")
+        elseif (EXISTS "$ENV{INTEL_OPENVINO_DIR}/inference_engine")
             # if we installed DL SDK
-            set(IE_ROOT_DIR "$ENV{INTEL_CVSDK_DIR}/inference_engine")
-        elseif (EXISTS "$ENV{INTEL_CVSDK_DIR}/deployment_tools/inference_engine")
+            set(IE_ROOT_DIR "$ENV{INTEL_OPENVINO_DIR}/inference_engine")
+        elseif (EXISTS "$ENV{INTEL_OPENVINO_DIR}/deployment_tools/inference_engine")
             # CV SDK is installed
-            set(IE_ROOT_DIR "$ENV{INTEL_CVSDK_DIR}/deployment_tools/inference_engine")
+            set(IE_ROOT_DIR "$ENV{INTEL_OPENVINO_DIR}/deployment_tools/inference_engine")
         endif()
     endif()
 
-    if(IE_ROOT_DIR)
-        if (WIN32)
-            set(_OS_PATH "")
-        else()
-           if (NOT EXISTS "/etc/lsb-release")
-                execute_process(COMMAND find -L /etc/ -maxdepth 1 -type f -name *-release -exec cat {} \;
-                            OUTPUT_VARIABLE release_data RESULT_VARIABLE result)
-                set(name_regex "NAME=\"([^ \"\n]*).*\"\n")
-                set(version_regex "VERSION=\"([0-9]+(\\.[0-9]+)?)[^\n]*\"")
-            else()
-                #linux version detection using cat /etc/lsb-release
-                file(READ "/etc/lsb-release" release_data)
-                set(name_regex "DISTRIB_ID=([^ \n]*)\n")
-                set(version_regex "DISTRIB_RELEASE=([0-9]+(\\.[0-9]+)?)")
-            endif()
-
-            string(REGEX MATCH ${name_regex} name ${release_data})
-            set(os_name ${CMAKE_MATCH_1})
-
-            string(REGEX MATCH ${version_regex} version ${release_data})
-            set(os_name "${os_name} ${CMAKE_MATCH_1}")
-
-            if (NOT os_name)
-                ext_message(FATAL_ERROR "Cannot detect OS via reading /etc/*-release:\n ${release_data}")
-            endif()
-
-            if (NOT InferenceEngine_FIND_QUIETLY)
-                message (STATUS "/etc/*-release distrib: ${os_name}")
-            endif()
-
-            if (${os_name} STREQUAL "Ubuntu 14.04")
-                set(_OS_PATH "ubuntu_14.04/")
-            elseif (${os_name} STREQUAL "Ubuntu 16.04")
-                set(_OS_PATH "ubuntu_16.04/")
-            elseif (${os_name} STREQUAL "Ubuntu 18.04")
-                set(_OS_PATH "ubuntu_18.04/")
-            elseif (${os_name} STREQUAL "CentOS 7")
-                set(_OS_PATH "centos_7.4/")
-            elseif (${os_name} STREQUAL "poky 2.0")
-                set(_OS_PATH "ubuntu_16.04/")
-            elseif (${os_name} STREQUAL "poky 2.5")
-                set(_OS_PATH "ubuntu_18.04/")
-            elseif (${os_name} STREQUAL "Raspbian 9")
-                set(_OS_PATH "raspbian_9/")
-            else()
-                ext_message(FATAL_ERROR "${os_name} is not supported. List of supported OS: Ubuntu 14.04, Ubuntu 16.04, Ubuntu 18.04, CentOS 7, poky 2.0, poky 2.5, Raspbian 9")
-            endif()
-        endif()
+    if(NOT IE_ROOT_DIR)  
+        ext_message(FATAL_ERROR "inference_engine directory is not found")
     endif()
+
 
     if(IE_INCLUDE_DIR AND NOT "${IE_ROOT_DIR}/include" EQUAL "${IE_INCLUDE_DIR}")
         unset(IE_INCLUDE_DIR CACHE)
@@ -128,13 +83,13 @@ else()
         unset(IE_SRC_DIR CACHE)
     endif()
 
-    if(IE_LIBRARY AND NOT "${IE_ROOT_DIR}/lib/${_OS_PATH}/${_ARCH}" EQUAL "${IE_LIBRARY}")
+    if(IE_LIBRARY AND NOT "${IE_ROOT_DIR}/lib/${_ARCH}" EQUAL "${IE_LIBRARY}")
         unset(IE_LIBRARY CACHE)
     endif()
 
     set(_IE_ROOT_INCLUDE_DIR "${IE_ROOT_DIR}/include")
     set(_IE_ROOT_SRC_DIR "${IE_ROOT_DIR}/src")
-    set(_IE_ROOT_LIBRARY "${IE_ROOT_DIR}/lib/${_OS_PATH}/${_ARCH}")
+    set(_IE_ROOT_LIBRARY "${IE_ROOT_DIR}/lib/${_ARCH}")
 
     find_path(IE_INCLUDE_DIR inference_engine.hpp "${_IE_ROOT_INCLUDE_DIR}")
     find_path(IE_SRC_DIR extension "${_IE_ROOT_SRC_DIR}")

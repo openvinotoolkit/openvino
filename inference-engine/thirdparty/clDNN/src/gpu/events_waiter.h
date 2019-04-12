@@ -16,9 +16,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/profiling.hpp"
-#include "ocl_user_event.h"
 #include "ocl_toolkit.h"
+#include "event_impl.h"
 
 namespace cldnn { namespace gpu {
 class events_waiter : public context_holder
@@ -29,12 +28,6 @@ public:
 
     event_impl::ptr run(const std::vector<event_impl::ptr>& dependencies)
     {
-        if (dependencies.size() == 0)
-        {
-            auto ev = new gpu::user_event(context(), true);
-            return{ ev, false };
-        }
-
         if (dependencies.size() == 1)
             return dependencies[0];
 

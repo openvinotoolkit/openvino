@@ -28,9 +28,9 @@ namespace kernel_selector {
         virtual ~ConvolutionKernel_bfyx_GEMMLike() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override;
         std::string GetKernelName(const convolution_params& params) const override;
         bool NeedPaddedInput() const override { return true; }

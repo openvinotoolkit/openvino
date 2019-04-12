@@ -40,7 +40,7 @@ status_t conv_desc_init(convolution_desc_t *conv_desc,
     bool args_ok = true
         && !any_null(conv_desc, src_desc, weights_desc, dst_desc, strides,
                 padding_l)
-        && one_of(alg_kind, convolution_direct, convolution_winograd)
+        && one_of(alg_kind, convolution_auto, convolution_direct, convolution_winograd)
         && one_of(padding_kind, padding_kind::padding_zero);
     if (!args_ok) return invalid_arguments;
 

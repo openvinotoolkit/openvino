@@ -15,7 +15,6 @@
 */
 
 #include "fully_connected_kernel_MMAD.h"
-#include "kernel_selector_utils.h"
  
 namespace kernel_selector 
 {
@@ -39,7 +38,7 @@ namespace kernel_selector
         return k;
     }
 
-    std::unique_ptr<FullyConnectedKernelMMAD::Parent::DispatchData> FullyConnectedKernelMMAD::SetDefault(const fully_connected_params& params) const
+    FullyConnectedKernelMMAD::DispatchData FullyConnectedKernelMMAD::SetDefault(const fully_connected_params& params, int) const
     {
         auto runInfo = Parent::SetDefault(params);
         
@@ -47,15 +46,15 @@ namespace kernel_selector
         const auto of_maps = params.output.Feature().v;
         const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-        runInfo->gws0 = 1;
-        runInfo->gws1 = 1;
-        runInfo->gws2 = of_threads_per_batch * params.output.Batch().v;
+        runInfo.gws0 = 1;
+        runInfo.gws1 = 1;
+        runInfo.gws2 = of_threads_per_batch * params.output.Batch().v;
 
-        runInfo->lws0 = 1;
-        runInfo->lws1 = 1;
-        runInfo->lws2 = sub_group_size;
+        runInfo.lws0 = 1;
+        runInfo.lws1 = 1;
+        runInfo.lws2 = sub_group_size;
 
-        return std::move(runInfo);
+        return runInfo;
     }
 
     JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_params& params, const DispatchData& runInfo) const
@@ -74,8 +73,17 @@ namespace kernel_selector
 
     KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        return GetCommonKernelsData(params, options, DataLayout::byxf_af32,
-        { WeightsLayout::os_is_yx_isa8_osv8_isv4 }
-        );
+
+        KernelsData res = {};
+        for (size_t i = 0; i < autoTuneOptions.size(); i++)
+        {
+            KernelsData kd = GetTunedKernelsDataByIndex(params, options, DataLayout::byxf_af32,
+                { WeightsLayout::os_is_yx_isa8_osv8_isv4 }, DONT_USE_IF_HAVE_SOMETHING_ELSE, (int)i);
+            if (!kd.empty())
+            {
+                res.emplace_back(kd[0]);
+            }
+        }
+        return res;
     }
 }

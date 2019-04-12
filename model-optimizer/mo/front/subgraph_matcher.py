@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,9 +16,7 @@
 import logging as log
 import re
 
-import networkx as nx
-
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.utils.custom_replacement_config import CustomReplacementDescriptor
 from mo.utils.error import Error
 from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
@@ -40,7 +38,7 @@ class SubgraphMatch(object):
     Class providing information about matched sub-graph.
     """
 
-    def __init__(self, graph: nx.DiGraph, replacement_desc: CustomReplacementDescriptor, matched_nodes: list,
+    def __init__(self, graph: Graph, replacement_desc: CustomReplacementDescriptor, matched_nodes: list,
                  inputs_order: list, outputs_order: list, prefix: str):
         """
         Creates instance of a SubgraphMatch class from the provided configuration.
@@ -164,7 +162,7 @@ class SubgraphMatcher(object):
     def __init__(self, replacement_descriptor: CustomReplacementDescriptor):
         self.replacement_desc = replacement_descriptor
 
-    def _match_sub_graph_for_scope(self, graph: nx.MultiDiGraph, scope_pattern: str):
+    def _match_sub_graph_for_scope(self, graph: Graph, scope_pattern: str):
         """
         :param graph: networkx graph to find sub-graph in.
         :param scope_pattern: regular expression specifying sub-graph scope.
@@ -187,7 +185,7 @@ class SubgraphMatcher(object):
 
         return SubgraphMatch(graph, self.replacement_desc, matched_nodes, inputs_order, outputs_order, scope_pattern)
 
-    def _match_sub_graph_for_points(self, graph: nx.MultiDiGraph):
+    def _match_sub_graph_for_points(self, graph: Graph):
         """
         :param graph: networkx graph to find sub-graph in.
         :return: an object describing matched sub-graph.
@@ -206,7 +204,7 @@ class SubgraphMatcher(object):
                              self.replacement_desc.get_inputs_description(),
                              self.replacement_desc.get_outputs_description(), '')
 
-    def matched_sub_graph_instances(self, graph: nx.MultiDiGraph):
+    def matched_sub_graph_instances(self, graph: Graph):
         """
         Generator to product all instances of matched sub-graphs.
         :param graph: graph to find instances in.

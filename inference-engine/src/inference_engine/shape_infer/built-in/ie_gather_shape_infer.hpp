@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ class GatherShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit GatherShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -28,7 +28,7 @@ public:
         GatherLayer gatherLayer(lp);
         gatherLayer.params = params;
         gatherLayer.type = _type;
-        validate(&gatherLayer, inShapes, params, blobs);
+        validate(&gatherLayer, inBlobs, params, blobs);
 
         int axis = gatherLayer.axis;
         if (axis < 0)
@@ -36,7 +36,7 @@ public:
 
         outShapes.resize(1);
         outShapes[0].resize(inShapes[0].size() + inShapes[1].size() - 1);
-        for (size_t i = 0; i < axis; i++)
+        for (int i = 0; i < axis; i++)
             outShapes[0][i] = inShapes[0][i];
 
         for (size_t i = 0; i < inShapes[1].size(); i++)

@@ -1,10 +1,9 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <builders/ie_layer_builder.hpp>
 #include <details/caseless.hpp>
-#include <ie_network.hpp>
 
 #include <limits>
 #include <memory>
@@ -14,71 +13,43 @@
 
 using namespace InferenceEngine;
 
-Builder::Layer::Layer(const std::string& type, const std::string& name): id((std::numeric_limits<idx_t>::max)()), type(type), name(name) {}
+Builder::Layer::Layer(const std::string& type, const std::string& name):
+        name(name), type(type), id((std::numeric_limits<idx_t>::max)()) {}
 
-Builder::Layer::Layer(const ILayer::Ptr& layer) {
-    id = layer->getId();
-    getType() = layer->getType();
-    getName() = layer->getName();
-    getGraph() = layer->getGraph();
-    getParameters() = layer->getParameters()->getParameters();
-    getInputPorts() = layer->getInputPorts();
-    getOutputPorts() = layer->getOutputPorts();
-    getConstantData() = layer->getParameters()->getConstantData();
-}
 Builder::Layer::Layer(const ILayer::CPtr& layer) {
     id = layer->getId();
-    getType() = layer->getType();
-    getName() = layer->getName();
-    getGraph() = layer->getGraph();
-    getParameters() = layer->getParameters()->getParameters();
-    getInputPorts() = layer->getInputPorts();
-    getOutputPorts() = layer->getOutputPorts();
-    getConstantData() = layer->getParameters()->getConstantData();
+    name = layer->getName();
+    type = layer->getType();
+    inPorts = layer->getInputPorts();
+    outPorts = layer->getOutputPorts();
+    params = layer->getParameters();
 }
 
 Builder::Layer::Layer(idx_t id, const Builder::Layer& layer): Layer(layer) {
     this->id = id;
 }
 
-idx_t Builder::Layer::getId() const {
+idx_t Builder::Layer::getId() const noexcept {
     return id;
 }
 
-std::string& Builder::Layer::getType() {
-    return type;
-}
-const std::string& Builder::Layer::getType() const {
+const std::string& Builder::Layer::getType() const noexcept {
     return type;
 }
 Builder::Layer& Builder::Layer::setType(const std::string& type) {
-    getType() = type;
+    this->type = type;
     return *this;
 }
 
-std::string& Builder::Layer::getName() {
-    return name;
-}
-const std::string& Builder::Layer::getName() const {
+const std::string& Builder::Layer::getName() const noexcept {
     return name;
 }
 Builder::Layer& Builder::Layer::setName(const std::string& name) {
-    getName() = name;
+    this->name = name;
     return *this;
 }
 
-INetwork::Ptr& Builder::Layer::getGraph() {
-    return graph;
-}
-const INetwork::Ptr& Builder::Layer::getGraph() const {
-    return graph;
-}
-Builder::Layer& Builder::Layer::setGraph(const INetwork::Ptr& graph) {
-    getGraph() = graph;
-    return *this;
-}
-
-const std::map<std::string, Parameter>& Builder::Layer::getParameters() const {
+const std::map<std::string, Parameter>& Builder::Layer::getParameters() const noexcept {
     return params;
 }
 std::map<std::string, Parameter>& Builder::Layer::getParameters() {
@@ -89,30 +60,10 @@ Builder::Layer& Builder::Layer::setParameters(const std::map<std::string, Parame
     return *this;
 }
 
-const std::map<std::string, Blob::CPtr>& Builder::Layer::getConstantData() const {
-    return constData;
-}
-std::map<std::string, Blob::CPtr>& Builder::Layer::getConstantData() {
-    return constData;
-}
-Builder::Layer& Builder::Layer::setConstantData(const std::map<std::string, Blob::Ptr>& constData) {
-    for (const auto& it : constData)
-        addConstantData(it.first, it.second);
-    return *this;
-}
-Builder::Layer& Builder::Layer::setConstantData(const std::map<std::string, Blob::CPtr>& constData) {
-    getConstantData() = constData;
-    return *this;
-}
-Builder::Layer& Builder::Layer::addConstantData(const std::string& name, const Blob::CPtr& data) {
-    getConstantData()[name] = data;
-    return *this;
-}
-
 std::vector<Port>& Builder::Layer::getInputPorts() {
     return inPorts;
 }
-const std::vector<Port>& Builder::Layer::getInputPorts() const {
+const std::vector<Port>& Builder::Layer::getInputPorts() const noexcept {
     return inPorts;
 }
 Builder::Layer& Builder::Layer::setInputPorts(const std::vector<Port> &ports) {
@@ -123,7 +74,7 @@ Builder::Layer& Builder::Layer::setInputPorts(const std::vector<Port> &ports) {
 std::vector<Port>& Builder::Layer::getOutputPorts() {
     return outPorts;
 }
-const std::vector<Port>& Builder::Layer::getOutputPorts() const {
+const std::vector<Port>& Builder::Layer::getOutputPorts() const noexcept {
     return outPorts;
 }
 Builder::Layer& Builder::Layer::setOutputPorts(const std::vector<Port> &ports) {
@@ -131,29 +82,20 @@ Builder::Layer& Builder::Layer::setOutputPorts(const std::vector<Port> &ports) {
     return *this;
 }
 
-const ILayer::Ptr Builder::Layer::build() const {
-    validate();
-    details::Layer::Ptr layer = std::make_shared<details::Layer>(id);
-
-    layer->getName() = name;
-    layer->getType() = type;
-    layer->setGraph(graph);
-    layer->getInputPorts() = inPorts;
-    layer->getOutputPorts() = outPorts;
-    layer->getParameters()->getParameters() = params;
-    layer->getParameters()->getConstantData() = constData;
-    return std::static_pointer_cast<ILayer>(layer);
+const ILayer::CPtr Builder::Layer::build() const {
+    validate(true);
+    return std::static_pointer_cast<const ILayer>(shared_from_this());
 }
 
-void Builder::Layer::addValidator(const std::string &type, const std::function<void(const Layer&)>& validator) {
+void Builder::Layer::addValidator(const std::string &type, const std::function<void(const Layer::CPtr&, bool)>& validator) {
     auto holder = getValidatorsHolder();
     if (holder->validators.find(type) == holder->validators.end())
         holder->validators[type] = validator;
 }
 
-void Builder::Layer::validate() const {
+void Builder::Layer::validate(bool partial) const {
     if (getValidatorsHolder()->validators.find(type) != getValidatorsHolder()->validators.end())
-        getValidatorsHolder()->validators[type](*this);
+        getValidatorsHolder()->validators[type](shared_from_this(), partial);
 }
 
 std::shared_ptr<Builder::ValidatorsHolder> Builder::Layer::getValidatorsHolder() {

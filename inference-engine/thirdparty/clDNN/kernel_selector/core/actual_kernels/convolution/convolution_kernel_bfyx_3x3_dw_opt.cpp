@@ -15,7 +15,6 @@
 */
 
 #include "convolution_kernel_bfyx_3x3_dw_opt.h"
-#include "kernel_selector_utils.h"
  
 namespace kernel_selector 
 {
@@ -24,7 +23,7 @@ namespace kernel_selector
         // Generate the dispatch options to the auto-tuner.
         std::vector<size_t> tileXDimSizes = { 1,2,4,5,6,8,10,12,14 };
         std::vector<size_t> tileYDimSizes = { 1,2,3,4,5,6,7 };
-        std::vector<std::string> executionModes = { /*AGE_BASED ,*/ ROUND_ROBIN };
+        std::vector<std::string> executionModes = ConvolutionKernelBase::autoTuneOptions;
 
         for (auto tileXDim : tileXDimSizes)
         {
@@ -95,7 +94,7 @@ namespace kernel_selector
 
         constexpr int simdSize = 16;
 
-        return AutoTuneOption{ { simdSize - 2, 7 }, ROUND_ROBIN };
+        return AutoTuneOption{ { simdSize - 2, 7 }, DEFAULT };
     }
 
     ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_3x3_dw_opt::SetDefault(const convolution_params& params, int autoTuneIndex) const

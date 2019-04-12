@@ -1,0 +1,57 @@
+// Copyright (c) 2018 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#pragma once
+
+#include "common_kernel_base.h"
+#include "kernel_selector_params.h"
+
+namespace kernel_selector {
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // PyramidROIAlign_params
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    struct PyramidROIAlign_params : public base_params
+    {
+        PyramidROIAlign_params()
+            : base_params(KernelType::PYRAMID_ROI_ALIGN)
+        {}
+     };
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // index_select_optional_params
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    struct PyramidROIAlign_optional_params : optional_params
+    {
+        PyramidROIAlign_optional_params()
+            : optional_params(KernelType::PYRAMID_ROI_ALIGN)
+            {}
+    };
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // PyramidROIAlignKernelBase
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    class PyramidROIAlignKernelBase : public common_kernel_base
+    {
+    public:
+        using common_kernel_base::common_kernel_base;
+        virtual ~PyramidROIAlignKernelBase() {}
+
+        using DispatchData = CommonDispatchData;
+
+    protected:
+        static JitConstants GetJitConstants(const PyramidROIAlign_params& params);
+        static DispatchData SetDefault(const PyramidROIAlign_params& params);
+        KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    };
+}

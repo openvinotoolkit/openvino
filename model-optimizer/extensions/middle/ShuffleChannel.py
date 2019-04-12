@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import networkx as nx
 import numpy as np
 
 from extensions.middle.ShufflenetReshape import FeatureShuffleReshape
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.permute import Permute
 from mo.ops.reshape import Reshape
@@ -33,6 +33,10 @@ class ShuffleChannel(MiddleReplacementPattern):
     def run_after(self):
         return [FeatureShuffleReshape]
 
+    def run_before(self):
+        from extensions.middle.pass_separator import MiddleFinish
+        return [MiddleFinish]
+
     def pattern(self):
         return dict(
             nodes=[
@@ -41,7 +45,7 @@ class ShuffleChannel(MiddleReplacementPattern):
             edges=[
             ])
 
-    def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(self, graph: Graph, match: dict):
         if graph.graph['layout'] != "NCHW":
             return
 
@@ -58,7 +62,8 @@ class ShuffleChannel(MiddleReplacementPattern):
         cols = in_node.shape[1] // group
 
         if rows * cols != in_node.shape[1]:
-            raise Error("Group {} should divide input channels number {} without reminder for node {}".format(group, in_node.shape[1], node.id))
+            raise Error("Group {} should divide input channels number {} without reminder for node {}"
+                        "".format(group, in_node.shape[1], node.id))
 
         reshape_split = Reshape(graph, attrs={'name': node.id + '/Reshape_split_',
                                               'dim': np.array([in_node.shape[0], rows, cols, -1])})

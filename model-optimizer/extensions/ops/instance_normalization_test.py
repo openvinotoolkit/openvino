@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 import unittest
 
 import networkx as nx
-
+from mo.graph.graph import Graph
 from extensions.ops.instance_normalization import InstanceNormalization
 
 
 class InstanceNormalizationOp(unittest.TestCase):
     def test_constructor_supported_attrs(self):
-        graph = nx.MultiDiGraph()
+        graph = Graph()
         op = InstanceNormalization(graph, attrs={'epsilon': 0.1})
         self.assertEqual(op.supported_attrs(), ['epsilon'])

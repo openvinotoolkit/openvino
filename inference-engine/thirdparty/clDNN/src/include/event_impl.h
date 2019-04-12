@@ -33,7 +33,8 @@ public:
 
     void wait();
     bool is_set();
-    
+    virtual bool is_valid() const { return _attached; }
+    virtual void reset() { _attached = false; }
     //returns true if handler has been successfully added
     bool add_event_handler(cldnn_event_handler handler, void* data);
     
@@ -48,7 +49,7 @@ private:
 
 protected:
     bool _set = false;
-
+    bool _attached = false; //because ocl event can be attached later, we need mechanism to check if such event was attached
     void call_handlers();
 
     virtual void wait_impl() = 0;

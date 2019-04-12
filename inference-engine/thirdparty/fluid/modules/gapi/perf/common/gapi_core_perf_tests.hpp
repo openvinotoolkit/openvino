@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_CORE_PERF_TESTS_HPP
@@ -50,9 +50,9 @@ namespace opencv_test
     class MaxPerfTest : public TestPerfParams<tuple<cv::Size, MatType, cv::GCompileArgs>> {};
     class AbsDiffPerfTest : public TestPerfParams<tuple<cv::Size, MatType, cv::GCompileArgs>> {};
     class AbsDiffCPerfTest : public TestPerfParams<tuple<cv::Size, MatType, cv::GCompileArgs>> {};
-    class SumPerfTest : public TestPerfParams<tuple<cv::Size, MatType, double, cv::GCompileArgs>> {};
-    class AddWeightedPerfTest : public TestPerfParams<tuple<cv::Size, MatType, int, double, cv::GCompileArgs>> {};
-    class NormPerfTest : public TestPerfParams<tuple<NormTypes, cv::Size, MatType, double, cv::GCompileArgs>> {};
+    class SumPerfTest : public TestPerfParams<tuple<compare_scalar_f, cv::Size, MatType, cv::GCompileArgs>> {};
+    class AddWeightedPerfTest : public TestPerfParams<tuple<compare_f, cv::Size, MatType, int, cv::GCompileArgs>> {};
+    class NormPerfTest : public TestPerfParams<tuple<compare_scalar_f, NormTypes, cv::Size, MatType, cv::GCompileArgs>> {};
     class IntegralPerfTest : public TestPerfParams<tuple<cv::Size, MatType, cv::GCompileArgs>> {};
     class ThresholdPerfTest : public TestPerfParams<tuple<cv::Size, MatType, int, cv::GCompileArgs>> {};
     class ThresholdOTPerfTest : public TestPerfParams<tuple<cv::Size, MatType, int, cv::GCompileArgs>> {};

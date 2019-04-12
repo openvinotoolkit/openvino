@@ -15,7 +15,6 @@
 */
 
 #include "convolution_kernel_bfyx_ref.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
     
@@ -47,11 +46,13 @@ namespace kernel_selector {
         k.EnableInt8Quantization();
         k.EnableOutputCalibration();
         k.DisableTuning();
+        k.EnableLocalConvolution();
+        k.EnableGroupedConvolution();
         return k;
     }
 
     KernelsData ConvolutionKernel_bfyx_Ref::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        return GetCommonKernelsData(params, options);
+        return GetTunedKernelsDataByIndex(params, options);
     }
 }

@@ -28,6 +28,8 @@ namespace kernel_selector
         virtual ~SoftmaxLossGradKernelRef() {}
 
         KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+
+    protected:
         ParamsKey GetSupportedKey() const override;
     };
 }

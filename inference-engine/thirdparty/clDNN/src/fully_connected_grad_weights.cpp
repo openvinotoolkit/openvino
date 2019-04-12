@@ -30,6 +30,9 @@ primitive_type_id fully_connected_grad_weights_type_id()
 
 layout fully_connected_grad_weights_inst::calc_output_layout(fully_connected_grad_weights_node const& node)
 {
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for "
+              "fully_connected_grad_weights_node!");
     //output buffer will not be used in this primitive
     auto input_grad_layout_size = node.input().get_output_layout();
     return{ input_grad_layout_size.data_type, input_grad_layout_size.format,{ 1, 1, 1, 1 } };

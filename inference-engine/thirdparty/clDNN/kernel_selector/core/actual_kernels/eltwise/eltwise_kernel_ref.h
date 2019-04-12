@@ -27,8 +27,8 @@ namespace kernel_selector
         virtual ~EltwiseKernelRef() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         bool Validate(const Params& p, const optional_params& o) const override;
 
     };

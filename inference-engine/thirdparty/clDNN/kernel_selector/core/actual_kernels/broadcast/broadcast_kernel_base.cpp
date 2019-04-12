@@ -23,6 +23,11 @@ namespace kernel_selector
     JitConstants BroadcastKernelBase::GetJitConstants(const broadcast_params& params)
     {
         JitConstants jit = MakeBaseParamsJitConstants(params);
+
+        jit.AddConstants({
+            MakeJitConstant("BROADCAST_ORDER", params.input_order)
+        });
+
         return jit;
     }
 
@@ -63,7 +68,6 @@ namespace kernel_selector
 
         auto& kernel = k_data.kernels[0];
         FillCLKernelData(kernel, run_info, params.engineInfo, kernelName, jit, entry_point);
-
         k_data.estimatedTime = estimated_time;
 
         return {k_data};

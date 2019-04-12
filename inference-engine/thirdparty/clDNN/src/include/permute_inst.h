@@ -26,6 +26,7 @@ template <>
 struct typed_program_node<permute> : public typed_program_node_base<permute>
 {
     using parent = typed_program_node_base<permute>;
+    typed_program_node(const std::shared_ptr<permute> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
 
 public:
     using parent::parent;

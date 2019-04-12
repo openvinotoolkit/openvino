@@ -69,8 +69,11 @@ status_t cvt_mem_desc_to_layout_desc(const memory_desc_t &md_,
     case memory_format::any:
     case hwio_s8s8:
     case hwigo_s8s8:
+    case gOIhw4o4i_s8s8:
+    case gOIhw2i8o4i_s8s8:
     case gOIhw4i16o4i_s8s8:
     case OIhw4i16o4i_s8s8:
+    case Goihw16g_s8s8:
     case wino_fmt:
         return invalid_arguments;
     case OIhw4i16o4i:
@@ -106,6 +109,16 @@ status_t cvt_mem_desc_to_layout_desc(const memory_desc_t &md_,
         P(2, bd.padding_dims[2], bd.strides[0][2]);
         if (md.format() == OIhw8o16i2o)
             P(3, bd.padding_dims[3], bd.strides[0][3]);
+        return success;
+    case gOIhw2i8o4i:
+        P(0, bd.padding_dims[0], bd.strides[0][0]);
+        P(1, bd.padding_dims[1] / 8, bd.strides[0][1]);
+        P(1, 8, 4);
+        P(2, bd.padding_dims[2] / 8, bd.strides[0][2]);
+        P(2, 2, 8*4);
+        P(2, 4, 1);
+        P(3, bd.padding_dims[3], bd.strides[0][3]);
+        P(4, bd.padding_dims[4], bd.strides[0][4]);
         return success;
     case gOIhw4i16o4i:
         P(0, bd.padding_dims[0], bd.strides[0][0]);

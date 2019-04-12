@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     'node_2': {'type': 'Identity', 'kind': 'op'},
                     'psroipool': {'type': 'PSROIPooling', 'kind': 'op'},
-                    'node_3': {'type': 'Identity', 'kind': 'op'}
+                    'node_3': {'type': 'Identity', 'kind': 'op'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
                     }
 
 
@@ -34,8 +35,10 @@ class TestPSROIPooling(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'psroipool'),
                              ('node_2', 'psroipool'),
-                             ('psroipool', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('psroipool', 'node_3'),
+                             ('node_3', 'op_output')
+                            ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': np.array([100, 5])},
                              'psroipool': {'output_dim': 4, 'group_size': 15}
@@ -52,8 +55,10 @@ class TestPSROIPooling(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'psroipool'),
                              ('node_2', 'psroipool'),
-                             ('psroipool', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('psroipool', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': np.array([1, 227, 227, 3])},
                              'node_2': {'shape': np.array([100, 5])},
                              'psroipool': {'output_dim': 4, 'group_size': 15}
@@ -70,8 +75,10 @@ class TestPSROIPooling(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'psroipool'),
                              ('node_2', 'psroipool'),
-                             ('psroipool', 'node_3')],
-                            {'node_3': {'is_output': True, 'shape': None},
+                             ('psroipool', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None},
                              'node_1': {'shape': None},
                              'node_2': {'shape': np.array([100, 5])},
                              'psroipool': {'output_dim': 4, 'group_size': 224}

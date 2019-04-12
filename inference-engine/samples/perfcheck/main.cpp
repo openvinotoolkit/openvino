@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@
 #include "inference_engine.hpp"
 #include "ext_list.hpp"
 
-//#include "vpu/vpu_plugin_config.hpp"
+#include "vpu/vpu_plugin_config.hpp"
 #include "samples/common.hpp"
 #include "samples/slog.hpp"
 
@@ -116,7 +116,7 @@ static std::size_t getNumberRequests(const std::string &plugin) {
     return num_requests == supported_plugins.end() ? 1 : num_requests->second;
 }
 
-#if defined(WIN32)
+#if defined(WIN32) || defined(__APPLE__)
 typedef std::chrono::time_point<std::chrono::steady_clock> time_point;
 #else
 typedef std::chrono::time_point<std::chrono::system_clock> time_point;
@@ -168,9 +168,9 @@ static void printFPS(std::size_t num_requests, std::size_t num_intervals, const 
     std::cout << "Num iterations: " << num_iterations << std::endl;
     std::cout << "Batch:          " << FLAGS_batch << std::endl;
 
-    std::cout << "Min fps:        " << min_fps << std::endl;
-    std::cout << "Avg fps:        " << avg_fps << std::endl;
-    std::cout << "Max fps:        " << max_fps << std::endl;
+    std::cout << "Min FPS:        " << min_fps << std::endl;
+    std::cout << "Avg FPS:        " << avg_fps << std::endl;
+    std::cout << "Max FPS:        " << max_fps << std::endl;
 }
 
 template<typename T>
@@ -417,7 +417,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        auto plugin = InferenceEngine::PluginDispatcher({FLAGS_pp, "../../../lib/intel64", ""}).getPluginByDevice(FLAGS_d);
+        auto plugin = InferenceEngine::PluginDispatcher({FLAGS_pp}).getPluginByDevice(FLAGS_d);
 
         /* If CPU device, load default library with extensions that comes with the product */
         if (FLAGS_d.find("CPU") != std::string::npos) {

@@ -1,7 +1,8 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+// dnn.cpp : component based neural network class for ease of use
+//
 extern bool global_debug;
 
 #include <cstdlib>
@@ -1932,6 +1933,8 @@ void AmIntelDnn::InitGNAStruct(intel_nnet_type_t *ptr_nnet) {
 
     if (ptr_nnet == nullptr)
         THROW_GNA_EXCEPTION << "Invalid input parameter";
+    if (ptr_nnet->pLayers != nullptr)
+        THROW_GNA_EXCEPTION << "InitGNAStruct can't work on prellocated layers array";
     if (component.empty())
         THROW_GNA_EXCEPTION << "empty model in AmIntelDnn::FillGNAStruct()";
 
@@ -2180,10 +2183,10 @@ void AmIntelDnn::InitGNAStruct(intel_nnet_type_t *ptr_nnet) {
                 pLayer++;
                 break;
             case kDnnCopyOp:
-                pLayer->nInputRows = component[i].num_rows_in;
-                pLayer->nInputColumns = component[i].num_columns_in;
-                pLayer->nOutputRows = component[i].num_rows_out;
-                pLayer->nOutputColumns = component[i].num_columns_out;
+                pLayer->nInputRows = component[i].num_columns_in;
+                pLayer->nInputColumns = component[i].num_rows_in;
+                pLayer->nOutputRows = component[i].num_columns_out;
+                pLayer->nOutputColumns = component[i].num_rows_out;
                 pLayer->nBytesPerInput = component[i].num_bytes_per_input;
                 pLayer->nBytesPerOutput = component[i].num_bytes_per_output;
                 pLayer->nBytesPerIntermediateOutput = sizeof(int32_t);
@@ -2198,8 +2201,8 @@ void AmIntelDnn::InitGNAStruct(intel_nnet_type_t *ptr_nnet) {
                         THROW_GNA_EXCEPTION << pLayer->nLayerKind << " could not allocate memory for INTEL_COPY layer structure.";
                     }
                     auto *pCopyLayer = reinterpret_cast<intel_copy_layer_t *>(pLayer->pLayerStruct);
-                    pCopyLayer->nCopyRows = component[i].op.copy.num_copy_rows;
-                    pCopyLayer->nCopyCols = component[i].op.copy.num_copy_columns;
+                    pCopyLayer->nCopyRows = component[i].op.copy.num_copy_columns;
+                    pCopyLayer->nCopyCols = component[i].op.copy.num_copy_rows;
                 }
                 pLayer++;
                 break;
@@ -2398,20 +2401,18 @@ void AmIntelDnn::WriteInputAndOutputText() {
                 float floatValue = 0.f;
                 if (component[i].num_bytes_per_output == 4) {
                     if (number_type_ == kDnnInt) {
-                        auto value = (reinterpret_cast<int32_t *>(component[i].ptr_outputs)[k * component[i].num_columns_out+ j]);
-                    //    out_file << std::setw(8) << value << "\n";
-                        floatValue = (static_cast<float>(value) / component[i].output_scale_factor);
+                        auto value = reinterpret_cast<int32_t *>(component[i].ptr_outputs)[k * component[i].num_columns_out+ j];
+                        floatValue = static_cast<float>(value);
 
                     } else {
-                        floatValue = (reinterpret_cast<float*>(component[i].ptr_outputs)[
-                            k * component[i].num_columns_out+ j]) / component[i].output_scale_factor;
+                        floatValue = reinterpret_cast<float*>(component[i].ptr_outputs)[k * component[i].num_columns_out+ j];
                     }
                 } else {
                     auto value = reinterpret_cast<int16_t *>(component[i].ptr_outputs)[k * component[i].num_columns_out+ j];
-                 //   out_file << std::setw(8) << value << "\n";
-                    floatValue = (static_cast<float>(value) / component[i].output_scale_factor);
+                    floatValue = static_cast<float>(value);
                 }
-                out_file << std::setw(8) << floatValue << "\n";
+                out_file << std::setw(8) << floatValue / component[i].output_scale_factor << "\n";
+
                 if (ref_out_file) {
                     float ref_value = 0.f;
                     ref_out_file >> ref_value;
@@ -2433,25 +2434,31 @@ void AmIntelDnn::WriteInputAndOutputText() {
                         << " maxD="<< std::fixed << std::setprecision(5) << std::right << std::setw(8) << maxD << std::endl;
         }
 
+        float input_scale_factor = component[i].output_scale_factor;
+        if (component[i].operation == kDnnAffineOp ||
+            component[i].operation == kDnnDiagonalOp) {
+            input_scale_factor /= component[i].op.affine.weight_scale_factor;
+        } else if (component[i].operation == kDnnConvolutional1dOp) {
+            input_scale_factor /= component[i].op.conv1D.weight_scale_factor;
+        } else if (component[i].operation == kDnnPiecewiselinearOp) {
+            input_scale_factor = 1.f;
+        }
 
         for (int k = 0; k < component[i].num_rows_in; k++) {
             for (int j = 0; j < component[i].num_columns_in; j++) {
+                float floatValue = 0.f;
                 if (component[i].num_bytes_per_input == 4) {
                     if (number_type_ == kDnnInt) {
-                        in_file << std::setw(8)
-                                << (reinterpret_cast<int32_t *>(component[i].ptr_inputs)[k * component[i].num_columns_in
-                                    + j]);
+                        auto value = reinterpret_cast<int32_t *>(component[i].ptr_inputs)[k * component[i].num_columns_in + j];
+                        floatValue = static_cast<float>(value);
                     } else {
-                        in_file << std::setw(8)
-                                << (reinterpret_cast<float *>(component[i].ptr_inputs)[k * component[i].num_columns_in
-                                    + j]);
+                        floatValue = reinterpret_cast<float *>(component[i].ptr_inputs)[k * component[i].num_columns_in + j];
                     }
                 } else {
-                    in_file << std::setw(8)
-                            << (reinterpret_cast<int16_t *>(component[i].ptr_inputs)[k * component[i].num_columns_in
-                                + j]);
+                    auto value = reinterpret_cast<int16_t *>(component[i].ptr_inputs)[k * component[i].num_columns_in+ j];
+                    floatValue = static_cast<float>(value);
                 }
-                in_file << "\n";
+                in_file << std::setw(8) << floatValue / input_scale_factor << "\n";
             }
         }
 #endif

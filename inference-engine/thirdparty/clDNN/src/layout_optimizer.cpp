@@ -201,6 +201,12 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout, data_
             expected_tensor = current_layout.size;
             expected_format = cldnn::format::byxf;
         }
+        // IMAD case
+        else if (current_layout.format == format::b_fs_yx_fsv4 ||
+                 current_layout.format == format::os_is_yx_osv16_isv4)
+        {
+            // Nothing to do, just go out from here.
+        }
         // MMAD case
         else if (current_layout.data_type == data_types::i8)
         {
@@ -211,7 +217,8 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout, data_
             || (_output_size_handling_enabled && prim->with_output_size) ||
             node.get_transposed())
         {
-            if (current_layout.data_type == data_types::f32 &&
+            // commented out due to performance reasons, maybe enable in future
+            /*if (current_layout.data_type == data_types::f32 &&
                 current_layout.size.batch[0] % 16 == 0 &&
                 current_layout.format == format::bfyx &&
                 output_or_weights_layout.size.spatial[0] == 1 && output_or_weights_layout.size.spatial[1] == 1 &&
@@ -226,7 +233,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout, data_
                     expected_format = cldnn::format::bf8_xy16;
                 }
             }
-            else
+            else*/
             {
                 expected_tensor = current_layout.size;
                 expected_format = cldnn::format::bfyx;

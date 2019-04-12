@@ -1,0 +1,54 @@
+models:
+  - name: UNet_2D
+
+    # list of launchers for your topology.
+    launchers:
+        # launcher framework (e.g. caffe, dlsdk)
+      - framework: dlsdk
+        # device for infer (e.g. for dlsdk cpu, gpu, hetero:cpu, gpu ...)
+        device: CPU
+        # topology IR (*.prototxt for caffe, *.xml for InferenceEngine, etc)
+        # path to topology is prefixed with directory, specified in "-m/--models" option
+        model: model.ckpt.xml
+        # topology weights binary (*.caffemodel for caffe, *.bin for InferenceEngine)
+        weights: model.ckpt.bin
+        # launcher returns raw result, so it should be converted
+        # to an appropriate representation with adapter
+        adapter: brain_tumor_segmentation
+        cpu_extensions: AUTO
+
+    # metrics, preprocessing and postprocessing are typically dataset specific, so dataset field
+    # specifies data and all other steps required to validate topology
+    # there is typically definitions file, which contains options for common datasets and which is merged
+    # during evaluation, but since "sample_dataset" is not used anywhere else, this config contains full definition
+    datasets:
+      # uniquely distinguishable name for dataset
+      # note that all other steps are specific for this dataset only
+      # if you need to test topology on multiple datasets, you need to specify
+      # every step explicitly for each dataset
+      - name: brats
+        data_source: Task01_BrainTumour
+        # directory where input images are searched.
+        # prefixed with directory specified in "-s/--source" option
+        # name of converted annotation file (specified in -a option during annotation conversion)
+        # prefixed with directory specified in "-a/--annotations" option
+        annotation: annotations/unet/calibration/brats.pickle
+
+        reader: nifti_reader
+        preprocessing:
+          - type: crop3d
+            size: 128
+          - type: normalize3d
+
+        postprocessing:
+          - type: crop_segmentation_mask
+            apply_to: annotation
+            size: 128
+          - type: clip_segmentation_mask
+            apply_to: annotation
+            max_value: 1
+
+        # list of metrics, calculated on dataset
+        metrics:
+          - type: dice
+            presenter: return_value

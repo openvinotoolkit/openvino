@@ -17,6 +17,7 @@
 #pragma once
 
 #include "weight_bias_params.h"
+#include <string>
 
 namespace kernel_selector
 {
@@ -28,6 +29,22 @@ namespace kernel_selector
     {
 		embed_params() : weight_bias_params(KernelType::EMBED) {}
 
+
+        std::string to_string() const
+        {
+            std::stringstream s;
+
+            s << base_params::to_string() << "_";
+            if (bias.empty())
+            {
+                s << "no_bias" << "_";
+            }
+            else
+            {
+                s << "bias_" << bias[0].PhysicalSize() << "_";
+            }
+            return s.str();
+        }
         virtual ParamsKey GetParamsKey() const
         {
             return weight_bias_params::GetParamsKey();

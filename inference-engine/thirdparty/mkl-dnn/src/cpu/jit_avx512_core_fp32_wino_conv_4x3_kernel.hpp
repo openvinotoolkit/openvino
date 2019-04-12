@@ -161,8 +161,7 @@ struct jit_avx512_core_fp32_wino_conv_4x3_fwd_kernel
     static status_t init_conf(jit_conv_winograd_conf_t &jcp,
             const convolution_desc_t &cd, const cpu_memory_t::pd_t &src_pd,
             cpu_memory_t::pd_t &weights_pd, const cpu_memory_t::pd_t &dst_pd,
-            const primitive_attr_t &attr, bool with_relu,
-            float relu_negative_slope);
+            const primitive_attr_t &attr);
 };
 
 struct jit_avx512_core_fp32_wino_conv_4x3_bwd_data_kernel
@@ -188,7 +187,7 @@ struct jit_avx512_core_fp32_wino_conv_4x3_bwd_weights_kernel
         //******************* First iter kernel ********************//
         this->gemm_loop_generate(true);
         gemm_loop_ker_first_iter = (decltype(gemm_loop_ker_first_iter))this->getCode();
-        
+
         align();
         const Xbyak::uint8 *addr = getCurr();
         this->src_transform_generate();

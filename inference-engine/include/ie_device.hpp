@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,8 @@ enum class TargetDevice : uint8_t {
     eMYRIAD = 5,
     eHDDL = 6,
     eGNA = 7,
-    eHETERO = 8
+    eHETERO = 8,
+    eKMB = 9,
 };
 
 /**
@@ -53,7 +54,8 @@ class TargetDeviceInfo {
             DECL_DEVICE(MYRIAD),
             DECL_DEVICE(HDDL),
             DECL_DEVICE(GNA),
-            DECL_DEVICE(HETERO)
+            DECL_DEVICE(HETERO),
+            DECL_DEVICE(KMB)
         };
 #undef DECLARE
         return g_allDeviceInfos;
@@ -69,7 +71,8 @@ class TargetDeviceInfo {
             { "HDDL", InferenceEngine::TargetDevice::eHDDL },
             { "GNA", InferenceEngine::TargetDevice::eGNA },
             { "BALANCED", InferenceEngine::TargetDevice::eBalanced },
-            { "HETERO", InferenceEngine::TargetDevice::eHETERO }
+            { "HETERO", InferenceEngine::TargetDevice::eHETERO },
+            { "KMB", InferenceEngine::TargetDevice::eKMB }
         };
         auto val = deviceFromNameMap.find(deviceName);
         return val != deviceFromNameMap.end() ? val->second : InferenceEngine::TargetDevice::eDefault;

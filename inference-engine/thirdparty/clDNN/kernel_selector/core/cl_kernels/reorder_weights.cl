@@ -13,7 +13,9 @@
 // limitations under the License.
 
 
-#include "include/include_all.cl"
+#include "include/fetch.cl"
+#include "include/reshape_dims.cl"
+#include "include/data_types.cl"
 
 
 ///////////////////////// Input Index /////////////////////////
@@ -26,6 +28,10 @@ inline uint FUNC(get_input_index)(uint o, uint i, uint y, uint x)
       defined INPUT0_LAYOUT_OS_I_OSV8__AI8  || \
       defined INPUT0_LAYOUT_OS_I_OSV16__AI8
     return GET_FILTER_OS_IYX_OSV8_INDEX(INPUT0, o, i, y, x, SUB_GROUP_SIZE);
+#elif defined INPUT0_LAYOUT_IYX_OSV32
+    return GET_FILTER_OS_IYX_OSV8_INDEX(INPUT0, o, i, y, x, 32);
+#elif defined INPUT0_LAYOUT_IYX_OSV64
+    return GET_FILTER_OS_IYX_OSV8_INDEX(INPUT0, o, i, y, x, 64);
 #elif defined INPUT0_LAYOUT_OS_IYX_OSV16_ROTATE_180
     return GET_FILTER_OS_IYX_OSV8_ROTATE_180_INDEX(INPUT0, o, i, y, x, SUB_GROUP_SIZE);
 #elif defined INPUT0_LAYOUT_I_YXS_OS_YXSV2_OSV16
@@ -38,6 +44,10 @@ inline uint FUNC(get_input_index)(uint o, uint i, uint y, uint x)
 	return GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4(INPUT0, o, i, y, x);
 #elif defined INPUT0_LAYOUT_IS_O_YX_ISV32
     return GET_FILTER_IS_O_YX_ISV32(INPUT0, o, i, y, x);
+#elif defined INPUT0_LAYOUT_IS_O32_YX_ISV32_SWIZZLED_BY_4
+    return GET_FILTER_IS_O32_YX_ISV32_SWIZZLED_BY_4(INPUT0, o, i, y, x);
+#elif defined INPUT0_LAYOUT_OS_IS_Y_X8_OSV8_ISV4
+    return GET_FILTER_OS_IS_Y_X8_OSV8_ISV4(INPUT0, o, i, y, x);
 #else
 #error reorder_weights.cl: input format - not supported
 #endif
@@ -54,6 +64,10 @@ inline uint FUNC(get_output_index)(uint o, uint i, uint y, uint x)
       defined OUTPUT_LAYOUT_OS_I_OSV8__AI8  || \
       defined OUTPUT_LAYOUT_OS_I_OSV16__AI8
     return GET_FILTER_OS_IYX_OSV8_INDEX(OUTPUT, o, i, y, x, SUB_GROUP_SIZE);
+#elif defined OUTPUT_LAYOUT_OS_IYX_OSV32
+    return GET_FILTER_OS_IYX_OSV8_INDEX(OUTPUT, o, i, y, x, 32);
+#elif defined OUTPUT_LAYOUT_OS_IYX_OSV64
+    return GET_FILTER_OS_IYX_OSV8_INDEX(OUTPUT, o, i, y, x, 64);
 #elif defined OUTPUT_LAYOUT_OS_IYX_OSV16_ROTATE_180
     return GET_FILTER_OS_IYX_OSV8_ROTATE_180_INDEX(OUTPUT, o, i, y, x, SUB_GROUP_SIZE);
 #elif defined OUTPUT_LAYOUT_I_YXS_OS_YXSV2_OSV16
@@ -66,6 +80,14 @@ inline uint FUNC(get_output_index)(uint o, uint i, uint y, uint x)
 	return GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_IS_O_YX_ISV32
     return GET_FILTER_IS_O_YX_ISV32(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_IS_O32_YX_ISV32_SWIZZLED_BY_4
+    return GET_FILTER_IS_O32_YX_ISV32_SWIZZLED_BY_4(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_OS_IS_Y_X8_OSV8_ISV4
+    return GET_FILTER_OS_IS_Y_X8_OSV8_ISV4(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_OS_IS_YX_OSV16_ISV4
+    return GET_FILTER_OS_IS_YX_OSV16_ISV4_INDEX(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4
+    return GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4_INDEX(OUTPUT, o, i, y, x);
 #else
 #error reorder_weights.cl: output format - not supported
 #endif

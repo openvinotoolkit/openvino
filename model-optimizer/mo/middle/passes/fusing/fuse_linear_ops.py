@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,20 +17,19 @@
 import logging as log
 from collections import deque
 
-import networkx as nx
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import add_attrs_props
-from mo.graph.graph import Node, unique_id
+from mo.graph.graph import Node, Graph
 from mo.middle.passes.eliminate import graph_clean_up
 from mo.utils.graph import pseudo_topological_sort
 from mo.ops.lin_op import Mul, Add
 from mo.ops.op import Op
-from mo.graph.graph import dump_graph_for_graphviz
 from mo.middle.passes.fusing.helpers import backward_bfs, forward_bfs, get_tensor_id, get_value_id
 
 
-def _fuse_mul(graph: nx.MultiDiGraph, node: Node, fuse_nodes: list, backward: bool = True):
+def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True):
     """
     This function takes Mul node and array of convolution/fc nodes for further fusion
     Parameters
@@ -143,7 +142,7 @@ def _fuse_mul(graph: nx.MultiDiGraph, node: Node, fuse_nodes: list, backward: bo
     return is_fused
 
 
-def _fuse_add(graph: nx.MultiDiGraph, node: Node, fuse_nodes: list, backward: bool = True):
+def _fuse_add(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True):
     """
     This function takes Add node and Convolution/FC nodes for further fusion and then deletes Add node
     In case if Convolution/FC Bias absence it will be created
@@ -188,7 +187,7 @@ def _fuse_add(graph: nx.MultiDiGraph, node: Node, fuse_nodes: list, backward: bo
 
         # Create BIAS data node if not exists
         if len(fuse_node.in_nodes()) <= 2:
-            bias_data = unique_id(graph, "bias_data")
+            bias_data = graph.unique_id("bias_data")
             data_type = fuse_node.in_node(1).data_type
             # Broadcast if scalar
             if value.size == 1:
@@ -199,7 +198,7 @@ def _fuse_add(graph: nx.MultiDiGraph, node: Node, fuse_nodes: list, backward: bo
             if not backward:
                 value = np.dot(fuse_node.in_node(1).value, value)
 
-            shape = value.shape
+            shape = int64_array(value.shape)
 
             graph.add_node(bias_data, **add_attrs_props(
                 dict(kind='data', precision="FP32", name=bias_data, value=value, shape=shape, data_type=data_type)))
@@ -235,7 +234,7 @@ def _fuse_add(graph: nx.MultiDiGraph, node: Node, fuse_nodes: list, backward: bo
     return is_fused
 
 
-def fuse_linear_ops(graph: nx.MultiDiGraph):
+def fuse_linear_ops(graph: Graph):
     """
     This function makes fusing of linear operations (Mul,Add) to Convolution/FC.
     """

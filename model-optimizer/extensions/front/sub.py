@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.eltwise import Eltwise
 from mo.ops.power import Power
 
@@ -26,7 +26,7 @@ class Sub(FrontReplacementOp):
     op = "Sub"
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    def replace_op(self, graph: Graph, node: Node):
         negate = Power(graph, dict(scale=-1, name=node.name + '/negate_'))
         add = Eltwise(graph, dict(operation='sum', name=node.name + '/add_'))
         out_node = add.create_node([(node.in_node(0), node.in_edge(0)['out']),

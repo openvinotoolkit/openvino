@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <memory>
 #include <utility>
 #include <list>
+#include <limits>
 #include "details/ie_cnn_network_tools.h"
 #include "details/caseless.hpp"
 
@@ -37,7 +38,7 @@ CNNLayerPtr Int8Calibrator::addScaleShiftBeforeLayer(std::string name, CNNLayer:
 
     if (scale.size() == 1) {
         scale.resize(wdims[0]);
-        for (int i = 1; i < wdims[0]; i++) {
+        for (size_t i = 1; i < wdims[0]; i++) {
             scale[i] = scale[0];
         }
     }
@@ -53,7 +54,7 @@ CNNLayerPtr Int8Calibrator::addScaleShiftBeforeLayer(std::string name, CNNLayer:
     if (buffer == nullptr) {
         THROW_IE_EXCEPTION << "Could not allocate weights buffer";
     }
-    for (size_t i = 0, idx = 0; i < pData->dims[2]; i++) {
+    for (size_t i = 0; i < pData->dims[2]; i++) {
         buffer[i] = scale[i];
     }
     pScaleShift->_weights = weights;
@@ -64,7 +65,7 @@ CNNLayerPtr Int8Calibrator::addScaleShiftBeforeLayer(std::string name, CNNLayer:
     biases = make_shared_blob<float>(Precision::FP32, Layout::C, bdims);
     biases->allocate();
     buffer = biases->buffer().as<float *>();
-    for (size_t i = 0, idx = 0; i < pData->dims[2]; i++) {
+    for (size_t i = 0; i < pData->dims[2]; i++) {
         buffer[i] = 0.f;
     }
     pScaleShift->_biases = biases;
@@ -94,7 +95,6 @@ CNNLayerPtr Int8Calibrator::addScaleShiftBeforeLayer(std::string name, CNNLayer:
 
 float Int8Calibrator::compare_NRMSD(InferenceEngine::Blob::Ptr res, InferenceEngine::Blob::Ptr ref) {
     float *res_ptr = res->buffer().as<float *>();
-    size_t res_size = res->size();
 
     float *ref_ptr = ref->buffer().as<float *>();
     size_t ref_size = ref->size();
@@ -111,9 +111,12 @@ float Int8Calibrator::compare_NRMSD(InferenceEngine::Blob::Ptr res, InferenceEng
         mmin = std::min(mmin, ref_ptr[i]);
         mmax = std::max(mmax, ref_ptr[i]);
     }
+    if (std::fabs(ref_size) < std::numeric_limits<double>::epsilon()) {
+        throw std::logic_error("ref_size can't be equal to zero");
+    }
     sum /= ref_size;
 
-    sum = pow(sum, 0.5);
+    sum = pow(sum, 0.5f);
 
     sum /= mmax - mmin;
 
@@ -149,6 +152,9 @@ void Int8Calibrator::collectFP32Statistic() {
     networkReaderC = InferenceEngine::CNNNetReader();
     networkReaderC.ReadNetwork(_modelFileNameI8C);
     if (!networkReaderC.isParseSuccess()) THROW_IE_EXCEPTION << "cannot load a failed Model";
+    /** Extract model name and load weights **/
+    std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
+    networkReaderC.ReadWeights(binFileName.c_str());
     if (_cBatch == 0) {
         // Zero means "take batch value from the IR"
         _cBatch = networkReaderC.getNetwork().getBatchSize();
@@ -162,10 +168,6 @@ void Int8Calibrator::collectFP32Statistic() {
         input_shapes[input_name] = input_shape;
         networkReaderC.getNetwork().reshape(input_shapes);
     }
-
-    /** Extract model name and load weights **/
-    std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
-    networkReaderC.ReadWeights(binFileName.c_str());
 
     auto network = networkReaderC.getNetwork();
 
@@ -196,10 +198,12 @@ void Int8Calibrator::collectFP32Statistic() {
     // 1. add all layers as output one
     for (auto &&layer : network) {
         std::string layerType = network.getLayerByName(layer->name.c_str())->type;
-        if (/*layerType != "Split" &&*/layerType != "Input") {
-            network.addOutput(layer->name);
+        if (layerType != "Const") {
+            if (/*layerType != "Split" &&*/layerType != "Input") {
+                network.addOutput(layer->name);
+            }
+            _statData.registerLayer(layer->name);
         }
-        _statData.registerLayer(layer->name);
     }
 
     ExecutableNetwork executable_network = _pluginI8C.LoadNetwork(network, { { CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES) } });
@@ -207,12 +211,16 @@ void Int8Calibrator::collectFP32Statistic() {
 }
 
 void Int8Calibrator::validateInt8Config(const InferenceEngine::NetworkStatsMap &stat,
-                                        const std::map<std::string, bool> &layersToInt8) {
+                                        const std::map<std::string, bool> &layersToInt8,
+                                        bool convertFullyConnected) {
     _collectByLayer = false;
     _collectStatistic = false;
     networkReaderC = InferenceEngine::CNNNetReader();
     networkReaderC.ReadNetwork(_modelFileNameI8C);
     if (!networkReaderC.isParseSuccess()) THROW_IE_EXCEPTION << "cannot load a failed Model";
+    /** Extract model name and load weights **/
+    std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
+    networkReaderC.ReadWeights(binFileName.c_str());
     if (_cBatch == 0) {
         // Zero means "take batch value from the IR"
         _cBatch = networkReaderC.getNetwork().getBatchSize();
@@ -227,10 +235,6 @@ void Int8Calibrator::validateInt8Config(const InferenceEngine::NetworkStatsMap &
         networkReaderC.getNetwork().reshape(input_shapes);
     }
 
-    /** Extract model name and load weights **/
-    std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
-    networkReaderC.ReadWeights(binFileName.c_str());
-
     // Initialize statistic
     ICNNNetworkStats *pstats = nullptr;
     StatusCode s = ((ICNNNetwork&)networkReaderC.getNetwork()).getStats(&pstats, nullptr);
@@ -239,6 +243,13 @@ void Int8Calibrator::validateInt8Config(const InferenceEngine::NetworkStatsMap &
     }
 
     auto network = networkReaderC.getNetwork();
+
+    for (auto l : network) {
+        if (l->type == "FullyConnected") {
+            l->params["quantization_level"] = (convertFullyConnected == false) ? "FP32" : "I8";
+        }
+    }
+
     for (auto l : layersToInt8) {
         network.getLayerByName(l.first.c_str())->
             params["quantization_level"] = (l.second == false) ? "FP32" : "I8";
@@ -363,6 +374,9 @@ void Int8Calibrator::collectByLayerStatistic(const InferenceEngine::NetworkStats
     networkReaderC = InferenceEngine::CNNNetReader();
     networkReaderC.ReadNetwork(_modelFileNameI8C);
     if (!networkReaderC.isParseSuccess()) THROW_IE_EXCEPTION << "cannot load a failed Model";
+    /** Extract model name and load weights **/
+    std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
+    networkReaderC.ReadWeights(binFileName.c_str());
     if (_cBatch != 0) {
         auto input_shapes = networkReaderC.getNetwork().getInputShapes();
         std::string input_name;
@@ -373,15 +387,11 @@ void Int8Calibrator::collectByLayerStatistic(const InferenceEngine::NetworkStats
         networkReaderC.getNetwork().reshape(input_shapes);
     }
 
-    /** Extract model name and load weights **/
-    std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
-    networkReaderC.ReadWeights(binFileName.c_str());
-
     auto network = networkReaderC.getNetwork();
     // 1. add all layers as output one
     for (auto &&layer : network) {
         std::string layerType = network.getLayerByName(layer->name.c_str())->type;
-        if (/*layerType != "Split" &&*/layerType != "Input") {
+        if (/*layerType != "Split" &&*/layerType != "Input" && layerType != "Const") {
             network.addOutput(layer->name);
         }
 
@@ -401,7 +411,6 @@ void Int8Calibrator::collectByLayerStatistic(const InferenceEngine::NetworkStats
         // currently it is only supported
 
         // if only one output from conv and if it is an output to relu
-        bool quattization = false;
         if (layerToClone->outData.size() == 1
             && layerToClone->outData[0]->inputTo.size() == 1
             && CaselessEq<std::string>()(layerToClone->outData[0]->inputTo.begin()->second->name, "relu")) {
@@ -461,16 +470,14 @@ void Int8Calibrator::collectCalibrationStatistic(size_t pics) {
                 outName = _inputsFromLayers[l];
             }
 
-            size_t N, C, statCount;
+            size_t N, C;
             if (outBlob->dims().size() == 4 && outBlob->layout() == Layout::NCHW) {
                 // TODO(amalyshe) cahnge to using of tensor desc
                 N = pics;
                 C = outBlob->dims()[2];
-                statCount = C;
             } else if (outBlob->dims().size() == 2 && outBlob->layout() == Layout::NC) {
                 N = pics;
                 C = outBlob->dims()[0];
-                statCount = 1;
             } else {
                 continue;
             }
@@ -568,10 +575,11 @@ shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process(bool s
         generator.readLabels(labelFileName);
     } catch (InferenceEngine::details::InferenceEngineException& ex) {
         slog::warn << "Can't read labels file " << labelFileName << slog::endl;
+        slog::warn << "Error: " << ex.what() << slog::endl;
     }
     auto validationMap = generator.getValidationMap(imagesPath);
 
-    if (validationMap.size() == 0) {
+    if (validationMap.empty()) {
         THROW_IE_EXCEPTION << "The validation dataset in " << imagesPath << "is empty. Check the dataset file or folder and the labels file";
     }
 
@@ -580,7 +588,6 @@ shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process(bool s
     // ----------------------------Do inference-------------------------------------------------------------
     std::vector<int> expected(batch);
     std::vector<std::string> files(batch);
-    int captured = 0;
 
     if (!_nPictures) {
         _nPictures = validationMap.size();
@@ -599,7 +606,7 @@ shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process(bool s
     size_t ipics = 0;
     auto iter = validationMap.begin();
     while (iter != validationMap.end() && ipics < _nPictures) {
-        int b = 0;
+        size_t b = 0;
         int filesWatched = 0;
         for (; b < batch && iter != validationMap.end() && ipics + b < _nPictures ; b++, iter++, filesWatched++) {
             expected[b] = iter->first;
@@ -608,6 +615,7 @@ shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process(bool s
                 files[b] = iter->second;
             } catch (const InferenceEngineException &iex) {
                 slog::warn << "Can't read file " << iter->second << slog::endl;
+                slog::warn << "Error: " << iex.what() << slog::endl;
                 // Could be some non-image file in directory
                 b--;
                 continue;
@@ -619,12 +627,11 @@ shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process(bool s
         collectCalibrationStatistic(b);
 
         std::vector<unsigned> results;
-        auto firstOutputData = firstOutputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
         InferenceEngine::TopResults(1, *firstOutputBlob, results);
-        for (int i = 0; i < b; i++) {
+        for (size_t i = 0; i < b; i++) {
             int expc = expected[i];
             if (zeroBackground) expc++;
-            bool top1Scored = (results[i] == expc);
+            bool top1Scored = (static_cast<int>(results[i]) == expc);
             if (top1Scored) top1Result++;
             total++;
         }
@@ -632,6 +639,10 @@ shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process(bool s
     progress.finish();
 
     calculateLayersAccuracyDrop();
+
+    if (total == 0) {
+        throw std::logic_error("total can't be equal to zero");
+    }
 
     im.AccuracyResult = static_cast<float>(top1Result) / static_cast<float>(total);
 
@@ -675,18 +686,13 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process(bo
     for (auto &ann : annCollector.annotations()) {
         std::list<DetectedObject> dobList;
         for (auto &obj : ann.objects) {
-            DetectedObject dob(classes[obj.name], obj.bndbox.xmin, obj.bndbox.ymin, obj.bndbox.xmax, obj.bndbox.ymax, 1.0, obj.difficult != 0);
+            DetectedObject dob(classes[obj.name], static_cast<float>(obj.bndbox.xmin), static_cast<float>(obj.bndbox.ymin),
+                               static_cast<float>(obj.bndbox.xmax), static_cast<float>(obj.bndbox.ymax), 1.0f, obj.difficult != 0);
             dobList.push_back(dob);
         }
         ImageDescription id(dobList);
         desiredForFiles.insert(std::pair<std::string, ImageDescription>(ann.folder + "/" + (!subdir.empty() ? subdir + "/" : "") + ann.filename, id));
     }
-
-
-    ImageDecoder decoder;
-
-    const int maxProposalCount = outputDims[1];
-    const int objectSize = outputDims[0];
 
     for (auto &item : outInfo) {
         DataPtr outputData = item.second;
@@ -718,18 +724,17 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process(bo
 
     while (iter != annCollector.annotations().end() && ipics < _nPictures) {
         std::vector<std::string> files;
-        int b = 0;
+        size_t b = 0;
 
         int filesWatched = 0;
         for (; b < batch && iter != annCollector.annotations().end(); b++, iter++, filesWatched++) {
             expected[b] = *iter;
             string filename = iter->folder + "/" + (!subdir.empty() ? subdir + "/" : "") + iter->filename;
             try {
-                Size orig_size = decoder.insertIntoBlob(std::string(imagesPath) + "/" + filename, b, *firstInputBlob, preprocessingOptions);
                 float scale_x, scale_y;
 
-                scale_x = 1.0 / iter->size.width;  // orig_size.width;
-                scale_y = 1.0 / iter->size.height;  // orig_size.height;
+                scale_x = 1.0f / iter->size.width;  // orig_size.width;
+                scale_y = 1.0f / iter->size.height;  // orig_size.height;
 
                 if (scaleProposalToInputSize) {
                     scale_x *= firstInputBlob->dims()[0];
@@ -742,15 +747,13 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process(bo
                 files.push_back(filename);
             } catch (const InferenceEngineException &iex) {
                 slog::warn << "Can't read file " << this->imagesPath + "/" + filename << slog::endl;
+                slog::warn << "Error: " << iex.what() << slog::endl;
                 // Could be some non-image file in directory
                 b--;
                 continue;
             }
             ipics++;
         }
-
-        InferenceEngine::StatusCode sts;
-        InferenceEngine::ResponseDesc dsc;
 
         // Infer model
         Infer(progress, filesWatched, im);
@@ -761,9 +764,9 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process(bo
 
         // Calculating similarity
         //
-        for (int b = 0; b < files.size(); b++) {
-            ImageDescription result(detectedObjects[files[b]]);
-            im.apc.consumeImage(result, scaledDesiredForFiles.at(files[b]));
+        for (size_t j = 0; j < files.size(); j++) {
+            ImageDescription result(detectedObjects[files[j]]);
+            im.apc.consumeImage(result, scaledDesiredForFiles.at(files[j]));
         }
     }
     progress.finish();
@@ -779,7 +782,7 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process(bo
         for (auto i : appc) {
             mAP += i.second;
         }
-        imCalibration.AccuracyResult = mAP / appc.size();
+        imCalibration.AccuracyResult = static_cast<float>(mAP / appc.size());
     }
     return std::shared_ptr<Processor::InferenceMetrics>(new CalibrationMetrics(imCalibration));
 }

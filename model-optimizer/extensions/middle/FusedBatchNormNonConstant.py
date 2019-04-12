@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,9 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-import networkx as nx
-
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.eltwise import Eltwise
 from mo.ops.power import Power
@@ -30,6 +28,14 @@ class FusedBatchNormNonConstant(MiddleReplacementPattern):
 
     enabled = True
 
+    def run_after(self):
+        from extensions.middle.pass_separator import MiddleStart
+        return [MiddleStart]
+
+    def run_before(self):
+        from extensions.middle.pass_separator import MiddleFinish
+        return [MiddleFinish]
+
     def pattern(self):
         return dict(
             nodes=[
@@ -37,7 +43,7 @@ class FusedBatchNormNonConstant(MiddleReplacementPattern):
             edges=[]
         )
 
-    def replace_pattern(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(self, graph: Graph, match: dict):
         node = match['op']
         if (node.data_format != b'NHWC' or
                 len(node.in_nodes()) != 5 or

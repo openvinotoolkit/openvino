@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,10 @@ using MKLDNNEdgeWeakPtr = std::weak_ptr<MKLDNNEdge>;
 
 class MKLDNNEdge : public InferenceEngine::details::no_copy {
 public:
+    MKLDNNEdge(const std::shared_ptr<MKLDNNNode>& parent,
+               const std::shared_ptr<MKLDNNNode>& child,
+               int pr_port = 0, int ch_port = 0);
+
     enum class Status {
         Uninitialized,
         NeedAllocation,
@@ -28,9 +32,8 @@ public:
         Allocated,
         Validated
     };
-    MKLDNNEdge(const std::shared_ptr<MKLDNNNode>& parent, const std::shared_ptr<MKLDNNNode>& child);
 
-    inline Status getStatus() noexcept {
+    inline Status getStatus() const noexcept {
         return status;
     }
 
@@ -39,26 +42,23 @@ public:
     virtual void init();
     virtual void allocate(const void* mem_ptr = nullptr);
     virtual void validate();
+    void drop();
 
     const std::shared_ptr<MKLDNNNode> getParent() const;
     const std::shared_ptr<MKLDNNNode> getChild() const;
 
-    bool needReorder();
-
     InferenceEngine::Blob::Ptr getBlob();
+    InferenceEngine::TensorDesc getDesc();
+
+    const MKLDNNDims &getDims();
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
 
+    bool needReorder();
     bool isDropped();
 
-    InferenceEngine::TensorDesc getDesc();
     int getInputNum();
     int getOutputNum();
-    std::vector<int> getAllOutputNums();
-    std::vector<int> getAllInputNums();
-
-    MKLDNNDims &getDims();
-    void setDims(MKLDNNDims &dims);
 
     void sharedMemFrom(const MKLDNNEdgePtr& edge);
     MKLDNNEdgePtr getSharedEdge() const;
@@ -66,6 +66,9 @@ public:
 private:
     std::weak_ptr<MKLDNNNode> parent;
     std::weak_ptr<MKLDNNNode> child;
+    int parent_port;
+    int child_port;
+
     MKLDNNEdgeWeakPtr memoryFromEdge;
     MKLDNNDims dims;
     MKLDNNMemoryPtr memoryPtr;
@@ -81,9 +84,9 @@ private:
 
     bool nodeCanChangeDesc(const std::shared_ptr<MKLDNNPlugin::MKLDNNNode>& node) const;
 
-    enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN };
+    enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 
-    MKLDNNEdgePtr getBaseEdge(LOOK look = LOOK_BOTH);
+    MKLDNNEdgePtr getBaseEdge(int look = LOOK_BOTH);
     bool inPlace(LOOK look = LOOK_BOTH);
     friend class MKLDNNGraph;
 };

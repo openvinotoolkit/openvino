@@ -167,12 +167,12 @@ except ImportError:
 
 
 c_sources = [
-    PACKAGE / 'ie_driver.cpp',
-    PACKAGE / 'ie_driver.hpp',
+    PACKAGE / 'ie_api_impl.cpp',
+    PACKAGE / 'ie_api_impl.hpp',
 
-    PACKAGE / 'c_ie_driver.pxd',
-    PACKAGE / 'ie_driver.pyx',
-    PACKAGE / 'ie_driver.pxd',
+    PACKAGE / 'ie_api_impl_defs.pxd',
+    PACKAGE / 'ie_api.pyx',
+    PACKAGE / 'ie_api.pxd',
 ]
 
 extensions = [

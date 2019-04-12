@@ -12,34 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "include/common.cl"
-#include "include/data_types.cl"
+#include "include/include_all.cl"
 
 
 KERNEL (permute_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
 {
     uint4 input_indices, output_indices;
     
-    input_indices[0] = get_global_id(0);
-    input_indices[1] = get_global_id(1);
-    input_indices[2] = get_global_id(2) % INPUT0_SIZES[2];
-    input_indices[3] = get_global_id(2) / INPUT0_SIZES[2];
+    //gws(y, x, b*f)
+    //input_indices[b, f, x, y]
+    input_indices[3] = get_global_id(0); 
+    input_indices[2] = get_global_id(1);
+    input_indices[1] = get_global_id(2) % INPUT0_FEATURE_NUM;
+    input_indices[0] = get_global_id(2) / INPUT0_FEATURE_NUM;
     
+    //PERMUTE_ORDER[b, f, x, y]
+    //output_indices[b, f, x, y]
     output_indices[0] = input_indices[PERMUTE_ORDER[0]];
     output_indices[1] = input_indices[PERMUTE_ORDER[1]];
     output_indices[2] = input_indices[PERMUTE_ORDER[2]];
     output_indices[3] = input_indices[PERMUTE_ORDER[3]];
     
-    uint input_offset =  INPUT0_OFFSET +
-                         input_indices[0]*INPUT0_PITCHES[0] +
-                         input_indices[1]*INPUT0_PITCHES[1] +
-                         input_indices[2]*INPUT0_PITCHES[2] +
-                         input_indices[3]*INPUT0_PITCHES[3];
-    uint output_offset = OUTPUT_OFFSET +
-                         output_indices[0]*OUTPUT_PITCHES[0] +
-                         output_indices[1]*OUTPUT_PITCHES[1] +
-                         output_indices[2]*OUTPUT_PITCHES[2] +
-                         output_indices[3]*OUTPUT_PITCHES[3];
+    uint input_offset =  GET_DATA_INDEX(INPUT0, input_indices[0], input_indices[1], input_indices[3], input_indices[2]);
+    uint output_offset = GET_DATA_INDEX(OUTPUT, output_indices[0], output_indices[1], output_indices[3], output_indices[2]);
 
     output[output_offset] = ACTIVATION(input[input_offset], NL_M, NL_N);
 }

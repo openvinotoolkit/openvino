@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -29,20 +29,17 @@ class TestKaldiPipeline(unittest.TestCase):
                  'weights': {'value': None, 'kind': 'data'},
                  'biases': {'value': np.zeros(10), 'kind': 'data'},
                  'sc': {'op': 'ScaleShift', 'kind': 'op'},
-                 'output': {'kind': 'data'}
+                 'output': {'kind': 'data'},
+                 'op_output': {'op': 'OpOutput', 'kind': 'op'}
                  }
         graph = build_graph(nodes,
                             [
                                 ('input', 'sc'),
                                 ('weights', 'sc'),
                                 ('biases', 'sc'),
-                                ('sc', 'output')
-                            ],
-                            {
-                                'output': {
-                                    'is_output': True
-                                }
-                            })
+                                ('sc', 'output'),
+                                ('output', 'op_output')
+                            ])
         counts = -0.5 * np.ones(10)
         apply_biases_to_last_layer(graph, counts)
         sc_node = Node(graph, 'sc')
@@ -53,20 +50,17 @@ class TestKaldiPipeline(unittest.TestCase):
                  'weights': {'kind': 'data'},
                  'biases': {'value': None, 'shape': None, 'kind': 'data'},
                  'fc': {'op': 'FullyConnected', 'kind': 'op'},
-                 'output': {'kind': 'data'}
+                 'output': {'kind': 'data'},
+                 'op_output': {'op': 'OpOutput', 'kind': 'op'}
                  }
         graph = build_graph(nodes,
                             [
                                 ('input', 'fc'),
                                 ('weights', 'fc'),
                                 ('biases', 'fc'),
-                                ('fc', 'output')
-                            ],
-                            {
-                                'output': {
-                                    'is_output': True
-                                }
-                            })
+                                ('fc', 'output'),
+                                ('output', 'op_output')
+                            ])
         counts = -0.5 * np.ones(10)
         apply_biases_to_last_layer(graph, counts)
         fc_node = Node(graph, 'fc')
@@ -79,7 +73,8 @@ class TestKaldiPipeline(unittest.TestCase):
                  'fc': {'op': 'FullyConnected', 'kind': 'op'},
                  'data': {'kind': 'data'},
                  'softmax': {'op': 'SoftMax', 'kind': 'op'},
-                 'output': {'kind': 'data'}
+                 'output': {'kind': 'data'},
+                 'op_output': {'op': 'OpOutput', 'kind': 'op'}
                  }
         graph = build_graph(nodes,
                             [
@@ -88,13 +83,9 @@ class TestKaldiPipeline(unittest.TestCase):
                                 ('biases', 'fc'),
                                 ('fc', 'data'),
                                 ('data', 'softmax'),
-                                ('softmax', 'output')
-                            ],
-                            {
-                                'output': {
-                                    'is_output': True
-                                }
-                            })
+                                ('softmax', 'output'),
+                                ('output', 'op_output')
+                            ])
         counts = -0.5 * np.ones(10)
         apply_biases_to_last_layer(graph, counts)
         fc_node = Node(graph, 'fc')

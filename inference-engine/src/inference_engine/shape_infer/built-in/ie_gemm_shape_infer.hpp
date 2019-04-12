@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,15 +24,16 @@ class GemmShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit GemmShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
+        // TODO: primitive does not support 5D tensor yet
         LayerParams lp{};
         GemmLayer gemmLayer(lp);
         gemmLayer.params = params;
         gemmLayer.type = _type;
-        validate(&gemmLayer, inShapes, params, blobs);
+        validate(&gemmLayer, inBlobs, params, blobs);
 
         auto dims0 = inShapes[0];
         auto dims1 = inShapes[1];

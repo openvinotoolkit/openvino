@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,11 @@ FindPluginResponse InferenceEngine::findPlugin(const FindPluginRequest& req) {
             break;
         case TargetDevice::eHETERO:
             pluginVec.push_back("HeteroPlugin");
+            break;
+        case TargetDevice::eKMB:
+#ifdef ENABLE_KMB
+            pluginVec.push_back("kmbPlugin");
+#endif
             break;
 
         default:

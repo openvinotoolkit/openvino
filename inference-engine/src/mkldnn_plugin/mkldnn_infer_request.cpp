@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                                      InferenceEngine::OutputsDataMap networkOutputs)
-        : InferRequestInternal(networkInputs, networkOutputs), m_curBatch(-1) {}
+        : InferRequestInternal(networkInputs, networkOutputs) {}
 
 
 template <typename T> void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob) {
@@ -218,6 +218,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const char *name, const Inference
         }
 
         if (foundInput->getPreProcess().getResizeAlgorithm() != InferenceEngine::ResizeAlgorithm::NO_RESIZE) {
+            PreProcessData::isApplicable(data, _inputs[name]);
             // Stores the given blob as ROI blob. It will be used to fill in network input during pre-processing.
             _preProcData[name].setRoiBlob(data);
         } else {

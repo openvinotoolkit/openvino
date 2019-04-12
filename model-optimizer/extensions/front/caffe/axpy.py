@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,8 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.lin_op import Add
 from mo.ops.scale_shift import ScaleShiftOp
 
@@ -29,7 +27,7 @@ class AxpyToEltwise(FrontReplacementOp):
     op = "Axpy"
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    def replace_op(self, graph: Graph, node: Node):
         in_node_0 = node.in_node(0)
         in_node_1 = node.in_node(1)
         in_node_2 = node.in_node(2)

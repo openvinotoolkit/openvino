@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017-2018 Intel Corporation
+// Copyright (c) 2017-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,9 +34,9 @@ namespace cldnn
 struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)>
 {
     CLDNN_DECLARE_PRIMITIVE(proposal)
- 
+
     proposal(
-        const primitive_id& id,        
+        const primitive_id& id,
         const primitive_id& cls_scores,
         const primitive_id& bbox_pred,
         const primitive_id& image_info,
@@ -65,8 +65,11 @@ struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)
                  box_size_scale(1.0f),
                  swap_xy(false),
                  initial_clip(false),
+                 clip_before_nms(true),
+                 clip_after_nms(false),
                  round_ratios(true),
-                 shift_anchors(false)
+                 shift_anchors(false),
+                 normalize(false)
     {
     }
 
@@ -89,8 +92,11 @@ struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)
         float box_size_scale,
         bool swap_xy,
         bool initial_clip,
+        bool clip_before_nms,
+        bool clip_after_nms,
         bool round_ratios,
         bool shift_anchors,
+        bool normalize,
         const padding& output_padding = padding()
         )
         : primitive_base(id, {cls_scores, bbox_pred, image_info}, output_padding),
@@ -108,8 +114,11 @@ struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)
                  box_size_scale(box_size_scale),
                  swap_xy(swap_xy),
                  initial_clip(initial_clip),
+                 clip_before_nms(clip_before_nms),
+                 clip_after_nms(clip_after_nms),
                  round_ratios(round_ratios),
-                 shift_anchors(shift_anchors)
+                 shift_anchors(shift_anchors),
+                 normalize(normalize)
     {
     }
 
@@ -129,8 +138,11 @@ struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)
         box_size_scale(dto->box_size_scale),
         swap_xy(dto->swap_xy != 0),
         initial_clip(dto->initial_clip != 0),
+        clip_before_nms(dto->clip_before_nms != 0),
+        clip_after_nms(dto->clip_after_nms != 0),
         round_ratios(dto->round_ratios != 0),
-        shift_anchors(dto->shift_anchors != 0)
+        shift_anchors(dto->shift_anchors != 0),
+        normalize(dto->normalize != 0)
     {
     }
 
@@ -140,7 +152,7 @@ struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)
     int min_bbox_size;
     int feature_stride;
     int pre_nms_topn;
-    int post_nms_topn;      
+    int post_nms_topn;
     std::vector<float> ratios;
     std::vector<float> scales;
     float coordinates_offset;
@@ -148,8 +160,11 @@ struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)
     float box_size_scale;
     bool swap_xy;
     bool initial_clip;
+    bool clip_before_nms;
+    bool clip_after_nms;
     bool round_ratios;
     bool shift_anchors;
+    bool normalize;
 
 protected:
     void update_dto(dto& dto) const override
@@ -168,8 +183,11 @@ protected:
         dto.box_size_scale = box_size_scale;
         dto.swap_xy = swap_xy;
         dto.initial_clip = initial_clip;
+        dto.clip_before_nms = clip_before_nms;
+        dto.clip_after_nms = clip_after_nms;
         dto.round_ratios = round_ratios;
         dto.shift_anchors = shift_anchors;
+        dto.normalize = normalize;
     }
 };
 

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  limitations under the License.
 """
 
-import networkx as nx
-
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
 
@@ -27,11 +26,12 @@ class EltwiseN(Op):
     """
     op = 'EltwiseN'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'op': __class__.op,
             'type': None,  # type is None because this operation should not appear in IR
             'infer': None,
+            'out_ports_count': 1,
         }, attrs)
         if 'operation' not in self.attrs:
             raise Error('"operation" attribute is not set for operation "{}".'.format(__class__.op))

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -34,8 +34,9 @@ class Const(Op):
             'value': None,
             'shape': None,
             'data_type': None,
+            'out_ports_count': 1,
         }, attrs)
         if not isinstance(self.attrs['value'], np.ndarray):
-            self.attrs['value'] = np.array([self.attrs['value']])
+            self.attrs['value'] = np.array(self.attrs['value'])
         self.attrs['shape'] = np.array(self.attrs['value'].shape, dtype=np.int64)
 

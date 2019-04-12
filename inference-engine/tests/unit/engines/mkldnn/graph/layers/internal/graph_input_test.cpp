@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -359,3 +359,114 @@ protected:
 };
 
 TEST_F(MKLDNNGraphConstInputTests, TestsConstInput) {}
+
+
+struct input_layout_test_params {
+    InferenceEngine::Layout layout;
+    std::vector<float> reference;
+    MKLDNNPlugin::impl_desc_type selectedType;
+    std::vector<std::function<void(MKLDNNPlugin::PrimitiveDescInfo)>> comp;
+};
+
+class MKLDNNGraphInputLayoutTest : public TestsCommon, public WithParamInterface<input_layout_test_params> {
+    std::string model_t = R"V0G0N(
+<net name="InputLayers" version="2" batch="1">
+    <layers>
+        <layer name="input" type="Input" precision="FP32" id="0">
+            <output>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="power1" id="1" type="Power" precision="FP32">
+            <power_data power="1" scale="1" shift="1"/>
+            <input>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                </port>
+            </output>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+    </edges>
+    <pre-process reference-layer-name="input" mean-precision="FP32">
+        <channel id="0">
+            <mean value="1.0"/>
+        </channel>
+        <channel id="1">
+            <mean value="2.0"/>
+        </channel>
+        <channel id="2">
+            <mean value="3.0"/>
+        </channel>
+    </pre-process>
+</net>
+)V0G0N";
+
+protected:
+    virtual void TearDown() {
+    }
+
+    virtual void SetUp() {
+        try {
+            TestsCommon::SetUp();
+            input_layout_test_params p = ::testing::WithParamInterface<input_layout_test_params>::GetParam();
+            std::string model = model_t;
+
+            InferenceEngine::CNNNetReader net_reader;
+            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+
+            MKLDNNGraphTestClass graph;
+            graph.CreateGraph(net_reader.getNetwork());
+
+            InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, { 1, 3, 2, 2 }, p.layout);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
+            src->allocate();
+            fill_data_dbgval(src->buffer(), src->size());
+            InferenceEngine::BlobMap srcs;
+            srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("input", src));
+
+            InferenceEngine::OutputsDataMap out = net_reader.getNetwork().getOutputsInfo();
+            std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
+            InferenceEngine::TBlob<float>::Ptr output;
+            output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
+            output->allocate();
+            InferenceEngine::BlobMap outputBlobs;
+            outputBlobs[item.first] = output;
+
+            graph.Infer(srcs, outputBlobs);
+            //  Check results
+            if (memcmp((*output).data(), &p.reference[0], p.reference.size()) != 0)
+                FAIL() << "Wrong result with compare reference!";
+        }
+        catch (const InferenceEngine::details::InferenceEngineException &e) {
+            FAIL() << e.what();
+        }
+    }
+};
+
+TEST_P(MKLDNNGraphInputLayoutTest, TestsLayoutInput) {}
+
+INSTANTIATE_TEST_CASE_P(
+    TestsLayoutInput, MKLDNNGraphInputLayoutTest,
+    ::testing::Values(
+        input_layout_test_params{ InferenceEngine::NCHW, { 0,1,2,3,3,4,5,6,6,7,8,9 }, MKLDNNPlugin::impl_desc_type::unknown },
+        input_layout_test_params{ InferenceEngine::NHWC, { 0,0,0,3,3,3,6,6,6,9,9,9 }, MKLDNNPlugin::impl_desc_type::unknown }
+));
+

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -65,6 +65,7 @@ nodes_attributes = {
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'placeholder_3': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
     'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
 }
 
 
@@ -86,6 +87,7 @@ class MarkFusedNodes(unittest.TestCase):
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
                              ('placeholder_1_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -94,7 +96,6 @@ class MarkFusedNodes(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              })
 
         graph.graph['layout'] = 'NHWC'
@@ -121,6 +122,7 @@ class MarkFusedNodes(unittest.TestCase):
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
                              ('placeholder_1_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -129,7 +131,6 @@ class MarkFusedNodes(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              })
         graph.graph['layout'] = 'NHWC'
 
@@ -157,6 +158,7 @@ class MarkFusedNodes(unittest.TestCase):
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
                              ('placeholder_1_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -165,7 +167,6 @@ class MarkFusedNodes(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              })
         graph.graph['layout'] = 'NHWC'
 
@@ -191,6 +192,8 @@ class MarkFusedNodes(unittest.TestCase):
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
                              ('placeholder_1_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
+
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -199,7 +202,6 @@ class MarkFusedNodes(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                              'add_1_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                              'mul_2_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
-                             'concat_1_data': {'is_output': True}
                              })
         graph.graph['layout'] = 'NHWC'
 
@@ -225,6 +227,7 @@ class MarkFusedNodes(unittest.TestCase):
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
                              ('placeholder_1_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -233,7 +236,6 @@ class MarkFusedNodes(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                              'add_1_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                              'mul_2_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
-                             'concat_1_data': {'is_output': True}
                              })
         graph.graph['layout'] = 'NCHW'
 
@@ -259,6 +261,7 @@ class MarkFusedNodes(unittest.TestCase):
                                  ('mul_2_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
                                  ('placeholder_1_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -267,7 +270,6 @@ class MarkFusedNodes(unittest.TestCase):
                                  'mul_1_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                                  'add_1_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                                  'mul_2_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
-                                 'concat_1_data': {'is_output': True}
                                  })
             graph.graph['layout'] = 'NCHW'
 
@@ -293,6 +295,7 @@ class MarkFusedNodes(unittest.TestCase):
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
                              ('placeholder_1_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -301,7 +304,6 @@ class MarkFusedNodes(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                              'add_1_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                              'mul_2_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
-                             'concat_1_data': {'is_output': True}
                              })
         graph.graph['layout'] = 'NHWC'
 

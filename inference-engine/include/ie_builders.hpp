@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,10 @@
 #include <builders/ie_elu_layer.hpp>
 #include <builders/ie_fully_connected_layer.hpp>
 #include <builders/ie_grn_layer.hpp>
+#include <builders/ie_gru_sequence_layer.hpp>
 #include <builders/ie_input_layer.hpp>
+#include <builders/ie_lrn_layer.hpp>
+#include <builders/ie_lstm_sequence_layer.hpp>
 #include <builders/ie_memory_layer.hpp>
 #include <builders/ie_mvn_layer.hpp>
 #include <builders/ie_norm_layer.hpp>
@@ -38,7 +41,9 @@
 #include <builders/ie_relu6_layer.hpp>
 #include <builders/ie_relu_layer.hpp>
 #include <builders/ie_reorg_yolo_layer.hpp>
+#include <builders/ie_resample_layer.hpp>
 #include <builders/ie_reshape_layer.hpp>
+#include <builders/ie_rnn_sequence_layer.hpp>
 #include <builders/ie_roi_pooling_layer.hpp>
 #include <builders/ie_scale_shift_layer.hpp>
 #include <builders/ie_sigmoid_layer.hpp>

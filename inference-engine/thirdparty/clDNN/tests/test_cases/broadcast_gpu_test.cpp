@@ -31,62 +31,44 @@
 using namespace cldnn;
 using namespace ::tests;
 
-
 template<typename T>
-static std::vector<T> generate_rnd_real_input(
-    const std::size_t b, const std::size_t f, const std::size_t y, const std::size_t x,
-    const T min = static_cast<T>(0), const T max = static_cast<T>(1), const unsigned rnd_bits = 9)
+void start_broadcast_test(data_types cldnn_data_type, std::vector<size_t> output_shape,
+                          std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes,
+                          std::vector<T> golden_data)
 {
-    static std::default_random_engine rnd_gen(random_seed);
-    cldnn::tests::distributions::uniform_quantized_real_distribution<T> rnd_dist(min, max, rnd_bits);
+    size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
+    EXPECT_GE(input_data_size, (size_t)1);
+    std::vector<T> input_data = {};
+    for (size_t i = 1; i <= input_data_size; ++i) {
+        input_data.push_back((T)i);
+    }
 
-    std::vector<T> data;
-    data.reserve(b * f * y * x);
-    for (size_t i = 0; i < b * f * y * x; ++i)
-        data.push_back(rnd_dist(rnd_gen));
+    EXPECT_EQ(golden_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
-    return data;
-}
+    std::vector<tensor::value_type> output_4d(4, 1);
+    for(size_t i = 0; i < output_shape.size(); ++i) {
+        output_4d.at(4 - output_shape.size() + i) = (tensor::value_type)output_shape.at(i);
+    }
+    std::vector<tensor::value_type> input_4d(4, 1);
+    for(size_t i = 0; i < input_shape.size(); ++i) {
+        input_4d.at(4 - input_shape.size() + i) = (tensor::value_type)input_shape.at(i);
+    }
+    std::vector<uint16_t> fixed_b_axes;
+    size_t shift = 4 - output_shape.size();
+    for(size_t i = 0; i < shift; ++i) {
+        fixed_b_axes.push_back((uint16_t) i);
+    }
+    for(size_t i = 0; i < broadcast_axes.size(); ++i) {
+        fixed_b_axes.push_back((uint16_t) (broadcast_axes.at(i) + shift));
+    }
 
-
-TEST(broadcast_gpu, basic_yxfb_1x1x2x3_to_1x2x2x9) {
-    //  Input (BF:XY) :  1x1:3x2
-    //  Output (BF:XY):  1x2:9x2
-
-    constexpr auto in_size_b = 1;
-    constexpr auto in_size_f = 1;
-    constexpr auto in_size_y = 2;
-    constexpr auto in_size_x = 3;
-
-    constexpr auto bc_scale_b = 1;
-    constexpr auto bc_scale_f = 2;
-    constexpr auto bc_scale_y = 1;
-    constexpr auto bc_scale_x = 3;
-
-    constexpr auto out_size_b = bc_scale_b * in_size_b;
-    constexpr auto out_size_f = bc_scale_f * in_size_f;
-    constexpr auto out_size_y = bc_scale_y * in_size_y;
-    constexpr auto out_size_x = bc_scale_x * in_size_x;
-
-    engine engine;
-    auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {cldnn_data_type, format::bfyx, {input_4d.at(0), input_4d.at(1), input_4d.at(3), input_4d.at(2)}});
 
     topology topology;
-    topology.add(
-        input_layout("input", input.get_layout())
-    );
-    topology.add(
-        broadcast("output", "input", {out_size_b, out_size_f, out_size_x, out_size_y})
-    );
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(broadcast("output", "input", {output_4d.at(0), output_4d.at(1), output_4d.at(3), output_4d.at(2)}, fixed_b_axes));
 
-    std::vector<float> input_data = {
-         41, -11, 13,
-        107, -66,  0,
-    };
-    std::vector<float> out_data = {
-         41,  41,   -11, -11,   13, 13,    41,  41,   -11, -11,   13, 13,    41,  41,   -11, -11,   13, 13,
-        107, 107,   -66, -66,    0,  0,   107, 107,   -66, -66,    0,  0,   107, 107,   -66, -66,    0,  0,
-    };
     set_values(input, input_data);
 
     network network(engine, topology);
@@ -94,375 +76,972 @@ TEST(broadcast_gpu, basic_yxfb_1x1x2x3_to_1x2x2x9) {
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
+    auto output_ptr = output.pointer<T>();
 
-    ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
-
-    for (auto b = 0; b < out_size_b; ++b) {             // B
-        for (auto f = 0; f < out_size_f; ++f) {         // F
-            for (auto y = 0; y < out_size_y; ++y) {     // Y
-                for (auto x = 0; x < out_size_x; ++x) { // X
-                    auto output_off = ((y * out_size_x + x) * out_size_f + f) * out_size_b + b; // YXFB
-
-                    EXPECT_EQ(output_ptr[output_off], out_data[output_off]);
+    for (tensor::value_type b = 0; b < output_4d.at(0); ++b) {
+        for (tensor::value_type f = 0; f < output_4d.at(1); ++f) {
+            for (tensor::value_type y = 0; y < output_4d.at(2); ++y) {
+                for (tensor::value_type x = 0; x < output_4d.at(3); ++x) {
+                    auto output_off = ((b * output_4d.at(1) + f) * output_4d.at(2) + y) * output_4d.at(3) + x;
+                    EXPECT_EQ(output_ptr[output_off], golden_data[output_off]);
                 }
             }
         }
     }
 }
 
-TEST(broadcast_gpu, basic_bfyx_4x2x2x2_to_8x2x6x4) {
-    //  Input (BF:XY) :  4x2:2x2
-    //  Output (BF:XY):  8x2:6x4
-
-    constexpr auto in_size_b = 4;
-    constexpr auto in_size_f = 2;
-    constexpr auto in_size_y = 2;
-    constexpr auto in_size_x = 2;
-
-    constexpr auto bc_scale_b = 2;
-    constexpr auto bc_scale_f = 1;
-    constexpr auto bc_scale_y = 3;
-    constexpr auto bc_scale_x = 2;
-
-    constexpr auto out_size_b = bc_scale_b * in_size_b;
-    constexpr auto out_size_f = bc_scale_f * in_size_f;
-    constexpr auto out_size_y = bc_scale_y * in_size_y;
-    constexpr auto out_size_x = bc_scale_x * in_size_x;
-
-    engine engine;
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {in_size_b, in_size_f, in_size_x, in_size_y}});
-
-    topology topology;
-    topology.add(
-        input_layout("input", input.get_layout())
-    );
-    topology.add(
-        broadcast("output", "input", {out_size_b, out_size_f, out_size_x, out_size_y})
-    );
-
-    std::vector<float> input_data = {
-         11,  12,
-         21,  22,
-
-        -11, -12,
-        -21, -22,
-
-
-         13,  14,
-         23,  24,
-
-        -13, -14,
-        -23, -24,
-
-
-         15,  16,
-         25,  26,
-
-        -15, -16,
-        -25, -26,
-
-
-         17,  18,
-         27,  28,
-
-        -17, -18,
-        -27, -28,
-    };
-    std::vector<float> out_data = {
-         11,  12,  11,  12,
-         21,  22,  21,  22,
-         11,  12,  11,  12,
-         21,  22,  21,  22,
-         11,  12,  11,  12,
-         21,  22,  21,  22,
-
-        -11, -12, -11, -12,
-        -21, -22, -21, -22,
-        -11, -12, -11, -12,
-        -21, -22, -21, -22,
-        -11, -12, -11, -12,
-        -21, -22, -21, -22,
-
-
-         13,  14,  13,  14,
-         23,  24,  23,  24,
-         13,  14,  13,  14,
-         23,  24,  23,  24,
-         13,  14,  13,  14,
-         23,  24,  23,  24,
-
-        -13, -14, -13, -14,
-        -23, -24, -23, -24,
-        -13, -14, -13, -14,
-        -23, -24, -23, -24,
-        -13, -14, -13, -14,
-        -23, -24, -23, -24,
-
-
-         15,  16,  15,  16,
-         25,  26,  25,  26,
-         15,  16,  15,  16,
-         25,  26,  25,  26,
-         15,  16,  15,  16,
-         25,  26,  25,  26,
-
-        -15, -16, -15, -16,
-        -25, -26, -25, -26,
-        -15, -16, -15, -16,
-        -25, -26, -25, -26,
-        -15, -16, -15, -16,
-        -25, -26, -25, -26,
-
-
-         17,  18,  17,  18,
-         27,  28,  27,  28,
-         17,  18,  17,  18,
-         27,  28,  27,  28,
-         17,  18,  17,  18,
-         27,  28,  27,  28,
-
-        -17, -18, -17, -18,
-        -27, -28, -27, -28,
-        -17, -18, -17, -18,
-        -27, -28, -27, -28,
-        -17, -18, -17, -18,
-        -27, -28, -27, -28,
-
-
-         11,  12,  11,  12,
-         21,  22,  21,  22,
-         11,  12,  11,  12,
-         21,  22,  21,  22,
-         11,  12,  11,  12,
-         21,  22,  21,  22,
-
-        -11, -12, -11, -12,
-        -21, -22, -21, -22,
-        -11, -12, -11, -12,
-        -21, -22, -21, -22,
-        -11, -12, -11, -12,
-        -21, -22, -21, -22,
-
-
-         13,  14,  13,  14,
-         23,  24,  23,  24,
-         13,  14,  13,  14,
-         23,  24,  23,  24,
-         13,  14,  13,  14,
-         23,  24,  23,  24,
-
-        -13, -14, -13, -14,
-        -23, -24, -23, -24,
-        -13, -14, -13, -14,
-        -23, -24, -23, -24,
-        -13, -14, -13, -14,
-        -23, -24, -23, -24,
-
-
-         15,  16,  15,  16,
-         25,  26,  25,  26,
-         15,  16,  15,  16,
-         25,  26,  25,  26,
-         15,  16,  15,  16,
-         25,  26,  25,  26,
-
-        -15, -16, -15, -16,
-        -25, -26, -25, -26,
-        -15, -16, -15, -16,
-        -25, -26, -25, -26,
-        -15, -16, -15, -16,
-        -25, -26, -25, -26,
-
-
-         17,  18,  17,  18,
-         27,  28,  27,  28,
-         17,  18,  17,  18,
-         27,  28,  27,  28,
-         17,  18,  17,  18,
-         27,  28,  27,  28,
-
-        -17, -18, -17, -18,
-        -27, -28, -27, -28,
-        -17, -18, -17, -18,
-        -27, -28, -27, -28,
-        -17, -18, -17, -18,
-        -27, -28, -27, -28,
-    };
-    set_values(input, input_data);
-
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-
-    auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
-
-    ASSERT_EQ(out_data.size(), static_cast<std::size_t>(out_size_b * out_size_f * out_size_y * out_size_x));
-
-    for (auto b = 0; b < out_size_b; ++b) {             // B
-        for (auto f = 0; f < out_size_f; ++f) {         // F
-            for (auto y = 0; y < out_size_y; ++y) {     // Y
-                for (auto x = 0; x < out_size_x; ++x) { // X
-                    auto output_off = ((b * out_size_f + f) * out_size_y + y) * out_size_x + x; // BFYX
-
-                    EXPECT_EQ(output_ptr[output_off], out_data[output_off]);
-                }
-            }
-        }
-    }
+TEST(broadcast_gpu_float, bfyx_1_to_5_w_b_axes_0) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0};
+    start_broadcast_test<float>(data_types::f32, {5}, {1}, {0}, golden_data);
 }
 
-TEST(broadcast_gpu, basic_byxf_2x3x4x5_to_10x12x12x10) {
-    //  Input (BF:XY) :    2x3:5x4
-    //  Output (BF:XY):  10x12:10x12
-
-    constexpr auto in_size_b = 2;
-    constexpr auto in_size_f = 3;
-    constexpr auto in_size_y = 4;
-    constexpr auto in_size_x = 5;
-
-    constexpr auto bc_scale_b = 5;
-    constexpr auto bc_scale_f = 4;
-    constexpr auto bc_scale_y = 3;
-    constexpr auto bc_scale_x = 2;
-
-    constexpr auto out_size_b = bc_scale_b * in_size_b;
-    constexpr auto out_size_f = bc_scale_f * in_size_f;
-    constexpr auto out_size_y = bc_scale_y * in_size_y;
-    constexpr auto out_size_x = bc_scale_x * in_size_x;
-
-    engine engine;
-    auto input = memory::allocate(engine, {data_types::f32, format::byxf, {in_size_b, in_size_f, in_size_x, in_size_y}});
-
-    topology topology;
-    topology.add(
-        input_layout("input", input.get_layout())
-    );
-    topology.add(
-        broadcast("output", "input", {out_size_b, out_size_f, out_size_x, out_size_y})
-    );
-
-    std::vector<float> input_data = generate_rnd_real_input<float>(in_size_b, in_size_f, in_size_y, in_size_x, -8.0f, 8.0f);
-    set_values(input, input_data);
-
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-
-    auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
-
-    for (auto b = 0; b < out_size_b; ++b) {             // B
-        for (auto f = 0; f < out_size_f; ++f) {         // F
-            for (auto y = 0; y < out_size_y; ++y) {     // Y
-                for (auto x = 0; x < out_size_x; ++x) { // X
-                    auto output_off = ((b * out_size_y + y) * out_size_x + x) * out_size_f + f; // BYXF
-
-                    auto in_b = b % in_size_b;
-                    auto in_f = f % in_size_f;
-                    auto in_y = y % in_size_y;
-                    auto in_x = x % in_size_x;
-
-                    auto input_off  = ((in_b * in_size_y + in_y) * in_size_x + in_x) * in_size_f + in_f; // BYXF
-
-
-                    EXPECT_EQ(output_ptr[output_off], input_data[input_off]);
-                }
-            }
-        }
-    }
+TEST(broadcast_gpu_uint8_t, bfyx_1_to_5_w_b_axes_0) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1};
+    start_broadcast_test<uint8_t>(data_types::u8, {5}, {1}, {0}, golden_data);
 }
 
-TEST(broadcast_gpu, basic_bfyx_2x1x1x5_to_2x13x11x5) {
-    //  Input (BF:XY) :   2x1:5x1
-    //  Output (BF:XY):  2x13:5x11
-
-    constexpr auto in_size_b = 2;
-    constexpr auto in_size_f = 1;
-    constexpr auto in_size_y = 1;
-    constexpr auto in_size_x = 5;
-
-    constexpr auto bc_scale_b = 1;
-    constexpr auto bc_scale_f = 13;
-    constexpr auto bc_scale_y = 11;
-    constexpr auto bc_scale_x = 1;
-
-    constexpr auto out_size_b = bc_scale_b * in_size_b;
-    constexpr auto out_size_f = bc_scale_f * in_size_f;
-    constexpr auto out_size_y = bc_scale_y * in_size_y;
-    constexpr auto out_size_x = bc_scale_x * in_size_x;
-
-    engine engine;
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {in_size_b, in_size_f, in_size_x, in_size_y}});
-
-    topology topology;
-    topology.add(
-        input_layout("input", input.get_layout())
-    );
-    topology.add(
-        broadcast("output", "input", {out_size_b, out_size_f, out_size_x, out_size_y})
-    );
-
-    std::vector<float> input_data = generate_rnd_real_input<float>(in_size_b, in_size_f, in_size_y, in_size_x, -8.0f, 8.0f);
-    set_values(input, input_data);
-
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-
-    auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<float>();
-
-    for (auto b = 0; b < out_size_b; ++b) {             // B
-        for (auto f = 0; f < out_size_f; ++f) {         // F
-            for (auto y = 0; y < out_size_y; ++y) {     // Y
-                for (auto x = 0; x < out_size_x; ++x) { // X
-                    auto output_off = ((b * out_size_f + f) * out_size_y + y) * out_size_x + x; // BFYX
-
-                    auto in_b = b % in_size_b;
-                    auto in_f = f % in_size_f;
-                    auto in_y = y % in_size_y;
-                    auto in_x = x % in_size_x;
-
-                    auto input_off  = ((in_b * in_size_f + in_f) * in_size_y + in_y) * in_size_x + in_x; // BFYX
-
-
-                    EXPECT_EQ(output_ptr[output_off], input_data[input_off]);
-                }
-            }
-        }
-    }
+TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    start_broadcast_test<float>(data_types::f32, {4, 5}, {1}, {0, 1}, golden_data);
 }
 
-TEST(broadcast_gpu, basic_error_on_nondiv_bc_size) {
-    //  Input (BF:XY) :   2x1:5x1
-    //  Output (BF:XY):  2x13:5x11
-
-    constexpr auto in_size_b = 2;
-    constexpr auto in_size_f = 1;
-    constexpr auto in_size_y = 1;
-    constexpr auto in_size_x = 5;
-
-    constexpr auto out_size_b = in_size_b;
-    constexpr auto out_size_f = in_size_f;
-    constexpr auto out_size_y = in_size_y;
-    constexpr auto out_size_x = 7;
-
-    engine engine;
-    auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {in_size_b, in_size_f, in_size_x, in_size_y}});
-
-    topology topology;
-    topology.add(
-        input_layout("input", input.get_layout())
-    );
-    topology.add(
-        broadcast("output", "input", {out_size_b, out_size_f, out_size_x, out_size_y})
-    );
-
-    std::vector<float> input_data = generate_rnd_real_input<float>(in_size_b, in_size_f, in_size_y, in_size_x, -8.0f, 8.0f);
-    set_values(input, input_data);
-
-    EXPECT_ANY_THROW(network(engine, topology));
+TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    start_broadcast_test<uint8_t>(data_types::u8, {4, 5}, {1}, {0, 1}, golden_data);
 }
 
+TEST(broadcast_gpu_float, bfyx_1_to_3x4x5_w_b_axes_0x1x2) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    start_broadcast_test<float>(data_types::f32, {3, 4, 5}, {1}, {0, 1, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_1_to_3x4x5_w_b_axes_0x1x2) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    start_broadcast_test<uint8_t>(data_types::u8, {3, 4, 5}, {1}, {0, 1, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_1_to_2x3x4x5_w_b_axes_0x1x2x3) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {1}, {0, 1, 2, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_1_to_2x3x4x5_w_b_axes_0x1x2x3) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {1}, {0, 1, 2, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_1_to_5_w_o_b_axes) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0};
+    start_broadcast_test<float>(data_types::f32, {5}, {1}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_1_to_5_w_o_b_axes) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1};
+    start_broadcast_test<uint8_t>(data_types::u8, {5}, {1}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_3_to_12_w_o_b_axes) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0};
+    start_broadcast_test<float>(data_types::f32, {12}, {3}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_3_to_12_w_o_b_axes) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3};
+    start_broadcast_test<uint8_t>(data_types::u8, {12}, {3}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_1x1_to_4x5_w_o_b_axes) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    start_broadcast_test<float>(data_types::f32, {4, 5}, {1, 1}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_1x1_to_4x5_w_o_b_axes) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    start_broadcast_test<uint8_t>(data_types::u8, {4, 5}, {1, 1}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x3_to_8x6_w_o_b_axes) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 4.0, 5.0, 6.0,
+                                      1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 4.0, 5.0, 6.0,
+                                      1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 4.0, 5.0, 6.0,
+                                      1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 4.0, 5.0, 6.0};
+    start_broadcast_test<float>(data_types::f32, {8, 6}, {2, 3}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x3_to_8x6_w_o_b_axes) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6,
+                                        1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6,
+                                        1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6,
+                                        1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6};
+    start_broadcast_test<uint8_t>(data_types::u8, {8, 6}, {2, 3}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x3x4_to_6x6x4_w_o_b_axes) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+                                      13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
+                                      13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+                                      13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
+                                      13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+                                      13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
+                                      13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0};
+    start_broadcast_test<float>(data_types::f32, {6, 6, 4}, {2, 3, 4}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x3x4_to_6x6x4_w_o_b_axes) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+                                        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+                                        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+                                        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
+    start_broadcast_test<uint8_t>(data_types::u8, {6, 6, 4}, {2, 3, 4}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x3x4x5_to_2x9x8x5_w_o_b_axes) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0,
+                                      31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0,
+                                      31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0,
+                                      41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0, 49.0, 50.0,
+                                      51.0, 52.0, 53.0, 54.0, 55.0, 56.0, 57.0, 58.0, 59.0, 60.0,
+                                      41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0, 49.0, 50.0,
+                                      51.0, 52.0, 53.0, 54.0, 55.0, 56.0, 57.0, 58.0, 59.0, 60.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0,
+                                      31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0,
+                                      31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0,
+                                      41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0, 49.0, 50.0,
+                                      51.0, 52.0, 53.0, 54.0, 55.0, 56.0, 57.0, 58.0, 59.0, 60.0,
+                                      41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0, 49.0, 50.0,
+                                      51.0, 52.0, 53.0, 54.0, 55.0, 56.0, 57.0, 58.0, 59.0, 60.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0,
+                                      31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0,
+                                      31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0,
+                                      41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0, 49.0, 50.0,
+                                      51.0, 52.0, 53.0, 54.0, 55.0, 56.0, 57.0, 58.0, 59.0, 60.0,
+                                      41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0, 49.0, 50.0,
+                                      51.0, 52.0, 53.0, 54.0, 55.0, 56.0, 57.0, 58.0, 59.0, 60.0,
+                                      61.0, 62.0, 63.0, 64.0, 65.0, 66.0, 67.0, 68.0, 69.0, 70.0,
+                                      71.0, 72.0, 73.0, 74.0, 75.0, 76.0, 77.0, 78.0, 79.0, 80.0,
+                                      61.0, 62.0, 63.0, 64.0, 65.0, 66.0, 67.0, 68.0, 69.0, 70.0,
+                                      71.0, 72.0, 73.0, 74.0, 75.0, 76.0, 77.0, 78.0, 79.0, 80.0,
+                                      81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0,
+                                      91.0, 92.0, 93.0, 94.0, 95.0, 96.0, 97.0, 98.0, 99.0, 100.0,
+                                      81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0,
+                                      91.0, 92.0, 93.0, 94.0, 95.0, 96.0, 97.0, 98.0, 99.0, 100.0,
+                                      101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0,
+                                      111.0, 112.0, 113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 119.0, 120.0,
+                                      101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0,
+                                      111.0, 112.0, 113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 119.0, 120.0,
+                                      61.0, 62.0, 63.0, 64.0, 65.0, 66.0, 67.0, 68.0, 69.0, 70.0,
+                                      71.0, 72.0, 73.0, 74.0, 75.0, 76.0, 77.0, 78.0, 79.0, 80.0,
+                                      61.0, 62.0, 63.0, 64.0, 65.0, 66.0, 67.0, 68.0, 69.0, 70.0,
+                                      71.0, 72.0, 73.0, 74.0, 75.0, 76.0, 77.0, 78.0, 79.0, 80.0,
+                                      81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0,
+                                      91.0, 92.0, 93.0, 94.0, 95.0, 96.0, 97.0, 98.0, 99.0, 100.0,
+                                      81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0,
+                                      91.0, 92.0, 93.0, 94.0, 95.0, 96.0, 97.0, 98.0, 99.0, 100.0,
+                                      101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0,
+                                      111.0, 112.0, 113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 119.0, 120.0,
+                                      101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0,
+                                      111.0, 112.0, 113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 119.0, 120.0,
+                                      61.0, 62.0, 63.0, 64.0, 65.0, 66.0, 67.0, 68.0, 69.0, 70.0,
+                                      71.0, 72.0, 73.0, 74.0, 75.0, 76.0, 77.0, 78.0, 79.0, 80.0,
+                                      61.0, 62.0, 63.0, 64.0, 65.0, 66.0, 67.0, 68.0, 69.0, 70.0,
+                                      71.0, 72.0, 73.0, 74.0, 75.0, 76.0, 77.0, 78.0, 79.0, 80.0,
+                                      81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0,
+                                      91.0, 92.0, 93.0, 94.0, 95.0, 96.0, 97.0, 98.0, 99.0, 100.0,
+                                      81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0,
+                                      91.0, 92.0, 93.0, 94.0, 95.0, 96.0, 97.0, 98.0, 99.0, 100.0,
+                                      101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0,
+                                      111.0, 112.0, 113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 119.0, 120.0,
+                                      101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0,
+                                      111.0, 112.0, 113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 119.0, 120.0};
+    start_broadcast_test<float>(data_types::f32, {2, 9, 8, 5}, {2, 3, 4, 5}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x3x4x5_to_2x9x8x5_w_o_b_axes) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                                        31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                                        21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                                        31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                                        41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                                        51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+                                        41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                                        51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                                        31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                                        21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                                        31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                                        41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                                        51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+                                        41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                                        51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                                        31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                                        21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                                        31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                                        41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                                        51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+                                        41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+                                        51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+                                        61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
+                                        71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+                                        61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
+                                        71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+                                        81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
+                                        91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+                                        81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
+                                        91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+                                        101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+                                        111, 112, 113, 114, 115, 116, 117, 118, 119, 120,
+                                        101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+                                        111, 112, 113, 114, 115, 116, 117, 118, 119, 120,
+                                        61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
+                                        71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+                                        61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
+                                        71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+                                        81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
+                                        91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+                                        81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
+                                        91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+                                        101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+                                        111, 112, 113, 114, 115, 116, 117, 118, 119, 120,
+                                        101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+                                        111, 112, 113, 114, 115, 116, 117, 118, 119, 120,
+                                        61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
+                                        71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+                                        61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
+                                        71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+                                        81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
+                                        91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+                                        81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
+                                        91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+                                        101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+                                        111, 112, 113, 114, 115, 116, 117, 118, 119, 120,
+                                        101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+                                        111, 112, 113, 114, 115, 116, 117, 118, 119, 120};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 9, 8, 5}, {2, 3, 4, 5}, {}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_3_to_2x3_w_b_axes_0) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 1.0, 2.0, 3.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3}, {3}, {0}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_3_to_2x3_w_b_axes_0) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 1, 2, 3};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3}, {3}, {0}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_3_to_2x6_w_b_axes_0) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0};
+    start_broadcast_test<float>(data_types::f32, {2, 6}, {3}, {0}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_3_to_2x6_w_b_axes_0) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 6}, {3}, {0}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2_to_2x3_w_b_axes_1) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 2.0, 2.0, 2.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3}, {2}, {1}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2_to_2x3_w_b_axes_1) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 2, 2, 2};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3}, {2}, {1}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2_to_6x3_w_b_axes_1) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0,
+                                      2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0};
+    start_broadcast_test<float>(data_types::f32, {6, 3}, {2}, {1}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2_to_6x3_w_b_axes_1) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 2, 2, 2, 1, 1, 1,
+                                        2, 2, 2, 1, 1, 1, 2, 2, 2};
+    start_broadcast_test<uint8_t>(data_types::u8, {6, 3}, {2}, {1}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_3x4_to_2x3x4_w_b_axes_0) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4}, {3, 4}, {0}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_3x4_to_2x3x4_w_b_axes_0) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4}, {3, 4}, {0}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x4_to_2x3x4_w_b_axes_1) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0,
+                                      5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 7.0, 8.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4}, {2, 4}, {1}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x4_to_2x3x4_w_b_axes_1) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4,
+                                        5, 6, 7, 8, 5, 6, 7, 8, 5, 6, 7, 8};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4}, {2, 4}, {1}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x3_to_2x3x4_w_b_axes_2) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0,
+                                      4.0, 4.0, 4.0, 4.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 6.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4}, {2, 3}, {2}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x3_to_2x3x4_w_b_axes_2) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3,
+                                        4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4}, {2, 3}, {2}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_4_to_2x3x4_w_b_axes_0_1) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0,
+                                      1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4}, {4}, {0, 1}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_4_to_2x3x4_w_b_axes_0_1) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4,
+                                        1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4}, {4}, {0, 1}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_3_to_2x3x4_w_b_axes_0_2) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0,
+                                      1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4}, {3}, {0, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_3_to_2x3x4_w_b_axes_0_2) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3,
+                                        1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4}, {3}, {0, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2_to_2x3x4_w_b_axes_1_2) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4}, {2}, {1, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2_to_2x3x4_w_b_axes_1_2) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4}, {2}, {1, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_3x4x5_to_2x3x4x5_w_b_axes_0) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+                                      13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
+                                      25.0, 26.0, 27.0, 28.0, 29.0, 30.0, 31.0, 32.0, 33.0, 34.0, 35.0, 36.0,
+                                      37.0, 38.0, 39.0, 40.0, 41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0,
+                                      49.0, 50.0, 51.0, 52.0, 53.0, 54.0, 55.0, 56.0, 57.0, 58.0, 59.0, 60.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+                                      13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
+                                      25.0, 26.0, 27.0, 28.0, 29.0, 30.0, 31.0, 32.0, 33.0, 34.0, 35.0, 36.0,
+                                      37.0, 38.0, 39.0, 40.0, 41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0,
+                                      49.0, 50.0, 51.0, 52.0, 53.0, 54.0, 55.0, 56.0, 57.0, 58.0, 59.0, 60.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {3, 4, 5}, {0}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_3x4x5_to_2x3x4x5_w_b_axes_0) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+                                        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+                                        37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+                                        49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+                                        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+                                        37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+                                        49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {3, 4, 5}, {0}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x4x5_to_2x3x4x5_w_b_axes_1) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0,
+                                      31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0,
+                                      31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0,
+                                      31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {2, 4, 5}, {1}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x4x5_to_2x3x4x5_w_b_axes_1) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                                        31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                                        21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                                        31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+                                        21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                                        31, 32, 33, 34, 35, 36, 37, 38, 39, 40};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {2, 4, 5}, {1}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x3x5_to_2x3x4x5_w_b_axes_2) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                                      16.0, 17.0, 18.0, 19.0, 20.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      16.0, 17.0, 18.0, 19.0, 20.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 21.0, 22.0, 23.0, 24.0, 25.0,
+                                      21.0, 22.0, 23.0, 24.0, 25.0, 21.0, 22.0, 23.0, 24.0, 25.0,
+                                      26.0, 27.0, 28.0, 29.0, 30.0, 26.0, 27.0, 28.0, 29.0, 30.0,
+                                      26.0, 27.0, 28.0, 29.0, 30.0, 26.0, 27.0, 28.0, 29.0, 30.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {2, 3, 5}, {2}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x3x5_to_2x3x4x5_w_b_axes_2) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 11, 12, 13, 14, 15,
+                                        11, 12, 13, 14, 15, 11, 12, 13, 14, 15,
+                                        16, 17, 18, 19, 20, 16, 17, 18, 19, 20,
+                                        16, 17, 18, 19, 20, 16, 17, 18, 19, 20,
+                                        21, 22, 23, 24, 25, 21, 22, 23, 24, 25,
+                                        21, 22, 23, 24, 25, 21, 22, 23, 24, 25,
+                                        26, 27, 28, 29, 30, 26, 27, 28, 29, 30,
+                                        26, 27, 28, 29, 30, 26, 27, 28, 29, 30};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {2, 3, 5}, {2}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x3x4_to_2x3x4x5_w_b_axes_3) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 6.0, 6.0,
+                                      7.0, 7.0, 7.0, 7.0, 7.0, 8.0, 8.0, 8.0, 8.0, 8.0,
+                                      9.0, 9.0, 9.0, 9.0, 9.0, 10.0, 10.0, 10.0, 10.0, 10.0,
+                                      11.0, 11.0, 11.0, 11.0, 11.0, 12.0, 12.0, 12.0, 12.0, 12.0,
+                                      13.0, 13.0, 13.0, 13.0, 13.0, 14.0, 14.0, 14.0, 14.0, 14.0,
+                                      15.0, 15.0, 15.0, 15.0, 15.0, 16.0, 16.0, 16.0, 16.0, 16.0,
+                                      17.0, 17.0, 17.0, 17.0, 17.0, 18.0, 18.0, 18.0, 18.0, 18.0,
+                                      19.0, 19.0, 19.0, 19.0, 19.0, 20.0, 20.0, 20.0, 20.0, 20.0,
+                                      21.0, 21.0, 21.0, 21.0, 21.0, 22.0, 22.0, 22.0, 22.0, 22.0,
+                                      23.0, 23.0, 23.0, 23.0, 23.0, 24.0, 24.0, 24.0, 24.0, 24.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {2, 3, 4}, {3}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x3x4_to_2x3x4x5_w_b_axes_3) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        5, 5, 5, 5, 5, 6, 6, 6, 6, 6,
+                                        7, 7, 7, 7, 7, 8, 8, 8, 8, 8,
+                                        9, 9, 9, 9, 9, 10, 10, 10, 10, 10,
+                                        11, 11, 11, 11, 11, 12, 12, 12, 12, 12,
+                                        13, 13, 13, 13, 13, 14, 14, 14, 14, 14,
+                                        15, 15, 15, 15, 15, 16, 16, 16, 16, 16,
+                                        17, 17, 17, 17, 17, 18, 18, 18, 18, 18,
+                                        19, 19, 19, 19, 19, 20, 20, 20, 20, 20,
+                                        21, 21, 21, 21, 21, 22, 22, 22, 22, 22,
+                                        23, 23, 23, 23, 23, 24, 24, 24, 24, 24};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {2, 3, 4}, {3}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_4x5_to_2x3x4x5_w_b_axes_0_1) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {4, 5}, {0, 1}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_4x5_to_2x3x4x5_w_b_axes_0_1) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {4, 5}, {0, 1}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_3x5_to_2x3x4x5_w_b_axes_0_2) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                                      11.0, 12.0, 13.0, 14.0, 15.0, 11.0, 12.0, 13.0, 14.0, 15.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {3, 5}, {0, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_3x5_to_2x3x4x5_w_b_axes_0_2) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 11, 12, 13, 14, 15,
+                                        11, 12, 13, 14, 15, 11, 12, 13, 14, 15,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        11, 12, 13, 14, 15, 11, 12, 13, 14, 15,
+                                        11, 12, 13, 14, 15, 11, 12, 13, 14, 15};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {3, 5}, {0, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_3x4_to_2x3x4x5_w_b_axes_0_3) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 6.0, 6.0,
+                                      7.0, 7.0, 7.0, 7.0, 7.0, 8.0, 8.0, 8.0, 8.0, 8.0,
+                                      9.0, 9.0, 9.0, 9.0, 9.0, 10.0, 10.0, 10.0, 10.0, 10.0,
+                                      11.0, 11.0, 11.0, 11.0, 11.0, 12.0, 12.0, 12.0, 12.0, 12.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 6.0, 6.0,
+                                      7.0, 7.0, 7.0, 7.0, 7.0, 8.0, 8.0, 8.0, 8.0, 8.0,
+                                      9.0, 9.0, 9.0, 9.0, 9.0, 10.0, 10.0, 10.0, 10.0, 10.0,
+                                      11.0, 11.0, 11.0, 11.0, 11.0, 12.0, 12.0, 12.0, 12.0, 12.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {3, 4}, {0, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_3x4_to_2x3x4x5_w_b_axes_0_3) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        5, 5, 5, 5, 5, 6, 6, 6, 6, 6,
+                                        7, 7, 7, 7, 7, 8, 8, 8, 8, 8,
+                                        9, 9, 9, 9, 9, 10, 10, 10, 10, 10,
+                                        11, 11, 11, 11, 11, 12, 12, 12, 12, 12,
+                                        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        5, 5, 5, 5, 5, 6, 6, 6, 6, 6,
+                                        7, 7, 7, 7, 7, 8, 8, 8, 8, 8,
+                                        9, 9, 9, 9, 9, 10, 10, 10, 10, 10,
+                                        11, 11, 11, 11, 11, 12, 12, 12, 12, 12};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {3, 4}, {0, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x5_to_2x3x4x5_w_b_axes_1_2) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                                      6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {2, 5}, {1, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x5_to_2x3x4x5_w_b_axes_1_2) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10,
+                                        6, 7, 8, 9, 10, 6, 7, 8, 9, 10};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {2, 5}, {1, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x4_to_2x3x4x5_w_b_axes_1_3) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 6.0, 6.0,
+                                      7.0, 7.0, 7.0, 7.0, 7.0, 8.0, 8.0, 8.0, 8.0, 8.0,
+                                      5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 6.0, 6.0,
+                                      7.0, 7.0, 7.0, 7.0, 7.0, 8.0, 8.0, 8.0, 8.0, 8.0,
+                                      5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 6.0, 6.0,
+                                      7.0, 7.0, 7.0, 7.0, 7.0, 8.0, 8.0, 8.0, 8.0, 8.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {2, 4}, {1, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x4_to_2x3x4x5_w_b_axes_1_3) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        5, 5, 5, 5, 5, 6, 6, 6, 6, 6,
+                                        7, 7, 7, 7, 7, 8, 8, 8, 8, 8,
+                                        5, 5, 5, 5, 5, 6, 6, 6, 6, 6,
+                                        7, 7, 7, 7, 7, 8, 8, 8, 8, 8,
+                                        5, 5, 5, 5, 5, 6, 6, 6, 6, 6,
+                                        7, 7, 7, 7, 7, 8, 8, 8, 8, 8};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {2, 4}, {1, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2x3_to_2x3x4x5_w_b_axes_2_3) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
+                                      4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0,
+                                      5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0,
+                                      6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0,
+                                      6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {2, 3}, {2, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2x3_to_2x3x4x5_w_b_axes_2_3) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                                        3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                                        4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+                                        4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+                                        5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                                        5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                                        6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+                                        6, 6, 6, 6, 6, 6, 6, 6, 6, 6};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {2, 3}, {2, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_5_to_2x3x4x5_w_b_axes_0_1_2) {
+    std::vector<float> golden_data = {1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                                      1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {5}, {0, 1, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_5_to_2x3x4x5_w_b_axes_0_1_2) {
+    std::vector<uint8_t> golden_data = {1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+                                        1, 2, 3, 4, 5, 1, 2, 3, 4, 5};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {5}, {0, 1, 2}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_4_to_2x3x4x5_w_b_axes_0_1_3) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {4}, {0, 1, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_4_to_2x3x4x5_w_b_axes_0_1_3) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4,
+                                        1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 4, 4, 4, 4, 4};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {4}, {0, 1, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_3_to_2x3x4x5_w_b_axes_0_2_3) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
+                                      3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {3}, {0, 2, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_3_to_2x3x4x5_w_b_axes_0_2_3) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                                        3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                                        3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {3}, {0, 2, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_2_to_2x3x4x5_w_b_axes_1_2_3) {
+    std::vector<float> golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0,
+                                      2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0};
+    start_broadcast_test<float>(data_types::f32, {2, 3, 4, 5}, {2}, {1, 2, 3}, golden_data);
+}
+
+TEST(broadcast_gpu_uint8_t, bfyx_2_to_2x3x4x5_w_b_axes_1_2_3) {
+    std::vector<uint8_t> golden_data = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                        2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+    start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {2}, {1, 2, 3}, golden_data);
+}
+
+
+TEST(broadcast_gpu, basic_error_wrong_b_axes_size) {
+
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, 1, 1}});
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(broadcast("output", "input", {2, 3, 4, 5}, {0, 1, 2, 3, 4}));
+
+    std::string msg_to_find = "Incorrect parameters configuration: broadcast_axes size should be less or equal 4.";
+    EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
+}
+
+TEST(broadcast_gpu, basic_error_wrong_b_axis_value) {
+
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, 1, 1}});
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(broadcast("output", "input", {2, 3, 4, 5}, {0, 4}));
+
+    std::string msg_to_find = "Incorrect parameters configuration: broadcast_axes index should be within broadcast_sizes range.";
+    EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
+}
+
+TEST(broadcast_gpu, basic_error_duplicate_b_axis_values) {
+
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, 1, 1}});
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(broadcast("output", "input", {2, 3, 4, 5}, {0, 1, 1}));
+
+    std::string msg_to_find = "Incorrect parameters configuration: Duplicate axes numbers was found in broadcast_axes.";
+    EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
+}
+
+TEST(broadcast_gpu, basic_error_wrong_input_dimension_0) {
+
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {2, 3, 4, 5}});
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(broadcast("output", "input", {2, 3, 4, 5}, {1}));
+
+    std::string msg_to_find = "Input size on dimension number 0(=2) is not equal to: (=1)";
+    EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
+}
+
+TEST(broadcast_gpu, basic_error_not_dividable_2x3x4x5_to_3x3x4x5) {
+
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {2, 3, 4, 5}});
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(broadcast("output", "input", {3, 3, 4, 5}, {}));
+
+    std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
+    EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
+}
+
+TEST(broadcast_gpu, basic_error_not_dividable_3_to_2x3x4x5_w_b_axes_0x1x3) {
+
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, 3, 1}});
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(broadcast("output", "input", {2, 3, 4, 5}, {0, 1, 3}));
+
+    std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
+    EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
+}
+
+TEST(broadcast_gpu, basic_error_not_dividable_4x5_to_3x4x5_w_b_axes_1) {
+
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 3, 5, 4}});
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(broadcast("output", "input", {2, 3, 4, 5}, {1}));
+
+    std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
+    EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
+}

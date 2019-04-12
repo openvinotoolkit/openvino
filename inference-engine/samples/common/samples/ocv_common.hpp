@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,8 @@ void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, in
     T* blob_data = blob->buffer().as<T*>();
 
     cv::Mat resized_image(orig_image);
-    if (width != orig_image.size().width || height!= orig_image.size().height) {
+    if (static_cast<int>(width) != orig_image.size().width ||
+            static_cast<int>(height) != orig_image.size().height) {
         cv::resize(orig_image, resized_image, cv::Size(width, height));
     }
 
@@ -50,7 +51,7 @@ void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, in
  * @param mat - given cv::Mat object with an image data.
  * @return resulting Blob pointer.
  */
-static InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat &mat) {
+static UNUSED InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat &mat) {
     size_t channels = mat.channels();
     size_t height = mat.size().height;
     size_t width = mat.size().width;

@@ -19,6 +19,8 @@
 
 #include <stdint.h>
 
+#include "common/primitive_attr.hpp"
+
 namespace mkldnn {
 namespace impl {
 namespace cpu {
@@ -27,7 +29,7 @@ namespace cpu {
 enum conv_version_t {ver_unused, ver_fma, ver_avx512_core, ver_4fma, ver_4vnni,
                      ver_vnni};
 enum conv_loop_order_t {loop_cgn, loop_gnc, loop_ngc, loop_gncw, loop_cwgn,
-                            loop_ngcw};
+                            loop_ngcw, loop_nhwcg};
 enum conv_1x1_loop_order_t {loop_rbl, loop_rlb, loop_lbr, loop_lrb, loop_blr,
                             loop_brl};
 enum conv_kernel_kind_t {embd_bcast, expl_bcast};
@@ -53,6 +55,7 @@ struct jit_conv_conf_t {
     conv_version_t ver;
     conv_loop_order_t loop_order;
 
+    int simd_w;
     int ndims;
     int mb;
     int ngroups, ic, oc, oc_without_padding, ic_without_padding;
@@ -64,32 +67,22 @@ struct jit_conv_conf_t {
     int stride_d, stride_h, stride_w;
     int dilate_d, dilate_h, dilate_w;
     memory_format_t src_fmt;
+    memory_format_t dst_fmt;
     bool with_bias;
     bool with_sum;
     bool with_eltwise;
     bool with_dw_conv;
+    bool with_binarization;
 
-    alg_kind_t eltwise_alg;
-    float eltwise_alpha;
-    float eltwise_beta;
-    float eltwise_scale;
+    post_ops_t::entry_t::eltwise_t eltwise;
+
+    int nthr, nthr_mb, nthr_g, nthr_oc_b, nthr_ic_b;
 
     int idp, ihp, iwp, ohp, owp;
 
-    int dw_conv_in_h;
-    int dw_conv_in_w;
-    int dw_conv_ker_h;
-    int dw_conv_ker_w;
-    int dw_conv_str_h;
-    int dw_conv_str_w;
-    const float* dw_conv_weights;
-    const float* dw_conv_biases;
-
-    bool dw_conv_with_sum;
-    bool dw_conv_with_eltwise;
-    alg_kind_t dw_conv_eltwise_alg;
-    float dw_conv_eltwise_alpha;
-    float dw_conv_eltwise_beta;
+    const float* conv_weights;
+    const float* conv_biases;
+    int dw_conv_oh, dw_conv_ow;
 
     int nb_ic, ic_block;
     int nb_oc, oc_block;
@@ -102,6 +95,7 @@ struct jit_conv_conf_t {
     int ur_h, ur_w;
     int ur_w_tail;
     bool is_1stconv;
+    int nonblk_group_off;
     /* fma avx512_core */
     conv_kernel_kind_t kernel_kind;
     /* 4fma */
@@ -121,6 +115,7 @@ struct jit_conv_conf_t {
     int oc_nb1;
     int ur_ow_max, ur_ow, ur_ow_tail;
     int ur_ow_nsteps;
+    data_type_t src_dt;
     data_type_t bia_dt;
     data_type_t dst_dt;
     /* avx512: max possible value is nregs(32) - aux_regs(4) */
@@ -129,16 +124,22 @@ struct jit_conv_conf_t {
     bool expl_bcast;
     bool large_spatial;
     int is_oc_scale;
+    int max_regs_ur; // maximum accumulation registers
     // dw conv
     int nb_ch, ch_block, nb_ch_blocking;
-    bool is_depthwise;
+    bool is_depthwise, is_fast_depthwise;
     int aligned_threads;
     // large spatial
     int oh_blk_size;
-    int ow_blk_size;
     // s8s8 convolution
     bool signed_input;
     float wei_adj_scale;
+    // planar conv
+    int nb_ow_blocking;
+
+    int oh_block;
+    int nb_oh_blocking;
+    int oh_block_step;
 };
 
 struct jit_conv_conf_2x3_wino_t {
@@ -173,9 +174,7 @@ struct jit_conv_conf_2x3_wino_t {
     int typesize_acc;
 
     memory_format_t src_fmt;
-    bool with_bias, with_relu;
-    float relu_negative_slope;
-    bool with_sum;
+    bool with_bias;
     bool small_mb;
 
     int xb, yb;
@@ -188,6 +187,12 @@ struct jit_conv_conf_2x3_wino_t {
     int m_block, n_block, k_block;
     int n2_block, n_chunks;
     int k2_block, k_chunks;
+
+    int mb_block, nb_mb;
+
+    size_t size_wino_src, size_wino_wei, size_wino_dst;
+
+    int nthr;
 };
 
 /*
@@ -267,6 +272,47 @@ struct jit_conv_winograd_conf_t : public jit_conv_conf_t {
     winograd_sched_t sched_policy;
 };
 
+struct jit_bin_conv_conf_t {
+    prop_kind_t prop_kind;
+    conv_version_t ver;
+    conv_loop_order_t loop_order;
+
+    int ndims;
+    int mb;
+    int ngroups, ic, oc, oc_padded, ic_padded;
+    int id, ih, iw, od, oh, ow;
+    int f_pad, l_pad, t_pad;
+    int back_pad, r_pad, b_pad;
+    int kd, kh, kw;
+    int stride_d, stride_h, stride_w;
+    int dilate_d, dilate_h, dilate_w;
+    memory_format_t src_fmt;
+    bool with_bias;
+    bool with_sum;
+    bool with_eltwise;
+    bool with_dw_conv;
+    bool with_binarization;
+
+    float pad_value;
+    bool exclude_pad;
+
+    int dw_conv_oh;
+    int dw_conv_ow;
+
+    int nb_ic, ic_block;
+    int nb_oc, oc_block;
+    int nb_ic_blocking, nb_oc_blocking; // blocking of nb_ic and nb_ic
+    int ur_h, ur_w;
+    int ur_w_tail;
+    int typesize_in;
+    int typesize_out;
+    int typesize_bia;
+    int typesize_acc;
+    data_type_t src_dt;
+    data_type_t bia_dt;
+    data_type_t dst_dt;
+};
+
 struct jit_conv_call_s {
     const void *src; /* hack, non-const for backward_data */
     const void *dst; /* hack, non-const for forward */
@@ -302,6 +348,7 @@ struct jit_conv_call_s {
     size_t ch_work;
     size_t t_overflow;
     size_t b_overflow;
+    size_t oh_blocks;
     int flags;
 
     const void *src_row0; /* hack, non-const for backward_data */
@@ -318,6 +365,9 @@ struct jit_deconv_call_s {
     const void *filt; /* hack, non-const for backward_weights */
     const void *bias; /* hack, non-const for backward_bias */
     const void *scales;
+    const void *compensation;
+    size_t t_overflow;
+    size_t b_overflow;
     size_t kh_padding;
     size_t oc_blocks;
 };
@@ -327,19 +377,12 @@ struct jit_dw_conv_call_s {
     const void *output;
     const void *filter;
     const void *bias;
-    union {
-        size_t table_flags; /* This allows both bytes to be read simultaneously
-                               */
-        struct {
-            unsigned char
-                    table_idx; /* Indicates the table entry for the
-                                        JIT-generated values that control the
-                                        inner loop execution. The entry is
-                                        determined by the oh_block exectuion. */
-            unsigned char
-                    exec_flag; /* Flags passed by driver execution to inner kernel */
-        };
-    };
+    size_t kh_count;
+    size_t oh_count;
+    size_t oh_index;
+    size_t filter_pad_off;
+    unsigned char
+            exec_flags; /* Flags passed by driver execution to inner kernel */
 };
 
 struct jit_wino_transform_call_s {
@@ -370,30 +413,13 @@ struct jit_1x1_conv_conf_t {
     int kh, kw;
     int stride_h, stride_w;
     memory_format_t src_fmt;
+    memory_format_t dst_fmt;
     bool with_bias;
     bool with_sum;
     bool with_eltwise;
     bool with_dw_conv;
 
-    alg_kind_t eltwise_alg;
-    float eltwise_alpha;
-    float eltwise_beta;
-    float eltwise_scale;
-
-    int dw_conv_in_h;
-    int dw_conv_in_w;
-    int dw_conv_ker_h;
-    int dw_conv_ker_w;
-    int dw_conv_str_h;
-    int dw_conv_str_w;
-    const float* dw_conv_weights;
-    const float* dw_conv_biases;
-
-    bool dw_conv_with_sum;
-    bool dw_conv_with_eltwise;
-    alg_kind_t dw_conv_eltwise_alg;
-    float dw_conv_eltwise_alpha;
-    float dw_conv_eltwise_beta;
+    post_ops_t::entry_t::eltwise_t eltwise;
 
     int is, os;
     int ic_block, oc_block;
@@ -427,10 +453,12 @@ struct jit_1x1_conv_conf_t {
     int tr_is;
     int nthr, nthr_mb, nthr_g, nthr_oc_b, nthr_ic_b;
     int is_oc_scale;
+    data_type_t src_dt;
     data_type_t bia_dt;
     data_type_t dst_dt;
     bool signed_input;
     float wei_adj_scale;
+    int dw_conv_oh, dw_conv_ow;
 
     /* u8s8s32x */
     int ic_dim, nb_ic, nb_ic_blocking, nb_ic_blocking_max;
@@ -454,8 +482,7 @@ struct jit_gemm_conv_conf_t {
     int stride_h, stride_w, stride_d;
     int dilate_h, dilate_w, dilate_d;
     memory_format_t src_fmt;
-    bool with_bias, with_relu;
-    float relu_negative_slope;
+    bool with_bias;
 
     int is, os, ks;
     int ic_block, oc_block;
@@ -465,6 +492,9 @@ struct jit_gemm_conv_conf_t {
     bool need_wei_reduction;
     bool signed_input;
     float wei_adj_scale;
+    int oh_block;
+    int ow_block;
+    bool outer_threading;
 };
 
 struct jit_1x1_conv_call_s {

@@ -26,7 +26,9 @@ namespace kernel_selector
         ReorderWeightsImageWinograd6x3Kernel() : ReorderKernelBase("reorder_weights_image_winograd_6x3_s1") {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
         virtual DispatchData SetDefault(const reorder_weights_params& arg) const override;
+
+    protected:
+        virtual ParamsKey GetSupportedKey() const override;
     };
 }

@@ -34,6 +34,61 @@ using namespace cldnn;
 using namespace tests;
 
 
+TEST(activation_f32_fw_gpu, not_basic_yxfb) {
+    //  Input:
+    //  1 0 -3  4  5
+    //  0  2  3  4 -6
+    //  3 -3  3  0  1
+    //  1  1  1 -1  0
+    //
+    //  Output:
+    //  0, 1, 0, 0, 0,
+    //  1, 0, 0, 0, 0,
+    //  0, 0, 0, 1, 0,
+    //  0, 0, 0, 0, 1
+
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    set_values(input,
+    { 1.0f, 0.0f, -3.0f, 4.0f, 5.0f,
+      0.0f, 2.0f, 3.0f, 4.0f, -6.0f,
+      3.0f, -3.0f, 3.0f, 0.0f, 1.0f,
+      1.0f, 1.0f, 1.0f, -1.0f, 0.0f });
+    VF<float> output_vec = {
+        0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        activation("not", "input", activation_not));
+    network network(engine, topology);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "not");
+
+    auto output_memory = outputs.at("not").get_memory();
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+
+    int y_size = output_layout.size.spatial[1];
+    int x_size = output_layout.size.spatial[0];
+    int f_size = output_layout.size.feature[0];
+    int b_size = output_layout.size.batch[0];
+    EXPECT_EQ(output_layout.format, format::yxfb);
+    EXPECT_EQ(y_size, 4);
+    EXPECT_EQ(x_size, 5);
+    EXPECT_EQ(f_size, 1);
+    EXPECT_EQ(b_size, 1);
+
+    for (size_t i = 0; i < output_vec.size(); ++i) {
+        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+    }
+}
+
 TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
     //  Input:
     //  1 -2 -3  4  5
@@ -49,7 +104,7 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
     //  3   -1.5  3    5    1
     //  1    1    1   -0.5  1
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
@@ -102,7 +157,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
     //  a: 0.5, b: 2.5
     //
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 5, 4 } });
     auto input_params = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 1 } });
@@ -130,7 +185,8 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
         activation_cos,
         activation_cosh,
         activation_exp,
-		activation_log2,
+        activation_not,
+        activation_log2,
     };
 
     cldnn_activation_additional_params params = { 0.5f, 2.5f };
@@ -229,12 +285,15 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
                 case activation_exp:
                     EXPECT_FLOAT_EQ(std::exp((float)input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_log2:
-                    if (input_ptr[i] > 0) //logarithm exist only for positive real values
-                    {
-                        EXPECT_FLOAT_EQ(std::log2((float)input_ptr[i]), output_ptr[i]);
-                    }
+                case activation_not:
+                    EXPECT_FLOAT_EQ((float)(!input_ptr[i]), output_ptr[i]);
                     break;
+				case activation_log2:
+					if (input_ptr[i] > 0) //logarithm exist only for positive real values
+                    {
+						EXPECT_FLOAT_EQ(std::log2((float)input_ptr[i]), output_ptr[i]);
+                    }
+					break;
                 default:
                     break;
                 }
@@ -245,7 +304,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
 
 TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log)
 {
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 4 } });
     set_values(input, { 0.12f, 0.56f, 0.45f, 0.789f, 0.546f, 0.999f, 0.7899f, 0.6677f});
@@ -328,7 +387,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     //  3   -1.5  3    5    1
     //  1    1    1   -0.5  1
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
 
@@ -394,7 +453,7 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
     //  0    0    0    0    0    0    0    0    0    0    0
     //  0    0    0    0    0    0    0    0    0    0    0
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,

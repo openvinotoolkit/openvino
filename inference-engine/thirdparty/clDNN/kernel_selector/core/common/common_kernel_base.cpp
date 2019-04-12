@@ -181,11 +181,11 @@ namespace kernel_selector
         {
             std::cout << "ERROR: dispatch data for kernel: " << kernelName << " is incorrect: GWS0: " << runInfo.gws0 << " LWS0: " << runInfo.lws0 << std::endl;
         }
-        if (runInfo.gws0 % runInfo.lws0 != 0)
+        if (runInfo.gws1 % runInfo.lws1 != 0)
         {
             std::cout << "ERROR: dispatch data for kernel: " << kernelName << " is incorrect: GWS1: " << runInfo.gws1 << " LWS1: " << runInfo.lws1 << std::endl;
         }
-        if (runInfo.gws0 % runInfo.lws0 != 0)
+        if (runInfo.gws2 % runInfo.lws2 != 0)
         {
             std::cout << "ERROR: dispatch data for kernel: " << kernelName << " is incorrect: GWS2: " << runInfo.gws2 << " LWS2: " << runInfo.lws2 << std::endl;
         }

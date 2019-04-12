@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,23 +14,24 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim, shape_for_layout
 from mo.front.extractor import attr_getter
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class RegionYoloOp(Op):
     op = 'RegionYolo'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: Node):
+    def __init__(self, graph: Graph, attrs: Node):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
             'infer': RegionYoloOp.regionyolo_infer
         }
         super().__init__(graph, mandatory_props, attrs)

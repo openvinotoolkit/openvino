@@ -139,7 +139,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx)
     using namespace cldnn;
     using namespace tests;
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 7, 10, 17, 13 } });
 
@@ -167,7 +167,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_fp16)
     using namespace cldnn;
     using namespace tests;
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx,{ 7, 10, 17, 13 } });
 
@@ -195,7 +195,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_normalize_variance)
     using namespace cldnn;
     using namespace tests;
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 7, 10, 17, 13 } });
 
@@ -223,7 +223,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_normalize_variance_fp16)
     using namespace cldnn;
     using namespace tests;
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx,{ 7, 10, 17, 13 } });
 
@@ -251,7 +251,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx)
     using namespace cldnn;
     using namespace tests;
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 7, 10, 17, 13 } });
 
@@ -279,7 +279,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_fp16)
     using namespace cldnn;
     using namespace tests;
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx,{ 7, 10, 17, 13 } });
 
@@ -307,7 +307,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_normalize_variance)
     using namespace cldnn;
     using namespace tests;
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 7, 10, 17, 13 } });
 
@@ -335,7 +335,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_normalize_variance_fp16)
     using namespace cldnn;
     using namespace tests;
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx,{ 7, 10, 17, 13 } });
 

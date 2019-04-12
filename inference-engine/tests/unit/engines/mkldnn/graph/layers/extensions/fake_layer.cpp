@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,8 @@ class FakeExtensions : public IExtension {
 
     void GetVersion(const Version *&versionInfo) const noexcept override {
         static Version ExtensionDescription = {
-            {1, 0},    // extension API version
-            "1.0",
+            {1, 6},    // extension API version
+            "1.6",
             "ie-cpu-ext"  // extension description message
         };
 

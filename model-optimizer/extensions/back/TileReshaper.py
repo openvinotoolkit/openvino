@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,11 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import networkx as nx
+
 import numpy as np
 
 from extensions.back.EltwiseBroadcast import EltwiseBroadcast
 from mo.back.replacement import BackReplacementPattern
+from mo.graph.graph import Graph
 from mo.ops.reshape import Reshape
 
 
@@ -37,7 +38,7 @@ class TileReshaper(BackReplacementPattern):
         )
 
     @staticmethod
-    def replace_pattern(graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(graph: Graph, match: dict):
         """
         Workarounds not supported type of Tile in Inference Engine (Tiles are supported for 2-D or 4-D tensors):
         Searches for Tiles with 3D shapes and covers it with Reshapes.

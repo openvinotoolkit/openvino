@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,24 +17,23 @@ file (GLOB LIBRARY_HEADERS
 if(UNIX)
     list(REMOVE_ITEM LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/dllmain.cpp)
 endif()
-add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_API)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 
-# Properties->C/C++->General->Additional Include Directories
-include_directories (${IE_MAIN_SOURCE_DIR}/include
-        ${IE_MAIN_SOURCE_DIR}/src/inference_engine
-        ${IE_MAIN_SOURCE_DIR}/include
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src)
-
 # Create library file from sources.
 add_library(${TARGET_NAME} SHARED
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS})
 
+target_include_directories (${TARGET_NAME} PRIVATE
+        "${IE_MAIN_SOURCE_DIR}/src/inference_engine")
+
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
 set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD 11)
 set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)

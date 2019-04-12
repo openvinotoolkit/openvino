@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -57,6 +57,10 @@ mapping_rules = [
     ('first_stage_nms_score_threshold', '.*_nms_score_threshold'),
     ('first_stage_nms_iou_threshold', '.*_nms_iou_threshold'),
     ('first_stage_max_proposals', '.*_max_proposals'),
+    ('num_spatial_bins_height', '.*/rfcn_box_predictor/num_spatial_bins_height'),
+    ('num_spatial_bins_width', '.*/rfcn_box_predictor/num_spatial_bins_width'),
+    ('crop_height', '.*/rfcn_box_predictor/crop_height'),
+    ('crop_width', '.*/rfcn_box_predictor/crop_width'),
     'initial_crop_size',
     # Detection Output layer attributes
     ('postprocessing_score_converter', '.*/score_converter'),

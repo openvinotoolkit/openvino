@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -67,10 +67,12 @@ set(CLDNN_LIBRARY clDNN_shlib)
 add_library(${TARGET_NAME} SHARED
     ${MAIN_SRC}
     ${LIBRARY_HEADERS})
-target_link_libraries(${TARGET_NAME} pugixml ${INTEL_ITT_LIBS} inference_engine ${CLDNN_LIBRARY})
+target_link_libraries(${TARGET_NAME} ${INTEL_ITT_LIBS} inference_engine ${CLDNN_LIBRARY})
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 
 #copy default global xml file describing the custom kernels and the *.cl files
 add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/cldnn_global_custom_kernels $<TARGET_FILE_DIR:${TARGET_NAME}>/cldnn_global_custom_kernels)
+
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

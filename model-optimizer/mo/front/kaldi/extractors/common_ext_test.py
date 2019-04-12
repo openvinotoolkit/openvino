@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.utils.unittest.graph import build_graph
 
 
 class KaldiFrontExtractorTest(unittest.TestCase):
-    graph = nx.MultiDiGraph()
+    graph = Graph()
 
     @classmethod
     def setUp(cls):

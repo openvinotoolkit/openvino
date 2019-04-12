@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,23 +14,23 @@ using namespace InferenceEngine;
 
 class BatchNormalizationLayerBuilderTest : public BuilderTestCommon {};
 
-TEST_F(BatchNormalizationLayerBuilderTest, cannotCreateBatchNormalizationWithoutWeightOrBiases) {
-    ASSERT_THROW(((Builder::Layer)Builder::BatchNormalizationLayer("in1")), InferenceEngine::details::InferenceEngineException);
-    ASSERT_THROW(((Builder::Layer)Builder::BatchNormalizationLayer("in1")
-            .setWeights(generateBlob(Precision::FP32, {3}, Layout::C))), InferenceEngine::details::InferenceEngineException);
-    ASSERT_THROW(((Builder::Layer)Builder::BatchNormalizationLayer("in1")
-            .setBiases(generateBlob(Precision::FP32, {3}, Layout::C))), InferenceEngine::details::InferenceEngineException);
-}
+//TEST_F(BatchNormalizationLayerBuilderTest, cannotCreateBatchNormalizationWithoutWeightOrBiases) {
+//    ASSERT_THROW(((Builder::Layer)Builder::BatchNormalizationLayer("in1")), InferenceEngine::details::InferenceEngineException);
+//    ASSERT_THROW(((Builder::Layer)Builder::BatchNormalizationLayer("in1")
+//            .setWeights(generateBlob(Precision::FP32, {3}, Layout::C))), InferenceEngine::details::InferenceEngineException);
+//    ASSERT_THROW(((Builder::Layer)Builder::BatchNormalizationLayer("in1")
+//            .setBiases(generateBlob(Precision::FP32, {3}, Layout::C))), InferenceEngine::details::InferenceEngineException);
+//}
 
 TEST_F(BatchNormalizationLayerBuilderTest, getExistsLayerFromNetworkBuilder) {
     Builder::Network network("Test");
+    idx_t weightsId = network.addLayer(Builder::ConstLayer("weights").setData(generateBlob(Precision::FP32, {3}, Layout::C)));
+    idx_t biasesId = network.addLayer(Builder::ConstLayer("biases").setData(generateBlob(Precision::FP32, {3}, Layout::C)));
     Builder::BatchNormalizationLayer bnBuilder("bn");
-    bnBuilder.setWeights(generateBlob(Precision::FP32, {3}, Layout::C));
-    bnBuilder.setBiases(generateBlob(Precision::FP32, {3}, Layout::C));
-    size_t bnId = network.addLayer(bnBuilder);
+    idx_t bnId = network.addLayer({{0}, {weightsId}, {biasesId}}, bnBuilder);
     Builder::BatchNormalizationLayer bnBuilderFromNetwork(network.getLayer(bnId));
     ASSERT_EQ(bnBuilderFromNetwork.getEpsilon(), bnBuilder.getEpsilon());
     bnBuilderFromNetwork.setEpsilon(2);
     ASSERT_NE(bnBuilderFromNetwork.getEpsilon(), bnBuilder.getEpsilon());
-    ASSERT_EQ(bnBuilderFromNetwork.getEpsilon(), network.getLayer(bnId).getParameters()["epsilon"].asFloat());
+    ASSERT_EQ(bnBuilderFromNetwork.getEpsilon(), network.getLayer(bnId)->getParameters()["epsilon"].as<float>());
 }

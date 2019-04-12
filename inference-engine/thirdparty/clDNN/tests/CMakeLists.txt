@@ -15,15 +15,15 @@
 
 # ========================================= Name / Output settings =====================================
 
-set(CLDNN_BUILD__PROJ             "tests")
+set(CLDNN_BUILD__PROJ             "clDNN_unit_tests")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
 set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
 
 # =========================================== Compiler options =========================================
-
 intel_config_flag_apply_settings(CompilerOptions CMAKE_CXX_FLAGS ALL_PATTERN ""
     SET
       WarnLevel3
+      StandardCxx11
   )
 if (NOT MSVC)
   intel_config_flag_apply_settings(CompilerOptions CMAKE_CXX_FLAGS ALL_PATTERN ""

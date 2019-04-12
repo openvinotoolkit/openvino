@@ -26,7 +26,7 @@ template <>
 struct typed_program_node<max_unpooling> : public typed_program_node_base<max_unpooling>
 {
     using parent = typed_program_node_base<max_unpooling>;
-
+    typed_program_node(const std::shared_ptr<max_unpooling> prim, program_impl& prog);
 public:
     using parent::parent;
     program_node& input() const { return get_dependency(0); }

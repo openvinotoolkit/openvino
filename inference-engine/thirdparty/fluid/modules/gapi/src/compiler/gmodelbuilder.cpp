@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -128,7 +128,7 @@ cv::gimpl::Unrolled cv::gimpl::unrollExpr(const GProtoArgs &ins,
                 // then add its operands to stack to continue recursion.
                 ops.visit(&node.priv(), node);
 
-                const cv::GCall         call   = origin.node.call();
+                const cv::GCall&        call   = origin.node.call();
                 const cv::GCall::Priv&  call_p = call.priv();
 
                 // Put the outputs object description of the node

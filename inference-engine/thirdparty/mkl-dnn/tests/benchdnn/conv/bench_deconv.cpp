@@ -36,7 +36,6 @@ const char *pattern = NULL;
 dir_t dir = FWD_B;
 int mb = 0;
 alg_t alg = DIRECT;
-merge_t merge = NONE;
 attr_t attr;
 const char *skip_impl = "";
 bool allow_unimpl = false;
@@ -48,14 +47,13 @@ void reset_parameters() {
     dir = FWD_B;
     mb = 0;
     alg = DIRECT;
-    merge = NONE;
     attr = attr_t();
     skip_impl = "";
     allow_unimpl = false;
 }
 
 void check_correctness(const desc_t *c) {
-    const prb_t p(*c, dir, cfg, alg, merge, attr, mb);
+    const prb_t p(*c, dir, cfg, alg, attr, mb, true);
     char pstr[max_prb_len];
     prb2str(&p, pstr);
 

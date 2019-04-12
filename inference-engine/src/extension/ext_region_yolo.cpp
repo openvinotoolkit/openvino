@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ public:
             classes = layer->GetParamAsInt("classes");
             coords = layer->GetParamAsInt("coords");
             num = layer->GetParamAsInt("num");
-            do_softmax = static_cast<bool>(layer->GetParamAsInt("do_softmax", 1));
+            do_softmax = layer->GetParamAsBool("do_softmax", true);
             mask = layer->GetParamAsInts("mask", {});
 
             addConfig(layer, {DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});

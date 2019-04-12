@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ class ConvShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit ConvShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -32,49 +32,51 @@ public:
         ConvolutionLayer convLayer(lp);
         convLayer.params = params;
         convLayer.type = _type;
-        validate(&convLayer, inShapes, params, blobs);
+        validate(&convLayer, inBlobs, params, blobs);
 
-        float OH_temp, OW_temp;
         auto dims = inShapes[0];
+        auto dims_size = dims.size();
+        auto spacial_d_size = dims.size() - 2;
+        float* OD_temp = new float[spacial_d_size];
+        size_t*  KDims = new size_t[spacial_d_size];
         size_t inputN = dims[0];
-        size_t IH = dims[2];
-        size_t IW = dims[3];
-        size_t KH = 0, KW = 0;
-        int PR = -1, PB = -1;
-        if (convLayer._dilation[Y_AXIS])
-            KH = (convLayer._kernel[Y_AXIS] - 1) * convLayer._dilation[Y_AXIS] + 1;
-        else
-            KH = convLayer._kernel[Y_AXIS];
-        if (convLayer._dilation[X_AXIS])
-            KW = (convLayer._kernel[X_AXIS] - 1) * convLayer._dilation[X_AXIS] + 1;
-        else
-            KW = convLayer._kernel[X_AXIS];
-        size_t SH = convLayer._stride[Y_AXIS];
-        size_t SW = convLayer._stride[X_AXIS];
-        size_t PH = convLayer._padding[Y_AXIS];
-        size_t PW = convLayer._padding[X_AXIS];
+        for (int i = 0; i < spacial_d_size; i++) {
+            if (convLayer._dilation[i])
+                KDims[i] = (convLayer._kernel[i] - 1) * convLayer._dilation[i] + 1;
+            else
+                KDims[i] = convLayer._kernel[i];
+        }
         size_t OC = convLayer._out_depth;
         std::string padType = convLayer._auto_pad;
         if (padType == "valid") {
-            OH_temp = std::ceil((IH - KH + 1.f) / SH);
-            OW_temp = std::ceil((IW - KW + 1.f) / SW);
+            for (int i = 0; i < spacial_d_size; i++)
+                OD_temp[i] = std::ceil((dims[dims_size - 1 - i] - KDims[i] + 1.f) / convLayer._stride[i]);
         } else if (padType == "same_upper") {
-            OH_temp = std::ceil(1.f * IH / SH);
-            OW_temp = std::ceil(1.f * IW / SW);
+            for (int i = 0; i < spacial_d_size; i++)
+                OD_temp[i] = std::ceil(1.f * dims[dims_size - 1 - i] / convLayer._stride[i]);
         } else if (padType == "same_lower") {
-            OH_temp = std::floor(1.f * IH / SH);
-            OW_temp = std::floor(1.f * IW / SW);
+            for (int i = 0; i < spacial_d_size; i++)
+                OD_temp[i] = std::floor(1.f * dims[dims_size - 1 - i] / convLayer._stride[i]);
         } else {
-            PR = convLayer._pads_end[X_AXIS];
-            PB = convLayer._pads_end[Y_AXIS];
-            OH_temp = std::floor(1.f * (IH + PH + PB - KH) / SH) + 1.f;
-            OW_temp = std::floor(1.f * (IW + PW + PR - KW) / SW) + 1.f;
+            for (int i = 0; i < spacial_d_size; i++) {
+                OD_temp[i] = std::floor(1.f * (dims[dims_size - 1 - i] +
+                        convLayer._padding[i] + convLayer._pads_end[i] - KDims[i]) /
+                        convLayer._stride[i]) + 1.f;
+            }
         }
-        if (OH_temp < 0 || OW_temp < 0)
-            THROW_IE_EXCEPTION << "New shapes " << details::dumpVec(dims) << " make output shape negative";
-        size_t OH = static_cast<size_t>(OH_temp);
-        size_t OW = static_cast<size_t>(OW_temp);
-        outShapes.push_back({inputN, OC, OH, OW});
+
+        for (int i = 0; i < spacial_d_size; i++)
+            if (OD_temp[i] < 0)
+                THROW_IE_EXCEPTION << "New shapes " << details::dumpVec(dims) << " make output shape negative";
+
+        SizeVector outShape = {inputN, OC};
+        for (int i = spacial_d_size - 1; i >= 0; i--)
+            outShape.push_back(static_cast<size_t>(OD_temp[i]));
+
+        outShapes.push_back(outShape);
+
+        delete[] OD_temp;
+        delete[] KDims;
     }
 };
 

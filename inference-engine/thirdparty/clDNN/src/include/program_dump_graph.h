@@ -18,7 +18,7 @@
 
 #include "program_impl.h"
 #include "program_node.h"
-#include "data_inst.h"
+#include "gpu/ocl_toolkit.h"
 #include <fstream>
 
 namespace cldnn
@@ -30,7 +30,4 @@ namespace cldnn
     void dump_graph_processing_order(std::ofstream&, const program_impl&);
     void dump_graph_init(std::ofstream&, const program_impl&, std::function<bool(program_node const&)> const&);
     void dump_graph_info(std::ofstream&, const program_impl&, std::function<bool(program_node const&)> const&);
-    void dump_to_xml(std::ofstream& graph, const program_impl& program, std::function<bool(program_node const&)> const& filter, std::vector<unsigned long long>& offsets, std::vector<std::string>& data_names);
-    void dump_kernels(kernels_binaries_container program_binaries, std::vector<unsigned long long>& offsets, std::vector<std::string>& data_names, std::ofstream& file_stream);
-    void dump_data(memory_impl& mem, std::ofstream& stream, unsigned long long& total_offset, unsigned long long type);
 }

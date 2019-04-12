@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 import networkx as nx
 
 from mo.front.common.partial_infer.split import tf_split_v_infer
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
@@ -24,12 +25,13 @@ class SplitV(Op):
     op = 'SplitV'
     enabled = True
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': 'Split',
             'op': 'SplitV',
             'axis': 1,
             'input_port': 0,
+            'in_ports_count': 3,
             'infer': tf_split_v_infer
         }, attrs)
 

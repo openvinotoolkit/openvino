@@ -95,7 +95,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 
     uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
     in_addr = batch_idx * INPUT0_BATCH_PITCH;
-    in_addr += in_split_offset + INPUT0_OFFSET_WITH_PADDING + or * STRIDE_SIZE_Y * INPUT0_Y_PITCH + oc * STRIDE_SIZE_X + lid;
+    in_addr += in_split_offset + INPUT0_OFFSET_WITH_PADDING + (or * STRIDE_SIZE_Y * INPUT0_Y_PITCH) + (oc * STRIDE_SIZE_X + lid) * INPUT0_X_PITCH;
 
     for(int kd = 0; kd < FILTER_IFM_NUM; kd++)  // _ID = 3, RGB
     {
@@ -107,7 +107,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
             // Horizontal position in input block after read.
             const uint in_block_next_x_pos = in_block_pos % IN_BLOCK_WIDTH + SUB_GROUP_SIZE;
 
-            in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + in_block_pos % IN_BLOCK_WIDTH];
+            in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
 
             // If we have row break, move to the next row.
             if (in_block_next_x_pos == IN_BLOCK_WIDTH)
@@ -120,7 +120,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
             const uint in_block_next_x_pos = in_block_pos % IN_BLOCK_WIDTH + SUB_GROUP_SIZE;
 
             if (in_block_next_x_pos <= IN_BLOCK_WIDTH) { //
-                in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + in_block_pos % IN_BLOCK_WIDTH];
+                in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
 
                 // If we have row break, move to the next row.
                 if (in_block_next_x_pos == IN_BLOCK_WIDTH)
@@ -132,11 +132,11 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
                 const uint sg_br_pos = IN_BLOCK_WIDTH - in_block_pos % IN_BLOCK_WIDTH;
 
                 if (lid < sg_br_pos)
-                    in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + in_block_pos % IN_BLOCK_WIDTH];
+                    in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr + (in_block_pos % IN_BLOCK_WIDTH) * INPUT0_X_PITCH];
                 // We have row break inside sub-group. Need to move to next line.
                 tmp_in_addr += INPUT0_Y_PITCH;
                 if (lid >= sg_br_pos)
-                    in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr - sg_br_pos];
+                    in[in_block_pos / SUB_GROUP_SIZE] = input[tmp_in_addr - (sg_br_pos * INPUT0_X_PITCH)];
 
                 // If we have another row break, move to the next row.
                 if (in_block_next_x_pos == 2 * IN_BLOCK_WIDTH)
@@ -211,17 +211,51 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         }
     }
 
+
+//--------------------------------------------------------------------
+// output phase
+//--------------------------------------------------------------------
+
 #ifdef LEFTOVERS
     if (feature_idx < OUTPUT_FEATURE_NUM)
 #endif
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         if(!(or + r >= OUTPUT_SIZE_Y))
         {
+#if (OUTPUT_SIZE_X % OUTPUT_BLOCK_WIDTH) == 0 // in this case we don't need to check if we're outside of X boundaries
+            uint out_vstore_offset = 0;
+            #if (OUT_BLOCK_WIDTH % 8) > 3
+            MAKE_VECTOR_TYPE(UNIT_TYPE, 4) tmp = MAKE_VECTOR_TYPE(UNIT_TYPE, 4)(
+                out[out_vstore_offset + 0 + r * OUTPUT_BLOCK_WIDTH],
+                out[out_vstore_offset + 1 + r * OUTPUT_BLOCK_WIDTH],
+                out[out_vstore_offset + 2 + r * OUTPUT_BLOCK_WIDTH],
+                out[out_vstore_offset + 3 + r * OUTPUT_BLOCK_WIDTH]
+            );
+
+            vstore4(tmp, 0, output + out_addr + r * OUTPUT_Y_PITCH + out_vstore_offset * OUTPUT_X_PITCH);
+            out_vstore_offset += 4;
+            #endif
+
+            #if (OUT_BLOCK_WIDTH % 4) > 1
+            MAKE_VECTOR_TYPE(UNIT_TYPE, 2) tmp2 = MAKE_VECTOR_TYPE(UNIT_TYPE, 2)(
+                out[out_vstore_offset + 0 + r * OUTPUT_BLOCK_WIDTH],
+                out[out_vstore_offset + 1 + r * OUTPUT_BLOCK_WIDTH]
+            );
+
+            vstore2(tmp2, 0, output + out_addr + r * OUTPUT_Y_PITCH + out_vstore_offset * OUTPUT_X_PITCH);
+            out_vstore_offset += 2;
+            #endif
+            for(uint c = out_vstore_offset; c < OUTPUT_BLOCK_WIDTH; c++) {
+                // this does a scattered write to 16 different feature maps, so that data within one map is contiguous, thus ready for input to next layer.
+                output[out_addr + r * OUTPUT_Y_PITCH + c] = out[r * OUTPUT_BLOCK_WIDTH + c];
+            }
+#else
             for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
                 // this does a scattered write to 16 different feature maps, so that data within one map is contiguous, thus ready for input to next layer.
                 if(!(oc + c >= OUTPUT_SIZE_X))
                     output[out_addr + r * OUTPUT_Y_PITCH + c] = out[r * OUTPUT_BLOCK_WIDTH + c];
             }
+#endif
         }
     }
 }

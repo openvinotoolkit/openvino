@@ -26,6 +26,7 @@ template <>
 struct typed_program_node<pooling> : public typed_program_node_base<pooling>
 {
     using parent = typed_program_node_base<pooling>;
+    typed_program_node(const std::shared_ptr<pooling> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
 
 public:
     using parent::parent;

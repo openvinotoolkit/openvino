@@ -31,27 +31,27 @@ using namespace memory_format;
 
 template <int data_type_size>
 template <mkldnn_memory_format_t fmt>
-void ref_shuffle_t<data_type_size>::execute_() {
+void ref_shuffle_t<data_type_size>::execute_() const {
     using namespace prop_kind;
     using namespace utils;
 
-    const memory_desc_wrapper data_d(conf_.data_pd());
+    const memory_desc_wrapper data_d(pd()->data_pd());
 
     auto input = reinterpret_cast<const data_t*>(this->input_memory(0));
     auto output = reinterpret_cast<data_t*>(this->memory(0));
 
-    const int axis = conf_.axis();
-    const int axis_size = conf_.axis_size();
+    const int axis = pd()->axis();
+    const int axis_size = pd()->axis_size();
 
-    const int MB = conf_.MB();
-    const int C = conf_.C();
+    const int MB = pd()->MB();
+    const int C = pd()->C();
     int H = 1, W = 1, D = 1, HW = 1, SP = 1;
     const bool has_spatial = utils::one_of(data_d.ndims(), 3, 4 ,5);
     if (has_spatial)
     {
-        D = conf_.D();
-        H = conf_.H();
-        W = conf_.W();
+        D = pd()->D();
+        H = pd()->H();
+        W = pd()->W();
         HW = H * W;
         SP = D * HW;
     }
@@ -107,8 +107,8 @@ void ref_shuffle_t<data_type_size>::execute_() {
             }
         });
     } else {
-        auto dims = conf_.desc()->data_desc.dims;
-        auto ndims = conf_.desc()->data_desc.ndims;
+        auto dims = pd()->desc()->data_desc.dims;
+        auto ndims = pd()->desc()->data_desc.ndims;
         const size_t outer_size = utils::array_product(dims, axis);
         const size_t inner_size = utils::array_product(dims + axis + 1,
                                          ndims - axis - 1);
@@ -124,25 +124,25 @@ void ref_shuffle_t<data_type_size>::execute_() {
     }
 }
 
-template void ref_shuffle_t<4>::execute_<nCdhw16c>();
-template void ref_shuffle_t<4>::execute_<nChw16c>();
-template void ref_shuffle_t<4>::execute_<nCdhw8c>();
-template void ref_shuffle_t<4>::execute_<nChw8c>();
-template void ref_shuffle_t<4>::execute_<ncdhw>();
-template void ref_shuffle_t<4>::execute_<nchw>();
-template void ref_shuffle_t<4>::execute_<ndhwc>();
-template void ref_shuffle_t<4>::execute_<nhwc>();
-template void ref_shuffle_t<4>::execute_<any>();
+template void ref_shuffle_t<4>::execute_<nCdhw16c>() const;
+template void ref_shuffle_t<4>::execute_<nChw16c>() const;
+template void ref_shuffle_t<4>::execute_<nCdhw8c>() const;
+template void ref_shuffle_t<4>::execute_<nChw8c>() const;
+template void ref_shuffle_t<4>::execute_<ncdhw>() const;
+template void ref_shuffle_t<4>::execute_<nchw>() const;
+template void ref_shuffle_t<4>::execute_<ndhwc>() const;
+template void ref_shuffle_t<4>::execute_<nhwc>() const;
+template void ref_shuffle_t<4>::execute_<any>() const;
 
-template void ref_shuffle_t<1>::execute_<nCdhw16c>();
-template void ref_shuffle_t<1>::execute_<nChw16c>();
-template void ref_shuffle_t<1>::execute_<nCdhw8c>();
-template void ref_shuffle_t<1>::execute_<nChw8c>();
-template void ref_shuffle_t<1>::execute_<ncdhw>();
-template void ref_shuffle_t<1>::execute_<nchw>();
-template void ref_shuffle_t<1>::execute_<ndhwc>();
-template void ref_shuffle_t<1>::execute_<nhwc>();
-template void ref_shuffle_t<1>::execute_<any>();
+template void ref_shuffle_t<1>::execute_<nCdhw16c>() const;
+template void ref_shuffle_t<1>::execute_<nChw16c>() const;
+template void ref_shuffle_t<1>::execute_<nCdhw8c>() const;
+template void ref_shuffle_t<1>::execute_<nChw8c>() const;
+template void ref_shuffle_t<1>::execute_<ncdhw>() const;
+template void ref_shuffle_t<1>::execute_<nchw>() const;
+template void ref_shuffle_t<1>::execute_<ndhwc>() const;
+template void ref_shuffle_t<1>::execute_<nhwc>() const;
+template void ref_shuffle_t<1>::execute_<any>() const;
 
 }
 }

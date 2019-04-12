@@ -14,10 +14,7 @@
 // limitations under the License.
 */
 
-#include <cmath>
 #include "convolution_kernel_bfyx_gemm_like.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
 
 namespace kernel_selector 
 {
@@ -137,6 +134,6 @@ namespace kernel_selector
 
     KernelsData ConvolutionKernel_bfyx_GEMMLike::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        return GetCommonKernelsData(params, options, AGE_BASED);
+        return GetTunedKernelsDataByIndex(params, options);
     }
 }

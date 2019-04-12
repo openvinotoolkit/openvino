@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -33,12 +33,9 @@ from mo.front.tf.extractors.prod import tf_reduce_prod_ext
 from mo.front.tf.extractors.random_uniform import tf_random_uniform_ext
 from mo.front.tf.extractors.range import tf_range_ext
 from mo.front.tf.extractors.reshape import tf_reshape_ext
-from mo.front.tf.extractors.shape import tf_shape_ext
 from mo.front.tf.extractors.space_to_batch import tf_space_to_batch_ext, tf_batch_to_space_ext
 from mo.front.tf.extractors.split import tf_split_ext
 from mo.front.tf.extractors.squeeze import tf_squeeze_ext
-from mo.front.tf.extractors.strided_slice import tf_strided_slice_ext
-from mo.front.tf.extractors.sum import tf_sum_ext
 from mo.front.tf.extractors.transpose import tf_transpose_ext
 from mo.front.tf.extractors.unpack import tf_unpack_ext
 from mo.front.tf.extractors.utils import get_tf_node_port
@@ -90,7 +87,6 @@ tf_op_extractors = {
     'MatMul': node_pb_arg(tf_matmul_ext),
     'Pack': node_pb_arg(tf_pack_ext),
     'Unpack': node_pb_arg(tf_unpack_ext),
-    'StridedSlice': node_pb_arg(tf_strided_slice_ext),
     'Prod': node_pb_arg(tf_reduce_prod_ext),
     'Const': node_pb_arg(tf_const_ext),
     'Placeholder': node_pb_arg(tf_placeholder_ext),
@@ -109,15 +105,12 @@ tf_op_extractors = {
     'BiasAdd': node_pb_arg(tf_bias_add_ext),
     'Reshape': node_pb_arg(tf_reshape_ext),
     'Squeeze': node_pb_arg(tf_squeeze_ext),
-    'Shape': node_pb_arg(tf_shape_ext),
     'SpaceToBatchND': node_pb_arg(tf_space_to_batch_ext),
     'BatchToSpaceND': node_pb_arg(tf_batch_to_space_ext),
     'Square': node_pb_arg(make_tf_eltwise(lambda a: a * a)),
     'Minimum': node_pb_arg(make_tf_eltwise(lambda a, b: np.minimum(a, b))),  # can use clamp if one argument is const
     'Maximum': node_pb_arg(make_tf_eltwise(lambda a, b: np.maximum(a, b), attrs={'type': 'Eltwise',
                                                                                  'operation': 'max'})),
-    'Sum': node_pb_arg(tf_sum_ext),
-    'Range': node_pb_arg(tf_range_ext),
     'ReadVariableOp': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
     'PlaceholderWithDefault': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True}))
 }

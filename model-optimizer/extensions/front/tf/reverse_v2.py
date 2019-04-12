@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,9 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.ops.Reverse import Reverse
 from mo.front.extractor import FrontExtractorOp
-from extensions.ops.reverse_sequence import ReverseSequence
 
 
 class ReverseV2FrontExtractor(FrontExtractorOp):
@@ -24,5 +23,5 @@ class ReverseV2FrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
-        ReverseSequence.update_node_stat(node)
+        Reverse.update_node_stat(node)
         return __class__.enabled

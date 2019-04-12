@@ -21,6 +21,7 @@
 #include "api/CPP/memory.hpp"
 #include "api/CPP/tensor.hpp"
 #include "api/CPP/program.hpp"
+#include "api/CPP/network.hpp"
 #include <iostream>
 #include <limits>
 #include <random>
@@ -39,6 +40,8 @@
 #include "api/CPP/convolution.hpp"
 #include "api/CPP/activation.hpp"
 #include "api/CPP/pooling.hpp"
+
+#include <chrono>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
@@ -79,7 +82,7 @@ inline VF<T> flatten_4d(cldnn::format input_format, VVVVF<T> &data) {
     size_t b = data[0].size();
     size_t c = data[0][0].size();
     size_t d = data[0][0][0].size();
-    VF<T> vec(a * b * c * d, 0.0f);
+    VF<T> vec(a * b * c * d, (T)(0.0f));
     size_t idx = 0;
 
     switch (input_format.value) {
@@ -91,6 +94,14 @@ inline VF<T> flatten_4d(cldnn::format input_format, VVVVF<T> &data) {
                             vec[idx++] = data[bi][fi][yi][xi];
             break;
         
+        case cldnn::format::fyxb:
+            for (size_t fi = 0; fi < b; ++fi)
+                for (size_t yi = 0; yi < c; ++yi)
+                    for (size_t xi = 0; xi < d; ++xi)
+                        for (size_t bi = 0; bi < a; ++bi)
+                            vec[idx++] = data[bi][fi][yi][xi];
+            break;
+
         case cldnn::format::bfyx:
             for (size_t bi = 0; bi < a; ++bi)
                 for (size_t fi = 0; fi < b; ++fi)
@@ -183,7 +194,7 @@ void set_values(const cldnn::memory& mem, std::vector<T> args) {
 }
 
 template<typename T>
-void set_values_per_batch_and_feature(const cldnn::memory& mem, const cldnn::layout& layout, std::vector<T> args)
+void set_values_per_batch_and_feature(const cldnn::memory& mem, std::vector<T> args)
 {
     auto mem_ptr = mem.pointer<T>();
     auto&& pitches = mem.get_layout().get_pitches();
@@ -215,6 +226,24 @@ void set_random_values(const cldnn::memory& mem, bool sign = false, unsigned sig
     for (auto it = ptr.begin(); it != ptr.end(); ++it)
     {   
         *it = rnd_generators::gen_number<T>(gen, significand_bit, sign, false, scale);
+    }
+}
+
+
+// Tries to construct a network, checking if an expected error appears
+inline void check_exception_massage(const cldnn::engine& engine, cldnn::topology& topology, std::string msg_to_find)
+{
+    try {
+        cldnn::network(engine, topology);
+    }
+    catch (std::exception & exc) {
+        std::string msg(exc.what());
+        if (msg.find(msg_to_find) != std::string::npos) {
+            throw;
+        }
+        else {
+            printf("%s\n", exc.what());
+        }
     }
 }
 
@@ -318,6 +347,8 @@ struct memory_desc
     size_t offset;
 };
 
+const cldnn::engine & get_test_engine();
+
 struct test_dump
 {
     const std::string name() const;
@@ -358,7 +389,7 @@ public:
     };
 
 protected:
-    cldnn::engine engine;
+    const cldnn::engine& engine = get_test_engine();
     test_params* generic_params;
     test_dump test_info;
     cldnn::primitive* layer_params;
@@ -422,7 +453,9 @@ inline void PrintTupleTo(const std::tuple<tests::test_params*, cldnn::primitive*
             << " Pooled width: " << p->pooled_width
             << " Pooled height: " << p->pooled_height
             << " Spatial scale: " << p->spatial_scale
-            << " Group size: " << p->group_sz;
+            << " Spatial bins x: " << p->spatial_bins_x
+            << " Spatial bins y: " << p->spatial_bins_y
+            << " Output dim: " << p->output_dim;
     }
     else if(primitive->type == cldnn::scale::type_id())
     {
@@ -437,7 +470,7 @@ inline void PrintTupleTo(const std::tuple<tests::test_params*, cldnn::primitive*
     else if (primitive->type == cldnn::reorder::type_id())
     {
         auto reorder = static_cast<cldnn::reorder*>(primitive);
-        str << "Output data type: " << cldnn::data_type_traits::name(reorder->output_data_type) << " Mean: " << reorder->mean << "Subtract per feature: " << "TODO" /*std::vector<float> subtract_per_feature*/;
+        str << "Output data type: " << cldnn::data_type_traits::name(*reorder->output_data_type) << " Mean: " << reorder->mean << "Subtract per feature: " << "TODO" /*std::vector<float> subtract_per_feature*/;
     }
     else if (primitive->type == cldnn::normalize::type_id())
     {

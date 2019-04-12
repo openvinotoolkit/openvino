@@ -30,6 +30,9 @@ namespace cldnn
 
     layout average_unpooling_inst::calc_output_layout(average_unpooling_node const& node)
     {
+        assert((bool)node.get_primitive()->output_data_type == false
+               && "Output data type forcing is not supported for "
+                  "average_unpooling_node!");
         auto desc = node.get_primitive();
 
         auto input_layout = node.input().get_output_layout();

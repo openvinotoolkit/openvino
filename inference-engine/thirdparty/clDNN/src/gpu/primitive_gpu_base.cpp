@@ -16,10 +16,6 @@
 
 #include "primitive_gpu_base.h"
 
-#include "detection_output_inst.h"
-#include "proposal_inst.h"
-#include "prior_box_inst.h"
-
 namespace cldnn {
     namespace gpu {
 
@@ -27,12 +23,8 @@ namespace cldnn {
         {
             for (const auto& user : users)
             {
-                if (user->type() == detection_output::type_id() ||
-                    user->type() == prior_box::type_id() ||
-                    user->type() == proposal::type_id())
-                {
+                if (user->get_selected_impl()->is_cpu())
                     return true;
-                }
             }
             return false;
         }

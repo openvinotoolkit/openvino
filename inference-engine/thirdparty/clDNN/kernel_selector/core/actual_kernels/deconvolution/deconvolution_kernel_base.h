@@ -33,7 +33,8 @@ namespace kernel_selector
         uSize    dilation;
         uSize    padding;
         uint32_t split = 1;
-        bool     depthwiseSeparableOpt = false;
+        uint32_t groups = 1;
+        bool     depthwise_separable_opt = false;
         bool     fused_eltwise = false;
 
         virtual std::string to_string() const override;
@@ -53,9 +54,14 @@ namespace kernel_selector
                 k.EnableDilation();
             }
 
-            if (depthwiseSeparableOpt)
+            if (depthwise_separable_opt)
             {
                 k.EnableDepthwiseSeparableOpt();
+            }
+
+            if (groups > 1 && !depthwise_separable_opt)
+            {
+                k.EnableGroupedConvolution();
             }
 
             return k;

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,10 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.convolution import Convolution
 from mo.ops.reshape import Reshape
 
@@ -38,7 +37,7 @@ class ReplaceConvolutionReshape(FrontReplacementOp):
     op = "Convolution"
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    def replace_op(self, graph: Graph, node: Node):
         input_node = node.in_node(0)
         port = graph.get_edge_data(input_node.id, node.id)[0]['out']
         input_reshape_node = Reshape(graph,

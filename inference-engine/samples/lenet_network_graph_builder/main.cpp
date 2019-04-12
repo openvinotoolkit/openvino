@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <limits>
 
 #include <inference_engine.hpp>
 #include <ie_builders.hpp>
@@ -95,7 +96,7 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 1. Load Plugin for inference engine -------------------------------------
         slog::info << "Loading plugin" << slog::endl;
-        InferencePlugin plugin = PluginDispatcher({FLAGS_pp, "../../../lib/intel64", ""}).getPluginByDevice(FLAGS_d);
+        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
         printPluginVersion(plugin, std::cout);
 
         /** Per layer metrics **/
@@ -108,14 +109,16 @@ int main(int argc, char *argv[]) {
         TBlob<uint8_t>::CPtr weightsPtr = ReadWeights(FLAGS_m);
 
         Builder::Network builder("LeNet");
-        size_t layerId = builder.addLayer(Builder::InputLayer("data").setPort(Port({1, 1, 28, 28})));
+        idx_t layerId = builder.addLayer(Builder::InputLayer("data").setPort(Port({1, 1, 28, 28})));
         auto ptrWeights = make_shared_blob(TensorDesc(Precision::FP32, {500}, Layout::C),
                 weightsPtr->cbuffer().as<float *>());
         auto ptrBiases = make_shared_blob(TensorDesc(Precision::FP32, {20}, Layout::C),
                 weightsPtr->cbuffer().as<float *>() + 500);
-        layerId = builder.addLayer({{layerId}}, Builder::ConvolutionLayer("conv1").setKernel({5, 5}).setDilation({1, 1})
-                  .setGroup(1).setStrides({1, 1}).setOutDepth(20).setPaddingsBegin({0, 0}).setPaddingsEnd({0, 0})
-                  .setWeights(ptrWeights).setBiases(ptrBiases));
+        idx_t weightsId = builder.addLayer(Builder::ConstLayer("weights").setData(ptrWeights));
+        idx_t biasesId = builder.addLayer(Builder::ConstLayer("biases").setData(ptrBiases));
+        layerId = builder.addLayer({{layerId}, {weightsId}, {biasesId}}, Builder::ConvolutionLayer("conv1")
+                  .setKernel({5, 5}).setDilation({1, 1}).setGroup(1).setStrides({1, 1}).setOutDepth(20)
+                  .setPaddingsBegin({0, 0}).setPaddingsEnd({0, 0}));
         layerId = builder.addLayer({{layerId}}, Builder::PoolingLayer("pool1").setExcludePad(true).setKernel({2, 2})
                   .setPaddingsBegin({0, 0}).setPaddingsEnd({0, 0})
                   .setPoolingType(Builder::PoolingLayer::PoolingType::MAX)
@@ -124,9 +127,11 @@ int main(int argc, char *argv[]) {
                 weightsPtr->cbuffer().as<float *>() + 520);
         ptrBiases = make_shared_blob(TensorDesc(Precision::FP32, {50}, Layout::C),
                 weightsPtr->cbuffer().as<float *>() + 25520);
-        layerId = builder.addLayer({{layerId}}, Builder::ConvolutionLayer("conv2").setDilation({1, 1}).setGroup(1)
-                  .setKernel({5, 5}).setOutDepth(50).setPaddingsBegin({0, 0}).setPaddingsEnd({0, 0})
-                  .setStrides({1, 1}).setWeights(ptrWeights).setBiases(ptrBiases));
+        weightsId = builder.addLayer(Builder::ConstLayer("weights").setData(ptrWeights));
+        biasesId = builder.addLayer(Builder::ConstLayer("biases").setData(ptrBiases));
+        layerId = builder.addLayer({{layerId}, {weightsId}, {biasesId}}, Builder::ConvolutionLayer("conv2")
+                  .setDilation({1, 1}).setGroup(1).setKernel({5, 5}).setOutDepth(50).setPaddingsBegin({0, 0})
+                  .setPaddingsEnd({0, 0}).setStrides({1, 1}));
         layerId = builder.addLayer({{layerId}}, Builder::PoolingLayer("pool2").setExcludePad(true).setKernel({2, 2})
                   .setPaddingsBegin({0, 0}).setPaddingsEnd({0, 0}).setPoolingType(Builder::PoolingLayer::PoolingType::MAX)
                   .setRoundingType(Builder::PoolingLayer::RoundingType::CEIL).setStrides({2, 2}));
@@ -134,17 +139,21 @@ int main(int argc, char *argv[]) {
                 weightsPtr->cbuffer().as<float *>() + 102280 / 4);
         ptrBiases = make_shared_blob(TensorDesc(Precision::FP32, {500}, Layout::C),
                 weightsPtr->cbuffer().as<float *>() + 1702280 / 4);
-        layerId = builder.addLayer({{layerId}}, Builder::FullyConnectedLayer("ip1").setOutputNum(500)
-                  .setWeights(ptrWeights).setBiases(ptrBiases));
+        weightsId = builder.addLayer(Builder::ConstLayer("weights").setData(ptrWeights));
+        biasesId = builder.addLayer(Builder::ConstLayer("biases").setData(ptrBiases));
+        layerId = builder.addLayer({{layerId}, {weightsId}, {biasesId}}, Builder::FullyConnectedLayer("ip1")
+                .setOutputNum(500));
         layerId = builder.addLayer({{layerId}}, Builder::ReLULayer("relu1").setNegativeSlope(0.0f));
         ptrWeights = make_shared_blob(TensorDesc(Precision::FP32, {5000}, Layout::C),
                 weightsPtr->cbuffer().as<float *>() + 1704280 / 4);
         ptrBiases = make_shared_blob(TensorDesc(Precision::FP32, {10}, Layout::C),
                 weightsPtr->cbuffer().as<float *>() + 1724280 / 4);
-        layerId = builder.addLayer({{layerId}}, Builder::FullyConnectedLayer("ip2").setOutputNum(10)
-                  .setWeights(ptrWeights).setBiases(ptrBiases));
+        weightsId = builder.addLayer(Builder::ConstLayer("weights").setData(ptrWeights));
+        biasesId = builder.addLayer(Builder::ConstLayer("biases").setData(ptrBiases));
+        layerId = builder.addLayer({{layerId}, {weightsId}, {biasesId}}, Builder::FullyConnectedLayer("ip2")
+                  .setOutputNum(10));
         layerId = builder.addLayer({{layerId}}, Builder::SoftMaxLayer("prob").setAxis(1));
-        size_t outputId = builder.addLayer({PortInfo(layerId)}, Builder::OutputLayer("sf_out"));
+        builder.addLayer({PortInfo(layerId)}, Builder::OutputLayer("sf_out"));
 
         CNNNetwork network{Builder::convertToICNNNetwork(builder.build())};
         // -----------------------------------------------------------------------------------------------------
@@ -272,7 +281,7 @@ int main(int argc, char *argv[]) {
 
         double total = 0.0;
         /** Start inference & calc performance **/
-        for (int iter = 0; iter < FLAGS_ni; ++iter) {
+        for (size_t iter = 0; iter < FLAGS_ni; ++iter) {
             auto t0 = Time::now();
             infer_request.Infer();
             auto t1 = Time::now();
@@ -289,7 +298,7 @@ int main(int argc, char *argv[]) {
         auto outputData = outputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type*>();
 
         /** Validating -nt value **/
-        const int resultsCnt = outputBlob->size() / batchSize;
+        const size_t resultsCnt = outputBlob->size() / batchSize;
         if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
             slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than " \
                       << resultsCnt+1 << " and more than 0)\n            will be used maximal value : " << resultsCnt;
@@ -303,7 +312,7 @@ int main(int argc, char *argv[]) {
         std::cout << std::endl << "Top " << FLAGS_nt << " results:" << std::endl << std::endl;
 
         /** Print the result iterating over each batch **/
-        for (int image_id = 0; image_id < batchSize; ++image_id) {
+        for (size_t image_id = 0; image_id < batchSize; ++image_id) {
             std::cout << "Image " << images[image_id] << std::endl << std::endl;
             for (size_t id = image_id * FLAGS_nt, cnt = 0; cnt < FLAGS_nt; ++cnt, ++id) {
                 std::cout.precision(7);
@@ -312,6 +321,9 @@ int main(int argc, char *argv[]) {
                 std::cout << std::left << std::fixed << "Number: " << results[id] << "; Probability: " << result << std::endl;
             }
             std::cout << std::endl;
+        }
+        if (std::fabs(total) < std::numeric_limits<double>::epsilon()) {
+            throw std::logic_error("total can't be equal to zero");
         }
         // -----------------------------------------------------------------------------------------------------
         std::cout << std::endl << "total inference time: " << total << std::endl;

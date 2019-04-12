@@ -1,5 +1,17 @@
-// Copyright (C) 2018 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright (C) 2018-2019 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #include "hetero_plugin.h"
@@ -20,7 +32,7 @@ using namespace HeteroPlugin;
 using namespace std;
 
 static Version heteroPluginDescription = {
-        {1, 4},  // plugin API version
+        {1, 6},  // plugin API version
         CI_BUILD_NUMBER,
         "dliaPlugin"  // plugin description message -
 };
@@ -37,6 +49,7 @@ Engine::Engine() {
 
 InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(InferenceEngine::ICNNNetwork &network,
                                                                            const std::map<std::string, std::string> &config) {
+    // TODO(amalyshe) do we need here verification of input precisions?
     std::map<std::string, std::string> tconfig;
     tconfig = config;
 
@@ -83,7 +96,7 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(
         ResponseDesc *resp) noexcept {
     try {
         plugin = new HeteroPluginBase<Engine>(
-                {{1, 5}, "heteroPlugin", "heteroPlugin"},
+                {{1, 6}, "heteroPlugin", "heteroPlugin"},
                 std::make_shared<Engine>());
         return OK;
     }

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,12 +14,13 @@
  limitations under the License.
 """
 
-import networkx as nx
-import numpy as np
 import logging as log
+
+import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import int64_array
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
@@ -27,11 +28,13 @@ class Flatten(Op):
     op = 'Flatten'
     enabled = True
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': __class__.op,
             'op': __class__.op,
             'infer': __class__.infer,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
         }, attrs)
 
     def supported_attrs(self):

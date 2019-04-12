@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ inline bool popupTogetherWith(MemorySolver::Box &box_new, const MemorySolver::Bo
     }
 }
 
-int MemorySolver::solve() {
+int64_t MemorySolver::solve() {
     maxTopDepth();  // at first make sure that we no need more for boxes sorted by box.start
     std::vector<std::vector<const Box*>> time_slots(_time_duration);
     for (auto & slot : time_slots) slot.reserve(_top_depth);  // 2D array [_time_duration][_top_depth]
@@ -61,11 +61,11 @@ int MemorySolver::solve() {
     std::sort(_boxes.begin(), _boxes.end(), [](const Box& l, const Box& r)
         { return l.size > r.size; });
 
-    int _min_required = 0;
+    int64_t _min_required = 0;
 
     for (Box& box : _boxes) {
         // start from bottom and will lift it up if intersect with other present
-        int id = box.id;
+        int64_t id = box.id;
         box.id = 0;  // id will be used as a temp offset storage
         bool popped_up;
         do {
@@ -91,17 +91,17 @@ int MemorySolver::solve() {
     return _min_required;
 }
 
-int MemorySolver::maxDepth() {
+int64_t MemorySolver::maxDepth() {
     if (_depth == -1) calcDepth();
     return _depth;
 }
 
-int MemorySolver::maxTopDepth() {
+int64_t MemorySolver::maxTopDepth() {
     if (_top_depth == -1) calcDepth();
     return _top_depth;
 }
 
-int MemorySolver::getOffset(int id) const {
+int64_t MemorySolver::getOffset(int id) const {
     auto res = _offsets.find(id);
     if (res == _offsets.end()) THROW_IE_EXCEPTION << "There are no box for provided ID";
     return res->second;
@@ -110,12 +110,12 @@ int MemorySolver::getOffset(int id) const {
 //======== Private =============//
 
 void MemorySolver::calcDepth() {
-    int top_depth = 0;
-    int depth = 0;
-    std::map<int, std::vector<const Box*>> release_at;
+    int64_t top_depth = 0;
+    int64_t depth = 0;
+    std::map<int64_t, std::vector<const Box*>> release_at;
 
     for (const Box& box : _boxes) {
-        int time = box.start;
+        int64_t time = box.start;
         depth += box.size;
         top_depth++;
 

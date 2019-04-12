@@ -17,9 +17,9 @@
 #pragma once
 
 #include "fully_connected_kernel_base.h"
- 
+
 namespace kernel_selector {
-    
+
     class FullyConnected_bf_io_GEMM : public FullyConnectedKernelBase
     {
     public:
@@ -27,10 +27,10 @@ namespace kernel_selector {
         FullyConnected_bf_io_GEMM() : Parent("fully_connected_gpu_bf_io_gemm") {}
 
         KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        ParamsKey GetSupportedKey() const override;
 
     protected:
-        std::unique_ptr<DispatchData> SetDefault(const fully_connected_params& params) const override;
+        ParamsKey GetSupportedKey() const override;
+        DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
         JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
     };
 }

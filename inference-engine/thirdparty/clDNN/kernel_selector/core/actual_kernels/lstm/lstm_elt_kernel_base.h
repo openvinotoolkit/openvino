@@ -29,6 +29,8 @@ namespace kernel_selector
         enum order_type : int32_t {
             offset_iofz, // ONNX default
             offset_ifoz, // caffe
+            offset_izof, // pyTorch
+            offset_fizo  // IE default
         };
 
         lstm_elt_params()
@@ -40,11 +42,15 @@ namespace kernel_selector
         order_type gate_order = offset_iofz;
         float clip = 0;
         bool input_forget = false;
+        uint32_t direction = 0;
+        uint32_t cell_direction = 0;
 
         size_t GetOffsetIndex(order_type type, size_t idx) const {
             static const std::map<order_type, std::vector<size_t>> offset_map {
-                {offset_iofz, {0, 1, 2, 3}},
-                {offset_ifoz, {0, 2, 1, 3}}
+                {offset_iofz, { 0, 1, 2, 3}},
+                {offset_ifoz, { 0, 2, 1, 3}},
+                {offset_izof, { 0, 3, 1, 2}},
+                {offset_fizo, { 1, 3, 0, 2}}
             };
             return offset_map.at(type)[idx];
         }

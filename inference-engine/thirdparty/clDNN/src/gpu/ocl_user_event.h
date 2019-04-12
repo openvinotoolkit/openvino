@@ -1,6 +1,24 @@
+/*
+// Copyright (c) 2018 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/
+
+
 #pragma once
 
 #include "ocl_base_event.h"
+#include "api/CPP/profiling.hpp"
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -11,14 +29,23 @@ namespace cldnn { namespace gpu {
 
 struct user_event : public base_event, public cldnn::user_event
 {
-    user_event(std::shared_ptr<gpu_toolkit> ctx, bool auto_set = false) : base_event(ctx, cl::UserEvent(ctx->context())), cldnn::user_event(auto_set)
-    {
-        if (auto_set)
-            user_event::set_impl();
-    }
+    user_event(std::shared_ptr<gpu_toolkit> ctx) 
+        : base_event(ctx)
+        , cldnn::user_event(false)
+    {}
 
     void set_impl() override;
-
+    void attach_event(bool set)
+    {
+        _event = cl::UserEvent(get_context()->context());
+        //we need to reset the timer(since attach_ocl_event is called only when this object is being reused)
+        _timer = cldnn::instrumentation::timer<>(); 
+        if (set)
+        {
+            set_impl();
+            _set = set;
+        }
+    }
     bool get_profiling_info_impl(std::list<cldnn_profiling_interval>& info) override;
 
 protected:

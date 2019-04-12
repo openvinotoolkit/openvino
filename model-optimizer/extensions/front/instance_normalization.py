@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.lin_op import Add, Mul
 from extensions.ops.mvn import MVN
 
@@ -30,7 +30,7 @@ class InstanceNormalization(FrontReplacementOp):
     op = "InstanceNormalization"
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    def replace_op(self, graph: Graph, node: Node):
         prefix = node.name + '/InstanceNormalization'
         mvn = MVN(graph, dict(
             name=prefix + '/MVN',

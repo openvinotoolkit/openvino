@@ -45,14 +45,14 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         vector[size_t] dims
         string precision
         string layout
-        void setPrecision(string precision)
-        void setLayout(string layout)
+        void setPrecision(string precision) except +
+        void setLayout(string layout) except +
 
     cdef cppclass OutputInfo:
         vector[size_t] dims
         string precision
         string layout
-        void setPrecision(string precision)
+        void setPrecision(string precision) except +
 
     cdef cppclass ProfileInfo:
         string status
@@ -100,7 +100,8 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         string version
 
     cdef cppclass InferRequestWrap:
-        void getBlobPtr(const string &blob_name, Blob.Ptr &blob_ptr)
+        double exec_time;
+        void getBlobPtr(const string &blob_name, Blob.Ptr &blob_ptr) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() except +
         void infer_async() except +

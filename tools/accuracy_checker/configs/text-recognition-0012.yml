@@ -1,0 +1,76 @@
+models:
+  - name: text-recognition-0012
+
+    launchers:
+      - framework: dlsdk
+        tags:
+          - FP32
+        device: CPU
+        model:   text-recognition-0012/FP32/text-recognition-0012.xml
+        weights: text-recognition-0012/FP32/text-recognition-0012.bin
+        adapter: beam_search_decoder
+        cpu_extensions: AUTO
+
+      - framework: dlsdk
+        tags:
+          - GPU32
+        device: GPU
+        model:   text-recognition-0012/FP32/text-recognition-0012.xml
+        weights: text-recognition-0012/FP32/text-recognition-0012.bin
+        adapter: beam_search_decoder
+
+      - framework: dlsdk
+        tags:
+          - GPU16
+        device: GPU
+        model:   text-recognition-0012/FP16/text-recognition-0012.xml
+        weights: text-recognition-0012/FP16/text-recognition-0012.bin
+        adapter: beam_search_decoder
+
+      - framework: dlsdk
+        device: MYRIAD
+        model:   text-recognition-0012/FP16/text-recognition-0012.xml
+        weights: text-recognition-0012/FP16/text-recognition-0012.bin
+        adapter: beam_search_decoder
+
+      - framework: dlsdk
+        device: HDDL
+        model:   text-recognition-0012/FP16/text-recognition-0012.xml
+        weights: text-recognition-0012/FP16/text-recognition-0012.bin
+        adapter: beam_search_decoder
+
+      - framework: dlsdk
+        tags:
+          - FPGA16
+        device: HETERO:FPGA,CPU
+        model:   text-recognition-0012/FP32/text-recognition-0012.xml
+        weights: text-recognition-0012/FP32/text-recognition-0012.bin
+        adapter: beam_search_decoder
+        cpu_extensions: AUTO
+        bitstream: 2019R1_A10DK_FP16_AlexNet_GoogleNet.aocx
+
+      - framework: dlsdk
+        tags:
+          - FPGA11
+        device: HETERO:FPGA,CPU
+        model:   text-recognition-0012/FP32/text-recognition-0012.xml
+        weights: text-recognition-0012/FP32/text-recognition-0012.bin
+        adapter: beam_search_decoder
+        cpu_extensions: AUTO
+        bitstream: 2019R1_A10DK_FP11_AlexNet_GoogleNet_SqueezeNet.aocx
+
+    datasets:
+      - name: ICDAR2013
+        data_source: ICDAR13_REC_validation/Challenge2_Test_Task3_Images
+        annotation_conversion:
+          converter: icdar13_recognition
+          annotation_file: ICDAR13_REC_validation/gt/gt.txt.fixed.alfanumeric
+
+        preprocessing:
+          - type: bgr_to_gray
+          - type: resize
+            dst_width: 120
+            dst_height: 32
+
+        metrics:
+          - type: character_recognition_accuracy

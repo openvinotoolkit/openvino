@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.power import Power
 
 
@@ -25,7 +25,7 @@ class ReciprocalReplacer(FrontReplacementOp):
     op = "Reciprocal"
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    def replace_op(self, graph: Graph, node: Node):
         reciprocal = Power(graph, dict(scale=1, power=-1, shift=0, name=node.name + '/power_'))
         out_node = reciprocal.create_node([node.in_node(0)])
 

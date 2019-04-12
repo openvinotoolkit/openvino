@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -701,7 +701,7 @@ TEST_F(GraphToolsTest, CNNNetworkInsertAllAfterSplit) {
 
     CNNNetworkInsertLayer(wrap.getLayerByName("1"), nullptr, createGenericLayer("5"));
 
-    ASSERT_CONNECTION(1, 5);
+    ASSERT_2_CONNECTIONS(1, 5);
     ASSERT_CONNECTION(5, 2);
     ASSERT_CONNECTION(5, 3);
 }
@@ -727,6 +727,156 @@ TEST_F(GraphToolsTest, CNNNetworkInsert1AfterSplit) {
     ASSERT_CONNECTION(1, 3);
     ASSERT_CONNECTION(1, 5);
     ASSERT_CONNECTION(5, 4);
+}
+
+TEST_F(GraphToolsTest, CNNNetworkRemoveNullPointerLayer) {
+
+    CONNECT_FROM_PORT(1, 0, 2);
+    CONNECT_FROM_PORT(1, 1, 3);
+    CONNECT_FROM_PORT(1, 2, 4);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0, 1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    ASSERT_ANY_THROW(CNNNetworkRemoveLayer(nullptr));
+}
+
+TEST_F(GraphToolsTest, CNNNetworkRemoveInputOrOutputLayer) {
+
+    CONNECT_FROM_PORT(1, 0, 2);
+    CONNECT_FROM_PORT(2, 0, 3);
+    CONNECT_FROM_PORT(1, 0, 3);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0, 1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    ASSERT_ANY_THROW(CNNNetworkRemoveLayer(wrap.getLayerByName("1")));
+    ASSERT_ANY_THROW(CNNNetworkRemoveLayer(wrap.getLayerByName("3")));
+}
+
+TEST_F(GraphToolsTest, CNNNetworkRemoveLayerThaHas2Outputs) {
+
+    CONNECT_FROM_PORT(1, 0, 2);
+    CONNECT_FROM_PORT(2, 0, 3);
+    CONNECT_FROM_PORT(2, 0, 4);
+    CONNECT_FROM_PORT(1, 0, 3);
+    CONNECT_FROM_PORT(5, 0, 4);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0, 1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    CNNNetworkRemoveLayer(wrap.getLayerByName("2"));
+
+    ASSERT_2_CONNECTIONS(1, 3);
+    ASSERT_CONNECTION(1, 4);
+    ASSERT_CONNECTION(5, 4);
+
+    // means all remained references removed
+    ASSERT_NO_CONNECTION(1, 2);
+    ASSERT_NO_CONNECTION(2, 2);
+    ASSERT_NO_CONNECTION(3, 2);
+    ASSERT_NO_CONNECTION(4, 2);
+}
+
+TEST_F(GraphToolsTest, CNNNetworkRemoveLayerSplit) {
+
+    CONNECT_FROM_PORT(1, 0, 2);
+    CONNECT_FROM_PORT(1, 1, 3);
+    CONNECT_FROM_PORT(2, 0, 3);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0, 1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    CNNNetworkRemoveLayer(wrap.getLayerByName("2"));
+
+    ASSERT_2_CONNECTIONS(1, 3);
+    // means all remained references removed
+    ASSERT_NO_CONNECTION(1, 2);
+    ASSERT_NO_CONNECTION(2, 2);
+    ASSERT_NO_CONNECTION(3, 2);
+}
+
+TEST_F(GraphToolsTest, CNNNetworkRemoveLayerSplit2) {
+
+    CONNECT_FROM_PORT(1, 0, 2);
+    CONNECT_FROM_PORT(1, 0, 3);
+    CONNECT_FROM_PORT(1, 0, 4);
+    CONNECT_FROM_PORT(1, 1, 4);
+    CONNECT_FROM_PORT(1, 2, 5);
+
+    CONNECT_FROM_PORT(2, 0, 3);
+    CONNECT_FROM_PORT(2, 0, 4);
+    CONNECT_FROM_PORT(2, 0, 5);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0, 1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    CNNNetworkRemoveLayer(wrap.getLayerByName("2"));
+
+    ASSERT_2_CONNECTIONS(1, 3);
+    ASSERT_3_CONNECTIONS(1, 4);
+    ASSERT_2_CONNECTIONS(1, 5);
+
+    // means all remained references removed
+    ASSERT_NO_CONNECTION(1, 2);
+    ASSERT_NO_CONNECTION(2, 2);
+    ASSERT_NO_CONNECTION(3, 2);
+    ASSERT_NO_CONNECTION(4, 2);
+    ASSERT_NO_CONNECTION(5, 2);
+}
+
+TEST_F(GraphToolsTest, CNNNetworkRemoveSimpleLayer) {
+
+    CONNECT_FROM_PORT(1, 0, 2);
+    CONNECT_FROM_PORT(2, 0, 3);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0, 1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    CNNNetworkRemoveLayer(wrap.getLayerByName("2"));
+
+    ASSERT_CONNECTION(1, 3);
+
+    // means all remained references removed
+    ASSERT_NO_CONNECTION(1, 2);
+    ASSERT_NO_CONNECTION(2, 2);
+    ASSERT_NO_CONNECTION(3, 2);
 }
 
 

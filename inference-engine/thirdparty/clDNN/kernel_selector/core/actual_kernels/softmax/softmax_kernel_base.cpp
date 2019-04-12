@@ -105,7 +105,7 @@ namespace kernel_selector
         const softmax_params& params = static_cast<const softmax_params&>(p);
         const auto& input = params.inputs[0];
 
-        if (params.activationFunc != ActivationFunction::NONE)
+        if (params.activation.function != ActivationFunction::NONE)
         {
             return false;
         }

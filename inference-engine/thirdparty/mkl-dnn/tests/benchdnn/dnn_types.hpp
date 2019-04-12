@@ -70,17 +70,19 @@ struct attr_t {
     };
 
     struct post_ops_t {
-        enum kind_t { SUM, RELU, KIND_TOTAL };
+        enum kind_t { SUM, RELU, TANH, ELU, SQUARE, ABS, SQRT, LINEAR, BRELU,
+            SRELU, LOGISTIC, KIND_TOTAL };
         static kind_t str2kind(const char *str);
         static const char *kind2str(kind_t kind);
+        static mkldnn_alg_kind_t kind2mkldnn_kind(kind_t kind);
 
         struct entry_t {
             kind_t kind;
             union {
                 struct { float scale; } sum;
                 struct {
-                    // eltwise algorithm in future
-                    float scale, alpha, beta; // unused now
+                    mkldnn_alg_kind_t alg;
+                    float scale, alpha, beta;
                 } eltwise;
             };
         };

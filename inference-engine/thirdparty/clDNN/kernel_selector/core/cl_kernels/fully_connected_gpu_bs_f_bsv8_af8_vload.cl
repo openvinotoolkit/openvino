@@ -14,6 +14,7 @@
 
 
 #include "include/include_all.cl"
+#include "include/sub_group.cl"
 
 #if FP16_UNIT_USED
     // Block read - currently block is 4 bytes aligned.
@@ -224,7 +225,4 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv8_vload)(
 
 #undef SUB_GROUP_SIZE
 #undef ALIGNED_BLOCK_READ8
-#undef MAKE_VECTOR_TYPE
-#undef CONCAT_TOKEN
-#undef CONCAT_TOKEN_HANDLER1
 #undef MULTIPLY_BLOCKS_8x8

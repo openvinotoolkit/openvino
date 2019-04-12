@@ -35,11 +35,11 @@ if(DOXYGEN_FOUND)
         ${CMAKE_CURRENT_BINARY_DIR}/header.html
         @ONLY)
     file(GLOB_RECURSE HEADERS
-        ${CMAKE_SOURCE_DIR}/include/*.h
-        ${CMAKE_SOURCE_DIR}/include/*.hpp
+        ${PROJECT_SOURCE_DIR}/include/*.h
+        ${PROJECT_SOURCE_DIR}/include/*.hpp
         )
     file(GLOB_RECURSE DOX
-        ${CMAKE_SOURCE_DIR}/doc/*
+        ${PROJECT_SOURCE_DIR}/doc/*
         )
     add_custom_command(
         OUTPUT ${DOXYGEN_STAMP_FILE}

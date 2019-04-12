@@ -1,11 +1,10 @@
-﻿// Copyright (C) 2018 Intel Corporation
+﻿// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cstdlib>
-#include <debug.h>
 #include "pugixml.hpp"
 #include "ie_common.h"
 #include "ie_api.h"

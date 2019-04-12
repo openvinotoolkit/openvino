@@ -28,9 +28,9 @@ namespace kernel_selector {
         virtual ~ConvolutionKernel_1x1_gemm_MMAD() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
         DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
         bool Validate(const Params& p, const optional_params& o) const override;

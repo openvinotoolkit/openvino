@@ -77,10 +77,13 @@ struct dnn_mem_t {
 
     size_t size() const { return mkldnn_memory_primitive_desc_get_size(mpd_); }
 
-    size_t nelems() const {
+    size_t nelems(bool with_padding_dims = false) const {
+        auto dims = with_padding_dims
+            ? md_.layout_desc.blocking.padding_dims
+            : md_.dims;
         size_t n = 1;
         for (int i = 0; i < md_.ndims; ++i)
-            n *= md_.dims[i];
+            n *= dims[i];
         return n;
     }
 

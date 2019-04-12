@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -209,7 +209,7 @@ inline static void annotateEnd(TimeResultsMap& m, TimeSampler& t) {
 #define IE_STR(x) IE_STR_(x)
 #define IE_STR_(x) #x
 
-#define IE_PROFILING_AUTO_SCOPE(NAME) IE_ITT_SCOPE(IE_STR(NAME)); IE_TIMER_SCOPE(IE_STR(NAME));
+#define IE_PROFILING_AUTO_SCOPE(NAME) IE_ITT_SCOPE(IE_STR(NAME)); IE_TIMER_SCOPE(IE_STR(NAME))
 
 struct ProfilingTask {
     std::string name;
@@ -261,7 +261,7 @@ inline static void annotateEnd(IttStatic&, IttProfilingTask& t) {
     #define IE_ITT_TASK_SCOPE(profiling_task)
 #endif
 
-#define IE_PROFILING_AUTO_SCOPE_TASK(PROFILING_TASK) IE_ITT_TASK_SCOPE(PROFILING_TASK); IE_TIMER_SCOPE(PROFILING_TASK.name);
+#define IE_PROFILING_AUTO_SCOPE_TASK(PROFILING_TASK) IE_ITT_TASK_SCOPE(PROFILING_TASK); IE_TIMER_SCOPE(PROFILING_TASK.name)
 
 inline static void anotateSetThreadName(const char* name) {
     #if ENABLE_PROFILING_ITT

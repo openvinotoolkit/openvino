@@ -1,0 +1,202 @@
+launchers:
+  - framework: dlsdk
+    device: CPU
+  - framework: caffe
+    device: CPU
+
+datasets:
+  - name: classification_dataset
+    data_source: ImageNet/original
+    annotation: ImageNet/accuracy_checker_annotations/2012/full/imagenet.pickle
+    dataset_meta: ImageNet/accuracy_checker_annotations/2012/full/imagenet.json
+    preprocessing:
+      - type: resize
+        size: 256
+      - type: crop
+        size: 224
+      - type: normalization
+        mean: IMAGENET
+    metrics:
+      - name: accuracy @ top1
+        type: accuracy
+        top_k: 1
+      - name: accuracy @ top5
+        type: accuracy
+        top_k: 5
+
+  - name: classification_dataset_1001classes
+    data_source: ImageNet/original
+    annotation: ImageNet/accuracy_checker_annotations/2012_1001classes/full/imagenet.pickle
+    dataset_meta: ImageNet/accuracy_checker_annotations/2012_1001classes/full/imagenet.json
+    preprocessing:
+      - type: bgr_to_rgb
+      - type: resize
+        size: 256
+      - type: crop
+        size: 224
+      - type: normalization
+        mean: 127.5
+        std: 127.5
+    metrics:
+      - name: accuracy @ top1
+        type: accuracy
+        top_k: 1
+      - name: accuracy @ top5
+        type: accuracy
+        top_k: 5
+
+  - name: classification_dataset_2015
+    data_source: ImageNet/original
+    annotation: ImageNet/accuracy_checker_annotations/2015/full/imagenet.pickle
+    dataset_meta: ImageNet/accuracy_checker_annotations/2015/full/imagenet.json
+    preprocessing:
+      - type: resize
+        size: 256
+      - type: crop
+        size: 224
+      - type: normalization
+        mean: 104, 117, 123
+    metrics:
+      - name: accuracy @ top1
+        type: accuracy
+        top_k: 1
+      - name: accuracy @ top5
+        type: accuracy
+        top_k: 5
+
+  - name: VOC2007
+    data_source: VOC/VOCdevkit/VOC2007/JPEGImages
+    annotation: VOC/accuracy_checker_annotations/VOC2007/full/voc07.pickle
+    dataset_meta: VOC/accuracy_checker_annotations/VOC2007/full/voc07.json
+    preprocessing:
+      - type: resize
+        size: 300
+      - type: normalization
+        mean: 104, 117, 123
+    postprocessing:
+      - type: resize_prediction_boxes
+    metrics:
+      - type: map
+        integral: 11point
+        ignore_difficult: True
+        presenter: print_scalar
+
+  - name: VOC2007_20classes
+    data_source: VOC/VOCdevkit/VOC2007/JPEGImages
+    annotation: VOC/accuracy_checker_annotations/VOC2007_20classes/full/voc07.pickle
+    dataset_meta: VOC/accuracy_checker_annotations/VOC2007_20classes/full/voc07.json
+    preprocessing:
+      - type: resize
+        size: 300
+      - type: normalization
+        mean: 104, 117, 123
+    postprocessing:
+      - type: resize_prediction_boxes
+    metrics:
+      - type: map
+        integral: 11point
+        ignore_difficult: True
+        presenter: print_scalar
+
+  - name: VOC2007_Segmentation
+    data_source: VOC/VOCdevkit/VOC2007
+    annotation: VOC/accuracy_checker_annotations/VOC2007/full/voc07_segmentation.pickle
+    dataset_meta: VOC/accuracy_checker_annotations/VOC2007/full/voc07_segmentation.json
+    postprocessing:
+      - type: resize_segmentation_mask
+        apply_to: prediction
+      - type: encode_segmentation_mask
+    metrics:
+      - type: segmentation_accuracy
+      - type: mean_iou
+      - type: mean_accuracy
+      - type: frequency_weighted_accuracy
+
+  - name: VOC2012_Segmentation
+    data_source: VOC/VOCdevkit/VOC2012
+    annotation: VOC/accuracy_checker_annotations/VOC2012/full/voc12_segmentation.pickle
+    dataset_meta: VOC/accuracy_checker_annotations/VOC2012/full/voc12_segmentation.json
+    postprocessing:
+      - type: resize_segmentation_mask
+        apply_to: prediction
+      - type: encode_segmentation_mask
+    metrics:
+      - type: segmentation_accuracy
+      - type: mean_iou
+      - type: mean_accuracy
+      - type: frequency_weighted_accuracy
+
+  - name: COCO2014_80cl
+    data_source: COCO/2014/val2014
+    annotation: COCO/accuracy_checker_annotations/2014/full/mscoco_detection_80cl.pickle
+    dataset_meta: COCO/accuracy_checker_annotations/2014/full/mscoco_detection_80cl.json
+    preprocessing:
+      - type: bgr_to_rgb
+      - type: resize
+        size: 300
+    postprocessing:
+      - type: resize_prediction_boxes
+    metrics:
+      - type: map
+        integral: 11point
+        ignore_difficult: True
+        presenter: print_scalar
+
+  - name: COCO2017_80cl
+    data_source: COCO/2017/val2017
+    annotation: COCO/accuracy_checker_annotations/2017/full/mscoco_detection_80cl.pickle
+    dataset_meta: COCO/accuracy_checker_annotations/2017/full/mscoco_detection_80cl.json
+    preprocessing:
+      - type: bgr_to_rgb
+      - type: resize
+        size: 300
+    postprocessing:
+      - type: resize_prediction_boxes
+    metrics:
+      - type: map
+        integral: 11point
+        ignore_difficult: True
+        presenter: print_scalar
+
+  - name: COCO2017_80cl_bkgr
+    data_source: COCO/2017/val2017
+    annotation: COCO/accuracy_checker_annotations/2017/full/mscoco_detection_80cl_bkgr.pickle
+    dataset_meta: COCO/accuracy_checker_annotations/2017/full/mscoco_detection_80cl_bkgr.json
+    preprocessing:
+      - type: bgr_to_rgb
+      - type: resize
+        size: 300
+    postprocessing:
+      - type: resize_prediction_boxes
+    metrics:
+      - type: map
+        integral: 11point
+        ignore_difficult: True
+        presenter: print_scalar
+
+  - name: COCO2017_90cl_bkgr
+    data_source: COCO/2017/val2017
+    annotation: COCO/accuracy_checker_annotations/2017/full/mscoco_detection_90cl_bkgr.pickle
+    dataset_meta: COCO/accuracy_checker_annotations/2017/full/mscoco_detection_90cl_bkgr.json
+    preprocessing:
+      - type: bgr_to_rgb
+      - type: resize
+        size: 300
+    postprocessing:
+      - type: resize_prediction_boxes
+    metrics:
+      - type: map
+        integral: 11point
+        ignore_difficult: True
+        presenter: print_scalar
+
+  - name: lfw
+    data_source: LFW/lfw
+    annotation: LFW/accuracy_checker_annotations/full/lfw.pickle
+    preprocessing:
+      - type: point_alignment
+        size: 400
+      - type: resize
+        size: 160
+    metrics:
+      - type: pairwise_accuracy_subsets

@@ -42,6 +42,7 @@ namespace kernel_selector
         k.EnableSplitSupport();
         k.EnableDepthwiseSeparableOpt();
         k.EnableGradient();
+        k.EnableGroupedConvolution();
         return k;
     }
 

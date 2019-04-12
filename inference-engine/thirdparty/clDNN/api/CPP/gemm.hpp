@@ -49,10 +49,10 @@ struct gemm : public primitive_base<gemm, CLDNN_PRIMITIVE_DESC(gemm)>
         /// @brief Constructs gemm layer.
         /// @brief Primitive id containing first matrix
         /// @brief Primitive id containing second matrix
-        /// @brief Variable containing ALPHA parameter
-        /// @brief Variable containing BETA parameter
         /// @brief Flag for transposing first input matrix
         /// @brief Flag for transposing second input matrix
+        /// @brief Variable containing ALPHA parameter
+        /// @brief Variable containing BETA parameter
 
         gemm(
             const primitive_id& id,
@@ -75,10 +75,11 @@ struct gemm : public primitive_base<gemm, CLDNN_PRIMITIVE_DESC(gemm)>
         /// @brief Primitive id containing first matrix
         /// @brief Primitive id containing second matrix
         /// @brief Primitive id containing third matrix 
-        /// @brief Variable containing ALPHA parameter
-        /// @brief Variable containing BETA parameter
         /// @brief Flag for transposing first input matrix
         /// @brief Flag for transposing second input matrix
+        /// @brief Variable containing ALPHA parameter
+        /// @brief Variable containing BETA parameter
+
         gemm(
             const primitive_id& id,
             const primitive_id& input,

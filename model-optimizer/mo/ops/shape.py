@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 import logging as log
 
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
@@ -25,11 +25,17 @@ class Shape(Op):
     op = 'Shape'
     enabled = True
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
+            'type': __class__.op,
             'op': __class__.op,
             'infer': __class__.infer,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
         }, attrs)
+
+    def supported_attrs(self):
+        return []
 
     @staticmethod
     def infer(node):
@@ -44,6 +50,7 @@ class Shape(Op):
                 node.out_node().value = np.array(value, dtype=node.data_type)
             else:
                 node.out_node().value = np.array(value)
+            node.out_node().shape = np.array(node.out_node().value.shape, dtype=np.int64)
         else:
             log.info('Can\'t infer shape and value for shape operation due to undefined input shape')
 

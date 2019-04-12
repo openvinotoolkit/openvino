@@ -15,7 +15,6 @@
 */
 
 #include "convolution_kernel_tutorial.h"
-#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -181,7 +180,7 @@ namespace kernel_selector {
 
     KernelsData ConvolutionKernel_Tutorial::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        return GetCommonKernelsData(params, options);
+        return GetTunedKernelsDataByIndex(params, options);
     }
 
 #endif

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,14 @@ from mo.utils.replacement_pattern import ReplacementPattern
 class MiddleReplacementPattern(ReplacementPattern):
     registered_ops = {}
     registered_cls = []
+
+    def run_after(self):
+        from extensions.middle.pass_separator import MiddleStart
+        return [MiddleStart]
+
+    def run_before(self):
+        from extensions.middle.pass_separator import MiddleFinish
+        return [MiddleFinish]
 
     @classmethod
     def class_type(cls):

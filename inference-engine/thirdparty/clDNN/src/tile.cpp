@@ -30,6 +30,8 @@ primitive_type_id tile_type_id()
 
 layout tile_inst::calc_output_layout(tile_node const& node)
 {
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for tile_node!");
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();

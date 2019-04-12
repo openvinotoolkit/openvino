@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 import logging as log
 
-import networkx as nx
 import numpy as np
 
+from mo.graph.graph import Graph
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.relu import ReLU
 
 
-def _convert_to_leaky_relu_action(graph: nx.MultiDiGraph, matches: dict):
+def _convert_to_leaky_relu_action(graph: Graph, matches: dict):
     """
     This function checks given patten and if pattern satisfies all requirements, converts to ReLU with negative slope
     """
@@ -73,7 +73,7 @@ def _convert_to_leaky_relu_action(graph: nx.MultiDiGraph, matches: dict):
               ''.format(eltwise_op.id, power_op.id))
 
 
-def convert_mul_eltwise_to_leaky_relu(graph: nx.MultiDiGraph):
+def convert_mul_eltwise_to_leaky_relu(graph: Graph):
     """
     This function finds next subgraph:
     -->Data-------->Eltwise(Max)-->Data

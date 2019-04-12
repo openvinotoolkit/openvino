@@ -1,11 +1,9 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 2.8)
-
-include ("options")
+include (options)
 
 #this options are aimed to optimize build time on development system
 
@@ -21,8 +19,6 @@ ie_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON)
 
 ie_option (ENABLE_PROFILING_RAW "Raw counters profiling (just values, no start/stop time or timeline)" OFF)
 
-#
-
 # "MKL-DNN library might use MKL-ML or OpenBLAS for gemm tasks: MKL|OPENBLAS|JIT"
 if (NOT GEMM STREQUAL "MKL"
         AND NOT GEMM STREQUAL "OPENBLAS"
@@ -30,15 +26,17 @@ if (NOT GEMM STREQUAL "MKL"
     set (GEMM "JIT")
     message(STATUS "GEMM should be set to MKL, OPENBLAS or JIT. Default option is " ${GEMM})
 endif()
+set(GEMM "${GEMM}" CACHE STRING "Gemm implementation" FORCE)
 list (APPEND IE_OPTIONS GEMM)
 
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if (NOT THREADING STREQUAL "TBB"
         AND NOT THREADING STREQUAL "OMP"
         AND NOT THREADING STREQUAL "SEQ")
-    set (THREADING "OMP")
+    set (THREADING "TBB")
     message(STATUS "THREADING should be set to TBB, OMP or SEQ. Default option is " ${THREADING})
 endif()
+set(THREADING "${THREADING}" CACHE STRING "Threading" FORCE)
 list (APPEND IE_OPTIONS THREADING)
 
 # Enable postfixes for Debug/Release builds
@@ -53,7 +51,9 @@ else()
     set (IE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX_LIN})
     set (IE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX_LIN})
 endif()
+set(IE_DEBUG_POSTFIX "${IE_DEBUG_POSTFIX}" CACHE STRING "Debug postfix" FORCE)
 list (APPEND IE_OPTIONS IE_DEBUG_POSTFIX)
+set(IE_RELEASE_POSTFIX "${IE_RELEASE_POSTFIX}" CACHE STRING "Release postfix" FORCE)
 list (APPEND IE_OPTIONS IE_RELEASE_POSTFIX)
 
 ie_option (ENABLE_TESTS "unit and functional tests" OFF)
@@ -62,6 +62,7 @@ ie_option (ENABLE_GAPI_TESTS "unit tests for GAPI kernels" OFF)
 
 ie_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF)
 
+ie_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON)
 
 ie_option (ENABLE_SAMPLES_CORE "console samples core library" ON)
 
@@ -92,6 +93,9 @@ ie_option (ENABLE_AFFINITY_GENERATOR "enables affinity generator build" OFF)
 ie_option (ENABLE_DEBUG_SYMBOLS "generates symbols for debugging" OFF)
 
 ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
+
+ie_option(ENABLE_CPPLINT "Enable cpplint checks during the build" OFF)
+ie_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF)
 
 #environment variables used
 

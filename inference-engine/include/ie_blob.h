@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -304,6 +304,17 @@ public:
     }
 
     /**
+     * @brief Creates a TBlob object with the specified dimensions, layout and custom memory allocator but does not allocate the memory.
+     * @param p Precision
+     * @param l Layout
+     * @param dims Tensor dimensions
+     * @param alloc Allocator to be used
+     */
+    TBlob(const TensorDesc& tensorDesc, const std::shared_ptr<IAllocator>& alloc)
+            : Blob(tensorDesc), _allocator(alloc) {
+    }
+
+    /**
      * @deprecated Please use TensorDesc for Blob initialization.
      */
     explicit TBlob(Precision p, Layout l) : Blob(p, l) {}
@@ -588,7 +599,9 @@ protected:
  */
 template<class Type>
 inline typename TBlob<Type>::Ptr make_shared_blob(Precision p, Layout l, const SizeVector &dims) {
-    IE_ASSERT(p.hasStorageType<Type>());
+    if (!p.hasStorageType<Type>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<TBlob<Type>>(p, l, dims);
 }
 
@@ -602,7 +615,9 @@ inline typename TBlob<Type>::Ptr make_shared_blob(Precision p, Layout l, const S
  */
 template<class Type>
 inline typename TBlob<Type>::Ptr make_shared_blob(Precision p, const SizeVector &dims) {
-    IE_ASSERT(p.hasStorageType<Type>());
+    if (!p.hasStorageType<Type>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     return make_shared_blob<Type>(p, TensorDesc::getLayoutByDims(dims), dims);
 }
 
@@ -616,7 +631,9 @@ inline typename TBlob<Type>::Ptr make_shared_blob(Precision p, const SizeVector 
  */
 template<typename Type, class TArg>
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(Precision p, Layout l, const TArg &arg) {
-    IE_ASSERT(p.hasStorageType<Type>());
+    if (!p.hasStorageType<Type>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(p, l, arg);
 }
 
@@ -630,7 +647,9 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(Precision p, 
  */
 template<typename Type, class TArg>
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(Precision p, const TArg &arg) {
-    IE_ASSERT(p.hasStorageType<Type>());
+    if (!p.hasStorageType<Type>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     return make_shared_blob<Type, TArg>(p, TensorDesc::getLayoutByDims(arg), arg);
 }
 
@@ -642,7 +661,9 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(Precision p, 
  */
 template<typename Type>
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc) {
-    IE_ASSERT(tensorDesc.getPrecision().hasStorageType<Type>());
+    if (!tensorDesc.getPrecision().hasStorageType<Type>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc);
 }
 
@@ -656,8 +677,25 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorD
  */
 template<typename Type>
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc, Type * ptr, size_t size = 0) {
-    IE_ASSERT(tensorDesc.getPrecision().hasStorageType<Type>());
+    if (!tensorDesc.getPrecision().hasStorageType<Type>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc, ptr, size);
+}
+
+/**
+ * @brief Creates a blob with the given tensor descriptor and allocator.
+ * @tparam Type Type of the shared pointer to be created
+ * @param tensorDesc Tensor descriptor for Blob creation
+ * @param alloc Shared pointer to IAllocator to use in the blob
+ * @return A shared pointer to the newly created blob of the given type
+ */
+template<typename Type>
+inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc, const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
+    if (!tensorDesc.getPrecision().hasStorageType<Type>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
+    return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc, alloc);
 }
 
 /**
@@ -693,7 +731,9 @@ inline typename InferenceEngine::TBlob<TypeTo>::Ptr make_shared_blob(const TBlob
  */
 template<typename TypeTo>
 inline typename InferenceEngine::TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l = NCHW) {
-    IE_ASSERT(p.hasStorageType<TypeTo>());
+    if (!p.hasStorageType<TypeTo>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<TBlob<TypeTo>>(p, l);
 }
 
@@ -709,7 +749,9 @@ inline typename InferenceEngine::TBlob<TypeTo>::Ptr make_shared_blob(Precision p
  */
 template<typename TypeTo>
 inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, SizeVector dims, const std::vector<TypeTo> &arg) {
-    IE_ASSERT(p.hasStorageType<TypeTo>());
+    if (!p.hasStorageType<TypeTo>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     auto blob = std::make_shared<TBlob<TypeTo>>(p, l, dims);
     blob->set(arg);
     return blob;
@@ -726,7 +768,9 @@ inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, SizeV
  */
 template<typename TypeTo>
 inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, const std::vector<TypeTo> &arg) {
-    IE_ASSERT(p.hasStorageType<TypeTo>());
+    if (!p.hasStorageType<TypeTo>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     auto blob = std::make_shared<TBlob<TypeTo>>(p, l);
     blob->set(arg);
     return blob;
@@ -742,7 +786,9 @@ inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, const
  */
 template<typename TypeTo>
 inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, const std::vector<TypeTo> &arg) {
-    IE_ASSERT(p.hasStorageType<TypeTo>());
+    if (!p.hasStorageType<TypeTo>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     return make_shared_blob<TypeTo>(p, TensorDesc::getLayoutByDims(arg), arg);
 }
 
@@ -758,7 +804,9 @@ inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, const std::vect
  */
 template <typename TypeTo>
 inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, const SizeVector &dims, TypeTo * ptr, size_t size = 0) {
-    IE_ASSERT(p.hasStorageType<TypeTo>());
+    if (!p.hasStorageType<TypeTo>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     auto blob = std::make_shared<TBlob<TypeTo>>(p, l, dims, ptr, size);
     return blob;
 }
@@ -774,7 +822,9 @@ inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, const
  */
 template <typename TypeTo>
 inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, const SizeVector &dims, TypeTo * ptr, size_t size = 0) {
-    IE_ASSERT(p.hasStorageType<TypeTo>());
+    if (!p.hasStorageType<TypeTo>())
+        THROW_IE_EXCEPTION << "Cannot make shared blob! "
+                           << "The blob type cannot be used to store objects of current precision";
     return make_shared_blob<TypeTo>(p, TensorDesc::getLayoutByDims(dims), dims, ptr, size);
 }
 

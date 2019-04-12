@@ -1,0 +1,82 @@
+models:
+  - name: landmarks-regression-retail-0009
+
+    launchers:
+      - framework: dlsdk
+        tags:
+          - FP32
+        device: CPU
+        model:   landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
+        weights: landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.bin
+        adapter: landmarks_regression
+        cpu_extensions: AUTO
+
+      - framework: dlsdk
+        tags:
+          - GPU32
+        device: GPU
+        model:   landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
+        weights: landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.bin
+        adapter: landmarks_regression
+
+      - framework: dlsdk
+        tags:
+          - GPU16
+        device: GPU
+        model:   landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.xml
+        weights: landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.bin
+        adapter: landmarks_regression
+
+      - framework: dlsdk
+        device: MYRIAD
+        model:   landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.xml
+        weights: landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.bin
+        adapter: landmarks_regression
+
+      - framework: dlsdk
+        device: HDDL
+        model:   landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.xml
+        weights: landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.bin
+        adapter: landmarks_regression
+
+      - framework: dlsdk
+        tags:
+          - FPGA16
+        device: HETERO:FPGA,CPU
+        model:   landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
+        weights: landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.bin
+        adapter: landmarks_regression
+        cpu_extensions: AUTO
+        bitstream: 2019R1_A10DK_FP16_AlexNet_GoogleNet.aocx
+
+      - framework: dlsdk
+        tags:
+          - FPGA11
+        device: HETERO:FPGA,CPU
+        model:   landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
+        weights: landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.bin
+        adapter: landmarks_regression
+        cpu_extensions: libcpu_extension_avx2.so
+        bitstream: 2019R1_A10DK_FP11_RMNet.aocx
+
+    datasets:
+      - name: vgg2face
+        data_source: VGGFaces2/test
+        annotation_conversion:
+          converter: landmarks_regression
+          landmarks_csv_file: VGGFaces2/bb_landmark/loose_landmark_test.csv
+          bbox_csv_file: VGGFaces2/bb_landmark/loose_bb_test.csv
+
+        preprocessing:
+          - type: crop_rect
+          - type: resize
+            size: 48
+
+        postprocessing:
+          - type: normalize_landmarks_points
+            use_annotation_rect: True
+
+        metrics:
+          - type: per_point_normed_error
+            presenter: print_vector
+          - type: normed_error

@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,7 @@ template <class T>
 inline  typename std::enable_if<is_one_of<T,
                                           DeconvolutionLayer,
                                           ConvolutionLayer,
+                                          BinaryConvolutionLayer,
                                           PoolingLayer>::value, Paddings>::type
 getPaddings(const T & layer) {
     return getPaddingsImpl(layer);

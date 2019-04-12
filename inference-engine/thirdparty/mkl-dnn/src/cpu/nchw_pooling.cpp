@@ -30,44 +30,44 @@ namespace impl {
 namespace cpu {
 
 template <impl::data_type_t data_type>
-void nchw_pooling_fwd_t<data_type>::execute_forward() {
+void nchw_pooling_fwd_t<data_type>::execute_forward() const {
     using namespace alg_kind;
 
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto dst = reinterpret_cast<data_t*>(this->memory(0));
-    auto ws = conf_.desc()->alg_kind == alg_kind::pooling_max ?
+    auto ws = pd()->desc()->alg_kind == alg_kind::pooling_max ?
         reinterpret_cast<unsigned char *>(this->memory(1)) : nullptr;
 
-    const memory_desc_wrapper ws_d(conf_.workspace_pd());
-    const memory_desc_wrapper src_d(conf_.src_pd());
-    const memory_desc_wrapper dst_d(conf_.dst_pd());
+    const memory_desc_wrapper ws_d(pd()->workspace_pd());
+    const memory_desc_wrapper src_d(pd()->src_pd());
+    const memory_desc_wrapper dst_d(pd()->dst_pd());
     const data_type_t ws_dt = ws ? ws_d.data_type() : data_type::undef;
 
     src += src_d.off_l(0);
     dst += dst_d.off_l(0);
 
-    const int MB = conf_.MB();
-    const int C = conf_.C();
-    const int OD = conf_.OD();
-    const int OH = conf_.OH();
-    const int OW = conf_.OW();
-    const int ID = conf_.ID();
-    const int IH = conf_.IH();
-    const int IW = conf_.IW();
-    const int KD = conf_.KD();
-    const int KH = conf_.KH();
-    const int KW = conf_.KW();
-    const int SD = conf_.KSD();
-    const int SH = conf_.KSH();
-    const int SW = conf_.KSW();
-    const int padF = conf_.padFront();
-    const int padT = conf_.padT();
-    const int padL = conf_.padL();
-    const int padBack = conf_.padBack();
-    const int padB = conf_.padB();
-    const int padR = conf_.padR();
+    const int MB = pd()->MB();
+    const int C = pd()->C();
+    const int OD = pd()->OD();
+    const int OH = pd()->OH();
+    const int OW = pd()->OW();
+    const int ID = pd()->ID();
+    const int IH = pd()->IH();
+    const int IW = pd()->IW();
+    const int KD = pd()->KD();
+    const int KH = pd()->KH();
+    const int KW = pd()->KW();
+    const int SD = pd()->KSD();
+    const int SH = pd()->KSH();
+    const int SW = pd()->KSW();
+    const int padF = pd()->padFront();
+    const int padT = pd()->padT();
+    const int padL = pd()->padL();
+    const int padBack = pd()->padBack();
+    const int padB = pd()->padB();
+    const int padR = pd()->padR();
 
-    auto alg = conf_.desc()->alg_kind;
+    auto alg = pd()->desc()->alg_kind;
     
     auto set_ws = [=](int mb, int c, int od, int oh, int ow, int value) {
         if (ws) {
@@ -160,7 +160,7 @@ void nchw_pooling_fwd_t<data_type>::execute_forward() {
     };
 
 
-    if (conf_.desc()->alg_kind == pooling_max) {
+    if (pd()->desc()->alg_kind == pooling_max) {
         parallel_nd(MB, C, OD, OH, OW,
             [&](int mb, int c, int od, int oh, int ow) {
             size_t dst_offset
@@ -191,37 +191,37 @@ void nchw_pooling_fwd_t<data_type>::execute_forward() {
 }
 
 template <impl::data_type_t data_type>
-void nchw_pooling_bwd_t<data_type>::execute_backward() {
+void nchw_pooling_bwd_t<data_type>::execute_backward() const {
     using namespace alg_kind;
 
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(0));
-    auto ws = conf_.desc()->alg_kind != alg_kind::pooling_max ? nullptr :
+    auto ws = pd()->desc()->alg_kind != alg_kind::pooling_max ? nullptr :
         reinterpret_cast<const unsigned char *>(this->input_memory(1));
     auto diff_src = reinterpret_cast<data_t*>(this->memory(0));
 
-    const memory_desc_wrapper ws_d(conf_.workspace_pd());
+    const memory_desc_wrapper ws_d(pd()->workspace_pd());
 
-    const int MB = conf_.MB();
-    const int C = conf_.C();
-    const int OD = conf_.OD();
-    const int OH = conf_.OH();
-    const int OW = conf_.OW();
-    const int ID = conf_.ID();
-    const int IH = conf_.IH();
-    const int IW = conf_.IW();
-    const int KD = conf_.KD();
-    const int KH = conf_.KH();
-    const int KW = conf_.KW();
-    const int SD = conf_.KSD();
-    const int SH = conf_.KSH();
-    const int SW = conf_.KSW();
-    const int padF = conf_.padFront();
-    const int padT = conf_.padT();
-    const int padL = conf_.padL();
+    const int MB = pd()->MB();
+    const int C = pd()->C();
+    const int OD = pd()->OD();
+    const int OH = pd()->OH();
+    const int OW = pd()->OW();
+    const int ID = pd()->ID();
+    const int IH = pd()->IH();
+    const int IW = pd()->IW();
+    const int KD = pd()->KD();
+    const int KH = pd()->KH();
+    const int KW = pd()->KW();
+    const int SD = pd()->KSD();
+    const int SH = pd()->KSH();
+    const int SW = pd()->KSW();
+    const int padF = pd()->padFront();
+    const int padT = pd()->padT();
+    const int padL = pd()->padL();
 
-    const bool is_3d = conf_.desc()->diff_src_desc.ndims == 5;
+    const bool is_3d = pd()->desc()->diff_src_desc.ndims == 5;
 
-    auto alg = conf_.desc()->alg_kind;
+    auto alg = pd()->desc()->alg_kind;
 
     auto apply_offset = [=](int index, int offset) {
         return (index > offset) ? index - offset : 0;
@@ -296,7 +296,7 @@ void nchw_pooling_bwd_t<data_type>::execute_backward() {
         }
     };
 
-    if (conf_.desc()->alg_kind == pooling_max) {
+    if (pd()->desc()->alg_kind == pooling_max) {
         parallel_nd(MB, C, [&](int mb, int c) {
             size_t diff_dst_offset = (size_t)mb*C*OD*OH*OW
                 + (size_t)c*OD*OH*OW;

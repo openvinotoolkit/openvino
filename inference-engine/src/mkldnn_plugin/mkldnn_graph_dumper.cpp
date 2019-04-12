@@ -1,10 +1,23 @@
-// Copyright (C) 2018 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2016-2018 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #include "mkldnn_graph_dumper.h"
 #include "cnn_network_impl.hpp"
 #include "ie_util_internal.hpp"
+#include "exec_graph_info.hpp"
 
 #include <vector>
 #include <string>
@@ -33,7 +46,7 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
     net->setPrecision(Precision::FP32);
-    net->setName("internal_cpu_graph");
+    net->setName("runtime_cpu_graph");
     std::map<MKLDNNNodePtr, CNNLayerPtr> node2layer;
 
     // Copy all nodes to network
@@ -109,6 +122,7 @@ static std::map<Type, std::string> type_n2l {
     {Lrn, "Lrn"},
     {Pooling, "Pool"},
     {FullyConnected, "FC"},
+    {FullyConnected_Activation, "FC_Activ"},
     {SoftMax, "SoftMax"},
     {Split, "Split"},
     {Concatenation, "Concat"},
@@ -122,37 +136,24 @@ static std::map<Type, std::string> type_n2l {
     {BatchNormalization, "BatchNorm"},
     {Flatten, "Flatten"},
     {Permute, "Permute"},
+    {Quantize, "Quantize"},
+    {BinaryConvolution, "BinaryConvolution"},
     {MemoryOutput, "MemoryIn"},
     {MemoryInput, "MemoryOut"}
 };
 
-static const std::string ORIGIN_NAMES = "origin";
-static const std::string IMPL_TYPE    = "impl";
-static const std::string PRECISION    = "prec";
-static const std::string PERF_COUNTER = "perf";
-
-static const std::string BLUE  = "#D8D9F1";
-static const std::string GREEN = "#D9EAD3";
+static const char BLUE[]  = "#D8D9F1";
+static const char GREEN[] = "#D9EAD3";
 
 void copy_node_metadata(const MKLDNNNodePtr &node, CNNLayer::Ptr &layer) {
     layer->type = type_n2l[node->getType()];
     layer->name = node->getName();  // Is ID
 
-    if (node->getCnnLayer()) {
-        // Original layer names
-        std::vector<MKLDNNNodePtr> internal = node->getFusedWith();
-        auto &merged = node->getMergeWith();
-        internal.insert(internal.end(), merged.begin(), merged.end());
-
-        std::string orig_names = node->getCnnLayer()->name;
-        for (auto &sub_node : internal)
-            orig_names += " " + sub_node->getCnnLayer()->name;
-
-        layer->params[ORIGIN_NAMES] = orig_names;
-    }
+    // Original layers
+    layer->params[ExecGraphInfoSerialization::ORIGIN_NAMES] = node->getOriginalLayers();
 
     // Implementation type name
-    layer->params[IMPL_TYPE] = node->getPrimitiveDescriptorType();
+    layer->params[ExecGraphInfoSerialization::IMPL_TYPE] = node->getPrimitiveDescriptorType();
 
     // Precision
     // TODO: That is not fully correct mapping type to precision.
@@ -169,11 +170,13 @@ void copy_node_metadata(const MKLDNNNodePtr &node, CNNLayer::Ptr &layer) {
     if (impl_type & jit && impl_type & avx512 &&
         node->getParentEdgeAt(0)->getDesc().getPrecision() == Precision::U8)  precision = "INT8";
 
-    layer->params[PRECISION] = precision;
+    layer->params[ExecGraphInfoSerialization::PRECISION] = precision;
 
     // Performance
     if (node->PerfCounter().avg() != 0) {
-        layer->params[PERF_COUNTER] = std::to_string(node->PerfCounter().avg())+ " mcs";
+        layer->params[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(node->PerfCounter().avg());
+    } else {
+        layer->params[ExecGraphInfoSerialization::PERF_COUNTER] = "not_executed";  // it means it was not calculated yet
     }
 }
 
@@ -183,25 +186,29 @@ void drawer_callback(const InferenceEngine::CNNLayerPtr layer,
     const auto &params = layer->params;
 
     // Implementation
-    auto impl = params.find(IMPL_TYPE);
+    auto impl = params.find(ExecGraphInfoSerialization::IMPL_TYPE);
     if (impl != params.end()) {
         printed_properties.push_back({"impl", impl->second});
     }
 
     // Original names
-    auto orig = params.find(ORIGIN_NAMES);
+    auto orig = params.find(ExecGraphInfoSerialization::ORIGIN_NAMES);
     if (orig != params.end()) {
         printed_properties.push_back({"originals", orig->second});
     }
 
     // Precision
-    auto prec = params.find(PRECISION);
+    auto prec = params.find(ExecGraphInfoSerialization::PRECISION);
     if (prec != params.end()) {
         printed_properties.push_back({"precision", prec->second});
     }
 
     // Set color
     node_properties.push_back({"fillcolor", prec->second == "FP32" ? GREEN : BLUE});
+
+    // Set xlabel containing PM data if calculated
+    auto perf = layer->params.find(ExecGraphInfoSerialization::PERF_COUNTER);
+    node_properties.push_back({"xlabel", (perf != layer->params.end()) ? perf->second : ""});
 }
 
 }  // namespace MKLDNNPlugin

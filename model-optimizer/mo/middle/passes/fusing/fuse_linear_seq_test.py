@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -79,6 +79,7 @@ nodes_attributes = {
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'placeholder_3': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
     'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
 }
 
 
@@ -102,6 +103,7 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
                              ('placeholder_1_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -110,7 +112,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -125,6 +126,7 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('add_1_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
                                  ('placeholder_1_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -133,7 +135,6 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'add_1_w': {'shape': np.array([1]), 'value': np.array([36])},
                                  'mul_1': {'can_be_fused': True},
                                  'add_1': {'can_be_fused': True},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 
@@ -167,7 +168,8 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('placeholder_1_data', 'concat_1'),
                              ('mul_2_data', 'placeholder_2'),
                              ('placeholder_2', 'placeholder_2_data'),
-                             ('placeholder_2_data', 'concat_1')
+                             ('placeholder_2_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
@@ -177,7 +179,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -194,7 +195,8 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('placeholder_1_data', 'concat_1'),
                                  ('add_1_data', 'placeholder_2'),
                                  ('placeholder_2', 'placeholder_2_data'),
-                                 ('placeholder_2_data', 'concat_1')
+                                 ('placeholder_2_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
@@ -204,7 +206,6 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'add_1_w': {'shape': np.array([1]), 'value': np.array([36])},
                                  'mul_1': {'can_be_fused': True},
                                  'add_1': {'can_be_fused': True},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
         graph.graph['layout'] = 'NHWC'
@@ -234,7 +235,8 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('concat_1', 'concat_1_data'),
                              ('add_1_data', 'placeholder_2'),
                              ('placeholder_2', 'placeholder_2_data'),
-                             ('placeholder_2_data', 'concat_1')
+                             ('placeholder_2_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
@@ -244,7 +246,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -263,7 +264,8 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('concat_1', 'concat_1_data'),
                                  ('add_1_data', 'placeholder_2'),
                                  ('placeholder_2', 'placeholder_2_data'),
-                                 ('placeholder_2_data', 'concat_1')
+                                 ('placeholder_2_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
@@ -273,7 +275,6 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'mul_1_w': {'shape': np.array([1]), 'value': 6},
                                  'add_1_w': {'shape': np.array([1]), 'value': 6},
                                  'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 
@@ -303,7 +304,8 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('concat_1', 'concat_1_data'),
                              ('mul_1_data', 'placeholder_2'),
                              ('placeholder_2', 'placeholder_2_data'),
-                             ('placeholder_2_data', 'concat_1')
+                             ('placeholder_2_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
@@ -313,7 +315,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -332,7 +333,8 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('concat_1', 'concat_1_data'),
                                  ('mul_1_data', 'placeholder_2'),
                                  ('placeholder_2', 'placeholder_2_data'),
-                                 ('placeholder_2_data', 'concat_1')
+                                 ('placeholder_2_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
@@ -342,7 +344,6 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'mul_1_w': {'shape': np.array([1]), 'value': 6},
                                  'add_1_w': {'shape': np.array([1]), 'value': np.array([36])},
                                  'mul_2_w': {'shape': np.array([1]), 'value': np.array([6])},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 
@@ -373,7 +374,8 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('concat_1', 'concat_1_data'),
                              ('mul_1_data', 'placeholder_2'),
                              ('placeholder_2', 'placeholder_2_data'),
-                             ('placeholder_2_data', 'concat_1')
+                             ('placeholder_2_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
@@ -383,7 +385,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 0},
                              'mul_2_w': {'shape': np.array([1]), 'value': 1},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -396,13 +397,13 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('concat_1', 'concat_1_data'),
                                  ('mul_1_data', 'placeholder_2'),
                                  ('placeholder_2', 'placeholder_2_data'),
-                                 ('placeholder_2_data', 'concat_1')
+                                 ('placeholder_2_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 
@@ -434,7 +435,8 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('concat_1', 'concat_1_data'),
                              ('mul_1_data', 'placeholder_2'),
                              ('placeholder_2', 'placeholder_2_data'),
-                             ('placeholder_2_data', 'concat_1')
+                             ('placeholder_2_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
@@ -444,7 +446,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 1},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -460,14 +461,14 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('concat_1', 'concat_1_data'),
                                  ('mul_1_data', 'placeholder_2'),
                                  ('placeholder_2', 'placeholder_2_data'),
-                                 ('placeholder_2_data', 'concat_1')
+                                 ('placeholder_2_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_w': {'shape': np.array([1]), 'value': 6},
                                  'add_1_w': {'shape': np.array([1]), 'value': np.array([6])},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 
@@ -498,7 +499,8 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('concat_1', 'concat_1_data'),
                              ('mul_1_data', 'placeholder_2'),
                              ('placeholder_2', 'placeholder_2_data'),
-                             ('placeholder_2_data', 'concat_1')
+                             ('placeholder_2_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
@@ -508,7 +510,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 0},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -524,14 +525,14 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('concat_1', 'concat_1_data'),
                                  ('mul_1_data', 'placeholder_2'),
                                  ('placeholder_2', 'placeholder_2_data'),
-                                 ('placeholder_2_data', 'concat_1')
+                                 ('placeholder_2_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_w': {'shape': np.array([1]), 'value': 6},
                                  'mul_2_w': {'shape': np.array([1]), 'value': np.array([6])},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 
@@ -558,6 +559,7 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -566,7 +568,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 1},
                              'add_1_w': {'shape': np.array([1]), 'value': 0},
                              'mul_2_w': {'shape': np.array([1]), 'value': 1},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -574,10 +575,9 @@ class LinSeqFusingTests(unittest.TestCase):
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
+                                 ('concat_1_data', 'op_output')
                                  ],
-                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'concat_1_data': {'is_output': True}
-                                 },
+                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])}},
                                 nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
@@ -603,6 +603,7 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -611,7 +612,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -625,13 +625,13 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_w': {'shape': np.array([1]), 'value': np.array([36])},
                                  'add_1_w': {'shape': np.array([1]), 'value': np.array([36])},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 
@@ -658,6 +658,7 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -666,7 +667,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([3]), 'value': np.array([6, 6, 6])},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -680,13 +680,13 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_w': {'shape': np.array([3]), 'value': np.array([36, 36, 36])},
                                  'add_1_w': {'shape': np.array([3]), 'value': np.array([36, 36, 36])},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 
@@ -716,6 +716,7 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
                              ('placeholder_1_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -726,7 +727,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
                              'mul_1': {'can_be_fused': False},
                              'add_1': {'can_be_fused': False},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -744,6 +744,7 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('mul_2_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
                                  ('placeholder_1_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -754,7 +755,6 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'mul_2_w': {'shape': np.array([1]), 'value': 6},
                                  'mul_1': {'can_be_fused': False},
                                  'add_1': {'can_be_fused': False},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 
@@ -784,6 +784,7 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('mul_2_data', 'concat_1'),
                              ('concat_1', 'concat_1_data'),
                              ('placeholder_1_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -793,7 +794,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
                              'add_1': {'can_be_fused': False},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -811,6 +811,7 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('mul_2_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
                                  ('placeholder_1_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -820,7 +821,6 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'add_1_w': {'shape': np.array([1]), 'value': 6},
                                  'mul_2_w': {'shape': np.array([1]), 'value': 6},
                                  'add_1': {'can_be_fused': False},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 
@@ -856,6 +856,7 @@ class LinSeqFusingTests(unittest.TestCase):
                              ('mul_2_w', 'mul_4'),
                              ('mul_4', 'mul_4_data'),
                              ('mul_4_data', 'concat_1'),
+                             ('concat_1_data', 'op_output')
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -866,7 +867,6 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_w': {'shape': np.array([1]), 'value': 6},
                              'add_1_w': {'shape': np.array([1]), 'value': 6},
                              'mul_2_w': {'shape': np.array([1]), 'value': 6},
-                             'concat_1_data': {'is_output': True}
                              },
                             nodes_with_edges_only=True)
 
@@ -884,6 +884,7 @@ class LinSeqFusingTests(unittest.TestCase):
                                  ('mul_3', 'mul_3_data'),
                                  ('mul_3_w', 'mul_3'),
                                  ('mul_3_data', 'concat_1'),
+                                 ('concat_1_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
@@ -894,7 +895,6 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'add_1_w': {'shape': np.array([1]), 'value': np.array([36])},
                                  'mul_1': {'can_be_fused': True},
                                  'add_1': {'can_be_fused': True},
-                                 'concat_1_data': {'is_output': True}
                                  },
                                 nodes_with_edges_only=True)
 

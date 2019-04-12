@@ -27,9 +27,9 @@ namespace kernel_selector
         virtual ~EltwiseKernel_vload8() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
 
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         virtual bool Validate(const Params& p, const optional_params& o) const override;
         virtual JitConstants GetJitConstants(const eltwise_params& params) const override;
     };

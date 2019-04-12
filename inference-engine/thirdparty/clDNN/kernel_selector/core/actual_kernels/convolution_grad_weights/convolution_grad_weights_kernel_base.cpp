@@ -56,7 +56,8 @@ namespace kernel_selector
             MakeJitConstant("DILATION",                     cp.dilation),
             MakeJitConstant("FILTER_ARRAY_NUM",             cp.split),
             MakeJitConstant("INPUT0_OFFSET_WITH_PADDING",   input_offset_with_padding),
-            MakeJitConstant("DEPTHWISE_SEPARABLE_OPT",      cp.depthwiseSeparableOpt),
+            MakeJitConstant("DEPTHWISE_SEPARABLE_OPT",      cp.depthwise_separable_opt),
+            MakeJitConstant("OUTPUT_GRAD_W",                cp.output_grad_w),
         });
 
         return jit;
@@ -124,7 +125,7 @@ namespace kernel_selector
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         auto& kernel = kd.kernels[0];
-        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, ROUND_ROBIN, true, !orgParams.bias.empty());
+        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, DEFAULT, true, !orgParams.bias.empty());
         if (newParams.use_momentum)
         {
             kernel.arguments.push_back({ ArgumentDescriptor::Types::PREV_WEIGHTS_GRADIENT, 0 });

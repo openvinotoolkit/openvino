@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -35,6 +35,9 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'data'},
                     'scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'data'},
                     'scaleshift_1_data': {'value': None, 'shape': None, 'kind': 'data'},
+                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
+                    'op_output_1': { 'kind': 'op', 'op': 'OpOutput'}
+
                     }
 
 
@@ -45,19 +48,21 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                              ('placeholder_1_data', 'scaleshift_1'),
                              ('scaleshift_1', 'scaleshift_1_data'),
                              ('scaleshift_1_w', 'scaleshift_1'),
-                             ('scaleshift_1_b', 'scaleshift_1')],
+                             ('scaleshift_1_b', 'scaleshift_1'),
+                             ('scaleshift_1_data', 'op_output')
+                             ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'scaleshift_1_w': {'shape': np.array([3]), 'value': np.ones(3)},
                              'scaleshift_1_b': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
-                             'scaleshift_1_data': {'is_output': True}
                              })
 
         del graph['placeholder_1']['placeholder_1_data'][0]['in']
         del graph['scaleshift_1']['scaleshift_1_data'][0]['in']
 
         graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'scaleshift_1_data')],
-                                {'scaleshift_1_data': {'is_output': True}})
+                                [('placeholder_1', 'scaleshift_1_data'),
+                                 ('scaleshift_1_data', 'op_output')
+                                 ])
 
         move_scaleshift_to_preprocess(graph)
         self.assertTrue(graph.graph['mean_values'] is not None)
@@ -72,11 +77,13 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                              ('placeholder_1_data', 'scaleshift_1'),
                              ('scaleshift_1', 'scaleshift_1_data'),
                              ('scaleshift_1_w', 'scaleshift_1'),
-                             ('scaleshift_1_b', 'scaleshift_1')],
+                             ('scaleshift_1_b', 'scaleshift_1'),
+                             ('scaleshift_1_data', 'op_output'),
+                             ('placeholder_1_data', 'op_output_1')
+                             ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'scaleshift_1_w': {'shape': np.array([3]), 'value': np.array((1, 2, 3))},
                              'scaleshift_1_b': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
-                             'scaleshift_1_data': {'is_output': True}
                              })
 
         del graph['placeholder_1']['placeholder_1_data'][0]['in']
@@ -87,11 +94,13 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                                  ('placeholder_1_data', 'scaleshift_1'),
                                  ('scaleshift_1', 'scaleshift_1_data'),
                                  ('scaleshift_1_w', 'scaleshift_1'),
-                                 ('scaleshift_1_b', 'scaleshift_1')],
-                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3]), 'is_output': True},
+                                 ('scaleshift_1_b', 'scaleshift_1'),
+                                 ('placeholder_1_data', 'op_output_1'),
+                                 ('scaleshift_1_data', 'op_output')
+                                 ],
+                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'scaleshift_1_w': {'shape': np.array([3]), 'value': np.array((1, 2, 3))},
                                  'scaleshift_1_b': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
-                                 'scaleshift_1_data': {'is_output': True}
                                  })
 
         move_scaleshift_to_preprocess(graph)
@@ -105,10 +114,12 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'scaleshift_1'),
                              ('scaleshift_1', 'scaleshift_1_data'),
-                             ('scaleshift_1_w', 'scaleshift_1'), ],
+                             ('scaleshift_1_w', 'scaleshift_1'),
+                             ('scaleshift_1_data', 'op_output'),
+                             ('placeholder_1_data', 'op_output_1')
+                             ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'scaleshift_1_w': {'shape': np.array([3]), 'value': np.array((1, 2, 3))},
-                             'scaleshift_1_data': {'is_output': True}
                              })
 
         del graph['placeholder_1']['placeholder_1_data'][0]['in']
@@ -118,10 +129,12 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'scaleshift_1'),
                                  ('scaleshift_1', 'scaleshift_1_data'),
-                                 ('scaleshift_1_w', 'scaleshift_1')],
-                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3]), 'is_output': True},
+                                 ('scaleshift_1_w', 'scaleshift_1'),
+                                 ('scaleshift_1_data', 'op_output'),
+                                 ('placeholder_1_data', 'op_output_1')
+                                 ],
+                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'scaleshift_1_w': {'shape': np.array([3]), 'value': np.array((1, 2, 3))},
-                                 'scaleshift_1_data': {'is_output': True}
                                  })
 
         move_scaleshift_to_preprocess(graph)
@@ -136,19 +149,21 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                              ('placeholder_1_data', 'scaleshift_1'),
                              ('scaleshift_1', 'scaleshift_1_data'),
                              ('scaleshift_1_w', 'scaleshift_1'),
-                             ('scaleshift_1_b', 'scaleshift_1')],
+                             ('scaleshift_1_b', 'scaleshift_1'),
+                             ('scaleshift_1_data', 'op_output')
+                             ],
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'scaleshift_1_w': {'shape': np.array([3]), 'value': np.ones(3)},
                              'scaleshift_1_b': {'shape': np.array([3]), 'value': np.zeros(3)},
-                             'scaleshift_1_data': {'is_output': True}
                              })
 
         del graph['placeholder_1']['placeholder_1_data'][0]['in']
         del graph['scaleshift_1']['scaleshift_1_data'][0]['in']
 
         graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'scaleshift_1_data')],
-                                {'scaleshift_1_data': {'is_output': True}})
+                                [('placeholder_1', 'scaleshift_1_data'),
+                                 ('scaleshift_1_data', 'op_output')
+                                 ])
 
         move_scaleshift_to_preprocess(graph)
         self.assertTrue(graph.graph.get('mean_values', None) is None)

@@ -21,18 +21,33 @@
 
 #include "c_types_map.hpp"
 #include "event.hpp"
+#include "memory_tracking.hpp"
 #include "primitive.hpp"
+#include "scratchpad.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
 
+struct cpu_memory_t;
+
 struct cpu_primitive_t: public primitive_t {
     cpu_primitive_t(const primitive_desc_t *pd, const input_vector &inputs,
-            const output_vector &outputs)
-        : primitive_t(pd, inputs, outputs)
-    {}
-    virtual ~cpu_primitive_t() {}
+            const output_vector &outputs, bool use_global_scratchpad = false)
+        : primitive_t(pd, inputs, outputs), scratchpad_buffer_(nullptr)
+        , global_scratchpad_(nullptr)
+    {
+        size_t scratchpad_size = this->pd()->scratchpad_registry().size();
+        if (use_global_scratchpad)
+            global_scratchpad_ = create_scratchpad(scratchpad_size);
+        else
+            scratchpad_buffer_ = malloc(scratchpad_size, 64);
+    }
+
+    virtual ~cpu_primitive_t() {
+        delete global_scratchpad_;
+        free(scratchpad_buffer_);
+    }
 
     virtual char *memory(size_t output_index = 0) const {
         if (output_index >= this->outputs().size()) return nullptr;
@@ -54,6 +69,19 @@ struct cpu_primitive_t: public primitive_t {
                 this->inputs()[index].primitive);
         return p->const_memory(oi);
     }
+
+    const cpu_memory_t *output_memory_primitive(size_t index = 0) const;
+
+protected:
+    memory_tracking::grantor_t scratchpad() const {
+        return pd()->scratchpad_registry().grantor(global_scratchpad_
+                ? global_scratchpad_->get() : scratchpad_buffer_);
+    }
+
+private:
+    /* quite ugly, but luckily both will get away in v1.0 */
+    void *scratchpad_buffer_;
+    scratchpad_t *global_scratchpad_;
 };
 
 }

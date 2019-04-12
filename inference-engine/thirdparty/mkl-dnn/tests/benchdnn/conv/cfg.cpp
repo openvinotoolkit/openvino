@@ -42,6 +42,14 @@ const _dt_conf_t conf_f32 = {
     {mkldnn_f32,},
 };
 
+const _dt_conf_t conf_f32_no_limits = {
+    {mkldnn_f32, -FLT_MAX, FLT_MAX,  -32,  32, 0, 1, .25, 0.},
+    {mkldnn_f32, -FLT_MAX, FLT_MAX,  -32,  32, 0, 1, 1.0, 0.},
+    {mkldnn_f32, -FLT_MAX, FLT_MAX, -512, 512, 0, 1, 1.0, 0.},
+    {mkldnn_f32, -FLT_MAX, FLT_MAX,  -32,  32, 0, 1, .25, 0.},
+    {mkldnn_f32,},
+};
+
 const _dt_conf_t conf_f32_full = {
     {mkldnn_f32, -int_max_exact, int_max_exact,  -64,  64, 0, 1, 1.0, 0.},
     {mkldnn_f32, -int_max_exact, int_max_exact,  -32,  32, 0, 1, 1.0, 0.},
@@ -182,6 +190,7 @@ const dt_conf_t *str2cfg(const char *str) {
 #define CASE(cfg) \
     if (!strcasecmp(STRINGIFY(cfg), str)) return CONCAT2(conf_,cfg)
     CASE(f32);
+    CASE(f32_no_limits);
     CASE(f32_full);
     CASE(f32_wino);
     CASE(s16s16s32s32);
@@ -207,6 +216,7 @@ const dt_conf_t *str2cfg(const char *str) {
 const char *cfg2str(const dt_conf_t *cfg) {
 #define CASE(_cfg) if (cfg == CONCAT2(conf_,_cfg)) return STRINGIFY(_cfg)
     CASE(f32);
+    CASE(f32_no_limits);
     CASE(f32_full);
     CASE(f32_wino);
     CASE(s16s16s32s32);
@@ -227,6 +237,19 @@ const char *cfg2str(const dt_conf_t *cfg) {
 #undef CASE
     []() { SAFE(FAIL, CRIT); return 0; }();
     return NULL;
+}
+
+const dt_conf_t *auto_cfg(const alg_t alg, const dt_conf_t *cfg) {
+    const char *cfg_s = cfg2str(cfg);
+#define CASE(_cfg_) \
+    if (alg == WINO && !strcmp(cfg_s, STRINGIFY(_cfg_))) return CONCAT2(conf_, CONCAT2(_cfg_, _wino))
+    CASE(f32);
+    CASE(u8s8f32s32);
+    CASE(u8s8s32s32);
+    CASE(u8s8s8s32);
+    CASE(u8s8u8s32);
+#undef CASE
+    return cfg;
 }
 
 }

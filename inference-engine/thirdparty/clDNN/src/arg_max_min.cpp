@@ -31,7 +31,10 @@ namespace cldnn
 
 	layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node)
 	{
-		auto desc = node.get_primitive();
+        assert((bool)node.get_primitive()->output_data_type == false
+               && "Output data type forcing is not supported for "
+                  "arg_max_min_node!");
+        auto desc = node.get_primitive();
 
 		auto input_layout = node.input().get_output_layout();
 

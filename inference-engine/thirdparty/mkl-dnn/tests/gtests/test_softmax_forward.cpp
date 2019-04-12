@@ -181,6 +181,7 @@ protected:
             check_softmax_fwd<data_t>(p.aprop_kind, src, dst, p.axis);
         };
 
+        test_with_given_fill(-50, 50);
         test_with_given_fill(-200, 1);
         test_with_given_fill(   0, 1);
         test_with_given_fill( 200, 1);
@@ -216,5 +217,9 @@ INSTANTIATE_TEST_CASE_P(TestSoftmaxForward, softmax_forward_test_float,
             softmax_fwd_test_params_float{prop_kind::forward_scoring,
             engine::kind::cpu, memory::format::nc, {2, 1000}, 0},
             softmax_fwd_test_params_float{prop_kind::forward_scoring,
-            engine::kind::cpu, memory::format::nc, {2, 1000}, 1}));
+            engine::kind::cpu, memory::format::nc, {2, 1000}, 1},
+            softmax_fwd_test_params_float{prop_kind::forward_scoring,
+            engine::kind::cpu, memory::format::nc, {1, 256}, 1},
+            softmax_fwd_test_params_float{prop_kind::forward_scoring,
+            engine::kind::cpu, memory::format::nc, {1, 13}, 1}));
 }

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import numpy as np
 from mo.front.onnx.extractors.concat import concat_ext
 from mo.front.onnx.extractors.const import onnx_const_ext
 from mo.front.onnx.extractors.constant import onnx_constant_ext
-from mo.front.onnx.extractors.dropout import dropout_ext
 from mo.front.onnx.extractors.eltwise import make_tf_eltwise
 from mo.front.onnx.extractors.fused_bn import tf_fused_bn_extractor
 from mo.front.onnx.extractors.matmul import onnx_gemm_ext
@@ -39,8 +38,7 @@ onnx_op_extractors = {
     'Concat': concat_ext,
     'Const': onnx_const_ext,
     'Constant': onnx_constant_ext,
-    'Identity': node_pb_arg(make_tf_eltwise(lambda v: v)),
-    'Dropout': dropout_ext,
+    'Identity': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
     'Sum': node_pb_arg(
         make_tf_eltwise(lambda a, b: a + b, attrs={'type': 'Eltwise', 'operation': 'sum', 'can_be_bias': True})),
     'Relu': node_pb_arg(make_tf_eltwise(lambda v: np.maximum(0, v), attrs={'type': 'ReLU'})),  # 0 is an integer

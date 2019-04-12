@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GMAT_HPP
@@ -142,7 +142,7 @@ namespace gapi { namespace own {
     GAPI_EXPORTS GMatDesc descr_of(const Mat &mat);
 }}//gapi::own
 
-std::ostream& operator<<(std::ostream& os, const cv::GMatDesc &desc);
+GAPI_EXPORTS std::ostream& operator<<(std::ostream& os, const cv::GMatDesc &desc);
 
 } // namespace cv
 

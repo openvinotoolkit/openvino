@@ -46,6 +46,8 @@ namespace kernel_selector
         concatenation_optional_params() : optional_params(KernelType::CONCATENATION) {}
         bool kernelPerInput = true;
 
+
+    protected:
         virtual ParamsKey GetSupportedKey() const
         {
             ParamsKey k = optional_params::GetSupportedKey();
