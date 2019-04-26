@@ -71,13 +71,13 @@ class ConvertSlice(MiddleReplacementPattern):
         dims = 0
         axes = np.zeros(begin.size)
         for i in range(len(axis)):
-            if begin[i] != 0 or end[i] < input.shape[i]:
+            if begin[i] != 0 or end[i] < input.shape[axis[i]]:
                 dims += 1
                 axes[i] = 1
                 if begin[i] != 0:
                     axes_begin[axis[i]] = 1
                     begin_ext[axis[i]] = begin[i]
-                if end[i] < input.shape[i]:
+                if end[i] < input.shape[axis[i]]:
                     axes_end[axis[i]] = 1
                     end_ext[axis[i]] = end[i]
         axes = np.array(axes, dtype=bool)
