@@ -965,12 +965,13 @@ void program_impl::swap_names(program_node& node1, program_node& node2)
 
 void program_impl::replace_all_usages(program_node & old_node, program_node & new_node)
 {
-    auto itr = old_node.users.begin();
-    bool end = (itr == old_node.users.end());
+    const std::list<program_node *> users(old_node.users);
+    auto itr = users.begin();
+    bool end = (itr == users.end());
     while (!end)
     {
         auto& usage = (*itr++);
-        end = (itr == old_node.users.end());
+        end = (itr == users.end());
         usage->replace_dependency(old_node, new_node);
     }
 }
