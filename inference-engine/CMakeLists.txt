@@ -139,7 +139,9 @@ include(CheckCXXCompilerFlag)
 include(cpplint)
 
 add_subdirectory(src)
-add_subdirectory(tests)
+if (NOT DISABLE_IE_TESTS)
+    add_subdirectory(tests)
+endif()
 add_subdirectory(thirdparty)
 set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
 
