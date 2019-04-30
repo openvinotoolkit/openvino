@@ -157,7 +157,7 @@ The correct way to use such dataset is to specify the path as `-i <path>/dataset
 ### Dataset Format for Object Detection (VOC-like)
 
 Object Detection SSD models can be inferred on the original dataset that was used as a testing dataset during the model training.
-To prepare the VOC dataset, follow the steps below :
+To prepare the VOC dataset, follow the steps below:
 
 1. Download the pre-trained SSD-300 model from the SSD GitHub* repository at
    [https://github.com/weiliu89/caffe/tree/ssd](https://github.com/weiliu89/caffe/tree/ssd).
@@ -167,7 +167,7 @@ To prepare the VOC dataset, follow the steps below :
   $wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar
   tar -xvf VOCtest_06-Nov-2007.tar
   ```
-3. Convert the model with the [Model Optimizer](docs/MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md).
+3. Convert the model with the [Model Optimizer](./docs/MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md).
 
 4. Create a proper `.txt` class file from the original `labelmap_voc.prototxt`. The new file must be in
 the following format:
