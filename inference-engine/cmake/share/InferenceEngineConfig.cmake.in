@@ -108,6 +108,14 @@ else()
                                             FOUND_VAR INFERENCEENGINE_FOUND
                                             REQUIRED_VARS IE_RELEASE_LIBRARY IE_DEBUG_LIBRARY IE_INCLUDE_DIR
                                             FAIL_MESSAGE "Inference Engine cannot be found at ${_IE_ROOT_LIBRARY}. Please consult InferenceEgnineConfig.cmake module's help page.")
+    elseif (APPLE)
+        find_library(IE_RELEASE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_MAC@ "${IE_LIB_DIR}")
+        find_library(IE_DEBUG_LIBRARY inference_engine@IE_DEBUG_POSTFIX_MAC@ "${IE_LIB_DIR}")
+        find_package_handle_standard_args(  InferenceEngine
+                                            FOUND_VAR INFERENCEENGINE_FOUND
+                                            REQUIRED_VARS IE_RELEASE_LIBRARY IE_DEBUG_LIBRARY IE_INCLUDE_DIR
+                                            FAIL_MESSAGE "Inference Engine cannot be found at ${_IE_ROOT_LIBRARY}. Please consult InferenceEgnineConfig.cmake module's help page.")
+
     else()
         find_library(IE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}")
         find_package_handle_standard_args(  InferenceEngine
@@ -132,6 +140,12 @@ else()
                     MAP_IMPORTED_CONFIG_RELEASE Release
                     MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release
                     INTERFACE_INCLUDE_DIRECTORIES "${IE_INCLUDE_DIR}")
+        elseif (APPLE)
+            set_target_properties(IE::inference_engine PROPERTIES
+                    IMPORTED_LOCATION_RELEASE "${IE_RELEASE_LIBRARY}"
+                    IMPORTED_LOCATION_DEBUG   "${IE_DEBUG_LIBRARY}"
+                    INTERFACE_INCLUDE_DIRECTORIES "${IE_INCLUDE_DIR}")
+            target_link_libraries(IE::inference_engine INTERFACE ${CMAKE_DL_LIBS})
         else()
             set_target_properties(IE::inference_engine PROPERTIES
                     IMPORTED_LOCATION "${IE_LIBRARY}"
