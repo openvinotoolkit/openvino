@@ -100,7 +100,7 @@ elseif(LINUX)
             ENVIRONMENT "TBBROOT")
 else(APPLE)
     RESOLVE_DEPENDENCY(TBB
-            ARCHIVE_MAC "tbb2019_20190130_mac.tgz"
+            ARCHIVE_MAC "tbb2019_20190414_mac.tgz"
             TARGET_PATH "${TEMP}/tbb"
             ENVIRONMENT "TBBROOT"
             VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
