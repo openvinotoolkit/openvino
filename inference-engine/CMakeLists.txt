@@ -139,7 +139,7 @@ include(CheckCXXCompilerFlag)
 include(cpplint)
 
 add_subdirectory(src)
-if (NOT DISABLE_IE_TESTS)
+if (ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 add_subdirectory(thirdparty)
