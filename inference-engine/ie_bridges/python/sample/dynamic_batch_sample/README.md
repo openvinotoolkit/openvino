@@ -1,6 +1,6 @@
 # Dynamic Batch Python* Sample
 
-This topic demonstrates how to run the 3D Segmentation Demo, which demostrates how to set batch size dynamicly for certain infer request and check inference time difference.
+This topic demonstrates how to run the Dynamic Batch Sample, which demonstrates how to set batch size dynamically for certain infer request and check inference time difference.
 
 ## How It Works
 
