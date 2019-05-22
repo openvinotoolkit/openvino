@@ -230,10 +230,19 @@ void MKLDNNRNN::fillSeqDesc() {
     }
 
     if (outs.size() > 1) {
-        for (int i = 1; i < outs.size(); i++)
-            if (getChildEdgeAt(i)->getDims() != S_shape)
-                THROW_IE_EXCEPTION << "Incorrect shape of state ports for layer " << getName();
-
+        if (T == 1)
+        {
+            MKLDNNDims S_shape_out {T, N, SC};
+            for (int i = 1; i < outs.size(); i++)
+                if (getChildEdgeAt(i)->getDims() != S_shape_out)
+                    THROW_IE_EXCEPTION << "Incorrect shape of state ports for layer " << getName() << "when seq = 1.";
+        }
+        else
+        {
+            for (int i = 1; i < outs.size(); i++)
+                if (getChildEdgeAt(i)->getDims() != S_shape)
+                    THROW_IE_EXCEPTION << "Incorrect shape of state ports for layer " << getName();
+        }
         out_state_d = {{L, D, S, N, SC}, memory::f32, memory::ldsnc};
     }
 
