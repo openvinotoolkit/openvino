@@ -456,6 +456,6 @@ def fuse_sequence_of_reshapes(graph: Graph):
 
         in_shape = reshape_node.in_port(0).get_connection().data.get_shape()
 
-        if np.array_equal(dim, in_shape) and len(reshape_node.out_nodes()):
+        if np.array_equal(dim, in_shape) and len(reshape_node.out_nodes()) and (reshape_node.in_port(0).get_source().node.op is not 'TensorIterator') :
             log.debug("Useless reshape with dim {} was deleted: {}".format(str(dim), reshape_node.name))
             reshape_node.out_port(0).get_connection().set_source(reshape_node.in_port(0).get_source())
