@@ -55,7 +55,7 @@ FindPluginResponse InferenceEngine::findPlugin(const FindPluginRequest& req) {
         default:
             THROW_IE_EXCEPTION << "Cannot find plugin for device: " << getDeviceName(req.device);
     }
-    std::for_each(pluginVec.begin(), pluginVec.end(), [](std::string &name){ name = name + IE_BUILD_POSTFIX;});
+    std::for_each(pluginVec.begin(), pluginVec.end(), [](std::string &name){ name = name + std::string(IE_BUILD_POSTFIX);});
     return {pluginVec};
 }
 

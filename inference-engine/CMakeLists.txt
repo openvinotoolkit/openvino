@@ -21,12 +21,12 @@ endif()
 
 option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
-if(CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
-    set (ARCH_FOLDER armv7l)
-elseif("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-    set (ARCH_FOLDER intel64)
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    set(ARCH_FOLDER intel64)
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "i386")
+    set(ARCH_FOLDER ia32)
 else()
-    set (ARCH_FOLDER  ia32)
+    set(ARCH_FOLDER "${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
 if (OS_FOLDER)

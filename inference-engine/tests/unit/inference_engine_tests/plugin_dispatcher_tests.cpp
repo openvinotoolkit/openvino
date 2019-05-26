@@ -27,7 +27,7 @@ using namespace ::testing;
 
 class PluginDispatcherTests : public ::testing::Test {
 public:
-    const std::string nameExt(const std::string& name) { return name + IE_BUILD_POSTFIX;}
+    const std::string nameExt(const std::string& name) { return name + std::string(IE_BUILD_POSTFIX);}
 };
 
 TEST_F(PluginDispatcherTests, canLoadMockPlugin) {

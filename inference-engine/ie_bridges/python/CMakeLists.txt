@@ -5,12 +5,12 @@ cmake_minimum_required (VERSION 3.3)
 project (ie_python_api)
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
-if (CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
-    set (ARCH armv7l)
-elseif ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-    set (ARCH intel64)
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    set(ARCH intel64)
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "i386")
+    set(ARCH ia32)
 else()
-    set (ARCH ia32)
+    set(ARCH "${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
 

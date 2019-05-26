@@ -202,7 +202,7 @@ public:
         std::string pre = "lib";
         std::string ext = ".so";
 #endif
-        return pre + input + IE_BUILD_POSTFIX + ext;
+        return pre + input + std::string(IE_BUILD_POSTFIX) + ext;
 
     }
 
