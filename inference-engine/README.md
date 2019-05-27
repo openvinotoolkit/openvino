@@ -467,7 +467,7 @@ You have installed the driver for your Intel® Movidius™ Neural Compute Stick
 
 Congratulations, you have built the Inference Engine. To get started with the OpenVINO™ DLDT, proceed to the Get Started guides:
 
-* [Get Started with Deep Learning Deployment Toolkit on Linux*](get-started-linux.md)
+* [Get Started with Deep Learning Deployment Toolkit on Linux*](../get-started-linux.md)
 
 ## Additional Resources
 
