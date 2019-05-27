@@ -22,8 +22,8 @@
   - [Build Steps](#build-steps-2)
   - [Additional Build Options](#additional-build-options-3)
 - [Use Custom OpenCV Builds for Inference Engine](#use-custom-opencv-builds-for-inference-engine)
-- [(Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2](#(optional)-additional-installation-steps-for-the-intel®-movidius™-neural-compute-stick-and-neural-compute-stick-2)
-  - [For Linux, Raspbian Stretch* OS](#for-linux,-raspbian-stretch-os)
+- [(Optional) Additional Installation Steps for the Intel Movidius Neural Compute Stick and Neural Compute Stick 2](#(optional)-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2)
+  - [For Linux, Raspbian Stretch OS](#for-linux,-raspbian-stretch-os)
   - [For Windows](#for-windows-1)
 - [Next Steps](#next-steps)
 - [Additional Resources](#additional-resources)
@@ -419,7 +419,7 @@ After you got the built OpenCV library, perform the following preparation steps 
 1. Set the `OpenCV_DIR` environment variable to the directory where the `OpenCVConfig.cmake` file of you custom OpenCV build is located.
 2. Disable the package automatic downloading with using the `-DENABLE_OPENCV=OFF` option for CMake-based build script for Inference Engine.
 
-## (Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2
+## (Optional) Additional Installation Steps for the Intel Movidius Neural Compute Stick and Neural Compute Stick 2
 
 > **NOTE**: These steps are only required if you want to perform inference on Intel® Movidius™ Neural Compute Stick or the Intel® Neural Compute Stick 2 using the Inference Engine MYRIAD Plugin. See also [Intel® Neural Compute Stick 2 Get Started](https://software.intel.com/en-us/neural-compute-stick/get-started)
 
