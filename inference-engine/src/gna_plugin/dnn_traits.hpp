@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// dnn_traits.hpp : c++ trait approach to  define dnn objects
-//
 
 #pragma once
 

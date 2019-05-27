@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-//  gna_helper.cpp : various GNA-related utility functions
-//
 
 #include "lstm.hpp"
 

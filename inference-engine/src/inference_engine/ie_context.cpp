@@ -13,7 +13,9 @@ using namespace InferenceEngine;
 
 Context::Context() {
     auto builtIn = std::make_shared<ShapeInfer::BuiltInShapeInferHolder>();
-    addExtension(builtIn);
+    try {
+        addExtension(builtIn);
+    } catch (...) {}
 }
 
 void Context::addExtension(const IShapeInferExtensionPtr &ext) {

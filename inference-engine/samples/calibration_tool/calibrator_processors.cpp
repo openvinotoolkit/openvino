@@ -33,6 +33,9 @@ CNNLayerPtr Int8Calibrator::addScaleShiftBeforeLayer(std::string name, CNNLayer:
     params.type = "ScaleShift";
     CNNLayerPtr lptr = std::make_shared<ScaleShiftLayer>(params);
     ScaleShiftLayer *pScaleShift = dynamic_cast<ScaleShiftLayer *>(lptr.get());
+    if (pScaleShift == nullptr) {
+        THROW_IE_EXCEPTION << "Layer " << lptr->name << " is not instance of ScaleShiftLayer class";
+    }
 
     SizeVector wdims({ pData->dims[2] });
 
@@ -94,10 +97,14 @@ CNNLayerPtr Int8Calibrator::addScaleShiftBeforeLayer(std::string name, CNNLayer:
 
 
 float Int8Calibrator::compare_NRMSD(InferenceEngine::Blob::Ptr res, InferenceEngine::Blob::Ptr ref) {
-    float *res_ptr = res->buffer().as<float *>();
+    auto *res_ptr = res->buffer().as<float *>();
 
-    float *ref_ptr = ref->buffer().as<float *>();
+    auto *ref_ptr = ref->buffer().as<float *>();
+
     size_t ref_size = ref->size();
+    if (ref_size == 0) {
+        throw std::logic_error("ref_size can't be equal to zero");
+    }
 
     float sum = 0;
 
@@ -111,9 +118,7 @@ float Int8Calibrator::compare_NRMSD(InferenceEngine::Blob::Ptr res, InferenceEng
         mmin = std::min(mmin, ref_ptr[i]);
         mmax = std::max(mmax, ref_ptr[i]);
     }
-    if (std::fabs(ref_size) < std::numeric_limits<double>::epsilon()) {
-        throw std::logic_error("ref_size can't be equal to zero");
-    }
+
     sum /= ref_size;
 
     sum = pow(sum, 0.5f);
@@ -278,6 +283,9 @@ CNNNetwork Int8Calibrator::createICNNNetworkForLayer(CNNLayer::Ptr layerToClone,
     size_t outputWidth = outputData->getTensorDesc().getDims()[3];
 
     ConvolutionLayer *pConvS = dynamic_cast<ConvolutionLayer *>(layerToClone.get());
+    if (pConvS == nullptr) {
+        THROW_IE_EXCEPTION << "Layer " << layerToClone->name << " is not instance of ConvolutionLayer class";
+    }
 
     std::string model = "<net name=\"L\" version=\"2\" batch=\"1\"><layers> "\
         "<layer name=\"" +
@@ -361,6 +369,10 @@ CNNNetwork Int8Calibrator::createICNNNetworkForLayer(CNNLayer::Ptr layerToClone,
     CNNLayerPtr convLayer;
     n.getLayerByName(layerToClone->name.c_str(), convLayer, nullptr);
     ConvolutionLayer *pConvT = dynamic_cast<ConvolutionLayer *>(convLayer.get());
+    if (pConvT == nullptr) {
+        THROW_IE_EXCEPTION << "Layer " << convLayer->name << " is not instance of ConvolutionLayer class";
+    }
+
     pConvT->_weights = pConvS->_weights;
     pConvT->_biases = pConvS->_biases;
     pConvT->blobs = pConvS->blobs;

@@ -115,6 +115,8 @@ void GNADeviceHelper::updateGnaPerfCounters() {
 void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters) {
     InferenceEngine::InferenceEngineProfileInfo info;
     info.status = InferenceEngine::InferenceEngineProfileInfo::EXECUTED;
+    info.cpu_uSec = 0;
+    info.execution_index = 0;
 
     // Hardware
     info.realTime_uSec = nGNAPerfResultsTotal.hw.total;

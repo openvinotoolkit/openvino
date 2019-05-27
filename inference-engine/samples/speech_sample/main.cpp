@@ -810,7 +810,7 @@ int main(int argc, char *argv[]) {
                                 inputFrame,
                                 inputBlob->byteSize());
 
-                    auto index = frameIndex - 2 * FLAGS_cw;
+                    int index = static_cast<int>(frameIndex) - 2 * FLAGS_cw;
                     inferRequest.inferRequest.StartAsync();
                     inferRequest.frameIndex = index < 0 ? -2 : index;
                     inferRequest.numFramesThisBatch = numFramesThisBatch;

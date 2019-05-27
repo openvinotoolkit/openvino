@@ -23,7 +23,7 @@ int getLoadModeForChannels(int channels, int base) {
     case 3:
         return base | IMREAD_COLOR;
     }
-    return base | IMREAD_UNCHANGED;
+    return IMREAD_UNCHANGED;
 }
 
 template <class T>

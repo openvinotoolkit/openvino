@@ -31,9 +31,9 @@ public:
     MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
 private:
-    bool withBiases;
-    bool withGroups;
-    bool isDW;
+    bool withBiases = false;
+    bool withGroups = false;
+    bool isDW = false;
     size_t groupNum = 1;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> paddingL;

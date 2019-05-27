@@ -218,6 +218,8 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
                     convertedInputs.push_back(iconv);
                     iconv->allocate();
                     in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
+                    if (in_f == nullptr)
+                        THROW_IE_EXCEPTION << "Cannot get TBlob";
                     InferenceEngine::copyToFloat<uint16_t>(in_f->data(), input.second.get());
                     graph->PushInputData(input.first, iconv);
                     break;
@@ -230,6 +232,8 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
                         convertedInputs.push_back(iconv);
                         iconv->allocate();
                         in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
+                        if (in_f == nullptr)
+                            THROW_IE_EXCEPTION << "Cannot get TBlob";
                         InferenceEngine::copyToFloat<int16_t>(in_f->data(), input.second.get());
                         graph->PushInputData(input.first, iconv);
                     } else {
@@ -246,6 +250,8 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
                         convertedInputs.push_back(iconv);
                         iconv->allocate();
                         in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
+                        if (in_f == nullptr)
+                            THROW_IE_EXCEPTION << "Cannot get TBlob";
                         InferenceEngine::copyToFloat<uint8_t>(in_f->data(), input.second.get());
                         graph->PushInputData(input.first, iconv);
                     } else {

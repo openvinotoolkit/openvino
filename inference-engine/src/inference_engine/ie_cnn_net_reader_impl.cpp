@@ -82,18 +82,16 @@ StatusCode CNNNetReaderImpl::ReadWeights(const char* filepath, ResponseDesc* res
         return DescriptionBuffer(resp) << "network is empty";
     }
 
-    size_t ulFileSize = static_cast<size_t>(fileSize);
+    auto ulFileSize = static_cast<size_t>(fileSize);
 
-    TBlob<uint8_t>::Ptr weightsPtr(new TBlob<uint8_t>(Precision::U8, C, {ulFileSize}));
-    weightsPtr->allocate();
     try {
+        TBlob<uint8_t>::Ptr weightsPtr(new TBlob<uint8_t>(Precision::U8, C, {ulFileSize}));
+        weightsPtr->allocate();
         FileUtils::readAllFile(filepath, weightsPtr->buffer(), ulFileSize);
+        return SetWeights(weightsPtr, resp);
+    } catch (const InferenceEngineException& ex) {
+        return DescriptionBuffer(resp) << ex.what();
     }
-    catch (const InferenceEngineException& iee) {
-        return DescriptionBuffer(resp) << iee.what();
-    }
-
-    return SetWeights(weightsPtr, resp);
 }
 
 StatusCode CNNNetReaderImpl::ReadNetwork(const char* filepath, ResponseDesc* resp) noexcept {

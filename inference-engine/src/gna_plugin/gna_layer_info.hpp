@@ -100,12 +100,16 @@ class LayerInfo {
     bool isEltwiseSum() const noexcept {
         IS_VALID();
         if (!isEltwise()) return false;
-        return dynamic_cast<const InferenceEngine::EltwiseLayer*>(layer)->_operation ==
-            InferenceEngine::EltwiseLayer::Sum;
+        // dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer) is validated in isEltwise function
+        // coverity[var_deref_op]
+        return dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer)->_operation ==
+               InferenceEngine::EltwiseLayer::Sum;
     }
     bool isEltwiseMul() const noexcept {
         IS_VALID();
         if (!isEltwise()) return false;
+        // dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer) is validated in isEltwise function
+        // coverity[var_deref_op]
         return dynamic_cast<const InferenceEngine::EltwiseLayer*>(layer)->_operation ==
             InferenceEngine::EltwiseLayer::Prod;
     }
@@ -156,8 +160,13 @@ class LayerInfo {
     }
     bool isCropAffined() const noexcept {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
-        size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
-        return (ALIGN64(cropOffset) != cropOffset);
+        if (cropLayer != nullptr && !cropLayer->offset.empty()) {
+            try {
+                size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
+                return (ALIGN64(cropOffset) != cropOffset);
+            } catch (InferenceEngine::details::InferenceEngineException& e) {}
+        }
+        return false;
     }
     bool isCopy() const noexcept {
         IS_VALID();

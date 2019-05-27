@@ -74,7 +74,7 @@ public:
     ConcatLayer& setAxis(size_t axis);
 
 private:
-    size_t axis;
+    size_t axis = 1;
 };
 
 }  // namespace Builder

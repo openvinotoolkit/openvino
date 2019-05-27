@@ -18,6 +18,10 @@ if(ENABLE_CLDNN)
     add_subdirectory(cldnn_engine)
 endif()
 
+if(ENABLE_VPU)
+  add_subdirectory(vpu)
+endif()
+
 if (ENABLE_GNA)
     add_subdirectory(gna_plugin)
 endif()

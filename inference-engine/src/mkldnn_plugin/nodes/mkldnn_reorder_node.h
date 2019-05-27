@@ -51,7 +51,7 @@ private:
     MKLDNNMemoryPtr dst_blocked;
     MKLDNNMemoryPtr src_blocked;
 
-    void createReorderPrimitive(mkldnn::memory::desc srcDesc, void* srcPtr, mkldnn::memory::desc dstDesc, void* dstPtr);
+    void createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr);
 };
 
 }  // namespace MKLDNNPlugin

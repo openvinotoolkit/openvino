@@ -48,11 +48,11 @@ private:
 
     static Register<MKLDNNDepthwiseNode> reg;
 
-    mkldnn::algorithm algorithm;
+    mkldnn::algorithm algorithm = mkldnn::algorithm::depthwise_scale_shift;
     size_t realWeightSize = 0;
     size_t realBiasSize = 0;
-    bool withBiases;
-    bool broadcast;
+    bool withBiases = false;
+    bool broadcast = false;
 };
 
 }  // namespace MKLDNNPlugin
