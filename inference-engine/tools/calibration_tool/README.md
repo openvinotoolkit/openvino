@@ -1,11 +1,12 @@
-# OpenVINO™ Calibration Tool
-Inference Engine Calibration Tool calibrates a given FP32 model so that you can run calibrated model in low-precision 8-bit integer mode while keeping the input data of this model in the original precision.
-Inference Engine Calibration Tool is a Python\* command-line tool, which imports Python types from the `openvino.tools.calibration` package.
+# Python* Calibration Tool
 
-Please, refer to https://docs.openvinotoolkit.org for details.
+The Python* Calibration Tool calibrates a given FP32 model so that you can run calibrated model in low-precision 8-bit integer mode while keeping the input data of this model in the original precision.
+The Calibration Tool is a Python\* command-line tool, which imports Python types from the `openvino.tools.calibration` package.
+
+> **NOTE**: INT8 models are currently supported only by the CPU plugin. For the full list of supported configurations, see the [Supported Devices](./docs/IE_DG/supported_plugins/Supported_Devices.md) topic.
 
 ## Hardware requirements
-Hardware requirements depend on a model. Typically for public models RAM memory size has to be not less then 16Gb, drive has to have not less then 30 Gb free space independently on operation system. Temporary directory is used to cache layers output during calibration.
+Hardware requirements depend on a model. Typically for public models RAM memory size has to be not less then 16Gb, drive has to have not less then 30 GB free space independently on operation system. Temporary directory is used to cache layers output during calibration.
 
 ## Usage
 The Calibration Tool is configured in the same way as the Accuracy Checker. You can also use additional command-line arguments to define calibration-specific parameters.
@@ -17,13 +18,13 @@ The Calibration Tool is configured in the same way as the Accuracy Checker. You 
 | -d, --definitions                            | string | Optional. Path to the YML file with definitions         |
 | -m, --models                                 | string | Optional. Prefix path to the models and weights         |
 | -s, --source                                 | string | Optional. Prefix path to the data source                |
-| -a, --annotations                            | string | Optional. Pefix path to the converted annotations and datasets meta data |
+| -a, --annotations                            | string | Optional. Prefix path to the converted annotations and datasets meta data |
 | -e, --extensions                             | string | Optional. Prefix path to extensions folder              |
-| --cpu_extensions_mode, --cpu-extensions-mode | string | Optional. specified preferable set of processor instruction for automatic searching cpu extension lib: `avx2` or `sse4` |
+| --cpu_extensions_mode, --cpu-extensions-mode | string | Optional. specified preferable set of processor instruction for automatic searching the CPU extension lib: `avx2` or `sse4` |
 | -C, --converted_models, --converted-models   | string | Optional. Directory to store Model Optimizer converted models. Used for DLSDK launcher only |
-| -M, --model_optimizer, --model-optimizer     | string | Optional. Path to model optimizer caffe directory       |
-| --tf_custom_op_config_dir, --tf-custom-op-config-dir | string | Optional. Path to directory with tensorflow custom operation configuration files for model optimizer |
-| --tf_obj_detection_api_pipeline_config_path, --tf-obj-detection-api-pipeline-config-path | string | Optional. Path to directory with tensorflow object detection api pipeline configuration files for model optimizer |
+| -M, --model_optimizer, --model-optimizer     | string | Optional. Path to model optimizer Caffe* directory       |
+| --tf_custom_op_config_dir, --tf-custom-op-config-dir | string | Optional. Path to directory with TensorFlow* custom operation configuration files for model optimizer |
+| --tf_obj_detection_api_pipeline_config_path, --tf-obj-detection-api-pipeline-config-path | string | Optional. Path to directory with TensorFlow object detection API pipeline configuration files for the Model Optimizer |
 | --progress                                   | string | Optional. Progress reporter: `bar`, `print` or `None`   |
 | -td, --target_devices, --target-devices      | string | Optional. Space-separated list of devices for infer     |
 | -tt, --target_tags, --target-tags | string   | Optional. Space-separated list of launcher tags for infer        |
@@ -38,15 +39,15 @@ The Calibration Tool is configured in the same way as the Accuracy Checker. You 
 | --ignore_layer_names_path, --ignore-layer-names-path | string | Optional. Ignore layer names file path |
 | --batch_size, --batch-size        | integer| Optional. Batch size value. If not specified, the batch size value is determined from IR |
 | -th, --threshold                  | float | Optional. Accuracy drop of quantized model should not exceed this threshold. Should be pointer in percents without percent sign. (1% is default) |
-| -ic, --benchmark_iterations_count, --benchmark-iterations-count | integer | Optional. Benchmark itertations count. (1000 is default) |
+| -ic, --benchmark_iterations_count, --benchmark-iterations-count | integer | Optional. Benchmark iterations count (1000 is default). |
 | -mn, --metric_name, --metric-name | string | Optional. Metric name used during calibration |
 | -mt, --metric_type, --metric-type | string | Optional. Metric type used during calibration |
 | -o, --output_dir, --output-dir    | string | Optional. Directory to store converted models. Original model directory is used if not defined |
 
-## Model calibration flow
+## Model Calibration Flow
 
 ### Introduction
-Calibration tool read original FP32 model, calibration dataset and create low precision model. Low precision model has two differences from original model:
+The calibration tool read original FP32 model, calibration dataset and create low precision model. Low precision model has two differences from original model:
 1. Per channel statistics are defined. Statistics have minimum and maximum values for each layer and each channel. Model statistics are stored in Inference Engine intermediate representation file (IR) in XML format.
 2. `quantization_level` layer attribute is defined. The attribute defines precision which is used during inference.
 
@@ -70,7 +71,7 @@ There are steps to calibrate and evaluate result model:
 
 Additional optional step before calibration is available to rough estimate possible INT8 performance.
 
-### Step #1. Convert data annotation files
+### Step #1. Convert Data Annotation Files
 Calibration dataset is subset of training dataset. Use Convert Annotation Tool to convert ImageNet\* dataset to Calibration Tool readable data annotation files. Data annotation files describe subset of images which are used during calibration. Command line:
 ```sh
 python convert_annotation.py imagenet --annotation_file /datasets/ImageNet/val.txt --labels_file /datasets/ImageNet/synset_words.txt -ss 2000 -o ~/annotations -a imagenet.pickle -m imagenet.json
@@ -90,8 +91,9 @@ python convert_annotation.py imagenet --annotation_file /datasets/ImageNet/val.t
 | --converted_models | string | Directory to store Model Optimizer converted models. Used for DLSDK launcher only |
 
 
-### Optional step for low precision model performance estimation.
-Before calibration you can roughly estimate low presition performance with [Collect Statistics Tool](./inference-engine/tools/collect_statistics_tool/README.md).
+### Optional Step for Low Precision Model Performance Estimation
+
+Before calibration, you can roughly estimate low precision performance with [Collect Statistics Tool](./inference-engine/tools/collect_statistics_tool/README.md).
 
 [Collect Statistics Tool](./inference-engine/tools/collect_statistics_tool/README.md) ignores metric in YML configuration file but you can use the same command line arguments.
 
@@ -101,7 +103,7 @@ Command line:
 python collect_statistics.py --config ~/inception_v1.yml -d ~/defenitions.yml -M /home/user/intel/openvino/deployment_tools/model_optimizer --models ~/models --source /media/user/calibration/datasets --annotations ~/annotations --converted_models ~/models
 ```
 
-Result model has statistics which allow to infer this model in INT8 precision. To measure performance you can use [Benchmark Tool](./inference-engine/tools/benchmark_tool/README.md).
+Result model has statistics which allow you to infer this model in INT8 precision. To measure performance you can use [Benchmark Tool](./inference-engine/tools/benchmark_tool/README.md).
 
 ### Step #2. Calibration
 During calibration process, the model is ajusted for efficient quantization and minimization of accuracy drop on calibration dataset. Calibration tool produces calibrated model which will be executed in low precision 8 bit quantzed mode after loading into CPU plugin.

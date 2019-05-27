@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 #define IE_THREAD_TBB 0
 #define IE_THREAD_OMP 1
 #define IE_THREAD_SEQ 2
@@ -70,7 +72,7 @@ inline void parallel_set_num_threads(int n) { return; }
 namespace InferenceEngine {
 
 template <typename F>
-void parallel_nt(int nthr, F func) {
+void parallel_nt(int nthr, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
     if (nthr == 0) nthr = parallel_get_max_threads();
     if (nthr == 1) {
@@ -95,7 +97,7 @@ void parallel_nt(int nthr, F func) {
 }
 
 template <typename F>
-void parallel_nt_static(int nthr, F func) {
+void parallel_nt_static(int nthr, const F &func) {
 #if IE_THREAD == IE_THREAD_SEQ
     const bool serial = true;
 #else
@@ -124,7 +126,7 @@ void parallel_nt_static(int nthr, F func) {
 }
 
 template <typename T0, typename R, typename F>
-R parallel_sum(const T0 D0, R &input, F func) {
+R parallel_sum(const T0 &D0, const R &input, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
     return tbb::parallel_reduce(
         tbb::blocked_range<T0>(0, D0), input,
@@ -157,7 +159,7 @@ R parallel_sum(const T0 D0, R &input, F func) {
 }
 
 template <typename T0, typename T1, typename R, typename F>
-R parallel_sum2d(const T0 D0, const T1 D1, R input, F func) {
+R parallel_sum2d(const T0 &D0, const T1 &D1, const R &input, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
     return tbb::parallel_reduce(
         tbb::blocked_range2d<T0, T1>(0, D0, 0, D1), input,
@@ -196,7 +198,7 @@ R parallel_sum2d(const T0 D0, const T1 D1, R input, F func) {
 #endif
 }
 template <typename T0, typename T1, typename T2, typename R, typename F>
-R parallel_sum3d(const T0 D0, const T1 D1, const T2 D2, R input, F func) {
+R parallel_sum3d(const T0 &D0, const T1 &D1, const T2 &D2, const R &input, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
     return tbb::parallel_reduce(
         tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2), input,
@@ -261,7 +263,7 @@ inline bool parallel_it_step(Q &x, const R &X, Args &&... tuple) {
 }
 
 template <typename T, typename Q>
-inline void splitter(T n, Q team, Q tid, T &n_start, T &n_end) {
+inline void splitter(const T &n, const Q &team, const Q &tid, T &n_start, T &n_end) {
     if (team <= 1 || n == 0) {
         n_start = 0;
         n_end = n;
@@ -278,14 +280,14 @@ inline void splitter(T n, Q team, Q tid, T &n_start, T &n_end) {
 
 
 template <typename T0, typename F>
-void for_1d(const int ithr, const int nthr, const T0 &D0, F func) {
+void for_1d(const int &ithr, const int &nthr, const T0 &D0, const F &func) {
     T0 d0{ 0 }, end{ 0 };
     splitter(D0, nthr, ithr, d0, end);
     for (; d0 < end; ++d0) func(d0);
 }
 
 template <typename T0, typename F>
-void parallel_for(const T0 &D0, F func) {
+void parallel_for(const T0 &D0, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
@@ -301,7 +303,7 @@ void parallel_for(const T0 &D0, F func) {
 
 
 template <typename T0, typename T1, typename F>
-void for_2d(const int ithr, const int nthr, const T0 &D0, const T1 &D1, F func) {
+void for_2d(const int &ithr, const int &nthr, const T0 &D0, const T1 &D1, const F &func) {
     const size_t work_amount = (size_t)D0 * D1;
     if (work_amount == 0) return;
     size_t start{ 0 }, end{ 0 };
@@ -316,7 +318,7 @@ void for_2d(const int ithr, const int nthr, const T0 &D0, const T1 &D1, F func) 
 }
 
 template <typename T0, typename T1, typename F>
-void parallel_for2d(const T0 &D0, const T1 &D1, F func) {
+void parallel_for2d(const T0 &D0, const T1 &D1, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
@@ -332,8 +334,8 @@ void parallel_for2d(const T0 &D0, const T1 &D1, F func) {
 
 
 template <typename T0, typename T1, typename T2, typename F>
-void for_3d(const int ithr, const int nthr, const T0 &D0, const T1 &D1,
-    const T2 &D2, F func) {
+void for_3d(const int &ithr, const int &nthr, const T0 &D0, const T1 &D1,
+    const T2 &D2, const F &func) {
     const size_t work_amount = (size_t)D0 * D1 * D2;
     if (work_amount == 0) return;
     size_t start{ 0 }, end{ 0 };
@@ -348,7 +350,7 @@ void for_3d(const int ithr, const int nthr, const T0 &D0, const T1 &D1,
 }
 
 template <typename T0, typename T1, typename T2, typename F>
-void parallel_for3d(const T0 &D0, const T1 &D1, const T2 &D2, F func) {
+void parallel_for3d(const T0 &D0, const T1 &D1, const T2 &D2, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
@@ -363,8 +365,8 @@ void parallel_for3d(const T0 &D0, const T1 &D1, const T2 &D2, F func) {
 }
 
 template <typename T0, typename T1, typename T2, typename T3, typename F>
-void for_4d(const int ithr, const int nthr, const T0 &D0, const T1 &D1,
-    const T2 &D2, const T3 &D3, F func) {
+void for_4d(const int &ithr, const int &nthr, const T0 &D0, const T1 &D1,
+    const T2 &D2, const T3 &D3, const F &func) {
     const size_t work_amount = (size_t)D0 * D1 * D2 * D3;
     if (work_amount == 0) return;
     size_t start{ 0 }, end{ 0 };
@@ -379,7 +381,7 @@ void for_4d(const int ithr, const int nthr, const T0 &D0, const T1 &D1,
 }
 
 template <typename T0, typename T1, typename T2, typename T3, typename F>
-void parallel_for4d(const T0 &D0, const T1 &D1, const T2 &D2, const T3 &D3, F func) {
+void parallel_for4d(const T0 &D0, const T1 &D1, const T2 &D2, const T3 &D3, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
@@ -394,8 +396,8 @@ void parallel_for4d(const T0 &D0, const T1 &D1, const T2 &D2, const T3 &D3, F fu
 }
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename F>
-void for_5d(const int ithr, const int nthr, const T0 &D0, const T1 &D1,
-        const T2 &D2, const T3 &D3, const T4 &D4, F func) {
+void for_5d(const int &ithr, const int &nthr, const T0 &D0, const T1 &D1,
+        const T2 &D2, const T3 &D3, const T4 &D4, const F &func) {
     const size_t work_amount = (size_t)D0 * D1 * D2 * D3 * D4;
     if (work_amount == 0) return;
     size_t start{ 0 }, end{ 0 };
@@ -411,7 +413,7 @@ void for_5d(const int ithr, const int nthr, const T0 &D0, const T1 &D1,
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename F>
 void parallel_for5d(const T0 &D0, const T1 &D1, const T2 &D2, const T3 &D3,
-                    const T4 &D4, F func) {
+                    const T4 &D4, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
@@ -427,7 +429,7 @@ void parallel_for5d(const T0 &D0, const T1 &D1, const T2 &D2, const T3 &D3,
 
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename T5, typename F>
-void for_6d(const int ithr, const int nthr, const T0 &D0, const T1 &D1,
+void for_6d(const int &ithr, const int &nthr, const T0 &D0, const T1 &D1,
         const T2 &D2, const T3 &D3, const T4 &D4, const T5 &D5, F func) {
     const size_t work_amount = (size_t)D0 * D1 * D2 * D3 * D4 * D5;
     if (work_amount == 0) return;

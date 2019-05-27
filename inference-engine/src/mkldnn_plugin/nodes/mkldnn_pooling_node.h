@@ -28,8 +28,8 @@ public:
 
 private:
     static Register<MKLDNNPoolingNode> reg;
-    InferenceEngine::PoolingLayer::PoolType type;
-    bool exclude_pad;
+    InferenceEngine::PoolingLayer::PoolType type = InferenceEngine::PoolingLayer::MAX;
+    bool exclude_pad = false;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;

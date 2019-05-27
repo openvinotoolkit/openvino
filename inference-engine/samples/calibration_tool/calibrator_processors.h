@@ -107,7 +107,7 @@ protected:
     InferenceEngine::InferRequest _inferRequestI8C;
     int _cBatch = 0;
 
-    size_t _nPictures;
+    size_t _nPictures = 0;
 
 private:
     /**

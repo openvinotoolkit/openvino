@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <details/ie_exception.hpp>
 #include "quantization.h"
 
 void QuantizeAffine16(float *ptr_float_weights,
@@ -496,6 +497,9 @@ void QuantizeAffine8(float *ptr_float_weights, float *ptr_float_biases,
                      float input_scale_factor, float *ptr_weight_scale_factor,
                      float *ptr_output_scale_factor, uint32_t num_rows, uint32_t num_columns,
                      uint32_t num_rows_padded, uint32_t num_columns_padded) {
+    if (ptr_int_biases == nullptr) {
+        THROW_IE_EXCEPTION << "Int biases are empty";
+    }
     uint32_t num_saturate = 0;
 
     if (*ptr_weight_scale_factor == 1.0) {
@@ -547,11 +551,11 @@ void QuantizeAffine8(float *ptr_float_weights, float *ptr_float_biases,
         value = scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT);
         ptr_int_biases[row].multiplier = (uint8_t) (value + 0.5);
         for (uint32_t col = 0; col < num_columns; col++) {
-            int8_t *ptr_weight_8 = ptr_int_weights + (row*num_columns_padded + col);
+            int8_t *ptr_weight_8 = ptr_int_weights + (row * num_columns_padded + col);
             rounding_value = (ptr_float_weights[row * num_columns + col] > 0) ? 0.5f : -0.5f;
 
 
-            value = ptr_float_weights[row*num_columns + col] * (*ptr_weight_scale_factor / ptr_int_biases[row].multiplier) + rounding_value;
+            value = ptr_float_weights[row * num_columns + col] * (*ptr_weight_scale_factor / ptr_int_biases[row].multiplier) + rounding_value;
             if (value > 127.0) {
                 *ptr_weight_8 = 127;
                 num_saturate++;
@@ -559,11 +563,11 @@ void QuantizeAffine8(float *ptr_float_weights, float *ptr_float_biases,
                 *ptr_weight_8 = -128;
                 num_saturate++;
             } else {
-                *ptr_weight_8 = (int8_t)value;
+                *ptr_weight_8 = (int8_t) value;
             }
         }
         for (uint32_t col = num_columns; col < num_columns_padded; col++) {
-            int8_t *ptr_weight_8 = ptr_int_weights + (row*num_columns_padded + col);
+            int8_t *ptr_weight_8 = ptr_int_weights + (row * num_columns_padded + col);
             *ptr_weight_8 = 0;
         }
     }

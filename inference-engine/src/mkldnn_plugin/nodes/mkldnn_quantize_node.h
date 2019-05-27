@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,14 +23,48 @@ public:
     bool created() const override;
     void execute(mkldnn::stream strm) override;
 
+    const float* getBinarizationTresholdsPtr() {
+        if (!initialized)
+            initValues();
+        return &binarizationThresholds[0];
+    }
+
+    size_t getBinarizationTresholdsSize() {
+        if (!initialized)
+            initValues();
+        return binarizationThresholds.size();
+    }
+
+    const float* getBinarizationOutputMaskPtr() {
+        if (!initialized)
+            initValues();
+        return reinterpret_cast<float*>(&binarizationOutputMask[0]);
+    }
+
+    size_t getBinarizationOutputMaskSize() {
+        if (!initialized)
+            initValues();
+        return binarizationOutputMask.size();
+    }
+
+    bool isPackedStore() {
+        if (!initialized)
+            initValues();
+        return canStorePacked;
+    }
 
 private:
+    void initValues();
+
+    bool initialized = false;
+
     static Register<MKLDNNQuantizeNode> reg;
 
-    bool canStorePacked;
-    int levels;
+    bool canStorePacked = false;
+    int levels = -1;
 
     std::vector<float> binarizationThresholds;
+    std::vector<uint32_t> binarizationOutputMask;
 };
 
 }  // namespace MKLDNNPlugin

@@ -39,7 +39,7 @@ void CNNLayer::validateLayer() {
         InOutDims shapes;
         getInOutShapes(this, shapes);
         validator->checkShapes(this, shapes.inDims);
-    } catch(InferenceEngineException ie_e) {
+    } catch(const InferenceEngineException &ie_e) {
         THROW_IE_EXCEPTION << "Error of validate layer: " << this->name
                            << " with type: " << this->type << ". "
                            << ie_e.what();
@@ -723,7 +723,7 @@ void ReshapeValidator::parseParams(CNNLayer *layer) {
     if (!casted->params.empty()) {
         if (casted->type == "Flatten") {
             casted->num_axes = casted->GetParamAsInt("end_axis", -1);
-            casted->axis = casted->axis = casted->GetParamAsInt("axis", 0);
+            casted->axis = casted->GetParamAsInt("axis", 0);
         } else {
             casted->shape = casted->GetParamAsInts("dim", {});
         }
@@ -853,9 +853,6 @@ void ReLUValidator::checkParams(const CNNLayer* layer) {
     }
     if (!casted->params.empty()) {
         float negative_slope = casted->GetParamAsFloat("negative_slope");
-        if (negative_slope < 0) {
-            THROW_IE_EXCEPTION << "The value of ReLU layer negative_slope parameter is invalid";
-        }
     }
 }
 
@@ -2420,7 +2417,7 @@ void BinaryConvolutionValidator::parseParams(CNNLayer* layer) {
         THROW_IE_EXCEPTION << "Layer is not instance of BinaryConvolutionLayer class";
     }
 
-    binConvLayer->_pad_value = binConvLayer->GetParamAsFloat("pad_value", -1.f);
+    binConvLayer->_pad_value = binConvLayer->GetParamAsFloat("pad_value", 0.f);
     binConvLayer->_in_depth = binConvLayer->GetParamAsUInt("input");
     binConvLayer->_mode = BinaryConvolutionLayer::xnor_popcount;
     std::string mode = binConvLayer->GetParamAsString("mode", "xnor-popcount");

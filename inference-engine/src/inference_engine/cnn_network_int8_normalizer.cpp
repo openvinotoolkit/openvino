@@ -203,7 +203,7 @@ CNNLayer::Ptr CNNStatisticHelper::getLatestInFuse(CNNLayer::Ptr layer) const {
 void CNNStatisticHelper::NormalizeStatistic() {
     StatsMap newMap;
 
-    float dummy;
+    float dummy = 0.0f;
 
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network_);
     for (auto l : sortedLayers) {
@@ -319,6 +319,9 @@ void CNNStatisticHelper::NormalizeStatistic() {
                 } else if (CaselessEq<std::string>()(tl->type, "convolution")) {
                     // verify number of groups
                     ConvolutionLayer *pConv = dynamic_cast<ConvolutionLayer *>(tl.get());
+                    if (pConv == nullptr) {
+                        THROW_IE_EXCEPTION << "Layer " << tl->name << " is not instance of ConvolutionLayer class";
+                    }
                     if (pConv->_group != pConv->_out_depth) {
                         perChannelScale = false;
                     }
@@ -539,6 +542,9 @@ void CNNNetworkInt8Normalizer::AddScaleShiftBetween(CNNNetwork& net, const CNNLa
 
         {
             ScaleShiftLayer* scshLayer = dynamic_cast<ScaleShiftLayer*>(ssCnnLayer.get());
+            if (scshLayer == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << ssCnnLayer->name << " is not instance of ScaleShiftLayer class";
+            }
             fillInScaleShift(scshLayer, c, oScaleBuffer, iScaleBuffer);
         }
 
@@ -673,7 +679,10 @@ CNNLayer::Ptr CNNNetworkInt8Normalizer::createDWConvolutionForScale(const std::s
     params.type = "Convolution";
 
     CNNLayerPtr lptr = std::make_shared<ConvolutionLayer>(params);
-    ConvolutionLayer *pConv = dynamic_cast<ConvolutionLayer *>(lptr.get());
+    auto *pConv = dynamic_cast<ConvolutionLayer *>(lptr.get());
+    if (pConv == nullptr) {
+        THROW_IE_EXCEPTION << "Layer " << lptr->name << " is not instance of ConvolutionLayer class";
+    }
 
     pConv->_kernel.insert(X_AXIS, 1);
     pConv->_kernel.insert(Y_AXIS, 1);
@@ -969,6 +978,10 @@ bool CNNNetworkInt8Normalizer::isNextFusionAllowed(const CNNLayer::Ptr& layer) {
         std::string aType = layer->outData[0]->inputTo.begin()->second->type;
         if (CaselessEq<std::string>()(aType, "relu")) {
             ReLULayer *rL = dynamic_cast<ReLULayer *>(layer->outData[0]->inputTo.begin()->second.get());
+            if (rL == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << layer->outData[0]->inputTo.begin()->second->name
+                                   << " is not instance of ReLULayer class";
+            }
             if (rL->negative_slope != 0.f) {
                 return false;
             }

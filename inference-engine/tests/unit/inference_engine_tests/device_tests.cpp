@@ -61,8 +61,7 @@ TEST_F(DeviceTests, returnsProperDeviceName) {
     ASSERT_STREQ(getDeviceName(TargetDevice::eMYRIAD), "MYRIAD");
     ASSERT_STREQ(getDeviceName(TargetDevice::eGNA), "GNA");
     ASSERT_STREQ(getDeviceName(TargetDevice::eHETERO), "HETERO");
-    ASSERT_STREQ(getDeviceName(TargetDevice::eKMB), "KMB");
     ASSERT_STREQ(getDeviceName(static_cast<TargetDevice>(-1)), "Unknown device");
     //off by one test - might not be enough
-    ASSERT_STREQ(getDeviceName(static_cast<TargetDevice>((uint8_t)TargetDevice::eKMB + 1)), "Unknown device");
+    ASSERT_STREQ(getDeviceName(static_cast<TargetDevice>((uint8_t)TargetDevice::eHETERO + 1)), "Unknown device");
 }

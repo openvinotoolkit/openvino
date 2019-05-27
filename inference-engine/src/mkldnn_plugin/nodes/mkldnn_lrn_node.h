@@ -29,11 +29,11 @@ public:
 
 private:
     static Register<MKLDNNLrnNode> reg;
-    bool isAcrossMaps;
-    int size;
-    int k;
-    float alpha;
-    float beta;
+    bool isAcrossMaps = false;
+    int size = 1;
+    int k = 1;
+    float alpha = 1.0f;
+    float beta = 1.0f;
 };
 
 }  // namespace MKLDNNPlugin

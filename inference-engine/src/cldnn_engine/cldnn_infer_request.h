@@ -27,7 +27,7 @@ public:
     void
     GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
 
-    CLDNNInferRequest(InferenceEnv env, bool useProfiling,
+    CLDNNInferRequest(const InferenceEnv& env, bool useProfiling,
                       InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs);
 
     CLDNNInferRequest(const CLDNNInferRequest &) = delete;

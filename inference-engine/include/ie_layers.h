@@ -701,7 +701,7 @@ public:
     /**
     * @brief A pad value which is used to fill pad area
     */
-    float _pad_value = -1.0f;
+    float _pad_value = 0.0f;
 
     /**
      * @brief A convolution kernel array [X, Y, Z, ...]

@@ -82,7 +82,7 @@ public:
      * @brief Constructor. Creates an empty Blob object with the specified precision.
      * @param tensorDesc Defines the layout and dims of the blob
      */
-    explicit Blob(TensorDesc tensorDesc): tensorDesc(tensorDesc) {}
+    explicit Blob(const TensorDesc &tensorDesc): tensorDesc(tensorDesc) {}
 
     /**
      * @deprecated Please use TensorDesc for Blob initialization
@@ -126,17 +126,21 @@ public:
      * @return Total number of elements (a product of all the dimensions)
      */
     size_t Resize(const SizeVector &dims, Layout layout = Layout::ANY) noexcept {
-        bool bret = deallocate();
+        try {
+            bool bret = deallocate();
 
-        if (layout != Layout::ANY) {
-            tensorDesc = TensorDesc(tensorDesc.getPrecision(), SizeVector(dims.rbegin(), dims.rend()), layout);
-        } else {
-            tensorDesc.setDims(SizeVector(dims.rbegin(), dims.rend()));
+            if (layout != Layout::ANY) {
+                tensorDesc = TensorDesc(tensorDesc.getPrecision(), SizeVector(dims.rbegin(), dims.rend()), layout);
+            } else {
+                tensorDesc.setDims(SizeVector(dims.rbegin(), dims.rend()));
+            }
+            if (!bret) {
+                allocate();
+            }
+            return product(tensorDesc.getDims());
+        } catch (...) {
+            return 0;
         }
-        if (!bret) {
-            allocate();
-        }
-        return product(tensorDesc.getDims());
     }
 
     /**
@@ -147,16 +151,20 @@ public:
      * @return The total number of elements (a product of all the dims)
      */
     size_t Reshape(const SizeVector &dims, Layout layout = Layout::ANY) noexcept {
-        if (product(tensorDesc.getDims()) != product(dims)) {
+        try {
+            if (product(tensorDesc.getDims()) != product(dims)) {
+                return 0;
+            }
+
+            if (layout != Layout::ANY) {
+                tensorDesc = TensorDesc(tensorDesc.getPrecision(), SizeVector(dims.rbegin(), dims.rend()), layout);
+            } else {
+                tensorDesc.setDims(SizeVector(dims.rbegin(), dims.rend()));
+            }
+            return product(tensorDesc.getDims());
+        } catch (...) {
             return 0;
         }
-
-        if (layout != Layout::ANY) {
-            tensorDesc = TensorDesc(tensorDesc.getPrecision(), SizeVector(dims.rbegin(), dims.rend()), layout);
-        } else {
-            tensorDesc.setDims(SizeVector(dims.rbegin(), dims.rend()));
-        }
-        return product(tensorDesc.getDims());
     }
 
     /**

@@ -22,7 +22,7 @@ public:
     static mkldnn::memory::data_type IEPrecisionToDataType(InferenceEngine::Precision prec);
     static InferenceEngine::Precision DataTypeToIEPrecision(mkldnn::memory::data_type dataType);
     static InferenceEngine::TensorDesc getUninitTensorDesc(const InferenceEngine::TensorDesc& desc);
-    static bool initTensorsAreEqual(InferenceEngine::TensorDesc desc1, InferenceEngine::TensorDesc desc2);
+    static bool initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2);
 };
 
 }  // namespace MKLDNNPlugin

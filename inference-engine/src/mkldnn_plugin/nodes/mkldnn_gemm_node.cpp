@@ -52,6 +52,8 @@ void MKLDNNGemmNode::getSupportedDescriptors() {
     xAxis = nDims - 1;
     yAxis = nDims - 2;
 
+    // The check inDims0[xAxis] != inDims1[yAxis] is correct due to layer semantic
+    // coverity[copy_paste_error]
     if (inDims0[xAxis] != inDims1[yAxis] || inDims0[yAxis] != outDims[yAxis] || inDims1[xAxis] != outDims[xAxis])
         THROW_IE_EXCEPTION << "Spatial input and output dimensions are incorrect for layer " << getName();
 
