@@ -74,7 +74,7 @@ void MKLDNNReorderNode::createPrimitive() {
             dstMemPtr->GetDescriptor(), dstMemPtr->GetPrimitive().get_data_handle());
 }
 
-void MKLDNNReorderNode::createReorderPrimitive(mkldnn::memory::desc srcDesc, void* srcPtr, mkldnn::memory::desc dstDesc, void* dstPtr) {
+void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr) {
     src_blocked = std::make_shared<MKLDNNMemory>(getEngine());
     src_blocked->Create(srcDesc, srcPtr);
 

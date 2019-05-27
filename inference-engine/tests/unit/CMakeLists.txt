@@ -62,6 +62,26 @@ if (ENABLE_MKL_DNN)
     source_group("mkldnn" FILES ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE})
 endif ()
 
+if (ENABLE_VPU)
+    # Disable MVNC Unit tests for PCIE
+    if (NOT ENABLE_MYX_PCIE)
+        file(GLOB VPU_MVNC_TESTS engines/vpu/mvnc/*cpp)
+    endif()
+    file(GLOB
+            VPU_TESTS
+            engines/vpu/*cpp
+            )
+    include_directories(
+            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
+            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/XLink/shared
+            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/watchdog
+            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/WinPthread
+    )
+
+    list(APPEND TEST_SRC ${VPU_TESTS})
+    source_group("vpu" FILES ${VPU_TESTS})
+endif()
+
 file(GLOB
         TEST_INCLUDE
         shape_infer/*.hpp)
@@ -87,6 +107,10 @@ set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 ## Mock macros doesn't use "override" specificator
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-inconsistent-missing-override >)
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-inconsistent-missing-override >)
+
+if (ENABLE_VPU)
+    target_link_libraries(${TARGET_NAME} PRIVATE mvnc vpu_graph_transformer_test_static)
+endif ()
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     gtest

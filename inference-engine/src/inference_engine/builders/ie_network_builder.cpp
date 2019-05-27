@@ -713,15 +713,30 @@ Builder::Layer::Ptr Builder::Network::getLayer(idx_t layerId) {
 }
 
 const std::string& Builder::Network::getName() const noexcept {
-    return parameters.at("name");
+    static std::string errName;
+    try {
+        return parameters.at("name");
+    } catch (...) {
+        return errName;
+    }
 }
 
 const Context& Builder::Network::getContext() const noexcept {
-    return parameters.at("context");
+    static Context errCtx;
+    try {
+        return parameters.at("context");
+    } catch (...) {
+        return errCtx;
+    }
 }
 
 Context& Builder::Network::getContext() noexcept {
-    return parameters.at("context");
+    static Context errCtx;
+    try {
+        return parameters.at("context");
+    } catch (...) {
+        return errCtx;
+    }
 }
 
 Builder::Network::const_iterator Builder::Network::begin() const noexcept {
@@ -751,18 +766,20 @@ Builder::Network::iterator Builder::Network::end() {
 
 const std::vector<ILayer::CPtr> Builder::Network::getInputs() const noexcept {
     std::vector<ILayer::CPtr> inputs;
-    for (const auto& layer : parameters.at("layers").as<std::vector<Layer::Ptr>>()) {
-        bool isInputLayer = true;
-        for (const auto& connection : getLayerConnections(layer->getId())) {
-            if (connection.to().layerId() == layer->getId()) {
-                isInputLayer = false;
-                break;
+    try {
+        for (const auto& layer : parameters.at("layers").as<std::vector<Layer::Ptr>>()) {
+            bool isInputLayer = true;
+            for (const auto& connection : getLayerConnections(layer->getId())) {
+                if (connection.to().layerId() == layer->getId()) {
+                    isInputLayer = false;
+                    break;
+                }
+            }
+            if (isInputLayer) {
+                inputs.push_back(layer->build());
             }
         }
-        if (isInputLayer) {
-            inputs.push_back(layer->build());
-        }
-    }
+    } catch (...) {}
     return inputs;
 }
 
@@ -785,18 +802,20 @@ std::vector<Builder::Layer::Ptr> Builder::Network::getInputs() {
 
 const std::vector<ILayer::CPtr> Builder::Network::getOutputs() const noexcept {
     std::vector<ILayer::CPtr> outputs;
-    for (const auto& layer : parameters.at("layers").as<std::vector<Layer::Ptr>>()) {
-        bool isOutputLayer = true;
-        for (const auto& connection : getLayerConnections(layer->getId())) {
-            if (connection.from().layerId() == layer->getId()) {
-                isOutputLayer = false;
-                break;
+    try {
+        for (const auto& layer : parameters.at("layers").as<std::vector<Layer::Ptr>>()) {
+            bool isOutputLayer = true;
+            for (const auto& connection : getLayerConnections(layer->getId())) {
+                if (connection.from().layerId() == layer->getId()) {
+                    isOutputLayer = false;
+                    break;
+                }
+            }
+            if (isOutputLayer) {
+                outputs.push_back(layer->build());
             }
         }
-        if (isOutputLayer) {
-            outputs.push_back(layer->build());
-        }
-    }
+    } catch (...) {}
     return outputs;
 }
 
@@ -823,9 +842,11 @@ const std::vector<Connection>& Builder::Network::getConnections() const {
 
 const std::vector<Connection> Builder::Network::getLayerConnections(idx_t layerId) const noexcept {
     std::vector<Connection> layerConnections;
-    for (const auto connection : parameters.at("connections").as<std::vector<Connection>>()) {
-        if (connection.from().layerId() == layerId || connection.to().layerId() == layerId)
-            layerConnections.push_back(connection);
-    }
+    try {
+        for (const auto connection : parameters.at("connections").as<std::vector<Connection>>()) {
+            if (connection.from().layerId() == layerId || connection.to().layerId() == layerId)
+                layerConnections.push_back(connection);
+        }
+    } catch (...) {}
     return layerConnections;
 }

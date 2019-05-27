@@ -87,7 +87,7 @@ InferenceEngine::TensorDesc MKLDNNExtensionUtils::getUninitTensorDesc(const Infe
                                         std::numeric_limits<size_t>::max(), zeroArr, notInitArr});
 }
 
-bool MKLDNNExtensionUtils::initTensorsAreEqual(InferenceEngine::TensorDesc desc1, InferenceEngine::TensorDesc desc2) {
+bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2) {
     if (desc1.getDims() != desc2.getDims() || desc1.getPrecision() != desc2.getPrecision())
         return false;
     if (desc1.getLayout() == InferenceEngine::Layout::ANY || desc2.getLayout() == InferenceEngine::Layout::ANY)

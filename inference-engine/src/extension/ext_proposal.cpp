@@ -385,93 +385,100 @@ public:
             roi_indices_.resize(post_nms_topn_);
             addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
                       {DataConfigurator(ConfLayout::PLN)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (const InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }
 
     StatusCode execute(std::vector<Blob::Ptr> &inputs, std::vector<Blob::Ptr> &outputs,
                        ResponseDesc *resp) noexcept override {
-        if (inputs.size() != 3 || outputs.empty()) {
+        try {
+            if (inputs.size() != 3 || outputs.empty()) {
+                THROW_IE_EXCEPTION << "Incorrect number of input or output edges!";
+            }
+
+            // Prepare memory
+            const float *p_bottom_item = inputs[0]->buffer();
+            const float *p_d_anchor_item = inputs[1]->buffer();
+            const float *p_img_info_cpu = inputs[2]->buffer();
+            float *p_roi_item = outputs[0]->buffer();
+
+            size_t img_info_size = inputs[2]->getTensorDesc().getDims()[1];
+
+            // No second output so ignoring this
+            // Dtype* p_score_item = (top.size() > 1) ? top[1]->mutable_cpu_data() : NULL;
+
+            // bottom shape: (2 x num_anchors) x H x W
+            const int bottom_H = inputs[0]->getTensorDesc().getDims()[2];
+            const int bottom_W = inputs[0]->getTensorDesc().getDims()[3];
+
+            // input image height & width
+            const float img_H = p_img_info_cpu[swap_xy ? 1 : 0];
+            const float img_W = p_img_info_cpu[swap_xy ? 0 : 1];
+
+            // scale factor for height & width
+            const float scale_H = p_img_info_cpu[2];
+            const float scale_W = img_info_size > 3 ? p_img_info_cpu[3] : scale_H;
+
+            // minimum box width & height
+            const float min_box_H = min_size_ * scale_H;
+            const float min_box_W = min_size_ * scale_W;
+
+            // number of all proposals = num_anchors * H * W
+            const int num_proposals = anchors_shape_0 * bottom_H * bottom_W;
+
+            // number of top-n proposals before NMS
+            const int pre_nms_topn = std::min<int>(num_proposals, pre_nms_topn_);
+
+            // number of final RoIs
+            int num_rois = 0;
+
+            // enumerate all proposals
+            //   num_proposals = num_anchors * H * W
+            //   (x1, y1, x2, y2, score) for each proposal
+            // NOTE: for bottom, only foreground scores are passed
+            struct ProposalBox {
+                float x0;
+                float y0;
+                float x1;
+                float y1;
+                float score;
+            };
+            std::vector<ProposalBox> proposals_(num_proposals);
+            std::vector<float> unpacked_boxes(4 * pre_nms_topn);
+            std::vector<int> is_dead(pre_nms_topn);
+
+            // Execute
+            int nn = inputs[0]->getTensorDesc().getDims()[0];
+            for (int n = 0; n < nn; ++n) {
+                enumerate_proposals_cpu(p_bottom_item + num_proposals + n * num_proposals * 2,
+                                        p_d_anchor_item + n * num_proposals * 4,
+                                        &anchors_[0], reinterpret_cast<float *>(&proposals_[0]),
+                                        anchors_shape_0, bottom_H, bottom_W, img_H, img_W,
+                                        min_box_H, min_box_W, feat_stride_,
+                                        box_coordinate_scale_, box_size_scale_,
+                                        coordinates_offset, initial_clip, swap_xy, clip_before_nms);
+                std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
+                                  [](const ProposalBox &struct1, const ProposalBox &struct2) {
+                                      return (struct1.score > struct2.score);
+                                  });
+
+                unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
+                nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0, nms_thresh_,
+                        post_nms_topn_, coordinates_offset);
+                retrieve_rois_cpu(num_rois, n, pre_nms_topn, &unpacked_boxes[0], &roi_indices_[0],
+                                  p_roi_item + n * post_nms_topn_ * 5,
+                                  post_nms_topn_, normalize_, img_H, img_W, clip_after_nms);
+            }
+
+            return OK;
+        } catch (const InferenceEngine::details::InferenceEngineException& e) {
             if (resp) {
-                std::string errorMsg = "Incorrect number of input or output edges!";
+                std::string errorMsg = e.what();
                 errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
             }
             return GENERAL_ERROR;
         }
-
-        // Prepare memory
-        const float* p_bottom_item = inputs[0]->buffer();
-        const float* p_d_anchor_item = inputs[1]->buffer();
-        const float* p_img_info_cpu = inputs[2]->buffer();
-        float* p_roi_item = outputs[0]->buffer();
-
-        size_t img_info_size = inputs[2]->getTensorDesc().getDims()[1];
-
-        // No second output so ignoring this
-        // Dtype* p_score_item = (top.size() > 1) ? top[1]->mutable_cpu_data() : NULL;
-
-        // bottom shape: (2 x num_anchors) x H x W
-        const int bottom_H = inputs[0]->getTensorDesc().getDims()[2];
-        const int bottom_W = inputs[0]->getTensorDesc().getDims()[3];
-
-        // input image height & width
-        const float img_H = p_img_info_cpu[swap_xy ? 1 : 0];
-        const float img_W = p_img_info_cpu[swap_xy ? 0 : 1];
-
-        // scale factor for height & width
-        const float scale_H = p_img_info_cpu[2];
-        const float scale_W = img_info_size > 3 ? p_img_info_cpu[3] : scale_H;
-
-        // minimum box width & height
-        const float min_box_H = min_size_ * scale_H;
-        const float min_box_W = min_size_ * scale_W;
-
-        // number of all proposals = num_anchors * H * W
-        const int num_proposals = anchors_shape_0 * bottom_H * bottom_W;
-
-        // number of top-n proposals before NMS
-        const int pre_nms_topn = std::min<int>(num_proposals, pre_nms_topn_);
-
-        // number of final RoIs
-        int num_rois = 0;
-
-        // enumerate all proposals
-        //   num_proposals = num_anchors * H * W
-        //   (x1, y1, x2, y2, score) for each proposal
-        // NOTE: for bottom, only foreground scores are passed
-        struct ProposalBox {
-            float x0;
-            float y0;
-            float x1;
-            float y1;
-            float score;
-        };
-        std::vector<ProposalBox> proposals_(num_proposals);
-        std::vector<float> unpacked_boxes(4 * pre_nms_topn);
-        std::vector<int> is_dead(pre_nms_topn);
-
-        // Execute
-        int nn = inputs[0]->getTensorDesc().getDims()[0];
-        for (int n = 0; n < nn; ++n) {
-            enumerate_proposals_cpu(p_bottom_item + num_proposals + n*num_proposals*2, p_d_anchor_item + n*num_proposals*4,
-                                    &anchors_[0], reinterpret_cast<float *>(&proposals_[0]),
-                                    anchors_shape_0, bottom_H, bottom_W, img_H, img_W,
-                                    min_box_H, min_box_W, feat_stride_,
-                                    box_coordinate_scale_, box_size_scale_,
-                                    coordinates_offset, initial_clip, swap_xy, clip_before_nms);
-            std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
-                              [](const ProposalBox& struct1, const ProposalBox& struct2) {
-                                  return (struct1.score > struct2.score);
-                              });
-
-            unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
-            nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0, nms_thresh_, post_nms_topn_, coordinates_offset);
-            retrieve_rois_cpu(num_rois, n, pre_nms_topn, &unpacked_boxes[0], &roi_indices_[0], p_roi_item + n*post_nms_topn_*5,
-                              post_nms_topn_, normalize_, img_H, img_W, clip_after_nms);
-        }
-
-        return OK;
     }
 
 private:
@@ -507,16 +514,20 @@ public:
     // set output shapes by input shapes.
     StatusCode getShapes(const std::vector<TensorDesc>& inShapes, std::vector<TensorDesc>& outShapes,
                          ResponseDesc *resp) noexcept override {
-        if (inShapes.size() != 1) {
+        try {
+            if (inShapes.size() != 1) {
+                THROW_IE_EXCEPTION << "Incorrect input shapes!";
+            }
+            outShapes.clear();
+            outShapes.emplace_back(cnnLayer.precision, inShapes[0].getDims(), inShapes[0].getLayout());
+            return OK;
+        } catch (const InferenceEngine::details::InferenceEngineException& e) {
             if (resp) {
-                std::string errorMsg = "Incorrect input shapes!";
+                std::string errorMsg = e.what();
                 errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
             }
             return GENERAL_ERROR;
         }
-        outShapes.clear();
-        outShapes.emplace_back(cnnLayer.precision, inShapes[0].getDims(), inShapes[0].getLayout());
-        return OK;
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,6 +90,7 @@ public:
                     }
                 }
             }
+                break;
             default:
                 THROW_IE_EXCEPTION << "Incorrect 'indices_to_set' input precision. Only FP32 and I32 are supported!";
         }

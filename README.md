@@ -15,7 +15,12 @@ Deep Learning Deployment Toolkit is licensed under [Apache License Version 2.0](
 
 ## Documentation
 * [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
-* Inference Engine [build instructions](inference-engine/README.md)
+* [Inference Engine build instructions](inference-engine/README.md)
+* [Get Started with Deep Learning Deployment Toolkit on Linux*](get-started-linux.md)
+* [Introduction to Deep Learning Deployment Toolkit](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Introduction.html)
+* [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
+* [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
+
 
 ## How to Contribute
 We welcome community contributions to the Deep Learning Deployment Toolkit repository. If you have an idea how to improve the product, please share it with us doing the following steps:

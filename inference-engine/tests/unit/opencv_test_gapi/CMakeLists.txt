@@ -1,20 +1,8 @@
-#
-# Copyright (C) 2018-2019 Intel Corporation.
-#
-# This software and the related documents are Intel copyrighted materials,
-# and your use of them is governed by the express license under which they
-# were provided to you (End User License Agreement for the Intel(R) Software
-# Development Products (Version May 2017)). Unless the License provides
-# otherwise, you may not use, modify, copy, publish, distribute, disclose or
-# transmit this software or the related documents without Intel's prior
-# written permission.
-#
-# This software and the related documents are provided as is, with no
-# express or implied warranties, other than those that are expressly
-# stated in the License.
+# Copyright (C) 2018-2019 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT ENABLE_GAPI_TESTS)
+if(NOT ENABLE_GAPI_TESTS OR WIN32)
     message(WARNING "Skipping GAPI unit tests")
     return()
 endif()
@@ -24,6 +12,8 @@ if(NOT OpenCV_FOUND)
     message(WARNING "No suitable OpenCV version detected, " ${TARGET_NAME} " skipped")
     return()
 endif()
+
+include_directories(${IE_MAIN_SOURCE_DIR}/src/inference_engine)
 
 add_subdirectory(fluid_test_computations)
 

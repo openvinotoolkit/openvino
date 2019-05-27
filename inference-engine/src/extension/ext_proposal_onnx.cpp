@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -422,16 +422,20 @@ public:
     // set output shapes by input shapes.
     StatusCode getShapes(const std::vector<TensorDesc>& inShapes, std::vector<TensorDesc>& outShapes,
                          ResponseDesc *resp) noexcept override {
-        if (inShapes.size() != 1) {
+        try {
+            if (inShapes.size() != 1) {
+                THROW_IE_EXCEPTION << "Incorrect input shapes!";
+            }
+            outShapes.clear();
+            outShapes.emplace_back(cnnLayer.precision, inShapes[0].getDims(), inShapes[0].getLayout());
+            return OK;
+        } catch (const InferenceEngine::details::InferenceEngineException& e) {
             if (resp) {
-                std::string errorMsg = "Incorrect input shapes!";
+                std::string errorMsg = e.what();
                 errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
             }
             return GENERAL_ERROR;
         }
-        outShapes.clear();
-        outShapes.emplace_back(cnnLayer.precision, inShapes[0].getDims(), inShapes[0].getLayout());
-        return OK;
     }
 };
 

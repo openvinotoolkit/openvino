@@ -360,6 +360,12 @@ int main(int argc, char *argv[]) {
             showUsage();
             return ex.list().begin()->exitCode();
         }
+    } catch (const std::exception& ex) {
+        slog::err << ex.what() << slog::endl;
+        return 1;
+    } catch (...) {
+        slog::err << "Unknown/internal exception happened." << slog::endl;
+        return 1;
     }
     return 0;
 }

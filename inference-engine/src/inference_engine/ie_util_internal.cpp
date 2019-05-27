@@ -457,6 +457,9 @@ struct NodePrinter {
 
         if (type == "Convolution") {
             auto* conv = dynamic_cast<ConvolutionLayer*>(layer.get());
+            if (conv == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << layer->name << " is not instance of ConvolutionLayer class";
+            }
 
             unsigned int
                 depth = conv->_out_depth,
@@ -471,6 +474,9 @@ struct NodePrinter {
             printed_properties.emplace_back("dilations", formatSize_({&(conv->_dilation[0]), &(conv->_dilation[conv->_dilation.size() - 1])}));
         } else if (type == "Pooling") {
             auto* pool = dynamic_cast<PoolingLayer*>(layer.get());
+            if (pool == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << layer->name << " is not instance of PoolingLayer class";
+            }
 
             printed_properties.emplace_back("window size", formatSize_({&(pool->_kernel[0]), &(pool->_kernel[pool->_kernel.size() - 1])}));
             printed_properties.emplace_back("padding begin", formatSize_({&(pool->_padding[0]), &(pool->_padding[pool->_padding.size() - 1])}));
@@ -478,6 +484,9 @@ struct NodePrinter {
             printed_properties.emplace_back("strides", formatSize_({&(pool->_stride[0]), &(pool->_stride[pool->_stride.size() - 1])}));
         } else if (type == "ReLU") {
             auto* relu = dynamic_cast<ReLULayer*>(layer.get());
+            if (relu == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << layer->name << " is not instance of ReLULayer class";
+            }
 
             float negative_slope = relu->negative_slope;
 
@@ -485,6 +494,9 @@ struct NodePrinter {
                 printed_properties.emplace_back("negative_slope", std::to_string(negative_slope));
         } else if (type == "Eltwise") {
             auto* eltwise = dynamic_cast<EltwiseLayer*>(layer.get());
+            if (eltwise == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << layer->name << " is not instance of EltwiseLayer class";
+            }
 
             std::string operation;
 

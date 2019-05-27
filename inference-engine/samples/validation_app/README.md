@@ -15,7 +15,7 @@ Possible use cases of the tool:
 * Use Validation Application as another sample: although the code is much more complex than in classification and object
   detection samples, the source code is open and can be re-used.
 
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Specify Input Shapes** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ## Validation Application Options
 
@@ -59,7 +59,7 @@ The tool options are divided into two categories:
 
 ## General Workflow
 
-> **NOTE**: By default, Inference Engine samples expect input images to have BGR channels order. If you trained you model to work with images in RGB order, you need to manually rearrange the default channels order in the sample application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to [When to Specify Input Shapes](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md#when_to_reverse_input_channels).
+> **NOTE**: By default, Inference Engine samples expect input images to have BGR channels order. If you trained you model to work with images in RGB order, you need to manually rearrange the default channels order in the sample application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to [When to Reverse Input Channels](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md#when_to_reverse_input_channels).
 
 When executed, the Validation Application perform the following steps:
 

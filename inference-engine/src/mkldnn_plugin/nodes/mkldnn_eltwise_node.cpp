@@ -24,11 +24,15 @@ MKLDNNEltwiseNode::MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, 
 
 bool MKLDNNEltwiseNode::isSum() {
     auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(getCnnLayer().get());
+    if (eltwiseLayer == nullptr)
+        THROW_IE_EXCEPTION << "Cannot get eltwise layer " << getName();
     return eltwiseLayer->_operation == EltwiseLayer::Sum;
 }
 
 bool MKLDNNEltwiseNode::isUnitScales() {
     auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(getCnnLayer().get());
+    if (eltwiseLayer == nullptr)
+        THROW_IE_EXCEPTION << "Cannot get eltwise layer " << getName();
 
     if (eltwiseLayer->coeff.empty())
         return true;

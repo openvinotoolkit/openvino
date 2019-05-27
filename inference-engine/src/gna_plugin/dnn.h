@@ -252,7 +252,9 @@ class AmIntelDnn {
           ptr_sumgroup_sizes(NULL),
           num_sumgroup_sizes(0),
           ptr_priors(NULL),
-          ptr_dnn_memory_(NULL) {
+          ptr_dnn_memory_(NULL),
+          num_bytes_dnn_memory_(0),
+          number_type_(kDnnNumNumberType) {
     }
 
     ~AmIntelDnn() {

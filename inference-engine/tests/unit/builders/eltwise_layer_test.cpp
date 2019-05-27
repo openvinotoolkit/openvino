@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,13 +74,13 @@ TEST_F(EltwiseLayerBuilderTest, cannotCreateLayerWithOneInputPort) {
     ASSERT_THROW(net.addLayer(layer), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(EltwiseLayerBuilderTest, cannotCreateLayerWithThreeInputPort) {
+TEST_F(EltwiseLayerBuilderTest, canCreateLayerWithThreeInputPort) {
     Builder::Network net("network");
     Builder::EltwiseLayer layer("Eltwise layer");
 
     layer.setInputPorts({Port({1, 2, 3, 4}), Port({1, 2, 3, 4}), Port({1, 2, 3, 4})});   // here
     layer.setOutputPort(Port({1, 2, 3, 4}));
-    ASSERT_THROW(net.addLayer(layer), InferenceEngine::details::InferenceEngineException);
+    ASSERT_NO_THROW(net.addLayer(layer));
 }
 
 TEST_F(EltwiseLayerBuilderTest, cannotCreateLayerWithDifferentInputPorts) {
