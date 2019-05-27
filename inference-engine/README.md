@@ -3,27 +3,27 @@
 ## Contents
 
 - [Introduction](#introduction)
-- [Build on Linux* Systems](#build-on-linux*-systems)
+- [Build on Linux Systems](#build-on-linux-systems)
   - [Software Requirements](#software-requirements)
   - [Build Steps](#build-steps)
   - [Additional Build Options](#additional-build-options)
-- [Build for Raspbian* Stretch OS](#build-for-raspbian*-stretch-os)
+- [Build for Raspbian Stretch OS](#build-for-raspbian-stretch-os)
   - [Hardware Requirements](#hardware-requirements)
   - [Native Compilation](#native-compilation)
-  - [Cross Compilation Using Docker*](#cross-compilation-using-docker*)
+  - [Cross Compilation Using Docker](#cross-compilation-using-docker)
   - [Additional Build Options](#additional-build-options-1)
-- [Build on Windows* Systems](#build-on-windows*-systems)
+- [Build on Windows Systems](#build-on-windows-systems)
   - [Software Requirements](#software-requirements-1)
   - [Build Steps](#build-steps-1)
   - [Additional Build Options](#additional-build-options-2)
-  - [Building Inference Engine with Ninja* Build System](#building-inference-engine-with-ninja*-build-system)
-- [Build on macOS* Systems](#build-on-macos*-systems)
+  - [Building Inference Engine with Ninja Build System](#building-inference-engine-with-ninja-build-system)
+- [Build on macOS Systems](#build-on-macos-systems)
   - [Software Requirements](#software-requirements-2)
   - [Build Steps](#build-steps-2)
   - [Additional Build Options](#additional-build-options-3)
 - [Use Custom OpenCV Builds for Inference Engine](#use-custom-opencv-builds-for-inference-engine)
 - [(Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2](#(optional)-additional-installation-steps-for-the-intel®-movidius™-neural-compute-stick-and-neural-compute-stick-2)
-  - [For Linux, Raspbian Stretch* OS](#for-linux,-raspbian-stretch*-os)
+  - [For Linux, Raspbian Stretch* OS](#for-linux,-raspbian-stretch-os)
   - [For Windows](#for-windows-1)
 - [Next Steps](#next-steps)
 - [Additional Resources](#additional-resources)
@@ -43,7 +43,7 @@ The open source version of Inference Engine includes the following plugins:
 
 Inference Engine plugin for Intel® FPGA is distributed only in a binary form as a part of [Intel® Distribution of OpenVINO™](https://software.intel.com/en-us/openvino-toolkit).
 
-## Build on Linux* Systems
+## Build on Linux Systems
 
 The software was validated on:
 - Ubuntu\* 16.04 (64-bit) with default GCC\* 5.4.0
@@ -128,7 +128,7 @@ You can use the following additional build options:
 
 You can compile the Inference Engine for Raspberry Pi\* in one of the two ways:
 * [Native Compilation](#native-compilation), which is the simplest way, but time-consuming
-* [Cross Compilation Using Docker*](#cross-compilation-using-docker), which is the recommended way
+* [Cross Compilation Using Docker](#cross-compilation-using-docker), which is the recommended way
 
 ### Native Compilation
 Native compilation of the Inference Engine is the most straightforward solution. However, it might take at least one hour to complete on Raspberry Pi\* 3.
@@ -168,7 +168,7 @@ Native compilation of the Inference Engine is the most straightforward solution.
         -DENABLE_GNA=OFF .. && make -j2
   ```
 
-### Cross Compilation Using Docker*
+### Cross Compilation Using Docker
 
   This compilation was tested on the following configuration:
 
@@ -280,7 +280,7 @@ You can use the following additional build options:
   -DPYTHON_INCLUDE_DIR=/usr/include/python3.5
 ```
 
-## Build on Windows* Systems
+## Build on Windows Systems
 
 The software was validated on:
 - Microsoft\* Windows\* 10 (64-bit) with Visual Studio 2017 and Intel® C++ Compiler 2018 Update 3
@@ -340,7 +340,7 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
    -DPYTHON_INCLUDE_DIR="C:\Program Files\Python37\include"
    ```
 
-### Building Inference Engine with Ninja* Build System
+### Building Inference Engine with Ninja Build System
 
 ```sh
 call "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\bin\ipsxe-comp-vars.bat" intel64 vs2017
@@ -352,7 +352,7 @@ cmake -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --config Release
 ```
 
-## Build on macOS* Systems
+## Build on macOS Systems
 
 > **NOTE**: The current version of the OpenVINO™ toolkit for macOS* supports inference on Intel CPUs only.
 
