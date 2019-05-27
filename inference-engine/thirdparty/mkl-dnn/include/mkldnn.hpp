@@ -290,7 +290,7 @@ enum algorithm {
     roi_pooling_max = mkldnn_roi_pooling_max,
     roi_pooling_bilinear = mkldnn_roi_pooling_bilinear,
     binary_convolution_direct = mkldnn_binary_convolution_direct,
-    binarization_depthwise = mkldnn_binarization_depthwise
+    binarization_depthwise = mkldnn_binarization_depthwise,
 };
 
 inline mkldnn_alg_kind_t convert_to_c(algorithm aalgorithm) {
@@ -453,14 +453,14 @@ struct post_ops: public handle<mkldnn_post_ops_t> {
                           "could not get dw conv params");
     }
 
-    void append_binarization(algorithm alg, const float* weights_data) {
-        error::wrap_c_api(mkldnn_post_ops_append_binarization(get(), convert_to_c(alg), weights_data),
+    void append_binarization(algorithm alg, const float* weights_data, const float* output_mask) {
+        error::wrap_c_api(mkldnn_post_ops_append_binarization(get(), convert_to_c(alg), weights_data, output_mask),
                 "could not append binarization");
     }
 
-    void get_params_binarization(int index, algorithm &alg, const float** weights_data) const {
+    void get_params_binarization(int index, algorithm &alg, const float** weights_data, const float** output_mask) const {
         mkldnn_alg_kind_t c_alg;
-        error::wrap_c_api(mkldnn_post_ops_get_params_binarization(get(), index, &c_alg, weights_data),
+        error::wrap_c_api(mkldnn_post_ops_get_params_binarization(get(), index, &c_alg, weights_data, output_mask),
                 "could not get binarization params");
         alg = static_cast<algorithm>(c_alg);
     }
@@ -3523,12 +3523,13 @@ struct binarization_forward : public primitive {
         mkldnn_binarization_desc_t data;
 
         desc(prop_kind aprop_kind, algorithm alg_kind,
-             const memory::desc &src_desc, const memory::desc &weights_desc, const memory::desc &dst_desc) {
+             const memory::desc &src_desc, const memory::desc &weights_desc, const memory::desc &output_mask_desc,
+             const memory::desc &dst_desc) {
             error::wrap_c_api(mkldnn_binarization_forward_desc_init(&data,
                                                                  mkldnn::convert_to_c(aprop_kind),
                                                                  mkldnn::convert_to_c(alg_kind),
                                                                  &src_desc.data, &dst_desc.data,
-                                                                 &weights_desc.data),
+                                                                 &weights_desc.data, &output_mask_desc.data),
                               "could not create a binarization forward descriptor");
         }
     };
@@ -3546,9 +3547,10 @@ struct binarization_forward : public primitive {
     };
 
     binarization_forward(const primitive_desc &aprimitive_desc,
-                      const primitive::at &src, const primitive::at &weights, const memory &dst) {
+                      const primitive::at &src, const primitive::at &weights, const primitive::at &output_mask,
+                      const memory &dst) {
         mkldnn_primitive_t result;
-        mkldnn_primitive_at_t inputs[] = { src.data, weights.data };
+        mkldnn_primitive_at_t inputs[] = { src.data, weights.data, output_mask.data};
         const_mkldnn_primitive_t outputs[] = { dst.get() };
         error::wrap_c_api(mkldnn_primitive_create(&result, aprimitive_desc.get(), inputs, outputs),
                           "could not create a binarization forward primitive");

@@ -45,12 +45,15 @@ if(WIN32)
     target_include_directories(${TARGET_NAME} PUBLIC "${IE_MAIN_SOURCE_DIR}/samples/common")
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC inference_engine ${PUGI})
+target_link_libraries(${TARGET_NAME} PUBLIC ${PUGI})
 
-target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${gtest_SOURCE_DIR}/include"
-                                                 "${IE_MAIN_SOURCE_DIR}/src" "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src"
+target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                 $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+                                                 "${gtest_SOURCE_DIR}/include"
+                                                 "${IE_MAIN_SOURCE_DIR}/src"
+                                                 "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src"
                                                  "${gmock_SOURCE_DIR}/include"
-										                      PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+                                         PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
 # TODO: eliminate dependency on samples
 target_include_directories(${TARGET_NAME} PUBLIC 

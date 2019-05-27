@@ -391,7 +391,7 @@ std::string MKLDNNMemory::formatToString(memory::format fmt) {
 }
 
 bool MKLDNNMemoryDesc::operator==(const MKLDNNMemoryDesc &rhs) const {
-    auto dims_equal = [] (mkldnn_memory_desc_t ldata, mkldnn_memory_desc_t rdata) {
+    auto dims_equal = [] (const mkldnn_memory_desc_t &ldata, const mkldnn_memory_desc_t &rdata) {
         if (ldata.ndims != rdata.ndims)
             return false;
         for (int i = 0; i < ldata.ndims; i++) {
@@ -400,7 +400,7 @@ bool MKLDNNMemoryDesc::operator==(const MKLDNNMemoryDesc &rhs) const {
         }
         return true;
     };
-    auto blocking_equal = [] (mkldnn_memory_desc_t ldata, mkldnn_memory_desc_t rdata) {
+    auto blocking_equal = [] (const mkldnn_memory_desc_t &ldata, const mkldnn_memory_desc_t &rdata) {
         if (ldata.ndims != rdata.ndims)
             return false;
         mkldnn_blocking_desc_t lblock = ldata.layout_desc.blocking;

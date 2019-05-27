@@ -222,12 +222,16 @@ void CLDNNGraph::Config::LoadFromMap(const std::map<std::string, std::string>& c
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR) == 0) {
             if (!val.empty()) {
                 graph_dumps_dir = val;
-                mkdir(graph_dumps_dir.c_str(), 0755);
+                if (mkdir(graph_dumps_dir.c_str(), 0755) != 0) {
+                    THROW_IE_EXCEPTION << "Couldn't create clDNN graph dump directory!";
+                }
             }
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR) == 0) {
             if (!val.empty()) {
                 sources_dumps_dir = val;
-                mkdir(sources_dumps_dir.c_str(), 0755);
+                if (mkdir(sources_dumps_dir.c_str(), 0755) != 0) {
+                    THROW_IE_EXCEPTION << "Couldn't create clDNN source dump directory!";
+                }
             }
         } else if (key.compare(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
@@ -310,7 +314,7 @@ CLDNNGraph::CLDNNGraph(InferenceEngine::ICNNNetwork& network, const Config& conf
     }
 
     bool res = !NetPass::CombineRNNSeq(network) ? NetPass::UnrollTI(network) : true;
-    res &= NetPass::UnrollRNN_if(network, [] (RNNCellBase rnn) -> bool {
+    res &= NetPass::UnrollRNN_if(network, [] (const RNNCellBase& rnn) -> bool {
         if (rnn.clip != 0.0f)
             return true;
         if (rnn.type == "GRUCell" ||
@@ -384,6 +388,15 @@ CLDNNGraph::CLDNNGraph(InferenceEngine::ICNNNetwork& network, const Config& conf
     m_env.debugOptions.AddTimedEvent("Loading", "Loading Begin");
     m_env.debugOptions.PrintTimedEvents();
     m_env.debugOptions.ClearTimedEvents();
+}
+
+template<typename LayerTypePtr>
+LayerTypePtr as(const CNNLayerPtr& in_ptr) {
+    auto result_ptr = dynamic_cast<LayerTypePtr> (in_ptr.get());
+    if (nullptr == result_ptr) {
+        THROW_IE_EXCEPTION << "CNNLayerPtr is not suitable for casting to requested layer type";
+    }
+    return result_ptr;
 }
 
 inline std::string layer_type_name_ID(InferenceEngine::CNNLayer* layer) {
@@ -683,7 +696,7 @@ cldnn::concatenation::concatenation_axis CLDNNGraph::ConcatAxisFromIEAxis(unsign
 
 void CLDNNGraph::CreatePrimitiveFromBlob(cldnn::primitive_id primID,
                                          const InferenceEngine::Blob::Ptr pBlob,
-                                         cldnn::layout blobLayout,
+                                         const cldnn::layout& blobLayout,
                                          size_t blobByteOffset,
                                          WeightRearrangeType rearrange) {
     auto mem = cldnn::memory::allocate(*(m_env.engine), blobLayout);
@@ -765,7 +778,7 @@ void CLDNNGraph::CreateWeightAndBiasPrimitives(const InferenceEngine::CNNLayerPt
 
     switch (LayerTypeFromStr(layer->type)) {
     case Convolution: {
-        auto convLayer = dynamic_cast<InferenceEngine::ConvolutionLayer *> (layer.get());
+        auto convLayer = as<InferenceEngine::ConvolutionLayer *> (layer);
         if ((inFeatures % groupSize) || (convLayer->_out_depth % groupSize)) {
             THROW_CLDNN_EXCEPTION("Invalid group size in layer " << convLayer->name);
         }
@@ -784,7 +797,7 @@ void CLDNNGraph::CreateWeightAndBiasPrimitives(const InferenceEngine::CNNLayerPt
     }
         break;
     case Deconvolution: {
-        auto deconvLayer = dynamic_cast<InferenceEngine::DeconvolutionLayer *> (layer.get());
+        auto deconvLayer = as<InferenceEngine::DeconvolutionLayer *> (layer);
         if ((inFeatures % groupSize) || (deconvLayer->_out_depth % groupSize)) {
             THROW_CLDNN_EXCEPTION("Invalid group size in layer " << deconvLayer->name);
         }
@@ -1044,7 +1057,7 @@ void CLDNNGraph::CreateSingleLayerPrimitive(InferenceEngine::CNNLayerPtr &layer)
 void CLDNNGraph::CreateScaleShiftPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto scaleShiftLayer = dynamic_cast<InferenceEngine::ScaleShiftLayer*> (layer.get());
+    auto scaleShiftLayer = as<InferenceEngine::ScaleShiftLayer*> (layer);
 
     // create scales and biases
     cldnn::primitive_id scalePrimID = scaleShiftLayer->name + m_scalesTag;
@@ -1085,7 +1098,7 @@ void CLDNNGraph::CreateScaleShiftPrimitive(InferenceEngine::CNNLayerPtr &layer) 
 
 void CLDNNGraph::CreateProposalPrimitive(InferenceEngine::CNNLayerPtr & layer) {
     ValidateLayer(layer, 3);
-    auto proposalLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto proposalLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     float nms_thresh = proposalLayer->GetParamAsFloat("nms_thresh", 0.7f);
     int min_size = proposalLayer->GetParamAsInt("min_size", 16);
@@ -1157,7 +1170,7 @@ void CLDNNGraph::CreateProposalPrimitive(InferenceEngine::CNNLayerPtr & layer) {
 void CLDNNGraph::CreatePReLUPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto preluLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto preluLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     std::string preluLayerName = layer_type_name_ID(layer);
     auto inDataPtr = preluLayer->insData[0].lock();
@@ -1207,7 +1220,7 @@ void CLDNNGraph::CreateBatchNormalizationPrimitive(InferenceEngine::CNNLayerPtr 
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
     std::string bnLayerName = layer_type_name_ID(layer);
 
-    auto bnLayer = dynamic_cast<InferenceEngine::BatchNormalizationLayer *> (layer.get());
+    auto bnLayer = as<InferenceEngine::BatchNormalizationLayer *> (layer);
     cldnn::primitive_id weightID = bnLayerName + "_" + m_scalesTag;
     cldnn::primitive_id biasID = bnLayerName + "_" + m_biasesTag;
 
@@ -1222,8 +1235,7 @@ void CLDNNGraph::CreateBatchNormalizationPrimitive(InferenceEngine::CNNLayerPtr 
     m_topology->add(scalePrim);
     m_env.profilingIDs.push_back(bnLayerName);
     return;
-#endif  // _SCALE_BN_OPT
-
+#else
     cldnn::tensor blobTensor(0);
     switch (bnLayer->outData[0]->dims.size()) {
     case 2:
@@ -1258,12 +1270,13 @@ void CLDNNGraph::CreateBatchNormalizationPrimitive(InferenceEngine::CNNLayerPtr 
     m_env.primitiveIDs[bnLayerName] = bnLayerName;
     m_topology->add(bnPrim);
     m_env.profilingIDs.push_back(bnLayerName);
+#endif  // _SCALE_BN_OPT
 }
 
 void CLDNNGraph::CreateFlattenPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto flattenLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto flattenLayer = as<InferenceEngine::GenericLayer*> (layer);
     std::string flattenLayerName = layer_type_name_ID(layer);
 
     auto flattenPrim = cldnn::reshape(
@@ -1279,7 +1292,7 @@ void CLDNNGraph::CreateFlattenPrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreatePermutePrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto permuteLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto permuteLayer = as<InferenceEngine::GenericLayer*> (layer);
     std::vector<uint16_t> ie_order;
     for (auto& a : permuteLayer->GetParamAsInts("order"))
         ie_order.push_back(static_cast<uint16_t>(a));
@@ -1320,7 +1333,7 @@ void CLDNNGraph::CreatePermutePrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreateReshapePrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto reshapeLayer = dynamic_cast<InferenceEngine::ReshapeLayer*> (layer.get());
+    auto reshapeLayer = as<InferenceEngine::ReshapeLayer*> (layer);
     IE_ASSERT(reshapeLayer->outData.size());
     std::string reshapeLayerName = layer_type_name_ID(layer);
 
@@ -1337,7 +1350,7 @@ void CLDNNGraph::CreateReshapePrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreateNormalizePrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto normLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto normLayer = as<InferenceEngine::GenericLayer*> (layer);
     ValidateGenericLayerBlobs(normLayer, { "weights" });
     CreateGenericLayerBlobPrimitives(normLayer);
 
@@ -1365,7 +1378,7 @@ void CLDNNGraph::CreateNormalizePrimitive(InferenceEngine::CNNLayerPtr &layer) {
 
 void CLDNNGraph::CreateDetectionOutputPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 3);
-    auto detectionLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto detectionLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     uint32_t num_classes            = detectionLayer->GetParamAsUInt("num_classes", 1);
     bool share_location             = detectionLayer->GetParamsAsBool("share_location", true);
@@ -1421,7 +1434,7 @@ void CLDNNGraph::CreateDetectionOutputPrimitive(InferenceEngine::CNNLayerPtr &la
 
 void CLDNNGraph::CreatePriorBoxPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 2);
-    auto priorBoxLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto priorBoxLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     // params
     std::vector<float> min_size = priorBoxLayer->GetParamAsFloats("min_size");
@@ -1491,7 +1504,7 @@ void CLDNNGraph::CreatePriorBoxPrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreateDeconvolutionPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto deconvLayer = dynamic_cast<InferenceEngine::DeconvolutionLayer *> (layer.get());
+    auto deconvLayer = as<InferenceEngine::DeconvolutionLayer *> (layer);
 
     if (deconvLayer->_dilation[X_AXIS] != 1 || deconvLayer->_dilation[Y_AXIS] != 1) {
         THROW_CLDNN_EXCEPTION("Unsupported dilation in deconvolution " << layer->name);
@@ -1544,7 +1557,7 @@ void CLDNNGraph::CreateCropPrimitive(InferenceEngine::CNNLayerPtr &layer) {
         THROW_CLDNN_EXCEPTION("Unsupported fuse in layer: " << layer->name << " with: " << layer->_fusedWith->name);
     }
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto cropLayer = dynamic_cast<InferenceEngine::CropLayer*> (layer.get());
+    auto cropLayer = as<InferenceEngine::CropLayer*> (layer);
     IE_ASSERT(cropLayer->axis.size() == cropLayer->offset.size());
     // IE_ASSERT(cropLayer->outData[0] && cropLayer->outData[0]->dims.size() == 4);
 
@@ -1582,7 +1595,7 @@ void CLDNNGraph::CreateCropPrimitive(InferenceEngine::CNNLayerPtr &layer) {
 
 void CLDNNGraph::CreateROIPoolingPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 2);
-    auto roiPoolingLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto roiPoolingLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     // params
     int pooled_width = roiPoolingLayer->GetParamAsInt("pooled_w", 0);
@@ -1613,7 +1626,7 @@ void CLDNNGraph::CreateROIPoolingPrimitive(InferenceEngine::CNNLayerPtr &layer) 
 
 void CLDNNGraph::CreatePSROIPoolingPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 2);
-    auto psROIPoolingLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto psROIPoolingLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     // params
     int group_size = psROIPoolingLayer->GetParamAsInt("group_size");
@@ -1650,7 +1663,7 @@ void CLDNNGraph::CreatePSROIPoolingPrimitive(InferenceEngine::CNNLayerPtr &layer
 void CLDNNGraph::CreateCustomLayerPrimitive(InferenceEngine::CNNLayerPtr & layer, CLDNNCustomLayerPtr customLayer) {
     ValidateLayer(layer, 0);
     // todo: handling fusing
-    auto genericLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto genericLayer = as<InferenceEngine::GenericLayer*> (layer);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
 
     // Handle defines
@@ -1678,10 +1691,10 @@ void CLDNNGraph::CreateCustomLayerPrimitive(InferenceEngine::CNNLayerPtr & layer
         if (blob.second->dims().size() != 1) {
             THROW_CLDNN_EXCEPTION("Invalid dimensions for blob " << blob.first << " in layer " << genericLayer->name);
         }
-        CreatePrimitiveFromBlob(blobId, blob.second, cldnn::layout(
-            DataTypeFromPrecision(blob.second->precision()),
-            m_defaultFormat,
-            cldnn::tensor(1, 1, TensorValue(blob.second->dims()[0]), 1)));
+        cldnn::layout genericBlobLayout(DataTypeFromPrecision(blob.second->precision()),
+                                        m_defaultFormat,
+                                        cldnn::tensor(1, 1, TensorValue(blob.second->dims()[0]), 1));
+        CreatePrimitiveFromBlob(blobId, blob.second, genericBlobLayout);
         // save index in blobIndex
         blobIndex[blob.first] = reorderedInputs.size();
         // add to reorderedInputs
@@ -1838,7 +1851,7 @@ void CLDNNGraph::CreateSimplerNMSPrimitive(InferenceEngine::CNNLayerPtr &layer) 
     ValidateLayer(layer, 3);
     IE_ASSERT(layer->insData[0].lock()->dims[3] == 1);  // only handling input batch size 1
     IE_ASSERT(layer->insData[1].lock()->dims[3] == 1);  // only handling input batch size 1
-    auto simpleNMSLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto simpleNMSLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     int max_num_proposals = simpleNMSLayer->GetParamAsInt("max_num_proposals");
     float iou_threshold = simpleNMSLayer->GetParamAsFloat("iou_threshold", 0.7f);
@@ -1872,7 +1885,7 @@ void CLDNNGraph::CreateSimplerNMSPrimitive(InferenceEngine::CNNLayerPtr &layer) 
 void CLDNNGraph::CreateEltwisePrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateEltwiseLayer(layer);
 
-    auto eltwiseLayer = dynamic_cast<InferenceEngine::EltwiseLayer *> (layer.get());
+    auto eltwiseLayer = as<InferenceEngine::EltwiseLayer *> (layer);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
 
     std::vector<float> coefficients = eltwiseLayer->coeff;
@@ -1897,7 +1910,7 @@ void CLDNNGraph::CreateEltwisePrimitive(InferenceEngine::CNNLayerPtr &layer) {
 
 void CLDNNGraph::CreateConcatenatePrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 0);
-    auto concatLayer = dynamic_cast<InferenceEngine::ConcatLayer *> (layer.get());
+    auto concatLayer = as<InferenceEngine::ConcatLayer *> (layer);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
     std::string concatLayerName = layer_type_name_ID(layer);
     auto concatPrim = cldnn::concatenation(
@@ -1911,7 +1924,7 @@ void CLDNNGraph::CreateConcatenatePrimitive(InferenceEngine::CNNLayerPtr &layer)
 
 void CLDNNGraph::CreateSplitPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
-    auto splitLayer = dynamic_cast<InferenceEngine::SplitLayer *> (layer.get());
+    auto splitLayer = as<InferenceEngine::SplitLayer *> (layer);
     if (IsValidSplitConvMerge(splitLayer)) {
         // AlextNet style split->conv*2->merge
         CreateFusedSplitConvMergePrimitive(layer);
@@ -2014,16 +2027,15 @@ std::cout << "Splitting layer: " << layer->name << "\n\tSize:" << CldnnTensorFro
 void CLDNNGraph::CreateFusedSplitConvMergePrimitive(InferenceEngine::CNNLayerPtr &layer) {
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
     // only handle the split->conv->merge topology for now
-    auto splitLayer = dynamic_cast<InferenceEngine::SplitLayer *> (layer.get());
+    auto splitLayer = as<InferenceEngine::SplitLayer *> (layer);
     IE_ASSERT(IsValidSplitConvMerge(splitLayer));
 
     auto convLayer1 =
-        dynamic_cast<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[0]).get());
+        as<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[0]));
     auto convLayer2 =
-        dynamic_cast<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[1]).get());
+        as<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[1]));
     auto concatLayer =
-        dynamic_cast<InferenceEngine::ConcatLayer *> (GetNextSingleLayer(
-            GetNextSingleLayer(splitLayer->outData[0])).get());
+        as<InferenceEngine::ConcatLayer *> (GetNextSingleLayer(GetNextSingleLayer(splitLayer->outData[0])));
 
     if (convLayer1 == nullptr ||
         convLayer2 == nullptr ||
@@ -2078,7 +2090,7 @@ void CLDNNGraph::CreateFusedSplitConvMergePrimitive(InferenceEngine::CNNLayerPtr
 void CLDNNGraph::CreatePowerPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto powerLayer = dynamic_cast<InferenceEngine::PowerLayer *> (layer.get());
+    auto powerLayer = as<InferenceEngine::PowerLayer *> (layer);
     if (powerLayer->power != 1.0f && powerLayer->power != 0.5f) {
         THROW_CLDNN_EXCEPTION("Power Layer " << layer->name << "uses unsupported power value");
     }
@@ -2130,7 +2142,7 @@ void CLDNNGraph::CreatePowerPrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreateSoftMaxPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto softmaxLayer = dynamic_cast<InferenceEngine::SoftMaxLayer *> (layer.get());
+    auto softmaxLayer = as<InferenceEngine::SoftMaxLayer *> (layer);
 
     // additional WA for clDNN FullyConnected output in BX instead of BF
     int inputOrder = 0;
@@ -2157,17 +2169,16 @@ void CLDNNGraph::CreateSoftMaxPrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreateFullyConnectedPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto fcLayer = dynamic_cast<InferenceEngine::FullyConnectedLayer *> (layer.get());
+    auto fcLayer = as<InferenceEngine::FullyConnectedLayer *> (layer);
 
     std::string fcLayerName = layer_type_name_ID(layer);
     // create bias primitive
     cldnn::primitive_id biasesPrimID = "";
     if (fcLayer->_biases != nullptr) {
         biasesPrimID = fcLayerName + m_biasesTag;
-        CreatePrimitiveFromBlob(biasesPrimID,
-            fcLayer->_biases,
-            cldnn::layout(DataTypeFromPrecision(fcLayer->precision), m_defaultFormat,
-                cldnn::spatial(TensorValue(fcLayer->_out_num))));
+        cldnn::layout fcbLayout(DataTypeFromPrecision(fcLayer->precision), m_defaultFormat,
+            cldnn::spatial(TensorValue(fcLayer->_out_num)));
+        CreatePrimitiveFromBlob(biasesPrimID, fcLayer->_biases, fcbLayout);
     }
 
     // create weights primitive
@@ -2188,9 +2199,8 @@ void CLDNNGraph::CreateFullyConnectedPrimitive(InferenceEngine::CNNLayerPtr &lay
         break;
     default: THROW_CLDNN_EXCEPTION("Invalid data dimensions");
     }
-    CreatePrimitiveFromBlob(weightsPrimID,
-                            fcLayer->_weights,
-                            cldnn::layout(DataTypeFromPrecision(fcLayer->precision), m_defaultFormat, weightsDims));
+    cldnn::layout fcwLayout(DataTypeFromPrecision(fcLayer->precision), m_defaultFormat, weightsDims);
+    CreatePrimitiveFromBlob(weightsPrimID, fcLayer->_weights, fcwLayout);
 
     auto fcPrim = cldnn::fully_connected(fcLayerName,
                                          inputPrimitives[0],
@@ -2207,7 +2217,7 @@ void CLDNNGraph::CreateFullyConnectedPrimitive(InferenceEngine::CNNLayerPtr &lay
 void CLDNNGraph::CreatePoolingPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto poolLayer = dynamic_cast<InferenceEngine::PoolingLayer *> (layer.get());
+    auto poolLayer = as<InferenceEngine::PoolingLayer *> (layer);
 
     std::string poolLayerName = layer_type_name_ID(layer);
     auto allPads = getPaddings(*poolLayer);
@@ -2293,7 +2303,7 @@ void CLDNNGraph::CreatePoolingPrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreateLRNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto lrnLayer = dynamic_cast<InferenceEngine::NormLayer *> (layer.get());
+    auto lrnLayer = as<InferenceEngine::NormLayer *> (layer);
     std::string lrnLayerName = layer_type_name_ID(layer);
     auto lrnPrim = cldnn::lrn(
         lrnLayerName,
@@ -2403,7 +2413,7 @@ void CLDNNGraph::CreateActivationPrimitive(InferenceEngine::CNNLayerPtr &layer, 
 void CLDNNGraph::CreateCopyPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto copyLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto copyLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     // Optimize out and just update references
     std::string layerName = layer_type_name_ID(layer);
@@ -2415,7 +2425,7 @@ void CLDNNGraph::CreateUpsamplingPrimitive(InferenceEngine::CNNLayerPtr &layer) 
     // Assuming multi-input will be handled by prev concat/eltwise layers
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto upsamplingLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto upsamplingLayer = as<InferenceEngine::GenericLayer*> (layer);
     uint32_t scale = upsamplingLayer->GetParamAsUInt("scale");
     uint32_t numFilter = upsamplingLayer->GetParamAsUInt("num_filter");
     std::string sampleType = upsamplingLayer->GetParamAsString("sample_type");
@@ -2436,7 +2446,7 @@ void CLDNNGraph::CreateUpsamplingPrimitive(InferenceEngine::CNNLayerPtr &layer) 
 void CLDNNGraph::CreateResamplePrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto resampleLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto resampleLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     auto outDims = layer->outData[0]->dims;
     size_t inFeatures = 1;
@@ -2472,7 +2482,7 @@ void CLDNNGraph::CreateResamplePrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreateYOLO2RegionPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto YOLOregionLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto YOLOregionLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     uint32_t coords = YOLOregionLayer->GetParamAsUInt("coords", 4);
     uint32_t classes = YOLOregionLayer->GetParamAsUInt("classes", 20);
@@ -2503,7 +2513,7 @@ void CLDNNGraph::CreateYOLO2RegionPrimitive(InferenceEngine::CNNLayerPtr &layer)
 void CLDNNGraph::CreateYOLO2ReorgPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto YOLOreorgLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto YOLOreorgLayer = as<InferenceEngine::GenericLayer*> (layer);  // as<InferenceEngine::GenericLayer*> (layer);
     uint32_t stride = YOLOreorgLayer->GetParamAsUInt("stride");
 
     std::string YOLOreorgLayerName = layer_type_name_ID(layer);
@@ -2520,7 +2530,7 @@ void CLDNNGraph::CreateYOLO2ReorgPrimitive(InferenceEngine::CNNLayerPtr &layer) 
 void CLDNNGraph::CreateArgMaxPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto ArgMaxLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto ArgMaxLayer = as<InferenceEngine::GenericLayer*> (layer);
     const cldnn::arg_max_min::out_type otype = cldnn::arg_max_min::out_type::max;
 
     if (HasParam(ArgMaxLayer->params, "out_max_val")) {
@@ -2565,7 +2575,7 @@ void CLDNNGraph::CreateArgMaxPrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreateMaxUnpoolingPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 2);
 
-    auto UnpoolingLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto UnpoolingLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     cldnn::primitive_id real_input, argmax_mutable;
 
@@ -2610,7 +2620,7 @@ void CLDNNGraph::CreateMaxUnpoolingPrimitive(InferenceEngine::CNNLayerPtr &layer
 void CLDNNGraph::CreateMVNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto MvnLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto MvnLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     bool across_channels = MvnLayer->GetParamsAsBool("across_channels", false);
     bool normalize_variance = MvnLayer->GetParamsAsBool("normalize_variance", true);
@@ -2632,7 +2642,7 @@ void CLDNNGraph::CreateMVNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreateTilePrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto tileLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto tileLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     int axis = tileLayer->GetParamAsInt("axis", 1);
     int tiles = tileLayer->GetParamAsInt("tiles");
@@ -2661,7 +2671,7 @@ void CLDNNGraph::CreateTilePrimitive(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreatePadPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto padLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto padLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     auto PadTensorFromArgs = [](const std::string &s) -> cldnn::tensor {
         std::stringstream ss(s);
@@ -2731,7 +2741,7 @@ void CLDNNGraph::CreateLSTMCellPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     cldnn::primitive_id weightID = layerName + m_weightsTag;
     cldnn::primitive_id recurrentID = layerName + "_recurrent" + m_weightsTag;
     cldnn::primitive_id biasID = layerName + m_biasesTag;
-    auto cellLayer = dynamic_cast<InferenceEngine::LSTMCell*> (layer.get());
+    auto cellLayer = as<InferenceEngine::LSTMCell*> (layer);
 
     /* check incoming CNN layer and setup required variables */
     {
@@ -2779,7 +2789,7 @@ void CLDNNGraph::CreateLSTMCellPrimitive(InferenceEngine::CNNLayerPtr &layer) {
         auto rmem = cldnn::memory::allocate(*(m_env.engine), RLayout);
         auto rtmpPointer = rmem.pointer<char>();
 
-        auto wLayer = dynamic_cast<InferenceEngine::WeightableLayer *> (layer.get());
+        auto wLayer = as<InferenceEngine::WeightableLayer *> (layer);
         auto pWeightsBlob = wLayer->_weights;
         auto blobBytes = static_cast<const char *>(pWeightsBlob->buffer());
         const size_t WchunkSz = lstm_input_size * elementSize;
@@ -2875,7 +2885,7 @@ void CLDNNGraph::CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     cldnn::primitive_id weightID = layerName + m_weightsTag;
     cldnn::primitive_id recurrentID = layerName + "_recurrent" + m_weightsTag;
     cldnn::primitive_id biasID = layerName + m_biasesTag;
-    auto rnnLayer = dynamic_cast<InferenceEngine::RNNSequenceLayer*> (layer.get());
+    auto rnnLayer = as<InferenceEngine::RNNSequenceLayer*> (layer);
     bool permute_input = (1 != rnnLayer->axis);
 
     /* check incoming CNN layer and setup required variables */
@@ -2938,7 +2948,7 @@ void CLDNNGraph::CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer) {
         auto rmem = cldnn::memory::allocate(*(m_env.engine), RLayout);
         auto rtmpPointer = rmem.pointer<char>();
 
-        auto wLayer = dynamic_cast<InferenceEngine::WeightableLayer *> (layer.get());
+        auto wLayer = as<InferenceEngine::WeightableLayer *> (layer);
         auto pWeightsBlob = wLayer->_weights;
         auto blobBytes = static_cast<const char *>(pWeightsBlob->buffer());
         const size_t WchunkSz = lstm_input_size * elementSize;
@@ -3107,7 +3117,7 @@ void CLDNNGraph::AddConstantBlobInput(InferenceEngine::CNNLayerPtr &layer) {
 void CLDNNGraph::CreateConvolutionPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto convLayer = dynamic_cast<InferenceEngine::ConvolutionLayer *> (layer.get());
+    auto convLayer = as<InferenceEngine::ConvolutionLayer *> (layer);
 
     std::vector<cldnn::primitive_id> weightPrimID;
     std::vector<cldnn::primitive_id> biasPrimID;
@@ -3156,7 +3166,7 @@ void CLDNNGraph::CreateGatherPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 2);
 
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto gatherLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto gatherLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     int axis = gatherLayer->GetParamAsInt("axis", 0);
 
@@ -3191,7 +3201,7 @@ void CLDNNGraph::CreateDepthToSpacePrimitive(InferenceEngine::CNNLayerPtr &layer
     ValidateLayer(layer, 1);
 
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto depthToSpace = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto depthToSpace = as<InferenceEngine::GenericLayer*> (layer);
 
     size_t blockSize = depthToSpace->GetParamAsInt("block_size", 2);
 
@@ -3218,7 +3228,7 @@ void CLDNNGraph::CreateShuffleChannelsPrimitive(InferenceEngine::CNNLayerPtr &la
     ValidateLayer(layer, 1);
 
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto shuffleChannels = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto shuffleChannels = as<InferenceEngine::GenericLayer*> (layer);
     const int32_t numberOfDims = shuffleChannels->input()->getDims().size();
 
     int32_t group = shuffleChannels->GetParamAsInt("group", 1);
@@ -3252,7 +3262,7 @@ void CLDNNGraph::CreateShuffleChannelsPrimitive(InferenceEngine::CNNLayerPtr &la
 
 void CLDNNGraph::CreateStridedSlicePrimitive(InferenceEngine::CNNLayerPtr &layer) {
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto stridedSliceLayer = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto stridedSliceLayer = as<InferenceEngine::GenericLayer*> (layer);
 
     auto tmp = stridedSliceLayer->GetParamAsUInts("end_mask");
     std::vector<uint8_t> end_mask(tmp.begin(), tmp.end());
@@ -3278,7 +3288,7 @@ void CLDNNGraph::CreateReverseSequencePrimitive(InferenceEngine::CNNLayerPtr &la
     ValidateLayer(layer, 2);
 
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
-    auto reverseSequence = dynamic_cast<InferenceEngine::GenericLayer*> (layer.get());
+    auto reverseSequence = as<InferenceEngine::GenericLayer*> (layer);
     const int32_t numberOfDims = reverseSequence->input()->getDims().size();
 
     const auto input = reverseSequence->insData[0].lock()->getDims();
@@ -3329,9 +3339,9 @@ bool CLDNNGraph::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitL
     }
 
     auto convLayer1 =
-        dynamic_cast<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[0]).get());
+        as<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[0]));
     auto convLayer2 =
-        dynamic_cast<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[1]).get());
+        as<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[1]));
     if (!convLayer1 || !convLayer2) {   // outputs aren't convolutions
         return false;
     }
@@ -3353,8 +3363,8 @@ bool CLDNNGraph::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitL
         return false;
     }
     auto concatLayer =
-        dynamic_cast<InferenceEngine::ConcatLayer *> (
-                GetNextSingleLayer(GetNextSingleLayer(splitLayer->outData[0])).get());
+        as<InferenceEngine::ConcatLayer *> (
+                GetNextSingleLayer(GetNextSingleLayer(splitLayer->outData[0])));
     if (!concatLayer ||                         // not a merge layer
         concatLayer->_axis != 1 ||              // merge on unsupported axis
         concatLayer->outData.size() != 1) {     // too many outputs
@@ -3696,12 +3706,13 @@ void CLDNNGraph::CreateGenericLayerBlobPrimitives(const InferenceEngine::Generic
         if (blob.second->dims().size() != 1) {
             THROW_CLDNN_EXCEPTION("Unhandled blob dim in layer " + layer->name);
         }
-        CreatePrimitiveFromBlob(
-            layer->type + ":" + layer->name + "_" + blob.first + m_weightsTag,
-            blob.second,
-            cldnn::layout(
-                DataTypeFromPrecision(blob.second->precision()),
-                m_defaultFormat, cldnn::spatial(TensorValue(blob.second->dims()[0]))));
+
+        cldnn::layout genericLayout(DataTypeFromPrecision(blob.second->precision()),
+                                    m_defaultFormat,
+                                    cldnn::spatial(TensorValue(blob.second->dims()[0])));
+
+        CreatePrimitiveFromBlob(layer->type + ":" + layer->name + "_" + blob.first + m_weightsTag,
+                                blob.second, genericLayout);
     }
 }
 

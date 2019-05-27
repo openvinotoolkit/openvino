@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ using namespace InferenceEngine::details;
 
 MKLDNNQuantizeNode::MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
 
-void MKLDNNQuantizeNode::getSupportedDescriptors() {
+void MKLDNNQuantizeNode::initValues() {
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
     if (precision != InferenceEngine::Precision::FP32)
         THROW_IE_EXCEPTION << "Quantize layer " << getName() << " supports only FP32 precision";
@@ -30,29 +30,95 @@ void MKLDNNQuantizeNode::getSupportedDescriptors() {
 
     levels = quantizeLayer->levels;
     if (levels <= 1)
-        THROW_IE_EXCEPTION << "Quantize layer " << getName() << "supports only parameter levels > 1";
+        THROW_IE_EXCEPTION << "Quantize layer " << getName() << " supports only parameter levels > 1";
+
+    size_t inputDataEdgeIdx = 0;
+    size_t inputLowEdgeIdx = 0;
+    size_t outputLowEdgeIdx = 0;
+    size_t outputHighEdgeIdx = 0;
+    auto parents = getParentEdges();
+    for (size_t i = 0; i < parents.size(); i++) {
+        auto p_edge = parents[i].lock();
+        if (p_edge->getParent()->getType() == Input && p_edge->getParent()->getCnnLayer()->type == "Const") {
+            inputLowEdgeIdx = i;
+            outputLowEdgeIdx = i + 2;
+            outputHighEdgeIdx = i + 3;
+            inputDataEdgeIdx = i == 0 ? 4 : 0;
+            break;
+        }
+    }
+
+    for (size_t i = 0; i < parents.size(); i++) {
+        auto p_edge = parents[i].lock();
+        if (p_edge->getParent()->getType() == Input) {
+            if (p_edge->getDims().ndims() != 1 && p_edge->getDims().ndims() != 4) {
+                THROW_IE_EXCEPTION << "Quantize layer " << getName() << " supports only 1D or 4D inputs at edge " << i;
+            }
+        }
+    }
 
     if (getParentEdges().size() != 5)
         THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
         THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
-    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        THROW_IE_EXCEPTION << "Quantize layer " << getName() << "supports only 4D input at edge 0";
+    if (getParentEdgeAt(inputDataEdgeIdx)->getDims().ndims() != 4) {
+        THROW_IE_EXCEPTION << "Quantize layer " << getName() << " supports only 4D input at edge 0";
     }
 
-    for (int i = 1; i < 5; i++) {
-        if (getParentEdgeAt(i)->getDims().ndims() != 1 && getParentEdgeAt(i)->getDims().ndims() != 4) {
-            THROW_IE_EXCEPTION << "Quantize layer " << getName() << "supports only 1D or 4D inputs at edge " << i;
+    auto outputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgeAt(outputLowEdgeIdx)->getParent()->getCnnLayer()->blobs["custom"].get());
+    auto outputLowData = outputLowBlob->buffer().as<float*>();
+    int outputLowAxis = getParentEdgeAt(outputLowEdgeIdx)->getDims().ndims() == 1 ? 0 : 1;
+    auto outputHighBlob = dynamic_cast<TBlob<float>*>(getParentEdgeAt(outputHighEdgeIdx)->getParent()->getCnnLayer()->blobs["custom"].get());
+    auto outputHighData = outputHighBlob->buffer().as<float*>();
+    int outputHighAxis = getParentEdgeAt(outputHighEdgeIdx)->getDims().ndims() == 1 ? 0 : 1;
+
+    bool isBinarization = levels == 2;
+    for (int i = 0; i < getParentEdgeAt(outputLowEdgeIdx)->getDims()[outputLowAxis]; i++) {
+        if (outputLowData[i] != 1.f && outputLowData[i] != 0.f) {
+            isBinarization = false;
+            break;
         }
     }
 
-    canStorePacked = getChildEdges().size() == 1 && getChildEdgeAt(0)->getChild()->getType() == BinaryConvolution;
+    for (int i = 0; i < getParentEdgeAt(outputHighEdgeIdx)->getDims()[outputHighAxis]; i++) {
+        if (outputHighData[i] != 1.f && outputHighData[i] != 0.f) {
+            isBinarization = false;
+            break;
+        }
+    }
 
-    if (canStorePacked) {
+    canStorePacked = isBinarization && getChildEdges().size() == 1 && getChildEdgeAt(0)->getChild()->getType() == BinaryConvolution;
+
+    InferenceEngine::SizeVector dims;
+    dims.push_back(getParentEdgeAt(inputDataEdgeIdx)->getDims()[1]);
+
+    auto InputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgeAt(inputLowEdgeIdx)->getParent()->getCnnLayer()->blobs["custom"].get());
+
+    auto inputLowData = InputLowBlob->buffer().as<float*>();
+    int inputLowAxis = getParentEdgeAt(inputLowEdgeIdx)->getDims().ndims() == 1 ? 0 : 1;
+    bool isInputLowBroadcasted = getParentEdgeAt(inputLowEdgeIdx)->getDims()[inputLowAxis] != dims[0];
+
+    for (int i = 0; i < dims[0]; i++) {
+        binarizationThresholds.push_back(inputLowData[isInputLowBroadcasted ? 0 : i]);
+    }
+
+    bool isOutputHighBroadcasted = getParentEdgeAt(outputHighEdgeIdx)->getDims()[outputHighAxis] != dims[0];
+    for (int i = 0; i < dims[0]; i++) {
+        uint32_t mask = outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
+
+        binarizationOutputMask.push_back(mask);
+    }
+
+    initialized = true;
+}
+
+void MKLDNNQuantizeNode::getSupportedDescriptors() {
+    if (isPackedStore()) {
         mkldnn::memory::data_type idt = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
         mkldnn::memory::data_type ddt = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::BIN);
         mkldnn::memory::data_type wdt = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
+        mkldnn::memory::data_type omdt = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
 
         MKLDNNMemoryDesc in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), idt, memory::nhwc);
         MKLDNNMemoryDesc out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), ddt, memory::nhwc);
@@ -61,26 +127,13 @@ void MKLDNNQuantizeNode::getSupportedDescriptors() {
         weightDims.push_back(getParentEdgeAt(0)->getDims()[1]);
         MKLDNNDims blocked_weightDims(weightDims);
         MKLDNNMemoryDesc wgh_candidate{blocked_weightDims, wdt, memory::x};
-
+        MKLDNNMemoryDesc om_candidate{blocked_weightDims, omdt, memory::x};
 
         std::shared_ptr<mkldnn::binarization_forward::desc> bin_conv_desc;
-        bin_conv_desc.reset(new binarization_forward::desc(prop_kind::forward_scoring, algorithm::binarization_depthwise,
-                                                           in_candidate, wgh_candidate, out_candidate));
+        bin_conv_desc.reset(new binarization_forward::desc(prop_kind::forward_scoring, algorithm ::binarization_depthwise,
+                                                           in_candidate, wgh_candidate, om_candidate, out_candidate));
 
         descs.emplace_back(bin_conv_desc);
-
-        InferenceEngine::SizeVector dims;
-        dims.push_back(getParentEdgeAt(0)->getDims()[1]);
-
-        auto InputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgeAt(1)->getParent()->getCnnLayer()->blobs["custom"].get());
-
-        auto inputLowData = InputLowBlob->buffer().as<float*>();
-        int inputLowAxis = getParentEdgeAt(1)->getDims().ndims() == 1 ? 0 : 1;
-        bool isInputLowBroadcasted = getParentEdgeAt(1)->getDims()[inputLowAxis] != dims[0];
-
-        for (int i = 0; i < dims[0]; i++) {
-            binarizationThresholds.push_back(inputLowData[isInputLowBroadcasted ? 0 : i]);
-        }
     }
 }
 
@@ -121,7 +174,7 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
 
     supportedPrimitiveDescriptors.push_back(same(memory::nhwc, ref_any));
 
-    if (canStorePacked) {
+    if (isPackedStore()) {
         primitive_desc_iterator itpd = descs[0].createPrimitiveDescriptorIterator(getEngine());
         do {
             impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
@@ -148,11 +201,17 @@ void MKLDNNQuantizeNode::createPrimitive() {
 
         MKLDNNMemoryDesc binarizationDataDesc = {{getParentEdgeAt(0)->getDims()[1]}, memory::f32, memory::x};
         auto binarizationDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        binarizationDataMem->Create(binarizationDataDesc, &binarizationThresholds[0]);
+        binarizationDataMem->Create(binarizationDataDesc, getBinarizationTresholdsPtr());
         internalBlobMemory.push_back(binarizationDataMem);
+
+        MKLDNNMemoryDesc binarizationMaskDataDesc = {{getParentEdgeAt(0)->getDims()[1]}, memory::f32, memory::x};
+        auto binarizationMaskDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+        binarizationMaskDataMem->Create(binarizationMaskDataDesc, getBinarizationOutputMaskPtr());
+        internalBlobMemory.push_back(binarizationMaskDataMem);
 
         prim.reset(new binarization_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
                                             internalBlobMemory[0]->GetPrimitive(),
+                                            internalBlobMemory[1]->GetPrimitive(),
                                             getChildEdgeAt(0)->getMemory().GetPrimitive()));
     }
 }

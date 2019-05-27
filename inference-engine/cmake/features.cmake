@@ -62,6 +62,14 @@ list (APPEND IE_OPTIONS IE_DEBUG_POSTFIX)
 set(IE_RELEASE_POSTFIX "${IE_RELEASE_POSTFIX}" CACHE STRING "Release postfix" FORCE)
 list (APPEND IE_OPTIONS IE_RELEASE_POSTFIX)
 
+ie_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON)
+
+ie_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON)
+
+ie_option (ENABLE_MYX_PCIE "myriad plugin with support PCIE device" OFF)
+
+ie_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF)
+
 ie_option (ENABLE_TESTS "unit and functional tests" OFF)
 
 ie_option (ENABLE_GAPI_TESTS "unit tests for GAPI kernels" OFF)

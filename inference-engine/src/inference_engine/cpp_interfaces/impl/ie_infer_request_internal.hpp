@@ -30,7 +30,7 @@ class InferRequestInternal : virtual public IInferRequestInternal {
 public:
     typedef std::shared_ptr<InferRequestInternal> Ptr;
 
-    InferRequestInternal(InputsDataMap networkInputs, OutputsDataMap networkOutputs)
+    InferRequestInternal(const InputsDataMap &networkInputs, const OutputsDataMap &networkOutputs)
             : m_curBatch(-1) {
         // We should copy maps in order to avoid modifications in the future.
         for (const auto &it : networkInputs) {

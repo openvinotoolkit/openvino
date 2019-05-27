@@ -31,7 +31,7 @@ uint64_t XMLParseUtils::GetUInt64Attr(const pugi::xml_node &node, const char *st
     std::string str_value = std::string(attr.value());
     std::size_t idx = 0;
     long long int_value = std::stoll(str_value, &idx, 10);
-    if (idx != str_value.length() || int_value < 0 || int_value > (std::numeric_limits<uint64_t>::max)())
+    if (idx != str_value.length() || int_value < 0)
         THROW_IE_EXCEPTION << "node <" << node.name() << "> has attribute \"" << str << "\" = \"" << str_value
                            << "\" which is not an unsigned 64 bit integer" << " at offset "
                            << node.offset_debug();

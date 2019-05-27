@@ -1,17 +1,5 @@
-//
-// Copyright 2016-2018 Intel Corporation.
-//
-// This software and the related documents are Intel copyrighted materials,
-// and your use of them is governed by the express license under which they
-// were provided to you (End User License Agreement for the Intel(R) Software
-// Development Products (Version May 2017)). Unless the License provides
-// otherwise, you may not use, modify, copy, publish, distribute, disclose or
-// transmit this software or the related documents without Intel's prior
-// written permission.
-//
-// This software and the related documents are provided as is, with no
-// express or implied warranties, other than those that are expressly
-// stated in the License.
+// Copyright (C) 2018-2019 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include "blob_dump.h"
@@ -49,7 +37,7 @@ struct IEB_HEADER {
 };
 
 static IEB_HEADER prepare_header(const TensorDesc& desc) {
-    IEB_HEADER header;
+    IEB_HEADER header = {0};
 
     header.magic[0] = IEB_MAGIC[0];
     header.magic[1] = IEB_MAGIC[1];

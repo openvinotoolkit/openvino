@@ -1,8 +1,7 @@
 // Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// dnn.cpp : component based neural network class for ease of use
-//
+
 extern bool global_debug;
 
 #include <cstdlib>

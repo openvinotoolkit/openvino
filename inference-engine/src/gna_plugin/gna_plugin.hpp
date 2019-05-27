@@ -67,7 +67,7 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
 
 
     uint32_t num_feature_maps = 1;
-    uint32_t num_memory_bytes;
+    uint32_t num_memory_bytes = 0;
 
     std::unordered_map<std::string, std::list<std::vector<void *>>::iterator> ptr_inputs_global_id;
     std::list<std::vector<void *>> ptr_inputs_global_storage;
@@ -79,7 +79,7 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
     uint32_t *ptr_active_indices = NULL;
     uint32_t num_active_indices = 0;
     uint32_t num_group_in = 0;
-    uint32_t num_bytes_weight;
+    uint32_t num_bytes_weight = 0;
     uint32_t num_bytes_per_output = 0;
 
     bool use_dynamic_quantization = false;
