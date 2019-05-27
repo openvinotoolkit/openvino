@@ -23,7 +23,7 @@
   - [Additional Build Options](#additional-build-options-3)
 - [Use Custom OpenCV Builds for Inference Engine](#use-custom-opencv-builds-for-inference-engine)
 - <a href=#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2>Additional Installation Steps for the Intel Movidius Neural Compute Stick and Neural Compute Stick 2</a>
-  - [For Linux, Raspbian Stretch OS](#for-linux,-raspbian-stretch-os)
+  - [For Linux, Raspbian Stretch OS](#for-linux-raspbian-stretch-os)
   - [For Windows](#for-windows-1)
 - [Next Steps](#next-steps)
 - [Additional Resources](#additional-resources)
