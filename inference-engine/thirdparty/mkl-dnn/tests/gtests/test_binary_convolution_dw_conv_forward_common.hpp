@@ -306,13 +306,18 @@ void compute_ref_dw_conv_fwd(const test_binary_convolution_dw_conv_params_t &p,
 }
 
 void compute_ref_binarization_fwd(const test_binary_convolution_dw_conv_params_t &p,
-    const memory::desc &src_md, const memory &src, const memory &weights, const memory &dst) {
+    const memory::desc &src_md, const memory &src,
+    const memory &weights, const memory &output_low, const memory &output_high, const memory &dst) {
     auto src_data = (float*)src.get_data_handle();
     auto weights_data = (float*)weights.get_data_handle();
+    auto output_low_data = (float*)output_low.get_data_handle();
+    auto output_high_data = (float*)output_high.get_data_handle();
     auto dst_data = (uint8_t*)dst.get_data_handle();
 
     const memory::desc src_d = src.get_primitive_desc().desc();
     const memory::desc weights_d = weights.get_primitive_desc().desc();
+    const memory::desc output_low_d = output_low.get_primitive_desc().desc();
+    const memory::desc output_high_d = output_high.get_primitive_desc().desc();
     const memory::desc dst_d = dst.get_primitive_desc().desc();
 
     int N = src_md.data.ndims > 0 ? src_md.data.dims[0] : 1;
@@ -338,8 +343,10 @@ void compute_ref_binarization_fwd(const test_binary_convolution_dw_conv_params_t
 
                         float s_val = src_data[map_index(src_d, src_idx)];
                         float w_val = weights_data[map_index(weights_d, wei_idx)];
+                        float out_low = output_low_data[map_index(output_low_d, wei_idx)];
+                        float out_high = output_high_data[map_index(output_high_d, wei_idx)];
 
-                        auto bit = uint8_t((s_val > w_val) ? 0x01 : 0x00);
+                        auto bit = uint8_t((s_val > w_val) ? out_high : out_low);
                         bin_val |= (bit << shift);
                     }
 
@@ -467,11 +474,33 @@ protected:
         auto dw_conv_binarization_weights_desc = create_md({ cd.conv2_oc }, memory::data_type::f32, memory::x);
         auto dw_conv_binarization_weights = memory({dw_conv_binarization_weights_desc, eng});
 
+        auto dw_conv_binarization_output_low_desc = create_md({ cd.conv2_oc }, memory::data_type::f32, memory::x);
+        auto dw_conv_binarization_output_low = memory({dw_conv_binarization_output_low_desc, eng});
+
+        auto dw_conv_binarization_output_high_desc = create_md({ cd.conv2_oc }, memory::data_type::f32, memory::x);
+        auto dw_conv_binarization_output_high = memory({dw_conv_binarization_output_high_desc, eng});
+
+        auto dw_conv_binarization_output_mask_desc = create_md({ cd.conv2_oc }, memory::data_type::f32, memory::x);
+        auto dw_conv_binarization_output_mask = memory({dw_conv_binarization_output_mask_desc, eng});
+
         if (p.binarization_algorithm != algorithm_undef) {
             fill_data<float>(dw_conv_binarization_weights.get_primitive_desc().get_size() / sizeof(float),
                              (float *)dw_conv_binarization_weights.get_data_handle(), 0.f, p.sizes.conv2_oc * p.sizes.conv2_kh * p.sizes.conv2_kw);
 
-            bin_conv_post_ops.append_binarization(p.binarization_algorithm, static_cast<const float*>(dw_conv_binarization_weights.get_data_handle()));
+            fill_data<float>(dw_conv_binarization_output_low.get_primitive_desc().get_size() / sizeof(float),
+                             (float *)dw_conv_binarization_output_low.get_data_handle(), 0.f, 1.f);
+
+            float* p_output_low = (float *)dw_conv_binarization_output_low.get_data_handle();
+            float* p_output_high = (float *)dw_conv_binarization_output_high.get_data_handle();
+            uint32_t* p_output_mask = (uint32_t *)dw_conv_binarization_output_mask.get_data_handle();
+            for (int i = 0; i < cd.conv2_oc; i++) {
+                p_output_low[i] = p_output_low[i] >= 0 ? 1 : 0;
+                p_output_high[i] = p_output_low[i] == 1 ? 0 : 1;
+                p_output_mask[i] = p_output_high[i] == 1 ? 0xffffffff : 0x00000000;
+            }
+
+            bin_conv_post_ops.append_binarization(p.binarization_algorithm, static_cast<const float*>(dw_conv_binarization_weights.get_data_handle()),
+                                                                            static_cast<const float*>(dw_conv_binarization_output_mask.get_data_handle()));
         }
 
         mkldnn::primitive_attr bin_conv_attr;
@@ -497,7 +526,8 @@ protected:
 
             auto ref_binarization_dst = test_memory(dw_conv_dst_desc, eng);
 
-            compute_ref_binarization_fwd(p, ref_dw_conv_dst_desc, ref_dw_conv_dst.get(), dw_conv_binarization_weights, ref_binarization_dst.get());
+            compute_ref_binarization_fwd(p, ref_dw_conv_dst_desc, ref_dw_conv_dst.get(), dw_conv_binarization_weights,
+                    dw_conv_binarization_output_low, dw_conv_binarization_output_high, ref_binarization_dst.get());
 
             std::vector<primitive> pipeline;
             pipeline.push_back(bin_conv);

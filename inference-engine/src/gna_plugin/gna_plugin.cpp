@@ -1275,7 +1275,12 @@ void GNAPlugin::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         THROW_GNA_EXCEPTION << "Activation function type not yet supported: " << type;
     }
     auto activation_type = DnnActivation::fromType(it->second);
-    activation_type.negative_slope = (it->second == kActRelu) ? dynamic_cast<ReLULayer*>(layer.get())->negative_slope : 0.0f;
+    if (it->second == kActRelu) {
+        auto reluLayer = dynamic_cast<ReLULayer *>(layer.get());
+        activation_type.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
+    } else {
+        activation_type.negative_slope = 0.0f;
+    }
 
     // TODO: need to take graph dependency instead of linear
     auto &prevComponent = dnnComponentsForLayer.back().second;
@@ -1649,20 +1654,23 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     for (auto layer = sortedNoMem.begin(); layer != sortedNoMem.end(); ++layer) {
         CreateLayerPrimitive(*layer);
     }
+    if (dnnComponentsForLayer.empty()) {
+        THROW_GNA_EXCEPTION << "No outputs found in dnn components structure";
+    }
+
     DnnComponentsForLayer::iterator output_component = std::find_if(dnnComponentsForLayer.begin(),
                                                         dnnComponentsForLayer.end(),
                                                         [&](const std::pair<std::string, intel_dnn_component_t>& v)
                                                         { return outputsDataMap.begin()->first == v.first; });
 
     if (output_component == dnnComponentsForLayer.end()) {
-        if (dnnComponentsForLayer.empty()) {
-            THROW_GNA_EXCEPTION << "No outputs found in internal structures";
-        }
         // likely layer is fused. Take last one
-        output_component = std::prev(dnnComponentsForLayer.end());
+        auto it = dnnComponentsForLayer.begin();
+        std::advance(it, dnnComponentsForLayer.size() - 1);
+        output_component = it;
         gnalog() << "Output layer "<< outputsDataMap.begin()->first
-                    << " has not been found in component list. Took  "
-                    << output_component->first << " instead \n" << std::flush;
+            << " has not been found in component list. Took  "
+            << output_component->first << " instead \n" << std::flush;
     }
     gnamem->bind_ptr(&ptr_outputs_global.front(), &output_component->second.ptr_outputs);
 
@@ -1775,6 +1783,10 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     orientation_out = output_component->second.orientation_out;
     num_bytes_per_output = output_component->second.num_bytes_per_output;
 
+    if (sortedNet.empty()) {
+        THROW_GNA_EXCEPTION << "Sorted network is empty";
+    }
+
     // find output layer
     auto output = std::find_if(sortedNet.begin(),
                                 sortedNet.end(),
@@ -1782,7 +1794,9 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
                                 { return outputsDataMap.begin()->first == v.get()->name; });
     if (output == sortedNet.end()) {
         // likely layer is fused. Take last one
-        output = std::prev(sortedNet.end());
+        auto it = sortedNet.begin();
+        std::advance(it, sortedNet.size() - 1);
+        output = it;
     }
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(*output);
     output_scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
@@ -2461,36 +2475,38 @@ void GNAPlugin::connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr, voi
                                             [&name](GNAPlugin::GNAConcatLayer::ConcatConnectedLayerInfo &item) {
                                                 return item.name == name;
                                             });
-                    // reserve full size for concat
-                    if (!concatLayerInfoItem.output_allocation_flag) {
-                        // check if this concat is being included by other one
-                        // by going thru each concat and checking inputs
-                        auto included =
-                            std::find_if(concat_connection.begin(),
-                                           concat_connection.end(),
-                               [&concatLayerInfo]
-                                    (const std::pair<std::string, GNAPlugin::GNAConcatLayer> &concatItem) -> bool {
-                                        auto it = std::find_if(concatItem.second.concatInputLayers.begin(),
-                                                        concatItem.second.concatInputLayers.end(),
-                                                        [&concatLayerInfo]
-                                                            (const GNAPlugin::GNAConcatLayer::ConcatConnectedLayerInfo &item) -> bool {
-                                                                            return item.name == concatLayerInfo->first;
-                                                            });
-                                        return it != concatItem.second.concatInputLayers.end();
-                                    });
-                        if (included == concat_connection.end()) {
-                            gnamem->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(concatLayerInfoItem.reserved_size));
+                    if (it != concatLayerInfoItem.concatInputLayers.end()) {
+                        // reserve full size for concat
+                        if (!concatLayerInfoItem.output_allocation_flag) {
+                            // check if this concat is being included by other one
+                            // by going thru each concat and checking inputs
+                            auto included =
+                                    std::find_if(concat_connection.begin(),
+                                                 concat_connection.end(),
+                                                 [&concatLayerInfo]
+                                                         (const std::pair<std::string, GNAPlugin::GNAConcatLayer> &concatItem) -> bool {
+                                                     auto it = std::find_if(concatItem.second.concatInputLayers.begin(),
+                                                                            concatItem.second.concatInputLayers.end(),
+                                                                            [&concatLayerInfo]
+                                                                                    (const GNAPlugin::GNAConcatLayer::ConcatConnectedLayerInfo &item) -> bool {
+                                                                                return item.name == concatLayerInfo->first;
+                                                                            });
+                                                     return it != concatItem.second.concatInputLayers.end();
+                                                 });
+                            if (included == concat_connection.end()) {
+                                gnamem->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(concatLayerInfoItem.reserved_size));
 
-                            for (auto && inputLayer : concatLayerInfoItem.concatInputLayers) {
-                                if ( InferenceEngine::details::CaselessEq<std::string>()
-                                                                    (inputLayer.name, "input") ) {
-                                    bytes_alllocated_for_input[inputLayer.name] = ALIGN64(concatLayerInfoItem.reserved_size) - inputLayer.offset;
+                                for (auto &&inputLayer : concatLayerInfoItem.concatInputLayers) {
+                                    if (InferenceEngine::details::CaselessEq<std::string>()
+                                            (inputLayer.name, "input")) {
+                                        bytes_alllocated_for_input[inputLayer.name] = ALIGN64(concatLayerInfoItem.reserved_size) - inputLayer.offset;
+                                    }
                                 }
                             }
+                            concatLayerInfo->second.output_allocation_flag = true;
                         }
-                        concatLayerInfo->second.output_allocation_flag = true;
+                        gnamem->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, it->offset);
                     }
-                    gnamem->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, it->offset);
                 } else {
                     // error
                 }

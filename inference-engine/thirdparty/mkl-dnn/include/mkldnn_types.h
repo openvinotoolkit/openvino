@@ -1159,6 +1159,8 @@ typedef struct {
     mkldnn_memory_desc_t dst_desc;
     /** Weights memory descriptor. */
     mkldnn_memory_desc_t weights_desc;
+    /** Weights memory descriptor. */
+    mkldnn_memory_desc_t output_mask_desc;
 } mkldnn_binarization_desc_t;
 
 /** @} */

@@ -25,15 +25,15 @@ public:
 
 private:
     static Register<MKLDNNGemmNode> reg;
-    float alpha;
-    float beta;
-    bool transposeA;
-    bool transposeB;
+    float alpha = 1.0f;
+    float beta = 1.0f;
+    bool transposeA = false;
+    bool transposeB = false;
 
-    int xAxis;
-    int yAxis;
+    int xAxis = 0;
+    int yAxis = 0;
 
-    bool isThreeInputs;
+    bool isThreeInputs = false;
 
     std::vector<int> aOffsets;
     std::vector<int> bOffsets;

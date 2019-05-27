@@ -98,7 +98,7 @@ public:
     EltwiseLayer& setScales(const std::vector<float>& scales);
 
 private:
-    EltwiseType type;
+    EltwiseType type = SUM;
 };
 
 }  // namespace Builder

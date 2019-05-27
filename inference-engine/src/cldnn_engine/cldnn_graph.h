@@ -195,7 +195,7 @@ protected:
     static cldnn::softmax::dimension_t SoftmaxDimensionFromIEAxis(const InferenceEngine::SoftMaxLayer* softmaxLayer, bool isPrevFC = false);
     void CreatePrimitiveFromBlob(cldnn::primitive_id primID,
                                  const InferenceEngine::Blob::Ptr pBlob,
-                                 cldnn::layout blobLayout,
+                                 const cldnn::layout& blobLayout,
                                  size_t blobByteOffset = 0,
                                  WeightRearrangeType rearrange = NO_REARRANGE);
     void CreateWeightAndBiasPrimitives(const InferenceEngine::CNNLayerPtr& layer,

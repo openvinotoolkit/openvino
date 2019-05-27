@@ -44,6 +44,9 @@ public:
     const Version *GetVersion() {
         const Version *versionInfo = nullptr;
         actual->GetVersion(versionInfo);
+        if (versionInfo == nullptr) {
+            THROW_IE_EXCEPTION << "Unknown device is used";
+        }
         return versionInfo;
     }
 

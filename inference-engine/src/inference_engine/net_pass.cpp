@@ -277,29 +277,20 @@ void CombineData(DataPtr &master, DataPtr &slave) {
 /****  Converter Passes  ************************************/
 /************************************************************/
 
-static RNNSequenceLayer::CellType cell_type_from_name(std::string &layer_type) {
-    RNNSequenceLayer::CellType res;
-    if (layer_type == "LSTMCell")
-        res = RNNSequenceLayer::LSTM;
-    else if (layer_type == "GRUCell")
-        res = RNNSequenceLayer::GRU;
-    else if (layer_type == "RNNCell")
-        res = RNNSequenceLayer::GRU;
-    else
-        THROW_IE_EXCEPTION << "Unknown Cell type (" << layer_type << "). Expected LSTMCell|GRUCell|RNNCell";
-    return res;
-}
-
-static std::string cell_name(RNNSequenceLayer::CellType type) {
+static std::string cell_type_name(RNNSequenceLayer::CellType type) {
     std::string res;
-    if (type == RNNSequenceLayer::LSTM)
-        res = "LSTM";
-    else if (type == RNNSequenceLayer::GRU)
-        res = "GRU";
-    else if (type == RNNSequenceLayer::GRU)
-        res = "GRU";
-    else
-        THROW_IE_EXCEPTION << "Unknown Cell type (enum index: " << type << "). Expected LSTM|GRU|RNN";
+    switch (type) {
+        case RNNSequenceLayer::LSTM:
+            res = "LSTM";
+            break;
+        case RNNSequenceLayer::GRU:
+        case RNNSequenceLayer::GRU_LBR:
+            res = "GRU";
+            break;
+        case RNNSequenceLayer::RNN:
+            res = "RNN";
+            break;
+    }
     return res;
 }
 
@@ -323,9 +314,11 @@ bool convertToRNNSeq(CNNLayerPtr cur, ICNNNetwork &net) {
     auto cell = std::dynamic_pointer_cast<RNNCellBase>(all_body_layers[1]);
     auto rsp2 = std::dynamic_pointer_cast<ReshapeLayer>(all_body_layers[2]);
 
-    auto cell_type = cell_type_from_name(all_body_layers[1]->type);
+    IE_ASSERT(rsp1);
+    IE_ASSERT(cell);
+    IE_ASSERT(rsp2);
 
-    int NS = cell_type == RNNSequenceLayer::LSTM ? 2 : 1;  // number of states
+    int NS = (cell->cellType == RNNSequenceLayer::LSTM) ? 2 : 1;  // number of states
 
     IE_ASSERT(cell->insData.size() == NS + 1);  // {data, state1, [state2]}
     IE_ASSERT(cell->outData.size() == NS);  // {state1, [state2]}
@@ -360,7 +353,7 @@ bool convertToRNNSeq(CNNLayerPtr cur, ICNNNetwork &net) {
 
     if (!one_of(i2map.size(), NS + 1, 1) ||
         !one_of(o2map.size(), NS + 1, 1) ||
-        !one_of(be2map.size(), 2))
+        !one_of(be2map.size(), NS))
         return false;
 
     auto in_iter_rule = i2map[in_dt_idx];
@@ -405,14 +398,16 @@ bool convertToRNNSeq(CNNLayerPtr cur, ICNNNetwork &net) {
 
     // need swap an i/o ports if it is not in natural order
     std::string name = cell->name + "_sequence";
-    auto rnn  = std::make_shared<RNNSequenceLayer>(LayerParams{ name, cell_name(cell_type) + "Sequence", cell->precision});
-    rnn->cellType = cell_type;
+    std::string type = cell_type_name(cell->cellType) + "Sequence";
+
+    auto rnn  = std::make_shared<RNNSequenceLayer>(LayerParams{ name, type, cell->precision});
     rnn->axis = in_iter_rule.axis;
     rnn->direction = in_iter_rule.stride == 1
             ? RNNSequenceLayer::FWD
             : RNNSequenceLayer::BWD;
 
     // copy base RNN cell fields
+    rnn->cellType = cell->cellType;
     rnn->_weights = cell->_weights;
     rnn->_biases = cell->_biases;
     rnn->blobs = cell->blobs;

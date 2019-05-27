@@ -505,14 +505,14 @@ mkldnn_status_t MKLDNN_API mkldnn_post_ops_get_params_dw_conv(
  * where binarization_op is configured with given parameters.
  */
 mkldnn_status_t MKLDNN_API mkldnn_post_ops_append_binarization(
-        mkldnn_post_ops_t post_ops, mkldnn_alg_kind_t alg, const float* weights_data);
+        mkldnn_post_ops_t post_ops, mkldnn_alg_kind_t alg, const float* weights_data, const float* output_mask);
 
 /** Gets the binarization parameters of the post operation with index @p index in
  * the sequence of @p post_ops.
  */
 mkldnn_status_t MKLDNN_API mkldnn_post_ops_get_params_binarization(
         const_mkldnn_post_ops_t post_ops, int index,
-        mkldnn_alg_kind_t *alg, const float** weights_data);
+        mkldnn_alg_kind_t *alg, const float** weights_data, const float** output_mask);
 
 /** @} */
 
@@ -1821,7 +1821,8 @@ mkldnn_status_t MKLDNN_API mkldnn_dilated_binary_convolution_forward_desc_init(
 mkldnn_status_t MKLDNN_API mkldnn_binarization_forward_desc_init(
         mkldnn_binarization_desc_t *binarization_desc, mkldnn_prop_kind_t prop_kind,
         mkldnn_alg_kind_t alg_kind, const mkldnn_memory_desc_t *src_desc,
-        const mkldnn_memory_desc_t *dst_desc, const mkldnn_memory_desc_t *weights_desc);
+        const mkldnn_memory_desc_t *dst_desc, const mkldnn_memory_desc_t *weights_desc,
+        const mkldnn_memory_desc_t *output_mask_desc);
 
 /** @} */
 

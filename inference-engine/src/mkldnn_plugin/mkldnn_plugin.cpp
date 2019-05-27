@@ -61,7 +61,11 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
         // ugly casting. can we avoid it?
         auto exe_network =
                 dynamic_cast<ExecutableNetworkBase<ExecutableNetworkInternal>*>(_loadedNetwork.get());
+        if (exe_network == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get executable network!";
         auto exe_network_impl = dynamic_cast<MKLDNNExecNetwork*>(exe_network->getImpl().get());
+        if (exe_network_impl == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get implementation of executable network!";
 
         exe_network_impl->setProperty(config);
     }

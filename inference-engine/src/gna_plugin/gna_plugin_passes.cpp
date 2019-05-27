@@ -411,7 +411,7 @@ void GNAPlugin::insertCopyLayer(std::vector<InferenceEngine::CNNLayerPtr> & laye
         if ((LayerInfo(l).isMemory() && LayerInfo(prevLayer).isConcat()) ||
             (LayerInfo(l).isConcat() && LayerInfo(prevLayer).isCrop())) {
             if (LayerInfo(prevLayer).isCrop()) {
-                auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (prevLayer.get());
+                auto cropLayer =  LayerInfo(prevLayer).as<CropLayer*>();
                 size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
                 if (ALIGN(cropOffset, 8) != cropOffset) {
                     // The crop will be replced by affine.

@@ -262,7 +262,7 @@ void MKLDNNGraph::InitNodes() {
 }
 
 void MKLDNNGraph::InitEdges() {
-    auto reorderArgs = [](InferenceEngine::TensorDesc parentDesc, InferenceEngine::TensorDesc childDesc) {
+    auto reorderArgs = [](const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc) {
         std::string inArgs, outArgs;
         if (parentDesc.getPrecision() != childDesc.getPrecision()) {
             inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
@@ -949,7 +949,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     }
 
     bool ti_proc_ok = !NetPass::CombineRNNSeq(*clonedNetwork) ? NetPass::UnrollTI(*clonedNetwork) : true;
-    ti_proc_ok &= NetPass::UnrollRNN_if(*clonedNetwork, [] (RNNCellBase rnn) -> bool {
+    ti_proc_ok &= NetPass::UnrollRNN_if(*clonedNetwork, [] (const RNNCellBase &rnn) -> bool {
         if (rnn.clip != 0.0f)
             return true;
         if ((rnn.cellType == RNNCellBase::GRU || rnn.cellType == RNNCellBase::GRU_LBR) &&

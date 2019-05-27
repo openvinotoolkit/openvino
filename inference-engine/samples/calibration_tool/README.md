@@ -1,11 +1,13 @@
-# Calibration Tool
+# C++ Calibration Tool [DEPRECATED]
 
-Inference Engine Calibration Tool calibrates a given FP32 model so that is can be run in low-precision 8-bit integer
+> **NOTE**: OpenVINO 2019 R1 release introduced a [Python\* version of the Calibration Tool](./inference-engine/tools/calibration_tool/README.md). This is now a recommended version since it supports a larger set of topologies and datasets. The [C++ version of the Calibration Tool](./inference-engine/samples/calibration_tool/README.md) is still in the package but deprecated and will not be updated for new releases.
+
+The C++ Calibration Tool calibrates a given FP32 model so that is can be run in low-precision 8-bit integer
 mode while keeping the input data of this model in the original precision.
 
 > **NOTE**: INT8 models are currently supported only by the CPU plugin. For the full list of supported configurations, see the [Supported Devices](./docs/IE_DG/supported_plugins/Supported_Devices.md) topic.
 
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Specify Input Shapes** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ## Calibration Tool Options
 

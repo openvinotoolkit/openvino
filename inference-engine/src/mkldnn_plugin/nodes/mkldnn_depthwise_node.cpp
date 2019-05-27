@@ -128,6 +128,8 @@ void MKLDNNDepthwiseNode::initValues() {
     CaselessEq<std::string> comparator;
     if (comparator(depthwiseLayer->type, "ScaleShift")) {
         auto *scshLayer = dynamic_cast<ScaleShiftLayer*>(getCnnLayer().get());
+        if (scshLayer == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get scale shift layer " << getName();
         if (scshLayer->_weights == nullptr)
             THROW_IE_EXCEPTION << "ScaleShift without weights is not supported";
 
@@ -136,6 +138,8 @@ void MKLDNNDepthwiseNode::initValues() {
         broadcast = static_cast<bool>(scshLayer->_broadcast);
     } else if (comparator(depthwiseLayer->type, "PReLU")) {
         auto *preluLayer = dynamic_cast<PReLULayer*>(getCnnLayer().get());
+        if (preluLayer == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get PReLU layer " << getName();
         if (preluLayer->_weights == nullptr)
             THROW_IE_EXCEPTION << "PReLU without weights is not supported";
 

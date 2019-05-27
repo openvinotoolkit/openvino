@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <ie_layers_internal.hpp>
+#include "cpu_isa_traits.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -234,27 +235,37 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
                 PostOpsIntBlobMemory[blob_idx]->Create(binarizationDims, memory::data_type::f32, memory::format::x);
 
                 PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
-                                                        &binarizationThresholds[0],
-                                                        binarizationThresholds.size() *
+                                                        quantizeNode->getBinarizationTresholdsPtr(),
+                                                        quantizeNode->getBinarizationTresholdsSize() *
                                                         MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
-                ops.append_binarization(binarization_depthwise, (const float*)PostOpsIntBlobMemory[blob_idx]->GetData());
+                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+                PostOpsIntBlobMemory[blob_idx+1]->Create(binarizationDims, memory::data_type::f32, memory::format::x);
 
-                blob_idx += 1;
+                PostOpsIntBlobMemory[blob_idx+1]->SetData(memory::data_type::f32, memory::x,
+                                                        quantizeNode->getBinarizationOutputMaskPtr(),
+                                                        quantizeNode->getBinarizationOutputMaskSize() *
+                                                        MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+                ops.append_binarization(binarization_depthwise, (const float*)PostOpsIntBlobMemory[blob_idx+0]->GetData(),
+                                                                (const float*)PostOpsIntBlobMemory[blob_idx+1]->GetData());
+
+                blob_idx += 2;
             } else {
-                ops.append_binarization(binarization_depthwise, nullptr);
+                ops.append_binarization(binarization_depthwise, nullptr, nullptr);
             }
         }
 
         auto* convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(node.get());
         if (convolutionNode) {
             auto* convLayer = reinterpret_cast<ConvolutionLayer*>(convolutionNode->getCnnLayer().get());
-
             if (initWeights) {
+                auto w_fmt = mkldnn::impl::cpu::mayiuse(impl::cpu::cpu_isa_t::avx512_common)
+                        ? memory::format::Goihw16g : memory::format::Goihw8g;
+
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                PostOpsIntBlobMemory[blob_idx]->Create(dwWeightsDims, memory::data_type::f32,
-                                                            memory::format::Goihw8g);
+                PostOpsIntBlobMemory[blob_idx]->Create(dwWeightsDims, memory::data_type::f32, w_fmt);
 
                 PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::goihw,
                                                              convLayer->_weights->buffer(),
@@ -454,8 +465,4 @@ void MKLDNNBinaryConvolutionNode::initDescriptor(const InferenceEngine::LayerCon
         }
     }
     selectedPD->getConfig() = rightConfig;
-}
-
-void MKLDNNBinaryConvolutionNode::pushBinarizationThreshold(float value) {
-    binarizationThresholds.push_back(value);
 }

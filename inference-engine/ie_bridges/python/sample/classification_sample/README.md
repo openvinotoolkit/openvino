@@ -3,13 +3,13 @@
 This topic demonstrates how to run the Image Classification sample application, which performs
 inference using image classification networks such as AlexNet and GoogLeNet.
 
-### How It Works
+## How It Works
 
 Upon the start-up, the sample application reads command line parameters and loads a network and an image to the Inference
 Engine plugin. When inference is done, the application creates an
 output image and outputs data to the standard output stream.
 
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Specify Input Shapes** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ## Running
 
@@ -62,18 +62,16 @@ For example, to perform inference of an AlexNet model (previously converted to t
     python3 classification_sample.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml
 ```
 
-### Sample Output
+## Sample Output
 
 By default the application outputs top-10 inference results.
 Add the `-nt` option to the previous command to modify the number of top output results.
 For example, to get the top-5 results on GPU, run the following command:
 ```
-    python3 classification_sample.py<path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d GPU
+    python3 classification_sample.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d GPU
 ```
 
 ## See Also
 * [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
 * [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)
-
-

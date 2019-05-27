@@ -37,6 +37,24 @@ else()
     set(MODELS_BRANCH "master")
 endif()
 
+if (ENABLE_MYRIAD)
+    RESOLVE_DEPENDENCY(VPU_FIRMWARE_MA2450
+            ARCHIVE_UNIFIED firmware_ma2450_491.zip
+            TARGET_PATH "${TEMP}/vpu/firmware/ma2450"
+            ENVIRONMENT "VPU_FIRMWARE_MA2450"
+            FOLDER)
+    debug_message(STATUS "ma2450=" ${VPU_FIRMWARE_MA2450})
+endif ()
+
+if (ENABLE_MYRIAD)
+    RESOLVE_DEPENDENCY(VPU_FIRMWARE_MA2480
+            ARCHIVE_UNIFIED firmware_ma2480_mdk_R7_9.zip
+            TARGET_PATH "${TEMP}/vpu/firmware/ma2480"
+            ENVIRONMENT "VPU_FIRMWARE_MA2480"
+            FOLDER)
+    debug_message(STATUS "ma2480=" ${VPU_FIRMWARE_MA2480})
+endif ()
+
 ## enable cblas_gemm from OpenBLAS package
 if (GEMM STREQUAL "OPENBLAS")
 if(NOT BLAS_LIBRARIES OR NOT BLAS_INCLUDE_DIRS)

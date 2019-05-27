@@ -24,7 +24,7 @@ Task::Task() : _status(TS_INITIAL) {
     };
 }
 
-Task::Task(std::function<void()> function) : _status(TS_INITIAL), _function(function) {
+Task::Task(const std::function<void()> &function) : _status(TS_INITIAL), _function(function) {
     if (!function) THROW_IE_EXCEPTION << "Failed to create Task object with null function";
 }
 

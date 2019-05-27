@@ -100,7 +100,6 @@ static std::map<std::string, std::string> parseConfig(const std::string &configN
 static std::size_t getNumberRequests(const std::string &plugin) {
     static const std::unordered_map<std::string, std::size_t> supported_plugins = {
         { "MYRIAD", 4   },
-        { "HDDL",   100 },
         { "FPGA",   3   },
     };
 

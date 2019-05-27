@@ -44,11 +44,6 @@ FindPluginResponse InferenceEngine::findPlugin(const FindPluginRequest& req) {
             pluginVec.push_back("myriadPlugin");
 #endif
             break;
-        case TargetDevice::eHDDL:
-#ifdef ENABLE_HDDL
-            pluginVec.push_back("HDDLPlugin");
-#endif
-            break;
         case TargetDevice::eGNA:
 #ifdef ENABLE_GNA
             pluginVec.push_back("GNAPlugin");
@@ -57,12 +52,6 @@ FindPluginResponse InferenceEngine::findPlugin(const FindPluginRequest& req) {
         case TargetDevice::eHETERO:
             pluginVec.push_back("HeteroPlugin");
             break;
-        case TargetDevice::eKMB:
-#ifdef ENABLE_KMB
-            pluginVec.push_back("kmbPlugin");
-#endif
-            break;
-
         default:
             THROW_IE_EXCEPTION << "Cannot find plugin for device: " << getDeviceName(req.device);
     }

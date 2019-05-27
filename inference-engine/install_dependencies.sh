@@ -22,7 +22,6 @@ function yes_or_no {
 # install dependencies
 if [[ -f /etc/lsb-release ]]; then
     # Ubuntu
-    system_ver=`cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2`
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
@@ -52,12 +51,12 @@ if [[ -f /etc/lsb-release ]]; then
             gstreamer1.0-plugins-base \
             libusb-1.0-0-dev \
             libopenblas-dev
-    if [ $system_ver = "18.04" ]; then
-	    sudo -E apt-get install -y libpng-dev
+    if apt-cache search --names-only '^libpng12'| grep -q libpng12; then
+        sudo -E apt-get install -y libpng12-dev
     else
-	    sudo -E apt-get install -y libpng12-dev
+        sudo -E apt-get install -y libpng-dev
     fi
-else
+elif [[ -f /etc/redhat-release ]]; then
     # CentOS 7.x
     sudo -E yum install -y centos-release-scl epel-release
     sudo -E yum install -y \
@@ -125,5 +124,6 @@ else
         echo "FFmpeg installation skipped. You may build FFmpeg from sources as described here: https://trac.ffmpeg.org/wiki/CompilationGuide/Centos"
         echo
     fi
-
+else
+    echo "Unknown OS, please install build dependencies manually"
 fi

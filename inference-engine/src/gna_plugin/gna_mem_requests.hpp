@@ -36,7 +36,7 @@ struct MemRequest {
     uint8_t _element_size;
     size_t _num_elements;
     size_t _alignment;
-    size_t _offset;
+    size_t _offset = 0;
     // expansion in bytes due to large depended layers
     size_t _padding = 0;
     MemRequest(rRegion region,

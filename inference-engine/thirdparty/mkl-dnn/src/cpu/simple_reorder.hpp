@@ -1150,7 +1150,7 @@ typename utils::enable_if<fmt_i == any && (fmt_o == OhIw8o32i || fmt_o == OhIw16
                         uint8_t bin_val = 0x00;
                         for (int ic = icb*nbits, shift = 0; ic < std::min(IC, (icb + 1)*nbits); ic++, shift++) {
                             size_t iidx = (i_mult_o * nb_oc + oc) * input_d.blocking_desc().strides[0][0] +
-                                          (i_mult_i * nb_ic + ic) *input_d.blocking_desc().strides[0][1] +
+                                          (i_mult_i * nb_ic + ic) * input_d.blocking_desc().strides[0][1] +
                                                                 h * input_d.blocking_desc().strides[0][2] +
                                                                 w;
 
@@ -1158,7 +1158,7 @@ typename utils::enable_if<fmt_i == any && (fmt_o == OhIw8o32i || fmt_o == OhIw16
                             bin_val |= (bit << shift);
                         }
 
-                        size_t oidx = wei_blk_off_like_gwei3D<fmt_o>(output_d, g, nb_oc, nb_ic, 0, h, w) + oc * blksize_i + icb * blksize_o;
+                        size_t oidx = wei_blk_off_like_gwei3D<fmt_o>(output_d, g, nb_oc, nb_ic, 0, h, w) + oc * blksize_i + icb * nbits;
                         output[oidx / nbits] = bin_val;
 
                     }

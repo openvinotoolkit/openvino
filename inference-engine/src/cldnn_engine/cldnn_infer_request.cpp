@@ -359,7 +359,7 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
     m_curBatch = new_batch;
 }
 
-CLDNNInferRequest::CLDNNInferRequest(InferenceEnv env, bool useProfiling,
+CLDNNInferRequest::CLDNNInferRequest(const InferenceEnv& env, bool useProfiling,
                                      InputsDataMap networkInputs, OutputsDataMap networkOutputs)
         : InferRequestInternal(networkInputs, networkOutputs),
           m_env(env),

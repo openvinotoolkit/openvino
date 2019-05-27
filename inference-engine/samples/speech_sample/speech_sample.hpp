@@ -139,7 +139,7 @@ DEFINE_int32(bs, 1, batch_size_message);
 /// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
 DEFINE_int32(nthreads, 1, infer_num_threads_message);
 
-/// @brief Batch size (default 0)
+/// @brief Context window size (default 0)
 DEFINE_int32(cw, 0, context_window_message);
 
 /**

@@ -65,9 +65,10 @@ private:
     using Vmm = typename utils::conditional3<isa == sse42, Xbyak::Xmm,
             isa == avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using Ymm = const Xbyak::Ymm;
-    using reg64_t = const Xbyak::Reg64;
-    using reg32_t = const Xbyak::Reg32;
     using reg8_t = const Xbyak::Reg8;
+    using reg16_t = const Xbyak::Reg16;
+    using reg32_t = const Xbyak::Reg32;
+    using reg64_t = const Xbyak::Reg64;
 
     reg64_t reg_input = r13;
     reg64_t reg_output = rbp;
@@ -87,9 +88,10 @@ private:
     reg64_t reg_table = r15;
     reg64_t reg_icb_iter = reg_oc_work;
 
+    reg8_t reg_tmp_8 = r12b;
+    reg16_t reg_tmp_16 = r12w;
     reg32_t reg_tmp_32 = r12d;
     reg64_t reg_tmp_64 = r12;
-    reg8_t reg_tmp_8 = r12b;
 
     reg64_t reg_d_weights = aux_reg_input;
     reg64_t reg_d_bias = aux_reg_kernel;
@@ -99,22 +101,32 @@ private:
 
     reg64_t reg_b_weights = aux_reg_input;
     reg64_t reg_b_mask = aux_reg_kernel;
+    reg64_t reg_b_out_mask = reg_icb_iter;
 
     reg64_t reg_shift = aux_reg_input;
 
-    Vmm vmm_scale = Vmm(14);
-    Vmm vmm_shift = Vmm(15);
-    Vmm vmm_sum = Vmm(10);
-    Vmm vmm_lookup = Vmm(12);
-    Vmm vmm_mask = Vmm(13);
-    Vmm vmm_one_u8 = Vmm(14);
-    Vmm vmm_one_s16 = Vmm(15);
-    Ymm ymm_tmp = Ymm(10);
-    Vmm vmm_tmp = Vmm(10);
-    Vmm vmm_tmp1 = Vmm(11);
+    Vmm vmm_scale = Vmm(isa == avx512_common ? 30 : 14);
+    Vmm vmm_shift = Vmm(0);
+    Vmm vmm_sum = Vmm(isa == avx512_common ? 26 : 10);
+    Vmm vmm_lookup = Vmm(isa == avx512_common ? 28 : 12);
+    Vmm vmm_mask = Vmm(isa == avx512_common ? 29 : 13);
+    Vmm vmm_one_u8 = Vmm(isa == avx512_common ? 30 : 14);
+    Vmm vmm_one_s16 = Vmm(isa == avx512_common ? 31 : 15);
+    Ymm ymm_tmp = Ymm(isa == avx512_common ? 26 : 10);
+    Vmm vmm_tmp = Vmm(isa == avx512_common ? 26 : 10);
+    Vmm vmm_tmp1 = Vmm(isa == avx512_common ? 27 : 11);
     Vmm vmm_src = Vmm(0);
-    Vmm vmm_tmp2 = Vmm(9);
-    Vmm vmm_thr = Vmm(10);
+    Vmm vmm_tmp2 = Vmm(isa == avx512_common ? 25 : 9);
+    Vmm vmm_thr = Vmm(isa == avx512_common ? 26 : 10);
+    Vmm vmm_out_mask = Vmm(isa == avx512_common ? 30 : 14);
+
+    const unsigned char _cmp_gt_os = 6;
+
+    Xbyak::Opmask ktail_mask = Xbyak::Opmask(2);
+    Xbyak::Opmask bin_mask0 = Xbyak::Opmask(5);
+    Xbyak::Opmask bin_mask1 = Xbyak::Opmask(6);
+
+    size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Label l_table;
 

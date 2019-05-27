@@ -43,6 +43,7 @@ class CPPWrapper<intel_nnet_type_t> {
         for (int i = 0; i < obj.nLayers; i++) {
             obj.pLayers[i].pLayerStruct = nullptr;
         }
+        obj.nGroup = 0;
     }
     ~CPPWrapper() {
         for (int i = 0; i < obj.nLayers; i++) {

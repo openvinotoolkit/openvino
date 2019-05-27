@@ -30,6 +30,7 @@ endif()
 if (APPLE)
     set(ENABLE_GNA OFF)
     set(ENABLE_CLDNN OFF)
+    SET(ENABLE_MYRIAD OFF)
 endif()
 
 
@@ -60,6 +61,14 @@ if (NOT ENABLE_MKL_DNN)
     set(ENABLE_MKL OFF)
 endif()
 
+if (NOT ENABLE_VPU)
+    set(ENABLE_MYRIAD OFF)
+endif()
+
+if (NOT ENABLE_MYRIAD)
+    set(ENABLE_VPU OFF)
+endif()
+
 #next section set defines to be accesible in c++/c code for certain feature
 if (ENABLE_PROFILING_RAW)
     add_definitions(-DENABLE_PROFILING_RAW=1)
@@ -67,6 +76,22 @@ endif()
 
 if (ENABLE_CLDNN)
     add_definitions(-DENABLE_CLDNN=1)
+endif()
+
+if (ENABLE_MYRIAD)
+    add_definitions(-DENABLE_MYRIAD=1)
+endif()
+
+if (ENABLE_MYX_PCIE AND ENABLE_MYRIAD)
+    add_definitions(-DENABLE_MYX_PCIE=1)
+endif()
+
+if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_MYRIAD )
+    add_definitions(-DENABLE_MYRIAD_NO_BOOT=1)
+endif()
+
+if (ENABLE_MYX_PCIE AND ENABLE_MYRIAD_NO_BOOT)
+    message(FATAL_ERROR "ENABLE_MYX_PCIE and ENABLE_MYRIAD_NO_BOOT can't be enabled at the same time")
 endif()
 
 if (ENABLE_MKL_DNN)

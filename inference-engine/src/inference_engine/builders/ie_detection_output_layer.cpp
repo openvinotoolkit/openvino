@@ -143,13 +143,13 @@ REG_VALIDATOR_FOR(DetectionOutput, [](const InferenceEngine::Builder::Layer::CPt
         THROW_IE_EXCEPTION << "BackgroundLabelId parameter is wrong in layer " << layer.getName() <<
                            ". It should be >= 0 if this one is an Id of existing label else it should be equal to -1";
     }
-    if (layer.getNMSThreshold() <= 0) {
+    if (layer.getNMSThreshold() < 0) {
         THROW_IE_EXCEPTION << "NMSThreshold parameter is wrong in layer " << layer.getName() <<
-                           ". It should be > 0.";
+                           ". It should be >= 0.";
     }
-    if (layer.getConfidenceThreshold() <= 0) {
+    if (layer.getConfidenceThreshold() < 0) {
         THROW_IE_EXCEPTION << "ConfidenceThreshold parameter is wrong in layer " << layer.getName() <<
-                           ". It should be > 0.";
+                           ". It should be >= 0.";
     }
 });
 

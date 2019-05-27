@@ -28,7 +28,7 @@ class INFERENCE_ENGINE_API_CLASS(StagedTask) : public Task {
 public:
     typedef std::shared_ptr<StagedTask> Ptr;
 
-    StagedTask(std::function<void()> function, size_t stages);
+    StagedTask(const std::function<void()> &function, size_t stages);
 
     StagedTask();
 

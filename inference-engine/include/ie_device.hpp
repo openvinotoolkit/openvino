@@ -27,10 +27,8 @@ enum class TargetDevice : uint8_t {
     eGPU = 3,
     eFPGA = 4,
     eMYRIAD = 5,
-    eHDDL = 6,
     eGNA = 7,
     eHETERO = 8,
-    eKMB = 9,
 };
 
 /**
@@ -52,10 +50,8 @@ class TargetDeviceInfo {
             DECL_DEVICE(GPU),
             DECL_DEVICE(FPGA),
             DECL_DEVICE(MYRIAD),
-            DECL_DEVICE(HDDL),
             DECL_DEVICE(GNA),
             DECL_DEVICE(HETERO),
-            DECL_DEVICE(KMB)
         };
 #undef DECLARE
         return g_allDeviceInfos;
@@ -68,11 +64,9 @@ class TargetDeviceInfo {
             { "GPU", InferenceEngine::TargetDevice::eGPU },
             { "FPGA", InferenceEngine::TargetDevice::eFPGA },
             { "MYRIAD", InferenceEngine::TargetDevice::eMYRIAD },
-            { "HDDL", InferenceEngine::TargetDevice::eHDDL },
             { "GNA", InferenceEngine::TargetDevice::eGNA },
             { "BALANCED", InferenceEngine::TargetDevice::eBalanced },
             { "HETERO", InferenceEngine::TargetDevice::eHETERO },
-            { "KMB", InferenceEngine::TargetDevice::eKMB }
         };
         auto val = deviceFromNameMap.find(deviceName);
         return val != deviceFromNameMap.end() ? val->second : InferenceEngine::TargetDevice::eDefault;

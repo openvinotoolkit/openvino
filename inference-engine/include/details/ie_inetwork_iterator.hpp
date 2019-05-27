@@ -23,8 +23,9 @@ namespace details {
 template<class NT, class LT>
 class INetworkIterator: public std::iterator<std::input_iterator_tag, std::shared_ptr<LT>> {
 public:
-    explicit INetworkIterator(NT * network, bool toEnd = false): network(network), currentIdx(0) {
-        if (!network || toEnd)
+    explicit INetworkIterator(NT * network, bool toEnd): network(network), currentIdx(0) {}
+    explicit INetworkIterator(NT * network): network(network), currentIdx(0) {
+        if (!network)
             return;
         const auto& inputs = network->getInputs();
 

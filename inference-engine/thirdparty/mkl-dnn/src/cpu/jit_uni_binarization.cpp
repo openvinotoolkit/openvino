@@ -34,6 +34,7 @@ struct jit_args {
     const float* from;
     const uint8_t* to;
     const float* weights;
+    const float* output_mask;
     size_t work_amount;
 };
 
@@ -58,7 +59,7 @@ struct jit_uni_bin_depthwise_kernel_f32 : public jit_uni_binarization_kernel_f32
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_bin_depthwise_kernel_f32)
     jit_uni_bin_depthwise_kernel_f32(const binarization_desc_t &desc)
         : jit_uni_binarization_kernel_f32(desc), jit_generator() {
-        assert(desc.alg_kind == alg_kind::binarization_depthwise);
+        assert(one_of(desc.alg_kind, alg_kind::binarization_depthwise));
         assert(isa == sse42 || isa == avx2 || isa == avx512_common);
 
         this->preamble();
@@ -66,10 +67,11 @@ struct jit_uni_bin_depthwise_kernel_f32 : public jit_uni_binarization_kernel_f32
         mov(reg_from, ptr[param + GET_OFF(from)]);
         mov(reg_to, ptr[param + GET_OFF(to)]);
         mov(reg_weights, ptr[param + GET_OFF(weights)]);
+        mov(reg_output_mask, ptr[param + GET_OFF(output_mask)]);
         mov(reg_work_amount, ptr[param + GET_OFF(work_amount)]);
 
         const int nbits = 8;
-	int simd_w = isa == avx512_common ? 16 : 8;
+        int simd_w = isa == avx512_common ? 16 : 8;
         const int C = desc.src_desc.dims[1];
         const int tail_size = C % simd_w;
 
@@ -90,13 +92,17 @@ struct jit_uni_bin_depthwise_kernel_f32 : public jit_uni_binarization_kernel_f32
             for (int ch = 0; ch < ur_ch; ch++) {
                 uni_vmovups(vmm_src(0), ptr[reg_from + ch*step*sizeof(float)]);
                 uni_vmovups(vmm_wei(0), ptr[reg_weights + ch*step*sizeof(float)]);
-		if (isa == avx512_common) {
-		    vcmpps(k_mask, vmm_src(0), vmm_wei(0), _cmp_gt_os);
-		    kmovw(reg_src_32, k_mask);
-		} else {
+                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + ch*step*sizeof(float)]);
+                if (isa == avx512_common) {
+                    vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
+                    vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
+                    kxnorw(k_mask0, k_mask0, k_mask1);
+                    kmovw(reg_src_32, k_mask0);
+                } else {
                     uni_vcmpgtps(vmm_src(0), vmm_src(0), vmm_wei(0));
-	            uni_vmovmskps(reg_src_32, vmm_src(0));
-		}
+                    uni_vpcmpeqd(vmm_src(0), vmm_src(0), vmm_mask(0));
+                    uni_vmovmskps(reg_src_32, vmm_src(0));
+                }
                 shl(reg_src_32, ch * step);
                 or_(reg_bin_32, reg_src_32);
             }
@@ -104,6 +110,7 @@ struct jit_uni_bin_depthwise_kernel_f32 : public jit_uni_binarization_kernel_f32
 
             add(reg_from, unrolled_loop_step*sizeof(float));
             add(reg_weights, unrolled_loop_step*sizeof(float));
+            add(reg_output_mask, unrolled_loop_step*sizeof(float));
             add(reg_to, sizeof(uint32_t));
             sub(reg_work_amount, unrolled_loop_step);
 
@@ -122,23 +129,28 @@ struct jit_uni_bin_depthwise_kernel_f32 : public jit_uni_binarization_kernel_f32
             for (int i = 0; i < repeats; i++) {
                 uni_vmovups(vmm_src(0), ptr[reg_from + i*step*sizeof(float)]);
                 uni_vmovups(vmm_wei(0), ptr[reg_weights + i*step*sizeof(float)]);
+                uni_vmovups(vmm_mask(0), ptr[reg_output_mask + i*step*sizeof(float)]);
                 if (isa == avx512_common) {
-                    vcmpps(k_mask, vmm_src(0), vmm_wei(0), _cmp_gt_os);
-		    kmovw(reg_src_32, k_mask);
+                    vcmpps(k_mask0, vmm_src(0), vmm_wei(0), _cmp_gt_os);
+                    vptestmd(k_mask1, vmm_mask(0), vmm_mask(0));
+                    kxnorw(k_mask0, k_mask0, k_mask1);
+                    kmovw(reg_src_32, k_mask0);
                 } else {
                     uni_vcmpgtps(vmm_src(0), vmm_src(0), vmm_wei(0));
-	            uni_vmovmskps(reg_src_32, vmm_src(0));
+                    uni_vpcmpeqd(vmm_src(0), vmm_src(0), vmm_mask(0));
+	                uni_vmovmskps(reg_src_32, vmm_src(0));
                 }
                 shl(reg_src_32, i * step);
                 or_(reg_bin_32, reg_src_32);
             }
-	    if (isa == avx512_common)
+            if (isa == avx512_common)
                 mov(ptr[reg_to], reg_bin_16);
-	    else 	
+            else
                 mov(ptr[reg_to], reg_bin_8);
 
             add(reg_from, main_loop_step*sizeof(float));
             add(reg_weights, main_loop_step*sizeof(float));
+            add(reg_output_mask, main_loop_step*sizeof(float));
             add(reg_to, isa == avx512_common ? sizeof(uint16_t) : sizeof(uint8_t));
             sub(reg_work_amount, main_loop_step);
 
@@ -148,22 +160,28 @@ struct jit_uni_bin_depthwise_kernel_f32 : public jit_uni_binarization_kernel_f32
         L(tail_label); {
             if (tail_size != 0) {
                 xor_(reg_bin_32, reg_bin_32);
+                mov(reg_mask, 1);
                 for (int c = 0; c < tail_size; c++) {
                     uni_vpxor(xmm_src(0), xmm_src(0), xmm_src(0));
                     uni_vpxor(xmm_wei(0), xmm_wei(0), xmm_wei(0));
+                    uni_vpxor(xmm_mask(0), xmm_mask(0), xmm_mask(0));
 
                     movss(xmm_src(0), ptr[reg_from + c * sizeof(float)]);
                     movss(xmm_wei(0), ptr[reg_weights + c * sizeof(float)]);
+                    movss(xmm_mask(0), ptr[reg_output_mask + c * sizeof(float)]);
                     uni_vcmpgtps(xmm_src(0), xmm_src(0), xmm_wei(0));
+                    uni_vpcmpeqd(xmm_src(0), xmm_src(0), xmm_mask(0));
                     uni_vmovmskps(reg_src_32, xmm_src(0));
 
                     shl(reg_src_32, c);
+                    and_(reg_src_32, reg_mask);
                     or_(reg_bin_32, reg_src_32);
+                    shl(reg_mask, 1);
                 }
-		if (isa == avx512_common && tail_size > nbits)
-                    mov(ptr[reg_to], reg_bin_16);
-		else
-		    mov(ptr[reg_to], reg_bin_8);
+                if (isa == avx512_common && tail_size > nbits)
+                	mov(ptr[reg_to], reg_bin_16);
+                else
+                	mov(ptr[reg_to], reg_bin_8);
             }
         }
 
@@ -181,21 +199,25 @@ private:
     inline Vmm vmm_src(int idx) { return Vmm(idx); }
     inline Xmm xmm_src(int idx) { return Xmm(idx); }
     inline Vmm vmm_wei(int idx) { return Vmm(idx + 4); }
+    inline Vmm vmm_mask(int idx) { return Vmm(idx + 5); }
     inline Xmm xmm_wei(int idx) { return Xmm(idx + 4); }
+    inline Xmm xmm_mask(int idx) { return Xmm(idx + 5); }
 
     Reg64 param = abi_param1;
     Reg64 reg_from = r8;
     Reg64 reg_to = r9;
     Reg64 reg_work_amount = r10;
     Reg64 reg_weights = r11;
+    Reg64 reg_output_mask = r14;
     Reg16 reg_bin_16 = r12w;
     Reg32 reg_bin_32 = r12d;
     Reg8 reg_bin_8 = r12b;
     Reg32 reg_src_32 = r13d;
-    Reg64 reg_src_64 = r13;
+    Reg32 reg_mask = r15d;
 
     const unsigned char _cmp_gt_os = 6;
-    Xbyak::Opmask k_mask = Xbyak::Opmask(1);
+    Xbyak::Opmask k_mask0 = Xbyak::Opmask(1);
+    Xbyak::Opmask k_mask1 = Xbyak::Opmask(2);
 };
 
 } /* namespace */
@@ -209,12 +231,14 @@ status_t jit_uni_binarization_fwd_t<isa>::pd_t::init() {
     assert(engine()->kind() == engine_kind::cpu);
     bool ok = true && mayiuse(isa)
         && utils::one_of(desc()->prop_kind, prop_kind::forward_training, prop_kind::forward_inference)
-        && utils::everyone_is(data_type::f32, desc()->src_desc.data_type, desc()->weights_desc.data_type)
+        && utils::everyone_is(data_type::f32, desc()->src_desc.data_type, desc()->weights_desc.data_type,
+                                              desc()->output_mask_desc.data_type)
         && utils::everyone_is(data_type::bin, desc()->dst_desc.data_type)
         && desc()->src_desc.format == desc()->dst_desc.format
         && utils::one_of(desc()->src_desc.format, desired_fmt)
         && utils::one_of(desc()->dst_desc.format, desired_fmt)
         && utils::one_of(desc()->weights_desc.format, x)
+        && utils::one_of(desc()->output_mask_desc.format, x)
         && attr()->has_default_values();
 
     return ok ? status::success : status::unimplemented;
@@ -241,11 +265,13 @@ template <cpu_isa_t isa>
 void jit_uni_binarization_fwd_t<isa>::execute_forward() const {
     auto src = reinterpret_cast<const src_data_t*>(this->input_memory(0));
     auto weights = reinterpret_cast<const src_data_t*>(this->input_memory(1));
+    auto output_mask = reinterpret_cast<const src_data_t*>(this->input_memory(2));
     auto dst = reinterpret_cast<uint8_t*>(this->memory());
 
     const memory_desc_wrapper src_d(pd()->src_pd());
     const memory_desc_wrapper dst_d(pd()->dst_pd());
     const memory_desc_wrapper weights_d(pd()->weights_pd(0));
+    const memory_desc_wrapper output_mask_d(pd()->weights_pd(1));
 
     const int N = src_d.dims()[0];
     const int C = src_d.dims()[1];
@@ -261,6 +287,7 @@ void jit_uni_binarization_fwd_t<isa>::execute_forward() const {
         arg.from    = &src[src_d.blk_off(n, 0, h, w)];
         arg.to      = &dst[dst_d.blk_off(n, 0, h, w) / nbits];
         arg.weights = &weights[weights_d.blk_off(0)];
+        arg.output_mask = &output_mask[output_mask_d.blk_off(0)];
         arg.work_amount = (size_t)C;
 
         (*kernel_)(&arg);

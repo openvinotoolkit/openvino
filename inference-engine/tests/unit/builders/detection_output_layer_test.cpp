@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,7 +92,7 @@ TEST_F(DetectionOutputLayerBuilderTest, cannotCreateLayerWithWrongNMSThreshold) 
     layer.setNumClasses(2);
     layer.setShareLocation(true);
     layer.setBackgroudLabelId(-1);
-    layer.setNMSThreshold(0);  // here
+    layer.setNMSThreshold(-0.02);  // here
     layer.setTopK(400);
     layer.setCodeType("caffe.PriorBoxParameter.CENTER_SIZE");
     layer.setVariantEncodedInTarget(false);
@@ -112,6 +112,6 @@ TEST_F(DetectionOutputLayerBuilderTest, cannotCreateLayerWithWrongConfidenceThre
     layer.setCodeType("caffe.PriorBoxParameter.CENTER_SIZE");
     layer.setVariantEncodedInTarget(false);
     layer.setKeepTopK(200);
-    layer.setConfidenceThreshold(0);  // here
+    layer.setConfidenceThreshold(-0.1);  // here
     ASSERT_THROW(network.addLayer(layer), InferenceEngine::details::InferenceEngineException);
 }

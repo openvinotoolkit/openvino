@@ -106,7 +106,7 @@ private:
     void pad_symmetric(const float *src_data, float* dst_data);
 
     PadMode padMode = CONSTANT;
-    float pad_value;
+    float pad_value = 0.f;
     SizeVector src_dims;
     SizeVector dst_dims;
     std::vector<unsigned int> pads_begin;

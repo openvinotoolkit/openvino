@@ -83,27 +83,32 @@ public:
     /** @brief checks whether given storage class T can be used to store objects of current precision */
     template <class T>
     bool hasStorageType(const char * typeName = nullptr) const noexcept {
-        if (precisionInfo.value != BIN) {
-            if (sizeof(T) != size()) {
-                return false;
+        try {
+            if (precisionInfo.value != BIN) {
+                if (sizeof(T) != size()) {
+                    return false;
+                }
             }
-        }
 #define CASE(x, y) case x: return std::is_same<T, y>()
 #define CASE2(x, y1, y2) case x: return std::is_same<T, y1>() || std::is_same<T, y2>()
 
-        switch (precisionInfo.value) {
-            CASE(FP32, float);
-            CASE2(FP16, int16_t, uint16_t);
-            CASE(I16, int16_t);
-            CASE(I32, int32_t);
-            CASE(U16, uint16_t);
-            CASE(U8, uint8_t);
-            CASE(I8, int8_t);
-            CASE2(Q78, int16_t, uint16_t);
-            CASE2(BIN, int8_t, uint8_t);
-            default : return areSameStrings(name(), typeName == nullptr ? typeid(T).name() : typeName);
+            switch (precisionInfo.value) {
+                CASE(FP32, float);
+                CASE2(FP16, int16_t, uint16_t);
+                CASE(I16, int16_t);
+                CASE(I32, int32_t);
+                CASE(U16, uint16_t);
+                CASE(U8, uint8_t);
+                CASE(I8, int8_t);
+                CASE2(Q78, int16_t, uint16_t);
+                CASE2(BIN, int8_t, uint8_t);
+                default :
+                    return areSameStrings(name(), typeName == nullptr ? typeid(T).name() : typeName);
 #undef CASE
 #undef CASE2
+            }
+        } catch (...) {
+            return false;
         }
     }
 
@@ -172,7 +177,7 @@ public:
 
     /**
      * @brief Returns size in bytes of single element of that precision
-     * @deprecated : size of precision will be report in bits in future releases
+     * @deprecated : size of precision will be reported in bits in future releases
      */
     size_t size() const {
         if (precisionInfo.bitsSize == 0) {
@@ -182,7 +187,7 @@ public:
     }
 
     /** @brief Checks if it is a floating point */
-    bool is_float() const {
+    bool is_float() const noexcept {
         return precisionInfo.isFloat;
     }
 
@@ -306,7 +311,7 @@ inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char *name) {
     Precision::PrecisionInfo info;
     info.name = name;
 
-    int nBits = precision == BIN ? 1 : 8;
+    size_t nBits = precision == BIN ? 1 : 8;
     info.bitsSize = nBits * type_size_or_zero<typename PrecisionTrait<precision>::value_type>();
     info.isFloat = is_floating<precision>();
     info.value = precision;

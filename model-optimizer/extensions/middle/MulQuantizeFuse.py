@@ -64,10 +64,7 @@ class MulQuantizeFuse(MiddleReplacementPattern):
 
         # Provisional limitation that related to binary quantization
         # TODO: Relax it beyond binarization case
-        # Provisional limitation that related to binary quantization
-        # TODO: Relax it beyond binarization case
-        if len(quantize.in_node(1).out_nodes()) != 1 or \
-                len(quantize.in_node(2).out_nodes()) != 1 or \
+        if len(quantize.in_node(1).out_nodes()) != 1 or len(quantize.in_node(2).out_nodes()) != 1 or \
                 len(quantize.in_node(3).out_nodes()) != 1 or len(quantize.in_node(4).out_nodes()) != 1 or \
                 quantize.levels != 2:
             log.debug('MulQuantizeFuse: cannot fuse because Quantize op has '
@@ -76,14 +73,38 @@ class MulQuantizeFuse(MiddleReplacementPattern):
 
         tensor_port, value_port = get_tensor_in_port(preop), get_value_in_port(preop)
 
+        # TODO: need some special processing for values that exactly equal to threshold
+
+        mul_val = value_port.data.get_value()
 
         # Need to flip output_low and output_high for those elements that have multiplier < 0
-        # TODO: need some special processing for values that exactly equal to threshold
-        if np.all(value_port.data.get_value() <= 0):
-            log.debug('MulQuantizeFuse: cannot fuse because Mul op has non-positive multipliers.')
+        if np.all(mul_val < 0):
+            mi_o_node = quantize.in_port(3).get_source()
+            ma_o_node = quantize.in_port(4).get_source()
 
-        quantize.in_port(1).data.set_value(quantize.in_port(1).data.get_value() / value_port.data.get_value())
-        quantize.in_port(2).data.set_value(quantize.in_port(2).data.get_value() / value_port.data.get_value())
+            quantize.in_port(3).disconnect()
+            quantize.in_port(4).disconnect()
+
+            mi_o_node.connect(quantize.in_port(4))
+            ma_o_node.connect(quantize.in_port(3))
+
+        elif np.any(mul_val < 0):
+            # Successful flipping will be done on broadcasted arrays
+
+            mi_o_val = quantize.in_port(3).data.get_value()
+            ma_o_val = quantize.in_port(4).data.get_value()
+            mul_val, mi_o_val, ma_o_val = [np.array(a) for a in np.broadcast_arrays(mul_val, mi_o_val, ma_o_val)]
+
+            neg_idx = np.where(mul_val < 0)
+            mi_o_val[neg_idx], ma_o_val[neg_idx] = ma_o_val[neg_idx], mi_o_val[neg_idx]
+
+            # TODO: revert broadcasting where unnecessary
+            quantize.in_port(3).data.set_value(mi_o_val)
+            quantize.in_port(4).data.set_value(ma_o_val)
+
+        quantize.in_port(1).data.set_value(quantize.in_port(1).data.get_value() / mul_val)
+        if quantize.in_node(1).id != quantize.in_node(2).id:
+            quantize.in_port(2).data.set_value(quantize.in_port(2).data.get_value() / mul_val)
 
         # Remove Mul as it no longer needed
         quantize.in_port(0).disconnect()

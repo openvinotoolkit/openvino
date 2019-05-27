@@ -347,7 +347,7 @@ static const pd_create_f cpu_impl_list[] = {
     INSTANCE(jit_uni_roi_pooling_fwd_t<sse42>),
     INSTANCE(ref_roi_pooling_fwd_t<data_type::f32>),
     /* binary convolution */
-//    INSTANCE(jit_uni_binary_convolution_fwd_t<avx512_common>),
+    INSTANCE(jit_uni_binary_convolution_fwd_t<avx512_common>),
     INSTANCE(jit_uni_binary_convolution_fwd_t<avx2>),
     INSTANCE(jit_uni_binary_convolution_fwd_t<sse42>),
     INSTANCE(ref_binary_convolution_fwd_t),

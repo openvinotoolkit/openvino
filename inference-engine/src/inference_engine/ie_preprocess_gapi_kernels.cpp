@@ -989,8 +989,10 @@ static void calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer
     for (int l = 0; l < lpi; l++) {
         Unit ymap = ymapper.map(y + l);
 
-        const T *src[32];
         GAPI_Assert(ymap.index1 - ymap.index0 <= 32);
+        GAPI_Assert(ymap.index1 - ymap.index0 > 0);
+        const T *src[32] = {};
+
         for (int yin = ymap.index0; yin < ymap.index1; yin++) {
             src[yin - ymap.index0] = in.InLine<const T>(yin - iny);
         }
@@ -1323,7 +1325,7 @@ static void calcAreaRow_CVKL_U8(const cv::gapi::fluid::View   & in,
         int yin1 = yin0 + y_max_count;
 
         GAPI_Assert(yin1 - yin0 <= 32);
-        const uint8_t *src[32];
+        const uint8_t *src[32] = {};
 
         for (int yin = yin0; yin < yin1 && yin < inSz.height; yin++) {
             if (yalpha[(y+l)*y_max_count + yin - yin0] == 0) {

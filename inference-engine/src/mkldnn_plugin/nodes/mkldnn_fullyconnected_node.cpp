@@ -127,13 +127,8 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
 
     std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
     std::shared_ptr<inner_product_forward::primitive_desc> prim_desc;
-    if (attr == nullptr) {
-        prim_desc = std::make_shared<inner_product_forward::primitive_desc>(
-                createPrimitiveDescriptor<inner_product_forward::primitive_desc, inner_product_forward::desc>(*attr));
-    } else {
-        prim_desc = std::make_shared<inner_product_forward::primitive_desc>(
-                createPrimitiveDescriptor<inner_product_forward::primitive_desc, inner_product_forward::desc>(*attr));
-    }
+    prim_desc = std::make_shared<inner_product_forward::primitive_desc>(
+            createPrimitiveDescriptor<inner_product_forward::primitive_desc, inner_product_forward::desc>(*attr));
 
     if (internalBlobs.size() > 1) {
         prim.reset(new inner_product_forward(*prim_desc,

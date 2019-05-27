@@ -106,19 +106,19 @@ class GNAModelSerial {
         /**
          * if scale factor is different then pased into infer , network might need to be requantized
          */
-        float scaleFactor;
+        float scaleFactor = 0;
         /**
          * Pointer descriptor
          */
-        void* descriptor_ptr;
+        void* descriptor_ptr = nullptr;
         /**
          * Endpoint resolution in bytes.
          */
-        uint32_t element_size;
+        uint32_t element_size = 0;
         /**
          * Number of elements
          */
-        uint32_t elements_count;
+        uint32_t elements_count = 0;
 
         RuntimeEndPoint() = default;
         RuntimeEndPoint(double scaleFactor,

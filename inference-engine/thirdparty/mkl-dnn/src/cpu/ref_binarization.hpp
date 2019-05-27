@@ -45,7 +45,8 @@ struct ref_binarization_fwd_t: public cpu_primitive_t {
 
             bool ok = true
                 && utils::one_of(desc()->prop_kind, forward_training, forward_inference)
-                && utils::everyone_is(src_type, desc()->src_desc.data_type, desc()->weights_desc.data_type)
+                && utils::everyone_is(src_type, desc()->src_desc.data_type, desc()->weights_desc.data_type,
+                        desc()->output_mask_desc.data_type)
                 && utils::everyone_is(data_type::bin, desc()->dst_desc.data_type)
                 && utils::one_of(desc()->alg_kind, mkldnn_binarization_depthwise)
                 && attr()->has_default_values();

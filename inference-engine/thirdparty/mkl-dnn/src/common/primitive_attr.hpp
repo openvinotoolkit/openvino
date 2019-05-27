@@ -119,6 +119,7 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
             struct {
                 mkldnn::impl::alg_kind_t alg;
                 const float* weights_data;
+                const float* output_mask_data;
             } binarization;
         };
 
@@ -167,7 +168,8 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
     mkldnn::impl::status_t append_dw_conv(int in_h, int in_w, int ker_h, int ker_w, int str_h, int str_w,
                                           const float* weights_data,
                                           const float* biases_data);
-    mkldnn::impl::status_t append_binarization(mkldnn::impl::alg_kind_t alg, const float* weights_data);
+    mkldnn::impl::status_t append_binarization(mkldnn::impl::alg_kind_t alg, const float* weights_data,
+                                               const float* output_mask_data);
 
     int find(mkldnn::impl::primitive_kind_t kind, int start = 0,
             int stop = -1) const {

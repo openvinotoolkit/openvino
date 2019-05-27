@@ -16,7 +16,7 @@ Another required aspect of good throughput is a number of iterations. Only with 
 
 The batch mode is an independent attribute on the pipelined mode. Pipelined mode works efficiently with any batch size.
 
-### How It Works
+## How It Works
 
 Upon the start-up, the sample application reads command line parameters and loads a network and an image to the Inference
 Engine plugin.
@@ -26,13 +26,13 @@ Then in a loop it starts inference for the current infer request and switches to
 
 When inference is done, the application outputs data to the standard output stream.
 
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Specify Input Shapes** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ## Running
 
 Running the application with the <code>-h</code> option yields the following usage message:
 ```
-python3 classification_sample_async.py -h 
+python3 classification_sample_async.py -h
 ```
 The command yields the following usage message:
 ```
@@ -80,7 +80,7 @@ You can do inference on an image using a trained AlexNet network on FPGA with fa
     python3 classification_sample_async.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d HETERO:FPGA,CPU -nireq 2 -ni 200
 ```
 
-### Sample Output
+## Sample Output
 
 By default, the application outputs top-10 inference results for each infer request.
 It also provides throughput value measured in frames per seconds.

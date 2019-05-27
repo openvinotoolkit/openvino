@@ -161,8 +161,8 @@ public:
     PoolingLayer& setExcludePad(bool exclude);
 
 private:
-    PoolingType type;
-    RoundingType roundingType;
+    PoolingType type = MAX;
+    RoundingType roundingType = CEIL;
 };
 
 }  // namespace Builder

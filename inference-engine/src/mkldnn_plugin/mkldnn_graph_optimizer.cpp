@@ -206,9 +206,11 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
                 } else {
                     if (ch1->type == Pooling) {
                         auto pool = ch1;
-                        bool is_max_pool =
-                                dynamic_cast<PoolingLayer *>(pool->getCnnLayer().get())->_type ==
-                                PoolingLayer::PoolType::MAX;
+
+                        auto* pLayer = dynamic_cast<PoolingLayer *>(pool->getCnnLayer().get());
+                        if (pLayer == nullptr)
+                            THROW_IE_EXCEPTION << "Cannot get pooling layer " << pool->getName();
+                        bool is_max_pool = pLayer->_type == PoolingLayer::PoolType::MAX;
 
                         if (is_max_pool && pool->getChildEdges().size() == 1) {
                             auto ch2 = pool->getChildEdgeAt(0)->getChild();
@@ -242,6 +244,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDepthwise(MKLDNNGraph &graph) {
             return false;
 
         auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(node.get());
+        if (depthwiseNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get depthwise node " << node->getName();
         return ((depthwiseNode->getAlgorithm() == mkldnn::algorithm::depthwise_scale_shift && depthwiseNode->isWithBiases()) ||
                 (depthwiseNode->getAlgorithm() == mkldnn::algorithm::depthwise_prelu));
     };
@@ -288,11 +292,15 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
     auto isSutableParentConvolution = [&](MKLDNNNodePtr node) {
         if (isBinaryConvolutionNode(node)) {
             auto *layer = dynamic_cast<BinaryConvolutionLayer *>(node->getCnnLayer().get());
+            if (layer == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get convolution layer " << node->getName();
 
             bool isSupportedParams = layer->_group == 1;
             if (!isSupportedParams) return false;
         } else {
             auto *layer = dynamic_cast<ConvolutionLayer *>(node->getCnnLayer().get());
+            if (layer == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get convolution layer " << node->getName();
 
             bool isSupportedParams = layer->_group == 1 &&
                                      ((is1x1Convolution(layer) && layer->_stride[X_AXIS] == 1 &&
@@ -306,9 +314,14 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
 
     auto isSutableChildConvolution = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
         auto* childLayer = dynamic_cast<ConvolutionLayer*>(childNode->getCnnLayer().get());
+        if (childLayer == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get convolution layer " << childNode->getName();
 
         if (!isBinaryConvolutionNode(parentNode)) {
             auto* parentLayer = dynamic_cast<ConvolutionLayer*>(parentNode->getCnnLayer().get());
+
+            if (parentLayer == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get convolution layer " << parentNode->getName();
             if (parentLayer->precision != childLayer->precision)
                 return false;
         }
@@ -331,6 +344,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
         }
 
         auto* layer = dynamic_cast<ConvolutionLayer*>(childNode->getCnnLayer().get());
+        if (layer == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get convolution layer " << childNode->getName();
 
         auto inDims = childNode->inDims[0];
         auto outDims = childNode->outDims[0];
@@ -384,10 +399,14 @@ void MKLDNNGraphOptimizer::FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph) 
         if (!node->getCnnLayer())
             return false;
 
-        auto* quantizeLayer = dynamic_cast<QuantizeLayer*>(node->getCnnLayer().get());
-        bool isSutableQuantize = node->getType() == Quantize && quantizeLayer->levels == 2;
+        if (node->getType() != Quantize)
+            return false;
 
-        return isSutableQuantize;
+        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
+        if (quantizeNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
+
+        return quantizeNode->isPackedStore();
     };
 
     for (int i = 0; i < graphNodes.size(); i++) {
@@ -399,29 +418,7 @@ void MKLDNNGraphOptimizer::FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph) 
 
         parent->fuseWith(child);
 
-        auto* binConvNode = dynamic_cast<MKLDNNBinaryConvolutionNode*>(parent.get());
-
         auto parents = child->parentEdges;
-        for (size_t i = 0; i < parents.size(); i++) {
-            auto p_edge = parents[i].lock();
-            if (p_edge->getParent()->getType() == Input) {
-                InferenceEngine::SizeVector dims;
-                dims.push_back(binConvNode->getChildEdgeAt(0)->getDims()[1]);
-
-                auto InputLowBlob = dynamic_cast<TBlob<float>*>(p_edge->getParent()->getCnnLayer()->blobs["custom"].get());
-
-                auto inputLowData = InputLowBlob->buffer().as<float*>();
-                int inputLowAxis = p_edge->getDims().ndims() == 1 ? 0 : 1;
-                bool isInputLowBroadcasted = p_edge->getDims()[inputLowAxis] != dims[0];
-
-                for (int i = 0; i < dims[0]; i++) {
-                    binConvNode->pushBinarizationThreshold(inputLowData[isInputLowBroadcasted ? 0 : i]);
-                }
-
-                break;
-            }
-        }
-
         for (size_t i = 0; i < parents.size(); i++) {
             auto p_edge = parents[i].lock();
             if (p_edge->getParent()->getType() == BinaryConvolution)
@@ -667,12 +664,16 @@ void MKLDNNGraphOptimizer::RemoveIdentityOperator(MKLDNNGraph &graph) {
 
         if (node->getType() == Power) {
             PowerLayer* l = dynamic_cast<PowerLayer*>(node->getCnnLayer().get());
+            if (l == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get power layer " << node->getName();
 
             if (l->power == 1.0f && l->scale == 1.0f && l->offset == 0.0f) toDrop = true;
         }
 
         if (node->getType() == Depthwise && node->getCnnLayer()->type == "ScaleShift") {
             ScaleShiftLayer* l = dynamic_cast<ScaleShiftLayer*>(node->getCnnLayer().get());
+            if (l == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get scale shift layer " << node->getName();
 
             if (l->_weights == nullptr && l->_biases == nullptr) toDrop = true;
         }
@@ -692,7 +693,11 @@ void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
             && node->getChildEdgeAt(0)->getChild()->getType() == Reorder ) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
             MKLDNNReorderNode* n = dynamic_cast<MKLDNNReorderNode*>(node.get());
+            if (n == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get reorder layer " << node->getName();
             MKLDNNReorderNode* nn = dynamic_cast<MKLDNNReorderNode*>(nextNode.get());
+            if (nn == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get reorder layer " << nextNode->getName();
 
             auto scales = n->_scales;
 
@@ -778,6 +783,8 @@ void MKLDNNGraphOptimizer::RemoveIOScaleShifts(MKLDNNGraph &graph) {
     for (MKLDNNNodePtr& node : graph.GetNodes()) {
         if (node->getType() == Depthwise && node->getCnnLayer()->type == "ScaleShift") {
             ScaleShiftLayer* l = dynamic_cast<ScaleShiftLayer*>(node->getCnnLayer().get());
+            if (l == nullptr)
+                THROW_IE_EXCEPTION << "Cannot get scale shift layer " << node->getName();
 
             auto cur = l->insData[0].lock();
             if (cur == nullptr) {

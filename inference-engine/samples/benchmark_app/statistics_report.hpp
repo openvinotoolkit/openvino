@@ -34,7 +34,7 @@ public:
         std::string report_folder;
     };
 
-    explicit StatisticsReport(Config config) : _config(std::move(config)) {
+    explicit StatisticsReport(const Config &config) : _config(config) {
         if (_config.niter > 0) {
             _performanceCounters.reserve(_config.niter);
         }

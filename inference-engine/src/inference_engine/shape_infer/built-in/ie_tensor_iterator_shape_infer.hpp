@@ -101,7 +101,7 @@ public:
 
 
 private:
-    const TensorIterator* _original_ti;
+    const TensorIterator* _original_ti = nullptr;
     std::shared_ptr<Reshaper> _body_reshaper;
 };
 

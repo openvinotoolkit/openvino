@@ -52,4 +52,9 @@ INST_TEST_CASE(Mobilenet_Blocked,
            1, 7, 10, 10,  37, 1, 1, 0, 0, 1, 1,  37, 3, 3, 1, 1, 2, 2)
 );
 
+INST_TEST_CASE(Mobilenet_Blocked16,
+    PARAMS_WITH_ELTIWSE(FMT_DATA_BLOCKED, FMT_WEIGHTS_BLOCKED16, FMT_BIAS, FMT_WEIGHTS_DW_BLOCKED16, FMT_BIAS, FMT_DATA_BLOCKED,
+           1, 7, 10, 10,  37, 1, 1, 0, 0, 1, 1,  37, 3, 3, 1, 1, 2, 2)
+);
+
 }

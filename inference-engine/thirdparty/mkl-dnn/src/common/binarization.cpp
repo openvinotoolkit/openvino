@@ -32,9 +32,9 @@ using namespace mkldnn::impl::types;
 namespace {
 status_t binarization_desc_init(binarization_desc_t *binarization_desc, prop_kind_t prop_kind,
         alg_kind_t alg_kind, const memory_desc_t *src_desc, const memory_desc_t *dst_desc,
-        const memory_desc_t *weights_desc) {
+        const memory_desc_t *weights_desc, const memory_desc_t *output_mask_desc) {
     bool args_ok = true
-        && !any_null(binarization_desc, src_desc, dst_desc, weights_desc)
+        && !any_null(binarization_desc, src_desc, dst_desc, weights_desc, output_mask_desc)
         && one_of(prop_kind, forward_training, forward_inference)
         && one_of(alg_kind, binarization_depthwise);
     if (!args_ok) return invalid_arguments;
@@ -46,6 +46,7 @@ status_t binarization_desc_init(binarization_desc_t *binarization_desc, prop_kin
     bd.src_desc = *src_desc;
     bd.dst_desc = *dst_desc;
     bd.weights_desc = *weights_desc;
+    bd.output_mask_desc = *output_mask_desc;
 
     bool consistency = true
         && memory_desc_wrapper(bd.src_desc).nelems()
@@ -59,8 +60,9 @@ status_t binarization_desc_init(binarization_desc_t *binarization_desc, prop_kin
 
 status_t mkldnn_binarization_forward_desc_init(binarization_desc_t *binarization_desc,
         prop_kind_t prop_kind, alg_kind_t alg_kind,
-        const memory_desc_t *src_desc, const memory_desc_t *dst_desc, const memory_desc_t *weights_desc) {
+        const memory_desc_t *src_desc, const memory_desc_t *dst_desc, const memory_desc_t *weights_desc,
+        const memory_desc_t *output_mask_desc) {
     if (!one_of(prop_kind, forward_training, forward_inference))
         return invalid_arguments;
-    return binarization_desc_init(binarization_desc, prop_kind, alg_kind, src_desc, dst_desc, weights_desc);
+    return binarization_desc_init(binarization_desc, prop_kind, alg_kind, src_desc, dst_desc, weights_desc, output_mask_desc);
 }

@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2019 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <fluid_test_computations.hpp>
 #include <opencv2/gapi.hpp>
 #include <ie_preprocess_gapi_kernels.hpp>

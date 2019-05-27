@@ -130,9 +130,9 @@ Builder::EltwiseLayer& Builder::EltwiseLayer::setEltwiseType(Builder::EltwiseLay
 REG_VALIDATOR_FOR(Eltwise, [](const InferenceEngine::Builder::Layer::CPtr& input_layer, bool partial) {
     Builder::EltwiseLayer layer(input_layer);
 
-    if (layer.getInputPorts().size() != 2) {
+    if (layer.getInputPorts().size() < 2) {
         THROW_IE_EXCEPTION << "Input ports are incorrect in the layer " << layer.getName()
-                           << ". Number of input ports should be equal to 2.";
+                           << ". Number of input ports should be >= 2.";
     }
     if (partial && (layer.getInputPorts()[0].shape().empty() || layer.getInputPorts()[1].shape().empty() ||
             layer.getOutputPort().shape().empty()))
@@ -153,5 +153,3 @@ REG_CONVERTER_FOR(Eltwise, [](const CNNLayerPtr& cnnLayer, Builder::Layer& layer
     layer.getParameters()["scales"] = cnnLayer->GetParamAsFloats("scales", {});
     layer.getParameters()["operation"] = cnnLayer->GetParamAsString("operation");
 });
-
-

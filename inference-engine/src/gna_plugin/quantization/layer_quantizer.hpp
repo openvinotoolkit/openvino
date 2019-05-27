@@ -301,6 +301,9 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
     auto inputData = conv->insData[0].lock();
 
     uint32_t num_rows = getBiasSizeForLayer(conv);
+    if (num_rows == 0) {
+        THROW_GNA_EXCEPTION << "Invalid num rows";
+    }
     uint32_t num_columns = conv->_weights->size() / num_rows;
 
     uint32_t num_rows_padded = num_rows;

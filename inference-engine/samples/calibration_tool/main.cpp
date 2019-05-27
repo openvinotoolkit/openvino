@@ -425,7 +425,10 @@ int main(int argc, char *argv[]) {
             THROW_USER_EXCEPTION(2) <<  "Processor pointer is invalid" << FLAGS_ppType;
         }
 
-        Int8Calibrator* calibrator = dynamic_cast<Int8Calibrator*>(processor.get());
+        auto calibrator = dynamic_cast<Int8Calibrator*>(processor.get());
+        if (calibrator == nullptr) {
+            THROW_USER_EXCEPTION(2) << "processor object is not instance of Int8Calibrator class";
+        }
 
         if (netType != RawC && netType != RawOD) {
             slog::info << "Collecting accuracy metric in FP32 mode to get a baseline, collecting activation statistics" << slog::endl;
@@ -434,7 +437,10 @@ int main(int argc, char *argv[]) {
         }
         calibrator->collectFP32Statistic();
         shared_ptr<Processor::InferenceMetrics> pIMFP32 = processor->Process(FLAGS_stream_output);
-        const CalibrationMetrics* mFP32 = dynamic_cast<const CalibrationMetrics*>(pIMFP32.get());
+        const auto mFP32 = dynamic_cast<const CalibrationMetrics*>(pIMFP32.get());
+        if (mFP32 == nullptr) {
+            THROW_USER_EXCEPTION(2) << "FP32 inference metrics object is not instance of CalibrationMetrics class";
+        }
         std:: cout << "  FP32 Accuracy: " << OUTPUT_FLOATING(100.0 * mFP32->AccuracyResult) << "% " << std::endl;
 
         InferenceEngine::NetworkStatsMap statMap;
@@ -450,7 +456,10 @@ int main(int argc, char *argv[]) {
                 InferenceEngine::NetworkStatsMap tmpStatMap = calibrator->getStatistic(threshold);
                 calibrator->validateInt8Config(tmpStatMap, {}, FLAGS_convert_fc);
                 shared_ptr<Processor::InferenceMetrics> pIM_I8 = processor->Process(FLAGS_stream_output);
-                const CalibrationMetrics *mI8 = dynamic_cast<const CalibrationMetrics *>(pIM_I8.get());
+                auto *mI8 = dynamic_cast<const CalibrationMetrics *>(pIM_I8.get());
+                if (mI8 == nullptr) {
+                    THROW_USER_EXCEPTION(2) << "INT8 inference metrics object is not instance of CalibrationMetrics class";
+                }
                 if (maximalAccuracy < mI8->AccuracyResult) {
                     maximalAccuracy = mI8->AccuracyResult;
                     bestThreshold = threshold;
@@ -477,7 +486,7 @@ int main(int argc, char *argv[]) {
                     orderedLayersAccuracyDrop[d.second] = d.first;
                     layersToInt8[d.first] = true;
                 }
-                std::map<float, std::string>::const_reverse_iterator it = orderedLayersAccuracyDrop.crbegin();
+                auto it = orderedLayersAccuracyDrop.crbegin();
 
                 shared_ptr<Processor::InferenceMetrics> pIM_I8;
                 const CalibrationMetrics *mI8;
@@ -537,6 +546,12 @@ int main(int argc, char *argv[]) {
             showUsage();
             return ex.list().begin()->exitCode();
         }
+    } catch (const std::exception& ex) {
+        slog::err << ex.what() << slog::endl;
+        return 1;
+    } catch (...) {
+        slog::err << "Unknown/internal exception happened." << slog::endl;
+        return 1;
     }
     return 0;
 }

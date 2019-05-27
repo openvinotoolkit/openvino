@@ -239,38 +239,54 @@ StatusCode CNNNetworkImpl::serialize(const std::string &xmlPath, const std::stri
 }
 
 StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
-    auto originalBatchSize = getBatchSize();
-    if (originalBatchSize == size)
+    try {
+        auto originalBatchSize = getBatchSize();
+        if (originalBatchSize == size)
+            return OK;
+        SizeVector inputDims = _inputData.cbegin()->second->getDims();
+
+        // 3D input layout doesn't have batch notation
+        if (inputDims.size() == 3 || inputDims.size() == 1) {
+            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
+        }
+
+        for (const auto &layer : _data) {
+            SizeVector dims = layer.second->getDims();
+            // Calculates original size for batch = 1
+            size_t diff = dims.at(0) / originalBatchSize;
+            dims.at(0) = size * diff;
+            layer.second->setDims(dims);
+        }
         return OK;
-    SizeVector dims = _inputData.cbegin()->second->getDims();
-
-    // 3D input layout doesn't have batch notation
-    if (dims.size() == 3 || dims.size() == 1) {
-        return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
+    } catch (const InferenceEngineException& e) {
+        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, responseDesc);
     }
-
-    for (auto layer : _data) {
-        SizeVector dims = layer.second->getDims();
-        // Calculates original size for batch = 1
-        size_t diff = dims.at(0) / originalBatchSize;
-        dims.at(0) = size * diff;
-        layer.second->setDims(dims);
-    }
-    return OK;
 }
 
 StatusCode CNNNetworkImpl::setBatchSizeReshape(size_t size, ResponseDesc* responseDesc) noexcept {
     InputShapes inputShapes;
-    for (const auto& pair : _inputData) {
-        auto info = pair.second;
-        if (info) {
-            auto data = info->getInputData();
-            if (data) {
-                auto dims = data->getTensorDesc().getDims();
-                dims[0] = size;
-                inputShapes[data->name] = dims;
+    try {
+        for (const auto& pair : _inputData) {
+            auto info = pair.second;
+            if (info) {
+                auto data = info->getInputData();
+                if (data) {
+                    auto dims = data->getTensorDesc().getDims();
+                    dims[0] = size;
+                    inputShapes[data->name] = dims;
+                }
             }
         }
+        return reshape(inputShapes, responseDesc);
+    } catch (const InferenceEngineException& e) {
+        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, responseDesc);
     }
-    return reshape(inputShapes, responseDesc);
 }

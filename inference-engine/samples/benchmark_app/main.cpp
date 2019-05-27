@@ -11,6 +11,7 @@
 #include <utility>
 
 #include <inference_engine.hpp>
+#include <ext_list.hpp>
 #include <format_reader_ptr.h>
 
 #include <vpu/vpu_plugin_config.hpp>
@@ -60,18 +61,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("Input is not set. Please use -h.");
     }
 
-    if (FLAGS_niter < 0) {
-        throw std::logic_error("Number of iterations should be positive (invalid -niter option value)");
-    }
-
-    if (FLAGS_nireq < 0) {
-        throw std::logic_error("Number of inference requests should be positive (invalid -nireq option value)");
-    }
-
-    if (FLAGS_b < 0) {
-        throw std::logic_error("Batch size should be positive (invalid -b option value)");
-    }
-
     if (!FLAGS_report_type.empty() &&
          FLAGS_report_type != noCntReport && FLAGS_report_type != medianCntReport && FLAGS_report_type != detailedCntReport) {
         std::string err = "only " + std::string(noCntReport) + "/" + std::string(medianCntReport) + "/" + std::string(detailedCntReport) +
@@ -113,12 +102,19 @@ int main(int argc, char *argv[]) {
 
         InferencePlugin plugin = PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
 
-        if (!FLAGS_l.empty()) {
-            // CPU (MKLDNN) extensions is loaded as a shared library and passed as a pointer to base extension
-            const std::shared_ptr<IExtension> extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
-            plugin.AddExtension(extension_ptr);
-            slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
-        } else if (!FLAGS_c.empty()) {
+        if (FLAGS_d.find("CPU") != std::string::npos) {
+            // Loading default CPU etensions
+            plugin.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>());
+
+            if (!FLAGS_l.empty()) {
+                // CPU (MKLDNN) extensions is loaded as a shared library and passed as a pointer to base extension
+                const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
+                plugin.AddExtension(extension_ptr);
+                slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
+            }
+        }
+
+        if ((FLAGS_d.find("GPU") != std::string::npos) && !FLAGS_c.empty()) {
             // Load clDNN Extensions
             plugin.SetConfig({ {CONFIG_KEY(CONFIG_FILE), FLAGS_c} });
             slog::info << "GPU extensions is loaded " << FLAGS_c << slog::endl;
