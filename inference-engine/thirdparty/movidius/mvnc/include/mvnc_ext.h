@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2019 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #ifndef __NC_EXT_H_INCLUDED__
 #define __NC_EXT_H_INCLUDED__
 #include <mvnc.h>
