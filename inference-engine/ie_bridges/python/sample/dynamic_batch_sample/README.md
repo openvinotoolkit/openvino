@@ -12,7 +12,7 @@ Upon the start-up, the sample reads command-line parameters and loads a network 
 
 Run the application with the `-h` or `--help` option to see the usage message:
 ```
-    python3 dynamic_batch_sample.py -h
+python3 dynamic_batch_sample.py -h
 ```
 The command yields the following usage message:
 ```
@@ -51,7 +51,6 @@ To run the sample, you can use public or pre-trained models. You can download th
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](https://docs.openvinotoolkit.org/2019_R1/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html).
 
-
 For example, to do inference on images using a trained network with multiple outputs on CPU device with supported dynamic batch setting, run the following command:
 
 ```
@@ -63,6 +62,6 @@ The sample outputs a DOT file with a dumped graph.
 
 ## See Also
 * [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-* [Model Optimizer](https://docs.openvinotoolkit.org/2019_R1/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
-* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2019/model_downloader)
+* [Model Optimizer tool](https://docs.openvinotoolkit.org/2019_R1/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
+* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/master/model_downloader)
 * [Dynamic Batching](https://docs.openvinotoolkit.org/2019_R1/_docs_IE_DG_DynamicBatching.html)

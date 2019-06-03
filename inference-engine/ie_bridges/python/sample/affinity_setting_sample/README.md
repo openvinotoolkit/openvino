@@ -1,6 +1,6 @@
 # Affinity Settings Python* Sample
 
-This topic demonstrates how to run the Affinity Settings Sample, which ofloads convolution layers execution to GPU device..
+This topic demonstrates how to run the Affinity Settings Sample, which offloads convolution layers execution to GPU device.
 
 ## How It Works
 
@@ -46,7 +46,6 @@ To run the sample, you can use public or pre-trained models. You can download th
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](https://docs.openvinotoolkit.org/2019_R1/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html).
 
-
 For example, to do inference on image using a trained network, run the following command:
 
 ```
@@ -58,5 +57,5 @@ The sample outputs a multipage TIFF image and a NIFTI archive.
 
 ## See Also
 * [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-* [Model Optimizer](https://docs.openvinotoolkit.org/2019_R1/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
-* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2019/model_downloader)
+* [Model Optimizer tool](https://docs.openvinotoolkit.org/2019_R1/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
+* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/master/model_downloader)
