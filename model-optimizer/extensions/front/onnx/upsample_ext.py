@@ -61,7 +61,7 @@ class UpsampleFrontExtractor(FrontExtractorOp):
 
         if width_scale is None or height_scale is None:
             raise Error(
-                'One/both of widths_scale = {} and height_scale = {} is not defined for Upsampe node {}.',
+                'One/both of width_scale = {} and height_scale = {} is not defined for Upsample node {}.',
                 width_scale,
                 height_scale,
                 node.name
@@ -69,7 +69,7 @@ class UpsampleFrontExtractor(FrontExtractorOp):
 
         if width_scale != height_scale:
             raise Error(
-                'Upsample node {} have different widths_scale = {} and height_scale = {}. It is not supported; they should match.',
+                'Upsample node {} have different width_scale = {} and height_scale = {}. It is not supported; they should match.',
                 node.name,
                 width_scale,
                 height_scale
