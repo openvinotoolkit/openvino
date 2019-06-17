@@ -55,7 +55,7 @@ class UpsampleFrontExtractor(FrontExtractorOp):
         # TODO: this is a temporary limitation
         if scales is not None:
             raise Error(
-                'Upsample scales attribute is defined for node {}. Only scale_width and scale_height are supported.',
+                'Upsample scales attribute is defined for node {}. Only width_scale and height_scale are supported.',
                 node.name
             )
 
