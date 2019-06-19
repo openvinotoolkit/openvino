@@ -100,8 +100,8 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
 endif()
 
 include_directories (
-        ${CMAKE_CURRENT_SOURCE_DIR}/common
-        ${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader
+    ${IE_MAIN_SOURCE_DIR}/include/samples/common
+    ${IE_MAIN_SOURCE_DIR}/include/extension
 )
 add_subdirectory(common/format_reader)
 

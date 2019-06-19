@@ -14,7 +14,7 @@
 #include <mkldnn_plugin/mkldnn_extension_mngr.h>
 #include "tests_common.hpp"
 
-#include <ext_list.hpp>
+#include <extension/ext_list.hpp>
 
 using namespace ::testing;
 using namespace std;
