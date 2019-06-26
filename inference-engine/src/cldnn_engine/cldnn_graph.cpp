@@ -1926,7 +1926,7 @@ void CLDNNGraph::CreateSplitPrimitive(InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
     auto splitLayer = as<InferenceEngine::SplitLayer *> (layer);
     if (IsValidSplitConvMerge(splitLayer)) {
-        // AlextNet style split->conv*2->merge
+        // AlexNet style split->conv*2->merge
         CreateFusedSplitConvMergePrimitive(layer);
     } else {
 #ifdef _USE_SPLIT_PRIMITIVE
