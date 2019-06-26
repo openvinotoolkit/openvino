@@ -3339,9 +3339,9 @@ bool CLDNNGraph::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitL
     }
 
     auto convLayer1 =
-        as<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[0]));
+        dynamic_cast<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[0]).get());
     auto convLayer2 =
-        as<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[1]));
+        dynamic_cast<InferenceEngine::ConvolutionLayer *> (GetNextSingleLayer(splitLayer->outData[1]).get());
     if (!convLayer1 || !convLayer2) {   // outputs aren't convolutions
         return false;
     }
