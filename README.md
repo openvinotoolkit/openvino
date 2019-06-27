@@ -34,7 +34,7 @@ Deep Learning Deployment Toolkit is licensed under Apache License, Version 2.0. 
 
 ## Support
 Please report questions, issues and suggestions using:
-* [\#dldt](https://stackoverflow.com/search?q=%23dldt) tag on StackOverflow*
+* [\#openvino](https://stackoverflow.com/search?q=%23openvino) tag on StackOverflow*
 * [GitHub* Issues](https://github.com/opencv/dldt/issues) 
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
 
