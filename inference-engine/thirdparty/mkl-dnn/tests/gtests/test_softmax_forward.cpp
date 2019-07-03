@@ -164,12 +164,8 @@ protected:
         auto mem_desc = memory::desc(p.dims, prec, p.memory_format);
         auto mem_prim_desc = memory::primitive_desc(mem_desc, eng);
 
-        // TODO: free
-        auto src_data = new data_t[mem_prim_desc.get_size()];
-        auto dst_data = new data_t[mem_prim_desc.get_size()];
-
-        auto src = memory(mem_prim_desc, src_data);
-        auto dst = memory(mem_prim_desc, dst_data);
+        auto src = memory(mem_prim_desc);
+        auto dst = memory(mem_prim_desc);
 
         auto softmax_desc = softmax_forward::desc(p.aprop_kind, mem_desc,
                     p.axis);
@@ -178,13 +174,14 @@ protected:
         auto softmax = softmax_forward(softmax_prim_desc, src, dst);
 
         auto test_with_given_fill = [&](data_t mean, data_t var) {
-            fill_data<data_t>(mem_prim_desc.get_size(),
+            fill_data<data_t>(mem_prim_desc.get_size() / sizeof(data_t),
                     (data_t *)src.get_data_handle(), mean, var);
 
             stream(stream::kind::lazy).submit({softmax}).wait();
             check_softmax_fwd<data_t>(p.aprop_kind, src, dst, p.axis);
         };
 
+        test_with_given_fill(-50, 50);
         test_with_given_fill(-200, 1);
         test_with_given_fill(   0, 1);
         test_with_given_fill( 200, 1);
@@ -220,5 +217,9 @@ INSTANTIATE_TEST_CASE_P(TestSoftmaxForward, softmax_forward_test_float,
             softmax_fwd_test_params_float{prop_kind::forward_scoring,
             engine::kind::cpu, memory::format::nc, {2, 1000}, 0},
             softmax_fwd_test_params_float{prop_kind::forward_scoring,
-            engine::kind::cpu, memory::format::nc, {2, 1000}, 1}));
+            engine::kind::cpu, memory::format::nc, {2, 1000}, 1},
+            softmax_fwd_test_params_float{prop_kind::forward_scoring,
+            engine::kind::cpu, memory::format::nc, {1, 256}, 1},
+            softmax_fwd_test_params_float{prop_kind::forward_scoring,
+            engine::kind::cpu, memory::format::nc, {1, 13}, 1}));
 }

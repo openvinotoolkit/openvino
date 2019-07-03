@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 import numpy as np
 
-from mo.front.caffe.extractors.utils import weights_biases
+from mo.front.caffe.extractors.utils import embed_input, weights_biases
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.utils.utils import NamedAttrsClass
 
@@ -26,11 +26,22 @@ def scale_ext(pl, ml):
     attrs = {
         'op': 'ScaleShift',
         'type': 'ScaleShift',
+        'axis': param.axis,
         'infer': copy_shape_infer
     }
-    if ml is None:
+    if ml is None and len(pl.bottom) == 1:
         # default weights and biases for scale layer if the caffemodel file doesn't contain them
         ml = NamedAttrsClass({'blobs': np.array([NamedAttrsClass({'data': np.array([1])}),
                                                  NamedAttrsClass({'data': np.array([0])})])})
-    attrs.update(weights_biases(param.bias_term, ml))
+    # scale with 1 input and 1 or 2 blobs
+    if ml and len(ml.blobs) != 0 and len(pl.bottom) == 1:
+        attrs.update(weights_biases(param.bias_term, ml))
+    # 2 inputs + bias
+    elif len(pl.bottom) == 2 and param.bias_term:
+        if ml is None or len(ml.blobs) == 0:
+            # default bias for scale layer with 2 inputs if the caffemodel file doesn't contain them
+            ml = NamedAttrsClass({'blobs': np.array([NamedAttrsClass({'data': np.array([0])})])})
+
+        embed_input(attrs, 1, 'biases', ml.blobs[0].data)
+
     return attrs

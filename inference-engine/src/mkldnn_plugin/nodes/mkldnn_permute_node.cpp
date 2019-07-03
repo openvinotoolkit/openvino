@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,6 +66,21 @@ void MKLDNNPermuteNode::initSupportedPrimitiveDescriptors() {
 
         if (srcDims[1] % 16 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw16c);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+        }
+    } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::ncdhw);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::ncdhw);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+
+        auto srcDims = getParentEdgeAt(0)->getDims();
+        if (srcDims[1] % 8 == 0) {
+            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw8c);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+        }
+
+        if (srcDims[1] % 16 == 0) {
+            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw16c);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
     } else {
@@ -221,7 +235,71 @@ static void permute_to_3012(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
     }
 }
 
-std::map<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl> MKLDNNPermuteNode::OptimizedCases = {
+static void permute_to_021(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int C  = srcMemPtr->GetDims()[1];
+    const int S  = srcMemPtr->GetDims()[2];
+
+    parallel_for2d(MB, S, [&](int n, int s) {
+        int src_off = 0;
+        int dst_off = 0;
+
+        for (int c = 0; c < C; c++) {
+            src_off = n * C * S +
+                      c * S +
+                      s;
+            dst_off = n * S * C +
+                      s * C +
+                      c;
+
+            dst_data[dst_off] = src_data[src_off];
+        }
+    });
+}
+
+static void permute_to_034152(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int DIM1 = srcMemPtr->GetDims()[1];
+    const int DIM2 = srcMemPtr->GetDims()[2];
+    const int DIM3 = srcMemPtr->GetDims()[3];
+    const int DIM4 = srcMemPtr->GetDims()[4];
+    const int DIM5 = srcMemPtr->GetDims()[5];
+
+    int src_off = 0;
+    int dst_off = 0;
+
+    for (int n = 0; n < MB; n++) {
+        for (int dim3 = 0; dim3 < DIM3; dim3++) {
+            for (int dim4 = 0; dim4 < DIM4; dim4++) {
+                for (int dim1 = 0; dim1 < DIM1; dim1++) {
+                    for (int dim5 = 0; dim5 < DIM5; dim5++) {
+                        for (int dim2 = 0; dim2 < DIM2; dim2++) {
+                            src_off = n * DIM1 * DIM2 * DIM3 * DIM4 * DIM5 +
+                                      dim1 * DIM2 * DIM3 * DIM4 * DIM5 +
+                                      dim2 * DIM3 * DIM4 * DIM5 +
+                                      dim3 * DIM4 * DIM5 +
+                                      dim4 * DIM5 +
+                                      dim5;
+
+                            dst_data[dst_off] = src_data[src_off];
+                            dst_off++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+std::multimap<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl> MKLDNNPermuteNode::OptimizedCases = {
         {{0, 2, 3, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_0231, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return true;
         })},  // NCHW -> NHWC case
@@ -237,6 +315,12 @@ std::map<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl> MKLDNNPerm
         {{0, 2, 1, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_0213, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
         })},  // shufflenet
+        {{0, 2, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_021, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        })},  // self attention block
+        {{0, 3, 4, 1, 5, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_034152, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        })},  // learning-to-see-in-the-dark-sony
 };
 
 void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
@@ -245,26 +329,28 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
     auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
     auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
 
-    auto perm = OptimizedCases.find(order);
-    if (perm != OptimizedCases.end() && perm->second.isValidParams(srcMemPtr, dstMemPtr)) {
-        perm->second.execute(batchToProcess(), srcMemPtr, dstMemPtr);
-    } else {
-        auto srcBlob = getParentEdgeAt(0)->getBlob();
-        TensorDesc srcDesc = srcBlob->getTensorDesc();
-
-        SizeVector& dims = srcDesc.getDims();
-        InferenceEngine::SizeVector orderedDims;
-        for (auto ord : order) {
-            orderedDims.push_back(dims[ord]);
+    for (const auto &impl : OptimizedCases) {
+        if (impl.first == order && impl.second.isValidParams(srcMemPtr, dstMemPtr)) {
+            impl.second.execute(batchToProcess(), srcMemPtr, dstMemPtr);
+            return;
         }
-        TensorDesc dstDesc(InferenceEngine::Precision::FP32, dims, {orderedDims, order});
-
-        int dataSize = srcBlob->size() / srcDesc.getDims()[0] * batchToProcess();
-
-        parallel_for(dataSize, [&](int i) {
-            dst_data[dstDesc.offset(i)] = src_data[srcDesc.offset(i)];
-        });
     }
+
+    auto srcBlob = getParentEdgeAt(0)->getBlob();
+    TensorDesc srcDesc = srcBlob->getTensorDesc();
+
+    SizeVector& dims = srcDesc.getDims();
+    InferenceEngine::SizeVector orderedDims;
+    for (auto ord : order) {
+        orderedDims.push_back(dims[ord]);
+    }
+    TensorDesc dstDesc(InferenceEngine::Precision::FP32, dims, {orderedDims, order});
+
+    int dataSize = srcBlob->size() / srcDesc.getDims()[0] * batchToProcess();
+
+    parallel_for(dataSize, [&](int i) {
+        dst_data[dstDesc.offset(i)] = src_data[srcDesc.offset(i)];
+    });
 }
 
 bool MKLDNNPermuteNode::created() const {

@@ -82,23 +82,23 @@ struct jit_uni_roi_pooling_fwd_t: public cpu_primitive_t {
         }
     };
 
-    jit_uni_roi_pooling_fwd_t(const pd_t *pd, const input_vector &inputs,
+    jit_uni_roi_pooling_fwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd)
-    { kernel_ = new jit_uni_roi_pool_kernel_f32<isa>(conf_.jpp_); }
+        : cpu_primitive_t(apd, inputs, outputs)
+    { kernel_ = new jit_uni_roi_pool_kernel_f32<isa>(pd()->jpp_); }
 
     ~jit_uni_roi_pooling_fwd_t() { delete kernel_; }
 
     typedef typename prec_traits<data_type::f32>::type data_t;
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         execute_forward();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_forward();
-    pd_t conf_;
+    void execute_forward() const;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
     jit_uni_roi_pool_kernel_f32<isa> *kernel_;
 };
 

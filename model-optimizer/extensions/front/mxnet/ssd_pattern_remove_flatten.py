@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 import networkx as nx
 
 from extensions.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
+from mo.graph.graph import Graph
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.middle.passes.eliminate import remove_node_from_graph
 
 
 class SsdPatternRemoveFlatten(FrontReplacementSubgraph):
@@ -38,16 +38,16 @@ class SsdPatternRemoveFlatten(FrontReplacementSubgraph):
             ]
         )
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         """
         Need to find each occurrence of pattern: _contrib_MultiBoxPrior -> Flatten
         remove Flatten layer - IE does not expect outputs to be flattened
 
         Parameters
         ----------
-        graph : nx.MultiDiGraph
+        graph : Graph
            Graph with loaded model.
          match : dict
            Patterns which were found in graph structure.
         """
-        remove_node_from_graph(graph, match['multi_box_prior'], match['flatten'])
+        graph.erase_node(match['flatten'])

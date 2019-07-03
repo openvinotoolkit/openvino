@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,9 +48,11 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
         fmt = memory::format::nc;
     } else if (inDims.ndims() == 4) {
         fmt = memory::format::nchw;
+    } else if (inDims.ndims() == 5) {
+        fmt = memory::format::ncdhw;
     }
     if (fmt == memory::format::any) {
-        THROW_IE_EXCEPTION << "Tile " << getName() << " supports only 2d and 4d dimensions!";
+        THROW_IE_EXCEPTION << "Tile " << getName() << " supports only 2D, 4D and 5D dimensions!";
     }
 
     InferenceEngine::LayerConfig config;
@@ -101,14 +102,16 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_inner_dim *= batchToProcess();
     }
 
-    if (m_inner_dim == 1 && inDims.size() == 4 && m_outer_dim%8 == 0 && srcMemory.GetFormat() == memory::nChw8c) {
+    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && ((inDims.size() == 4 && srcMemory.GetFormat() == memory::nChw8c) ||
+            (inDims.size() == 5 && srcMemory.GetFormat() == memory::nCdhw8c))) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw8c)
          */
         m_inner_dim *= 8;
         m_outer_dim /= 8;
-    } else if (m_inner_dim == 1 && inDims.size() == 4 && m_outer_dim%16 == 0
-               && srcMemory.GetFormat() == memory::nChw16c) {
+    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 &&
+            ((inDims.size() == 4 && srcMemory.GetFormat() == memory::nChw16c) ||
+            (inDims.size() == 5 && srcMemory.GetFormat() == memory::nCdhw16c))) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw16c)
          */

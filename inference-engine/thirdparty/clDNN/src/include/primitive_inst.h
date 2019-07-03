@@ -21,7 +21,6 @@
 #include "api/CPP/concatenation.hpp"
 
 #include "event_impl.h"
-#include "program_impl.h"
 #include "memory_impl.h"
 #include "meta_utils.h"
 #include "kernel_selector_helper.h"
@@ -53,17 +52,18 @@ struct primitive_impl
     //   A special member function is user-provided if it is user-declared and not explicitly defaulted or deleted
     //   on its first declaration.
     primitive_impl() : _weights_reorder_params() {}
-    primitive_impl(const kernel_selector::weights_reorder_params& params, std::string kernel_name = "") : _weights_reorder_params(params), kernel_name(kernel_name) {}
+    primitive_impl(const kernel_selector::weights_reorder_params& params, std::string kernel_name = "") : _weights_reorder_params(params), _kernel_name(kernel_name) {}
     virtual ~primitive_impl() = default;
 
     virtual event_impl::ptr execute(const std::vector<event_impl::ptr>& events, primitive_inst& instance) = 0;
-
-	std::string get_kernel_name() { return kernel_name; };
-
+    virtual bool validate(const primitive_inst& instance) const = 0;
+	std::string get_kernel_name() const { return _kernel_name; };
     // TODO: added a derived class for weights reordering (maybe for all static data reordering)
     const kernel_selector::weights_reorder_params _weights_reorder_params;
+    // class typed_primitive_gpu_impl override this with return false;
+    virtual bool is_cpu() const { return true; }
 private:
-	std::string kernel_name;
+	std::string _kernel_name;
 };
 
 /*
@@ -92,12 +92,12 @@ public:
     primitive_id id() const { return _node.id(); }
     primitive_id org_id() const { return _node.get_org_primitive_id(); }
     bool can_be_optimized() const { return _node.can_be_optimized(); }
-    const std::shared_ptr<const primitive> desc() const { return _node.get_primitive(); }
+    std::shared_ptr<const primitive> desc() const { return _node.get_primitive(); }
     network_impl& get_network() const { return _network; }
     uint32_t get_network_id() const;
 
     //return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
-    const primitive_impl* get_impl() const { return _impl.get(); }
+    primitive_impl* get_impl() const { return _impl.get(); }
 
     memory_impl& input_memory(size_t index = 0)  const 
     { 
@@ -107,7 +107,7 @@ public:
     }
 
     event_impl::ptr execute(const std::vector<event_impl::ptr>& events);
-
+    bool validate() const { return _impl->validate(*this); }
     bool output_changed() const { return _output_changed; }
     void reset_output_change() { _output_changed = false; }
 
@@ -150,7 +150,8 @@ protected:
 
 /*
 Base class for all implementation of specified primitive type.
-For example, all convolution implementations should derive from typed_primitive_impl<convolution>.
+For example, all cpu convolution implementations should derive directly from typed_primitive_impl<convolution>.
+GPU implementations should derive from typed_primitive_gpu_impl<convolution>;
 */
 template <class PType>
 struct typed_primitive_impl : public primitive_impl
@@ -158,7 +159,6 @@ struct typed_primitive_impl : public primitive_impl
     static_assert(meta::is_primitive<PType>::value, "PType should be a non-const, non-volatile class derived from primitive");
 
     using primitive_impl::primitive_impl;
-
 private:
     event_impl::ptr execute(const std::vector<refcounted_obj_ptr<event_impl>>& event, primitive_inst& instance) override
     {
@@ -169,8 +169,23 @@ private:
 
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
-
     virtual event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& event, typed_primitive_inst<PType>& instance) = 0;
+
+    virtual bool validate(const primitive_inst& instance) const override
+    {
+        if (instance.type() != PType::type_id())
+            throw std::invalid_argument("Implementation type does not match primitive type");
+        if (instance.get_impl() != this)
+            throw std::invalid_argument("Trying to validate primitive implementation with mismatching primitive instance");
+
+        return validate_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
+    }
+    virtual bool validate_impl(const typed_primitive_inst<PType>&) const
+    {
+        return true;
+    }
+
+
 };
 
 namespace details

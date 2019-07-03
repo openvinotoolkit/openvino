@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,23 +16,24 @@
 
 import logging as log
 
-import networkx as nx
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 
 
 class Crop(Op):
     op = 'Crop'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
-            'infer': __class__.infer
+            'infer': __class__.infer,
+            'in_ports_count': 2,
+            'out_ports_count': 1,
         }, attrs)
 
     def backend_attrs(self):

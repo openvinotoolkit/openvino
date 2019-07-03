@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,11 +14,9 @@
  limitations under the License.
 """
 
-import logging as log
-
-import numpy as np
-
+from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.op import PermuteAttrs
+from mo.utils.error import Error
 
 
 def tf_reshape_shape_infer(node):
@@ -34,10 +32,11 @@ def tf_reshape_shape_infer(node):
 
     # In case if Reshape operation was created with two inputs and dim attr wasn't set, we set in automatically
     if not node.has_valid('dim'):
-        node['dim'] = np.array(reshape_output, dtype=np.int64)
+        node['dim'] = reshape_output.copy()
 
     if node.in_node(0).shape is None:
         return None
+
     total = 1
     for index, i in enumerate(input_shape):
         total *= i
@@ -65,11 +64,12 @@ def tf_reshape_shape_infer(node):
         out_shape_total *= i
 
     if total != out_shape_total:
-        log.error(
+        raise Error(
             "Number of elements in input {} and output {} of reshape node {} mismatch".format(input_shape, output_shape,
                                                                                               node.name))
-        return None
 
     PermuteAttrs.create_permute_attrs(node, attrs=[('dim', 'output:0')])
 
-    return np.array(output_shape, dtype=np.int64)
+    output_shape = int64_array(output_shape)
+
+    return output_shape

@@ -1,42 +1,53 @@
-# Copyright (C) 2018 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
 # Defines the CMake commands/policies
-cmake_minimum_required( VERSION 2.8.5 )
+cmake_minimum_required (VERSION 3.3)
 
 # Set the project name
-project( INFERENCE_ENGINE_DRIVER )
+project (ie_python_api)
+set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
-option(COPY_IE_LIBS "Copy Inference Engine libs to package directory" ${WIN32})
+if (CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
+    set (ARCH armv7l)
+elseif ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+    set (ARCH intel64)
+else()
+    set (ARCH ia32)
+endif()
 
-set (IE_DEFAULT_PATH computer_vision_sdk/deployment_tools/inference_engine/share)
 
-find_package(InferenceEngine REQUIRED PATHS /opt/intel/${IE_DEFAULT_PATH} $ENV{HOME}/intel/${IE_DEFAULT_PATH})
+# in case of independent python api build (out of Inference Engine root Cmake)
+if (NOT(IE_MAIN_SOURCE_DIR))
+    if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+        message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
+        set(CMAKE_BUILD_TYPE "Release")
+    endif()
+    message(STATUS "BUILD_CONFIGURATION: ${CMAKE_BUILD_TYPE}")
 
-# Make the scripts available in the 'cmake' directory available for the
-# 'include()' command, 'find_package()' command.
-set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR}/cmake )
+    set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/${ARCH})
+    if(NOT(WIN32))
+        set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE})
+    endif()
+else()
+    if (UNIX OR APPLE)
+        # cython generated files requires public visibility. Force visibility required.
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fvisibility=default")
+    endif()
+endif()
 
-# Include the CMake script UseCython.cmake.  This defines add_cython_module().
-# Instruction for use can be found at the top of cmake/UseCython.cmake.
-include( UseCython )
+include (UseCython)
 
-# With CMake, a clean separation can be made between the source tree and the
-# build tree.  When all source is compiled, as with pure C/C++, the source is
-# no-longer needed in the build tree.  However, with pure *.py source, the
-# source is processed directly.  To handle this, we reproduce the availability
-# of the source files in the build tree.
-add_custom_target( ReplicatePythonSourceTree ALL ${CMAKE_COMMAND} -P
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ReplicatePythonSourceTree.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+if (PYTHONINTERP_FOUND)
+    set (PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+else()
+    message(FATAL_ERROR "Python Interpretator was not found!")
+endif()
 
-add_custom_target( CopyIeLibs ${CMAKE_COMMAND} -P
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CopyIeLibs.cmake
-  ${IE_ROOT_DIR}/bin/${_ARCH}/Release ${_IE_ROOT_LIBRARY}
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ie_driver )
+if(WIN32)
+    set (PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
+else()
+    set (PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
+endif()
 
-include_directories( IE::inference_engine )
+find_package (InferenceEngine REQUIRED)
 
-# Process the CMakeLists.txt in the 'src' and 'bin' directory.
-add_subdirectory( inference_engine )
+set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+add_subdirectory (src/openvino/inference_engine)

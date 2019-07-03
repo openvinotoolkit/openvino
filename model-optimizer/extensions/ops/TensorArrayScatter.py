@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.utils import match_shapes
 
@@ -25,7 +24,7 @@ from mo.utils.utils import match_shapes
 class TensorArrayScatter(Op):
     op = "TensorArrayScatterV3"
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
@@ -41,8 +40,12 @@ class TensorArrayScatter(Op):
         flow_in = node.in_node(3)
 
         ta_node = Node(node.graph, str(handle.value))
-        if ta_node.has_valid('element_shape'):
-            assert match_shapes(ta_node['element_shape'], value.shape[1:])
+        if ta_node.has_valid('element_shape') and len(ta_node.element_shape) > 0:
+            assert match_shapes(ta_node['element_shape'], value.shape[1:]), \
+                'Shapes are not compatible: {} and {}'.format(ta_node['element_shape'], value.shape[1:])
+        else:
+            ta_node['element_shape'] = value.shape[1:]
+
         # Assign element_shape anyway, because the original element_shape can contain -1
         ta_node['element_shape'] = value.shape[1:]
         #TODO: add smart check that indices and value.shape[0] is compatible

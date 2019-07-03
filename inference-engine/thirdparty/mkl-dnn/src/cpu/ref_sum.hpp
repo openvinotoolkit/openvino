@@ -78,8 +78,8 @@ struct ref_sum_t: public cpu_primitive_t {
             }
             return ret;
         }
-        virtual pd_t *clone() const override { return nullptr; /* FIXME */ }
-       virtual const char *name() const override { return "ref:any"; }
+        virtual pd_t *clone() const override { return new pd_t(*this); }
+        virtual const char *name() const override { return "ref:any"; }
 
         virtual status_t init() override {
             bool ok = cpu_sum_pd_t::init() == success;
@@ -109,9 +109,9 @@ struct ref_sum_t: public cpu_primitive_t {
         nstl::vector<const reorder_pd_t *> reorder_pds_;
     };
 
-    ref_sum_t(const pd_t *conf, const input_vector &inputs,
+    ref_sum_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs, nstl::vector<primitive_t *> reorders)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*conf),
+        : cpu_primitive_t(apd, inputs, outputs),
         reorders_(reorders) {}
 
     ~ref_sum_t() {
@@ -120,7 +120,7 @@ struct ref_sum_t: public cpu_primitive_t {
             delete reorders_[i];
     }
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         const auto n = reorders_.size();
         for (size_t i = 0; i < n; ++i) {
             event_t ei;
@@ -130,7 +130,7 @@ struct ref_sum_t: public cpu_primitive_t {
     }
 
 private:
-    pd_t conf_;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
     nstl::vector<primitive_t *> reorders_;
 };
 

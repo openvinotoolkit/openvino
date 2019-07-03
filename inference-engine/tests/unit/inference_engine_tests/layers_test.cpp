@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -353,33 +352,56 @@ TEST_F(LayersTests, poolIRv2BackwardCompatibility) {
     pool._stride[Y_AXIS] = 3u;
     ASSERT_EQ(pool._stride_y, 3u);
 }
+
 TEST_F(LayersTests, canGetPadBeginForConvolution) {
     ConvolutionLayer layer(getDefaultParamsForLayer());
-    PropertyVector<unsigned> ref;
-    ref.insert(X_AXIS, 1);
-    ref.insert(Y_AXIS, 2);
+    PropertyVector<unsigned> ref{{1, 2}};
     layer._padding = ref;
 
-    auto allPads = getConvPaddings(layer);
+    auto allPads = getPaddings(layer);
 
     ASSERT_EQ(allPads.begin, ref);
 }
 
 TEST_F(LayersTests, canGetPadEndForConvolution) {
     ConvolutionLayer layer(getDefaultParamsForLayer());
+    PropertyVector<unsigned> ref{{1, 2}};
+    layer._pads_end = ref;
+
+    auto allPads = getPaddings(layer);
+
+    ASSERT_EQ(allPads.end, ref);
+}
+
+TEST_F(LayersTests, canGetPad3DBeginForConvolution) {
+    ConvolutionLayer layer(getDefaultParamsForLayer());
     PropertyVector<unsigned> ref;
     ref.insert(X_AXIS, 1);
     ref.insert(Y_AXIS, 2);
+    ref.insert(Z_AXIS, 3);
+    layer._padding = ref;
+
+    auto allPads = getPaddings(layer);
+
+    ASSERT_EQ(allPads.begin, ref);
+}
+
+TEST_F(LayersTests, canGetPad3DEndForConvolution) {
+    ConvolutionLayer layer(getDefaultParamsForLayer());
+    PropertyVector<unsigned> ref;
+    ref.insert(X_AXIS, 1);
+    ref.insert(Y_AXIS, 2);
+    ref.insert(Z_AXIS, 3);
     layer._pads_end = ref;
 
-    auto allPads = getConvPaddings(layer);
+    auto allPads = getPaddings(layer);
 
     ASSERT_EQ(allPads.end, ref);
 }
 
 TEST_F(LayersTests, returnDefaultPadForEmptyConvolution) {
     ConvolutionLayer layer(getDefaultParamsForLayer());
-    auto allPads = getConvPaddings(layer);
+    auto allPads = getPaddings(layer);
     PropertyVector<unsigned> ref_begin(2, 0u);
     PropertyVector<unsigned> ref_end;
     ASSERT_EQ(allPads.begin, ref_begin);
@@ -389,16 +411,21 @@ TEST_F(LayersTests, returnDefaultPadForEmptyConvolution) {
 TEST_F(LayersTests, returnEmptyPadForValidPadConvolution) {
     ConvolutionLayer layer(getDefaultParamsForLayer());
     layer.params["auto_pad"] = "valid";
-    auto allPads = getConvPaddings(layer);
-    PropertyVector<unsigned> ref(2,0);
+    auto allPads = getPaddings(layer);
+    PropertyVector<unsigned> ref(2,0u);
     ASSERT_EQ(allPads.begin, ref);
     ASSERT_EQ(allPads.end, ref);
+
+    PropertyVector<unsigned> ref3D(2,0u);
+    layer._kernel.insert(Z_AXIS, 0u);
+    ASSERT_EQ(allPads.begin, ref3D);
+    ASSERT_EQ(allPads.end, ref3D);
 }
 
 TEST_F(LayersTests, throwOnSamePadForEmptyConvolution) {
     ConvolutionLayer layer(getDefaultParamsForLayer());
     layer.params["auto_pad"] = "same_upper";
-    ASSERT_THROW(getConvPaddings(layer), details::InferenceEngineException);
+    ASSERT_THROW(getPaddings(layer), details::InferenceEngineException);
 }
 
 TEST_F(LayersTests, throwOnInvalidDimsSamePadForConvolution) {
@@ -406,7 +433,7 @@ TEST_F(LayersTests, throwOnInvalidDimsSamePadForConvolution) {
     layer.params["auto_pad"] = "same_upper";
     auto emptyData = std::make_shared<InferenceEngine::Data>("", Precision::UNSPECIFIED);
     layer.insData.push_back(emptyData);
-    ASSERT_THROW(getConvPaddings(layer), details::InferenceEngineException);
+    ASSERT_THROW(getPaddings(layer), details::InferenceEngineException);
 }
 
 TEST_F(LayersTests, throwOn2DSamePadForConvolution) {
@@ -415,7 +442,7 @@ TEST_F(LayersTests, throwOn2DSamePadForConvolution) {
     auto notEmptyData = std::make_shared<InferenceEngine::Data>("", SizeVector{1, 1}, Precision::UNSPECIFIED,
                                                                 Layout::NC);
     layer.insData.push_back(notEmptyData);
-    ASSERT_THROW(getConvPaddings(layer), details::InferenceEngineException);
+    ASSERT_THROW(getPaddings(layer), details::InferenceEngineException);
 }
 
 TEST_F(LayersTests, throwWithNotEnoughParamsSamePadForConvolution) {
@@ -423,7 +450,12 @@ TEST_F(LayersTests, throwWithNotEnoughParamsSamePadForConvolution) {
     layer.params["auto_pad"] = "same_upper";
     auto notEmptyData = std::make_shared<InferenceEngine::Data>("", SizeVector{1, 2, 3, 4}, Precision::UNSPECIFIED);
     layer.insData.push_back(notEmptyData);
-    ASSERT_NO_THROW(getConvPaddings(layer));
+    ASSERT_NO_THROW(getPaddings(layer));
+
+    auto notEmptyData3D = std::make_shared<InferenceEngine::Data>("", SizeVector{1, 2, 3, 4, 5}, Precision::UNSPECIFIED, Layout::NCDHW);
+    layer._kernel.insert(Z_AXIS, 0u);
+    layer.insData[0] = notEmptyData3D;
+    ASSERT_NO_THROW(getPaddings(layer));
 }
 
 // parameters are from real model, like Mobilenet-SSD
@@ -433,17 +465,37 @@ TEST_F(LayersTests, canGetSamePadForConvolutionEvenInput) {
     TensorDesc tensorDesc(Precision::UNSPECIFIED, SizeVector{1, 144, 160, 160}, Layout::NCHW);
     auto notEmptyData = std::make_shared<InferenceEngine::Data>("", tensorDesc);
     layer.insData.push_back(notEmptyData);
-    layer._dilation.insert(X_AXIS, 1);
-    layer._dilation.insert(Y_AXIS, 1);
-    layer._kernel.insert(X_AXIS, 3);
-    layer._kernel.insert(Y_AXIS, 3);
-    layer._stride.insert(X_AXIS, 2);
-    layer._stride.insert(Y_AXIS, 2);
+    layer._dilation = PropertyVector<unsigned>{{1, 1}};
+    layer._kernel = PropertyVector<unsigned>{{3, 3}};
+    layer._stride = PropertyVector<unsigned>{{2, 2}};
 
-    auto pad = getConvPaddings(layer);
+    auto pad = getPaddings(layer);
 
     ASSERT_EQ(pad.begin, PropertyVector<unsigned>(2, 0));
     ASSERT_EQ(pad.end, PropertyVector<unsigned>(2, 1));
+}
+
+// parameters are from real model, like V-Net
+TEST_F(LayersTests, canGetSamePadForConvolutionEvenInput3D) {
+    ConvolutionLayer layer(getDefaultParamsForLayer());
+    layer.params["auto_pad"] = "same_upper";
+    TensorDesc tensorDesc(Precision::UNSPECIFIED, SizeVector{1, 6, 190, 190, 20}, Layout::NCDHW);
+    auto notEmptyData = std::make_shared<InferenceEngine::Data>("", tensorDesc);
+    layer.insData.push_back(notEmptyData);
+    layer._dilation.insert(X_AXIS, 1u);
+    layer._dilation.insert(Y_AXIS, 1u);
+    layer._dilation.insert(Z_AXIS, 1u);
+    layer._kernel.insert(X_AXIS, 5u);
+    layer._kernel.insert(Y_AXIS, 5u);
+    layer._kernel.insert(Z_AXIS, 5u);
+    layer._stride.insert(X_AXIS, 1u);
+    layer._stride.insert(Y_AXIS, 1u);
+    layer._stride.insert(Z_AXIS, 1u);
+
+    auto pad = getPaddings(layer);
+
+    ASSERT_EQ(pad.begin, PropertyVector<unsigned>(3, 2u));
+    ASSERT_EQ(pad.end, PropertyVector<unsigned>(3, 2u));
 }
 
 // parameters are from real model, like Mobilenet-SSD
@@ -453,16 +505,83 @@ TEST_F(LayersTests, canGetSamePadForConvolutionOddInput) {
     TensorDesc tensorDesc(Precision::UNSPECIFIED, SizeVector{1, 144, 75, 75}, Layout::NCHW);
     auto notEmptyData = std::make_shared<InferenceEngine::Data>("", tensorDesc);
     layer.insData.push_back(notEmptyData);
-    layer._dilation.insert(X_AXIS, 1);
-    layer._dilation.insert(Y_AXIS, 1);
-    layer._kernel.insert(X_AXIS, 3);
-    layer._kernel.insert(Y_AXIS, 3);
-    layer._stride.insert(X_AXIS, 2);
-    layer._stride.insert(Y_AXIS, 2);
+    layer._dilation = PropertyVector<unsigned>{{1, 1}};
+    layer._kernel = PropertyVector<unsigned>{{3, 3}};
+    layer._stride = PropertyVector<unsigned>{{2, 2}};
     PropertyVector<unsigned> ref(2, 1);
 
-    auto pad = getConvPaddings(layer);
+    auto pad = getPaddings(layer);
 
     ASSERT_EQ(pad.begin, ref);
     ASSERT_EQ(pad.end, ref);
+}
+
+TEST_F(LayersTests, canGetSamePadForDeConvolutionEvenInput) {
+    DeconvolutionLayer layer(getDefaultParamsForLayer());
+    layer.params["auto_pad"] = "same_upper";
+    TensorDesc tensorDesc(Precision::UNSPECIFIED, SizeVector{1, 144, 160, 160}, Layout::NCHW);
+    auto notEmptyData = std::make_shared<InferenceEngine::Data>("", tensorDesc);
+    layer.insData.push_back(notEmptyData);
+    layer._dilation = PropertyVector<unsigned>{{1, 1}};
+    layer._kernel = PropertyVector<unsigned>{{3, 3}};
+    layer._stride = PropertyVector<unsigned>{{2, 2}};
+
+    auto pad = getPaddings(layer);
+
+    ASSERT_EQ(pad.begin, PropertyVector<unsigned>(2, 0));
+    ASSERT_EQ(pad.end, PropertyVector<unsigned>(2, 1));
+}
+
+TEST_F(LayersTests, canGetSamePadForDeConvolutionOddInput) {
+    DeconvolutionLayer layer(getDefaultParamsForLayer());
+    layer.params["auto_pad"] = "same_upper";
+    TensorDesc tensorDesc(Precision::UNSPECIFIED, SizeVector{1, 144, 75, 75}, Layout::NCHW);
+    auto notEmptyData = std::make_shared<InferenceEngine::Data>("", tensorDesc);
+    layer.insData.push_back(notEmptyData);
+    layer._dilation = PropertyVector<unsigned>{{1, 1}};
+    layer._kernel = PropertyVector<unsigned>{{3, 3}};
+    layer._stride = PropertyVector<unsigned>{{2, 2}};
+    PropertyVector<unsigned> ref(2, 1);
+
+    auto pad = getPaddings(layer);
+
+    ASSERT_EQ(pad.begin, ref);
+    ASSERT_EQ(pad.end, ref);
+}
+
+TEST_F(LayersTests, canGetSamePadForPoolingEvenInput) {
+    PoolingLayer layer(getDefaultParamsForLayer());
+    layer.params["auto_pad"] = "same_upper";
+    TensorDesc tensorDesc(Precision::UNSPECIFIED, SizeVector{1, 144, 160, 160}, Layout::NCHW);
+    auto notEmptyData = std::make_shared<InferenceEngine::Data>("", tensorDesc);
+    layer.insData.push_back(notEmptyData);
+    layer._kernel = PropertyVector<unsigned>{{3, 3}};
+    layer._stride = PropertyVector<unsigned>{{2, 2}};
+
+    auto pad = getPaddings(layer);
+
+    ASSERT_EQ(pad.begin, PropertyVector<unsigned>(2, 0));
+    ASSERT_EQ(pad.end, PropertyVector<unsigned>(2, 1));
+}
+
+TEST_F(LayersTests, canGetSamePadForPoolingOddInput) {
+    PoolingLayer layer(getDefaultParamsForLayer());
+    layer.params["auto_pad"] = "same_upper";
+    TensorDesc tensorDesc(Precision::UNSPECIFIED, SizeVector{1, 144, 75, 75}, Layout::NCHW);
+    auto notEmptyData = std::make_shared<InferenceEngine::Data>("", tensorDesc);
+    layer.insData.push_back(notEmptyData);
+    layer._kernel = PropertyVector<unsigned>{{3, 3}};
+    layer._stride = PropertyVector<unsigned>{{2, 2}};
+    PropertyVector<unsigned> ref(2, 1);
+
+    auto pad = getPaddings(layer);
+
+    ASSERT_EQ(pad.begin, ref);
+    ASSERT_EQ(pad.end, ref);
+}
+
+
+TEST_F(LayersTests, cannotGetPadForUnsupportedLayer) {
+    FullyConnectedLayer layer(getDefaultParamsForLayer());
+    ASSERT_ANY_THROW(getPaddingsImpl(layer));
 }

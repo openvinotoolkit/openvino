@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,17 +14,14 @@
  limitations under the License.
 """
 
-import json
-from collections import defaultdict
+
+from defusedxml.minidom import parseString
 from xml.etree.ElementTree import Element, SubElement, tostring
-from xml.dom.minidom import parseString
 
-import networkx as nx
-
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 
 
-def propagate_op_name_to_tensor(graph: nx.MultiDiGraph):
+def propagate_op_name_to_tensor(graph: Graph):
     for node in graph.nodes():
         node = Node(graph, node)
         if node.kind == 'op' and node.has_valid('name'):
@@ -35,7 +32,7 @@ def propagate_op_name_to_tensor(graph: nx.MultiDiGraph):
                 out_node['ie_tensor_id'] = node.node
 
 
-def output_tensor_names_map(graph: nx.MultiDiGraph, xml_file_name: str):
+def output_tensor_names_map(graph: Graph, xml_file_name: str):
     mapping = Element('mapping')
     for node in graph:
         node = Node(graph, node)

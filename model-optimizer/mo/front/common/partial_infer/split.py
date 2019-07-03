@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import logging as log
 import numpy as np
 
 from mo.ops.op import PermuteAttrs
-from mo.utils.error import Error
+from mo.graph.graph import Node
 
 
 def part_sizes_to_indices(part_sizes: list):
@@ -39,13 +39,13 @@ def part_sizes_to_indices(part_sizes: list):
     return np.array(indices)
 
 
-def split(input, node, outputs, axis, part_sizes):
+def split(input_data_node: Node, node: Node, axis: int, part_sizes: list):
     """
     Partial inference of generic split node.
 
     Args:
         @input: input tensor node, subject to split
-        @outputs: output tensor nodes where we put inferred output shapes
+        @node: node of one of the Split types
         @axis: split dimension index
         @part_sizes: a NumPy array with sizes of all pieces that we split to
 
@@ -54,18 +54,14 @@ def split(input, node, outputs, axis, part_sizes):
 
     """
 
-    if input.shape is None:
-        return
-
-    if len(outputs) != len(part_sizes):
-        log.error('Number of outputs do not match the number of parts with sizes.')
+    if input_data_node.shape is None:
         return
 
     # normalize axis
     if axis < 0:
-        axis = input.shape.size + axis
+        axis = input_data_node.shape.size + axis
 
-    if axis < 0 or axis >= input.shape.size:
+    if axis < 0 or axis >= input_data_node.shape.size:
         log.error('Model is incorrect: axis for split node is out of range')
         return
 
@@ -77,64 +73,67 @@ def split(input, node, outputs, axis, part_sizes):
     if undef_indices.size == 1:
         undef_index = undef_indices[0]
         part_sizes[undef_index] = 0
-        deduced_dim = input.shape[axis] - np.add.reduce(part_sizes)
+        deduced_dim = input_data_node.shape[axis] - np.add.reduce(part_sizes)
         if deduced_dim < 0:
-            log.error(
-                'Just deduced dimension for the split has negative value that means that split input shape and desired parts are not compatible')
+            log.error('Just deduced dimension for the split has negative value that means that split input shape and '
+                      'desired parts are not compatible')
             return
 
     all_parts_size = np.add.reduce(part_sizes)
-    if all_parts_size != input.shape[axis]:
-        log.error("input.shape[{}] = {}  !=  {} = sum of all parts in part_sizes".format(axis, input.shape[axis],
+    if all_parts_size != input_data_node.shape[axis]:
+        log.error("input.shape[{}] = {}  !=  {} = sum of all parts in part_sizes".format(axis,
+                                                                                         input_data_node.shape[axis],
                                                                                          all_parts_size))
         return
 
-    for i, part_size in enumerate(part_sizes):
-        shape = input.shape.copy()
-        shape[axis] = part_size
-        outputs[i].shape = shape
+    splitted = None
+    if input_data_node.value is not None:
+        splitted = np.split(input_data_node.value, part_sizes_to_indices(part_sizes), axis)
 
-    if input.value is not None:
-        splitted = np.split(input.value, part_sizes_to_indices(part_sizes), axis)
-        # log.debug("splitted = {}".format(splitted))
-        for i, part in enumerate(splitted):
-            outputs[i].value = part
-            # log.debug('outputs[i].value.shape = {}, outputs[i].shape = {}'.format(outputs[i].value.shape, outputs[i].shape))
-            assert all(outputs[i].value.shape == outputs[i].shape)
+    # not all outputs from the split could be used so it is necessary to iterate over output edges and infer shape for
+    # necessary nodes only
+    for _, dst, edge_attrs in node.graph.out_edges(node.id, data=True):
+        out_port = edge_attrs['out']
+        out_node = node.out_node(out_port)
+
+        new_out_shape = input_data_node.shape.copy()
+        new_out_shape[axis] = part_sizes[out_port]
+        node.out_node(out_port).shape = new_out_shape
+        if splitted is not None:
+            out_node.value = splitted[out_port]
+            assert all(out_node.value.shape == out_node.shape)
 
     assert not node.has_valid('axis') or node.axis == axis
     node.axis = axis
-    # WARNING: != 4 is supposed to work for NHWC to NCHW translation only; if other global permutations happen this will fail
+    # WARNING: != 4 is supposed to work for NHWC to NCHW translation only.
+    # if other global permutations happen this will fail
     # TODO: redesign it to have this logic built in NHWC to NCHW translation pass; it requires
     #       additional attributes with layout to be propagated through the network
-    if len(input.shape) != 4 and node.has_valid('dim_attrs') and 'axis' in node.dim_attrs:
-        log.warning(
-            'Removed "axis" attribute from the scope of the model relayout pass because len(input.shape) == {} != 4 for node {}'.format(
-                len(input.shape),
-                node.name if node.has_valid('name') else '<UNKNOWN>'))
+    if len(input_data_node.shape) != 4 and node.has_valid('dim_attrs') and 'axis' in node.dim_attrs:
+        log.warning('Removed "axis" attribute from the scope of the model relayout pass because len(input.shape) == {} '
+                    '!= 4 for node {}'.format(len(input_data_node.shape), node.soft_get('name')))
         node.dim_attrs.remove('axis')
         assert 'axis' not in node.dim_attrs
+    log.debug('output shapes after split: {}'.format([v.shape for k, v in node.out_nodes().items()]))
 
 
 def tf_split_infer(node):
     """
     Partial infer of split node similar to Split op of TF.
     """
-
-    if len(node.in_nodes()) == 1:
-        return True
-
-    # Two inputs: [split_dim, input)
-    assert (len(node.in_nodes()) == 2)
+    # Two inputs: [split_dim, input]
+    assert len(node.in_nodes()) == 2, 'Node "{}" must have exactly two inputs'.format(node.soft_get('name'))
     split_dim = node.in_node(0).value
     if split_dim is None:
         log.error('split_dim value for node {} is None. Cannot do shape inference.')
         return
-    assert split_dim.ndim == 0
+
+    assert split_dim.ndim == 0, 'The split dimension for node "{}" must be a scalar.'.format(node.soft_get('name'))
     split_dim = split_dim.item()
     input = node.in_node(1)
 
-    if split_dim is None or input.shape is None:
+    if input.shape is None:
+        log.error('Input shape for node {} is not defined'.format(node.soft_get('name')))
         return
 
     log.debug('input shape for split: {}, should be split along {} dim'.format(input.shape, split_dim))
@@ -145,42 +144,36 @@ def tf_split_infer(node):
         log.error("split_dim cannot be evenly divided by a given number of parts")
         return
 
-    outputs = node.out_nodes()
     # split_dim is a numpy array, axis is split_dim[0]
-    log.debug(
-        'split_dim_size = {}, node.num_split = {}, div = {}, typeof div = {}'.format(split_dim_size, node.num_split,
-                                                                                     split_dim_size / node.num_split,
-                                                                                     type(
-                                                                                         split_dim_size / node.num_split)))
-    split(input, node, [outputs[i] for i in range(len(outputs))], split_dim,
-          [int(split_dim_size / node.num_split)] * node.num_split)
-    log.debug('output shapes after split: {}'.format([v.shape for k, v in outputs.items()]))
+    log.debug('split_dim_size = {}, node.num_split = {}, div = {}, typeof div = {}'.format(
+        split_dim_size, node.num_split, split_dim_size / node.num_split, type(split_dim_size / node.num_split)))
+    split(input, node, split_dim, [int(split_dim_size / node.num_split)] * node.num_split)
     node.graph.remove_edge(node.in_node(0).id, node.id)
     node['input_port'] = 1
 
     PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:1')])
 
 
-def tf_split_v_infer(node):
+def tf_split_v_infer(node: Node):
     """
     Partial infer of split node similar to SplitV op of TF.
     """
 
     if len(node.in_nodes()) == 1 and not (node.has_valid('axis') and node.has_valid('size_splits')):
-        return True
+        return
 
     if len(node.in_nodes()) == 3 and (node.has_valid('axis') or node.has_valid('size_splits')):
-        return True
+        return
 
     # Three inputs: [input, size_splits, split_dim)
-    if len(node.in_nodes())==3 :
+    if len(node.in_nodes()) == 3:
         split_dim = node.in_node(2).value
         assert split_dim.ndim == 0
         split_dim = split_dim.item()
         size_splits = node.in_node(1).value
         node.graph.remove_edge(node.in_node(1).id, node.id)
         node.graph.remove_edge(node.in_node(2).id, node.id)
-    else :
+    else:
         split_dim = node.axis
         size_splits = node.size_splits
    
@@ -189,21 +182,19 @@ def tf_split_v_infer(node):
         return
     
     input = node.in_node(0)
-    
-    log.debug(
-        'split_dim = {}, input.shape = {}, size_splits.value = {}'.format(split_dim, input.shape, size_splits))
-
-    if split_dim is None or input.shape is None or size_splits is None:
+    if input.shape is None or size_splits is None:
+        log.error('input shape or size of splits are not defined for node {}'.format(node.soft_get('name')))
         return
 
-    outputs = node.out_nodes()
-    # split_dim is a numpy array, axis is split_dim
-    split(input, node, [outputs[i] for i in range(len(outputs))], split_dim, size_splits)
-    log.debug('output shapes after split: {}'.format([v.shape for k, v in outputs.items()]))
-    
-    PermuteAttrs.create_permute_attrs(node, attrs=[('axis','input:0')])
+    log.debug('split_dim = {}, input.shape = {}, size_splits.value = {}'.format(split_dim, input.shape, size_splits))
 
-def tf_unpack_infer(node):
+    # split_dim is a numpy array, axis is split_dim
+    split(input, node, split_dim, size_splits)
+
+    PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
+
+
+def tf_unpack_infer(node: Node):
     if len(node.in_nodes()) != 1:
         log.debug('Unpack node "{}" must have one input.'.format(node.name))
         return
@@ -229,9 +220,5 @@ def tf_unpack_infer(node):
         log.error("split_dim cannot be evenly divided by a given number of parts")
         return
 
-    outputs = node.out_nodes()
-    split(node.in_node(), node, [outputs[i] for i in range(len(outputs))], split_dim,
-          [int(split_dim_size / node.num_split)] * node.num_split)
-
+    split(node.in_node(), node, split_dim, [int(split_dim_size / node.num_split)] * node.num_split)
     # node shapes will be squeezed in the separate pass
-    log.debug('output shapes after split: {}'.format([v.shape for k, v in outputs.items()]))

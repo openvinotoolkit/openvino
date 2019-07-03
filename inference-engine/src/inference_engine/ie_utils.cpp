@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +51,9 @@ InferenceEngine::LayerComplexity getComplexity(const InferenceEngine::CNNLayerPt
                                  std::function<void(CNNLayer &)>> layerComplexityLookup = {
         {"Convolution", [&](CNNLayer &l) {
             auto* conv = dynamic_cast<ConvolutionLayer*>(&l);
+            if (conv == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << l.name << " is not instance of ConvolutionLayer class";
+            }
             unsigned long filter_m = conv->_kernel[X_AXIS] * conv->_kernel[Y_AXIS] * (inDims[1] / conv->_group);
             flops = 2 * out_size * filter_m;
             params = filter_m * conv->_out_depth + conv->_out_depth;
@@ -59,6 +61,9 @@ InferenceEngine::LayerComplexity getComplexity(const InferenceEngine::CNNLayerPt
 
         {"Deconvolution", [&](CNNLayer &l) {
             auto* deconv = dynamic_cast<DeconvolutionLayer*>(&l);
+            if (deconv == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << l.name << " is not instance of DeconvolutionLayer class";
+            }
             unsigned long filter_m = deconv->_kernel[X_AXIS] * deconv->_kernel[Y_AXIS] * (inDims[1] / deconv->_group);
             flops = 2 * out_size * filter_m;
             params = filter_m * deconv->_out_depth + deconv->_out_depth;
@@ -66,12 +71,18 @@ InferenceEngine::LayerComplexity getComplexity(const InferenceEngine::CNNLayerPt
 
         {"FullyConnected", [&](CNNLayer &l) {
             auto* fc = dynamic_cast<FullyConnectedLayer*>(&l);
+            if (fc == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << l.name << " is not instance of FullyConnectedLayer class";
+            }
             flops = 2 * in_size * fc->_out_num;
             params = (in_size + 1) * fc->_out_num;
         }},
 
         {"Norm", [&](CNNLayer &l) {
             auto* lrn = dynamic_cast<NormLayer*>(&l);
+            if (lrn == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << l.name << " is not instance of NormLayer class";
+            }
             int size = lrn->_size;
             int flopsPerElement = lrn->_isAcrossMaps ? 2 * size * size : 2 * size;
 
@@ -80,6 +91,9 @@ InferenceEngine::LayerComplexity getComplexity(const InferenceEngine::CNNLayerPt
 
         {"Pooling", [&](CNNLayer &l) {
             auto* pool = dynamic_cast<PoolingLayer*>(&l);
+            if (pool == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << l.name << " is not instance of PoolingLayer class";
+            }
             if (pool->_type == PoolingLayer::PoolType::ROI) {
                 // real kernel sizes are read from weights, so approximation is used.
                 unsigned long kernel_w = inDims[2] / outDims[2];
@@ -93,6 +107,9 @@ InferenceEngine::LayerComplexity getComplexity(const InferenceEngine::CNNLayerPt
 
         {"Eltwise", [&](CNNLayer &l) {
             auto* eltwise = dynamic_cast<EltwiseLayer*>(&l);
+            if (eltwise == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << l.name << " is not instance of EltwiseLayer class";
+            }
             flops = in_size * (2 * eltwise->insData.size() - 1);
         }},
 

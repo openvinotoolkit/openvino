@@ -6,7 +6,7 @@
 *Compute Library for Deep Neural Networks* (*clDNN*) is an open source performance
 library for Deep Learning (DL) applications intended for acceleration of
 DL Inference on Intel® Processor Graphics – including HD Graphics and
-Iris® Graphics.  
+Iris® Graphics.
 *clDNN* includes highly optimized building blocks for implementation of
 convolutional neural networks (CNN) with C and C++ interfaces. We created
 this project to enable the DL community to innovate on Intel® processors.
@@ -25,6 +25,7 @@ clDNN is licensed is licensed under
 clDNN uses 3<sup>rd</sup>-party components licensed under following licenses:
 - *googletest* under [Google\* License](https://github.com/google/googletest/blob/master/googletest/LICENSE)
 - *OpenCL™ ICD and C++ Wrapper* under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
+- *RapidJSON* under [Tencent\* License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
 
 ## Documentation
 The latest clDNN documentation is at [GitHub pages](https://intel.github.io/clDNN/index.html).
@@ -41,7 +42,125 @@ clDNN is released also together with Intel® OpenVino™ Toolkit, which contains
 
 You can find more information [here](https://software.intel.com/en-us/openvino-toolkit/deep-learning-cv).
 
+## OpenVINO specific changes
+    New features:
+    - added `not` activation type
+    - added `depth_to_space` layer
+    - new clip options in `detection_output` (cpu impl) and `proposal` layers
+    - added eltwise `xor` and `squared_diff` operations
+    - added `gather` layer
+    - added `bilinear` mode for position sensitive `roi_pooling` layer
+    - added `shuffle_channels` layer
+    - added `strided_slice` layer
+    - added IE gates ordering for lstm layer
+    - added `reverse_sequence` layer
+    Bug fixes:
+    - fixed unknown bool type error in C API
+    - fixed non-relu activation fusing with conv_eltwise node
+    - fixed infinite performance regression on several topologies
+    - minor internal fixes
+    - unified the permute order with cldnn's tensor order
+    Other:
+    - removed boost
+    - supported compilation with c++11 only
+
+
 ## Changelog
+
+### Drop 13.1
+    New features:
+    - added max mode for contract primitive
+    - added one_hot primitive
+    - optional explicit output data type support for all primitives
+    Bug fixes:
+    - fix for graph optimizer (crop primitive)
+    - fix for processing order (deconvolution primitive)
+    - fix for convolution-eltwise primitive
+    UX:
+    - cache.json is searched in to library directory
+    Performance:
+    - optimizations for lstm_gemm primitive
+
+### Drop 13.0
+    New features:
+    - events pool
+    - group support in convolution and deconvolution primitives
+    - broadcastable inputs support for eltwise primitive
+    - asymmetric padding for convolution primitive
+    - fused convolution-eltwise primitive (API extension)
+    - auto-calculated output shape support for reshape primitive
+    - crop support for i8/s8/i32/i64 types
+    - broadcast axis support for broadcast primitive
+    - logic and comparison operations support for eltwise primitive
+    Bug fixes:
+    - added required alignment checks for some fc implementations
+    - added lstm support for f16 (half) type
+    - reorders for fc moved to graph compiler
+    - primitive fusing and reorder fixes
+    UX:
+    - added internal core tests project
+    - refactored optimizations pass manager and passes
+    Performance:
+    - optimized concatenation during upsampling (unpool)
+    - IMAD-based optimizations for convolution, fc, eltwise and pooling primitives (i8/s8)
+    - convolution-eltwise fusing optimizations
+    - partial writes optimizations for block-based kernels
+
+### Drop 12.1
+	- gtests code refactor
+	- buildbreak fix
+
+### Drop 12.0
+    New features:
+    - pyramidRoiAlign primitive
+    - multiple axes support for reverse mode in index_select
+    - eltwise min/max/mod support for i8/i32/i64
+    - broadcast support for i32/i64
+    Bug fixes:
+    - memory leak fixes
+    - in-place reshape
+    - no padding for output primitives
+    UX:
+    - RapidJSON library for auto-tune cache
+    - less dependencies in program.cpp
+    - do not throw error, when device not validated
+    - global pooling in c API
+    - optimized padding for convolution
+
+### Drop 11.0
+    New features:
+    - throttle hints
+    - extended border and tile
+    - GPU implementation of Detection Output
+	- More cases for BatchNorm primitive
+    Bug fixes:
+    - GEMM fix (align with ONNX)
+	- memory leak fix in memory pool
+	- increase FC precision for fp16 (fp32 accu)
+    Performance:
+    - cache for new topologies and devices
+    - conv1x1 with stride >1 into eltwise optimization
+
+### Drop 10.0
+    New features:
+    - condition primitive
+    - fused convolution with bn and scale (backprop)
+    - scale/shit and mean/var as an output in batch norm
+    - add LSTM output selection
+    Bug fixes:
+    - memory pool fixes
+    UX:
+    - downgrade to cxx11
+    - add support for u8 data type in custom primitive
+    - library size optimizations
+    Performance:
+    - in place concatenation optimization
+    - conv1x1 with stride >1 into eltwise optimization
+
+### Drop 9.2
+	New features
+	- local convolution
+	- eltwise with strie
 
 ### Drop 9.1
     New features:
@@ -161,7 +280,7 @@ You can find more information [here](https://software.intel.com/en-us/openvino-t
 	- reorder optimization
 	- concatenation optimization
 	- eltwise optimization
-	- activation fusing 
+	- activation fusing
 
 ### Drop 3.0
 	Added:
@@ -183,7 +302,7 @@ You can find more information [here](https://software.intel.com/en-us/openvino-t
 	- initial drop of clDNN
 
 ## Support
-Please report issues and suggestions 
+Please report issues and suggestions
 [GitHub issues](https://github.com/01org/cldnn/issues).
 
 ## How to Contribute
@@ -224,7 +343,7 @@ clDNN supports Intel® HD Graphics and Intel® Iris® Graphics and is optimized 
     * Intel® Iris® Graphics 650 (GT3e, *client* market)
     * Intel® HD Graphics P630 (GT2, *server* market)
     * Intel® Iris® Pro Graphics 630 (GT2, *server* market)
-	
+
 clDNN currently uses OpenCL™ with multiple Intel® OpenCL™ extensions and requires Intel® Graphics Driver to run.
 
 clDNN requires CPU with Intel® SSE/Intel® AVX support.
@@ -232,9 +351,9 @@ clDNN requires CPU with Intel® SSE/Intel® AVX support.
 ---
 
 The software dependencies are:
-- [CMake\*](https://cmake.org/download/) 3.5 or later  
+- [CMake\*](https://cmake.org/download/) 3.5 or later
 - C++ compiler with C++11 standard support compatible with:
-    * GNU\* Compiler Collection 4.8 or later  
+    * GNU\* Compiler Collection 4.8 or later
     * clang 3.5 or later
     * [Intel® C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe) 17.0 or later
     * Visual C++ 2015 (MSVC++ 19.0) or later
@@ -242,10 +361,10 @@ The software dependencies are:
 > Intel® CPU intrinsics header (`<immintrin.h>`) must be available during compilation.
 
 - [python™](https://www.python.org/downloads/) 2.7 or later (scripts are both compatible with python™ 2.7.x and python™ 3.x)
-- *(optional)* [Doxygen\*](http://www.stack.nl/~dimitri/doxygen/download.html) 1.8.13 or later  
+- *(optional)* [Doxygen\*](http://www.stack.nl/~dimitri/doxygen/download.html) 1.8.13 or later
     Needed for manual generation of documentation from inline comments or running `docs` custom target which will generate it automatically.
 
-> [GraphViz\*](http://www.graphviz.org/Download..php) (2.38 or later) is also recommended to generate documentation with all embedded diagrams.  
+> [GraphViz\*](http://www.graphviz.org/Download..php) (2.38 or later) is also recommended to generate documentation with all embedded diagrams.
 (Make sure that `dot` application is visible in the `PATH` environment variable.)
 
 ---
@@ -275,14 +394,14 @@ clDNN uses multiple 3<sup>rd</sup>-party components. They are stored in binary f
 
 ---
 
-clDNN uses a CMake-based build system. You can use CMake command-line tool or CMake GUI (`cmake-gui`) to generate required solution.  
+clDNN uses a CMake-based build system. You can use CMake command-line tool or CMake GUI (`cmake-gui`) to generate required solution.
 For Windows system, you can call in `cmd` (or `powershell`):
 ```shellscript
     @REM Generate 32-bit solution (solution contains multiple build configurations)...
     cmake -E make_directory build && cd build && cmake -G "Visual Studio 14 2015" ..
     @REM Generate 64-bit solution (solution contains multiple build configurations)...
     cmake -E make_directory build && cd build && cmake -G "Visual Studio 14 2015 Win64" ..
-```  
+```
 Created solution can be opened in Visual Studio 2015 or built using appropriate `msbuild` tool
 (you can also use `cmake --build .` to select build tool automatically).
 
@@ -324,7 +443,7 @@ CMake solution offers multiple options which you can specify using normal CMake 
 | CLDNN__RUN_TESTS                          | BOOL     | Run tests after building `tests` project. This option requires `CLDNN__INCLUDE_TESTS` option to be `ON`. Default: `OFF` |
 |                                           |          |                                                                              |
 | CLDNN__CMAKE_DEBUG                        | BOOL     | Enable extended debug messages in CMake. Default: `OFF`                      |
-    
+
 ---
 
 clDNN includes unit tests implemented using the googletest framework. To validate your build, run `tests` target, e.g.:

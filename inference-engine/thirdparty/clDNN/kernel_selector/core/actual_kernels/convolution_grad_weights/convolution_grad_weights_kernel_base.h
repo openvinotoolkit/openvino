@@ -33,7 +33,8 @@ namespace kernel_selector
         uSize    dilation;
         uSize    padding;
         uint32_t split = 1;
-        bool     depthwiseSeparableOpt = false;
+        bool     depthwise_separable_opt = false;
+        bool     output_grad_w = false;
 
         virtual std::string to_string() const override;
 
@@ -52,7 +53,7 @@ namespace kernel_selector
                 k.EnableDilation();
             }
 
-            if (depthwiseSeparableOpt)
+            if (depthwise_separable_opt)
             {
                 k.EnableDepthwiseSeparableOpt();
             }

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -53,7 +53,6 @@ def check_for_duplicates(extractors_collection: dict):
     Check if extractors_collection has case-insensitive duplicates, if it does,
     raise exception with information about duplicates
     """
-    assert extractors_collection, 'Extractors collection can not be empty.'
     # Check if extractors_collection is a normal form, that is it doesn't have case-insensitive duplicates
     duplicates, keys = find_case_insensitive_duplicates(extractors_collection)
     if len(duplicates) > 0:

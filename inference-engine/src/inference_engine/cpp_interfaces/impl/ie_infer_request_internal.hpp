@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +15,7 @@
 #include "debug.h"
 #include "cpp_interfaces/exception2status.hpp"
 #include "ie_preprocess_data.hpp"
+#include "ie_memcpy.h"
 
 namespace InferenceEngine {
 
@@ -30,7 +30,8 @@ class InferRequestInternal : virtual public IInferRequestInternal {
 public:
     typedef std::shared_ptr<InferRequestInternal> Ptr;
 
-    InferRequestInternal(InputsDataMap networkInputs, OutputsDataMap networkOutputs) {
+    InferRequestInternal(const InputsDataMap &networkInputs, const OutputsDataMap &networkOutputs)
+            : m_curBatch(-1) {
         // We should copy maps in order to avoid modifications in the future.
         for (const auto &it : networkInputs) {
             InputInfo::Ptr newPtr;
@@ -44,7 +45,8 @@ public:
                         newPtr->getPreProcess()[i]->meanData =
                                 make_blob_with_precision(newPtr->getPreProcess()[i]->meanData->getTensorDesc());
                         newPtr->getPreProcess()[i]->meanData->allocate();
-                        memcpy(newPtr->getPreProcess()[i]->meanData->buffer(), blob->cbuffer(), blob->byteSize());
+                        ie_memcpy(newPtr->getPreProcess()[i]->meanData->buffer(), newPtr->getPreProcess()[i]->meanData->byteSize(),
+                                  blob->cbuffer(), blob->byteSize());
                     }
                 }
                 newData->inputTo.clear();
@@ -100,6 +102,7 @@ public:
             }
 
             if (foundInput->getPreProcess().getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE) {
+                PreProcessData::isApplicable(data, _inputs[name]);
                 // Stores the given blob as ROI blob. It will be used to fill in network input during pre-processing.
                 _preProcData[name].setRoiBlob(data);
             } else {
@@ -168,14 +171,16 @@ public:
     /**
      * @brief Checks and executes input data pre-processing if needed.
      */
-    void execDataPreprocessing(InferenceEngine::BlobMap& inputs) {
+    void execDataPreprocessing(InferenceEngine::BlobMap& inputs, bool serial = false) {
         for (auto &input : inputs) {
             // If there is a pre-process entry for an input then it must be pre-processed
             // using preconfigured resize algorithm.
             auto it = _preProcData.find(input.first);
             if (it != _preProcData.end()) {
                 _preProcData[input.first].execute(input.second,
-                                                  _networkInputs[input.first]->getPreProcess().getResizeAlgorithm());
+                                                  _networkInputs[input.first]->getPreProcess().getResizeAlgorithm(),
+                                                  serial,
+                                                  m_curBatch);
             }
         }
     }
@@ -187,6 +192,7 @@ protected:
     InferenceEngine::BlobMap _outputs;
     ExecutableNetworkInternalPtr _exeNetwork;
     std::map<std::string, PreProcessData> _preProcData;  // pre-process data per input
+    int m_curBatch;  // current batch value used in dynamic batching
 
 protected:
     /**

@@ -1,11 +1,11 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_batchnorm_node.h"
 #include "mkldnn_depthwise_node.h"
 #include <mkldnn_extension_utils.h>
+#include "ie_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -71,13 +71,15 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
         InferenceEngine::TBlob<float>::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
         internalBlob->allocate();
         float * data = internalBlob->buffer();
+        if (data == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get memory!";
 
         InferenceEngine::Blob::Ptr blb = scshLayer->_weights;
         if (blb == nullptr)
             THROW_IE_EXCEPTION << "Cannot get weights blob for node " << getName() << ".";
 
         size_t weightsByteSize = blb->byteSize();
-        memcpy(data, blb->buffer(), weightsByteSize);
+        ie_memcpy(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
         data += blb->size();
         blb = scshLayer->_biases;
 
@@ -86,7 +88,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
         } else {
             if (weightsByteSize != blb->byteSize())
                 THROW_IE_EXCEPTION << "ScaleShift has incorrect weights!";
-            memcpy(data, blb->buffer(), weightsByteSize);
+            ie_memcpy(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
         }
         internalBlobs.push_back(internalBlob);
     }

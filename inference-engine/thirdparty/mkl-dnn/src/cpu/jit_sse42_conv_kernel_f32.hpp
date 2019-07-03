@@ -18,6 +18,7 @@
 #define JIT_SSE42_CONV_KERNEL_F32_HPP
 
 #include "c_types_map.hpp"
+#include "cpu_memory.hpp"
 #include "jit_generator.hpp"
 #include "jit_primitive_conf.hpp"
 #include "jit_uni_eltwise.hpp"
@@ -28,8 +29,9 @@ namespace impl {
 namespace cpu {
 
 struct jit_sse42_conv_fwd_kernel_f32: public jit_generator {
-    jit_sse42_conv_fwd_kernel_f32(jit_conv_conf_t ajcp,
-            const primitive_attr_t &attr): jcp(ajcp), attr_(attr)
+    jit_sse42_conv_fwd_kernel_f32(jit_conv_conf_t ajcp, jit_conv_conf_t ajcp_dw,
+            const primitive_attr_t &attr)
+        : jcp(ajcp), jcp_dw(ajcp_dw), attr_(attr)
     {
         this->generate();
         jit_ker = (void (*)(jit_conv_call_s *))this->getCode();
@@ -51,11 +53,13 @@ struct jit_sse42_conv_fwd_kernel_f32: public jit_generator {
     static status_t init_conf(jit_conv_conf_t &jcp,
             const convolution_desc_t &cd, const memory_desc_wrapper &src_d,
             const memory_desc_wrapper &weights_d,
-            const memory_desc_wrapper &dst_d, const primitive_attr_t &attr,
-            bool with_relu = false, float relu_negative_slope = 0.);
+            const memory_desc_wrapper &dst_d, const primitive_attr_t &attr);
+    static void init_scratchpad(memory_tracking::registrar_t &scratchpad,
+            const jit_conv_conf_t &jcp, const jit_conv_conf_t &jcp_dw = jit_conv_conf_t());
 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_sse42_conv_fwd_kernel_f32)
     jit_conv_conf_t jcp;
+    jit_conv_conf_t jcp_dw;
     const primitive_attr_t &attr_;
     void (*jit_ker)(jit_conv_call_s *);
 
@@ -86,11 +90,9 @@ private:
 
     inline void oh_step_unroll_kw(int ur_w, int pad_l, int pad_r,
             int oc_blocks);
-    inline void oh_step_nopad(int ur_w, int pad_l, int pad_r,
-            char pad_label, int oc_blocks, char oc_blocks_label);
-    inline void width_blk_step(int ur_w, int pad_l, int pad_r,
-            char pad_label, int oc_blocks, char oc_blocks_label);
-    inline void solve_common(int oc_blocks, char oc_blocks_label);
+    inline void oh_step_nopad(int ur_w, int pad_l, int pad_r, int oc_blocks);
+    inline void width_blk_step(int ur_w, int pad_l, int pad_r, int oc_blocks);
+    inline void solve_common(int oc_blocks);
 
     void generate();
 };

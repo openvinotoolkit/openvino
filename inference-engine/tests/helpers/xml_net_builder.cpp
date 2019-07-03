@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,17 +8,6 @@
 #include <algorithm>
 
 using namespace ::testing;
-
-IDManager* IDManager::_instance = nullptr;
-size_t  IDManager::portID = 0;
-size_t  IDManager::layerID = 0;
-
-IDManager* IDManager::getInstance() {
-    if (!_instance) {
-        _instance = new IDManager();
-    }
-    return _instance;
-}
 
 size_t  IDManager::getNextLayerID() {
     return layerID++;
@@ -33,16 +21,15 @@ void IDManager::reset() {
     portID = layerID = 0;
 }
 
-LayerDesc::LayerDesc(std::string type, InOutData& shapes) : _type(std::move(type)) {
-    auto idManager = IDManager::getInstance();
-    _layerID = idManager->getNextLayerID();
+LayerDesc::LayerDesc(std::string type, InOutShapes& shapes, IDManager &id_manager) : _type(std::move(type)) {
+    _layerID = id_manager.getNextLayerID();
     auto inDims = shapes.inDims;
     auto outDims = shapes.outDims;
     for (const auto& inDim : inDims) {
-        _inPortsID.emplace_back(idManager->getNextPortID(), inDim);
+        _inPortsID.emplace_back(id_manager.getNextPortID(), inDim);
     }
     for (const auto& outDim : outDims) {
-        _outPortsID.emplace_back(idManager->getNextPortID(), outDim);
+        _outPortsID.emplace_back(id_manager.getNextPortID(), outDim);
     }
 }
 

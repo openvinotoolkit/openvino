@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +22,7 @@ class SimplerNMSShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit SimplerNMSShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -31,7 +30,7 @@ public:
         CNNLayer cnnLayer(lp);
         cnnLayer.params = params;
         cnnLayer.type = _type;
-        validate(&cnnLayer, inShapes, params, blobs);
+        validate(&cnnLayer, inBlobs, params, blobs);
 
         size_t post_nms_topn = static_cast<size_t>(cnnLayer.GetParamAsInt("post_nms_topn"));
         outShapes.push_back({post_nms_topn, 5});

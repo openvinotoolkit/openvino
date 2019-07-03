@@ -30,27 +30,31 @@ primitive_type_id border_type_id()
 
 layout border_inst::calc_output_layout(border_node const& node)
 {
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for border_node!");
     auto input_layout = node.input().get_output_layout();
     auto desc         = node.get_primitive();
 
     auto&& new_size = input_layout.size;
-    new_size += desc->left_top_sizes;
-    new_size += desc->right_bottom_sizes;
+    new_size += desc->left_top_sizes.sub({0, 0, 0, 0});
+    new_size += desc->right_bottom_sizes.sub({0, 0, 0, 0});
 
-    return {input_layout.data_type, input_layout.format, new_size};
+    return { input_layout.data_type, input_layout.format, {new_size.batch[0], new_size.feature[0], new_size.spatial[0], new_size.spatial[1]} };
 }
 
 std::string border_inst::to_string(border_node const& node)
 {
     auto desc = node.get_primitive();
 
-    const auto& left_top_sizes     = desc->left_top_sizes;
-    const auto& right_bottom_sizes = desc->right_bottom_sizes;
+    const auto& left_top_sizes     = desc->left_top_sizes.sub({0, 0, 0, 0});
+    const auto& right_bottom_sizes = desc->right_bottom_sizes.sub({0, 0, 0, 0});
+    const auto& border_value       = std::to_string(desc->border_value);
 
     const char* border_type_str = "unknown";
     switch (desc->type)
     {
-    case border_type::zero:       border_type_str = "zero";       break;
+    case border_type::constant:   border_type_str = "constant";   break;
+    case border_type::edge:       border_type_str = "edge";       break;
     case border_type::mirror:     border_type_str = "mirror";     break;
     case border_type::mirror_101: border_type_str = "mirror-101"; break;
     }
@@ -61,6 +65,7 @@ std::string border_inst::to_string(border_node const& node)
     border_info.add("left/top sizes",     left_top_sizes.to_string());
     border_info.add("right/bottom sizes", right_bottom_sizes.to_string());
     border_info.add("border type",        border_type_str);
+    border_info.add("border value",       border_value);
 
     node_info->add("border info", border_info);
 
@@ -77,8 +82,8 @@ border_inst::typed_primitive_inst(network_impl& network, border_node const& node
     const auto input_format = input_layout.format;
     const auto& input_sizes = input_layout.size;
 
-    auto lt_sizes = argument.left_top_sizes;
-    auto rb_sizes = argument.right_bottom_sizes;
+    auto lt_sizes = argument.left_top_sizes.sub({0, 0, 0, 0});
+    auto rb_sizes = argument.right_bottom_sizes.sub({0, 0, 0, 0});
     auto b_type   = argument.type;
 
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "Input format", input_format.value, "supported border primitive input formats",

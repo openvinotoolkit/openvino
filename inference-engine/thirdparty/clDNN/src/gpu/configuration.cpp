@@ -15,7 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "ocl_toolkit.h"
+#include "confiugration.h"
 
 namespace cldnn {
     namespace gpu {
@@ -30,6 +30,8 @@ namespace cldnn {
             , host_out_of_order(false)
             , log("")
             , ocl_sources_dumps_dir("")
+            , user_context(nullptr)            
+            , tuning_cache_path("cache.json")        
         {}
     }
 }

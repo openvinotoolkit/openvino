@@ -17,6 +17,7 @@
 #ifndef MKLDNN_TEST_COMMON_HPP
 #define MKLDNN_TEST_COMMON_HPP
 
+#include <limits>
 #include <numeric>
 #include <vector>
 #include <cmath>
@@ -60,6 +61,16 @@ template <typename data_t> inline data_t out_round(float x,
 template <> inline float out_round<float>(float x, mkldnn_round_mode_t rmode)
 { (void)rmode; return x; }
 
+template <typename data_t, typename out_t>
+out_t saturate(const out_t &x) {
+    out_t v = x;
+    if (v <= std::numeric_limits<data_t>::min())
+        v = std::numeric_limits<data_t>::min();
+    if (v > std::numeric_limits<data_t>::max())
+        v = std::numeric_limits<data_t>::max();
+    return v;
+}
+
 inline int right_padding(int i, int o, int k, int p, int s, int d = 0) {
     return (o - 1) * s + (k - 1) * (d + 1) - (p + i - 1);
 }
@@ -101,9 +112,9 @@ inline size_t map_index(const mkldnn::memory::desc &md, size_t index,
                       || (md.data.format == bwd_weights_qvnni);
 
     const int ndims = md.data.ndims;
-    const int *dims = md.data.dims;
-    const int *pdims = md.data.layout_desc.blocking.padding_dims;
-    const int *optd = md.data.layout_desc.blocking.offset_padding_to_data;
+    const ptrdiff_t *dims = md.data.dims;
+    const ptrdiff_t *pdims = md.data.layout_desc.blocking.padding_dims;
+    const ptrdiff_t *optd = md.data.layout_desc.blocking.offset_padding_to_data;
 
     auto *strides_block = md.data.layout_desc.blocking.strides[0];
     auto *strides_within_block = md.data.layout_desc.blocking.strides[1];
@@ -168,8 +179,8 @@ void check_zero_tail(int set_zero_flag, mkldnn::memory &src) {
 
     const mkldnn::memory::desc src_d = src.get_primitive_desc().desc();
     const int ndims = src_d.data.ndims;
-    const int *dims = src_d.data.dims;
-    const int *pdims = src_d.data.layout_desc.blocking.padding_dims;
+    const ptrdiff_t *dims = src_d.data.dims;
+    const ptrdiff_t *pdims = src_d.data.layout_desc.blocking.padding_dims;
 
     size_t idx[MAX_NDIMS] = {}, str[MAX_NDIMS] = {};
     size_t nelems = 1;
@@ -226,6 +237,9 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::nChw16c:
     case f::oihw:
     case f::hwio:
+    case f::iohw:
+    case f::oIhw8i:
+    case f::oIhw16i:
     case f::OIhw8i8o:
     case f::OIhw16i16o:
     case f::OIhw8i16o2i:
@@ -236,6 +250,11 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::IOhw16o16i:
     case f::Ohwi8o:
     case f::Ohwi16o:
+    case f::OhIw8o4i:
+    case f::OIhw4i16o4i_s8s8:
+    case f::OhIw8o4i_s8s8:
+    case f::OhIw8o32i:
+    case f::OhIw16o32i:
         ndims = 4; break;
     case f::ncdhw:
     case f::ndhwc:
@@ -245,6 +264,9 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::oidhw:
     case f::goihw:
     case f::hwigo:
+    case f::giohw:
+    case f::oIdhw8i:
+    case f::oIdhw16i:
     case f::OIdhw8i8o:
     case f::OIdhw16i16o:
     case f::OIdhw8o8i:
@@ -252,6 +274,7 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::gOhwi8o:
     case f::Goihw8g:
     case f::Goihw16g:
+    case f::gOhwi16o:
     case f::gOIhw8i8o:
     case f::gOIhw16i16o:
     case f::gOIhw8i16o2i:
@@ -260,6 +283,8 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::gOIhw8o8i:
     case f::gOIhw16o16i:
     case f::gIOhw16o16i:
+    case f::gOhIw8o4i:
+    case f::Goihw16g_s8s8:
         ndims = 5; break;
     case f::gOIdhw8i8o:
     case f::gOIdhw16i16o:
@@ -323,14 +348,19 @@ static void fill_data(const size_t size, data_t *data, double sparsity = 1.,
     });
 }
 
+int div_up(const int a, const int b) {
+    return (a + b - 1) / b;
+}
+
 template <typename data_t>
 static void compare_data(mkldnn::memory& ref, mkldnn::memory& dst,
-                         data_t threshold = (data_t)1e-4)
+        data_t threshold = (data_t)1e-4, bool isBinary = false)
 {
     using data_type = mkldnn::memory::data_type;
 
     ASSERT_TRUE(data_traits<data_t>::data_type == data_type::f32 ||
-            data_traits<data_t>::data_type == data_type::s32);
+                data_traits<data_t>::data_type == data_type::s32 ||
+                data_traits<data_t>::data_type == data_type::u8);
 
     /* Note: size_t incompatible with MSVC++ */
     auto ref_desc = ref.get_primitive_desc().desc();
@@ -348,21 +378,27 @@ static void compare_data(mkldnn::memory& ref, mkldnn::memory& dst,
 
     ptrdiff_t num = 1;
     for (auto d = 0; d < ndims; ++d) {
-        num *= dims[d];
+        if (isBinary && d == 1) {
+            num *= div_up(dims[d], 8);
+        } else {
+            num *= dims[d];
+        }
     }
 
     data_t *ref_data = (data_t *)ref.get_data_handle();
     data_t *dst_data = (data_t *)dst.get_data_handle();
 
     mkldnn::impl::parallel_nd(num, [&](ptrdiff_t i) {
-        data_t ref = ref_data[map_index(ref_desc, i)];
-        data_t got = dst_data[map_index(dst_desc, i)];
+        int divider = isBinary ? 8 : 1;
+
+        data_t ref = ref_data[map_index(ref_desc, i) / divider];
+        data_t got = dst_data[map_index(dst_desc, i) / divider];
 
         if (data_traits<data_t>::data_type == data_type::f32) {
             data_t diff = got - ref;
             data_t e = (std::abs(ref) > threshold) ? diff / ref : diff;
-            EXPECT_NEAR(e, (data_t)0.0, threshold)
-                << "Index: " << i << " Total: " << num;
+            EXPECT_NEAR(e, (data_t) 0.0, threshold)
+                                << "Index: " << i << " Total: " << num;
         } else {
             EXPECT_EQ(ref, got) << "Index: " << i << " Total: " << num;
         }
@@ -488,7 +524,6 @@ struct test_convolution_formats_t {
 struct test_convolution_params_t {
     const mkldnn::engine::kind engine_kind;
     mkldnn::algorithm aalgorithm;
-    const float relu_negative_slope;
     test_convolution_formats_t formats;
     test_convolution_attr_t attr;
     test_convolution_sizes_t sizes;
@@ -499,7 +534,6 @@ struct test_convolution_params_t {
 struct test_convolution_params_t_3d {
     const mkldnn::engine::kind engine_kind;
     mkldnn::algorithm aalgorithm;
-    const float relu_negative_slope;
     test_convolution_formats_t formats;
     test_convolution_attr_t attr;
     test_convolution_sizes_t_3d sizes;
@@ -604,6 +638,33 @@ struct roi_pool_test_params {
     test_roi_pool_desc_t test_pd;
 };
 
+struct test_binary_convolution_params_t {
+    const mkldnn::engine::kind engine_kind;
+    mkldnn::algorithm aalgorithm;
+    float pad_value;
+    mkldnn::algorithm eltwise_algorithm;
+    const float eltwise_alpha;
+    const float eltwise_beta;
+    mkldnn::algorithm depthwise_algorithm;
+    bool with_sum;
+    mkldnn::algorithm binarization_algorithm;
+    test_convolution_formats_t formats;
+    test_convolution_sizes_t sizes;
+};
+
+struct test_binary_convolution_dw_conv_params_t {
+    const mkldnn::engine::kind engine_kind;
+    mkldnn::algorithm aalgorithm;
+    mkldnn::algorithm eltwise_algorithm;
+    const float eltwise_alpha;
+    const float eltwise_beta;
+    mkldnn::algorithm depthwise_algorithm;
+    bool with_sum;
+    mkldnn::algorithm binarization_algorithm;
+    test_convolution_dw_conv_formats_t formats;
+    test_convolution_dw_conv_sizes_t sizes;
+};
+
 std::ostream &operator<<(std::ostream &stream,
                          const roi_pool_test_params &tp)
 {
@@ -617,7 +678,7 @@ std::ostream &operator<<(std::ostream &stream,
 }
 
 template<typename F> bool catch_expected_failures(const F &f,
-        bool expect_to_fail, mkldnn_status_t expected_status)
+        bool expect_to_fail, mkldnn_status_t expected_status, bool ignore_unimplemented = true)
 {
     try {
         f();
@@ -626,7 +687,7 @@ template<typename F> bool catch_expected_failures(const F &f,
         // not match.
         if (!(expect_to_fail) || e.status != (expected_status)) {
             // Ignore unimplemented
-            if (e.status == mkldnn_unimplemented)
+            if ( ignore_unimplemented && (e.status == mkldnn_unimplemented))
                 return true;
             else
                 throw e;

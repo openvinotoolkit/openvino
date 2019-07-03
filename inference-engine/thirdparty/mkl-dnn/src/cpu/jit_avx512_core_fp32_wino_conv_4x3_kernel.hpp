@@ -99,7 +99,7 @@ protected:
     reg64_t param = abi_param1;
 
     /* registers used for output_transform_data_ker */
-    reg64_t oreg_temp = rcx;
+    reg64_t oreg_temp = abi_not_param1;
     reg64_t oreg_Ow = r9;
     reg64_t oreg_src = r11;
     reg64_t oreg_tile_block = r12;
@@ -115,7 +115,7 @@ protected:
     reg64_t imm_addr64 = rax;
 
     /* registers used for input_transform_data_ker */
-    reg64_t ireg_temp = rcx;
+    reg64_t ireg_temp = abi_not_param1;
     reg64_t ireg_jtiles = rax;
     reg64_t ireg_itiles = rbx;
     reg64_t ireg_I = r8;
@@ -136,7 +136,7 @@ protected:
     reg64_t ireg_output = r15;
 
     /* registers used for wei transform */
-    reg64_t wreg_temp = rcx;
+    reg64_t wreg_temp = abi_not_param1;
     reg64_t wreg_F = r8;
     reg64_t wreg_src = r9;
     reg64_t wreg_MT = r15;
@@ -161,8 +161,7 @@ struct jit_avx512_core_fp32_wino_conv_4x3_fwd_kernel
     static status_t init_conf(jit_conv_winograd_conf_t &jcp,
             const convolution_desc_t &cd, const cpu_memory_t::pd_t &src_pd,
             cpu_memory_t::pd_t &weights_pd, const cpu_memory_t::pd_t &dst_pd,
-            const primitive_attr_t &attr, bool with_relu,
-            float relu_negative_slope);
+            const primitive_attr_t &attr);
 };
 
 struct jit_avx512_core_fp32_wino_conv_4x3_bwd_data_kernel
@@ -188,7 +187,7 @@ struct jit_avx512_core_fp32_wino_conv_4x3_bwd_weights_kernel
         //******************* First iter kernel ********************//
         this->gemm_loop_generate(true);
         gemm_loop_ker_first_iter = (decltype(gemm_loop_ker_first_iter))this->getCode();
-        
+
         align();
         const Xbyak::uint8 *addr = getCurr();
         this->src_transform_generate();
@@ -253,7 +252,7 @@ private:
     /*registers common to transforms*/
     reg64_t reg_transp = abi_param1;
     reg64_t reg_ti = rbx;
-    reg64_t reg_tj = rcx;
+    reg64_t reg_tj = abi_not_param1;
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
     reg64_t reg_G = rsi; /*TODO: check if this is ok*/

@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +22,7 @@ class UpsamplingShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit UpsamplingShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -31,9 +30,13 @@ public:
         CNNLayer cnnLayer(lp);
         cnnLayer.params = params;
         cnnLayer.type = _type;
-        validate(&cnnLayer, inShapes, params, blobs);
+        validate(&cnnLayer, inBlobs, params, blobs);
         size_t scale = static_cast<size_t>(cnnLayer.GetParamAsInt("scale"));
-        outShapes.push_back({inShapes[0][0], inShapes[0][1], inShapes[0][2] * scale, inShapes[0][3] * scale});
+        SizeVector out_shapes = {inShapes[0][0], inShapes[0][1]};
+        for (int i = 2; i < inShapes[0].size(); i++) {
+            out_shapes.push_back(inShapes[0][i] * scale);
+        }
+        outShapes.push_back(out_shapes);
     }
 };
 

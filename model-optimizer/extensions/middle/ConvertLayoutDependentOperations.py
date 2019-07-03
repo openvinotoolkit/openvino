@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,8 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.layout import indices_mapping
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.op import Op, PermuteAttrs
 from mo.ops.permute import Permute
@@ -32,9 +30,10 @@ class ConvertLayoutDependentOperations(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        return []
+        from extensions.middle.pass_separator import MiddleStart
+        return [MiddleStart]
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
+    def find_and_replace_pattern(self, graph: Graph):
         for node in list(graph.nodes()):
             node = Node(graph, node)
             # Check that node layout mismatch with graph layout
@@ -52,12 +51,12 @@ class ConvertLayoutDependentOperations(MiddleReplacementPattern):
                     # if Node has NHWC and graph has NCHW layout
                     permutation = PermuteAttrs.get_nchw_to_nhwc_permutation(len(node.layout))
 
-                # Schematic representation og transformation below
+                # Schematic representation of transformation below
                 #
                 #                                           \            NCHW                              NCHW
                 #            NHWC                        --  \            |  permutation       permutation  |
                 #   data-->Convolution(example)-->data   --  /            |      |       NCHW      |        |
-                #                                          /    data->Permute->data->Convolution->data->Permute->data
+                #                                           /   data->Permute->data->Convolution->data->Permute->data
 
                 # 1. Insert input Permute
                 #    This Permute will permute input from original input layout to operation layout

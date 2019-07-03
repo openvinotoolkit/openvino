@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +8,6 @@
 
 using namespace std;
 
-#ifdef ENABLE_STRESS_UNIT_TESTS
 class StressTests : public ::testing::Test {
 protected:
     const std::string DUMMY_FILE_NAME = "Dummy.txt";
@@ -44,4 +42,3 @@ TEST_F(StressTests, checkBigFileSize) {
     DummyFileManager::deleteFile(DUMMY_FILE_NAME);
     ASSERT_EQ(size, BIG_FILE_SIZE);
 }
-#endif //ENABLE_STRESS_UNIT_TESTS

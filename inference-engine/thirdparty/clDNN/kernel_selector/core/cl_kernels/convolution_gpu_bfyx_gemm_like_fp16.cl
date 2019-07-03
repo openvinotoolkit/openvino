@@ -167,7 +167,7 @@ KERNEL(convolution_f16)(
             #if (PADDING_SIZE_X == 1) && (INPPUT_PADDING_Y == 1) && (FILTER_SIZE_X == 3) && (FILTER_SIZE_Y == 3)
             if ((y_offset +  patch_row < 0) || ((y_offset + patch_row) >= INPUT_SIZE_Y))
             {
-                blockA00 = half_zeros;
+                blockA00 = { 0 };
             }
             else
             {
@@ -178,7 +178,7 @@ KERNEL(convolution_f16)(
             #else
             if ((y_offset +  patch_row < 0) || ((y_offset + patch_row) >= INPUT_SIZE_Y))
             {
-                blockA00 = half_zeros;
+                blockA00 = { 0 };
             }
             else
             {
@@ -193,7 +193,7 @@ KERNEL(convolution_f16)(
             #pragma error
             if ((y_offset +  patch_row < 0) || ((y_offset + patch_row) >= INPUT_SIZE_Y))
             {
-                blockA00 = half_zeros;
+                blockA00 = { 0 };
             }
             else
             {

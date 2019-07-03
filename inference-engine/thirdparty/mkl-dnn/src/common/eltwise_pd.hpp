@@ -72,10 +72,8 @@ struct eltwise_fwd_pd_t: public primitive_desc_t {
     inline int W() const { return input_pd()->desc()->ndims == 4
         ? input_pd()->desc()->dims[3] : input_pd()->desc()->dims[4]; }
 
-    inline bool is_zero_preserved() const {
-        return !utils::one_of(desc_.alg_kind, alg_kind::eltwise_linear,
-        alg_kind::eltwise_soft_relu, alg_kind::eltwise_logistic, alg_kind::eltwise_clamp);
-    }
+    inline bool is_zero_preserved() const
+    { return math::eltwise_fwd_preserves_zero(desc_.alg_kind); }
 
     bool has_zero_dim_memory() const
     { return memory_desc_wrapper(desc_.data_desc).has_zero_dim(); }

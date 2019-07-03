@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +11,6 @@
 #include <mkldnn.h>
 
 namespace mkldnn {
-
-template <> struct handle_traits<mkldnn_primitive_desc_iterator_t> {
-    static constexpr auto destructor = &mkldnn_primitive_desc_iterator_destroy;
-};
 
 struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t> {
     template <typename T>

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,11 +14,12 @@
  limitations under the License.
 """
 
-import networkx as nx
-import numpy as np
 from copy import deepcopy
+
+import numpy as np
+
 from mo.front.common.layout import get_features_dim, shape_for_layout
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import get_value_id
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.op import Op
@@ -46,9 +47,9 @@ class Eltwise1DInputReshape(MiddleReplacementPattern):
     def run_after(self):
         return [EltwiseInputReshape]
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
+    def find_and_replace_pattern(self, graph: Graph):
         layout = graph.graph['layout']
-        for n in nx.topological_sort(graph):
+        for n in list(graph.nodes()):
             if 'type' in graph.node[n] and graph.node[n]['type'] == 'Eltwise' and get_value_id(Node(graph, n)) is None:
                 eltwise_op_node = Node(graph, n)
                 out_shape = eltwise_op_node.out_node().shape
@@ -68,7 +69,11 @@ class Eltwise1DInputReshape(MiddleReplacementPattern):
 class EltwiseInputReshape(MiddleReplacementPattern):
     enabled = True
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
+    def run_after(self):
+        from extensions.middle.pass_separator import MiddleStart
+        return [MiddleStart]
+
+    def find_and_replace_pattern(self, graph: Graph):
         data_nodes = [Node(graph, node) for node in graph.node if Node(graph, node).kind == 'data']
         for node in data_nodes:
             # Get all requested shapes for current node

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 import numpy as np
 import networkx as nx
 
+from mo.graph.graph import Graph
 from mo.ops.lin_op import Mul
 from mo.ops.const import Const
 from mo.front.common.replacement import FrontReplacementSubgraph
@@ -28,12 +29,12 @@ class SoftmaxFrontReplacementSubgraph(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('softmax', dict(op='Softmax'))
+                ('softmax', dict(type='SoftMax'))
             ],
             edges=[]
         )
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['softmax']
         if 'temperature' in node and node['temperature'] != 1.0:
             in_node = node.in_node()

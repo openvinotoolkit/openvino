@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,13 +35,13 @@ public:
 
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override;
 
-    void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept override {};
+    void SetLogCallback(InferenceEngine::IErrorListener& /*listener*/) noexcept override {}
 
-    void Unload() noexcept override {};
+    void Unload() noexcept override {}
 
     void Release() noexcept override {
         delete this;
-    };
+    }
 
     static void AddExt(std::string name, ext_factory factory);
 

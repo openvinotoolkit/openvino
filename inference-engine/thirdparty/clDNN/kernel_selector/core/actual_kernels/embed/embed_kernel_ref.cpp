@@ -40,6 +40,7 @@ namespace kernel_selector
 		k.EnableTensorOffset();
 		k.EnableTensorPitches();
 		k.EnableBatching();
+        k.EnableNonBiasTerm();
 		return k;
 	}
 
@@ -58,7 +59,7 @@ namespace kernel_selector
 	EmbedKernelRef::DispatchData EmbedKernelRef::SetDefault(const embed_params& params) const
 	{
 		DispatchData kd;
-		std::vector<size_t> global = { params.inputs[0].Y().v , params.weights.OFM().v, params.inputs[0].Batch().v };
+		std::vector<size_t> global = { params.inputs[0].X().v , params.weights.OFM().v, params.inputs[0].Batch().v };
 		std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global);
 
 		kd.gws0 = global[0];
@@ -103,7 +104,7 @@ namespace kernel_selector
 
 		auto& kernel = kd.kernels[0];
 
-		FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, ROUND_ROBIN, true, !newParams.bias.empty());
+		FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, DEFAULT, true, !newParams.bias.empty());
 
 		kd.estimatedTime = runInfo.effiency;
 

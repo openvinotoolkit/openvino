@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +24,7 @@ int VOCAnnotationParser::parseInt(const pugi::xml_node& node, const int def) {
     std::string val = parseString(node);
     try {
         return std::stoi(val);
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument&) {
         THROW_USER_EXCEPTION(1) << "Can't convert node <" << node.name()
             << "> value \"" << val << "\" to integer";
     }

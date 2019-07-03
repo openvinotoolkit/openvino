@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,14 +23,19 @@
 
 
 #if defined(_WIN32)
-#ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#define INFERENCE_PLUGIN_API(type) extern "C"   __declspec(dllexport) type
+    #ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+        #define INFERENCE_PLUGIN_API(type) extern "C"   __declspec(dllexport) type
+    #else
+        #define INFERENCE_PLUGIN_API(type) extern "C" type
+    #endif
+#elif(__GNUC__ >= 4)
+    #ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+        #define INFERENCE_PLUGIN_API(type) extern "C"   __attribute__((visibility("default"))) type
+    #else
+        #define INFERENCE_PLUGIN_API(type) extern "C" type
+    #endif
 #else
-#define INFERENCE_PLUGIN_API(type) extern "C" type
-#endif
-
-#else
-#define INFERENCE_PLUGIN_API(TYPE) extern "C" TYPE
+    #define INFERENCE_PLUGIN_API(TYPE) extern "C" TYPE
 #endif
 
 namespace InferenceEngine {
@@ -162,7 +166,7 @@ public:
      * @param network Network object to query
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      */
-    virtual void QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& res) const noexcept {
+    virtual void QueryNetwork(const ICNNNetwork& /*network*/, QueryNetworkResult& res) const noexcept {
         res.rc = InferenceEngine::NOT_IMPLEMENTED;
     }
 
@@ -172,8 +176,8 @@ public:
      * @param config Map of pairs: (config parameter name, config parameter value)
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      */
-    virtual void QueryNetwork(const ICNNNetwork& network,
-                              const std::map<std::string, std::string> &config, QueryNetworkResult& res) const noexcept {
+    virtual void QueryNetwork(const ICNNNetwork& /*network*/,
+                              const std::map<std::string, std::string> &/*config*/, QueryNetworkResult& res) const noexcept {
         res.rc = InferenceEngine::NOT_IMPLEMENTED;
     }
 };

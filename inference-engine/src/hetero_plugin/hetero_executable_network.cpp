@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,6 +89,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(InferenceEngine::ICNNNetwork &n
     load(network, config, extensions, listener);
 }
 
+void dla_layer_colorer(const CNNLayerPtr layer,
+                       ordered_properties &printed_properties,
+                       ordered_properties &node_properties);
+
 void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
                                    const std::map<std::string, std::string> &config,
                                    const std::vector<InferenceEngine::IExtensionPtr> &extensions,
@@ -126,6 +129,14 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
             fbPolicy.setAffinity(config, network);
         } else {
             THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+        }
+    } else {
+        if (dumpDotFile) {
+            std::stringstream stream(std::stringstream::out);
+            stream << "hetero_affinity_" << network.getName() << ".dot";
+
+            std::ofstream file(stream.str().c_str());
+            saveGraphToDot(network, file, dla_layer_colorer);
         }
     }
 
@@ -189,7 +200,7 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
             // TODO: here is a duplication of the code with FallbackPolicy::init
             IHeteroDeviceLoader::Ptr loader;
             loader = std::make_shared<HeteroDeviceLoader>(affinity);
-            HeteroDeviceLoader *pdl = dynamic_cast<HeteroDeviceLoader *>(loader.get());
+            HeteroDeviceLoader *pdl = static_cast<HeteroDeviceLoader *>(loader.get());
             pdl->initConfigs(config, extensions);
             _deviceLoaders[affinity] = loader;
         }
@@ -197,10 +208,17 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
             _deviceLoaders[affinity]->SetLogCallback(*listener);
     }
 
+    InferenceEngine::ICNNNetworkStats* networkStats = nullptr;
+    if (StatusCode::OK != network.getStats(&networkStats, nullptr)) {
+        networkStats = nullptr;
+    }
+
+
     for (auto &&subgraph : subgraphs) {
         auto affinity = (*subgraph.begin())->affinity;
         tempLayers.assign(subgraph.begin(), subgraph.end());
-        auto tempNetwork = cloneNet(tempLayers);
+        auto tempNetwork = cloneNet(tempLayers, networkStats);
+        tempNetwork->setName(network.getName() + "_" + std::to_string(std::distance(subgraphs.data(), &subgraph)));
         // restoring some outputs from original net if they are not marked as output automatically
         // this might happen if output was set manually for origin network and
         // it doesn't go to next subgraph
@@ -226,6 +244,7 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
         // set precision for intermediate data (not for external) to FP32
         // later on we have to add Plugin::getPreferableInputPrecision(network) and
         // Plugin::getPreferableOutputPrecision(network) and set precision based on this info
+        // TODO(amalyshe) add clever selectino of precision for intermediate blobs
         for (auto &&it : clonedInputs) {
             if (externalInputsData.find(it.first) == externalInputsData.end()) {
                 it.second->setInputPrecision(Precision::FP32);
@@ -242,6 +261,7 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
 
         // Temporal solution until each plugin starts to support desirable precision
         // Only for CPU registered device we are changing all FP16 types to FP32 and convert blobs if any
+        // TODO(amalyshe) remove this hack to preoper network.setPrecision(FP16) and feeding to CPU plugin
         if (affinity == "CPU") {
             tempNetwork->setPrecision(Precision::FP32);
             details::CNNNetworkIterator itcpu(reinterpret_cast<ICNNNetwork *>(tempNetwork.get()));

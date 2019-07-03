@@ -53,7 +53,7 @@ namespace cpu {
         } \
         return ret; \
     } \
-    virtual pd_t *clone() const override { return nullptr; } \
+    virtual pd_t *clone() const override { return new pd_t(*this); } \
     virtual const char *name() const override { return impl_name; }
 #define DECLARE_CPU_SUM_PD_T(impl_name, ...) \
     DECLARE_CPU_SUM_PD_t(impl_name, __VA_ARGS__)
@@ -83,6 +83,11 @@ protected:
     cpu_memory_t::pd_t dst_pd_;
 
     virtual status_t init() {
+        for (int i = 0; i < n_; ++i) {
+            const memory_desc_wrapper src_pd(&src_pds_[i]);
+            if (!src_pd.is_blocking_desc())
+                return unimplemented;
+        }
         bool ok = true
             && set_default_params() == success
             && attr()->has_default_values();
@@ -95,7 +100,11 @@ protected:
             /* the stupidest ever heuristics */
             for (int i = 0; i < n_; ++i)
                 dst_fmt = nstl::max(dst_fmt, src_pds_[i].desc()->format);
-            CHECK(dst_pd_.set_format(dst_fmt));
+
+            if (dst_fmt == memory_format::blocked)
+                dst_pd_ = src_pds_[0];
+            else
+                CHECK(dst_pd_.set_format(dst_fmt));
         }
 
         return success;

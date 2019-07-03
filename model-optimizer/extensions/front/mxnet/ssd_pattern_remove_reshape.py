@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 import networkx as nx
 
+from mo.graph.graph import Graph
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.mxnet.extractors.utils import get_json_layer_attrs
-from mo.middle.passes.eliminate import remove_node_from_graph
 
 
 class SsdPatternRemoveReshape(FrontReplacementSubgraph):
@@ -37,19 +37,19 @@ class SsdPatternRemoveReshape(FrontReplacementSubgraph):
             ]
         )
 
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
+    def replace_sub_graph(self, graph: Graph, match: dict):
         """
         Need to find each occurrence of pattern: _contrib_MultiBoxPrior(s) -> Concat -> Reshape
         remove Reshape layer - IE does not expect outputs from concatenation of _contrib_MultiBoxPrior to be reshaped
 
         Parameters
         ----------
-        graph : nx.MultiDiGraph
+        graph : Graph
            Graph with loaded model.
          match : dict
            Patterns which were found in graph structure.
         """
-        remove_node_from_graph(graph, match['concat'], match['reshape'])
+        graph.erase_node(match['reshape'])
 
         # concat should be performed for the third axis
         concat_node = match['concat']

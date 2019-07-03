@@ -33,9 +33,9 @@ namespace cldnn {
 
         protected:
 
-            virtual bool validate(typed_primitive_inst<lookup_table>& instance) const override
+            virtual bool validate_impl(const typed_primitive_inst<lookup_table>& instance) const override
             {
-                bool res = parent::validate(instance);
+                bool res = true;
 
                 // Check whether all memory elements use the same unit type (FP16 or FP32).
                 CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(), "Input memory", instance.input_memory(1).get_layout().data_type, "output memory", instance.output_memory().get_layout().data_type, "");

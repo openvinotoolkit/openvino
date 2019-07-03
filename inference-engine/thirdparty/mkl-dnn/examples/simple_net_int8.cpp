@@ -38,7 +38,7 @@ void simple_net_int8() {
     memory::dims conv_bias_tz = { 384 };
     memory::dims conv_dst_tz = { batch, 384, 13, 13 };
     memory::dims conv_strides = { 1, 1 };
-    auto conv_padding = { 1, 1 };
+    memory::dims conv_padding = { 1, 1 };
 
     /* Set Scaling mode for int8 quantizing */
     const std::vector<float> src_scales = { 1.8f };

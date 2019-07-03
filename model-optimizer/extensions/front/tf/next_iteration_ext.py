@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,9 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import networkx as nx
 
-from mo.front.common.replacement import FrontReplacementOp
+from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
 
@@ -27,4 +26,5 @@ class NextIterationExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node: Node):
         node['is_cyclic'] = True
+        node['infer'] = copy_shape_infer
         return __class__.enabled

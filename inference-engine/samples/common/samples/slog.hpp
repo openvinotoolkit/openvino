@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +57,7 @@ public:
     }
 
     // Specializing for LogStreamEndLine to support slog::endl
-    LogStream& operator<< (const LogStreamEndLine &arg) {
+    LogStream& operator<< (const LogStreamEndLine &/*arg*/) {
         _new_line = true;
 
         (*_log_stream) << std::endl;

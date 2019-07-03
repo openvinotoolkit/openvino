@@ -120,7 +120,6 @@ def maybe_skip(enum):
         'mkldnn_batch_normalization_flag_t',
         'mkldnn_wino_memory_format_t',
         'mkldnn_rnn_cell_flags_t',
-        'mkldnn_rnn_direction_t',
         'mkldnn_engine_kind_t',
         'mkldnn_query_t',
         'mkldnn_stream_kind_t',
@@ -136,6 +135,7 @@ def enum_abbrev(enum):
         'mkldnn_prop_kind_t': 'prop_kind',
         'mkldnn_primitive_kind_t': 'prim_kind',
         'mkldnn_alg_kind_t': 'alg_kind',
+        'mkldnn_rnn_direction_t': 'rnn_direction',
     }.get(enum, enum)
 
 

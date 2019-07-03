@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,9 +22,13 @@ def guess_framework_by_ext(input_model_path: str) -> int:
         return 'caffe'
     elif re.match('^.*\.pb$', input_model_path):
         return 'tf'
+    elif re.match('^.*\.pbtxt$', input_model_path):
+        return 'tf'
     elif re.match('^.*\.params$', input_model_path):
         return 'mxnet'
     elif re.match('^.*\.nnet$', input_model_path):
+        return 'kaldi'
+    elif re.match('^.*\.mdl', input_model_path):
         return 'kaldi'
     elif re.match('^.*\.onnx$', input_model_path):
         return 'onnx'

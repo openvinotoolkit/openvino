@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,15 +18,13 @@ import logging as log
 import mmap
 import os
 
-
-import networkx as nx
 import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
 from mo.front.caffe.proto import caffe_pb2
-from mo.graph.graph import Node, unique_id
-from mo.utils.error import Error
+from mo.graph.graph import Node, Graph
+from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -103,18 +101,40 @@ def load_caffe_proto_model(proto_path: str, model_path: [str, None] = None):
                        'python -m easy_install protobuf-3.5.1-py($your_python_version)-win-amd64.egg \n' \
                        'set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp'
         print(message + '\n\n' + refer_to_faq_msg(80))
+
     # Read proto layers
-    proto = caffe_pb2.NetParameter()
-    with open(proto_path, "r") as file:
-        text_format.Merge(str(file.read()), proto)
+    try:
+        proto = caffe_pb2.NetParameter()
+        with open(proto_path, "r") as file:
+            text_format.Merge(str(file.read()), proto)
+    except Exception as e:
+        log.error('Exception message: {}\n\n'.format(e) +
+                  '    Possible reasons:\n' +
+                  '      1. {} does not exist\n'.format(proto_path) +
+                  '      2. {} does not have a valid structure, for example, it was downloaded as html\n'.format(proto_path) +
+                  '      3. {} contains custom layers or attributes that are not supported\n'.format(proto_path) +
+                  '         in Model Optimizer by default.\n\n' +
+                  '    After you made sure that {} has a valid structure and still see this issue, then\n'.format(proto_path) +
+                  '    you need to generate a python parser for caffe.proto that was used when the model\n' +
+                  '    was created.\n' +
+                  '    Run "python3 generate_caffe_pb2.py --input_proto ${PATH_TO_CAFFE}/src/caffe/proto/caffe.proto"' +
+                  refer_to_faq_msg(1) + '\n\n', extra={'framework_error': True})
+        raise FrameworkError('Model Optimizer is not able to parse {}'.format(proto_path)) from e
 
     # Read model layer if exists
     model = None
-    if model_path:
-        model = caffe_pb2.NetParameter()
-        with open(model_path, "rb") as infile:
-            map = mmap.mmap(infile.fileno(), 0, access=mmap.ACCESS_READ)
-            model.MergeFromString(map)
+    try:
+        if model_path:
+            model = caffe_pb2.NetParameter()
+            with open(model_path, "rb") as infile:
+                map = mmap.mmap(infile.fileno(), 0, access=mmap.ACCESS_READ)
+                model.MergeFromString(map)
+    except Exception as e:
+        log.error('Exception message: {}\n\n'.format(e) +
+                  '    Possible reasons:\n' +
+                  '      1. {} does not exist\n'.format(model_path) +
+                  '      2. {} does not have a valid structure\n'.format(model_path), extra={'framework_error': True})
+        raise FrameworkError('Model Optimizer is not able to parse {}'.format(model_path)) from e
 
     return proto, model
 
@@ -143,10 +163,10 @@ def caffe_pb_to_nx(proto, model):
 
     Returns
     ----------
-    nx.MultiDiGraph
+        Graph
         built NX Directed graph.
     """
-    graph = nx.MultiDiGraph()
+    graph = Graph()
     # Blobs in prototxt model can be reused by inplace layer.
     # This requires loading of pb layers in order and tracking the latest
     # layer that writes a particular blob.
@@ -260,7 +280,7 @@ def caffe_pb_to_nx(proto, model):
                 input_dims.append(np.array(list(dims), dtype=np.int64))
                 input_names.append(layer.name)
 
-        layer.name = unique_id(graph, layer.name)        
+        layer.name = graph.unique_id(layer.name)
         graph.add_node(layer.name, pb=layer, model_pb=model_layer, kind='op')
 
         # connect inputs based on blob_producers dictionary
@@ -284,27 +304,6 @@ def caffe_pb_to_nx(proto, model):
             if top in blob_producers:
                 log.debug("Detected reuse of blob {} by layer {}".format(top, layer.name))
             blob_producers[top] = (layer.name, src_port)
-
-    # Find all nodes that do not have consumers.
-    # Add identity ops as a consumers for each output port for such nodes.
-    for node in list(graph.nodes()):
-        node = Node(graph, node)
-        if len(node.out_nodes()) == 0:
-            if not node.has_valid('pb') or not hasattr(node.pb, 'top'):
-                continue
-            for port, top in enumerate(node.pb.top):
-                new_id = unique_id(graph, 'TerminalIdentity_')
-                graph.add_node(new_id, op='Identity', type='Identity', kind='op')
-                edge_attrs = {
-                    'out': port,
-                    'in': 0,
-                    'name': top,
-                    'fw_tensor_debug_info': [(node.id, top)], # debug anchor for a framework tensor name and port
-                    'in_attrs': ['in', 'name'],
-                    'out_attrs': ['out', 'name'],
-                    'data_attrs': ['fw_tensor_debug_info']
-                }
-                graph.add_edge(node.id, new_id, **edge_attrs)
 
     if len(input_names) <= 0:
         raise Error('The topology contains no "input" layers. ' +

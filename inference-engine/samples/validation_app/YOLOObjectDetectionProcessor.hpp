@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,10 +46,6 @@ private:
             int row = grid / S;
             int col = grid % S;
             for (int b = 0; b < B; b++) {
-                int index = grid * B + b;
-                int p_index = SS * C + grid * B + b;
-                float scale = net_out[p_index];
-                int box_index = SS * (C + B) + (grid * B + b) * 4;
                 int objectType = class_num;
 
                 float conf = confs[(grid * B + b)];
@@ -58,7 +53,6 @@ private:
                 float yc = (cords[(grid * B + b) * 4 + 1] + row) / S;
                 float w = pow(cords[(grid * B + b) * 4 + 2], 2);
                 float h = pow(cords[(grid * B + b) * 4 + 3], 2);
-                int class_index = grid * C;
                 float prob = probs[grid * C + class_num] * conf;
 
                 DetectedObject bx(objectType, xc - w / 2, yc - h / 2, xc + w / 2,
@@ -78,12 +72,12 @@ private:
 
         // Filtering out overlapping boxes
         std::vector<bool> overlapped(boxes.size(), false);
-        for (int i = 0; i < boxes.size(); i++) {
+        for (size_t i = 0; i < boxes.size(); i++) {
             if (overlapped[i])
                 continue;
 
             DetectedObject box_i = boxes[i];
-            for (int j = i + 1; j < boxes.size(); j++) {
+            for (size_t j = i + 1; j < boxes.size(); j++) {
                 DetectedObject box_j = boxes[j];
                 if (DetectedObject::ioU(box_i, box_j) >= 0.4) {
                     overlapped[j] = true;
@@ -91,7 +85,7 @@ private:
             }
         }
 
-        for (int i = 0; i < boxes.size(); i++) {
+        for (size_t i = 0; i < boxes.size(); i++) {
             if (boxes[i].prob > 0.0f) {
                 boxes_result.push_back(boxes[i]);
             }

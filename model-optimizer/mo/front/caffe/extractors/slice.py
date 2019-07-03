@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@ def slice_ext(proto_layer, model_layer):
         'slice_point': param.slice_point,
     }
     mapping_rule = merge_attrs(param, update_attrs)
+    if 'slice_point' not in mapping_rule:
+        mapping_rule['slice_point'] = []
     mapping_rule.update({
         'type': 'Slice',
         'infer': caffe_slice_infer

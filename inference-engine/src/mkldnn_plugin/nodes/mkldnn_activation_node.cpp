@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +15,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+// TODO: (ichuraev) I don't fully sure that names of types and parameters are correct for square, abs, sqrt, linear, bounded_relu and soft_relu
 caseless_map<std::string, std::function<void(GenericLayer*, mkldnn::algorithm&, float&, float&)>> MKLDNNActivationNode::initializers = {
         {"relu", [](GenericLayer* activationLayer, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
             alpha = activationLayer->GetParamAsFloat("negative_slope", 0.0f);
@@ -76,6 +76,16 @@ caseless_map<std::string, std::function<void(GenericLayer*, mkldnn::algorithm&, 
             alpha = activationLayer->GetParamAsFloat("max", 1.0f);
             beta = activationLayer->GetParamAsFloat("min", 0.0f);
             algorithm = eltwise_clamp;
+        }},
+        {"exp", [](GenericLayer* activationLayer, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            algorithm = eltwise_exp;
+        }},
+        {"not", [](GenericLayer* activationLayer, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            algorithm = eltwise_not;
         }}
 };
 
@@ -107,9 +117,9 @@ void MKLDNNActivationNode::createPrimitive() {
     if (prim)
         return;
 
-    auto prim_desc = createPrimitiveDescriptor<relu_forward::primitive_desc, relu_forward::desc>();
+    auto prim_desc = createPrimitiveDescriptor<eltwise_forward::primitive_desc, eltwise_forward::desc>();
 
-    prim.reset(new relu_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
+    prim.reset(new eltwise_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
                                 getChildEdgeAt(0)->getMemory().GetPrimitive()));
 }
 

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,9 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+
 from mo.front.common.partial_infer.slice import caffe_slice_infer
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
+from mo.front.kaldi.loader.utils import read_binary_integer32_token, read_blob
+from mo.ops.slice import Slice
 
 
 class SliceFrontExtractor(FrontExtractorOp):
@@ -24,12 +27,15 @@ class SliceFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
+        pb = node.parameters
+        num_slice_points = read_binary_integer32_token(pb)
         mapping_rule = {
-            'axis': node.pb.axis if hasattr(node.pb, 'axis') else 1,
-            'slice_point': node.pb.slice_point,
+            'axis': 1,
+            'slice_point': read_blob(pb, num_slice_points, np.int32),
             'batch_dims': 0,
             'spatial_dims': 1,
             'infer': caffe_slice_infer
         }
-        Op.get_op_class_by_name('Slice').update_node_stat(node, mapping_rule)
+        node.parameters.close()
+        Slice.update_node_stat(node, mapping_rule)
         return __class__.enabled

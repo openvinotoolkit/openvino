@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +20,7 @@ public:
     MKLDNNTestExecNetwork(InferenceEngine::ICNNNetwork &network, const MKLDNNPlugin::Config &cfg)
             : MKLDNNExecNetwork(network, cfg, {}) {}
     MKLDNNPlugin::MKLDNNGraph& getGraph() {
-        return *graph;
+        return *graphs[0];
     }
 };
 

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,14 +24,11 @@ class Squeeze(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
-            'axis': 0,
-            'num_axes': -1,
             'dim': None,
             'kind': 'op',
             'type': 'Reshape',
             'op': __class__.op,
-            'infer': tf_squeeze_infer
+            'infer': tf_squeeze_infer,
+            'in_ports_count': 2,
+            'out_ports_count': 1,
         }, attrs)
-
-    def supported_attrs(self):
-        return ['axis', ('dim', lambda node: ', '.join(map(str, node['dim']))), 'num_axes']

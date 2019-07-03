@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +73,7 @@ public:
      * @brief Creates a new empty rvalue LockedMemory instance of type void
      * @return LockedMemory instance of type void
      */
-    LockedMemory<void> buffer() override {
+    LockedMemory<void> buffer() noexcept override {
         return {getAllocator().get(), getHandle(), offset};
     }
 
@@ -82,7 +81,7 @@ public:
      * @brief Creates a new empty rvalue LockedMemory instance of type const void
      * @return LockedMemory instance of type const void
      */
-    LockedMemory<const void> cbuffer() const override {
+    LockedMemory<const void> cbuffer() const noexcept override {
         return {getAllocator().get(), getHandle(), offset};
     }
 
@@ -90,7 +89,7 @@ public:
      * @brief Creates a LockedMemory instance of the given type
      * @return LockedMemory instance of the given type
      */
-    LockedMemory <T> data() override {
+    LockedMemory <T> data() noexcept override {
         return {getAllocator().get(), getHandle(), offset};
     }
 
@@ -98,7 +97,7 @@ public:
     * @brief Creates a readOnly LockedMemory instance of the given type
     * @return Read-only LockedMemory instance of the given type
     */
-    LockedMemory<const T> readOnly() const override {
+    LockedMemory<const T> readOnly() const noexcept override {
         return {getAllocator().get(), getHandle(), offset};
     }
 
@@ -134,18 +133,14 @@ protected:
      * @brief Allocates TBlobProxy data
      * Always throws exception. Not intended to be used
      */
-    void allocate() override {
-        THROW_IE_EXCEPTION
-                << "Proxy blob are not to use allocate, it should rely on actual blob allocation it proxies";
-    }
+    void allocate() noexcept override {}
 
     /**
      * @brief Deallocates TBlobProxy data
      * Always throws exception. Not intended to be used
      */
-    bool deallocate() override {
-        THROW_IE_EXCEPTION
-                << "Proxy blob are not to use deallocate(), it should rely on actual blob allocation it proxies";
+    bool deallocate() noexcept override {
+        return false;
     }
 
 private:

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,19 +14,18 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.front.common.layout import get_width_dim, get_height_dim
 from mo.front.extractor import attr_getter
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class PriorBoxOp(Op):
     op = 'PriorBox'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
@@ -34,6 +33,8 @@ class PriorBoxOp(Op):
             'max_size': np.array([]),
             'min_size': np.array([]),
             'aspect_ratio': np.array([]),
+            'in_ports_count': 2,
+            'out_ports_count': 1,
             'infer': PriorBoxOp.priorbox_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -52,7 +53,7 @@ class PriorBoxOp(Op):
             'step',
             'step_h',
             'step_w',
-            'offset'
+            'offset',
         ]
 
     def backend_attrs(self):
@@ -71,6 +72,22 @@ class PriorBoxOp(Op):
     def priorbox_infer(node: Node):
         layout = node.graph.graph['layout']
         data_shape = node.in_node(0).shape
-        num_ratios = ((node.flip + 1) * len(node.aspect_ratio) + 1) * len(node.min_size) + len(node.max_size)
+
+        # calculate all different aspect_ratios (the first one is always 1)
+        # in aspect_ratio 1/x values will be added for all except 1 if flip is True
+        ar_seen = [1.0]
+        ar_seen.extend(node.aspect_ratio.copy())
+        if node.flip:
+            for s in node.aspect_ratio:
+                ar_seen.append(1.0/s)
+
+        ar_seen = np.unique(np.array(ar_seen).round(decimals=6))
+        
+        num_ratios = 0
+        if len(node.min_size) > 0:
+            num_ratios = len(ar_seen) * len(node.min_size)
+
+        num_ratios = num_ratios + len(node.max_size)
+
         res_prod = data_shape[get_height_dim(layout, 4)] * data_shape[get_width_dim(layout, 4)] * num_ratios * 4
         node.out_node(0).shape = np.array([1, 2, res_prod], dtype=np.int64)

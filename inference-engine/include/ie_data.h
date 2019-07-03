@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,6 +112,13 @@ public:
     void setLayout(Layout layout);
 
     /**
+     * @brief changes dims and layout at same time
+     * @param dims new dimensions
+     * @param layout new layout
+     */
+    void reshape(const SizeVector &dims, Layout layout);
+
+    /**
     * @brief Gets the layout value for this Data instance
     */
     Layout getLayout() const;
@@ -160,6 +166,6 @@ public:
      */
     const UserValue& getUserObject() const;
 private:
-    TensorDesc tensorDesc;
+    mutable TensorDesc tensorDesc;
 };
 }  // namespace InferenceEngine

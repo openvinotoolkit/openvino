@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -129,10 +129,19 @@ class DetectionOutputFrontExtractor(FrontExtractorOp):
             'pad_mode': pad_mode,
             'pad_value': ','.join(str(x) for x in param.save_output_param.resize_param.pad_value),
             'interp_mode': interp_mode,
-            'input_width': param.input_width,
-            'input_height': param.input_height,
-            'normalized': int(param.normalized)
         }
+
+        # these params can be omitted in caffe.proto and in param as consequence,
+        # so check if it is set or set to default
+        fields = [field[0].name for field in param.ListFields()]
+        if 'input_width' in fields:
+            attrs['input_width'] = param.input_width
+        if 'input_height' in fields:
+            attrs['input_height'] = param.input_height
+        if 'normalized' in fields:
+            attrs['normalized'] = int(param.normalized)
+        if 'objectness_score' in fields:
+            attrs['objectness_score'] = param.objectness_score
 
         mapping_rule = merge_attrs(param, attrs)
 

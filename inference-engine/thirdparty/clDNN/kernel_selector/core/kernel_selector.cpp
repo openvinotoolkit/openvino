@@ -85,11 +85,9 @@ namespace kernel_selector {
         if (params.GetType() == kType &&
             options.GetType() == kType)
         {
-            const ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
             for (const auto& implementation : implementations)
             {
-                const ParamsKey implKey = implementation->GetSupportedKey();
-                if (implKey.Support(requireKey))
+                if (implementation->Supports(params, options))
                 {
                     try
                     {
@@ -146,25 +144,23 @@ namespace kernel_selector {
     {
         KernelsData kernelsData;
         std::string kernelName;
-
         if (params.GetType() == kType &&
             options.GetType() == kType)
         {
             std::string hash = std::to_string(create_hash(params.to_string()));
-            ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
-            
             std::tuple<std::string, int> cachedKernelConfig;
             if (options.tuningParams.mode == TuningMode::TUNING_DISABLED) // Try to load kernel/config from offline cache
             {
 #if ENABLE_OFFLINE_TUNING_CACHE
-                cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceId, hash);
+                cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache, hash);
+                
 #else
                 return  GetNaiveBestKernel(params, options, kType);
 #endif
             }
             else // Try to load kernel/config from on-line cache
             {
-                cachedKernelConfig = autoTuner.LoadKernelOnline(options.tuningParams.mode, options.tuningParams.cacheFilePath, params.engineInfo.deviceId, params.engineInfo.driverVersion, params.engineInfo.hostVersion, hash);
+                cachedKernelConfig = autoTuner.LoadKernelOnline(options.tuningParams.mode, options.tuningParams.cacheFilePath, params.engineInfo.computeUnitsCount, hash);
             }       
             bool hashFoundInCache = !std::get<0>(cachedKernelConfig).empty();
 
@@ -179,7 +175,7 @@ namespace kernel_selector {
                     if (implementation->GetName().compare(cachedkernelName) == 0)
                     {            
                         KernelsData kds = implementation->GetTunedKernelsDataByIndex(params, options, autoTuneIndex);
-                        if (kds.size() && kds[0].kernels.size() && implementation->GetSupportedKey().Support(requireKey))
+                        if (kds.size() && kds[0].kernels.size() && implementation->Supports(params, options))
                         {
                             kernelsData = kds;
                             kernelsData[0].kernelName = cachedkernelName;
@@ -208,9 +204,7 @@ namespace kernel_selector {
 
             for (const auto& implementation : implementations)
             {
-                
-                const ParamsKey implKey = implementation->GetSupportedKey();
-                if (implKey.Support(requireKey) && implKey.TuningSupport())
+                if (implementation->Supports(params, options) && implementation->SupportsTuning())
                 {
                     try
                     {
@@ -219,11 +213,11 @@ namespace kernel_selector {
                         
                         for (size_t i = 0; i < kds.size(); i++)
                         {
-                            kds[i].runTime = runTimes[i];  
+                            kds[i].runTime = runTimes[i];
                             if (kernelsData.size() == 0 || kds[i].runTime < kernelsData[0].runTime)
                             {
                                 kernelsData = { kds[i] };
-                                kernelName = implementation->GetName();
+                                kernelName = implementation->GetName();                                
                             }
                         }
                     }
@@ -240,9 +234,8 @@ namespace kernel_selector {
                 for (const auto& implementation : implementations)
                 {
 
-                    const ParamsKey implKey = implementation->GetSupportedKey();
                     //this time, check only implementations that have disabled tuning
-                    if (implKey.Support(requireKey) && !implKey.TuningSupport())
+                    if (implementation->Supports(params, options) && !implementation->SupportsTuning())
                     {
                         try
                         {
@@ -271,7 +264,7 @@ namespace kernel_selector {
             {
                 kernelsData[0].kernelName = kernelName;
                 kernelsData[0].kernels[0].layerID = params.layerID;
-                autoTuner.StoreKernel(options.tuningParams.cacheFilePath, hash, kernelName, kernelsData[0].autoTuneIndex);
+                autoTuner.StoreKernel(options.tuningParams.cacheFilePath, hash, kernelName, kernelsData[0].autoTuneIndex, params.engineInfo.computeUnitsCount);
             }
         } 
 

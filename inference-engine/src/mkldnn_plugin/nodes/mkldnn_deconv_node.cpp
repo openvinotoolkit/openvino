@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +10,7 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include <ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 
 using namespace mkldnn;
@@ -67,17 +67,16 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
                 deconvLayer->_group,
                 deconvLayer->input()->getTensorDesc().getDims()[1] / deconvLayer->_group,
                 deconvLayer->_out_depth / deconvLayer->_group,
-                deconvLayer->_kernel[Y_AXIS],
-                deconvLayer->_kernel[X_AXIS]
         };
         groupNum = deconvLayer->_group;
     } else {
         weightDims = {
                 deconvLayer->input()->getTensorDesc().getDims()[1],
-                deconvLayer->_out_depth,
-                deconvLayer->_kernel[Y_AXIS],
-                deconvLayer->_kernel[X_AXIS]
+                deconvLayer->_out_depth
         };
+    }
+    for (int i = 1; i <= deconvLayer->_kernel.size(); i++) {
+        weightDims.push_back(deconvLayer->_kernel[deconvLayer->_kernel.size() - i]);
     }
 
     internalBlobs.push_back(createInternalBlob(weightDims, true));
@@ -86,12 +85,13 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
     for (int i = 1; i <= deconvLayer->_dilation.size(); i++) {
         dilation.push_back(static_cast<int>(deconvLayer->_dilation[deconvLayer->_dilation.size() - i]) - 1);
     }
-    invertVectorCopyUtoI(deconvLayer->_padding, paddingL);
-    invertVectorCopyUtoI(deconvLayer->_pads_end, paddingR);
+    auto allPads = getPaddings(*deconvLayer);
+    invertVectorCopyUtoI(allPads.begin, paddingL);
+    invertVectorCopyUtoI(allPads.end, paddingR);
 
     weightsDims = MKLDNNDims(weightDims);
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < paddingR.size(); i++) {
         int with_group = (withGroups) ? 1 : 0;
         int krn = weightsDims[with_group + 2 + i];
         int src = getChildEdgeAt(0)->getDims()[2 + i];
@@ -115,28 +115,46 @@ void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
     }
     if (withBiases) {
         const auto *bias = biases->buffer().as<const float*>();
+        auto biasSize = biases->size();
 
         auto dst = getChildEdgeAt(0)->getBlob();
 
         float *output = dst->buffer().as<float *>() + dst->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        auto dims_size = dst->getTensorDesc().getDims().size();
+        auto layout = dst->layout();
 
         const size_t N = dst->getTensorDesc().getDims()[0];
-        const size_t C = dst->getTensorDesc().getBlockingDesc().getBlockDims()[1] / groupNum;
-        const size_t H = dst->getTensorDesc().getDims()[2];
-        const size_t W = dst->getTensorDesc().getDims()[3];
-        const size_t blkC =
-                dst->getTensorDesc().getBlockingDesc().getBlockDims().size() > 4 ?
-                dst->getTensorDesc().getBlockingDesc().getBlockDims()[4] :
-                1;
+        size_t C = dst->getTensorDesc().getBlockingDesc().getBlockDims()[1] / groupNum;
+        if (C < 1) C = 1;
+        const size_t D = dims_size > 4 ? dst->getTensorDesc().getDims()[dims_size - 3] : 1lu;
+        const size_t H = dst->getTensorDesc().getDims()[dims_size - 2];
+        const size_t W = dst->getTensorDesc().getDims()[dims_size - 1];
+        size_t blkC = 1lu;
+        if (layout == BLOCKED && dst->getTensorDesc().getBlockingDesc().getBlockDims().size() > 5) {
+            blkC = dst->getTensorDesc().getBlockingDesc().getBlockDims().size() > 5 ?
+                   dst->getTensorDesc().getBlockingDesc().getBlockDims()[5] :
+                   1lu;
+        } else if (layout == BLOCKED && dst->getTensorDesc().getBlockingDesc().getBlockDims().size() > 4) {
+            blkC = dst->getTensorDesc().getBlockingDesc().getBlockDims()[4];
+        }
 
         auto strides = dst->getTensorDesc().getBlockingDesc().getStrides();
+        int output_size = strides[0] * N - dst->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
-        parallel_for4d(N, C, H, W, [&](size_t n, size_t c, size_t h, size_t w) {
+        parallel_for5d(N, C, D, H, W, [&](size_t n, size_t c, size_t d, size_t h, size_t w) {
             for (size_t g = 0; g < groupNum; g++) {
-                const size_t off = n * strides[0] + (g * C + c) * strides[1] + h * strides[2] + w * strides[3];
+                const size_t off = n * strides[0]
+                                 + (g * C + c) * strides[1]
+                                 + d * strides[dims_size - 3]
+                                 + h * strides[dims_size - 2]
+                                 + w * strides[dims_size - 1];
+                if (off >= output_size) continue;
                 auto o = &output[off];
+                int gcb = g * C * blkC + c * blkC;
                 for (int bc = 0; bc < blkC; ++bc) {
-                    o[bc] += bias[c * blkC + bc];
+                    int index = gcb + bc;
+                    if (index < biasSize)
+                        o[bc] += bias[index];
                 }
             }
         });

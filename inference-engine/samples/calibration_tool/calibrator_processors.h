@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,9 +66,11 @@ public:
      * @param stat - The statistic for normalization
      * @param layersToInt8 - list of layers planned to be executed in int8. if layer is absent in this
      *                     map, it is assumed that it will be executed in int8
+     * @param convertFullyConnected - should the FullyConnected layers be converted into Int8 or not
      */
     void validateInt8Config(const InferenceEngine::NetworkStatsMap &stat,
-                                    const std::map<std::string, bool>& layersToInt8);
+                                    const std::map<std::string, bool>& layersToInt8,
+                                    bool convertFullyConnected);
 
     /**
      * Statistic collected in the collectFP32Statistic is processed with threshold passed as a parameter
@@ -90,7 +91,7 @@ protected:
      * This function should be called from final callibrator after and each Infer for each picture
      * It calculates by layer accuracy drop and as well it also collect activation values statistic
      */
-    void collectCalibrationStatistic();
+    void collectCalibrationStatistic(size_t pics);
 
     /**
      * This function should be called from calibration class after Infer of all picture
@@ -106,7 +107,7 @@ protected:
     InferenceEngine::InferRequest _inferRequestI8C;
     int _cBatch = 0;
 
-    int _nPictures;
+    size_t _nPictures = 0;
 
 private:
     /**
@@ -127,7 +128,8 @@ private:
      * Since Inference Engine API mostly directed to the loading of network from IR, we need to create
      * such IR first, read through stream and modify network to correspond required parameters
      */
-    InferenceEngine::CNNNetwork createICNNNetworkForLayer(InferenceEngine::CNNLayer::Ptr layerToClone);
+    InferenceEngine::CNNNetwork createICNNNetworkForLayer(InferenceEngine::CNNLayer::Ptr layerToClone,
+                                                          bool hasReLU);
 
     std::map<std::string, float> _layersAccuracyDrop;
     std::vector<InferenceEngine::ExecutableNetwork> _singleLayerNetworks;
@@ -157,7 +159,7 @@ public:
                               InferenceEngine::InferencePlugin plugin, CsvDumper &dumper, const std::string &flags_l,
                               PreprocessingOptions preprocessingOptions, bool zeroBackground);
 
-    shared_ptr<InferenceMetrics> Process()override;
+    shared_ptr<InferenceMetrics> Process(bool stream_output = false) override;
 };
 
 
@@ -174,5 +176,5 @@ public:
                                  InferencePlugin plugin, CsvDumper &dumper,
                                  const std::string &flags_a, const std::string &classes_list_file);
 
-    shared_ptr<InferenceMetrics> Process()override;
+    shared_ptr<InferenceMetrics> Process(bool stream_output = false) override;
 };

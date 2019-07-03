@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-from mo.front.caffe.extractors.utils import weights_biases
+from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
+from mo.front.kaldi.utils import read_binary_matrix, read_binary_vector, read_learning_info
+from mo.ops.inner_product import InnerProduct
 
 
 class AffineTransformFrontExtractor(FrontExtractorOp):
@@ -25,11 +25,17 @@ class AffineTransformFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
+        pb = node.parameters
+        read_learning_info(pb)
+        weights, weights_shape = read_binary_matrix(pb)
+        biases = read_binary_vector(pb)
+
         mapping_rule = {
-            'out-size': node.pb.num_output,
+            'out-size': weights_shape[0],
             'layout': 'NCHW'
         }
-        mapping_rule.update(weights_biases(node.pb.bias_term, node.pb))
+        embed_input(mapping_rule, 1, 'weights', weights)
+        embed_input(mapping_rule, 2, 'biases', biases)
 
-        Op.get_op_class_by_name('FullyConnected').update_node_stat(node, mapping_rule)
+        InnerProduct.update_node_stat(node, mapping_rule)
         return __class__.enabled

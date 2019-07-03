@@ -1,6 +1,7 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 set (TARGET_NAME "HeteroPlugin")
 
 file(GLOB SOURCES
@@ -19,10 +20,10 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-if(WIN32)
-    add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_PLUGIN)
-endif()
+add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 add_library(${TARGET_NAME} SHARED ${SOURCES} ${HEADERS})
 target_link_libraries(${TARGET_NAME} inference_engine ${INTEL_ITT_LIBS})
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

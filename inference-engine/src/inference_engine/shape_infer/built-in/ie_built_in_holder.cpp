@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +15,7 @@
 #include "ie_eltwise_shape_infer.hpp"
 #include "ie_permute_shape_infer.hpp"
 #include "ie_reshape_shape_infer.hpp"
+#include "ie_flatten_shape_infer.hpp"
 #include "ie_proposal_shape_infer.hpp"
 #include "ie_priorbox_shape_infer.hpp"
 #include "ie_upsampling_shape_infer.hpp"
@@ -27,11 +27,29 @@
 #include "ie_detection_output_shape_infer.hpp"
 #include "ie_priorbox_clustered_shape_infer.hpp"
 #include "ie_ctc_greedy_decoder_shape_infer.hpp"
-#include "ie_spatial_transformer_shape_infer.hpp"
 #include "ie_inner_product_shape_infer.hpp"
 #include "ie_resample_shape_infer.hpp"
 #include "ie_interp_shape_infer.hpp"
 #include "ie_argmax_shape_infer.hpp"
+#include "ie_gemm_shape_infer.hpp"
+#include "ie_pad_shape_infer.hpp"
+#include "ie_gather_shape_infer.hpp"
+#include "ie_strided_slice_shape_infer.hpp"
+#include "ie_shuffle_channels_shape_infer.hpp"
+#include "ie_depth_to_space_shape_infer.hpp"
+#include "ie_space_to_depth_shape_infer.hpp"
+#include "ie_reverse_sequence_shape_infer.hpp"
+#include "ie_shape_shape_infer.hpp"
+#include "ie_squeeze_shape_infer.hpp"
+#include "ie_unsqueeze_shape_infer.hpp"
+#include "ie_range_shape_infer.hpp"
+#include "ie_fill_shape_infer.hpp"
+#include "ie_expand_shape_infer.hpp"
+#include "ie_rnn_shape_infer.hpp"
+#include "ie_tensor_iterator_shape_infer.hpp"
+#include "ie_rnn_cell_shape_infer.hpp"
+#include "ie_quantize_shape_infer.hpp"
+#include "ie_bin_conv_shape_infer.hpp"
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -77,9 +95,10 @@ BuiltInShapeInferHolder::getShapeInferImpl(IShapeInferImpl::Ptr& impl, const cha
 void BuiltInShapeInferHolder::SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept {}
 
 // Register without implementation just to protect from adding custom implementation for them
-REG_SHAPE_INFER_FOR_TYPE(DoNothingShapeProp, Input);
-REG_SHAPE_INFER_FOR_TYPE(DoNothingShapeProp, Memory);
-REG_SHAPE_INFER_FOR_TYPE(DoNothingShapeProp, Const);
+REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Input);
+REG_SHAPE_INFER_FOR_TYPE(DoNothingShapeProp, Output);
+REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Memory);
+REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Const);
 
 // Outputs = Inputs
 REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Activation);
@@ -113,7 +132,7 @@ REG_SHAPE_INFER_FOR_TYPE(InnerProductShapeProp, FullyConnected);
 REG_SHAPE_INFER_FOR_TYPE(SplitShapeProp, Split);
 REG_SHAPE_INFER_FOR_TYPE(SplitShapeProp, Slice);
 REG_SHAPE_INFER_FOR_TYPE(PermuteShapeProp, Permute);
-REG_SHAPE_INFER_FOR_TYPE(ReshapeShapeProp, Flatten);
+REG_SHAPE_INFER_FOR_TYPE(FlattenShapeProp, Flatten);
 REG_SHAPE_INFER_FOR_TYPE(ReshapeShapeProp, Reshape);
 REG_SHAPE_INFER_FOR_TYPE(DetectionOutputShapeProp, DetectionOutput);
 REG_SHAPE_INFER_FOR_TYPE(PriorBoxClusteredShapeProp, PriorBoxClustered);
@@ -128,11 +147,37 @@ REG_SHAPE_INFER_FOR_TYPE(TileShapeProp, Tile);
 REG_SHAPE_INFER_FOR_TYPE(CropShapeProp, Crop);
 REG_SHAPE_INFER_FOR_TYPE(ConcatShapeProp, Concat);
 REG_SHAPE_INFER_FOR_TYPE(EltWiseShapeProp, Eltwise);
+REG_SHAPE_INFER_FOR_TYPE(EltWiseShapeProp, Mul);
+REG_SHAPE_INFER_FOR_TYPE(EltWiseShapeProp, Add);
+REG_SHAPE_INFER_FOR_TYPE(EltWiseShapeProp, Div);
 REG_SHAPE_INFER_FOR_TYPE(CTCGreedyDecoderShapeProp, CTCGreedyDecoder);
 REG_SHAPE_INFER_FOR_TYPE(ProposalShapeProp, Proposal);
 REG_SHAPE_INFER_FOR_TYPE(ReorgYoloShapeProp, ReorgYolo);
 REG_SHAPE_INFER_FOR_TYPE(RegionYoloShapeProp, RegionYolo);
+REG_SHAPE_INFER_FOR_TYPE(RNNShapeProp, RNNSequence);
+REG_SHAPE_INFER_FOR_TYPE(RNNShapeProp, GRUSequence);
+REG_SHAPE_INFER_FOR_TYPE(RNNShapeProp, LSTMSequence);
+REG_SHAPE_INFER_FOR_TYPE(RNNCellShapeProp, RNNCell);
+REG_SHAPE_INFER_FOR_TYPE(GRUCellShapeProp, GRUCell);
+REG_SHAPE_INFER_FOR_TYPE(LSTMCellShapeProp, LSTMCell);
+REG_SHAPE_INFER_FOR_TYPE(TensorIteratorShapeProp, TensorIterator);
 REG_SHAPE_INFER_FOR_TYPE(ArgMaxShapeProp, ArgMax);
+REG_SHAPE_INFER_FOR_TYPE(GemmShapeProp, Gemm);
+REG_SHAPE_INFER_FOR_TYPE(PadShapeProp, Pad);
+REG_SHAPE_INFER_FOR_TYPE(GatherShapeProp, Gather);
+REG_SHAPE_INFER_FOR_TYPE(StridedSliceShapeProp, StridedSlice);
+REG_SHAPE_INFER_FOR_TYPE(ShuffleChannelsShapeProp, ShuffleChannels);
+REG_SHAPE_INFER_FOR_TYPE(DepthToSpaceShapeProp, DepthToSpace);
+REG_SHAPE_INFER_FOR_TYPE(SpaceToDepthShapeProp, SpaceToDepth);
+REG_SHAPE_INFER_FOR_TYPE(ReverseSequenceShapeProp, ReverseSequence);
+REG_SHAPE_INFER_FOR_TYPE(SqueezeShapeProp, Squeeze);
+REG_SHAPE_INFER_FOR_TYPE(UnsqueezeShapeProp, Unsqueeze);
+REG_SHAPE_INFER_FOR_TYPE(RangeShapeProp, Range);
+REG_SHAPE_INFER_FOR_TYPE(FillShapeProp, Fill);
+REG_SHAPE_INFER_FOR_TYPE(ExpandShapeProp, Expand);
+REG_SHAPE_INFER_FOR_TYPE(ShapeShapeProp, Shape);
+REG_SHAPE_INFER_FOR_TYPE(QuantizeShapeProp, Quantize);
+REG_SHAPE_INFER_FOR_TYPE(BinConvShapeProp, BinaryConvolution);
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine

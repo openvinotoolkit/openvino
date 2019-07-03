@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +15,7 @@ public:
     using Ptr = std::shared_ptr<MockIShapeInferImpl>;
 
     MOCK_QUALIFIED_METHOD5(inferShapes, noexcept, StatusCode(
-            const std::vector<SizeVector> &, const std::map<std::string, std::string>&, const std::map<std::string, Blob::Ptr>&, std::vector<SizeVector> &, ResponseDesc *));
+            const std::vector<Blob::CPtr> &, const std::map<std::string, std::string>&, const std::map<std::string, Blob::Ptr>&, std::vector<SizeVector> &, ResponseDesc *));
 
 };
 

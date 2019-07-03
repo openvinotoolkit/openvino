@@ -16,10 +16,12 @@
 
 cmake_minimum_required(VERSION 2.8)
 
-# Use old-style version handling
-if(POLICY CMP0048)
-    cmake_policy(SET CMP0048 OLD)
-    cmake_policy(SET CMP0054 OLD)
+if(POLICY CMP0022)
+    cmake_policy(SET CMP0022 NEW)
+endif()
+
+if(POLICY CMP0054)
+    cmake_policy(SET CMP0054 NEW)
 endif()
 
 # Enable RPATH on MacOS/OSX
@@ -42,11 +44,20 @@ endif()
 
 set(PROJECT_NAME "Intel(R) MKL-DNN")
 set(PROJECT_FULL_NAME "Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN)")
-set(PROJECT_VERSION "0.16")
+set(PROJECT_VERSION "0.18.0")
 
 set(LIB_NAME mkldnn)
 
-project(${PROJECT_NAME} C CXX)
+if (CMAKE_VERSION VERSION_LESS 3.0)
+    project(${PROJECT_NAME} C CXX)
+else()
+    cmake_policy(SET CMP0048 NEW)
+    project(${PROJECT_NAME} VERSION "${PROJECT_VERSION}" LANGUAGES C CXX)
+endif()
+
+if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message("FATAL_ERROR" "Intel(R) MKL-DNN supports 64 bit platforms only")
+endif()
 
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE is unset, defaulting to Release")
@@ -57,15 +68,19 @@ set(CMAKE_SRC_CCXX_FLAGS)       # SRC specifics
 set(CMAKE_EXAMPLE_CCXX_FLAGS)   # EXAMPLE specifics
 set(CMAKE_TEST_CCXX_FLAGS)      # TESTS specifics
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 include("cmake/utils.cmake")
 include("cmake/options.cmake")
-include("cmake/platform.cmake")
 include("cmake/OpenMP.cmake")
 include("cmake/TBB.cmake")
+include("cmake/platform.cmake")
 include("cmake/SDL.cmake")
 include("cmake/MKL.cmake")
 include("cmake/Doxygen.cmake")
 include("cmake/profiling.cmake")
+include("cmake/version.cmake")
 
 enable_testing()
 
@@ -75,4 +90,5 @@ add_subdirectory(src)
 add_subdirectory(examples)
 add_subdirectory(tests)
 
-install(FILES LICENSE DESTINATION share/doc/${LIB_NAME})
+# Cannot use CMAKE_INSTALL_DOCDIR since it uses PROJECT_NAME and not LIB_NAME
+install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/doc/${LIB_NAME})

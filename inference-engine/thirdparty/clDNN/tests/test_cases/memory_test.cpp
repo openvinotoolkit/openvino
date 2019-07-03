@@ -26,6 +26,9 @@
 #include <api/CPP/pooling.hpp>
 #include <api/CPP/concatenation.hpp>
 #include <api/CPP/data.hpp>
+#include <api/CPP/reshape.hpp>
+#include <api/CPP/crop.hpp>
+#include <api/CPP/scale.hpp>
 
 #include "test_utils/test_utils.h"
 
@@ -72,7 +75,7 @@ TEST(memory_tests, DISABLED_network_creation_loop)
 #endif
 TEST(memory_pool, basic_non_padded_relu_pipe) {
     // 5 relu's of size 1x4x1x1
-    engine engine;
+    const cldnn::engine engine;// here we need new engine
     auto batch_num = 1;
     auto feature_num = 4;
     auto x_size = 1;
@@ -106,7 +109,7 @@ TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
     // uncomment this line to disable memory pool
     /*engine_configuration cfg{ false, false, false, std::string(), std::string(), true, std::string(),std::string(), 0, false };
     engine engine{ cfg };*/
-    engine engine;
+    const cldnn::engine engine;// here we need new engine
     auto batch_num = 1;
     auto feature_num = 4;
     auto x_size = 4;
@@ -144,7 +147,7 @@ TEST(memory_pool, multi_outputs_network) {
     // uncomment this line to disable memory pool
     /*engine_configuration cfg{ false, false, false, std::string(), std::string(), true, std::string(),std::string(), 0, false };
     engine engine{ cfg };*/
-    engine engine;
+    const cldnn::engine engine;// here we need new engine
     auto batch_num = 1;
     auto feature_num = 4;
     auto x_size = 4;
@@ -173,11 +176,8 @@ TEST(memory_pool, multi_outputs_network) {
     EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)2048);
 }
 
-// Disabled since ref values seems to be incorrect.
-// Test passes when Relu4 is fused with concat1 and then concat1 is optimized out,
-// but this optimizations order is invalid.
-// TODO: fix the test
-TEST(memory_pool, DISABLED_oooq) {
+
+TEST(memory_pool, oooq) {
     /*          -- relu1 - concat1- relu4 -- 
         input<  -- relu2 /                   >-- concat2 -- relu6
                 -- relu3 --  relu5 --------- 
@@ -210,14 +210,10 @@ TEST(memory_pool, DISABLED_oooq) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 2304);
+    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 2816);
 }
 
-// Disabled since ref values seems to be incorrect.
-// Test passes when Relu4 is fused with concat1 and then concat1 is optimized out,
-// but this optimizations order is invalid.
-// TODO: fix the test
-TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
+TEST(memory_pool, shared_mem_pool_same_topology_twice) {
     /*                -- relu1 - concat1- relu4 --
     input<  -- relu2 |                             >-- concat2 -- relu6
                       -- relu3 --  relu5 ---------
@@ -261,7 +257,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     auto output_layout_first = output_memory_first.get_layout();
     auto output_ptr_first = output_memory_first.pointer<float>();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 2304);
+    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 2816);
 
     network network_second(engine, topology, bo);
     network_second.set_input_data("input", input);
@@ -271,7 +267,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     auto output_layout_second = output_memory_second.get_layout();
     auto output_ptr_second = output_memory_second.pointer<float>();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)3072);
+    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 3584);
     EXPECT_EQ(output_layout_first, output_layout_second);
 
     int y_size = output_layout_first.size.spatial[1];
@@ -460,4 +456,113 @@ TEST(memory_pool, shared_dep_two_output) {
     network network(engine, topo, bo);
     auto outputs = network.execute();
     EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)256);
+}
+
+TEST(memory_pool, non_opt_intermidate_opt_after) {
+
+    engine_configuration cfg{ false, false, false, std::string(), std::string(), true /*oooq*/, std::string(),std::string(), priority_mode_types::disabled, throttle_mode_types::disabled, true /*mem_pool*/ };
+    engine engine{ cfg };
+    auto input_layout1 = layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 2, 2 });
+    auto input_layout2 = layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 1, 2, 2 });
+
+    auto input_memory1 = cldnn::memory::allocate(engine, input_layout1);
+    auto input_memory2 = cldnn::memory::allocate(engine, input_layout2);
+    auto scale_memory = cldnn::memory::allocate(engine, layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1,1,1,1 }));
+    auto data_memory = cldnn::data("scale_mem", scale_memory);
+
+    set_values(input_memory1, { 1.0f, 2.0f, 3.0f, 4.0f });
+    set_values(input_memory2, { 5.0f, 6.0f, 7.0f, 8.0f });
+    set_values(scale_memory, { 1.0f});
+
+    auto reshape_tensor = cldnn::tensor(8, 1, 1, 1);
+    auto input = cldnn::input_layout("input1", input_layout1);
+    auto input2 = cldnn::input_layout("input2", input_layout2);
+    auto concat = cldnn::concatenation("concat", { "input1", "input2" }, cldnn::concatenation::along_b);
+    auto reshape = cldnn::reshape("reshape", "concat", reshape_tensor);
+    auto crop1 = cldnn::crop("crop1", "reshape", { 1,1,1,1 }, { 0, 0, 0, 0 });
+    auto crop2 = cldnn::crop("crop2", "reshape", { 1,1,1,1 }, { 1, 0, 0, 0 });
+    auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
+    auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
+
+    auto topology = cldnn::topology(
+        input, input2,
+        concat,
+        reshape,
+        crop1, crop2,
+        eltwise1, eltwise2,
+        data_memory
+    );
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(false));
+    network network(engine, topology, bo);
+    network.set_input_data("input1", input_memory1);
+    network.set_input_data("input2", input_memory2);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), static_cast<size_t>(2));
+
+    auto out1 = outputs.at("elt1");
+    auto out2 = outputs.at("elt2");
+
+    auto out1_ptr = out1.get_memory().pointer<float>();
+    auto out2_ptr = out2.get_memory().pointer<float>();
+    EXPECT_EQ(out1_ptr[0], 1.0f);
+    EXPECT_EQ(out2_ptr[0], 2.0f);
+}
+
+TEST(memory_pool, add_mem_dep_test) {
+
+    engine_configuration cfg{ false, false, false, std::string(), std::string(), true /*oooq*/, std::string(),std::string(), priority_mode_types::disabled, throttle_mode_types::disabled, true /*mem_pool*/ };
+    engine engine{ cfg };
+    auto input_layout1 = layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 2, 2, 2 });
+
+    auto input_memory1 = cldnn::memory::allocate(engine, input_layout1);
+    auto scale_memory = cldnn::memory::allocate(engine, layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1,1,1,1 }));
+    auto data_memory = cldnn::data("scale_mem", scale_memory);
+
+    set_values(input_memory1, { 1.0f, 2.0f, 3.0f, 4.0f,
+        5.0f, 6.0f, 7.0f, 8.0f});
+    set_values(scale_memory, { 1.0f });
+
+
+    auto input = cldnn::input_layout("input1", input_layout1);
+    auto actv1 = cldnn::activation("input_activ1", "input1", cldnn_activation_func::activation_abs);
+    auto actv2 = cldnn::activation("input_activ2", "input1", cldnn_activation_func::activation_abs);
+    auto crop1 = cldnn::crop("crop1", "input_activ1", { 1,1,2,2 }, { 0, 0, 0, 0 });
+    auto crop2 = cldnn::crop("crop2", "input_activ2", { 1,1,2,2 }, { 0, 1, 0, 0 });
+    auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
+    auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
+    auto actv3 = cldnn::activation("out3", "elt1", cldnn_activation_func::activation_abs);
+    auto actv4 = cldnn::activation("out4", "elt2", cldnn_activation_func::activation_abs);
+
+    auto topology = cldnn::topology(
+        input,
+        crop1, crop2,
+        actv1, actv2,
+        eltwise1, eltwise2,
+        data_memory,
+        actv3, actv4
+    );
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input1", input_memory1);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), static_cast<size_t>(2));
+
+    auto out1 = outputs.at("out3");
+    auto out2 = outputs.at("out4");
+
+    auto out1_ptr = out1.get_memory().pointer<float>();
+    auto out2_ptr = out2.get_memory().pointer<float>();
+    EXPECT_EQ(out1_ptr[0], 1.0f);
+    EXPECT_EQ(out1_ptr[1], 2.0f);
+    EXPECT_EQ(out1_ptr[2], 3.0f);
+    EXPECT_EQ(out1_ptr[3], 4.0f);
+
+    EXPECT_EQ(out2_ptr[0], 5.0f);
+    EXPECT_EQ(out2_ptr[1], 6.0f);
+    EXPECT_EQ(out2_ptr[2], 7.0f);
+    EXPECT_EQ(out2_ptr[3], 8.0f);
 }

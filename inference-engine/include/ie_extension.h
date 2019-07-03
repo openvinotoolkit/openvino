@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +52,7 @@ public:
    * @brief Loads extension from a shared library
    * @param name Full or relative path to extension library
    */
-    explicit Extension(const std::string &name)
+    explicit Extension(const file_name_t &name)
             : actual(name) {}
 
     /**
@@ -127,7 +126,7 @@ public:
    * @brief Loads extension from a shared library
    * @param name Full or relative path to extension library
    */
-    explicit ShapeInferExtension(const std::string &name)
+    explicit ShapeInferExtension(const file_name_t &name)
             : actual(name) {}
 
     /**
@@ -192,7 +191,7 @@ protected:
  * @return shared_pointer A wrapper for the given type from a specific shared module
  */
 template<>
-inline std::shared_ptr<IShapeInferExtension> make_so_pointer(const std::string &name) {
+inline std::shared_ptr<IShapeInferExtension> make_so_pointer(const file_name_t &name) {
     return std::make_shared<ShapeInferExtension>(name);
 }
 
@@ -202,7 +201,7 @@ inline std::shared_ptr<IShapeInferExtension> make_so_pointer(const std::string &
  * @return shared_pointer A wrapper for the given type from a specific shared module
  */
 template<>
-inline std::shared_ptr<IExtension> make_so_pointer(const std::string &name) {
+inline std::shared_ptr<IExtension> make_so_pointer(const file_name_t &name) {
     return std::make_shared<Extension>(name);
 }
 

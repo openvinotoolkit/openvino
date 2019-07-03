@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,8 +35,6 @@ using namespace InferenceEngine;
 
 using InferenceEngine::details::InferenceEngineException;
 
-#define DEFAULT_PATH_P "./lib"
-
 /// @brief Message for help argument
 static const char help_message[] = "Print a help message";
 /// @brief Message for images argument
@@ -54,7 +51,7 @@ static const char model_message[] = "Required. Path to an .xml file with a train
 static const char plugin_message[] = "Plugin name. For example, CPU. If this parameter is passed, "
                                      "the sample looks for a specified plugin only.";
 /// @brief Message for assigning cnn calculation to device
-static const char target_device_message[] = "Target device to infer on: CPU (default), GPU, FPGA, or MYRIAD."
+static const char target_device_message[] = "Target device to infer on: CPU (default), GPU, FPGA, HDDL or MYRIAD."
                                             " The application looks for a suitable plugin for the specified device.";
 /// @brief Message for label argument
 static const char label_message[] = "Path to a file with labels for a model";
@@ -89,10 +86,16 @@ static const char custom_cldnn_message[] = "Required for GPU custom kernels."
 static const char custom_cpu_library_message[] = "Required for CPU custom layers. "
                                                  "Absolute path to a shared library with the kernel implementations";
 
+/// @brief Message for labels file
+static const char labels_file_message[] = "Labels file path. The labels file contains names of the dataset classes";
+
 static const char zero_background_message[] = "\"Zero is a background\" flag. Some networks are trained with a modified"
                                               " dataset where the class IDs "
                                               " are enumerated from 1, but 0 is an undefined \"background\" class"
                                               " (which is never detected)";
+
+static const char plain_output_message[] = "Flag for plain output";
+
 
 /// @brief Network type options and their descriptions
 static const char* types_descriptions[][2] = {
@@ -118,7 +121,7 @@ DEFINE_string(p, "", plugin_message);
 DEFINE_string(OCl, "", label_message);
 /// @brief Define parameter for a path to plugins <br>
 /// Default is ./lib
-DEFINE_string(pp, DEFAULT_PATH_P, plugin_path_message);
+DEFINE_string(pp, "", plugin_path_message);
 /// @brief Define parameter for a target device to infer on <br>
 DEFINE_string(d, "CPU", target_device_message);
 /// @brief Define parameter for batch size <br>
@@ -156,6 +159,11 @@ DEFINE_string(c, "", custom_cldnn_message);
 /// It is an optional parameter
 DEFINE_string(l, "", custom_cpu_library_message);
 
+/// @brief Flag for printing plain text
+DEFINE_bool(plain, false, plain_output_message);
+
+DEFINE_string(lbl, "", labels_file_message);
+
 /**
  * @brief This function shows a help message
  */
@@ -171,6 +179,7 @@ static void showUsage() {
     }
     std::cout << "    -i <path>                 " << image_message << std::endl;
     std::cout << "    -m <path>                 " << model_message << std::endl;
+    std::cout << "    -lbl <path>               " << labels_file_message << std::endl;
     std::cout << "    -l <absolute_path>        " << custom_cpu_library_message << std::endl;
     std::cout << "    -c <absolute_path>        " << custom_cldnn_message << std::endl;
     std::cout << "    -d <device>               " << target_device_message << std::endl;
@@ -248,7 +257,6 @@ int main(int argc, char *argv[]) {
             // Checking required OD-specific options
             if (FLAGS_ODa.empty()) ee << UserException(11, "Annotations folder is not specified for object detection (missing -a option)");
             if (FLAGS_ODc.empty()) ee << UserException(12, "Classes file is not specified (missing -c option)");
-            if (FLAGS_b > 0) ee << UserException(13, "Batch option other than 0 is not supported for Object Detection networks");
         }
 
         if (!ee.empty()) throw ee;
@@ -257,7 +265,7 @@ int main(int argc, char *argv[]) {
         // ---------------------Loading plugin for Inference Engine------------------------------------------------
         slog::info << "Loading plugin" << slog::endl;
         /** Loading the library with extensions if provided**/
-        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp, "../../../lib/intel64", "" }).getPluginByDevice(FLAGS_d);
+        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
 
         /** Loading default extensions **/
         if (FLAGS_d.find("CPU") != std::string::npos) {
@@ -311,7 +319,7 @@ int main(int argc, char *argv[]) {
         if (netType == Classification) {
             processor = std::shared_ptr<Processor>(
                     new ClassificationProcessor(FLAGS_m, FLAGS_d, FLAGS_i, FLAGS_b,
-                                                plugin, dumper, FLAGS_l, preprocessingOptions, FLAGS_Czb));
+                                                plugin, dumper, FLAGS_lbl, preprocessingOptions, FLAGS_Czb));
         } else if (netType == ObjDetection) {
             if (FLAGS_ODkind == "SSD") {
                 processor = std::shared_ptr<Processor>(
@@ -329,7 +337,7 @@ int main(int argc, char *argv[]) {
             THROW_USER_EXCEPTION(2) <<  "Processor pointer is invalid" << FLAGS_ppType;
         }
         slog::info << (FLAGS_d.empty() ? "Plugin: " + FLAGS_p : "Device: " + FLAGS_d) << slog::endl;
-        shared_ptr<Processor::InferenceMetrics> pIM = processor->Process();
+        shared_ptr<Processor::InferenceMetrics> pIM = processor->Process(FLAGS_plain);
         processor->Report(*pIM.get());
 
         if (dumper.dumpEnabled()) {
@@ -348,11 +356,16 @@ int main(int argc, char *argv[]) {
             showUsage();
             return ex.list().begin()->exitCode();
         } else {
-            const char* s = ex.what();
             slog::err << "Input problems: \n" << ex.what() << slog::endl;
             showUsage();
             return ex.list().begin()->exitCode();
         }
+    } catch (const std::exception& ex) {
+        slog::err << ex.what() << slog::endl;
+        return 1;
+    } catch (...) {
+        slog::err << "Unknown/internal exception happened." << slog::endl;
+        return 1;
     }
     return 0;
 }

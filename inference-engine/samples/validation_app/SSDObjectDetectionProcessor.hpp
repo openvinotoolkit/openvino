@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,16 +26,16 @@ protected:
         const auto detectionOutArray = inferRequest.GetBlob(firstOutputName);
         const float *box = detectionOutArray->buffer().as<float*>();
 
-        const int maxProposalCount = outputDims[1];
-        const int objectSize = outputDims[0];
+        const size_t maxProposalCount = outputDims[1];
+        const size_t objectSize = outputDims[0];
 
-        for (int b = 0; b < batch; b++) {
+        for (size_t b = 0; b < batch; b++) {
             string fn = files[b];
             std::list<DetectedObject> dr = std::list<DetectedObject>();
             detectedObjects.insert(std::pair<std::string, std::list<DetectedObject>>(fn, dr));
         }
 
-        for (int i = 0; i < maxProposalCount; i++) {
+        for (size_t i = 0; i < maxProposalCount; i++) {
             float image_id = box[i * objectSize + 0];
             float label = box[i * objectSize + 1];
             float confidence = box[i * objectSize + 2];
@@ -49,7 +48,8 @@ protected:
                 break;  // Finish
             }
 
-            detectedObjects[files[image_id]].push_back(DetectedObject(label, xmin, ymin, xmax, ymax, confidence));
+            detectedObjects[files[static_cast<size_t>(image_id)]].push_back(
+                DetectedObject(static_cast<int>(label), xmin, ymin, xmax, ymax, confidence));
         }
 
         return detectedObjects;

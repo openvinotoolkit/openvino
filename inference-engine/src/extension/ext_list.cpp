@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +31,8 @@ void CpuExtensions::AddShapeInferImpl(std::string name, const IShapeInferImpl::P
 
 void CpuExtensions::GetVersion(const Version*& versionInfo) const noexcept {
     static Version ExtensionDescription = {
-            { 1, 0 },    // extension API version
-            "1.0",
+            { 1, 6 },    // extension API version
+            "1.6",
             "ie-cpu-ext"  // extension description message
     };
 
@@ -82,11 +81,14 @@ void CpuExtensions::collectTypes(char**& types, unsigned int& size, const std::m
     size = count;
 }
 
+}  // namespace Cpu
+}  // namespace Extensions
+
 
 // Exported function
 INFERENCE_EXTENSION_API(StatusCode) CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept {
     try {
-        ext = new CpuExtensions();
+        ext = new Extensions::Cpu::CpuExtensions();
         return OK;
     } catch (std::exception& ex) {
         if (resp) {
@@ -97,7 +99,15 @@ INFERENCE_EXTENSION_API(StatusCode) CreateExtension(IExtension*& ext, ResponseDe
     }
 }
 
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace InferenceEngine
+// Exported function
+INFERENCE_EXTENSION_API(StatusCode) CreateShapeInferExtension(IShapeInferExtension*& ext, ResponseDesc* resp) noexcept {
+    IExtension * pExt = nullptr;
+    StatusCode  result = CreateExtension(pExt, resp);
+    if (result == OK) {
+        ext = pExt;
+    }
 
+    return result;
+}
+
+}  // namespace InferenceEngine

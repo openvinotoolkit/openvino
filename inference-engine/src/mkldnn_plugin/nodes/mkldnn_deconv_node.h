@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,14 +31,14 @@ public:
     MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
 private:
-    bool withBiases;
-    bool withGroups;
-    bool isDW;
+    bool withBiases = false;
+    bool withGroups = false;
+    bool isDW = false;
     size_t groupNum = 1;
-    std::vector<int> stride;
-    std::vector<int> paddingL;
-    std::vector<int> dilation;
-    std::vector<int> paddingR;
+    std::vector<ptrdiff_t> stride;
+    std::vector<ptrdiff_t> paddingL;
+    std::vector<ptrdiff_t> dilation;
+    std::vector<ptrdiff_t> paddingR;
     MKLDNNDims weightsDims;
     static Register<MKLDNNDeconvolutionNode> reg;
     InferenceEngine::Blob::Ptr biases;

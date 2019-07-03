@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,13 +14,17 @@
  limitations under the License.
 """
 
+
 import logging as log
 import os
 import re
 import sys
 from distutils.version import LooseVersion
 
-modules = {"protobuf": "google.protobuf"}
+modules = {
+    "protobuf": "google.protobuf",
+    "test-generator": "generator",
+}
 critical_modules = ["networkx"]
 
 message = "\nDetected not satisfied dependencies:\n" \
@@ -100,7 +104,19 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_cod
     """
     if sign is not None:
         req_ver = LooseVersion(required_v)
-        satisfied = eval('installed_v{}req_ver'.format(sign))
+        satisfied = False
+        if sign == '>':
+            satisfied = installed_v > req_ver
+        elif sign == '>=':
+            satisfied = installed_v >= req_ver
+        elif sign == '<=':
+            satisfied = installed_v <= req_ver
+        elif sign == '<':
+            satisfied = installed_v < req_ver
+        elif sign == '==':
+            satisfied = installed_v == req_ver
+        else:
+            log.error("Error during version comparison")
     else:
         satisfied = True
     if not satisfied:
@@ -110,7 +126,7 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_cod
     return exit_code
 
 
-def check_requirements(framework = None):
+def check_requirements(framework=None):
     """
     Please do not add parameter type annotations (param:type).
     Because we import this file while checking Python version.
@@ -133,12 +149,20 @@ def check_requirements(framework = None):
     exit_code = 0
     for name, key, required_version in requirements_list:
         try:
-            exec("import {}".format(modules[name] if name in modules else name))
-            installed_version = eval("{}.__version__".format(modules[name] if name in modules else name))
+            importable_name = modules.get(name, name)
+            exec("import {}".format(importable_name))
+            installed_version = sys.modules[importable_name].__version__
             exit_code = version_check(name, installed_version, required_version, key, not_satisfied_versions, exit_code)
-            exec("del {}".format(modules[name] if name in modules else name))
+            exec("del {}".format(importable_name))
         except (AttributeError, ImportError):
             not_satisfied_versions.append((name, 'not installed', 'required: {}'.format(required_version)))
+            exit_code = 1
+            continue
+        except Exception as e:
+            log.error('Error happened while importing {} module. It may happen due to unsatisfied requirements of '
+                      'that module. Please run requirements installation script once more.\n'
+                      'Details on module importing failure: {}'.format(name, e))
+            not_satisfied_versions.append((name, 'package error', 'required: {}'.format(required_version)))
             exit_code = 1
             continue
 

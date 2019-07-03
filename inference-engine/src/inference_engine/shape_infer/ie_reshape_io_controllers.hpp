@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,6 +54,11 @@ public:
     virtual void setShapeByName(const SizeVector& shape, const std::string& dataName);
 
     /**
+     * @brief Return calculated shape for name.
+     */
+    virtual SizeVector getShapeByName(const std::string& dataName);
+
+    /**
      * @brief Set shape for current reshape launcher by corresponding index.
      * @param shape - shape to be set
      * @param index - shape's index
@@ -96,6 +100,12 @@ public:
 
     virtual void checkCorrespondence();
 
+    virtual bool isDataAvailable();
+
+    virtual std::vector<Blob::CPtr> getBlobs(bool check);
+
+    virtual void setBlobByName(const Blob::CPtr& blob, const std::string& name);
+
 private:
     long getPositionByName(const std::string& dataName);
 
@@ -105,6 +115,7 @@ protected:
     std::vector<SizeVector> _irShapes;
     std::vector<std::string> _dataNames;
     std::string _layerName;
+    std::vector<Blob::CPtr> _inferedData;
 };
 
 /**
@@ -123,6 +134,12 @@ public:
     virtual void propagateShapes(const std::set<ReshapeLauncher::Ptr>& launchers);
 
     virtual void setShapes(const std::vector<SizeVector>& shapes);
+
+    virtual void setBlobs(const std::vector<Blob::Ptr>& blobs);
+
+    std::vector<Blob::Ptr> createBlobs();
+
+    void propagateBlobs(const std::set<ReshapeLauncher::Ptr>& set);
 };
 
 }  // namespace ShapeInfer

@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,23 +46,14 @@ TEST_F(BlobProxyTests, convertByteBlobToFloat) {
     }
 }
 
-TEST_F(BlobProxyTests, shouldThrowOnAllocate) {
-    SizeVector v = {1, 2, 3};
-    auto allocator = createMockAllocator();
-
-    TBlobProxy<float> proxy(Precision::FP32, C, TBlob<float>(Precision::FP32, CHW, v, dynamic_pointer_cast<IAllocator>(allocator)), 2, {2});
-
-    EXPECT_THROW(((Blob&)proxy).allocate(), InferenceEngineException);
-}
-
-TEST_F(BlobProxyTests, shouldThrowOnDeAllocate)
+TEST_F(BlobProxyTests, shouldNotDeAllocate)
 {
     SizeVector v = {1, 2, 3};
     auto allocator = createMockAllocator();
 
     TBlobProxy<float> proxy(Precision::FP32, C, TBlob<float>(Precision::FP32, CHW, v, dynamic_pointer_cast<IAllocator>(allocator)), 2, {2});
 
-    EXPECT_THROW(((Blob&)proxy).deallocate(), InferenceEngineException);
+    EXPECT_EQ(((Blob&)proxy).deallocate(), false);
 }
 
 
@@ -235,15 +225,6 @@ TEST_F(BlobProxyTests, canReturnConstantData) {
     TBlobProxy<uint8_t> const proxy(Precision::U8, C, b, 0, { b->byteSize() });
     ASSERT_NE(proxy.cbuffer().as<const void*>(), nullptr);
 }
-
-TEST_F(BlobProxyTests, noAllocDeallocLogic) {
-    TBlob<float>::Ptr b(new TBlob<float>(Precision::FP32, C));
-    b->set({ 1.0f, 2.0f, 3.0f });
-    TBlobProxy<uint8_t> proxy(Precision::U8, C, b, 0, { b->byteSize() });
-    ASSERT_ANY_THROW(((Blob*) &proxy)->allocate());
-    ASSERT_ANY_THROW(((Blob*) &proxy)->deallocate());
-}
-
 
 TEST_F(BlobProxyTests, canIterateOverData) {
     TBlob<uint8_t>::Ptr b(new TBlob<uint8_t >(Precision::FP32, C));

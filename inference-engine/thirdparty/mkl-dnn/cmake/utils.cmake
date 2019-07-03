@@ -21,6 +21,17 @@ if(utils_cmake_included)
     return()
 endif()
 set(utils_cmake_included true)
+include("cmake/options.cmake")
+
+# Common configuration for tests / test cases on Windows
+function(maybe_configure_windows_test name kind)
+    if(WIN32 OR MINGW)
+        string(REPLACE  ";" "\;" PATH "${CTESTCONFIG_PATH};$ENV{PATH}")
+        set_property(${kind} ${name} PROPERTY ENVIRONMENT "PATH=${PATH}")
+        configure_file(${PROJECT_SOURCE_DIR}/cmake/template.vcxproj.user
+            ${name}.vcxproj.user @ONLY)
+    endif()
+endfunction()
 
 # Register new executable/test
 #   name -- name of the executable
@@ -29,12 +40,84 @@ set(utils_cmake_included true)
 #   arg4 -- (optional) list of extra library dependencies
 function(register_exe name srcs test)
     add_executable(${name} ${srcs})
-    target_link_libraries(${name} ${LIB_NAME} ${EXTRA_LIBS} ${ARGV3})
+    target_link_libraries(${name} ${LIB_NAME} ${EXTRA_SHARED_LIBS} ${ARGV3})
     if("${test}" STREQUAL "test")
         add_test(${name} ${name})
+        maybe_configure_windows_test(${name} TEST)
     endif()
-    if(WIN32 OR MINGW)
-        set_property(TEST ${name} PROPERTY ENVIRONMENT "PATH=${CTESTCONFIG_PATH};$ENV{PATH}")
-        configure_file(${CMAKE_SOURCE_DIR}/config_template.vcxproj.user ${name}.vcxproj.user @ONLY)
+endfunction()
+
+# Append to a variable
+#   var = var + value
+macro(append var value)
+    set(${var} "${${var}} ${value}")
+endmacro()
+
+# Append to a variable if building a product build (as opposed to a developer
+# build that is detected via the MKLDNN_PRODUCT_BUILD_MODE option)
+macro(append_if_product var value)
+    if(MKLDNN_PRODUCT_BUILD_MODE)
+        append(${var} "${value}")
     endif()
+endmacro()
+
+if(MKLDNN_PRODUCT_BUILD_MODE)
+    message(STATUS "This is a product build")
+else()
+    message(WARNING "This is a developer build")
+endif()
+
+# Set variable depending on condition:
+#   var = cond ? val_if_true : val_if_false
+macro(set_ternary var condition val_if_true val_if_false)
+    if (${condition})
+        set(${var} "${val_if_true}")
+    else()
+        set(${var} "${val_if_false}")
+    endif()
+endmacro()
+
+# Conditionally set a variable
+#   if (cond) var = value
+macro(set_if condition var value)
+    if (${condition})
+        set(${var} "${value}")
+    endif()
+endmacro()
+
+# Conditionally append
+#   if (cond) var = var + value
+macro(append_if condition var value)
+    if (${condition})
+        append(${var} "${value}")
+    endif()
+endmacro()
+
+# Append a path to path_list variable (Windows-only version)
+macro(append_to_windows_path_list path_list path)
+    file(TO_NATIVE_PATH "${path}" append_to_windows_path_list_tmp__)
+    if(${path_list})
+        set(${path_list}
+            "${${path_list}};${append_to_windows_path_list_tmp__}")
+    else()
+        set(${path_list}
+            "${append_to_windows_path_list_tmp__}")
+    endif()
+endmacro()
+
+function(target_link_libraries_private target list)
+    # Foreach is required for compatibility with 2.8.11 ways
+    foreach(lib ${list})
+        target_link_libraries(${target} LINK_PRIVATE
+            "$<BUILD_INTERFACE:${lib}>")
+    endforeach(lib)
+endfunction()
+
+function(target_link_libraries_public target list)
+    # Foreach is required for compatibility with 2.8.11 ways
+    foreach(lib ${list})
+        get_filename_component(base "${lib}" NAME)
+        target_link_libraries(${target} LINK_PUBLIC
+            "$<INSTALL_INTERFACE:${base}>")
+    endforeach(lib)
 endfunction()

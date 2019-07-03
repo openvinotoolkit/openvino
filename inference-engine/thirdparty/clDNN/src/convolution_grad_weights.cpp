@@ -31,9 +31,16 @@ primitive_type_id convolution_grad_weights_type_id()
 
 layout convolution_grad_weights_inst::calc_output_layout(convolution_grad_weights_node const& node)
 {
-    //output buffer will not be used in this primitive
+    assert((bool)node.get_primitive()->output_data_type == false
+           && "Output data type forcing is not supported for "
+              "convolution_grad_weights_node!");
+    //output buffer will not be used in this primitive unless output gradient weights is set
     auto input_grad_layout_size = node.input(0).get_output_layout();
-    return{ input_grad_layout_size.data_type, input_grad_layout_size.format, { 1, 1, 1, 1 } };
+    tensor output_sizes = { 1, 1, 1, 1 };
+    if (node.output_grad_w())
+        output_sizes = node.weights().get_output_layout().size;
+
+    return{ input_grad_layout_size.data_type, input_grad_layout_size.format, output_sizes };
 }
 
 std::string convolution_grad_weights_inst::to_string(convolution_grad_weights_node const& node)

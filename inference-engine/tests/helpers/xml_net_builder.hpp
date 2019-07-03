@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,11 +22,11 @@ struct CropData {
 
 typedef std::vector<CropData> CropParams;
 
-struct InOutData {
+struct InOutShapes {
     std::vector<std::vector<size_t>> inDims;
     std::vector<std::vector<size_t>> outDims;
 
-    friend std::ostream& operator<<(std::ostream& os, InOutData const& inout) {
+    friend std::ostream& operator<<(std::ostream& os, InOutShapes const& inout) {
         auto dumpVec = [](const std::vector<size_t>& vec) -> std::string {
             if (vec.empty()) return "[]";
             std::stringstream oss;
@@ -81,37 +80,28 @@ struct TokenType<0> {
  */
 class IDManager {
 public:
-    /**
-     * @brief Returns single instanse of the class
-     */
-    static IDManager* getInstance();
-
-    IDManager(IDManager const&) = delete;
-
+    IDManager() = default;
+//    IDManager(IDManager const&) = delete;
     void operator=(IDManager const&)  = delete;
 
     /**
      * @brief Returns new unique number for layer to be used in IR
      */
-    static size_t getNextLayerID();
+    size_t getNextLayerID();
 
     /**
      * @brief Returns new unique number for port to be used in IR
      */
-    static size_t getNextPortID();
+    size_t getNextPortID();
 
     /**
      * @brief Reset numbers for layers and ports. It's convenient to always start new network from zero number.
      */
-    static void reset();
+    void reset();
 
 private:
-    IDManager() = default;
-
-private:
-    static size_t layerID;
-    static size_t portID;
-    static IDManager* _instance;
+    size_t layerID = 0;
+    size_t portID = 0;
 };
 
 /**
@@ -147,7 +137,7 @@ public:
      * @param type - string with type of the layer
      * @param shapes - reference to the structure with input and output shapes
      */
-    explicit LayerDesc(std::string type, InOutData& shapes);
+    explicit LayerDesc(std::string type, InOutShapes& shapes, IDManager &id_manager);
 
     /**
      * @brief Resets current input and output ports to iterate over all input and output ports
@@ -227,15 +217,31 @@ class XmlNetBuilder {
     std::vector<LayerDesc::Ptr> layersDesc;
     std::shared_ptr<XMLFather> root;
     testing::Token<testing::Token<XMLFather>>& xml;
+    IDManager id_manager;
 
     XmlNetBuilder(std::shared_ptr<XMLFather> _root,
-                  typename testing::Token<testing::Token<XMLFather>>& _xml) : xml(_xml), root(_root) {
-        IDManager::reset();
-    };
+                  typename testing::Token<testing::Token<XMLFather>>& _xml) : xml(_xml), root(_root) {};
 
 public:
     static XmlNetBuilder buildNetworkWithOneInput(
-            std::string name = "AlexNet", std::vector<size_t> dims = {1, 3, 227, 227}, std::string precision = "Q78");
+            std::string name = "AlexNet", std::vector<size_t> dims = {1, 3, 227, 227}, std::string precision = "Q78") {
+        std::shared_ptr<XMLFather> root = std::make_shared<XMLFather>();
+        auto &exp = root->node("net").attr("name", name).attr("precision", precision).attr("version", Version);
+        if (Version == 1) {
+            auto &expFinal = exp.node("input").attr("name", "data");
+            addDims(expFinal, dims);
+            return XmlNetBuilder(root, expFinal.close().node("layers"));
+        } else {
+            auto &expFinal = exp.attr("batch", 1);
+            return XmlNetBuilder(root, expFinal.node("layers")).addInputLayer(precision, dims);
+        }
+    }
+
+    static XmlNetBuilder buildBody() {
+        auto root = std::make_shared<XMLFather>(XMLFather::make_without_schema());
+        auto &exp = root->node("body");
+        return XmlNetBuilder(root, exp.node("layers"));
+    }
 
     XmlNetBuilder& havingLayers() {
         return *this;
@@ -246,7 +252,7 @@ public:
         return EdgesBuilder(exp.node("edges"), layersDesc);
     }
 
-    XmlNetBuilder& cropLayer(CropParams params, const InOutData& inout) {
+    XmlNetBuilder& cropLayer(CropParams params, const InOutShapes& inout) {
         std::map<std::string, std::string> generalParams;
         for (CropData crop : params) {
             generalParams["axis"] = std::to_string(crop.axis);
@@ -256,7 +262,7 @@ public:
         return addLayer("Crop", "", &generalParams, inout, 0, 0, "crop-data");
     }
 
-    XmlNetBuilder& convolutionLayer(const std::string& precision, const InOutData& inout) {
+    XmlNetBuilder& convolutionLayer(const std::string& precision, const InOutShapes& inout) {
         std::map<std::string, std::string> params{
                 {"stride-x", "4"},
                 {"stride-y", "4"},
@@ -269,7 +275,7 @@ public:
         return addLayer("Convolution", precision, &params, inout, 0, 0, "convolution_data");
     }
 
-    XmlNetBuilder& poolingLayer(const InOutData& inout) {
+    XmlNetBuilder& poolingLayer(const InOutShapes& inout) {
         std::map<std::string, std::string> params{
                 {"stride-x", "4"},
                 {"stride-y", "4"},
@@ -281,15 +287,55 @@ public:
         return addLayer("Pooling", "", &params, inout, 0, 0, "pooling_data");
     }
 
+    struct TIPortMap { int from_l, from_p, to_l, to_p, axis, stride, start, end; };
+
+    XmlNetBuilder& TILayer(InOutShapes inout,
+                           std::string body,
+                           std::vector<TIPortMap> inMap,
+                           std::vector<TIPortMap> outMap,
+                           std::vector<TIPortMap> backMap) {
+        auto builder = XMLFather::make_without_schema();
+        // Port map section
+        auto &ports = builder.node("port_map");
+        auto fill_port_map_info = [&] (std::string name, TIPortMap m) {
+            auto & exp =  ports.node(name)
+                    .attr("external_port_id", m.from_p)
+                    .attr("internal_layer_id", m.to_l)
+                    .attr("internal_port_id", m.to_p);
+            if (m.axis != -1)
+                exp.attr("axis", m.axis).attr("stride", m.stride).attr("start", m.start).attr("end", m.end);
+            exp.close();
+        };
+        for (auto &m : inMap)  fill_port_map_info("input", m);
+        for (auto &m : outMap) fill_port_map_info("output", m);
+        ports.close();
+        // BackEdge map section
+        auto &backedges = builder.node("back_edges");
+        for (auto &m : backMap) {
+            backedges.node("edge")
+                    .attr("from-layer", m.from_l)
+                    .attr("from-port", m.from_p)
+                    .attr("to-layer", m.to_l)
+                    .attr("to-port", m.to_p).close();
+        }
+        backedges.close();
+        // Serialize all TI info
+        std::string content = builder;
+        content += body;
+
+        return addLayer("TensorIterator", "FP32", nullptr, inout, 0,0, "data", content);
+    }
+
     XmlNetBuilder& addLayer(const std::string& type,
                             const std::string& precision,
                             std::map<std::string, std::string>* params,
-                            InOutData inout,
+                            InOutShapes inout,
                             int weightsSize = 0,
                             int biasesSize = 0,
-                            std::string layerDataName = "data") {
+                            std::string layerDataName = "data",
+                            std::string content = "") {
         layersNum++;
-        auto layerDesc = std::make_shared<LayerDesc>(type, inout);
+        auto layerDesc = std::make_shared<LayerDesc>(type, inout, id_manager);
         layersDesc.push_back(layerDesc);
 
         auto& layer = xml.node("layer").attr("name", layerDesc->getLayerName()).attr("precision", precision)
@@ -308,12 +354,14 @@ public:
                 layer = layer.node("biases").attr("offset", weightsSize).attr("size", biasesSize).close();
             }
         }
+        if (!content.empty())
+            layer.add_content(content);
         layer.close();
         return *this;
     }
 
     XmlNetBuilder& addInputLayer(const std::string& precision, const std::vector<size_t>& out) {
-        InOutData inout{};
+        InOutShapes inout{};
         inout.outDims.push_back(out);
         return addLayer("Input", precision, nullptr, inout);
     }
@@ -384,7 +432,7 @@ private:
 
     template<class T>
     void addEdges(T& mainContent) {
-        size_t firstLayerNum = Version == 2 ? 0 : 1;
+        size_t firstLayerNum = Version >= 2 ? 0 : 1;
         if (layersNum <= firstLayerNum) {
             return;
         }
@@ -405,32 +453,12 @@ private:
     template<class T>
     void addPreProcess(T& mainContent) {
         auto& preProcess = mainContent.node("pre-process");
-        if (Version == 2) {
+        if (Version >= 2) {
             preProcess.attr("reference-layer-name", layersDesc[0]->getLayerName());
         }
         preProcess.close();
     }
 };
-
-template<>
-inline XmlNetBuilder<1> XmlNetBuilder<1>::buildNetworkWithOneInput(
-        std::string name, std::vector<size_t> dims, std::string precision) {
-    std::shared_ptr<XMLFather> root = std::make_shared<XMLFather>();
-
-    auto& exp = root->node("net").attr("name", name).attr("precision", precision).attr("version", 1)
-            .node("input").attr("name", "data");
-    addDims(exp, dims);
-    return XmlNetBuilder(root, exp.close().node("layers"));
-}
-
-template<>
-inline XmlNetBuilder<2> XmlNetBuilder<2>::buildNetworkWithOneInput(
-        std::string name, std::vector<size_t> dims, std::string precision) {
-    std::shared_ptr<XMLFather> root = std::make_shared<XMLFather>();
-
-    auto& exp = root->node("net").attr("name", name).attr("precision", precision).attr("version", 2).attr("batch", 1);
-    return XmlNetBuilder(root, exp.node("layers")).addInputLayer(precision, dims);
-}
 
 typedef XmlNetBuilder<1> V1NetBuilder;
 typedef XmlNetBuilder<2> V2NetBuilder;

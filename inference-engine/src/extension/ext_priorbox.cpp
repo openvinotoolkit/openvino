@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <limits>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -20,13 +20,18 @@ public:
         try {
             if (layer->insData.size() != 2 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+
+            if (layer->insData[0].lock()->dims.size() != 4 ||
+                    layer->insData[1].lock()->dims.size() != 4)
+                THROW_IE_EXCEPTION << "PriorBox supports only 4D blobs!";
+
             _offset = layer->GetParamAsFloat("offset");
             _step = layer->GetParamAsFloat("step", 0);
             _min_sizes = layer->GetParamAsFloats("min_size", {});
             _max_sizes = layer->GetParamAsFloats("max_size", {});
-            _flip = static_cast<bool>(layer->GetParamAsInt("flip"));
-            _clip = static_cast<bool>(layer->GetParamAsInt("clip"));
-            _scale_all_sizes = static_cast<bool>(layer->GetParamAsInt("scale_all_sizes", 1));
+            _flip = layer->GetParamAsBool("flip", false);
+            _clip = layer->GetParamAsBool("clip", false);
+            _scale_all_sizes = layer->GetParamAsBool("scale_all_sizes", true);
 
             bool exist;
 
@@ -36,6 +41,10 @@ public:
 
             for (float aspect_ratio : aspect_ratios) {
                 exist = false;
+
+                if (std::fabs(aspect_ratio) < std::numeric_limits<float>::epsilon()) {
+                    THROW_IE_EXCEPTION << "aspect_ratio param can't be equal to zero";
+                }
 
                 for (float _aspect_ratio : _aspect_ratios) {
                     if (fabs(aspect_ratio - _aspect_ratio) < 1e-6) {
@@ -85,6 +94,10 @@ public:
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
+    }
+
+    StatusCode init(LayerConfig& config, ResponseDesc *resp) noexcept override {
+        return OK;
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,

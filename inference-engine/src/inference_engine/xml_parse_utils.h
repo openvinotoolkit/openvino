@@ -1,12 +1,10 @@
-﻿// Copyright (C) 2018 Intel Corporation
-//
+﻿// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cstdlib>
-#include <debug.h>
 #include "pugixml.hpp"
 #include "ie_common.h"
 #include "ie_api.h"
@@ -20,6 +18,10 @@ namespace XMLParseUtils {
 INFERENCE_ENGINE_API_CPP(int) GetIntAttr(const pugi::xml_node &node, const char *str);
 
 INFERENCE_ENGINE_API_CPP(int) GetIntAttr(const pugi::xml_node &node, const char *str, int defVal);
+
+INFERENCE_ENGINE_API_CPP(uint64_t) GetUInt64Attr(const pugi::xml_node &node, const char *str);
+
+INFERENCE_ENGINE_API_CPP(uint64_t) GetUInt64Attr(const pugi::xml_node &node, const char *str, uint64_t defVal);
 
 INFERENCE_ENGINE_API_CPP(unsigned int) GetUIntAttr(const pugi::xml_node &node, const char *str);
 

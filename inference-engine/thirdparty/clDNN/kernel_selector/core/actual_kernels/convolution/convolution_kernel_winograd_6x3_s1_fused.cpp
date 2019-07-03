@@ -159,6 +159,6 @@ namespace kernel_selector {
 
     KernelsData ConvolutionKernel_Winograd_6x3_s1_fused::GetKernelsData(const Params& params, const optional_params& options) const
     {
-        return GetCommonKernelsData(params, options, AGE_BASED);
+        return GetTunedKernelsDataByIndex(params, options);
     }
 }

@@ -5,6 +5,8 @@ standard inputs and outputs configuration and to collect simple
 validation metrics for topologies. It supports **top-1** and **top-5** metric for Classification networks and
 11-points **mAP** metric for Object Detection networks.
 
+> **NOTE**: Before running the application with trained models, make sure the models are converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+
 Possible use cases of the tool:
 * Check if the Inference Engine infers the public topologies well (the engineering team uses the Validation Application for
   regular testing)
@@ -12,6 +14,8 @@ Possible use cases of the tool:
   accuracy with the public models
 * Use Validation Application as another sample: although the code is much more complex than in classification and object
   detection samples, the source code is open and can be re-used.
+
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ## Validation Application Options
 
@@ -27,9 +31,10 @@ Available options:
       -t "OD" for object detection
     -i <path>                 Required. Folder with validation images. Path to a directory with validation images. For Classification models, the directory must contain folders named as labels with images inside or a .txt file with a list of images. For Object Detection models, the dataset must be in VOC format.
     -m <path>                 Required. Path to an .xml file with a trained model
+    -lbl <path>               Labels file path. The labels file contains names of the dataset classes
     -l <absolute_path>        Required for CPU custom layers. Absolute path to a shared library with the kernel implementations
-    -c <absolute_path>        Required for GPU custom kernels.Absolute path to an .xml file with the kernel descriptions.
-    -d <device>               Target device to infer on: CPU (default), GPU, FPGA, or MYRIAD. The application looks for a suitable plugin for the specified device.
+    -c <absolute_path>        Required for GPU custom kernels. Absolute path to an .xml file with the kernel descriptions.
+    -d <device>               Target device to infer on: CPU (default), GPU, FPGA, HDDL or MYRIAD. The application looks for a suitable plugin for the specified device.
     -b N                      Batch size value. If not specified, the batch size value is taken from IR
     -ppType <type>            Preprocessing type. Options: "None", "Resize", "ResizeCrop"
     -ppSize N                 Preprocessing size (used with ppType="ResizeCrop")
@@ -54,6 +59,8 @@ The tool options are divided into two categories:
 
 ## General Workflow
 
+> **NOTE**: By default, Inference Engine samples expect input images to have BGR channels order. If you trained you model to work with images in RGB order, you need to manually rearrange the default channels order in the sample application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to [When to Reverse Input Channels](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md#when_to_reverse_input_channels).
+
 When executed, the Validation Application perform the following steps:
 
 1. Loads a model to an Inference Engine plugin
@@ -61,12 +68,11 @@ When executed, the Validation Application perform the following steps:
     - if you specified a directory, the application tries to load labels first. To do this, it searches for the file
       with the same name as a model, but with `.labels` extension (instead of `.xml`).
       Then it searches for the specified folder, detects its sub-folders named as known labels, and adds all images from these sub-folders to the validation set. When there are no such sub-folders, validation set is considered empty.
-
     - if you specified a `.txt` file, the application reads this file expecting every line to be in the correct format.
       For more information about the format, refer to the <a href="#preparing">Preparing the Dataset</a> section below.
 
 3. Reads the batch size value specified with the `-b` option and loads this number of images to the plugin
-   **Note**: Images loading time is not a part of inference time reported by the application.
+   > **NOTE**: Images loading time is not a part of inference time reported by the application.
 
 4. The plugin infers the model, and the Validation Application collects the statistics.
 
@@ -115,7 +121,7 @@ In this case, a dataset has the following structure:
 This structure means that each folder in dataset directory must have the name of one of the classes and contain all images of this class. In the given example, there are two images that represent the class `apron`, while three other classes have only one image
 each.
 
-**NOTE:** A dataset can contain images of both `.bmp` and `.jpg` formats.
+> **NOTE:** A dataset can contain images of both `.bmp` and `.jpg` formats.
 
 The correct way to use such dataset is to specify the path as `-i <path>/dataset`.
 
@@ -144,14 +150,14 @@ a_big_dog.jpg 231
 Each line of the file must contain the name of the image and the ID of the class
 that it represents in the format `<image_name> tabulation <class_id>`. For example, `apron1.bmp` represents the class with ID `411`.
 
-**NOTE:** A dataset can contain images of both `.bmp` and `.jpg` formats.
+> **NOTE:** A dataset can contain images of both `.bmp` and `.jpg` formats.
 
 The correct way to use such dataset is to specify the path as `-i <path>/dataset/labels.txt`.
 
 ### Dataset Format for Object Detection (VOC-like)
 
 Object Detection SSD models can be inferred on the original dataset that was used as a testing dataset during the model training.
-To prepare the VOC dataset, follow the steps below :
+To prepare the VOC dataset, follow the steps below:
 
 1. Download the pre-trained SSD-300 model from the SSD GitHub* repository at
    [https://github.com/weiliu89/caffe/tree/ssd](https://github.com/weiliu89/caffe/tree/ssd).
@@ -161,7 +167,7 @@ To prepare the VOC dataset, follow the steps below :
   $wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar
   tar -xvf VOCtest_06-Nov-2007.tar
   ```
-3. Convert the model with the [Model Optimizer](docs/Model_Optimizer_Developer_Guide/prepare_trained_model/convert_model/Convert_Model_From_Caffe.md).
+3. Convert the model with the [Model Optimizer](./docs/MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md).
 
 4. Create a proper `.txt` class file from the original `labelmap_voc.prototxt`. The new file must be in
 the following format:
@@ -192,6 +198,8 @@ Save this file as `VOC_SSD_Classes.txt`.
 
 ## Validate Classification Models
 
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+
 Once you have prepared the dataset (refer to the <a href="#preparing">Preparing the Dataset</a> section above),
 run the following command to infer a classification model on the selected dataset:
 ```bash
@@ -200,8 +208,10 @@ run the following command to infer a classification model on the selected datase
 
 ## Validate Object Detection Models
 
-**Note**: Validation Application was validated with SSD CNN. Any network that can be inferred by the Inference Engine
-and has the same input and output format as one of these should be supported as well.
+> **NOTE**: Validation Application was validated with SSD CNN. Any network that can be inferred by the Inference Engine
+> and has the same input and output format as one of these should be supported as well.
+
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 Once you have prepared the dataset (refer to the <a href="#preparing">Preparing the Dataset</a> section above),
 run the following command to infer an Object Detection model on the selected dataset:
@@ -281,4 +291,4 @@ dataset. This value repeats the result stated in the
 
 ## See Also
 
-* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)
+* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)

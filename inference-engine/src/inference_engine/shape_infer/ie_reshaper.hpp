@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +12,11 @@
 #include <memory>
 
 #include <ie_layers.h>
+#include <ie_context.hpp>
+#include <builders/ie_network_builder.hpp>
 #include "details/caseless.hpp"
-#include "shape_infer/built-in/ie_built_in_holder.hpp"
 #include "ie_reshape_launcher.hpp"
+#include "ie_icnn_network.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -59,7 +60,12 @@ public:
      * @param network - const reference to the ICNNNetwork for performing shape inference
      */
     explicit Reshaper(ICNNNetwork& network,
-                      const LauncherCreator::Ptr& creator = std::make_shared<LauncherCreator>());
+            const LauncherCreator::Ptr& creator = std::make_shared<LauncherCreator>());
+
+    explicit Reshaper(std::vector<DataPtr> inputs,
+            const LauncherCreator::Ptr& launcherCreator = std::make_shared<LauncherCreator>());
+
+    Reshaper(Builder::Network* network);
 
     virtual ~Reshaper() = default;
 
@@ -74,20 +80,40 @@ public:
      * Throws if shape infer failed without corruption of original shapes
      * @param inputShapes - Map of input names (data) to their input shapes.
      */
-    void run(const std::map<std::string, SizeVector>& inputShapes);
+    StatusCode run(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp = nullptr);
 
-    using Ptr = std::shared_ptr<Reshaper>;
+    /**
+     * @brief Perform shape inference for the given input shapes but not apply it.
+     * In case of cusses call apply() method.
+     * @param inputShapes - Map of input names (data) to their input shapes.
+     * @throws exception if shape infer failed without corruption of original shapes
+     */
+    StatusCode runNoApply(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp = nullptr);
+
+    /**
+     * @brief Apply shapes pre calculated by runNoApply() method.
+     */
+    StatusCode apply(ResponseDesc* resp = nullptr);
+
+    /**
+     * @brief Return newly calculated shape for provided data.
+     */
+    SizeVector getResultShapeFor(DataPtr &data, ResponseDesc* resp = nullptr);
+
 private:
     ReshapeLauncher::Ptr getLauncherByLayerName(const std::string& layerName) const;
 
+    StatusCode networkShapeInfer(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp);
+
     static InferenceEngine::details::caseless_set<std::string> getTypeNamesFromExtension(const IShapeInferExtensionPtr& extension);
 
-private:
     std::vector<IShapeInferExtensionPtr> _extensions;
     std::set<ReshapeLauncher::Ptr> _launchers;
     std::vector<CNNLayerPtr> _allSortedLayers{};
     std::set<CNNLayerPtr> _inputLayers{};
     InferenceEngine::details::caseless_set<std::string> _allTypes;
+
+    Builder::Network* network;
 };
 
 }  // namespace ShapeInfer

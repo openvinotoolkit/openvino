@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,12 +13,21 @@
 #include "debug.h"
 #include "graph_tools.hpp"
 #include <vector>
+#include "network_serializer.h"
 
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 CNNNetworkImpl::CNNNetworkImpl(): _targetDevice(TargetDevice::eDefault), _stats(new CNNNetworkStatsImpl()) {
+}
+
+CNNNetworkImpl::~CNNNetworkImpl() {
+    for (auto& data : _data) {
+        for (auto& input : data.second->getInputTo()) {
+            input.second.reset();
+        }
+    }
 }
 
 void CNNNetworkImpl::getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept {
@@ -32,6 +40,16 @@ void CNNNetworkImpl::getInputsInfo(InputsDataMap& inputs) const noexcept {
 
 void CNNNetworkImpl::addLayer(const CNNLayerPtr& layer) noexcept {
     _layers[layer->name] = layer;
+}
+
+void CNNNetworkImpl::removeLayer(const string& layerName) {
+    auto it = _layers.find(layerName);
+    if (it != _layers.end()) { _layers.erase(it); }
+}
+
+void CNNNetworkImpl::removeData(const string& dataName) {
+    auto it = _data.find(dataName);
+    if (it != _data.end()) { _data.erase(it); }
 }
 
 void CNNNetworkImpl::validate(int version) {
@@ -100,7 +118,7 @@ void CNNNetworkImpl::validate(int version) {
         std::string inputType = "Input";
         for (auto i : inputs) {
             CNNLayerPtr layer = i.second->getInputData()->creatorLayer.lock();
-            if (!equal(layer->type, inputType)) {
+            if (layer && !equal(layer->type, inputType)) {
                 THROW_IE_EXCEPTION << "Input layer " << layer->name
                                    << " should have Input type but actually its type is " << layer->type;
             }
@@ -207,39 +225,68 @@ CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& ext
     return OK;
 }
 
-StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
-    auto originalBatchSize = getBatchSize();
-    if (originalBatchSize == size)
-        return OK;
-    SizeVector dims = _inputData.cbegin()->second->getDims();
-
-    // 3D input layout doesn't have batch notation
-    if (dims.size() == 3 || dims.size() == 1) {
-        return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
-    }
-
-    for (auto layer : _data) {
-        SizeVector dims = layer.second->getDims();
-        // Calculates original size for batch = 1
-        size_t diff = dims.at(0) / originalBatchSize;
-        dims.at(0) = size * diff;
-        layer.second->setDims(dims);
+StatusCode CNNNetworkImpl::serialize(const std::string &xmlPath, const std::string &binPath, ResponseDesc* resp) const noexcept {
+    try {
+        NetworkSerializer::serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+    } catch (const InferenceEngineException& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
     }
     return OK;
 }
 
+StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
+    try {
+        auto originalBatchSize = getBatchSize();
+        if (originalBatchSize == size)
+            return OK;
+        SizeVector inputDims = _inputData.cbegin()->second->getDims();
+
+        // 3D input layout doesn't have batch notation
+        if (inputDims.size() == 3 || inputDims.size() == 1) {
+            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
+        }
+
+        for (const auto &layer : _data) {
+            SizeVector dims = layer.second->getDims();
+            // Calculates original size for batch = 1
+            size_t diff = dims.at(0) / originalBatchSize;
+            dims.at(0) = size * diff;
+            layer.second->setDims(dims);
+        }
+        return OK;
+    } catch (const InferenceEngineException& e) {
+        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, responseDesc);
+    }
+}
+
 StatusCode CNNNetworkImpl::setBatchSizeReshape(size_t size, ResponseDesc* responseDesc) noexcept {
     InputShapes inputShapes;
-    for (const auto& pair : _inputData) {
-        auto info = pair.second;
-        if (info) {
-            auto data = info->getInputData();
-            if (data) {
-                auto dims = data->getTensorDesc().getDims();
-                dims[0] = size;
-                inputShapes[data->name] = dims;
+    try {
+        for (const auto& pair : _inputData) {
+            auto info = pair.second;
+            if (info) {
+                auto data = info->getInputData();
+                if (data) {
+                    auto dims = data->getTensorDesc().getDims();
+                    dims[0] = size;
+                    inputShapes[data->name] = dims;
+                }
             }
         }
+        return reshape(inputShapes, responseDesc);
+    } catch (const InferenceEngineException& e) {
+        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, responseDesc);
     }
-    return reshape(inputShapes, responseDesc);
 }

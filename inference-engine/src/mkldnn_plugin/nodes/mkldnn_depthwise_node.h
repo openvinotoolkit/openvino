@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,9 +48,11 @@ private:
 
     static Register<MKLDNNDepthwiseNode> reg;
 
-    mkldnn::algorithm algorithm;
-    bool withBiases;
-    bool broadcast;
+    mkldnn::algorithm algorithm = mkldnn::algorithm::depthwise_scale_shift;
+    size_t realWeightSize = 0;
+    size_t realBiasSize = 0;
+    bool withBiases = false;
+    bool broadcast = false;
 };
 
 }  // namespace MKLDNNPlugin

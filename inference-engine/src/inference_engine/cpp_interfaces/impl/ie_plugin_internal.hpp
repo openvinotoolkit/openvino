@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +13,11 @@
 #include <map>
 #include <string>
 #include <blob_factory.hpp>
+#include "graph_transformer.h"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/base/ie_executable_network_base.hpp"
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
+#include "ie_memcpy.h"
 
 namespace InferenceEngine {
 
@@ -46,6 +47,19 @@ public:
         ResponseDesc resp;
         StatusCode sts = _loadedNetwork->CreateInferRequest(_createdInferRequest, &resp);
         if (sts != OK) THROW_IE_EXCEPTION << resp.msg;
+    }
+    /**
+     * @brief most plugins successfully consume unreshapable networks - lets do it in base class
+     * WARNING: this functions modifies layers in input network and might affect application, that uses it
+     */
+    virtual ICNNNetwork&  RemoveConstLayers(ICNNNetwork &network) {
+        auto* implNetwork = dynamic_cast<details::CNNNetworkImpl*>(&network);
+        if (implNetwork) {
+            // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+            ConstTransformer transformator(implNetwork);
+            transformator.fullTrim();
+        }
+        return network;
     }
 
     /**
@@ -83,7 +97,8 @@ public:
                         newPtr->getPreProcess()[i]->meanData =
                                 make_blob_with_precision(newPtr->getPreProcess()[i]->meanData->getTensorDesc());
                         newPtr->getPreProcess()[i]->meanData->allocate();
-                        memcpy(newPtr->getPreProcess()[i]->meanData->buffer(), blob->cbuffer(), blob->byteSize());
+                        ie_memcpy(newPtr->getPreProcess()[i]->meanData->buffer(), newPtr->getPreProcess()[i]->meanData->byteSize(),
+                                  blob->cbuffer(), blob->byteSize());
                     }
                 }
                 newData->inputTo.clear();
@@ -100,7 +115,7 @@ public:
             }
             _networkOutputs[it.first] = newData;
         }
-        auto impl = LoadExeNetworkImpl(network, config);
+        auto impl = LoadExeNetworkImpl(RemoveConstLayers(network), config);
         impl->setNetworkInputs(_networkInputs);
         impl->setNetworkOutputs(_networkOutputs);
         // skip setting shared ptr to avoid curricular dependency: ExecutableNetworkBase -> IExecutableNetworkInternal -> InferencePluginInternal

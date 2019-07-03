@@ -347,6 +347,16 @@ namespace kernel_selector {
         }
     }
 
+    void ParamsKey::EnableFusedConvEltwEltwiseStride()
+    {
+        key.restrict.val.dedicated.fused_conv_eltw.stride = 1;
+    }
+
+    void ParamsKey::EnableEltwiseStride()
+    {
+        key.restrict.val.dedicated.eltwise.stride = 1;
+    }
+
     void ParamsKey::EnableArgMaxMinAxis(ArgMaxMinAxis a)
     {
         switch (a)
@@ -400,19 +410,35 @@ namespace kernel_selector {
             key.restrict.val.dedicated.lookt.indicesOther = 1;
     }
 
+    void ParamsKey::EnableFusedConvEltwiseRWOutOpt()
+    {
+        key.restrict.val.dedicated.fused_conv_eltw.rw_out_opt = 1;
+    }
+
     bool ParamsKey::Support(const ParamsKey& k) const
     {
-        return
-            ((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw) && // check if this kernel supports this params
-            ((key.machineInfo.raw & k.key.machineInfo.raw) == key.machineInfo.raw) && // check if machine supports this kernel
-            ((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw) &&
-            ((key.outputType.raw & k.key.outputType.raw) == k.key.outputType.raw) &&
-            ((key.inputWeightsType.raw & k.key.inputWeightsType.raw) == k.key.inputWeightsType.raw) &&
-            ((key.outputWeightsType.raw & k.key.outputWeightsType.raw) == k.key.outputWeightsType.raw) &&
-            ((key.inputLayout & k.key.inputLayout) != 0 || key.inputLayout == k.key.inputLayout) &&
-            ((key.outputLayout & k.key.outputLayout) != 0 || key.outputLayout == k.key.outputLayout) &&
-            ((key.weightsInputLayout & k.key.weightsInputLayout) != 0 || key.weightsInputLayout == k.key.weightsInputLayout) &&
-            ((key.weightsOutputLayout & k.key.weightsOutputLayout) != 0 || key.weightsOutputLayout == k.key.weightsOutputLayout);
+        if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw)) // check if this kernel supports this params
+            return false;
+        if (!((key.machineInfo.raw & k.key.machineInfo.raw) == key.machineInfo.raw)) // check if machine supports this kernel
+            return false;
+        if (!((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw))
+            return false;
+        if (!((key.outputType.raw & k.key.outputType.raw) == k.key.outputType.raw))
+            return false;
+        if (!((key.inputWeightsType.raw & k.key.inputWeightsType.raw) == k.key.inputWeightsType.raw))
+            return false;
+        if (!((key.outputWeightsType.raw & k.key.outputWeightsType.raw) == k.key.outputWeightsType.raw))
+            return false;
+        if (!((key.inputLayout & k.key.inputLayout) != 0 || key.inputLayout == k.key.inputLayout))
+            return false;
+        if (!((key.outputLayout & k.key.outputLayout) != 0 || key.outputLayout == k.key.outputLayout))
+            return false;
+        if (!((key.weightsInputLayout & k.key.weightsInputLayout) != 0 || key.weightsInputLayout == k.key.weightsInputLayout))
+            return false;
+        if (!((key.weightsOutputLayout & k.key.weightsOutputLayout) != 0 || key.weightsOutputLayout == k.key.weightsOutputLayout))
+            return false;
+
+        return true;
     }
 
     ParamsKey ParamsKey::Merge(const ParamsKey& k) const
@@ -542,12 +568,18 @@ namespace kernel_selector {
         return k;
     }
 
+    std::string base_activation_params::to_string() const
+    {
+        std::stringstream s;
+        s << "m" << m << "_n" << n << "_" << toString(function);
+        return s.str();
+    }
+
     std::string base_params::to_string() const
     {
         std::stringstream s;
         s << Params::to_string() << "_";
-        s << toString(activationParams) << "_";
-        s << toString(activationFunc) << "_";
+        s << activation.to_string() << "_";
 
         for (auto input : inputs)
         {

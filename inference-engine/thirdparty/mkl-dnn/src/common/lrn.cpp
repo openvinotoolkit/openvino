@@ -37,7 +37,7 @@ status_t lrn_desc_init(lrn_desc_t *lrn_desc,
         && !any_null(lrn_desc, data_desc)
         && one_of(alg_kind, lrn_within_channel, lrn_across_channels)
         && one_of(prop_kind, forward_training, forward_inference, backward_data)
-        && implication(prop_kind == backward_data, diff_data_desc != nullptr);
+        && IMPLICATION(prop_kind == backward_data, diff_data_desc != nullptr);
     if (!args_ok) return invalid_arguments;
 
     auto ld = lrn_desc_t();

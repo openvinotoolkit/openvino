@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,9 +15,8 @@
 """
 import copy
 
-import networkx as nx
 import numpy as np
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 
 
@@ -25,12 +24,13 @@ class Split(Op):
     op = 'Split'
     enabled = True
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': 'Split',
             'op': 'Split',
             'axis': 1,
             'input_port': 0,
+            'in_ports_count': 1,
             'infer': Split.infer
         }, attrs)
 
@@ -42,7 +42,7 @@ class Split(Op):
         input_node = node.in_node(0)
         outputs = node.out_nodes()
         out_shape = copy.copy(input_node.shape)
-        out_shape[node.axis] = np.int64(input_node.shape[node.axis] / node.pb.num_split)
+        out_shape[node.axis] = np.int64(input_node.shape[node.axis] / node.num_split)
         for idx, output in outputs.items():
             output.shape = out_shape
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])

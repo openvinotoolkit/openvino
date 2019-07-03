@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +22,7 @@ class PluginBaseTests: public ::testing::Test {
     }
     virtual void SetUp() {
         mock_impl.reset(new MockPluginImpl());
-        plugin = details::shared_from_irelease(make_ie_compatible_plugin({1,2,"test", "version"}, mock_impl));
+        plugin = details::shared_from_irelease(make_ie_compatible_plugin({1,6,"test", "version"}, mock_impl));
     }
 };
 
@@ -34,7 +33,7 @@ TEST_F(PluginBaseTests, canReportVersion) {
     EXPECT_STREQ(V->buildNumber, "test");
     EXPECT_STREQ(V->description, "version");
     EXPECT_EQ(V->apiVersion.major, 1);
-    EXPECT_EQ(V->apiVersion.minor, 2);
+    EXPECT_EQ(V->apiVersion.minor, 6);
 
 }
 

@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,8 +67,8 @@ private:
         stream.reset(new std::ostream(this));
 
         if (nullptr != ptr && len > 0) {
-            (*stream.get()) << ptr;
             ptr[len - 1] = 0;
+            (*stream.get()) << ptr;
         }
     }
 };

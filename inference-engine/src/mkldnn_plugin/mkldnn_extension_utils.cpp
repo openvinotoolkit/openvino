@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +21,11 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
         return 1;
     case mkldnn::memory::data_type::u8:
         return 1;
+    case mkldnn::memory::data_type::bin:
+        return 1;
     case mkldnn::memory::data_type::data_undef:
         return 0;
+
     default:
         THROW_IE_EXCEPTION << "Unsupported data type.";
     }
@@ -41,6 +43,8 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
             return memory::s8;
         case InferenceEngine::Precision::U8:
             return memory::u8;
+        case InferenceEngine::Precision::BIN:
+            return memory::bin;
 
         default: {
             THROW_IE_EXCEPTION << "The plugin does not support " << prec.name();
@@ -60,6 +64,8 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
             return InferenceEngine::Precision::I8;
         case memory::u8:
             return InferenceEngine::Precision::U8;
+        case memory::bin:
+            return InferenceEngine::Precision::BIN;
 
         default: {
             THROW_IE_EXCEPTION << "Unsupported data type.";
@@ -81,7 +87,7 @@ InferenceEngine::TensorDesc MKLDNNExtensionUtils::getUninitTensorDesc(const Infe
                                         std::numeric_limits<size_t>::max(), zeroArr, notInitArr});
 }
 
-bool MKLDNNExtensionUtils::initTensorsAreEqual(InferenceEngine::TensorDesc desc1, InferenceEngine::TensorDesc desc2) {
+bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2) {
     if (desc1.getDims() != desc2.getDims() || desc1.getPrecision() != desc2.getPrecision())
         return false;
     if (desc1.getLayout() == InferenceEngine::Layout::ANY || desc2.getLayout() == InferenceEngine::Layout::ANY)

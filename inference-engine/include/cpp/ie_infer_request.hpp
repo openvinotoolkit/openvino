@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,9 +136,8 @@ public:
     }
 
     /**
-    * @brief Sets data that will contain result of the inference
-    * @param results - a reference to a map of result blobs accessed by output names.
-    *        The type of Blob must correspond to the network output precision and size.
+    * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
+    * @param batch new batch size to be used by all the following inference calls for this request.
     */
     void SetBatch(const int batch) {
         CALL_STATUS_FNC(SetBatch, batch);

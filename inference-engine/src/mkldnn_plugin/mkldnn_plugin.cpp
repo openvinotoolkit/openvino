@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +9,9 @@
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+
+MKLDNNWeightsSharing Engine::weightsSharing;
+const SimpleDataHash MKLDNNWeightsSharing::simpleCRC;
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
@@ -25,8 +27,12 @@ Engine::LoadExeNetworkImpl(InferenceEngine::ICNNNetwork &network, const std::map
     network.getInputsInfo(_networkInputs);
     for (auto ii : _networkInputs) {
         auto input_precision = ii.second->getInputPrecision();
-        if (input_precision != InferenceEngine::Precision::U16 && input_precision != InferenceEngine::Precision::I16
-            && input_precision != InferenceEngine::Precision::FP32 && input_precision != InferenceEngine::Precision::U8) {
+        if (input_precision != InferenceEngine::Precision::FP32 &&
+            input_precision != InferenceEngine::Precision::I32 &&
+            input_precision != InferenceEngine::Precision::U16 &&
+            input_precision != InferenceEngine::Precision::I16 &&
+            input_precision != InferenceEngine::Precision::I8 &&
+            input_precision != InferenceEngine::Precision::U8) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                                << "Input image format " << input_precision << " is not supported yet...";
         }
@@ -55,7 +61,11 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
         // ugly casting. can we avoid it?
         auto exe_network =
                 dynamic_cast<ExecutableNetworkBase<ExecutableNetworkInternal>*>(_loadedNetwork.get());
+        if (exe_network == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get executable network!";
         auto exe_network_impl = dynamic_cast<MKLDNNExecNetwork*>(exe_network->getImpl().get());
+        if (exe_network_impl == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get implementation of executable network!";
 
         exe_network_impl->setProperty(config);
     }
@@ -86,12 +96,8 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc *resp) noexcept {
     try {
         plugin = make_ie_compatible_plugin(
-                {{1, 4},
-#ifdef MKL_VERSION
-                 MKL_VERSION,
-#else
+                {{1, 6},
                  CI_BUILD_NUMBER,
-#endif
                  "MKLDNNPlugin"}, std::make_shared<Engine>());
         return OK;
     }

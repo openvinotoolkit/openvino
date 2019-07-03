@@ -36,8 +36,6 @@ if (NOT _tbbmalloc_proxy_ix EQUAL -1)
     endif()
 endif()
 
-set(TBB_INTERFACE_VERSION 10005)
-
 # Intel MKL-DNN changes: use TBBROOT to locate Intel TBB
 # get_filename_component(_tbb_root "${CMAKE_CURRENT_LIST_FILE}" PATH)
 # get_filename_component(_tbb_root "${_tbb_root}" PATH)
@@ -70,16 +68,29 @@ if (NOT _tbb_compiler_id STREQUAL "GNU")
     unset(_tbb_gcc_ver_output)
 endif()
 
-set(_tbb_compiler_subdir gcc4.1)
-foreach (_tbb_gcc_version 4.1 4.4 4.7)
-    if (NOT _tbb_compiler_ver VERSION_LESS ${_tbb_gcc_version})
-        set(_tbb_compiler_subdir gcc${_tbb_gcc_version})
+set(_tbb_lib ${_tbb_root}/lib/${_tbb_arch_subdir} )
+file(GLOB _tbb_gcc_versions_available RELATIVE ${_tbb_lib} ${_tbb_lib}/*)
+# shall we check _tbb_gcc_versions_available is not empty?
+foreach (_tbb_gcc_version ${_tbb_gcc_versions_available})
+    string(SUBSTRING ${_tbb_gcc_version} 3 -1 _tbb_gcc_version_number)
+    if (NOT _tbb_compiler_ver VERSION_LESS _tbb_gcc_version_number)
+        set(_tbb_compiler_subdir ${_tbb_gcc_version})
     endif()
 endforeach()
 
+unset(_tbb_gcc_version_number)
 unset(_tbb_compiler_id)
 unset(_tbb_compiler_ver)
 
+
+# we need to check the version of tbb
+file(READ "${_tbb_root}/include/tbb/tbb_stddef.h" _tbb_stddef)
+string(REGEX REPLACE ".*#define TBB_INTERFACE_VERSION ([0-9]+).*" "\\1" TBB_INTERFACE_VERSION "${_tbb_stddef}")
+if (${TBB_INTERFACE_VERSION} VERSION_LESS 9100)
+    message(FATAL_ERROR "MKL-DNN requires TBB version 2017 or above")
+endif()
+
+# Now we check that all the needed component are present
 get_filename_component(_tbb_lib_path "${_tbb_root}/lib/${_tbb_arch_subdir}/${_tbb_compiler_subdir}" ABSOLUTE)
 
 foreach (_tbb_component ${TBB_FIND_COMPONENTS})

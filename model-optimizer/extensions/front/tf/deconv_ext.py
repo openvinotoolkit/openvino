@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -48,8 +48,8 @@ class Conv3DBackpropInputV2InputFrontExtractor(FrontExtractorOp):
     def extract(node):
         attrs = tf_create_attrs(node, 4, 3)
         attrs.update({'op': __class__.op,
-                      'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([3, 4, 0, 1, 2]),
-                                                                      inv=int64_array([2, 3, 4, 0, 1]))
+                      'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([4, 3, 0, 1, 2]),
+                                                                      inv=int64_array([2, 3, 4, 1, 0]))
                       })
 
         # update the attributes of the node

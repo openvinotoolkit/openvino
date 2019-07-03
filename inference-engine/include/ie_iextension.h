@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,8 +134,8 @@ public:
      * @param resp Response descriptor
      * @return Status code
      */
-    virtual StatusCode getShapes(const std::vector<TensorDesc>& inShapes, std::vector<TensorDesc>& outShapes,
-                                 ResponseDesc* resp) noexcept {
+    virtual StatusCode getShapes(const std::vector<TensorDesc>& /*inShapes*/, std::vector<TensorDesc>& /*outShapes*/,
+                                 ResponseDesc* /*resp*/) noexcept {
         return NOT_IMPLEMENTED;
     }
 
@@ -162,11 +161,21 @@ public:
     /**
      * @brief check that reshape can be applied, that parameters and shapes are valid
      */
-    virtual StatusCode inferShapes(const std::vector<SizeVector>& inShapes,
-                                   const std::map<std::string, std::string>& params,
-                                   const std::map<std::string, Blob::Ptr>& blobs,
-                                   std::vector<SizeVector>& outShapes,
-                                   ResponseDesc* resp) noexcept = 0;
+    virtual StatusCode inferShapes(const std::vector<Blob::CPtr>& /*inBlobs*/,
+                                   const std::map<std::string, std::string>& /*params*/,
+                                   const std::map<std::string, Blob::Ptr>& /*blobs*/,
+                                   std::vector<SizeVector>& /*outShapes*/,
+                                   ResponseDesc* /*resp*/) noexcept { return NOT_IMPLEMENTED; }  // For backward-compatibility
+
+    /**
+     * @deprecated
+     * @brief check that reshape can be applied, that parameters and shapes are valid
+     */
+    virtual StatusCode inferShapes(const std::vector<SizeVector>& /*inShapes*/,
+                                   const std::map<std::string, std::string>& /*params*/,
+                                   const std::map<std::string, Blob::Ptr>& /*blobs*/,
+                                   std::vector<SizeVector>& /*outShapes*/,
+                                   ResponseDesc* /*resp*/) noexcept { return NOT_IMPLEMENTED; }  // For backward-compatibility
 };
 
 /**
@@ -230,11 +239,11 @@ public:
      */
     virtual StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept = 0;
 
-    StatusCode getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
+    StatusCode getShapeInferTypes(char**&, unsigned int&, ResponseDesc*) noexcept override {
         return NOT_IMPLEMENTED;
     };
 
-    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept override {
+    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr&, const char*, ResponseDesc*) noexcept override {
         return NOT_IMPLEMENTED;
     };
 };

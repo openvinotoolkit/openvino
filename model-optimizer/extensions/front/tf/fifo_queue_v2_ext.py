@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,8 +13,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import logging as log
-
 import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
@@ -29,14 +27,16 @@ class FIFOQueueV2Extractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
         shapes = node.pb.attr['shapes'].list.shape
-        if len(shapes) != 2:
-            log.error("FIFOQueueV2 is supported with exactly 2 outputs")
-            return False
         tf_types = node.pb.attr['component_types'].list.type
         extracted_types = []
         for t in tf_types:
             extracted_types.append(tf_dtype_extractor(t))
-        shape = shapes[0].dim
-        new_shape = np.array([1, shape[0].size, shape[1].size, shape[2].size], dtype=np.int64)
-        Op.update_node_stat(node, {'shape': new_shape, 'types': extracted_types})
+        result_shapes = []
+        for shape_pb in shapes:
+            shape = shape_pb.dim
+            if len(shape) == 3:
+                result_shapes.append(np.array([1, shape[0].size, shape[1].size, shape[2].size], dtype=np.int64))
+            else:
+                result_shapes.append(np.array([dim.size for dim in shape], dtype=np.int64))
+        Op.update_node_stat(node, {'shapes': result_shapes, 'types': extracted_types})
         return __class__.enabled

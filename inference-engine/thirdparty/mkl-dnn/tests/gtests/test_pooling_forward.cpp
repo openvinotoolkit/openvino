@@ -132,8 +132,9 @@ void check_pool_fwd(const pool_test_params &p, const memory &src,
                 num_summands = pd.kw * pd.kh * pd.kd;
             }
 
-            if (p.aalgorithm == pooling_avg_include_padding ||
-                p.aalgorithm == pooling_avg_exclude_padding) {
+            if ((p.aalgorithm == pooling_avg_include_padding ||
+                p.aalgorithm == pooling_avg_exclude_padding) &&
+                num_summands)  {
                 acc_ref = out_round<data_t>(
                     (float)acc_ref / num_summands);
             }
@@ -189,11 +190,11 @@ protected:
         check_zero_tail<data_t>(1, p_dst);
 
         // calculate right padding exactly
-        std::vector<int> padR_2d = {
+        std::vector<ptrdiff_t> padR_2d = {
             right_padding(pd.ih, pd.oh, pd.kh, pd.padt, pd.strh),
             right_padding(pd.iw, pd.ow, pd.kw, pd.padl, pd.strw)
         };
-        std::vector<int> padR_3d = {
+        std::vector<ptrdiff_t> padR_3d = {
             right_padding(pd.id, pd.od, pd.kd, pd.padf, pd.strd),
             right_padding(pd.ih, pd.oh, pd.kh, pd.padt, pd.strh),
             right_padding(pd.iw, pd.ow, pd.kw, pd.padl, pd.strw)

@@ -1,5 +1,4 @@
-﻿// Copyright (C) 2018 Intel Corporation
-//
+﻿// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,14 +10,17 @@
 
 #include <string>
 #ifdef _WIN32
-#define _WINSOCKAPI_
-#include <windows.h>
-#include <profileapi.h>
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif
+# define _WINSOCKAPI_
+# include <windows.h>
+# include <profileapi.h>
 #endif
 
 #ifdef __MACH__
-#include <mach/clock.h>
-#include <mach/mach.h>
+# include <mach/clock.h>
+# include <mach/mach.h>
 #endif
 
 #include "ie_api.h"

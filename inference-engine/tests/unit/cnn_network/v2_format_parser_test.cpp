@@ -1,12 +1,11 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 #include "xml_father.hpp"
-#include "inference_engine/v2_format_parser.h"
+#include "inference_engine/ie_format_parser.h"
 #include <string>
 #include <pugixml.hpp>
 #include <fstream>
@@ -141,6 +140,24 @@ TEST_F(V2FormatParserTest, failIfMeanValueNotSpecifiedInPreProcessing) {
 TEST_F(V2FormatParserTest, failIfIdLessThanZero) {
     string content = MAKE_ALEXNET_FOR_MEAN_TESTS_V2()
             .node("channel").attr("id", "-1").node("mean").attr("value", "104.5").close();
+
+    ASSERT_NO_FATAL_FAILURE(assertParseFail(content));
+}
+
+TEST_F(V2FormatParserTest, failIfIdNotInteger) {
+    string content = MAKE_ALEXNET_FOR_MEAN_TESTS_V2()
+            .node("channel").attr("id", "0").node("mean").attr("value", "104.5").close()
+            .newnode("channel").attr("id", "1").node("mean").attr("value", "117.8").close()
+            .newnode("channel").attr("id", "2_2").node("mean").attr("value", "123").close();
+
+    ASSERT_NO_FATAL_FAILURE(assertParseFail(content));
+}
+
+TEST_F(V2FormatParserTest, failIfValueNotFloat) {
+    string content = MAKE_ALEXNET_FOR_MEAN_TESTS_V2()
+            .node("channel").attr("id", "0").node("mean").attr("value", "104,5").close()
+            .newnode("channel").attr("id", "1").node("mean").attr("value", "117.8").close()
+            .newnode("channel").attr("id", "2").node("mean").attr("value", "123").close();
 
     ASSERT_NO_FATAL_FAILURE(assertParseFail(content));
 }

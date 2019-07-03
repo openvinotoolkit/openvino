@@ -27,7 +27,9 @@ namespace kernel_selector
         virtual ~PoolingKerneGPU_byxf_af32() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
         DispatchData SetDefault(const pooling_params& params) const override;
+
+    protected:
+        virtual ParamsKey GetSupportedKey() const override;
     };
 }

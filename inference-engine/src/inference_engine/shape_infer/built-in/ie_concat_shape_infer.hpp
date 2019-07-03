@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +20,7 @@ class ConcatShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit ConcatShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -29,7 +28,7 @@ public:
         ConcatLayer concatLayer(lp);
         concatLayer.params = params;
         concatLayer.type = _type;
-        validate(&concatLayer, inShapes, params, blobs);
+        validate(&concatLayer, inBlobs, params, blobs);
 
         size_t sum(0);
         size_t axis = concatLayer._axis;

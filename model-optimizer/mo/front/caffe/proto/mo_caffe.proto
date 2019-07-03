@@ -534,6 +534,9 @@ message LayerParameter {
   optional FlowWarpParameter flow_warp_param = 221;
   optional AccumParameter accum_param = 222;
   optional CoeffScheduleParameter coeff_schedule_param = 223;
+
+  // for Shufflenet v2
+  optional ShuffleChannelParameter shuffle_channel_param= 224;
 }
 
 message InterpParameter {
@@ -1028,6 +1031,8 @@ message DetectionOutputParameter {
   optional int32 input_height = 14 [default = -1];
   // If false, bboxes need to be normalized
   optional bool normalized = 15 [default = true];
+  //the objectness score is used for the anchor refinement module to filter easy negative anchor.
+  optional float objectness_score = 16 [default = 0.01];
 }
 
 message DropoutParameter {
@@ -2077,4 +2082,8 @@ message AccumParameter {
     optional uint32 top_width = 2 [default = 0]; // The output width
     optional uint32 size_divisible_by = 3 [default = 0]; // Upscales to the minimal size divisible by the given number
     optional bool have_reference = 4 [ default = false ];
+}
+
+message ShuffleChannelParameter {
+    required uint32 group = 1;
 }

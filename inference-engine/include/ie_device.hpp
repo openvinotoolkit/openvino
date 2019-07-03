@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +28,7 @@ enum class TargetDevice : uint8_t {
     eFPGA = 4,
     eMYRIAD = 5,
     eGNA = 7,
-    eHETERO = 8
+    eHETERO = 8,
 };
 
 /**
@@ -52,7 +51,7 @@ class TargetDeviceInfo {
             DECL_DEVICE(FPGA),
             DECL_DEVICE(MYRIAD),
             DECL_DEVICE(GNA),
-            DECL_DEVICE(HETERO)
+            DECL_DEVICE(HETERO),
         };
 #undef DECLARE
         return g_allDeviceInfos;
@@ -67,7 +66,7 @@ class TargetDeviceInfo {
             { "MYRIAD", InferenceEngine::TargetDevice::eMYRIAD },
             { "GNA", InferenceEngine::TargetDevice::eGNA },
             { "BALANCED", InferenceEngine::TargetDevice::eBalanced },
-            { "HETERO", InferenceEngine::TargetDevice::eHETERO }
+            { "HETERO", InferenceEngine::TargetDevice::eHETERO },
         };
         auto val = deviceFromNameMap.find(deviceName);
         return val != deviceFromNameMap.end() ? val->second : InferenceEngine::TargetDevice::eDefault;

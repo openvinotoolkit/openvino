@@ -52,11 +52,11 @@ struct gemm_inner_product_fwd_t: public cpu_primitive_t {
                 && everyone_is(data_type, desc()->src_desc.data_type,
                         desc()->weights_desc.data_type,
                         desc()->dst_desc.data_type)
-                && implication(this->with_bias(),
+                && IMPLICATION(this->with_bias(),
                         data_type == desc()->bias_desc.data_type)
                 && attr()->output_scales_.has_default_values()
                 && attr()->post_ops_.len_ <= 1
-                && utils::implication(attr()->post_ops_.len_ == 1,
+                && IMPLICATION(attr()->post_ops_.len_ == 1,
                         attr()->post_ops_.entry_[0].is_relu(true, false))
                 && dense_gemm_consitency_check(src_pd(), weights_pd(),
                         dst_pd());
@@ -64,19 +64,19 @@ struct gemm_inner_product_fwd_t: public cpu_primitive_t {
         }
     };
 
-    gemm_inner_product_fwd_t(const pd_t *pd, const input_vector &inputs,
+    gemm_inner_product_fwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd) {}
+        : cpu_primitive_t(apd, inputs, outputs) {}
     typedef typename prec_traits<data_type>::type data_t;
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         execute_forward();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_forward();
-    pd_t conf_;
+    void execute_forward() const;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 };
 
 template <impl::data_type_t data_type>
@@ -108,19 +108,19 @@ struct gemm_inner_product_bwd_data_t: public cpu_primitive_t {
         }
     };
 
-    gemm_inner_product_bwd_data_t(const pd_t *pd, const input_vector &inputs,
+    gemm_inner_product_bwd_data_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd) {}
+        : cpu_primitive_t(apd, inputs, outputs) {}
     typedef typename prec_traits<data_type>::type data_t;
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         execute_backward_data();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_backward_data();
-    pd_t conf_;
+    void execute_backward_data() const;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 };
 
 template <impl::data_type_t data_type>
@@ -152,19 +152,19 @@ struct gemm_inner_product_bwd_weights_t: public cpu_primitive_t {
         }
     };
 
-    gemm_inner_product_bwd_weights_t(const pd_t *pd, const input_vector &inputs,
+    gemm_inner_product_bwd_weights_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd) {}
+        : cpu_primitive_t(apd, inputs, outputs) {}
     typedef typename prec_traits<data_type>::type data_t;
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         execute_backward_weights();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_backward_weights();
-    pd_t conf_;
+    void execute_backward_weights() const;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 };
 
 }

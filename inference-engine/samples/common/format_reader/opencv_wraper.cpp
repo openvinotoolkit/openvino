@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +9,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#include <../samples/slog.hpp>
+#include <samples/slog.hpp>
 
 using namespace std;
 using namespace FormatReader;
@@ -28,11 +27,11 @@ OCVReader::OCVReader(const string &filename) {
     _height = img.size().height;
 }
 
-std::shared_ptr<unsigned char> OCVReader::getData(int width = 0, int height = 0) {
+std::shared_ptr<unsigned char> OCVReader::getData(size_t width = 0, size_t height = 0) {
     cv::Mat resized(img);
     if (width != 0 && height != 0) {
-        int iw = img.size().width;
-        int ih = img.size().height;
+        size_t iw = img.size().width;
+        size_t ih = img.size().height;
         if (width != iw || height != ih) {
             slog::warn << "Image is resized from (" << iw << ", " << ih << ") to (" << width << ", " << height << ")" << slog::endl;
         }

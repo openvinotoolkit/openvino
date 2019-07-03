@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.front.common.partial_infer.utils import tf_window_op_pad_infer
@@ -22,19 +21,21 @@ from mo.front.extractor import attr_getter
 # from mo.front.common.partial_infer.pooling import pool_explicit_padding_infer
 from mo.front.extractor import spatial_getter
 from mo.front.onnx.extractors.utils import get_backend_pad
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 
 
 class Pooling(Op):
     op = 'Pooling'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
             'infer': __class__.infer,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
         }, attrs)
 
     def backend_attrs(self):
@@ -92,7 +93,9 @@ class Pooling(Op):
             node['stride'] = np.array([1 for x in range(len(input_shape))], dtype=np.int64)
 
         if node.has_and_set('global_pool'):
+            node['window'] = np.zeros(len(input_shape), dtype=np.int64)
             node.window[node.spatial_dims] = input_spatial_shape
+
         window_spatial_shape = node.window[node.spatial_dims]
         stride_spatial = node.stride[node.spatial_dims]
         assert any(stride_spatial), 'Stride can not be zero in node {}'.format(node.id)

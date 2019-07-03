@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +7,7 @@
 #include "details/caseless.hpp"
 #include "ie_utils.hpp"
 #include "ie_icnn_network_stats.hpp"
+#include "details/ie_cnn_network_tools.h"
 
 #include <ie_layers.h>
 
@@ -134,6 +134,19 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
         &layerCloneImpl<ReshapeLayer           >,
         &layerCloneImpl<CropLayer              >,
         &layerCloneImpl<EltwiseLayer           >,
+        &layerCloneImpl<GemmLayer              >,
+        &layerCloneImpl<PadLayer               >,
+        &layerCloneImpl<GatherLayer            >,
+        &layerCloneImpl<StridedSliceLayer      >,
+        &layerCloneImpl<ShuffleChannelsLayer   >,
+        &layerCloneImpl<DepthToSpaceLayer      >,
+        &layerCloneImpl<SpaceToDepthLayer      >,
+        &layerCloneImpl<ReverseSequenceLayer   >,
+        &layerCloneImpl<SqueezeLayer           >,
+        &layerCloneImpl<UnsqueezeLayer         >,
+        &layerCloneImpl<RangeLayer             >,
+        &layerCloneImpl<FillLayer              >,
+        &layerCloneImpl<ExpandLayer            >,
         &layerCloneImpl<ClampLayer             >,
         &layerCloneImpl<ReLULayer              >,
         &layerCloneImpl<SoftMaxLayer           >,
@@ -146,6 +159,11 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
         &layerCloneImpl<PoolingLayer           >,
         &layerCloneImpl<DeconvolutionLayer     >,
         &layerCloneImpl<ConvolutionLayer       >,
+        &layerCloneImpl<TensorIterator         >,
+        &layerCloneImpl<RNNSequenceLayer       >,
+        &layerCloneImpl<RNNCellBase            >,
+        &layerCloneImpl<QuantizeLayer          >,
+        &layerCloneImpl<BinaryConvolutionLayer >,
         &layerCloneImpl<WeightableLayer        >,
         &layerCloneImpl<CNNLayer               >
     };
@@ -166,8 +184,13 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork &network) {
         layers.push_back(*i);
         i++;
     }
+
+    InferenceEngine::ICNNNetworkStats* pstatsSrc = nullptr;
+    if (StatusCode::OK != network.getStats(&pstatsSrc, nullptr)) {
+        pstatsSrc = nullptr;
+    }
     // copy of the network
-    details::CNNNetworkImplPtr net = cloneNet(layers);
+    details::CNNNetworkImplPtr net = cloneNet(layers, pstatsSrc);
     // going over output layers and duplicatig them:
     OutputsDataMap outputs;
     network.getOutputsInfo(outputs);
@@ -191,21 +214,12 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork &network) {
         }
     }
 
-    // cloning of statistics
-    InferenceEngine::ICNNNetworkStats* pstatsSrc = nullptr, *pstatsTarget = nullptr;
-    StatusCode s = network.getStats(&pstatsSrc, nullptr);
-    if (s == StatusCode::OK && pstatsSrc && !pstatsSrc->isEmpty()) {
-        StatusCode st = net->getStats(&pstatsTarget, nullptr);
-        if (st == StatusCode::OK && pstatsTarget) {
-            pstatsTarget->setNodesStats(pstatsSrc->getNodesStats());
-        }
-    }
-
     return net;
 }
 
 
 details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
+                                    const ICNNNetworkStats* networkStats,
                                     std::function<CNNLayerPtr(const CNNLayer&)> layerCloner) {
     // TODO layerCloner std::function is heavy and can be replaced with
     // llvm::function_ref-like lightweight callable when we add one
@@ -265,6 +279,8 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
             clonedLayer->outData.push_back(clonedData);
             for (auto&& inp : data->getInputTo()) {
                 auto layer = inp.second;
+                // TODO(amalyshe) is it the best place to check priorbox and remove
+                // such edge from outputs?
                 if (std::find(layers.begin(), layers.end(), layer) == layers.end() &&
                     !(CaselessEq<string>()(layer->type, "priorbox") ||
                       CaselessEq<string>()(layer->type, "PriorBoxClustered"))) {
@@ -296,7 +312,7 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
             if (nullptr == layer) {
                 LayerParams params;
                 params.name = data->getName();
-                params.precision = data->precision;
+                params.precision = data->getPrecision();
                 params.type = "Input";
                 layer = std::make_shared<CNNLayer>(params);
                 // this place should be transactional
@@ -313,6 +329,15 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
     }
 
     net->resolveOutput();
+
+    // cloning of statistics
+    InferenceEngine::ICNNNetworkStats* pstatsTarget = nullptr;
+    if (networkStats != nullptr && !networkStats->isEmpty()) {
+        StatusCode st = net->getStats(&pstatsTarget, nullptr);
+        if (st == StatusCode::OK && pstatsTarget) {
+            pstatsTarget->setNodesStats(networkStats->getNodesStats());
+        }
+    }
 
     return net;
 }
@@ -408,9 +433,10 @@ struct NodePrinter {
     }
 
     string cleanNodeName_(string node_name) const {
-        // remove dot and dash symbols form node name. It is incorrectly displayed in xdot
+        // remove dot and dash symbols from node name. It is incorrectly displayed in xdot
         node_name.erase(remove(node_name.begin(), node_name.end(), '.'), node_name.end());
         std::replace(node_name.begin(), node_name.end(), '-', '_');
+        std::replace(node_name.begin(), node_name.end(), ':', '_');
         return node_name;
     }
 
@@ -431,6 +457,9 @@ struct NodePrinter {
 
         if (type == "Convolution") {
             auto* conv = dynamic_cast<ConvolutionLayer*>(layer.get());
+            if (conv == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << layer->name << " is not instance of ConvolutionLayer class";
+            }
 
             unsigned int
                 depth = conv->_out_depth,
@@ -445,6 +474,9 @@ struct NodePrinter {
             printed_properties.emplace_back("dilations", formatSize_({&(conv->_dilation[0]), &(conv->_dilation[conv->_dilation.size() - 1])}));
         } else if (type == "Pooling") {
             auto* pool = dynamic_cast<PoolingLayer*>(layer.get());
+            if (pool == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << layer->name << " is not instance of PoolingLayer class";
+            }
 
             printed_properties.emplace_back("window size", formatSize_({&(pool->_kernel[0]), &(pool->_kernel[pool->_kernel.size() - 1])}));
             printed_properties.emplace_back("padding begin", formatSize_({&(pool->_padding[0]), &(pool->_padding[pool->_padding.size() - 1])}));
@@ -452,11 +484,56 @@ struct NodePrinter {
             printed_properties.emplace_back("strides", formatSize_({&(pool->_stride[0]), &(pool->_stride[pool->_stride.size() - 1])}));
         } else if (type == "ReLU") {
             auto* relu = dynamic_cast<ReLULayer*>(layer.get());
+            if (relu == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << layer->name << " is not instance of ReLULayer class";
+            }
 
             float negative_slope = relu->negative_slope;
 
             if (negative_slope != 0.0f)
                 printed_properties.emplace_back("negative_slope", std::to_string(negative_slope));
+        } else if (type == "Eltwise") {
+            auto* eltwise = dynamic_cast<EltwiseLayer*>(layer.get());
+            if (eltwise == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << layer->name << " is not instance of EltwiseLayer class";
+            }
+
+            std::string operation;
+
+            if (eltwise->_operation == EltwiseLayer::Sum)
+                operation = "Sum";
+            else if (eltwise->_operation == EltwiseLayer::Prod)
+                operation = "Prod";
+            else if (eltwise->_operation == EltwiseLayer::Max)
+                operation = "Max";
+            else if (eltwise->_operation == EltwiseLayer::Sub)
+                operation = "Sub";
+            else if (eltwise->_operation == EltwiseLayer::Min)
+                operation = "Min";
+            else if (eltwise->_operation == EltwiseLayer::Div)
+                operation = "Div";
+            else if (eltwise->_operation == EltwiseLayer::Squared_diff)
+                operation = "Squared_diff";
+            else if (eltwise->_operation == EltwiseLayer::Equal)
+                operation = "Equal";
+            else if (eltwise->_operation == EltwiseLayer::Not_equal)
+                operation = "Not_equal";
+            else if (eltwise->_operation == EltwiseLayer::Less)
+                operation = "Less";
+            else if (eltwise->_operation == EltwiseLayer::Less_equal)
+                operation = "Less_equal";
+            else if (eltwise->_operation == EltwiseLayer::Greater)
+                operation = "Greater";
+            else if (eltwise->_operation == EltwiseLayer::Greater_equal)
+                operation = "Greater_equal";
+            else if (eltwise->_operation == EltwiseLayer::Logical_AND)
+                operation = "Logical_AND";
+            else if (eltwise->_operation == EltwiseLayer::Logical_OR)
+                operation = "Logical_OR";
+            else if (eltwise->_operation == EltwiseLayer::Logical_XOR)
+                operation = "Logical_XOR";
+
+            printed_properties.emplace_back("operation", operation);
         }
 
         if (layer_cb != nullptr) {
@@ -478,15 +555,15 @@ struct NodePrinter {
         };
 
         std::stringstream dims_ss;
-        size_t idx = data->dims.size();
+        size_t idx = data->getTensorDesc().getDims().size();
         dims_ss << '[';
-        for (auto &dim : data->dims) {
+        for (auto &dim : data->getTensorDesc().getDims()) {
             dims_ss << dim << ((--idx) != 0u ? ", " : "");
         }
         dims_ss << ']';
 
         printed_properties.emplace_back("dims", dims_ss.str());
-        printed_properties.emplace_back("precision", data->precision.name());
+        printed_properties.emplace_back("precision", data->getPrecision().name());
 
         printNode(node_name, data->name, node_properties, printed_properties);
     }
@@ -494,20 +571,20 @@ struct NodePrinter {
     void printNode(string const &node_name, const string &node_title,
                    ordered_properties const &node_properties,
                    ordered_properties const &printed_properties) {
-        // normalization of names, removing all prohinited symbols like "/"
+        // normalization of names, removing all prohibited symbols like "/"
         string nodeNameN = node_name;
         std::replace(nodeNameN.begin(), nodeNameN.end(), '/', '_');
         string dataNameN = node_title;
         std::replace(dataNameN.begin(), dataNameN.end(), '/', '_');
 
         out << '\t' << nodeNameN << " [";
-        for (auto &node_propertie : node_properties) {
-            out << node_propertie.first << "=\"" << node_propertie.second << "\", ";
+        for (auto &node_property : node_properties) {
+            out << node_property.first << "=\"" << node_property.second << "\", ";
         }
 
         out << "label=\"" << node_title;
-        for (auto &printed_propertie : printed_properties) {
-            out << "\\n" << printed_propertie.first << ": " << printed_propertie.second;
+        for (auto &printed_property : printed_properties) {
+            out << "\\n" << printed_property.first << ": " << printed_property.second;
         }
         out << "\"];\n";
     }
@@ -536,7 +613,7 @@ void saveGraphToDot(InferenceEngine::ICNNNetwork &network, std::ostream &out, pr
 
     out << "strict digraph Network {\n";
     // Traverse graph and print nodes
-    CNNNetForestDFS(inputs, [&](CNNLayerPtr layer) {
+    for (const auto &layer : details::CNNNetSortTopologically(network)) {
         printer.printLayerNode(layer);
 
         // Print output Data Object
@@ -558,8 +635,7 @@ void saveGraphToDot(InferenceEngine::ICNNNetwork &network, std::ostream &out, pr
             // to remove duplicate edges
             printer.printEdge(layer, dataptr, true);
         }
-    }, true);
-
+    }
     out << "}" << std::endl;
 }
 

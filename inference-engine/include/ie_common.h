@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +13,10 @@
 #include <string>
 #include <ostream>
 #include <algorithm>
+#include <cstdlib>
 #include <details/ie_exception.hpp>
+
+#include "ie_unicode.hpp"
 
 namespace InferenceEngine {
 /**
@@ -67,12 +69,6 @@ union UserValue {
     void *v_ptr;
 };
 
-enum CellType {
-    ORIG,
-    LSTM,
-    GRU
-};
-
 /**
  * @enum Layout
  * @brief Layouts that the inference engine supports
@@ -83,9 +79,14 @@ enum Layout : uint8_t {
     // I/O data layouts
     NCHW = 1,
     NHWC = 2,
+    NCDHW = 3,
+    NDHWC = 4,
 
     // weight layouts
     OIHW = 64,
+
+    // Scalar
+    SCALAR = 95,
 
     // bias layouts
     C = 96,

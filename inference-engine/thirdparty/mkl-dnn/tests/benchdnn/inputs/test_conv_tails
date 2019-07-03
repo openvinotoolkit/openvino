@@ -21,7 +21,11 @@
 --attr=irmode=down;oscale=per_oc:2.25;post_ops='sum:1.5;relu'
 --cfg=u8s8u8s32  --batch=conv_tails
 --cfg=u8s8f32s32 --batch=conv_tails
+--cfg=s8s8u8s32  --batch=conv_tails
+--cfg=s8s8f32s32 --batch=conv_tails
 --dir=FWD_D
 --attr=irmode=nearest;oscale=common:2.25;post_ops='sum:1.5'
 --cfg=u8s8s8s32  --batch=conv_tails
 --cfg=u8s8s32s32 --batch=conv_tails
+--cfg=s8s8s8s32  --batch=conv_tails
+--cfg=s8s8s32s32 --batch=conv_tails

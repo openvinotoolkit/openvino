@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +9,7 @@
 #include <set>
 #include <memory>
 #include <string>
+#include <utility>
 #include "ie_blob.h"
 #include "ie_plugin.hpp"
 #include "cpp/ie_cnn_network.h"
@@ -30,13 +30,30 @@
 
 namespace CLDNNPlugin {
 
+struct PerfCounter {
+    InferenceEngine::InferenceEngineProfileInfo::LayerStatus status;
+    bool isCPU;
+    uint64_t realTime_uSec;
+    uint64_t cpu_uSec;
+    uint32_t num;
+    std::string layerType;
+
+public:
+    PerfCounter() : realTime_uSec(0), cpu_uSec(0), num(0),
+        status(InferenceEngine::InferenceEngineProfileInfo::NOT_RUN), isCPU(false) {}
+
+    long long realTime_avg() const { return (num == 0) ? 0 : realTime_uSec / num; }
+    long long cpu_avg() const { return (num == 0) ? 0 : cpu_uSec / num; }
+};
+
 struct InferenceEnv {
     std::shared_ptr<const cldnn::engine> engine;
     std::shared_ptr<cldnn::network> network;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-    std::set<cldnn::primitive_id> profilingIDs;
+
+    std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
+    std::vector<cldnn::primitive_id> profilingIDs;
 
     DebugOptions debugOptions;
 
@@ -109,6 +126,8 @@ protected:
         TanH,
         ELU,
         Activation,
+        Exp,
+        Not,
         LRN,
         Pooling,
         FullyConnected,
@@ -143,7 +162,14 @@ protected:
         MVN,
         Unpooling,
         Tile,
+        Pad,
+        LSTMCell,
         RNN,
+        Gather,
+        DepthToSpace,
+        ShuffleChannels,
+        StridedSlice,
+        ReverseSequence,
         NO_TYPE
     };
 
@@ -154,7 +180,6 @@ protected:
     };
 
     cldnn::format m_defaultFormat;
-    cldnn::data_types m_networkPrecision;
     void InitFormat(InferenceEngine::ICNNNetwork &network);
 
     static cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p);
@@ -170,7 +195,7 @@ protected:
     static cldnn::softmax::dimension_t SoftmaxDimensionFromIEAxis(const InferenceEngine::SoftMaxLayer* softmaxLayer, bool isPrevFC = false);
     void CreatePrimitiveFromBlob(cldnn::primitive_id primID,
                                  const InferenceEngine::Blob::Ptr pBlob,
-                                 cldnn::layout blobLayout,
+                                 const cldnn::layout& blobLayout,
                                  size_t blobByteOffset = 0,
                                  WeightRearrangeType rearrange = NO_REARRANGE);
     void CreateWeightAndBiasPrimitives(const InferenceEngine::CNNLayerPtr& layer,
@@ -180,7 +205,7 @@ protected:
                                            cldnn::primitive_id weightsPrimID,
                                            cldnn::primitive_id biasesPrimID);
     void AddPreProcessPrimitive(InferenceEngine::InputInfo::Ptr inputInfo);
-    void AddInputPrimitive(InferenceEngine::InputInfo::Ptr inputInfo);
+    void AddInputPrimitive(InferenceEngine::InputInfo::Ptr inputInfo, InferenceEngine::Precision inputPrecision);
     void AddOutputPrimitive(std::string outputName, const InferenceEngine::DataPtr outputData,
                             InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::UNSPECIFIED);
     void CreateSingleLayerPrimitive(InferenceEngine::CNNLayerPtr& layer);
@@ -203,8 +228,9 @@ protected:
 
     void InitProfileInfo(const std::string& layerName,
                          const std::string& layerType,
-                         const std::string& execType,
-                         InferenceEngine::InferenceEngineProfileInfo::LayerStatus status);
+                         bool isCPU = false,
+                         InferenceEngine::InferenceEngineProfileInfo::LayerStatus status
+                                    = InferenceEngine::InferenceEngineProfileInfo::EXECUTED);
     void changeInputBatch(size_t batch);
     void CompileNetwork();
 
@@ -244,9 +270,16 @@ protected:
     void CreateMaxUnpoolingPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void CreateMVNPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void CreateTilePrimitive(InferenceEngine::CNNLayerPtr &layer);
+    void CreatePadPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void CreateRNNPrimitive(InferenceEngine::CNNLayerPtr &layer);
+    void CreateLSTMCellPrimitive(InferenceEngine::CNNLayerPtr &layer);
     void AddConstantBlobInput(InferenceEngine::CNNLayerPtr &layer);
     void CreateCustomLayerPrimitive(InferenceEngine::CNNLayerPtr &layer, CLDNNCustomLayerPtr customLayer);
+    void CreateGatherPrimitive(InferenceEngine::CNNLayerPtr &layer);
+    void CreateDepthToSpacePrimitive(InferenceEngine::CNNLayerPtr &layer);
+    void CreateShuffleChannelsPrimitive(InferenceEngine::CNNLayerPtr &layer);
+    void CreateStridedSlicePrimitive(InferenceEngine::CNNLayerPtr &layer);
+    void CreateReverseSequencePrimitive(InferenceEngine::CNNLayerPtr &layer);
 };
 
 };  // namespace CLDNNPlugin

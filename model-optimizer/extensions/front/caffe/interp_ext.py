@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -38,6 +38,9 @@ class InterpFrontExtractor(FrontExtractorOp):
         }
 
         mapping_rule = merge_attrs(param, update_attrs)
+
+        # in Caffe can be 2 inputs, shape should be got from shape of the second input
+        mapping_rule['parse_2nd_input'] = 'shape'
 
         # update the attributes of the node
         Op.get_op_class_by_name(__class__.op).update_node_stat(node, mapping_rule)

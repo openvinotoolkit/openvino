@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +13,24 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::Tenso
 
 InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::TensorDesc& desc, void *ptr) {
     return make_blob_with_precision(desc.getPrecision(), desc, ptr);
+}
+
+
+InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::TensorDesc& desc, const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
+    return make_blob_with_precision(desc.getPrecision(), desc, alloc);
+}
+
+InferenceEngine::Layout plain_layout(InferenceEngine::SizeVector dims) {
+    int n = dims.size();
+    return n == 1 ? InferenceEngine::C    :
+           n == 2 ? InferenceEngine::NC   :
+           n == 3 ? InferenceEngine::CHW  :
+           n == 4 ? InferenceEngine::NCHW :
+                    InferenceEngine::ANY;
+}
+
+InferenceEngine::Blob::Ptr make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVector dims) {
+    return make_blob_with_precision({prec, dims, plain_layout(dims)});
 }
 
 InferenceEngine::Blob::Ptr CreateBlobFromData(const InferenceEngine::DataPtr &data) {

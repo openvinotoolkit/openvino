@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +43,7 @@ protected:
 
     virtual void SetUp() {
         mock_plugin_impl.reset(new MockInferencePluginInternal());
-        plugin = details::shared_from_irelease(make_ie_compatible_plugin({1, 2, "test", "version"}, mock_plugin_impl));
+        plugin = details::shared_from_irelease(make_ie_compatible_plugin({1, 6, "test", "version"}, mock_plugin_impl));
         mockExeNetworkInternal = make_shared<MockExecutableNetworkInternal>();
     }
 
@@ -184,7 +183,7 @@ protected:
 
     virtual void SetUp() {
         mockPluginImpl = make_shared<MockInferencePluginInternal2>();
-        plugin = details::shared_from_irelease(make_ie_compatible_plugin({1, 2, "test", "version"}, mockPluginImpl));
+        plugin = details::shared_from_irelease(make_ie_compatible_plugin({1, 6, "test", "version"}, mockPluginImpl));
         mockExeNetwork = make_shared<MockIExecutableNetwork>();
     }
 

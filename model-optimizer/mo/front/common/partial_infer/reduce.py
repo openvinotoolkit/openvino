@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,12 +26,15 @@ def tf_reduce_infer(node, op=None):
     if input_shape is None or axis is None or input_shape.ndim != 1 or axis.ndim > 1:
         return
     output_shape = np.array(input_shape)
+    if len(axis.shape) == 0:  # fix since np.delete deprecate negative idxs
+        axis = axis.reshape([1])
+    axis[axis < 0] += output_shape.shape[0]
     if node.keep_dims:
         output_shape[axis] = 1
     else:
         output_shape = np.delete(output_shape, axis)
     node.out_node().shape = output_shape
     if op is not None and node.in_node(0).value is not None:
-        node.out_node(0).value = np.array([op(node.in_node(0).value, (*axis,))],
+        node.out_node(0).value = np.array(op(node.in_node(0).value, (*axis,)),
                                           dtype=node.in_node(0).value.dtype)  # TODO extend to multi-dimensional axis
         log.debug("value: {}".format(node.out_node(0).value))

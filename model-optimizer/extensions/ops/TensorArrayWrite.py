@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.utils import match_shapes
 
@@ -25,7 +24,7 @@ from mo.utils.utils import match_shapes
 class TensorArrayWriter(Op):
     op = "TensorArrayWriteV3"
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
@@ -45,8 +44,9 @@ class TensorArrayWriter(Op):
         value_shape = value.shape
 
         ta_node = Node(node.graph, str(handle.value))
-        if ta_node.has_valid('element_shape'):
-            assert match_shapes(ta_node['element_shape'], value.shape)
+        if ta_node.has_valid('element_shape') and len(ta_node.element_shape) > 0:
+            assert match_shapes(ta_node['element_shape'], value.shape), \
+                'Shapes are not compatible: {} and {}'.format(ta_node['element_shape'], value.shape)
         ta_node['element_shape'] = value_shape
 
         output_shape = flow_in.shape

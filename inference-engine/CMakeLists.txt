@@ -1,11 +1,14 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-cmake_minimum_required (VERSION 3.3)
+
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
 project(InferenceEngine)
 
 set(DEV_BUILD TRUE)
+
+include(CTest)
 
 ## WA for problem with gtest submodule. It cannot detect uint32 type.
 ## remove Gtest submodule and this two lines together
@@ -18,7 +21,9 @@ endif()
 
 option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
-if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
+    set (ARCH_FOLDER armv7l)
+elseif("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
     set (ARCH_FOLDER intel64)
 else()
     set (ARCH_FOLDER  ia32)
@@ -46,7 +51,6 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "")
     debug_message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
-
 message(STATUS "BUILD_CONFIGURATION: ${CMAKE_BUILD_TYPE}")
 
 if(COVERAGE)
@@ -55,17 +59,38 @@ endif()
 
 if (UNIX)
     SET(LIB_DL ${CMAKE_DL_LIBS})
-else()
 endif()
 
 set (OUTPUT_ROOT ${IE_MAIN_SOURCE_DIR})
 
-if(NOT(UNIX))
-	if (WIN32)
-		#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-		#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-	endif()
+include(os_flags)
 
+#resolving dependencies for the project
+include (dependencies)
+
+set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
+set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
+
+if (WIN32)
+    # Support CMake multiconfiguration for Visual Studio build
+    set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
+    set(IE_BUILD_CONFIGURATION $<CONFIG>)
+else ()
+    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug" )
+        set(IE_BUILD_POSTFIX ${IE_DEBUG_POSTFIX})
+    else()
+        set(IE_BUILD_POSTFIX ${IE_RELEASE_POSTFIX})
+    endif()
+    set(IE_BUILD_CONFIGURATION ${CMAKE_BUILD_TYPE})
+endif()
+
+add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
+
+if(NOT(UNIX))
+    if (WIN32)
+        #set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+        #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+    endif()
     set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
     set (CMAKE_LIBRARY_PATH ${OUTPUT_ROOT}/${BIN_FOLDER})
     set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
@@ -75,19 +100,14 @@ if(NOT(UNIX))
     set (LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
     set (LIBRARY_OUTPUT_PATH ${LIBRARY_OUTPUT_DIRECTORY}) # compatibility issue: linux uses LIBRARY_OUTPUT_PATH, windows uses LIBRARY_OUTPUT_DIRECTORY
 else ()
-    set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
-    set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
-    set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
-    set (CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
-    set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
-    set (LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
+    set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION}/lib)
+    set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION}/lib)
+    set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION})
+    set (CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION})
+    set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION})
+    set (LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION}/lib)
     set (LIBRARY_OUTPUT_PATH ${LIBRARY_OUTPUT_DIRECTORY}/lib)
 endif()
-
-include(os_flags)
-
-#resolving rependencies for the project
-include (dependencies)
 
 if (APPLE)
     set(CMAKE_MACOSX_RPATH 1)
@@ -108,29 +128,35 @@ message (STATUS "IE_MAIN_SOURCE_DIR .................... " ${IE_MAIN_SOURCE_DIR}
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
 
-if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-    include(sdl)
-endif()
+include(sdl)
+
 set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include (sanitizer)
 
 include(CheckCXXCompilerFlag)
-if(UNIX)
-    CHECK_CXX_COMPILER_FLAG("-fvisibility=hidden" COMPILER_SUPPORTS_VISIBILITY)
-    if (COMPILER_SUPPORTS_VISIBILITY)
-        #add_definitions(-fvisibility=hidden) todo: should be hidden? if so define default visibiliti explicite for each funtion
-        add_definitions(-fvisibility=default)
-    endif(COMPILER_SUPPORTS_VISIBILITY)
-endif(UNIX)
+
+include(cpplint)
 
 add_subdirectory(src)
 add_subdirectory(tests)
 add_subdirectory(thirdparty)
-if (ENABLE_SAMPLES_CORE)
-    set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
+set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
 
-    #to be able to link
-    set (LIB_FOLDER ${IE_MAIN_SOURCE_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
-    add_subdirectory(samples)
+#to be able to link
+set (LIB_FOLDER ${IE_MAIN_SOURCE_DIR}/${BIN_FOLDER}/${IE_BUILD_CONFIGURATION}/lib)
+
+# gflags and format_reader targets are kept inside of samples directory and
+# they must be built even if samples build is disabled (required for tests and tools).
+add_subdirectory(samples)
+
+file(GLOB_RECURSE SAMPLES_SOURCES samples/*.cpp samples/*.hpp samples/*.h)
+add_cpplint_target(sample_cpplint
+    FOR_SOURCES ${SAMPLES_SOURCES}
+    EXCLUDE_PATTERNS "thirdparty/*" "pugixml/*")
+
+if (ENABLE_PYTHON)
+    add_subdirectory(ie_bridges/python)
 endif()
+
+add_cpplint_report_target()

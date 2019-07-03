@@ -52,37 +52,3 @@ typedef struct float14 { float s0; float s1; float s2; float s3; float s4; float
 typedef struct float15 { float s0; float s1; float s2; float s3; float s4; float s5;
                          float s6; float s7; float s8; float s9; float sa; float sb; float sc; float sd; float se; } float15;
 typedef struct float0 { float s0; } float0; //never used but makes compiler happy.
-
-#if (KERNEL_WIDTH == 1)
-__constant half1 half_zeros= (half1){0};
-#elif (KERNEL_WIDTH == 2)
-    __constant half2 half_zeros = (half2)(0);
-#elif (KERNEL_WIDTH == 3)
-    __constant half3 half_zeros = (half3)(0);
-#elif (KERNEL_WIDTH == 4)
-    __constant half4 half_zeros = (half4)(0);
-#elif (KERNEL_WIDTH == 5)
-    __constant half5 half_zeros = (half5){0, 0, 0, 0, 0};
-#elif (KERNEL_WIDTH == 6)
-    __constant half6 half_zeros = (half6){0, 0, 0, 0, 0, 0};
-#elif (KERNEL_WIDTH == 7)
-    __constant half7 half_zeros = (half7){0, 0, 0, 0, 0, 0, 0};
-#elif (KERNEL_WIDTH == 8)
-    __constant half8 half_zeros = (half8)(0);
-#elif (KERNEL_WIDTH == 9)
-    __constant half9 half_zeros = (half9){0, 0, 0, 0, 0, 0, 0, 0, 0};
-#elif (KERNEL_WIDTH == 10)
-    __constant half10 half_zeros = (half10){0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-#elif (KERNEL_WIDTH == 11)
-    __constant half11 half_zeros = (half11){0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-#elif (KERNEL_WIDTH == 12)
-    __constant half12 half_zeros = (half12){0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-#elif (KERNEL_WIDTH == 13)
-    __constant half13 half_zeros = (half13){0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-#elif (KERNEL_WIDTH == 14)
-    __constant half14 half_zeros = (half14){0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-#elif (KERNEL_WIDTH == 15)
-    __constant half15 half_zeros = (half15){0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-#elif (KERNEL_WIDTH == 16)
-    __constant half16 half_zeros = (half16)(0);
-#endif

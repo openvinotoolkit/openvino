@@ -44,7 +44,7 @@ void simple_net()
     memory::dims conv_bias_tz = { 96 };
     memory::dims conv_dst_tz = { batch, 96, 55, 55 };
     memory::dims conv_strides = { 4, 4 };
-    auto conv_padding = { 0, 0 };
+    memory::dims conv_padding = { 0, 0 };
 
     std::vector<float> conv_weights(
             std::accumulate(conv_weights_tz.begin(), conv_weights_tz.end(), 1,
@@ -180,7 +180,7 @@ void simple_net()
     memory::dims pool_dst_tz = { batch, 96, 27, 27 };
     memory::dims pool_kernel = { 3, 3 };
     memory::dims pool_strides = { 2, 2 };
-    auto pool_padding = { 0, 0 };
+    memory::dims pool_padding = { 0, 0 };
 
     /* create memory for pool dst data in user format */
     auto pool_user_dst_memory = memory(

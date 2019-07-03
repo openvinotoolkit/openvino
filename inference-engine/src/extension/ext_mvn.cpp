@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +31,8 @@ public:
             if (layer->insData.size() != 1 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
-            across_channels = static_cast<bool>(layer->GetParamAsInt("across_channels"));
-            normalize_variance = static_cast<bool>(layer->GetParamAsInt("normalize_variance"));
+            across_channels = layer->GetParamAsBool("across_channels", false);
+            normalize_variance = layer->GetParamAsBool("normalize_variance", false);
             eps = layer->GetParamAsFloat("eps");
 
 #if defined(HAVE_AVX512F)
@@ -53,67 +52,94 @@ public:
         float* src_data = inputs[0]->buffer();
         float* dst_data = outputs[0]->buffer();
 
-        SizeVector dims = inputs[0]->getTensorDesc().getDims();
-
-        int N = static_cast<int>((dims.size() > 0) ? dims[0] : 1);
-        int C = static_cast<int>((dims.size() > 1) ? dims[1] : 1);
-        int H = static_cast<int>((dims.size() > 2) ? dims[2] : 1);
-        int W = static_cast<int>((dims.size() > 3) ? dims[3] : 1);
-
-        if (inputs[0]->layout() == NCHW) {
-            mvn_pln(src_data, dst_data, N, C, H, W);
+        if (inputs[0]->layout() == NCHW || inputs[0]->layout() == NCDHW) {
+            mvn_pln(src_data, dst_data, inputs[0]->getTensorDesc().getDims());
         } else {
-            mvn_blk(src_data, dst_data, N, C, H, W);
+            mvn_blk(src_data, dst_data, inputs[0]->getTensorDesc().getDims());
         }
 
         return OK;
     }
 
 private:
-    void mvn_pln(const float* src_data, float* dst_data, int N, int C, int H, int W);
-    void mvn_blk(const float* src_data, float* dst_data, int N, int C, int H, int W);
+    void mvn_pln(const float* src_data, float* dst_data, const SizeVector& dims);
+    void mvn_blk(const float* src_data, float* dst_data, const SizeVector& dims);
 
     bool across_channels = false;
     bool normalize_variance = true;
     float eps = 1e-9f;
 };
 
-void MVNImpl::mvn_pln(const float* src_data, float* dst_data, int N, int C, int H, int W) {
-    for (int b = 0; b < N; b++) {
+void MVNImpl::mvn_pln(const float* src_data, float* dst_data, const SizeVector& dims) {
+    size_t dims_size = dims.size();
+    size_t N = (dims_size > 0) ? dims[0] : 1lu;
+    size_t C = (dims_size > 1) ? dims[1] : 1lu;
+    size_t D = (dims_size > 4) ? dims[dims_size - 3] : 1lu;
+    size_t H = (dims_size > 3) ? dims[dims_size - 2] : 1lu;
+    size_t W = (dims_size > 2) ? dims[dims_size - 1] : 1lu;
+
+    size_t C1 = H * W;
+    size_t C2 = C1 * D;
+    size_t C3 = C2 * C;
+
+    for (size_t b = 0lu; b < N; b++) {
         // Calculate mean value
+        size_t cb = b * C3;
         if (across_channels) {
             double mean = 0.0;
-            mean = parallel_sum(C, mean, [&](int c)->double {
+            mean = parallel_sum(C, mean, [&](size_t c)->double {
                 double mean_internal = 0.0;
-                for (int h = 0; h < H; h++) {
-                    for (int w = 0; w < W; w++) {
-                        mean_internal += src_data[b*C*H*W + c*H*W + h*W + w];
+                size_t cc = cb + c * C2;
+                for (size_t d = 0lu; d < D; d++) {
+                    size_t cd = cc + d * C1;
+                    for (size_t h = 0lu; h < H; h++) {
+                        size_t ch = cd + h * W;
+                        for (size_t w = 0lu; w < W; w++) {
+                            mean_internal += src_data[ch + w];
+                        }
                     }
                 }
                 return mean_internal;
             });
 
-            mean /= C*H*W;
+            mean /= C3;
             parallel_for(C, [&](int c) {
-                for (int h = 0; h < H; h++) {
-                    for (int w = 0; w < W; w++) {
-                        dst_data[b*C*H*W + c*H*W + h*W + w] = src_data[b*C*H*W + c*H*W + h*W + w] - mean;
+                size_t cc = cb + c * C2;
+                for (size_t d = 0lu; d < D; d++) {
+                    size_t cd = cc + d * C1;
+                    for (size_t h = 0lu; h < H; h++) {
+                        size_t ch = cd + h * W;
+                        for (size_t w = 0lu; w < W; w++) {
+                            size_t cw = ch + w;
+                            dst_data[cw] = src_data[cw] - static_cast<float>(mean);
+                        }
                     }
                 }
             });
         } else {
-            parallel_for(C, [&](int c) {
-                double mean = 0;
-                for (int h = 0; h < H; h++) {
-                    for (int w = 0; w < W; w++) {
-                        mean += src_data[b*C*H*W + c*H*W + h*W + w];
+            parallel_for(C, [&](size_t c) {
+                double mean = 0.f;
+                size_t cc = cb + c * C2;
+                for (size_t d = 0lu; d < D; d++) {
+                    size_t cd = cc + d * C1;
+                    for (size_t h = 0lu; h < H; h++) {
+                        size_t ch = cd + h * W;
+                        for (size_t w = 0lu; w < W; w++) {
+                            mean += src_data[ch + w];
+                        }
                     }
                 }
-                mean /= H*W;
 
-                for (int h = 0; h < H; h++) {
-                    for (int w = 0; w < W; w++) {
-                        dst_data[b*C*H*W + c*H*W + h*W + w] = src_data[b*C*H*W + c*H*W + h*W + w] - mean;
+                mean /= static_cast<double>(C2);
+
+                for (size_t d = 0lu; d < D; d++) {
+                    size_t cd = cc + d * C1;
+                    for (size_t h = 0lu; h < H; h++) {
+                        size_t ch = cd + h * W;
+                        for (size_t w = 0lu; w < W; w++) {
+                            size_t cw = ch + w;
+                            dst_data[cw] = src_data[cw] - static_cast<float>(mean);
+                        }
                     }
                 }
             });
@@ -121,44 +147,65 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, int N, int C, int 
     }
 
     if (normalize_variance) {
-        for (int b = 0; b < N; b++) {
+        for (size_t b = 0lu; b < N; b++) {
             // Calculate variances value
+            size_t cb = b * C3;
             if (across_channels) {
                 double variance = 0.0;
-                variance = parallel_sum(C, variance, [&](int c)->double {
+                variance = parallel_sum(C, variance, [&](size_t c)->double {
                     double variance_internal = 0.0;
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            variance_internal += std::pow(dst_data[b*C*H*W + c*H*W + h*W + w], 2);
+                    size_t cc = cb + c * C2;
+                    for (size_t d = 0lu; d < D; d++) {
+                        size_t cd = cc + d * C1;
+                        for (size_t h = 0lu; h < H; h++) {
+                            size_t ch = cd + h * W;
+                            for (size_t w = 0lu; w < W; w++) {
+                                variance_internal += std::pow(dst_data[ch + w], 2);
+                            }
                         }
                     }
                     return variance_internal;
                 });
 
-                variance /= C*H*W;
-                variance = std::pow(variance, 0.5f);
+                variance /= C3;
                 variance += eps;
+                variance = std::pow(variance, 0.5f);
                 parallel_for(C, [&](int c) {
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            dst_data[b*C*H*W + c*H*W + h*W + w] /= variance;
+                    size_t cc = cb + c * C2;
+                    for (size_t d = 0lu; d < D; d++) {
+                        size_t cd = cc + d * C1;
+                        for (size_t h = 0lu; h < H; h++) {
+                            size_t ch = cd + h * W;
+                            for (size_t w = 0lu; w < W; w++) {
+                                dst_data[ch + w] /= static_cast<float>(variance);
+                            }
                         }
                     }
                 });
             } else {
-                parallel_for(C, [&](int c) {
-                    double variance = 0;
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            variance += std::pow(dst_data[b*C*H*W + c*H*W + h*W + w], 2);
+                parallel_for(C, [&](size_t c) {
+                    double variance = 0.0;
+                    size_t cc = cb + c * C2;
+                    for (size_t d = 0lu; d < D; d++) {
+                        size_t cd = cc + d * C1;
+                        for (size_t h = 0lu; h < H; h++) {
+                            size_t ch = cd + h * W;
+                            for (size_t w = 0lu; w < W; w++) {
+                                variance += std::pow(dst_data[ch + w], 2);
+                            }
                         }
                     }
-                    variance /= H*W;
-                    variance = std::pow(variance, 0.5f);
+
+                    variance /= static_cast<double>(C2);
                     variance += eps;
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            dst_data[b*C*H*W + c*H*W + h*W + w] /= variance;
+                    variance = std::pow(variance, 0.5f);
+                    for (size_t d = 0lu; d < D; d++) {
+                        size_t cd = cc + d * C1;
+                        for (size_t h = 0lu; h < H; h++) {
+                            size_t ch = cd + h * W;
+                            for (size_t w = 0lu; w < W; w++) {
+                                dst_data[ch + w] /= static_cast<float>(variance);
+                            }
                         }
                     }
                 });
@@ -167,11 +214,11 @@ void MVNImpl::mvn_pln(const float* src_data, float* dst_data, int N, int C, int 
     }
 }
 
-void MVNImpl::mvn_blk(const float* src_data, float* dst_data, int N, int C, int H, int W) {
+void MVNImpl::mvn_blk(const float* src_data, float* dst_data, const SizeVector& dims) {
 #if defined(HAVE_AVX512F)
     size_t blk_size = 16;
 #else
-    size_t blk_size = 8;
+    size_t blk_size = 8lu;
 #endif
 
 #if defined(HAVE_AVX512F)
@@ -179,116 +226,162 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, int N, int C, int 
 #elif defined(HAVE_AVX2)
     typedef __m256 vec_type;
 #endif
+    size_t dims_size = dims.size();
+    size_t N = (dims_size > 0) ? dims[0] : 1lu;
+    size_t C = (dims_size > 1) ? dims[1] : 1lu;
+    size_t D = (dims_size > 4) ? dims[dims_size - 3] : 1lu;
+    size_t H = (dims_size > 3) ? dims[dims_size - 2] : 1lu;
+    size_t W = (dims_size > 2) ? dims[dims_size - 1] : 1lu;
 
-    int CB = div_up(C, static_cast<int>(blk_size));
+    int CB = div_up(static_cast<int>(C), static_cast<int>(blk_size));
+
+    size_t C0 = W * blk_size;
+    size_t C1 = C0 * H;
+    size_t C2 = C1 * D;
+    size_t C3 = C2 * CB;
+    size_t C5 = C * D * H * W;
 
     if (normalize_variance) {
-        for (int b = 0; b < N; b++) {
+        for (size_t b = 0lu; b < N; b++) {
+            size_t ccb = b * C3;
             if (across_channels) {
-                float mean = 0.0f;
-                mean = parallel_sum2d(CB, H, mean, [&](int cb, int h)->float {
-                    float mean_internal = 0.0;
-                    for (int w = 0; w < W; w++) {
-                        for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                            size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
-
-                            mean_internal += src_data[src_offset];
+                double mean = 0.0;
+                mean = parallel_sum3d(CB, D, H, mean, [&](size_t cb, size_t d, size_t h)->double {
+                    size_t ccbd = ccb + cb * C2 + d * C1 + h * C0;
+                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
+                    double mean_internal = 0.0;
+                    for (size_t w = 0lu; w < W; w++) {
+                        size_t cw = ccbd + w * blk_size;
+                        for (size_t c = 0lu; c < min_cb; c++) {
+                            mean_internal += src_data[cw + c];
                         }
                     }
                     return mean_internal;
                 });
 
-                mean /= C * H * W;
+                mean /= static_cast<double>(C5);
 
-                float variance = 0.0f;
-                variance = parallel_sum2d(CB, H, variance, [&](int cb, int h)->float {
-                    float variance_internal = 0.0;
-                    for (int w = 0; w < W; w++) {
-                        for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                            size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
-
-                            variance_internal += std::pow(src_data[src_offset] - mean, 2);
+                double variance = 0.0;
+                variance = parallel_sum3d(CB, D, H, variance, [&](size_t cb, size_t d, size_t h)->double {
+                    size_t ccbd = ccb + cb * C2 + d * C1 + h * C0;
+                    double variance_internal = 0.0;
+                    for (size_t w = 0lu, min_cb = std::min(blk_size, C - cb * blk_size); w < W; w++) {
+                        size_t cw = ccbd + w * blk_size;
+                        for (size_t c = 0lu; c < min_cb; c++) {
+                            variance_internal += std::pow(static_cast<double>(src_data[cw + c]) - mean, 2);
                         }
                     }
                     return variance_internal;
                 });
 
-                variance /= C*H*W;
-                variance = std::pow(variance, 0.5f);
+                variance /= static_cast<double>(C5);
                 variance += eps;
+                variance = std::pow(variance, 0.5f);
 
-                parallel_for2d(CB, H, [&](int cb, int h) {
-                    for (int w = 0; w < W; w++) {
-                        for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                            size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
+                parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
+                    size_t ccbd = ccb + cb * C2 + d * C1 + h * C0;
+                    for (size_t w = 0lu, min_cb = std::min(blk_size, C - cb * blk_size); w < W; w++) {
+                        size_t cw = ccbd + w * blk_size;
+                        for (size_t c = 0lu; c < min_cb; c++) {
+                            size_t src_offset = cw + c;
 
-                            dst_data[src_offset] = (src_data[src_offset] - mean) / variance;
+                            dst_data[src_offset] = static_cast<float>((static_cast<double>(src_data[src_offset]) - mean) / variance);
                         }
                     }
                 });
             } else {
-                parallel_for(CB, [&](int cb) {
-                    size_t src_off = b*CB*H*W*blk_size + cb*H*W*blk_size;
+                parallel_for(CB, [&](size_t cb) {
+                    size_t src_off = ccb + cb * C2;
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
                     vec_type vmean = _mm_uni_setzero_ps();
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            vec_type vsrc = _mm_uni_loadu_ps(src_data + src_off + h*W*blk_size + w*blk_size);
-                            vmean = _mm_uni_add_ps(vmean, vsrc);
+                    for (size_t d = 0lu; d < D; d++) {
+                        size_t cd = src_off + d * C1;
+                        for (size_t h = 0lu; h < H; h++) {
+                            size_t ch = cd + h * C0;
+                            for (size_t w = 0lu; w < W; w++) {
+                                vec_type vsrc = _mm_uni_loadu_ps(src_data + ch + w * blk_size);
+                                vmean = _mm_uni_add_ps(vmean, vsrc);
+                            }
                         }
                     }
 
-                    vec_type vsize = _mm_uni_set1_ps(static_cast<float>(H * W));
+                    vec_type vsize = _mm_uni_set1_ps(static_cast<float>(D * H * W));
                     vmean = _mm_uni_div_ps(vmean, vsize);
 
                     vec_type vvariance = _mm_uni_setzero_ps();
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            vec_type vsrc = _mm_uni_loadu_ps(src_data + src_off + h*W*blk_size + w*blk_size);
-                            vsrc = _mm_uni_sub_ps(vsrc, vmean);
-                            vvariance = _mm_uni_add_ps(vvariance, _mm_uni_mul_ps(vsrc, vsrc));
+                    for (size_t d = 0lu; d < D; d++) {
+                        size_t cd = src_off + d * C1;
+                        for (size_t h = 0lu; h < H; h++) {
+                            size_t ch = cd + h * C0;
+                            for (size_t w = 0lu; w < W; w++) {
+                                vec_type vsrc = _mm_uni_loadu_ps(src_data + ch + w * blk_size);
+                                vsrc = _mm_uni_sub_ps(vsrc, vmean);
+                                vvariance = _mm_uni_add_ps(vvariance, _mm_uni_mul_ps(vsrc, vsrc));
+                            }
                         }
                     }
-
                     vvariance = _mm_uni_div_ps(vvariance, vsize);
-                    vvariance = _mm_uni_sqrt_ps(vvariance);
 
                     vec_type veps = _mm_uni_set1_ps(eps);
                     vvariance = _mm_uni_add_ps(vvariance, veps);
 
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            vec_type vsrc = _mm_uni_loadu_ps(src_data + src_off + h*W*blk_size + w*blk_size);
-                            vsrc = _mm_uni_sub_ps(vsrc, vmean);
-                            _mm_uni_storeu_ps(dst_data + src_off + h*W*blk_size + w*blk_size, _mm_uni_div_ps(vsrc, vvariance));
+                    vvariance = _mm_uni_sqrt_ps(vvariance);
+
+                    for (size_t d = 0lu; d < D; d++) {
+                        size_t cd = src_off + d * C1;
+                        for (size_t h = 0lu; h < H; h++) {
+                            size_t ch = cd + h * C0;
+                            for (size_t w = 0lu; w < W; w++) {
+                                size_t offset = ch + w * blk_size;
+                                vec_type vsrc = _mm_uni_loadu_ps(src_data + offset);
+                                vsrc = _mm_uni_sub_ps(vsrc, vmean);
+                                _mm_uni_storeu_ps(dst_data + offset, _mm_uni_div_ps(vsrc, vvariance));
+                            }
                         }
                     }
 #else
-                    for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                        float mean = 0;
-                        for (int h = 0; h < H; h++) {
-                            for (int w = 0; w < W; w++) {
-                                mean += src_data[src_off + h*W*blk_size + w*blk_size + c];
+                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
+                    for (size_t c = 0; c < min_cb; c++) {
+                        size_t cc = src_off + c;
+
+                        double mean = 0.0;
+                        for (size_t d = 0; d < D; d++) {
+                            size_t cd = cc + d * C1;
+                            for (size_t h = 0; h < H; h++) {
+                                size_t ch = cd + h * C0;
+                                for (size_t w = 0; w < W; w++) {
+                                    mean += src_data[ch + w * blk_size];
+                                }
                             }
                         }
 
-                        mean /= H * W;
+                        size_t C4 = D * H * W;
+                        mean /= static_cast<double>(C4);
 
-                        float variance = 0;
-                        for (int h = 0; h < H; h++) {
-                            for (int w = 0; w < W; w++) {
-                                float value = src_data[src_off + h*W*blk_size + w*blk_size + c] - mean;
-                                variance += std::pow(value, 2);
+                        double variance = 0.0;
+                        for (size_t d = 0lu; d < D; d++) {
+                            size_t cd = cc + d * C1;
+                            for (size_t h = 0lu; h < H; h++) {
+                                size_t ch = cd + h * C0;
+                                for (size_t w = 0lu; w < W; w++) {
+                                    double value = static_cast<double>(src_data[ch + w * blk_size]) - mean;
+                                    variance += std::pow(value, 2);
+                                }
                             }
                         }
 
-                        variance /= H * W;
-                        variance = std::pow(variance, 0.5f);
+                        variance /= static_cast<double>(C4);
                         variance += eps;
+                        variance = std::pow(variance, 0.5f);
 
-                        for (int h = 0; h < H; h++) {
-                            for (int w = 0; w < W; w++) {
-                                dst_data[src_off + h*W*blk_size + w*blk_size + c] = (src_data[src_off + h*W*blk_size + w*blk_size + c] - mean) / variance;
+                        for (size_t d = 0lu; d < D; d++) {
+                            size_t cd = cc + d * C1;
+                            for (size_t h = 0lu; h < H; h++) {
+                                size_t ch = cd + h * C0;
+                                for (size_t w = 0lu; w < W; w++) {
+                                    size_t index = ch + w * blk_size;
+                                    dst_data[index] = (src_data[index] - static_cast<float>(mean)) / static_cast<float>(variance);
+                                }
                             }
                         }
                     }
@@ -297,67 +390,91 @@ void MVNImpl::mvn_blk(const float* src_data, float* dst_data, int N, int C, int 
             }
         }
     } else {
-        for (int b = 0; b < N; b++) {
+        for (size_t b = 0; b < N; b++) {
+            size_t ccb = b * C3;
             if (across_channels) {
-                float mean = 0.0f;
-                mean = parallel_sum2d(CB, H, mean, [&](int cb, int h)->float {
-                    float mean_internal = 0;
-                    for (int w = 0; w < W; w++) {
-                        for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                            size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
-
-                            mean_internal += src_data[src_offset];
+                double mean = 0.0;
+                mean = parallel_sum3d(CB, D, H, mean, [&](size_t cb, size_t d, size_t h)->double {
+                    size_t ccbd = ccb + cb * C2 + d * C1 + h * C0;
+                    double mean_internal = 0.f;
+                    for (size_t w = 0lu, min_cb = std::min(blk_size, C - cb * blk_size); w < W; w++) {
+                        size_t cw = ccbd + w * blk_size;
+                        for (size_t c = 0lu; c < min_cb; c++) {
+                            mean_internal += src_data[cw + c];
                         }
                     }
                     return mean_internal;
                 });
 
-                mean /= C * H * W;
+                mean /= static_cast<double>(C5);
 
-                parallel_for2d(CB, H, [&](int cb, int h) {
-                    for (int w = 0; w < W; w++) {
-                        for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                            size_t src_offset = b*CB*H*W*blk_size + cb*H*W*blk_size + h*W*blk_size + w*blk_size + c;
+                parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
+                    size_t ccbd = ccb + cb * C2 + d * C1 + h * C0;
+                    for (size_t w = 0lu, min_cb = std::min(blk_size, C - cb * blk_size); w < W; w++) {
+                        size_t cw = ccbd + w * blk_size;
+                        for (size_t c = 0lu; c < min_cb; c++) {
+                            size_t src_offset = cw + c;
 
-                            dst_data[src_offset] = src_data[src_offset] - mean;
+                            dst_data[src_offset] = src_data[src_offset] - static_cast<float>(mean);
                         }
                     }
                 });
             } else {
-                parallel_for(CB, [&](int cb) {
-                    size_t src_off = b*CB*H*W*blk_size + cb*H*W*blk_size;
+                parallel_for(CB, [&](size_t cb) {
+                    size_t src_off = ccb + cb * C2;
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
                     vec_type vmean = _mm_uni_setzero_ps();
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            vec_type vsrc = _mm_uni_loadu_ps(src_data + src_off + h*W*blk_size + w*blk_size);
-                            vmean = _mm_uni_add_ps(vmean, vsrc);
+                    for (size_t d = 0lu; d < D; d++) {
+                        size_t cd = src_off + d * C1;
+                        for (size_t h = 0lu; h < H; h++) {
+                            size_t ch = cd + h * C0;
+                            for (size_t w = 0lu; w < W; w++) {
+                                vec_type vsrc = _mm_uni_loadu_ps(src_data + ch + w * blk_size);
+                                vmean = _mm_uni_add_ps(vmean, vsrc);
+                            }
                         }
                     }
 
-                    vec_type vsize = _mm_uni_set1_ps(static_cast<float>(H * W));
+                    vec_type vsize = _mm_uni_set1_ps(static_cast<float>(D * H * W));
                     vmean = _mm_uni_div_ps(vmean, vsize);
 
-                    for (int h = 0; h < H; h++) {
-                        for (int w = 0; w < W; w++) {
-                            vec_type vsrc = _mm_uni_loadu_ps(src_data + src_off + h*W*blk_size + w*blk_size);
-                            _mm_uni_storeu_ps(dst_data + src_off + h*W*blk_size + w*blk_size, _mm_uni_sub_ps(vsrc, vmean));
+                    for (size_t d = 0lu; d < D; d++) {
+                        size_t cd = src_off + d * C1;
+                        for (size_t h = 0lu; h < H; h++) {
+                            size_t ch = cd + h * C0;
+                            for (size_t w = 0lu; w < W; w++) {
+                                size_t offset = ch + w * blk_size;
+                                vec_type vsrc = _mm_uni_loadu_ps(src_data + offset);
+                                _mm_uni_storeu_ps(dst_data + offset, _mm_uni_sub_ps(vsrc, vmean));
+                            }
                         }
                     }
 #else
-                    for (int c = 0; c < std::min(blk_size, C - cb * blk_size); c++) {
-                        float mean = 0;
-                        for (int h = 0; h < H; h++) {
-                            for (int w = 0; w < W; w++) {
-                                mean += src_data[src_off + h*W*blk_size + w*blk_size + c];
+                    size_t min_cb = std::min(blk_size, C - cb * blk_size);
+                    for (size_t c = 0lu; c < min_cb; c++) {
+                        size_t cc = src_off + c;
+                        double mean = 0.0;
+                        for (size_t d = 0lu; d < D; d++) {
+                            size_t cd = cc + d * C1;
+                            for (size_t h = 0lu; h < H; h++) {
+                                size_t ch = cd + h * C0;
+                                for (size_t w = 0lu; w < W; w++) {
+                                    mean += src_data[ch + w * blk_size];
+                                }
                             }
                         }
 
-                        mean /= H * W;
+                        size_t C4 = D * H * W;
+                        mean /= static_cast<double>(C4);
 
-                        for (int h = 0; h < H; h++) {
-                            for (int w = 0; w < W; w++) {
-                                dst_data[src_off + h*W*blk_size + w*blk_size + c] = src_data[src_off + h*W*blk_size + w*blk_size + c] - mean;
+                        for (size_t d = 0lu; d < D; d++) {
+                            size_t cd = cc + d * C1;
+                            for (size_t h = 0lu; h < H; h++) {
+                                size_t ch = cd + h * C0;
+                                for (size_t w = 0lu; w < W; w++) {
+                                    size_t index = ch + w * blk_size;
+                                    dst_data[index] = src_data[index] - static_cast<float>(mean);
+                                }
                             }
                         }
                     }

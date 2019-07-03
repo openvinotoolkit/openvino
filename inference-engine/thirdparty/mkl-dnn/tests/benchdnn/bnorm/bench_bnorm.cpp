@@ -41,7 +41,7 @@ attr_t attr;
 const char *pattern = NULL;
 const char *skip_impl = "";
 bool allow_unimpl = false;
-const char *perf_template = "perf,%n,%z,%f,%q,%f,%D,%-t,%0t";
+const char *perf_template = "perf,%n,%z,%F,%q,%f,%D,%-t,%0t";
 
 void reset_parameters() {
     check_alg = ALG_AUTO;
@@ -105,8 +105,8 @@ int bench(int argc, char **argv, bool main_bench) {
             perf_template = argv[arg] + 16;
         else if (!strcmp("--reset", argv[arg]))
             reset_parameters();
-        else if (!strncmp("--mode=", argv[0], 7))
-            bench_mode = str2bench_mode(argv[0] + 7);
+        else if (!strncmp("--mode=", argv[arg], 7))
+            bench_mode = str2bench_mode(argv[arg] + 7);
         else if (!strncmp("-v", argv[arg], 2))
             verbose = atoi(argv[arg] + 2);
         else if (!strncmp("--verbose=", argv[arg], 10))

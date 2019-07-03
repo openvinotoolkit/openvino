@@ -1,9 +1,8 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 2.8)
 include ("extract")
 include ("download_and_check")
 
@@ -120,12 +119,12 @@ function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal
     if (ENABLE_UNSAFE_LOCATIONS)
       ExtractWithVersion(${URL} ${archive_path} ${unpacked_path} ${folder} result)
       if(NOT ${result})
-        DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result)      
+        DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result)
       endif()
     else()
       debug_message("archive found on FS : ${archive_path}, however we cannot check it's checksum and think that it is invalid")
       file(REMOVE_RECURSE "${archive_path}")
-      DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result)      
+      DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result)
     endif()  
 
   
@@ -144,7 +143,11 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
   set (status "ON")
   set (on_master FALSE)
 
-  set (URL  "https://download.01.org/openvinotoolkit/2018_R4/dldt/inference_engine/${RELATIVE_URL}")
+  if(DEFINED ENV{IE_PATH_TO_DEPS})
+    set(URL "$ENV{IE_PATH_TO_DEPS}/${RELATIVE_URL}")
+  else()
+    set(URL "https://download.01.org/opencv/2019/openvinotoolkit/R1/inference_engine/${RELATIVE_URL}")
+  endif()
 
   #no message on recursive calls
   if (${use_alternatives})

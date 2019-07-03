@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,7 +78,7 @@ private:
 
 class CustomReLUResizeImpl : public InferenceEngine::IShapeInferImpl {
 public:
-    InferenceEngine::StatusCode inferShapes(const std::vector<InferenceEngine::SizeVector>& inShapes,
+    InferenceEngine::StatusCode inferShapes(const std::vector<InferenceEngine::Blob::CPtr>& inBlobs,
                                             const std::map<std::string, std::string>& params,
                                             const std::map<std::string, InferenceEngine::Blob::Ptr>& blobs,
                                             std::vector<InferenceEngine::SizeVector>& outShapes,
@@ -90,7 +89,9 @@ public:
                          " shape inference for the first time (next messages won't be printed)" << std::endl;
             wasCalled = true;
         }
-        outShapes = inShapes;
+        for (const auto& blob : inBlobs) {
+            outShapes.push_back(blob->getTensorDesc().getDims());
+        }
         return InferenceEngine::StatusCode::OK;
     }
 };

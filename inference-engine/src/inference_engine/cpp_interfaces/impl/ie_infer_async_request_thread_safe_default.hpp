@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,6 +91,7 @@ public:
             : _syncRequest(request),
               _requestExecutor(taskExecutor),
               _requestSynchronizer(taskSynchronizer),
+              _userData(nullptr),
               _callbackManager(callbackExecutor) {
         _syncTask = std::make_shared<Task>([this]() { _syncRequest->Infer(); });
         _currentTask = _syncTask;

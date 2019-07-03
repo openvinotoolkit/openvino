@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +11,22 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include<iostream>
+#include <iostream>
 
-#ifdef _WIN32
-    #define FORMAT_READER_API(TYPE) extern "C"   __declspec(dllexport)  TYPE __cdecl
-#else  // Linux and Mac
-    #define FORMAT_READER_API(TYPE) extern "C" TYPE
+#if defined(_WIN32)
+# ifdef IMPLEMENT_FORMAT_READER
+# define FORMAT_READER_API(type) extern "C"   __declspec(dllexport) type
+# else
+# define FORMAT_READER_API(type) extern "C" type
+# endif
+#elif(__GNUC__ >= 4)
+# ifdef IMPLEMENT_FORMAT_READER
+#  define FORMAT_READER_API(type) extern "C"   __attribute__((visibility("default"))) type
+# else
+#  define FORMAT_READER_API(type) extern "C" type
+# endif
+#else
+# define FORMAT_READER_API(TYPE) extern "C" TYPE
 #endif
 
 
@@ -53,7 +62,7 @@ public:
      * @return shared pointer with input data
      * @In case of using OpenCV, parameters width and height will be used for image resizing
      */
-    virtual std::shared_ptr<unsigned char> getData(int width = 0, int height = 0) = 0;
+    virtual std::shared_ptr<unsigned char> getData(size_t width = 0, size_t height = 0) = 0;
 
     /**
      * \brief Get size
@@ -69,4 +78,4 @@ public:
  * \brief Function for create reader
  * @return FormatReader pointer
  */
-FORMAT_READER_API(FormatReader::Reader*)CreateFormatReader(const char *filename);
+FORMAT_READER_API(FormatReader::Reader*) CreateFormatReader(const char *filename);

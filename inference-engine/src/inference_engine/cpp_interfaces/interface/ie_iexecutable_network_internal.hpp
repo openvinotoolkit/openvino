@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,6 +60,11 @@ public:
      */
     virtual void GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &deployedTopology) = 0;
 
+    /**
+    * @brief Get executable graph information from a device
+    * @param graphPtr network ptr to store executable graph information
+    */
+    virtual void GetExecGraphInfo(ICNNNetwork::Ptr &graphPtr) = 0;
 
     virtual std::vector<IMemoryStateInternal::Ptr> QueryState() = 0;
 };

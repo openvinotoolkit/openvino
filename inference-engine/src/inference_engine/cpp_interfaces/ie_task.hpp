@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +41,7 @@ public:
 
     Task();
 
-    Task(std::function<void()> function);
+    explicit Task(const std::function<void()> &function);
 
     /**
      * @brief Executes the task with catching all exceptions. It doesn't check that task is running

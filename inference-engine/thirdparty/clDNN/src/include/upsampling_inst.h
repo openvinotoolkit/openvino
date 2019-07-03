@@ -27,6 +27,7 @@ template <>
 struct typed_program_node<upsampling> : public typed_program_node_base<upsampling>
 {
     using parent = typed_program_node_base<upsampling>;
+    typed_program_node(const std::shared_ptr<upsampling> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
 
 public:
     using parent::parent;

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,22 +16,23 @@
 
 from math import ceil
 
-import networkx as nx
 # Concat infer : N - number of inputs to concat
 #                axis - dimension number for tensors concatenation
 import numpy as np
 
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class CorrelationOp(Op):
     op = 'Correlation'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
             'infer': CorrelationOp.corr_infer
         }
         super().__init__(graph, mandatory_props, attrs)

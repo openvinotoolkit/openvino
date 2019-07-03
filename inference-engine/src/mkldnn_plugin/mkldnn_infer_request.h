@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +46,5 @@ private:
     void changeDefaultPtr();
     MKLDNNGraph::Ptr graph;
     std::map<std::string, void*> externalPtr;
-
-    int m_curBatch;
 };
 }  // namespace MKLDNNPlugin

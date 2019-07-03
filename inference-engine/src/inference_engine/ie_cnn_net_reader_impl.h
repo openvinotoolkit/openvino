@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +6,7 @@
 
 #include "ie_icnn_net_reader.h"
 #include "cnn_network_impl.hpp"
+#include "parsers.h"
 #include <memory>
 #include <string>
 #include <map>
@@ -70,11 +70,6 @@ public:
 
     void Release() noexcept override {
         delete this;
-    }
-
-    StatusCode ReadSubNetwork(pugi::xml_node &xmlRoot);
-    void CopyBlobs(void* layerParsePrms, std::string name) {
-        _parser->CopyBlobsByName(layerParsePrms, name);
     }
 
 private:

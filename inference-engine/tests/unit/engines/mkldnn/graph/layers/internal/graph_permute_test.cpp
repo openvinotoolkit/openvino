@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -193,7 +192,9 @@ INSTANTIATE_TEST_CASE_P(
                 permute_test_params{{2, 3, 4, 5, 6}, {0, 3, 2, 4, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
                 permute_test_params{{2, 8, 2, 2, 4, 5}, {0, 1, 4, 2, 5, 3}, 1, MKLDNNPlugin::impl_desc_type::unknown},
                 permute_test_params{{2, 8, 3, 3, 4, 5}, {0, 1, 4, 2, 5, 3}, 1, MKLDNNPlugin::impl_desc_type::unknown},
-                permute_test_params{{2, 8, 3, 4}, {3, 0, 1, 2}, 2, MKLDNNPlugin::impl_desc_type::unknown}
+                permute_test_params{{2, 8, 3, 4}, {3, 0, 1, 2}, 2, MKLDNNPlugin::impl_desc_type::unknown},
+                permute_test_params{{2, 12, 9}, {0, 2, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
+                permute_test_params{{2, 8, 3, 3, 4, 5}, {0, 3, 4, 1, 5, 2}, 1, MKLDNNPlugin::impl_desc_type::unknown}
         ));
 
 class MKLDNNGraphDynBatchPermuteTests: public MKLDNNGraphPermuteTests {
@@ -271,5 +272,7 @@ INSTANTIATE_TEST_CASE_P(
                 permute_test_params{{2, 3, 4, 5, 6}, {0, 2, 4, 3, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
                 permute_test_params{{2, 3, 4, 5, 6}, {0, 3, 2, 4, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
                 permute_test_params{{2, 8, 2, 2, 4, 5}, {0, 1, 4, 2, 5, 3}, 1, MKLDNNPlugin::impl_desc_type::unknown},
-                permute_test_params{{2, 8, 3, 3, 4, 5}, {0, 1, 4, 2, 5, 3}, 1, MKLDNNPlugin::impl_desc_type::unknown}
+                permute_test_params{{2, 8, 3, 3, 4, 5}, {0, 1, 4, 2, 5, 3}, 1, MKLDNNPlugin::impl_desc_type::unknown},
+                permute_test_params{{2, 12, 9}, {0, 2, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
+                permute_test_params{{2, 8, 3, 3, 4, 5}, {0, 3, 4, 1, 5, 2}, 1, MKLDNNPlugin::impl_desc_type::unknown}
         ));

@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +8,15 @@
  */
 #pragma once
 
-#ifdef _WIN32
-    #include "mkldnn/os/win/win_omp_manager.h"
-#elif defined(__APPLE__)
-    #include "mkldnn/os/osx/osx_omp_manager.h"
-#else
-    #include "mkldnn/os/lin/lin_omp_manager.h"
-#endif
+namespace MKLDNNPlugin {
+namespace cpu {
+
+bool checkOpenMpEnvVars(bool includeOMPNumThreads = true);
+// numbers of CPU sockets in the machine (on Linux), 1 on all other OSes
+int getNumberOfCPUSockets();
+// numbers of CPU physical cores on Linux (which is considered to be more performance friendly for servers)
+// (on other OSes it simply relies on the original parallel API of choice, which usually use the logical cores )
+int getNumberOfCPUCores();
+
+}  // namespace cpu
+}  // namespace MKLDNNPlugin

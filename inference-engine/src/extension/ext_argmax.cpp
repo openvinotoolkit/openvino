@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +23,7 @@ public:
             if (layer->insData.size() != 1 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
-            out_max_val_ = static_cast<bool>(layer->GetParamAsInt("out_max_val"));
+            out_max_val_ = layer->GetParamAsBool("out_max_val", false);
             top_k_       = layer->GetParamAsInt("top_k");
 
             has_axis_ = (layer->params.find("axis") != layer->params.end());
@@ -74,12 +73,12 @@ public:
                         dst_data[(i / axis_dist * top_k_ + j) * axis_dist + i % axis_dist] = src_vector[j].first;
                     } else {
                         // Produces max_ind and max_val
-                        dst_data[2 * i * top_k_ + j] = src_vector[j].second;
+                        dst_data[2 * i * top_k_ + j] = static_cast<float>(src_vector[j].second);
                         dst_data[2 * i * top_k_ + top_k_ + j] = src_vector[j].first;
                     }
                 } else {
                     // Produces max_ind per axis
-                    dst_data[(i / axis_dist * top_k_ + j) * axis_dist + i % axis_dist] = src_vector[j].second;
+                    dst_data[(i / axis_dist * top_k_ + j) * axis_dist + i % axis_dist] = static_cast<float>(src_vector[j].second);
                 }
             }
         }

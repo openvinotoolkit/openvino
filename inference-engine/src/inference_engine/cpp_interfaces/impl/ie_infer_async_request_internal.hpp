@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +20,8 @@ class AsyncInferRequestInternal : public IAsyncInferRequestInternal, public Infe
 public:
     typedef std::shared_ptr<AsyncInferRequestInternal> Ptr;
 
-    explicit AsyncInferRequestInternal(InputsDataMap networkInputs, OutputsDataMap networkOutputs)
-            : InferRequestInternal(networkInputs, networkOutputs), _callback(nullptr) {}
+    explicit AsyncInferRequestInternal(const InputsDataMap &networkInputs, const OutputsDataMap &networkOutputs)
+            : InferRequestInternal(networkInputs, networkOutputs), _callback(nullptr), _userData(nullptr) {}
 
     void SetCompletionCallback(InferenceEngine::IInferRequest::CompletionCallback callback) override {
         _callback = callback;

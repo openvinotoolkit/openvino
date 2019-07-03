@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +54,7 @@ void FallbackPolicy::init(const std::string &config, const std::map<std::string,
         if (_deviceLoaders.find(d) == _deviceLoaders.end()) {
             IHeteroDeviceLoader::Ptr loader;
             loader = std::make_shared<HeteroDeviceLoader>(d);
-            HeteroDeviceLoader *pdl = dynamic_cast<HeteroDeviceLoader *>(loader.get());
+            HeteroDeviceLoader *pdl = static_cast<HeteroDeviceLoader *>(loader.get());
             pdl->initConfigs(allConfigs, extensions);
             _deviceLoaders[d] = loader;
         }

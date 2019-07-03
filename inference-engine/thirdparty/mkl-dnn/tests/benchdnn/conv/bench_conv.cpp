@@ -35,7 +35,6 @@ const char *pattern = NULL;
 dir_t dir = FWD_B;
 int mb = 0;
 alg_t alg = DIRECT;
-merge_t merge = NONE;
 attr_t attr;
 const char *skip_impl = "";
 bool allow_unimpl = false;
@@ -47,14 +46,13 @@ void reset_parameters() {
     dir = FWD_B;
     mb = 0;
     alg = DIRECT;
-    merge = NONE;
     attr = attr_t();
     skip_impl = "";
     allow_unimpl = false;
 }
 
 void check_correctness(const desc_t *c) {
-    const prb_t p(*c, dir, cfg, alg, merge, attr, mb);
+    const prb_t p(*c, dir, cfg, alg, attr, mb);
     char pstr[max_prb_len];
     prb2str(&p, pstr);
 
@@ -90,8 +88,6 @@ int bench(int argc, char **argv, bool main_bench) {
             dir = str2dir(argv[arg] + 6);
         else if (!strncmp("--alg=", argv[arg], 6))
             alg = str2alg(argv[arg] + 6);
-        else if (!strncmp("--merge=", argv[arg], 8))
-            merge = str2merge(argv[arg] + 8);
         else if (!strncmp("--attr=", argv[arg], 7))
             SAFE(str2attr(&attr, argv[arg] + 7), CRIT);
         else if (!strncmp("--skip-impl=", argv[arg], 12))
@@ -102,8 +98,8 @@ int bench(int argc, char **argv, bool main_bench) {
             perf_template = argv[arg] + 16;
         else if (!strcmp("--reset", argv[arg]))
             reset_parameters();
-        else if (!strncmp("--mode=", argv[0], 7))
-            bench_mode = str2bench_mode(argv[0] + 7);
+        else if (!strncmp("--mode=", argv[arg], 7))
+            bench_mode = str2bench_mode(argv[arg] + 7);
         else if (!strncmp("-v", argv[arg], 2))
             verbose = atoi(argv[arg] + 2);
         else if (!strncmp("--verbose=", argv[arg], 10))

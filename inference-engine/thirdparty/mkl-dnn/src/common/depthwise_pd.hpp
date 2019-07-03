@@ -74,8 +74,11 @@ struct depthwise_fwd_pd_t: public primitive_desc_t {
 
     inline int MB() const { return input_pd()->desc()->ndims > 0 ? input_pd()->desc()->dims[0] : 1; }
     inline int C()  const { return input_pd()->desc()->ndims > 1 ? input_pd()->desc()->dims[1] : 1; }
-    inline int H()  const { return input_pd()->desc()->ndims > 2 ? input_pd()->desc()->dims[2] : 1; }
-    inline int W()  const { return input_pd()->desc()->ndims > 3 ? input_pd()->desc()->dims[3] : 1; }
+    inline int D()  const { return input_pd()->desc()->ndims > 4 ? input_pd()->desc()->dims[2] : 1; }
+    inline int H()  const { return input_pd()->desc()->ndims > 4 ? input_pd()->desc()->dims[3] :
+            input_pd()->desc()->ndims > 2 ? input_pd()->desc()->dims[2] : 1; }
+    inline int W()  const { return input_pd()->desc()->ndims > 4 ? input_pd()->desc()->dims[4] :
+            input_pd()->desc()->ndims > 3 ? input_pd()->desc()->dims[3] : 1; }
 
 protected:
     depthwise_desc_t desc_;

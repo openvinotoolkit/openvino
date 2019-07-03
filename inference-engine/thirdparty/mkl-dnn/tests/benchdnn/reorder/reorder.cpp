@@ -258,7 +258,7 @@ int check_reorder(const prb_t *p, res_t *res) {
 
     const reorder_conf_t &r = p->reorder;
     const int ndims = (int)r.dims.size();
-    const int *dims = &r.dims[0];
+    const ptrdiff_t *dims = &r.dims[0];
 
     mkldnn_memory_format_t fmt_ref;
     const bool is_data = fmt2data_kind(r.fmt_in) == DATA;
@@ -306,24 +306,28 @@ int check_reorder(const prb_t *p, res_t *res) {
             &check_rpd, mem_dt_in_fmt_in.mpd_, mem_dt_out_fmt_out.mpd_,
             mkldnn_attr);
     if (init_status == mkldnn_unimplemented) {
-        mkldnn_primitive_attr_destroy(mkldnn_attr);
-        return res->state = UNIMPLEMENTED, OK;
+        res->state = UNIMPLEMENTED;
+        goto cleanup;
     }
+    mkldnn_primitive_desc_destroy(check_rpd);
     SAFE(init_status, WARN);
 
     SAFE(mem_dt_out_fmt_out.reorder(mem_dt_in_fmt_in, mkldnn_attr), WARN);
-    SAFE(mem_dt_out_fmt_ref.reorder(mem_dt_out_fmt_out), WARN);
 
-    /* Step 5: execute benchdnn reorder */
-    SAFE(reorder(p, mem_test_dt_out_fmt_ref, mem_dt_in_fmt_ref, scales), WARN);
-
-    /* Step 6: compare results */
+    /* Step 5: check corrrectness */
     if (bench_mode & CORR) {
+        /* Step 5a: reorder output from mkldnn to ref format using mkldnn */
+        SAFE(mem_dt_out_fmt_ref.reorder(mem_dt_out_fmt_out), WARN);
+
+        /* Step 5b: execute benchdnn reorder */
+        SAFE(reorder(p, mem_test_dt_out_fmt_ref, mem_dt_in_fmt_ref, scales), WARN);
+
+        /* Step 5c: compare benchdnn and mkldnn output */
         SAFE(compare(p, mem_test_dt_out_fmt_ref, mem_dt_out_fmt_ref,
                     scales, count, res), WARN);
     }
 
-    /* Step 7: performance measurement */
+    /* Step 6: performance measurement */
     if (bench_mode & PERF) {
         mkldnn_primitive_desc_t perf_r_pd;
         mkldnn_primitive_t perf_r;
@@ -352,7 +356,8 @@ int check_reorder(const prb_t *p, res_t *res) {
         DNN_SAFE_V(mkldnn_primitive_destroy(perf_r));
     }
 
-    /* Step 8: clean up */
+    /* Step 7: clean up */
+cleanup:
     mkldnn_primitive_attr_destroy(mkldnn_attr);
     zfree(scales);
 

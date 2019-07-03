@@ -33,10 +33,28 @@ alg_t str2alg(const char *str) {
     CASE(VANILLA_RNN);
     CASE(VANILLA_LSTM);
     CASE(VANILLA_GRU);
-    CASE(GRU_LINEAR_BEFORE_RESET);
+    CASE(LBR_GRU);
 #undef CASE
     assert(!"unknown algorithm");
     return VANILLA_RNN;
+}
+
+policy_t str2policy(const char *str) {
+#define CASE(_plc) if (!strcasecmp(STRINGIFY(_plc), str)) return _plc
+    CASE(NONE);
+    CASE(COMMON);
+    CASE(PER_OC);
+#undef CASE
+    assert(!"unknown policy");
+    return NONE;
+}
+
+const char * policy2str(policy_t policy) {
+    if (policy == NONE) return "none";
+    if (policy == COMMON) return "common";
+    if (policy == PER_OC) return "per_oc";
+    assert(!"unknown policy");
+    return "unknown policy";
 }
 
 const char *alg2str(alg_t alg) {
@@ -46,8 +64,8 @@ const char *alg2str(alg_t alg) {
         return "VANILLA_LSTM";
     if (alg == VANILLA_GRU)
         return "VANILLA_GRU";
-    if (alg == GRU_LINEAR_BEFORE_RESET)
-        return "GRU_LINEAR_BEFORE_RESET";
+    if (alg == LBR_GRU)
+        return "LBR_GRU";
     assert(!"unknown algorithm");
     return "unknown algorithm";
 }
@@ -59,7 +77,7 @@ mkldnn_alg_kind_t alg2kind(alg_t alg) {
         return mkldnn_vanilla_lstm;
     if (alg == VANILLA_GRU)
         return mkldnn_vanilla_gru;
-    if (alg == GRU_LINEAR_BEFORE_RESET)
+    if (alg == LBR_GRU)
         return mkldnn_gru_linear_before_reset;
     assert(!"unknown algorithm");
     return mkldnn_alg_kind_undef;
@@ -99,16 +117,39 @@ mkldnn_alg_kind_t activation2kind(activation_t act) {
     return alg_kind;
 }
 
+mkldnn_prop_kind_t str2prop(const char *str) {
+    if (!strcasecmp("FWD_D", str))
+        return mkldnn_forward;
+    if (!strcasecmp("BWD_D", str))
+        return mkldnn_backward;
+    assert(!"unknown propagation");
+    return mkldnn_forward;
+}
+
+const char *prop2str(mkldnn_prop_kind_t prop) {
+    if (prop == mkldnn_forward)
+        return "FWD_D";
+    if (prop == mkldnn_backward)
+        return "BWD_DW";
+    assert(!"unknown propagation");
+    return "unknown propagation";
+
+}
+
+mkldnn_rnn_direction_t str2direction(const char *str) {
+    if (!strcasecmp("left2right", str))
+        return mkldnn_unidirectional_left2right;
+    if (!strcasecmp("right2left", str))
+        return mkldnn_unidirectional_right2left;
+    if (!strcasecmp("concat", str))
+        return mkldnn_bidirectional_concat;
+    if (!strcasecmp("sum", str))
+        return mkldnn_bidirectional_sum;
+    assert(!"unknown direction");
+    return mkldnn_unidirectional_left2right;
+}
+
 const char *direction2str(mkldnn_rnn_direction_t direction) {
-
-    // typedef enum {
-    //     mkldnn_unidirectional_left2right,
-    //     mkldnn_unidirectional_right2left,
-    //     mkldnn_unidirectional = mkldnn_unidirectional_left2right,
-    //     mkldnn_bidirectional_concat,
-    //     mkldnn_bidirectional_sum,
-    // } mkldnn_rnn_direction_t;
-
     if (direction == mkldnn_unidirectional_left2right)
         return "left2right";
     if (direction == mkldnn_unidirectional_right2left)
@@ -121,14 +162,74 @@ const char *direction2str(mkldnn_rnn_direction_t direction) {
     return "unknown direction";
 }
 
+int str2desc(rnn_desc_t *desc, const char *str) {
+    rnn_desc_t d{0};
+
+    /* canonical form:
+     * lXtXmXsicXslcXdicXdlc
+     *
+     * where: X is number, S - string
+     * note: symbol `_` is ignored
+     *
+     * implicit rules:
+     *  - default values:
+     *      l = 1, t = 1, mb = 2, S="wip"
+     *  - if slc/dlc/dic is undefined => slc/dlc/dic = sic
+     */
+
+    d.n_layer = 1;
+    d.n_iter = 1;
+    d.mb = 2;
+    d.name = "\"wip\"";
+
+    const char *s = str;
+    assert(s);
+
+#   define CASE_NN(p, c) do { \
+        if (!strncmp(p, s, strlen(p))) { \
+            ok = 1; s += strlen(p); \
+            char *end_s; d. c = strtol(s, &end_s, 10); s += (end_s - s); \
+        } \
+    } while (0)
+#   define CASE_N(c) CASE_NN(#c, c)
+    while (*s) {
+        int ok = 0;
+        CASE_NN("l", n_layer);
+        CASE_NN("t", n_iter);
+        CASE_N(mb);
+        CASE_N(sic);
+        CASE_N(slc);
+        CASE_N(dic);
+        CASE_N(dlc);
+        if (*s == 'n') { d.name = s + 1; break; }
+        if (*s == '_') ++s;
+        if (!ok) return FAIL;
+    }
+#   undef CASE_NN
+#   undef CASE_N
+
+    if (d.sic == 0) return FAIL;
+    if (d.slc == 0) d.slc = d.sic;
+    if (d.dlc == 0) d.dlc = d.sic;
+    if (d.dic == 0) d.dic = d.sic;
+
+    *desc = d;
+
+    return OK;
+}
+
+
 void prb2str(const rnn_prb_t *p, const res_t *res, char *buffer) {
     int rem_len = max_prb_len;
 
-    DPRINT("%s(%s,%s)", alg2str(p->alg), activation2str(p->activation),
-            direction2str(p->direction));
+    DPRINT("--prop=%s --alg=%s --activation=%s --direction=%s --cfg=%s "
+           "--scaling=%s ",
+            prop2str(p->prop), alg2str(p->alg), activation2str(p->activation),
+            direction2str(p->direction), cfg2str(p->cfg),
+            policy2str(p->scale_policy));
     DPRINT("l%d", p->n_layer);
     DPRINT("t%d", p->n_iter);
-    DPRINT("m%d", p->mb);
+    DPRINT("mb%d", p->mb);
     DPRINT("sic%d", p->sic);
     DPRINT("slc%d", p->slc);
     DPRINT("dic%d", p->dic);
@@ -142,11 +243,20 @@ void init_buffer(float *buf, int size, float value) {
 }
 
 float logistic(float x) {
-    return 1.0f / (1.0f + expf(-x));
+    if (x < 0)
+        return (expf(x) / (1 + expf(x)));
+    else
+        return 1.0f - (expf(-x) / (1 + expf(-x)));
 }
 float dlogistic(float x) {
     float tmp = logistic(x);
     return tmp * (1 - tmp);
+}
+float dtanhf(float x) {
+    return (1 - tanhf(x)) * (1 + tanhf(x));
+}
+float x_m_square(float x) {
+    return x - x * x;
 }
 float relu(float x) {
     return x > 0 ? x : 0;
@@ -154,8 +264,8 @@ float relu(float x) {
 float drelu(float x) {
     return float(x > 0);
 }
-float dtanhf(float x) {
-    return (1 - (tanhf(x) * tanhf(x)));
+float one_m_square(float x) {
+    return 1 - x * x;
 }
 
 int compare_dat(const rnn_prb_t *p, rnn_data_kind_t kind, dnn_mem_t &mem_dt,
@@ -164,10 +274,6 @@ int compare_dat(const rnn_prb_t *p, rnn_data_kind_t kind, dnn_mem_t &mem_dt,
 
     const char *skind = rnn_data_kind2str(kind);
 
-    int in = 0, below = 0, above = 0;
-    int in_ok = 0, below_ok = 0, above_ok = 0;
-    int non_zero = 0;
-
     diff_norm_t diff_norm;
 
     r->errors = 0;
@@ -175,30 +281,14 @@ int compare_dat(const rnn_prb_t *p, rnn_data_kind_t kind, dnn_mem_t &mem_dt,
 
     for (size_t i = 0; i < nelems; ++i) {
         const float dt = ((float *)mem_dt)[i];
-        const float fp0 = ((float *)mem_fp)[i];
-
-        float fp = fp0;
+        const float fp = ((float *)mem_fp)[i];
+        diff_norm.update(fp, dt);
 
         const float diff = fabsf(fp - dt);
         const float rel_diff = diff / (fabsf(fp) > FLT_MIN ? fabsf(fp) : 1);
 
-        bool ok = true;
-        if (fp < p->cfg_[kind].min) {
-            diff_norm.update(p->cfg_[kind].min, dt);
-            ok = dt == p->cfg_[kind].min;
-            below += 1;
-            below_ok += ok;
-        } else if (fp > p->cfg_[kind].max) {
-            diff_norm.update(p->cfg_[kind].max, dt);
-            ok = dt == p->cfg_[kind].max;
-            above += 1;
-            above_ok += ok;
-        } else {
-            diff_norm.update(fp, dt);
-            ok = (fabs(fp) > 1e-5 ? rel_diff : diff) <= p->cfg_[kind].eps;
-            in += 1;
-            in_ok += ok;
-        }
+        const bool ok = (fabs(fp) > 1e-5 ? rel_diff : diff) <= p->cfg[kind].eps;
+
         if (!ok) {
             r->errors++;
             if (r->errors < 10 || verbose >= 10) {
@@ -208,58 +298,58 @@ int compare_dat(const rnn_prb_t *p, rnn_data_kind_t kind, dnn_mem_t &mem_dt,
                 case input:
                     inv_ntc_off_f(p, i, n, t, c);
                     print(0, "%lu, %s, [%s][%d,%d,%d] "
-                             "fp:%8g fp0:%8g dt:%8g diff:%8g rdiff:%8g\n",
+                             "fp:%8g dt:%8g diff:%8g rdiff:%8g\n",
                             (unsigned long)i,
                             final_compare == false ? "REORDER " : "", skind, n,
-                            t, c, fp, fp0, dt, diff, rel_diff);
+                            t, c, fp, dt, diff, rel_diff);
                     break;
                 case states:
                     inv_ldsnc_off_f(p, i, l, d, s, n, c);
                     print(0, "%lu, %s, [%s][%d,%d,%d,%d,%d] "
-                             "fp:%8g fp0:%8g dt:%8g diff:%8g rdiff:%8g\n",
+                             "fp:%8g dt:%8g diff:%8g rdiff:%8g\n",
                             (unsigned long)i,
                             final_compare == false ? "REORDER " : "", skind, l,
-                            d, s, n, c, fp, fp0, dt, diff, rel_diff);
+                            d, s, n, c, fp, dt, diff, rel_diff);
                     break;
                 case weights_input:
                     inv_ldigo_off_f(p, i, l, d, w, ic, oc);
                     print(0, "%lu, %s, [%s][%d,%d,%d,%d,%d] "
-                             "fp:%8g fp0:%8g dt:%8g diff:%8g rdiff:%8g\n",
+                             "fp:%8g dt:%8g diff:%8g rdiff:%8g\n",
                             (unsigned long)i,
                             final_compare == false ? "REORDER " : "", skind, l,
-                            d, w, ic, oc, fp, fp0, dt, diff, rel_diff);
+                            d, w, ic, oc, fp, dt, diff, rel_diff);
                     break;
                 case weights_states:
                     inv_ldigo_off_f(p, i, l, d, w, ic, oc);
                     print(0, "%lu, %s, [%s][%d,%d,%d,%d,%d] "
-                             "fp:%8g fp0:%8g dt:%8g diff:%8g rdiff:%8g\n",
+                             "fp:%8g dt:%8g diff:%8g rdiff:%8g\n",
                             (unsigned long)i,
                             final_compare == false ? "REORDER " : "", skind, l,
-                            d, w, ic, oc, fp, fp0, dt, diff, rel_diff);
+                            d, w, ic, oc, fp, dt, diff, rel_diff);
                     break;
                 case bias:
                     inv_ldgo_off_f(p, i, l, d, b, c);
                     print(0, "%lu, %s, [%s][%d,%d,%d,%d] "
-                             "fp:%8g fp0:%8g dt:%8g diff:%8g rdiff:%8g\n",
+                             "fp:%8g dt:%8g diff:%8g rdiff:%8g\n",
                             (unsigned long)i,
                             final_compare == false ? "REORDER " : "", skind, l,
-                            d, b, c, fp, fp0, dt, diff, rel_diff);
+                            d, b, c, fp,  dt, diff, rel_diff);
                     break;
                 case dst_last_layer:
                     inv_tnc_off_f(p, i, s, t, n, c);
                     print(0, "%lu, %s, [%s][%d,%d,%d,%d] "
-                             "fp:%8g fp0:%8g dt:%8g diff:%8g rdiff:%8g\n",
+                             "fp:%8g dt:%8g diff:%8g rdiff:%8g\n",
                             (unsigned long)i,
                             final_compare == false ? "REORDER " : "", skind, s,
-                            t, n, c, fp, fp0, dt, diff, rel_diff);
+                            t, n, c, fp, dt, diff, rel_diff);
                     break;
                 case dst_last_iteration:
                     inv_ldsnc_off_f(p, i, l, d, s, n, c);
                     print(0, "%lu, %s, [%s][%d,%d,%d,%d,%d "
-                             "fp:%8g fp0:%8g dt:%8g diff:%8g rdiff:%8g\n",
+                             "fp:%8g dt:%8g diff:%8g rdiff:%8g\n",
                             (unsigned long)i,
                             final_compare == false ? "REORDER " : "", skind, l,
-                            d, s, n, c, fp, fp0, dt, diff, rel_diff);
+                            d, s, n, c, fp, dt, diff, rel_diff);
                     break;
                 default: assert("unknown data kind"); return FAIL;
                 }
@@ -275,48 +365,46 @@ int compare_dat(const rnn_prb_t *p, rnn_data_kind_t kind, dnn_mem_t &mem_dt,
             switch (kind) {
             case input:
                 inv_ntc_off_f(p, i, n, t, c);
-                print(0, "[%4lu][%s][%d,%d,%d] fp:%8g fp0:%8g dt:%8g\n",
-                        (unsigned long)i, skind, n, t, c, fp, fp0, dt);
+                print(0, "[%4lu][%s][%d,%d,%d] fp:%8g dt:%8g\n",
+                        (unsigned long)i, skind, n, t, c, fp, dt);
                 break;
             case states:
                 inv_ldsnc_off_f(p, i, l, d, s, n, c);
-                print(0, "[%4lu][%s][%d,%d,%d,%d,%d] fp:%8g fp0:%8g dt:%8g\n",
-                        (unsigned long)i, skind, l, d, s, n, c, fp, fp0, dt);
+                print(0, "[%4lu][%s][%d,%d,%d,%d,%d] fp:%8g dt:%8g\n",
+                        (unsigned long)i, skind, l, d, s, n, c, fp, dt);
                 break;
             case weights_input:
                 inv_ldigo_off_f(p, i, l, d, w, ic, oc);
-                print(0, "[%4lu][%s][%d,%d,%d,%d,%d] fp:%8g fp0:%8g dt:%8g\n",
-                        (unsigned long)i, skind, l, d, w, ic, oc, fp, fp0, dt);
+                print(0, "[%4lu][%s][%d,%d,%d,%d,%d] fp:%8g dt:%8g\n",
+                        (unsigned long)i, skind, l, d, w, ic, oc, fp, dt);
                 break;
             case weights_states:
                 inv_ldigo_off_f(p, i, l, d, w, ic, oc);
                 break;
-                print(0, "[%4lu][%s][%d,%d,%d,%d,%d] fp:%8g fp0:%8g dt:%8g\n",
-                        (unsigned long)i, skind, l, d, w, ic, oc, fp, fp0, dt);
+                print(0, "[%4lu][%s][%d,%d,%d,%d,%d] fp:%8g dt:%8g\n",
+                        (unsigned long)i, skind, l, d, w, ic, oc, fp, dt);
             case bias:
                 inv_ldgo_off_f(p, i, l, d, b, c);
                 break;
-                print(0, "[%4lu][%s][%d,%d,%d,%d] fp:%8g fp0:%8g dt:%8g\n",
-                        (unsigned long)i, skind, l, d, b, c, fp, fp0, dt);
+                print(0, "[%4lu][%s][%d,%d,%d,%d] fp:%8g dt:%8g\n",
+                        (unsigned long)i, skind, l, d, b, c, fp, dt);
             case dst_last_layer:
                 inv_tnc_off_f(p, i, s, t, n, c);
-                print(0, "[%4lu][%s][%d,%d,%d] fp:%8g fp0:%8g dt:%8g\n",
-                        (unsigned long)i, skind, n, t, c, fp, fp0, dt);
+                print(0, "[%4lu][%s][%d,%d,%d] fp:%8g dt:%8g\n",
+                        (unsigned long)i, skind, n, t, c, fp, dt);
                 break;
             case dst_last_iteration:
                 inv_ldsnc_off_f(p, i, l, d, s, n, c);
-                print(0, "[%4lu][%s][%d,%d,%d,%d,%d] fp:%8g fp0:%8g dt:%8g\n",
-                        (unsigned long)i, skind, l, d, s, n, c, fp, fp0, dt);
+                print(0, "[%4lu][%s][%d,%d,%d,%d,%d] fp:%8g dt:%8g\n",
+                        (unsigned long)i, skind, l, d, s, n, c, fp, dt);
                 break;
             default:
-                print(0, "[%4lu][unknown] fp:%8g fp0:%8g dt:%8g\n",
-                        (unsigned long)i, fp, fp0, dt);
+                print(0, "[%4lu][unknown] fp:%8g dt:%8g\n",
+                        (unsigned long)i, fp, dt);
                 break;
             }
         }
 #endif
-
-        non_zero += fp != 0;
     }
 
     diff_norm.done();
@@ -337,42 +425,6 @@ int compare_dat(const rnn_prb_t *p, rnn_data_kind_t kind, dnn_mem_t &mem_dt,
                 diff_norm.b_[norm_t::L8], diff_norm.diff_[norm_t::L8],
                 diff_norm.rel_diff(norm_t::L8));
     }
-
-    // const double trust_rg_level = 0.3;
-    //??        const double trust_nz_level = get_trust_nz_level(p, kind,
-    // final_compare);
-
-    // const double trust_rg = (double)in / r->total;
-    // const double trust_nz = (double)non_zero / r->total;
-
-    // const bool no_trust = true /* ...in the test ...at all */
-    // && final_compare
-    //??            && (trust_rg < trust_rg_level || trust_nz <
-    // trust_nz_level)
-    //;
-
-    // const bool dump = verbose >= 20
-    // || (verbose >= 10 && (trust_rg < 1. || trust_nz < 1.));
-    /*??
-    if (dump) {
-        print(0, "@@@ [%s] %strust range:%.2f nz:%.2f "
-            "(level range:%.2f nz:%.2f). "
-            "in:%d (ok:%d) below:%d (ok:%d) above:%d (ok:%d) nz:%d "
-            "total:%lu\n", skind, final_compare ? "final: " : "",
-            trust_rg, trust_nz, trust_rg_level, trust_nz_level, in, in_ok,
-            below, below_ok, above, above_ok, non_zero,
-            (unsigned long)r->total);
-    }
-    */
-
-    /*??
-    if (no_trust) {
-        r->state = MISTRUSTED;
-        print(0, "@@@ [%s] test-bug: trust is too low. "
-            "range:%.2f (?<%.2f) nz:%.2f (?<%.2f) (nz: %d total: %lu)\n",
-            skind, trust_rg, trust_rg_level, trust_nz, trust_nz_level,
-            non_zero, (unsigned long)r->total);
-    }*/
 
     if (r->errors)
         r->state = FAILED;
@@ -410,6 +462,34 @@ int compare_dst_last_layer(const rnn_prb_t *p, dnn_mem_t &mem_dt,
 int compare_dst_last_iteration(const rnn_prb_t *p, dnn_mem_t &mem_dt,
         dnn_mem_t &mem_fp, res_t *r, bool final_compare = false) {
     return compare_dat(p, dst_last_iteration, mem_dt, mem_fp, r, final_compare);
+}
+
+void rnn_prb_t::set_qparams(float fp_min, float fp_max) {
+    if (cfg == conf_f32) {
+        data_shift = 0.;
+        data_scale = 1.;
+        wei_scale = 1.;
+        return;
+    }
+
+    /* Set parameters for quantization of src and weights from fp32 data
+     * in [-1, 1] to int8 data in a range specified in cfg */
+    float fp_range = fp_max - fp_min;
+    float int8_src_range = cfg[input].f_max - cfg[input].f_min,
+          int8_wei_range = cfg[weights_input].f_max - cfg[weights_input].f_min;
+
+    data_shift = cfg[input].f_mean;
+    data_scale = int8_src_range / fp_range;
+
+    if (scale_policy == COMMON) {
+        wei_scale = int8_wei_range / fp_range;
+    } else if (scale_policy == PER_OC) {
+        float K = int8_wei_range / fp_range;
+        int nelems = dic * n_gates();
+        for (int i = 0; i < nelems; i++) {
+            wei_oc_scales[i] = K * (1. + (float)i / nelems);
+        }
+    }
 }
 
 } // namespace rnn

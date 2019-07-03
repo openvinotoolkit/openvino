@@ -90,27 +90,27 @@ struct nhwc_pooling_fwd_t: public cpu_primitive_t {
         }
     };
 
-    nhwc_pooling_fwd_t(const pd_t *pd, const input_vector &inputs,
+    nhwc_pooling_fwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd) {}
+        : cpu_primitive_t(apd, inputs, outputs) {}
 
     typedef typename prec_traits<data_type>::type data_t;
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         execute_forward();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_forward();
+    void execute_forward() const;
     void array_div_by_const(const int n, const data_t *src, const size_t num,
-            data_t *dst);
-    void array_add(const int n, const data_t *src, data_t *dst);
+            data_t *dst) const;
+    void array_add(const int n, const data_t *src, data_t *dst) const;
 
     template <bool use_workspace>
     void array_nhwc_max(const int n, data_t *dst, const data_t *src,
             unsigned char *ws, const size_t ws_offset, const data_type_t ws_dt,
-            const int index) {
+            const int index) const {
         assert(!((use_workspace == false) ^ (!ws))); // ensure ws pointer exists
         PRAGMA_OMP_SIMD()
         for (int oc = 0; oc < n; ++oc) {
@@ -158,7 +158,7 @@ private:
 
     template <bool use_workspace>
     void array_nhwc_initialize(const int n, data_t *dst, unsigned char *ws,
-            const size_t ws_offset, const data_type_t ws_dt) {
+            const size_t ws_offset, const data_type_t ws_dt) const {
         assert(!((use_workspace == false) ^ (!ws))); // ensure ws pointer exists
         for (int oc = 0; oc < n; ++oc) {
             if (use_workspace) {
@@ -172,7 +172,7 @@ private:
         }
     }
 
-    pd_t conf_;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 };
 
 template <impl::data_type_t data_type>
@@ -224,19 +224,19 @@ struct nhwc_pooling_bwd_t: public cpu_primitive_t {
         }
     };
 
-    nhwc_pooling_bwd_t(const pd_t *pd, const input_vector &inputs,
+    nhwc_pooling_bwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd) {}
+        : cpu_primitive_t(apd, inputs, outputs) {}
     typedef typename prec_traits<data_type>::type data_t;
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         execute_backward();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_backward();
-    pd_t conf_;
+    void execute_backward() const;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 };
 
 }// namespace cpu

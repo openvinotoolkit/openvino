@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,8 +17,7 @@
 import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import replace_node
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.lin_op import Mul
 
 
@@ -26,8 +25,8 @@ class BroadcastMulFrontReplacer(FrontReplacementOp):
     op = 'broadcast_mul'
     enabled = True
 
-    def replace_op(self, graph: nx.MultiDiGraph, node: Node):
+    def replace_op(self, graph: Graph, node: Node):
         mul_op = Mul(graph, dict(name=node.id + '/mul_', symbol_dict={'name': node.id + '/mul_'}))
         mul_node = mul_op.create_node(inputs=[node.in_node(0), node.in_node(1)])
-        replace_node(node, mul_node)
+        node.replace_node(mul_node)
         return [mul_node.id]

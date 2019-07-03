@@ -27,9 +27,9 @@ namespace kernel_selector {
         virtual ~ConvolutionKernel_yxfb_yxio_b8() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
-    
+
     protected:
+        virtual ParamsKey GetSupportedKey() const override;
         virtual JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
         virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override { return{ WeightsLayout::yxio }; }
         bool Validate(const Params& p, const optional_params& o) const override;

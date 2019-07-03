@@ -25,6 +25,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/conv
     ${CMAKE_CURRENT_SOURCE_DIR}/ip
+    ${CMAKE_CURRENT_SOURCE_DIR}/shuffle
     ${CMAKE_CURRENT_SOURCE_DIR}/reorder
     )
 
@@ -33,12 +34,8 @@ if(BENCHDNN_USE_RDPMC)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    if(WIN32)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Qprec-div")
-    elseif(UNIX)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -prec-div")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fp-model precise")
-    endif()
+    append_if(WIN32 CMAKE_CXX_FLAGS "-Qprec-div")
+    append_if(UNIX  CMAKE_CXX_FLAGS "-prec-div -fp-model precise")
 endif()
 
 if(UNIX AND NOT APPLE)
@@ -58,20 +55,20 @@ function(register_benchdnn_test name cmd)
         DEPENDS benchdnn
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
-    if(WIN32)
-        set_property(TARGET ${name} PROPERTY ENVIRONMENT "PATH=${CTESTCONFIG_PATH}")
-        configure_file(${CMAKE_SOURCE_DIR}/config_template.vcxproj.user ${name}.vcxproj.user @ONLY)
-    endif()
+    maybe_configure_windows_test(${name} TARGET)
 endfunction()
 
 register_benchdnn_test(test_conv "benchdnn -v1 --conv --batch=inputs/test_conv_all")
 register_benchdnn_test(test_benchdnn_conv "benchdnn -v1 --conv --batch=inputs/test_conv_all")
-register_benchdnn_test(test_benchdnn_deconv "benchdnn -v1 --deconv --batch=inputs/test_deconv_all")
-register_benchdnn_test(test_benchdnn_rnn "benchdnn -v1 --rnn")
+register_benchdnn_test(test_benchdnn_deconv "benchdnn -v1 --deconv --batch=inputs/deconv/test_deconv_all")
+register_benchdnn_test(test_benchdnn_rnn "benchdnn -v1 --rnn --batch=inputs/rnn/test_rnn_small")
 register_benchdnn_test(test_benchdnn_reorder "benchdnn --reorder --batch=inputs/reorder/test_default")
 register_benchdnn_test(test_benchdnn_bnorm "benchdnn --bnorm  --batch=inputs/bnorm/test_bnorm_topo")
 register_benchdnn_test(test_benchdnn_ip "benchdnn --ip --batch=inputs/ip/test_ip_all")
 register_benchdnn_test(test_benchdnn_regression
     "benchdnn --conv --batch=inputs/test_conv_regression"
     "benchdnn --bnorm --batch=inputs/bnorm/test_bnorm_regressions"
+    )
+register_benchdnn_test(test_benchdnn_regression_large
+    "benchdnn --bnorm --batch=inputs/bnorm/test_bnorm_regressions_large"
     )

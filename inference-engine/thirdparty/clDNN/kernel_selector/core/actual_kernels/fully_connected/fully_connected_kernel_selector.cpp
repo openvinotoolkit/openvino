@@ -1,5 +1,5 @@
 ﻿/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@
 #include "fully_connected_kernel_image_tutorial.h"
 #include "fully_connected_kernel_MMAD.h"
 #include "fully_connected_kernel_mmad_batched.h"
+#include "fully_connected_kernel_imad.h"
 
 namespace kernel_selector {
 
@@ -51,6 +52,7 @@ namespace kernel_selector {
         Attach<FullyConnected_bf_io_input_spatial>();
         Attach<FullyConnectedKernelMMAD>();
         Attach<FullyConnected_mmad_batched>();
+        Attach<FullyConnectedKernelIMAD>();
     }
 
     KernelsData fully_connected_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const

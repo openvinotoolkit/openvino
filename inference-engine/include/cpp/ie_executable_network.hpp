@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +16,7 @@
 #include "ie_iexecutable_network.hpp"
 #include "cpp/ie_infer_request.hpp"
 #include "cpp/ie_memory_state.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "details/ie_exception_conversion.hpp"
 
 namespace InferenceEngine {
@@ -108,6 +108,15 @@ public:
         return actual;
     }
 
+    /**
+    * @brief Get executable graph information from a plugin represented as CNNNetwork
+    * @return CNNetwork containing Executable Graph Info
+    */
+    CNNNetwork GetExecGraphInfo() {
+        ICNNNetwork::Ptr ptr = nullptr;
+        CALL_STATUS_FNC(GetExecGraphInfo, ptr);
+        return CNNNetwork(ptr);
+    }
 
     /**
      *@brief see original function InferenceEngine::IExecutableNetwork::QueryState

@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +74,7 @@ void enumerate_proposals_cpu(const float* bottom4d, const float* d_anchor4d, con
                              const int bottom_W, const float img_H, const float img_W,
                              const float min_box_H, const float min_box_W, const int feat_stride,
                              const float box_coordinate_scale, const float box_size_scale,
-                             float coordinates_offset, bool initial_clip, bool swap_xy) {
+                             float coordinates_offset, bool initial_clip, bool swap_xy, bool clip_before_nms) {
     const int bottom_area = bottom_H * bottom_W;
 
     const float* p_anchors_wm = anchors + 0 * num_anchors;
@@ -84,8 +83,8 @@ void enumerate_proposals_cpu(const float* bottom4d, const float* d_anchor4d, con
     const float* p_anchors_hp = anchors + 3 * num_anchors;
 
     parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
-            const float x = (swap_xy ? h : w) * feat_stride;
-            const float y = (swap_xy ? w : h) * feat_stride;
+            const float x = static_cast<float>((swap_xy ? h : w) * feat_stride);
+            const float y = static_cast<float>((swap_xy ? w : h) * feat_stride);
 
             const float* p_box   = d_anchor4d + h * bottom_W + w;
             const float* p_score = bottom4d   + h * bottom_W + w;
@@ -136,10 +135,12 @@ void enumerate_proposals_cpu(const float* bottom4d, const float* d_anchor4d, con
                 y1 = pred_ctr_y + 0.5f * pred_h;
 
                 // adjust new corner locations to be within the image region,
-                x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
-                y0 = std::max<float>(0.0f, std::min<float>(y0, img_H - coordinates_offset));
-                x1 = std::max<float>(0.0f, std::min<float>(x1, img_W - coordinates_offset));
-                y1 = std::max<float>(0.0f, std::min<float>(y1, img_H - coordinates_offset));
+                if (clip_before_nms) {
+                    x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
+                    y0 = std::max<float>(0.0f, std::min<float>(y0, img_H - coordinates_offset));
+                    x1 = std::max<float>(0.0f, std::min<float>(x1, img_W - coordinates_offset));
+                    y1 = std::max<float>(0.0f, std::min<float>(y1, img_H - coordinates_offset));
+                }
 
                 // recompute new width & height
                 const float box_w = x1 - x0 + coordinates_offset;
@@ -291,7 +292,8 @@ static
 void retrieve_rois_cpu(const int num_rois, const int item_index,
                               const int num_proposals,
                               const float* proposals, const int roi_indices[],
-                              float* rois, int post_nms_topn_) {
+                              float* rois, int post_nms_topn_,
+                              bool normalize, float img_h, float img_w, bool clip_after_nms) {
     const float *src_x0 = proposals + 0 * num_proposals;
     const float *src_y0 = proposals + 1 * num_proposals;
     const float *src_x1 = proposals + 2 * num_proposals;
@@ -300,12 +302,26 @@ void retrieve_rois_cpu(const int num_rois, const int item_index,
     parallel_for(num_rois, [&](size_t roi) {
         int index = roi_indices[roi];
 
-        const float x0 = src_x0[index];
-        const float y0 = src_y0[index];
-        const float x1 = src_x1[index];
-        const float y1 = src_y1[index];
+        float x0 = src_x0[index];
+        float y0 = src_y0[index];
+        float x1 = src_x1[index];
+        float y1 = src_y1[index];
 
-        rois[roi * 5 + 0] = item_index;
+        if (clip_after_nms) {
+            x0 = std::max<float>(0.0f, std::min<float>(x0, img_w));
+            y0 = std::max<float>(0.0f, std::min<float>(y0, img_h));
+            x1 = std::max<float>(0.0f, std::min<float>(x1, img_w));
+            y1 = std::max<float>(0.0f, std::min<float>(y1, img_h));
+        }
+
+        if (normalize) {
+            x0 /= img_w;
+            y0 /= img_h;
+            x1 /= img_w;
+            y1 /= img_h;
+        }
+
+        rois[roi * 5 + 0] = static_cast<float>(item_index);
         rois[roi * 5 + 1] = x0;
         rois[roi * 5 + 2] = y0;
         rois[roi * 5 + 3] = x1;
@@ -328,6 +344,10 @@ public:
         try {
             if (layer->insData.size() != 3 || layer->outData.size() != 1)
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+
+            if (layer->insData[0].lock()->dims.size() != 4)
+                THROW_IE_EXCEPTION << "Proposal supports only 4D blobs!";
+
             feat_stride_ = static_cast<size_t>(layer->GetParamAsInt("feat_stride"));
             base_size_ = static_cast<size_t>(layer->GetParamAsInt("base_size"));
             min_size_ = static_cast<size_t>(layer->GetParamAsInt("min_size"));
@@ -338,6 +358,9 @@ public:
             box_size_scale_ = layer->GetParamAsFloat("box_size_scale", 1.0);
             scales = layer->GetParamAsFloats("scale", {});
             ratios = layer->GetParamAsFloats("ratio", {});
+            normalize_ = layer->GetParamsAsBool("normalize", false);
+            clip_before_nms = layer->GetParamsAsBool("clip_before_nms", true);
+            clip_after_nms = layer->GetParamsAsBool("clip_after_nms", false);
 
             anchors_shape_0 = ratios.size() * scales.size();
             anchors_.resize(anchors_shape_0 * 4);
@@ -362,95 +385,100 @@ public:
             roi_indices_.resize(post_nms_topn_);
             addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
                       {DataConfigurator(ConfLayout::PLN)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        } catch (const InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }
 
     StatusCode execute(std::vector<Blob::Ptr> &inputs, std::vector<Blob::Ptr> &outputs,
                        ResponseDesc *resp) noexcept override {
-        if (inputs.size() != 3 || outputs.empty()) {
+        try {
+            if (inputs.size() != 3 || outputs.empty()) {
+                THROW_IE_EXCEPTION << "Incorrect number of input or output edges!";
+            }
+
+            // Prepare memory
+            const float *p_bottom_item = inputs[0]->buffer();
+            const float *p_d_anchor_item = inputs[1]->buffer();
+            const float *p_img_info_cpu = inputs[2]->buffer();
+            float *p_roi_item = outputs[0]->buffer();
+
+            size_t img_info_size = inputs[2]->getTensorDesc().getDims()[1];
+
+            // No second output so ignoring this
+            // Dtype* p_score_item = (top.size() > 1) ? top[1]->mutable_cpu_data() : NULL;
+
+            // bottom shape: (2 x num_anchors) x H x W
+            const int bottom_H = inputs[0]->getTensorDesc().getDims()[2];
+            const int bottom_W = inputs[0]->getTensorDesc().getDims()[3];
+
+            // input image height & width
+            const float img_H = p_img_info_cpu[swap_xy ? 1 : 0];
+            const float img_W = p_img_info_cpu[swap_xy ? 0 : 1];
+
+            // scale factor for height & width
+            const float scale_H = p_img_info_cpu[2];
+            const float scale_W = img_info_size > 3 ? p_img_info_cpu[3] : scale_H;
+
+            // minimum box width & height
+            const float min_box_H = min_size_ * scale_H;
+            const float min_box_W = min_size_ * scale_W;
+
+            // number of all proposals = num_anchors * H * W
+            const int num_proposals = anchors_shape_0 * bottom_H * bottom_W;
+
+            // number of top-n proposals before NMS
+            const int pre_nms_topn = std::min<int>(num_proposals, pre_nms_topn_);
+
+            // number of final RoIs
+            int num_rois = 0;
+
+            // enumerate all proposals
+            //   num_proposals = num_anchors * H * W
+            //   (x1, y1, x2, y2, score) for each proposal
+            // NOTE: for bottom, only foreground scores are passed
+            struct ProposalBox {
+                float x0;
+                float y0;
+                float x1;
+                float y1;
+                float score;
+            };
+            std::vector<ProposalBox> proposals_(num_proposals);
+            std::vector<float> unpacked_boxes(4 * pre_nms_topn);
+            std::vector<int> is_dead(pre_nms_topn);
+
+            // Execute
+            int nn = inputs[0]->getTensorDesc().getDims()[0];
+            for (int n = 0; n < nn; ++n) {
+                enumerate_proposals_cpu(p_bottom_item + num_proposals + n * num_proposals * 2,
+                                        p_d_anchor_item + n * num_proposals * 4,
+                                        &anchors_[0], reinterpret_cast<float *>(&proposals_[0]),
+                                        anchors_shape_0, bottom_H, bottom_W, img_H, img_W,
+                                        min_box_H, min_box_W, feat_stride_,
+                                        box_coordinate_scale_, box_size_scale_,
+                                        coordinates_offset, initial_clip, swap_xy, clip_before_nms);
+                std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
+                                  [](const ProposalBox &struct1, const ProposalBox &struct2) {
+                                      return (struct1.score > struct2.score);
+                                  });
+
+                unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
+                nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0, nms_thresh_,
+                        post_nms_topn_, coordinates_offset);
+                retrieve_rois_cpu(num_rois, n, pre_nms_topn, &unpacked_boxes[0], &roi_indices_[0],
+                                  p_roi_item + n * post_nms_topn_ * 5,
+                                  post_nms_topn_, normalize_, img_H, img_W, clip_after_nms);
+            }
+
+            return OK;
+        } catch (const InferenceEngine::details::InferenceEngineException& e) {
             if (resp) {
-                std::string errorMsg = "Incorrect number of input or output edges!";
+                std::string errorMsg = e.what();
                 errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
             }
             return GENERAL_ERROR;
         }
-
-        // Prepare memory
-        const float* p_bottom_item = inputs[0]->buffer();
-        const float* p_d_anchor_item = inputs[1]->buffer();
-        const float* p_img_info_cpu = inputs[2]->buffer();
-        float* p_roi_item = outputs[0]->buffer();
-
-        size_t img_info_size = 1;
-        for (size_t i = 0; i < inputs[2]->getTensorDesc().getDims().size(); i++) {
-            img_info_size *= inputs[2]->getTensorDesc().getDims()[i];
-        }
-
-        // No second output so ignoring this
-        // Dtype* p_score_item = (top.size() > 1) ? top[1]->mutable_cpu_data() : NULL;
-
-        // bottom shape: (2 x num_anchors) x H x W
-        const int bottom_H = inputs[0]->getTensorDesc().getDims()[2];
-        const int bottom_W = inputs[0]->getTensorDesc().getDims()[3];
-
-        // input image height & width
-        const float img_H = p_img_info_cpu[swap_xy ? 1 : 0];
-        const float img_W = p_img_info_cpu[swap_xy ? 0 : 1];
-
-        // scale factor for height & width
-        const float scale_H = p_img_info_cpu[2];
-        const float scale_W = img_info_size > 3 ? p_img_info_cpu[3] : scale_H;
-
-        // minimum box width & height
-        const float min_box_H = min_size_ * scale_H;
-        const float min_box_W = min_size_ * scale_W;
-
-        // number of all proposals = num_anchors * H * W
-        const int num_proposals = anchors_shape_0 * bottom_H * bottom_W;
-
-        // number of top-n proposals before NMS
-        const int pre_nms_topn = std::min<int>(num_proposals, pre_nms_topn_);
-
-        // number of final RoIs
-        int num_rois = 0;
-
-        // enumerate all proposals
-        //   num_proposals = num_anchors * H * W
-        //   (x1, y1, x2, y2, score) for each proposal
-        // NOTE: for bottom, only foreground scores are passed
-        struct ProposalBox {
-            float x0;
-            float y0;
-            float x1;
-            float y1;
-            float score;
-        };
-        std::vector<ProposalBox> proposals_(num_proposals);
-        std::vector<float> unpacked_boxes(4 * pre_nms_topn);
-        std::vector<int> is_dead(pre_nms_topn);
-
-        // Execute
-        int nn = inputs[0]->getTensorDesc().getDims()[0];
-        for (int n = 0; n < nn; ++n) {
-            enumerate_proposals_cpu(p_bottom_item + num_proposals, p_d_anchor_item,
-                                    &anchors_[0], reinterpret_cast<float *>(&proposals_[0]),
-                                    anchors_shape_0, bottom_H, bottom_W, img_H, img_W,
-                                    min_box_H, min_box_W, feat_stride_,
-                                    box_coordinate_scale_, box_size_scale_,
-                                    coordinates_offset, initial_clip, swap_xy);
-            std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
-                              [](const ProposalBox& struct1, const ProposalBox& struct2) {
-                                  return (struct1.score > struct2.score);
-                              });
-
-            unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
-            nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0, nms_thresh_, post_nms_topn_, coordinates_offset);
-            retrieve_rois_cpu(num_rois, n, pre_nms_topn, &unpacked_boxes[0], &roi_indices_[0], p_roi_item, post_nms_topn_);
-        }
-
-        return OK;
     }
 
 private:
@@ -464,6 +492,7 @@ private:
     float box_size_scale_;
     std::vector<float> scales;
     std::vector<float> ratios;
+    bool normalize_;
 
     size_t anchors_shape_0;
     std::vector<float> anchors_;
@@ -472,9 +501,11 @@ private:
     // Framework specific parameters
     float coordinates_offset;
     bool swap_xy;
-    bool initial_clip;   // clip initial bounding boxes
-    bool round_ratios;   // round ratios during anchors generation stage
-    bool shift_anchors;  // shift anchors by half size of the box
+    bool initial_clip;     // clip initial bounding boxes
+    bool clip_before_nms;  // clip bounding boxes before nms step
+    bool clip_after_nms;   // clip bounding boxes after nms step
+    bool round_ratios;     // round ratios during anchors generation stage
+    bool shift_anchors;    // shift anchors by half size of the box
 };
 
 class ProposalFactory : public ImplFactory<ProposalImpl> {
@@ -483,16 +514,20 @@ public:
     // set output shapes by input shapes.
     StatusCode getShapes(const std::vector<TensorDesc>& inShapes, std::vector<TensorDesc>& outShapes,
                          ResponseDesc *resp) noexcept override {
-        if (inShapes.size() != 1) {
+        try {
+            if (inShapes.size() != 1) {
+                THROW_IE_EXCEPTION << "Incorrect input shapes!";
+            }
+            outShapes.clear();
+            outShapes.emplace_back(cnnLayer.precision, inShapes[0].getDims(), inShapes[0].getLayout());
+            return OK;
+        } catch (const InferenceEngine::details::InferenceEngineException& e) {
             if (resp) {
-                std::string errorMsg = "Incorrect input shapes!";
+                std::string errorMsg = e.what();
                 errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
             }
             return GENERAL_ERROR;
         }
-        outShapes.clear();
-        outShapes.emplace_back(cnnLayer.precision, inShapes[0].getDims(), inShapes[0].getLayout());
-        return OK;
     }
 };
 

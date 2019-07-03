@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,14 +30,15 @@ ClassificationProcessor::ClassificationProcessor(const std::string& flags_m, con
             PreprocessingOptions(false, ResizeCropPolicy::ResizeThenCrop, 256, 256), zeroBackground) {
 }
 
-std::shared_ptr<Processor::InferenceMetrics> ClassificationProcessor::Process() {
+std::shared_ptr<Processor::InferenceMetrics> ClassificationProcessor::Process(bool stream_output) {
      slog::info << "Collecting labels" << slog::endl;
      ClassificationSetGenerator generator;
-     // try {
-     //     generator.readLabels(labelFileName);
-     // } catch (InferenceEngine::details::InferenceEngineException& ex) {
-     //     slog::warn << "Can't read labels file " << labelFileName << slog::endl;
-     // }
+     try {
+         generator.readLabels(labelFileName);
+     } catch (InferenceEngine::details::InferenceEngineException& ex) {
+         slog::warn << "Can't read labels file " << labelFileName << slog::endl;
+         slog::warn << "Error: " << ex.what() << slog::endl;
+     }
 
      auto validationMap = generator.getValidationMap(imagesPath);
      ImageDecoder decoder;
@@ -49,7 +49,7 @@ std::shared_ptr<Processor::InferenceMetrics> ClassificationProcessor::Process() 
      std::vector<int> expected(batch);
      std::vector<std::string> files(batch);
 
-     ConsoleProgress progress(validationMap.size());
+     ConsoleProgress progress(validationMap.size(), stream_output);
 
      ClassificationInferenceMetrics im;
 
@@ -60,7 +60,7 @@ std::shared_ptr<Processor::InferenceMetrics> ClassificationProcessor::Process() 
 
      auto iter = validationMap.begin();
      while (iter != validationMap.end()) {
-         int b = 0;
+         size_t b = 0;
          int filesWatched = 0;
          for (; b < batch && iter != validationMap.end(); b++, iter++, filesWatched++) {
              expected[b] = iter->first;
@@ -69,6 +69,7 @@ std::shared_ptr<Processor::InferenceMetrics> ClassificationProcessor::Process() 
                  files[b] = iter->second;
              } catch (const InferenceEngineException& iex) {
                  slog::warn << "Can't read file " << iter->second << slog::endl;
+                 slog::warn << "Error: " << iex.what() << slog::endl;
                  // Could be some non-image file in directory
                  b--;
                  continue;
@@ -81,16 +82,16 @@ std::shared_ptr<Processor::InferenceMetrics> ClassificationProcessor::Process() 
          auto firstOutputData = firstOutputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type*>();
          InferenceEngine::TopResults(TOP_COUNT, *firstOutputBlob, results);
 
-         for (int i = 0; i < b; i++) {
+         for (size_t i = 0; i < b; i++) {
              int expc = expected[i];
              if (zeroBackground) expc++;
 
-             bool top1Scored = (results[0 + TOP_COUNT * i] == expc);
+             bool top1Scored = (static_cast<int>(results[0 + TOP_COUNT * i]) == expc);
              dumper << "\"" + files[i] + "\"" << top1Scored;
              if (top1Scored) im.top1Result++;
              for (int j = 0; j < TOP_COUNT; j++) {
                  unsigned classId = results[j + TOP_COUNT * i];
-                 if (classId == expc) {
+                 if (static_cast<int>(classId) == expc) {
                      im.topCountResult++;
                  }
                  dumper << classId << firstOutputData[classId + i * (firstOutputBlob->size() / batch)];

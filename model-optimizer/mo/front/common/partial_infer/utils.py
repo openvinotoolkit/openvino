@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,27 +18,25 @@ import logging as log
 
 import numpy as np
 
+from typing import Iterable
 
-def int64_array(l: list):
+
+def int64_array(l: Iterable):
     return np.array(l, dtype=np.int64)
 
 
 def float_array(l: list):
-    return np.array(l, dtype=np.int64)
+    return np.array(l, dtype=np.float64)
 
 
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
     """
     Preparing necessary attributes for edges at input ports starting from start_port.
-    It is applicable for convolution and other operations that has constant inputs which
+    It is applicable for convolution and other operations that have constant inputs which
     are intended to be dumped as IE IR bin file.
     """
-    nports = len(node.in_nodes())
-    for i, name in enumerate(names):
-        port = i + start_port
-        if port >= nports:
-            break
-        if node.in_node(port).value is not None:
+    for port, name in enumerate(names, start=start_port):
+        if port in node.in_nodes() and node.in_node(port).has_valid('value'):
             node.in_edge(port)['bin'] = name
 
 
@@ -62,26 +60,31 @@ def convert_tf_padding_to_str(padding):
 
 
 # TODO eliminate this dependency and pass necessary function as an argument
-def tf_window_op_pad_infer(input, window, stride, auto_pad):
+def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
     if input is None or window is None or stride is None or auto_pad is None:
         return (None, None)
+
+    normalized_stride = stride
+    if is_deconv:
+        normalized_stride = 1 / stride
+
     if auto_pad in ['same_lower', 'same_upper']:
         if auto_pad == 'same_upper':
-            output = np.int64(np.ceil(input / stride))
+            output = np.int64(np.ceil(input / normalized_stride))
         else:
-            output = np.int64(np.floor(input / stride))
+            output = np.int64(np.floor(input / normalized_stride))
         residual = input % stride
         mask = residual == 0
         full_pad = window.copy()
         full_pad[mask] -= stride[mask]
-        mask = np.logical_not(mask)
+        mask = np.logical_not(mask)  # pylint: disable=assignment-from-no-return
         full_pad[mask] -= input[mask] % stride[mask]
-        full_pad = np.maximum(full_pad, 0)
+        full_pad = np.maximum(full_pad, 0)  # pylint: disable=assignment-from-no-return
         low_pad = np.int64(full_pad / 2)
         high_pad = full_pad - low_pad
         pad = np.array([low_pad, high_pad]).transpose()
     elif auto_pad == 'valid':
-        output = np.int64(np.ceil((input - window + 1) / stride))
+        output = np.int64(np.ceil((input - window + 1) / normalized_stride))
         pad = np.zeros((len(output), 2), dtype=np.int64)
     else:
         log.error("Unsupported padding scheme: {}".format(auto_pad))

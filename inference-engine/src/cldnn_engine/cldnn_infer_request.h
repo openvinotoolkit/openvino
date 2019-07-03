@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +27,7 @@ public:
     void
     GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
 
-    CLDNNInferRequest(InferenceEnv env, bool useProfiling,
+    CLDNNInferRequest(const InferenceEnv& env, bool useProfiling,
                       InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs);
 
     CLDNNInferRequest(const CLDNNInferRequest &) = delete;
@@ -45,7 +44,6 @@ protected:
     InferenceEnv m_env;
 
     // dynamic batch stuff
-    int m_curBatch;
     std::map<std::string, std::vector<buf_info>> batchInputs;
     std::map<std::string, std::vector<buf_info>> batchOutputs;
 
@@ -67,7 +65,7 @@ protected:
     void PrepareInputDyn(const cldnn::primitive_id &inputName, const InferenceEngine::Blob &inputBlob);
 
 private:
-    static const std::string fp32_suffix;
+    static const char fp32_suffix[];
 };
 
 };  // namespace CLDNNPlugin

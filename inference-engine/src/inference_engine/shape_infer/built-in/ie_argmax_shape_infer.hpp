@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +22,7 @@ class ArgMaxShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit ArgMaxShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -31,7 +30,7 @@ public:
         CNNLayer cnnLayer(lp);
         cnnLayer.params = params;
         cnnLayer.type = _type;
-        validate(&cnnLayer, inShapes, params, blobs);
+        validate(&cnnLayer, inBlobs, params, blobs);
         auto out_max_val = static_cast<size_t>(cnnLayer.GetParamAsInt("out_max_val", 0));
         auto top_k = static_cast<size_t>(cnnLayer.GetParamAsInt("top_k", 0));
         int axis = 0;
@@ -46,7 +45,7 @@ public:
         size_t num_top_axes = firstInputShape.size();
         if (num_top_axes < 3) num_top_axes = 3;
 
-        SizeVector outputShape(num_top_axes, 1);
+        SizeVector outputShape(num_top_axes, 1lu);
         if (isValidAxis) {
             if (axis < 0) {
                 axis = static_cast<int>(firstInputShape.size() + axis);

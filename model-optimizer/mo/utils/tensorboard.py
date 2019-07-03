@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,10 @@
 """
 
 import tensorflow as tf
-
+try:
+    import tensorflow.contrib
+except:
+    pass  # we try to import contrib for loading models that use contrib operations
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 

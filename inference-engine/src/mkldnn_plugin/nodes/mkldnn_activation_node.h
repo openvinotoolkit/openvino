@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +54,7 @@ private:
     float beta = 0.0f;
     static InferenceEngine::details::caseless_map<std::string,
             std::function<void(InferenceEngine::GenericLayer*, mkldnn::algorithm&, float&, float&)>> initializers;
-    mkldnn::algorithm algorithm;
+    mkldnn::algorithm algorithm = mkldnn::algorithm::eltwise_relu;
 };
 
 }  // namespace MKLDNNPlugin

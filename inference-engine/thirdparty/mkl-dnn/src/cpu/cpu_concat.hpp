@@ -55,7 +55,7 @@ namespace cpu {
         } \
         return ret; \
     } \
-    virtual pd_t *clone() const override { return nullptr; } \
+    virtual pd_t *clone() const override { return new pd_t(*this); } \
     virtual const char *name() const override { return impl_name; }
 #define DECLARE_CPU_CONCAT_PD_T(impl_name, ...) \
     DECLARE_CPU_CONCAT_PD_t(impl_name, __VA_ARGS__)
@@ -99,7 +99,7 @@ protected:
 
         for (int i = 0; i < n_; ++i) {
             const memory_desc_wrapper i_d(&src_pds_[i]);
-            if (i_d.is_wino_desc())
+            if (i_d.is_wino_desc() || i_d.is_additional_buffer())
                 return unimplemented;
         }
 

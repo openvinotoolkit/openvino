@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 """
 
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
+from mo.ops.concat import Concat
 
 
 class ConcatFrontExtractor(FrontExtractorOp):
@@ -25,8 +25,7 @@ class ConcatFrontExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
         mapping_rule = {
-           'axis': node.pb.axis
+           'axis': 1
         }
-
-        Op.get_op_class_by_name('Concat').update_node_stat(node, mapping_rule)
+        Concat.update_node_stat(node, mapping_rule)
         return __class__.enabled

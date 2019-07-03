@@ -17,7 +17,7 @@
 #include "kernel_selector_common.h"
 #include <sstream>
 
-namespace kernel_selector
+namespace kernel_selector 
 {
     std::string GetStringEnv(const char* varName)
     {
@@ -72,6 +72,7 @@ namespace kernel_selector
         case ActivationFunction::LOG:                   method = "LOG"; break;
 		case ActivationFunction::LOG2:                  method = "LOG2"; break;
         case ActivationFunction::EXP:                   method = "EXP"; break;
+        case ActivationFunction::NOT:                   method = "NOT"; break;
         case ActivationFunction::NONE:                  method = "NONE"; break;
         case ActivationFunction::NONE_GRAD:             method = "NONE_GRAD"; break;
         default: break;
@@ -95,7 +96,9 @@ namespace kernel_selector
         case kernel_selector::DataLayout::brfyx:             return "BRFYX";
         case kernel_selector::DataLayout::winograd_2x3_s1_data: return "WINOGRAD_2x3_S1_DATA";
         case kernel_selector::DataLayout::byxf_af32: return "BYXF_AF32";
+        case kernel_selector::DataLayout::byx8_f4: return "BYX8_F4";
         case kernel_selector::DataLayout::fs_bs_yx_bsv4_fsv32: return "FS_BS_YX_BSV4_FSV32";
+        case kernel_selector::DataLayout::b_fs_yx_fsv4:      return "B_FS_YX_FSV4";
         default: return "";
         }
     }
@@ -308,6 +311,8 @@ namespace kernel_selector
         case WeightsLayout::iyxo:                       return "IYXO";
         case WeightsLayout::yxio:                       return "YXIO";
         case WeightsLayout::os_iyx_osv16:               return "OS_IYX_OSV16";
+        case WeightsLayout::os_iyx_osv32:               return "OS_IYX_OSV32";
+        case WeightsLayout::os_iyx_osv64:               return "OS_IYX_OSV64";
         case WeightsLayout::os_iyx_osv16_rotate_180:    return "OS_IYX_OSV16_ROTATE_180";
         case WeightsLayout::os_i_osv16:                 return "OS_I_OSV16";
         case WeightsLayout::os_i_osv8__ai8:             return "OS_I_OSV8__AI8";
@@ -323,7 +328,12 @@ namespace kernel_selector
         case WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb: return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB";
         case WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb: return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB";
         case WeightsLayout::os_is_yx_isa8_osv8_isv4: return "OS_IS_YX_ISA8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4: return "OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::is_o_yx_isv32: return "IS_O_YX_ISV32";
+        case WeightsLayout::is_o32_yx_isv32_swizzled_by_4: return "IS_O32_YX_ISV32_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_y_x8_osv8_isv4: return "OS_IS_Y_X8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_osv16_isv4:  return "OS_IS_YX_OSV16_ISV4";
+
         default:
             return "";
             break;
@@ -354,6 +364,18 @@ namespace kernel_selector
         }
     }
 
+    std::string toString(GatherAxis a)
+    {
+        switch (a)
+        {
+            case GatherAxis::X:         return "X";
+            case GatherAxis::Y:         return "Y";
+            case GatherAxis::FEATURE:   return "FEATURE";
+            case GatherAxis::BATCH:     return "BATCH";
+            default: return "";
+        }
+    }
+
     std::string toString(SampleType type)
     {
         switch (type)
@@ -368,7 +390,8 @@ namespace kernel_selector
     {
         switch (type)
         {
-        case BorderType::ZERO:       return "BORDER_TYPE_ZERO";
+        case BorderType::CONSTANT:   return "BORDER_TYPE_CONSTANT";
+        case BorderType::EDGE:       return "BORDER_TYPE_EDGE";
         case BorderType::MIRROR:     return "BORDER_TYPE_MIRROR";
         case BorderType::MIRROR_101: return "BORDER_TYPE_MIRROR_101";
         default:                     return "";
@@ -385,13 +408,6 @@ namespace kernel_selector
         case IndexSelectAxis::Y:           return "INDEX_SELECT_AXIS_Y";
         default:                           return "";
         }
-    }
-
-    std::string toString(NonLinearParams params)
-    {
-        std::stringstream s;
-        s << "m" << params.m << "_n" << params.n;
-        return s.str();
     }
 
     std::string toString(const Tensor::Dim& dim)

@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +21,7 @@ public:
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
             std::vector<DataConfigurator> inps;
-            for (const auto &in : layer->insData)
-                inps.emplace_back(ConfLayout::PLN);
+            inps.resize(layer->insData.size(), DataConfigurator(ConfLayout::PLN));
             addConfig(layer, inps, {DataConfigurator(ConfLayout::PLN)});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
@@ -52,7 +50,7 @@ public:
             output_sequences[ii] = -1;
         }
 
-        for (int n = 0; n < N_; ++n) {
+        for (size_t n = 0; n < N_; ++n) {
             int prev_class_idx = -1;
             size_t output_index = n*T_;
 
@@ -64,21 +62,22 @@ public:
                 float max_prob = probs[0];
                 ++probs;
 
-                for (int c = 1; c < C_; ++c, ++probs) {
+                for (size_t c = 1; c < C_; ++c, ++probs) {
                     if (*probs > max_prob) {
-                        max_class_idx = c;
+                        max_class_idx = static_cast<int>(c);
                         max_prob = *probs;
                     }
                 }
 
-                if (max_class_idx < C_-1 && max_class_idx != prev_class_idx) {
-                    output_sequences[output_index] =  max_class_idx;
+                if (max_class_idx < static_cast<int>(C_) - 1 &&
+                        max_class_idx != prev_class_idx) {
+                    output_sequences[output_index] = static_cast<float>(max_class_idx);
                     output_index++;
                 }
 
                 prev_class_idx = max_class_idx;
 
-                if (t + 1 == T_ || sequence_indicators[(t + 1)*N_ + n] == 0) {
+                if (t + 1 == static_cast<int>(T_) || sequence_indicators[(t + 1)*N_ + n] == 0) {
                     break;
                 }
             }

@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +6,7 @@
 #include <gmock/gmock-matchers.h>
 
 #include <inference_engine/shape_infer/ie_reshape_launcher.hpp>
+#include <inference_engine/blob_factory.hpp>
 #include <shape_infer/mock_ishape_infer_impl.hpp>
 #include <shape_infer/mock_reshaper_launcher.hpp>
 
@@ -21,7 +21,15 @@ protected:
         notEmptyData = getNotEmptyData();
         impl = std::make_shared<MockIShapeInferImpl>();
     };
-
+    std::vector<Blob::CPtr> getBlobs(const std::vector<SizeVector>& shapes) {
+        std::vector<Blob::CPtr> inBlobs;
+        for (auto const& dims : shapes) {
+            TensorDesc desc(Precision::FP32, dims, TensorDesc::getLayoutByDims(dims));
+            auto blob = make_blob_with_precision(desc);
+            inBlobs.push_back(blob);
+        }
+        return inBlobs;
+    }
 public:
     StatusCode sts = GENERAL_ERROR;
     ResponseDesc resp;
@@ -33,7 +41,7 @@ public:
     std::map<std::string, std::string> changedParams{{TEST_NAME, TEST_NAME}};
 public:
     DataPtr getNotEmptyData() {
-        return std::make_shared<Data>(TEST_NAME, Precision::UNSPECIFIED, Layout::C);
+        return std::make_shared<Data>(TEST_NAME, Precision::FP32, Layout::C);
     }
 };
 
@@ -93,7 +101,10 @@ TEST_F(ReshapeLauncherTest, throwOnReshapeWihtNotEnoughShapes) {
     ReshapeLauncher launcher(&layer, impl);
 
     launcher.setShapeByName(inDims, TEST_NAME);
-    ASSERT_THROW(launcher.reshape({}), InferenceEngineException);
+    try {
+        launcher.reshape({});
+        FAIL() << "Reshape should be failed!";
+    } catch (...) {}
 }
 
 TEST_F(ReshapeLauncherTest, implIsCalledOnReshape) {
@@ -104,11 +115,12 @@ TEST_F(ReshapeLauncherTest, implIsCalledOnReshape) {
     auto inputController = initializer->getInputController();
     auto outputController = initializer->getOutputController();
     std::vector<SizeVector> shapes{inDims};
+    auto blobs = getBlobs(shapes);
     EXPECT_CALL(*inputController, setShapeByName(inDims, TEST_NAME));
-    EXPECT_CALL(*inputController, getShapes(true)).WillOnce(Return(shapes));
+    EXPECT_CALL(*inputController, getBlobs(true)).WillOnce(Return(blobs));
     EXPECT_CALL(*outputController, setShapes(_));
     EXPECT_CALL(*outputController, propagateShapes(_));
-    EXPECT_CALL(*impl.get(), inferShapes(shapes, _, _, _, _)).WillOnce(Return(OK));
+    EXPECT_CALL(*impl.get(), inferShapes(blobs, _, _, _, _)).WillOnce(Return(OK));
     launcher.setShapeByName(inDims, TEST_NAME);
     launcher.reshape({});
 }

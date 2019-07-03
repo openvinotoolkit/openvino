@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,12 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-import networkx as nx
 import numpy as np
 
 from extensions.middle.ConvertLayoutDependentOperations import ConvertLayoutDependentOperations
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.middle.passes.eliminate import merge_data_nodes, graph_clean_up_tf
 from mo.middle.passes.fusing.helpers import get_next_operation
 from mo.middle.replacement import MiddleReplacementPattern
@@ -32,11 +30,12 @@ class FusePermutesSequence(MiddleReplacementPattern):
     """
 
     enabled = True
+    graph_condition = [lambda graph: graph.graph['fw'] != 'caffe']
 
     def run_after(self):
         return [ConvertLayoutDependentOperations]
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
+    def find_and_replace_pattern(self, graph: Graph):
         for node in list(graph.nodes()):
             if node not in graph.nodes():
                 continue
@@ -65,13 +64,14 @@ class FusePermutesSequence(MiddleReplacementPattern):
 
                 if np.array_equal(final_permutation, [x for x in range(len(list_of_permutes[0].order))]):
                     first_data_node, last_data_node = list_of_permutes[0].in_node(), list_of_permutes[-1].out_node()
+                    graph.remove_edge(first_data_node.id, list_of_permutes[0].id)
                 else:
                     if len(list_of_permutes) < 2:
                         continue
                     first_data_node, last_data_node = list_of_permutes[0].out_node(), list_of_permutes[-1].out_node()
                     list_of_permutes[0].order = final_permutation
+                    graph.remove_edge(first_data_node.id, first_data_node.out_node().id)
 
-                graph.remove_edge(first_data_node.id, first_data_node.out_node().id)
                 graph.remove_edge(last_data_node.in_node().id, last_data_node.id)
 
                 merge_data_nodes(graph, first_data_node, last_data_node)

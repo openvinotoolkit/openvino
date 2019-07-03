@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +14,7 @@
 #include <fstream>
 #include <stdio.h>
 #include "cpp/ie_cnn_network.h"
+#include <gtest/gtest.h>
 #include "ie_icnn_network_stats.hpp"
 
 namespace testing {
@@ -43,6 +43,10 @@ namespace testing {
 
         InferenceEngine::details::CNNNetworkImplPtr parseWithReturningNetwork() {
             return parser->Parse(*_root);
+        }
+
+        void setWeights(const InferenceEngine::TBlob<uint8_t>::Ptr &weights) {
+            parser->SetWeights(weights);
         }
 
         std::string readFileContent(const std::string & filePath) {

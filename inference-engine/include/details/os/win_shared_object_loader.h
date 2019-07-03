@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +14,9 @@
 // Avoidance of Windows.h to include winsock library.
 #define _WINSOCKAPI_
 // Avoidance of Windows.h to define min/max.
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #include <direct.h>
 
@@ -29,14 +30,28 @@ class SharedObjectLoader {
 private:
     HMODULE shared_object;
 
- public:
+public:
     /**
      * @brief Loads a library with the name specified. The library is loaded according to the
      *        WinAPI LoadLibrary rules
      * @param pluginName Full or relative path to the plugin library
      */
-    explicit SharedObjectLoader(const char* pluginName) {
+    explicit SharedObjectLoader(LPCTSTR pluginName) {
         char cwd[1024];
+        // Exclude current directory from DLL search path process wise.
+        // If application specific path was configured before then
+        // current directory is alread excluded.
+        // GetDLLDirectory does not distinguish if aplication specific
+        // path was set to "" or NULL so reset it to "" to keep
+        // aplication safe.
+        if (GetDllDirectory(0, NULL) <= 1) {
+            SetDllDirectory(
+#if defined UNICODE
+                L"");
+#else
+                "");
+#endif
+        }
         shared_object = LoadLibrary(pluginName);
         if (!shared_object) {
             THROW_IE_EXCEPTION << "Cannot load library '"

@@ -115,8 +115,8 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
             && utils::one_of(p.beta, 0.f, 1.f) /* anything else? */
             && simple_impl_desc_init(p, nullptr)
             && mayiuse(sse42)
-            && utils::implication(!utils::everyone_is(f32, p.itype, p.otype),
-                    mayiuse(avx512_core));
+            && IMPLICATION(!utils::everyone_is(f32, p.itype, p.otype),
+                    mayiuse(avx));
         if (!ok) return false;
 
         const ptrdiff_t max_stride = (1LL<<31) - 1;
@@ -306,14 +306,26 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
                 break;
             case s8:
                 if (idt == f32) vcvtps2dq(xmm, xmm);
-                if (idt == f32 || idt == s32) vpmovsdb(xmm, xmm);
-                if (idt == u8) vpminub(xmm, xmm, xmm_127b);
+                if (idt == f32 || idt == s32) {
+                    if (mayiuse(avx512_core)) {
+                        vpmovsdb(xmm, xmm);
+                    } else {
+                        vpackssdw(xmm, xmm, xmm_zero);
+                        vpacksswb(xmm, xmm, xmm_zero);
+                    }
+                }
+                if (idt == u8) vpminub(xmm, xmm, xmm_4x127b);
                 break;
             case u8:
                 if (idt == f32) vcvtps2dq(xmm, xmm);
                 if (idt == f32 || idt == s32) {
-                    vpmaxsd(xmm, xmm, xmm_zero);
-                    vpmovusdb(xmm, xmm);
+                    if (mayiuse(avx512_core)) {
+                        vpmaxsd(xmm, xmm, xmm_zero);
+                        vpmovusdb(xmm, xmm);
+                    } else {
+                        vpackssdw(xmm, xmm, xmm_zero);
+                        vpackuswb(xmm, xmm, xmm_zero);
+                    }
                 }
                 if (idt == s8) vpmaxsb(xmm, xmm, xmm_zero);
                 break;
@@ -432,7 +444,8 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
                             scale_load_type = scale_load_type_t::load;
 
                     if (scale_load_type == scale_load_type_t::bcast) {
-                        vbroadcastss(xmm_scale, s_addr(s_off[ur]));
+                        movss(xmm_scale, s_addr(s_off[ur]));
+                        shufps(xmm_scale, xmm_scale, 0x0);
                         mulps(Xmm(ur), xmm_scale);
                         continue;
                     }
@@ -443,7 +456,7 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
                             scale_load_type = scale_load_type_t::gather;
 
                     if (scale_load_type == scale_load_type_t::load) {
-                        vmovups(xmm_scale, s_addr(s_off[ur]));
+                        movups(xmm_scale, s_addr(s_off[ur]));
                         mulps(Xmm(ur), xmm_scale);
                         continue;
                     }
@@ -494,7 +507,13 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
                     if (prb_.otype == f32) {
                         addss(Xmm(ur), o_addr(o_off[ur]));
                     } else {
-                        vmovss(xmm_tmp, o_addr(o_off[ur]));
+                        if (prb_.otype == s32) {
+                            vmovss(xmm_tmp, o_addr(o_off[ur]));
+                        } else if (utils::one_of(prb_.otype, s8, u8)) {
+                            pinsrb(xmm_tmp, o_addr(o_off[ur]), 0x0);
+                        } else {
+                            assert(!"unsupported o_type");
+                        }
                         cvt2ps(xmm_tmp, xmm_tmp, prb_.otype);
                         addps(Xmm(ur), xmm_tmp);
                     }
@@ -630,13 +649,12 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
         mov(reg_ptr_out, PARAM(out));
 #       undef PARAM
 
-        if (mayiuse(avx512_core)) {
+        if (mayiuse(avx)) {
             vxorps(xmm_zero, xmm_zero, xmm_zero);
 
             if (prb_.itype == data_type::u8 && prb_.otype == data_type::s8) {
                 mov(reg_tmp.cvt32(), 0x7f7f7f7f);
-                movd(xmm_127b, reg_tmp.cvt32());
-                vbroadcastss(xmm_127b, xmm_127b);
+                movd(xmm_4x127b, reg_tmp.cvt32());
             }
         }
 
@@ -652,7 +670,7 @@ private:
 
     Reg64 reg_ptr_in = rsi;
     Reg64 reg_ptr_out = rdx;
-    Reg64 reg_ptr_scale = rcx;
+    Reg64 reg_ptr_scale = abi_not_param1;
 
     Reg64 reg_off_in = r8;
     Reg64 reg_off_out = r9;
@@ -662,7 +680,7 @@ private:
 
     Xmm xmm_scale = xmm15;
     Xmm xmm_zero = xmm14;
-    Xmm xmm_127b = xmm13; // TODO: unite with xmm_zero
+    Xmm xmm_4x127b = xmm13; // TODO: unite with xmm_zero
     Xmm xmm_tmp = xmm12;
 };
 
@@ -824,6 +842,12 @@ struct jit_uni_reorder_t : public cpu_primitive_t {
 
             auto prb = tr::prb_t();
 
+            if (imd->format == mkldnn_OhIw8o4i || imd->format == mkldnn_gOhIw8o4i ||
+                imd->format == mkldnn_OhIw8o4i_s8s8 || imd->format == mkldnn_gOhIw8o4i_s8s8 ||
+                omd->format == mkldnn_OhIw8o4i || omd->format == mkldnn_gOhIw8o4i ||
+                omd->format == mkldnn_OhIw8o4i_s8s8 || omd->format == mkldnn_gOhIw8o4i_s8s8)
+                return status::unimplemented;
+
             status_t prb_init_status = prb_init(prb, *imd, *omd, attr);
             if (prb_init_status != success) return prb_init_status;
 
@@ -862,97 +886,98 @@ struct jit_uni_reorder_t : public cpu_primitive_t {
         tr::kernel_t::desc_t ker_desc_;
     };
 
-    jit_uni_reorder_t(const pd_t *pd, const input_vector &inputs,
+    jit_uni_reorder_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd) {
-        kernel_ = tr::kernel_t::create(conf_.ker_desc_);
+        : cpu_primitive_t(apd, inputs, outputs) {
+        kernel_ = tr::kernel_t::create(pd()->ker_desc_);
         assert(kernel_);
     }
     ~jit_uni_reorder_t() { delete kernel_; }
 
-    void omp_driver_0d(int off, const char *in, char *out, const float *scale) {
+    void omp_driver_0d(int off, const char *in, char *out,
+            const float *scale) const {
         tr::call_param_t c{in, out, scale};
         (*kernel_)(&c);
     }
 
     void omp_driver_1d(int ithr, int nthr, int off, const char *in, char *out,
-            const float *scale) {
-        tr::node_t *ns = conf_.prb_.nodes + off;
+            const float *scale) const {
+        const tr::node_t *ns = pd()->prb_.nodes + off;
         for_nd(ithr, nthr, (ptrdiff_t)ns[0].n, [&](ptrdiff_t d0) {
             auto c = tr::call_param_t();
-            c.in = in + d0 * ns[0].is * data_type_size(conf_.prb_.itype);
-            c.out = out + d0 * ns[0].os * data_type_size(conf_.prb_.otype);
+            c.in = in + d0 * ns[0].is * data_type_size(pd()->prb_.itype);
+            c.out = out + d0 * ns[0].os * data_type_size(pd()->prb_.otype);
             c.scale = scale + d0 * ns[0].ss;
             (*kernel_)(&c);
         });
     }
 
     void omp_driver_2d(int ithr, int nthr, int off, const char *in, char *out,
-            const float *scale) {
-        tr::node_t *ns = conf_.prb_.nodes + off;
+            const float *scale) const {
+        const tr::node_t *ns = pd()->prb_.nodes + off;
         for_nd(ithr, nthr, (ptrdiff_t)ns[1].n, (ptrdiff_t)ns[0].n,
                 [&](ptrdiff_t d1, ptrdiff_t d0) {
             auto c = tr::call_param_t();
             c.in = in + (d0 * ns[0].is + d1 * ns[1].is)
-                * data_type_size(conf_.prb_.itype);
+                * data_type_size(pd()->prb_.itype);
             c.out = out + (d0 * ns[0].os + d1 * ns[1].os)
-                * data_type_size(conf_.prb_.otype);
+                * data_type_size(pd()->prb_.otype);
             c.scale = scale + d0 * ns[0].ss + d1 * ns[1].ss;
             (*kernel_)(&c);
         });
     }
 
     void omp_driver_3d(int ithr, int nthr, int off, const char *in, char *out,
-            const float *scale) {
-        tr::node_t *ns = conf_.prb_.nodes + off;
+            const float *scale) const {
+        const tr::node_t *ns = pd()->prb_.nodes + off;
         for_nd(ithr, nthr, (ptrdiff_t)ns[2].n, (ptrdiff_t)ns[1].n,
                 (ptrdiff_t)ns[0].n,
                 [&](ptrdiff_t d2, ptrdiff_t d1, ptrdiff_t d0) {
             auto c = tr::call_param_t();
             c.in = in + (d0 * ns[0].is + d1 * ns[1].is + d2 * ns[2].is)
-                * data_type_size(conf_.prb_.itype);
+                * data_type_size(pd()->prb_.itype);
             c.out = out + (d0 * ns[0].os + d1 * ns[1].os + d2 * ns[2].os)
-                * data_type_size(conf_.prb_.otype);
+                * data_type_size(pd()->prb_.otype);
             c.scale = scale + d0 * ns[0].ss + d1 * ns[1].ss + d2 * ns[2].ss;
             (*kernel_)(&c);
         });
     }
 
     void omp_driver_4d(int ithr, int nthr, int off, const char *in, char *out,
-            const float *scale) {
-        tr::node_t *ns = conf_.prb_.nodes + off;
+            const float *scale) const {
+        const tr::node_t *ns = pd()->prb_.nodes + off;
         for_nd(ithr, nthr, (ptrdiff_t)ns[3].n, (ptrdiff_t)ns[2].n,
                 (ptrdiff_t)ns[1].n, (ptrdiff_t)ns[0].n,
                 [&](ptrdiff_t d3, ptrdiff_t d2, ptrdiff_t d1, ptrdiff_t d0) {
             auto c = tr::call_param_t();
             c.in = in + (d0 * ns[0].is + d1 * ns[1].is + d2 * ns[2].is
-                    + d3 * ns[3].is) * data_type_size(conf_.prb_.itype);
+                    + d3 * ns[3].is) * data_type_size(pd()->prb_.itype);
             c.out = out + (d0 * ns[0].os + d1 * ns[1].os + d2 * ns[2].os
-                    + d3 * ns[3].os) * data_type_size(conf_.prb_.otype);
+                    + d3 * ns[3].os) * data_type_size(pd()->prb_.otype);
             c.scale = scale + d0 * ns[0].ss + d1 * ns[1].ss + d2 * ns[2].ss
                 + d3 * ns[3].ss;
             (*kernel_)(&c);
         });
     }
 
-    void omp_driver(const char *in, char *out, const float *scale) {
-        in += conf_.prb_.ioff * data_type_size(conf_.prb_.itype);
-        out += conf_.prb_.ooff * data_type_size(conf_.prb_.otype);
+    void omp_driver(const char *in, char *out, const float *scale) const {
+        in += pd()->prb_.ioff * data_type_size(pd()->prb_.itype);
+        out += pd()->prb_.ooff * data_type_size(pd()->prb_.otype);
 
-        DEBUG({ printf("prb : "); tr::prb_dump(conf_.prb_); });
-        DEBUG({ printf("ker : "); tr::prb_dump(conf_.ker_desc_.prb); });
+        DEBUG({ printf("prb : "); tr::prb_dump(pd()->prb_); });
+        DEBUG({ printf("ker : "); tr::prb_dump(pd()->ker_desc_.prb); });
 
-        int ndims = conf_.prb_.ndims;
-        int ndims_ker = conf_.ker_desc_.prb.ndims;
+        int ndims = pd()->prb_.ndims;
+        int ndims_ker = pd()->ker_desc_.prb.ndims;
         assert(ndims - ndims_ker <= ndims_driver_max);
 
         if (ndims - ndims_ker == 0) {
-            set_rnd_mode(conf_.attr()->round_mode_);
+            set_rnd_mode(pd()->attr()->round_mode_);
             omp_driver_0d(ndims_ker, in, out, scale);
             restore_rnd_mode();
         } else {
             parallel(0, [&](const int ithr, const int nthr) {
-                set_rnd_mode(conf_.attr()->round_mode_);
+                set_rnd_mode(pd()->attr()->round_mode_);
                 switch (ndims - ndims_ker) {
                 case 1: omp_driver_1d(ithr, nthr, ndims_ker, in, out, scale); break;
                 case 2: omp_driver_2d(ithr, nthr, ndims_ker, in, out, scale); break;
@@ -965,11 +990,11 @@ struct jit_uni_reorder_t : public cpu_primitive_t {
         }
     }
 
-    virtual void execute(event_t *e) {
+    virtual void execute(event_t *e) const {
         auto in = reinterpret_cast<const char *>(input_memory(0));
         auto out = reinterpret_cast<char *>(memory());
 
-        omp_driver(in, out, conf_.attr()->output_scales_.scales_);
+        omp_driver(in, out, pd()->attr()->output_scales_.scales_);
 
         e->set_state(event_t::ready);
     }
@@ -977,7 +1002,7 @@ struct jit_uni_reorder_t : public cpu_primitive_t {
     enum { ndims_driver_max = 4 };
 
 private:
-    pd_t conf_;
+    const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
     tr::kernel_t *kernel_;
 };
 

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -55,6 +55,19 @@ class MaxPool3DFrontExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
         attrs = create_pooling_attrs(node, 'max')
+        attrs.update({'op': __class__.op})
+        # update the attributes of the node
+        Pooling.update_node_stat(node, attrs)
+        return __class__.enabled
+
+
+class AvgPool3DFrontExtractor(FrontExtractorOp):
+    op = 'AvgPool3D'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        attrs = create_pooling_attrs(node, 'avg')
         attrs.update({'op': __class__.op})
         # update the attributes of the node
         Pooling.update_node_stat(node, attrs)

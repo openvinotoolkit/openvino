@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,12 +19,8 @@ using namespace std;
 using namespace mkldnn;
 
 struct fc_test_params {
-    struct {
-        size_t n;
-        size_t c;
-        size_t h;
-        size_t w;
-    } in;
+    // Formats: NCHW, NCDHW
+    vector<size_t> in_dims;
 
     size_t out_c;
 
@@ -41,32 +36,44 @@ struct fc_test_params {
 template <typename data_t>
 void ref_innerproduct(const InferenceEngine::TBlob<data_t> &src, const data_t *weights, const size_t weightsSize,
                       InferenceEngine::TBlob<data_t> &dst, fc_test_params prm) {
-    size_t IW = src.dims()[3];
-    size_t IH = src.dims()[2];
-    size_t IC = src.dims()[1];
+    auto dims_size = src.dims().size();
+
     size_t IB = src.dims()[0];
+    size_t IC = src.dims()[1];
+    size_t ID = dims_size == 5 ? src.dims()[dims_size - 3] : 1u;
+    size_t IH = src.dims()[dims_size - 2];
+    size_t IW = src.dims()[dims_size - 1];
 
     size_t OC = prm.out_c;
 
     const data_t *src_data = src.readOnly();
     const data_t *weights_data = weights;
-    const data_t *bias_data = weights_data + IW*IH*IC*OC;
+    const data_t *bias_data = weights_data + IW*IH*ID*IC*OC;
     data_t *dst_data = dst.data();
 
-    IE_ASSERT( IW*IH*IC*OC + OC == weightsSize);
-    IE_ASSERT( OC == dst.dims()[0]);
+    IE_ASSERT( IW*IH*ID*IC*OC + OC == weightsSize );
+    IE_ASSERT( OC == dst.dims()[0] );
 
     for (size_t n = 0; n < IB; n++) {
         for (size_t oc = 0; oc < OC; oc++) {
             dst_data[n*OC + oc] = bias_data[oc];
             for (size_t ic = 0; ic < IC; ic++) {
-                for (size_t kh = 0; kh < IH; kh++) {
-                    for (size_t kw = 0; kw < IW; kw++) {
-                        size_t iidx = n * IC * IH * IW + ic * IH * IW + kh * IW + kw;
-                        size_t widx = oc * IC * IH * IW
-                                      + ic * IH * IW + kh * IW + kw;
+                for (size_t kd = 0; kd < ID; kd++) {
+                    for (size_t kh = 0; kh < IH; kh++) {
+                        for (size_t kw = 0; kw < IW; kw++) {
+                            size_t iidx = n * IC * ID * IH * IW
+                                        + ic * ID * IH * IW
+                                        + kd * IH * IW
+                                        + kh * IW
+                                        + kw;
+                            size_t widx = oc * IC * ID * IH * IW
+                                          + ic * ID * IH * IW 
+                                          + kd * IH * IW 
+                                          + kh * IW 
+                                          + kw;
 
-                        dst_data[n*OC + oc] += src_data[iidx] * weights_data[widx];
+                            dst_data[n*OC + oc] += src_data[iidx] * weights_data[widx];
+                        }
                     }
                 }
             }
@@ -77,15 +84,11 @@ void ref_innerproduct(const InferenceEngine::TBlob<data_t> &src, const data_t *w
 class MKLDNNGraphFullyConnectedTests: public TestsCommon,
                                       public WithParamInterface<fc_test_params> {
     std::string model_t = R"V0G0N(
-<Net Name="FullyConnected_Only" version="2" precision="FP32" batch="1">
+<Net Name="FullyConnected_Only" version="3" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
             <output>
-                <port id="0">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                <port id="0">__SRC_DIMS__
                 </port>
             </output>
         </layer>
@@ -96,11 +99,7 @@ class MKLDNNGraphFullyConnectedTests: public TestsCommon,
             <biases offset="_S1_" size="_S2_" />
 
             <input>
-                <port id="1">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                <port id="1">__SRC_DIMS__
                 </port>
             </input>
             <output>
@@ -120,14 +119,19 @@ class MKLDNNGraphFullyConnectedTests: public TestsCommon,
 protected:
     std::string getModel(fc_test_params p) {
         std::string model = model_t;
-        REPLACE_WITH_NUM(model, "_IW_", p.in.w);
-        REPLACE_WITH_NUM(model, "_IH_", p.in.h);
-        REPLACE_WITH_NUM(model, "_IC_", p.in.c);
-        REPLACE_WITH_NUM(model, "_IN_", p.in.n);
+        std::string s_dims;
+        for (auto& dim : p.in_dims) {
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(dim) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS__", s_dims);
 
+        REPLACE_WITH_NUM(model, "_IN_", p.in_dims[0]);
         REPLACE_WITH_NUM(model, "_OC_", p.out_c);
 
-        size_t w_data_size = (p.in.w * p.in.h * p.in.c * p.out_c )* sizeof(float);
+        size_t w_data_size = p.out_c * sizeof(float);
+        for (int i = 1; i < p.in_dims.size(); i++)
+            w_data_size *= p.in_dims[i];
         size_t b_data_size = p.out_c * sizeof(float);
         REPLACE_WITH_NUM(model, "_S1_", w_data_size);
         REPLACE_WITH_NUM(model, "_S2_", b_data_size);
@@ -153,7 +157,12 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {(p.in.w * p.in.h * p.in.c * p.out_c + p.out_c) * sizeof(float)});
+            size_t weights_size = p.out_c;
+            for (int i = 1; i < p.in_dims.size(); i++) {
+                weights_size *= p.in_dims[i];
+            }
+            weights_size = (weights_size + p.out_c) * sizeof(float);
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {weights_size});
             weights->allocate();
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
@@ -174,9 +183,18 @@ protected:
                 }
             }
 
-            InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
+            InferenceEngine::SizeVector dims_src = p.in_dims;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.in_dims.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -224,7 +242,10 @@ INSTANTIATE_TEST_CASE_P(
                 fc_test_params{{1, 4, 227, 227}, 10, 6, MKLDNNPlugin::impl_desc_type::gemm },
                 fc_test_params{{1, 3, 227, 227}, 96, 6, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 fc_test_params{{1, 4, 227, 227}, 8, 6, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                fc_test_params{{1, 4, 227, 227}, 10, 6, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}));
+                fc_test_params{{1, 4, 227, 227}, 10, 6, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                //5D
+                fc_test_params{{1, 4, 32, 32, 32}, 10, 6, MKLDNNPlugin::impl_desc_type::gemm },
+                fc_test_params{{1, 3, 32, 32, 32}, 96, 6, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}));
 
 class MKLDNNGraphDynBatchFullyConnectedTests: public MKLDNNGraphFullyConnectedTests {
     virtual void SetUp() {
@@ -232,14 +253,19 @@ class MKLDNNGraphDynBatchFullyConnectedTests: public MKLDNNGraphFullyConnectedTe
             TestsCommon::SetUp();
             fc_test_params p = ::testing::WithParamInterface<fc_test_params>::GetParam();
             std::string model = getModel(p);
-            size_t MB = p.in.n;
+            size_t MB = p.in_dims[0];
             if (MB < 2)
                 MB = 2;
 
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {(p.in.w * p.in.h * p.in.c * p.out_c + p.out_c) * sizeof(float)});
+            size_t weights_size = p.out_c;
+            for (int i = 1; i < p.in_dims.size(); i++) {
+                weights_size *= p.in_dims[i];
+            }
+            weights_size = (weights_size + p.out_c) * sizeof(float);
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {weights_size});
             weights->allocate();
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
@@ -255,9 +281,18 @@ class MKLDNNGraphDynBatchFullyConnectedTests: public MKLDNNGraphFullyConnectedTe
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
             graph.CreateGraph(net_reader.getNetwork());
 
-            InferenceEngine::SizeVector dims_src = {MB, p.in.c, p.in.h, p.in.w};
+            InferenceEngine::SizeVector dims_src = p.in_dims;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.in_dims.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src->allocate();
             fill_data(src->buffer(), src->size());
 

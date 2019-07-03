@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +25,6 @@
 #include "ie_algorithm.hpp"
 
 #ifdef _WIN32
-#include <winsock2.h>
 #include <windows.h>
 
 #define POSIX_EPOCH_AS_FILETIME 116444736000000000ULL
@@ -206,22 +204,6 @@ inline std::string tolower(const std::string &s) {
     ret.resize(s.length());
     std::transform(s.begin(), s.end(), ret.begin(), ::tolower);
     return ret;
-}
-
-/**
- * @brief Wierd function to perform string formatting
- * @param msg - base format
- * @param ... - arguments for formatting
- * @return formatted string
- */
-static inline std::string stringFormat(const char *msg, ...) {
-    va_list va;
-    va_start(va, msg);
-    char buffer[65536];
-
-    vsnprintf_s(buffer, 65535, msg, va);
-    va_end(va);
-    return std::string(buffer);
 }
 }  // namespace details
 }  // namespace InferenceEngine

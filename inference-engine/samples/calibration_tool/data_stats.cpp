@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,7 +90,7 @@ void AggregatedDataStats::getDataMinMax(const std::string& name, size_t channel,
             minValues.push_back(tsS.getMinValue());
         }
         // define number of elements to throw out
-        size_t elementToTake = maxValues.size() * threshold / 100;
+        size_t elementToTake = static_cast<size_t>(maxValues.size() * (threshold / 100));
         int elementsToThrow = maxValues.size() - elementToTake;
         std::sort(maxValues.begin(), maxValues.end());
         std::sort(minValues.begin(), minValues.end());

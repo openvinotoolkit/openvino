@@ -40,7 +40,7 @@ status_t mkldnn_reorder_primitive_desc_create_v2(
 
     auto i_ek = input->engine()->kind();
     auto o_ek = output->engine()->kind();
-    if (!implication(i_ek != o_ek, one_of(engine_kind::cpu, i_ek, o_ek)))
+    if (!IMPLICATION(i_ek != o_ek, one_of(engine_kind::cpu, i_ek, o_ek)))
         return invalid_arguments;
 
     auto r_pd = reinterpret_cast<reorder_pd_t **>(

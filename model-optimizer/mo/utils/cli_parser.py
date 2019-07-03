@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -142,137 +142,6 @@ def writable_dir(path: str):
             raise Error('The directory "{}" is not writable'.format(cur_path))
 
 
-def get_caffe_legacy_cli_parser(parser: argparse.ArgumentParser = None):
-    if not parser:
-        parser = argparse.ArgumentParser()
-    forever_legacy_group = parser.add_argument_group('Caffe* legacy parameters from Beta2 release ' +
-                                                     'that are no longer supported')
-    forever_legacy_group.add_argument('-ListA',
-                                      action='store_true',
-                                      help='List supported precisions')
-    forever_legacy_group.add_argument('-ListF',
-                                      action='store_true',
-                                      help='List supported frameworks')
-    forever_legacy_group.add_argument('-ListN',
-                                      action='store_true',
-                                      help='List supported classes of topologies')
-    forever_legacy_group.add_argument('-l',
-                                      action='store_true',
-                                      help='Learn network statistics and find the best normalization factor')
-    forever_legacy_group.add_argument('-t',
-                                      help='File name of a training/validation network topology')
-    forever_legacy_group.add_argument('-nl',
-                                      help='Number of learning iterations')
-    forever_legacy_group.add_argument('-v',
-                                      action='store_true',
-                                      help='Validate a normalized network')
-    forever_legacy_group.add_argument('-nv',
-                                      help='Number of validation iterations')
-    forever_legacy_group.add_argument('-dm',
-                                      help='Dump a normalized and converted model to a binary file')
-    forever_legacy_group.add_argument('-dr',
-                                      help='Dump report of Model Optimizer run')
-    forever_legacy_group.add_argument('-q',
-                                      help='Quantization file (used for low precision)')
-    forever_legacy_group.add_argument('-c',
-                                      action='store_true',
-                                      help='Generate OpenVX* code')
-    forever_legacy_group.add_argument('-IRCode',
-                                      action='store_true',
-                                      help='Generate OpenVX* code from IR model')
-    forever_legacy_group.add_argument('-ds',
-                                      help='Dump net statistics into .csv files')
-    forever_legacy_group.add_argument('--hfuse',
-                                      choices=['NONE', 'PARTIAL', 'FULL'],
-                                      default='NONE',
-                                      help='<NONE|PARTIAL|FULL>: enable/disable optimization of the layers' +
-                                           ' horizontal fusion when applicibale ("NONE" to disable. ' +
-                                           '"PARTIAL" to enable only native branches and ' +
-                                           '"FULL" for copy the layer')
-    forever_legacy_group.add_argument('--target',
-                                      choices=['XEON'],
-                                      default='XEON',
-                                      help='Target configuration')
-    forever_legacy_group.add_argument('--network',
-                                      help='Generated network type supported networks: ' +
-                                           '<CLASSIFICATION,LOCALIZATION,SEGMENTATION>')
-    forever_legacy_group.add_argument('--code-cfg',
-                                      help='OpenVX* code generation configuration (DEBUG or RELEASE)')
-    forever_legacy_group.add_argument('-mx',
-                                      help='Enable/disable mixed precision handler in a generated OpenVX* code ' +
-                                           '("0"|"false" to disable. "1"|"true" to enable)')
-
-    common_group = parser.add_argument_group('Caffe*-specific parameters in a format of Beta2 release')
-    # Common parameters
-    common_group.add_argument('--version',
-                              action='store_true',
-                              help='List versions of Model Optimizer for TensorFlow*')
-    common_group.add_argument('-w',
-                              type=readable_file,
-                              help='Path to a binary weights file (.caffemodel) including the file name',
-                              action=CanonicalizePathCheckExistenceAction)
-    common_group.add_argument('-d',
-                              type=readable_file,
-                              help='Path to a model proto file (.prototxt) including the file name',
-                              action=CanonicalizePathCheckExistenceAction)
-    common_group.add_argument('-b',
-                              type=int,
-                              default=1,
-                              help='Batch size. Default value is 1')
-    common_group.add_argument('-f',
-                              type=int,
-                              default=1,
-                              help='Network normalization factor')
-    common_group.add_argument('-p',
-                              choices=['FP32', 'FP16'],
-                              default='FP32',
-                              help='Precision of weights of the generated IR')
-    common_group.add_argument('-i',
-                              action='store_true',
-                              help='Generates IR. Currently does nothing, used for compatibility with the previous version of the Model Optimizer.')
-    common_group.add_argument('-ms',
-                              help='Mean image values in the following format: "-ms x,y,z"')
-    common_group.add_argument('-mf',
-                              type=readable_file,
-                              help='Path to a mean image file (.binaryproto)',
-                              action=CanonicalizePathCheckExistenceAction)
-    common_group.add_argument('-mo',
-                              help='Offsets for the mean image file in the following format: "-mo x,y"')
-    common_group.add_argument('--scale',
-                              type=tuple,
-                              default=(),
-                              help='Scale values per channel in the following format: "--scale x,y,z". Floating point ' +
-                                   'values are also accepted.')
-    # TODO: was it true or false by default?
-    common_group.add_argument('--fuse',
-                              choices=['false', '0', 'true', '1'],
-                              default='false',
-                              help='Enable/disable the layers fusion optimization ("0"|"false" to disable. ' +
-                                   '"1"|"true" to enable)')
-    common_group.add_argument('--framework',
-                              type=str,
-                              choices=['CAFFE'],
-                              default='CAFFE',
-                              help='Name of the framework used to train the input model: <CAFFE>')
-    # TODO: do we want to keep compatibility here and put IR in 'Artifacts/NAME_OF_MODEL/' directory
-    common_group.add_argument('-o',
-                              default=get_absolute_path('.'),
-                              help='Output the directory path. By default, the output directory ' +
-                                   'is set to "Artifacts"',
-                              action=CanonicalizePathAction,
-                              type=writable_dir)
-    common_group.add_argument('-k',
-                              help='Path to the mapping file ("CustomLayersMapping.xml") used for ' +
-                                   'registering custom layers',
-                              action=CanonicalizePathCheckExistenceAction,
-                              type=readable_dir)
-    common_group.add_argument('-*',
-                              action='store_true',
-                              help='Do all of the above. Currently does nothing, used for compatibility with the previous version of the Model Optimizer.')
-
-    return parser
-
-
 def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser()
@@ -368,6 +237,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--disable_gfusing',
                               help='Turn off fusing of grouped convolutions',
                               action='store_true')
+    common_group.add_argument('--enable_concat_optimization',
+                              help='Turn on concat optimization',
+                              action='store_true')
     common_group.add_argument('--move_to_preprocess',
                               help='Move mean values to IR preprocess section',
                               action='store_true')
@@ -404,6 +276,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    ' deployment scenarios. Use it at your own discretion. By default, without this'
                                    ' option, the Model Optimizer generates IR V3.',
                               action='store_true')
+    common_group.add_argument('--keep_shape_ops',
+                              help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
+                                   'This feature makes model reshapable in Inference Engine',
+                              action='store_true', default=False)
     return parser
 
 
@@ -443,7 +319,6 @@ def get_caffe_cli_options():
 def get_tf_cli_options():
     d = {
         'input_model_is_text': '- Input model in text protobuf format',
-        'offload_unsupported_operations_to_tf': '- Offload unsupported operations',
         'tensorflow_subgraph_patterns': '- Patterns to offload',
         'tensorflow_operation_patterns': '- Operations to offload',
         'tensorflow_custom_operations_config_update': '- Update the configuration file with input/output node names',
@@ -459,11 +334,11 @@ def get_tf_cli_options():
 
 def get_mxnet_cli_options():
     d = {
-        'input_symbol': ' Deploy-ready symbol file',
+        'input_symbol': '- Deploy-ready symbol file',
         'nd_prefix_name': '- Prefix name for args.nd and argx.nd files',
-        'pretrained_model_name': '- Pretrained model which will be merged with .nd files',
-        'save_params_from_nd': '- Enable save built params file from nd files',
-        'legacy_mxnet_model': '- Load the model trained with MXNet with version lower than 1.0.0'
+        'pretrained_model_name': '- Pretrained model to be merged with the .nd files',
+        'save_params_from_nd': '- Enable saving built parameters file from .nd files',
+        'legacy_mxnet_model': '- Enable MXNet loader for models trained with MXNet version lower than 1.0.0'
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
@@ -471,8 +346,8 @@ def get_mxnet_cli_options():
 
 def get_kaldi_cli_options():
     d = {
-        'counts': '- Path to the counts file',
-        'remove_output_softmax': '- Removes the Softmax layer that is the output layer'
+        'counts': '- A file name with full path to the counts file',
+        'remove_output_softmax': '- Removes the SoftMax layer that is the output layer'
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
@@ -567,9 +442,6 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     tf_group.add_argument('--saved_model_tags', type=str, default=None,
                           help="Group of tag(s) of the MetaGraphDef to load, in string format, separated by ','. "
                                "For tag-set contains multiple tags, all tags must be passed in.")
-    tf_group.add_argument('--offload_unsupported_operations_to_tf',
-                          help='TensorFlow*: automatically offload unsupported operations to TensorFlow*',
-                          action='store_true')
     tf_group.add_argument('--tensorflow_subgraph_patterns',
                           help='TensorFlow*: a list of comma separated patterns that will be applied to ' +
                                'TensorFlow* node names to ' +
@@ -627,14 +499,14 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
                           help="Prefix name for args.nd and argx.nd files.",
                           default=None)
     mx_group.add_argument("--pretrained_model_name",
-                          help="Pretrained model without extension and epoch number which will be merged with args.nd and argx.nd files.",
+                          help="Name of a pretrained MXNet model without extension and epoch number. This model will be merged with args.nd and argx.nd files",
                           default=None)
     mx_group.add_argument("--save_params_from_nd",
                           action='store_true',
-                          help="Enable save built params file from nd files.")
+                          help="Enable saving built parameters file from .nd files")
     mx_group.add_argument("--legacy_mxnet_model",
                           action='store_true',
-                          help="Load the model trained with less version of MXNet than 1.0.0")
+                          help="Enable MXNet loader to make a model compatible with the latest MXNet version. Use only if your model was trained with MXNet version lower than 1.0.0")
     return parser
 
 
@@ -658,7 +530,7 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
                              action=CanonicalizePathCheckExistenceAction)
 
     kaldi_group.add_argument("--remove_output_softmax",
-                             help="Removes the Softmax layer that is the output layer",
+                             help="Removes the SoftMax layer that is the output layer",
                              action='store_true')
     return parser
 

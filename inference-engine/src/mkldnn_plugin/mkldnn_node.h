@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,11 +43,13 @@ enum Type {
     Lrn,
     Pooling,
     FullyConnected,
+    FullyConnected_Activation,
     SoftMax,
     Split,
     Concatenation,
     Power,
     Eltwise,
+    Gemm,
     Crop,
     Reshape,
     Tile,
@@ -60,7 +61,10 @@ enum Type {
     Copy,
     MemoryOutput,
     MemoryInput,
-    RNN
+    RNNCell,
+    RNNSeq,
+    Quantize,
+    BinaryConvolution
 };
 
 static Type TypeFromName(const std::string type) {
@@ -77,6 +81,8 @@ static Type TypeFromName(const std::string type) {
             { "Logistic", Activation },
             { "TanH", Activation },
             { "ReLU6", Activation },
+            { "Exp", Activation },
+            { "Not", Activation },
             { "Activation", Activation },
             { "ScaleShift", Depthwise },
             { "PReLU", Depthwise },
@@ -86,6 +92,7 @@ static Type TypeFromName(const std::string type) {
             { "Pooling", Pooling },
             { "FullyConnected", FullyConnected },
             { "InnerProduct", FullyConnected },
+            { "Gemm", Gemm },
             { "Softmax", SoftMax },
             { "SoftMax", SoftMax },
             { "Split", Split },
@@ -103,7 +110,14 @@ static Type TypeFromName(const std::string type) {
             { "Flatten", Flatten },
             { "Permute", Permute },
             { "Copy", Copy },
-            { "RNN", RNN },
+            { "LSTMCell", RNNCell },
+            { "GRUCell", RNNCell },
+            { "RNNCell", RNNCell },
+            { "LSTMSequence", RNNSeq },
+            { "GRUSequence", RNNSeq },
+            { "RNNSequence", RNNSeq },
+            { "Quantize", Quantize },
+            { "BinaryConvolution", BinaryConvolution },
             { "MemoryInput", MemoryInput},  // for construction from name ctor, arbitrary name is used
             { "Memory", MemoryOutput },  // for construction from layer ctor
     };
@@ -149,7 +163,7 @@ public:
 
     ~MKLDNNNode() override = default;
 
-    void addEdge(const MKLDNNEdgeWeakPtr& edge, size_t pIndex, size_t cIndex, bool insertChildIndex = false);
+    void addEdge(const MKLDNNEdgeWeakPtr& edge);
     void removeEdge(const MKLDNNEdgeWeakPtr& edge);
 
     virtual void cleanup();
@@ -166,6 +180,8 @@ public:
     const MKLDNNEdgePtr getParentEdgeAt(size_t idx) const;
     virtual const MKLDNNEdgePtr getChildEdgeAt(size_t idx) const;
 
+    const std::vector<MKLDNNEdgePtr> getParentEdgesAtPort(size_t idx) const;
+    const std::vector<MKLDNNEdgePtr> getChildEdgesAtPort(size_t idx) const;
 
     bool isDropped() {
         return (isEdgesEmpty(childEdges) && isEdgesEmpty(parentEdges));
@@ -187,12 +203,22 @@ public:
         mergedWith.push_back(merge);
     }
 
+    void addOriginalLayer(const InferenceEngine::CNNLayerPtr &layer);
+
     const std::vector <MKLDNNNodePtr> &getMergeWith() {
         return mergedWith;
     }
 
+    const std::vector <MKLDNNNodePtr> &getFusedWith() {
+        return fusedWith;
+    }
+
     const std::string getName() const {
         return name;
+    }
+
+    const std::string getOriginalLayers() const {
+        return originalLayers;
     }
 
     Type getType() const {
@@ -302,27 +328,31 @@ public:
         THROW_IE_EXCEPTION << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    static void invertVectorCopyUtoI(const InferenceEngine::PropertyVector<unsigned int>& src, std::vector<int>& dst) {
+    static void invertVectorCopyUtoI(const InferenceEngine::PropertyVector<unsigned int>& src, std::vector<ptrdiff_t>& dst) {
         dst.clear();
         for (int i = 1; i <= src.size(); i++) {
-            dst.push_back(static_cast<int>(src[src.size() - i]));
+            dst.push_back(static_cast<ptrdiff_t>(src[src.size() - i]));
         }
     }
+
+    std::vector<MKLDNNDims> inDims;
+
 
 protected:
     // TODO: It is necessary only in order to avoid modifications of cnnLayers and original topology
     std::vector<MKLDNNDims> outDims;
-    std::vector<MKLDNNDims> inDims;
     void setType(Type type) {
         this->type = type;
     }
 
-    int getMaxBatch();
+    virtual int getMaxBatch();
 
     virtual InferenceEngine::TensorDesc getConfiguredInputDesc(const InferenceEngine::LayerConfig& config, size_t idx) const;
     virtual InferenceEngine::TensorDesc getConfiguredOutputDesc(const InferenceEngine::LayerConfig& config, size_t idx) const;
     virtual MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
     virtual MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+
+    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
 
     typedef std::function<MKLDNNMemoryDesc (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
@@ -331,6 +361,8 @@ protected:
     std::vector <MKLDNNNodePtr> fusedWith;
     std::vector <MKLDNNNodePtr> mergedWith;
     std::vector <impl_desc_type> implPriorities;
+
+    std::string originalLayers;  // contains names of the original layers separated by comma
 
     MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
 
@@ -349,6 +381,8 @@ protected:
     std::vector<PrimitiveDescInfo> supportedPrimitiveDescriptors;
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
+
+    InferenceEngine::Blob::Ptr ext_scales;
 
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;
@@ -371,8 +405,9 @@ protected:
     public:
         Register() {
             Registry::RegisterNode(
-                Registry::CreatorByLayerFunction([](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) -> MKLDNNNode * {
-                    return new To(layer, eng); } ) );
+                Registry::CreatorByLayerFunction(
+                        [](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng)
+                        -> MKLDNNNode* { return new To(layer, eng); } ) );
         }
     };
 

@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +20,6 @@
 #include "ie_blob.h"
 #include "ie_device.hpp"
 #include "ie_layers_property.hpp"
-
-#include "ie_icnn_network.hpp"
 
 namespace InferenceEngine {
 /**
@@ -376,7 +373,7 @@ public:
      * @param def Default value of the parameter if not found
      * @return An bool value for the specified parameter
      */
-    bool GetParamsAsBool(const char *param, bool def) const {
+    bool GetParamAsBool(const char *param, bool def) const {
         std::string val = GetParamAsString(param, std::to_string(def).c_str());
         std::string loweredCaseValue;
         std::transform(val.begin(), val.end(), std::back_inserter(loweredCaseValue), [](char value) {
@@ -387,10 +384,16 @@ public:
 
         if (!(std::istringstream(loweredCaseValue) >> std::boolalpha >> result)) {
             // attempting parse using non alpha bool
-            return static_cast<bool>(GetParamAsInt(param, def));
+            return (GetParamAsInt(param, def) != 0);
         }
 
         return result;
+    }
+    /**
+     * @deprecated Use GetParamAsBool function for that functionality
+     */
+    bool GetParamsAsBool(const char *param, bool def) const {
+        return GetParamAsBool(param, def);
     }
 
     /**
@@ -401,10 +404,23 @@ public:
      */
     std::string GetParamAsString(const char *param, const char *def) const {
         auto it = params.find(param);
-        if (it == params.end()) {
+        if (it == params.end() || it->second.empty()) {
             return def;
         }
         return (*it).second;
+    }
+
+    /**
+    * @brief Checks the param presence in the layer
+    * @param param Name of the layer parameter
+    * @return a bool depending param presence
+    */
+    bool CheckParamPresence(const char *param) const {
+        auto it = params.find(param);
+        if (it == params.end()) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -421,10 +437,28 @@ public:
         return (*it).second;
     }
 
+    std::vector<std::string> GetParamAsStrings(const char *param, std::vector<std::string> def) const {
+        std::string vals = GetParamAsString(param, "");
+        std::vector<std::string> result;
+        std::istringstream stream(vals);
+        std::string str;
+        if (vals.empty())
+            return def;
+        while (getline(stream, str, ',')) {
+            try {
+                result.push_back(str);
+            } catch (...) {
+                THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ".";
+            }
+        }
+        return result;
+    }
+
     /**
      * @brief Map of pairs: (parameter name, parameter value)
      */
     std::map<std::string, std::string> params;
+
     /**
      * @brief Map of pairs: (name, weights/biases blob)
      */
@@ -503,6 +537,10 @@ public:
      * @brief Number of groups
      */
     unsigned int _group = 1u;
+    /**
+     * @brief Auto padding type
+     */
+    std::string _auto_pad;
 
     /**
      * @brief Creates a new ConvolutionLayer instance.
@@ -593,6 +631,10 @@ public:
      * @brief A flag that indicates if padding is excluded or not
      */
     bool _exclude_pad = false;
+    /**
+     * @brief Auto padding type
+     */
+    std::string _auto_pad;
 
     /**
     * @brief Creates a new PoolingLayer instance.
@@ -631,6 +673,107 @@ public:
      * @brief move constructor
      */
     PoolingLayer(PoolingLayer &&) = default;
+};
+
+/**
+ * @brief This class represents a standard binary convolution layer
+ */
+class BinaryConvolutionLayer : public WeightableLayer {
+public:
+    /**
+    * @enum eBinaryConvolutionMode
+    * @brief Defines possible modes of binary convolution operation
+    */
+    enum eBinaryConvolutionMode {
+        xnor_popcount = 0
+    };
+
+    /**
+    * @brief Mode of binary convolution operation
+    */
+    eBinaryConvolutionMode _mode = xnor_popcount;
+
+    /**
+     * @brief A number of input feature maps (size) generating the 3'rd input dimension
+     */
+    unsigned int _in_depth = 0u;
+
+    /**
+    * @brief A pad value which is used to fill pad area
+    */
+    float _pad_value = 0.0f;
+
+    /**
+     * @brief A convolution kernel array [X, Y, Z, ...]
+     */
+    DEFINE_PROP(_kernel);
+    /**
+     * @brief A convolution paddings begin array [X, Y, Z, ...]
+     */
+    DEFINE_PROP(_padding);
+    /**
+     * @brief A convolution paddings end array [X, Y, Z, ...]
+     */
+    PropertyVector<unsigned int> _pads_end;
+    /**
+     * @brief A convolution strides array [X, Y, Z, ...]
+     */
+    DEFINE_PROP(_stride);
+    /**
+     * @brief A convolution dilations array [X, Y, Z, ...]
+     */
+    DEFINE_PROP(_dilation);
+    /**
+     * @brief A number of output feature maps (size) generating the 3'rd output dimension
+     */
+    unsigned int _out_depth = 0u;
+    /**
+     * @brief Number of groups
+     */
+    unsigned int _group = 1u;
+    /**
+     * @brief Auto padding type
+     */
+    std::string _auto_pad;
+
+    /**
+     * @brief Creates a new BinaryConvolutionLayer instance.
+     */
+    explicit BinaryConvolutionLayer(const LayerParams &p) : WeightableLayer(p),
+            _kernel(2, 0u), _padding(2, 0u), _stride(2, 1u), _dilation(2, 1u) {}
+    /**
+     * @brief assignment operator
+     */
+    BinaryConvolutionLayer & operator = (const BinaryConvolutionLayer & that) {
+        if (&that != this) {
+            WeightableLayer::operator=(that);
+            _kernel = that._kernel;
+            _padding = that._padding;
+            _pads_end = that._pads_end;
+            _stride = that._stride;
+            _dilation = that._dilation;
+            _out_depth = that._out_depth;
+            _group = that._group;
+            _mode = that._mode;
+            _in_depth = that._in_depth;
+            _pad_value = that._pad_value;
+        }
+        return *this;
+    }
+    /**
+     * @brief move assignment operator
+     */
+    BinaryConvolutionLayer& operator = (BinaryConvolutionLayer &&) = default;
+    /**
+     * @brief copy constructor
+     */
+    BinaryConvolutionLayer(const BinaryConvolutionLayer & that) : WeightableLayer(that) {
+        operator = (that);
+    }
+    /**
+     * @brief move constructor
+     */
+    BinaryConvolutionLayer(BinaryConvolutionLayer &&) = default;
 };
 
 #undef DEFINE_PROP
@@ -811,6 +954,21 @@ public:
     using CNNLayer::CNNLayer;
 };
 
+
+/**
+ * @brief This class represents a ReLU6 activation layer
+ * Clamps all tensor elements into the range [0, 6.0]
+ */
+class ReLU6Layer : public ClampLayer {
+public:
+    explicit ReLU6Layer(const LayerParams &prms) : ClampLayer(prms) {
+        max_value = 6.0f;
+    }
+
+    using ClampLayer::ClampLayer;
+};
+
+
 /**
  * @brief This class represents an element wise operation layer
  */
@@ -821,7 +979,9 @@ public:
      * @brief Defines possible operations that can be used
      */
     enum eOperation {
-        Sum = 0, Prod, Max
+        Sum = 0, Prod, Max, Sub, Min, Div, Squared_diff, Floor_mod, Pow,
+        Equal, Not_equal, Less, Less_equal, Greater, Greater_equal,
+        Logical_AND, Logical_OR, Logical_XOR
     };
 
     /**
@@ -926,69 +1086,251 @@ public:
 };
 
 /**
-* @brief This class represents RNN sequence layer
-*/
-class RNNLayer : public WeightableLayer {
-public:
-    CellType cellType;
-
-    /**
-    * @brief An axis by which iteration is performed. Axis=0 means first input blob dimension is sequence, axis=1 means first dimension is batch.
-    */
-    unsigned int _axis = 1;
-
-    using WeightableLayer::WeightableLayer;
-
-    /**
-    * @brief Creates a new RNNLayer instance.
-    */
-    explicit RNNLayer(const LayerParams &p) : WeightableLayer(p) {}
-};
-
-/**
-* @brief This class represents LSTMCell pseudo-layer to be used in TensorIterator
-*/
-class LSTMCell : public WeightableLayer {
-public:
-    using WeightableLayer::WeightableLayer;
-};
-
-class ICNNNetReader;
-/**
-* @brief This class represents TensorIterator layer
-*/
+ * @brief This class represents TensorIterator layer
+ */
 class TensorIterator : public CNNLayer {
 public:
-    using CNNNetReaderPtr = std::shared_ptr<ICNNNetReader>;
-    CNNNetReaderPtr reader;
+    struct PortMap {
+        // Data map rule
+        int from;      /**< Index of exteral data from ins/outs fields of CNNLayer */
+        int to;        /**< Index of internal data in iterator body */
 
-    struct BackEdge {
-        int fromLayer;
-        int fromPort;
-        int toLayer;
-        int toPort;
+        // Iteration rule
+        int axis;      /**< Axis to iterate throught */
+        int stride;    /**< Stride to iterate throught */
+        int start;     /**< Start index of iteration range */
+        int end;       /**< Last index of iteration range  */
+        int part_size; /**< Part size which will be transfered to body subnetwork */
     };
 
-    struct Port {
-        int external_port_id;
-        int internal_layer_id;
-        int internal_port_id;
-        int axis;
-        int part_size;
-        int stride;
+    struct Body {
+        std::vector<DataPtr> inputs;
+        std::vector<DataPtr> outputs;
     };
 
-    std::vector<Port> input_ports;
-    std::vector<Port> output_ports;
-    std::vector<BackEdge> backEdges;
+    std::vector<PortMap> input_port_map;
+    std::vector<PortMap> output_port_map;
+    std::vector<PortMap> back_edges;
+
+    Body body;
 
     using CNNLayer::CNNLayer;
 };
 
 /**
-* @class PReLULayer
-* @brief This class represents a Layer which performs Scale and Shift
-*/
+ * @brief Base class for recurrent cell layers
+ */
+class RNNCellBase : public WeightableLayer {
+public:
+    using WeightableLayer::WeightableLayer;
+
+    /**
+     * @brief Direct type of recurrent cell (including subtypes)
+     * Description of particular cell semantics is in LSTMCell, GRUCell, RNNCell.
+     */
+    enum CellType {
+        LSTM,      /**< Original LSTM cell */
+        GRU,       /**< Original GRU cell */
+        RNN,       /**< Original RNN cell */
+        GRU_LBR,   /**< GRU cell modification. "Linear before reset" */
+    };
+
+    /** @copybrief CellType */
+    CellType cellType = LSTM;
+
+    /**
+     * @brief Size of hidden state data
+     *
+     * In case of batch output state tensor will have shape [N, hidden_size]
+     */
+    int hidden_size = 0;
+
+    /**
+     * @brief Clip data into range [-clip, clip] on input of activations
+     *
+     * clip==0.0f means no clipping
+     */
+    float clip = 0.0f;
+    /**
+     * @brief Activations used inside recurrent cell
+     *
+     * Valid values: sigmoid, tanh, relu
+     */
+    std::vector<std::string> activations;
+
+    /**
+     * @brief Alpha parameters of activations
+     *
+     * Respective to activation list.
+     */
+    std::vector<float> activation_alpha;
+
+    /**
+     * @brief Beta parameters of activations
+     *
+     * Respective to activation list.
+     */
+    std::vector<float> activation_beta;
+};
+
+/**
+ * @brief LSTM Cell layer
+ *
+ * G - number of gates (=4)
+ * N - batch size
+ * S - state size (=hidden_size)
+ *
+ * Inputs:
+ *   [N,D] Xt - input data
+ *   [N,S] Ht-1 - initial hidden state
+ *   [N,S] Ct-1 - initial cell state
+ *
+ * Outputs:
+ *   [N,S] Ht - out hidden state
+ *   [N,S] Ct - out cell state
+ *
+ * Weights:
+ *   - weights [G,S,D+S]
+ *   - biases [G,S]
+ * NB!  gates order is FICO {forget, input, candidate, output}
+ *
+ * activations is {_f, _g, _h}
+ * default: {_f=sigm, _g=tanh, _h=tanh}
+ *
+ * Equations:
+ *
+ *   *  - matrix mult
+ *  (.) - eltwise mult
+ *  [,] - concatenation
+ *
+ * - ft = _f(Wf*[Ht-1, Xt] + Bf)
+ * - it = _f(Wi*[Ht-1, Xt] + Bi)
+ * - ct = _g(Wc*[Ht-1, Xt] + Bc)
+ * - ot = _f(Wo*[Ht-1, Xt] + Bo)
+ * - Ct = ft (.) Ct-1 + it (.) ct
+ * - Ht = ot (.) _h(Ct)
+ */
+using LSTMCell = RNNCellBase;
+
+/**
+ * @brief GRU Cell layer
+ *
+ * G - number of gates (=3)
+ * N - batch size
+ * S - state size (=hidden_size)
+ *
+ * Inputs:
+ *   [N,D] Xt - input data
+ *   [N,S] Ht-1 - initial hidden state
+ *
+ * Outputs:
+ *   [N,S] Ht - out hidden state
+ *
+ * Weights:
+ *   - weights [G,S,D+S]
+ *   - biases [G,S]
+ * NB!  gates order is ZRH {update, reset, output}
+ *
+ * activations is {_f, _g}
+ * default: {_f=sigm, _g=tanh}
+ *
+ * Equations:
+ *
+ *   *  - matrix mult
+ *  (.) - eltwise mult
+ *  [,] - concatenation
+ *
+ * - zt = _f(Wz*[Ht-1, Xt] + Bz)
+ * - rt = _f(Wr*[Ht-1, Xt] + Br)
+ * - ht = _g(Wh*[rt (.) Ht-1, Xt] + Bh)
+ * - Ht = (1 - zt) (.) ht + zt (.) Ht-1
+ */
+using GRUCell  = RNNCellBase;
+
+/**
+ * @brief RNN Cell layer
+ *
+ * G - number of gates (=1)
+ * N - batch size
+ * S - state size (=hidden_size)
+ *
+ * Inputs:
+ *   [N,D] Xt - input data
+ *   [N,S] Ht-1 - initial hidden state
+ *
+ * Outputs:
+ *   [N,S] Ht - out hidden state
+ *
+ * Weights:
+ *   - weights [G,S,D+S]
+ *   - biases [G,S]
+ *
+ * activations is {_f}
+ * default: {_f=tanh}
+ *
+ * Equations:
+ *
+ *   *  - matrix mult
+ *  [,] - concatenation
+ *
+ * - Ht = _f(Wi*[Ht-1, Xt] + Bi)
+ */
+using RNNCell  = RNNCellBase;
+
+/**
+ * @brief Sequence of recurrent cells
+ *
+ * N  - batch size
+ * T  - sequence size
+ * S  - state size (=hidden_size)
+ * NS - num of state tensors (LSTM=2, GRU/RNN=1)
+ * ND - num of direction (BDR=2, WFD/BWD=1)
+ *
+ * Inputs:
+ *   [N,T,D]  Xt - input data
+ *   [ND,N,S] Ht-1 - initial hidden state
+ *   [ND,N,S] Ct-1 - initial cell state  // if NS==2
+ *
+ * Outputs:
+ *   [ND,N,T,S] Xt - input data
+ *   [ND,N,S] Ht-1 - initial hidden state
+ *   [ND,N,S] Ct-1 - initial cell state  // if NS==2
+ *
+ * NB! if axis==0 batch and sequense dimensions are swapped (N <-> T) for input and output tensors
+ *
+ * Weights:
+ *   - weights [ND,G,S,D+S]
+ *   - biases [ND,G,S]
+ * NB! if ND==2 weights are concatenated cell weights [forward_cell_weights, backward_cell_weights]
+ *
+ */
+class RNNSequenceLayer : public RNNCellBase {
+public:
+    using RNNCellBase::RNNCellBase;
+
+    /**
+     * @brief An axis by which iteration is performed
+     * axis=0 means first input/output data blob dimension is sequence
+     * axis=1 means first input/output data blob dimension is batch
+     */
+    unsigned int axis = 1;
+
+    /**
+     * @brief Direction of iteration through sequence dimension
+     */
+    enum Direction {
+        FWD,  /**< Forward mode. Iterate starts from index 0 with step 1.         */
+        BWD,  /**< Backward mode. Iterate starts from last index with step -1.    */
+        BDR   /**< Bidirectional mode. First is forward pass, second is backward. */
+    };
+
+    /** @copybrief Direction */
+    Direction direction = FWD;
+};
+
+/**
+ * @brief This class represents a Layer which performs Scale and Shift
+ */
 class PReLULayer : public WeightableLayer {
 public:
     /**
@@ -998,9 +1340,9 @@ public:
 
 public:
     /**
-    * @brief A default constructor. Creates a new PReLULayer instance and initializes layer parameters with the given values.
-    * @param prms Initial layer parameters
-    */
+     * @brief A default constructor. Creates a new PReLULayer instance and initializes layer parameters with the given values.
+     * @param prms Initial layer parameters
+     */
     explicit PReLULayer(const LayerParams &prms) : WeightableLayer(prms), _channel_shared(false) {}
 };
 
@@ -1043,6 +1385,286 @@ public:
      * @brief Creates a new BatchNormalizationLayer instance.
      */
     using WeightableLayer::WeightableLayer;
+};
+
+/**
+ * @brief This class represents a general matrix multiplication operation layer
+ * Formula is: dst := alpha*src1*src2 + beta*src3
+ */
+class GemmLayer : public CNNLayer {
+public:
+    /**
+    * @brief A scale factor of src1 matrix
+    */
+    float alpha = 1.f;
+    /**
+    * @brief A scale factor of src3 matrix
+    */
+    float beta = 1.f;
+    /**
+    * @brief A flag that indicates if the src1 matrix is to be transposed
+    */
+    bool transpose_a = false;
+    /**
+    * @brief A flag that indicates if the src2 matrix is to be transposed
+    */
+    bool transpose_b = false;
+    /**
+    * @brief Creates a new GemmLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+/**
+ * @brief This class represents a standard Pad layer
+ * Adds paddings to input tensor
+ */
+class PadLayer : public CNNLayer {
+public:
+    /**
+     * @enum ePadMode
+     * @brief Defines possible modes of pad operation
+     */
+    enum ePadMode {
+        Constant = 0, Edge, Reflect, Symmetric
+    };
+
+    /**
+    * @brief Size of padding in the beginning of each axis
+    */
+    PropertyVector<unsigned int> pads_begin;
+    /**
+    * @brief Size of padding in the end of each axis
+    */
+    PropertyVector<unsigned int> pads_end;
+    /**
+    * @brief Mode of pad operation
+    */
+    ePadMode pad_mode = Constant;
+    /**
+    * @brief A pad value which is used for filling in Constant mode
+    */
+    float pad_value = 0.0f;
+    /**
+    * @brief Creates a new PadLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+/**
+ * @brief This class represents a standard Gather layer
+ * Gather slices from Dictionary according to Indexes
+ */
+class GatherLayer : public CNNLayer {
+public:
+    /**
+    * @brief The axis in Dictionary to gather Indexes from
+    */
+    int axis = 0;
+    /**
+    * @brief Creates a new GatherLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+/**
+ * @brief This class represents a standard Strided Slice layer
+ * Strided Slice picks from input tensor according parameters
+ */
+class StridedSliceLayer : public CNNLayer {
+public:
+    /**
+    * @brief The begin_mask is a bitmask where bit i being 0 means
+    * to ignore the begin value and instead use the default value
+    */
+    std::string begin_mask;
+    /**
+    * @brief Analogous to begin_mask
+    */
+    std::string end_mask;
+    /**
+    * @brief The ellipsis_mask is a bitmask where bit i being 1 means
+    * the i-th is actually an ellipsis
+    */
+    std::string ellipsis_mask;
+    /**
+    * @brief The new_axis_mask_ is a bitmask where bit i being 1 means
+    * the i-th position creates a new 1 dimension shape
+    */
+    std::string new_axis_mask;
+    /**
+    * @brief The shrink_axis_mask is a bitmask where bit i being 1 means
+    * the i-th position shrinks the dimensionality
+    */
+    std::string shrink_axis_mask;
+
+    /**
+    * @brief Creates a new StridedSliceLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+/**
+* @brief This class represents a standard Shuffle Channels layer
+* Shuffle Channels picks from input tensor according parameters
+*/
+class ShuffleChannelsLayer : public CNNLayer {
+public:
+    /**
+    * @brief The axis in tensor to shuffle channels
+    */
+    int axis = 1;
+
+    /**
+    * @brief The group of output shuffled channels
+    */
+    unsigned int group = 1;
+
+    /**
+    * @brief Creates a new ShuffleChannelsLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+* @brief This class represents a standard Depth To Space layer
+* Depth To Space picks from input tensor according parameters
+*/
+class DepthToSpaceLayer : public CNNLayer {
+public:
+    /**
+    * @brief The group of output shuffled channels
+    */
+    unsigned int block_size = 1;
+
+    /**
+    * @brief Creates a new DepthToSpaceLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+* @brief This class represents a standard Space To Depth layer
+* Depth To Space picks from input tensor according parameters
+*/
+class SpaceToDepthLayer : public CNNLayer {
+public:
+    /**
+    * @brief The group of output Space To Depth
+    */
+    unsigned int block_size = 1;
+
+    /**
+    * @brief Creates a new SpaceToDepthLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+* @brief This class represents a standard Reverse Sequence layer
+* Reverse Sequence modifies input tensor according parameters
+*/
+class ReverseSequenceLayer : public CNNLayer {
+public:
+    /**
+    * @brief The seq_axis dimension in tensor which is partially reversed
+    */
+    int seq_axis = 1;
+
+    /**
+    * @brief The batch_axis dimension in tensor along which reversal is performed
+    */
+    int batch_axis = 0;
+
+    /**
+    * @brief Creates a new ReverseSequence instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+* @brief This class represents a standard Squeeze layer
+* Squeeze modifies input tensor dimensions according parameters
+*/
+class SqueezeLayer : public CNNLayer {
+public:
+    /**
+    * @brief Creates a new Squeeze instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+* @brief This class represents a standard Unsqueeze layer
+* Unsqueeze modifies input tensor dimensions according parameters
+*/
+class UnsqueezeLayer : public CNNLayer {
+public:
+    /**
+    * @brief Creates a new Unsqueeze instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+* @brief This class represents a standard RangeLayer layer
+* RangeLayer modifies input tensor dimensions according parameters
+*/
+class RangeLayer : public CNNLayer {
+public:
+    /**
+    * @brief Creates a new RangeLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+* @brief This class represents a standard Fill layer
+* RFill modifies input tensor according parameters
+*/
+class FillLayer : public CNNLayer {
+public:
+    /**
+    * @brief Creates a new Fill instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+* @brief This class represents a standard Expand layer
+* Expand modifies input tensor dimensions according parameters
+*/
+class ExpandLayer : public CNNLayer {
+public:
+    /**
+    * @brief Creates a new Expand instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+/**
+ * @brief This class represents a quantization operation layer
+ * Element-wise linear quantization of floating point input values into a descrete set of floating point values
+ */
+class QuantizeLayer : public CNNLayer {
+public:
+    /**
+    * @brief The number of quantization levels
+    */
+    int levels = 1;
+
+    /**
+    * @brief Creates a new QuantizeLayer instance.
+    */
+    using CNNLayer::CNNLayer;
 };
 
 }  // namespace InferenceEngine

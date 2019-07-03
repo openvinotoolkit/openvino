@@ -267,6 +267,12 @@ void DeathTestAbort(const std::string& message) {
       GetUnitTestImpl()->internal_run_death_test_flag();
   if (flag != NULL) {
     FILE* parent = posix::FDOpen(flag->write_fd(), "w");
+    if (parent == NULL) {
+      fprintf(stderr, "Unable to associate stream with file descriptor %d\n",
+        flag->write_fd());
+      fflush(stderr);
+      posix::Abort();
+    }
     fputc(kDeathTestInternalError, parent);
     fprintf(parent, "%s", message.c_str());
     fflush(parent);

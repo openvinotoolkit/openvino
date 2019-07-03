@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,4 +27,26 @@ std::vector<CNNLayerPtr> CNNNetSortTopologically(const ICNNNetwork & network) {
 }
 
 }   // namespace details
+
+void CNNNetSubstituteLayer(InferenceEngine::ICNNNetwork &network,
+                           const InferenceEngine::CNNLayerPtr &layer,
+                           const InferenceEngine::CNNLayerPtr &newLayer) {
+    IE_ASSERT(layer->name == newLayer->name);
+
+    // Redirect srd data
+    for (auto& src : layer->insData) {
+        src.lock()->getInputTo()[layer->name] = newLayer;
+    }
+    newLayer->insData = layer->insData;
+
+    // Redirect dst data
+    for (auto& dst : layer->outData) {
+        dst->creatorLayer = newLayer;
+    }
+    newLayer->outData = layer->outData;
+
+    network.addLayer(newLayer);
+}
+
+
 }  // namespace InferenceEngine

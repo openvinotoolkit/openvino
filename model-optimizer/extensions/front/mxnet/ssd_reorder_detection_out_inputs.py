@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 import networkx as nx
 
-from mo.graph.graph import create_edge
+from mo.graph.graph import Graph
 from mo.front.common.replacement import FrontReplacementPattern
 from extensions.front.mxnet.ssd_pattern_remove_transpose import SsdPatternRemoveTranspose
 from extensions.front.mxnet.ssd_pattern_flatten_softmax_activation import SsdPatternFlattenSoftmaxActivation
@@ -38,7 +38,7 @@ class SsdReorderDetectionOutInputs(FrontReplacementPattern):
             edges=[])
 
     @staticmethod
-    def replace_pattern(graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(graph: Graph, match: dict):
         """
         DetectionOutput layer has another order of inputs unlike mxnet.
         Need to reorder _contrib_MultiBoxDetection inputs
@@ -46,7 +46,7 @@ class SsdReorderDetectionOutInputs(FrontReplacementPattern):
 
         Parameters
         ----------
-        graph : nx.MultiDiGraph
+        graph : Graph
            Graph with loaded model.
         """
         multi_box_detection_node = match['multi_box_detection']
@@ -64,5 +64,5 @@ class SsdReorderDetectionOutInputs(FrontReplacementPattern):
         graph.remove_edge(conf_node.id, multi_box_detection_node.id)
         graph.remove_edge(loc_node.id, multi_box_detection_node.id)
 
-        create_edge(loc_node, multi_box_detection_node, in_port=conf_in_port, out_port=conf_out_port)
-        create_edge(conf_node, multi_box_detection_node, in_port=loc_in_port, out_port=loc_out_port)
+        graph.create_edge(loc_node, multi_box_detection_node, in_port=conf_in_port, out_port=conf_out_port)
+        graph.create_edge(conf_node, multi_box_detection_node, in_port=loc_in_port, out_port=loc_out_port)

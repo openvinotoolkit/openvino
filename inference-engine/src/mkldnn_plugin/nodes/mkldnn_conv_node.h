@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,24 +40,22 @@ private:
     bool isDW;
     bool isMerged;
     bool isGrouped;
-    std::vector<int> stride;
-    std::vector<int> dilation;
-    std::vector<int> paddingL;
-    std::vector<int> paddingR;
+    std::vector<ptrdiff_t> stride;
+    std::vector<ptrdiff_t> dilation;
+    std::vector<ptrdiff_t> paddingL;
+    std::vector<ptrdiff_t> paddingR;
     InferenceEngine::SizeVector weightDims;
     InferenceEngine::SizeVector biasesDims;
 
-    int dw_conv_oc;
-    int dw_conv_ih;
-    int dw_conv_iw;
-    std::vector<int> dw_conv_kernel;
-    std::vector<int> dw_conv_strides;
+    ptrdiff_t dw_conv_oc;
+    ptrdiff_t dw_conv_ih;
+    ptrdiff_t dw_conv_iw;
+    std::vector<ptrdiff_t> dw_conv_kernel;
+    std::vector<ptrdiff_t> dw_conv_strides;
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 
     InferenceEngine::ConvolutionLayer* convLayer;
     InferenceEngine::Blob::Ptr wScale, oScale;
-
-    bool lastInInt8Chain;
 };
 
 }  // namespace MKLDNNPlugin

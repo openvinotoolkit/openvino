@@ -1,21 +1,20 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <fstream>
 #include <gtest/gtest.h>
 #include "xml_father.hpp"
 #include "cnn_network_impl.hpp"
 #include  <tests_common.hpp>
-#include "v2_format_parser.h"
+#include "ie_format_parser.h"
 #include <string>
 #include "pugixml.hpp"
 #include "xml_parse_utils.h"
 #include "mean_image.h"
 #include "ie_blob_proxy.hpp"
-#include <fstream>
 
 class FormatParserTest : public TestsCommon {
  public:
@@ -57,7 +56,7 @@ class FormatParserTest : public TestsCommon {
     void assertParseFail(const std::string& fileContent) {
         try {
             parse(fileContent);
-            FAIL() << "Parser didn't trow";
+            FAIL() << "Parser didn't throw";
         } catch (const std::exception& ex) {
             SUCCEED() << ex.what();
         }
@@ -70,7 +69,7 @@ class FormatParserTest : public TestsCommon {
     void assertSetWeightsFail(const InferenceEngine::TBlob<uint8_t>::Ptr& binBlob) {
         try {
             parser->SetWeights(binBlob);
-            FAIL() << "Parser didn't trow";
+            FAIL() << "Parser didn't throw";
         } catch (const std::exception& ex) {
             SUCCEED() << ex.what();
         }
@@ -93,7 +92,7 @@ class FormatParserTest : public TestsCommon {
         int version = XMLParseUtils::GetIntAttr(root, "version", 2);
         if (version < 2) THROW_IE_EXCEPTION << "Deprecated IR's versions: " << version;
         if (version > 3) THROW_IE_EXCEPTION << "cannot parse future versions: " << version;
-        parser.reset(new InferenceEngine::details::V2FormatParser(version));
+        parser.reset(new InferenceEngine::details::FormatParser(version));
 
         net = parser->Parse(root);
     }
@@ -331,7 +330,7 @@ xml().node("net").attr("name", "AlexNet").attr("version", x)\
         return testing::XMLFather();
     }
 
-    std::shared_ptr<InferenceEngine::details::V2FormatParser> parser;
+    std::shared_ptr<InferenceEngine::details::FormatParser> parser;
 
  public:
 

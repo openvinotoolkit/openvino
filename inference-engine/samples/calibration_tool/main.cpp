@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +29,6 @@
 #include "calibrator_processors.h"
 #include "SSDObjectDetectionProcessor.hpp"
 #include "YOLOObjectDetectionProcessor.hpp"
-#include "network_serializer.h"
 #include "ie_icnn_network_stats.hpp"
 #include "details/caseless.hpp"
 
@@ -39,8 +37,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 using InferenceEngine::details::InferenceEngineException;
-
-#define DEFAULT_PATH_P "./lib"
 
 /// @brief Message for help argument
 static const char help_message[] = "Print a help message";
@@ -58,7 +54,7 @@ static const char model_message[] = "Required. Path to an .xml file with a train
 static const char plugin_message[] = "Plugin name. For example, CPU. If this parameter is passed, "
                                      "the sample looks for a specified plugin only.";
 /// @brief Message for assigning cnn calculation to device
-static const char target_device_message[] = "Target device to infer on: CPU (default), GPU, FPGA, or MYRIAD."
+static const char target_device_message[] = "Target device to infer on: CPU (default), GPU, FPGA, HDDL or MYRIAD."
                                             " The application looks for a suitable plugin for the specified device.";
 /// @brief Message for label argument
 static const char label_message[] = "Path to a file with labels for a model";
@@ -93,11 +89,19 @@ static const char custom_cldnn_message[] = "Required for GPU custom kernels. "
 /// @brief Message for user library argument
 static const char custom_cpu_library_message[] = "Required for CPU custom layers. "
                                                  "Absolute path to a shared library with the kernel implementations.";
+/// @brief Message for labels file
+static const char labels_file_message[] = "Labels file path. The labels file contains names of the dataset classes";
 
 static const char zero_background_message[] = "\"Zero is a background\" flag. Some networks are trained with a modified"
                                               " dataset where the class IDs "
                                               " are enumerated from 1, but 0 is an undefined \"background\" class"
                                               " (which is never detected)";
+
+static const char stream_output_message[] = "Flag for printing progress as a plain text. When used, interactive progress"
+                                            " bar is replaced with multiline output";
+
+static const char convert_fc_message[] = "Convert FullyConnected layers to Int8 or not (false by default)";
+
 
 /// @brief Network type options and their descriptions
 static const char* types_descriptions[][2] = {
@@ -136,7 +140,7 @@ DEFINE_string(p, "", plugin_message);
 DEFINE_string(OCl, "", label_message);
 /// @brief Define parameter for a path to plugins <br>
 /// Default is ./lib
-DEFINE_string(pp, DEFAULT_PATH_P, plugin_path_message);
+DEFINE_string(pp, "", plugin_path_message);
 /// @brief Define paraneter for a target device to infer on <br>
 DEFINE_string(d, "CPU", target_device_message);
 /// @brief Define parameter for batch size <br>
@@ -177,9 +181,16 @@ DEFINE_string(l, "", custom_cpu_library_message);
 /// @brief Define parameter for accuracy drop threshold
 DEFINE_double(threshold, 1.0f, accuracy_threshold_message);
 
+/// @brief Define path to output calibrated model
+DEFINE_bool(stream_output, false, stream_output_message);
+
 DEFINE_int32(subset, 0, number_of_pictures_message);
 
 DEFINE_string(output, "", output_model_name);
+
+DEFINE_string(lbl, "", labels_file_message);
+
+DEFINE_bool(convert_fc, false, convert_fc_message);
 
 /**
  * @brief This function shows a help message
@@ -196,6 +207,7 @@ static void showUsage() {
     }
     std::cout << "    -i <path>                 " << image_message << std::endl;
     std::cout << "    -m <path>                 " << model_message << std::endl;
+    std::cout << "    -lbl <path>               " << labels_file_message << std::endl;
     std::cout << "    -l <absolute_path>        " << custom_cpu_library_message << std::endl;
     std::cout << "    -c <absolute_path>        " << custom_cldnn_message << std::endl;
     std::cout << "    -d <device>               " << target_device_message << std::endl;
@@ -219,6 +231,9 @@ static void showUsage() {
     std::cout << "      -ODa <path>             " << obj_detection_annotations_message << std::endl;
     std::cout << "      -ODc <file>             " << obj_detection_classes_message << std::endl;
     std::cout << "      -ODsubdir <name>        " << obj_detection_subdir_message << std::endl << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "    -stream_output                   " << stream_output_message << std::endl;
 }
 
 enum NetworkType {
@@ -238,7 +253,8 @@ std::string strtolower(const std::string& s) {
 void SaveCalibratedIR(const std::string &originalName,
                       const std::string &outModelName,
                       const std::map<std::string, bool>& layersToInt8,
-                      const InferenceEngine::NetworkStatsMap& statMap) {
+                      const InferenceEngine::NetworkStatsMap& statMap,
+                      bool convertFullyConnected) {
     slog::info << "Layers profile for Int8 quantization\n";
     CNNNetReader networkReader;
     networkReader.ReadNetwork(originalName);
@@ -259,6 +275,14 @@ void SaveCalibratedIR(const std::string &originalName,
                 layer->params["quantization_level"] = "I8";
                 std::cout << layer->name << ": " << "I8" << std::endl;
             }
+        } else if (CaselessEq<std::string>()(layer->type, "fullyconnected")) {
+            if (!convertFullyConnected) {
+                layer->params["quantization_level"] = "FP32";
+                std::cout << layer->name << ": " << "FP32" << std::endl;
+            } else {
+                layer->params["quantization_level"] = "I8";
+                std::cout << layer->name << ": " << "I8" << std::endl;
+            }
         }
     }
 
@@ -270,8 +294,7 @@ void SaveCalibratedIR(const std::string &originalName,
     }
 
     slog::info << "Write calibrated network to " << outModelName << ".(xml|bin) IR file\n";
-    CNNNetworkSerializer serializer;
-    serializer.Serialize(outModelName + ".xml", outModelName + ".bin", networkReader.getNetwork());
+    networkReader.getNetwork().serialize(outModelName + ".xml", outModelName + ".bin");
 }
 
 /**
@@ -321,7 +344,6 @@ int main(int argc, char *argv[]) {
             // Checking required OD-specific options
             if (FLAGS_ODa.empty()) ee << UserException(11, "Annotations folder is not specified for object detection (missing -a option)");
             if (FLAGS_ODc.empty()) ee << UserException(12, "Classes file is not specified (missing -c option)");
-            if (FLAGS_b > 0) ee << UserException(13, "Batch option other than 0 is not supported for Object Detection networks");
         }
 
         if (!ee.empty()) throw ee;
@@ -330,7 +352,7 @@ int main(int argc, char *argv[]) {
         // ---------------------Loading plugin for Inference Engine------------------------------------------------
         slog::info << "Loading plugin" << slog::endl;
         /** Loading the library with extensions if provided**/
-        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp, "../../../lib/intel64", "" }).getPluginByDevice(FLAGS_d);
+        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
 
         /** Loading default extensions **/
         if (FLAGS_d.find("CPU") != std::string::npos) {
@@ -384,7 +406,7 @@ int main(int argc, char *argv[]) {
         if (netType == Classification || netType == RawC) {
             processor = std::shared_ptr<Processor>(
                 new ClassificationCalibrator(FLAGS_subset, FLAGS_m, FLAGS_d, FLAGS_i, FLAGS_b,
-                                                plugin, dumper, FLAGS_l, preprocessingOptions, FLAGS_Czb));
+                                                plugin, dumper, FLAGS_lbl, preprocessingOptions, FLAGS_Czb));
         } else if (netType == ObjDetection || netType == RawOD) {
             if (FLAGS_ODkind == "SSD") {
                 processor = std::shared_ptr<Processor>(
@@ -403,7 +425,10 @@ int main(int argc, char *argv[]) {
             THROW_USER_EXCEPTION(2) <<  "Processor pointer is invalid" << FLAGS_ppType;
         }
 
-        Int8Calibrator* calibrator = dynamic_cast<Int8Calibrator*>(processor.get());
+        auto calibrator = dynamic_cast<Int8Calibrator*>(processor.get());
+        if (calibrator == nullptr) {
+            THROW_USER_EXCEPTION(2) << "processor object is not instance of Int8Calibrator class";
+        }
 
         if (netType != RawC && netType != RawOD) {
             slog::info << "Collecting accuracy metric in FP32 mode to get a baseline, collecting activation statistics" << slog::endl;
@@ -411,8 +436,11 @@ int main(int argc, char *argv[]) {
             slog::info << "Collecting activation statistics" << slog::endl;
         }
         calibrator->collectFP32Statistic();
-        shared_ptr<Processor::InferenceMetrics> pIMFP32 = processor->Process();
-        const CalibrationMetrics* mFP32 = dynamic_cast<const CalibrationMetrics*>(pIMFP32.get());
+        shared_ptr<Processor::InferenceMetrics> pIMFP32 = processor->Process(FLAGS_stream_output);
+        const auto mFP32 = dynamic_cast<const CalibrationMetrics*>(pIMFP32.get());
+        if (mFP32 == nullptr) {
+            THROW_USER_EXCEPTION(2) << "FP32 inference metrics object is not instance of CalibrationMetrics class";
+        }
         std:: cout << "  FP32 Accuracy: " << OUTPUT_FLOATING(100.0 * mFP32->AccuracyResult) << "% " << std::endl;
 
         InferenceEngine::NetworkStatsMap statMap;
@@ -426,9 +454,12 @@ int main(int argc, char *argv[]) {
             for (float threshold = 100.0f; threshold > 95.0f; threshold -= 0.5) {
                 std::cout << "Validate int8 accuracy, threshold for activation statistics = " << threshold << std::endl;
                 InferenceEngine::NetworkStatsMap tmpStatMap = calibrator->getStatistic(threshold);
-                calibrator->validateInt8Config(tmpStatMap, {});
-                shared_ptr<Processor::InferenceMetrics> pIM_I8 = processor->Process();
-                const CalibrationMetrics *mI8 = dynamic_cast<const CalibrationMetrics *>(pIM_I8.get());
+                calibrator->validateInt8Config(tmpStatMap, {}, FLAGS_convert_fc);
+                shared_ptr<Processor::InferenceMetrics> pIM_I8 = processor->Process(FLAGS_stream_output);
+                auto *mI8 = dynamic_cast<const CalibrationMetrics *>(pIM_I8.get());
+                if (mI8 == nullptr) {
+                    THROW_USER_EXCEPTION(2) << "INT8 inference metrics object is not instance of CalibrationMetrics class";
+                }
                 if (maximalAccuracy < mI8->AccuracyResult) {
                     maximalAccuracy = mI8->AccuracyResult;
                     bestThreshold = threshold;
@@ -446,7 +477,7 @@ int main(int argc, char *argv[]) {
                 slog::info << "Collecting intermediate per-layer accuracy drop" << slog::endl;
                 // getting statistic on accuracy drop by layers
                 calibrator->collectByLayerStatistic(statMap);
-                processor->Process();
+                processor->Process(FLAGS_stream_output);
                 // starting to reduce number of layers being converted to Int8
                 std::map<std::string, float>  layersAccuracyDrop = calibrator->layersAccuracyDrop();
 
@@ -455,15 +486,15 @@ int main(int argc, char *argv[]) {
                     orderedLayersAccuracyDrop[d.second] = d.first;
                     layersToInt8[d.first] = true;
                 }
-                std::map<float, std::string>::const_reverse_iterator it = orderedLayersAccuracyDrop.crbegin();
+                auto it = orderedLayersAccuracyDrop.crbegin();
 
                 shared_ptr<Processor::InferenceMetrics> pIM_I8;
                 const CalibrationMetrics *mI8;
                 while (it != orderedLayersAccuracyDrop.crend() && bAccuracy == false) {
                     slog::info << "Returning of '" << it->second << "' to FP32 precision, start validation\n";
                     layersToInt8[it->second] = false;
-                    calibrator->validateInt8Config(statMap, layersToInt8);
-                    pIM_I8 = processor->Process();
+                    calibrator->validateInt8Config(statMap, layersToInt8, FLAGS_convert_fc);
+                    pIM_I8 = processor->Process(FLAGS_stream_output);
                     mI8 = dynamic_cast<const CalibrationMetrics *>(pIM_I8.get());
                     maximalAccuracy = mI8->AccuracyResult;
                     if ((mFP32->AccuracyResult - maximalAccuracy) > (FLAGS_threshold / 100)) {
@@ -484,7 +515,7 @@ int main(int argc, char *argv[]) {
                     "current Int8 configuration accuracy: " << OUTPUT_FLOATING(100.0 * maximalAccuracy) << "% " <<
                     "with threshold for activation statistic: " << bestThreshold << "%" << std::endl;
                 std::string outModelName = FLAGS_output.empty() ? fileNameNoExt(FLAGS_m) + "_i8" : fileNameNoExt(FLAGS_output);
-                SaveCalibratedIR(FLAGS_m, outModelName, layersToInt8, statMap);
+                SaveCalibratedIR(FLAGS_m, outModelName, layersToInt8, statMap, FLAGS_convert_fc);
             } else {
                 slog::info << "Required threshold of accuracy drop cannot be achieved with any int8 quantization\n";
             }
@@ -492,7 +523,7 @@ int main(int argc, char *argv[]) {
             std::cout << "Collected activation statistics, writing maximum values to IR" << std::endl;
             statMap = calibrator->getStatistic(100.0f);
             std::string outModelName = FLAGS_output.empty() ? fileNameNoExt(FLAGS_m) + "_i8" : fileNameNoExt(FLAGS_output);
-            SaveCalibratedIR(FLAGS_m, outModelName, layersToInt8, statMap);
+            SaveCalibratedIR(FLAGS_m, outModelName, layersToInt8, statMap, FLAGS_convert_fc);
         }
 
         if (dumper.dumpEnabled()) {
@@ -511,11 +542,16 @@ int main(int argc, char *argv[]) {
             showUsage();
             return ex.list().begin()->exitCode();
         } else {
-            const char* s = ex.what();
             slog::err << "Input problems: \n" << ex.what() << slog::endl;
             showUsage();
             return ex.list().begin()->exitCode();
         }
+    } catch (const std::exception& ex) {
+        slog::err << ex.what() << slog::endl;
+        return 1;
+    } catch (...) {
+        slog::err << "Unknown/internal exception happened." << slog::endl;
+        return 1;
     }
     return 0;
 }

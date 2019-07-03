@@ -46,7 +46,7 @@ TEST(scale_grad_input_gpu, basic_in2x3x2x2_scale_same_size) {
     //  f1: b0:  1.1    1.2  1.25   b1:   1.3   1.4   1.5     
     //  f1: b0:  1.6    1.7  1.75   b1:   1.8   1.9   2
 
-    engine engine;
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 3, 2 } });
     auto scale_input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 3, 2 } });

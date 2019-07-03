@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,17 +18,11 @@ using namespace ::testing;
 using namespace std;
 using namespace mkldnn;
 
-struct dim4 {
-    size_t n;
-    size_t c;
-    size_t h;
-    size_t w;
-};
 
 struct concat_test_params {
-    dim4 in1;
-
-    dim4 in2;
+    // Formats: NCHW, NCDHW
+    vector<size_t> in1;
+    vector<size_t> in2;
 
     size_t axis;
 
@@ -43,50 +36,30 @@ struct concat_test_params {
 class MKLDNNGraphConcatTests: public TestsCommon,
                               public WithParamInterface<concat_test_params> {
     std::string model_t = R"V0G0N(
-<net name="ConcatOnly" version="2" precision="FP32" batch="1">
+<net name="ConcatOnly" version="3" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="1">
             <output>
-                <port id="1">
-                    <dim>_IN1_</dim>
-                    <dim>_IC1_</dim>
-                    <dim>_IH1_</dim>
-                    <dim>_IW1_</dim>
+                <port id="1">__SRC_DIMS_1__
                 </port>
             </output>
         </layer>
         <layer name="in2" type="Input" precision="FP32" id="2">
             <output>
-                <port id="2">
-                    <dim>_IN2_</dim>
-                    <dim>_IC2_</dim>
-                    <dim>_IH2_</dim>
-                    <dim>_IW2_</dim>
+                <port id="2">__SRC_DIMS_2__
                 </port>
             </output>
         </layer>
         <layer name="con" id="3" type="Concat" precision="FP32">
             <concat_data axis="_AXIS_"/>
             <input>
-                <port id="1">
-                    <dim>_IN1_</dim>
-                    <dim>_IC1_</dim>
-                    <dim>_IH1_</dim>
-                    <dim>_IW1_</dim>
+                <port id="1">__SRC_DIMS_1__
                 </port>
-                <port id="2">
-                    <dim>_IN2_</dim>
-                    <dim>_IC2_</dim>
-                    <dim>_IH2_</dim>
-                    <dim>_IW2_</dim>
+                <port id="2">__SRC_DIMS_2__
                 </port>
             </input>
             <output>
-                <port id="3">
-                    <dim>_ON_</dim>
-                    <dim>_OC_</dim>
-                    <dim>_OH_</dim>
-                    <dim>_OW_</dim>
+                <port id="3">__DST_DIMS__
                 </port>
             </output>
         </layer>
@@ -100,20 +73,27 @@ class MKLDNNGraphConcatTests: public TestsCommon,
 
     std::string getModel(concat_test_params p) {
         std::string model = model_t;
-        REPLACE_WITH_NUM(model, "_IN1_", p.in1.n);
-        REPLACE_WITH_NUM(model, "_IC1_", p.in1.c);
-        REPLACE_WITH_NUM(model, "_IW1_", p.in1.w);
-        REPLACE_WITH_NUM(model, "_IH1_", p.in1.h);
+        std::string s_dims;
+        for (auto& dim : p.in1) {
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(dim) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS_1__", s_dims);
 
-        REPLACE_WITH_NUM(model, "_IN2_", p.in2.n);
-        REPLACE_WITH_NUM(model, "_IC2_", p.in2.c);
-        REPLACE_WITH_NUM(model, "_IW2_", p.in2.w);
-        REPLACE_WITH_NUM(model, "_IH2_", p.in2.h);
+        s_dims = "";
+        for (auto& dim : p.in2) {
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(dim) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS_2__", s_dims);
 
-        REPLACE_WITH_NUM(model, "_ON_", p.axis == 0 ? p.in1.n + p.in2.n : p.in1.n);
-        REPLACE_WITH_NUM(model, "_OC_", p.axis == 1 ? p.in1.c + p.in2.c : p.in1.c);
-        REPLACE_WITH_NUM(model, "_OH_", p.axis == 2 ? p.in1.h + p.in2.h : p.in1.h);
-        REPLACE_WITH_NUM(model, "_OW_", p.axis == 3 ? p.in1.w + p.in2.w : p.in1.w);
+        s_dims = "";
+        for (size_t i = 0; i < p.in1.size(); i++) {
+            size_t dim = p.axis == i ? p.in1[i] + p.in2[i] : p.in1[i];
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(dim) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__DST_DIMS__", s_dims);
 
         REPLACE_WITH_NUM(model, "_AXIS_", p.axis);
         return model;
@@ -147,14 +127,23 @@ protected:
             }
             ASSERT_LE(3, nodes.size());
 
-            InferenceEngine::SizeVector dims_src1 = {p.in1.n, p.in1.c, p.in1.h, p.in1.w};
-            InferenceEngine::SizeVector dims_src2 = {p.in2.n, p.in2.c, p.in2.h, p.in2.w};
+            InferenceEngine::SizeVector dims_src1 = p.in1;
+            InferenceEngine::SizeVector dims_src2 = p.in2;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.in1.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src1);
             src1->allocate();
 
             fill_data(src1->buffer(), src1->size());
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src2);
             src2->allocate();
             fill_data(src2->buffer(), src2->size());
             InferenceEngine::BlobMap srcs;
@@ -215,6 +204,35 @@ protected:
 
 TEST_P(MKLDNNGraphConcatTests, TestsConcat) {}
 
+INSTANTIATE_TEST_CASE_P(
+        TestsConcat, MKLDNNGraphConcatTests,
+        ::testing::Values(
+                concat_test_params {
+                        {1, 3, 3, 5},
+                        {1, 3, 3, 5},
+                        1, 2
+                },
+                concat_test_params {
+                        {1, 7, 1, 5},
+                        {1, 7, 9, 5},
+                        2, 1, MKLDNNPlugin::impl_desc_type::ref
+                },
+                concat_test_params {
+                        {1, 2, 3, 5, 3},
+                        {1, 5, 3, 5, 3},
+                        1, 2
+                },
+                concat_test_params {
+                        {1, 32, 3, 4, 5},
+                        {1, 32, 3, 4, 5},
+                        1, 6, MKLDNNPlugin::impl_desc_type::unknown
+                },
+                concat_test_params {
+                        {1, 64, 16, 16, 16, 1},
+                        {1, 64, 16, 16, 16, 1},
+                        5, 1, MKLDNNPlugin::impl_desc_type::ref
+                }));
+
 class MKLDNNGraphDynBatchConcatTests: public TestsCommon, public WithParamInterface<concat_test_params> {
     std::string model_t = R"V0G0N(
 <net name="ConcatOnly" version="2" precision="FP32" batch="1">
@@ -222,20 +240,14 @@ class MKLDNNGraphDynBatchConcatTests: public TestsCommon, public WithParamInterf
         <layer name="in1" type="Input" precision="FP32" id="1">
             <output>
                 <port id="1">
-                    <dim>1</dim>
-                    <dim>_IC1_</dim>
-                    <dim>_IH1_</dim>
-                    <dim>_IW1_</dim>
+                    <dim>1</dim>__SRC_DIMS_1__
                 </port>
             </output>
         </layer>
         <layer name="in2" type="Input" precision="FP32" id="2">
             <output>
                 <port id="2">
-                    <dim>1</dim>
-                    <dim>_IC2_</dim>
-                    <dim>_IH2_</dim>
-                    <dim>_IW2_</dim>
+                    <dim>1</dim>__SRC_DIMS_2__
                 </port>
             </output>
         </layer>
@@ -243,24 +255,15 @@ class MKLDNNGraphDynBatchConcatTests: public TestsCommon, public WithParamInterf
             <concat_data axis="_AXIS_"/>
             <input>
                 <port id="1">
-                    <dim>1</dim>
-                    <dim>_IC1_</dim>
-                    <dim>_IH1_</dim>
-                    <dim>_IW1_</dim>
+                    <dim>1</dim>__SRC_DIMS_1__
                 </port>
                 <port id="2">
-                    <dim>1</dim>
-                    <dim>_IC2_</dim>
-                    <dim>_IH2_</dim>
-                    <dim>_IW2_</dim>
+                    <dim>1</dim>__SRC_DIMS_2__
                 </port>
             </input>
             <output>
                 <port id="3">
-                    <dim>1</dim>
-                    <dim>_OC_</dim>
-                    <dim>_OH_</dim>
-                    <dim>_OW_</dim>
+                    <dim>1</dim>__DST_DIMS__
                 </port>
             </output>
         </layer>
@@ -274,20 +277,27 @@ class MKLDNNGraphDynBatchConcatTests: public TestsCommon, public WithParamInterf
 
     std::string getModel(concat_test_params p) {
         std::string model = model_t;
-        REPLACE_WITH_NUM(model, "_IN1_", p.in1.n);
-        REPLACE_WITH_NUM(model, "_IC1_", p.in1.c);
-        REPLACE_WITH_NUM(model, "_IW1_", p.in1.w);
-        REPLACE_WITH_NUM(model, "_IH1_", p.in1.h);
+        std::string s_dims;
+        for (size_t i = 1; i < p.in1.size(); i++) {
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(p.in1[i]) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS_1__", s_dims);
 
-        REPLACE_WITH_NUM(model, "_IN2_", p.in2.n);
-        REPLACE_WITH_NUM(model, "_IC2_", p.in2.c);
-        REPLACE_WITH_NUM(model, "_IW2_", p.in2.w);
-        REPLACE_WITH_NUM(model, "_IH2_", p.in2.h);
+        s_dims = "";
+        for (size_t i = 1; i < p.in2.size(); i++) {
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(p.in2[i]) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS_2__", s_dims);
 
-        REPLACE_WITH_NUM(model, "_ON_", p.axis == 0 ? p.in1.n + p.in2.n : p.in1.n);
-        REPLACE_WITH_NUM(model, "_OC_", p.axis == 1 ? p.in1.c + p.in2.c : p.in1.c);
-        REPLACE_WITH_NUM(model, "_OH_", p.axis == 2 ? p.in1.h + p.in2.h : p.in1.h);
-        REPLACE_WITH_NUM(model, "_OW_", p.axis == 3 ? p.in1.w + p.in2.w : p.in1.w);
+        s_dims = "";
+        for (size_t i = 1; i < p.in1.size(); i++) {
+            size_t dim = p.axis == i ? p.in1[i] + p.in2[i] : p.in1[i];
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(dim) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__DST_DIMS__", s_dims);
 
         REPLACE_WITH_NUM(model, "_AXIS_", p.axis);
         return model;
@@ -302,7 +312,7 @@ protected:
             TestsCommon::SetUp();
             concat_test_params p = ::testing::WithParamInterface<concat_test_params>::GetParam();
             std::string model = getModel(p);
-            size_t MB = p.in1.n;
+            size_t MB = p.in1[0];
             if (MB < 2)
                 MB = 2;
 
@@ -319,14 +329,23 @@ protected:
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
             graph.CreateGraph(net_reader.getNetwork());
 
-            InferenceEngine::SizeVector dims_src1 = {MB, p.in1.c, p.in1.h, p.in1.w};
-            InferenceEngine::SizeVector dims_src2 = {MB, p.in2.c, p.in2.h, p.in2.w};
+            InferenceEngine::SizeVector dims_src1 = p.in1;
+            InferenceEngine::SizeVector dims_src2 = p.in2;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.in1.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src1);
             src1->allocate();
 
             fill_data(src1->buffer(), src1->size());
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src2);
             src2->allocate();
             fill_data(src2->buffer(), src2->size());
             InferenceEngine::BlobMap srcs;
@@ -396,6 +415,11 @@ INSTANTIATE_TEST_CASE_P(
                         {2, 2, 3, 3},
                         {2, 3, 3, 3},
                         1, 2, MKLDNNPlugin::impl_desc_type::unknown
+                },
+                concat_test_params {
+                        {2, 2, 3, 3, 3},
+                        {2, 3, 3, 3, 3},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown
                 }));
 
 struct concat_param {
@@ -406,9 +430,10 @@ struct concat_param {
 };
 
 struct two_concat_test_params {
-    dim4 in1;
-    dim4 in2;
-    dim4 in3;
+    // Formats: NCHW, NCDHW
+    vector<size_t> in1;
+    vector<size_t> in2;
+    vector<size_t> in3;
 
     concat_param concat1;
     concat_param concat2;
@@ -421,31 +446,19 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="1">
             <output>
-                <port id="1">
-                    <dim>_IN1_</dim>
-                    <dim>_IC1_</dim>
-                    <dim>_IH1_</dim>
-                    <dim>_IW1_</dim>
+                <port id="1">__SRC_DIMS_1__
                 </port>
             </output>
         </layer>
         <layer name="in2" type="Input" precision="FP32" id="2">
             <output>
-                <port id="1">
-                    <dim>_IN2_</dim>
-                    <dim>_IC2_</dim>
-                    <dim>_IH2_</dim>
-                    <dim>_IW2_</dim>
+                <port id="1">__SRC_DIMS_2__
                 </port>
             </output>
         </layer>
         <layer name="in3" type="Input" precision="FP32" id="3">
             <output>
-                <port id="1">
-                    <dim>_IN3_</dim>
-                    <dim>_IC3_</dim>
-                    <dim>_IH3_</dim>
-                    <dim>_IW3_</dim>
+                <port id="1">__SRC_DIMS_3__
                 </port>
             </output>
         </layer>
@@ -455,22 +468,20 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
                 <port id="1">
                     <dim>_CI41N_</dim>
                     <dim>_CI41C_</dim>
+                    <dim>_CI41D_</dim>
                     <dim>_CI41H_</dim>
                     <dim>_CI41W_</dim>
                 </port>
                 <port id="2">
                     <dim>_CI42N_</dim>
                     <dim>_CI42C_</dim>
+                    <dim>_CI42D_</dim>
                     <dim>_CI42H_</dim>
                     <dim>_CI42W_</dim>
                 </port>
             </input>
             <output>
-                <port id="3">
-                    <dim>_CON1_</dim>
-                    <dim>_COC1_</dim>
-                    <dim>_COH1_</dim>
-                    <dim>_COW1_</dim>
+                <port id="3">__CO_DIMS_1__
                 </port>
             </output>
         </layer>
@@ -480,22 +491,20 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
                 <port id="1">
                     <dim>_CI51N_</dim>
                     <dim>_CI51C_</dim>
+                    <dim>_CI51D_</dim>
                     <dim>_CI51H_</dim>
                     <dim>_CI51W_</dim>
                 </port>
                 <port id="2">
                     <dim>_CI52N_</dim>
                     <dim>_CI52C_</dim>
+                    <dim>_CI52D_</dim>
                     <dim>_CI52H_</dim>
                     <dim>_CI52W_</dim>
                 </port>
             </input>
             <output>
-                <port id="3">
-                    <dim>_CON2_</dim>
-                    <dim>_COC2_</dim>
-                    <dim>_COH2_</dim>
-                    <dim>_COW2_</dim>
+                <port id="3">__CO_DIMS_2__
                 </port>
             </output>
         </layer>
@@ -508,7 +517,7 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
     </edges>
 </net>
 )V0G0N";
-    void changeEdgeToLayer(std::string& model, int f_l, int f_p, int t_l, int t_p, dim4 dims) {
+    void changeEdgeToLayer(std::string& model, int f_l, int f_p, int t_l, int t_p, vector<size_t> dims) {
         std::string TL = "_FL" + std::to_string(f_l) + std::to_string(f_p) + "_";
         std::string TP = "_FP" + std::to_string(f_l) + std::to_string(f_p) + "_";
         if (!FIND_STR(model, TL) || !FIND_STR(model, TP)) {
@@ -526,31 +535,40 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
         }
 
         std::string CI = "_CI" + std::to_string(t_l) + std::to_string(t_p);
-        REPLACE_WITH_NUM(model, CI + "N_", dims.n);
-        REPLACE_WITH_NUM(model, CI + "C_", dims.c);
-        REPLACE_WITH_NUM(model, CI + "H_", dims.h);
-        REPLACE_WITH_NUM(model, CI + "W_", dims.w);
+        auto dims_size = dims.size();
+        REPLACE_WITH_NUM(model, CI + "N_", dims[0]);
+        REPLACE_WITH_NUM(model, CI + "C_", dims[1]);
+        REPLACE_WITH_NUM(model, CI + "H_", dims[dims_size - 2]);
+        REPLACE_WITH_NUM(model, CI + "W_", dims[dims_size - 1]);
+        if (dims_size < 5) REMOVE_LINE(model, std::string("<dim>") + CI + std::string("D_") + "</dim>");
+        else REPLACE_WITH_NUM(model, CI + "D_", dims[dims_size - 3]);
     }
 
 
     std::string getModel(two_concat_test_params p) {
         std::string model = model_t;
-        REPLACE_WITH_NUM(model, "_IN1_", p.in1.n);
-        REPLACE_WITH_NUM(model, "_IC1_", p.in1.c);
-        REPLACE_WITH_NUM(model, "_IW1_", p.in1.w);
-        REPLACE_WITH_NUM(model, "_IH1_", p.in1.h);
+        std::string s_dims;
+        for (size_t i = 0; i < p.in1.size(); i++) {
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(p.in1[i]) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS_1__", s_dims);
 
-        REPLACE_WITH_NUM(model, "_IN2_", p.in2.n);
-        REPLACE_WITH_NUM(model, "_IC2_", p.in2.c);
-        REPLACE_WITH_NUM(model, "_IW2_", p.in2.w);
-        REPLACE_WITH_NUM(model, "_IH2_", p.in2.h);
+        s_dims = "";
+        for (size_t i = 0; i < p.in2.size(); i++) {
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(p.in2[i]) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS_2__", s_dims);
 
-        REPLACE_WITH_NUM(model, "_IN3_", p.in3.n);
-        REPLACE_WITH_NUM(model, "_IC3_", p.in3.c);
-        REPLACE_WITH_NUM(model, "_IW3_", p.in3.w);
-        REPLACE_WITH_NUM(model, "_IH3_", p.in3.h);
+        s_dims = "";
+        for (size_t i = 0; i < p.in3.size(); i++) {
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(p.in3[i]) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS_3__", s_dims);
 
-        dim4 concat11;
+        vector<size_t> concat11;
         switch (p.concat1.input1) {
             case 1:
                 changeEdgeToLayer(model, 2, 1, 4, 1, p.in2);
@@ -565,7 +583,7 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
                 concat11 = p.in1;
         }
 
-        dim4 concat12;
+        vector<size_t> concat12;
         switch (p.concat1.input2) {
             case 1:
                 changeEdgeToLayer(model, 2, 1, 4, 2, p.in2);
@@ -580,7 +598,7 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
                 concat12 = p.in1;
         }
 
-        dim4 concat21;
+        vector<size_t> concat21;
         switch (p.concat2.input1) {
             case 1:
                 changeEdgeToLayer(model, 2, 1, 5, 1, p.in2);
@@ -595,7 +613,7 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
                 concat21 = p.in1;
         }
 
-        dim4 concat22;
+        vector<size_t> concat22;
         switch (p.concat2.input2) {
             case 1:
                 changeEdgeToLayer(model, 2, 1, 5, 2, p.in2);
@@ -610,17 +628,25 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
                 concat22 = p.in1;
         }
 
-        REPLACE_WITH_NUM(model, "_CON1_", p.concat1.axis == 0 ? concat11.n + concat12.n : concat21.n);
-        REPLACE_WITH_NUM(model, "_COC1_", p.concat1.axis == 1 ? concat11.c + concat12.c : concat21.c);
-        REPLACE_WITH_NUM(model, "_COH1_", p.concat1.axis == 2 ? concat11.h + concat12.h : concat21.h);
-        REPLACE_WITH_NUM(model, "_COW1_", p.concat1.axis == 3 ? concat11.w + concat12.w : concat21.w);
+        s_dims = "";
+        for (size_t i = 0; i < p.in2.size(); i++) {
+            size_t concat = p.concat1.axis == i ? concat11[i] + concat12[i] : concat21[i];
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(concat) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__CO_DIMS_1__", s_dims);
+
         REPLACE_WITH_NUM(model, "_CONCAT1_AXIS_", p.concat1.axis);
         REPLACE_WITH_STR(model, "_CONCAT1_NAME_", p.concat1.name);
 
-        REPLACE_WITH_NUM(model, "_CON2_", p.concat2.axis == 0 ? concat21.n + concat22.n : concat21.n);
-        REPLACE_WITH_NUM(model, "_COC2_", p.concat2.axis == 1 ? concat21.c + concat22.c : concat21.c);
-        REPLACE_WITH_NUM(model, "_COH2_", p.concat2.axis == 2 ? concat21.h + concat22.h : concat21.h);
-        REPLACE_WITH_NUM(model, "_COW2_", p.concat2.axis == 3 ? concat21.w + concat22.w : concat21.w);
+        s_dims = "";
+        for (size_t i = 0; i < p.in2.size(); i++) {
+            size_t concat = p.concat2.axis == i ? concat21[i] + concat22[i] : concat21[i];
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(concat) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__CO_DIMS_2__", s_dims);
+
         REPLACE_WITH_NUM(model, "_CONCAT2_AXIS_", p.concat2.axis);
         REPLACE_WITH_STR(model, "_CONCAT2_NAME_", p.concat2.name);
         return model;
@@ -642,19 +668,28 @@ protected:
             MKLDNNGraphTestClass graph;
             graph.CreateGraph(net_reader.getNetwork());
 
-            InferenceEngine::SizeVector dims_src1 = {p.in1.n, p.in1.c, p.in1.h, p.in1.w};
-            InferenceEngine::SizeVector dims_src2 = {p.in2.n, p.in2.c, p.in2.h, p.in2.w};
-            InferenceEngine::SizeVector dims_src3 = {p.in3.n, p.in3.c, p.in3.h, p.in3.w};
+            InferenceEngine::SizeVector dims_src1 = p.in1;
+            InferenceEngine::SizeVector dims_src2 = p.in2;
+            InferenceEngine::SizeVector dims_src3 = p.in3;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.in1.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src1);
             src1->allocate();
             fill_data(src1->buffer(), src1->size());
 
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src2);
             src2->allocate();
             fill_data(src2->buffer(), src2->size());
 
-            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src3);
+            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src3);
             src3->allocate();
             fill_data(src3->buffer(), src3->size());
 
@@ -996,46 +1031,26 @@ class MKLDNNGraphIncorrectConcatTests: public TestsCommon,
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="1">
             <output>
-                <port id="1">
-                    <dim>_IN1_</dim>
-                    <dim>_IC1_</dim>
-                    <dim>_IH1_</dim>
-                    <dim>_IW1_</dim>
+                <port id="1">__SRC_DIMS_1__
                 </port>
             </output>
         </layer>
         <layer name="in2" type="Input" precision="FP32" id="2">
             <output>
-                <port id="2">
-                    <dim>_IN2_</dim>
-                    <dim>_IC2_</dim>
-                    <dim>_IH2_</dim>
-                    <dim>_IW2_</dim>
+                <port id="2">__SRC_DIMS_2__
                 </port>
             </output>
         </layer>
         <layer name="con" id="3" type="Concat" precision="FP32">
             <concat_data axis="_AXIS_"/>
             <input>
-                <port id="1">
-                    <dim>_IN1_</dim>
-                    <dim>_IC1_</dim>
-                    <dim>_IH1_</dim>
-                    <dim>_IW1_</dim>
+                <port id="1">__SRC_DIMS_1__
                 </port>
-                <port id="2">
-                    <dim>_IN2_</dim>
-                    <dim>_IC2_</dim>
-                    <dim>_IH2_</dim>
-                    <dim>_IW2_</dim>
+                <port id="2">__SRC_DIMS_2__
                 </port>
             </input>
             <output>
-                <port id="3">
-                    <dim>_ON_</dim>
-                    <dim>_OC_</dim>
-                    <dim>_OH_</dim>
-                    <dim>_OW_</dim>
+                <port id="3">__DST_DIMS__
                 </port>
             </output>
         </layer>
@@ -1049,20 +1064,27 @@ class MKLDNNGraphIncorrectConcatTests: public TestsCommon,
 
     std::string getModel(concat_test_params p) {
         std::string model = model_t;
-        REPLACE_WITH_NUM(model, "_IN1_", p.in1.n);
-        REPLACE_WITH_NUM(model, "_IC1_", p.in1.c);
-        REPLACE_WITH_NUM(model, "_IW1_", p.in1.w);
-        REPLACE_WITH_NUM(model, "_IH1_", p.in1.h);
+        std::string s_dims;
+        for (auto& dim : p.in1) {
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(dim) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS_1__", s_dims);
 
-        REPLACE_WITH_NUM(model, "_IN2_", p.in2.n);
-        REPLACE_WITH_NUM(model, "_IC2_", p.in2.c);
-        REPLACE_WITH_NUM(model, "_IW2_", p.in2.w);
-        REPLACE_WITH_NUM(model, "_IH2_", p.in2.h);
+        s_dims = "";
+        for (auto& dim : p.in2) {
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(dim) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__SRC_DIMS_2__", s_dims);
 
-        REPLACE_WITH_NUM(model, "_ON_", p.axis == 0 ? p.in1.n + p.in2.n : p.in1.n);
-        REPLACE_WITH_NUM(model, "_OC_", p.axis == 1 ? p.in1.c + p.in2.c : p.in1.c);
-        REPLACE_WITH_NUM(model, "_OH_", p.axis == 2 ? p.in1.h + p.in2.h : p.in1.h);
-        REPLACE_WITH_NUM(model, "_OW_", p.axis == 3 ? p.in1.w + p.in2.w : p.in1.w);
+        s_dims = "";
+        for (size_t i = 0; i < p.in1.size(); i++) {
+            size_t dim = p.axis == i ? p.in1[i] + p.in2[i] : p.in1[i];
+            s_dims += "\n                    <dim>";
+            s_dims += std::to_string(dim) + "</dim>";
+        }
+	REPLACE_WITH_STR(model, "__DST_DIMS__", s_dims);
 
         REPLACE_WITH_NUM(model, "_AXIS_", p.axis);
         return model;
@@ -1079,10 +1101,8 @@ protected:
             std::string model = getModel(p);
 
             InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
-            MKLDNNGraphTestClass graph;
-            ASSERT_THROW(graph.CreateGraph(net_reader.getNetwork()), InferenceEngine::details::InferenceEngineException);
+            ASSERT_THROW(net_reader.ReadNetwork(model.data(), model.length()), 
+                         InferenceEngine::details::InferenceEngineException);
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
         }

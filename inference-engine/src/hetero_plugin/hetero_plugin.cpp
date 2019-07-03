@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +20,7 @@ using namespace HeteroPlugin;
 using namespace std;
 
 static Version heteroPluginDescription = {
-        {1, 4},  // plugin API version
+        {1, 6},  // plugin API version
         CI_BUILD_NUMBER,
         "dliaPlugin"  // plugin description message -
 };
@@ -38,6 +37,7 @@ Engine::Engine() {
 
 InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(InferenceEngine::ICNNNetwork &network,
                                                                            const std::map<std::string, std::string> &config) {
+    // TODO(amalyshe) do we need here verification of input precisions?
     std::map<std::string, std::string> tconfig;
     tconfig = config;
 
@@ -72,6 +72,7 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
 
 void Engine::SetAffinity(InferenceEngine::ICNNNetwork &network,
                          const std::map<std::string, std::string> &config) {
+    // TODO(amalyshe) config is not used here, talk with RAN why it appeared in initial interface
     FallbackPolicy fbPolicy(_deviceLoaders, _config[KEY_HETERO_DUMP_GRAPH_DOT]== YES);
     fbPolicy.init(_config["TARGET_FALLBACK"], config, _extensions);
     fbPolicy.setAffinity(config, network);
@@ -83,7 +84,7 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(
         ResponseDesc *resp) noexcept {
     try {
         plugin = new HeteroPluginBase<Engine>(
-                {{1, 4}, "heteroPlugin", "heteroPlugin"},
+                {{1, 6}, "heteroPlugin", "heteroPlugin"},
                 std::make_shared<Engine>());
         return OK;
     }

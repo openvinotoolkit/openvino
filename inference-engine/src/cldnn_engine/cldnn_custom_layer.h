@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +57,8 @@ public:
     const int InputDimSourceIndex() { return m_wgDimInputIdx; }
 
 protected:
-    CLDNNCustomLayer() {}
-    explicit CLDNNCustomLayer(const std::string dirname) : m_configDir(dirname) {}
+    CLDNNCustomLayer() : m_wgDimInputIdx(0) {}
+    explicit CLDNNCustomLayer(const std::string dirname) : m_configDir(dirname), m_wgDimInputIdx(0) {}
 
     bool Error() const { return m_ErrorMessage.length() > 0; }
     void LoadSingleLayer(const pugi::xml_node& node);

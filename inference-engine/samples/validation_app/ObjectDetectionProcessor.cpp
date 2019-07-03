@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +24,7 @@ ObjectDetectionProcessor::ObjectDetectionProcessor(const std::string& flags_m, c
         double threshold, InferenceEngine::InferencePlugin plugin, CsvDumper& dumper,
         const std::string& flags_a, const std::string& classes_list_file, PreprocessingOptions preprocessingOptions, bool scaleProposalToInputSize)
             : Processor(flags_m, flags_d, flags_i, flags_b, plugin, dumper, "Object detection network", preprocessingOptions),
-              threshold(threshold), annotationsPath(flags_a), subdir(subdir), scaleProposalToInputSize(scaleProposalToInputSize) {
+              annotationsPath(flags_a), subdir(subdir), threshold(threshold), scaleProposalToInputSize(scaleProposalToInputSize) {
     std::ifstream clf(classes_list_file);
     if (!clf) {
         throw UserException(1) <<  "Classes list file \"" << classes_list_file << "\" not found or inaccessible";
@@ -47,7 +46,7 @@ ObjectDetectionProcessor::ObjectDetectionProcessor(const std::string& flags_m, c
     }
 }
 
-shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process() {
+shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process(bool stream_output) {
     // Parsing PASCAL VOC2012 format
     VOCAnnotationParser vocAnnParser;
     slog::info << "Collecting VOC annotations from " << annotationsPath << slog::endl;
@@ -66,18 +65,14 @@ shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process() {
     for (auto& ann : annCollector.annotations()) {
         std::list<DetectedObject> dobList;
         for (auto& obj : ann.objects) {
-            DetectedObject dob(classes[obj.name], obj.bndbox.xmin, obj.bndbox.ymin, obj.bndbox.xmax, obj.bndbox.ymax, 1.0, obj.difficult != 0);
+            DetectedObject dob(classes[obj.name], static_cast<float>(obj.bndbox.xmin),
+                static_cast<float>(obj.bndbox.ymin), static_cast<float>(obj.bndbox.xmax),
+                static_cast<float>(obj.bndbox.ymax), 1.0f, obj.difficult != 0);
             dobList.push_back(dob);
         }
         ImageDescription id(dobList);
         desiredForFiles.insert(std::pair<std::string, ImageDescription>(ann.folder + "/" + (!subdir.empty() ? subdir + "/" : "") + ann.filename, id));
     }
-
-
-    ImageDecoder decoder;
-
-    const int maxProposalCount = outputDims[1];
-    const int objectSize = outputDims[0];
 
     for (auto & item : outInfo) {
         DataPtr outputData = item.second;
@@ -92,7 +87,7 @@ shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process() {
 
     std::vector<VOCAnnotation> expected(batch);
 
-    ConsoleProgress progress(annCollector.annotations().size());
+    ConsoleProgress progress(annCollector.annotations().size(), stream_output);
 
     ObjectDetectionInferenceMetrics im(threshold);
 
@@ -105,18 +100,17 @@ shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process() {
 
     while (iter != annCollector.annotations().end()) {
         std::vector<std::string> files;
-        int b = 0;
+        size_t b = 0;
 
         int filesWatched = 0;
         for (; b < batch && iter != annCollector.annotations().end(); b++, iter++, filesWatched++) {
             expected[b] = *iter;
             string filename = iter->folder + "/" + (!subdir.empty() ? subdir + "/" : "") + iter->filename;
             try {
-                Size orig_size = decoder.insertIntoBlob(std::string(imagesPath) + "/" + filename, b, *firstInputBlob, preprocessingOptions);
                 float scale_x, scale_y;
 
-                scale_x = 1.0 / iter->size.width;  // orig_size.width;
-                scale_y = 1.0 / iter->size.height;  // orig_size.height;
+                scale_x = 1.0f / iter->size.width;  // orig_size.width;
+                scale_y = 1.0f / iter->size.height;  // orig_size.height;
 
                 if (scaleProposalToInputSize) {
                     scale_x *= firstInputBlob->dims()[0];
@@ -129,6 +123,7 @@ shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process() {
                 files.push_back(filename);
             } catch (const InferenceEngineException& iex) {
                 slog::warn << "Can't read file " << this->imagesPath + "/" + filename << slog::endl;
+                slog::warn << "Error: " << iex.what() << slog::endl;
                 // Could be some non-image file in directory
                 b--;
                 continue;
@@ -136,9 +131,6 @@ shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process() {
         }
 
         if (files.size() == batch) {
-            InferenceEngine::StatusCode sts;
-            InferenceEngine::ResponseDesc dsc;
-
             // Infer model
             Infer(progress, filesWatched, im);
 
@@ -147,7 +139,7 @@ shared_ptr<Processor::InferenceMetrics> ObjectDetectionProcessor::Process() {
 
             // Calculating similarity
             //
-            for (int b = 0; b < files.size(); b++) {
+            for (size_t b = 0; b < files.size(); b++) {
                 ImageDescription result(detectedObjects[files[b]]);
                 im.apc.consumeImage(result, scaledDesiredForFiles.at(files[b]));
             }

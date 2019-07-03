@@ -40,10 +40,10 @@ struct cpu_reorder_pd_t: public reorder_pd_t {
         , input_pd_(*input_pd), output_pd_(*output_pd) {}
     virtual ~cpu_reorder_pd_t() {}
 
-    virtual status_t init() const {
+    virtual status_t init() {
         const auto &post_ops = attr()->post_ops_;
         bool args_ok = true
-            && utils::implication(post_ops.len_ != 0,
+            && IMPLICATION(post_ops.len_ != 0,
                     post_ops.len_ == 1
                     && post_ops.entry_[0].kind == primitive_kind::sum);
         return args_ok ? success : unimplemented;

@@ -21,6 +21,7 @@ if(TBB_cmake_included)
     return()
 endif()
 set(TBB_cmake_included true)
+include("cmake/Threading.cmake")
 
 if(NOT MKLDNN_THREADING STREQUAL "TBB")
     return()
@@ -42,7 +43,7 @@ elseif(UNIX)
     find_package(TBB REQUIRED tbb HINTS cmake/lnx)
 endif()
 
-add_definitions(-DMKLDNN_THR=MKLDNN_THR_TBB)
-list(APPEND mkldnn_LINKER_LIBS ${TBB_IMPORTED_TARGETS})
+set_threading("TBB")
+list(APPEND EXTRA_SHARED_LIBS ${TBB_IMPORTED_TARGETS})
 
 message(STATUS "Intel(R) TBB: ${TBBROOT}")

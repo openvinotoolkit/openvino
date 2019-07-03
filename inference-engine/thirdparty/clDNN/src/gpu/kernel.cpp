@@ -115,10 +115,22 @@ namespace {
                 }
                 break;
             case kernel_selector::kernel_argument_types::OUTPUT_CALIBRATION_FACTORS:
-                if (data.output_calibration_factors)
+                if (args[i].index == 0)
                 {
-                    status = kernel.setArg(i, dynamic_cast<const gpu::gpu_buffer&>(*data.output_calibration_factors).get_buffer());
+                    if (data.output_calibration_factors)
+                    {
+                        status = kernel.setArg(i, dynamic_cast<const gpu::gpu_buffer&>(*data.output_calibration_factors).get_buffer());
+                    }
                 }
+                else
+                {
+                    size_t new_idx = args[i].index - 1;
+                    if (new_idx < data.fused_op_calibration_factors.size() && data.fused_op_calibration_factors[new_idx])
+                    {
+                        status = kernel.setArg(i, dynamic_cast<const gpu::gpu_buffer&>(*data.fused_op_calibration_factors[new_idx]).get_buffer());
+                    }
+                }
+
                 break;
             case kernel_selector::kernel_argument_types::SCALE_TABLE:
                 if (data.scale_table)

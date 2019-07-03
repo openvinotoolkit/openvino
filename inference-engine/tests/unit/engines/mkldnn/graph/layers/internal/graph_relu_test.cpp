@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,12 +19,8 @@ using namespace mkldnn;
 
 
 struct relu_test_params {
-    struct {
-        size_t n;
-        size_t c;
-        size_t h;
-        size_t w;
-    } in;
+    // Formats: NCHW, NCDHW
+    vector<size_t> dims;
 
     float n_clope;
 
@@ -39,22 +34,29 @@ struct relu_test_params {
 template <typename data_t>
 void ref_relu(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<data_t> &dst, relu_test_params prm)
 {
-    size_t IW = prm.in.w;
-    size_t IH = prm.in.h;
-    size_t IC = prm.in.c;
+    auto dims_size = src.dims().size();
+    
+    size_t IW = src.dims()[dims_size - 1];
+    size_t IH = src.dims()[dims_size - 2];
+    size_t ID = dims_size == 5 ? src.dims()[dims_size - 3] : 1u;
+    size_t IC = src.dims()[1];
 
     const data_t *src_data = src.readOnly();
     data_t *dst_data = dst.data();
 
     for (uint32_t c = 0; c < IC; c++) {
-        for (uint32_t h = 0; h < IH; h++) {
-            for (uint32_t w = 0; w < IW; w++) {
-                uint32_t oidx = c * IH * IW
-                                + h * IW + w;
+        for (uint32_t d = 0; d < ID; d++) {
+            for (uint32_t h = 0; h < IH; h++) {
+                for (uint32_t w = 0; w < IW; w++) {
+                    uint32_t oidx = c * ID * IH * IW
+                                    + d * IH * IW
+                                    + h * IW
+                                    + w;
 
-                dst_data[oidx] = src_data[oidx] >= 0.0 ?
-                                 src_data[oidx] :
-                                 src_data[oidx] * prm.n_clope;
+                    dst_data[oidx] = src_data[oidx] >= 0.0 ?
+                                     src_data[oidx] :
+                                     src_data[oidx] * prm.n_clope;
+                }
             }
         }
     }
@@ -63,13 +65,14 @@ void ref_relu(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<
 class MKLDNNGraphReluTests: public TestsCommon,
                                      public WithParamInterface<relu_test_params> {
     std::string model_t = R"V0G0N(
-<Net Name="Relu_Only" version="2" precision="FP32" batch="1">
+<Net Name="Relu_Only" version="3" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
             <output>
                 <port id="0">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
@@ -80,6 +83,7 @@ class MKLDNNGraphReluTests: public TestsCommon,
                 <port id="1">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
@@ -88,6 +92,7 @@ class MKLDNNGraphReluTests: public TestsCommon,
                 <port id="2">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
@@ -102,11 +107,24 @@ class MKLDNNGraphReluTests: public TestsCommon,
 
     std::string getModel(relu_test_params p) {
         std::string model = model_t;
+        auto dims_size = p.dims.size();
 
-        REPLACE_WITH_NUM(model, "_IW_", p.in.w);
-        REPLACE_WITH_NUM(model, "_IH_", p.in.h);
-        REPLACE_WITH_NUM(model, "_IC_", p.in.c);
-        REPLACE_WITH_NUM(model, "_IN_", p.in.n);
+        switch (dims_size) {
+            case 3:
+                REMOVE_LINE(model, "<dim>_IH_</dim>");
+            case 4:
+                REMOVE_LINE(model, "<dim>_ID_</dim>");
+        }
+
+        REPLACE_WITH_NUM(model, "_IW_", p.dims[dims_size - 1]);
+        REPLACE_WITH_NUM(model, "_IC_", p.dims[1]);
+        REPLACE_WITH_NUM(model, "_IN_", p.dims[0]);
+        switch (dims_size) {
+            case 5:
+                REPLACE_WITH_NUM(model, "_ID_", p.dims[dims_size - 3]);
+            case 4:
+                REPLACE_WITH_NUM(model, "_IH_", p.dims[dims_size - 2]);
+        }
 
         return model;
     }
@@ -138,9 +156,18 @@ protected:
                 }
             }
 
-            InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
+            InferenceEngine::SizeVector dims_src = p.dims;
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.dims.size()) {
+                case 4:
+                    layout = InferenceEngine::NCHW;
+                    break;
+                case 5:
+                    layout = InferenceEngine::NCDHW;
+                    break;
+            }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -170,7 +197,7 @@ protected:
 
             ref_relu(*srcPtr, dst_ref, p);
 
-            compare(*output, dst_ref);
+            compare(*output, dst_ref, 0.0005f);
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
         }
@@ -199,4 +226,22 @@ INSTANTIATE_TEST_CASE_P(
                                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
                                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
                                 }
-                        }}));
+                        }},
+                relu_test_params{
+                        {1, 64, 32, 32, 32}, 0.0f, 3, MKLDNNPlugin::impl_desc_type::ref_any, {
+                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                                    ASSERT_TRUE(impl.getImplementationType() | MKLDNNPlugin::impl_desc_type::ref_any);
+                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                                    ASSERT_EQ(1, impl.getConfig().outConfs.size());
+                                    ASSERT_EQ(InferenceEngine::Layout::NCDHW, impl.getConfig().inConfs.at(0).desc.getLayout());
+                                    ASSERT_EQ(InferenceEngine::Layout::NCDHW, impl.getConfig().outConfs.at(0).desc.getLayout());
+                                },
+                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+                                    ASSERT_TRUE(impl.getImplementationType() | MKLDNNPlugin::impl_desc_type::ref_any);
+                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
+                                    ASSERT_EQ(1, impl.getConfig().outConfs.size());
+                                    ASSERT_EQ(InferenceEngine::Layout::NCDHW, impl.getConfig().inConfs.at(0).desc.getLayout());
+                                    ASSERT_EQ(InferenceEngine::Layout::NCDHW, impl.getConfig().outConfs.at(0).desc.getLayout());
+                                }
+                        }}
+        ));

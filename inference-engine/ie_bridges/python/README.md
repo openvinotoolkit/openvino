@@ -7,40 +7,53 @@
 
 ## Prerequisites
 
-Install the following Python modules:
-- opencv-python
-- numpy
-- cython
-
-## Building on Windows
-```shellscript
-	mkdir build
-	cd build
-	set PATH=C:\Program Files\Python36\Scripts;%PATH%
-	cmake -G "Visual Studio 14 2015 Win64" -DInferenceEngine_DIR=..\..\..\build ^
-		-DPYTHON_EXECUTABLE="C:\Program Files\Python36\python.exe" ^
-		-DPYTHON_INCLUDE_DIR="C:\Program Files\Python36\include" ^
-		-DPYTHON_LIBRARY="C:\Program Files\Python36\libs\python36.lib" ..
+2. Install Inference Engine Python API dependencies:
+```bash
+pip3 install -r requirements.txt
 ```
-
-Then build generated solution INFERENCE_ENGINE_DRIVER.sln using Microsoft\* Visual Studio.
 
 ## Building on Linux
 
+Build Inference Engine Python API alongside with the Inference Engine build. 
+You need to run Inference Engine build with the following flags:
+
 ```shellscript
+  cd <IE_ROOT>
   mkdir -p build
   cd build
-  cmake -DInferenceEngine_DIR=`realpath ../../../build` -DPYTHON_EXECUTABLE=`which python3.6` \
+  cmake -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=`which python3.6` \
   	-DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so \
   	-DPYTHON_INCLUDE_DIR=/usr/include/python3.6 ..
   make -j16
 ```
 
-Note: `-DInferenceEngine_DIR` parameter is needed to specify the folder with generated make files or Visual Studio solution used to build Inference Engine (see readme file in the inference-engine root folder).
+## Building on Windows
 
-Before running the Python samples, please manually replicate OpenVINO folders structure with Python modules:
-- create an empty folder `openvino/inference_engine`
-- move built `ie_api.so` and `__init__.py` files from the `<build_folder>/inference_engine` to `openvino/inference_engine` folder
-- create an empty `__init__.py` file in the `openvino` folder
-- add the root folder where `openvino` folder is located to the PYTHONPATH environment variable.
+You need to run Inference Engine build with the following flags:
+
+```shellscript
+	cd <IE_ROOT>
+	mkdir build
+	cd build
+	set PATH=C:\Program Files\Python36\Scripts;%PATH%
+	cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
+		-DENABLE_PYTHON=ON ^
+		-DPYTHON_EXECUTABLE="C:\Program Files\Python36\python.exe" ^
+		-DPYTHON_INCLUDE_DIR="C:\Program Files\Python36\include" ^
+		-DPYTHON_LIBRARY="C:\Program Files\Python36\libs\python36.lib" ..
+```
+
+Then build generated solution INFERENCE_ENGINE_DRIVER.sln using Microsoft\* Visual Studio or run `cmake --build . --config Release` to build from the command line.
+
+
+## Running sample
+
+Before running the Python samples:
+- add the folder with built `openvino` Python module (located at `inference-engine/bin/intel64/Release/lib/python_api/python3.6`) to the PYTHONPATH environment variable.
 - add the folder with Inference Engine libraries to LD_LIBRARY_PATH variable on Linux (or PATH on Windows).
+
+Example of command line to run classification sample:
+
+```bash
+python3 sample/classification_sample.py -m <path/to/xml> -i <path/to/input/image> -d CPU 
+```

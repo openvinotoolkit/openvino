@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.replacement import FrontReplacementPattern
-from mo.middle.passes.eliminate import remove_op_node
+from mo.graph.graph import Graph
+from mo.middle.passes.eliminate import remove_op_node_with_data_node
 
 
 class FuseRepeatedReshapes(FrontReplacementPattern):
@@ -38,9 +37,9 @@ class FuseRepeatedReshapes(FrontReplacementPattern):
         )
 
     @staticmethod
-    def replace_pattern(graph: nx.MultiDiGraph, match: dict):
+    def replace_pattern(graph: Graph, match: dict):
         node = match['reshape_1']
         if (node.has_valid('type') and node.type == 'Reshape' and
                 len(node.out_nodes()) == 1 and node.out_node().has_valid('kind') and node.out_node().kind == 'data' and
                 len(node.out_node().out_nodes()) == 1):
-            remove_op_node(graph, node)
+            remove_op_node_with_data_node(graph, node)

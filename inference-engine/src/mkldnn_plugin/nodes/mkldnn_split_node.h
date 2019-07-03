@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +24,8 @@ public:
 
     bool isOptimized();
     void initOptimalPrimitiveDescriptor() override;
+
+    void setDynamicBatchLim(int lim) override;
 
 private:
     static Register<MKLDNNSplitNode> reg;

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,11 +14,10 @@
  limitations under the License.
 """
 
-import networkx as nx
-
-from mo.graph.graph import erase_node, Node
-from mo.middle.passes.eliminate import remove_op_node
+from mo.graph.graph import Node, Graph
+from mo.middle.passes.eliminate import remove_op_node_with_data_node
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.utils.graph import pseudo_topological_sort
 
 
 class ConstSwitchEraser(MiddleReplacementPattern):
@@ -27,11 +26,15 @@ class ConstSwitchEraser(MiddleReplacementPattern):
     """
     enabled = True
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
-        for n in nx.topological_sort(graph):
+    def run_after(self):
+        from extensions.middle.pass_separator import MiddleStart
+        return [MiddleStart]
+
+    def find_and_replace_pattern(self, graph: Graph):
+        for n in pseudo_topological_sort(graph):
             if graph.node[n]['kind'] == 'data' or graph.node[n]['op'] != 'Switch':
                 continue
             switch_op_node = Node(graph, n)
             pred_id_data_node = switch_op_node.in_node(1)
-            erase_node(pred_id_data_node)
-            remove_op_node(graph, switch_op_node)
+            graph.remove_edge(pred_id_data_node.id, switch_op_node.id)
+            remove_op_node_with_data_node(graph, switch_op_node)

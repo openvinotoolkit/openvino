@@ -22,16 +22,84 @@ if(MKL_cmake_included)
     return()
 endif()
 set(MKL_cmake_included true)
+include("cmake/utils.cmake")
+include("cmake/options.cmake")
+
+# set SKIP_THIS_MKL to true if given configuration is not supported
+function(maybe_skip_this_mkl LIBNAME)
+    # Optimism...
+    set(SKIP_THIS_MKL False PARENT_SCOPE)
+
+    # Both mklml_intel and mklml_gnu are OpenMP based.
+    # So in case of TBB link with Intel MKL (RT library) and either set:
+    #   MKL_THREADING_LAYER=tbb
+    # to make Intel MKL use TBB threading as well, or
+    #   MKL_THREADING_LAYER=sequential
+    # to make Intel MKL be sequential.
+    if (MKLDNN_THREADING STREQUAL "TBB" AND LIBNAME MATCHES "mklml")
+        set(SKIP_THIS_MKL True PARENT_SCOPE)
+    endif()
+
+    # user doesn't want Intel MKL at all
+    if (MKLDNN_USE_MKL STREQUAL "NONE")
+        set(SKIP_THIS_MKL True PARENT_SCOPE)
+    endif()
+
+    # user specifies Intel MKL-ML should be used
+    if (MKLDNN_USE_MKL STREQUAL "ML")
+        if (LIBNAME STREQUAL "mkl_rt")
+            set(SKIP_THIS_MKL True PARENT_SCOPE)
+        endif()
+    endif()
+
+    # user specifies full Intel MKL should be used
+    if (MKLDNN_USE_MKL MATCHES "FULL")
+        if (LIBNAME MATCHES "mklml")
+            set(SKIP_THIS_MKL True PARENT_SCOPE)
+        endif()
+    endif()
+
+    # avoid using Intel MKL-ML that is not compatible with compiler's OpenMP RT
+    if (MKLDNN_THREADING STREQUAL "OMP:COMP")
+        if ((LIBNAME STREQUAL "mklml_intel" OR LIBNAME STREQUAL "mklml")
+                AND (NOT CMAKE_CXX_COMPILER_ID STREQUAL "Intel"))
+            set(SKIP_THIS_MKL True PARENT_SCOPE)
+        elseif (LIBNAME STREQUAL "mklml_gnu"
+                AND (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+            set(SKIP_THIS_MKL True PARENT_SCOPE)
+        endif()
+    elseif (MKLDNN_THREADING STREQUAL "OMP:INTEL")
+       if (LIBNAME STREQUAL "mklml_gnu")
+           set(SKIP_THIS_MKL True PARENT_SCOPE)
+       endif()
+    endif()
+endfunction()
 
 function(detect_mkl LIBNAME)
     if(HAVE_MKL)
         return()
     endif()
 
-    message(STATUS "Detecting Intel(R) MKL: trying ${LIBNAME}")
+    maybe_skip_this_mkl(${LIBNAME})
+    set_if(SKIP_THIS_MKL MAYBE_SKIP_MSG "... skipped")
+    message(STATUS "Detecting Intel(R) MKL: trying ${LIBNAME}${MAYBE_SKIP_MSG}")
+
+    if (SKIP_THIS_MKL)
+        return()
+    endif()
 
     find_path(MKLINC mkl_cblas.h
         HINTS ${MKLROOT}/include $ENV{MKLROOT}/include)
+
+    # skip full Intel MKL while looking for Intel MKL-ML
+    if (MKLINC AND LIBNAME MATCHES "mklml")
+        get_filename_component(__mklinc_root "${MKLINC}" PATH)
+        find_library(tmp_MKLLIB NAMES "mkl_rt"
+            HINTS ${__mklinc_root}/lib/intel64)
+        set_if(tmp_MKLLIB MKLINC "")
+        unset(tmp_MKLLIB CACHE)
+    endif()
+
     if(NOT MKLINC)
         file(GLOB_RECURSE MKLINC
                 ${CMAKE_CURRENT_SOURCE_DIR}/external/*/mkl_cblas.h)
@@ -42,14 +110,8 @@ function(detect_mkl LIBNAME)
             if(MKLINCLEN GREATER 1)
                 list(SORT MKLINC)
                 list(REVERSE MKLINC)
-                # message(STATUS "MKLINC found ${MKLINCLEN} files:")
-                # foreach(LOCN IN LISTS MKLINC)
-                #     message(STATUS "       ${LOCN}")
-                # endforeach()
                 list(GET MKLINC 0 MKLINCLST)
                 set(MKLINC "${MKLINCLST}")
-                # message(WARNING "MKLINC guessing... ${MKLINC}.  "
-                #     "Please check that above dir has the desired mkl_cblas.h")
             endif()
             get_filename_component(MKLINC ${MKLINC} PATH)
         endif()
@@ -77,14 +139,6 @@ function(detect_mkl LIBNAME)
         if(NOT MKLDLL)
             return()
         endif()
-    endif()
-
-    if(UNIX AND LIBNAME MATCHES "mklml.*")
-        # Although MKL-ML depends on shared object functions such as dlopen and
-        # dladdr it is not linked against libdl. This causes link failures when
-        # MKL-DNN is build with the gold linker (e.g. -fuse-ld=gold).
-        list(APPEND EXTRA_LIBS dl)
-        set(EXTRA_LIBS "${EXTRA_LIBS}" PARENT_SCOPE)
     endif()
 
     if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -116,33 +170,18 @@ function(detect_mkl LIBNAME)
     string(FIND "${MKLLIBPATH}" ${CMAKE_CURRENT_SOURCE_DIR}/external __idx)
     if(${__idx} EQUAL 0)
         if(WIN32)
-            if(MINGW)
-                # We need to install *.dll into bin/ instead of lib/.
-                install(PROGRAMS ${MKLDLL} DESTINATION bin)
-            else()
-                install(PROGRAMS ${MKLDLL} DESTINATION lib)
-            endif()
+            install(PROGRAMS ${MKLDLL} ${MKLIOMP5DLL}
+                DESTINATION ${CMAKE_INSTALL_BINDIR})
         else()
-            install(PROGRAMS ${MKLLIB} DESTINATION lib)
-        endif()
-        if(MKLIOMP5LIB)
-            if(WIN32)
-                if(MINGW)
-                    # We need to install *.dll into bin/ instead of lib/.
-                    install(PROGRAMS ${MKLIOMP5DLL} DESTINATION bin)
-                else()
-                    install(PROGRAMS ${MKLIOMP5DLL} DESTINATION lib)
-                endif()
-            else()
-                install(PROGRAMS ${MKLIOMP5LIB} DESTINATION lib)
-            endif()
+            install(PROGRAMS ${MKLLIB} ${MKLIOMP5LIB}
+                DESTINATION ${CMAKE_INSTALL_LIBDIR})
         endif()
     endif()
 
     if(WIN32)
         # Add paths to DLL to %PATH% on Windows
         get_filename_component(MKLDLLPATH "${MKLDLL}" PATH)
-        set(CTESTCONFIG_PATH "${CTESTCONFIG_PATH}\;${MKLDLLPATH}")
+        append_to_windows_path_list(CTESTCONFIG_PATH "${MKLDLLPATH}")
         set(CTESTCONFIG_PATH "${CTESTCONFIG_PATH}" PARENT_SCOPE)
     endif()
 
@@ -150,52 +189,76 @@ function(detect_mkl LIBNAME)
     set(HAVE_MKL TRUE PARENT_SCOPE)
     set(MKLINC ${MKLINC} PARENT_SCOPE)
     set(MKLLIB "${MKLLIB}" PARENT_SCOPE)
+    set(MKLDLL "${MKLDLL}" PARENT_SCOPE)
+    if(LIBNAME MATCHES "mklml")
+        set(MKLDNN_USES_MKL "MKLML:SHARED" PARENT_SCOPE)
+    else()
+        set(MKLDNN_USES_MKL "FULL:SHARED" PARENT_SCOPE)
+    endif()
 
-    if(WIN32)
-        set(MKLDLL "${MKLDLL}" PARENT_SCOPE)
-    endif()
-    if(MKLIOMP5LIB)
-        set(MKLIOMP5LIB "${MKLIOMP5LIB}" PARENT_SCOPE)
-    endif()
-    if(WIN32 AND MKLIOMP5DLL)
-        set(MKLIOMP5DLL "${MKLIOMP5DLL}" PARENT_SCOPE)
-    endif()
+    set(MKLIOMP5LIB "${MKLIOMP5LIB}" PARENT_SCOPE)
+    set(MKLIOMP5DLL "${MKLIOMP5DLL}" PARENT_SCOPE)
 endfunction()
 
-# Both mklml_intel and mklml_gnu are OpenMP based.
-# So in case of TBB link with Intel MKL (RT library) and either set:
-#   MKL_THREADING_LAYER=tbb
-# to make Intel MKL use TBB threading as well, or
-#   MKL_THREADING_LAYER=sequential
-# to make Intel MKL be sequential.
-if(NOT MKLDNN_THREADING STREQUAL "TBB")
-    detect_mkl("mklml_intel")
-    detect_mkl("mklml")
-endif()
+function(set_static_mkl_libs libpath)
+    set_ternary(lib WIN32 "" "lib")
+    set_ternary(a WIN32 ".lib" ".a")
+
+    if (MKLDNN_THREADING STREQUAL "TBB")
+        set(thr_name "tbb_thread")
+    elseif (MKLDNN_THREADING STREQUAL "OMP:COMP" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(thr_name "gnu_thread")
+    else()
+        set(thr_name "intel_thread")
+    endif()
+
+    find_library(mkl_iface NAMES "${lib}mkl_intel_lp64${a}" HINTS ${libpath})
+    find_library(mkl_thr   NAMES "${lib}mkl_${thr_name}${a}" HINTS ${libpath})
+    find_library(mkl_core  NAMES "${lib}mkl_core${a}" HINTS ${libpath})
+
+    set(MKLLIB "${mkl_iface};${mkl_thr};${mkl_core}")
+    if (UNIX AND NOT APPLE)
+        list(APPEND MKLLIB "${mkl_iface};${mkl_thr};${mkl_core}")
+    endif()
+    set_if(UNIX MKLLIB "${MKLLIB};m;dl")
+    set(MKLLIB "${MKLLIB}" PARENT_SCOPE)
+endfunction()
+
+set(MKLDNN_USES_MKL "")
+detect_mkl("mklml_intel")
+detect_mkl("mklml_gnu")
+detect_mkl("mklml")
 detect_mkl("mkl_rt")
 
 if(HAVE_MKL)
+    if (MKLDNN_USE_MKL STREQUAL "FULL:STATIC")
+        set(MKLDLL "")
+        get_filename_component(MKLLIBPATH "${MKLLIB}" PATH)
+        set_static_mkl_libs(${MKLLIBPATH})
+        list(APPEND EXTRA_STATIC_LIBS ${MKLLIB})
+        set(MKLDNN_USES_MKL "FULL:STATIC")
+    else()
+        list(APPEND EXTRA_SHARED_LIBS ${MKLLIB})
+    endif()
+
     add_definitions(-DUSE_MKL -DUSE_CBLAS)
     include_directories(AFTER ${MKLINC})
-    list(APPEND mkldnn_LINKER_LIBS ${MKLLIB})
 
     set(MSG "Intel(R) MKL:")
     message(STATUS "${MSG} include ${MKLINC}")
     message(STATUS "${MSG} lib ${MKLLIB}")
-    if(MKLIOMP5LIB)
-        message(STATUS "${MSG} OpenMP lib ${MKLIOMP5LIB}")
-    else()
-        message(STATUS "${MSG} OpenMP lib provided by compiler")
-    endif()
-    if(WIN32)
+    if(WIN32 AND MKLDLL)
         message(STATUS "${MSG} dll ${MKLDLL}")
-        if(MKLIOMP5DLL)
-            message(STATUS "${MSG} OpenMP dll ${MKLIOMP5DLL}")
-        else()
-            message(STATUS "${MSG} OpenMP dll provided by compiler")
-        endif()
     endif()
 else()
+    if (MKLDNN_USE_MKL STREQUAL "NONE")
+        return()
+    endif()
+
+    if (NOT MKLDNN_USE_MKL STREQUAL "DEF")
+        set(FAIL_WITHOUT_MKL True)
+    endif()
+
     if(DEFINED ENV{FAIL_WITHOUT_MKL} OR DEFINED FAIL_WITHOUT_MKL)
         set(SEVERITY "FATAL_ERROR")
     else()

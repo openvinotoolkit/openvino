@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -78,9 +78,9 @@ if __name__ == "__main__":  # pragma: no cover
     if argv.input_model and argv.saved_model_dir:
         print("[ ERROR ] Both keys were provided --input_model and --input_dir. Please, provide only one of them")
         sys.exit(1)
-    graph_def = load_tf_graph_def(graph_file_name=argv.input_model, is_binary=not argv.text,
-                                  checkpoint=argv.input_checkpoint,
-                                  model_dir=argv.saved_model_dir, saved_model_tags=argv.saved_model_tags)
+    graph_def, _ = load_tf_graph_def(graph_file_name=argv.input_model, is_binary=not argv.text,
+                                     checkpoint=argv.input_checkpoint,
+                                     model_dir=argv.saved_model_dir, saved_model_tags=argv.saved_model_tags)
     summary = summarize_graph(graph_def)
     print("{} input(s) detected:".format(len(summary['inputs'])))
     for input in summary['inputs']:

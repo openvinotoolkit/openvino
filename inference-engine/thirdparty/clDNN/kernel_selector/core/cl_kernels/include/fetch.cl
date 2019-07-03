@@ -72,6 +72,27 @@ inline uint FUNC(get_byxf_af32_index)(uint b, uint f, uint y, uint x, uint y_pit
 		CAT(prefix, _FEATURE_NUM),                 \
 		CAT(prefix, _OFFSET))
 
+inline uint FUNC(get_byx8_f4_index)(uint b, uint f, uint y, uint x,
+    uint x_pitch, uint y_pitch, uint b_pitch, uint f_size, uint x_size, uint offset)
+{
+    const uint f_aligned_to_4 = ((f_size + 3) / 4) * 4;
+    const uint x_aligned_to_8 = ((x_size + 7) / 8) * 8;
+    const uint b_offset = b * b_pitch;
+    const uint xy_offset = x * x_pitch + y * y_pitch;
+    const uint f_offset = f;
+    const size_t idx = offset + xy_offset + b_offset + f_offset;
+    return idx;
+}
+
+#define GET_DATA_BYX8_F4_INDEX(prefix, b, f, y, x)\
+	FUNC_CALL(get_byx8_f4_index)(                 \
+		b, f, y, x, CAT(prefix, _X_PITCH),          \
+		CAT(prefix, _Y_PITCH),                      \
+		CAT(prefix, _BATCH_PITCH),                      \
+		CAT(prefix, _FEATURE_NUM),                 \
+		CAT(prefix, _SIZE_X),                 \
+		CAT(prefix, _OFFSET))
+
 #define GET_DATA_BF8_XY16_INDEX(prefix, b, f, y, x)     \
     FUNC_CALL(get_bf8_xy16_index)(                      \
         b, f, y, x, CAT(prefix, _SIZE_X ),              \
@@ -249,7 +270,35 @@ inline uint FUNC(get_os_is_yx_isa8_osv8_isv4_index)(uint o, uint i, uint y, uint
         CAT(prefix, _OFM_NUM),                                                  \
         CAT(prefix, _OFFSET))
 
+inline uint FUNC(get_os_is_yx_isa8_osv8_isv4_swizzled_by_4_index)(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+{
+    const uint o_swizzled = (o % 4) * 8 + ((o % 32) / 4) + (o / 32) * 32;
 
+    const uint f_32_aligned = ((size_ifm + 31)/32) * 32;
+	const uint isv2_idx = i % 4;
+	const uint osv_idx = o_swizzled % 8;
+	const uint isv1_idx = (i / 4) % 8;
+	const uint is_idx = i / 32;
+	const uint os_idx = o_swizzled / 8;
+
+	size_t idx = offset + isv2_idx + 4 * (osv_idx + 8 * isv1_idx);
+	idx += x * 4 * 8 * 8;
+	idx += y * size_x * 4 * 8 * 8;
+	idx += is_idx * size_y * size_x * 4 * 8 * 8;
+	idx += os_idx * (f_32_aligned/32) * size_y * size_x * 4 * 8 * 8;
+
+    return idx;
+}
+
+#define GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4_INDEX(prefix, o, i, y, x) \
+	FUNC_CALL(get_os_is_yx_isa8_osv8_isv4_swizzled_by_4_index)(                    \
+        o, i, y, x, CAT(prefix, _SIZE_X ),                                      \
+        CAT(prefix, _SIZE_Y),                                                \
+        CAT(prefix, _IFM_NUM),                                                  \
+        CAT(prefix, _OFM_NUM),                                                  \
+        CAT(prefix, _OFFSET))
+
+        
 inline uint FUNC(get_is_o_yx_isv32_index)(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
 {
     const uint i_aligned_to_32 = ((i_size + 31) / 32) * 32;
@@ -265,6 +314,106 @@ inline uint FUNC(get_is_o_yx_isv32_index)(uint o, uint i, uint y, uint x, uint i
         CAT(prefix, _OFM_NUM),\
         CAT(prefix, _SIZE_X),\
         CAT(prefix, _SIZE_Y))
+
+inline uint FUNC(get_is_o32_yx_isv32_swizzled_by_4_index)(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
+{
+    const uint o_aligned_to_32 = ((o_size + 31) / 32) * 32;
+    const uint o_swizzled = (o % 4) * 8 + ((o % 32) / 4) + (o / 32) * 32;
+    const uint i_aligned_to_32 = ((i_size + 31) / 32) * 32;
+    const uint i_val = i % 32;
+    const uint i_slice = i / 32;
+    const size_t idx = i_val + 32* (x + x_size * (y + y_size * (o_swizzled + o_aligned_to_32 * i_slice) ) );
+    return idx;
+}
+
+#define GET_FILTER_IS_O32_YX_ISV32_SWIZZLED_BY_4(prefix, o, i, y, x)\
+    FUNC_CALL(get_is_o32_yx_isv32_swizzled_by_4_index)(\
+        o, i, y, x, CAT(prefix, _IFM_NUM),\
+        CAT(prefix, _OFM_NUM),\
+        CAT(prefix, _SIZE_X),\
+        CAT(prefix, _SIZE_Y))
+
+inline uint FUNC(get_os_is_y_x8_osv8_isv4_index)(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
+{
+    const uint i_aligned_to_4 = ((i_size + 3) / 4) * 4;
+    const uint o_aligned_to_8 = ((o_size + 7) / 8) * 8;
+    const uint x_aligned_to_8 = ((x_size + 7) / 8) * 8;
+    const uint i_val = i % 4;
+    const uint i_slice = i / 4;
+    const uint o_val = o % 8;
+    const uint o_slice = o / 8;
+    const size_t idx = i_val + 4 * (o_val + 8 * ( x + x_aligned_to_8 * (y + y_size * (i_slice + (i_aligned_to_4/4) * (o_slice)))));
+    return idx;
+}
+
+#define GET_FILTER_OS_IS_Y_X8_OSV8_ISV4(prefix, o, i, y, x)\
+    FUNC_CALL(get_os_is_y_x8_osv8_isv4_index)(\
+        o, i, y, x, CAT(prefix, _IFM_NUM),\
+        CAT(prefix, _OFM_NUM),\
+        CAT(prefix, _SIZE_X),\
+        CAT(prefix, _SIZE_Y))
+
+#define GET_DATA_B_FS_YX_FSV4_INDEX(prefix, o, i, y, x)\
+    FUNC_CALL(get_b_fs_yx_fsv4)(\
+        o, i, y, x,\
+        CAT(prefix, _FEATURE_NUM),\
+        CAT(prefix, _PAD_BEFORE_SIZE_Y), CAT(prefix, _SIZE_Y), CAT(prefix, _PAD_AFTER_SIZE_Y),\
+        CAT(prefix, _PAD_BEFORE_SIZE_X), CAT(prefix, _SIZE_X), CAT(prefix, _PAD_AFTER_SIZE_X))
+
+inline uint FUNC(get_b_fs_yx_fsv4)(uint o, uint i, uint y, uint x,
+                                   uint feature_num,
+                                   uint pad_before_size_y, uint size_y, uint pad_after_size_y,
+                                   uint pad_before_size_x, uint size_x, uint pad_after_size_x)
+{
+    const uint tile = 4;
+    uint id_tile = i / tile;
+    uint id      = i - id_tile * tile;
+
+    const uint feature_num_aligned4 = ((feature_num + 3) / 4) * 4;
+
+    uint idx = o * (feature_num_aligned4 / tile) *
+                   (pad_before_size_y + size_y + pad_after_size_y) *
+                   (pad_before_size_x + size_x + pad_after_size_x) * tile
+               + id_tile * (pad_before_size_y + size_y + pad_after_size_y) *
+                           (pad_before_size_x + size_x + pad_after_size_x) * tile
+               + pad_before_size_y * (pad_before_size_x + size_x + pad_after_size_x) * tile
+               + y * (pad_before_size_x + size_x + pad_after_size_x) * tile
+               + pad_before_size_x * tile
+               + x * tile
+               + id;
+
+    return idx;
+}
+
+#define GET_FILTER_OS_IS_YX_OSV16_ISV4_INDEX(prefix, o, i, y, x)\
+    FUNC_CALL(get_os_is_yx_osv16_isv4)(\
+        o, i, y, x,\
+        CAT(prefix, _IFM_PITCH),\
+        CAT(prefix, _OFM_PITCH),\
+        CAT(prefix, _SIZE_X))
+
+inline uint FUNC(get_os_is_yx_osv16_isv4)(uint o, uint i, uint y, uint x,
+                                          uint i_size,
+                                          uint o_size,
+                                          uint x_size)
+{
+    const uint otd = 16;
+    uint out_depth_tile = o / otd;
+    uint od             = o - out_depth_tile * otd;
+
+    const uint tile = 4;
+    uint id_tile = i / tile;
+    uint id      = i - id_tile * tile;
+
+    uint idx = out_depth_tile * (o_size / tile) * otd * tile
+               + id_tile               * i_size * otd * tile
+               + y                     * x_size * otd * tile
+               + x                              * otd * tile
+               + od                                   * tile
+               + id;
+
+    return idx;
+}
 
 #define DECLARE_SAMPLER const sampler_t imageSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST
 

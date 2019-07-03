@@ -24,8 +24,15 @@
 #define MKLDNN_THR_OMP 1
 #define MKLDNN_THR_TBB 2
 
+/* Ideally this condition below should never happen (if the library is built
+ * using regular cmake). For the 3rd-party projects that build the library
+ * from the sources on their own try to guess the right threading... */
 #if !defined(MKLDNN_THR)
-#define MKLDNN_THR MKLDNN_THR_SEQ
+#   if defined(_OPENMP)
+#       define MKLDNN_THR MKLDNN_THR_OMP
+#   else
+#       define MKLDNN_THR MKLDNN_THR_SEQ
+#   endif
 #endif
 
 #if MKLDNN_THR == MKLDNN_THR_SEQ
@@ -35,6 +42,8 @@ inline int mkldnn_get_num_threads() { return 1; }
 inline int mkldnn_get_thread_num() { return 0; }
 inline int mkldnn_in_parallel() { return 0; }
 inline void mkldnn_thr_barrier() {}
+
+#define PRAGMA_OMP(...)
 
 #elif MKLDNN_THR == MKLDNN_THR_OMP
 #include <omp.h>
@@ -48,9 +57,11 @@ inline void mkldnn_thr_barrier() {
 #   pragma omp barrier
 }
 
+#define PRAGMA_OMP(...) PRAGMA_MACRO(CHAIN2(omp, __VA_ARGS__))
+
 #elif MKLDNN_THR == MKLDNN_THR_TBB
-#include "tbb/parallel_for.h"
 #include "tbb/task_arena.h"
+#include "tbb/parallel_for.h"
 #define MKLDNN_THR_SYNC 0
 
 inline int mkldnn_get_max_threads()
@@ -60,6 +71,9 @@ inline int mkldnn_get_thread_num()
 { return tbb::this_task_arena::current_thread_index(); }
 inline int mkldnn_in_parallel() { return 0; }
 inline void mkldnn_thr_barrier() { assert(!"no barrier in TBB"); }
+
+#define PRAGMA_OMP(...)
+
 #endif
 
 /* MSVC still supports omp 2.0 only */

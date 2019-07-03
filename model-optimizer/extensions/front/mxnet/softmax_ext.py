@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ class SoftmaxFrontExtractor(FrontExtractorOp):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
 
         update_attrs = {
-            'type': 'Softmax',
+            'type': 'SoftMax',
             'axis': attrs.int("axis", -1),
             'temperature': attrs.float('temperature', 1.0)
         }

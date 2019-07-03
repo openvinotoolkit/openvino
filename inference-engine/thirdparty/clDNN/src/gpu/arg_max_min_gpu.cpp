@@ -33,13 +33,6 @@ namespace cldnn {
 
 		protected:
 
-			virtual bool validate(typed_primitive_inst<arg_max_min>& instance) const override
-			{
-				bool res = parent::validate(instance);
-
-				return res;
-			}
-
 			virtual kernel::kernel_arguments_data get_arguments(typed_primitive_inst<arg_max_min>& instance, int32_t) const override
 			{
 				kernel::kernel_arguments_data args = parent::get_arguments(instance, 0);

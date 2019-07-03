@@ -39,8 +39,8 @@ status_t eltwise_desc_init(eltwise_desc_t *eltwise_desc, prop_kind_t prop_kind,
         && one_of(alg_kind, eltwise_relu, eltwise_tanh, eltwise_elu,
                   eltwise_square, eltwise_abs, eltwise_sqrt, eltwise_linear,
                   eltwise_bounded_relu, eltwise_soft_relu, eltwise_logistic,
-                  eltwise_clamp)
-        && implication(prop_kind == backward_data, diff_data_desc != nullptr);
+                  eltwise_clamp, eltwise_exp, eltwise_not)
+        && IMPLICATION(prop_kind == backward_data, diff_data_desc != nullptr);
     if (!args_ok) return invalid_arguments;
 
     auto ed = eltwise_desc_t();
@@ -54,10 +54,9 @@ status_t eltwise_desc_init(eltwise_desc_t *eltwise_desc, prop_kind_t prop_kind,
 
     ed.alpha = alpha;
     ed.beta = beta;
-    ed.negative_slope = ed.alpha;
 
     bool consistency = true
-        && implication(ed.prop_kind == backward_data,
+        && IMPLICATION(ed.prop_kind == backward_data,
                 array_cmp(ed.diff_data_desc.dims, ed.data_desc.dims,
                     ed.diff_data_desc.ndims));
     if (!consistency) return invalid_arguments;
@@ -82,20 +81,5 @@ status_t mkldnn_eltwise_backward_desc_init(eltwise_desc_t *eltwise_desc,
     return eltwise_desc_init(eltwise_desc, backward_data, alg_kind, data_desc,
             diff_data_desc, alpha, beta);
 }
-
-status_t mkldnn_relu_forward_desc_init(eltwise_desc_t *relu_desc,
-        prop_kind_t prop_kind, const memory_desc_t *data_desc,
-        float negative_slope) {
-    return mkldnn_eltwise_forward_desc_init(relu_desc, prop_kind, eltwise_relu,
-            data_desc, negative_slope, 0.);
-}
-
-status_t mkldnn_relu_backward_desc_init(eltwise_desc_t *relu_desc,
-        const memory_desc_t *diff_data_desc, const memory_desc_t *data_desc,
-        float negative_slope) {
-    return mkldnn_eltwise_backward_desc_init(relu_desc, eltwise_relu,
-            diff_data_desc, data_desc, negative_slope, 0.);
-}
-
 
 // vim: et ts=4 sw=4 cindent cino^=l0,\:0,N-s

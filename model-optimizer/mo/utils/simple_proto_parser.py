@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -187,7 +187,7 @@ class SimpleProtoParser(object):
         """
         self._split_to_tokens(file_content)
         if not self._convert_tokens_to_dict():
-            log.error('Failed to generate dictionary representation of file with content: {}'.format(file_content))
+            log.error('Failed to generate dictionary representation of file.')
             return None
         return self._result
 

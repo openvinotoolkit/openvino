@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,15 +15,20 @@
 #include "description_buffer.hpp"
 #include <string>
 #include <vector>
-#include <shape_infer/ie_reshaper.hpp>
 
 #include "cnn_network_stats_impl.hpp"
 
 namespace InferenceEngine {
+namespace ShapeInfer {
+class Reshaper;
+
+using ReshaperPtr = std::shared_ptr<Reshaper>;
+}  // namespace ShapeInfer
 namespace details {
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl) : public ICNNNetwork {
 public:
     CNNNetworkImpl();
+    ~CNNNetworkImpl() override;
     Precision getPrecision() const noexcept override {
         return precision;
     }
@@ -47,6 +51,10 @@ public:
 
     void setInputInfo(InputInfo::Ptr data) {
         _inputData[data->name()] = data;
+    }
+
+    void removeInputInfo(const std::string& name) {
+        _inputData.erase(name);
     }
 
     void getName(char* pName, size_t len) const noexcept override {
@@ -81,6 +89,10 @@ public:
     }
 
     void addLayer(const CNNLayerPtr& layer) noexcept override;
+
+    void removeLayer(const std::string& layerName);
+
+    void removeData(const std::string& dataName);
 
     StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
 
@@ -126,6 +138,8 @@ public:
     StatusCode
     AddExtension(const InferenceEngine::IShapeInferExtensionPtr &extension, InferenceEngine::ResponseDesc *resp) noexcept override;
 
+    StatusCode serialize(const std::string &xmlPath, const std::string &binPath, ResponseDesc* resp) const noexcept override;
+
 protected:
     Precision precision {Precision::MIXED};
     std::map<std::string, DataPtr> _data;
@@ -136,7 +150,7 @@ protected:
     /// @brief
     TargetDevice _targetDevice;
     DataPtr _emptyData;
-    InferenceEngine::ShapeInfer::Reshaper::Ptr _reshaper;
+    ShapeInfer::ReshaperPtr _reshaper;
     CNNNetworkStatsImplPtr _stats;
 };
 

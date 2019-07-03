@@ -27,11 +27,14 @@ namespace kernel_selector
     {
         DimTensor<> lt_sizes;
         DimTensor<> rb_sizes;
-        BorderType b_type = BorderType::ZERO;
+        BorderType b_type;
+        float border_value;
 
 
         border_params()
-            : base_params(KernelType::BORDER)
+            : base_params(KernelType::BORDER),
+            b_type(BorderType::CONSTANT),
+            border_value(0.0f)
         {
         }
 

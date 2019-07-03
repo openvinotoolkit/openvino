@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +21,8 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng)
-        : MKLDNNNode(layer, eng), withBiases(false) {
+        : MKLDNNNode(layer, eng), withBiases(false), withSum(false),  dw_conv_iw(0), dw_conv_ih(0),
+        dw_conv_oc(0), isDW(false), isMerged(false), withActivation(false), convLayer(nullptr), isGrouped(false) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });
@@ -37,18 +37,18 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr&
         wScale = ws->second;
     }
 
-
     // Trying to find oi-scale
-    lastInInt8Chain = true;
-    auto ois = layer->blobs.find("oi-scale");
-    if (ois != layer->blobs.end()) {
-        // If we can find an o-scale, then the next layer has to be an INT8.
-        lastInInt8Chain = false;
-        oScale = ois->second;
-    } else {
-        // If we can't find an oi-scale then the next layer has to be
-        // an FP32, so we are the last layer in the INT8-chain
-        lastInInt8Chain = true;
+    if (getCnnLayer()->type == "Convolution" && getCnnLayer()->precision == Precision::I8) {
+        auto ois = layer->blobs.find("oi-scale");
+        if ((getCnnLayer()->outData[0]->getPrecision() == Precision::I8 || getCnnLayer()->outData[0]->getPrecision() == Precision::U8)
+            && ois == layer->blobs.end()) {
+            THROW_IE_EXCEPTION << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for convolution "
+                << getCnnLayer()->name;
+        }
+        if (ois != layer->blobs.end()) {
+            // If we can find an oi-scale, then the next layer has to be an INT8.
+            oScale = ois->second;
+        }
     }
 }
 
@@ -99,6 +99,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         groupOC /= groupNum;
     }
 
+    weightDims.clear();
     weightDims.push_back(groupOC);
     weightDims.push_back(groupIC);
     for (int i = 1; i <= convLayer->_kernel.size(); i++) {
@@ -141,13 +142,13 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         dilation.push_back(static_cast<int>(convLayer->_dilation[convLayer->_dilation.size() - i]) - 1);
     }
 
-    auto allPads = getConvPaddings(*convLayer);
+    auto allPads = getPaddings(*convLayer);
     invertVectorCopyUtoI(allPads.begin, paddingL);
     invertVectorCopyUtoI(allPads.end, paddingR);
 
     MKLDNNDims weightsDims = MKLDNNDims(weightDims);
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < paddingR.size(); i++) {
         int with_group = (isGrouped || isMerged) ? 1 : 0;
         int krn = weightsDims[with_group + 2 + i];
         int src = getParentEdgeAt(0)->getDims()[2 + i];
@@ -176,26 +177,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         }
     }
 
-    if (weights->precision() == Precision::I8) {
-        inputDataType = memory::u8;
-        if (lastInInt8Chain) {
-            outputDataType = memory::f32;
-        } else {
-            // Searching for the last fused node and taking the precision from there
-            Precision p = getCnnLayer()->precision;
-            if (fusedWith.size() > 0 && fusedWith[fusedWith.size() - 1]->getCnnLayer()->type == "ReLU") {
-                p = fusedWith[fusedWith.size() - 1]->getCnnLayer()->precision;
-            }
-
-            if (p == Precision::I8) {
-                outputDataType = memory::s8;
-            } else if (p == Precision::U8) {
-                outputDataType = memory::u8;
-            } else {
-                 THROW_IE_EXCEPTION << "Invalid layer precision for " << getName();
-            }
-        }
-
+    if (this->getCnnLayer()->precision == Precision::I8) {
         MKLDNNMemoryDesc in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nhwc);
         MKLDNNMemoryDesc out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nhwc);
         createDescriptor({in_candidate}, {out_candidate});
@@ -204,22 +186,48 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         inputDataType = memory::f32;
         outputDataType = memory::f32;
 
-        MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType, memory::nchw);
-        MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getDims(), outputDataType, memory::nchw);
-        createDescriptor({in_candidate}, {out_candidate});
+        Layout layout = convLayer->input()->getLayout();
 
-        if (IC == 3 || IC == 1) {
-            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw16c);
+        if (layout == NCHW || layout == NHWC) {
+            MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType,
+                    layout == NCHW ? memory::nchw : memory::nhwc);
+            MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getDims(), outputDataType,
+                    layout == NCHW ? memory::nchw : memory::nhwc);
             createDescriptor({in_candidate}, {out_candidate});
-            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw8c);
+
+            if (IC == 3 || IC == 1) {
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw16c);
+                createDescriptor({in_candidate}, {out_candidate});
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw8c);
+                createDescriptor({in_candidate}, {out_candidate});
+            } else {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw16c);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw16c);
+                createDescriptor({in_candidate}, {out_candidate});
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw8c);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw8c);
+                createDescriptor({in_candidate}, {out_candidate});
+            }
+        } else if (layout == NCDHW || layout == NDHWC) {
+            MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType,
+                    layout == NCDHW ? memory::ncdhw : memory::ndhwc);
+            MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getDims(), outputDataType,
+                    layout == NCDHW ? memory::ncdhw : memory::ndhwc);
             createDescriptor({in_candidate}, {out_candidate});
-        } else {
-            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw16c);
-            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw16c);
-            createDescriptor({in_candidate}, {out_candidate});
-            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw8c);
-            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw8c);
-            createDescriptor({in_candidate}, {out_candidate});
+
+            if (IC == 3 || IC == 1) {
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw16c);
+                createDescriptor({in_candidate}, {out_candidate});
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw8c);
+                createDescriptor({in_candidate}, {out_candidate});
+            } else {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw16c);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw16c);
+                createDescriptor({in_candidate}, {out_candidate});
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw8c);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw8c);
+                createDescriptor({in_candidate}, {out_candidate});
+            }
         }
     }
 }
@@ -231,7 +239,15 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
     for (auto &node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            ops.append_sum(1.0);
+            if (eltwiseNode->getCnnLayer()->precision == Precision::I8) {
+                auto it = eltwiseNode->getCnnLayer()->blobs.find("eltwise-sum-scale");
+                if (it != eltwiseNode->getCnnLayer()->blobs.end()) {
+                    // currently there is the only one scale while we need scale by channel :(
+                    ops.append_sum(it->second->buffer().as<float*>()[0]);
+                }
+            } else {
+                ops.append_sum(1.0);
+            }
             continue;
         }
 
@@ -247,16 +263,15 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
             auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
 
             if (initWeights) {
-                MKLDNNDims depthwiseDims({static_cast<int>(rnd_up(biasesDims[0], 16))});
+                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(biasesDims[0], 16))});
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
 
-                int bufferSize = depthwiseNode->isBroadcast() ? 1 : depthwiseDims[0];
                 PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
                                                              depthwiseLayer->_weights->buffer(),
-                                                             bufferSize * MKLDNNExtensionUtils::sizeOfDataType(
-                                                                     memory::data_type::f32));
+                                                             depthwiseLayer->_weights->size() *
+                                                             MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
                 if (depthwiseNode->isBroadcast()) {
                     float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
@@ -271,9 +286,8 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                                                                 memory::format::x);
                     PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
                                                                  depthwiseLayer->_biases->buffer(),
-                                                                 bufferSize *
-                                                                 MKLDNNExtensionUtils::sizeOfDataType(
-                                                                         memory::data_type::f32));
+                                                                 depthwiseLayer->_biases->size() *
+                                                                 MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
                     if (depthwiseNode->isBroadcast()) {
                         float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
@@ -307,27 +321,25 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
         if (convolutionNode) {
             auto* convLayer = reinterpret_cast<ConvolutionLayer*>(convolutionNode->getCnnLayer().get());
 
+            auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(convLayer->precision);
+            auto biasPrc = memory::data_type::s32;
+
             if (initWeights) {
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                MKLDNNDims dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                PostOpsIntBlobMemory[blob_idx]->Create(dwWeightsDims, memory::data_type::f32,
-                                                            memory::format::Goihw8g);
+                MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                PostOpsIntBlobMemory[blob_idx]->Create(dwWeightsDims, weightsPrc, memory::format::Goihw8g);
 
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::goihw,
-                                                             convLayer->_weights->buffer(),
-                                                             dwWeightsDims.size() *
-                                                             MKLDNNExtensionUtils::sizeOfDataType(
-                                                                     memory::data_type::f32));
+                Blob::Ptr weights = convLayer->blobs.find("weights")->second;
+                Blob::Ptr biases = convLayer->blobs.find("biases")->second;
+
+                PostOpsIntBlobMemory[blob_idx]->SetData(weightsPrc, memory::goihw, weights->buffer(),
+                                                        dwWeightsDims.size() * MKLDNNExtensionUtils::sizeOfDataType(weightsPrc));
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 MKLDNNDims dwBiasesDims({dw_conv_oc});
-                PostOpsIntBlobMemory[blob_idx + 1]->Create(dwBiasesDims, memory::data_type::f32,
-                                                                memory::format::x);
-                PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
-                                                                 convLayer->_biases->buffer(),
-                                                                 dwBiasesDims.size() *
-                                                                 MKLDNNExtensionUtils::sizeOfDataType(
-                                                                         memory::data_type::f32));
+                PostOpsIntBlobMemory[blob_idx + 1]->Create(dwBiasesDims, biasPrc, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx + 1]->SetData(biasPrc, memory::x, biases->buffer(),
+                                                            dwBiasesDims.size() * MKLDNNExtensionUtils::sizeOfDataType(biasPrc));
                 ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
                                    dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
                                    (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
@@ -340,6 +352,46 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                                    nullptr,
                                    nullptr);
             }
+
+            if (convolutionNode->wScale != nullptr) {
+                float* wScaleData = static_cast<float*>(convolutionNode->wScale->buffer());
+
+                std::vector<float> oScaleDataVector;
+                std::vector<float> oShiftDataVector;
+                if (convolutionNode->getCnnLayer()->precision == Precision::I8 &&
+                    convolutionNode->getCnnLayer()->outData[0]->getPrecision() != Precision::FP32) {
+                    float *oScaleData = static_cast<float *>(convolutionNode->oScale->buffer());
+
+                    for (size_t c = 0; c < convolutionNode->wScale->size(); c++) {
+                        oScaleDataVector.push_back(wScaleData[c] / oScaleData[c]);
+                        oShiftDataVector.push_back(0.f);
+                    }
+                } else {
+                    for (size_t c = 0; c < convolutionNode->wScale->size(); c++) {
+                        oScaleDataVector.push_back(wScaleData[c]);
+                        oShiftDataVector.push_back(0.f);
+                    }
+                }
+
+                MKLDNNDims oScaleDims({static_cast<ptrdiff_t>(rnd_up(biasesDims[0], 16))});
+
+                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+                PostOpsIntBlobMemory[blob_idx]->Create(oScaleDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x, &oScaleDataVector[0],
+                                                        oScaleDataVector.size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+                PostOpsIntBlobMemory[blob_idx + 1]->Create(oScaleDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x, &oShiftDataVector[0],
+                                                            oShiftDataVector.size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+                ops.append_depthwise(depthwise_scale_shift,
+                                     (const float *)PostOpsIntBlobMemory[blob_idx]->GetData(),
+                                     (const float *)PostOpsIntBlobMemory[blob_idx + 1]->GetData());
+
+                blob_idx += 2;
+            }
+
             for (auto &dwConvFusedNode : convolutionNode->fusedWith) {
                 auto* dwConvActivationNode = dynamic_cast<MKLDNNActivationNode *>(dwConvFusedNode.get());
                 if (dwConvActivationNode) {
@@ -450,14 +502,15 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
         bdt = memory::s32;
 
         Precision outPrec;
-        if (lastInInt8Chain) {
+        if (getCnnLayer()->outData[0]->getPrecision() == Precision::FP32) {
             outPrec = Precision::FP32;
         } else {
             // define precision accordninly normalizer
+            // TODO(amalyshe) do we need to have separate flow for last in int8 chain or not?
             outPrec = outDesc.getPrecision();
         }
 
-        inDesc = TensorDesc(Precision::U8, inputDesc[0].getDims(), inputDesc[0].getBlockingDesc());
+        inDesc = TensorDesc(inDesc.getPrecision() , inputDesc[0].getDims(), inputDesc[0].getBlockingDesc());
         outDesc = TensorDesc(outPrec, outputDesc[0].getDims(), outputDesc[0].getBlockingDesc());
     }
 
@@ -502,8 +555,8 @@ void MKLDNNConvolutionNode::addScaleToPrimitiveAttr(mkldnn::primitive_attr attr)
        float* wScaleData = static_cast<float*>(wScale->buffer());
 
        std::vector<float> oScaleDataVector;
-       if (!lastInInt8Chain) {
-           float* oScaleData = static_cast<float*>(oScale->buffer());
+       if (getCnnLayer()->precision == Precision::I8 && getCnnLayer()->outData[0]->getPrecision() != Precision::FP32) {
+           float *oScaleData = static_cast<float *>(oScale->buffer());
 
            for (size_t c = 0; c < wScale->size(); c++) {
                oScaleDataVector.push_back(wScaleData[c] / oScaleData[c]);

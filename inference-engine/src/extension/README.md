@@ -3,7 +3,7 @@ CPU Extensions
 
 ## Introducing CPU Extensions
 
-The CPU extensions library contains code of important layers that do not come with the [CPU plugin](./docs/Inference_Engine_Developer_Guide/supported_plugins/CPU.md).
+The CPU extensions library contains code of important layers that do not come with the [CPU plugin](./docs/IE_DG/supported_plugins/CPU.md).
 You should compile this library and use the <code>AddExtension</code> method in your application to load the extensions when for models featuring layers from this library.
 Refer to other samples for <code>AddExtension</code> code examples.
 
@@ -17,7 +17,11 @@ when cross-compiling this library for another platform.
 
  * ArgMax
  * CTCGreedyDecoder
+ * DepthToSpace
  * DetectionOutput
+ * Expand
+ * Fill
+ * Gather
  * GRN
  * Interp
  * MVN
@@ -28,14 +32,20 @@ when cross-compiling this library for another platform.
  * PriorBoxClustered
  * Proposal
  * PSROIPooling
- * Region Yolo
- * Reorg Yolo
+ * Range
+ * RegionYolo
+ * ReorgYolo
  * Resample
+ * ReverseSequence
+ * ShuffleChannels
  * SimplerNMS
- * SpatialTransformer
+ * SpaceToDepth
+ * Squeeze
+ * StridedSlice
+ * Unsqueeze
 
-In order to add a new layer, you can use [the extensibility mechanism](./docs/Inference_Engine_Developer_Guide/Integrate_your_kernels_into_IE.md).
+In order to add a new layer, you can use [the extensibility mechanism](./docs/IE_DG/Integrate_your_kernels_into_IE.md).
 
 ## See Also
-* [CPU](./docs/Inference_Engine_Developer_Guide/supported_plugins/CPU.md)
-* [Supported Devices](./docs/Inference_Engine_Developer_Guide/supported_plugins/Supported_Devices.md)
+* [CPU](./docs/IE_DG/supported_plugins/CPU.md)
+* [Supported Devices](./docs/IE_DG/supported_plugins/Supported_Devices.md)

@@ -27,6 +27,8 @@ namespace kernel_selector
         virtual ~LookUpTableKernelAxis() {}
 
         virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+
+    protected:
         virtual ParamsKey GetSupportedKey() const override;
     };
 }

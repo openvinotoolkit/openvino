@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,11 +18,11 @@ import collections
 
 import networkx as nx
 
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 
 
 class UnsupportedOps(object):
-    def __init__(self, graph: nx.Graph):
+    def __init__(self, graph: Graph):
         self.graph = graph
         # map op to a list of node names
         self.unsupported = collections.defaultdict(list)

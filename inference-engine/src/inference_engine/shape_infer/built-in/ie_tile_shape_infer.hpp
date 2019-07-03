@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +20,7 @@ class TileShapeProp : public BuiltInShapeInferImpl {
 public:
     explicit TileShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<SizeVector>& inShapes,
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
                          const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs,
                          std::vector<SizeVector>& outShapes) override {
@@ -29,7 +28,7 @@ public:
         TileLayer tileLayer(lp);
         tileLayer.params = params;
         tileLayer.type = _type;
-        validate(&tileLayer, inShapes, params, blobs);
+        validate(&tileLayer, inBlobs, params, blobs);
         outShapes.push_back(inShapes[0]);
         outShapes[0][tileLayer.axis] *= tileLayer.tiles;
     }

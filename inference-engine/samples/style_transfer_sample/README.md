@@ -1,7 +1,11 @@
-# Neural Style Transfer Sample
+# Neural Style Transfer C++ Sample
 
-This topic demonstrates how to build and run the Neural Style Transfer sample (NST sample) application, which does
-inference using models of style transfer topology.
+This topic demonstrates how to run the Neural Style Transfer sample application, which performs
+inference of style transfer models.
+
+> **NOTE**: The OpenVINO™ toolkit does not include a pre-trained model to run the Neural Style Transfer sample. A public model from the [Zhaw's Neural Style Transfer repository](https://github.com/zhaw/neural_style) can be used. Read the [Converting a Style Transfer Model from MXNet*](./docs/MO_DG/prepare_model/convert_model/mxnet_specific/Convert_Style_Transfer_From_MXNet.md) topic from the [Model Optimizer Developer Guide](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) to learn about how to get the trained model and how to convert it to the Inference Engine format (\*.xml + \*.bin).
+
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ## Running
 
@@ -15,12 +19,12 @@ InferenceEngine:
 style_transfer_sample [OPTION]
 Options:
 
-    -h                      Print a usage message.
-    -i "<path>"             Required. Path to an .bmp image.
+    -h                      Print a usage message
+    -i "<path>"             Required. Path to a .bmp image file or a sequence of paths separated by spaces.
     -m "<path>"             Required. Path to an .xml file with a trained model.
-    -pp "<path>"            Path to a plugin folder.
-    -d "<device>"           Specify the target device to infer on; CPU, GPU, FPGA or MYRIAD is acceptable. Sample will look for a suitable plugin for device specified
-    -ni "<integer>"         Number of iterations (default 1)
+    -pp "<path>"            Path to a plugin folder
+    -d "<device>"           The target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD is acceptable. The sample looks for a suitable plugin for the device specified.
+    -ni "<integer>"         Number of iterations. Default value is 1
     -pc                     Enables per-layer performance report
     -mean_val_r,
     -mean_val_g,
@@ -30,16 +34,16 @@ Options:
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-You can do inference on an image using a trained model of NST network on Intel&reg; Processors using the following command:
+To perform inference on an image using a trained model of NST network on Intel® CPUs, use the following command:
 ```sh
 ./style_transfer_sample -i <path_to_image>/cat.bmp -m <path_to_model>/1_decoder_FP32.xml
 ```
 
-### Outputs
+## Sample Output
 
-The application outputs an styled image(s) (<code>out(1).bmp</code>) which were redrawn in style of model which used for infer.
-Style of output images depend on models which use for sample.
+The application outputs an image (`out1.bmp`) or a sequence of images (`out1.bmp`, ..., `out<N>.bmp`) which are redrawn in style of the style transfer model used for sample.
 
-## See Also 
-* [Using Inference Engine Samples](./docs/Inference_Engine_Developer_Guide/Samples_Overview.md)
-
+## See Also
+* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)

@@ -1,6 +1,7 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 ####################################
 ## All next project will use C++11
 set (CMAKE_CXX_STANDARD 11)
@@ -17,6 +18,14 @@ if(ENABLE_CLDNN)
     add_subdirectory(cldnn_engine)
 endif()
 
+if(ENABLE_VPU)
+  add_subdirectory(vpu)
+endif()
+
+if (ENABLE_GNA)
+    add_subdirectory(gna_plugin)
+endif()
+
 add_subdirectory(hetero_plugin)
 
 set(InferenceEngine_LIBRARIES inference_engine)
@@ -30,3 +39,6 @@ endfunction()
 
 add_subdirectory(extension EXCLUDE_FROM_ALL)
 add_library(IE::ie_cpu_extension ALIAS ie_cpu_extension)
+
+file(GLOB_RECURSE EXTENSION_SOURCES extension/*.cpp extension/*.hpp extension/*.h)
+add_cpplint_target(ie_cpu_extension_cpplint FOR_SOURCES ${EXTENSION_SOURCES})

@@ -17,14 +17,16 @@
 #include <assert.h>
 #include <math.h>
 
-#include "cpu_batch_normalization_utils.hpp"
 #include "c_types_map.hpp"
-#include "jit_generator.hpp"
-#include "ncsp_batch_normalization.hpp"
 #include "type_helpers.hpp"
 
-// clang6 generates incorrect code with OMP_SIMD in some particular cases
-#if (defined __clang_major__) && (__clang_major__ == 6)
+#include "cpu_batch_normalization_utils.hpp"
+#include "jit_generator.hpp"
+
+#include "ncsp_batch_normalization.hpp"
+
+// clang 6 and 7 generate incorrect code with OMP_SIMD in some particular cases
+#if (defined __clang_major__) && (__clang_major__ >= 6)
 #define SAFE_TO_USE_OMP_SIMD 0
 #else
 #define SAFE_TO_USE_OMP_SIMD 1
@@ -34,38 +36,17 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-typedef float data_t;
-ncsp_batch_normalization_fwd_t::ncsp_batch_normalization_fwd_t(const pd_t *pd,
-        const input_vector &inputs, const output_vector &outputs)
-    : cpu_primitive_t(&conf_, inputs, outputs), stats_reduction_(nullptr),
-    tmp_mean_(nullptr), tmp_variance_(nullptr), conf_(*pd) {
-    if (!conf_.stats_is_src()) {
-        this->stats_reduction_ = (data_t *)malloc(
-                conf_.C() * mkldnn_get_max_threads() * sizeof(data_t), 64);
-        if (!conf_.is_training()) {
-            this->tmp_mean_ = (data_t *)malloc(conf_.C() * sizeof(data_t), 64);
-            this->tmp_variance_
-                    = (data_t *)malloc(conf_.C() * sizeof(data_t), 64);
-        }
-    }
-}
-ncsp_batch_normalization_fwd_t::~ncsp_batch_normalization_fwd_t() {
-    if (!conf_.stats_is_src()) {
-        free(this->stats_reduction_);
-        if (!conf_.is_training()) {
-            free(this->tmp_mean_);
-            free(this->tmp_variance_);
-        }
-    }
-}
+using namespace memory_tracking::names;
 
-void ncsp_batch_normalization_fwd_t::execute_forward() {
+void ncsp_batch_normalization_fwd_t::execute_forward() const {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto dst = reinterpret_cast<data_t *>(this->memory(0));
-    const bool calculate_stats = !conf_.stats_is_src();
-    const bool save_stats = conf_.is_training();
-    const bool is_training = conf_.is_training();
-    const bool fuse_bn_relu = conf_.fuse_bn_relu();
+    auto scratchpad = this->scratchpad();
+
+    const bool calculate_stats = !pd()->stats_is_src();
+    const bool save_stats = pd()->is_training();
+    const bool is_training = pd()->is_training();
+    const bool fuse_bn_relu = pd()->fuse_bn_relu();
 
     data_t *mean, *variance;
     if (!calculate_stats) {
@@ -78,25 +59,25 @@ void ncsp_batch_normalization_fwd_t::execute_forward() {
             mean = reinterpret_cast<data_t *>(this->memory(1));
             variance = reinterpret_cast<data_t *>(this->memory(2));
         } else {
-            mean = this->tmp_mean_;
-            variance = this->tmp_variance_;
+            mean = scratchpad.get<data_t>(key_bnorm_tmp_mean);
+            variance = scratchpad.get<data_t>(key_bnorm_tmp_var);
         }
     }
-    auto idx_scale_shift = 1 + 2 * conf_.stats_is_src();
+    auto idx_scale_shift = 1 + 2 * pd()->stats_is_src();
     auto scaleshift = reinterpret_cast<const data_t *>(
             this->input_memory(idx_scale_shift));
-    auto ws = reinterpret_cast<uint8_t *>(this->memory(conf_.ws_idx()));
-    data_t *ws_reduce = this->stats_reduction_;
+    auto ws = reinterpret_cast<uint8_t *>(this->memory(pd()->ws_idx()));
+    auto *ws_reduce = scratchpad.get<data_t>(key_bnorm_reduction);
 
-    const float eps = conf_.desc()->batch_norm_epsilon;
-    const bool use_scaleshift = conf_.use_scaleshift();
-    const bool with_relu = conf_.with_relu_post_op();
+    const float eps = pd()->desc()->batch_norm_epsilon;
+    const bool use_scaleshift = pd()->use_scaleshift();
+    const bool with_relu = pd()->with_relu_post_op();
     auto maybe_post_op
             = [&](data_t res) { return (with_relu && res < 0) ? 0 : res; };
-    const bool has_spatial = utils::one_of(conf_.ndims(), 4, 5);
-    int SP = (has_spatial) ? conf_.H() * conf_.W() * conf_.D() : 1;
-    size_t N = conf_.MB();
-    size_t C = conf_.C();
+    const bool has_spatial = utils::one_of(pd()->ndims(), 4, 5);
+    int SP = (has_spatial) ? pd()->H() * pd()->W() * pd()->D() : 1;
+    size_t N = pd()->MB();
+    size_t C = pd()->C();
 
     int nthr = mkldnn_get_max_threads();
     size_t l3_size_ = get_cache_size(3, true) * nthr / 2;
@@ -124,6 +105,12 @@ void ncsp_batch_normalization_fwd_t::execute_forward() {
         int SP_N_nthr = N_nthr * S_nthr;
         for (int it = 0; it < iters; ++it) {
             if (it == iters - 1 && iters > 1) {
+                // On the last iteration the access pattern to ws_reduce
+                // might change (due to re-balance on C). So sync the
+                // threads if they are not synced by the algorithm.
+                if (SP_N_nthr == 1 && mkldnn_thr_syncable())
+                    mkldnn_thr_barrier();
+
                 S_s = S_e = C_blk_s = C_blk_e = N_s = N_e = 0;
                 spatial_thr_allowed = bnorm_utils::thread_balance(do_blocking,
                         spatial_thr_allowed, ithr, nthr, N, last_iter_blks, SP,
@@ -134,6 +121,12 @@ void ncsp_batch_normalization_fwd_t::execute_forward() {
                 SP_N_nthr = N_nthr * S_nthr;
             }
             size_t C_off = it * C_blks_per_iter;
+            // On the last iteration the access pattern to ws_reduce
+            // might change (due to re-balance on C). Since sync is not always
+            // possible (in case of TBB) use different parts of ws for each
+            // iteration if threads are not synced by the algorithm.
+            size_t ws_iter_off = (mkldnn_thr_syncable() ? 0 : 1) * C_off;
+
             if (calculate_stats) {
                 data_t *mean_blk = mean + C_off;
                 data_t *variance_blk = variance + C_off;
@@ -145,7 +138,8 @@ void ncsp_batch_normalization_fwd_t::execute_forward() {
                         for (int sp = S_s; sp < S_e; ++sp) {
                             sum += src[off + n * C * SP + sp];
                         }
-                    ws_reduce[SP_N_ithr * C_blks_per_iter + c] = sum;
+                    ws_reduce[ws_iter_off + SP_N_ithr * C_blks_per_iter + c]
+                        = sum;
                 }
 
                 if (SP_N_nthr > 1) mkldnn_thr_barrier();
@@ -153,7 +147,8 @@ void ncsp_batch_normalization_fwd_t::execute_forward() {
                 for (int c = C_blk_gl_s; c < C_blk_gl_e; c++) {
                     mean_blk[c] = 0.;
                     for (int n = 0; n < SP_N_nthr; n++)
-                        mean_blk[c] += ws_reduce[n * C_blks_per_iter + c];
+                        mean_blk[c] += ws_reduce[ws_iter_off
+                                + n * C_blks_per_iter + c];
                     mean_blk[c] /= (N * SP);
                 }
 
@@ -169,7 +164,8 @@ void ncsp_batch_normalization_fwd_t::execute_forward() {
                                     - mean[off];
                             sum += m * m;
                         }
-                    ws_reduce[SP_N_ithr * C_blks_per_iter + c] = sum;
+                    ws_reduce[ws_iter_off + SP_N_ithr * C_blks_per_iter + c]
+                        = sum;
                 }
 
                 if (SP_N_nthr > 1) mkldnn_thr_barrier();
@@ -177,7 +173,8 @@ void ncsp_batch_normalization_fwd_t::execute_forward() {
                 for (int c = C_blk_gl_s; c < C_blk_gl_e; c++) {
                     variance_blk[c] = 0.;
                     for (int n = 0; n < SP_N_nthr; n++)
-                        variance_blk[c] += ws_reduce[n * C_blks_per_iter + c];
+                        variance_blk[c] += ws_reduce[ws_iter_off
+                                + n * C_blks_per_iter + c];
                     variance_blk[c] /= (N * SP);
                 }
 
@@ -216,44 +213,30 @@ void ncsp_batch_normalization_fwd_t::execute_forward() {
     });
 }
 
-ncsp_batch_normalization_bwd_t::ncsp_batch_normalization_bwd_t(const pd_t *pd,
-        const input_vector &inputs, const output_vector &outputs)
-    : cpu_primitive_t(&conf_, inputs, outputs), conf_(*pd)
-    , stats_reduction_(nullptr), tmp_diff_scaleshift_(nullptr) {
-    this->stats_reduction_ = (data_t *)malloc(
-            conf_.C() * 2 * mkldnn_get_max_threads() * sizeof(data_t), 64);
-    if (!(conf_.use_scaleshift()
-                && conf_.desc()->prop_kind == prop_kind::backward))
-        this->tmp_diff_scaleshift_
-                = (data_t *)malloc(conf_.C() * 2 * sizeof(data_t), 64);
-}
-
-ncsp_batch_normalization_bwd_t::~ncsp_batch_normalization_bwd_t() {
-    free(this->stats_reduction_);
-    free(this->tmp_diff_scaleshift_);
-}
-
-void ncsp_batch_normalization_bwd_t::execute_backward() {
+void ncsp_batch_normalization_bwd_t::execute_backward() const {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto mean = reinterpret_cast<const data_t *>(this->input_memory(1));
     auto variance = reinterpret_cast<const data_t *>(this->input_memory(2));
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(3));
     auto scaleshift = reinterpret_cast<const data_t *>(this->input_memory(4));
     auto diff_src = reinterpret_cast<data_t *>(this->memory(0));
-    auto diff_scaleshift = (this->memory(1)) ?
-            reinterpret_cast<data_t *>(this->memory(1)) :
-            this->tmp_diff_scaleshift_;
-    auto ws = reinterpret_cast<const uint8_t *>(
-            this->input_memory(conf_.ws_idx()));
-    data_t *ws_reduce = this->stats_reduction_;
 
-    const bool has_spatial = utils::one_of(conf_.ndims(), 4, 5);
-    int SP = (has_spatial) ? conf_.H() * conf_.W() * conf_.D() : 1;
-    size_t C = conf_.C(), N = conf_.MB();
-    const bool use_scaleshift = conf_.use_scaleshift();
-    const float eps = conf_.desc()->batch_norm_epsilon;
-    const bool calculate_diff_stats = !conf_.omit_stats();
-    const bool fuse_bn_relu = conf_.fuse_bn_relu();
+    auto scratchpad = this->scratchpad();
+
+    auto diff_scaleshift = this->memory(1)
+        ? reinterpret_cast<data_t *>(this->memory(1))
+        : scratchpad.get<data_t>(key_bnorm_tmp_diff_ss);
+    auto ws = reinterpret_cast<const uint8_t *>(
+            this->input_memory(pd()->ws_idx()));
+    auto *ws_reduce = scratchpad.get<data_t>(key_bnorm_reduction);
+
+    const bool has_spatial = utils::one_of(pd()->ndims(), 4, 5);
+    int SP = (has_spatial) ? pd()->H() * pd()->W() * pd()->D() : 1;
+    size_t C = pd()->C(), N = pd()->MB();
+    const bool use_scaleshift = pd()->use_scaleshift();
+    const float eps = pd()->desc()->batch_norm_epsilon;
+    const bool calculate_diff_stats = !pd()->use_global_stats();
+    const bool fuse_bn_relu = pd()->fuse_bn_relu();
 
     int nthr = mkldnn_get_max_threads();
     size_t l3_size_ = get_cache_size(3, true) * nthr / 2;
@@ -282,6 +265,12 @@ void ncsp_batch_normalization_bwd_t::execute_backward() {
 
         for (int it = 0; it < iters; ++it) {
             if (it == iters - 1 && iters > 1) {
+                // On the last iteration the access pattern to ws_reduce
+                // might change (due to re-balance on C). So sync the
+                // threads if they are not synced by the algorithm.
+                if (SP_N_nthr == 1 && mkldnn_thr_syncable())
+                    mkldnn_thr_barrier();
+
                 C_blk_s = C_blk_e = N_s = N_e = 0;
                 spatial_thr_allowed = bnorm_utils::thread_balance(do_blocking,
                         spatial_thr_allowed, ithr, nthr, N, last_iter_blks, SP,
@@ -292,6 +281,12 @@ void ncsp_batch_normalization_bwd_t::execute_backward() {
                 SP_N_nthr = N_nthr * S_nthr;
             }
             size_t C_off = it * C_blks_per_iter;
+            // On the last iteration the access pattern to ws_reduce
+            // might change (due to re-balance on C). Since sync is not always
+            // possible (in case of TBB) use different parts of ws for each
+            // iteration if threads are not synced by the algorithm.
+            size_t ws_iter_off = (mkldnn_thr_syncable() ? 0 : 1) * 2 * C_off;
+
             data_t *diff_gamma_blk = diff_scaleshift + C_off;
             data_t *diff_beta_blk = diff_scaleshift + C + C_off;
             for (int c = C_blk_s; c < C_blk_e; c++) {
@@ -310,10 +305,10 @@ void ncsp_batch_normalization_bwd_t::execute_backward() {
                         diff_gamma += (src[d_off] - v_mean) * dd;
                         diff_beta += dd;
                     }
-                ws_reduce[SP_N_ithr * C_blks_per_iter + c] = diff_gamma;
-                ws_reduce[SP_N_nthr * C_blks_per_iter + SP_N_ithr * C_blks_per_iter
-                        + c]
-                        = diff_beta;
+                ws_reduce[ws_iter_off + SP_N_ithr * C_blks_per_iter + c]
+                    = diff_gamma;
+                ws_reduce[ws_iter_off + SP_N_nthr * C_blks_per_iter
+                        + SP_N_ithr * C_blks_per_iter + c] = diff_beta;
             }
 
             if (SP_N_nthr > 1) mkldnn_thr_barrier();
@@ -324,9 +319,11 @@ void ncsp_batch_normalization_bwd_t::execute_backward() {
                 diff_gamma_blk[c] = 0.;
                 diff_beta_blk[c] = 0.;
                 for (int n = 0; n < SP_N_nthr; n++) {
-                    diff_gamma_blk[c] += ws_reduce[n * C_blks_per_iter + c];
-                    diff_beta_blk[c] += ws_reduce[SP_N_nthr * C_blks_per_iter
+                    diff_gamma_blk[c] += ws_reduce[ws_iter_off
                             + n * C_blks_per_iter + c];
+                    diff_beta_blk[c] += ws_reduce[ws_iter_off
+                            + SP_N_nthr * C_blks_per_iter + n * C_blks_per_iter
+                            + c];
                 }
                 diff_gamma_blk[c] *= sqrt_variance;
             }

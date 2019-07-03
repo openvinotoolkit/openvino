@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2018 Intel Corporation
+ Copyright (c) 2017-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,29 +14,27 @@
  limitations under the License.
 """
 
-import logging as log
-
-import networkx as nx
 import numpy as np
 
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-from mo.utils.utils import refer_to_faq_msg
 
 
 class ConstantFill(Op):
-    ''' Constant blob generation by broadcasting specified value to a given shape.
+    """ Constant blob generation by broadcasting specified value to a given shape.
 
         It is assumed that there is no equivalent of this op in IE,
         so it is usually relevant to constant folding.
-    '''
+    """
     op = 'ConstantFill'
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': None, # do not set type as there is no IE equivalent
+            'type': __class__.op,
             'op': __class__.op,
             'input_as_shape': 1,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
             'infer': __class__.infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -57,4 +55,4 @@ class ConstantFill(Op):
         assert shape is not None
 
         node.out_node(0).value = np.full(shape, node.fill_value, np.float32)
-        node.out_node(0).shape = node.out_node(0).value.shape
+        node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)

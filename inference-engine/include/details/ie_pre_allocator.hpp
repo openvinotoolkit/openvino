@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +36,8 @@ class PreAllocator : public IAllocator {
     }
     /**
      * @brief The PreAllocator class does not utilize this function
-     * @param handle Memory handle to unlock
      */
-    void  unlock(void * handle) noexcept override {}
+    void  unlock(void *) noexcept override {}  // NOLINT
 
     /**
      * @brief Returns a pointer to preallocated memory
@@ -55,10 +53,11 @@ class PreAllocator : public IAllocator {
     }
     /**
      * @brief The PreAllocator class cannot release the handle
-     * @param handle Memory handle to release
      * @return false
      */
-    bool   free(void* handle) noexcept override { return false;}
+    bool   free(void *) noexcept override {  // NOLINT
+        return false;
+    }
 
     /**
      * @brief Deletes current allocator. 

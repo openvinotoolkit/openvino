@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
@@ -24,19 +23,25 @@ class DetectionOutput(Op):
     op = 'DetectionOutput'
     enabled = True
 
-    def __init__(self, graph: nx.MultiDiGraph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': __class__.op,
             'op': __class__.op,
+            'in_ports_count': 3,
+            'out_ports_count': 1,
             'infer': multi_box_detection_infer,
+            'input_width': 1,
+            'input_height': 1,
+            'normalized': 1,
             'share_location': 1,
-            'variance_encoded_in_target': 0
+            'variance_encoded_in_target': 0,
         }, attrs)
 
     def supported_attrs(self):
         return [
             'background_label_id',
-            'clip',
+            'clip_after_nms',
+            'clip_before_nms',
             'code_type',
             'confidence_threshold',
             'eta',
@@ -67,4 +72,5 @@ class DetectionOutput(Op):
             'visualize_threshold',
             'width',
             'width_scale',
+            'objectness_score',
         ]

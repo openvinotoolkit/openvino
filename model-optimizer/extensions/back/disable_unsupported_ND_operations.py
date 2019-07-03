@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (c) 2018-2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import networkx as nx
 
 from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 
 
@@ -25,11 +25,11 @@ class DisableUnsupportedNDOperations(BackReplacementPattern):
     """
         This pass disables ND Convolutions/Deconvolutions/Poolings
     """
-    enabled = True
+    enabled = False
 
     unsupported_operations = ['Convolution', 'Deconvolution', 'Pooling']
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
+    def find_and_replace_pattern(self, graph: Graph):
         unsupported_nodes = []
         for node in graph.nodes():
             node = Node(graph, node)

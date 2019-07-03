@@ -1,5 +1,4 @@
-// Copyright (C) 2018 Intel Corporation
-//
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +12,7 @@
 #include <memory>
 #include <utility>
 #include <list>
+#include <limits>
 #include "details/ie_cnn_network_tools.h"
 #include "details/caseless.hpp"
 
@@ -33,12 +33,15 @@ CNNLayerPtr Int8Calibrator::addScaleShiftBeforeLayer(std::string name, CNNLayer:
     params.type = "ScaleShift";
     CNNLayerPtr lptr = std::make_shared<ScaleShiftLayer>(params);
     ScaleShiftLayer *pScaleShift = dynamic_cast<ScaleShiftLayer *>(lptr.get());
+    if (pScaleShift == nullptr) {
+        THROW_IE_EXCEPTION << "Layer " << lptr->name << " is not instance of ScaleShiftLayer class";
+    }
 
     SizeVector wdims({ pData->dims[2] });
 
     if (scale.size() == 1) {
         scale.resize(wdims[0]);
-        for (int i = 1; i < wdims[0]; i++) {
+        for (size_t i = 1; i < wdims[0]; i++) {
             scale[i] = scale[0];
         }
     }
@@ -54,7 +57,7 @@ CNNLayerPtr Int8Calibrator::addScaleShiftBeforeLayer(std::string name, CNNLayer:
     if (buffer == nullptr) {
         THROW_IE_EXCEPTION << "Could not allocate weights buffer";
     }
-    for (size_t i = 0, idx = 0; i < pData->dims[2]; i++) {
+    for (size_t i = 0; i < pData->dims[2]; i++) {
         buffer[i] = scale[i];
     }
     pScaleShift->_weights = weights;
@@ -65,7 +68,7 @@ CNNLayerPtr Int8Calibrator::addScaleShiftBeforeLayer(std::string name, CNNLayer:
     biases = make_shared_blob<float>(Precision::FP32, Layout::C, bdims);
     biases->allocate();
     buffer = biases->buffer().as<float *>();
-    for (size_t i = 0, idx = 0; i < pData->dims[2]; i++) {
+    for (size_t i = 0; i < pData->dims[2]; i++) {
         buffer[i] = 0.f;
     }
     pScaleShift->_biases = biases;
@@ -94,11 +97,14 @@ CNNLayerPtr Int8Calibrator::addScaleShiftBeforeLayer(std::string name, CNNLayer:
 
 
 float Int8Calibrator::compare_NRMSD(InferenceEngine::Blob::Ptr res, InferenceEngine::Blob::Ptr ref) {
-    float *res_ptr = res->buffer().as<float *>();
-    size_t res_size = res->size();
+    auto *res_ptr = res->buffer().as<float *>();
 
-    float *ref_ptr = ref->buffer().as<float *>();
+    auto *ref_ptr = ref->buffer().as<float *>();
+
     size_t ref_size = ref->size();
+    if (ref_size == 0) {
+        throw std::logic_error("ref_size can't be equal to zero");
+    }
 
     float sum = 0;
 
@@ -112,9 +118,10 @@ float Int8Calibrator::compare_NRMSD(InferenceEngine::Blob::Ptr res, InferenceEng
         mmin = std::min(mmin, ref_ptr[i]);
         mmax = std::max(mmax, ref_ptr[i]);
     }
+
     sum /= ref_size;
 
-    sum = pow(sum, 0.5);
+    sum = pow(sum, 0.5f);
 
     sum /= mmax - mmin;
 
@@ -150,17 +157,22 @@ void Int8Calibrator::collectFP32Statistic() {
     networkReaderC = InferenceEngine::CNNNetReader();
     networkReaderC.ReadNetwork(_modelFileNameI8C);
     if (!networkReaderC.isParseSuccess()) THROW_IE_EXCEPTION << "cannot load a failed Model";
+    /** Extract model name and load weights **/
+    std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
+    networkReaderC.ReadWeights(binFileName.c_str());
     if (_cBatch == 0) {
         // Zero means "take batch value from the IR"
         _cBatch = networkReaderC.getNetwork().getBatchSize();
     } else {
         // Not zero means "use the specified value"
-        networkReaderC.getNetwork().setBatchSize(_cBatch);
+        auto input_shapes = networkReaderC.getNetwork().getInputShapes();
+        std::string input_name;
+        SizeVector input_shape;
+        std::tie(input_name, input_shape) = *input_shapes.begin();
+        input_shape[0] = _cBatch;
+        input_shapes[input_name] = input_shape;
+        networkReaderC.getNetwork().reshape(input_shapes);
     }
-
-    /** Extract model name and load weights **/
-    std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
-    networkReaderC.ReadWeights(binFileName.c_str());
 
     auto network = networkReaderC.getNetwork();
 
@@ -191,10 +203,12 @@ void Int8Calibrator::collectFP32Statistic() {
     // 1. add all layers as output one
     for (auto &&layer : network) {
         std::string layerType = network.getLayerByName(layer->name.c_str())->type;
-        if (/*layerType != "Split" &&*/layerType != "Input") {
-            network.addOutput(layer->name);
+        if (layerType != "Const") {
+            if (/*layerType != "Split" &&*/layerType != "Input") {
+                network.addOutput(layer->name);
+            }
+            _statData.registerLayer(layer->name);
         }
-        _statData.registerLayer(layer->name);
     }
 
     ExecutableNetwork executable_network = _pluginI8C.LoadNetwork(network, { { CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES) } });
@@ -202,23 +216,29 @@ void Int8Calibrator::collectFP32Statistic() {
 }
 
 void Int8Calibrator::validateInt8Config(const InferenceEngine::NetworkStatsMap &stat,
-                                        const std::map<std::string, bool> &layersToInt8) {
+                                        const std::map<std::string, bool> &layersToInt8,
+                                        bool convertFullyConnected) {
     _collectByLayer = false;
     _collectStatistic = false;
     networkReaderC = InferenceEngine::CNNNetReader();
     networkReaderC.ReadNetwork(_modelFileNameI8C);
     if (!networkReaderC.isParseSuccess()) THROW_IE_EXCEPTION << "cannot load a failed Model";
+    /** Extract model name and load weights **/
+    std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
+    networkReaderC.ReadWeights(binFileName.c_str());
     if (_cBatch == 0) {
         // Zero means "take batch value from the IR"
         _cBatch = networkReaderC.getNetwork().getBatchSize();
     } else {
         // Not zero means "use the specified value"
-        networkReaderC.getNetwork().setBatchSize(_cBatch);
+        auto input_shapes = networkReaderC.getNetwork().getInputShapes();
+        std::string input_name;
+        SizeVector input_shape;
+        std::tie(input_name, input_shape) = *input_shapes.begin();
+        input_shape[0] = _cBatch;
+        input_shapes[input_name] = input_shape;
+        networkReaderC.getNetwork().reshape(input_shapes);
     }
-
-    /** Extract model name and load weights **/
-    std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
-    networkReaderC.ReadWeights(binFileName.c_str());
 
     // Initialize statistic
     ICNNNetworkStats *pstats = nullptr;
@@ -228,6 +248,13 @@ void Int8Calibrator::validateInt8Config(const InferenceEngine::NetworkStatsMap &
     }
 
     auto network = networkReaderC.getNetwork();
+
+    for (auto l : network) {
+        if (l->type == "FullyConnected") {
+            l->params["quantization_level"] = (convertFullyConnected == false) ? "FP32" : "I8";
+        }
+    }
+
     for (auto l : layersToInt8) {
         network.getLayerByName(l.first.c_str())->
             params["quantization_level"] = (l.second == false) ? "FP32" : "I8";
@@ -237,90 +264,100 @@ void Int8Calibrator::validateInt8Config(const InferenceEngine::NetworkStatsMap &
     _inferRequestI8C = executable_network.CreateInferRequest();
 }
 
-CNNNetwork Int8Calibrator::createICNNNetworkForLayer(CNNLayer::Ptr layerToClone) {
+CNNNetwork Int8Calibrator::createICNNNetworkForLayer(CNNLayer::Ptr layerToClone, bool hasReLU) {
     CNNLayer::Ptr layerRelU = layerToClone->outData[0]->inputTo.begin()->second;
 
     InferenceEngine::CNNNetReader reader1;
-    std::string inpuitName = layerToClone->insData[0].lock()->name;
-    std::string model = "<net name=\"L\" version=\"2\" batch=\"1\"><layers> "        \
+    DataPtr inputData = layerToClone->insData[0].lock();
+    std::string inputName = inputData->name;
+
+    size_t inputBatch = inputData->getTensorDesc().getDims()[0];
+    size_t inputChannels = inputData->getTensorDesc().getDims()[1];
+    size_t inputHeight = inputData->getTensorDesc().getDims()[2];
+    size_t inputWidth = inputData->getTensorDesc().getDims()[3];
+
+    DataPtr outputData = layerToClone->outData[0];
+    size_t outputBatch = outputData->getTensorDesc().getDims()[0];
+    size_t outputChannels = outputData->getTensorDesc().getDims()[1];
+    size_t outputHeight = outputData->getTensorDesc().getDims()[2];
+    size_t outputWidth = outputData->getTensorDesc().getDims()[3];
+
+    ConvolutionLayer *pConvS = dynamic_cast<ConvolutionLayer *>(layerToClone.get());
+    if (pConvS == nullptr) {
+        THROW_IE_EXCEPTION << "Layer " << layerToClone->name << " is not instance of ConvolutionLayer class";
+    }
+
+    std::string model = "<net name=\"L\" version=\"2\" batch=\"1\"><layers> "\
         "<layer name=\"" +
-        inpuitName +
+        inputName +
         "\" type=\"Input\" precision=\"FP32\" id=\"0\"> "\
         "<output>"\
         "<port id=\"0\">"\
-        "<dim>1</dim>"\
-        "<dim>3</dim>"\
-        "<dim>224</dim>"\
-        "<dim>224</dim>"\
+        "<dim>" + std::to_string(inputBatch) + "</dim>"\
+        "<dim>" + std::to_string(inputChannels) + "</dim>"\
+        "<dim>" + std::to_string(inputHeight) + "</dim>"\
+        "<dim>" + std::to_string(inputWidth) + "</dim>"\
         "</port>"\
         "</output>"\
-        "</layer>" \
+        "</layer>"\
         "<layer name=\"" +
         layerToClone->name +
-        "\" type=\"Convolution\" precision=\"FP32\" id=\"1\">" \
-        "<convolution_data stride-x=\"2\" stride-y=\"2\" pad-x=\"3\" pad-y=\"3\" kernel-x=\"7\" kernel-y=\"7\" output=\"64\" group=\"1\" />"\
+        "\" type=\"Convolution\" precision=\"FP32\" id=\"1\">"\
+        "<convolution_data stride-x=\"" + std::to_string(pConvS->_stride_x) +
+        "\" stride-y=\"" + std::to_string(pConvS->_stride_y) +
+        "\" pad-x=\"" + std::to_string(pConvS->_padding_x) +
+        "\" pad-y=\"" + std::to_string(pConvS->_padding_y) +
+        "\" kernel-x=\"" + std::to_string(pConvS->_kernel_x) +
+        "\" kernel-y=\"" + std::to_string(pConvS->_kernel_y) +
+        "\" dilation-x=\"" + std::to_string(pConvS->_dilation_x) +
+        "\" dilation-y=\"" + std::to_string(pConvS->_dilation_y) +
+        "\" output=\"" + std::to_string(pConvS->_out_depth) +
+        "\" group=\"" + std::to_string(pConvS->_group) + "\" />"\
         "<input>"\
         "<port id=\"1\">"\
-        "<dim>1</dim>"\
-        "<dim>3</dim>"\
-        "<dim>224</dim>"\
-        "<dim>224</dim>"\
+        "<dim>" + std::to_string(inputBatch) + "</dim>"\
+        "<dim>" + std::to_string(inputChannels) + "</dim>"\
+        "<dim>" + std::to_string(inputHeight) + "</dim>"\
+        "<dim>" + std::to_string(inputWidth) + "</dim>"\
         "</port>"\
         "</input>"\
         "<output>"\
         "<port id=\"2\">"\
-        "<dim>1</dim>"\
-        "<dim>64</dim>"\
-        "<dim>112</dim>"\
-        "<dim>112</dim>"\
+        "<dim>" + std::to_string(outputBatch) + "</dim>"\
+        "<dim>" + std::to_string(outputChannels) + "</dim>"\
+        "<dim>" + std::to_string(outputHeight) + "</dim>"\
+        "<dim>" + std::to_string(outputWidth) + "</dim>"\
         "</port>"\
         "</output>"\
-        "</layer>"\
-        "<layer name=\"" +
-        layerRelU->name +
-        "\" type=\"ReLU\" precision=\"FP32\" id=\"2\">"\
-        "<input>"
-        "<port id=\"3\">"\
-        "<dim>1</dim>"\
-        "<dim>64</dim>"\
-        "<dim>112</dim>"\
-        "<dim>112</dim>"\
-        "</port>"\
-        "</input>"\
-        "<output>"\
-        "<port id=\"4\">"\
-        "<dim>1</dim>"\
-        "<dim>64</dim>"\
-        "<dim>112</dim>"\
-        "<dim>112</dim>"\
-        "</port>"\
-        "</output>"\
-        "</layer>"\
-        "<layer name=\"" +
-        layerToClone->name +
-        "_\" type=\"ScaleShift\" precision=\"FP32\" id=\"3\">"\
-        "<input>"
-        "<port id=\"5\">"\
-        "<dim>1</dim>"\
-        "<dim>64</dim>"\
-        "<dim>112</dim>"\
-        "<dim>112</dim>"\
-        "</port>"\
-        "</input>"\
-        "<output>"\
-        "<port id=\"6\">"\
-        "<dim>1</dim>"\
-        "<dim>64</dim>"\
-        "<dim>112</dim>"\
-        "<dim>112</dim>"\
-        "</port>"\
-        "</output>"\
-        "</layer>"\
-        "</layers> <edges>"\
-        "<edge from-layer=\"0\" from-port=\"0\" to-layer=\"1\" to-port=\"1\"/> "\
-        "<edge from-layer=\"1\" from-port=\"2\" to-layer=\"2\" to-port=\"3\"/> "\
-        "<edge from-layer=\"2\" from-port=\"4\" to-layer=\"3\" to-port=\"5\"/> "\
-        "</edges></net>";
+        "</layer>";
+    if (hasReLU) {
+        model += "<layer name=\"" +
+            layerRelU->name +
+            "\" type=\"ReLU\" precision=\"FP32\" id=\"2\">"\
+            "<input>"
+            "<port id=\"3\">"\
+            "<dim>" + std::to_string(outputBatch) + "</dim>"\
+            "<dim>" + std::to_string(outputChannels) + "</dim>"\
+            "<dim>" + std::to_string(outputHeight) + "</dim>"\
+            "<dim>" + std::to_string(outputWidth) + "</dim>"\
+            "</port>"\
+            "</input>"\
+            "<output>"\
+            "<port id=\"4\">"\
+            "<dim>" + std::to_string(outputBatch) + "</dim>"\
+            "<dim>" + std::to_string(outputChannels) + "</dim>"\
+            "<dim>" + std::to_string(outputHeight) + "</dim>"\
+            "<dim>" + std::to_string(outputWidth) + "</dim>"\
+            "</port>"\
+            "</output>"\
+            "</layer>";
+    }
+    model += "</layers> <edges>"\
+        "<edge from-layer=\"0\" from-port=\"0\" to-layer=\"1\" to-port=\"1\"/> ";
+    if (hasReLU) {
+        model += "<edge from-layer=\"1\" from-port=\"2\" to-layer=\"2\" to-port=\"3\"/> ";
+    }
+    model += "</edges></net>";
 
     reader1.ReadNetwork(model.c_str(), model.length());
     ICNNNetwork &n = reader1.getNetwork();
@@ -331,106 +368,14 @@ CNNNetwork Int8Calibrator::createICNNNetworkForLayer(CNNLayer::Ptr layerToClone)
 
     CNNLayerPtr convLayer;
     n.getLayerByName(layerToClone->name.c_str(), convLayer, nullptr);
-    ConvolutionLayer *pConvS = dynamic_cast<ConvolutionLayer *>(layerToClone.get());
     ConvolutionLayer *pConvT = dynamic_cast<ConvolutionLayer *>(convLayer.get());
-    pConvT->_kernel_x = pConvS->_kernel_x;
-    pConvT->_kernel_y = pConvS->_kernel_y;
-    pConvT->_stride_x = pConvS->_stride_x;
-    pConvT->_stride_y = pConvS->_stride_y;
-    pConvT->_out_depth = pConvS->_out_depth;
-    pConvT->_padding_x = pConvS->_padding_x;
-    pConvT->_padding_y = pConvS->_padding_y;
-    pConvT->_dilation_x = pConvS->_dilation_x;
-    pConvT->_dilation_y = pConvS->_dilation_y;
-    pConvT->_group = pConvS->_group;
+    if (pConvT == nullptr) {
+        THROW_IE_EXCEPTION << "Layer " << convLayer->name << " is not instance of ConvolutionLayer class";
+    }
+
     pConvT->_weights = pConvS->_weights;
     pConvT->_biases = pConvS->_biases;
     pConvT->blobs = pConvS->blobs;
-
-    std::shared_ptr<Data> cur = layerToClone->insData[0].lock();
-    if (cur == nullptr) {
-        THROW_IE_EXCEPTION << "[Samples] shared ptr layerToClone->insData[0].lock() return nullptr";
-    }
-    DataPtr inputEdge = std::make_shared<Data>(*cur.get());
-
-    inputEdge->getInputTo().clear();
-    inputEdge->name = inpuitName;
-    inputEdge->creatorLayer = inputLayer;
-    inputEdge->inputTo[layerToClone->name] = convLayer;
-    inputEdge->getInputTo().clear();
-    inputEdge->inputTo[layerToClone->name] = convLayer;
-
-    inputs.begin()->second->setInputData(inputEdge);
-
-    convLayer->insData.clear();
-    convLayer->insData.push_back(inputEdge);
-
-    inputLayer->outData.clear();
-    inputLayer->outData.push_back(inputEdge);
-
-    DataPtr convEdge = std::make_shared<Data>(*layerToClone->outData[0].get());
-    convEdge->getInputTo().clear();
-    convEdge->creatorLayer = convLayer;
-    convEdge->name = convLayer->name;
-    convLayer->outData.clear();
-    convLayer->outData.push_back(convEdge);
-
-    CNNLayerPtr reluLayer;
-    n.getLayerByName(layerRelU->name.c_str(), reluLayer, nullptr);
-    DataPtr reluEdge = std::make_shared<Data>(*layerRelU->outData[0].get());
-    reluEdge->getInputTo().clear();
-    reluEdge->creatorLayer = reluLayer;
-    reluEdge->name = reluLayer->name;
-    reluLayer->insData.clear();
-    reluLayer->insData.push_back(convEdge);
-    reluLayer->outData.clear();
-    reluLayer->outData.push_back(reluEdge);
-
-    convEdge->inputTo[reluLayer->name] = reluLayer;
-
-    CNNLayerPtr ssLayer;
-    std::string ssLayerName = convLayer->name + "_";
-    n.getLayerByName(ssLayerName.c_str(), ssLayer, nullptr);
-    DataPtr ssEdge = std::make_shared<Data>(*layerRelU->outData[0].get());
-    ssEdge->getInputTo().clear();
-    ssEdge->creatorLayer = ssLayer;
-    ssEdge->name = ssLayer->name;
-    ssLayer->insData.clear();
-    ssLayer->insData.push_back(reluEdge);
-    ssLayer->outData.clear();
-    ssLayer->outData.push_back(ssEdge);
-
-    reluEdge->inputTo[ssLayer->name] = ssLayer;
-
-    n.addOutput(ssLayer->name);
-
-    // filling weights and biases
-    size_t channels = ssEdge->getTensorDesc().getDims()[1];
-    Blob::Ptr weights = nullptr;
-    SizeVector wdims;
-    wdims.push_back(channels);
-    weights = make_shared_blob<float, const SizeVector>(Precision::FP32, Layout::C, wdims);
-    weights->allocate();
-    float *dataw = weights->buffer().as<float *>();
-    for (size_t i = 0; i < channels; i++) {
-        dataw[i] = 1.0f;
-    }
-    ssLayer->blobs["weights"] = weights;
-
-    Blob::Ptr biases = nullptr;
-    SizeVector bdims;
-    bdims.push_back(channels);
-    biases = make_shared_blob<float, const SizeVector>(Precision::FP32, Layout::C, bdims);
-    biases->allocate();
-    float *datab = biases->buffer().as<float *>();
-    for (size_t i = 0; i < channels; i++) {
-        datab[i] = 0.0f;
-    }
-    ssLayer->blobs["biases"] = biases;
-
-    auto wss = dynamic_cast<WeightableLayer*>(ssLayer.get());
-    wss->_weights = weights;
-    wss->_biases = biases;
 
     return reader1.getNetwork();
 }
@@ -441,19 +386,24 @@ void Int8Calibrator::collectByLayerStatistic(const InferenceEngine::NetworkStats
     networkReaderC = InferenceEngine::CNNNetReader();
     networkReaderC.ReadNetwork(_modelFileNameI8C);
     if (!networkReaderC.isParseSuccess()) THROW_IE_EXCEPTION << "cannot load a failed Model";
-    if (_cBatch != 0) {
-        networkReaderC.getNetwork().setBatchSize(_cBatch);
-    }
-
     /** Extract model name and load weights **/
     std::string binFileName = fileNameNoExt(_modelFileNameI8C) + ".bin";
     networkReaderC.ReadWeights(binFileName.c_str());
+    if (_cBatch != 0) {
+        auto input_shapes = networkReaderC.getNetwork().getInputShapes();
+        std::string input_name;
+        SizeVector input_shape;
+        std::tie(input_name, input_shape) = *input_shapes.begin();
+        input_shape[0] = _cBatch;
+        input_shapes[input_name] = input_shape;
+        networkReaderC.getNetwork().reshape(input_shapes);
+    }
 
     auto network = networkReaderC.getNetwork();
     // 1. add all layers as output one
     for (auto &&layer : network) {
         std::string layerType = network.getLayerByName(layer->name.c_str())->type;
-        if (/*layerType != "Split" &&*/layerType != "Input") {
+        if (/*layerType != "Split" &&*/layerType != "Input" && layerType != "Const") {
             network.addOutput(layer->name);
         }
 
@@ -473,50 +423,51 @@ void Int8Calibrator::collectByLayerStatistic(const InferenceEngine::NetworkStats
         // currently it is only supported
 
         // if only one output from conv and if it is an output to relu
-        bool quattization = false;
-        if (layerToClone->outData.size() == 1 && layerToClone->outData[0]->inputTo.size() == 1) {
+        if (layerToClone->outData.size() == 1
+            && layerToClone->outData[0]->inputTo.size() == 1
+            && CaselessEq<std::string>()(layerToClone->outData[0]->inputTo.begin()->second->name, "relu")) {
             layerRelU = layerToClone->outData[0]->inputTo.begin()->second;
-            if (layerRelU->type == "ReLU") {
-                quattization = true;
-            }
         }
 
-        if (quattization) {
-            CNNNetwork n = createICNNNetworkForLayer(layerToClone);
-            if (_cBatch != 0) {
-                n.setBatchSize(_cBatch);
-            }
-
-            // Initialize statistic
-            ICNNNetworkStats *pstats = nullptr;
-            ICNNNetwork &in = n;
-            StatusCode s = in.getStats(&pstats, nullptr);
-            if (s == StatusCode::OK && pstats) {
-                pstats->setNodesStats(stat);
-            }
-
-            InferenceEngine::InputsDataMap inputs = n.getInputsInfo();
-            DataPtr q = inputs.begin()->second->getInputData();
-
-            ExecutableNetwork enetwork = _pluginI8C.LoadNetwork(n, { { CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES) } });
-            _singleLayerNetworks.push_back(enetwork);
-            InferenceEngine::InferRequest request = enetwork.CreateInferRequest();
-            std::string inpuitName = layerToClone->insData[0].lock()->name;
-            request.SetBlob(inpuitName, _inferRequestI8C.GetBlob(inpuitName));
-            _singleLayerRequests[layerToClone->name] = { request, layerRelU->name, layerToClone->name };
+        CNNNetwork n = createICNNNetworkForLayer(layerToClone, layerRelU ? true : false);
+        if (_cBatch != 0) {
+            auto input_shapes = n.getInputShapes();
+            std::string input_name;
+            SizeVector input_shape;
+            std::tie(input_name, input_shape) = *input_shapes.begin();
+            input_shape[0] = _cBatch;
+            input_shapes[input_name] = input_shape;
+            n.reshape(input_shapes);
         }
+
+        // Initialize statistic
+        ICNNNetworkStats *pstats = nullptr;
+        ICNNNetwork &in = n;
+        StatusCode s = in.getStats(&pstats, nullptr);
+        if (s == StatusCode::OK && pstats) {
+            pstats->setNodesStats(stat);
+        }
+
+        InferenceEngine::InputsDataMap inputs = n.getInputsInfo();
+        DataPtr q = inputs.begin()->second->getInputData();
+
+        ExecutableNetwork enetwork = _pluginI8C.LoadNetwork(n, { { CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES) } });
+        _singleLayerNetworks.push_back(enetwork);
+        InferenceEngine::InferRequest request = enetwork.CreateInferRequest();
+        std::string inputName = layerToClone->insData[0].lock()->name;
+        request.SetBlob(inputName, _inferRequestI8C.GetBlob(inputName));
+        _singleLayerRequests[layerToClone->name] = { request, layerRelU ? layerRelU->name : layerToClone->name, layerToClone->name };
     }
 }
 
 
-void Int8Calibrator::collectCalibrationStatistic() {
+void Int8Calibrator::collectCalibrationStatistic(size_t pics) {
     if (_collectByLayer) {
         std::map<std::string, SingleLayerData>::iterator it = _singleLayerRequests.begin();
         while (it != _singleLayerRequests.end()) {
             it->second._request.Infer();
             Blob::Ptr expected = _inferRequestI8C.GetBlob(it->second._outputName);
-            std::string i8Out = it->second._outputI8Name + "_";
-            Blob::Ptr result = it->second._request.GetBlob(i8Out.c_str());
+            Blob::Ptr result = it->second._request.GetBlob(it->second._outputName);
             float diff = compare_NRMSD(result, expected);
             it->second._int8Accuracy.push_back(diff);
             it++;
@@ -531,15 +482,14 @@ void Int8Calibrator::collectCalibrationStatistic() {
                 outName = _inputsFromLayers[l];
             }
 
-            size_t N, C, statCount;
+            size_t N, C;
             if (outBlob->dims().size() == 4 && outBlob->layout() == Layout::NCHW) {
-                N = outBlob->dims()[3];
+                // TODO(amalyshe) cahnge to using of tensor desc
+                N = pics;
                 C = outBlob->dims()[2];
-                statCount = C;
             } else if (outBlob->dims().size() == 2 && outBlob->layout() == Layout::NC) {
-                N = outBlob->dims()[1];
+                N = pics;
                 C = outBlob->dims()[0];
-                statCount = 1;
             } else {
                 continue;
             }
@@ -627,26 +577,36 @@ ClassificationCalibrator::ClassificationCalibrator(int nPictures, const std::str
     _cBatch = flags_b;
 }
 
-shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process() {
+shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process(bool stream_output) {
     inferRequest = _inferRequestI8C;
     int top1Result = 0, total = 0;
 
     ClassificationSetGenerator generator;
 
+    try {
+        generator.readLabels(labelFileName);
+    } catch (InferenceEngine::details::InferenceEngineException& ex) {
+        slog::warn << "Can't read labels file " << labelFileName << slog::endl;
+        slog::warn << "Error: " << ex.what() << slog::endl;
+    }
     auto validationMap = generator.getValidationMap(imagesPath);
+
+    if (validationMap.empty()) {
+        THROW_IE_EXCEPTION << "The validation dataset in " << imagesPath << "is empty. Check the dataset file or folder and the labels file";
+    }
+
     ImageDecoder decoder;
 
     // ----------------------------Do inference-------------------------------------------------------------
     std::vector<int> expected(batch);
     std::vector<std::string> files(batch);
-    int captured = 0;
 
     if (!_nPictures) {
         _nPictures = validationMap.size();
     }
 
 
-    ConsoleProgress progress(_nPictures);
+    ConsoleProgress progress(_nPictures, stream_output);
 
     CalibrationMetrics im;
 
@@ -658,7 +618,7 @@ shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process() {
     size_t ipics = 0;
     auto iter = validationMap.begin();
     while (iter != validationMap.end() && ipics < _nPictures) {
-        int b = 0;
+        size_t b = 0;
         int filesWatched = 0;
         for (; b < batch && iter != validationMap.end() && ipics + b < _nPictures ; b++, iter++, filesWatched++) {
             expected[b] = iter->first;
@@ -667,6 +627,7 @@ shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process() {
                 files[b] = iter->second;
             } catch (const InferenceEngineException &iex) {
                 slog::warn << "Can't read file " << iter->second << slog::endl;
+                slog::warn << "Error: " << iex.what() << slog::endl;
                 // Could be some non-image file in directory
                 b--;
                 continue;
@@ -675,16 +636,14 @@ shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process() {
         ipics += batch;
 
         Infer(progress, filesWatched, im);
-        collectCalibrationStatistic();
+        collectCalibrationStatistic(b);
 
         std::vector<unsigned> results;
-        auto firstOutputData = firstOutputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
         InferenceEngine::TopResults(1, *firstOutputBlob, results);
-
-        for (int i = 0; i < b; i++) {
+        for (size_t i = 0; i < b; i++) {
             int expc = expected[i];
             if (zeroBackground) expc++;
-            bool top1Scored = (results[i] == expc);
+            bool top1Scored = (static_cast<int>(results[i]) == expc);
             if (top1Scored) top1Result++;
             total++;
         }
@@ -692,6 +651,10 @@ shared_ptr<Processor::InferenceMetrics> ClassificationCalibrator::Process() {
     progress.finish();
 
     calculateLayersAccuracyDrop();
+
+    if (total == 0) {
+        throw std::logic_error("total can't be equal to zero");
+    }
 
     im.AccuracyResult = static_cast<float>(top1Result) / static_cast<float>(total);
 
@@ -712,14 +675,16 @@ SSDObjectDetectionCalibrator::SSDObjectDetectionCalibrator(int nPictures, const 
     _modelFileNameI8C = modelFileName;
     _pluginI8C = plugin;
     _nPictures = nPictures;
+    _cBatch = flags_b;
 }
 
-shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process() {
+shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process(bool stream_output) {
     inferRequest = _inferRequestI8C;
 
     // Parsing PASCAL VOC2012 format
     VOCAnnotationParser vocAnnParser;
     VOCAnnotationCollector annCollector(annotationsPath);
+
 
     if (annCollector.annotations().size() == 0) {
         ObjectDetectionInferenceMetrics emptyIM(this->threshold);
@@ -733,18 +698,13 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process() 
     for (auto &ann : annCollector.annotations()) {
         std::list<DetectedObject> dobList;
         for (auto &obj : ann.objects) {
-            DetectedObject dob(classes[obj.name], obj.bndbox.xmin, obj.bndbox.ymin, obj.bndbox.xmax, obj.bndbox.ymax, 1.0, obj.difficult != 0);
+            DetectedObject dob(classes[obj.name], static_cast<float>(obj.bndbox.xmin), static_cast<float>(obj.bndbox.ymin),
+                               static_cast<float>(obj.bndbox.xmax), static_cast<float>(obj.bndbox.ymax), 1.0f, obj.difficult != 0);
             dobList.push_back(dob);
         }
         ImageDescription id(dobList);
         desiredForFiles.insert(std::pair<std::string, ImageDescription>(ann.folder + "/" + (!subdir.empty() ? subdir + "/" : "") + ann.filename, id));
     }
-
-
-    ImageDecoder decoder;
-
-    const int maxProposalCount = outputDims[1];
-    const int objectSize = outputDims[0];
 
     for (auto &item : outInfo) {
         DataPtr outputData = item.second;
@@ -762,7 +722,7 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process() 
         _nPictures = annCollector.annotations().size();
     }
 
-    ConsoleProgress progress(_nPictures);
+    ConsoleProgress progress(_nPictures, stream_output);
 
     ObjectDetectionInferenceMetrics im(threshold);
 
@@ -776,18 +736,17 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process() 
 
     while (iter != annCollector.annotations().end() && ipics < _nPictures) {
         std::vector<std::string> files;
-        int b = 0;
+        size_t b = 0;
 
         int filesWatched = 0;
         for (; b < batch && iter != annCollector.annotations().end(); b++, iter++, filesWatched++) {
             expected[b] = *iter;
             string filename = iter->folder + "/" + (!subdir.empty() ? subdir + "/" : "") + iter->filename;
             try {
-                Size orig_size = decoder.insertIntoBlob(std::string(imagesPath) + "/" + filename, b, *firstInputBlob, preprocessingOptions);
                 float scale_x, scale_y;
 
-                scale_x = 1.0 / iter->size.width;  // orig_size.width;
-                scale_y = 1.0 / iter->size.height;  // orig_size.height;
+                scale_x = 1.0f / iter->size.width;  // orig_size.width;
+                scale_y = 1.0f / iter->size.height;  // orig_size.height;
 
                 if (scaleProposalToInputSize) {
                     scale_x *= firstInputBlob->dims()[0];
@@ -800,6 +759,7 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process() 
                 files.push_back(filename);
             } catch (const InferenceEngineException &iex) {
                 slog::warn << "Can't read file " << this->imagesPath + "/" + filename << slog::endl;
+                slog::warn << "Error: " << iex.what() << slog::endl;
                 // Could be some non-image file in directory
                 b--;
                 continue;
@@ -807,23 +767,18 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process() 
             ipics++;
         }
 
-        if (files.size() == batch) {
-            InferenceEngine::StatusCode sts;
-            InferenceEngine::ResponseDesc dsc;
+        // Infer model
+        Infer(progress, filesWatched, im);
+        collectCalibrationStatistic(b);
 
-            // Infer model
-            Infer(progress, filesWatched, im);
-            collectCalibrationStatistic();
+        // Processing the inference result
+        std::map<std::string, std::list<DetectedObject>> detectedObjects = processResult(files);
 
-            // Processing the inference result
-            std::map<std::string, std::list<DetectedObject>> detectedObjects = processResult(files);
-
-            // Calculating similarity
-            //
-            for (int b = 0; b < files.size(); b++) {
-                ImageDescription result(detectedObjects[files[b]]);
-                im.apc.consumeImage(result, scaledDesiredForFiles.at(files[b]));
-            }
+        // Calculating similarity
+        //
+        for (size_t j = 0; j < files.size(); j++) {
+            ImageDescription result(detectedObjects[files[j]]);
+            im.apc.consumeImage(result, scaledDesiredForFiles.at(files[j]));
         }
     }
     progress.finish();
@@ -839,7 +794,7 @@ shared_ptr<Processor::InferenceMetrics> SSDObjectDetectionCalibrator::Process() 
         for (auto i : appc) {
             mAP += i.second;
         }
-        imCalibration.AccuracyResult = mAP / appc.size();
+        imCalibration.AccuracyResult = static_cast<float>(mAP / appc.size());
     }
     return std::shared_ptr<Processor::InferenceMetrics>(new CalibrationMetrics(imCalibration));
 }
