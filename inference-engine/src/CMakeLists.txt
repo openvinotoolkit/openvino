@@ -42,3 +42,5 @@ add_library(IE::ie_cpu_extension ALIAS ie_cpu_extension)
 
 file(GLOB_RECURSE EXTENSION_SOURCES extension/*.cpp extension/*.hpp extension/*.h)
 add_cpplint_target(ie_cpu_extension_cpplint FOR_SOURCES ${EXTENSION_SOURCES})
+
+install(DIRECTORY extension DESTINATION share/doc/inference_engine)
