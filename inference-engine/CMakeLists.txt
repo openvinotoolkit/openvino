@@ -160,3 +160,5 @@ if (ENABLE_PYTHON)
 endif()
 
 add_cpplint_report_target()
+set(CMAKE_INSTALL_PREFIX /usr)
+install(DIRECTORY samples DESTINATION share/doc/inference_engine)
