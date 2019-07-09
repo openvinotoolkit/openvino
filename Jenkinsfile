@@ -11,7 +11,10 @@ if (env.CHANGE_ID) { // available only when triggered from PR
     echo "head's ref ${pullRequest.headRef}"
     echo "head's base (target branch) ${pullRequest.base}"
 
-    echo "Publish status at PR's head commit"
+    echo "Pull Request number ${pullRequest.number}"
+
+    echo "Multibranch pipeline's BRANCH_NAME ${env.BRANCH_NAME}"
+    //echo "Publish status at PR's head commit"
     // pullRequest.createStatus(status: 'pending',
     //                         context: 'ci/another_status',
     //                         description: 'Test status from Jenkinsfile',
