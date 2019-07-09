@@ -10,7 +10,7 @@
 #include <mkldnn_plugin/mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 #include "../test_graph.hpp"
-#include <extension/ext_list.hpp>
+#include <ext_list.hpp>
 #include <ie_builders.hpp>
 
 using namespace ::testing;

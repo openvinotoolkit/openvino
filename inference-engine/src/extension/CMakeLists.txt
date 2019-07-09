@@ -40,7 +40,6 @@ add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_API)
 include_directories (PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/common
         ${InferenceEngine_INCLUDE_DIRS}
-	${InferenceEngine_INCLUDE_DIRS}/extension
 )
 
 add_library(${TARGET_NAME} SHARED ${SRC} ${HDR})
