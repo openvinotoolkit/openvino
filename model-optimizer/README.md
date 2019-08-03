@@ -143,3 +143,8 @@ of the tool and can not be applied to the current version of Model Optimizer.
 
 ---
 \* Other names and brands may be claimed as the property of others.
+
+## Video Guides:
+Get video tutprial of conversion of Tensorflow and Yolo Models using Model Optimizer with the help of Infrerence Engine in Ubuntu Environment.
+[Convert Tensorflow Pretrained Model to IR](https://youtu.be/rUwayTZKnmA). For freezed model conversion in IR model and real-time prediction
+[Object Detection using Openvino IR with YOLO-V3](https://youtu.be/oSk3NMZCsv0). For freezed model conversion in IR model and real-time prediction
