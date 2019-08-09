@@ -29,7 +29,7 @@
 
 #include "cpu_rnn_pd.hpp"
 #include "rnn_utils.hpp"
-#include "jit_uni_rnn_postgemm.hpp"
+#include "jit_uni_rnn_common_postgemm_dispatcher.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -48,7 +48,6 @@ struct _ref_rnn_common_t : public cpu_primitive_t {
 
     using class_name = _ref_rnn_common_t<aprop, src_type, weights_type>;
 
-    typedef rnn_elemwise_sig((class_name::*elemwise_f));
     typedef rnn_cell_execution_sig((class_name::*cell_execution_f));
     typedef rnn_grid_execution_sig((class_name::*grid_execution_f));
 
@@ -196,46 +195,18 @@ struct _ref_rnn_common_t : public cpu_primitive_t {
         set_gemm_funcs(pd()->rnn_.use_layer_packed_gemm, gemm_layer_func,
                 weights_layer_assign_func);
 
+        rnn_postgemm_ = new rnn_postgemm_dispatcher<aprop, src_type>(pd()->rnn_, pd());
+        assert(rnn_postgemm_ != nullptr);
         switch (pd()->cell_kind()) {
+        case alg_kind::vanilla_rnn:
         case alg_kind::vanilla_lstm:
             cell_func = &class_name::cell_execution;
-            if (aprop == prop_kind::forward) {
-                if (mayiuse(avx512_core))
-                    rnn_postgemm_ = new jit_uni_lstm_postgemm_kernel_fwd<avx512_core, src_type>(
-                        pd()->rnn_, pd()->attr());
-                else if (mayiuse(avx2))
-                    rnn_postgemm_ = new jit_uni_lstm_postgemm_kernel_fwd<avx2, src_type>(
-                        pd()->rnn_, pd()->attr());
-                else if (mayiuse(sse42))
-                    rnn_postgemm_ = new jit_uni_lstm_postgemm_kernel_fwd<sse42, src_type>(
-                        pd()->rnn_, pd()->attr());
-                assert(rnn_postgemm_ != nullptr);
-                rnn_postgemm_->init();
-            }
-            elemwise_func = &class_name::lstm_elemwise;
-            break;
-        case alg_kind::vanilla_rnn: // @todo switch on cell kind
-            cell_func = &class_name::cell_execution;
-            elemwise_func = &class_name::rnn_elemwise;
-            switch (pd()->activation_kind()) {
-            case alg_kind::eltwise_relu:
-                activation_func = &activation<alg_kind::eltwise_relu, aprop>;
-                break;
-            case alg_kind::eltwise_tanh:
-                activation_func = &activation<alg_kind::eltwise_tanh, aprop>;
-                break;
-            case alg_kind::eltwise_logistic:
-                activation_func = &activation<alg_kind::eltwise_logistic, aprop>;
-                break;
-            default: break;
-            }
             break;
         case alg_kind::vanilla_gru:
             cell_func = &class_name::cell_execution_gru;
             break;
         case alg_kind::gru_linear_before_reset:
             cell_func = &class_name::cell_execution_gru_lbr;
-            elemwise_func = &class_name::gru_lbr_elemwise;
             break;
         default: break;
         }
@@ -249,7 +220,9 @@ struct _ref_rnn_common_t : public cpu_primitive_t {
                 ws_bias_offset_, scratchpad_size, workspace_size);
     }
 
-    ~_ref_rnn_common_t() {}
+    ~_ref_rnn_common_t() {
+        delete rnn_postgemm_;
+    }
 
     // typedef typename prec_traits::type data_t;
 
@@ -264,9 +237,6 @@ private:
     rnn_cell_execution_sig(cell_execution);
     rnn_cell_execution_sig(cell_execution_gru);
     rnn_cell_execution_sig(cell_execution_gru_lbr);
-    rnn_elemwise_sig(rnn_elemwise);
-    rnn_elemwise_sig(lstm_elemwise);
-    rnn_elemwise_sig(gru_lbr_elemwise);
     rnn_gemm_sig(gemm);
     rnn_gemm_sig(packed_gemm);
     rnn_bias_prepare_sig(bias_prepare);
@@ -309,7 +279,7 @@ private:
     size_t ws_diff_states_offset_;
     size_t ws_grid_comp_offset_;
     size_t ws_cell_comp_offset_;
-    jit_uni_rnn_postgemm_kernel *rnn_postgemm_;
+    rnn_postgemm_dispatcher<aprop,src_type> *rnn_postgemm_;
 
     grid_execution_f grid_computation;
     cell_execution_f cell_func;
@@ -321,7 +291,6 @@ private:
 
     gemm_t gemm_layer_func;
     gemm_t gemm_iter_func;
-    elemwise_f elemwise_func;
 };
 
 using ref_rnn_fwd_f32_t = _ref_rnn_common_t<prop_kind::forward, data_type::f32, data_type::f32>;

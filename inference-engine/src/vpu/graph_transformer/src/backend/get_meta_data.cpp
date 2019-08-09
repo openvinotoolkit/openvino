@@ -35,6 +35,7 @@
 #include <vpu/utils/auto_scope.hpp>
 #include <vpu/utils/dot_io.hpp>
 #include <vpu/utils/file_system.hpp>
+#include <vpu/utils/profiling.hpp>
 
 namespace vpu {
 

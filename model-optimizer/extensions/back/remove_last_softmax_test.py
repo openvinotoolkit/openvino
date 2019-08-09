@@ -34,7 +34,7 @@ class KaldiRemoveLastSoftMaxTest(unittest.TestCase):
         },
         'op_output': {
             'kind': 'op',
-            'op': 'OpOutput'
+            'op': 'Result'
         }
     }
 

@@ -29,7 +29,7 @@ class NoOpEraser(FrontReplacementSubgraph):
     def pattern():
         return dict(
             nodes=[('noop', dict(kind='op', op='NoOp')),
-                   ('output', dict(kind='op', op='OpOutput'))
+                   ('output', dict(kind='op', op='Result'))
                    ],
             edges=[('noop', 'output')]
         )

@@ -13,25 +13,22 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
-from extensions.middle.ShufflenetReshape import FeatureShuffleReshape
+from extensions.ops.transpose import Transpose
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.permute import Permute
 from mo.ops.reshape import Reshape
 from mo.utils.error import Error
 
 
 class ShuffleChannel(MiddleReplacementPattern):
     """
-    Replaces Caffe ShuffleChannel with Reshapes and Permute layers
+    Replaces Caffe ShuffleChannel with Reshapes and Transpose layers
     """
 
     enabled = True
-
-    def run_after(self):
-        return [FeatureShuffleReshape]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleFinish
@@ -55,9 +52,6 @@ class ShuffleChannel(MiddleReplacementPattern):
         out_node = node.out_node(0)
         group = int(node['group'])
 
-        graph.remove_edge(in_node.id, node.id)
-        graph.remove_edge(node.id, out_node.id)
-
         rows = group
         cols = in_node.shape[1] // group
 
@@ -65,12 +59,15 @@ class ShuffleChannel(MiddleReplacementPattern):
             raise Error("Group {} should divide input channels number {} without reminder for node {}"
                         "".format(group, in_node.shape[1], node.id))
 
-        reshape_split = Reshape(graph, attrs={'name': node.id + '/Reshape_split_',
-                                              'dim': np.array([in_node.shape[0], rows, cols, -1])})
-        reshape_split_node = reshape_split.create_node_with_data([in_node])
-        transpose = Permute(graph, attrs={'name': node.id + '/Transpose_',
-                                          'order': np.array([0, 2, 1, 3])})
-        transpose_node = transpose.create_node_with_data([reshape_split_node])
-        reshape_concat = Reshape(graph, attrs={'name': node.id + '/Reshape_concat_',
-                                               'dim': out_node.shape})
-        reshape_concat.create_node_with_data([transpose_node], data_nodes=[out_node])
+        reshape_split_node = create_op_node_with_second_input(graph, Reshape,
+                                                              int64_array([in_node.shape[0], rows, cols, -1]),
+                                                              {'name': node.id + '/Reshape_split_'})
+
+        transpose_node = create_op_node_with_second_input(graph, Transpose, int64_array([0, 2, 1, 3]),
+                                                          {'name': node.id + '/Transpose_'}, reshape_split_node)
+
+        reshape_concat = create_op_node_with_second_input(graph, Reshape, out_node.shape,
+                                                          {'name': node.id + '/Reshape_concat_'}, transpose_node)
+
+        node.in_port(0).get_connection().set_destination(reshape_split_node.in_port(0))
+        node.out_port(0).get_connection().set_source(reshape_concat.out_port(0))

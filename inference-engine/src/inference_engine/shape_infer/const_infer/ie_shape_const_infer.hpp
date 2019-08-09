@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <ie_layers.h>
+#include "../../precision_utils.h"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -28,9 +29,17 @@ public:
         SizeVector inShape = (*inData.begin())->getTensorDesc().getDims();
         auto outBlob = *outData.begin();
         if (inShape.size() != outBlob->size()) THROW_IE_EXCEPTION << "Number of shapes don't match size of output";
-        auto* outBuffer = outBlob->buffer().as<float*>();
-        for (int i = 0; i < outBlob->size(); i++) {
-            outBuffer[i] = inShape[i];
+
+        if (outBlob->getTensorDesc().getPrecision() == Precision::FP16) {
+            auto* outBuffer = outBlob->buffer().as<ie_fp16*>();
+            for (int i = 0; i < outBlob->size(); i++) {
+                outBuffer[i] = PrecisionUtils::f32tof16(static_cast<float>(inShape[i]));
+            }
+        } else {
+            auto* outBuffer = outBlob->buffer().as<float*>();
+            for (int i = 0; i < outBlob->size(); i++) {
+                outBuffer[i] = inShape[i];
+            }
         }
     }
 };

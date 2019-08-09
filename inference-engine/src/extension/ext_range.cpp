@@ -63,7 +63,7 @@ public:
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
         StatusCode retcode = OK;
-        switch (outputs[0]->precision()) {
+        switch (outputs[0]->getTensorDesc().getPrecision()) {
         case Precision::FP32: {
             retcode = range((inputs[RANGE_START]->cbuffer().as<float *>() +
                              inputs[RANGE_START]->getTensorDesc().getBlockingDesc().getOffsetPadding())[0],

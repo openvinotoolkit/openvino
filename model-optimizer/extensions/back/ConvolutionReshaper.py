@@ -19,6 +19,7 @@ import numpy as np
 from extensions.back.ReshapeMutation import ReshapeMutation
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
+from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 
 
@@ -72,11 +73,21 @@ class ConvolutionReshaper(BackReplacementPattern):
         conv.pad = np.insert(conv.pad, 2, [0, 0], axis=0)
         conv.stride = np.insert(conv.stride, 2, 1)
 
-        weights_index = len(conv.in_nodes()) - 2
-        weights_node = conv.in_node(weights_index)
+        weights_node = conv.in_node(1)
         weights_node.value = np.reshape(weights_node.value, np.insert(weights_node.value.shape, 2, 1))
         weights_node.shape = np.array(weights_node.value.shape, dtype=np.int64)
 
-        conv.bracket_op_with_another_op(inp=inp_data, out=out_data, new_op_class=Reshape,
-                                        op_before_params={'dim': new_inp_shape},
-                                        op_after_params={'dim': out_shape})
+        reshape = Reshape(graph, {'name': conv.name + '/reshape'}).create_node()
+        reshape_dim = Const(graph, {'value': new_inp_shape, 'name': reshape.id + '/Dim'}).create_node()
+        conv.in_port(0).get_connection().insert_node(reshape)
+        reshape.in_port(1).connect(reshape_dim.out_port(0))
+
+        reshape_back = Reshape(graph, {'name': conv.name + '/reshape_back'}).create_node()
+        reshape_back_dim = Const(graph, {'value': out_shape, 'name': reshape.id + '/Dim'}).create_node()
+        conv.out_port(0).get_connection().insert_node(reshape_back)
+        reshape_back.in_port(1).connect(reshape_back_dim.out_port(0))
+
+        # run shape inference manually for several nodes to override shapes of the model nodes which changed behaviour
+        reshape_dim.infer(reshape_dim)
+        reshape.infer(reshape)
+        conv.infer(conv)

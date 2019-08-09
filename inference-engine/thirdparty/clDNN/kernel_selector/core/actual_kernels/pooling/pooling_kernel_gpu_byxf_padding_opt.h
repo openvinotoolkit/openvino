@@ -1,4 +1,3 @@
-/*
 // Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,25 +11,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
 #include "pooling_kernel_base.h"
 
-namespace kernel_selector
-{
-    class PoolingKernelGPUByxfPaddingOpt : public PoolingKernelBase
-    {
-    public:
-        PoolingKernelGPUByxfPaddingOpt() : PoolingKernelBase("pooling_gpu_byxf_padding_opt") {}
-        virtual ~PoolingKernelGPUByxfPaddingOpt() {}
+namespace kernel_selector {
+class PoolingKernelGPUByxfPaddingOpt : public PoolingKernelBase {
+public:
+    PoolingKernelGPUByxfPaddingOpt() : PoolingKernelBase("pooling_gpu_byxf_padding_opt") {}
+    virtual ~PoolingKernelGPUByxfPaddingOpt() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        bool Validate(const Params&, const optional_params&) const override;
-        JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const override;
-        DispatchData SetDefault(const pooling_params& params) const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    bool Validate(const Params&, const optional_params&) const override;
+    JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const override;
+    DispatchData SetDefault(const pooling_params& params) const override;
+};
+}  // namespace kernel_selector

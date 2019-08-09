@@ -97,9 +97,11 @@ TEST_F(PluginTest, canForwardPluginEnginePtr) {
     EXPECT_CALL(engine, Infer(_, A<Blob&>(), _)).WillOnce(Return(OK));
     EXPECT_CALL(engine, Release()).Times(1);
 
-    TBlob <float> b1(Precision::FP32, NCHW);
-    TBlob <float> b2(Precision::FP32, NCHW);
+    TBlob <float> b1(TensorDesc(Precision::FP32, NCHW));
+    TBlob <float> b2(TensorDesc(Precision::FP32, NCHW));
+    IE_SUPPRESS_DEPRECATED_START
     ptr3->Infer(b1, b2, nullptr);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 

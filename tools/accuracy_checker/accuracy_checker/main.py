@@ -20,7 +20,7 @@ from functools import partial
 
 from .config import ConfigReader
 from .logging import print_info, add_file_handler
-from .model_evaluator import ModelEvaluator
+from .evaluators import ModelEvaluator, PipeLineEvaluator, get_processing_info
 from .progress_reporters import ProgressReporter
 from .utils import get_path
 
@@ -71,7 +71,7 @@ def build_arguments_parser():
         '--cpu_extensions_mode',
         help='specified preferable set of processor instruction for automatic searching cpu extension lib',
         required=False,
-        choices=['avx2', 'sse4']
+        choices=['avx512', 'avx2', 'sse4']
     )
     parser.add_argument(
         '-b', '--bitstreams',
@@ -95,7 +95,7 @@ def build_arguments_parser():
     )
     parser.add_argument(
         '-M', '--model_optimizer',
-        help='path to model optimizer caffe directory',
+        help='path to model optimizer directory',
         type=partial(get_path, is_directory=True),
         # there is no default value because if user did not specify it we use specific locations
         # defined in model_conversion.py
@@ -165,9 +165,16 @@ def build_arguments_parser():
 
     parser.add_argument(
         '--aocl',
-        help='aocl executable path for FPGA bitstream programming',
+        help='path to aocl executable for FPGA bitstream programming',
         type=get_path,
         required=False
+    )
+    parser.add_argument(
+        '--vpu_log_level',
+        help='log level for VPU devices',
+        required=False,
+        choices=['LOG_NONE', 'LOG_WARNING', 'LOG_INFO', 'LOG_DEBUG'],
+        default='LOG_WARNING'
     )
 
     return parser
@@ -182,8 +189,14 @@ def main():
     if args.log_file:
         add_file_handler(args.log_file)
 
-    config = ConfigReader.merge(args)
+    config, mode = ConfigReader.merge(args)
+    if mode == 'models':
+        model_evaluation_mode(config, progress_reporter, args)
+    else:
+        pipeline_evaluation_mode(config, progress_reporter, args)
 
+
+def model_evaluation_mode(config, progress_reporter, args):
     for model in config['models']:
         for launcher_config in model['launchers']:
             for dataset_config in model['datasets']:
@@ -195,11 +208,21 @@ def main():
                     dataset_config['name']
                 )
                 model_evaluator = ModelEvaluator.from_configs(launcher_config, dataset_config)
-                progress_reporter.reset(len(model_evaluator.dataset))
+                progress_reporter.reset(model_evaluator.dataset.size)
                 model_evaluator.process_dataset(args.stored_predictions, progress_reporter=progress_reporter)
                 model_evaluator.compute_metrics(ignore_results_formatting=args.ignore_result_formatting)
 
                 model_evaluator.release()
+
+
+def pipeline_evaluation_mode(config, progress_reporter, args):
+    for pipeline_config in config['pipelines']:
+        print_processing_info(*get_processing_info(pipeline_config))
+        evaluator = PipeLineEvaluator.from_configs(pipeline_config['stages'])
+        evaluator.process_dataset(args.stored_predictions, progress_reporter=progress_reporter)
+        evaluator.compute_metrics(ignore_results_formatting=args.ignore_result_formatting)
+
+        evaluator.release()
 
 
 def print_processing_info(model, launcher, device, tags, dataset):

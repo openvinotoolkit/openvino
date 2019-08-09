@@ -16,6 +16,7 @@
 
 import logging as log
 
+from extensions.front.PowerToEltwises import PowerToEltwises
 from extensions.front.sub import Sub
 from extensions.ops.prelu import PreluOp
 from mo.front.common.replacement import FrontReplacementSubgraph
@@ -26,13 +27,16 @@ from mo.middle.pattern_match import check_node_usages_out_of_match
 class PReLU(FrontReplacementSubgraph):
     enabled = True
 
+    def run_before(self):
+        return [PowerToEltwises]
+
     def pattern(self):
         return dict(
             nodes=[('op', dict(kind='op')),
-                   ('pos_relu', dict(kind='op', op='Relu')),
-                   ('neg', dict(kind='op', op='Neg')),
-                   ('neg_relu', dict(kind='op', op='Relu')),
-                   ('neg_1', dict(kind='op', op='Neg')),
+                   ('pos_relu', dict(kind='op', op='ReLU')),
+                   ('neg', dict(kind='op', op='Power', scale=-1, power=1, shift=0)),
+                   ('neg_relu', dict(kind='op', op='ReLU')),
+                   ('neg_1', dict(kind='op', op='Power', scale=-1, power=1, shift=0)),
                    ('mul', dict(kind='op', op='Mul')),
                    ('add', dict(kind='op', op='Add')),
                    ],
@@ -68,7 +72,7 @@ class PReLUWithAbs(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[('op', dict(kind='op')),
-                   ('relu', dict(kind='op', op='Relu')),
+                   ('relu', dict(kind='op', op='ReLU')),
                    ('abs', dict(kind='op', op='Abs')),
                    ('sub', dict(kind='op', op='Sub')),
                    ('mul', dict(kind='op', op='Mul')),

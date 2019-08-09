@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-import networkx as nx
+import numpy as np
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph
@@ -42,11 +42,9 @@ class PreluOp(Op):
     def prelu_shape_infer(node):
         if len(node.in_nodes()) == 2:
             gamma_vector = node.in_node(1)
-            if len(gamma_vector.shape) == 1 and \
-                   gamma_vector.shape[0] == node.in_node(0).shape[node.graph.graph['layout'].index('C')]:
-                node['channel_shared'] = 0
-            else:
+            if np.all(gamma_vector.shape == [1]):
                 node['channel_shared'] = 1
+            else:
+                node['channel_shared'] = 0
             mark_input_bins(node)
         copy_shape_infer(node)
-

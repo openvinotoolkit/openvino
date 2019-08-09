@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <map>
 #include <iterator>
+#include <limits>
 #include <cctype>
 #include "ie_common.h"
 #include "ie_data.h"
@@ -119,15 +120,36 @@ public:
     INFERENCE_ENGINE_API_CPP(void) validateLayer();
 
     /**
+     * @brief Parse string with float in accordance with IE rules
+     * @param str input string with float value
+     * @return float value if parsing was successful
+     * @throws InferenceEngineException in case of parsing error
+     */
+    static float ie_parse_float(const std::string &str) {
+        if (str == "-inf") {
+            return -std::numeric_limits<float>::infinity();
+        } else if (str == "inf") {
+            return std::numeric_limits<float>::infinity();
+        } else {
+            float res;
+            std::stringstream val_stream(str);
+            val_stream.imbue(std::locale("C"));
+            val_stream >> res;
+            if (!val_stream.eof()) THROW_IE_EXCEPTION;
+            return res;
+        }
+    }
+
+    /**
      * @brief Gets float value for the given parameter
-     * @param param - name of the parameter to find
-     * @param def - default value of the parameter if not found
+     * @param param name of the parameter to find
+     * @param def default value of the parameter if not found
      * @return float value
      */
     float GetParamAsFloat(const char* param, float def) const {
         std::string val = GetParamAsString(param, std::to_string(def).c_str());
         try {
-            return std::stof(val);
+            return ie_parse_float(val);
         } catch (...) {
             THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name
                                << ". Value " << val << " cannot be casted to float.";
@@ -142,7 +164,7 @@ public:
     float GetParamAsFloat(const char *param) const {
         std::string val = GetParamAsString(param);
         try {
-            return std::stof(val);
+            return ie_parse_float(val);
         } catch (...) {
             THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name
                                << ". Value " << val << " cannot be casted to float.";
@@ -164,7 +186,8 @@ public:
             return def;
         while (getline(stream, str, ',')) {
             try {
-                result.push_back(std::stof(str));
+                float val = ie_parse_float(str);
+                result.push_back(val);
             } catch (...) {
                 THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
                                    << ". Value " << vals << " cannot be casted to floats.";
@@ -185,7 +208,8 @@ public:
         std::string str;
         while (getline(stream, str, ',')) {
             try {
-                result.push_back(std::stof(str));
+                float val = ie_parse_float(str);
+                result.push_back(val);
             } catch (...) {
                 THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
                                    << ". Value " << vals << " cannot be casted to floats.";
@@ -299,7 +323,7 @@ public:
     unsigned int GetParamAsUInt(const char *param) const {
         std::string val = GetParamAsString(param);
         std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name
-                                                 + ". Value " + val + " cannot be casted to int.";
+                                                 + ". Value " + val + " cannot be casted to unsigned int.";
         try {
             int value = std::stoi(val);
             if (value < 0) {
@@ -324,7 +348,7 @@ public:
         std::istringstream stream(vals);
         std::string str;
         std::string message = "Cannot parse parameter " + std::string(param) + " " + str + " from IR for layer " + name
-                              + ". Value " + vals +  " cannot be casted to int.";
+                              + ". Value " + vals +  " cannot be casted to unsigned int.";
         if (vals.empty())
             return def;
         while (getline(stream, str, ',')) {
@@ -390,8 +414,9 @@ public:
         return result;
     }
     /**
-     * @deprecated Use GetParamAsBool function for that functionality
+     * @deprecated Use CNNLayer::GetParamAsBool
      */
+    INFERENCE_ENGINE_DEPRECATED
     bool GetParamsAsBool(const char *param, bool def) const {
         return GetParamAsBool(param, def);
     }
@@ -586,6 +611,20 @@ class DeconvolutionLayer : public ConvolutionLayer {
  public:
     using ConvolutionLayer::ConvolutionLayer;
     using ConvolutionLayer::operator=;
+};
+
+/**
+ * @brief This class represents a standard deformable convolution layer
+ */
+class DeformableConvolutionLayer : public ConvolutionLayer {
+public:
+    using ConvolutionLayer::ConvolutionLayer;
+    using ConvolutionLayer::operator=;
+
+    /**
+     * @brief Number of deformable groups
+     */
+    unsigned int _deformable_group = 1u;
 };
 
 /**
@@ -839,7 +878,7 @@ public:
      */
     unsigned int _size = 0;
     /**
-     * @deprecated
+     * @brief K
      */
     unsigned int _k = 1;
     /**
@@ -981,7 +1020,7 @@ public:
     enum eOperation {
         Sum = 0, Prod, Max, Sub, Min, Div, Squared_diff, Floor_mod, Pow,
         Equal, Not_equal, Less, Less_equal, Greater, Greater_equal,
-        Logical_AND, Logical_OR, Logical_XOR
+        Logical_AND, Logical_OR, Logical_XOR, Logical_NOT, Mean, Select
     };
 
     /**
@@ -1290,6 +1329,7 @@ using RNNCell  = RNNCellBase;
  *   [N,T,D]  Xt - input data
  *   [ND,N,S] Ht-1 - initial hidden state
  *   [ND,N,S] Ct-1 - initial cell state  // if NS==2
+ *   [N]      SL - sequence length (optional input)
  *
  * Outputs:
  *   [ND,N,T,S] Xt - input data
@@ -1587,26 +1627,33 @@ public:
 
 
 /**
-* @brief This class represents a standard Squeeze layer
-* Squeeze modifies input tensor dimensions according parameters
+* @brief This class represents a OneHot layer
+* Converts input into OneHot representation.
 */
-class SqueezeLayer : public CNNLayer {
+class OneHotLayer : public CNNLayer {
 public:
     /**
-    * @brief Creates a new Squeeze instance.
+    * @brief A depth of representation
     */
-    using CNNLayer::CNNLayer;
-};
+    unsigned int depth = 0;
 
-
-/**
-* @brief This class represents a standard Unsqueeze layer
-* Unsqueeze modifies input tensor dimensions according parameters
-*/
-class UnsqueezeLayer : public CNNLayer {
-public:
     /**
-    * @brief Creates a new Unsqueeze instance.
+    * @brief The locations represented by indices in input take value on_value
+    */
+    float on_value = 1.f;
+
+    /**
+    * @brief The locations not represented by indices in input take value off_value
+    */
+    float off_value = 0.f;
+
+    /**
+    * @brief Define the shape of output tensor
+    */
+    int axis = -1;
+
+    /**
+    * @brief Creates a new OneHot instance
     */
     using CNNLayer::CNNLayer;
 };
@@ -1639,13 +1686,28 @@ public:
 
 
 /**
-* @brief This class represents a standard Expand layer
-* Expand modifies input tensor dimensions according parameters
+* @brief This class represents a SelectLayer layer
+* SelectLayer layer takes elements from the second (“then”) or the third (“else”) input based on condition mask (“cond”) provided in the first input.
+* The “cond” tensor is broadcasted to “then” and “else” tensors.
+* The output tensor shape is equal to broadcasted shape of “cond”, “then” and “else”.
 */
-class ExpandLayer : public CNNLayer {
+class SelectLayer : public CNNLayer {
 public:
     /**
-    * @brief Creates a new Expand instance.
+    * @brief Creates a new SelectLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+* @brief This class represents a standard Broadcast layer
+* Broadcast modifies input tensor dimensions according parameters
+*/
+class BroadcastLayer : public CNNLayer {
+public:
+    /**
+    * @brief Creates a new Broadcast instance.
     */
     using CNNLayer::CNNLayer;
 };
@@ -1666,5 +1728,63 @@ public:
     */
     using CNNLayer::CNNLayer;
 };
+
+
+/**
+* @brief This class represents a standard Math layers
+* Math modifies input tensor dimensions according parameters
+*/
+class MathLayer : public CNNLayer {
+public:
+    /**
+    * @brief Creates a new Math instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+* @brief This class represents a standard Reduce layers
+* Reduce modifies input tensor according parameters
+*/
+class ReduceLayer : public CNNLayer {
+public:
+    /**
+    * @brief The keep_dims dimension in tensor which is partially reversed
+    */
+    bool keep_dims = true;
+
+    /**
+    * @brief Creates a new Reduce instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+ * @brief This class represents a standard TopK layer
+ * TopK picks top K values from input tensor according parameters
+ */
+class TopKLayer : public CNNLayer {
+public:
+    /**
+    * @brief The mode could be 'max' or 'min'
+    */
+    std::string mode;
+    /**
+    * @brief top K values sort mode could be 'value' or 'index'
+    */
+    std::string sort;
+    /**
+    * @brief The axis dimension in tensor which is top K values are picked
+    */
+    int axis = -1;
+
+    /**
+    * @brief Creates a new TopKLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
 
 }  // namespace InferenceEngine

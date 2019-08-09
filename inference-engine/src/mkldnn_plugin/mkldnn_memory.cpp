@@ -219,10 +219,13 @@ bool MKLDNNMemory::isConsistant(memory::dims dims, memory::format format) {
 }
 
 bool MKLDNNMemory::IsPlainFormat(memory::format format) {
-    std::vector<memory::format> plains = {memory::nc, memory::nchw, memory::ncdhw, memory::nhwc, memory::ndhwc, memory::chwn,
-        memory::oi, memory::io, memory::oihw, memory::oidhw, memory::ihwo, memory::tnc,
-        memory::goihw,
-        memory::blocked};
+    std::vector<memory::format> plains = {
+    /* 1D */  memory::x,
+    /* 2D */  memory::nc, memory::oi, memory::io,
+    /* 3D */  memory::tnc, memory::ntc, memory::oiw, memory::wio,
+    /* 4D */  memory::nchw, memory::nhwc, memory::chwn, memory::ihwo, memory::oihw, memory::hwio,
+    /* 5D */  memory::ncdhw, memory::ndhwc, memory::oidhw, memory::goihw,
+              memory::blocked};
 
     for (auto it : plains) {
         if (format == it) {

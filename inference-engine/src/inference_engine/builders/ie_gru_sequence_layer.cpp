@@ -108,7 +108,7 @@ Builder::GRUSequenceLayer& Builder::GRUSequenceLayer::setDirection(const std::st
 
 REG_CONVERTER_FOR(GRUSequence, [](const CNNLayerPtr& cnnLayer, Builder::Layer& layer) {
     layer.getParameters()["hidden_size"] = cnnLayer->GetParamAsInt("hidden_size");
-    layer.getParameters()["sequence_dim"] = cnnLayer->GetParamsAsBool("sequence_dim", true);
+    layer.getParameters()["sequence_dim"] = cnnLayer->GetParamAsBool("sequence_dim", true);
     std::vector<std::string> activations;
     std::istringstream stream(cnnLayer->GetParamAsString("activations"));
     std::string str;
@@ -119,7 +119,7 @@ REG_CONVERTER_FOR(GRUSequence, [](const CNNLayerPtr& cnnLayer, Builder::Layer& l
     layer.getParameters()["activations_alpha"] = cnnLayer->GetParamAsFloats("activations_alpha");
     layer.getParameters()["activations_beta"] = cnnLayer->GetParamAsFloats("activations_beta");
     layer.getParameters()["clip"] = cnnLayer->GetParamAsFloat("clip");
-    layer.getParameters()["linear_before_reset"] = cnnLayer->GetParamsAsBool("linear_before_reset", true);
+    layer.getParameters()["linear_before_reset"] = cnnLayer->GetParamAsBool("linear_before_reset", true);
     layer.getParameters()["direction"] = cnnLayer->GetParamAsString("direction", "");
 });
 

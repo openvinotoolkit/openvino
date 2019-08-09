@@ -113,7 +113,9 @@ public:
         return *this;
     }
 
-    template <typename U>
+    template <
+        typename U,
+        typename _Check = typename std::enable_if<!std::is_reference<U>::value, void>::type>
     inline Optional(U&& value) : _mem{}, _hasValue(true) {  // NOLINT
         constructValue(std::forward<U>(value));
     }

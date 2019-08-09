@@ -22,7 +22,7 @@
 namespace mkldnn {
 
 TEST(test_parallel, Test) {
-    impl::parallel(0, [&](int ithr, int nthr) {
+    impl::parallel(0, mkldnn_get_max_threads(), [&](int ithr, int nthr) {
         EXPECT_LE(0, ithr);
         EXPECT_LT(ithr, nthr);
         EXPECT_LE(nthr, mkldnn_get_max_threads());
@@ -127,7 +127,7 @@ TEST_P(test_for_nd, Sequential) {
 }
 
 TEST_P(test_for_nd, Parallel) {
-    impl::parallel(0, [&](int ithr, int nthr) { emit_for_nd(ithr, nthr); });
+    impl::parallel(0, mkldnn_get_max_threads(), [&](int ithr, int nthr) { emit_for_nd(ithr, nthr); });
     CheckID();
 }
 

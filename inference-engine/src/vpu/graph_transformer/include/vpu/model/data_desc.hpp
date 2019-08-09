@@ -45,7 +45,8 @@ VPU_DECLARE_ENUM(DataType,
     FP16 = 0,
     U8 = 1,
 //     S32 = 2,  // TODO: remove from MvTensor
-    FP32 = 3
+    FP32 = 3,
+    I8 = 4
 )
 
 //
@@ -385,7 +386,7 @@ public:
     DimsOrder() = default;
     static DimsOrder fromCode(StorageOrder64 code);
     static DimsOrder fromNumDims(int numDims);
-    static DimsOrder fromPermutation(const std::vector<Dim>& perm);
+    static DimsOrder fromPermutation(const SmallVector<Dim, MAX_DIMS_64>& perm);
 
     //
     // Accessors
@@ -405,7 +406,7 @@ public:
     //
 
     // Convert from packed format to array of dimensions from minor to major.
-    std::vector<Dim> toPermutation() const;
+    SmallVector<Dim, MAX_DIMS_64> toPermutation() const;
 
     // Get memory indeces for each dimension.
     DimValues toIndices() const;

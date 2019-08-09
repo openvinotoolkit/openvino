@@ -11,31 +11,42 @@
 /// @brief Responsible for progress bar handling within the benchmark_app
 class ProgressBar {
 public:
-    ProgressBar(size_t totalNum, bool stream_output) {
-        _bar.reset(new ConsoleProgress(totalNum, stream_output));
+    explicit ProgressBar(size_t totalNum, bool streamOutput = false, bool progressEnabled = false) {
+        _bar.reset(new ConsoleProgress(totalNum, streamOutput));
+        _streamOutput = streamOutput;
         _isFinished = true;
+        _progressEnabled = progressEnabled;
     }
 
     void addProgress(size_t num) {
         _isFinished = false;
-        _bar->addProgress(num);
+        if (_progressEnabled) {
+            _bar->addProgress(num);
+        }
     }
 
-    void finish() {
+    void finish(size_t num = 0) {
+        if (num > 0) {
+            addProgress(num);
+        }
         _isFinished = true;
         _bar->finish();
-        std::cout << std::endl;
+        if (_progressEnabled) {
+            std::cout << std::endl;
+        }
     }
 
     void newBar(size_t totalNum) {
         if (_isFinished) {
-            _bar.reset(new ConsoleProgress(totalNum));
+            _bar.reset(new ConsoleProgress(totalNum, _streamOutput));
         } else {
-            throw std::logic_error("Can't create new bar. Current progress bar is still in progress");
+            throw std::logic_error("Cannot create a new bar. Current bar is still in progress");
         }
     }
 
 private:
     std::unique_ptr<ConsoleProgress> _bar;
+    bool _streamOutput;
     bool _isFinished;
+    bool _progressEnabled;
 };

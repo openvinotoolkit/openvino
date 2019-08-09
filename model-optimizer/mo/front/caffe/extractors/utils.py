@@ -134,10 +134,5 @@ def get_spatial_attr(default: list, single_name: str, name: str, param):
     return attr_w, attr_h
 
 
-def merge_attrs(all_attrs: dict, update_attrs: dict):
-    mandatory_attrs = set(all_attrs.keys()).intersection(set(update_attrs.keys()))
-    return {value: update_attrs[value] for value in mandatory_attrs}
-
-
 def get_canonical_axis_index(shape, axis):
     return len(shape) + axis if axis < 0 else axis

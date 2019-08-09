@@ -47,9 +47,8 @@ void ref_inner_product_fwd_t<src_type, wei_type, dst_type, acc_type>
     const int OC = pd()->OC();
     const int IC = pd()->IC();
 
-    const bool src_has_spatial = utils::one_of(src_d.ndims(), 4, 5);
-
-    const bool is_3d = src_d.ndims() == 5;
+    const bool src_has_spatial = utils::one_of(src_d.ndims(), 3, 4, 5);
+    const int ndims = src_d.ndims() - 2;
 
     const auto &post_ops = pd()->attr()->post_ops_;
     const bool do_relu = post_ops.len_ == 1;
@@ -64,12 +63,22 @@ void ref_inner_product_fwd_t<src_type, wei_type, dst_type, acc_type>
             for (int kd = 0; kd < KD; ++kd) {
                 for (int kh = 0; kh < KH; ++kh) {
                     for (int kw = 0; kw < KW; ++kw) {
-                        if (is_3d)
+                        switch (ndims) {
+                        case 3:
                             d += (acc_data_t)src[src_d.off(mb, ic, kd, kh, kw)]
-                                * weights[weights_d.off(oc, ic, kd, kh, kw)];
-                        else
+                                    * weights[weights_d.off(
+                                              oc, ic, kd, kh, kw)];
+                            break;
+                        case 2:
                             d += (acc_data_t)src[src_d.off(mb, ic, kh, kw)]
-                                * weights[weights_d.off(oc, ic, kh, kw)];
+                                    * weights[weights_d.off(oc, ic, kh, kw)];
+                            break;
+                        case 1:
+                            d += (acc_data_t)src[src_d.off(mb, ic, kw)]
+                                    * weights[weights_d.off(oc, ic, kw)];
+                            break;
+                        default: assert(!"unsupported ndims size");
+                        }
                     }
                 }
             }
@@ -124,9 +133,9 @@ void ref_inner_product_bwd_data_t<diff_src_type, wei_type, diff_dst_type,
     const int OC = pd()->OC();
     const int IC = pd()->IC();
 
-    const bool diff_src_has_spatial = utils::one_of(diff_src_d.ndims(), 4, 5);
-
-    const bool is_3d = diff_src_d.ndims() == 5;
+    const bool diff_src_has_spatial
+            = utils::one_of(diff_src_d.ndims(), 3, 4, 5);
+    const int ndims = diff_src_d.ndims() - 2;
 
     parallel_nd(MB, IC, [&](int mb, int ic) {
         if (diff_src_has_spatial) {
@@ -138,17 +147,36 @@ void ref_inner_product_bwd_data_t<diff_src_type, wei_type, diff_dst_type,
             for (int kw = 0; kw < KW; ++kw) {
                 acc_data_t ds = acc_data_t(0);
                 for (int oc = 0; oc < OC; ++oc) {
-                    if (is_3d)
+                    switch (ndims) {
+                    case 3:
                         ds += (acc_data_t)(diff_dst[diff_dst_d.off(mb, oc)]
-                            * weights[weights_d.off(oc, ic, kd, kh, kw)]);
-                    else
+                                * weights[weights_d.off(oc, ic, kd, kh, kw)]);
+                        break;
+                    case 2:
                         ds += (acc_data_t)(diff_dst[diff_dst_d.off(mb, oc)]
-                            * weights[weights_d.off(oc, ic, kh, kw)]);
+                                * weights[weights_d.off(oc, ic, kh, kw)]);
+                        break;
+                    case 1:
+                        ds += (acc_data_t)(diff_dst[diff_dst_d.off(mb, oc)]
+                                * weights[weights_d.off(oc, ic, kw)]);
+                        break;
+                    default: assert(!"unsupported ndims size");
+                    }
                 }
-                if (is_3d) diff_src[diff_src_d.off(mb, ic, kd, kh, kw)] =
-                    (diff_src_data_t)ds;
-                else diff_src[diff_src_d.off(mb, ic, kh, kw)] =
-                    (diff_src_data_t)ds;
+                switch (ndims) {
+                case 3:
+                    diff_src[diff_src_d.off(mb, ic, kd, kh, kw)]
+                            = (diff_src_data_t)ds;
+                    break;
+                case 2:
+                    diff_src[diff_src_d.off(mb, ic, kh, kw)]
+                            = (diff_src_data_t)ds;
+                    break;
+                case 1:
+                    diff_src[diff_src_d.off(mb, ic, kw)] = (diff_src_data_t)ds;
+                    break;
+                default: assert(!"unsupported ndims size");
+                }
             }
         } else {
             acc_data_t ds = acc_data_t(0);
@@ -180,9 +208,8 @@ void ref_inner_product_bwd_weights_t<data_type>::execute_backward_weights() cons
     const int OC = pd()->OC();
     const int IC = pd()->IC();
 
-    const bool src_has_spatial = utils::one_of(src_d.ndims(), 4 ,5);
-
-    const bool is_3d = src_d.ndims() == 5;
+    const bool src_has_spatial = utils::one_of(src_d.ndims(), 3, 4 ,5);
+    const int ndims = src_d.ndims() - 2;
 
     parallel_nd(OC, IC, [&](int oc, int ic) {
         if (src_has_spatial) {
@@ -192,19 +219,38 @@ void ref_inner_product_bwd_weights_t<data_type>::execute_backward_weights() cons
             for (int kd = 0; kd < KD; ++kd) {
                 for (int kh = 0; kh < KH; ++kh) {
                     for (int kw = 0; kw < KW; ++kw) {
-                        data_t *dw = is_3d
-                            ? &diff_weights[
-                            diff_weights_d.off(oc, ic, kd, kh, kw)]
-                            : &diff_weights[
-                            diff_weights_d.off(oc, ic, kh, kw)];
+                        data_t *dw(nullptr);
+                        switch (ndims) {
+                        case 3:
+                            dw = &diff_weights[diff_weights_d.off(
+                                    oc, ic, kd, kh, kw)];
+                            break;
+                        case 2:
+                            dw = &diff_weights[diff_weights_d.off(
+                                    oc, ic, kh, kw)];
+                            break;
+                        case 1:
+                            dw = &diff_weights[diff_weights_d.off(oc, ic, kw)];
+                            break;
+                        default: assert(!"unsupported ndims size");
+                        }
                         *dw = data_t(0);
                         for (int mb = 0; mb < MB; ++mb) {
-                            if (is_3d)
-                                *dw += diff_dst[diff_dst_d.off(mb, oc)] *
-                                    src[src_d.off(mb, ic, kd, kh, kw)];
-                            else
-                                *dw += diff_dst[diff_dst_d.off(mb, oc)] *
-                                    src[src_d.off(mb, ic, kh, kw)];
+                            switch (ndims) {
+                            case 3:
+                                *dw += diff_dst[diff_dst_d.off(mb, oc)]
+                                        * src[src_d.off(mb, ic, kd, kh, kw)];
+                                break;
+                            case 2:
+                                *dw += diff_dst[diff_dst_d.off(mb, oc)]
+                                        * src[src_d.off(mb, ic, kh, kw)];
+                                break;
+                            case 1:
+                                *dw += diff_dst[diff_dst_d.off(mb, oc)]
+                                        * src[src_d.off(mb, ic, kw)];
+                                break;
+                            default: assert(!"unsupported ndims size");
+                            }
                         }
                     }
                 }

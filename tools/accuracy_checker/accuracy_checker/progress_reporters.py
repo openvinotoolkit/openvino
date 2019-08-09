@@ -32,6 +32,7 @@ class ProgressReporter(ClassProvider):
         self.prev_time = None
         if dataset_size is not None:
             self.reset(dataset_size)
+        self.current = 0
 
     def finish(self, objects_processed=True):
         self.finished = True
@@ -41,9 +42,14 @@ class ProgressReporter(ClassProvider):
         process_time = time.time() - self.start_time
         print_info('{} objects processed in {:.3f} seconds'.format(self.dataset_size, process_time))
 
+    @property
+    def progress(self):
+        return (self.current / self.dataset_size) * 100 if self.dataset_size else 0
+
     def reset(self, dataset_size):
         if not self.finished:
             self.finish(objects_processed=False)
+        self.current = 0
 
         self.dataset_size = dataset_size
         self.start_time = time.time()
@@ -64,6 +70,7 @@ class PrintProgressReporter(ProgressReporter):
         self.prev_time = self.start_time
 
     def update(self, batch_id, batch_size):
+        self.current += batch_size
         if (batch_id + 1) % self.print_interval != 0:
             return
 
@@ -78,6 +85,7 @@ class TQDMReporter(ProgressReporter):
     __provider__ = 'bar'
 
     def update(self, _batch_id, batch_size):
+        self.current += batch_size
         self.tqdm.update(batch_size)
 
     def finish(self, objects_processed=True):

@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+//  pwl_design.cpp : simple activation function designer
+//
 
 #include "pwl.h"
 #include "gna_plugin_log.hpp"
@@ -473,7 +475,6 @@ void make_gna_pwl(const DnnActivation  fun,
                     << " " << gna_pwl[n_segments].yBase / out_scale
                     << " " << 0
                     << "\n";
-                n_segments += 1;
             }
             break;
         }
@@ -618,7 +619,6 @@ void PwlDesign16(const DnnActivation activation_type,
         case kActRelu:
             std::cerr << "Rectilinear activation function design not yet implemented!" << std::endl;
             throw -1;
-            break;
         case kActIdentity:
         case kActKaldiLstmClipping:  // clipping of IDENTITY is more aggressive than Kaldi
             {

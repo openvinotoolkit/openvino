@@ -12,6 +12,7 @@
 #include <ie_parallel.hpp>
 
 #include <vpu/utils/numeric.hpp>
+#include <vpu/utils/profiling.hpp>
 
 namespace vpu {
 

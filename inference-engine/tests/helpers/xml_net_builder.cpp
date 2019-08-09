@@ -13,7 +13,7 @@ size_t  IDManager::getNextLayerID() {
     return layerID++;
 }
 
-size_t  IDManager::getNextPortID() {
+size_t IDManager::getNextPortID() {
     return portID++;
 }
 
@@ -21,7 +21,8 @@ void IDManager::reset() {
     portID = layerID = 0;
 }
 
-LayerDesc::LayerDesc(std::string type, InOutShapes& shapes, IDManager &id_manager) : _type(std::move(type)) {
+LayerDesc::LayerDesc(std::string type, InOutShapes& shapes, IDManager &id_manager, const Statistic& statistic)
+        : _type(std::move(type)), _statistic(statistic) {
     _layerID = id_manager.getNextLayerID();
     auto inDims = shapes.inDims;
     auto outDims = shapes.outDims;

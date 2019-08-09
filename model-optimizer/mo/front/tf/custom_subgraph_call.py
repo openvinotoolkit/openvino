@@ -118,7 +118,7 @@ def merge_nodes(graph: Graph, nodes_to_merge_names: list, inputs_desc: list = No
     """
     if not is_connected_component(graph, nodes_to_merge_names):
         log.warning("The following nodes do not form connected sub-graph: {}".format(nodes_to_merge_names))
-        graph.dump_graph_for_graphviz(nodes_to_dump=nodes_to_merge_names)
+        # graph.dump_graph_for_graphviz(nodes_to_dump=nodes_to_merge_names)
 
     new_node_name = graph.unique_id("TFSubgraphCall_")
     log.info("Create new node with name '{}' for nodes '{}'".format(new_node_name, ', '.join(nodes_to_merge_names)))
@@ -150,6 +150,8 @@ def merge_nodes(graph: Graph, nodes_to_merge_names: list, inputs_desc: list = No
                 # because the 'in_node_name' could be a sub-graph matched before.
                 input_tensor_name = node.pb.input[edge_attrs['in']]
                 if input_tensor_name not in added_input_tensors_names:
+                    if not new_node.has_port('in', edge_attrs['in']):
+                        new_node.add_input_port(edge_attrs['in'])
                     graph.add_edge(in_node_name, new_node_name,
                                    **merge_edge_props(
                                        {'in': find_input_port(new_node, inputs_desc, node_name, edge_attrs['in']),
@@ -175,6 +177,8 @@ def merge_nodes(graph: Graph, nodes_to_merge_names: list, inputs_desc: list = No
                 if out_name not in added_new_node_output_tensors.keys():
                     added_new_node_output_tensors[out_name] = find_output_port(new_node, outputs_desc, node_name,
                                                                                edge_attrs['out'])
+                if not new_node.has_port('out', added_new_node_output_tensors[out_name]):
+                    new_node.add_output_port(added_new_node_output_tensors[out_name])
                 graph.add_edge(new_node_name, out_node_name,
                                **merge_edge_props(
                                    {'in': edge_attrs['in'],

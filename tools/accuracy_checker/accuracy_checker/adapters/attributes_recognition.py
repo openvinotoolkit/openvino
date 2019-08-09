@@ -189,7 +189,8 @@ class PersonAttributesAdapter(Adapter):
     def process(self, raw, identifiers=None, frame_meta=None):
         result = []
         raw_output = self._extract_predictions(raw, frame_meta)
-        for identifier, multi_label in zip(identifiers, raw_output[self.attributes_recognition_out or self.output_blob]):
+        self.attributes_recognition_out = self.attributes_recognition_out or self.output_blob
+        for identifier, multi_label in zip(identifiers, raw_output[self.attributes_recognition_out]):
             multi_label[multi_label > 0.5] = 1.
             multi_label[multi_label <= 0.5] = 0.
 

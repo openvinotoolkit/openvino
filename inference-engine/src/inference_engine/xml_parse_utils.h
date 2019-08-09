@@ -42,6 +42,4 @@ GetPrecisionAttr(const pugi::xml_node &node, const char *str, InferenceEngine::P
 
 INFERENCE_ENGINE_API_CPP(int) GetIntChild(const pugi::xml_node &node, const char *str, int defVal);
 
-INFERENCE_ENGINE_API_CPP(std::string) NameFromFilePath(const char *filepath);
-
 }  // namespace XMLParseUtils

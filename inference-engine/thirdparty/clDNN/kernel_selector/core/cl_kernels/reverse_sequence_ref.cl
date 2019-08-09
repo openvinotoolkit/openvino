@@ -39,5 +39,5 @@ KERNEL(reverse_sequence_ref)(const __global UNIT_TYPE* input, const __global flo
                               dimensions[2] * OUTPUT_Y_PITCH +
                               dimensions[3] * OUTPUT_X_PITCH;
 
-    output[output_index] = input[input_index];
+    output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
 }

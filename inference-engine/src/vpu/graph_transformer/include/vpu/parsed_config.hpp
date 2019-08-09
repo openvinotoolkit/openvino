@@ -31,14 +31,13 @@ struct ParsedConfig {
     bool printReceiveTensorTime = false;
     bool exclusiveAsyncRequests = false;
     bool perfCount              = false;
-    bool forceReset             = false;
 
-    LogLevel vpuLogLevel = LogLevel::None;
-    LogLevel logLevel = LogLevel::None;
+    LogLevel deviceLogLevel = LogLevel::None;
+    LogLevel hostLogLevel = LogLevel::None;
 
-    PerfReport perfReport = PerfReport::PerStage;
+    PerfReport perfReport = PerfReport::PerLayer;
 
-    std::map<std::string, std::string> getDefaultConfig() const;
+    virtual std::map<std::string, std::string> getDefaultConfig() const;
 
     virtual ~ParsedConfig() = default;
 

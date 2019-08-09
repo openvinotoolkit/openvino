@@ -25,7 +25,7 @@ def collect_statistics():
 
         print("Collecting FP32 statistics for {}...".format(configuration.model))
         fp32_result = calibrator.infer(add_outputs=True, collect_aggregated_statistics=True)
-        print("FP32 accuracy: {0:.4f}%".format(100.0 * fp32_result.metrics.accuracy))
+        print("FP32 accuracy: {0:.4f}{1}".format(fp32_result.metrics.accuracy.value, fp32_result.metrics.accuracy.symbol))
 
         output_model_file_path = Path.get_model(configuration.output_model, "_statistics")
         output_weights_file_path = Path.get_weights(configuration.output_weights, "_statistics")

@@ -7,6 +7,8 @@
 #include "inference_engine.hpp"
 #include "description_buffer.hpp"
 #include "myriad_executable_network.h"
+#include "myriad_mvnc_wraper.h"
+#include "myriad_metrics.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,9 +20,9 @@ namespace MyriadPlugin {
 
 class Engine : public InferenceEngine::InferencePluginInternal {
 public:
-    Engine();
+    explicit Engine(std::shared_ptr<IMvnc> mvnc);
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core, InferenceEngine::ICNNNetwork &network,
                                                                        const std::map<std::string, std::string> &config) override;
 
     /**
@@ -33,8 +35,12 @@ public:
     }
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
+
+    InferenceEngine::Parameter GetConfig(const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+
     /**
-     * @depricated Use the version with config parameter
+     * @deprecated Use the version with config parameter
      */
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network, InferenceEngine::QueryNetworkResult& res) const override;
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
@@ -42,12 +48,17 @@ public:
 
     InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) override;
 
+    InferenceEngine::Parameter GetMetric(const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter> & options) const override;
+
     ~Engine() {
         MyriadExecutor::closeDevices(_devicePool);
     }
 
 private:
     std::vector<DevicePtr> _devicePool;
+    std::shared_ptr<IMvnc> _mvnc;
+    std::shared_ptr<MyriadMetrics> _metrics;
 };
 
 }  // namespace MyriadPlugin

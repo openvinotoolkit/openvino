@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,105 +30,136 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 
+#include <utility>
+#include <list>
+#include <vector>
 
 using namespace cldnn;
 
-//ToDo remove friendship relation from  program_node 
+// ToDo remove friendship relation from  program_node
 
-void prepare_buffer_fusing::run(program_impl& p)
-{
+void prepare_buffer_fusing::run(program_impl& p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     /*
     We need to take care of proper ordering by types.
     1. Concats
     2. Crops
     3. Others
-    Concat before crops is needed because of the crop fusing padding requirments. 
+    Concat before crops is needed because of the crop fusing padding requirments.
     If crop is before concat there can be padding mismtach, since concat changes padding.
     */
-    auto can_optimize = [](const program_node* node)
-    {
-        if (node->is_output() ||
-            (node->get_fused_activation_func() != cldnn_activation_func_t::activation_none))
-        {
+    auto can_optimize = [](const program_node* node) {
+        if (node->is_output() || (node->get_fused_activation_func() != cldnn_activation_func_t::activation_none)) {
             return false;
         }
         return true;
     };
 
-    //[1] First try to optimize all concats
+    // [1] First try to optimize all concats
     auto node_itr = p.get_processing_order().begin();
-    while (node_itr != p.get_processing_order().end())
-    {
+    while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         if (!can_optimize(node))
             continue;
-        program_helpers::do_for_types<concatenation>(*node, [&p, is_debug](concatenation_node& node)
-        {
-            // we need to avoid mixing padded and unpadded buffer 
+        program_helpers::do_for_types<concatenation>(*node, [&p, is_debug](concatenation_node& node) {
+            // For in place concatenation input layouts and data types must match
+            auto output_format = node.get_output_layout().format;
+            auto output_datatype = node.get_output_layout().data_type;
+            // we need to avoid mixing padded and unpadded buffer
             bool all_dependencies_padded = true;
             bool all_dependencies_unpadded = true;
             for (auto& input : node.get_dependencies()) {
+                if (input->type() == reshape::type_id())
+                    // reshapes should be optimized out
+                    return;
+
                 layout l = input->get_output_layout();
                 if (static_cast<bool>(l.data_padding))
                     all_dependencies_unpadded = false;
                 else
                     all_dependencies_padded = false;
+
+                if (output_format != l.format || output_datatype != l.data_type)
+                    return;
+
+                if (l.format == format::bfyx_f16 &&
+                    (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                    return;
             }
+
             auto concat_axis = node.get_primitive()->axis;
             auto padd = node.get_output_layout().data_padding;
 
             tensor lower_padd = padd.lower_size();
             tensor upper_padd = padd.upper_size();
 
-            auto upper_padd_val = node.get_output_layout().get_buffer_size().raw[concat_axis] - lower_padd.raw[concat_axis];
+            auto upper_padd_val =
+                node.get_output_layout().get_buffer_size().raw[concat_axis] - lower_padd.raw[concat_axis];
             tensor lower_padd_offset = lower_padd;
 
-            std::list<std::pair<const std::vector<program_node*>, tensor>> stack = { std::make_pair(node.get_dependencies(), tensor{ 0, 0, 0, 0 }) };
-            while (!stack.empty())
-            {
+            std::list<std::pair<const std::vector<program_node*>, tensor>> stack = {
+                std::make_pair(node.get_dependencies(), tensor(0))};
+            while (!stack.empty()) {
                 auto nodes_list = stack.front();
                 stack.pop_front();
+
+                // if concatenation has only one input it does nothing, remove the node
+                if (node.get_dependencies().size() == 1) {
+                    p.extract_and_remove(node);
+                    return;
+                }
 
                 auto cascade_adjustment = nodes_list.second;
                 upper_padd.raw[concat_axis] = upper_padd_val;
                 lower_padd = lower_padd_offset;
 
-                //check if concatenation in place can be applied for inputs set
-                for (auto input : nodes_list.first)
-                {
-                    //if any of this node's inputs is used by more than one primitive and is not optimized concatenation then do not fuse buffers,
-                    //also, if an input is marked as network output, prevent optimizations which would affect a form of its output (unless debug flag is set)
-                    // todo: in future, if this case is problem, it can be optimized further to enable buffer fusing
-                    //       per single input rather than all/none
-                    // + restrict input types to those which support padding on x,y,b and f
-                    if (!input->support_padding() ||
-                        (input->is_output() && !is_debug) ||
-                        input->get_users().size() > 2)
+                auto lower_padd_in_axis = lower_padd.raw[concat_axis] + cascade_adjustment.raw[concat_axis];
+                auto first_input_format = nodes_list.first[0]->get_output_layout().format;
+
+                // check if concatenation in place can be applied for inputs set
+                for (auto input : nodes_list.first) {
+                    // reverted condition - if any of this node's inputs is used by more than one primitive
+                    // and is not optimized concatenation then do not fuse buffers
+                    // todo: we need add padding support for all optimized kernels to remove this condition
+                    if (!input->is_type<pooling>() && !input->is_type<convolution>() && !input->is_type<activation>() &&
+                        !input->is_type<concatenation>() && !input->is_type<crop>() && !input->is_type<scale>())
                         return;
 
-                    if (input->get_users().size() > 1)
-                    {
+                    // if an input is marked as network output, prevent optimizations
+                    // which would affect a form of its output (unless debug flag is set),
+                    // we also need to restrict input types to those which support padding on all axis
+                    if ((input->is_output() && !is_debug) || input->get_users().size() > 2 ||
+                        !input->is_padding_supported(concat_axis, lower_padd_in_axis))
+                        return;
+
+                    if (input->get_users().size() > 1) {
                         auto user_count = input->get_users().size();
                         for (auto& user : input->get_users())
                             if (user->is_type<concatenation>())
                                 user_count--;
-                        if (user_count != 1) // user_cout == 0 means that input will be used only by concatenations, so we cannot apply concat in place for it
+                        if (user_count != 1)  // user_cout == 0 means that input will be used only by concatenations, so
+                                              // we cannot apply concat in place for it
                             return;
                     }
+
+                    // check if all inputs have the same format
+                    if (input->get_output_layout().format != first_input_format)
+                        return;
+
+                    lower_padd_in_axis += input->get_output_layout().size.raw[concat_axis];
                 }
 
-                //apply concatenation in place optimization
-                for (auto input : nodes_list.first)
-                {
+                // apply concatenation in place optimization
+                for (auto input : nodes_list.first) {
                     auto input_lenght = input->get_output_layout().size.raw[concat_axis];
 
                     bool optimized_concat_input = false;
-                    if (input->type() == concatenation::type_id() && input->can_be_optimized())
-                    {
+                    if (input->type() == concatenation::type_id() && input->can_be_optimized()) {
                         if (input->as<concatenation>().get_primitive()->axis != node.get_primitive()->axis)
                             return;
                         optimized_concat_input = true;
+                    } else if (input->can_be_optimized()) {
+                        return;
                     }
 
                     // shrink upper pad so it points at the end of the input's buffer
@@ -137,7 +168,7 @@ void prepare_buffer_fusing::run(program_impl& p)
                     //   |-- output padd ---| ----- input1 ------|----- input2 -----|-- out padd --|
                     upper_padd.raw[concat_axis] -= input_lenght;
 
-                    //adjust padding sizes for cascade concatenations
+                    // adjust padding sizes for cascade concatenations
                     auto lower_padd_tmp = lower_padd;
                     lower_padd_tmp.raw[concat_axis] += cascade_adjustment.raw[concat_axis];
                     auto upper_padd_tmp = upper_padd;
@@ -154,13 +185,13 @@ void prepare_buffer_fusing::run(program_impl& p)
                     lower_padd.raw[concat_axis] += input_lenght;
 
                     if (optimized_concat_input && !input->get_dependencies().empty())
-                        stack.push_back(std::make_pair(input->get_dependencies(), input->get_output_layout().data_padding.lower_size()));
+                        stack.push_back(std::make_pair(input->get_dependencies(),
+                                                       input->get_output_layout().data_padding.lower_size()));
                 }
             }
 
             node.can_be_optimized(true);
-            for (auto dep : node.get_users())
-            {
+            for (auto dep : node.get_users()) {
                 dep->can_share_buffer(false);
             }
             if (!all_dependencies_padded && !all_dependencies_unpadded)
@@ -168,27 +199,26 @@ void prepare_buffer_fusing::run(program_impl& p)
         });
     }
 
-    //[2] Then try to optimize all crops
+    // [2] Then try to optimize all crops
     node_itr = p.get_processing_order().begin();
-    while (node_itr != p.get_processing_order().end())
-    {
+    while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         if (!can_optimize(node))
             continue;
         // zero copy
-        program_helpers::do_for_types<crop>(*node, [&p, is_debug](crop_node& node)
-        {
-            //if the node is marked as network output, prevent optimizations which would affect a form of its output, unless debug flag is set
+        program_helpers::do_for_types<crop>(*node, [&p, is_debug](crop_node& node) {
+            // if the node is marked as network output, prevent optimizations which would affect a form of its output,
+            // unless debug flag is set
             if (node.is_output() && !is_debug)
                 return;
 
-            //do not optimize when next node is concatenation which is not output
-            if (node.get_users().size() == 1 && node.get_users().front()->is_type<concatenation>() && !node.get_users().front()->is_output())
-                return;
+            // do not optimize when next node is concatenation which is not output
+            for (auto user : node.get_users()) {
+                if (user->is_type<concatenation>() && !user->is_output())
+                    return;
+            }
 
-            if (node.get_dependencies().size() == 1 &&
-                node.get_users().size() > 0)
-            {
+            if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
                 // optimization is available for cropping across depth(features) only
                 // if output padding has defined padding across features already it wouldn't
                 // work because it expect to have zeros in the padded area.
@@ -198,19 +228,13 @@ void prepare_buffer_fusing::run(program_impl& p)
                 auto input_layout = node.get_dependency(0).get_output_layout();
                 const auto& crop_size = crop_layout.size;
                 const auto& out_padd = crop_layout.data_padding;
-                if (format == format::bfyx &&
-                    crop_size.batch[0] == input_layout.size.batch[0] &&
+                if (format == format::bfyx && crop_size.batch[0] == input_layout.size.batch[0] &&
                     crop_size.spatial[0] == input_layout.size.spatial[0] &&
-                    crop_size.spatial[1] == input_layout.size.spatial[1] &&
-                    out_padd.lower_size().feature[0] == 0 &&
-                    out_padd.upper_size().feature[0] == 0 &&
-                    out_padd.lower_size().batch[0] == 0 &&
-                    out_padd.upper_size().batch[0] == 0 &&
-                    out_padd.lower_size().spatial[0] == 0 &&
-                    out_padd.lower_size().spatial[1] == 0 &&
-                    out_padd.upper_size().spatial[0] == 0 &&
-                    out_padd.upper_size().spatial[1] == 0)
-                {
+                    crop_size.spatial[1] == input_layout.size.spatial[1] && out_padd.lower_size().feature[0] == 0 &&
+                    out_padd.upper_size().feature[0] == 0 && out_padd.lower_size().batch[0] == 0 &&
+                    out_padd.upper_size().batch[0] == 0 && out_padd.lower_size().spatial[0] == 0 &&
+                    out_padd.lower_size().spatial[1] == 0 && out_padd.upper_size().spatial[0] == 0 &&
+                    out_padd.upper_size().spatial[1] == 0) {
                     //  Regular crop
                     //  crop input buffer
                     //  |___________data____________|
@@ -225,97 +249,146 @@ void prepare_buffer_fusing::run(program_impl& p)
                     //  crop output buffer
                     //  |_low_pad_|__data_size__|___|<-upper pad
 
-                    node.set_output_padding(padding(
-                        { out_padd.lower_size().batch[0], crop_prim->offsets.feature[0], out_padd.lower_size().spatial[0], out_padd.lower_size().spatial[1] },
-                        { out_padd.upper_size().batch[0], input_layout.size.feature[0] - crop_prim->offsets.feature[0] - crop_size.feature[0],
-                            out_padd.upper_size().spatial[0], out_padd.upper_size().spatial[1] }));
+                    node.set_output_padding(
+                        padding({out_padd.lower_size().batch[0],
+                                 crop_prim->offsets.feature[0],
+                                 out_padd.lower_size().spatial[0],
+                                 out_padd.lower_size().spatial[1]},
+                                {out_padd.upper_size().batch[0],
+                                 input_layout.size.feature[0] - crop_prim->offsets.feature[0] - crop_size.feature[0],
+                                 out_padd.upper_size().spatial[0],
+                                 out_padd.upper_size().spatial[1]}));
                     node.can_be_optimized(true);
                 }
             }
         });
     }
 
-    //[3] Optimize all other primitives
+    // [3] Optimize all other primitives
     node_itr = p.get_processing_order().begin();
-    while (node_itr != p.get_processing_order().end())
-    {
+    while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         if (!can_optimize(node))
             continue;
-        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node)
-        {
+        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
             node.get_output_layout();
-            if (node.is_in_place()
-                && node.get_fused_activation_func() == activation_none)
+            if (node.is_in_place() && node.get_fused_activation_func() == activation_none)
                 node.can_be_optimized(true);
+            else
+                node.can_be_optimized(false);
         });
-        program_helpers::do_for_types<reorder>(*node, [&p](reorder_node& node)
-        {
+        program_helpers::do_for_types<reorder>(*node, [&p](reorder_node& node) {
             auto& input = node.input();
+
             auto output_layout = node.get_output_layout();
-            //This is WA for topologies that due to additional reorders added perform worse with conv1x1 optimization
+            // This is WA for topologies that due to additional reorders added perform worse with conv1x1 optimization
             auto remove_bf8_xy_opt = ((input.is_type<pooling>() || input.is_type<concatenation>()) &&
-                output_layout.format == format::bf8_xy16 && input.get_users().size() == 1);
-            //Remove reorder from convolution 1x1 to bfyx in some conditions
-            auto remove_byxf_opt = (input.is_type<convolution>() &&
-                input.get_users().size() == 1 &&
-                input.get_output_layout().format == format::byxf);
-            //check if all inputs user have the same format
+                                      output_layout.format == format::bf8_xy16 && input.get_users().size() == 1);
+            // Remove reorder from convolution 1x1 to bfyx in some conditions
+            auto remove_byxf_opt = (input.is_type<convolution>() && input.get_users().size() == 1 &&
+                                    input.get_output_layout().format == format::byxf);
+
+            // Work-around to propagate blocked formats to first convolution - fs_byx_fsv32, bfyx_f16
+            // Pattern of convolution -> pooling -> reorder
+            auto blocked_conv_pool_reorder =
+                input.is_type<pooling>() &&
+                input.get_dependencies().front()->is_type<convolution>() &&   // Input to pooling is convolution
+                input.get_dependencies().front()->get_users().size() == 1 &&  // Convolution has only one user (pooling)
+                input.get_dependencies().front()->get_output_layout().format ==
+                    format::bfyx;  // Convolution outputs bfyx format
+            // Pattern of convolution -> reorder
+            auto blocked_conv_reorder = input.is_type<convolution>() && input.get_users().size() == 1 &&
+                                        input.get_output_layout().format == format::bfyx;
+            auto remove_bfyx_to_blocked =
+                (output_layout.format == format::fs_b_yx_fsv32 ||
+                 // For bfyx_f16 if the size is large enough it is more optimal to sink reorder into convolution
+                 (output_layout.format == format::bfyx_f16 &&
+                  output_layout.count() > 500000
+                  // bfyx -> bfyx_f16 implementation can only handle 3 input features
+                  && input.get_output_layout().size.feature[0] == 3)) &&
+                (blocked_conv_pool_reorder || blocked_conv_reorder);
+
+            // check if all inputs user have the same format
             auto all_users_same_format = true;
             auto input_user_layout_format = input.get_users().front()->get_output_layout().format;
-            for (auto const& user : input.get_users())
-            {
-                if (user->get_output_layout().format != input_user_layout_format)
-                {
+            for (auto const& user : input.get_users()) {
+                if (user->get_output_layout().format != input_user_layout_format) {
                     all_users_same_format = false;
                     break;
                 }
             }
             auto same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            //Optimization only available in case of layers that support different input and output formats.
-            //todo: new api needs to be created to read such caps
-            if (!(input.is_type<pooling>() && (output_layout.format == format::bfyx || output_layout.format == format::yxfb || output_layout.format == format::byxf) && all_users_same_format && same_data_type) &&
+            // Optimization only available in case of layers that support different input and output formats.
+            // todo: new api needs to be created to read such caps
+            if (!(input.is_type<pooling>() &&
+                  (output_layout.format == format::bfyx || output_layout.format == format::yxfb ||
+                   output_layout.format == format::byxf) &&
+                  input.get_output_layout().format != format::fs_b_yx_fsv32 &&
+                  input.get_output_layout().format != format::bfyx_f16 && all_users_same_format && same_data_type) &&
                 !remove_bf8_xy_opt &&
-                !(input.is_type<convolution>() && input.get_output_layout().format == format::bf8_xy16) &&
-                !(input.is_type<eltwise>() && (output_layout.format == format::bfyx || output_layout.format == format::yxfb || output_layout.format == format::byxf) && all_users_same_format && same_data_type) &&
-                !(remove_byxf_opt && (node.get_users().front()->is_type<eltwise>() || node.get_users().front()->is_type<pooling>())))
+                !(input.is_type<convolution>() && (input.get_output_layout().format == format::bf8_xy16)) &&
+                !(input.is_type<eltwise>() &&
+                  (output_layout.format == format::bfyx || output_layout.format == format::yxfb ||
+                   output_layout.format == format::byxf) &&
+                  input.get_output_layout().format != format::fs_b_yx_fsv32 &&
+                  input.get_output_layout().format != format::bfyx_f16 && all_users_same_format && same_data_type) &&
+                !(remove_byxf_opt &&
+                  (node.get_users().front()->is_type<eltwise>() || node.get_users().front()->is_type<pooling>()) &&
+                  output_layout.format != format::fs_b_yx_fsv32) &&
+                !(remove_bfyx_to_blocked))
                 return;
 
-            if (remove_bf8_xy_opt)
-            {
+            if (remove_bf8_xy_opt) {
                 auto users_user_layout = node.get_users().front()->get_users().front()->get_output_layout();
                 // if users_user_layout is still bf8_yx16 (stacked convolutions) then leave the reorder
                 if (users_user_layout.format == format::bf8_xy16)
                     return;
                 auto input_layout = input.get_output_layout();
-                auto target_layout = layout(input_layout.data_type, users_user_layout.format, input_layout.size, input_layout.data_padding);
+                auto target_layout = layout(input_layout.data_type,
+                                            users_user_layout.format,
+                                            input_layout.size,
+                                            input_layout.data_padding);
                 input.set_output_layout(target_layout, false);
-            }
-            else if (remove_byxf_opt)
-            {
-                auto user = node.get_users().front();
-                auto users_users = node.get_users().front()->get_users();
+            } else if (remove_byxf_opt) {
+                for (auto user : node.get_users()) {
+                    auto users_users = user->get_users();
 
-                for (auto const& users_user : users_users)
-                {
-                    if (users_user->get_output_layout().format != format::byxf && !users_user->is_type<eltwise>())
-                    {
-                        remove_byxf_opt = false;
-                        break;
+                    for (auto const& users_user : users_users) {
+                        if (users_user->get_output_layout().format != format::byxf && !users_user->is_type<eltwise>()) {
+                            remove_byxf_opt = false;
+                            return;
+                        }
                     }
                 }
 
-                if (remove_byxf_opt)
-                {
-                    auto input_layout = input.get_output_layout();
-                    user->set_output_layout(input_layout, false);
+                for (auto user : node.get_users()) {
+                    if (remove_byxf_opt) {
+                        auto input_layout = input.get_output_layout();
+                        user->set_output_layout(input_layout, false);
+                    }
                 }
-            }
-            else
-                input.set_output_layout(output_layout, false);
+            } else if (remove_bfyx_to_blocked) {
+                auto& conv_node = blocked_conv_reorder ? input : *(input.get_dependencies().front());
+                auto original_layout = conv_node.get_output_layout();
+                auto output_format = output_layout.format;
+                // Change convolution output layout since it can handle bfyx -> blocked format change
+                auto target_layout = layout(original_layout.data_type,
+                                            output_format,
+                                            original_layout.size,
+                                            original_layout.data_padding);
 
+                if (blocked_conv_pool_reorder) {
+                    input.set_output_padding(output_layout.data_padding);
+                } else {
+                    target_layout.data_padding = output_layout.data_padding;
+                }
+
+                conv_node.set_output_layout(target_layout);
+            } else {
+                input.set_output_layout(output_layout, false);
+            }
             node.can_be_optimized(true);
-            p.extract_and_remove(node); //try to remove redundant reorders
+            p.extract_and_remove(node);  // try to remove redundant reorders
         });
     }
 }

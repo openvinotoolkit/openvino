@@ -16,7 +16,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNPoolingNode::MKLDNNPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNPoolingNode::MKLDNNPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
+        : MKLDNNNode(layer, eng, socket) {}
 
 void MKLDNNPoolingNode::getSupportedDescriptors() {
     if (!descs.empty())
@@ -63,7 +64,16 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, memory::format::nhwc};
         MKLDNNMemoryDesc out_candidate{childDims, outputDataType, memory::format::nhwc};
         createDescriptor({ in_candidate }, { out_candidate });
+    } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && parentDims[1] == 1) {
+        inputDataType = memory::f32;
+        outputDataType = memory::f32;
+        // WA. We should force planar layout since it provides better performance
+        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format::ncdhw : memory::format::nchw};
+        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ncdhw : memory::format::nchw};
+        createDescriptor({ in_candidate }, { out_candidate });
     } else {
+        inputDataType = memory::f32;
+        outputDataType = memory::f32;
         // It doesn't support any format
         for (auto format : getAvailableFormatsForDims(parentDims)) {
             MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, format};

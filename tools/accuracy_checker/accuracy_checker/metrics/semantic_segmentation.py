@@ -34,17 +34,12 @@ class SegmentationMetricConfig(BaseMetricConfig):
 class SegmentationMetric(PerImageEvaluationMetric):
     annotation_types = (SegmentationAnnotation, )
     prediction_types = (SegmentationPrediction, )
+    _config_validator_type = SegmentationMetricConfig
 
     CONFUSION_MATRIX_KEY = 'segmentation_confusion_matrix'
 
     def evaluate(self, annotations, predictions):
         raise NotImplementedError
-
-    def validate_config(self):
-        config_validator = SegmentationMetricConfig(
-            'SemanticSegmentation_config', SegmentationMetricConfig.ERROR_ON_EXTRA_ARGUMENT
-        )
-        config_validator.validate(self.config)
 
     def configure(self):
         self.use_argmax = self.config.get('use_argmax', True)

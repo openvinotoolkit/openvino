@@ -16,11 +16,11 @@
 
 import logging as log
 
+from extensions.front.div import Div
 from extensions.front.squared_difference import SquaredDifference
 from extensions.front.sub import Sub
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
-from extensions.front.div import Div
 from mo.ops.op import Op
 
 
@@ -34,10 +34,10 @@ class MVNUnrolled(FrontReplacementSubgraph):
         log.debug('Enabled MVN replacement')
         return dict(
             nodes=[
-                ('mean', dict(kind='op', op='Mean')),
+                ('mean', dict(kind='op', op='ReduceMean')),
                 ('stop_grad', dict(kind='op', op='StopGradient')),
                 ('sqdiff', dict(kind='op', op='SquaredDifference')),
-                ('variance', dict(kind='op', op='Mean')),
+                ('variance', dict(kind='op', op='ReduceMean')),
                 ('add', dict(kind='op', op='Add')),
                 ('pow', dict(kind='op', op='Pow')),
                 ('sub', dict(kind='op', op='Sub')),

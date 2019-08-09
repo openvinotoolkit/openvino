@@ -27,27 +27,24 @@ namespace cl {
 class Kernel;
 }
 
-namespace kernel_selector
-{
-    struct KernelString;
+namespace kernel_selector {
+struct KernelString;
 }
 
-namespace kernel_selector
-{
-    using kernel_string = kernel_selector::KernelString;
+namespace kernel_selector {
+using kernel_string = kernel_selector::KernelString;
 }
 
-namespace cldnn { namespace gpu {
+namespace cldnn {
+namespace gpu {
 
 class gpu_toolkit;
 
-class kernels_cache
-{
+class kernels_cache {
 public:
     using source_code = std::vector<std::string>;
 
-    struct program_code
-    {
+    struct program_code {
         std::vector<source_code> source;
         uint32_t kernels_counter = 0;
         std::string options;
@@ -56,8 +53,7 @@ public:
         std::map<std::string, std::string> entry_point_to_id;
     };
 
-    struct kernel_code
-    {
+    struct kernel_code {
         std::shared_ptr<kernel_selector::kernel_string> kernel_strings;
         std::string id;
         bool dump_custom_program;
@@ -74,9 +70,10 @@ private:
     gpu_toolkit& _context;
     std::mutex _mutex;
     kernels_code _kernels_code;
-    std::atomic<bool> _pending_compilation{ false };
+    std::atomic<bool> _pending_compilation{false};
     std::map<std::string, kernel_type> _kernels;
-    std::map<std::string, kernel_type> _one_time_kernels; // These kernels are intended to be executed only once (can be removed later from the cache).
+    std::map<std::string, kernel_type> _one_time_kernels;  // These kernels are intended to be executed only once (can
+                                                           // be removed later from the cache).
 
     sorted_code get_program_source(const kernels_code& kernels_source_code) const;
     friend class gpu_toolkit;
@@ -84,11 +81,14 @@ private:
     kernels_map build_program(const program_code& pcode) const;
 
 public:
-    kernel_id set_kernel_source(const std::shared_ptr<kernel_selector::kernel_string>& kernel_string, bool dump_custom_program, bool one_time_kernel);
+    kernel_id set_kernel_source(const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,
+                                bool dump_custom_program,
+                                bool one_time_kernel);
     kernel_type get_kernel(kernel_id id, bool one_time_kernel);
     gpu_toolkit& get_context() { return _context; }
-    //forces compilation of all pending kernels/programs
+    // forces compilation of all pending kernels/programs
     void build_all();
 };
 
-}}
+}  // namespace gpu
+}  // namespace cldnn

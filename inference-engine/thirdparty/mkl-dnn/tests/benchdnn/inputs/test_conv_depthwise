@@ -3,6 +3,7 @@
 --mb=2
 --dir=FWD_D --batch=conv_mobilenet_dw
 --dir=BWD_D --batch=conv_mobilenet_dw
+--dir=BWD_WB --batch=conv_mobilenet_dw
 --attr=post_ops='relu'
 --dir=FWD_D --batch=conv_mobilenet_dw # +relu
 

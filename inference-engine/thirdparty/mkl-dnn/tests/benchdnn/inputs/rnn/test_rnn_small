@@ -48,7 +48,7 @@
 --direction=left2right
 --activation=TANH
 --prop=FWD_D --batch=rnn_small
-# --prop=BWD_DW --batch=rnn_small
+--prop=BWD_DW --batch=rnn_small
 
 # LSTM int8
 --reset --alg=VANILLA_LSTM

@@ -236,7 +236,7 @@ Builder::Network::Network(const Context& ieContext, const ICNNNetwork &network):
                 }
             }
         }
-        for (const auto& it : dataPtr->inputTo) {
+        for (const auto& it : dataPtr->getInputTo()) {
             if (name2id.find(cnnInputLayer->name) == name2id.end() || name2id.find(it.second->name) == name2id.end())
                 THROW_IE_EXCEPTION << "Cannot create connections between nodes: " << cnnInputLayer->name << " -> " << it.second->name;
             idx_t outIdx(0);
@@ -459,10 +459,6 @@ void Builder::Network::validate() {
     for (const auto& input : getInputs())
         inputShapes[input->getName()] = input->getOutputPorts()[0].shape();
 
-    if (parameters.at("version").as<int>()) {
-        details::BaseCreator::version_ = parameters.at("version");
-    }
-
     ShapeInfer::Reshaper reshaper(this);
     ResponseDesc resp;
     StatusCode sts = reshaper.run(inputShapes, &resp);
@@ -501,6 +497,7 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
         static std::vector<std::shared_ptr<BaseConverter>> convertors = {
                 std::make_shared<LayerConverter<InferenceEngine::PowerLayer>>("Power"),
                 std::make_shared<LayerConverter<InferenceEngine::ConvolutionLayer>>("Convolution"),
+                std::make_shared<LayerConverter<InferenceEngine::DeformableConvolutionLayer>>("DeformableConvolution"),
                 std::make_shared<LayerConverter<InferenceEngine::DeconvolutionLayer>>("Deconvolution"),
                 std::make_shared<LayerConverter<InferenceEngine::PoolingLayer>>("Pooling"),
                 std::make_shared<LayerConverter<InferenceEngine::FullyConnectedLayer>>("InnerProduct"),
@@ -508,6 +505,7 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
                 std::make_shared<LayerConverter<InferenceEngine::NormLayer>>("LRN"),
                 std::make_shared<LayerConverter<InferenceEngine::NormLayer>>("Norm"),
                 std::make_shared<LayerConverter<InferenceEngine::SoftMaxLayer>>("Softmax"),
+                std::make_shared<LayerConverter<InferenceEngine::SoftMaxLayer>>("LogSoftmax"),
                 std::make_shared<LayerConverter<InferenceEngine::GRNLayer>>("GRN"),
                 std::make_shared<LayerConverter<InferenceEngine::MVNLayer>>("MVN"),
                 std::make_shared<LayerConverter<InferenceEngine::ReLULayer>>("ReLU"),
@@ -541,14 +539,14 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
         InputInfo::Ptr info(new InputInfo());
         info->getPreProcess() = preProc;
         info->setInputData(in_data);
-        Precision prc = info->getInputPrecision();
+        Precision prc = info->getPrecision();
 
         // Convert precision into native format (keep element size)
         prc = prc == Precision::Q78 ? Precision::I16 :
               prc == Precision::FP16 ? Precision::FP32 :
               static_cast<Precision::ePrecision>(prc);
 
-        info->setInputPrecision(prc);
+        info->setPrecision(prc);
         network->setInputInfo(info);
     };
 
@@ -649,7 +647,7 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
                 TensorDesc dataDesc(detectedPrecision, layer->getOutputPorts()[connection.from().portId()].shape(),
                                     TensorDesc::getLayoutByDims(layer->getOutputPorts()[connection.from().portId()].shape()));
                 data = std::make_shared<Data>(dataName, dataDesc);
-                data->creatorLayer = cnnLayer;
+                data->getCreatorLayer() = cnnLayer;
             }
             cnnLayer->outData[connection.from().portId()] = data;
 
@@ -660,7 +658,7 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
                     realPortId++;
             }
             if (cnnOutLayer) {
-                data->inputTo[outLayer->getName()] = cnnOutLayer;
+                data->getInputTo()[outLayer->getName()] = cnnOutLayer;
                 cnnOutLayer->insData[realPortId] = data;
             } else {
                 cnnNetworkImpl->addOutput(data->getName());

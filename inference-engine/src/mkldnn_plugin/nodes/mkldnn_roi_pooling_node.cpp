@@ -14,7 +14,7 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNROIPoolingNode::MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNROIPoolingNode::MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) : MKLDNNNode(layer, eng, socket) {}
 
 void MKLDNNROIPoolingNode::getSupportedDescriptors() {
     if (!descs.empty())
@@ -82,7 +82,7 @@ void MKLDNNROIPoolingNode::createPrimitive() {
 
     const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set for node " << getName() << ".";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
     auto prim_desc = roi_pooling_forward::primitive_desc(*selected_desc_ptr, getEngine());
     primitive_desc_iterator itpd = descs[0].createPrimitiveDescriptorIterator(getEngine());

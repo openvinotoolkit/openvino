@@ -13,15 +13,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
+from extensions.ops.elementwise import Maximum, Mul
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.eltwise import Eltwise
-from mo.ops.power import Power
+from mo.ops.const import Const
 
 
 class MinimumMiddleReplacer(MiddleReplacementPattern):
-    op = "Minimum"
     enabled = True
 
     def run_after(self):
@@ -46,14 +46,21 @@ class MinimumMiddleReplacer(MiddleReplacementPattern):
         if node.in_node(0).value is not None and node.in_node(1).value is not None:
             return
 
-        negate_1 = Power(graph, dict(scale=-1, name=node.name + '/negate1_'))
-        negate_2 = Power(graph, dict(scale=-1, name=node.name + '/negate2_'))
-        maximum = Eltwise(graph, dict(operation='max', name=node.name + '/Max_'))
-        negate_output = Power(graph, dict(scale=-1, name=node.name + '/negate_out_'))
+        neg_1_const = Const(graph, dict(value=np.array(-1), name=node.name + '/negate1_const'))
+        neg_2_const = Const(graph, dict(value=np.array(-1), name=node.name + '/negate2_const'))
+        negate_1 = Mul(graph, dict(name=node.name + '/negate1_'))
+        negate_2 = Mul(graph, dict(name=node.name + '/negate2_'))
+        maximum = Maximum(graph, dict(name=node.name + '/Max_'))
+        negate_output_const = Const(graph, dict(value=np.array(-1), name=node.name + '/negate_out_const_'))
+        negate_output = Mul(graph, dict(scale=-1, name=node.name + '/negate_out_'))
 
         negate_output.create_node_with_data(
-            inputs=[maximum.create_node_with_data([negate_1.create_node_with_data([node.in_node(0)]),
-                                                   negate_2.create_node_with_data([node.in_node(1)])])],
+            inputs=[
+                maximum.create_node_with_data(
+                    [negate_1.create_node_with_data([node.in_node(0), neg_1_const.create_node_with_data()]),
+                     negate_2.create_node_with_data([node.in_node(1), neg_2_const.create_node_with_data()])]),
+                negate_output_const.create_node_with_data()
+            ],
             data_nodes=node.out_node())
         # Delete minimum vertex
         node.graph.remove_node(node.id)

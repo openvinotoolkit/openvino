@@ -18,12 +18,11 @@
 #pragma once
 #include "api/CPP/lstm.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 template <>
-struct typed_program_node<lstm_elt> : public typed_program_node_base<lstm_elt>
-{
+struct typed_program_node<lstm_elt> : public typed_program_node_base<lstm_elt> {
     using parent = typed_program_node_base<lstm_elt>;
 
 public:
@@ -37,7 +36,7 @@ public:
         float clip_val = get_primitive()->clip;
         if (clip_val < 0)
             throw std::range_error("Clip value < 0");
-        return clip_val; 
+        return clip_val;
     }
     bool input_forget() const { return get_primitive()->input_forget; }
     int32_t direction() const { return get_primitive()->direction; }
@@ -46,8 +45,7 @@ public:
 using lstm_elt_node = typed_program_node<lstm_elt>;
 
 template <>
-class typed_primitive_inst<lstm_elt> : public typed_primitive_inst_base<lstm_elt>
-{
+class typed_primitive_inst<lstm_elt> : public typed_primitive_inst_base<lstm_elt> {
     using parent = typed_primitive_inst_base<lstm_elt>;
 
 public:
@@ -72,4 +70,4 @@ public:
 
 using lstm_elt_inst = typed_primitive_inst<lstm_elt>;
 
-}
+}  // namespace cldnn

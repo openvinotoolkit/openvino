@@ -18,9 +18,10 @@
 #pragma once
 #include "../C/lstm.h"
 #include "primitive.hpp"
+#include <vector>
+#include <algorithm>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -37,8 +38,7 @@ namespace cldnn
 ///   ot = f(Xt*(Wo^T) + Ht-1*Ro + Wbo)
 ///   Ht = ot (.) h(Ct)
 /// Where f = Sigmoid, g = Tanh, and h = Tanh.
-struct lstm : public primitive_base<lstm, CLDNN_PRIMITIVE_DESC(lstm)>
-{
+struct lstm : public primitive_base<lstm, CLDNN_PRIMITIVE_DESC(lstm)> {
     CLDNN_DECLARE_PRIMITIVE(lstm)
 
     /// @brief Constructs lstm layer.
@@ -55,56 +55,50 @@ struct lstm : public primitive_base<lstm, CLDNN_PRIMITIVE_DESC(lstm)>
     /// @param activation_params Vector of ativation params. Specify params for each [f, g, h] activation.
     /// @brief Output selection. Default the entire hidden sequence is returned.
     /// @param offset_order Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
-    lstm(
-        const primitive_id& id,
-        const std::vector<primitive_id>& input,
-        const primitive_id& weights,
-        const primitive_id& recurrent,
-        const primitive_id& bias = "",
-        const primitive_id& initial_hidden = "",
-        const primitive_id& initial_cell = "",
-        const primitive_id& peepholes = "",
-        const float clip = 0,
-        const bool input_forget = 0,
-        const std::vector<cldnn_activation_func>& activations = {},
-        const std::vector<cldnn_activation_additional_params> activation_params = {},
-        const cldnn_lstm_output output_selection = cldnn_lstm_output_sequence,
-        const cldnn_lstm_offset_order offset_order = cldnn_lstm_offset_order_iofz,
-        const padding& output_padding = padding()
-        )
-        : primitive_base(id, input, output_padding)
-        , weights(weights)
-        , recurrent(recurrent)
-        , bias(bias)
-        , initial_hidden(initial_hidden)
-        , initial_cell(initial_cell)
-        , peepholes(peepholes)
-        , clip(clip)
-        , input_forget(input_forget)
-        , activations(activations)
-        , activation_params(activation_params)
-        , output_selection(output_selection)
-        , offset_order(offset_order)
-    {
-    }
+    lstm(const primitive_id& id,
+         const std::vector<primitive_id>& input,
+         const primitive_id& weights,
+         const primitive_id& recurrent,
+         const primitive_id& bias = "",
+         const primitive_id& initial_hidden = "",
+         const primitive_id& initial_cell = "",
+         const primitive_id& peepholes = "",
+         const float clip = 0,
+         const bool input_forget = 0,
+         const std::vector<cldnn_activation_func>& activations = {},
+         const std::vector<cldnn_activation_additional_params> activation_params = {},
+         const cldnn_lstm_output output_selection = cldnn_lstm_output_sequence,
+         const cldnn_lstm_offset_order offset_order = cldnn_lstm_offset_order_iofz,
+         const padding& output_padding = padding())
+        : primitive_base(id, input, output_padding),
+          weights(weights),
+          recurrent(recurrent),
+          bias(bias),
+          initial_hidden(initial_hidden),
+          initial_cell(initial_cell),
+          peepholes(peepholes),
+          clip(clip),
+          input_forget(input_forget),
+          activations(activations),
+          activation_params(activation_params),
+          output_selection(output_selection),
+          offset_order(offset_order) {}
 
     /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{lstm}
     lstm(const dto* dto)
-        : primitive_base(dto)
-        , weights(dto->weights)
-        , recurrent(dto->recurrent)
-        , bias(dto->bias)
-        , initial_hidden(dto->initial_hidden)
-        , initial_cell(dto->initial_cell)
-        , peepholes(dto->peepholes)
-        , clip(dto->clip)
-        , input_forget(dto->input_forget)
-		, activations(dto->activations, std::end(dto->activations))
-		, activation_params(dto->activation_params, std::end(dto->activation_params))
-        , output_selection(dto->output_selection)
-        , offset_order(dto->offset_order)
-    {
-    }
+        : primitive_base(dto),
+          weights(dto->weights),
+          recurrent(dto->recurrent),
+          bias(dto->bias),
+          initial_hidden(dto->initial_hidden),
+          initial_cell(dto->initial_cell),
+          peepholes(dto->peepholes),
+          clip(dto->clip),
+          input_forget(dto->input_forget),
+          activations(dto->activations, std::end(dto->activations)),
+          activation_params(dto->activation_params, std::end(dto->activation_params)),
+          output_selection(dto->output_selection),
+          offset_order(dto->offset_order) {}
 
     /// @brief Primitive id containing weights data.
     primitive_id weights;
@@ -138,28 +132,23 @@ struct lstm : public primitive_base<lstm, CLDNN_PRIMITIVE_DESC(lstm)>
     // /// @brief The sequence output for the hidden.
     // uint32_t output_sequence;
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override
-    {
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.push_back(weights);
         ret.push_back(recurrent);
-        if (!bias.empty())
-        {
+        if (!bias.empty()) {
             ret.push_back(bias);
         }
-        if (!initial_hidden.empty())
-        {
+        if (!initial_hidden.empty()) {
             ret.push_back(initial_hidden);
         }
-        if (!initial_cell.empty())
-        {
+        if (!initial_cell.empty()) {
             ret.push_back(initial_cell);
         }
         return ret;
     }
 
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.weights = weights.c_str();
         dto.recurrent = recurrent.c_str();
         dto.bias = bias.c_str();
@@ -179,8 +168,7 @@ protected:
     }
 };
 
-struct lstm_gemm : public primitive_base<lstm_gemm, CLDNN_PRIMITIVE_DESC(lstm_gemm)>
-{
+struct lstm_gemm : public primitive_base<lstm_gemm, CLDNN_PRIMITIVE_DESC(lstm_gemm)> {
     CLDNN_DECLARE_PRIMITIVE(lstm_gemm)
 
     /// @brief Constructs lstm layer.
@@ -191,35 +179,29 @@ struct lstm_gemm : public primitive_base<lstm_gemm, CLDNN_PRIMITIVE_DESC(lstm_ge
     /// @param input bias Primitive id containing bias data. Provide empty string if using lstm without bias.
     /// @param input hidden Primitive id containing hidden data. Provide empty string if using lstm without hidden values.
     /// @param direction default = 0, bidirectional = 1.
-    lstm_gemm(
-        const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& weights,
-        const primitive_id& recurrent,
-        const primitive_id& bias = "",
-        const primitive_id& hidden = "",
-        const uint32_t direction = 0,
-        const padding& output_padding = padding()
-        )
-        : primitive_base(id, {input}, output_padding)
-        , weights(weights)
-        , recurrent(recurrent)
-        , bias(bias)
-        , hidden(hidden)
-        , direction(direction)
-    {
-    }
+    lstm_gemm(const primitive_id& id,
+              const primitive_id& input,
+              const primitive_id& weights,
+              const primitive_id& recurrent,
+              const primitive_id& bias = "",
+              const primitive_id& hidden = "",
+              const uint32_t direction = 0,
+              const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          weights(weights),
+          recurrent(recurrent),
+          bias(bias),
+          hidden(hidden),
+          direction(direction) {}
 
     /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{lstm}
     lstm_gemm(const dto* dto)
-        : primitive_base(dto)
-        , weights(dto->weights)
-        , recurrent(dto->recurrent)
-        , bias(dto->bias)
-        , hidden(dto->hidden)
-        , direction(dto->direction)
-    {
-    }
+        : primitive_base(dto),
+          weights(dto->weights),
+          recurrent(dto->recurrent),
+          bias(dto->bias),
+          hidden(dto->hidden),
+          direction(dto->direction) {}
 
     /// @brief Primitive id containing weights data.
     primitive_id weights;
@@ -233,8 +215,7 @@ struct lstm_gemm : public primitive_base<lstm_gemm, CLDNN_PRIMITIVE_DESC(lstm_ge
     uint32_t direction;
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override
-    {
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.push_back(weights);
         ret.push_back(recurrent);
@@ -245,8 +226,7 @@ protected:
         return ret;
     }
 
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.weights = weights.c_str();
         dto.recurrent = recurrent.c_str();
         dto.bias = bias.c_str();
@@ -255,8 +235,7 @@ protected:
     }
 };
 
-struct lstm_elt : public primitive_base<lstm_elt, CLDNN_PRIMITIVE_DESC(lstm_elt)>
-{
+struct lstm_elt : public primitive_base<lstm_elt, CLDNN_PRIMITIVE_DESC(lstm_elt)> {
     CLDNN_DECLARE_PRIMITIVE(lstm_elt)
     using vec_activation = std::vector<cldnn_activation_func>;
     using vec_activation_param = std::vector<cldnn_activation_additional_params>;
@@ -269,41 +248,35 @@ struct lstm_elt : public primitive_base<lstm_elt, CLDNN_PRIMITIVE_DESC(lstm_elt)
     /// @param input_forget Provide 0 if using lstm without coupled input-forget gates.
     /// @param offset_order. Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
     /// @param direction default = 0, bidirectional = 1.
-    lstm_elt(
-        const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& cell = "",
-        const float clip = 0,
-        const bool input_forget = 0,
-        const std::vector<cldnn_activation_func> activations = {},
-        const std::vector<cldnn_activation_additional_params> activation_params = {},
-        const cldnn_lstm_offset_order offset_order = cldnn_lstm_offset_order_iofz,
-        const uint32_t direction = 0,
-        const padding& output_padding = padding()
-        )
-        : primitive_base(id, {input}, output_padding)
-        , cell(cell)
-        , clip(clip)
-        , input_forget(input_forget)
-        , activations(activations)
-        , activation_params(activation_params)
-        , offset_order(offset_order)
-        , direction(direction)
-    {
-    }
+    lstm_elt(const primitive_id& id,
+             const primitive_id& input,
+             const primitive_id& cell = "",
+             const float clip = 0,
+             const bool input_forget = 0,
+             const std::vector<cldnn_activation_func> activations = {},
+             const std::vector<cldnn_activation_additional_params> activation_params = {},
+             const cldnn_lstm_offset_order offset_order = cldnn_lstm_offset_order_iofz,
+             const uint32_t direction = 0,
+             const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          cell(cell),
+          clip(clip),
+          input_forget(input_forget),
+          activations(activations),
+          activation_params(activation_params),
+          offset_order(offset_order),
+          direction(direction) {}
 
     /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{lstm}
     lstm_elt(const dto* dto)
-        : primitive_base(dto)
-        , cell(dto->cell)
-        , clip(dto->clip)
-        , input_forget(dto->input_forget)
-		, activations(dto->activations, std::end(dto->activations))
-		, activation_params(dto->activation_params, std::end(dto->activation_params))
-        , offset_order(dto->offset_order)
-        , direction(dto->direction)
-    {
-    }
+        : primitive_base(dto),
+          cell(dto->cell),
+          clip(dto->clip),
+          input_forget(dto->input_forget),
+          activations(dto->activations, std::end(dto->activations)),
+          activation_params(dto->activation_params, std::end(dto->activation_params)),
+          offset_order(dto->offset_order),
+          direction(dto->direction) {}
 
     /// @brief Primitive id containing the initial value of the cell state data.
     primitive_id cell;
@@ -321,16 +294,14 @@ struct lstm_elt : public primitive_base<lstm_elt, CLDNN_PRIMITIVE_DESC(lstm_elt)
     uint32_t direction;
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override
-    {
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         if (!cell.empty())
             ret.push_back(cell);
         return ret;
     }
 
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.cell = cell.c_str();
         dto.offset_order = offset_order;
         dto.clip = clip;
@@ -348,4 +319,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

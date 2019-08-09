@@ -24,14 +24,14 @@ def find_nodes_by_attribute_value(graph: Graph, attr: str, attr_name: str):
 
 
 def find_inputs(graph: Graph):
-    return find_nodes_by_attribute_value(graph, 'type', 'Input')
+    return find_nodes_by_attribute_value(graph, 'type', 'Parameter')
 
 
 def find_outputs(graph: Graph):
     outputs = []
-    for node_id in find_nodes_by_attribute_value(graph, 'op', 'OpOutput'):
+    for node_id in find_nodes_by_attribute_value(graph, 'op', 'Result'):
         parents = Node(graph, node_id).in_nodes()
-        assert len(parents) == 1, 'OpOutput node should have exactly one input'
+        assert len(parents) == 1, 'Result node should have exactly one input'
         parent = parents[0].id
         outputs.append(parent)
     return list(set(outputs))

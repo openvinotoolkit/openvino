@@ -142,7 +142,10 @@ void PassImpl::run(const Model::Ptr& model) {
                 auto kernWxH = convKernelSizeX * convKernelSizeY;
                 size_t newWeightsSize = kernWxH * convInput->desc().dim(Dim::C) * tileSize;
 
-                auto newWeightsBlob = ie::make_shared_blob<fp16_t>(ie::Precision::FP16, ie::Layout::C, {newWeightsSize});
+                auto newWeightsBlob = ie::make_shared_blob<fp16_t>(InferenceEngine::TensorDesc(
+                    ie::Precision::FP16,
+                    {newWeightsSize},
+                    ie::Layout::C));
                 newWeightsBlob->allocate();
 
                 auto inPtr = origWeights + kernWxH * convInput->desc().dim(Dim::C) * tileInd * tileSize;
@@ -165,7 +168,10 @@ void PassImpl::run(const Model::Ptr& model) {
                 auto origBiases = content->get<fp16_t>();
                 IE_ASSERT(origBiases != nullptr);
 
-                auto newBiasesBlob = ie::make_shared_blob<fp16_t>(ie::Precision::FP16, ie::Layout::C, {static_cast<size_t>(tileSize)});
+                auto newBiasesBlob = ie::make_shared_blob<fp16_t>(InferenceEngine::TensorDesc(
+                    ie::Precision::FP16,
+                    {static_cast<size_t>(tileSize)},
+                    ie::Layout::C));
                 newBiasesBlob->allocate();
 
                 auto inPtr = origBiases + tileInd * tileSize;

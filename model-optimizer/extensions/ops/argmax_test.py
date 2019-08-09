@@ -23,9 +23,9 @@ from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
-                    'argmax': {'type': 'ArgMax', 'kind': 'op'},
+                    'argmax': {'op': 'ArgMax', 'kind': 'op'},
                     'node_3': {'type': 'Identity', 'kind': 'op'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+                    'op_output': { 'kind': 'op', 'op': 'Result'}
                     }
 
 

@@ -23,7 +23,7 @@ from mo.graph.graph import Node
 
 class TestSsdPatternRemoveReshape(unittest.TestCase):
     def test_pattern_remove_reshape(self):
-        graph = build_graph({'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+        graph = build_graph({'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
                              'node_2': {'type': 'Identity', 'kind': 'op'},
                              'node_multi_box_prior1': {'type': '_contrib_MultiBoxPrior', 'kind': 'op',
                                                        'op': '_contrib_MultiBoxPrior'},
@@ -47,9 +47,8 @@ class TestSsdPatternRemoveReshape(unittest.TestCase):
                             {
                                 'node_concat': {'symbol_dict': {'attrs': {'dim': 3}}},
                             })
-
-        pattern = SsdPatternRemoveReshape()
-        pattern.find_and_replace_pattern(graph)
+        graph.stage = 'front'
+        SsdPatternRemoveReshape().find_and_replace_pattern(graph)
         node_concat = Node(graph, 'node_concat')
         self.assertEqual(node_concat['symbol_dict']['attrs']['dim'], 2)
         self.assertFalse(graph.has_node('node_reshape'))

@@ -16,7 +16,7 @@ limitations under the License.
 
 from .metric_executor import MetricsExecutor
 
-from .classification import ClassificationAccuracy, ClassificationAccuracyClasses
+from .classification import ClassificationAccuracy, ClassificationAccuracyClasses, ClipAccuracy
 from .detection import (DetectionMAP, MissRate, Recall, DetectionAccuracyMetric)
 from .reid import CMCScore, ReidMAP, PairwiseAccuracy, PairwiseAccuracySubsets
 from .semantic_segmentation import SegmentationAccuracy, SegmentationIOU, SegmentationMeanAccuracy, SegmentationFWAcc
@@ -49,6 +49,7 @@ __all__ = [
 
     'ClassificationAccuracy',
     'ClassificationAccuracyClasses',
+    'ClipAccuracy',
 
     'DetectionMAP',
     'MissRate',

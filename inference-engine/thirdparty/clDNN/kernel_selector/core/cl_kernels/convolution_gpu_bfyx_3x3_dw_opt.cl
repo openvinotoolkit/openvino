@@ -117,7 +117,7 @@ KERNEL(convolution_gpu_bfyx_3x3_dw_opt)(
 
         if ((local_id < TILE_WIDTH) && (offset_x < INPUT0_SIZE_X))
         {
-            output[OUTPUT_OFFSET + out_offset + y * INPUT0_SIZE_X + offset_x] = ACTIVATION(res, NL_M, NL_N);
+            output[OUTPUT_OFFSET + out_offset + y * INPUT0_SIZE_X + offset_x] = ACTIVATION(res, ACTIVATION_PARAMS);
         }
 
         first = (first + 1) % 3;

@@ -16,6 +16,7 @@
 
 #define withConfig(key, value) withGNAConfig(GNA_CONFIG_KEY(key), value)
 #define ASSERT_NO_THROW_IE_EXCEPTION(expr) \
+do {\
 try {\
 expr;\
 }catch(std::exception & e) {\
@@ -23,7 +24,7 @@ expr;\
 }\
 catch(...) {\
     FAIL() << "unknown exception";\
-}
+}}while(false)
 
 /**
  * GNA unit tests environment
@@ -89,6 +90,7 @@ class GnaPluginTestEnvironment {
     std::pair<int, int> transposeArgs;
     std::pair<int, int> transposedArgsForSaving;
     std::vector<uint16_t>* transposedData;
+    std::vector<DnnActivationType> pwlsToMatchWith;
 };
 
 class GNATestBase {
@@ -223,12 +225,26 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         return *this;
     }
 
+    GNAPropagateMatcher &  called_with_input(std::vector<float>& input_data) {
+        _env.input_init["any_input_name"] = input_data;
+        return *this;
+    }
+
+    GNAPropagateMatcher &  equals_to(std::vector<float>& expect) {
+        _env.matchOutput = true;
+        _env.expected_output = expect;
+        return *this;
+    }
+
+
     GNAPropagateMatcher & once() {
+        IE_ASSERT(_env.matchPwlInserted && _env.pwlsToMatchWith.empty());
         _env.matchQuantity = 1;
         return *this;
     }
 
     GNAPropagateMatcher & twice() {
+        IE_ASSERT(_env.matchPwlInserted && _env.pwlsToMatchWith.empty());
         _env.matchQuantity = 2;
         return *this;
     }
@@ -246,6 +262,12 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
 
     GNAPropagateMatcher & pwl_inserted_into_nnet() {
         getMatcher() = GnaPluginTestEnvironment::matchPwlInserted;
+        return *this;
+    }
+
+    GNAPropagateMatcher & pwls_inserted_into_nnet(const std::vector<DnnActivationType> &pwls) {
+        getMatcher() = GnaPluginTestEnvironment::matchPwlInserted;
+        _env.pwlsToMatchWith = pwls;
         return *this;
     }
 
@@ -365,9 +387,8 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         return *this;
     }
 
-
-
     GNAPropagateMatcher & onCPU() {
+        _env.config[GNA_CONFIG_KEY(DEVICE_MODE)] = GNA_CONFIG_VALUE(SW_FP32);
         _env.target_device = InferenceEngine::TargetDevice::eCPU;
         return *this;
     }

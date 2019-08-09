@@ -84,6 +84,8 @@ int pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*func)(void *
 int _pthread_join(pthread_t *thread, void **res);
 pthread_t pthread_self(void);
 void pthread_exit(void *res);
+int pthread_setname_np(pthread_t target_thread, const char * name);
+int pthread_getname_np (pthread_t target_thread, char *__buf, size_t len);
 
 int pthread_detach(pthread_t thread);
 

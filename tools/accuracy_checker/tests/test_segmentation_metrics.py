@@ -22,13 +22,13 @@ from .common import single_class_dataset, multi_class_dataset, make_segmentation
 
 
 def create_config(metric_name, use_argmax=False):
-    return {'annotation': 'mocked', 'metrics': [{'type': metric_name, 'use_argmax': use_argmax}]}
+    return [{'type': metric_name, 'use_argmax': use_argmax}]
 
 
 def generate_expected_result(values, metric_name, labels=None):
     meta = {'names': list(labels.values())} if labels else {}
 
-    return EvaluationResult(pytest.approx(values), None, metric_name, None, meta)
+    return EvaluationResult(pytest.approx(values), None, metric_name, metric_name, None, meta)
 
 
 class TestPixelAccuracy:

@@ -59,8 +59,7 @@ int str2desc(desc_t *desc, const char *str) {
      *
      * implicit rules:
      *  - default values:
-     *      mb = 2, id = 1, S="wip"
-     *  - if H is undefined => H = W
+     *      mb = 2, id = 1, S="wip", ih = 1
      *  - if W is undefined => W = H
      */
 
@@ -96,7 +95,7 @@ int str2desc(desc_t *desc, const char *str) {
     if (d.ic == 0 || d.oc == 0) return FAIL;
 
     if (d.id == 0) d.id = 1;
-    if (d.ih == 0) d.ih = d.iw;
+    if (d.ih == 0) d.ih = 1;
     if (d.iw == 0) d.iw = d.ih;
     if (d.ic == 0 || d.ih == 0 || d.iw == 0) return FAIL;
 
@@ -111,13 +110,14 @@ void desc2str(const desc_t *d, char *buffer, bool canonical) {
         int l = snprintf(buffer, rem_len, __VA_ARGS__); \
         buffer += l; rem_len -= l; \
     } while(0)
-
+#   define is_1d(d) (d->ih == 1 && d->id == 1)
     if (canonical || d->mb != 2) DPRINT("mb%d", d->mb);
     DPRINT("oc%d", d->oc);
     DPRINT("ic%d", d->ic);
     if (d->id > 1) DPRINT("id%d", d->id);
-    DPRINT("ih%d", d->ih);
-    if (canonical || d->iw != d->ih || d->id > 1) DPRINT("iw%d", d->iw);
+    if (canonical || !is_1d(d)) DPRINT("ih%d", d->ih);
+    if (canonical || d->iw != d->ih || d->id > 1 || is_1d(d))
+        DPRINT("iw%d", d->iw);
     DPRINT("n%s", d->name);
 
 #   undef DPRINT

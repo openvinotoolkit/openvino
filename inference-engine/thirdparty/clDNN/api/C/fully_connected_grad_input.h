@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef FULLY_CONNECTED_GRAD_INPUT_H
-#define FULLY_CONNECTED_GRAD_INPUT_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -45,5 +43,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(fully_connected_grad_input);
 /// @}
 /// @}
 /// @}
-#endif /* FULLY_CONNECTED_GRAD_INPUT_H */
 

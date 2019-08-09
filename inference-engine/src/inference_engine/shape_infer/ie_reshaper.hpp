@@ -105,7 +105,7 @@ private:
 
     StatusCode networkShapeInfer(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp);
 
-    static InferenceEngine::details::caseless_set<std::string> getTypeNamesFromExtension(const IShapeInferExtensionPtr& extension);
+    InferenceEngine::details::caseless_set<std::string> getTypeNamesFromExtension(const IShapeInferExtensionPtr& extension);
 
     std::vector<IShapeInferExtensionPtr> _extensions;
     std::set<ReshapeLauncher::Ptr> _launchers;

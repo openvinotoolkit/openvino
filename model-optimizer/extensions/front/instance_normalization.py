@@ -14,11 +14,9 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
-from mo.ops.lin_op import Add, Mul
+from extensions.ops.elementwise import Add, Mul
 from extensions.ops.mvn import MVN
 
 
@@ -31,21 +29,18 @@ class InstanceNormalization(FrontReplacementOp):
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
-        prefix = node.name + '/InstanceNormalization'
-        mvn = MVN(graph, dict(
-            name=prefix + '/MVN',
-            eps=node.epsilon
-        ))
-        mul = Mul(graph, dict(name=prefix + '/Mul', axis=1))
-        add = Add(graph, dict(name=prefix + '/Add', axis=1))
 
+        # Add new nodes
+        mvn = MVN(graph, {'eps': node.epsilon, 'name': node.name + '/Ins_Norm/MVN_', }).create_node()
+        mul = Mul(graph, {'axis': 1, 'name': node.name + '/Ins_Norm/mul_'}).create_node()
+        add = Add(graph, {'axis': 1, 'name': node.name + '/Ins_Norm/add_'}).create_node()
 
-        new_subgraph = add.create_node([
-            mul.create_node([
-                mvn.create_node([node.in_node(0)]),
-                node.in_node(1)
-            ]),
-            node.in_node(2)
-        ])
+        # Connect nodes
+        node.in_port(0).get_connection().set_destination(mvn.in_port(0))
+        node.in_port(1).get_connection().set_destination(mul.in_port(1))
+        node.in_port(2).get_connection().set_destination(add.in_port(1))
 
-        return [new_subgraph.id]
+        mvn.out_port(0).connect(mul.in_port(0))
+        mul.out_port(0).connect(add.in_port(0))
+
+        return [add.id]

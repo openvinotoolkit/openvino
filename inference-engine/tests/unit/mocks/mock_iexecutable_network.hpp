@@ -23,4 +23,8 @@ public:
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void ());
     MOCK_QUALIFIED_METHOD3(QueryState, noexcept, StatusCode(IMemoryState::Ptr &, size_t  , ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(GetExecGraphInfo, noexcept, StatusCode(ICNNNetwork::Ptr &, ResponseDesc*));
+
+    MOCK_QUALIFIED_METHOD2(SetConfig, noexcept, StatusCode(const std::map<std::string, Parameter> &config, ResponseDesc *resp));
+    MOCK_QUALIFIED_METHOD3(GetConfig, const noexcept, StatusCode(const std::string &name, Parameter &result, ResponseDesc *resp));
+    MOCK_QUALIFIED_METHOD3(GetMetric, const noexcept, StatusCode(const std::string &name, Parameter &result, ResponseDesc *resp));
 };

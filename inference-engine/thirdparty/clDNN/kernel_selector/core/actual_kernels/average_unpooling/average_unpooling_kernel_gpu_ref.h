@@ -18,17 +18,13 @@
 
 #include "average_unpooling_kernel_base.h"
 
-namespace kernel_selector
-{
-    class AverageUnpoolingKernelGPURef : public AverageUnpoolingKernelBase
-    {
-    public:
-        AverageUnpoolingKernelGPURef() : AverageUnpoolingKernelBase("average_unpooling_gpu_ref") {}
-        virtual ~AverageUnpoolingKernelGPURef() {}
+namespace kernel_selector {
+class AverageUnpoolingKernelGPURef : public AverageUnpoolingKernelBase {
+public:
+    AverageUnpoolingKernelGPURef() : AverageUnpoolingKernelBase("average_unpooling_gpu_ref") {}
+    virtual ~AverageUnpoolingKernelGPURef() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

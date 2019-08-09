@@ -158,7 +158,7 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32)(
         char4 char_res = as_char4(char_result[b]);
         for(uint op = 0; op < 4; op++)
         {
-            char_res[op] = ACTIVATION(convert_char(result[b][op]), NL_M ,NL_N);
+            char_res[op] = ACTIVATION(convert_char(result[b][op]), ACTIVATION_PARAMS);
         }
         char_result[b] = as_int(char_res);
     }

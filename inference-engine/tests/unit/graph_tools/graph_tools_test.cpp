@@ -645,6 +645,35 @@ TEST_F(GraphToolsTest, CNNNetworkInsertLayerSimpleCaseWithMultipleInputs) {
     ASSERT_CONNECTION(1, 2);
 }
 
+TEST_F(GraphToolsTest, CNNNetworkInsertLayerSplitAndConcat) {
+    CONNECT_FROM_PORT(1, 0, 2);
+    CONNECT_FROM_PORT(1, 1, 2);
+    CONNECT_FROM_PORT(1, 2, 3);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0,1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    auto l = wrap.getLayerByName("1");
+    auto r = wrap.getLayerByName("2");
+    auto r2 = wrap.getLayerByName("3");
+
+    CNNNetworkInsertLayer(l, r, createGenericLayer("4"), 1);
+    CNNNetworkInsertLayer(l, r2, createGenericLayer("5"), 2);
+
+    ASSERT_PORT_CONNECTION(1, 0, 2, 0);
+    ASSERT_PORT_CONNECTION(1, 1, 4, 0);
+    ASSERT_PORT_CONNECTION(4, 0, 2, 1);
+    ASSERT_PORT_CONNECTION(1, 2, 5, 0);
+    ASSERT_CONNECTION(5, 3);
+}
+
+
 TEST_F(GraphToolsTest, CNNNetworkInsertAfterLastLayer) {
     CONNECT(1, 2);
 
@@ -701,9 +730,9 @@ TEST_F(GraphToolsTest, CNNNetworkInsertAllAfterSplit) {
 
     CNNNetworkInsertLayer(wrap.getLayerByName("1"), nullptr, createGenericLayer("5"));
 
-    ASSERT_2_CONNECTIONS(1, 5);
+    ASSERT_CONNECTION(1, 5);
     ASSERT_CONNECTION(5, 2);
-    ASSERT_CONNECTION(5, 3);
+    ASSERT_CONNECTION(1, 3);
 }
 
 TEST_F(GraphToolsTest, CNNNetworkInsert1AfterSplit) {
@@ -728,6 +757,28 @@ TEST_F(GraphToolsTest, CNNNetworkInsert1AfterSplit) {
     ASSERT_CONNECTION(1, 5);
     ASSERT_CONNECTION(5, 4);
 }
+
+
+TEST_F(GraphToolsTest, CNNNetworkInsertAfter2ConnectionsToEltwise) {
+    // multiple 1->2 connections like square operation using eltwise mull with itself
+    CONNECT(1, 2);
+    CONNECT(1, 2);
+
+    EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0, 1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    CNNNetworkInsertLayer(wrap.getLayerByName("1"), wrap.getLayerByName("2"), createGenericLayer("5"));
+
+    ASSERT_CONNECTION(1, 5);
+    ASSERT_MN_CONNECTIONS(5, 2, 1, 2);
+}
+
 
 TEST_F(GraphToolsTest, CNNNetworkRemoveNullPointerLayer) {
 
@@ -894,8 +945,8 @@ TEST_F(GraphToolsTest, CNNNetworkRemoveSimpleLayer) {
 //
 //    CNNNetworkInsertLayer(wrap.getLayerByName("1"), nullptr, createGenericLayer("3"));
 //
-//    ASSERT_STREQ("2", wrap.getLayerByName("3")->outData[0]->inputTo.begin()->second->name.c_str());
+//    ASSERT_STREQ("2", wrap.getLayerByName("3")->outData[0]->getInputTo().begin()->second->name.c_str());
 //    ASSERT_STREQ("1", CNNNetPrevLayerName(wrap.getLayerByName("3")).c_str());
-//    ASSERT_STREQ("3", wrap.getLayerByName("1")->outData[0]->inputTo.begin()->second->name.c_str());
+//    ASSERT_STREQ("3", wrap.getLayerByName("1")->outData[0]->getInputTo().begin()->second->name.c_str());
 //    ASSERT_STREQ("3", CNNNetPrevLayerName(wrap.getLayerByName("2")).c_str());
 //}

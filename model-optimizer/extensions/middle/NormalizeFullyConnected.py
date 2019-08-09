@@ -16,9 +16,10 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
 from mo.ops.reshape import Reshape
 
 
@@ -37,7 +38,7 @@ class NormalizeFullyConnected(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('fc', dict(kind='op', type='FullyConnected')),
+                ('fc', dict(kind='op', type=lambda x: x in ['MatMul', 'FullyConnected'])),
                 ('fc_output', dict(kind='data'))],
             edges=[('fc', 'fc_output')],
         )
@@ -55,6 +56,9 @@ class NormalizeFullyConnected(MiddleReplacementPattern):
         fc_output = match['fc_output']
         fc_input = fc.in_node()
 
+        if not fc_weights.has_valid('input_channel_dim') or not fc.has_valid('out-size'):
+            return
+
         input_shape = fc.in_node().shape
         if len(input_shape) <= 2 or np.prod(fc_input.shape[1:]) == fc_weights.shape[fc_weights.input_channel_dim]:
             return
@@ -63,19 +67,17 @@ class NormalizeFullyConnected(MiddleReplacementPattern):
         first_reshape_shape = np.array([np.prod(input_shape[0:-1]), input_shape[-1]], dtype=np.int64)
         second_reshape_shape = np.array([*input_shape[0:-1], fc['out-size']], dtype=np.int64)
         fc_out_shape = np.array([np.prod(input_shape[0:-1]), fc['out-size']], dtype=np.int64)
-        first_reshape = Reshape(graph, {'dim': np.array(first_reshape_shape)})
-        second_reshape = Reshape(graph, {'dim': np.array(second_reshape_shape)})
 
-        input_edge_attrs = graph.get_edge_data(fc_input.id, fc.id)[0]
-        output_edge_attrs = graph.get_edge_data(fc.id, fc_output.id)[0]
+        first_reshape = create_op_node_with_second_input(graph, Reshape, int64_array(first_reshape_shape),
+                                                         {'name': fc.name + '/Reshape'})
+        fc.in_port(0).get_connection().insert_node(first_reshape)
 
-        graph.remove_edge(fc_input.id, fc.id)
-        graph.remove_edge(fc.id, fc_output.id)
+        second_reshape = create_op_node_with_second_input(graph, Reshape, int64_array(second_reshape_shape),
+                                                          {'name': fc.name + '/ReshapeBack'})
 
-        # Insert Reshapes before and after FullyConnected layer
-        reshape_data = first_reshape.create_node_with_data(inputs=[fc_input])
-        graph.add_edge(reshape_data.id, fc.id, **input_edge_attrs)
+        fc.out_port(0).get_connection().insert_node(second_reshape)
+        fc.out_port(0).data.set_shape(fc_out_shape)
 
-        new_fc_output = Op.create_data_node(graph, fc, {'shape': fc_out_shape}, edge_attrs=output_edge_attrs)
-
-        second_reshape.create_node_with_data(inputs=[new_fc_output], data_nodes=fc_output)
+        # run shape inference to overwrite shapes
+        first_reshape.in_port(1).get_source().node.infer(first_reshape.in_port(1).get_source().node)
+        first_reshape.infer(first_reshape)

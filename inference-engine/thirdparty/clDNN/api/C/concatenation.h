@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef CONCATENATION_H
-#define CONCATENATION_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -30,12 +28,13 @@
 extern "C" {
 #endif
 
-typedef enum
-{
+typedef enum {
     cldnn_concatenation_along_b = 0,
     cldnn_concatenation_along_f = CLDNN_TENSOR_BATCH_DIM_MAX,
     cldnn_concatenation_along_x = CLDNN_TENSOR_BATCH_DIM_MAX + CLDNN_TENSOR_FEATURE_DIM_MAX,
-    cldnn_concatenation_along_y = cldnn_concatenation_along_x + 1
+    cldnn_concatenation_along_y = cldnn_concatenation_along_x + 1,
+    cldnn_concatenation_along_z = cldnn_concatenation_along_y + 1,
+    cldnn_concatenation_along_w = cldnn_concatenation_along_z + 1
 } cldnn_concatenation_axis;
 
 /// @details Concatenation is used to concatenate multiple sources into one destination along specified dimension.
@@ -53,11 +52,11 @@ typedef enum
 ///         }
 ///     }
 /// \endcode
-/// @par Where: 
+/// @par Where:
 ///   @li input : data structure holding all source inputs for this primitive
 ///   @li output : data structure holding output data for this primitive
 ///   @li i.features : number of features in currently processed input
-///   @li outputIdx : index of destination feature 
+///   @li outputIdx : index of destination feature
 CLDNN_BEGIN_PRIMITIVE_DESC(concatenation)
 /// @brief Dimension along which concatenation should take place.
 cldnn_concatenation_axis axis;
@@ -72,5 +71,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(concatenation);
 /// @}
 /// @}
 /// @}
-#endif /* CONCATENATION_H */
 

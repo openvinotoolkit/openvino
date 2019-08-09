@@ -1,0 +1,17 @@
+joblib==0.13.2
+nibabel==2.4.1
+numpy==1.16.4
+opencv-python==4.1.0.25
+Pillow==6.0.0
+pkg-resources==0.0.0
+progress==1.5
+py-cpuinfo==5.0.0
+PyYAML==5.1.1
+scikit-learn==0.21.2
+scipy==1.3.0
+Shapely==1.6.4.post2
+six==1.12.0
+sklearn==0.0
+tqdm==4.32.2
+xmltodict==0.12.0
+yamlloader==0.5.5

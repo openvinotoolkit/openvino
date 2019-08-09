@@ -17,6 +17,7 @@
 
 #include <cpp_interfaces/exception2status.hpp>
 #include <thread>
+#include <ie_parallel.hpp>
 #include "mkldnn/omp_manager.h"
 
 namespace MKLDNNPlugin {
@@ -55,8 +56,9 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (val == PluginConfigParams::CPU_THROUGHPUT_NUMA) {
                 throughputStreams = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
             } else if (val == PluginConfigParams::CPU_THROUGHPUT_AUTO) {
+                const int sockets = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
                 // bare minimum of streams (that evenly divides available number of core)
-                const int num_cores = std::thread::hardware_concurrency();
+                const int num_cores = sockets == 1 ? parallel_get_max_threads() : cpu::getNumberOfCPUCores();
                 if (0 == num_cores % 4)
                     throughputStreams = std::max(4, num_cores / 4);
                 else if (0 == num_cores % 5)
@@ -85,8 +87,10 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_CPU_THREADS_NUM
                                    << ". Expected only positive numbers (#threads)";
             }
-            if (val_i > 0)
-                threadsNum = val_i;
+            if (val_i < 0)
+                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_CPU_THREADS_NUM
+                                   << ". Expected only positive numbers (#threads)";
+            threadsNum = val_i;
         } else if (key.compare(PluginConfigParams::KEY_DYN_BATCH_ENABLED) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0)
                 enableDynamicBatch = true;
@@ -101,9 +105,37 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else {
             THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property " << key << " by CPU plugin";
         }
+        _config.clear();
     }
     if (exclusiveAsyncRequests)  // Exclusive request feature disables the streams
         throughputStreams = 1;
+
+    updateProperties();
+}
+void Config::updateProperties() {
+    if (!_config.size()) {
+        if (useThreadBinding == true)
+            _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::YES });
+        else
+            _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::NO });
+        if (collectPerfCounters == true)
+            _config.insert({ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES });
+        else
+            _config.insert({ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::NO });
+        if (exclusiveAsyncRequests == true)
+            _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES });
+        else
+            _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::NO });
+        if (enableDynamicBatch == true)
+            _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::YES });
+        else
+            _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::NO });
+
+        _config.insert({ PluginConfigParams::KEY_DYN_BATCH_LIMIT, std::to_string(batchLimit) });
+        _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(throughputStreams) });
+        _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(threadsNum) });
+        _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
+    }
 }
 
 }  // namespace MKLDNNPlugin

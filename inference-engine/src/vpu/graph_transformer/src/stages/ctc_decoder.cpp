@@ -18,71 +18,34 @@ private:
         return std::make_shared<CTCDecoderStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
-        out[input0] = 1.0f;
-        out[input1] = 1.0f;
-        out[output] = 1.0f;
-
-        return out;
-    }
-
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 2);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
         auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
 
         auto cInd = input->desc().dimsOrder().dimInd(Dim::C);
-        out[output] = output->desc().dimsOrder().createMovedDim(Dim::C, cInd);
-
-        return out;
+        _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, cInd));
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 2);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<StridesRequirement> out;
-
-        out[input] = StridesRequirement::compact();
-        out[output] = StridesRequirement::compact();
-
-        return out;
+        _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
+        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl() const override {
         IE_ASSERT(_inputEdges.size() == 2);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
-
-        return out;
+        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {

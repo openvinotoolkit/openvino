@@ -96,7 +96,7 @@ KERNEL (softmax_gpu_continoues_bfyx)(const __global UNIT_TYPE* input, __global U
     my_sum = lg_storage[0];
 
     for (uint i=0; i<ITEMS_NUM; ++i)
-        output[my_data_offset + i * workers_per_data_set] = ACTIVATION(my_chunk[i] / my_sum, NL_M ,NL_N);
+        output[my_data_offset + i * workers_per_data_set] = ACTIVATION(my_chunk[i] / my_sum, ACTIVATION_PARAMS);
     if (in_data_set_idx < LEFTOVERS)
-        output[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx] = ACTIVATION(my_chunk[ITEMS_NUM] / my_sum, NL_M ,NL_N);
+        output[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx] = ACTIVATION(my_chunk[ITEMS_NUM] / my_sum, ACTIVATION_PARAMS);
 }

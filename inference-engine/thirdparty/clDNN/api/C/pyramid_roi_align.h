@@ -20,12 +20,11 @@
 extern "C" {
 #endif
 
-    CLDNN_BEGIN_PRIMITIVE_DESC(pyramid_roi_align)
+CLDNN_BEGIN_PRIMITIVE_DESC(pyramid_roi_align)
 
-    CLDNN_END_PRIMITIVE_DESC(pyramid_roi_align)
+CLDNN_END_PRIMITIVE_DESC(pyramid_roi_align)
 
-    CLDNN_DECLARE_PRIMITIVE_TYPE_ID(pyramid_roi_align);
-
+CLDNN_DECLARE_PRIMITIVE_TYPE_ID(pyramid_roi_align);
 
 #ifdef __cplusplus
 }

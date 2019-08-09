@@ -18,52 +18,46 @@
 
 #include "common_kernel_base.h"
 #include "kernel_selector_params.h"
- 
-namespace kernel_selector 
-{    
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // region_yolo_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct region_yolo_params : public base_params
-    {
-        region_yolo_params() : base_params(KernelType::REGION_YOLO) {}
 
-        uint32_t coords;
-        uint32_t classes;
-        uint32_t num;
-        uint32_t mask_size;
-        bool do_softmax;
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// region_yolo_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct region_yolo_params : public base_params {
+    region_yolo_params() : base_params(KernelType::REGION_YOLO) {}
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            auto k = base_params::GetParamsKey();
-            return k;
-        }
-    };
+    uint32_t coords;
+    uint32_t classes;
+    uint32_t num;
+    uint32_t mask_size;
+    bool do_softmax;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // region_yolo_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct region_yolo_optional_params : optional_params
-    {
-        region_yolo_optional_params() : optional_params(KernelType::REGION_YOLO) {}
-    };
+    virtual ParamsKey GetParamsKey() const {
+        auto k = base_params::GetParamsKey();
+        return k;
+    }
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // RegionYoloKernelRef
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class RegionYoloKernelRef : public common_kernel_base
-    {
-    public:
-        RegionYoloKernelRef() : common_kernel_base("region_yolo_gpu_ref") {}
-        virtual ~RegionYoloKernelRef() {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// region_yolo_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct region_yolo_optional_params : optional_params {
+    region_yolo_optional_params() : optional_params(KernelType::REGION_YOLO) {}
+};
 
-        using DispatchData = CommonDispatchData;        
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// RegionYoloKernelRef
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class RegionYoloKernelRef : public common_kernel_base {
+public:
+    RegionYoloKernelRef() : common_kernel_base("region_yolo_gpu_ref") {}
+    virtual ~RegionYoloKernelRef() {}
 
+    using DispatchData = CommonDispatchData;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        virtual JitConstants GetJitConstants(const region_yolo_params& params) const;
-    };
-}
+protected:
+    virtual JitConstants GetJitConstants(const region_yolo_params& params) const;
+};
+}  // namespace kernel_selector

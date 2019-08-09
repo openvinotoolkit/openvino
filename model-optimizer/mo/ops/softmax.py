@@ -16,7 +16,7 @@
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
+from mo.ops.op import Op, PermuteAttrs
 
 
 class Softmax(Op):
@@ -42,3 +42,5 @@ class Softmax(Op):
         if node.axis < 0:
             node.axis = len(node.in_node().shape) + node.axis
         copy_shape_infer(node)
+        PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
+

@@ -18,43 +18,54 @@ import unittest
 
 import numpy as np
 
+from mo.middle.passes.eliminate import graph_clean_up
 from mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
 from mo.utils.unittest.graph import build_graph, compare_graphs
 
 nodes_attributes = {
-    'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # ScaleShift layer
     'scaleshift_1': {'type': 'ScaleShift', 'kind': 'op', 'op': 'ScaleShift'},
+    'const_scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'scaleshift_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Mul and Add operations
     'mul_1': {'type': 'Mul', 'kind': 'op', 'op': 'Mul', 'can_be_fused': True},
+    'const_mul_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'mul_1_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'mul_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_1': {'type': 'Add', 'kind': 'op', 'op': 'Add', 'can_be_fused': True},
+    'const_add_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'add_1_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Mul2 and Add2 operations
     'mul_2': {'type': 'Mul', 'kind': 'op', 'op': 'Mul', 'can_be_fused': True},
+    'const_mul_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'mul_2_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'mul_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_2': {'type': 'Add', 'kind': 'op', 'op': 'Add', 'can_be_fused': True},
+    'const_add_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'add_2_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Mul3 and Add3 operations
     'mul_3': {'type': 'Mul', 'kind': 'op', 'op': 'Mul', 'can_be_fused': True},
+    'const_mul_3_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'mul_3_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'mul_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_3': {'type': 'Add', 'kind': 'op', 'op': 'Add', 'can_be_fused': True},
+    'const_add_3_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'add_3_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Mul4 and Add4 operations
     'mul_4': {'type': 'Mul', 'kind': 'op', 'op': 'Mul', 'can_be_fused': True},
+    'const_mul_4_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'mul_4_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'mul_4_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_4': {'type': 'Add', 'kind': 'op', 'op': 'Add', 'can_be_fused': True},
+    'const_add_4_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'add_4_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_4_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Concat1 operation
@@ -62,24 +73,30 @@ nodes_attributes = {
     'concat_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Convolutions
     'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'Conv2D', 'layout': 'NHWC'},
+    'const_conv_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'conv_1_w': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_conv_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'conv_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_2': {'type': 'Convolution', 'kind': 'op', 'op': 'Conv2D', 'layout': 'NHWC'},
+    'const_conv_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'conv_2_w': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_conv_2_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'conv_2_b': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     # FullyConnected
-    'fc_1': {'type': 'FullyConnected', 'kind': 'op', 'op': 'InnerProduct', 'layout': 'NHWC'},
+    'fc_1': {'type': 'MatMul', 'kind': 'op', 'op': 'InnerProduct', 'layout': 'NHWC'},
+    'const_fc_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'fc_1_w': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_fc_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'fc_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'fc_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Placeholders
-    'placeholder_2': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'placeholder_3': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_3': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+    'op_output': { 'kind': 'op', 'op': 'Result'}
 }
 
 
@@ -92,12 +109,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -118,9 +138,11 @@ class LinSeqFusingTests(unittest.TestCase):
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'add_1'),
+                                 ('const_add_1_w', 'add_1_w'),
                                  ('add_1_w', 'add_1'),
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'concat_1'),
@@ -140,8 +162,9 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
-                        "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
+                       "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data')
         self.assertTrue(flag, resp)
@@ -155,12 +178,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -185,9 +211,11 @@ class LinSeqFusingTests(unittest.TestCase):
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'add_1'),
+                                 ('const_add_1_w', 'add_1_w'),
                                  ('add_1_w', 'add_1'),
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'concat_1'),
@@ -210,6 +238,7 @@ class LinSeqFusingTests(unittest.TestCase):
                                 nodes_with_edges_only=True)
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -223,12 +252,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -243,21 +275,24 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                             'add_1_w': {'shape': np.array([1]), 'value': 6},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                             'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'add_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'mul_2_w': {'shape': np.array([]), 'value': np.array(6)},
                              },
                             nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'add_1'),
+                                 ('const_add_1_w', 'add_1_w'),
                                  ('add_1_w', 'add_1'),
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'mul_2'),
+                                 ('const_mul_2_w', 'mul_2_w'),
                                  ('mul_2_w', 'mul_2'),
                                  ('mul_2', 'mul_2_data'),
                                  ('mul_2_data', 'concat_1'),
@@ -272,17 +307,18 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                                 'add_1_w': {'shape': np.array([1]), 'value': 6},
-                                 'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                                 'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                                 'add_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                                 'mul_2_w': {'shape': np.array([]), 'value': np.array(6)},
                                  },
                                 nodes_with_edges_only=True)
 
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data')
+        (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
 
     #                 +-------->Placeholder                          +-------->Placeholder
@@ -292,12 +328,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -312,21 +351,24 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                             'add_1_w': {'shape': np.array([1]), 'value': 6},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                             'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'add_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'mul_2_w': {'shape': np.array([]), 'value': np.array(6)},
                              },
                             nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'mul_2'),
+                                 ('const_mul_2_w', 'mul_2_w'),
                                  ('mul_2_w', 'mul_2'),
                                  ('mul_2', 'mul_2_data'),
                                  ('mul_2_data', 'add_1'),
+                                 ('const_add_1_w', 'add_1_w'),
                                  ('add_1_w', 'add_1'),
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'concat_1'),
@@ -341,7 +383,7 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'mul_1_w': {'shape': np.array([1]), 'value': 6},
+                                 'mul_1_w': {'shape': np.array([]), 'value': np.array([6])},
                                  'add_1_w': {'shape': np.array([1]), 'value': np.array([36])},
                                  'mul_2_w': {'shape': np.array([1]), 'value': np.array([6])},
                                  },
@@ -349,10 +391,11 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data')
+        (flag, resp) = compare_graphs(graph, graph_ref, 'op_output')
         self.assertTrue(flag, resp)
 
     #                 +-------->Placeholder                          +->Placeholder
@@ -362,12 +405,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -382,15 +428,16 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                             'add_1_w': {'shape': np.array([1]), 'value': 0},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 1},
+                             'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'add_1_w': {'shape': np.array([]), 'value': np.array(0)},
+                             'mul_2_w': {'shape': np.array([]), 'value': np.array(1)},
                              },
                             nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'concat_1'),
@@ -403,12 +450,13 @@ class LinSeqFusingTests(unittest.TestCase):
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'mul_1_w': {'shape': np.array([1]), 'value': 6},
+                                 'mul_1_w': {'shape': np.array([]), 'value': np.array([6])},
                                  },
                                 nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
 
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
@@ -423,12 +471,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -443,18 +494,20 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                             'add_1_w': {'shape': np.array([1]), 'value': 6},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 1},
+                             'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'add_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'mul_2_w': {'shape': np.array([]), 'value': np.array(1)},
                              },
                             nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'add_1'),
+                                 ('const_add_1_w', 'add_1_w'),
                                  ('add_1_w', 'add_1'),
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'concat_1'),
@@ -467,13 +520,15 @@ class LinSeqFusingTests(unittest.TestCase):
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'mul_1_w': {'shape': np.array([1]), 'value': 6},
+                                 'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
                                  'add_1_w': {'shape': np.array([1]), 'value': np.array([6])},
                                  },
                                 nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
+
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -487,12 +542,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -507,18 +565,20 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                             'add_1_w': {'shape': np.array([1]), 'value': 0},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                             'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'add_1_w': {'shape': np.array([]), 'value': np.array(0)},
+                             'mul_2_w': {'shape': np.array([]), 'value': np.array(6)},
                              },
                             nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'mul_2'),
+                                 ('const_mul_2_w', 'mul_2_w'),
                                  ('mul_2_w', 'mul_2'),
                                  ('mul_2', 'mul_2_data'),
                                  ('mul_2_data', 'concat_1'),
@@ -531,13 +591,14 @@ class LinSeqFusingTests(unittest.TestCase):
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'mul_1_w': {'shape': np.array([1]), 'value': 6},
+                                 'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
                                  'mul_2_w': {'shape': np.array([1]), 'value': np.array([6])},
                                  },
                                 nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -549,12 +610,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -565,9 +629,9 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 1},
-                             'add_1_w': {'shape': np.array([1]), 'value': 0},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 1},
+                             'mul_1_w': {'shape': np.array([]), 'value': np.array(1)},
+                             'add_1_w': {'shape': np.array([]), 'value': np.array(0)},
+                             'mul_2_w': {'shape': np.array([]), 'value': np.array(1)},
                              },
                             nodes_with_edges_only=True)
 
@@ -582,6 +646,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -593,12 +658,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -609,18 +677,20 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                             'add_1_w': {'shape': np.array([1]), 'value': 6},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                             'mul_1_w': {'shape': np.array([1]), 'value': np.array(6)},
+                             'add_1_w': {'shape': np.array([1]), 'value': np.array(6)},
+                             'mul_2_w': {'shape': np.array([1]), 'value': np.array(6)},
                              },
                             nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'add_1'),
+                                 ('const_add_1_w', 'add_1_w'),
                                  ('add_1_w', 'add_1'),
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'concat_1'),
@@ -637,6 +707,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -648,12 +719,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -664,18 +738,20 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 6},
+                             'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
                              'add_1_w': {'shape': np.array([3]), 'value': np.array([6, 6, 6])},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                             'mul_2_w': {'shape': np.array([]), 'value': np.array(6)},
                              },
                             nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'add_1'),
+                                 ('const_add_1_w', 'add_1_w'),
                                  ('add_1_w', 'add_1'),
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'concat_1'),
@@ -692,6 +768,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -705,12 +782,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -722,9 +802,9 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                             'add_1_w': {'shape': np.array([1]), 'value': 6},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                             'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'add_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'mul_2_w': {'shape': np.array([]), 'value': np.array(6)},
                              'mul_1': {'can_be_fused': False},
                              'add_1': {'can_be_fused': False},
                              },
@@ -733,12 +813,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'add_1'),
+                                 ('const_add_1_w', 'add_1_w'),
                                  ('add_1_w', 'add_1'),
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'mul_2'),
+                                 ('const_mul_2_w', 'mul_2_w'),
                                  ('mul_2_w', 'mul_2'),
                                  ('mul_2', 'mul_2_data'),
                                  ('mul_2_data', 'concat_1'),
@@ -750,9 +833,9 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                                 'add_1_w': {'shape': np.array([1]), 'value': 6},
-                                 'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                                 'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                                 'add_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                                 'mul_2_w': {'shape': np.array([]), 'value': np.array(6)},
                                  'mul_1': {'can_be_fused': False},
                                  'add_1': {'can_be_fused': False},
                                  },
@@ -760,6 +843,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -773,12 +857,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -790,9 +877,9 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                             'add_1_w': {'shape': np.array([1]), 'value': 6},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                             'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'add_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'mul_2_w': {'shape': np.array([]), 'value': np.array(6)},
                              'add_1': {'can_be_fused': False},
                              },
                             nodes_with_edges_only=True)
@@ -800,12 +887,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'add_1'),
+                                 ('const_add_1_w', 'add_1_w'),
                                  ('add_1_w', 'add_1'),
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'mul_2'),
+                                 ('const_mul_2_w', 'mul_2_w'),
                                  ('mul_2_w', 'mul_2'),
                                  ('mul_2', 'mul_2_data'),
                                  ('mul_2_data', 'concat_1'),
@@ -817,15 +907,16 @@ class LinSeqFusingTests(unittest.TestCase):
                                  'mul_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'add_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
-                                 'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                                 'add_1_w': {'shape': np.array([1]), 'value': 6},
-                                 'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                                 'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                                 'add_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                                 'mul_2_w': {'shape': np.array([]), 'value': np.array(6)},
                                  'add_1': {'can_be_fused': False},
                                  },
                                 nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -839,12 +930,15 @@ class LinSeqFusingTests(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'mul_1'),
+                             ('const_mul_1_w', 'mul_1_w'),
                              ('mul_1_w', 'mul_1'),
                              ('mul_1', 'mul_1_data'),
                              ('mul_1_data', 'add_1'),
+                             ('const_add_1_w', 'add_1_w'),
                              ('add_1_w', 'add_1'),
                              ('add_1', 'add_1_data'),
                              ('add_1_data', 'mul_2'),
+                             ('const_mul_2_w', 'mul_2_w'),
                              ('mul_2_w', 'mul_2'),
                              ('mul_2', 'mul_2_data'),
                              ('mul_2_data', 'concat_1'),
@@ -864,24 +958,27 @@ class LinSeqFusingTests(unittest.TestCase):
                              'mul_2_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_3_data': {'shape': np.array([1, 227, 227, 3])},
                              'mul_4_data': {'shape': np.array([1, 227, 227, 3])},
-                             'mul_1_w': {'shape': np.array([1]), 'value': 6},
-                             'add_1_w': {'shape': np.array([1]), 'value': 6},
-                             'mul_2_w': {'shape': np.array([1]), 'value': 6},
+                             'mul_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'add_1_w': {'shape': np.array([]), 'value': np.array(6)},
+                             'mul_2_w': {'shape': np.array([]), 'value': np.array(6)},
                              },
                             nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'mul_1'),
+                                 ('const_mul_1_w', 'mul_1_w'),
                                  ('mul_1_w', 'mul_1'),
                                  ('mul_1', 'mul_1_data'),
                                  ('mul_1_data', 'add_1'),
+                                 ('const_add_1_w', 'add_1_w'),
                                  ('add_1_w', 'add_1'),
                                  ('add_1', 'add_1_data'),
                                  ('add_1_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
                                  ('placeholder_1_data', 'mul_3'),
                                  ('mul_3', 'mul_3_data'),
+                                 ('const_mul_3_w', 'mul_3_w'),
                                  ('mul_3_w', 'mul_3'),
                                  ('mul_3_data', 'concat_1'),
                                  ('concat_1_data', 'op_output')
@@ -900,6 +997,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
+        graph_clean_up(graph)
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node),
                                                                                  len(graph_ref.node)))

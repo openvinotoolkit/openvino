@@ -20,6 +20,11 @@ size_t MKLDNNDescriptor::inputNumbers() const {
     if (roiPooling != nullptr) {
         return roiPooling->getPtr()->c_api_inputs.size();
     }
+    DescFwdImpl<mkldnn::deformable_convolution_forward::desc> *defConv =
+            dynamic_cast<DescFwdImpl<mkldnn::deformable_convolution_forward::desc> *>(desc.get());
+    if (defConv != nullptr) {
+        return defConv->getPtr()->c_api_inputs.size();
+    }
     return 1;
 }
 
@@ -178,7 +183,7 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::eltwise_forward::desc
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::eltwise_forward::desc>() {
     DescFwdImpl<mkldnn::eltwise_forward::desc> *typeDesc =
             dynamic_cast<DescFwdImpl<mkldnn::eltwise_forward::desc> *>(desc.get());
-        if (typeDesc == nullptr) {
+    if (typeDesc == nullptr) {
         THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }
     return typeDesc->getPtr();
@@ -202,6 +207,18 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::binary_convolution_fo
 
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::binary_convolution_forward::desc>() {
     auto *typeDesc = dynamic_cast<DescFwdImpl<mkldnn::binary_convolution_forward::desc> *>(desc.get());
+    if (typeDesc == nullptr) {
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::deformable_convolution_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::deformable_convolution_forward::desc>(desc));
+}
+
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::deformable_convolution_forward::desc>() {
+    auto *typeDesc = dynamic_cast<DescFwdImpl<mkldnn::deformable_convolution_forward::desc> *>(desc.get());
     if (typeDesc == nullptr) {
         THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }

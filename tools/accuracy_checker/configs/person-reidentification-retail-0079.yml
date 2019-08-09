@@ -6,55 +6,85 @@ models:
         tags:
           - FP32
         device: CPU
-        model:   person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.xml
-        weights: person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.bin
+        model:   Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.xml
+        weights: Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.bin
         adapter: reid
 
       - framework: dlsdk
         tags:
-          - GPU32
-        device: GPU
-        model:   person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.xml
-        weights: person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.bin
+          - INT8
+        device: CPU
+        model:   Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079-int8.xml
+        weights: Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079-int8.bin
         adapter: reid
 
       - framework: dlsdk
         tags:
-          - GPU16
+          - FP32
         device: GPU
-        model:   person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.xml
-        weights: person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.bin
+        model:   Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.xml
+        weights: Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.bin
+        adapter: reid
+
+      - framework: dlsdk
+        tags:
+          - FP16
+        device: GPU
+        model:   Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079-fp16.xml
+        weights: Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079-fp16.bin
         adapter: reid
 
       - framework: dlsdk
         device: MYRIAD
-        model:   person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.xml
-        weights: person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.bin
+        model:   Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079-fp16.xml
+        weights: Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079-fp16.bin
         adapter: reid
 
       - framework: dlsdk
         device: HDDL
-        model:   person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.xml
-        weights: person-reidentification-retail-0079/FP16/person-reidentification-retail-0079.bin
+        model:   Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079-fp16.xml
+        weights: Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079-fp16.bin
         adapter: reid
 
       - framework: dlsdk
         tags:
-          - FPGA16
+          - A10_devkit
+          - FP16
         device: HETERO:FPGA,CPU
-        model:   person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.xml
-        weights: person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.bin
+        model:   Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.xml
+        weights: Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.bin
         adapter: reid
         bitstream: 2019R1_A10DK_FP16_RMNet.aocx
 
       - framework: dlsdk
         tags:
-          - FPGA11
+          - A10_devkit
+          - FP11
         device: HETERO:FPGA,CPU
-        model:   person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.xml
-        weights: person-reidentification-retail-0079/FP32/person-reidentification-retail-0079.bin
+        model:   Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.xml
+        weights: Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.bin
         adapter: reid
         bitstream: 2019R1_A10DK_FP11_ELU.aocx
+
+      - framework: dlsdk
+        tags:
+          - HDDL-F
+          - FP16
+        device: HETERO:FPGA,CPU
+        model:   Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.xml
+        weights: Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.bin
+        adapter: reid
+        bitstream: 2019R1_PL1_FP16_RMNet.aocx
+
+      - framework: dlsdk
+        tags:
+          - HDDL-F
+          - FP11
+        device: HETERO:FPGA,CPU
+        model:   Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.xml
+        weights: Retail/object_reidentification/pedestrian/rmnet_based/0079/dldt/person-reidentification-retail-0079.bin
+        adapter: reid
+        bitstream: 2019R1_PL1_FP11_ELU.aocx
 
     datasets:
       - name: market1501

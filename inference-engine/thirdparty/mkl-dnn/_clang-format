@@ -65,7 +65,7 @@ BraceWrapping: {
 }
 
 BreakBeforeBinaryOperators: 'All'
-BreakBeforeTernaryOperators: 'false'
+BreakBeforeTernaryOperators: 'true'
 
 BreakConstructorInitializersBeforeComma: 'true'
 ConstructorInitializerAllOnOneLineOrOnePerLine: 'true'

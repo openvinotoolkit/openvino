@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016-2018 Intel Corporation
+* Copyright 2016-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 #endif
+
+typedef uint16_t mkldnn_bfloat16_t;
 
 /** @addtogroup c_api C API
  *  @{
@@ -80,8 +82,10 @@ typedef enum {
     mkldnn_s8 = 5,
     /** 8-bit unsigned integer. */
     mkldnn_u8 = 6,
+    /** bfloat 16-bit. */
+    mkldnn_bf16 = 7,
     /** 1-bit integer. */
-    mkldnn_bin = 7,
+    mkldnn_bin = 8,
 } mkldnn_data_type_t;
 
 /** Rounding mode */
@@ -186,6 +190,9 @@ typedef enum {
     /** 3D weights tensor with physical layout @c oiw.
      * Logical dimensions come in the order: (o, i, w) */
     mkldnn_oiw,
+    /** 3D weights tensor with physical layout @c owi.
+     * Logical dimensions come in the order: (o, i, w) */
+    mkldnn_owi,
     /** 3D weights tensor with physical layout @c wio.
      * Logical dimensions come in the order: (o, i, w) */
     mkldnn_wio,
@@ -195,6 +202,9 @@ typedef enum {
     /** 4D weights tensor with physical layout @c hwio, used in TensorFlow.
      * Logical dimensions come in the order: (o, i, h, w) */
     mkldnn_hwio,
+    /** 4D weights tensor with physical layout @c ohwi.
+     * Logical dimensions come in the order: (o, i, h, w) */
+    mkldnn_ohwi,
     /** 4D weights tensor with physical layout @c ihwo.
      * Logical dimensions come in the order: (o, i, h, w) */
     mkldnn_ihwo,
@@ -207,6 +217,9 @@ typedef enum {
     /** 5D weights tensor with physical layout @c dhwio, used in TensorFlow.
      * Logical dimensions come in the order: (o, i, d, h, w) */
     mkldnn_dhwio,
+    /** 5D weights tensor with physical layout @c odhwi.
+     * Logical dimensions come in the order: (o, i, d, h, w) */
+    mkldnn_odhwi,
     /** 4D grouped weights tensor with the physical layout @c goiw.
      * Logical dimensions come in the order: (g, o, i, w) */
     mkldnn_goiw,
@@ -280,7 +293,14 @@ typedef enum {
     mkldnn_Owi16o /** blocked weights format */,
     mkldnn_OIw8i16o2i /** blocked weights format */,
     mkldnn_OIw8o16i2o /** blocked weights format */,
+    mkldnn_IOw8o16i2o /** blocked weights format */,
     mkldnn_IOw16o16i /** blocked weights format */,
+    mkldnn_OIw4i16o4i /** blocked weights format */,
+    /** blocked weights format with additional buffer
+     * with size equal to the number of output channels
+     * and containing the values:
+     * O[i:0,OC] = -128 * SUM(j:0,IC;w:0,W)(weights(i,j,w))*/
+    mkldnn_OIw4i16o4i_s8s8,
 
     /* weights, 4D */
     /** weights format with additional buffer
@@ -300,7 +320,9 @@ typedef enum {
      * O[i:0,OC] = -128 * SUM(j:0,IC;h:0,H;w:0,W)(weights(i,j,h,w))*/
     mkldnn_OIhw4i16o4i_s8s8,
     mkldnn_OIhw8i16o2i /** blocked weights format */,
+    mkldnn_IOhw8i16o2i /** blocked weights format */,
     mkldnn_OIhw8o16i2o /** blocked weights format */,
+    mkldnn_IOhw8o16i2o /** blocked weights format */,
     mkldnn_OIhw8o8i /** blocked weights format */,
     mkldnn_OIhw16o16i /** blocked weights format */,
     mkldnn_IOhw16o16i /** blocked weights format */,
@@ -334,6 +356,8 @@ typedef enum {
     mkldnn_Oidhw16o /** blocked weights format */,
     mkldnn_Odhwi16o /** blocked weights format */,
     mkldnn_OIdhw8i16o2i /** blocked weights format */,
+    mkldnn_OIdhw8o16i2o /** blocked weights format */,
+    mkldnn_IOdhw8o16i2o /** blocked weights format */,
 
     /* weights w/ groups, 4D */
     mkldnn_gOwi4o /** blocked weights format */,
@@ -348,7 +372,19 @@ typedef enum {
     mkldnn_gOwi16o /** blocked weights format */,
     mkldnn_gOIw8i16o2i /** blocked weights format */,
     mkldnn_gOIw8o16i2o /** blocked weights format */,
+    mkldnn_gIOw8o16i2o /** blocked weights format */,
     mkldnn_gIOw16o16i /** blocked weights format */,
+    mkldnn_gOIw4i16o4i /** blocked weights format */,
+    /** blocked weights format with additional buffer
+     * with size equal to the number of output channels
+     * multiplied by number of groups and containing the values:
+     * O[i:0,G*OC] = -128 * SUM(j:0,IC;w:0,W)(weights(i,j,w))*/
+    mkldnn_gOIw4i16o4i_s8s8,
+    mkldnn_Goiw16g /** blocked weights format */,
+    /** blocked weights format with additional buffer
+     * with size equal to the number of groups and containing the values:
+     * O[i:0,G] = -128 * SUM(w:0,W)(weights(i,i,w))*/
+    mkldnn_Goiw16g_s8s8,
 
     /* weights w/ groups, 5D */
     /** weights format with additional buffer
@@ -372,7 +408,9 @@ typedef enum {
      * O[i:0,G*OC] = -128 * SUM(j:0,IC;h:0,H;w:0,W)(weights(i,j,h,w))*/
     mkldnn_gOIhw2i8o4i_s8s8,
     mkldnn_gOIhw8i16o2i /** blocked weights format */,
+    mkldnn_gIOhw8i16o2i /** blocked weights format */,
     mkldnn_gOIhw8o16i2o /** blocked weights format */,
+    mkldnn_gIOhw8o16i2o /** blocked weights format */,
     mkldnn_gOIhw4o4i /** blocked weights format */,
     /** blocked weights format with additional buffer
      * with size equal to the number of output channels
@@ -409,6 +447,8 @@ typedef enum {
     mkldnn_gOIdhw8o8i /** blocked weights format */,
     mkldnn_gOdhwi8o /** blocked weights format */,
     mkldnn_gOIdhw8i16o2i /** blocked weights format */,
+    mkldnn_gOIdhw8o16i2o /** blocked weights format */,
+    mkldnn_gIOdhw8o16i2o /** blocked weights format */,
     mkldnn_gOIdhw16i16o /** blocked weights format */,
     mkldnn_gOIdhw16o16i /** blocked weights format */,
     mkldnn_gOidhw4o /** blocked weights format */,
@@ -501,6 +541,8 @@ typedef enum {
     mkldnn_binary_convolution,
     /** A binarization primitive. */
     mkldnn_binarization,
+    /** A deformable convolution primitive. */
+    mkldnn_deformable_convolution,
 } mkldnn_primitive_kind_t;
 
 /** Kinds of algorithms. */
@@ -579,10 +621,12 @@ typedef enum {
     /** Direct binary convolution */
     mkldnn_binary_convolution_direct = 0x1fffff,
     /** Depthwise binarization */
-    mkldnn_binarization_depthwise = 0xafffff
+    mkldnn_binarization_depthwise = 0xafffff,
+    /** Direct deformable convolution */
+    mkldnn_deformable_convolution_direct = 0x1ffffff,
 } mkldnn_alg_kind_t;
 
-/** Flags for batch-normalization primititve. */
+/** Flags for batch-normalization primitive. */
 typedef enum {
     /** Use global statistics
      *
@@ -1163,6 +1207,44 @@ typedef struct {
     mkldnn_memory_desc_t output_mask_desc;
 } mkldnn_binarization_desc_t;
 
+/** A descriptor of a deformable convolution operation. */
+typedef struct {
+    /** The kind of primitive. Used for self-identifying the primitive
+     * descriptor. Must be #mkldnn_deformable_convolution. */
+    mkldnn_primitive_kind_t primitive_kind;
+    /** The kind of propagation. Possible values: #mkldnn_forward_training,
+     * #mkldnn_forward_inference */
+    mkldnn_prop_kind_t prop_kind;
+    /** The kind of the convolution algorithm. Possible values:
+     * #mkldnn_deformable_convolution_direct. */
+    mkldnn_alg_kind_t alg_kind;
+    /** Source memory descriptors. */
+    mkldnn_memory_desc_t* src_descs;
+    /** Number of sources. */
+    int num_src;
+    /** Weights memory descriptor. */
+    mkldnn_memory_desc_t weights_desc;
+    /** Bias memory descriptor. */
+    mkldnn_memory_desc_t bias_desc;
+    /** Destination memory descriptor. */
+    mkldnn_memory_desc_t dst_desc;
+    /** Convolution strides in each spatial dimension. */
+    mkldnn_dims_t strides;
+    /** Convolution dilates in each spatial dimension. */
+    mkldnn_dims_t dilates;
+    /** Padding in each spatial dimension. padding[0] is a padding in the
+     * beginning (@p padding_l), padding[1] is a padding in the end (@p
+     * padding_r). */
+    mkldnn_dims_t padding[2];
+    //// TODO: is needed padding_kind?
+    /** The kind of padding to use. */
+    mkldnn_padding_kind_t padding_kind;
+    /** The accumulator data type. Initialized automatically. */
+    mkldnn_data_type_t accum_data_type;
+    /** Deformable group. */
+    int deformable_group;
+} mkldnn_deformable_convolution_desc_t;
+
 /** @} */
 
 /** @addtogroup c_api_engine_types Engine
@@ -1354,6 +1436,7 @@ typedef enum {
     mkldnn_query_depthwise_d, /**< eltwise descriptor */
     mkldnn_query_binary_convolution_d, /**< binary convolution descriptor */
     mkldnn_query_binarization_d, /**< binarization descriptor */
+    mkldnn_query_deformable_convolution_d, /**< deformable convolution descriptor */
 
     /* (memory) primitive descriptor section */
     mkldnn_query_some_pd = 128, /**< stub */

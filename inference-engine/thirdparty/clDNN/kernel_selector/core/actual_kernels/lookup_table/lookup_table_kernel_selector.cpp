@@ -20,14 +20,12 @@
 
 namespace kernel_selector {
 
-    lookup_table_kernel_selector::lookup_table_kernel_selector()
-    {
-        Attach<LookUpTableKernelRef>();
-        Attach<LookUpTableKernelAxis>();
-    }
-
-    KernelsData lookup_table_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::LOOKUP_TABLE);
-    }
+lookup_table_kernel_selector::lookup_table_kernel_selector() {
+    Attach<LookUpTableKernelRef>();
+    Attach<LookUpTableKernelAxis>();
 }
+
+KernelsData lookup_table_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::LOOKUP_TABLE);
+}
+}  // namespace kernel_selector

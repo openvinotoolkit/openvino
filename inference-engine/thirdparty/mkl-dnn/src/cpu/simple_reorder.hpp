@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016-2018 Intel Corporation
+* Copyright 2016-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -31,6 +31,8 @@
 
 #include "simple_q10n.hpp"
 #include "cpu_isa_traits.hpp"
+
+#include "bfloat16_utils.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -80,6 +82,12 @@ struct reference {};
         const float beta = pd->beta(); MAYBE_UNUSED(beta); \
         const round_mode_t rmode = pd->attr()->round_mode_; MAYBE_UNUSED(rmode);
 
+#define GET_SCRATCHPAD_SIZE_ZERO() \
+    static size_t get_scratchpad_size(const memory_desc_wrapper &input_d, \
+            const memory_desc_wrapper &output_d) { \
+        return 0; \
+    }
+
 /* specific reorders: common template */
 template <SIMPLE_REORDER_TEMPL_DECL, typename spec = void>
 struct simple_reorder_impl {};
@@ -119,8 +127,11 @@ typename utils::enable_if<fmt_i == any && (false
             && (D_mask == 1 || D_mask == (size_t)g * oc);
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         static constexpr bool w_groups = fmt_o == hwigo_s8s8;
@@ -164,37 +175,43 @@ typename utils::enable_if<fmt_i == any && (false
 
 template <SIMPLE_REORDER_TEMPL_DECL>
 struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
-    typename utils::enable_if<
-          ((fmt_i == goihw || fmt_i == oihw)
-           && (format_traits<fmt_o>::blk_fmt == bf::_4i16o4i_s8s8
-               || format_traits<fmt_o>::blk_fmt == bf::_2i8o4i_s8s8
-               || format_traits<fmt_o>::blk_fmt == bf::_4o4i_s8s8))
-    >::type>
-{
+        typename utils::enable_if<(
+                utils::one_of(fmt_i, goihw, oihw, goiw, oiw, hwio, hwigo)
+                && (format_traits<fmt_o>::blk_fmt == bf::_4i16o4i_s8s8
+                           || format_traits<fmt_o>::blk_fmt == bf::_2i8o4i_s8s8
+                           || format_traits<fmt_o>::blk_fmt
+                                   == bf::_4o4i_s8s8))>::type> {
     static bool is_applicable(const memory_desc_wrapper &input_d,
             const memory_desc_wrapper &output_d, const primitive_attr_t *attr)
     {
         const size_t D_mask = utils::array_product(input_d.dims(),
                                 math::ilog2q(attr->output_scales_.mask_ + 1));
-        const int oc = (input_d.dims()[(fmt_i == goihw) + 0]);
-        const int g = (fmt_i == goihw) ? (input_d.dims()[0]) : 1;
+        static constexpr bool w_groups
+                = format_traits<fmt_i>::data_kind == dk::gwei;
+        const int oc = input_d.dims()[w_groups + 0];
+        const int g = w_groups ? input_d.dims()[0] : 1;
 
         return input_d.format() == fmt_i
             && output_d.format() == fmt_o
-            && (input_d.data_type() == f32 || input_d.data_type() == s8)
+            && utils::one_of(input_d.data_type(), f32, s8)
             && output_d.data_type() == s8
             && (D_mask == 1 || D_mask == (size_t)g * oc);
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
-        static constexpr bool w_groups = fmt_i == goihw;
+        constexpr int is_1d = format_traits<fmt_o>::ndims_sp == 1;
+        static constexpr bool w_groups
+                = format_traits<fmt_o>::data_kind == dk::gwei;
         const int blksize = format_traits<fmt_o>::blk_size;
         const int sblk = 4;
 
-        const auto &_g_oihw_d = order_keep ? input_d : output_d;
+        const auto &plain_d = order_keep ? input_d : output_d;
         const auto &dims = input_d.dims();
         const auto &pdims = order_keep
             ? output_d.blocking_desc().padding_dims
@@ -205,8 +222,8 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         const int NB_OC = pdims[w_groups + 0] / blksize;
         const int IC = dims[w_groups + 1];
         const int NB_IC = pdims[w_groups + 1] / blksize;
-        const int H = dims[w_groups + 2];
-        const int W = dims[w_groups + 3];
+        const int H = is_1d ? 1 : dims[w_groups + 2];
+        const int W = dims[w_groups + 3 - is_1d];
 
         const float *scales = pd->attr()->output_scales_.scales_;
         const size_t D_mask = utils::array_product(input_d.dims(),
@@ -222,12 +239,12 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
             int32_t *c, const float *s, const int oc_block, const int ic_block) {
             for (int ic = 0; ic < ic_block; ++ic) {
             for (int oc = 0; oc < oc_block; ++oc) {
-                const auto _g_oihw_off =
-                    oc * _g_oihw_d.blocking_desc().strides[0][w_groups + 0]
-                  + ic * _g_oihw_d.blocking_desc().strides[0][w_groups + 1];
+                const auto plain_off =
+                    oc * plain_d.blocking_desc().strides[0][w_groups + 0]
+                  + ic * plain_d.blocking_desc().strides[0][w_groups + 1];
                 out[index(ic, oc)]
                     = qz_b0<data_t<type_i>, data_t<type_o>>()(
-                            inp[_g_oihw_off], s[oc] * adj_scale, rmode);
+                            inp[plain_off], s[oc] * adj_scale, rmode);
                 c[oc] -= (128 * (int32_t)(out[index(ic, oc)]));
             }
             }
@@ -246,10 +263,10 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
             for (int I = 0; I < NB_IC; I++)
                 for (int h = 0; h < H; h++)
                 for (int w = 0; w < W; w++) {
-                    auto i = &input[input_d.blk_off<!w_groups>(g,
-                            i_mult * O, i_mult * I, h, w)];
-                    auto o = &output[output_d.blk_off<!w_groups>(
-                            g, o_mult * O, o_mult * I, h, w)];
+                    auto i = &input[wei_blk_off_like_gwei3D<fmt_i>(
+                            input_d, g, i_mult * O, i_mult * I, 0, h, w)];
+                    auto o = &output[wei_blk_off_like_gwei3D<fmt_o>(
+                            output_d, g, o_mult * O, o_mult * I, 0, h, w)];
                     const int oc_block = nstl::min(blksize, OC - O * blksize);
                     const int ic_block = nstl::min(blksize, IC - I * blksize);
 
@@ -265,9 +282,308 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
 
 template <SIMPLE_REORDER_TEMPL_DECL>
 struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
-    typename utils::enable_if<true
-    && (fmt_i == goihw && fmt_o == Goihw16g_s8s8)>::type>
+    typename utils::enable_if<(
+        (fmt_i == goihw || fmt_i == oihw) &&
+        (format_traits<fmt_o>::blk_fmt == bf::_16i16o
+         || format_traits<fmt_o>::blk_fmt == bf::_8i16o2i
+         || format_traits<fmt_o>::blk_fmt == bf::_8o16i2o) &&
+        type_i == data_type::f32 && type_o == data_type::bf16)>::type>
 {
+    static bool is_applicable(const memory_desc_wrapper &input_d,
+            const memory_desc_wrapper &output_d, const primitive_attr_t *attr)
+    {
+        return order_keep
+            && input_d.format() == fmt_i && output_d.format() == fmt_o
+            && input_d.data_type() == f32 && output_d.data_type() == bf16;
+    }
+
+    static size_t get_scratchpad_size(const memory_desc_wrapper &input_d,
+            const memory_desc_wrapper &output_d) {
+        const int blksize = 16;
+        return sizeof(float) * blksize * blksize * mkldnn_get_max_threads();
+    }
+
+    static status_t execute(const cpu_reorder_pd_t *pd,
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
+        DECLARE_COMMON_PARAMS();
+
+        static constexpr bool w_groups = fmt_i == goihw;
+        const int blksize = 16;
+        const int sblk = 2;
+
+        const auto &_g_oihw_d = input_d;
+        const auto &dims = input_d.dims();
+        const auto &pdims = output_d.blocking_desc().padding_dims;
+
+        const int G = w_groups ? dims[0] : 1;
+        const int OC = dims[w_groups + 0];
+        const int NB_OC = pdims[w_groups + 0] / blksize;
+        const int IC = dims[w_groups + 1];
+        const int NB_IC = pdims[w_groups + 1] / blksize;
+        const int H = dims[w_groups + 2];
+        const int W = dims[w_groups + 3];
+
+        const size_t wsp_size = blksize * blksize;
+        float *wspace = scratchpad.template get<float>(
+                memory_tracking::names::key_reorder_space);
+
+        auto index = [&](const int ic, const int oc) {
+            if (format_traits<fmt_o>::blk_fmt == bf::_16i16o)
+                return (ic * blksize + oc);
+            else if (format_traits<fmt_o>::blk_fmt == bf::_8i16o2i)
+                return ((ic / sblk) * blksize * sblk + sblk * oc + ic % sblk);
+            else if (format_traits<fmt_o>::blk_fmt == bf::_8o16i2o)
+                return ((oc / sblk) * blksize * sblk + sblk * ic + oc % sblk);
+            else
+                assert(!"Invalid weight format");
+                return 0;
+        };
+
+        auto ker = [&](const data_t<type_i> *inp, data_t<type_i> *out,
+            const int curr_oc_block, const int oc_block,
+            const int curr_ic_block, const int ic_block) {
+            int ic = 0;
+            for (ic = 0; ic < curr_ic_block; ++ic) {
+                int oc = 0;
+                for (oc = 0; oc < curr_oc_block; ++oc) {
+                    const auto _g_oihw_off =
+                        oc * _g_oihw_d.blocking_desc().strides[0][w_groups + 0]
+                      + ic * _g_oihw_d.blocking_desc().strides[0][w_groups + 1];
+                    out[index(ic, oc)] = inp[_g_oihw_off];
+                }
+                for (/* continue */; oc < oc_block; ++oc) {
+                    out[index(ic, oc)] = (data_t<type_i>)0;
+                }
+            }
+            for (/* continue */; ic < ic_block; ++ic) {
+                for (int oc = 0; oc < oc_block; ++oc) {
+                    out[index(ic, oc)] = (data_t<type_i>)0;
+                }
+            }
+        };
+
+        constexpr int i_mult = blksize;
+        constexpr int o_mult = 1;
+
+        parallel_nd(G, NB_OC, NB_IC, H, W, [&](int g, int O, int I, int h, int w) {
+            int ithr = mkldnn_get_thread_num();
+            float *_wspace = wspace + wsp_size * ithr;
+            auto i = &input[input_d.blk_off<!w_groups>(g,
+                    i_mult * O, i_mult * I, h, w)];
+            auto o = &output[output_d.blk_off<!w_groups>(
+                    g, o_mult * O, o_mult * I, h, w)];
+            const int oc_block = nstl::min(blksize, OC - O * blksize);
+            const int ic_block = nstl::min(blksize, IC - I * blksize);
+            ker(i, _wspace, oc_block, blksize, ic_block, blksize);
+            bf16_cvt_utils::cvt_float_to_bfloat16(o, _wspace, wsp_size);
+        });
+
+        return success;
+    }
+
+};
+
+template <SIMPLE_REORDER_TEMPL_DECL>
+struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
+    typename utils::enable_if<format_traits<fmt_i>::blk_fmt == bf::_16i16o &&
+           (fmt_o == goihw || fmt_o == oihw) &&
+           type_i == data_type::bf16 && type_o == data_type::f32>::type>
+{
+    static bool is_applicable(const memory_desc_wrapper &input_d,
+            const memory_desc_wrapper &output_d, const primitive_attr_t *attr)
+    {
+        return order_keep
+            && input_d.format() == fmt_i && output_d.format() == fmt_o
+            && input_d.data_type() == bf16 && output_d.data_type() == f32;
+    }
+
+    GET_SCRATCHPAD_SIZE_ZERO();
+
+    static status_t execute(const cpu_reorder_pd_t *pd,
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
+        DECLARE_COMMON_PARAMS();
+
+        static constexpr bool w_groups = fmt_o == goihw;
+        const int blksize = 16;
+
+        const auto &_g_oihw_d = output_d;
+        const auto &dims = input_d.dims();
+        const auto &pdims = input_d.blocking_desc().padding_dims;
+
+        const int G = w_groups ? dims[0] : 1;
+        const int OC = dims[w_groups + 0];
+        const int NB_OC = pdims[w_groups + 0] / blksize;
+        const int IC = dims[w_groups + 1];
+        const int NB_IC = pdims[w_groups + 1] / blksize;
+        const int H = dims[w_groups + 2];
+        const int W = dims[w_groups + 3];
+
+        auto ker = [&](const data_t<type_i> *i, data_t<type_o> *o,
+            int curr_oc_block, int curr_ic_block) {
+            for (int ic = 0; ic < curr_ic_block; ++ic) {
+                for (int oc = 0; oc < curr_oc_block; ++oc) {
+                    const auto _g_oihw_off =
+                        oc * _g_oihw_d.blocking_desc().strides[0][w_groups + 0]
+                      + ic * _g_oihw_d.blocking_desc().strides[0][w_groups + 1];
+                    bf16_cvt_utils::cvt_bfloat16_to_float(
+                            &o[_g_oihw_off], &i[ic * blksize + oc]);
+                }
+            }
+        };
+
+        constexpr int i_mult = 1;
+        constexpr int o_mult = blksize;
+
+        parallel_nd(G, NB_OC, NB_IC, H, W, [&](int g, int O, int I, int h, int w) {
+            auto i = &input[input_d.blk_off<!w_groups>(
+                    g, i_mult * O, i_mult * I, h, w)];
+            auto o = &output[output_d.blk_off<!w_groups>(
+                    g, o_mult * O, o_mult * I, h, w)];
+            const int oc_block = nstl::min(blksize, OC - O * blksize);
+            const int ic_block = nstl::min(blksize, IC - I * blksize);
+            ker(i, o, oc_block, ic_block);
+        });
+
+        return success;
+    }
+};
+
+template <SIMPLE_REORDER_TEMPL_DECL>
+struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
+typename utils::enable_if<
+          (fmt_i == nchw && fmt_o == nChw16c) &&
+           type_i == data_type::f32 && type_o == data_type::bf16>::type>
+{
+    static bool is_applicable(const memory_desc_wrapper &input_d,
+        const memory_desc_wrapper &output_d, const primitive_attr_t *attr) {
+        return input_d.format() == fmt_i && output_d.format() == fmt_o
+            && input_d.data_type() == f32 && output_d.data_type() == bf16;
+    }
+
+    static size_t get_scratchpad_size(const memory_desc_wrapper &input_d,
+            const memory_desc_wrapper &output_d) {
+        const size_t blksize = 16;
+        const size_t W = input_d.dims()[3];
+        return sizeof(float) * blksize * W * mkldnn_get_max_threads();
+    }
+
+    static status_t execute(const cpu_reorder_pd_t *pd,
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
+        DECLARE_COMMON_PARAMS();
+
+        constexpr int blksize = 16;
+
+        const auto &flat_d = input_d;
+        const auto &dims = input_d.dims();
+        const auto &pdims = output_d.blocking_desc().padding_dims;
+
+        const int C = dims[1];
+        const int H = dims[2];
+        const int W = dims[3];
+
+        const int wsp_size = W * blksize;
+        float *wspace = scratchpad.template get<float>(
+                memory_tracking::names::key_reorder_space);
+
+        auto ker = [&](const data_t<type_i> *i, data_t<type_i> *o,
+            const int curr_c_block, const int c_block) {
+            for (int w = 0; w < W; ++w) {
+                int c = 0;
+                for (c = 0; c < curr_c_block; ++c) {
+                    const ptrdiff_t flat_off = 0
+                        + c * flat_d.blocking_desc().strides[0][1]
+                        + w * flat_d.blocking_desc().strides[0][3];
+                    o[w * blksize + c] = i[flat_off];
+                }
+                for (/* continue */; c < c_block; ++c) {
+                    o[w * blksize + c] = (data_t<type_i>)0;
+                }
+            }
+        };
+
+        constexpr int i_c_mult = blksize;
+        constexpr int o_c_mult = 1;
+
+        parallel_nd(dims[0], pdims[1] / blksize, H, [&](int n, int nb_c, int h) {
+            int ithr = mkldnn_get_thread_num();
+            float *_wspace = wspace + wsp_size * ithr;
+            auto i = &input[input_d.blk_off(n, i_c_mult * nb_c, h)];
+            auto o = &output[output_d.blk_off(n, o_c_mult * nb_c, h)];
+            const int c_block = nstl::min(blksize, C - nb_c * blksize);
+            ker(i, _wspace, c_block, blksize);
+            bf16_cvt_utils::cvt_float_to_bfloat16(o, _wspace, wsp_size);
+        });
+
+        return success;
+    }
+
+};
+
+template <SIMPLE_REORDER_TEMPL_DECL>
+struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
+typename utils::enable_if<
+          (fmt_i == nChw16c && fmt_o == nchw) &&
+          type_i == data_type::bf16 && type_o == data_type::f32>::type>
+{
+    static bool is_applicable(const memory_desc_wrapper &input_d,
+        const memory_desc_wrapper &output_d, const primitive_attr_t *attr) {
+        return input_d.format() == fmt_i && output_d.format() == fmt_o
+            && input_d.data_type() == bf16 && output_d.data_type() == f32;
+    }
+
+    GET_SCRATCHPAD_SIZE_ZERO();
+
+    static status_t execute(const cpu_reorder_pd_t *pd,
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
+        DECLARE_COMMON_PARAMS();
+
+        constexpr int blksize = 16;
+        const auto &flat_d = output_d;
+        const auto &dims = input_d.dims();
+        const auto &pdims = input_d.blocking_desc().padding_dims;
+
+        const int C = dims[1];
+        const int H = dims[2];
+        const int W = dims[3];
+
+        auto ker = [&](const data_t<type_i> *i, data_t<type_o> *o,
+            const int c_block) {
+            for (int w = 0; w < W; ++w)
+            for (int c = 0; c < c_block; ++c) {
+                const ptrdiff_t flat_off = 0
+                    + c * flat_d.blocking_desc().strides[0][1]
+                    + w * flat_d.blocking_desc().strides[0][3];
+
+                bf16_cvt_utils::cvt_bfloat16_to_float(
+                        &o[flat_off], &i[w * blksize + c]);
+            }
+        };
+
+        constexpr int i_c_mult = 1;
+        constexpr int o_c_mult = blksize;
+
+        parallel_nd(dims[0], pdims[1] / blksize, H, [&](int n, int nb_c, int h) {
+            auto i = &input[input_d.blk_off(n, i_c_mult * nb_c, h)];
+            auto o = &output[output_d.blk_off(n, o_c_mult * nb_c, h)];
+            const int c_block = nstl::min(blksize, C - nb_c * blksize);
+            ker(i, o, c_block);
+        });
+
+        return success;
+    }
+};
+
+
+template <SIMPLE_REORDER_TEMPL_DECL>
+struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
+    typename utils::enable_if<true
+        && utils::one_of(fmt_i, goiw, goihw, hwigo)
+        && format_traits<fmt_o>::blk_fmt == bf::_16g_s8s8>::type> {
+
     static bool is_applicable(const memory_desc_wrapper &input_d,
             const memory_desc_wrapper &output_d, const primitive_attr_t *attr) {
         const size_t D_mask = utils::array_product(input_d.dims(),
@@ -279,16 +595,20 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
             && order_keep
             && input_d.format() == fmt_i
             && output_d.format() == fmt_o
-            && (input_d.data_type() == f32 || input_d.data_type() == s8)
+            && utils::one_of(input_d.data_type(), f32, s8)
             && output_d.data_type() == s8
             && (D_mask == 1 || D_mask == (size_t)g * oc);
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-            const data_t<type_i> *input, data_t<type_o> *output) {
+            const data_t<type_i> *input, data_t<type_o> *output,
+            const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
-        const int blksize = 16;
+        constexpr int is_1d = format_traits<fmt_o>::ndims_sp == 1;
+        const int blksize = format_traits<fmt_o>::blk_size;
 
         const auto &dims = input_d.dims();
         const auto &pdims = output_d.blocking_desc().padding_dims;
@@ -296,8 +616,8 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         const int Gp = pdims[0];
         const int OC = dims[1];
         const int IC = dims[2];
-        const int H = dims[3];
-        const int W = dims[4];
+        const int H = is_1d ? 1 : dims[3];
+        const int W = dims[4 - is_1d];
 
         const size_t D_mask = utils::array_product(input_d.dims(),
                             math::ilog2q(pd->attr()->output_scales_.mask_ + 1));
@@ -329,8 +649,10 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
                     for (int h = 0; h < H; h++) {
                     for (int w = 0; w < W; w++) {
                         const int g_block = nstl::min(G - gb * blksize, blksize);
-                        const auto inp = &input[input_d.blk_off(gb * blksize, O, I, h, w)];
-                        const auto out = &output[output_d.blk_off(gb, O, I, h, w)];
+                        const auto inp = &input[wei_blk_off_like_gwei3D<fmt_i>(
+                                input_d, gb * blksize, O, I, 0, h, w)];
+                        const auto out = &output[wei_blk_off_like_gwei3D<fmt_o>(
+                                output_d, gb, O, I, 0, h, w)];
                         int offset = gb * blksize + O;
                         ker(inp, out, &cp[offset],
                             &scales[(D_mask == 1) ? 0 : offset], g_block);
@@ -355,8 +677,11 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
             && simple_attr_check(attr, false);
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         static constexpr bool w_groups
@@ -424,8 +749,11 @@ typename utils::enable_if<fmt_i == nChw8c && fmt_o == nhwc && order_keep>::type>
         return (smask == 0 || smask == 2) && order_keep && input_d._md->format == nChw8c && output_d._md->format == nhwc;
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         const auto &pdims = input_d.blocking_desc().padding_dims;
@@ -487,8 +815,11 @@ typename utils::enable_if<fmt_i == nhwc && fmt_o == nChw8c>::type>
         return (smask == 2) && order_keep && input_d._md->format == nhwc && output_d._md->format == nChw8c;
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         const auto &pdims = output_d.blocking_desc().padding_dims;
@@ -550,8 +881,11 @@ typename utils::enable_if<fmt_i == nhwc && fmt_o == nhwc && type_o != mkldnn_bin
         return (smask == 2) && order_keep && input_d._md->format == nhwc && output_d._md->format == nhwc;
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         const auto &dims = input_d.dims();
@@ -590,8 +924,11 @@ typename utils::enable_if<fmt_i == nchw && fmt_o == nhwc && type_i != mkldnn_bin
         return (smask == 0 || smask == 2) && order_keep && input_d._md->format == nchw && output_d._md->format == nhwc;
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         const auto &dims = input_d.dims();
@@ -641,8 +978,11 @@ typename utils::enable_if<(fmt_i == nchw || fmt_i == nhwc) && fmt_o == nhwc && (
         return smask == 0 && order_keep && (input_d._md->format == nchw || input_d._md->format == nhwc) && output_d._md->format == nhwc;
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         const auto &dims = input_d.dims();
@@ -691,8 +1031,11 @@ typename utils::enable_if<fmt_i == nhwc && fmt_o == nchw>::type>
         return (smask == 0 || smask == 2) && order_keep && input_d._md->format == nhwc && output_d._md->format == nchw;
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         const auto &dims = input_d.dims();
@@ -734,8 +1077,10 @@ typename utils::enable_if<fmt_i == nhwc && fmt_o == nchw>::type>
 
 template <SIMPLE_REORDER_TEMPL_DECL>
 struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
-typename utils::enable_if<format_traits<fmt_i>::blk_fmt == bf::_8c
-    && format_traits<fmt_o>::blk_fmt == bf::_16c>::type>
+typename utils::enable_if<true
+        && (format_traits<fmt_i>::blk_fmt == bf::_4c
+                || format_traits<fmt_i>::blk_fmt == bf::_8c)
+        && format_traits<fmt_o>::blk_fmt == bf::_16c>::type>
 {
     static bool is_applicable(const memory_desc_wrapper &input_d,
             const memory_desc_wrapper &output_d, const primitive_attr_t *attr)
@@ -744,22 +1089,25 @@ typename utils::enable_if<format_traits<fmt_i>::blk_fmt == bf::_8c
             && simple_attr_check(attr, false);
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         constexpr int is_1d = format_traits<fmt_o>::ndims_sp == 1;
         constexpr int is_3d = format_traits<fmt_o>::ndims_sp == 3;
-        constexpr int blksize_16 = format_traits<fmt_o>::blk_size;
-        constexpr int blksize_8 = format_traits<fmt_i>::blk_size;
+        constexpr int blksize_fmt_o = format_traits<fmt_o>::blk_size;
+        constexpr int blksize_fmt_i = format_traits<fmt_i>::blk_size;
         constexpr int ic_mult = order_keep ? 2 : 1;
         constexpr int oc_mult = order_keep ? 1 : 2;
 
-        const auto &nchw8c_d = order_keep ? input_d : output_d;
+        const auto &fmt_i_d = order_keep ? input_d : output_d;
         const auto &dims = input_d.dims();
         const auto &pdims = order_keep ? output_d.blocking_desc().padding_dims
                                        : input_d.blocking_desc().padding_dims;
-        const auto stride_8c = nchw8c_d.blocking_desc().strides[0];
+        const auto stride_fmt_i = fmt_i_d.blocking_desc().strides[0];
 
         const int C = dims[1];
         const int D = is_3d ? dims[2] : 1;
@@ -767,30 +1115,30 @@ typename utils::enable_if<format_traits<fmt_i>::blk_fmt == bf::_8c
         const int W = dims[3 + is_3d - is_1d];
 
         auto ker = [&](const data_t<type_i> *i, data_t<type_o> *o,
-            const int block_16) {
-            const int nb = (block_16 - 1) / blksize_8 + 1;
+            const int block_fmt_o) {
+            const int nb = (block_fmt_o - 1) / blksize_fmt_i + 1;
             if (alpha == 1.0 && beta == 0.0) {
                 for (int b = 0; b < nb; ++b) {
-                    const ptrdiff_t i_off = order_keep ? b * stride_8c[1]
-                                                       : b * blksize_8;
-                    const ptrdiff_t o_off = order_keep ? b * blksize_8
-                                                       : b * stride_8c[1];
-                    const int block_8 = nstl::min(blksize_8,
-                                                  block_16 - b * blksize_8);
-                    for (int c = 0; c < block_8; ++c) {
+                    const ptrdiff_t i_off = order_keep ? b * stride_fmt_i[1]
+                                                       : b * blksize_fmt_i;
+                    const ptrdiff_t o_off = order_keep ? b * blksize_fmt_i
+                                                       : b * stride_fmt_i[1];
+                    const int block_fmt_i = nstl::min(blksize_fmt_i,
+                                                  block_fmt_o - b * blksize_fmt_i);
+                    for (int c = 0; c < block_fmt_i; ++c) {
                         o[o_off + c] = _qz_a1b0<type_i, type_o>()(
                                 i[i_off + c], rmode);
                     }
                 }
             } else {
                 for (int b = 0; b < nb; ++b) {
-                    const ptrdiff_t i_off = order_keep ? b * stride_8c[1]
-                                                       : b * blksize_8;
-                    const ptrdiff_t o_off = order_keep ? b * blksize_8
-                                                       : b * stride_8c[1];
-                    const int block_8 = nstl::min(blksize_8,
-                                                  block_16 - b * blksize_8);
-                    for (int c = 0; c < block_8; ++c) {
+                    const ptrdiff_t i_off = order_keep ? b * stride_fmt_i[1]
+                                                       : b * blksize_fmt_i;
+                    const ptrdiff_t o_off = order_keep ? b * blksize_fmt_i
+                                                       : b * stride_fmt_i[1];
+                    const int block_fmt_i = nstl::min(blksize_fmt_i,
+                                                  block_fmt_o - b * blksize_fmt_i);
+                    for (int c = 0; c < block_fmt_i; ++c) {
                         o[o_off + c] = _qz<type_i, type_o>()(i[i_off + c],
                                 o[o_off + c], alpha, beta, rmode);
                     }
@@ -802,12 +1150,12 @@ typename utils::enable_if<format_traits<fmt_i>::blk_fmt == bf::_8c
         ( is_1d ? (md).blk_off(n, c, w) \
           : is_3d ? (md).blk_off(n, c, d, h, w) : (md).blk_off(n, c, h, w))
 
-        parallel_nd(dims[0], pdims[1] / blksize_16, D, H, W,
+        parallel_nd(dims[0], pdims[1] / blksize_fmt_o, D, H, W,
             [&](int n, int nb_c, int d, int h, int w) {
             auto i = &input[data_blk_off(input_d, n, ic_mult * nb_c, d, h, w)];
             auto o = &output[data_blk_off(output_d, n, oc_mult * nb_c, d, h, w)];
-            const int block_16 = nstl::min(blksize_16, C - nb_c * blksize_16);
-            ker(i, o, block_16);
+            const int block_fmt_o = nstl::min(blksize_fmt_o, C - nb_c * blksize_fmt_o);
+            ker(i, o, block_fmt_o);
         });
 
 #       undef data_blk_off
@@ -833,8 +1181,11 @@ typename utils::enable_if<fmt_i == any && (false
 {
     PLAIN_TO_BLOCKED_IS_APPLICABLE();
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         constexpr int is_1d = format_traits<fmt_o>::ndims_sp == 1;
@@ -930,8 +1281,11 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
             && (D_mask == 1 || D_mask == (size_t)g * oc);
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         static constexpr bool w_groups
@@ -1017,8 +1371,11 @@ typename utils::enable_if<fmt_i == any && (fmt_o == OhIw8o4i || fmt_o == gOhIw8o
 {
     PLAIN_TO_BLOCKED_IS_APPLICABLE();
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         static constexpr bool w_groups
@@ -1107,8 +1464,11 @@ typename utils::enable_if<fmt_i == any && (fmt_o == OhIw8o32i || fmt_o == OhIw16
 {
     PLAIN_TO_BLOCKED_IS_APPLICABLE();
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         static constexpr bool w_groups
@@ -1177,8 +1537,11 @@ typename utils::enable_if<fmt_i == any
 {
     PLAIN_TO_BLOCKED_IS_APPLICABLE();
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         static constexpr bool w_groups
@@ -1267,8 +1630,11 @@ typename utils::enable_if<fmt_i == any && (false
 {
     PLAIN_TO_BLOCKED_IS_APPLICABLE();
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         static constexpr bool w_groups
@@ -1345,8 +1711,11 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
             && simple_attr_check(attr, false);
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         assert(input_d.is_dense());
@@ -1360,7 +1729,7 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         const auto num_blocks = nelems / block_size;
         const auto rem_elems = nelems % block_size;
 
-        parallel(0, [&](const int ithr, const int nthr) {
+        parallel(0, num_blocks, [&](const int ithr, const int nthr) {
             size_t start{0}, end{0};
             balance211(num_blocks, nthr, ithr, start, end);
             start = start * block_size;
@@ -1441,8 +1810,11 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
             && simple_attr_check(attr, false);
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         input += input_d.blk_off(0);
@@ -1455,7 +1827,7 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         const size_t work_amount = N * nelems_no_d0;
 
         if (alpha == 1.0 && beta == 0.0) {
-            parallel(0, [&](const int ithr, const int nthr) {
+            parallel(0, work_amount, [&](const int ithr, const int nthr) {
                 size_t n{0}, dim1_s{0};
                 size_t start{0}, end{0};
                 balance211(work_amount, nthr, ithr, start, end);
@@ -1473,7 +1845,7 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
                 }
             });
         } else {
-            parallel(0, [&](const int ithr, const int nthr) {
+            parallel(0, work_amount, [&](const int ithr, const int nthr) {
                 size_t n{0}, dim1_s{0};
                 size_t start{0}, end{0};
                 balance211(work_amount, nthr, ithr, start, end);
@@ -1541,8 +1913,11 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
             && smask == 0;
     }
 
+    GET_SCRATCHPAD_SIZE_ZERO();
+
     static status_t execute(const cpu_reorder_pd_t *pd,
-        const data_t<type_i> *input, data_t<type_o> *output) {
+        const data_t<type_i> *input, data_t<type_o> *output,
+        const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
         const size_t nelems = input_d.nelems();
@@ -1596,6 +1971,8 @@ struct simple_reorder_t: public cpu_primitive_t {
             bool args_ok = true
                 && input_pd->desc()->data_type == type_i
                 && output_pd->desc()->data_type == type_o
+                && IMPLICATION(utils::one_of(data_type::bf16, type_i, type_o),
+                        mayiuse(avx512_core))
                 && simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL, spec>::
                 is_applicable(input_pd->desc(), output_pd->desc(), attr);
             if (!args_ok)
@@ -1605,6 +1982,13 @@ struct simple_reorder_t: public cpu_primitive_t {
                     (const cpu_memory_pd_t *)output_pd, attr);
             if (_pd == nullptr) return out_of_memory;
             if (_pd->init() != success) { delete _pd; return unimplemented; }
+
+            const size_t scratchpad_sz_ =
+                simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL, spec>::
+                    get_scratchpad_size(input_pd->desc(), output_pd->desc());
+            auto scratchpad = _pd->scratchpad_registry().registrar();
+            scratchpad.book(memory_tracking::names::key_reorder_space,
+                    scratchpad_sz_);
             return safe_ptr_assign<reorder_pd_t>(*reorder_pd, _pd);
         }
     };
@@ -1618,7 +2002,7 @@ struct simple_reorder_t: public cpu_primitive_t {
                 this->input_memory(0));
         auto output = reinterpret_cast<data_t<type_o> *>(this->memory());
         simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL, spec>::execute(
-                pd(), input, output);
+                pd(), input, output, this->scratchpad());
         e->set_state(event_t::ready);
     }
 

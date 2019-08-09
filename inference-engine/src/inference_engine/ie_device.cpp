@@ -10,6 +10,8 @@
 
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START
+
 FindPluginResponse InferenceEngine::findPlugin(const FindPluginRequest& req) {
     std::vector<std::string> pluginVec;
     switch (req.device) {
@@ -17,27 +19,14 @@ FindPluginResponse InferenceEngine::findPlugin(const FindPluginRequest& req) {
 #ifdef ENABLE_MKL_DNN
             pluginVec.push_back("MKLDNNPlugin");
 #endif
-#ifdef ENABLE_OPENVX_CVE
-            pluginVec.push_back("OpenVXPluginCVE");
-#elif defined ENABLE_OPENVX
-            pluginVec.push_back("OpenVXPlugin");
-#endif
             break;
         case TargetDevice::eGPU:
 #ifdef ENABLE_CLDNN
             pluginVec.push_back("clDNNPlugin");
 #endif
-#ifdef ENABLE_OPENVX
-            pluginVec.push_back("OpenVXPlugin");
-#endif
             break;
         case TargetDevice::eFPGA:
-#ifdef ENABLE_DLIA
             pluginVec.push_back("dliaPlugin");
-#endif
-#ifdef ENABLE_OPENVX
-            pluginVec.push_back("OpenVXPlugin");
-#endif
             break;
         case TargetDevice::eMYRIAD:
 #ifdef ENABLE_MYRIAD
@@ -52,6 +41,7 @@ FindPluginResponse InferenceEngine::findPlugin(const FindPluginRequest& req) {
         case TargetDevice::eHETERO:
             pluginVec.push_back("HeteroPlugin");
             break;
+
         default:
             THROW_IE_EXCEPTION << "Cannot find plugin for device: " << getDeviceName(req.device);
     }
@@ -69,3 +59,5 @@ INFERENCE_ENGINE_API(StatusCode) InferenceEngine::findPlugin(
     }
     return OK;
 }
+
+IE_SUPPRESS_DEPRECATED_END

@@ -16,9 +16,15 @@ limitations under the License.
 
 import numpy as np
 
-from ..config import NumberField
+from ..config import BoolField, NumberField
 from .postprocessor import BasePostprocessorConfig, Postprocessor
 from ..representation import DetectionPrediction, DetectionAnnotation
+
+
+class NMSConfigValidator(BasePostprocessorConfig):
+    overlap = NumberField(min_value=0, max_value=1, optional=True)
+    include_boundaries = BoolField(optional=True)
+    keep_top_k = NumberField(min_value=0, optional=True)
 
 
 class NMS(Postprocessor):
@@ -26,37 +32,36 @@ class NMS(Postprocessor):
 
     prediction_types = (DetectionPrediction, )
     annotation_types = (DetectionAnnotation, )
-
-    def validate_config(self):
-        class _NMSConfigValidator(BasePostprocessorConfig):
-            overlap = NumberField(min_value=0, max_value=1, optional=True)
-
-        nms_config_validator = _NMSConfigValidator(
-            self.__provider__, on_extra_argument=_NMSConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        nms_config_validator.validate(self.config)
+    _config_validator_type = NMSConfigValidator
 
     def configure(self):
         self.overlap = self.config.get('overlap', 0.5)
+        self.include_boundaries = self.config.get('include_boundaries', True)
+        self.keep_top_k = self.config.get('keep_top_k')
 
     def process_image(self, annotations, predictions):
         for prediction in predictions:
-            keep = self._nms(
+            keep = self.nms(
                 prediction.x_mins, prediction.y_mins, prediction.x_maxs, prediction.y_maxs, prediction.scores,
-                self.overlap
+                self.overlap, self.include_boundaries, self.keep_top_k
             )
             prediction.remove([box for box in range(len(prediction.x_mins)) if box not in keep])
 
         return annotations, predictions
 
     @staticmethod
-    def _nms(x1, y1, x2, y2, scores, thresh):
+    def nms(x1, y1, x2, y2, scores, thresh, include_boundaries=True, keep_top_k=None):
         """
         Pure Python NMS baseline.
         """
 
-        areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+        b = 1 if include_boundaries else 0
+
+        areas = (x2 - x1 + b) * (y2 - y1 + b)
         order = scores.argsort()[::-1]
+
+        if keep_top_k:
+            order = order[:keep_top_k]
 
         keep = []
         while order.size > 0:
@@ -68,8 +73,8 @@ class NMS(Postprocessor):
             xx2 = np.minimum(x2[i], x2[order[1:]])
             yy2 = np.minimum(y2[i], y2[order[1:]])
 
-            w = np.maximum(0.0, xx2 - xx1 + 1)
-            h = np.maximum(0.0, yy2 - yy1 + 1)
+            w = np.maximum(0.0, xx2 - xx1 + b)
+            h = np.maximum(0.0, yy2 - yy1 + b)
             intersection = w * h
 
             union = (areas[i] + areas[order[1:]] - intersection)

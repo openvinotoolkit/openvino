@@ -92,24 +92,23 @@ struct memory_desc_wrapper: public c_compatible {
     /** return the size of data type of additional buffer */
     size_t additional_buffer_data_size() const {
         using namespace mkldnn::impl::memory_format;
-        return (utils::one_of(format(), hwio_s8s8, hwigo_s8s8,
-                    gOIhw4o4i_s8s8,
-                    gOIhw4i16o4i_s8s8, OIhw4i16o4i_s8s8,
-                    gOIhw2i8o4i_s8s8,
-                    gOhIw8o4i_s8s8, OhIw8o4i_s8s8,
-                    Goihw16g_s8s8))
+        return (utils::one_of(format(),
+                hwio_s8s8, hwigo_s8s8, gOIhw4o4i_s8s8,
+                gOIw4i16o4i_s8s8, OIw4i16o4i_s8s8, gOIhw4i16o4i_s8s8,
+                OIhw4i16o4i_s8s8, gOIhw2i8o4i_s8s8, Goiw16g_s8s8,
+                gOhIw8o4i_s8s8, OhIw8o4i_s8s8,
+                Goihw16g_s8s8))
             ? sizeof(int32_t) : 0;
     }
 
     /** return true if memory format has additional buffer */
     bool is_additional_buffer() const {
         using namespace mkldnn::impl::memory_format;
-        return (utils::one_of(format(), hwio_s8s8, hwigo_s8s8,
-                    gOIhw4o4i_s8s8,
-                    gOIhw4i16o4i_s8s8, OIhw4i16o4i_s8s8,
-                    gOIhw2i8o4i_s8s8,
-                    gOhIw8o4i_s8s8, OhIw8o4i_s8s8,
-                    Goihw16g_s8s8))
+        return (utils::one_of(format(),
+                hwio_s8s8, hwigo_s8s8, gOIhw4o4i_s8s8, gOIw4i16o4i_s8s8,
+                OIw4i16o4i_s8s8, gOIhw4i16o4i_s8s8, OIhw4i16o4i_s8s8,
+                gOIhw2i8o4i_s8s8, gOhIw8o4i_s8s8, OhIw8o4i_s8s8,
+                Goiw16g_s8s8, Goihw16g_s8s8))
             ? true : false;
     }
 
@@ -119,14 +118,17 @@ struct memory_desc_wrapper: public c_compatible {
         const auto &padding_dims = blocking_desc().padding_dims;
         switch(format()) {
             case hwigo_s8s8:
+            case Goiw16g_s8s8:
+            case Goihw16g_s8s8:
             case gOIhw4o4i_s8s8:
             case gOIhw2i8o4i_s8s8:
+            case gOIw4i16o4i_s8s8:
             case gOIhw4i16o4i_s8s8:
             case gOhIw8o4i_s8s8:
                 return size_t(padding_dims[0]) * size_t(padding_dims[1])
                     * additional_buffer_data_size();
-            case Goihw16g_s8s8:
             case hwio_s8s8:
+            case OIw4i16o4i_s8s8:
             case OIhw4i16o4i_s8s8:
             case OhIw8o4i_s8s8:
                 return size_t(padding_dims[0]) * additional_buffer_data_size();
@@ -245,13 +247,14 @@ struct memory_desc_wrapper: public c_compatible {
             phys_offset += pos_block * blk.strides[0][d];
             phys_offset += pos_within_block * blk.strides[1][d];
         }
-        if (utils::one_of(format(), gOIhw4i16o4i, OIhw4i16o4i, gOIhw4i16o4i_s8s8,
-                            OIhw4i16o4i_s8s8)) {
+        if (utils::one_of(format(), gOIw4i16o4i, OIw4i16o4i, gOIw4i16o4i_s8s8,
+                    OIw4i16o4i_s8s8, gOIhw4i16o4i, OIhw4i16o4i,
+                    gOIhw4i16o4i_s8s8, OIhw4i16o4i_s8s8)) {
             // TODO: Fix temporary workaround for formats with double blocking
-            const bool with_groups = (format() == gOIhw4i16o4i
-                                      || format() == gOIhw4i16o4i_s8s8);
+            const bool with_groups = utils::one_of(format(), gOIw4i16o4i,
+                    gOIw4i16o4i_s8s8, gOIhw4i16o4i, gOIhw4i16o4i_s8s8);
             const int oc_16 = pos[with_groups + 0] % 16;
-            const int ic_4  = pos[with_groups + 1] % 4;
+            const int ic_4 = pos[with_groups + 1] % 4;
             phys_offset += 4 * oc_16 + ic_4 - (oc_16 + 16 * ic_4);
         }
         if (utils::one_of(format(), gOIhw2i8o4i,  gOIhw2i8o4i_s8s8)) {
@@ -261,37 +264,27 @@ struct memory_desc_wrapper: public c_compatible {
             const int ic_4 = pos[with_groups + 1] % 4;
             phys_offset += 4 * oc_8 + ic_4 - (oc_8 + 8 * ic_4);
         }
-        if (format() == gOIw8i16o2i || format() == OIw8i16o2i) {
+        if (utils::one_of(format(), gOIw8i16o2i, gOIhw8i16o2i, gOIdhw8i16o2i,
+                                   OIw8i16o2i, OIhw8i16o2i, OIdhw8i16o2i,
+                                   IOhw8i16o2i, gIOhw8i16o2i)) {
             // TODO: Fix temporary workaround for formats with double blocking
-            const bool with_groups = format() == gOIw8i16o2i;
+            const bool with_groups = utils::one_of(format(), gOIw8i16o2i,
+                                                   gOIhw8i16o2i, gOIdhw8i16o2i,
+                                                   gIOhw8i16o2i);
             const int oc_16 = pos[with_groups + 0] % 16;
             const int ic_2  = pos[with_groups + 1] % 2;
             phys_offset += -16 * ic_2 + oc_16 + ic_2;
         }
-        if (format() == gOIhw8i16o2i || format() == OIhw8i16o2i) {
+        if (utils::one_of(format(), gOIw8o16i2o, gOIhw8o16i2o, gOIdhw8o16i2o,
+                                    gIOw8o16i2o, gIOhw8o16i2o, gIOdhw8o16i2o,
+                                    OIw8o16i2o, OIhw8o16i2o, OIdhw8o16i2o,
+                                    IOw8o16i2o, IOhw8o16i2o, IOdhw8o16i2o)) {
+
             // TODO: Fix temporary workaround for formats with double blocking
-            const bool with_groups = format() == gOIhw8i16o2i;
-            const int oc_16 = pos[with_groups + 0] % 16;
-            const int ic_2  = pos[with_groups + 1] % 2;
-            phys_offset += -16 * ic_2 + oc_16 + ic_2;
-        }
-        if (format() == gOIdhw8i16o2i || format() == OIdhw8i16o2i) {
-            // TODO: Fix temporary workaround for formats with double blocking
-            const bool with_groups = format() == gOIdhw8i16o2i;
-            const int oc_16 = pos[with_groups + 0] % 16;
-            const int ic_2  = pos[with_groups + 1] % 2;
-            phys_offset += -16 * ic_2 + oc_16 + ic_2;
-        }
-        if (format() == gOIhw8o16i2o || format() == OIhw8o16i2o) {
-            // TODO: Fix temporary workaround for formats with double blocking
-            const bool with_groups = format() == gOIhw8o16i2o;
-            const int ic_16 = pos[with_groups + 1] % 16;
-            const int oc_2  = pos[with_groups + 0] % 2;
-            phys_offset += -16 * oc_2 + ic_16 + oc_2;
-        }
-        if (format() == gOIw8o16i2o || format() == OIw8o16i2o) {
-            // TODO: Fix temporary workaround for formats with double blocking
-            const bool with_groups = format() == gOIw8o16i2o;
+            const bool with_groups = utils::one_of(format(),
+                                                   gOIw8o16i2o, gOIhw8o16i2o,
+                                                   gOIdhw8o16i2o, gIOw8o16i2o,
+                                                   gIOhw8o16i2o, gIOdhw8o16i2o);
             const int ic_16 = pos[with_groups + 1] % 16;
             const int oc_2  = pos[with_groups + 0] % 2;
             phys_offset += -16 * oc_2 + ic_16 + oc_2;

@@ -21,28 +21,19 @@ private:
         return std::make_shared<ScaleStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(_inputEdges.size() == 2 || _inputEdges.size() == 3);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto scales = _inputEdges[1]->input();
-        auto biases = _inputEdges.size() == 3 ? _inputEdges[2]->input() : nullptr;
-        auto output = _outputEdges[0]->output();
+        auto inputScale = inputScales[0];
 
-        auto inputScale = inputScales.at(input);
-
-        DataMap<float> out;
-
-        out[scales] = step == ScalePropagationStep::Propagate ? 1.0f : inputScale;
-        if (biases != nullptr) {
-            out[biases] = inputScale;
+        _scaleInfo.setInput(_inputEdges[1], step == ScalePropagationStep::Propagate ? 1.0f : inputScale);
+        if (_inputEdges.size() == 3) {
+            _scaleInfo.setInput(_inputEdges[2], inputScale);
         }
-        out[output] = inputScale;
-
-        return out;
+        _scaleInfo.setOutput(_outputEdges[0], inputScale);
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {

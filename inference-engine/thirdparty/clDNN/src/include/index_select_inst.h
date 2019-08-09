@@ -20,44 +20,40 @@
 #include "primitive_inst.h"
 
 #include <memory>
+#include <string>
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 
-	template <>
-	struct typed_program_node<index_select> : public typed_program_node_base<index_select>
-	{
-		using parent = typed_program_node_base<index_select>;
+template <>
+struct typed_program_node<index_select> : public typed_program_node_base<index_select> {
+    using parent = typed_program_node_base<index_select>;
 
-	public:
-		typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
-			: parent(prim, prog)
-		{
-		}
-		program_node& input() const { return get_dependency(0); }
-        program_node& indices() const { return get_dependency(1); }
-        bool get_reverse() const { return get_primitive()->reverse; }
-        std::vector<index_select_axis_name> get_axes() const { return get_primitive()->axis; }
-	};
+public:
+    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) : parent(prim, prog) {}
+    program_node& input() const { return get_dependency(0); }
+    program_node& indices() const { return get_dependency(1); }
+    bool get_reverse() const { return get_primitive()->reverse; }
+    std::vector<index_select_axis_name> get_axes() const { return get_primitive()->axis; }
+};
 
-	using index_select_node = typed_program_node<index_select>;
+using index_select_node = typed_program_node<index_select>;
 
-	template <>
-	class typed_primitive_inst<index_select> : public typed_primitive_inst_base<index_select>
-	{
-		using parent = typed_primitive_inst_base<index_select>;
+template <>
+class typed_primitive_inst<index_select> : public typed_primitive_inst_base<index_select> {
+    using parent = typed_primitive_inst_base<index_select>;
 
-	public:
-		static layout calc_output_layout(index_select_node const& node);
-		static std::string to_string(index_select_node const& node);
-		typed_primitive_inst(network_impl& network, index_select_node const& node);
+public:
+    static layout calc_output_layout(index_select_node const& node);
+    static std::string to_string(index_select_node const& node);
+    typed_primitive_inst(network_impl& network, index_select_node const& node);
 
-        memory_impl& input() const { return dep_memory(0); }
-        memory_impl& indices() const { return dep_memory(1); }
-        bool get_reverse() const { return node.get_reverse(); }
-        std::vector<index_select_axis_name> get_axes() const { return node.get_axes(); }
-	};
+    memory_impl& input() const { return dep_memory(0); }
+    memory_impl& indices() const { return dep_memory(1); }
+    bool get_reverse() const { return node.get_reverse(); }
+    std::vector<index_select_axis_name> get_axes() const { return node.get_axes(); }
+};
 
-	using index_select_inst = typed_primitive_inst<index_select>;
+using index_select_inst = typed_primitive_inst<index_select>;
 
-}
+}  // namespace cldnn

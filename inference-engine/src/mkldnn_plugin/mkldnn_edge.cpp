@@ -594,30 +594,23 @@ void MKLDNNEdge::init() {
     MKLDNNEdgePtr edgePtr = getBaseEdge();
     if (edgePtr.get() == this) {
         changeStatus(Status::NeedAllocation);
-        auto port = getInputNum();
-        if (port < 0)
-            return;
-        auto edges_at_same_port = getParent()->getChildEdgesAtPort(static_cast<size_t>(port));
-        if (!edges_at_same_port.empty() &&
-            edgePtr != edges_at_same_port[0]) {
-            sharedMemFrom(edges_at_same_port[0]);
-        }
     } else {
         sharedMemFrom(edgePtr);
-        auto port = getInputNum();
-        if (port < 0)
-            return;
-        auto edges_at_same_port = getParent()->getChildEdgesAtPort(static_cast<size_t>(port));
-        for (auto edge : edges_at_same_port) {
-            if (edge->getStatus() != Status::NeedAllocation && edge->getStatus() != Status::Uninitialized) {
-                if (edge->getSharedEdge() != edgePtr)
-                    THROW_IE_EXCEPTION << "Unsupported behavior. Cannot mark edge "
-                                       << getParent()->getChildEdgeAt(0)->getParent()->getName() << "->"
-                                       << getParent()->getChildEdgeAt(0)->getChild()->getName() << " as not allocated!";
-            } else {
-                if (edge != edgePtr)
-                    edge->sharedMemFrom(edgePtr);
-            }
+    }
+
+    auto port = getInputNum();
+    if (port < 0)
+        return;
+    auto edges_at_same_port = getParent()->getChildEdgesAtPort(static_cast<size_t>(port));
+    for (auto edge : edges_at_same_port) {
+        if (edge->getStatus() != Status::NeedAllocation && edge->getStatus() != Status::Uninitialized) {
+            if (edge->getSharedEdge() != edgePtr)
+                THROW_IE_EXCEPTION << "Unsupported behavior. Cannot mark edge "
+                                   << getParent()->getChildEdgeAt(0)->getParent()->getName() << "->"
+                                   << getParent()->getChildEdgeAt(0)->getChild()->getName() << " as not allocated!";
+        } else {
+            if (edge != edgePtr)
+                edge->sharedMemFrom(edgePtr);
         }
     }
 }
@@ -672,7 +665,7 @@ MKLDNNEdgePtr MKLDNNEdge::getBaseEdge(int look) {
         for (auto edge : edges_for_same_port) {
             if (edge.get() != this) {
                 auto base = edge->getBaseEdge(LOOK_BOTH | LOOK_NO_RECURRENT);
-                if (base != edge) return base;
+                if (base != edge && base != edges_for_same_port[0]) return base;
             }
         }
     }

@@ -23,27 +23,22 @@ protected:
         return std::make_shared<ShrinkStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>&,
             ScalePropagationStep) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
 
-        DataMap<DimsOrder> out;
-
-        out[output] = input->desc().dimsOrder();
-
-        return out;
+        _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
@@ -76,12 +71,11 @@ protected:
         // Merge output consumers StridesRequirement.
         //
 
-        for (const auto& consumer : output->consumers()) {
-            auto consumerInfo = consumer->getDataStridesRequirements();
+        for (const auto& consumerEdge : output->consumerEdges()) {
+            const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
 
-            auto consumerStrideIt = consumerInfo.find(output);
-            if (consumerStrideIt != consumerInfo.end()) {
-                auto consumerReqs = consumerStrideIt->second;
+            if (consumerInfo.hasInput(consumerEdge)) {
+                const auto& consumerReqs = consumerInfo.getInput(consumerEdge);
 
                 for (int i = 0; i < dimsOrder.numDims(); ++i) {
                     if (inputReqs.get(i) == DimStride::Any) {
@@ -106,19 +100,14 @@ protected:
         // Return merged StridesRequirements.
         //
 
-        DataMap<StridesRequirement> out;
-
-        out[input] = inputReqs;
-        out[output] = outputReqs;
-
-        return out;
+        _stridesInfo.setInput(_inputEdges[0], inputReqs);
+        _stridesInfo.setOutput(_outputEdges[0], outputReqs);
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     void finalCheckImpl() const override {

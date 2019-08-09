@@ -22,33 +22,32 @@
 #define CL_HPP_TARGET_OPENCL_VERSION 120
 #include <cl2_wrapper.h>
 #include <list>
+#include <string>
 
 namespace cldnn {
 namespace gpu {
-    struct configuration;
+struct configuration;
 
-    class ocl_builder
-    {
-    public:
-        ocl_builder(const configuration& config);
-        cl::Context get_context() const { return _context; }
-        const cl::Device &get_device() const { return _device; }
-        cl_platform_id get_platform_id() const { return _platform_id; }
-        bool is_user_context() const { return _is_user_context; }
+class ocl_builder {
+public:
+    explicit ocl_builder(const configuration& config);
+    cl::Context get_context() const { return _context; }
+    const cl::Device& get_device() const { return _device; }
+    cl_platform_id get_platform_id() const { return _platform_id; }
+    bool is_user_context() const { return _is_user_context; }
 
-    private:
-        cl::Context _context;
-        cl::Device  _device;
-        cl_platform_id _platform_id;
-        bool _is_user_context;
+private:
+    cl::Context _context;
+    cl::Device _device;
+    cl_platform_id _platform_id;
+    bool _is_user_context;
 
-        void build_device_from_user_context(const configuration& config);
-        void build_device(const configuration& config);
-        void build_context();
-        bool does_device_match_config(const configuration& config, const cl::Device& dev, std::list<std::string>& reasons);
-        void build_platform_id();
-    };
+    void build_device_from_user_context(const configuration& config);
+    void build_device(const configuration& config);
+    void build_context();
+    bool does_device_match_config(const configuration& config, const cl::Device& dev, std::list<std::string>& reasons);
+    void build_platform_id();
+};
 
-}
-}
-
+}  // namespace gpu
+}  // namespace cldnn

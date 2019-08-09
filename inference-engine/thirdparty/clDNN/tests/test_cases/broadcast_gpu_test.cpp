@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -84,6 +84,67 @@ void start_broadcast_test(data_types cldnn_data_type, std::vector<size_t> output
                 for (tensor::value_type x = 0; x < output_4d.at(3); ++x) {
                     auto output_off = ((b * output_4d.at(1) + f) * output_4d.at(2) + y) * output_4d.at(3) + x;
                     EXPECT_EQ(output_ptr[output_off], golden_data[output_off]);
+                }
+            }
+        }
+    }
+}
+
+template<typename T>
+void start_broadcast_test_5d(data_types cldnn_data_type, std::vector<size_t> output_shape,
+                             std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes,
+                             std::vector<T> golden_data)
+{
+    size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
+    EXPECT_GE(input_data_size, (size_t)1);
+    std::vector<T> input_data = {};
+    for (size_t i = 1; i <= input_data_size; ++i) {
+        input_data.push_back((T)i);
+    }
+
+    EXPECT_EQ(golden_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+
+    std::vector<tensor::value_type> output_5d(5, 1);
+    for (size_t i = 0; i < output_shape.size(); ++i) {
+        output_5d.at(5 - output_shape.size() + i) = (tensor::value_type)output_shape.at(i);
+    }
+    std::vector<tensor::value_type> input_5d(5, 1);
+    for (size_t i = 0; i < input_shape.size(); ++i) {
+        input_5d.at(5 - input_shape.size() + i) = (tensor::value_type)input_shape.at(i);
+    }
+    std::vector<uint16_t> fixed_b_axes;
+    size_t shift = 5 - output_shape.size();
+    for (size_t i = 0; i < shift; ++i) {
+        fixed_b_axes.push_back((uint16_t)i);
+    }
+    for (size_t i = 0; i < broadcast_axes.size(); ++i) {
+        fixed_b_axes.push_back((uint16_t)(broadcast_axes.at(i) + shift));
+    }
+
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { cldnn_data_type, format::bfzyx,{ input_5d.at(0), input_5d.at(1), input_5d.at(4), input_5d.at(3), input_5d.at(2) } });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(broadcast("output", "input", { output_5d.at(0), output_5d.at(1), output_5d.at(4), output_5d.at(3), output_5d.at(2) }, fixed_b_axes));
+
+    set_values(input, input_data);
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("output").get_memory();
+    auto output_ptr = output.pointer<T>();
+
+    for (tensor::value_type b = 0; b < output_5d.at(0); ++b) {
+        for (tensor::value_type f = 0; f < output_5d.at(1); ++f) {
+            for (tensor::value_type z = 0; z < output_5d.at(2); ++z) {
+                for (tensor::value_type y = 0; y < output_5d.at(3); ++y) {
+                    for (tensor::value_type x = 0; x < output_5d.at(4); ++x) {
+                        auto output_off = (((b * output_5d.at(1) + f) * output_5d.at(2) + z) * output_5d.at(3) + y) * output_5d.at(4) + x;
+                        EXPECT_EQ(output_ptr[output_off], golden_data[output_off]);
+                    }
                 }
             }
         }
@@ -1044,4 +1105,43 @@ TEST(broadcast_gpu, basic_error_not_dividable_4x5_to_3x4x5_w_b_axes_1) {
 
     std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
+}
+
+TEST(broadcast_gpu_float, bfzyx_1_to_5_w_b_axes_0) {
+    std::vector<float> golden_data = { 1.0, 1.0, 1.0, 1.0, 1.0 };
+    start_broadcast_test_5d<float>(data_types::f32, { 5 }, { 1 }, { 0 }, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfzyx_1_to_4x5_w_b_axes_0x1) {
+    std::vector<float> golden_data = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 };
+    start_broadcast_test_5d<float>(data_types::f32, { 4, 5 }, { 1 }, { 0, 1 }, golden_data);
+}
+
+TEST(broadcast_gpu_float, bfyx_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
+    std::vector<float> golden_data = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 };
+    start_broadcast_test_5d<float>(data_types::f32, { 2, 3, 4, 5, 2 }, { 1 }, { 0, 1, 2, 3, 4 }, golden_data);
 }

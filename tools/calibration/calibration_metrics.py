@@ -14,9 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from .accuracy.base_metric import BaseMetric
 
 class CalibrationMetrics:
-    def __init__(self, accuracy: float, latency: float = None):
+    def __init__(self, accuracy: BaseMetric, latency: float = None):
         self._accuracy = accuracy
         self._latency = latency
 

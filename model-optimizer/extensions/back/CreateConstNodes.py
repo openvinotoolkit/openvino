@@ -35,7 +35,7 @@ class CreateConstNodesReplacement(BackReplacementPattern):
         """Check that at least one output edge from node without 'bin' attribute."""
         out_edges = node.out_edges()
         bin_in_out_ports = ['bin' in edge for edge in out_edges]
-        out_node = [node.has('op') and node.op == 'OpOutput' for node in node.out_nodes()]
+        out_node = [node.has('op') and node.op == 'Result' for node in node.out_nodes()]
         return np.any(out_node) or not np.all(bin_in_out_ports)
 
     @staticmethod
@@ -44,7 +44,7 @@ class CreateConstNodesReplacement(BackReplacementPattern):
         (that shows that this node is from TI body)"""
         n_ports = len(node.out_edges())
         internal_port_in_out_ports = ['internal_port_id' in edge for edge in node.out_edges()]
-        return np.all(internal_port_in_out_ports) and n_ports
+        return np.any(internal_port_in_out_ports) and n_ports
 
     def replace_pattern(self, graph: Graph, match: dict):
         """
@@ -63,6 +63,8 @@ class CreateConstNodesReplacement(BackReplacementPattern):
                 log.debug("Added Const node '{}'".format(const_node_name))
                 graph.add_node(const_node_name, name=const_node_name, type='Const', kind='op', op='Const',
                                precision="FP32")
+                Node(graph, const_node_name).add_output_port(0)
+                Node(graph, const_node_name).add_input_port(0)
                 update_ie_fields(node.graph.node[const_node_name])
                 graph.add_edges_from([(const_node_name, node.id, {'out': 0})])
 

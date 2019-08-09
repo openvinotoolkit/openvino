@@ -23,3 +23,15 @@ def tf_matmul_ext(pb):
         'transpose_b': pb.attr['transpose_b'].b,
         'infer': tf_matmul_infer
     }
+
+
+def tf_batchmatmul_ext(pb):
+    adj_x = pb.attr['adj_x'].b
+    adj_y = pb.attr['adj_y'].b
+    return {
+        'op': 'BatchMatMul',
+        'type': 'Gemm',
+        'transpose_a': adj_x,
+        'transpose_b': adj_y,
+        'infer': tf_matmul_infer
+    }

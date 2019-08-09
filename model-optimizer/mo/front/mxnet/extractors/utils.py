@@ -16,6 +16,9 @@
 
 import mxnet as mx
 
+from mo.graph.graph import Node, Graph
+from mo.ops.const import Const
+from extensions.ops.elementwise import Elementwise
 from mo.utils.error import Error
 from mo.utils.str_to import StrTo
 from mo.utils.utils import refer_to_faq_msg
@@ -191,3 +194,14 @@ def init_rnn_states(model_nodes):
                 if shape:
                     states.update({model_nodes[i[0]]['name']: shape})
     return states
+
+
+def scalar_ops_replacer(graph: Graph, node: Node, elementwise_op_type=Elementwise):
+    scalar_value = Const(graph, dict(value=node.scalar,
+                                     symbol_dict={'name': node.id + '/const'})).create_node()
+    lin_node = elementwise_op_type(graph, dict(name=node.id + '/lin_', symbol_dict={'name': node.id + '/lin_'})
+                                   ).create_node()
+    node.in_port(0).get_connection().set_destination(lin_node.in_port(0))
+    lin_node.in_port(1).get_connection().set_source(scalar_value.out_port(0))
+    node.out_port(0).get_connection().set_source(lin_node.out_port(0))
+    return lin_node

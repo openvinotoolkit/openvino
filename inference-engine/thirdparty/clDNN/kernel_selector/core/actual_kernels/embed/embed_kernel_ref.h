@@ -20,26 +20,23 @@
 #include "embed_params.h"
 #include "common_kernel_base.h"
 
-namespace kernel_selector
-{
+namespace kernel_selector {
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // EmbedKernelRef
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class EmbedKernelRef : public WeightBiasKernelBase
-    {
-    public:
-        EmbedKernelRef() : WeightBiasKernelBase("embed_ref") {}
-        virtual ~EmbedKernelRef() {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// EmbedKernelRef
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class EmbedKernelRef : public WeightBiasKernelBase {
+public:
+    EmbedKernelRef() : WeightBiasKernelBase("embed_ref") {}
+    virtual ~EmbedKernelRef() {}
 
-        struct DispatchData : public CommonDispatchData
-        {
-        };
+    struct DispatchData : public CommonDispatchData {};
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual JitConstants GetJitConstants(const embed_params& params) const;
-        virtual DispatchData SetDefault(const embed_params& params) const;
-    };
-}
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    virtual JitConstants GetJitConstants(const embed_params& params) const;
+    virtual DispatchData SetDefault(const embed_params& params) const;
+};
+}  // namespace kernel_selector

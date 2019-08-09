@@ -186,7 +186,7 @@ message(STATUS "[CACHE COMMAND]: " "${CMAKE_COMMAND} -E copy_if_different ${__CL
 
 add_custom_command(
     TARGET "${CLDNN_BUILD__PROJ}" POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${__CLDNN_Directory__core}/cache/cache.json ${CLDNN_CACHE_PATH})
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${__CLDNN_Directory__core}/cache/cache.json ${CLDNN_CACHE_PATH}/cache.json)
 
 
 # ======================================================================================================

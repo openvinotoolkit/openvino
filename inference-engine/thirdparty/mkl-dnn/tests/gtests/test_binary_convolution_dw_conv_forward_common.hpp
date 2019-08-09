@@ -447,6 +447,7 @@ protected:
         }
 
         bin_conv_post_ops.append_dw_conv(bin_conv_oh, bin_conv_ow, cd.conv2_kh, cd.conv2_kw, cd.conv2_strh, cd.conv2_strw,
+                                         memory::convert_to_c(data_type_bin_conv_dst),
                                          static_cast<const float*>(dw_conv_weights.get().get_data_handle()),
                                          static_cast<const float*>(dw_conv_bias.get().get_data_handle()));
 

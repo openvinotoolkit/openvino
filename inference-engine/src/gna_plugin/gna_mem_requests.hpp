@@ -10,11 +10,11 @@
 
 namespace GNAPluginNS {
 
-enum rType {
-    REQUEST_STORE,
-    REQUEST_ALLOCATE,
-    REQUEST_BIND,
-    REQUEST_INITIALIZER,
+enum rType : uint8_t {
+    REQUEST_STORE = 0x1,
+    REQUEST_ALLOCATE = 0x2,
+    REQUEST_BIND = 0x4,
+    REQUEST_INITIALIZER = 0x8,
 };
 /**
  * @brief region of firmware data
@@ -26,8 +26,8 @@ enum rRegion {
 };
 
 struct MemRequest {
-    rType _type;
     rRegion  _region;
+    uint8_t   _type;
     void *_ptr_out;
     const void *_ptr_in = nullptr;
     std::function<void(void * data, size_t size)> _initializer;
@@ -90,8 +90,10 @@ struct MemRequest {
                void   *ptr_out,
                size_t  regionSize,
                std::function<void(void * data, size_t size)> initializer,
+               rType req = REQUEST_INITIALIZER,
                size_t  alignment = 1) : _region(region),
-                                        _type(REQUEST_INITIALIZER),
+                                        _type(REQUEST_INITIALIZER | req),
+                                        _ptr_in(ptr_out),
                                         _ptr_out(ptr_out),
                                         _element_size(1),
                                         _num_elements(regionSize),
@@ -115,7 +117,7 @@ class GNAMemRequestsQueue {
      * @param alignment
      */
     void push_initializer(void *ptr_out, size_t num_bytes, std::function<void(void * data, size_t size)> initializer, size_t alignment = 1) {
-        futureHeap().push_back({regionType(), ptr_out, num_bytes, initializer, alignment});
+        futureHeap().push_back({regionType(), ptr_out, num_bytes, initializer, REQUEST_INITIALIZER, alignment});
     }
 
     void push_ptr(void *ptr_out, const void *ptr_in, size_t num_bytes, size_t alignment = 1) {
@@ -123,7 +125,7 @@ class GNAMemRequestsQueue {
     }
 
     /**
-     * copy input to intermediate buffer
+     * @brief copy input to intermediate buffer, to further use in copying into gna-blob
      * @param ptr_out
      * @param ptr_in
      * @param num_bytes
@@ -139,21 +141,31 @@ class GNAMemRequestsQueue {
      * @param ptr_out
      * @param num_bytes
      */
-    void reserve_ptr(void *ptr_out, size_t num_bytes)  {
-        futureHeap().push_back({regionType(), REQUEST_ALLOCATE, ptr_out, nullptr, 1, num_bytes});
+    void reserve_ptr(void *ptr_out, size_t num_bytes, size_t alignment = 1)  {
+        futureHeap().push_back({regionType(), REQUEST_ALLOCATE, ptr_out, nullptr, 1, num_bytes, alignment});
     }
 
     /**
      *
      * @param source
      * @param dest - source is binded to dest pointer after allocation
-     * @param offset - offset in bytes in sourse that will be set in dest
+     * @param offset - offset in bytes in source that will be set in dest
      * @param num_bytes - bind can request for bigger buffer that originally allocated via reserve(),
-     *      if that happens - reserved request parameters will be updated bero commiting memory
+     *      if that happens - reserved request parameters will be updated before committing memory
      */
     void bind_ptr(void *source, const void *dest, size_t offset = 0, size_t num_bytes = 0)  {
         futureHeap().push_back({regionType(), REQUEST_BIND, source, dest, 1, num_bytes, 1, offset});
     }
+
+    /**
+     * @brief allows initialisation of previously requested segment, ex. const input of concat layer
+     * @param ptr_out - previously requested buffer
+     * @param initializer - initialisation routine to be called on allocated memory
+     */
+    void bind_initializer(void *ptr_out, std::function<void(void * data, size_t size)> initializer)  {
+        futureHeap().push_back({regionType(), ptr_out, 0, initializer, REQUEST_BIND, 1});
+    }
+
     /**
      * @brief allocates buffer and set all its values to T value
      */

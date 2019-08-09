@@ -30,7 +30,8 @@ class LRNFrontExtractor(FrontExtractorOp):
             'beta': onnx_attr(node, 'beta', 'f', 0.75),
             'bias': onnx_attr(node, 'bias', 'f', 1.0),
             'local_size': onnx_attr(node, 'size', 'i', None),
-            'region': 'across'
         }
+        # TODO To be aligned with the specification, LRN should have axes input instead of old
+        # region attributes. This extra input should be build in a separate transformation.
         LRN.update_node_stat(node, attrs)
         return __class__.enabled

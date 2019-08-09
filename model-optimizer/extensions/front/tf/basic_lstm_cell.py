@@ -17,7 +17,7 @@
 from extensions.ops.lstm_cell import LSTMCell
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
-from mo.ops.output import Output
+from mo.ops.result import Result
 
 
 class BasicLSTMCell(FrontReplacementSubgraph):
@@ -62,14 +62,14 @@ class BasicLSTMCell(FrontReplacementSubgraph):
                 ('split', dict(op='Split')),
                 ('shift_const', dict()),
                 ('shift', dict(op='Add')),
-                ('sigmoid_0', dict(op='Activation', operation='sigmoid')),
+                ('sigmoid_0', dict(op='Sigmoid')),
                 ('mul_0', dict(op='Mul')),
-                ('sigmoid_1', dict(op='Activation', operation='sigmoid')),
-                ('tanh_0', dict(op='Activation', operation='tanh')),
+                ('sigmoid_1', dict(op='Sigmoid')),
+                ('tanh_0', dict(op='Tanh')),
                 ('mul_1', dict(op='Mul')),
                 ('add_1', dict(op='Add')),
-                ('tanh_1', dict(op='Activation', operation='tanh')),
-                ('sigmoid_2', dict(op='Activation', operation='sigmoid')),
+                ('tanh_1', dict(op='Tanh')),
+                ('sigmoid_2', dict(op='Sigmoid')),
                 ('mul_2', dict(op='Mul'))
             ],
             edges=[
@@ -149,7 +149,7 @@ class BasicLSTMCell(FrontReplacementSubgraph):
         # when this node haven't some outputs.
         for i in [0, 1]:
             if i not in lstm_node.out_nodes():
-                fake_output_node = Output(graph, dict(name=lstm_node.name + "/Output_{}".format(i)))
+                fake_output_node = Result(graph, dict(name=lstm_node.name + "/Output_{}".format(i)))
                 fake_output_node.create_node(inputs=[lstm_node], edge_attrs={'out': i, 'in': 0})
 
         lstm_node['tf'] = True

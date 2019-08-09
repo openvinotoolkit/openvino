@@ -39,19 +39,23 @@ void PassSet::run(const Model::Ptr& model) const {
     env.log->debug("Run passes");
     VPU_LOGGER_SECTION(env.log);
 
-    for (const auto& pass : _passes) {
-        auto pass_ind = &pass - &_passes.front();
-        auto pass_start_time = std::chrono::high_resolution_clock::now();
+    int passInd = 0;
+    for (const auto& p : _passes) {
+        env.log->debug("Start pass %m%d / %d [%s]", std::setw(2), passInd + 1, _passes.size(), p.second);
+
+        auto startTime = std::chrono::high_resolution_clock::now();
 
         model->cleanUpDatas();
-        pass->run(model);
+        p.first->run(model);
 
-        auto pass_end_time = std::chrono::high_resolution_clock::now();
+        auto endTime = std::chrono::high_resolution_clock::now();
 
         env.log->debug(
-            "[PASS %m%d / %d] duration : %f ms",
-            std::setw(2), pass_ind + 1, _passes.size(),
-            std::chrono::duration_cast<MilliSecondsFP64>(pass_end_time - pass_start_time).count());
+            "Pass %m%d / %d [%s] duration : %f ms",
+            std::setw(2), passInd + 1, _passes.size(), p.second,
+            std::chrono::duration_cast<MilliSecondsFP64>(endTime - startTime).count());
+
+        ++passInd;
     }
 
     model->cleanUpDatas();
@@ -60,6 +64,12 @@ void PassSet::run(const Model::Ptr& model) const {
 //
 // PassManager
 //
+
+#define ADD_DUMP_PASS(postfix) \
+    passes->addPass(dumpModel(postfix), "dumpModel")
+
+#define ADD_PASS(createFunc) \
+    passes->addPass(createFunc(), # createFunc)
 
 PassSet::Ptr PassManager::buildMiddleEnd() {
     const auto& env = CompileEnv::get();
@@ -71,7 +81,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     //
 
     _dumpInd = 0;
-    passes->addPass(dumpModel("initial"));
+    ADD_DUMP_PASS("initial");
 
     //
     // To overcome fp16 limitations
@@ -79,153 +89,164 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     if (env.config.hwOptimization) {
         if (env.config.hwAdaptiveMode) {
-            passes->addPass(analyzeWeightableLayers());
+            ADD_PASS(analyzeWeightableLayers);
         } else {
             if (!env.netConfig.hasManualDataScale()) {
-                passes->addPass(estimateSingleNetworkScale());
+                ADD_PASS(estimateSingleNetworkScale);
             }
 
-            passes->addPass(propagateDataScale());
+            ADD_PASS(propagateDataScale);
         }
 
-        passes->addPass(dumpModel("dataScaling"));
+        ADD_DUMP_PASS("dataScaling");
     }
-
-    passes->addPass(findSubGraphs());
-    passes->addPass(dumpModel("findSubGraphs"));
 
     //
     // Model common adaptation
     //
 
-    passes->addPass(splitGroupedConv());
-    passes->addPass(dumpModel("splitGroupedConv"));
+    ADD_PASS(splitGroupedConv);
+    ADD_DUMP_PASS("splitGroupedConv");
 
     //
     // Model HW-specific optimizations
     //
 
     if (env.config.hwOptimization) {
-        passes->addPass(replaceFCbyConv());
-        passes->addPass(dumpModel("replaceFCbyConv"));
+        ADD_PASS(replaceFCbyConv);
+        ADD_DUMP_PASS("replaceFCbyConv");
 
-        passes->addPass(replaceDeconvByConv());
-        passes->addPass(dumpModel("replaceDeconvByConv"));
+        ADD_PASS(replaceDeconvByConv);
+        ADD_DUMP_PASS("replaceDeconvByConv");
 
-        passes->addPass(swapConcatAndHwOps());
-        passes->addPass(dumpModel("swapConcatAndHwOps"));
+        if (env.config.hwDilation) {
+            ADD_PASS(reshapeDilationConv);
+            ADD_DUMP_PASS("reshapeDilationConv");
+                }
 
-        passes->addPass(mergeHwStages());
-        passes->addPass(dumpModel("mergeHwStages"));
+        ADD_PASS(swapConcatAndHwOps);
+        ADD_DUMP_PASS("swapConcatAndHwOps");
 
-        passes->addPass(splitHwDepthConv());
-        passes->addPass(dumpModel("splitHwDepthConv"));
+        ADD_PASS(mergeHwStages);
+        ADD_DUMP_PASS("mergeHwStages");
 
-        passes->addPass(splitHwConvAndPool());
-        passes->addPass(dumpModel("splitHwConvAndPool"));
+        ADD_PASS(splitHwDepthConv);
+        ADD_DUMP_PASS("splitHwDepthConv");
+
+        ADD_PASS(splitHwConvAndPool);
+        ADD_DUMP_PASS("splitHwConvAndPool");
     }
 
-    passes->addPass(hwPadding());
-    passes->addPass(dumpModel("hwPadding"));
+    ADD_PASS(hwPadding);
+    ADD_DUMP_PASS("hwPadding");
 
     //
     // Batch support
     //
 
-    passes->addPass(adjustDataBatch());
-    passes->addPass(dumpModel("adjustDataBatch"));
+    ADD_PASS(adjustDataBatch);
+    ADD_DUMP_PASS("adjustDataBatch");
 
     //
     // HW stages tiling
     //
 
     if (env.config.hwOptimization) {
-        passes->addPass(hwConvTiling());
-        passes->addPass(hwPoolTiling());
-        passes->addPass(hwFullyConnectedTiling());
-        passes->addPass(dumpModel("hwTiling"));
+        ADD_PASS(hwConvTiling);
+        ADD_PASS(hwPoolTiling);
+        ADD_PASS(hwFullyConnectedTiling);
+        ADD_DUMP_PASS("hwTiling");
     }
 
     //
     // Model SW-specific adaptation
     //
 
-    passes->addPass(swConvAdaptation());
-    passes->addPass(swDeconvAdaptation());
-    passes->addPass(swPoolAdaptation());
-    passes->addPass(swFullyConnectedAdaptation());
-    passes->addPass(dumpModel("swAdaptation"));
+    ADD_PASS(swConvAdaptation);
+    ADD_PASS(swDeconvAdaptation);
+    ADD_PASS(swPoolAdaptation);
+    ADD_PASS(swFullyConnectedAdaptation);
+    ADD_DUMP_PASS("swAdaptation");
 
     //
     // Model SW-specific optimizations
     //
 
-    passes->addPass(mergeReLUAndBias());
-    passes->addPass(dumpModel("mergeReLUAndBias"));
+    ADD_PASS(mergeReLUAndBias);
+    ADD_DUMP_PASS("mergeReLUAndBias");
 
     //
     // Data layout adjustment
     //
 
-    passes->addPass(adjustDataLayout());
-    passes->addPass(dumpModel("adjustDataLayout"));
+    ADD_PASS(adjustDataLayout);
+    ADD_DUMP_PASS("adjustDataLayout");
+
+    //
+    // Model SW-specific optimizations after data layout adjustment
+    //
+
+    ADD_PASS(mergeEltwiseAndReLU);
+    ADD_DUMP_PASS("mergeEltwiseAndReLU");
 
     //
     // Model special stages processing
     //
 
-    passes->addPass(processSpecialStages());
-    passes->addPass(dumpModel("processSpecialStages"));
+    ADD_PASS(processSpecialStages);
+    ADD_DUMP_PASS("processSpecialStages");
 
     //
     // Data location adjustment
     //
 
-    passes->addPass(adjustDataLocation());
-    passes->addPass(dumpModel("adjustDataLocation"));
+    ADD_PASS(adjustDataLocation);
+    ADD_DUMP_PASS("adjustDataLocation");
 
     //
     // Model common optimizations
     //
 
     if (env.config.copyOptimization.getOrDefault(true)) {
-        passes->addPass(eliminateCopyStages());
-        passes->addPass(dumpModel("eliminateCopyStages"));
+        ADD_PASS(eliminateCopyStages);
+        ADD_DUMP_PASS("eliminateCopyStages");
     }
 
     //
     // HW/SW injection
-    //
 
     if (env.config.hwOptimization && env.config.injectSwOps.getOrDefault(true)) {
-        passes->addPass(injectSw());
-        passes->addPass(dumpModel("injectSw"));
+        ADD_PASS(injectSw);
+        ADD_DUMP_PASS("injectSw");
     }
 
     //
     // Final resource allocation
     //
 
-    passes->addPass(allocateResources());
-    passes->addPass(dumpModel("allocateResources"));
+    ADD_PASS(allocateResources);
+    ADD_DUMP_PASS("allocateResources");
 
     //
     // HW stages finalization
     //
 
     if (env.config.hwOptimization) {
-        passes->addPass(finalizeHwOps());
-        passes->addPass(dumpModel("hwFinalization"));
+        ADD_PASS(finalizeHwOps);
+        ADD_DUMP_PASS("hwFinalization");
     }
 
     //
     // Final check
     //
 
-    passes->addPass(finalCheck());
+    ADD_PASS(finalCheck);
 
     return passes;
 }
+
+#undef ADD_DUMP_PASS
+#undef ADD_PASS
 
 //
 // DumpPass

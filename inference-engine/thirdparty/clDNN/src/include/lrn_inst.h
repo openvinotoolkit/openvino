@@ -18,15 +18,14 @@
 #pragma once
 #include "api/CPP/lrn.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
 using lrn_node = typed_program_node<lrn>;
 
 template <>
-class typed_primitive_inst<lrn> : public typed_primitive_inst_base<lrn>
-{
+class typed_primitive_inst<lrn> : public typed_primitive_inst_base<lrn> {
     using parent = typed_primitive_inst_base<lrn>;
 
 public:
@@ -39,4 +38,4 @@ public:
 
 using lrn_inst = typed_primitive_inst<lrn>;
 
-}
+}  // namespace cldnn

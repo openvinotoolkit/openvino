@@ -22,7 +22,7 @@ from mo.back.replacement import BackReplacementPattern
 
 
 class CompatibilityL2NormalizationPattern(BackReplacementPattern):
-
+    force_clean_up = True
     enabled = True
 
     def pattern(self):
@@ -51,4 +51,5 @@ class CompatibilityL2NormalizationPattern(BackReplacementPattern):
         if len(l2_normalization_node.in_nodes()) < 2:
             value = np.full([l2_normalization_node.in_node(0).shape[1]], 1.0, dtype=np.float32)
             weights_node = Op.create_input_data_node(graph, name=l2_normalization_node['name'] + '_weights', value=value)
+            l2_normalization_node.add_input_port(1)
             graph.create_edge(weights_node, l2_normalization_node, out_port=0, in_port=1, edge_attrs={'bin': 'weights'})

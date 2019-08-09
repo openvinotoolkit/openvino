@@ -17,9 +17,9 @@
 #define SIMD_SIZE 8
 __attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
 KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
-    __global INPUT0_TYPE* input, 
-    __global OUTPUT_TYPE* output, 
-    __global FILTER_TYPE* weights, 
+    __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+    __global FILTER_TYPE* weights,
 #if BIAS_TERM
     __global BIAS_TYPE* biases,
 #endif
@@ -94,7 +94,7 @@ KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
     //--------------------------------------------------------------------
     // second sub_group in workgroup task
     //--------------------------------------------------------------------
-    
+
     if(ifm_part == 1)
     {
         for(uint bd = 0; bd < OUT_BLOCK_DEPTH/2; bd++)
@@ -114,7 +114,7 @@ KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
     //--------------------------------------------------------------------
     // first sub_group in workgroup task
     //--------------------------------------------------------------------
-    
+
     if(ifm_part == 0)
     {
         for(uint bd = 0; bd < OUT_BLOCK_DEPTH/2; bd++)
@@ -133,7 +133,7 @@ KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
     //--------------------------------------------------------------------
     // add bias phase
     //--------------------------------------------------------------------
-    
+
     #if BIAS_TERM
     for(uint bd = 0; bd < OUT_BLOCK_DEPTH/2; bd++)
     {
@@ -153,7 +153,7 @@ KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
     //--------------------------------------------------------------------
     // sum sub-group results + activation phase
     //--------------------------------------------------------------------
-    
+
     for(uint bd = 0; bd < OUT_BLOCK_DEPTH/2; bd++)
     {
         for(uint br = 0; br < OUT_BLOCK_HEIGHT; br++)
@@ -161,7 +161,7 @@ KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
             for(uint bc = 0; bc < OUT_BLOCK_WIDTH; bc++)
             {
                 dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] += slm_vals[SIMD_SIZE * (bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * (bd + ifm_offset) )) + get_sub_group_local_id()];
-                dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION(dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], NL_M, NL_N);;
+                dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION_CONV(dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS_CONV);;
             }
         }
     }
@@ -178,7 +178,7 @@ KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
             {
                 uint src3_offset = GET_DATA_INDEX(INPUT1, b, f + (bd + ifm_offset) * SIMD_SIZE + get_sub_group_local_id(), (group_y + br) * ELTW_STRIDE_Y, (group_x + bc) * ELTW_STRIDE_X);
                 dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] += src3[src3_offset];
-                dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION_ELTW(dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], NL_M_ELTW, NL_N_ELTW);
+                dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION_ELTW(dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS_ELTW);
             }
         }
     }
@@ -207,7 +207,7 @@ KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
 #if IN_OUT_OPT == 1
                 float8 tmp2 = vload8(0, output + dst_index + out_vstore_offset * OUTPUT_X_PITCH);
                 tmp += tmp2;
-                tmp = ACTIVATION_ELTW(tmp, NL_M_ELTW, NL_N_ELTW);
+                tmp = ACTIVATION_ELTW(tmp, ACTIVATION_PARAMS_ELTW);
 #endif
                 vstore8(tmp, 0, output + dst_index + out_vstore_offset * OUTPUT_X_PITCH);
                 out_vstore_offset += 8;
@@ -222,7 +222,7 @@ KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
 #if IN_OUT_OPT == 1
                 float4 tmp2 = vload4(0, output + dst_index + out_vstore_offset * OUTPUT_X_PITCH);
                 tmp += tmp2;
-                tmp = ACTIVATION_ELTW(tmp, NL_M_ELTW, NL_N_ELTW);
+                tmp = ACTIVATION_ELTW(tmp, ACTIVATION_PARAMS_ELTW);
 #endif
                 vstore4(tmp, 0, output + dst_index + out_vstore_offset * OUTPUT_X_PITCH);
                 out_vstore_offset += 4;
@@ -235,7 +235,7 @@ KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
 #if IN_OUT_OPT == 1
                 float2 tmp2 = vload2(0, output + dst_index + out_vstore_offset * OUTPUT_X_PITCH);
                 tmp += tmp2;
-                tmp = ACTIVATION_ELTW(tmp, NL_M_ELTW, NL_N_ELTW);
+                tmp = ACTIVATION_ELTW(tmp, ACTIVATION_PARAMS_ELTW);
 #endif
                 vstore2(tmp, 0, output + dst_index + out_vstore_offset * OUTPUT_X_PITCH);
                 out_vstore_offset += 2;
@@ -245,8 +245,8 @@ KERNEL(fused_conv_eltwise_gpu_bfyx_1x1_opt)(
             {
 #if IN_OUT_OPT == 1
                 dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] += output[dst_index + bc * OUTPUT_X_PITCH];
-                dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION_ELTW(dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], NL_M_ELTW, NL_N_ELTW);
-#endif                
+                dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] = ACTIVATION_ELTW(dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)], ACTIVATION_PARAMS_ELTW);
+#endif
                 output[dst_index + bc * OUTPUT_X_PITCH] = dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)];
             }
         }

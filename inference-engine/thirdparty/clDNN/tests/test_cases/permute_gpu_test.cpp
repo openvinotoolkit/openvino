@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -617,4 +617,226 @@ TEST(fc_permute_gpu, basic_permute_bfyx)
     auto output_ptr = output.pointer<float>();
     for (int i = 0; i < 5 * 256; i++)
         EXPECT_NEAR(input_ptr[i], output_ptr[i], 1e-3f);
+
+}
+
+TEST(permute_gpu_f32, permute_bfwzyx)
+{
+    const auto& engine = get_test_engine();
+    const int b = 1;
+    const int f = 2;
+    const int x = 3;
+    const int y = 4;
+    const int z = 5;
+    const int w = 6;
+    std::vector<uint16_t> permute_order = { 1, 0, 5, 4, 3, 2 };
+
+    auto input_size = cldnn::tensor(batch(b), feature(f), spatial(x, y, z, w));
+    auto input_mem = memory::allocate(engine, { data_types::f32, format::bfwzyx, input_size });
+    auto input_data = generate_random_1d<float>(input_mem.get_layout().count(), -1, 1);
+
+    set_values(input_mem, input_data);
+
+    auto expected_size = cldnn::tensor(batch(f), feature(b), spatial(w, z, y, x));
+    auto expected_layout = cldnn::layout(data_types::f32, format::bfwzyx, expected_size);
+    auto expected_output = std::vector<float>(expected_layout.count());
+    for (int bi = 0; bi < b; ++bi)
+    for (int fi = 0; fi < f; ++fi)
+    for (int wi = 0; wi < w; ++wi)
+    for (int zi = 0; zi < z; ++zi)
+    for (int yi = 0; yi < y; ++yi)
+    for (int xi = 0; xi < x; ++xi)
+    {
+        auto in_index = cldnn::tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
+        auto out_index = cldnn::tensor(batch(fi), feature(bi), spatial(wi, zi, yi, xi));
+        expected_output[expected_layout.get_linear_offset(out_index)] =
+            input_data[input_mem.get_layout().get_linear_offset(in_index)];
+    }
+
+    topology topology(
+        input_layout("input", input_mem.get_layout()),
+        permute("permute", "input", permute_order)
+    );
+
+    network network(engine, topology);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "permute");
+
+    auto output = outputs.begin()->second.get_memory();
+    auto out_tensor = output.get_layout().size;
+    EXPECT_EQ(out_tensor.batch[0], 2);
+    EXPECT_EQ(out_tensor.feature[0], 1);
+    EXPECT_EQ(out_tensor.spatial[0], 6);
+    EXPECT_EQ(out_tensor.spatial[1], 5);
+    EXPECT_EQ(out_tensor.spatial[2], 4);
+    EXPECT_EQ(out_tensor.spatial[3], 3);
+    EXPECT_EQ(output.get_layout().format, cldnn::format::bfwzyx);
+
+    auto output_ptr = output.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); ++i)
+    {
+        EXPECT_EQ(expected_output[i], output_ptr[i]);
+    }
+}
+
+TEST(permute_gpu_f32, 6D_reshape_permute_reshape)
+{
+    // Input - 1x4x2x2:
+    //
+    // 0 0   1 1   2 2   3 3
+    // 0 0   1 1   2 2   3 3
+    //
+    // Reshape 4 to 6 - 1x1x2x2x2x2:
+    //
+    // 0 0   1 1
+    // 0 0   1 1
+    //
+    // 2 2   3 3
+    // 2 2   3 3
+    //
+    // Permute 0, 1, 5, 4, 2, 3
+    //
+    // 0 2   0 2
+    // 1 3   1 3
+    //
+    // 0 2   0 2
+    // 1 3   1 3
+    //
+    // Reshape 6 to 4 - 1x4x2x2
+    //
+    // 0 2   0 2   0 2   0 2
+    // 1 3   1 3   1 3   1 3
+
+    const auto& engine = get_test_engine();
+    const int b = 1;
+    const int f = 4;
+    const int x = 2;
+    const int y = 2;
+
+    const int f_reshape = 1;
+    const int w_reshape = 2;
+    const int z_reshape = 2;
+
+    std::vector<uint16_t> permute_order = { 0, 1, 5, 4, 2, 3 };
+
+    auto input_size = cldnn::tensor(batch(b), feature(f), spatial(x, y));
+    auto input_mem = memory::allocate(engine, { data_types::f32, format::bfyx, input_size });
+    std::vector<float> input_data = {
+        0.f, 0.f, 0.f, 0.f,
+        1.f, 1.f, 1.f, 1.f,
+        2.f, 2.f, 2.f, 2.f,
+        3.f, 3.f, 3.f, 3.f
+    };
+
+    std::vector<float> expected_out = {
+        0.f, 2.f, 1.f, 3.f,
+        0.f, 2.f, 1.f, 3.f,
+        0.f, 2.f, 1.f, 3.f,
+        0.f, 2.f, 1.f, 3.f
+    };
+
+    set_values(input_mem, input_data);
+
+    topology topology(
+        input_layout("input", input_mem.get_layout()),
+        reorder("input_6d", "input", { data_types::f32, format::bfwzyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) }),
+        reshape("reshape_4_to_6", "input_6d", cldnn::tensor(batch(b), feature(f_reshape), spatial(x, y, z_reshape, w_reshape))),
+        permute("permute", "reshape_4_to_6", permute_order),
+        reshape("reshape_6_to_4", "permute", cldnn::tensor(batch(b), feature(f), spatial(x, y))),
+        reorder("output_4d", "reshape_6_to_4", { data_types::f32, format::bfyx, cldnn::tensor(batch(b), feature(f), spatial(x, y)) })
+    );
+
+    network network(engine, topology);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "output_4d");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    auto output_ptr = output.pointer<float>();
+
+    for (size_t i = 0; i < output_ptr.size(); ++i)
+    {
+        EXPECT_EQ(expected_out[i], output_ptr[i]);
+    }
+}
+TEST(permute_gpu_f32, basic_bfzyx_permute_0_2_3_4_1)
+{
+    //  Input               : bfzyx:2x2x2x2x3
+    //  Permute order       : { 0,2,3,4,1 }
+
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 2, 2, 3, 2, 2 } });
+
+    set_values(input, {
+        1.0f,  2.0f, -15.f, //B0, F0,   // z0 y0 x-3
+        3.0f,  4.0f, -15.f,             // z0 y1
+        2.0f,  3.0f, -15.f,             // z1 y0
+        4.0f,  5.0f, -15.f,             // z1  y1
+
+        5.0f,  6.0f, -15.f, //b0, f1
+        7.0f,  8.0f, -15.f,
+        6.0f,  7.0f, -15.f,
+        8.0f,  9.0f, -15.f,
+
+        0.0f,  0.0f, -15.f, //b1, f0
+        0.5f, -0.5f, -15.f,
+        1.0f,  1.0f, -15.f,
+        1.5f,  0.5f, -15.f,
+
+        1.5f,  5.2f, -15.f, //b1, f1
+        12.0f, 8.0f, -15.f,
+        2.5f,  6.2f, -15.f,
+        13.0f, 9.0f, -15.f,
+    });
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        permute("permute", "input", { 0, 2, 3, 4, 1 }));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "permute");
+
+    auto output = outputs.begin()->second.get_memory();
+    auto out_tensor = output.get_layout().size;
+    EXPECT_EQ(out_tensor.batch[0], 2);
+    EXPECT_EQ(out_tensor.feature[0], 3);
+    EXPECT_EQ(out_tensor.spatial[0], 2);
+    EXPECT_EQ(out_tensor.spatial[1], 2);
+    EXPECT_EQ(out_tensor.spatial[2], 2);
+
+    EXPECT_EQ(output.get_layout().format, cldnn::format::bfzyx);
+
+    float answers[48] = {
+        1.0f, 3.0f, 2.0f, 4.0f,
+        5.0f, 7.0f, 6.0f, 8.0f,
+        2.0f, 4.0f, 3.0f, 5.0f,
+        6.0f, 8.0f, 7.0f, 9.0f,
+        -15.0f, -15.0f, -15.0f, -15.0f,
+        -15.0f, -15.0f, -15.0f, -15.0f,
+        0.0f, 0.5f, 1.0f, 1.5f,
+        1.5f, 12.0f, 2.5f, 13.0f,
+        0.0f, -0.5f, 1.0f, 0.5f,
+        5.2f, 8.0f, 6.2f, 9.0f,
+        -15.0f, -15.0f, -15.0f, -15.0f,
+        -15.0f, -15.0f, -15.0f, -15.0f,
+    };
+
+    auto output_ptr = output.pointer<float>();
+    for (int i = 0; i < 48; i++)
+    {
+        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+    }
+
 }

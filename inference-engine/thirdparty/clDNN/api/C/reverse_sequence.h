@@ -15,11 +15,8 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef REVERSE_SEQUENCE_H
-#define REVERSE_SEQUENCE_H
-
+#pragma once
 #include "cldnn.h"
-
 
 /// @addtogroup c_api C API
 /// @{
@@ -48,4 +45,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(reverse_sequence);
 /// @}
 /// @}
 /// @}
-#endif // REVERSE_SEQUENCE_H
+

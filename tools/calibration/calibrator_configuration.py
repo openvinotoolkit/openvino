@@ -28,6 +28,7 @@ class CalibratorConfiguration:
         self._threshold = configuration.threshold
         self._batch_size = configuration.batch_size
         self._progress = configuration.progress
+        self._precision = configuration.precision
 
     @property
     def config(self) -> str:
@@ -64,3 +65,7 @@ class CalibratorConfiguration:
     @property
     def progress(self) -> str:
         return self._progress
+
+    @property
+    def precision(self) -> str:
+        return self._precision

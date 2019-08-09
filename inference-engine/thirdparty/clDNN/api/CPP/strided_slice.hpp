@@ -18,9 +18,9 @@
 #pragma once
 #include "../C/strided_slice.h"
 #include "primitive.hpp"
+#include <vector>
 
-namespace  cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -30,8 +30,7 @@ namespace  cldnn
 
 /// @brief
 /// @details
-struct strided_slice : public primitive_base<strided_slice, CLDNN_PRIMITIVE_DESC(strided_slice)>
-{
+struct strided_slice : public primitive_base<strided_slice, CLDNN_PRIMITIVE_DESC(strided_slice)> {
     CLDNN_DECLARE_PRIMITIVE(strided_slice)
 
     /// @brief Constructs strided_slice primitive.
@@ -44,35 +43,29 @@ struct strided_slice : public primitive_base<strided_slice, CLDNN_PRIMITIVE_DESC
     /// @param end_mask Array of bits, that provide replace end[i] to max possible range in that dimension.
     /// @param new_axis_mask Array of bits, that provide adding a new length 1 dimension at ith position in the output tensor.
     /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at index begin[i].
-    strided_slice(
-        const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& begin_id,
-        const primitive_id& end_id,
-        const primitive_id& strides_id,
-        std::vector<uint8_t> begin_mask,
-        std::vector<uint8_t> end_mask,
-        std::vector<uint8_t> new_axis_mask,
-        std::vector<uint8_t> shrink_axis_mask,
-        const padding& output_padding = padding()
-    )
-        : primitive_base(id, {input, begin_id, end_id, strides_id}, output_padding)
-        , begin_mask(begin_mask)
-        , end_mask(end_mask)
-        , new_axis_mask(new_axis_mask)
-        , shrink_axis_mask(shrink_axis_mask)
-    {
-    }
+    strided_slice(const primitive_id& id,
+                  const primitive_id& input,
+                  const primitive_id& begin_id,
+                  const primitive_id& end_id,
+                  const primitive_id& strides_id,
+                  std::vector<uint8_t> begin_mask,
+                  std::vector<uint8_t> end_mask,
+                  std::vector<uint8_t> new_axis_mask,
+                  std::vector<uint8_t> shrink_axis_mask,
+                  const padding& output_padding = padding())
+        : primitive_base(id, {input, begin_id, end_id, strides_id}, output_padding),
+          begin_mask(begin_mask),
+          end_mask(end_mask),
+          new_axis_mask(new_axis_mask),
+          shrink_axis_mask(shrink_axis_mask) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{strided_slice}
     strided_slice(const dto* dto)
-        : primitive_base(dto)
-        , begin_mask(uint8_t_arr_to_vector(dto->begin_mask))
-        , end_mask(uint8_t_arr_to_vector(dto->end_mask))
-        , new_axis_mask(uint8_t_arr_to_vector(dto->new_axis_mask))
-        , shrink_axis_mask(uint8_t_arr_to_vector(dto->shrink_axis_mask))
-    {
-    }
+        : primitive_base(dto),
+          begin_mask(uint8_t_arr_to_vector(dto->begin_mask)),
+          end_mask(uint8_t_arr_to_vector(dto->end_mask)),
+          new_axis_mask(uint8_t_arr_to_vector(dto->new_axis_mask)),
+          shrink_axis_mask(uint8_t_arr_to_vector(dto->shrink_axis_mask)) {}
 
     /// @param begin_mask Array of bits, that provide replace begin[i] to max possible range in that dimension.
     std::vector<uint8_t> begin_mask;
@@ -84,9 +77,7 @@ struct strided_slice : public primitive_base<strided_slice, CLDNN_PRIMITIVE_DESC
     std::vector<uint8_t> shrink_axis_mask;
 
 protected:
-
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.begin_mask = uint8_t_vector_to_arr(begin_mask);
         dto.end_mask = uint8_t_vector_to_arr(end_mask);
         dto.new_axis_mask = uint8_t_vector_to_arr(new_axis_mask);
@@ -96,4 +87,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

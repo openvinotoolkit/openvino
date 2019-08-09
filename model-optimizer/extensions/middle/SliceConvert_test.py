@@ -24,7 +24,7 @@ from mo.ops.slice import Slice
 
 nodes_attributes = {
     # input data
-    'placeholder_1': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_2': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
     'placeholder_3': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
@@ -36,7 +36,7 @@ nodes_attributes = {
     # Output operation
     'output_op': {'type': 'Const', 'value': None, 'kind': 'op', 'op': 'Const'},
     'output_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
+    'op_output': { 'kind': 'op', 'op': 'Result'},
     # Crop layer
     'crop': {'type': 'Crop', 'kind': 'op', 'op': 'Crop', 'axis': None, 'offset': None, 'dim': None},
     'dim': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
@@ -104,6 +104,7 @@ class ConvertSliceTests(unittest.TestCase):
                              'slice': {'start': np.array([1]), 'end': np.array([3]), 'axis': None}
                              }
                             )
+        graph.graph['layout'] = 'NHWC'
         slice_node = Node(graph, 'slice')
         Slice.infer(slice_node)
 
@@ -124,6 +125,51 @@ class ConvertSliceTests(unittest.TestCase):
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([4, 5, 6])},
                                  'strided_slice': {'slices': np.array([slice(1, 3, 1),slice(0, 5, 1),slice(0, 6, 1)]),
+                                                   'shrink_axis_mask': np.array([False, False, False])},
+                                 }
+                                )
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output_op', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_3(self):
+        """
+        Testing case with constant path and one
+         slicing dimension
+        """
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'slice'),
+                             ('slice', 'slice_data'),
+                             ('slice_data', 'output_op'),
+                             ('output_op', 'output_data'),
+                             ('output_data', 'op_output')
+                             ],
+                            {'placeholder_1_data': {'shape': np.array([1, 5, 6])},
+                             'slice': {'start': np.array([1]), 'end': np.array([3]), 'axis': np.array([1])}
+                             }
+                            )
+        graph.graph['layout'] = 'NHWC'
+        slice_node = Node(graph, 'slice')
+        Slice.infer(slice_node)
+
+        pattern = ConvertSlice()
+        pattern.find_and_replace_pattern(graph)
+
+        graph_ref = build_graph(nodes_attributes,
+                                [('placeholder_1', 'placeholder_1_data'),
+                                 ('placeholder_2', 'placeholder_2_data'),
+                                 ('placeholder_3', 'placeholder_3_data'),
+                                 ('placeholder_1_data', 'strided_slice'),
+                                 ('placeholder_2_data', 'strided_slice'),
+                                 ('placeholder_3_data', 'strided_slice'),
+                                 ('strided_slice', 'slice_data'),
+                                 ('slice_data', 'output_op'),
+                                 ('output_op', 'output_data'),
+                                 ('output_data', 'op_output')
+                                 ],
+                                {'placeholder_1_data': {'shape': np.array([1, 5, 6])},
+                                 'strided_slice': {'slices': np.array([slice(0, 1, 1),slice(1, 3, 1),slice(0, 6, 1)]),
                                                    'shrink_axis_mask': np.array([False, False, False])},
                                  }
                                 )

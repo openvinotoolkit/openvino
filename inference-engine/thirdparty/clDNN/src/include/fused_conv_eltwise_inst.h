@@ -20,24 +20,30 @@
 #include "primitive_inst.h"
 
 #include <memory>
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<fused_conv_eltwise> : public typed_program_node_base<fused_conv_eltwise>
-{
+struct typed_program_node<fused_conv_eltwise> : public typed_program_node_base<fused_conv_eltwise> {
     using parent = typed_program_node_base<fused_conv_eltwise>;
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
-        : parent(prim, prog)
-        , split(this->get_primitive()->split())
-        , depthwise_sep_opt(false)
-        , transposed(false)
-        , conv_input_qf(this->get_primitive()->conv.input_quantization_factor)
-        , conv_output_qf(this->get_primitive()->conv.output_quantization_factor)
-    {
+        : parent(prim, prog),
+          split(this->get_primitive()->split()),
+          depthwise_sep_opt(false),
+          transposed(false),
+          conv_input_qf(this->get_primitive()->conv.input_quantization_factor),
+          conv_output_qf(this->get_primitive()->conv.output_quantization_factor) {
+        if (get_primitive()->eltw.with_activation) {
+            auto slope = get_primitive()->eltw.activation_negative_slope;
+            if (slope == 0.f) {
+                this->set_fused_activation(activation_relu, {});
+            } else {
+                this->set_fused_activation(activation_relu_negative_slope, { slope, 0.f });
+            }
+        }
     }
 
     void set_split(int32_t node_split) { split = node_split; }
@@ -49,70 +55,55 @@ public:
     void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
 
-    program_node& input(size_t idx = 0) const
-    {
+    program_node& input(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= static_cast<int32_t>(desc->input.size()))
             throw std::range_error("input index too big");
 
         return get_dependency(idx);
     }
 
-    program_node& weights(size_t idx = 0) const
-    {
+    program_node& weights(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("weights offset too big");
 
         return get_dependency(desc->input.size() + idx);
     }
 
-    program_node& bias(size_t idx = 0) const
-    {
+    program_node& bias(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("bias offset too big");
 
         return get_dependency(desc->input.size() + this->get_split() + idx);
     }
 
-    program_node& weights_quantization_factors(size_t idx = 0) const
-    {
+    program_node& weights_quantization_factors(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("quantization factor offset too big");
 
-        return get_dependency(desc->input.size() + 2 * this->get_split() + idx);
+        return get_dependency(desc->input.size() + (1 + 1 * bias_term()) * this->get_split() + idx);
     }
 
-    program_node& conv_output_calibration_factors(size_t idx = 0) const
-    {
+    program_node& conv_output_calibration_factors(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("calibration factor offset too big");
 
-        return get_dependency(desc->input.size() + 3 * this->get_split() + idx);
+        return get_dependency(desc->input.size() +
+                              (1 + 1 * bias_term() + 1 * weights_quantization_term()) * this->get_split() + idx);
     }
 
-    program_node& eltw_output_calibration_factors() const
-    {
-        return get_dependency(desc->input.size() + 4 * this->get_split());
+    program_node& eltw_output_calibration_factors() const {
+        return get_dependency(desc->input.size() + (1 + 1 * bias_term() + 1 * weights_quantization_term() +
+                                                    1 * conv_output_calibration_term()) *
+                                                       this->get_split());
     }
 
-    bool bias_term() const
-    {
-        return get_primitive()->conv.bias.size() > 0;
-    }
+    bool bias_term() const { return get_primitive()->conv.bias.size() > 0; }
 
-    bool weights_quantization_term() const
-    {
-        return get_primitive()->conv.weights_quantization_factors.size() > 0;
-    }
+    bool weights_quantization_term() const { return get_primitive()->conv.weights_quantization_factors.size() > 0; }
 
-    bool conv_output_calibration_term() const
-    {
-        return get_primitive()->conv.output_calibration_factors.size() > 0;
-    }
+    bool conv_output_calibration_term() const { return get_primitive()->conv.output_calibration_factors.size() > 0; }
 
-    bool eltw_output_calibration_term() const
-    {
-        return get_primitive()->eltw.output_calibration_factors.size() > 0;
-    }
+    bool eltw_output_calibration_term() const { return get_primitive()->eltw.output_calibration_factors.size() > 0; }
 
     float get_conv_input_qf() const { return conv_input_qf; }
     float get_conv_output_qf() const { return conv_output_qf; }
@@ -130,8 +121,7 @@ private:
 using fused_conv_eltwise_node = typed_program_node<fused_conv_eltwise>;
 
 template <>
-class typed_primitive_inst<fused_conv_eltwise> : public typed_primitive_inst_base<fused_conv_eltwise>
-{
+class typed_primitive_inst<fused_conv_eltwise> : public typed_primitive_inst_base<fused_conv_eltwise> {
     using parent = typed_primitive_inst_base<fused_conv_eltwise>;
 
 public:
@@ -141,64 +131,50 @@ public:
 public:
     typed_primitive_inst(network_impl& network, fused_conv_eltwise_node const& node);
 
-    memory_impl& weights_memory(size_t index) const
-    {
+    memory_impl& weights_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("weights offset too big");
-        
+
         return dep_memory(2 + index);
     }
 
-    memory_impl& bias_memory(size_t index) const
-    { 
+    memory_impl& bias_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("bias offset too big");
 
         return dep_memory(2 + node.get_split() + index);
     }
 
-    memory_impl& weights_quantization_factors_memory(size_t index) const
-    {
+    memory_impl& weights_quantization_factors_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("quantization factors offset too big");
 
-        return dep_memory(2 + 2*node.get_split() + index);
+        return dep_memory(2 + (1 + 1 * bias_term()) * node.get_split() + index);
     }
 
-    memory_impl& output_calibration_factors_memory(size_t index) const
-    {
+    memory_impl& output_calibration_factors_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("quantization factors offset too big");
 
-        return dep_memory(2 + 3 * node.get_split() + index);
+        return dep_memory(2 + (1 + 1 * bias_term() + 1 * weights_quantization_factors_term()) * node.get_split() +
+                          index);
     }
 
-    memory_impl& eltw_output_calibration_factors_memory() const
-    {
-        return dep_memory(2 + 4 * node.get_split());
+    memory_impl& eltw_output_calibration_factors_memory() const {
+        return dep_memory(2 + (1 + 1 * bias_term() + 1 * weights_quantization_factors_term() +
+                               1 * conv_output_calibration_factors_term()) *
+                                  node.get_split());
     }
 
-    bool bias_term() const
-    {
-        return node.bias_term();
-    }
+    bool bias_term() const { return node.bias_term(); }
 
-    bool weights_quantization_factors_term() const
-    {
-        return node.weights_quantization_term();
-    }
+    bool weights_quantization_factors_term() const { return node.weights_quantization_term(); }
 
-    bool conv_output_calibration_factors_term() const
-    {
-        return node.conv_output_calibration_term();
-    }
+    bool conv_output_calibration_factors_term() const { return node.conv_output_calibration_term(); }
 
-    bool eltw_output_calibration_factors_term() const
-    {
-        return node.eltw_output_calibration_term();
-    }
+    bool eltw_output_calibration_factors_term() const { return node.eltw_output_calibration_term(); }
 };
 
 using fused_conv_eltwise_inst = typed_primitive_inst<fused_conv_eltwise>;
 
-}
+}  // namespace cldnn

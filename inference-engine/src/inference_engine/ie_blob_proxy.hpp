@@ -38,7 +38,7 @@ public:
      * @param dims Dimensions of the given blob
      */
     TBlobProxy(Precision p, Layout l, TBlob <T> &&blob, size_t offset, const SizeVector &dims)
-            : base(p, l, dims), realObject(make_shared_blob<T>(std::move(blob))),
+            : base(TensorDesc(p, dims, l)), realObject(make_shared_blob<T>(std::move(blob))),
               offset(offset * blob.element_size()) {
         checkWindow();
     }
@@ -52,7 +52,7 @@ public:
      * @param dims Dimensions of the given blob
      */
     TBlobProxy(Precision p, Layout l, const Blob::Ptr &blob, size_t offset, const SizeVector &dims)
-            : base(p, l, dims), realObject(blob), offset(offset * blob->element_size()) {
+            : base(TensorDesc(p, dims, l)), realObject(blob), offset(offset * blob->element_size()) {
         checkWindow();
     }
 
@@ -65,7 +65,7 @@ public:
      * @param dims Dimensions of the given blob
      */
     TBlobProxy(Precision p, Layout l, const TBlobProxy<T> &blobProxy, size_t offset, const SizeVector &dims)
-            : TBlob<T>(p, l, dims), realObject(blobProxy.realObject), offset(offset * sizeof(T)) {
+            : TBlob<T>(TensorDesc(p, dims, l)), realObject(blobProxy.realObject), offset(offset * sizeof(T)) {
         checkWindow();
     }
 

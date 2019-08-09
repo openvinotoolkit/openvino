@@ -20,5 +20,6 @@ def tf_split_ext(pb, infer):
         'type': 'Split',
         'axis': None,
         'num_split': pb.attr['num_split'].i,
+        'out_ports_count': pb.attr['num_split'].i,
         'infer': infer,
     }

@@ -38,7 +38,7 @@ void ref_split(InferenceEngine::TBlob<data_t> &src, std::vector<InferenceEngine:
 
     int outerSize = 1;
     for (int i = 0; i < prm.axis; i++)
-        outerSize *= src.dims()[i];
+        outerSize *= src.getTensorDesc().getDims()[i];
 
     for (size_t osIdx = 0; osIdx < outerSize; osIdx++) {
         for (size_t dstIdx = 0; dstIdx < dsts.size(); dstIdx++) {
@@ -183,18 +183,7 @@ protected:
             }
             ASSERT_LE(3, nodes.size());
 
-            InferenceEngine::SizeVector dims_src = p.dims;
-            InferenceEngine::Layout layout = InferenceEngine::ANY;
-            switch (p.dims.size()) {
-                case 4:
-                    layout = InferenceEngine::NCHW;
-                    break;
-                case 5:
-                    layout = InferenceEngine::NCDHW;
-                    break;
-            }
-
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(net_reader.getNetwork().getInputsInfo().begin()->second->getTensorDesc());
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -432,25 +421,14 @@ protected:
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
             graph.CreateGraph(net_reader.getNetwork());
 
-            InferenceEngine::SizeVector dims_src = p.dims;
-            InferenceEngine::Layout layout = InferenceEngine::ANY;
-            switch (p.dims.size()) {
-                case 4:
-                    layout = InferenceEngine::NCHW;
-                    break;
-                case 5:
-                    layout = InferenceEngine::NCDHW;
-                    break;
-            }
-
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(net_reader.getNetwork().getInputsInfo().begin()->second->getTensorDesc());
             src->allocate();
             fill_data(src->buffer(), src->size());
 
             InferenceEngine::BlobMap srcs;
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
-            InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
+            auto* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
 
             if (srcPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";

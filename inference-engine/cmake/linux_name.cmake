@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2019 Intel Corporation
-#
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (UNIX)
+if (LINUX)
     function(get_linux_name res_var)
         if (NOT EXISTS "/etc/lsb-release")
             execute_process(COMMAND find -L /etc/ -maxdepth 1 -type f -name *-release -exec cat {} \;

@@ -74,6 +74,13 @@
 --reset --dir=FWD_D
 #AVX2
 mb1_g2ic4oc16_ih8oh6kh3sh1dh0ph0_iw8ow6kw3sw1dw0pw0
+
+--reset --mb=2 --dir=BWD_W --cfg=f32 --allow-unimpl=true
+g1_ic16ih4iw8_oc16oh3ow8_kh1kw1sh2sw1ph0pw0
+g1_ic16ih4iw8_oc16oh3ow8_kh2kw1sh2sw1ph0pw0
+g1_ic16ih4iw8_oc16oh4ow8_kh2kw1sh2sw1ph0pw0
+g1_oc16oh56ow56_ic16ih28iw28_kh1kw1sh2sw2ph0pw0
+
 #AVX512
 mb1_g2ic16oc32_ih8oh8kh3sh1dh0ph1_iw8ow8kw3sw1dw0pw1
 mb1_g2ic8oc32_ih8oh8kh3sh1dh0ph1_iw8ow8kw3sw1dw0pw1

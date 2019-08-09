@@ -51,12 +51,12 @@ Accuracy Checker supports following list of annotation converters and specific f
 * `sample` - converts annotation for SampleNet to `ClassificationAnnotation`.
   * `data_dir` - path to sample dataset root directory.
 * `voc07` - converts Pascal VOC 2007 annotation for detection task to `DetectionAnnotation`.
-   * `image_set_file` - path to file with validation image list.
+   * `image_set_file` - path to file with validation image list (for example VOCdevkit/ImageSets/Main/val.txt).
    * `annotations_dir` - path to directory with annotation files.
    * `images_dir` - path to directory with images related to devkit root (default JPEGImages).
   * `has_background` - allows convert dataset with/without adding background_label. Accepted values are True or False. (default is True) 
 * `voc_segmentation` - converts Pascal VOC annotation for semantic segmentation task to `SegmentationAnnotation`.
-  * `image_set_file` - path to file with validation image list.
+  * `image_set_file` - path to file with validation image list (for example VOCdevkit/ImageSets/Segmentation/val.txt).
   * `images_dir` - path to directory with images related to devkit root (default JPEGImages).
   * `mask_dir` - path to directory with ground truth segmentation masks related to devkit root (default SegmentationClass).
 * `mars` - converts MARS person reidentification dataset to `ReidentificationAnnotation`.
@@ -75,6 +75,12 @@ Accuracy Checker supports following list of annotation converters and specific f
 * `landmarks_regression` - converts VGG Face 2 dataset for facial landmarks regression task to `FacialLandmarksAnnotation`.
   * `landmarks_csv_file` - path to csv file with coordinates of landmarks points.
   * `bbox_csv_file` - path to cvs file which contains bounding box coordinates for faces (optional parameter).
+* `mapillary_20` - converts Mapillary dataset contained 20 classes to `SegmentationAnnotation`.
+  * `data_dir` - path to dataset root folder. Relative paths to images and masks directory determine as `imgs` and `masks` respectively. In way when images and masks are located in non default directories, you can use parameters described below. 
+  * `images_dir` - path to images folder.
+  * `mask_dir` - path to ground truth mask folder.
+* `mighty` - converts Mighty AI dataset for road segmentation task to `SegmentationAnnotation`.
+  * `annotation_file` -  txt file with paths to images and masks.
 * `cityscapes` - converts CityScapes Dataset to `SegmentationAnnotation`.
   * `dataset_root_dir` - path to dataset root.
   * `images_subfolder` - path from dataset root to directory with validation images (Optional, default `imgsFine/leftImg8bit/val`).
@@ -82,6 +88,10 @@ Accuracy Checker supports following list of annotation converters and specific f
   * `masks_suffix` - suffix for mask file names (Optional, default `_gtFine_labelTrainIds`).
   * `images_suffix` - suffix for image file names (Optional, default `_leftImg8bit`).
   * `use_full_label_map` - allows to use full label map with 33 classes instead train label map with 18 classes (Optional, default `False`).
+* `super_resolution` - converts dataset for super resolution task to `SuperResolutionAnnotation`.
+  * `data_dir` - path to folder, where images in low and high resolution are located.
+  * `lr_suffix` - low resolution file name's suffix (default lr).
+  * `hr_suffix` - high resolution file name's suffix (default hr).
 * `icdar15_detection` - converts ICDAR15 dataset for text detection  task to `TextDetectionAnnotation`.
   * `data_dir` - path to folder with annotations on txt format.
 * `icdar13_recognition` - converts ICDAR13 dataset for text recognition task to `CharecterRecognitionAnnotation`.

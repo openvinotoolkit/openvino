@@ -20,59 +20,34 @@ private:
         return std::make_shared<NormalizeStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 2);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto scales = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
 
-        DataMap<float> out;
-
-        out[input] = 1.0f;
-        out[scales] = 1.0f;
-        out[output] = 1.0f;
-
-        return out;
+        _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 2);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
-
-        out[output] = input->desc().dimsOrder();
-
-        return out;
-    }
-
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+        if (_inputEdges[0]->input()->desc().dimsOrder().dimInd(Dim::C) == 0) {
+            _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
+            _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+        }
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl() const override {
         IE_ASSERT(_inputEdges.size() == 2);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
-
-        return out;
+        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
 
     void finalCheckImpl() const override {
@@ -97,9 +72,22 @@ private:
         auto scales = _inputEdges[1]->input();
         auto output = _outputEdges[0]->output();
 
-        input->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
-        scales->serializeOldBuffer(handle_from_this(), serializer);
+        auto inputDesc  = input->desc();
+        auto outputDesc = input->desc();
+        auto iDimsOrder = inputDesc.dimsOrder();
+
+        if (iDimsOrder == DimsOrder::NC || iDimsOrder == DimsOrder::C) {
+            IE_ASSERT(iDimsOrder == output->desc().dimsOrder());
+            IE_ASSERT(inputDesc.dim(Dim::N, 1) == 1);
+
+            input->serializeOldBufferNC(handle_from_this(), serializer);
+            output->serializeOldBufferNC(handle_from_this(), serializer);
+            scales->serializeOldBufferNC(handle_from_this(), serializer);
+        } else {
+            input->serializeOldBuffer(handle_from_this(), serializer);
+            output->serializeOldBuffer(handle_from_this(), serializer);
+            scales->serializeOldBuffer(handle_from_this(), serializer);
+        }
     }
 };
 

@@ -21,7 +21,6 @@ import numpy as np
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import get_next_operation
 from mo.ops.pooling import Pooling
-from mo.utils.graph import pseudo_topological_sort
 
 
 def _clean_fw_tensor_attrs(node: Node):
@@ -132,7 +131,9 @@ def _conv_stride_prop(graph: Graph, node: Node, spatial_dims, supported=True):
 
 supported_ops = {
     'ReLU': {'stride_prop': _simple_stride_prop, 'attrs': {}},
-    'Eltwise': {'stride_prop': _simple_stride_prop, 'attrs': {}},
+    'Maximum': {'stride_prop': _simple_stride_prop, 'attrs': {}},
+    'Mul': {'stride_prop': _simple_stride_prop, 'attrs': {}},
+    'Add': {'stride_prop': _simple_stride_prop, 'attrs': {}},
     'Convolution': {'stride_prop': _conv_stride_prop, 'attrs': {'has_stride': True}},
 }
 
@@ -141,8 +142,8 @@ def _stride_propagation(graph: Graph, spatial_dims):
     """
     This function do stride propagation for all op nodes
     """
-    nodes = [Node(graph, x) for x in pseudo_topological_sort(graph, reverse=True) if
-             Node(graph, x).kind == 'op' and Node(graph, x).soft_get('type') != 'Const']
+    nodes = [node for node in graph.pseudo_topological_sort(reverse=True) if
+             node.kind == 'op' and node.soft_get('type') != 'Const']
 
     for node in nodes:
         if node.soft_get('type') in supported_ops:
@@ -169,7 +170,7 @@ def stride_optimization(graph: Graph):
         return
     _stride_propagation(graph, spatial_dims)
 
-    nodes = [Node(graph, x) for x in pseudo_topological_sort(graph) if
-             Node(graph, x).soft_get('is_partial_inferred') == False]
+    nodes = [node for node in graph.pseudo_topological_sort() if
+             node.soft_get('is_partial_inferred') == False]
     for node in nodes:
         node.infer(node)

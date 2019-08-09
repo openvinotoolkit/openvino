@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #include "fully_connected_grad_input_kernel_selector.h"
 #include "fully_connected_grad_input_kernel_ref.h"
- 
-namespace kernel_selector 
-{
-    fully_connected_grad_input_kernel_selector::fully_connected_grad_input_kernel_selector()
-    {
-        Attach<FullyConnectedGradInputKernelRef>();
-    }
 
-    KernelsData fully_connected_grad_input_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::FULLY_CONNECTED_GRAD_INPUT);
-    }
+namespace kernel_selector {
+fully_connected_grad_input_kernel_selector::fully_connected_grad_input_kernel_selector() {
+    Attach<FullyConnectedGradInputKernelRef>();
 }
+
+KernelsData fully_connected_grad_input_kernel_selector::GetBestKernels(const Params& params,
+                                                                       const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::FULLY_CONNECTED_GRAD_INPUT);
+}
+}  // namespace kernel_selector

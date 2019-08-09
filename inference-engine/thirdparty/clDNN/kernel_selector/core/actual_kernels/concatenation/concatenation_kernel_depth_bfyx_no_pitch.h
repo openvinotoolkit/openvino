@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
@@ -20,17 +19,14 @@
 
 namespace kernel_selector {
 
-    class ConcatenationKernel_depth_bfyx_no_pitch : public ConcatenationKernelBase
-    {
-    public:
-        ConcatenationKernel_depth_bfyx_no_pitch() : ConcatenationKernelBase("concatenation_gpu_depth_bfyx_no_pitch") {}
-        virtual ~ConcatenationKernel_depth_bfyx_no_pitch() {}
+class ConcatenationKernel_depth_bfyx_no_pitch : public ConcatenationKernelBase {
+public:
+    ConcatenationKernel_depth_bfyx_no_pitch() : ConcatenationKernelBase("concatenation_gpu_depth_bfyx_no_pitch") {}
+    virtual ~ConcatenationKernel_depth_bfyx_no_pitch() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual DispatchData SetDefault(const concatenation_params& params) const override;
-        virtual bool Validate(const Params& p, const optional_params& o) const override;
-
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+    DispatchData SetDefault(const concatenation_params& params) const override;
+    bool Validate(const Params& p, const optional_params& o) const override;
+};
+}  // namespace kernel_selector

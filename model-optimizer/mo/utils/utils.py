@@ -21,7 +21,7 @@ import numpy as np
 
 def refer_to_faq_msg(question_num: int):
     return '\n For more information please refer to Model Optimizer FAQ' \
-           ' (<INSTALL_DIR>/deployment_tools/documentation/docs/MO_FAQ.html),' \
+           ' (https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html),' \
            ' question #{}. '.format(question_num)
 
 

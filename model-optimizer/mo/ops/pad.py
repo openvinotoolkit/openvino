@@ -68,8 +68,8 @@ class Pad(Op):
     def backend_attrs(self):
         return [('pad_mode', 'mode'),
                 ('pad_value', 'fill_value'),
-                ('pads_begin', lambda node: ','.join(map(str, node.pads[:, 0]))),
-                ('pads_end', lambda node: ','.join(map(str, node.pads[:, 1]))),
+                ('pads_begin', lambda node: ','.join(map(str, node.pads[:, 0])) if node.has_valid('pads') else None),
+                ('pads_end', lambda node: ','.join(map(str, node.pads[:, 1])) if node.has_valid('pads') else None),
                 ]
 
     @staticmethod

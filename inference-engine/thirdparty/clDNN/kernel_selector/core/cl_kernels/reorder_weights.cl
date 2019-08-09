@@ -48,6 +48,12 @@ inline uint FUNC(get_input_index)(uint o, uint i, uint y, uint x)
     return GET_FILTER_IS_O32_YX_ISV32_SWIZZLED_BY_4(INPUT0, o, i, y, x);
 #elif defined INPUT0_LAYOUT_OS_IS_Y_X8_OSV8_ISV4
     return GET_FILTER_OS_IS_Y_X8_OSV8_ISV4(INPUT0, o, i, y, x);
+#elif defined INPUT0_LAYOUT_OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4
+    return GET_FILTER_OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4(INPUT0, o, i, y, x);
+#elif defined INPUT0_LAYOUT_O_I_YX_I16_O16
+    return GET_FILTER_O_I_YX_I16_O16_INDEX(INPUT0, o, i, y, x, SUB_GROUP_SIZE);
+#elif defined INPUT0_LAYOUT_OIYX_O16
+    return GET_FILTER_OIYX_O16(INPUT0, o, i, y, x);
 #else
 #error reorder_weights.cl: input format - not supported
 #endif
@@ -84,10 +90,16 @@ inline uint FUNC(get_output_index)(uint o, uint i, uint y, uint x)
     return GET_FILTER_IS_O32_YX_ISV32_SWIZZLED_BY_4(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_Y_X8_OSV8_ISV4
     return GET_FILTER_OS_IS_Y_X8_OSV8_ISV4(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4
+    return GET_FILTER_OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_YX_OSV16_ISV4
     return GET_FILTER_OS_IS_YX_OSV16_ISV4_INDEX(OUTPUT, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4
     return GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4_INDEX(OUTPUT, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_O_I_YX_I16_O16
+    return GET_FILTER_O_I_YX_I16_O16_INDEX(OUTPUT, o, i, y, x, SUB_GROUP_SIZE);
+#elif defined OUTPUT_LAYOUT_OIYX_O16
+    return GET_FILTER_OIYX_O16(OUTPUT, o, i, y, x);
 #else
 #error reorder_weights.cl: output format - not supported
 #endif
@@ -104,8 +116,8 @@ KERNEL (reorder_weights)(const __global INPUT0_TYPE* input, write_only image2d_t
     
     MAKE_VECTOR_TYPE(UNIT_TYPE, 4) input_val = (MAKE_VECTOR_TYPE(UNIT_TYPE, 4))(UNIT_VAL_ZERO, UNIT_VAL_ZERO, UNIT_VAL_ZERO, UNIT_VAL_ZERO);
     const int2 coord = (int2)(o, iyx);
-    uint4 ir = FUNC_CALL(reshape_dims)(o,i,y,x, OUTPUT_SIZE_Y, OUTPUT_SIZE_X, INPUT0_SIZE_Y, INPUT0_SIZE_X, OUTPUT_DIMS, INPUT0_DIMS);
-    input_val.s0 = TO_OUTPUT_TYPE(input[FUNC_CALL(get_input_index)(ir[0],ir[1],ir[2],ir[3])]);
+    uint8 ir = RESHAPE_WEIGHT_DIMS(OUTPUT, INPUT0, o, i, 0, 0, y, x);
+    input_val.s0 = TO_OUTPUT_TYPE(input[FUNC_CALL(get_input_index)(ir[0],ir[1],ir[4],ir[5])]);
     IMAGE_WRITE(output, coord, input_val);
 }
 #else
@@ -120,7 +132,7 @@ KERNEL (reorder_weights)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE
     const unsigned y = get_global_id(2) / INPUT0_SIZE_X;
     const unsigned x = get_global_id(2) % INPUT0_SIZE_X;
 #endif
-    uint4 ir = FUNC_CALL(reshape_dims)(o,i,y,x, OUTPUT_SIZE_Y, OUTPUT_SIZE_X, INPUT0_SIZE_Y, INPUT0_SIZE_X, OUTPUT_DIMS, INPUT0_DIMS);
-    output[FUNC_CALL(get_output_index)(o, i, y, x)] = TO_OUTPUT_TYPE(input[FUNC_CALL(get_input_index)(ir[0],ir[1],ir[2],ir[3])]);
+    uint8 ir = RESHAPE_WEIGHT_DIMS(OUTPUT, INPUT0, o, i, 0, 0, y, x);
+    output[FUNC_CALL(get_output_index)(o, i, y, x)] = TO_OUTPUT_TYPE(input[FUNC_CALL(get_input_index)(ir[0],ir[1],ir[4],ir[5])]);
 }
 #endif

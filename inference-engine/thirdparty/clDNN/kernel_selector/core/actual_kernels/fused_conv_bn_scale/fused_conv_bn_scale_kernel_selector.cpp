@@ -1,4 +1,3 @@
-/*
 // Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,20 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #include "fused_conv_bn_scale_kernel_selector.h"
 #include "fused_conv_bn_scale_kernel_ref.h"
- 
-namespace kernel_selector 
-{
-    fused_conv_bn_scale_kernel_selector::fused_conv_bn_scale_kernel_selector()
-    {
-        Attach<fused_conv_bn_scale_kernel_ref>();
-    }
 
-    KernelsData fused_conv_bn_scale_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::FUSED_CONV_BN_SCALE);
-    }
+namespace kernel_selector {
+fused_conv_bn_scale_kernel_selector::fused_conv_bn_scale_kernel_selector() { Attach<fused_conv_bn_scale_kernel_ref>(); }
+
+KernelsData fused_conv_bn_scale_kernel_selector::GetBestKernels(const Params& params,
+                                                                const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::FUSED_CONV_BN_SCALE);
 }
+}  // namespace kernel_selector

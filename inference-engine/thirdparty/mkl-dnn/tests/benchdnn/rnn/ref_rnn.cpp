@@ -1106,6 +1106,7 @@ void compute_ref_bwd(const rnn_prb_t *p, dnn_mem_t &input_m,
             gates);
 
     delete[] ws;
+    delete[] gates;
 }
 
 } // namespace rnn

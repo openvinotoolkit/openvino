@@ -77,7 +77,8 @@ bool supportedPaddingPool(const Stage& stage) {
     auto hwInitialPad = getHwPaddingInfo(
         input->desc().dims(), output->desc().dims(),
         kernelSizeX, kernelSizeY,
-        kernelStride, kernelStride);
+        kernelStride, kernelStride,
+        padLeft, padTop);
 
     bool originalUnsupportedPad = (
         (padRight  != padLeft && padRight  != padLeft + 1)       ||
@@ -110,10 +111,15 @@ bool supportedPaddingConv(const Stage& stage) {
     auto padTop      = stage->attrs().get<int>("padTop");
     auto padBottom   = stage->attrs().get<int>("padBottom");
 
-    return (padRight  == padLeft) &&
-           (padBottom == padTop)  &&
-           (padLeft   == 0 || padLeft == (kernelSizeX / 2)) &&
-           (padTop    == 0 || padTop  == (kernelSizeY / 2));
+    bool kernelIsOdd = kernelSizeX % 2 == 1 && kernelSizeY % 2 == 1;
+    bool paddingsAreZeros = padLeft == 0 && padTop == 0 && padRight == 0 && padBottom == 0;
+    bool paddingsAreSupported =
+        padLeft   == (kernelSizeX - 1) / 2 &&
+        padTop    == (kernelSizeY - 1) / 2 &&
+        padRight  == kernelSizeX / 2 &&
+        padBottom == kernelSizeY / 2;
+
+    return paddingsAreZeros || (kernelIsOdd && paddingsAreSupported);
 }
 
 void insertPaddingStageBefore(const Model::Ptr& model, StageBuilder::Ptr& stageBuilder, const Stage& origStage) {

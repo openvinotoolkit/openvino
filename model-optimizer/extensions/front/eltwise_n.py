@@ -14,11 +14,10 @@
  limitations under the License.
 """
 
-import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
-from mo.ops.eltwise import Eltwise
+from extensions.ops.elementwise import Add, Maximum, Mul
 
 
 class EltwiseNReplacement(FrontReplacementOp):
@@ -29,10 +28,27 @@ class EltwiseNReplacement(FrontReplacementOp):
     op = 'EltwiseN'
     enabled = True
 
+    op_to_class_map = {
+        'sum': Add,
+        'max': Maximum,
+        'mul': Mul,
+    }
+
     def replace_op(self, graph: Graph, node: Node):
-        out_node = node.in_node(0)
+        last_node = node
         operation = node.operation
-        for ind in range(1, len(node.in_nodes())):
-            eltwise_op = Eltwise(graph, dict(operation=operation, name=node.name + '/' + operation + '_' + str(ind)))
-            out_node = eltwise_op.create_node([out_node, node.in_node(ind)])
-        return [out_node.id]
+        assert operation in EltwiseNReplacement.op_to_class_map
+        op_class = EltwiseNReplacement.op_to_class_map[operation]
+        left_connect = node.in_port(0).get_connection()
+
+        for ind in list(node.in_ports())[1:]:
+            attrs = {'name': node.name + '/' + operation + '_' + str(ind)}
+            attrs.update({'axis': node.axis} if node.has_valid('axis') else {})
+            # Create node
+            eltwise_op = op_class(graph, attrs).create_node()
+            # Connect nodes
+            left_connect.set_destination(eltwise_op.in_port(0))
+            left_connect = eltwise_op.out_port(0).get_connection()
+            node.in_port(ind).get_connection().set_destination(eltwise_op.in_port(1))
+            last_node = eltwise_op
+        return [last_node.id]

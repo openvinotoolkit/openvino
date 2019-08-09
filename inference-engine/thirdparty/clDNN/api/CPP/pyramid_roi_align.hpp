@@ -16,49 +16,38 @@
 
 #include "../C/pyramid_roi_align.h"
 #include "primitive.hpp"
+#include <string>
 
 using namespace std;
 
 namespace cldnn {
 
-    struct pyramid_roi_align : public primitive_base<pyramid_roi_align, CLDNN_PRIMITIVE_DESC(pyramid_roi_align)>
-    {
-        CLDNN_DECLARE_PRIMITIVE(pyramid_roi_align)
+struct pyramid_roi_align : public primitive_base<pyramid_roi_align, CLDNN_PRIMITIVE_DESC(pyramid_roi_align)> {
+    CLDNN_DECLARE_PRIMITIVE(pyramid_roi_align)
 
-        pyramid_roi_align(
-            const primitive_id& id,
-            const primitive_id& input,
-            const padding& output_padding = padding()
-        )
-         : primitive_base(id, { input }, output_padding)
-        {}
+    pyramid_roi_align(const primitive_id &id, const primitive_id &input, const padding &output_padding = padding())
+        : primitive_base(id, {input}, output_padding) {}
 
-        pyramid_roi_align(
-            const primitive_id &id_c,
-            const primitive_id &base_str,
-            const primitive_id &meta_str,
-            const primitive_id &P2_str,
-            const primitive_id &P3_str,
-            const primitive_id &P4_str,
-            const primitive_id &P5_str,
-            const primitive_id &pool_size_str,
-            const padding& output_padding = padding()
-        )
-            : primitive_base(std::string(id_c), { 
-                    base_str, meta_str, P2_str, P3_str,
-                    P4_str, P5_str, pool_size_str},
-                    output_padding)
-        {}
+    pyramid_roi_align(const primitive_id &id_c,
+                      const primitive_id &base_str,
+                      const primitive_id &meta_str,
+                      const primitive_id &P2_str,
+                      const primitive_id &P3_str,
+                      const primitive_id &P4_str,
+                      const primitive_id &P5_str,
+                      const primitive_id &pool_size_str,
+                      const padding &output_padding = padding())
+        : primitive_base(std::string(id_c),
+                         {base_str, meta_str, P2_str, P3_str, P4_str, P5_str, pool_size_str},
+                         output_padding) {}
 
-        /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{broadcast}
-        pyramid_roi_align(const dto* dto)
-            : primitive_base(dto)
+    /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{broadcast}
+    pyramid_roi_align(const dto *dto)
+        : primitive_base(dto)
 
-        {}
+    {}
 
-    protected:
-        void update_dto(dto &) const override
-        {}
-
-    };
-}
+protected:
+    void update_dto(dto &) const override {}
+};
+}  // namespace cldnn

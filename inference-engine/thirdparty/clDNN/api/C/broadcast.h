@@ -13,11 +13,8 @@
 // limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef BROADCAST_H
-#define BROADCAST_H
-
+#pragma once
 #include "cldnn.h"
-
 
 /// @addtogroup c_api C API
 /// @{
@@ -80,7 +77,6 @@ cldnn_uint16_t_arr broadcast_axes;
 
 CLDNN_END_PRIMITIVE_DESC(broadcast)
 
-
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(broadcast);
 
 #ifdef __cplusplus
@@ -90,4 +86,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(broadcast);
 /// @}
 /// @}
 /// @}
-#endif // BROADCAST_H
+

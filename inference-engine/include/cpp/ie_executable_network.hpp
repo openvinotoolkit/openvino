@@ -14,6 +14,7 @@
 #include <memory>
 #include <algorithm>
 #include "ie_iexecutable_network.hpp"
+#include "ie_plugin_ptr.hpp"
 #include "cpp/ie_infer_request.hpp"
 #include "cpp/ie_memory_state.hpp"
 #include "cpp/ie_cnn_network.h"
@@ -26,11 +27,16 @@ namespace InferenceEngine {
  */
 class ExecutableNetwork {
     IExecutableNetwork::Ptr actual;
+    InferenceEnginePluginPtr plg;
 
 public:
     ExecutableNetwork() = default;
+    ~ExecutableNetwork() {
+        actual = nullptr;
+    }
 
-    explicit ExecutableNetwork(IExecutableNetwork::Ptr actual) : actual(actual) {}
+    explicit ExecutableNetwork(IExecutableNetwork::Ptr actual, InferenceEnginePluginPtr plg = {})
+    : actual(actual), plg(plg) {}
 
     /**
      * @brief Wraps original method
@@ -68,7 +74,7 @@ public:
         IInferRequest::Ptr req;
         CALL_STATUS_FNC(CreateInferRequest, req);
         if (req.get() == nullptr) THROW_IE_EXCEPTION << "Internal error: pointer to infer request is null";
-        return InferRequest(req);
+        return InferRequest(req, plg);
     }
 
     /**
@@ -79,7 +85,7 @@ public:
     InferRequest::Ptr CreateInferRequestPtr() {
         IInferRequest::Ptr req;
         CALL_STATUS_FNC(CreateInferRequest, req);
-        return std::make_shared<InferRequest>(req);
+        return std::make_shared<InferRequest>(req, plg);
     }
 
     /**
@@ -139,6 +145,41 @@ public:
         return controller;
     }
 
+    /**
+     * @brief Sets configuration for current executable network
+     * @param config Map of pairs: (config parameter name, config parameter value)
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     */
+    void SetConfig(const std::map<std::string, Parameter> &config) {
+        CALL_STATUS_FNC(SetConfig, config);
+    }
+
+    /** @brief Gets configuration dedicated to plugin behaviour
+        * @param name - config key, can be found in ie_plugin_config.hpp
+        * @param options - configuration details for coonfig value
+        * @param result - value of config corresponding to config key
+        * @param resp Pointer to the response message that holds a description of an error if any occurred
+    */
+    Parameter GetConfig(const std::string &name) const {
+        Parameter configValue;
+        CALL_STATUS_FNC(GetConfig, name, configValue);
+        return configValue;
+    }
+
+    /**
+     * @brief Gets general runtime metric for dedicated hardware
+     * @param name  - metric name to request
+     * @param options - configuration details for metric
+     * @param result - metric value corresponding to metric key
+     * @param resp - Pointer to the response message that holds a description of an error if any
+     *             occurred
+     * @return code of the operation. OK if succeeded
+     */
+    Parameter GetMetric(const std::string &name) const {
+        Parameter metricValue;
+        CALL_STATUS_FNC(GetMetric, name, metricValue);
+        return metricValue;
+    }
 
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 };

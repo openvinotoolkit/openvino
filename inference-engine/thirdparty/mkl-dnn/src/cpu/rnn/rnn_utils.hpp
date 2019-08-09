@@ -22,13 +22,13 @@
 #include "cpu_rnn_pd.hpp"
 
 
-#define rnn_elemwise_sig(f)                                               \
+#define rnn_postgemm_sig(f)                                               \
     void f(const rnn_utils::rnn_conf_t &rnn, acc_data_t *ws_gates_,   \
             src_data_t *states_t_l_, float *c_states_t_l_,            \
             src_data_t *states_tm1_l_, float *c_states_tm1_l_,        \
             float *diff_states_t_l_, float *diff_states_t_lp1_,       \
             float *diff_states_tp1_l_, float *bias_, float *ws_grid_, \
-            float *ws_cell_) const
+            acc_data_t *ws_cell_) const
 
 #define rnn_cell_execution_sig(f)                                             \
     void f(const rnn_utils::rnn_conf_t &rnn, src_data_t *states_t_l_,     \
@@ -38,13 +38,13 @@
             src_data_t *states_tm1_l_, float *c_states_tm1_l_,            \
             float *diff_states_t_lp1_, float *diff_states_tp1_l_,         \
             float *diff_w_layer_, float *diff_w_iter_, float *diff_bias_, \
-            acc_data_t *ws_gates_, float *ws_grid_, float *ws_cell_) const
+            acc_data_t *ws_gates_, float *ws_grid_, acc_data_t *ws_cell_) const
 
 #define rnn_grid_execution_sig(f)                                                 \
     void f(const rnn_utils::rnn_conf_t &rnn, weights_data_t **weights_layer_, \
             weights_data_t **weights_states_, float **bias_,                  \
             src_data_t *ws_states_, float *ws_c_states_,                      \
-            float *ws_diff_states_, acc_data_t *ws_gates_, float *ws_cell_,   \
+            float *ws_diff_states_, acc_data_t *ws_gates_, acc_data_t *ws_cell_,   \
             float *ws_grid_, float *diff_weights_layer_,                      \
             float *diff_weights_iter_, float *diff_bias_) const
 

@@ -38,6 +38,7 @@
 #include <vpu/utils/dot_io.hpp>
 #include <vpu/utils/file_system.hpp>
 #include <vpu/utils/numeric.hpp>
+#include <vpu/utils/profiling.hpp>
 
 namespace vpu {
 
@@ -163,7 +164,7 @@ void BackEnd::dumpModelToDot(
                         auto contentPtr = data->content()->get<uint8_t>();
                         auto count = data->desc().totalDimSize();
 
-                        std::vector<int> temp(
+                        SmallVector<int, 8> temp(
                             contentPtr,
                             contentPtr + std::min(count, 8));
 
@@ -172,7 +173,7 @@ void BackEnd::dumpModelToDot(
                         auto contentPtr = data->content()->get<fp16_t>();
                         auto count = data->desc().totalDimSize();
 
-                        std::vector<float> temp(std::min(count, 8));
+                        SmallVector<float, 8> temp(std::min(count, 8));
                         ie::PrecisionUtils::f16tof32Arrays(temp.data(), contentPtr, temp.size());
 
                         lbl.appendPair("content", temp);

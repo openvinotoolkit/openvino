@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include <vpu/model/stage.hpp>
 
 namespace vpu {
@@ -12,17 +14,17 @@ class StubStage final : public StageNode {
 private:
     StagePtr cloneImpl() const override;
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override;
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override;
+    void propagateDataOrderImpl() const override;
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override;
+    void getDataStridesRequirementsImpl() const override;
 
     void finalizeDataLayoutImpl() override;
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override;
+    void getBatchSupportInfoImpl() const override;
 
     void finalCheckImpl() const override;
 

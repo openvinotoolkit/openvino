@@ -32,7 +32,8 @@ class TestsCommonFunc {
         size_t padSize = width & 3;
         char pad[3];
 
-        InferenceEngine::Blob::Ptr blob(new InferenceEngine::TBlob<float>( InferenceEngine::Precision::FP32, InferenceEngine::NCHW, {batch, 3, width, height} ));
+        InferenceEngine::Blob::Ptr blob(new InferenceEngine::TBlob<float>(
+            {InferenceEngine::Precision::FP32, {batch, 3, height, width}, InferenceEngine::Layout::NCHW}));
         blob->allocate();
         float *blob_ptr = (float*)(void*)blob->buffer();
 
@@ -82,8 +83,9 @@ class TestsCommonFunc {
         bswap_32((char *) &hdr, sizeof(hdr));
         if (hdr.magic_number != 2051) return nullptr; // Invalid MNIST image file
 
-        InferenceEngine::Blob::Ptr blob(new InferenceEngine::TBlob<float>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW,
-                {batch, hdr.n_images, hdr.n_cols, hdr.n_rows }));
+        InferenceEngine::Blob::Ptr blob(new InferenceEngine::TBlob<float>({InferenceEngine::Precision::FP32,
+                                                                           {batch, hdr.n_images, hdr.n_rows, hdr.n_cols},
+                                                                          InferenceEngine::NCHW}));
         blob->allocate();
         float *blob_ptr = (float*)(void*)blob->buffer();
         for (int b = 0; b < batch; b++) {
@@ -111,7 +113,7 @@ protected:
     }
 
     bool compareTop(InferenceEngine::Blob& blob, std::vector<std::pair<int, float>> &ref_top, int batch_to_compare = 0, float threshold = 0.005f) {
-        if (blob.dims()[0] == 7)
+        if (blob.getTensorDesc().getDims().back() == 7)
             return compareTopLikeObjDetection(blob, ref_top, batch_to_compare);
         else
             return compareTopLikeClassification(blob, ref_top, batch_to_compare, threshold);
@@ -119,7 +121,7 @@ protected:
 
     bool compareTopLikeObjDetection (InferenceEngine::Blob& blob, std::vector<std::pair<int, float>> &ref_top,
                 int batch_to_compare = 0) {
-        assert(blob.dims()[0] == 7);
+        assert(blob.getTensorDesc().getDims().back() == 7);
 
         const int box_info_size = 7;
 
@@ -156,7 +158,7 @@ protected:
         size_t data_size = blob.size();
         float *data_ptr = (float*)(void*)blob.buffer();
 
-        int batch_size = blob.dims()[blob.dims().size() - 1];
+        int batch_size = blob.getTensorDesc().getDims()[0];
         assert(batch_size > batch_to_compare);
         data_size /= batch_size;
         data_ptr += data_size*batch_to_compare;
@@ -194,7 +196,7 @@ protected:
         size_t data_size = blob.size();
         float *data_ptr = (float*)(void*)blob.buffer();
 
-        int batch_size = blob.dims()[blob.dims().size() - 1];
+        int batch_size = blob.getTensorDesc().getDims()[0];
         assert(batch_size > batch_to_compare);
         data_size /= batch_size;
         data_ptr += data_size*batch_to_compare;

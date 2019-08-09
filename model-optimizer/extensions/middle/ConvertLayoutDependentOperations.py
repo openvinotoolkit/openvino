@@ -13,12 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.ops.transpose import Transpose
 from mo.front.common.layout import indices_mapping
 from mo.graph.graph import Node, Graph
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.op import Op, PermuteAttrs
-from mo.ops.permute import Permute
 
 
 class ConvertLayoutDependentOperations(MiddleReplacementPattern):
@@ -43,7 +43,7 @@ class ConvertLayoutDependentOperations(MiddleReplacementPattern):
                 input = node.in_node()
                 output = node.out_node()
 
-                # Calculate permutation for further Permute operations
+                # Calculate permutation for further Transpose operations
                 if graph.graph['layout'] == 'NCHW':
                     # if Node has NCHW and graph has NHWC layout
                     permutation = PermuteAttrs.get_nhwc_to_nchw_permutation(len(node.layout))
@@ -56,30 +56,31 @@ class ConvertLayoutDependentOperations(MiddleReplacementPattern):
                 #                                           \            NCHW                              NCHW
                 #            NHWC                        --  \            |  permutation       permutation  |
                 #   data-->Convolution(example)-->data   --  /            |      |       NCHW      |        |
-                #                                           /   data->Permute->data->Convolution->data->Permute->data
+                #                                           /   data->Transpose->data->Convolution->data->Transpose->data
 
-                # 1. Insert input Permute
-                #    This Permute will permute input from original input layout to operation layout
+                # 1. Insert input Transpose
+                #    This Transpose will permute input from original input layout to operation layout
                 edge_attrs = graph.get_edge_data(input.id, node.id)[0]
                 graph.remove_edge(input.id, node.id)
 
-                input_permute_op = Permute(graph, {'order': permutation.perm})
-                input_permute_data_node = input_permute_op.create_node_with_data([input],
-                                                                                 dict(name=node.name + '/Permute_'))
+                input_order_const = Const(graph, {'value': permutation.perm}).create_node_with_data()
+                input_permute_op = Transpose(graph, dict(name=node.name + '/Transpose_'))
+                input_permute_data_node = input_permute_op.create_node_with_data([input, input_order_const])
 
                 graph.add_edge(input_permute_data_node.id, node.id, **edge_attrs)
 
-                # 2. Insert output Permute
-                #    This Permute will permute output from operation layout to original input layout
+                # 2. Insert output Transpose
+                #    This Transpose will permute output from operation layout to original input layout
                 edge_attrs = graph.get_edge_data(node.id, output.id)[0]
                 graph.remove_edge(node.id, output.id)
 
                 input_data_node = Op.create_data_node(graph, node, {'shape': output.shape[permutation.perm]},
                                                       edge_attrs)
 
-                output_permute_op = Permute(graph, {'order': permutation.inv})
-                output_permute_op.create_node_with_data([input_data_node], dict(name=node.name + '/Permute_'),
-                                                        data_nodes=output)
+                output_order_const = Const(graph, {'value': permutation.inv}).create_node_with_data()
+                output_permute_op = Transpose(graph, dict(name=node.name + '/Transpose_')
+                                              ).create_node_with_data([input_data_node, output_order_const],
+                                                                      data_nodes=output)
 
                 # 3. Add permutations for Node
                 #    Here we use permutation mechanism where data nodes takes permutation attribute.

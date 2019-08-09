@@ -340,9 +340,17 @@ void _jit_avx512_core_fp32_wino_conv_4x3_t<is_fwd>::_execute_data_W_S_G_D(
             last_slice_bias[oc] = bias(jcp.dimM / jcp.dimM_simd_block - 1, oc);
     }
 
+#if MKLDNN_THR == MKLDNN_THR_OMP
+#define PARALLEL_ND parallel_nd_in_omp
+#else
+#define PARALLEL_ND parallel_nd
+#endif
+
+#if MKLDNN_THR == MKLDNN_THR_OMP
 PRAGMA_OMP(parallel)
+#endif
     {
-        parallel_nd_in_omp(MB, jcp.dimK_nb_block, jcp.dimK_block,
+        PARALLEL_ND(MB, jcp.dimK_nb_block, jcp.dimK_block,
                 [&](int img, int K_blk1, int K_blk2) {
                 input_transform_data(img, jcp,
                     &(input(img, K_blk1 * jcp.dimK_block + K_blk2,
@@ -351,7 +359,7 @@ PRAGMA_OMP(parallel)
                 });
 
         if (jcp.prop_kind != prop_kind::forward_inference) {
-            parallel_nd_in_omp(jcp.nb_oc, jcp.nb_ic, (jcp.oc_block * jcp.oc_reg_block),
+            PARALLEL_ND(jcp.nb_oc, jcp.nb_ic, (jcp.oc_block * jcp.oc_reg_block),
                 (jcp.ic_block * jcp.ic_reg_block),
                 [&](int ofm1, int ifm1, int ofm2, int ifm2) {
                     float *U_base_ptr = is_fwd
@@ -366,9 +374,10 @@ PRAGMA_OMP(parallel)
             });
         }
 
+
 PRAGMA_OMP(barrier)
 
-        parallel_nd_in_omp(jcp.dimN_nb_block, alpha, alpha, jcp.dimM_nb_block,
+        PARALLEL_ND(jcp.dimN_nb_block, alpha, alpha, jcp.dimM_nb_block,
             [&](int N_blk1, int oj, int oi, int M_blk1) {
             for (int K_blk1 = 0; K_blk1 < jcp.dimK_nb_block;
                  K_blk1++)
@@ -384,7 +393,7 @@ PRAGMA_OMP(barrier)
 
 PRAGMA_OMP(barrier)
 
-        parallel_nd_in_omp(MB, jcp.dimM_nb_block, (jcp.dimM_block * jcp.dimM_reg_block),
+        PARALLEL_ND(MB, jcp.dimM_nb_block, (jcp.dimM_block * jcp.dimM_reg_block),
                     [&](int img, int M_blk1, int M_blk2) {
             const int M_blk =
                 M_blk1 * jcp.dimM_block  * jcp.dimM_reg_block + M_blk2;
@@ -397,6 +406,8 @@ PRAGMA_OMP(barrier)
                     &(output(img, M_blk, 0, 0, 0)), bias_ptr);
         });
     }
+
+#undef PARALLEL_ND
 }
 
 template <bool is_fwd>

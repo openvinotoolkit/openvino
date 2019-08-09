@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-
 from ..config import NumberField
 from ..representation import DetectionAnnotation
 from ..utils import convert_bboxes_xywh_to_x1y1x2y2, read_txt

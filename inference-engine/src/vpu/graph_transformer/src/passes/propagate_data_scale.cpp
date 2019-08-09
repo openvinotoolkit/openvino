@@ -46,11 +46,11 @@ Stage StageBuilder::addScalingStage(
 
 namespace {
 
-DataMap<float> getInputScales(const Stage& stage) {
-    DataMap<float> out;
-    for (const auto& input : stage->inputs()) {
-        auto scaleFactor = input->attrs().getOrDefault<float>("scaleFactor", 1.0f);
-        out[input] = scaleFactor;
+SmallVector<float> getInputScales(const Stage& stage) {
+    SmallVector<float> out(stage->numInputs());
+    for (const auto& inputEdge : stage->inputEdges()) {
+        auto scaleFactor = inputEdge->input()->attrs().getOrDefault<float>("scaleFactor", 1.0f);
+        out[inputEdge->portInd()] = scaleFactor;
     }
     return out;
 }
@@ -165,21 +165,21 @@ void PassImpl::run(const Model::Ptr& model) {
 
             if (input->numConsumers() == 1) {
                 auto inputScales = getInputScales(stage);
-                inputScales[input] = scaleMultiplier;
+                inputScales[inEdge->portInd()] = scaleMultiplier;
 
-                auto checkScales = stage->propagateScaleFactors(inputScales, ScalePropagationStep::Check);
-                if (checkScales.count(input) == 0) {
-                    auto finalScales = stage->propagateScaleFactors(inputScales, ScalePropagationStep::ScaleInput);
+                const auto& checkScales = stage->propagateScaleFactors(inputScales, ScalePropagationStep::Check);
+                if (!checkScales.hasInput(inEdge)) {
+                    const auto& finalScales = stage->propagateScaleFactors(inputScales, ScalePropagationStep::ScaleInput);
 
                     for (const auto& constInEdge : stage->inputEdges()) {
                         auto constInput = constInEdge->input();
 
-                        auto it = finalScales.find(constInput);
-                        if (it == finalScales.end())
+                        if (!finalScales.hasInput(constInEdge)) {
                             continue;
+                        }
 
                         auto curScaleFactor = constInput->attrs().getOrDefault<float>("scaleFactor", 1.0f);
-                        auto newScaleFactor = it->second;
+                        auto newScaleFactor = finalScales.getInput(constInEdge);
 
                         if (isFloatEqual(curScaleFactor, newScaleFactor))
                             continue;
@@ -212,8 +212,8 @@ void PassImpl::run(const Model::Ptr& model) {
 
                         scaledConstInput->attrs().set<float>("scaleFactor", newScaleFactor);
                     }
-                    for (const auto& output : stage->outputs()) {
-                        output->attrs().set<float>("scaleFactor", finalScales.at(output));
+                    for (const auto& outEdge : stage->outputEdges()) {
+                        outEdge->output()->attrs().set<float>("scaleFactor", finalScales.getOutput(outEdge));
                     }
 
                     scalesWasInitialized = true;
@@ -245,17 +245,17 @@ void PassImpl::run(const Model::Ptr& model) {
         // Propagate SCALE from inputs to outputs
         //
 
-        auto finalScales = stage->propagateScaleFactors(getInputScales(stage), ScalePropagationStep::Propagate);
+        const auto& finalScales = stage->propagateScaleFactors(getInputScales(stage), ScalePropagationStep::Propagate);
 
-        for (const auto& inputEdge : stage->inputEdges()) {
-            auto input = inputEdge->input();
+        for (const auto& inEdge : stage->inputEdges()) {
+            auto input = inEdge->input();
 
-            auto it = finalScales.find(input);
-            if (it == finalScales.end())
+            if (!finalScales.hasInput(inEdge)) {
                 continue;
+            }
 
             auto curScaleFactor = input->attrs().getOrDefault<float>("scaleFactor", 1.0f);
-            auto newScaleFactor = it->second;
+            auto newScaleFactor = finalScales.getInput(inEdge);
 
             if (isFloatEqual(curScaleFactor, newScaleFactor))
                 continue;
@@ -292,12 +292,12 @@ void PassImpl::run(const Model::Ptr& model) {
             }
             IE_ASSERT(scaledInput != nullptr);
 
-            model->replaceStageInput(inputEdge, scaledInput);
+            model->replaceStageInput(inEdge, scaledInput);
 
             scaledInput->attrs().set<float>("scaleFactor", newScaleFactor);
         }
-        for (const auto& output : stage->outputs()) {
-            output->attrs().set<float>("scaleFactor", finalScales.at(output));
+        for (const auto& outEdge : stage->outputEdges()) {
+            outEdge->output()->attrs().set<float>("scaleFactor", finalScales.getOutput(outEdge));
         }
     }
 

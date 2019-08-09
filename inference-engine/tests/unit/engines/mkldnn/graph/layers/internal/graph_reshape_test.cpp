@@ -132,7 +132,7 @@ protected:
                 }
             }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::ANY, p.in);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, p.in, InferenceEngine::ANY});
             src->allocate();
             fill_data(src->buffer(), src->size());
 

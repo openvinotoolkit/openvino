@@ -391,11 +391,11 @@ void jit_avx512_common_lrn_fwd_t::execute_forward() const {
     const int C = pd()->C();
     const int H = pd()->H();
     const int W = pd()->W();
+    const int C16 = C / vsize;
+    const size_t work_amount = use_h_parallelism ? N*C16*H : N*C16;
 
-    parallel(0, [&](const int ithr, const int nthr) {
+    parallel(0, work_amount, [&](const int ithr, const int nthr) {
         size_t start{0}, end{0};
-        const int C16 = C / vsize;
-        const size_t work_amount = use_h_parallelism ? N*C16*H : N*C16;
 
         balance211(work_amount, nthr, ithr, start, end);
         if (use_h_parallelism) {
@@ -801,11 +801,11 @@ void jit_avx512_common_lrn_bwd_t::execute_backward() const {
     const int C = pd()->C();
     const int H = pd()->H();
     const int W = pd()->W();
+    const int C16 = C / vsize;
+    const size_t work_amount = use_h_parallelism ? N*C16*H : N*C16;
 
-    parallel(0, [&](const int ithr, const int nthr) {
+    parallel(0, work_amount, [&](const int ithr, const int nthr) {
         size_t start{0}, end{0};
-        const int C16 = C / vsize;
-        const size_t work_amount = use_h_parallelism ? N*C16*H : N*C16;
 
         balance211(work_amount, nthr, ithr, start, end);
         if (use_h_parallelism) {

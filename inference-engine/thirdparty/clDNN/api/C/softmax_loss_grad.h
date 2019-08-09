@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef SOFTMAX_LOSS_GRAD_H
-#define SOFTMAX_LOSS_GRAD_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -45,5 +43,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(softmax_loss_grad);
 /// @}
 /// @}
 /// @}
-#endif /* SOFTMAX_LOSS_GRAD_H */
 

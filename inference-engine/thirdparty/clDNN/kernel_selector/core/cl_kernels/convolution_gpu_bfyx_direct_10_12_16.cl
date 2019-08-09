@@ -178,7 +178,7 @@ KERNEL(convolution_f16_10x12x16)(
                         const unsigned bias_index = out_fm*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + ( global_y * TILE_M + y )*OUTPUT_SIZE_X + ( global_x * TILE_K + i);
                         const half bias = biases[bias_index];
                     #endif
-                        pvBlockC[i] = ACTIVATION(blockC[y * TILE_K + i] + bias, NL_M, NL_N);
+                        pvBlockC[i] = ACTIVATION(blockC[y * TILE_K + i] + bias, ACTIVATION_PARAMS);
                         ((__global half*)(out + y * OUTPUT_Y_PITCH))[i] = pvBlockC[i];
                     }
                     //*(__global half_t*)(out + y * OUTPUT_Y_PITCH) = vBlockC;
@@ -200,7 +200,7 @@ KERNEL(convolution_f16_10x12x16)(
                         const unsigned bias_index = out_fm*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + ( global_y * TILE_M + y )*OUTPUT_SIZE_X + ( global_x * TILE_K + i);
                         const half bias = biases[bias_index];
                     #endif
-                        pvBlockC[i] = ACTIVATION(blockC[y * TILE_K + i] + bias, NL_M, NL_N);
+                        pvBlockC[i] = ACTIVATION(blockC[y * TILE_K + i] + bias, ACTIVATION_PARAMS);
                         ((__global half*)(out + y * OUTPUT_Y_PITCH))[i] = pvBlockC[i];
                     }
                     //*(__global half_t*)(out + y * OUTPUT_Y_PITCH) = vBlockC;

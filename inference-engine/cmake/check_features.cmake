@@ -1,11 +1,6 @@
 # Copyright (C) 2018-2019 Intel Corporation
-#
 # SPDX-License-Identifier: Apache-2.0
 #
-
-include("features")
-include("mode")
-include("itt")
 
 #64 bits platform
 if ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
@@ -18,8 +13,7 @@ else()
     SET(ARCH_32 ON)
 endif()
 
-if (ARCH_64)
-else()
+if (NOT ARCH_64)
     if (UNIX OR APPLE)
         SET(ENABLE_CLDNN OFF)
     endif()
@@ -31,6 +25,7 @@ if (APPLE)
     set(ENABLE_GNA OFF)
     set(ENABLE_CLDNN OFF)
     SET(ENABLE_MYRIAD OFF)
+    SET(ENABLE_VPU OFF)
 endif()
 
 
@@ -42,31 +37,12 @@ if (WIN32)
     endif()
 endif()
 
-# Linux specific - not all OS'es are supported
-if (LINUX)
-    include("linux_name")
-    get_linux_name(LINUX_OS_NAME)
-    if (LINUX_OS_NAME)
-        if (NOT(
-                ${LINUX_OS_NAME} STREQUAL "Ubuntu 14.04" OR
-                ${LINUX_OS_NAME} STREQUAL "Ubuntu 16.04" OR
-                ${LINUX_OS_NAME} STREQUAL "CentOS 7"))
-        endif()
-    else ()
-        message(WARNING "Cannot detect Linux OS via reading /etc/*-release:\n ${release_data}")
-    endif ()
-endif ()
-
 if (NOT ENABLE_MKL_DNN)
     set(ENABLE_MKL OFF)
 endif()
 
 if (NOT ENABLE_VPU)
     set(ENABLE_MYRIAD OFF)
-endif()
-
-if (NOT ENABLE_MYRIAD)
-    set(ENABLE_VPU OFF)
 endif()
 
 #next section set defines to be accesible in c++/c code for certain feature
@@ -82,20 +58,16 @@ if (ENABLE_MYRIAD)
     add_definitions(-DENABLE_MYRIAD=1)
 endif()
 
-if (ENABLE_MYX_PCIE AND ENABLE_MYRIAD)
-    add_definitions(-DENABLE_MYX_PCIE=1)
-endif()
-
 if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_MYRIAD )
     add_definitions(-DENABLE_MYRIAD_NO_BOOT=1)
 endif()
 
-if (ENABLE_MYX_PCIE AND ENABLE_MYRIAD_NO_BOOT)
-    message(FATAL_ERROR "ENABLE_MYX_PCIE and ENABLE_MYRIAD_NO_BOOT can't be enabled at the same time")
-endif()
-
 if (ENABLE_MKL_DNN)
     add_definitions(-DENABLE_MKL_DNN=1)
+endif()
+
+if (ENABLE_UNICODE_PATH_SUPPORT)
+    add_definitions(-DENABLE_UNICODE_PATH_SUPPORT=1)
 endif()
 
 if (ENABLE_GNA)

@@ -20,17 +20,8 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::Tenso
     return make_blob_with_precision(desc.getPrecision(), desc, alloc);
 }
 
-InferenceEngine::Layout plain_layout(InferenceEngine::SizeVector dims) {
-    int n = dims.size();
-    return n == 1 ? InferenceEngine::C    :
-           n == 2 ? InferenceEngine::NC   :
-           n == 3 ? InferenceEngine::CHW  :
-           n == 4 ? InferenceEngine::NCHW :
-                    InferenceEngine::ANY;
-}
-
 InferenceEngine::Blob::Ptr make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVector dims) {
-    return make_blob_with_precision({prec, dims, plain_layout(dims)});
+    return make_blob_with_precision({prec, dims, InferenceEngine::TensorDesc::getLayoutByDims(dims)});
 }
 
 InferenceEngine::Blob::Ptr CreateBlobFromData(const InferenceEngine::DataPtr &data) {
@@ -41,19 +32,21 @@ InferenceEngine::Blob::Ptr CreateBlobFromData(const InferenceEngine::DataPtr &da
         targetLayout = InferenceEngine::Layout::NCHW;
     }
 
+    InferenceEngine::TensorDesc desc(data->getPrecision(), data->getTensorDesc().getDims(), targetLayout);
+
     switch (data->getPrecision()) {
         case InferenceEngine::Precision::FP32:
-            return std::make_shared<InferenceEngine::TBlob<float>>(data->getPrecision(), targetLayout, data->getDims());
+            return std::make_shared<InferenceEngine::TBlob<float>>(desc);
         case InferenceEngine::Precision::Q78:
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::FP16:
-            return std::make_shared<InferenceEngine::TBlob<short>>(data->getPrecision(), targetLayout, data->getDims());
+            return std::make_shared<InferenceEngine::TBlob<short>>(desc);
         case InferenceEngine::Precision::U8:
-            return std::make_shared<InferenceEngine::TBlob<uint8_t>>(data->getPrecision(), targetLayout, data->getDims());
+            return std::make_shared<InferenceEngine::TBlob<uint8_t>>(desc);
         case InferenceEngine::Precision::I8:
-            return std::make_shared<InferenceEngine::TBlob<int8_t>>(data->getPrecision(), targetLayout, data->getDims());
+            return std::make_shared<InferenceEngine::TBlob<int8_t>>(desc);
         case InferenceEngine::Precision::I32:
-            return std::make_shared<InferenceEngine::TBlob<int32_t>>(data->getPrecision(), targetLayout, data->getDims());
+            return std::make_shared<InferenceEngine::TBlob<int32_t>>(desc);
         default:
             THROW_IE_EXCEPTION << "precision is no set";
     }

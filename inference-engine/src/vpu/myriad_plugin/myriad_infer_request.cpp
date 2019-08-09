@@ -42,9 +42,8 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
         _deviceLayout = NHWC;
     // allocate inputs
     for (auto &networkInput : _networkInputs) {
-        // TODO: use TensorDesc instead of deprecated methods
-        SizeVector dims      = networkInput.second->getDims();
-        Precision  precision = networkInput.second->getInputPrecision();
+        SizeVector dims      = networkInput.second->getTensorDesc().getDims();
+        Precision  precision = networkInput.second->getTensorDesc().getPrecision();
         Layout     layout    = networkInput.second->getTensorDesc().getLayout();
 
         if (precision != Precision::FP32 &&
@@ -53,7 +52,10 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input precision: "
                                    << precision << "! Supported precisions: FP32, FP16 and U8";
         }
-        Blob::Ptr inputBlob = make_blob_with_precision(precision, layout, dims);
+        Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(
+            precision,
+            dims,
+            layout));
 
         // allocate the input blob
         // TODO We are allocating temporary input buffer of enough size. Wrap this buffer in blobs
@@ -62,16 +64,20 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
     }
     // allocate outputs
     for (auto &networkOutput : _networkOutputs) {
-        SizeVector dims      = networkOutput.second->dims;
-        Precision  precision = networkOutput.second->getPrecision();
-        Layout     layout    = networkOutput.second->layout;
+        SizeVector dims      = networkOutput.second->getTensorDesc().getDims();
+        Precision  precision = networkOutput.second->getTensorDesc().getPrecision();
+        Layout     layout    = networkOutput.second->getTensorDesc().getLayout();
 
         if (precision != Precision::FP32 &&
             precision != Precision::FP16) {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output precision: "
                                 << precision << "! Supported precisions: FP32, FP16";
         }
-        Blob::Ptr outputBlob = make_blob_with_precision(precision, layout, dims);
+        Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
+            precision,
+            dims,
+            layout));
+
         // allocate the output blob
         outputBlob->allocate();
         _outputs[networkOutput.first] = outputBlob;
@@ -93,15 +99,15 @@ void MyriadInferRequest::InferImpl() {
 void MyriadInferRequest::InferAsync() {
     for (auto input : _inputs) {
         auto const inputBlobPtr = input.second;
-        if (inputBlobPtr->precision() != Precision::FP16
-            && inputBlobPtr->precision() != Precision::FP32
-            && inputBlobPtr->precision() != Precision::U8)
+        if (inputBlobPtr->getTensorDesc().getPrecision() != Precision::FP16
+            && inputBlobPtr->getTensorDesc().getPrecision() != Precision::FP32
+            && inputBlobPtr->getTensorDesc().getPrecision() != Precision::U8)
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input blob precision";
     }
     for (auto output : _outputs) {
         auto const outputBlobPtr = output.second;
-        if (outputBlobPtr->precision() != Precision::FP16
-            && outputBlobPtr->precision() != Precision::FP32)
+        if (outputBlobPtr->getTensorDesc().getPrecision() != Precision::FP16
+            && outputBlobPtr->getTensorDesc().getPrecision() != Precision::FP32)
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output blob precision";
     }
 
@@ -179,9 +185,9 @@ void MyriadInferRequest::GetResult() {
 void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
 
-    if (_log->level() >= LogLevel::Info) {
+    if (_log->isActive(LogLevel::Info)) {
         if (!perfInfo.empty()) {
-            _log->info("** Device execution time %f **", perfInfo[perfInfo.size()- 1]);
+            _log->info("Device execution time: %f ms", perfInfo[perfInfo.size()- 1]);
         }
     }
 

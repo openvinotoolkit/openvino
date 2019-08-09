@@ -12,7 +12,8 @@
 #include <algorithm>
 #include <limits>
 #include "ie_parallel.hpp"
-#include "simple_copy.h"
+#include "common/simple_copy.h"
+#include "common/fp16_utils.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -26,8 +27,12 @@ public:
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
 
             Precision inIdxPrecision = layer->insData[GATHER_INDEXES].lock()->getTensorDesc().getPrecision();
-            if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision. Only FP32 or I32 are supported!";
+            if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32 && inIdxPrecision != Precision::FP16)
+                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision. Only FP32, FP16 or I32 are supported!";
+
+            Precision inDataPrecision = layer->insData[GATHER_DICTIONARY].lock()->getTensorDesc().getPrecision();
+            if (inDataPrecision != Precision::FP32 && inDataPrecision != Precision::FP16)
+                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision. Only FP32 or FP16 are supported!";
 
             //  Remove redundant dimensions
             const SizeVector& dictionary_dims = layer->insData[GATHER_DICTIONARY].lock()->getTensorDesc().getDims();
@@ -64,19 +69,40 @@ public:
                 THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimension!";
 
             addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                      { DataConfigurator(ConfLayout::PLN) });
+                             { DataConfigurator(ConfLayout::PLN) });
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }
 
+    struct f32toUi32 {
+        inline unsigned int operator()(const float value) {
+            return static_cast<unsigned int>(value);
+        }
+    };
+
+    struct f16toUi32 {
+        inline unsigned int operator()(const ie_fp16 value) {
+            return static_cast<unsigned int>(f16tof32(value));
+        }
+    };
+
+    struct i32toUi32 {
+        inline unsigned int operator()(const int32_t value) {
+            return static_cast<unsigned int>(value);
+        }
+    };
+
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
-        switch (inputs[GATHER_INDEXES]->precision()) {
+        switch (inputs[GATHER_INDEXES]->getTensorDesc().getPrecision()) {
             case Precision::FP32:
-                gather(inputs[GATHER_INDEXES]->cbuffer().as<const float *>(), inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
+                gather<float, float, f32toUi32>(inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
+                break;
+            case Precision::FP16:
+                gather<ie_fp16, ie_fp16, f16toUi32>(inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
                 break;
             case Precision::I32:
-                gather(inputs[GATHER_INDEXES]->cbuffer().as<const int32_t *>(), inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
+                gather<int32_t, float, i32toUi32>(inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
                 break;
             default:
                 return GENERAL_ERROR;
@@ -86,8 +112,49 @@ public:
     }
 
 private:
-    template <typename data_t>
-    void gather(data_t *src_dataIdx, Blob::Ptr indexes, Blob::Ptr dictionary, Blob::Ptr output);
+    template <typename index_t, typename data_t, class Conversion>
+    void gather(Blob::Ptr indexes, Blob::Ptr dictionary, Blob::Ptr output) {
+        size_t src_indexSize = indexes->size();
+        const index_t *src_index = indexes->cbuffer().as<const index_t *>() + indexes->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        const data_t *src_dataDict = dictionary->cbuffer().as<const data_t *>() + dictionary->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        data_t *dst_data = output->cbuffer().as<data_t*>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding();
+
+        if (axis == 0) {
+            parallel_for(src_indexSize, [&](size_t i) {
+                unsigned int idx = Conversion()(src_index[i]);
+
+                //  Index clipping
+                if (idx < indexRange) {
+                    //  Copying data to destination from Dictionary
+                    simple_copy(&dst_data[i * dataLength],
+                                output->byteSize() - (dataLength * i),
+                                &src_dataDict[dataLength * idx],
+                                sizeof(data_t) * dataLength);
+                } else {
+                    memset(&dst_data[i * dataLength], 0, sizeof(data_t) * dataLength);
+                }
+            });
+        } else {
+            parallel_for(src_indexSize, [&](size_t i) {
+                unsigned int idx = Conversion()(src_index[i]);
+
+                //  Index clipping
+                if (idx < indexRange) {
+                    //  Copying data to destination from Dictionary
+                    for (size_t j = 0; j < numDictionaries; j++) {
+                        simple_copy(&dst_data[dataLength * (i + j * src_indexSize)],
+                                    output->byteSize() - (dataLength * (i + j * src_indexSize)),
+                                    &src_dataDict[dataLength * (idx + j * indexRange)],
+                                    sizeof(data_t) * dataLength);
+                    }
+                } else {
+                    for (size_t j = 0; j < numDictionaries; j++) {
+                        memset(&dst_data[dataLength * (i + j * src_indexSize)], 0, sizeof(data_t) * dataLength);
+                    }
+                }
+            });
+        }
+    }
 
     int axis = 0;
     size_t numDictionaries = 1;
@@ -97,49 +164,6 @@ private:
     const size_t GATHER_INDEXES = 1;
 };
 
-template <typename data_t>
-void GatherImpl::gather(data_t *src_dataIdx, Blob::Ptr indexes, Blob::Ptr dictionary, Blob::Ptr output) {
-    size_t src_dataIdxSize = indexes->size();
-    const float *src_dataDict = dictionary->cbuffer().as<const float *>() + dictionary->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    float* dst_data = output->cbuffer().as<float *>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    src_dataIdx += indexes->getTensorDesc().getBlockingDesc().getOffsetPadding();
-
-    if (axis == 0) {
-        parallel_for(src_dataIdxSize, [&](size_t i) {
-            unsigned int idx = static_cast<unsigned int>(src_dataIdx[i]);
-
-            //  Index clipping
-            if (idx < indexRange) {
-                //  Copying data to destination from Dictionary
-                simple_copy(&dst_data[i * dataLength],
-                            output->byteSize() - (dataLength * i),
-                            &src_dataDict[dataLength * idx],
-                            sizeof(float) * dataLength);
-            } else {
-                std::fill_n(&dst_data[i * dataLength], dataLength, 0.f);
-            }
-        });
-    } else {
-        parallel_for(src_dataIdxSize, [&](size_t i) {
-            unsigned int idx = static_cast<unsigned int>(src_dataIdx[i]);
-
-            //  Index clipping
-            if (idx < indexRange) {
-                //  Copying data to destination from Dictionary
-                for (size_t j = 0; j < numDictionaries; j++) {
-                    simple_copy(&dst_data[dataLength * (i + j * src_dataIdxSize)],
-                                output->byteSize() - (dataLength * (i + j * src_dataIdxSize)),
-                                &src_dataDict[dataLength * (idx + j * indexRange)],
-                                sizeof(float) * dataLength);
-                }
-            } else {
-                for (size_t j = 0; j < numDictionaries; j++) {
-                    std::fill_n(&dst_data[dataLength * (i + j * src_dataIdxSize)], dataLength, 0.f);
-                }
-            }
-        });
-    }
-}
 
 REG_FACTORY_FOR(ImplFactory<GatherImpl>, Gather);
 

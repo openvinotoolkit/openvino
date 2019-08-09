@@ -236,10 +236,10 @@ KERNEL(convolution_f32)(
             blockC30 += *(biasPtr + 3);
             #endif
 
-            blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
-            blockC10 = ACTIVATION(blockC10, NL_M, NL_N);
-            blockC20 = ACTIVATION(blockC20, NL_M, NL_N);
-            blockC30 = ACTIVATION(blockC30, NL_M, NL_N);
+            blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
+            blockC10 = ACTIVATION(blockC10, ACTIVATION_PARAMS);
+            blockC20 = ACTIVATION(blockC20, ACTIVATION_PARAMS);
+            blockC30 = ACTIVATION(blockC30, ACTIVATION_PARAMS);
 
             for( unsigned i = 0; i < 8; i++ )
             {
@@ -260,10 +260,10 @@ KERNEL(convolution_f32)(
                 blockC30 += *(biasPtr + 3);
                 #endif
 
-                blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
-                blockC10 = ACTIVATION(blockC10, NL_M, NL_N);
-                blockC20 = ACTIVATION(blockC20, NL_M, NL_N);
-                blockC30 = ACTIVATION(blockC30, NL_M, NL_N);
+                blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
+                blockC10 = ACTIVATION(blockC10, ACTIVATION_PARAMS);
+                blockC20 = ACTIVATION(blockC20, ACTIVATION_PARAMS);
+                blockC30 = ACTIVATION(blockC30, ACTIVATION_PARAMS);
 
                 for ( unsigned i = 0; i < 8; i++ )
                 {
@@ -284,9 +284,9 @@ KERNEL(convolution_f32)(
                     if (( OUTPUT_FEATURE_NUM % TILE_N) > 24 ) blockC30 += *(biasPtr + 3);
                     #endif
 
-                    blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
-                    blockC10 = ACTIVATION(blockC10, NL_M, NL_N);
-                    blockC20 = ACTIVATION(blockC20, NL_M, NL_N);
+                    blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
+                    blockC10 = ACTIVATION(blockC10, ACTIVATION_PARAMS);
+                    blockC20 = ACTIVATION(blockC20, ACTIVATION_PARAMS);
 
                     for (unsigned i = 0; i < 8; i++)
                     {
@@ -298,7 +298,7 @@ KERNEL(convolution_f32)(
                     // remaining output channels
                     for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 8; i++)
                     {
-                        out0[(24+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC30[i], NL_M, NL_N);
+                        out0[(24+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC30[i], ACTIVATION_PARAMS);
                     }
                 }
                 else if ( ( OUTPUT_FEATURE_NUM % TILE_N ) >= 16 )
@@ -310,8 +310,8 @@ KERNEL(convolution_f32)(
                         blockC20 += *(biasPtr + 2);
                     #endif
 
-                    blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
-                    blockC10 = ACTIVATION(blockC10, NL_M, NL_N);
+                    blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
+                    blockC10 = ACTIVATION(blockC10, ACTIVATION_PARAMS);
 
                     for (unsigned i = 0; i < 8; i++)
                     {
@@ -321,7 +321,7 @@ KERNEL(convolution_f32)(
 
                     for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 8; i++)
                     {
-                        out0[(16+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC20[i], NL_M, NL_N);
+                        out0[(16+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC20[i], ACTIVATION_PARAMS);
 
                     }
                 }
@@ -333,7 +333,7 @@ KERNEL(convolution_f32)(
                         blockC10 += *(biasPtr + 1);
                     #endif
 
-                    blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
+                    blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
 
                     for (unsigned i = 0; i < 8; i++)
                     {
@@ -342,7 +342,7 @@ KERNEL(convolution_f32)(
 
                     for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 8; i++)
                     {
-                        out0[(8+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC10[i], NL_M, NL_N);
+                        out0[(8+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC10[i], ACTIVATION_PARAMS);
                     }
                 }
                 else
@@ -352,7 +352,7 @@ KERNEL(convolution_f32)(
                     #endif
                     for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 8; i++)
                     {
-                        out0[( 0+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC00[i], NL_M, NL_N);
+                        out0[( 0+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC00[i], ACTIVATION_PARAMS);
                     }
                 }
             }
@@ -370,10 +370,10 @@ KERNEL(convolution_f32)(
             blockC31 += *(biasPtr + 3);
             #endif
 
-            blockC01 = ACTIVATION(blockC01, NL_M, NL_N);
-            blockC11 = ACTIVATION(blockC11, NL_M, NL_N);
-            blockC21 = ACTIVATION(blockC21, NL_M, NL_N);
-            blockC31 = ACTIVATION(blockC31, NL_M, NL_N);
+            blockC01 = ACTIVATION(blockC01, ACTIVATION_PARAMS);
+            blockC11 = ACTIVATION(blockC11, ACTIVATION_PARAMS);
+            blockC21 = ACTIVATION(blockC21, ACTIVATION_PARAMS);
+            blockC31 = ACTIVATION(blockC31, ACTIVATION_PARAMS);
 
             for( unsigned i = 0; i < 8; i++ )
             {
@@ -394,10 +394,10 @@ KERNEL(convolution_f32)(
                 blockC31 += *(biasPtr + 3);
                 #endif
 
-                blockC01 = ACTIVATION(blockC01, NL_M, NL_N);
-                blockC11 = ACTIVATION(blockC11, NL_M, NL_N);
-                blockC21 = ACTIVATION(blockC21, NL_M, NL_N);
-                blockC31 = ACTIVATION(blockC31, NL_M, NL_N);
+                blockC01 = ACTIVATION(blockC01, ACTIVATION_PARAMS);
+                blockC11 = ACTIVATION(blockC11, ACTIVATION_PARAMS);
+                blockC21 = ACTIVATION(blockC21, ACTIVATION_PARAMS);
+                blockC31 = ACTIVATION(blockC31, ACTIVATION_PARAMS);
 
                 for ( unsigned i = 0; i < 8; i++ )
                 {
@@ -418,9 +418,9 @@ KERNEL(convolution_f32)(
                     if ( ( OUTPUT_FEATURE_NUM % TILE_N ) > 24 ) blockC31 += *(biasPtr + 3);
                     #endif
 
-                    blockC01 = ACTIVATION(blockC01, NL_M, NL_N);
-                    blockC11 = ACTIVATION(blockC11, NL_M, NL_N);
-                    blockC21 = ACTIVATION(blockC21, NL_M, NL_N);
+                    blockC01 = ACTIVATION(blockC01, ACTIVATION_PARAMS);
+                    blockC11 = ACTIVATION(blockC11, ACTIVATION_PARAMS);
+                    blockC21 = ACTIVATION(blockC21, ACTIVATION_PARAMS);
 
                     for (unsigned i = 0; i < 8; i++)
                     {
@@ -432,7 +432,7 @@ KERNEL(convolution_f32)(
                     // Remaining channels
                     for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 8; i++)
                     {
-                        out1[(24+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC31[i], NL_M, NL_N);
+                        out1[(24+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC31[i], ACTIVATION_PARAMS);
                     }
                 }
                 else if ( ( OUTPUT_FEATURE_NUM % TILE_N ) >= 16 )
@@ -443,8 +443,8 @@ KERNEL(convolution_f32)(
                     if ( ( OUTPUT_FEATURE_NUM % TILE_N ) > 16 ) blockC21 += *(biasPtr + 2);
                     #endif
 
-                    blockC01 = ACTIVATION(blockC01, NL_M, NL_N);
-                    blockC11 = ACTIVATION(blockC11, NL_M, NL_N);
+                    blockC01 = ACTIVATION(blockC01, ACTIVATION_PARAMS);
+                    blockC11 = ACTIVATION(blockC11, ACTIVATION_PARAMS);
 
                     for (unsigned i = 0; i < 8; i++)
                     {
@@ -454,7 +454,7 @@ KERNEL(convolution_f32)(
 
                     for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 8; i++)
                     {
-                        out1[(16+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC21[i], NL_M, NL_N);
+                        out1[(16+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC21[i], ACTIVATION_PARAMS);
                     }
                 }
                 else if ( ( OUTPUT_FEATURE_NUM % TILE_N ) >= 8 )
@@ -464,7 +464,7 @@ KERNEL(convolution_f32)(
                     if ( ( OUTPUT_FEATURE_NUM % TILE_N ) > 8 ) blockC11 += *(biasPtr + 1);
                     #endif
 
-                    blockC01 = ACTIVATION(blockC01, NL_M, NL_N);
+                    blockC01 = ACTIVATION(blockC01, ACTIVATION_PARAMS);
 
                     for (unsigned i = 0; i < 8; i++)
                     {
@@ -473,7 +473,7 @@ KERNEL(convolution_f32)(
 
                     for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 8; i++)
                     {
-                        out1[(8+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC11[i], NL_M, NL_N);
+                        out1[(8+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC11[i], ACTIVATION_PARAMS);
                     }
                 }
                 else
@@ -484,7 +484,7 @@ KERNEL(convolution_f32)(
 
                     for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 8; i++)
                     {
-                        out1[( 0+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC01[i], NL_M, NL_N);
+                        out1[( 0+i) * OUTPUT_FEATURE_PITCH] = ACTIVATION(blockC01[i], ACTIVATION_PARAMS);
                     }
                 }
             }

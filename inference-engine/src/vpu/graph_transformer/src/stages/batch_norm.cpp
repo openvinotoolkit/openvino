@@ -14,6 +14,7 @@
 
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/numeric.hpp>
+#include <vpu/utils/profiling.hpp>
 
 namespace vpu {
 

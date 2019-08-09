@@ -9,6 +9,8 @@
 
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START
+
 static const std::map<Layout, SizeVector> DIM_POSITIONS = {
     { NCHW, { I_W, I_H, I_C, I_N } },
     { NHWC, { I_C, I_W, I_H, I_N } }
@@ -23,10 +25,25 @@ LayoutOffsetCounter::LayoutOffsetCounter(Layout layout, SizeVector dims) : _layo
     }
 }
 
-/**
- * @brief Calculates offset for specified layout
- * @param pos Tensor position array (reverse NCHW order as in the IR: w,h,c,n)
- */
+LayoutOffsetCounter::LayoutOffsetCounter(const LayoutOffsetCounter & l) {
+    _layout = l._layout;
+    _dims = l._dims;
+    _dims_count = l._dims_count;
+    _muls = l._muls;
+}
+
+LayoutOffsetCounter & LayoutOffsetCounter::operator = (const LayoutOffsetCounter & l) {
+    _layout = l._layout;
+    _dims = l._dims;
+    _dims_count = l._dims_count;
+    _muls = l._muls;
+
+    return *this;
+}
+
+LayoutOffsetCounter::~LayoutOffsetCounter() {
+}
+
 size_t LayoutOffsetCounter::Offset(SizeVector pos) {
     size_t res = 0;
     for (size_t i = 0; i < _dims_count; i++) {
@@ -35,6 +52,8 @@ size_t LayoutOffsetCounter::Offset(SizeVector pos) {
 
     return res;
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 TensorDesc::TensorDesc(const Precision& precision, SizeVector dims, Layout layout): blockingDesc(dims, layout),
                                                                                     precision(precision) {

@@ -32,56 +32,36 @@ private:
         return std::make_shared<UpsamplingStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>&,
             ScalePropagationStep) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
-
-        out[input] = DimsOrder::NCHW;
-        out[output] = DimsOrder::NCHW;
-
-        return out;
+        _orderInfo.setInput(_inputEdges[0], DimsOrder::NCHW);
+        _orderInfo.setOutput(_outputEdges[0], DimsOrder::NCHW);
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto output = _outputEdges[0]->output();
-
-        DataMap<StridesRequirement> out;
-
-        out[output] = StridesRequirement().add(1, DimStride::Aligned);
-
-        return out;
+        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement().add(1, DimStride::Aligned));
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
-
-        return out;
+        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
@@ -225,7 +205,7 @@ void PassImpl::run(const Model::Ptr& model) {
         model->disconnectStageDatas(stage);
 
         DataDesc newDesc({1, 1, output->desc().dim(Dim::C), output->desc().dim(Dim::N)});
-        newDesc.setDim(Dim::N, 1);
+        newDesc.setDim(Dim::N, input->desc().dim(Dim::N));
         newDesc.setDim(Dim::C, input->desc().dim(Dim::C));
         newDesc.setDim(Dim::H, (input->desc().dim(Dim::H) - 1) * kernelStrideY + 1 + (kernelSizeY - 1) * 2 - padTop - padBottom);
         newDesc.setDim(Dim::W, (input->desc().dim(Dim::W) - 1) * kernelStrideX + 1 + (kernelSizeX - 1) * 2 - padLeft - padRight);

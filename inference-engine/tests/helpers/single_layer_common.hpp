@@ -10,6 +10,7 @@
 #include <inference_engine/parsers.h>
 #include <xml_net_builder.hpp>
 #include <xml_helper.hpp>
+#include <common_layers_params.hpp>
 
 #ifndef USE_BOOST_RE
 
@@ -45,39 +46,12 @@
 	REPLACE_WITH_STR(SRC, PATTERN, result); }
 #define REMOVE_LINE(SRC, PATTERN) REPLACE_WITH_STR(SRC, PATTERN, "")
 
-struct conv_common_params {
-    InferenceEngine::PropertyVector<unsigned int> stride;
-    InferenceEngine::PropertyVector<unsigned int> kernel;
-    InferenceEngine::PropertyVector<unsigned int> pads_begin;
-    InferenceEngine::PropertyVector<unsigned int> pads_end;
-    InferenceEngine::PropertyVector<unsigned int> dilation;
-    std::string auto_pad;
-    size_t group;
-    size_t out_c;
-    bool with_bias;
-};
-
-struct pool_common_params {
-    InferenceEngine::PropertyVector<unsigned int> stride;
-    InferenceEngine::PropertyVector<unsigned int> kernel;
-    InferenceEngine::PropertyVector<unsigned int> pads_begin;
-    InferenceEngine::PropertyVector<unsigned int> pads_end;
-    std::string auto_pad;
-    bool avg;
-    bool exclude_pad;
-};
-
-struct eltwise_common_params {
-    std::string operation;
-    std::vector<float> coeff;
-};
-
 #define PRETTY_PARAM(name, type)                                                            \
     class name                                                                              \
     {                                                                                       \
     public:                                                                                 \
         typedef type param_type;                                                            \
-        name ( param_type arg = param_type ()) : val_(arg) {}                      \
+        name ( param_type arg = param_type ()) : val_(arg) {}                               \
         operator param_type () const {return val_;}                                         \
     private:                                                                                \
         param_type val_;                                                                    \
@@ -130,7 +104,7 @@ buildSingleLayerNetworkCommon(InferenceEngine::details::IFormatParser *parser,
     std::string testContent;
     if (inputsNumber > 1) {
         auto edgeBuilder = netBuilder.havingEdges();
-        for (size_t i = 0; i < inputsNumber; i++) {
+        for (size_t i = 0lu; i < inputsNumber; i++) {
             edgeBuilder.connect(i, inputsNumber);
         }
         testContent = edgeBuilder.finish();

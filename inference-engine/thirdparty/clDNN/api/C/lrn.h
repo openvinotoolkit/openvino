@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef LRN_H
-#define LRN_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -30,8 +28,7 @@
 extern "C" {
 #endif
 
-typedef enum /*:int32_t*/
-{
+typedef enum /*:int32_t*/ {
     cldnn_lrn_norm_region_across_channel,
     cldnn_lrn_norm_region_within_channel
 } cldnn_lrn_norm_region;
@@ -69,5 +66,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(lrn);
 /// @}
 /// @}
 /// @}
-#endif /* LRN_H */
 

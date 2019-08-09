@@ -19,7 +19,7 @@ from ..weights import Weights
 
 class Layer:
     TEMPLATE = (
-        '<layer name="{name}" type="{type}" precision="FP32" id="{id}">'
+        '<layer name="{name}" type="{type}" precision="{precision}" id="{id}">'
             '{data}'
             '{input}'
             '{output}'
@@ -31,6 +31,7 @@ class Layer:
         self, id: int,
         type: str,
         name: str,
+        precision : str,
         params: dict,
         input_dims: list,
         output_dims: list,
@@ -39,6 +40,7 @@ class Layer:
         self._id = id
         self._type = type
         self._name = name
+        self._precision = precision
         self._params = params
         self._input_dims = input_dims
         self._output_dims = output_dims
@@ -56,6 +58,10 @@ class Layer:
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def precision(self) -> str:
+        return self._precision
 
     @property
     def params(self) -> dict:
@@ -148,6 +154,7 @@ class Layer:
         return self.TEMPLATE.format(
             name=self._name,
             type=self._type,
+            precision=self._precision,
             id=self._id,
             data=(data_xml if data_xml else ''),
             input=(self._input_dims_to_xml() if self._input_dims else ''),

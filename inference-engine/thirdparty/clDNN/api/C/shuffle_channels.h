@@ -15,11 +15,8 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef SHUFFLE_CHANNELS_H
-#define SHUFFLE_CHANNELS_H
-
+#pragma once
 #include "cldnn.h"
-
 
 /// @addtogroup c_api C API
 /// @{
@@ -48,4 +45,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(shuffle_channels);
 /// @}
 /// @}
 /// @}
-#endif // SHUFFLE_CHANNELS_H
+

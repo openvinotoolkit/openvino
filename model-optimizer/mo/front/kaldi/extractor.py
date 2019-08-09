@@ -15,9 +15,6 @@
 """
 
 from mo.graph.graph import Node
-from mo.front.common.partial_infer.elemental import copy_shape_infer, single_output_infer
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
 
 
 def node_pb_arg(pb_extractor):
@@ -43,10 +40,8 @@ def kaldi_extractor(node: Node) -> (bool, dict):
     result = common_kaldi_fields(node)
     layer_type = result['op']
     if layer_type not in kaldi_type_extractors:
-        raise Error('Found unsupported layer {}. '.format(node.id) +
-                    'Model Optimizer does not support this layer type: {}. '.format(layer_type) +
-                    'Please, implement extension. ' +
-                    refer_to_faq_msg(45))
+        supported = False
+        return supported, result
 
     result.update(kaldi_type_extractors[layer_type](node))
     supported = True

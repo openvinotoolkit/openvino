@@ -6,8 +6,8 @@ models:
         tags:
           - FP32
         device: CPU
-        model:   text-detection-0002/FP32/text-detection-0002.xml
-        weights: text-detection-0002/FP32/text-detection-0002.bin
+        model:   Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.xml
+        weights: Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.bin
         adapter:
           type: text_detection
           pixel_link_out: pixel_link/add_2
@@ -16,10 +16,10 @@ models:
 
       - framework: dlsdk
         tags:
-          - GPU32
+          - FP32
         device: GPU
-        model:   text-detection-0002/FP32/text-detection-0002.xml
-        weights: text-detection-0002/FP32/text-detection-0002.bin
+        model:   Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.xml
+        weights: Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.bin
         adapter:
           type: text_detection
           pixel_link_out: pixel_link/add_2
@@ -27,10 +27,10 @@ models:
 
       - framework: dlsdk
         tags:
-          - GPU16
+          - FP16
         device: GPU
-        model:   text-detection-0002/FP16/text-detection-0002.xml
-        weights: text-detection-0002/FP16/text-detection-0002.bin
+        model:   Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002-fp16.xml
+        weights: Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002-fp16.bin
         adapter:
           type: text_detection
           pixel_link_out: pixel_link/add_2
@@ -38,8 +38,8 @@ models:
 
       - framework: dlsdk
         device: MYRIAD
-        model:   text-detection-0002/FP16/text-detection-0002.xml
-        weights: text-detection-0002/FP16/text-detection-0002.bin
+        model:   Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002-fp16.xml
+        weights: Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002-fp16.bin
         adapter:
           type: text_detection
           pixel_link_out: pixel_link/add_2
@@ -47,8 +47,8 @@ models:
 
       - framework: dlsdk
         device: HDDL
-        model:   text-detection-0002/FP16/text-detection-0002.xml
-        weights: text-detection-0002/FP16/text-detection-0002.bin
+        model:   Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002-fp16.xml
+        weights: Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002-fp16.bin
         adapter:
           type: text_detection
           pixel_link_out: pixel_link/add_2
@@ -56,10 +56,11 @@ models:
 
       - framework: dlsdk
         tags:
-          - FPGA16
+          - A10_devkit
+          - FP16
         device: HETERO:FPGA.CPU
-        model:   text-detection-0002/FP32/text-detection-0002.xml
-        weights: text-detection-0002/FP32/text-detection-0002.bin
+        model:   Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.xml
+        weights: Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.bin
         adapter:
           type: text_detection
           pixel_link_out: pixel_link/add_2
@@ -69,16 +70,45 @@ models:
 
       - framework: dlsdk
         tags:
-          - FPGA11
+          - A10_devkit
+          - FP11
         device: HETERO:FPGA.CPU
-        model:   text-detection-0002/FP32/text-detection-0002.xml
-        weights: text-detection-0002/FP32/text-detection-0002.bin
+        model:   Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.xml
+        weights: Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.bin
         adapter:
           type: text_detection
           pixel_link_out: pixel_link/add_2
           pixel_class_out: pixel_cls/add_2
         cpu_extensions: AUTO
         bitstream: 2019R1_A10DK_FP11_MobileNet_Clamp.aocx
+
+      - framework: dlsdk
+        tags:
+          - HDDL-F
+          - FP16
+        device: HETERO:FPGA.CPU
+        model:   Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.xml
+        weights: Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.bin
+        adapter:
+          type: text_detection
+          pixel_link_out: pixel_link/add_2
+          pixel_class_out: pixel_cls/add_2
+        cpu_extensions: AUTO
+        bitstream: 2019R1_PL1_FP16_MobileNet_Clamp.aocx
+
+      - framework: dlsdk
+        tags:
+          - HDDL-F
+          - FP11
+        device: HETERO:FPGA.CPU
+        model:   Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.xml
+        weights: Retail/object_detection/text/pixel_link_mobilenet_v2/0001/text-detection-0002.bin
+        adapter:
+          type: text_detection
+          pixel_link_out: pixel_link/add_2
+          pixel_class_out: pixel_cls/add_2
+        cpu_extensions: AUTO
+        bitstream: 2019R1_PL1_FP11_MobileNet_Clamp.aocx
 
     datasets:
       - name: ICDAR2015

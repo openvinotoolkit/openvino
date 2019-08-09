@@ -12,19 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "contract_kernel_selector.h"
 #include "contract_kernel_ref.h"
 
-namespace kernel_selector
-{
-    contract_kernel_selector::contract_kernel_selector()
-    {
-        Attach<ContractKernelRef>();
-    }
+namespace kernel_selector {
+contract_kernel_selector::contract_kernel_selector() { Attach<ContractKernelRef>(); }
 
-    KernelsData contract_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::CONTRACT);
-    }
+KernelsData contract_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::CONTRACT);
 }
+}  // namespace kernel_selector

@@ -18,13 +18,12 @@
 #pragma once
 #include "api/CPP/tile.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<tile> : public typed_program_node_base<tile>
-{
+struct typed_program_node<tile> : public typed_program_node_base<tile> {
     using parent = typed_program_node_base<tile>;
 
 public:
@@ -36,8 +35,7 @@ public:
 using tile_node = typed_program_node<tile>;
 
 template <>
-class typed_primitive_inst<tile> : public typed_primitive_inst_base<tile>
-{
+class typed_primitive_inst<tile> : public typed_primitive_inst_base<tile> {
     using parent = typed_primitive_inst_base<tile>;
 
 public:
@@ -50,4 +48,4 @@ public:
 
 using tile_inst = typed_primitive_inst<tile>;
 
-}
+}  // namespace cldnn

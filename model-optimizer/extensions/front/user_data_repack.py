@@ -20,6 +20,7 @@ from mo.graph.graph import Graph
 
 class UserDataRepack(FrontReplacementPattern):
     enabled = True
+    run_not_recursively = True
 
     def run_after(self):
         return []

@@ -79,7 +79,7 @@ def protobuf2nx(pb):
             graph.add_node(name, kind='op', op='Const', pb=inp, pb_init=initializers.node[name]['pb'])
         else:
             # this is a placeholder
-            graph.add_node(name, kind='op', op='Placeholder', pb=inp)
+            graph.add_node(name, kind='op', op='Parameter', pb=inp)
         # add to a tensors map
         assert not name in data_nodes_map, 'Inconsistency between data_nodes_map and graph.nodes'
         data_nodes_map[name] = (name, 0)

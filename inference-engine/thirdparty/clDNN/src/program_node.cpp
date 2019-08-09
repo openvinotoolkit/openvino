@@ -19,47 +19,49 @@
 #include "primitive_inst.h"
 #include "to_string_utils.h"
 #include "json_object.h"
-
+#include <vector>
+#include <memory>
+#include <utility>
+#include <string>
+#include <set>
 
 using namespace cldnn;
 
-program_node::program_node(std::shared_ptr<primitive> prim, program_impl & prog) : desc(prim), myprog(prog), org_id(prim->id)
-{
+program_node::program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    : desc(prim), myprog(prog), org_id(prim->id) {
     if (prim)
         output_layout.data_padding = prim->output_padding;
 }
 
-void program_node::replace_dependency(size_t idx, program_node& new_dep)
-{
+void program_node::replace_dependency(size_t idx, program_node& new_dep) {
     if (idx >= dependencies.size())
         return;
     if (dependencies[idx] == &new_dep)
         return;
 
-    dependencies[idx]->users.remove(this);
+    auto it = std::find(dependencies[idx]->users.begin(), dependencies[idx]->users.end(), this);
+    if (it != dependencies[idx]->users.end()) {
+        dependencies[idx]->users.erase(it);
+    }
     myprog.remove_if_dangling(*dependencies[idx]);
 
     dependencies[idx] = &new_dep;
     new_dep.users.push_back(this);
 }
 
-void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep)
-{
+void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i] == &old_dep)
             return replace_dependency(i, new_dep);
 }
 
-std::vector<primitive_id> program_node::get_dependencies_ids() const
-{
+std::vector<primitive_id> program_node::get_dependencies_ids() const {
     std::vector<primitive_id> dep_ids;
-    for (auto& dependency : dependencies)
-        dep_ids.push_back(dependency->get_primitive()->id);
+    for (auto& dependency : dependencies) dep_ids.push_back(dependency->get_primitive()->id);
     return dep_ids;
 }
 
-void program_node::remove_dependency(size_t idx)
-{
+void program_node::remove_dependency(size_t idx) {
     if (idx >= dependencies.size())
         return;
 
@@ -68,23 +70,15 @@ void program_node::remove_dependency(size_t idx)
     dependencies.erase(dependencies.begin() + idx);
 }
 
-std::set<primitive_id> program_node::get_memory_dependencies() const
-{
-    return memory_dependencies;
+std::set<primitive_id> program_node::get_memory_dependencies() const { return memory_dependencies; }
+
+void program_node::add_memory_dependency(primitive_id prim) { memory_dependencies.insert(prim); }
+
+void program_node::add_memory_dependency(std::vector<primitive_id> prim_list) {
+    memory_dependencies.insert(prim_list.begin(), prim_list.end());
 }
 
-void program_node::add_memory_dependency(primitive_id prim)
-{
-    memory_dependencies.insert(prim);
-}
-
-void program_node::add_memory_dependency(std::vector<primitive_id> prim_list)
-{
-    memory_dependencies.insert(prim_list.begin(),prim_list.end());
-}
-
-std::unique_ptr<json_composite> program_node::desc_to_json() const
-{
+std::unique_ptr<json_composite> program_node::desc_to_json() const {
     std::unique_ptr<json_composite> node_info = std::unique_ptr<json_composite>(new json_composite());
     node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(this)));
     node_info->add("id", id());
@@ -109,21 +103,17 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const
     node_info->add("in data flow", bool_to_str(data_flow));
     node_info->add("output", bool_to_str(output));
 
-
     std::vector<std::string> deps_ptrs;
     {
         bool empty = true;
         auto itr = dependencies.begin();
-        while (itr != dependencies.end())
-        {
-            if (empty)
-            {
+        while (itr != dependencies.end()) {
+            if (empty) {
                 empty = false;
             }
             deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(*itr++)));
         }
-        if (deps_ptrs.empty())
-        {
+        if (deps_ptrs.empty()) {
             deps_ptrs.push_back("null");
         }
     }
@@ -133,27 +123,21 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const
     {
         bool empty = true;
         auto itr = users.begin();
-        while (itr != users.end())
-        {
-            if (empty)
-            {
+        while (itr != users.end()) {
+            if (empty) {
                 empty = false;
             }
             users_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(*itr++)));
         }
-        if (users_ptrs.empty())
-        {
+        if (users_ptrs.empty()) {
             users_ptrs.push_back("null");
         }
     }
     node_info->add("users", users_ptrs);
     std::vector<std::string> impls;
-    if (!selected_impl)
-    {
+    if (!selected_impl) {
         impls.push_back("null");
-    }
-    else
-    {
+    } else {
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
@@ -167,15 +151,13 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const
     return node_info;
 }
 
-void program_node::remove_dependency(program_node & node)
-{
+void program_node::remove_dependency(program_node& node) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i] == &node)
             remove_dependency(i);
 }
 
-bool program_node::is_detached(bool whole_branch)
-{
+bool program_node::is_detached(bool whole_branch) {
     if (!users.empty())
         return false;
     if (!whole_branch && !dependencies.empty())
@@ -183,42 +165,35 @@ bool program_node::is_detached(bool whole_branch)
     return true;
 }
 
-layout program_node::calc_output_layout() const
-{
-    return type()->calc_output_layout(*this);
-}
+layout program_node::calc_output_layout() const { return type()->calc_output_layout(*this); }
 
-layout program_node::get_output_layout(bool invalidate_users_if_changed)
-{
+layout program_node::get_output_layout(bool invalidate_users_if_changed) {
     if (valid_output_layout)
         return output_layout;
 
     auto new_layout = calc_output_layout();
     set_output_layout(new_layout, invalidate_users_if_changed);
-    return new_layout;
+    return output_layout;
 }
 
-layout program_node::get_output_layout() const
-{
+layout program_node::get_output_layout() const {
     if (!valid_output_layout)
         throw std::runtime_error("Output layout not calculated");
 
     return output_layout;
 }
 
-layout program_node::get_non_padded_output_layout(bool invalidate_users_if_changed)
-{
+layout program_node::get_non_padded_output_layout(bool invalidate_users_if_changed) {
     auto out_layout = get_output_layout(invalidate_users_if_changed);
-    auto result = layout({ out_layout.data_type, out_layout.format, out_layout.size });
+    auto result = layout({out_layout.data_type, out_layout.format, out_layout.size});
     return result;
 }
 
-bool program_node::set_output_layout(layout new_layout, bool invalidate_users_if_changed)
-{
+bool program_node::set_output_layout(layout new_layout, bool invalidate_users_if_changed) {
     merge_output_padding(new_layout.data_padding);
     new_layout.data_padding = output_layout.data_padding;
     bool changed = (new_layout != output_layout);
-    if (changed && invalidate_users_if_changed) //output_layout has changed! invalidate users
+    if (changed && invalidate_users_if_changed)  // output_layout has changed! invalidate users
         invalidate_users();
 
     output_layout = new_layout;
@@ -226,46 +201,73 @@ bool program_node::set_output_layout(layout new_layout, bool invalidate_users_if
     return changed;
 }
 
-bool program_node::recalc_output_layout(bool invalidate_users_if_changed)
-{
+bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
     return set_output_layout(calc_output_layout(), invalidate_users_if_changed);
 }
 
-bool program_node::has_padded_dependency()
-{
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](program_node* node) { return node->is_padded(); });
+bool program_node::has_padded_dependency() {
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](program_node* node) {
+        return node->is_padded();
+    });
 }
 
-bool program_node::has_padded_dependency() const
-{
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const program_node* node) { return node->is_padded(); });
+bool program_node::has_padded_dependency() const {
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const program_node* node) {
+        return node->is_padded();
+    });
 }
 
-void program_node::invalidate_users() const
-{
-    for (auto& user : users)
-    {
-        if (user->valid_output_layout)
-        {
+void program_node::invalidate_users() const {
+    for (auto& user : users) {
+        if (user->valid_output_layout) {
             user->valid_output_layout = false;
             user->invalidate_users();
         }
     }
 }
 
-primitive_id details::internal_program_node_base::get_next_internal_id()
-{
-    static std::atomic<uint64_t> counter{ 0 };
+void program_node::support_padding_all(bool support) {
+    std::fill(_support_padding_in_axis.begin(), _support_padding_in_axis.end(), support);
+}
+
+bool program_node::is_padding_supported(int axis, int padding) const {
+    if (!support_padding(axis))
+        return false;
+
+    auto fmt = output_layout.format;
+
+    // WA for known cases of padding not supported in implementations
+    if (fmt == format::bfyx_f16) {
+        if (axis == 0 || (axis == 1 && padding % 16 != 0))
+            return false;
+    }
+
+    if (fmt == format::fs_b_yx_fsv32 && (axis == 0))
+        return false;
+
+    for (const auto& block : fmt.block_sizes()) {
+        size_t block_axis = block.first;
+        int block_size = block.second;
+
+        if (axis != static_cast<int>(block_axis))
+            continue;
+
+        if (padding % block_size != 0)
+            return false;
+    }
+
+    return true;
+}
+
+primitive_id details::internal_program_node_base::get_next_internal_id() {
+    static std::atomic<uint64_t> counter{0};
     auto idx = counter++;
     return primitive_id("_cldnn_internal_") + std::to_string(idx);
 }
 
-details::internal_program_node_base::internal_program_node_base(program_impl & prog) : program_node(nullptr, prog), internal_id(get_next_internal_id())
-{
-}
+details::internal_program_node_base::internal_program_node_base(program_impl& prog)
+    : program_node(nullptr, prog), internal_id(get_next_internal_id()) {}
 
-void details::internal_program_node_base::set_implementation(std::unique_ptr<primitive_impl>&& impl)
-{
+void details::internal_program_node_base::set_implementation(std::unique_ptr<primitive_impl>&& impl) {
     selected_impl = std::move(impl);
 }
-

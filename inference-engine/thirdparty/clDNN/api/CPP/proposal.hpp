@@ -22,8 +22,7 @@
 #include "../C/proposal.h"
 #include "primitive.hpp"
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -31,120 +30,161 @@ namespace cldnn
 /// @addtogroup cpp_primitives Primitives
 /// @{
 
-struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)>
-{
+struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)> {
     CLDNN_DECLARE_PRIMITIVE(proposal)
 
-    proposal(
-        const primitive_id& id,
-        const primitive_id& cls_scores,
-        const primitive_id& bbox_pred,
-        const primitive_id& image_info,
-        int max_proposals,
-        float iou_threshold,
-        int min_bbox_size,
-        int feature_stride,
-        int pre_nms_topn,
-        int post_nms_topn,
-        const std::vector<float>& ratios_param,
-        const std::vector<float>& scales_param,
-        const padding& output_padding = padding()
-        )
+    proposal(const primitive_id& id,
+             const primitive_id& cls_scores,
+             const primitive_id& bbox_pred,
+             const primitive_id& image_info,
+             int max_proposals,
+             float iou_threshold,
+             int min_bbox_size,
+             int feature_stride,
+             int pre_nms_topn,
+             int post_nms_topn,
+             const std::vector<float>& ratios_param,
+             const std::vector<float>& scales_param,
+             const padding& output_padding = padding())
         : primitive_base(id, {cls_scores, bbox_pred, image_info}, output_padding),
-                 max_proposals(max_proposals),
-                 iou_threshold(iou_threshold),
-                 base_bbox_size(16),
-                 min_bbox_size(min_bbox_size),
-                 feature_stride(feature_stride),
-                 pre_nms_topn(pre_nms_topn),
-                 post_nms_topn(post_nms_topn),
-                 ratios(ratios_param),
-                 scales(scales_param),
-                 coordinates_offset(1.0f),
-                 box_coordinate_scale(1.0f),
-                 box_size_scale(1.0f),
-                 swap_xy(false),
-                 initial_clip(false),
-                 clip_before_nms(true),
-                 clip_after_nms(false),
-                 round_ratios(true),
-                 shift_anchors(false),
-                 normalize(false)
-    {
-    }
+          max_proposals(max_proposals),
+          iou_threshold(iou_threshold),
+          base_bbox_size(16),
+          min_bbox_size(min_bbox_size),
+          feature_stride(feature_stride),
+          pre_nms_topn(pre_nms_topn),
+          post_nms_topn(post_nms_topn),
+          ratios(ratios_param),
+          scales(scales_param),
+          coordinates_offset(1.0f),
+          box_coordinate_scale(1.0f),
+          box_size_scale(1.0f),
+          for_deformable(false),
+          swap_xy(false),
+          initial_clip(false),
+          clip_before_nms(true),
+          clip_after_nms(false),
+          round_ratios(true),
+          shift_anchors(false),
+          normalize(false) {}
 
-    proposal(
-        const primitive_id& id,
-        const primitive_id& cls_scores,
-        const primitive_id& bbox_pred,
-        const primitive_id& image_info,
-        int max_proposals,
-        float iou_threshold,
-        int base_bbox_size,
-        int min_bbox_size,
-        int feature_stride,
-        int pre_nms_topn,
-        int post_nms_topn,
-        const std::vector<float>& ratios_param,
-        const std::vector<float>& scales_param,
-        float coordinates_offset,
-        float box_coordinate_scale,
-        float box_size_scale,
-        bool swap_xy,
-        bool initial_clip,
-        bool clip_before_nms,
-        bool clip_after_nms,
-        bool round_ratios,
-        bool shift_anchors,
-        bool normalize,
-        const padding& output_padding = padding()
-        )
+    proposal(const primitive_id& id,
+             const primitive_id& cls_scores,
+             const primitive_id& bbox_pred,
+             const primitive_id& image_info,
+             int max_proposals,
+             float iou_threshold,
+             int base_bbox_size,
+             int min_bbox_size,
+             int feature_stride,
+             int pre_nms_topn,
+             int post_nms_topn,
+             const std::vector<float>& ratios_param,
+             const std::vector<float>& scales_param,
+             float coordinates_offset,
+             float box_coordinate_scale,
+             float box_size_scale,
+             bool for_deformable,
+             bool swap_xy,
+             bool initial_clip,
+             bool clip_before_nms,
+             bool clip_after_nms,
+             bool round_ratios,
+             bool shift_anchors,
+             bool normalize,
+             const padding& output_padding = padding())
         : primitive_base(id, {cls_scores, bbox_pred, image_info}, output_padding),
-                 max_proposals(max_proposals),
-                 iou_threshold(iou_threshold),
-                 base_bbox_size(base_bbox_size),
-                 min_bbox_size(min_bbox_size),
-                 feature_stride(feature_stride),
-                 pre_nms_topn(pre_nms_topn),
-                 post_nms_topn(post_nms_topn),
-                 ratios(ratios_param),
-                 scales(scales_param),
-                 coordinates_offset(coordinates_offset),
-                 box_coordinate_scale(box_coordinate_scale),
-                 box_size_scale(box_size_scale),
-                 swap_xy(swap_xy),
-                 initial_clip(initial_clip),
-                 clip_before_nms(clip_before_nms),
-                 clip_after_nms(clip_after_nms),
-                 round_ratios(round_ratios),
-                 shift_anchors(shift_anchors),
-                 normalize(normalize)
-    {
-    }
+          max_proposals(max_proposals),
+          iou_threshold(iou_threshold),
+          base_bbox_size(base_bbox_size),
+          min_bbox_size(min_bbox_size),
+          feature_stride(feature_stride),
+          pre_nms_topn(pre_nms_topn),
+          post_nms_topn(post_nms_topn),
+          ratios(ratios_param),
+          scales(scales_param),
+          coordinates_offset(coordinates_offset),
+          box_coordinate_scale(box_coordinate_scale),
+          box_size_scale(box_size_scale),
+          for_deformable(for_deformable),
+          swap_xy(swap_xy),
+          initial_clip(initial_clip),
+          clip_before_nms(clip_before_nms),
+          clip_after_nms(clip_after_nms),
+          round_ratios(round_ratios),
+          shift_anchors(shift_anchors),
+          normalize(normalize) {}
 
-    proposal(const dto* dto) :
-        primitive_base(dto),
-        max_proposals(dto->max_proposals),
-        iou_threshold(dto->iou_threshold),
-        base_bbox_size(dto->base_bbox_size),
-        min_bbox_size(dto->min_bbox_size),
-        feature_stride(dto->feature_stride),
-        pre_nms_topn(dto->pre_nms_topn),
-        post_nms_topn(dto->post_nms_topn),
-        ratios(float_arr_to_vector(dto->ratios)),
-        scales(float_arr_to_vector(dto->scales)),
-        coordinates_offset(dto->coordinates_offset),
-        box_coordinate_scale(dto->box_coordinate_scale),
-        box_size_scale(dto->box_size_scale),
-        swap_xy(dto->swap_xy != 0),
-        initial_clip(dto->initial_clip != 0),
-        clip_before_nms(dto->clip_before_nms != 0),
-        clip_after_nms(dto->clip_after_nms != 0),
-        round_ratios(dto->round_ratios != 0),
-        shift_anchors(dto->shift_anchors != 0),
-        normalize(dto->normalize != 0)
-    {
-    }
+    proposal(const primitive_id& id,
+             const primitive_id& cls_scores,
+             const primitive_id& bbox_pred,
+             const primitive_id& image_info,
+             const primitive_id& second_output,
+             int max_proposals,
+             float iou_threshold,
+             int base_bbox_size,
+             int min_bbox_size,
+             int feature_stride,
+             int pre_nms_topn,
+             int post_nms_topn,
+             const std::vector<float>& ratios_param,
+             const std::vector<float>& scales_param,
+             float coordinates_offset,
+             float box_coordinate_scale,
+             float box_size_scale,
+             bool for_deformable,
+             bool swap_xy,
+             bool initial_clip,
+             bool clip_before_nms,
+             bool clip_after_nms,
+             bool round_ratios,
+             bool shift_anchors,
+             bool normalize,
+             const padding& output_padding = padding())
+            : primitive_base(id, {cls_scores, bbox_pred, image_info, second_output}, output_padding),
+              max_proposals(max_proposals),
+              iou_threshold(iou_threshold),
+              base_bbox_size(base_bbox_size),
+              min_bbox_size(min_bbox_size),
+              feature_stride(feature_stride),
+              pre_nms_topn(pre_nms_topn),
+              post_nms_topn(post_nms_topn),
+              ratios(ratios_param),
+              scales(scales_param),
+              coordinates_offset(coordinates_offset),
+              box_coordinate_scale(box_coordinate_scale),
+              box_size_scale(box_size_scale),
+              for_deformable(for_deformable),
+              swap_xy(swap_xy),
+              initial_clip(initial_clip),
+              clip_before_nms(clip_before_nms),
+              clip_after_nms(clip_after_nms),
+              round_ratios(round_ratios),
+              shift_anchors(shift_anchors),
+              normalize(normalize) {}
+
+    proposal(const dto* dto)
+        : primitive_base(dto),
+          max_proposals(dto->max_proposals),
+          iou_threshold(dto->iou_threshold),
+          base_bbox_size(dto->base_bbox_size),
+          min_bbox_size(dto->min_bbox_size),
+          feature_stride(dto->feature_stride),
+          pre_nms_topn(dto->pre_nms_topn),
+          post_nms_topn(dto->post_nms_topn),
+          ratios(float_arr_to_vector(dto->ratios)),
+          scales(float_arr_to_vector(dto->scales)),
+          coordinates_offset(dto->coordinates_offset),
+          box_coordinate_scale(dto->box_coordinate_scale),
+          box_size_scale(dto->box_size_scale),
+          for_deformable(dto->for_deformable != 0),
+          swap_xy(dto->swap_xy != 0),
+          initial_clip(dto->initial_clip != 0),
+          clip_before_nms(dto->clip_before_nms != 0),
+          clip_after_nms(dto->clip_after_nms != 0),
+          round_ratios(dto->round_ratios != 0),
+          shift_anchors(dto->shift_anchors != 0),
+          normalize(dto->normalize != 0) {}
 
     int max_proposals;
     float iou_threshold;
@@ -158,6 +198,7 @@ struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)
     float coordinates_offset;
     float box_coordinate_scale;
     float box_size_scale;
+    bool for_deformable;
     bool swap_xy;
     bool initial_clip;
     bool clip_before_nms;
@@ -167,8 +208,7 @@ struct proposal : public primitive_base<proposal, CLDNN_PRIMITIVE_DESC(proposal)
     bool normalize;
 
 protected:
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.max_proposals = max_proposals;
         dto.iou_threshold = iou_threshold;
         dto.base_bbox_size = base_bbox_size;
@@ -181,6 +221,7 @@ protected:
         dto.coordinates_offset = coordinates_offset;
         dto.box_coordinate_scale = box_coordinate_scale;
         dto.box_size_scale = box_size_scale;
+        dto.for_deformable = for_deformable;
         dto.swap_xy = swap_xy;
         dto.initial_clip = initial_clip;
         dto.clip_before_nms = clip_before_nms;
@@ -194,4 +235,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

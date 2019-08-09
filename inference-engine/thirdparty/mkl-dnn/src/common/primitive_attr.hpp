@@ -113,6 +113,7 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
                 int ker_w;
                 int str_h;
                 int str_w;
+                mkldnn::impl::data_type_t in_dt;
                 const float* weights_data;
                 const float* biases_data;
             } dw_conv;
@@ -166,6 +167,7 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
     mkldnn::impl::status_t append_depthwise(mkldnn::impl::alg_kind_t alg,
             const float* weights_data, const float* biases_data);
     mkldnn::impl::status_t append_dw_conv(int in_h, int in_w, int ker_h, int ker_w, int str_h, int str_w,
+                                          mkldnn::impl::data_type_t in_dt,
                                           const float* weights_data,
                                           const float* biases_data);
     mkldnn::impl::status_t append_binarization(mkldnn::impl::alg_kind_t alg, const float* weights_data,
@@ -178,6 +180,16 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
         for (int idx = start; idx < stop; ++idx)
             if (entry_[idx].kind == kind) return idx;
         return -1;
+    }
+
+    int count(mkldnn::impl::primitive_kind_t kind, int start = 0,
+             int stop = -1) const {
+        if (stop == -1) stop = len_;
+        stop = mkldnn::impl::nstl::min(stop, len_);
+        int cnt = 0;
+        for (int idx = start; idx < stop; ++idx)
+            if (entry_[idx].kind == kind) cnt++;
+        return cnt;
     }
 
     bool has_default_values() const { return len_ == 0; }

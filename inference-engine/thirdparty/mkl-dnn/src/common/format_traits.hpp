@@ -136,6 +136,9 @@ DECL_TRAITS(Owi16o, wei, _16o, 3, 1);
 DECL_TRAITS(OIw8i16o2i, wei, _8i16o2i, 3, 1);
 DECL_TRAITS(IOw16o16i, wei, _16o16i, 3, 1);
 DECL_TRAITS(OIw8o16i2o, wei, _8o16i2o, 3, 1);
+DECL_TRAITS(IOw8o16i2o, wei, _8o16i2o, 3, 1);
+DECL_TRAITS(OIw4i16o4i, wei, _4i16o4i, 3, 1);
+DECL_TRAITS(OIw4i16o4i_s8s8, wei, _4i16o4i_s8s8, 3, 1);
 
 /* wei: 4D */
 DECL_TRAITS(oihw, wei, _, 4, 2);
@@ -155,7 +158,9 @@ DECL_TRAITS(OIhw16i16o, wei, _16i16o, 4, 2);
 DECL_TRAITS(OIhw4i16o4i, wei, _4i16o4i, 4, 2);
 DECL_TRAITS(OIhw4i16o4i_s8s8, wei, _4i16o4i_s8s8, 4, 2);
 DECL_TRAITS(OIhw8i16o2i, wei, _8i16o2i, 4, 2);
+DECL_TRAITS(IOhw8i16o2i, wei, _8i16o2i, 4, 2);
 DECL_TRAITS(OIhw8o16i2o, wei, _8o16i2o, 4, 2);
+DECL_TRAITS(IOhw8o16i2o, wei, _8o16i2o, 4, 2);
 DECL_TRAITS(OIhw8o8i, wei, _8o8i, 4, 2);
 DECL_TRAITS(OIhw16o16i, wei, _16o16i, 4, 2);
 DECL_TRAITS(IOhw16o16i, wei, _16o16i, 4, 2);
@@ -181,6 +186,8 @@ DECL_TRAITS(Odhwi16o, wei, _16o, 5, 3);
 DECL_TRAITS(oIdhw8i, wei, _8i, 5, 3);
 DECL_TRAITS(oIdhw16i, wei, _16i, 5, 3);
 DECL_TRAITS(OIdhw8i16o2i, wei, _8i16o2i, 5, 3);
+DECL_TRAITS(OIdhw8o16i2o, wei, _8o16i2o, 5, 3);
+DECL_TRAITS(IOdhw8o16i2o, wei, _8o16i2o, 5, 3);
 
 /* gwei: 4D */
 DECL_TRAITS(goiw, gwei, _, 4, 1);
@@ -194,9 +201,14 @@ DECL_TRAITS(gOIw16o16i, gwei, _16o16i, 4, 1);
 DECL_TRAITS(gOiw4o, gwei, _4o, 4, 1);
 DECL_TRAITS(gOiw16o, gwei, _16o, 4, 1);
 DECL_TRAITS(gOwi16o, gwei, _16o, 4, 1);
-DECL_TRAITS(gOIw8i16o2i, gwei, _8i16o2i, 4, 1);
 DECL_TRAITS(gIOw16o16i, gwei, _16o16i, 4, 1);
+DECL_TRAITS(gOIw8i16o2i, gwei, _8i16o2i, 4, 1);
 DECL_TRAITS(gOIw8o16i2o, gwei, _8o16i2o, 4, 1);
+DECL_TRAITS(gIOw8o16i2o, gwei, _8o16i2o, 4, 1);
+DECL_TRAITS(gOIw4i16o4i, gwei, _4i16o4i, 4, 1);
+DECL_TRAITS(gOIw4i16o4i_s8s8, gwei, _4i16o4i_s8s8, 4, 1);
+DECL_TRAITS(Goiw16g, gwei, _16g, 4, 1);
+DECL_TRAITS(Goiw16g_s8s8, gwei, _16g_s8s8, 4, 1);
 
 /* gwei: 5D */
 DECL_TRAITS(goihw, gwei, _, 5, 2);
@@ -213,8 +225,9 @@ DECL_TRAITS(gOIhw4i16o4i_s8s8, gwei, _4i16o4i_s8s8, 5, 2);
 DECL_TRAITS(gOIhw2i8o4i, gwei, _2i8o4i, 5, 2);
 DECL_TRAITS(gOIhw2i8o4i_s8s8, gwei, _2i8o4i_s8s8, 5, 2);
 DECL_TRAITS(gOIhw8i16o2i, gwei, _8i16o2i, 5, 2);
-DECL_TRAITS(gOIdhw8i16o2i, gwei, _8i16o2i, 5, 2);
+DECL_TRAITS(gIOhw8i16o2i, gwei, _8i16o2i, 5, 2);
 DECL_TRAITS(gOIhw8o16i2o, gwei, _8o16i2o, 5, 2);
+DECL_TRAITS(gIOhw8o16i2o, gwei, _8o16i2o, 5, 2);
 DECL_TRAITS(gOIhw8o8i, gwei, _8o8i, 5, 2);
 DECL_TRAITS(gOIhw4o4i, gwei, _4o4i, 5, 2);
 DECL_TRAITS(gOIhw4o4i_s8s8, gwei, _4o4i_s8s8, 5, 2);
@@ -237,6 +250,9 @@ DECL_TRAITS(gOIdhw8o8i, gwei, _8o8i, 6, 3);
 DECL_TRAITS(gOdhwi8o, gwei, _8o, 6, 3);
 DECL_TRAITS(gOIdhw16i16o, gwei, _16i16o, 6, 3);
 DECL_TRAITS(gOIdhw16o16i, gwei, _16o16i, 6, 3);
+DECL_TRAITS(gOIdhw8i16o2i, gwei, _8i16o2i, 6, 3);
+DECL_TRAITS(gOIdhw8o16i2o, gwei, _8o16i2o, 6, 3);
+DECL_TRAITS(gIOdhw8o16i2o, gwei, _8o16i2o, 6, 3);
 DECL_TRAITS(gOidhw4o, gwei, _4o, 6, 3);
 DECL_TRAITS(gOidhw16o, gwei, _16o, 6, 3);
 DECL_TRAITS(gOdhwi16o, gwei, _16o, 6, 3);

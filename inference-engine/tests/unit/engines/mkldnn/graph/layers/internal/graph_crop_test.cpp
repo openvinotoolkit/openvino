@@ -19,13 +19,7 @@ using namespace std;
 using namespace mkldnn;
 
 struct crop_test_params {
-    struct {
-        size_t n;
-        size_t c;
-        size_t h;
-        size_t w;
-    } in;
-
+    InferenceEngine::SizeVector in;
     std::vector<int> axis;
     std::vector<int> offsets;
     std::vector<int> dims;
@@ -43,7 +37,7 @@ template <typename data_t>
 void ref_crop(InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<data_t> &dst, crop_test_params prm) {
     data_t *dst_ptr = dst.data();
 
-    std::vector<int> offsets(4);
+    std::vector<int> offsets(4, 0);
     for (size_t i = 0; i < prm.offsets.size(); i++) {
         offsets[prm.axis[i]] = prm.offsets[i];
     }
@@ -52,15 +46,19 @@ void ref_crop(InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<data_t
     int OFFSET_H = offsets.at(2);
     int OFFSET_W = offsets.at(3);
 
-    const int ON = dst.dims().at(3);
-    const int OC = dst.dims().at(2);
-    const int OH = dst.dims().at(1);
-    const int OW = dst.dims().at(0);
+    auto dst_dims = dst.getTensorDesc().getDims();
+    int dst_ndims = static_cast<int>(dst_dims.size());
+    const int ON = (dst_ndims  > 0) ? dst_dims[0] : 1;
+    const int OC = (dst_ndims  > 1) ? dst_dims[1] : 1;
+    const int OH = (dst_ndims  > 2) ? dst_dims[2] : 1;
+    const int OW = (dst_ndims  > 3) ? dst_dims[3] : 1;
 
-    const int _IN = src.dims().at(0);
-    const int IC = src.dims().at(1);
-    const int IH = src.dims().at(2);
-    const int IW = src.dims().at(3);
+    auto src_dims = src.getTensorDesc().getDims();
+    int src_ndims = static_cast<int>(src_dims.size());
+    const int _IN = (src_ndims  > 0) ? src_dims[0] : 1;
+    const int IC = (src_ndims  > 1) ? src_dims[1] : 1;
+    const int IH = (src_ndims  > 2) ? src_dims[2] : 1;
+    const int IW = (src_ndims  > 3) ? src_dims[3] : 1;
 
     auto dst_off = [=](int n, int c, int h, int w) {
         return (n * OW * OH * OC + c * OW * OH + h * OW + w);
@@ -95,10 +93,7 @@ class MKLDNNGraphCropTests: public TestsCommon,
         <layer name="in1" type="Input" precision="FP32" id="0">
             <output>
                 <port id="0">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                    _IN_
                 </port>
             </output>
         </layer>
@@ -106,18 +101,12 @@ class MKLDNNGraphCropTests: public TestsCommon,
             <data axis="_AXC_" offset="_OFC_" dim="_DIMC_" />
             <input>
                 <port id="1">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                    _IN_
                 </port>
             </input>
             <output>
                 <port id="2">
-                    <dim>_DN_</dim>
-                    <dim>_DC_</dim>
-                    <dim>_DH_</dim>
-                    <dim>_DW_</dim>
+                    _OUT_
                 </port>
             </output>
         </layer>
@@ -131,9 +120,10 @@ class MKLDNNGraphCropTests: public TestsCommon,
 protected:
     std::string getModel(crop_test_params p) {
         std::string model = model_t;
+        std::string in_shape, out_shape;
 
         std::string axis, offset, dim;
-        std::vector<size_t> outDims = {p.in.n, p.in.c, p.in.h, p.in.w};
+        InferenceEngine::SizeVector outDims = p.in;
         for (size_t i = 0; i < p.offsets.size(); i++) {
             if (!axis.empty())
                 axis += ",";
@@ -147,14 +137,18 @@ protected:
             outDims[p.axis[i]] = p.dims[i];
         }
 
-        REPLACE_WITH_NUM(model, "_IW_", p.in.w);
-        REPLACE_WITH_NUM(model, "_IH_", p.in.h);
-        REPLACE_WITH_NUM(model, "_IC_", p.in.c);
-        REPLACE_WITH_NUM(model, "_IN_", p.in.n);
-        REPLACE_WITH_NUM(model, "_DN_", outDims[0]);
-        REPLACE_WITH_NUM(model, "_DC_", outDims[1]);
-        REPLACE_WITH_NUM(model, "_DH_", outDims[2]);
-        REPLACE_WITH_NUM(model, "_DW_", outDims[3]);
+        for (size_t i = 0; i < p.in.size(); i++) {
+            in_shape += "<dim>";
+            in_shape += std::to_string(p.in[i]) + "</dim>\n";
+        }
+        REPLACE_WITH_STR(model, "_IN_", in_shape);
+
+        for (size_t i = 0; i < outDims.size(); i++) {
+            out_shape += "<dim>";
+            out_shape += std::to_string(outDims[i]) + "</dim>\n";
+        }
+        REPLACE_WITH_STR(model, "_OUT_", out_shape);
+
         REPLACE_WITH_STR(model, "_AXC_", axis);
         REPLACE_WITH_STR(model, "_OFC_", offset);
         REPLACE_WITH_STR(model, "_DIMC_", dim);
@@ -188,9 +182,7 @@ protected:
                 }
             }
 
-            InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
-
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW,  dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32,  p.in, InferenceEngine::TensorDesc::getLayoutByDims(p.in) });
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -250,7 +242,9 @@ INSTANTIATE_TEST_CASE_P(
                             ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
                         }} },
                 crop_test_params{{1, 5, 32, 32}, {3}, {10}, {20}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                crop_test_params{{1, 5, 32, 20}, {2, 3}, {30, 10}, {2, 10}, 1, MKLDNNPlugin::impl_desc_type::unknown }));
+                crop_test_params{{1, 5, 32, 20}, {2, 3}, {30, 10}, {2, 10}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                crop_test_params{ { 32, 32 },{ 1 },{ 10 },{ 20 }, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                crop_test_params{ { 32, 20 },{ 0, 1 },{ 30, 10 },{ 2, 10 }, 1, MKLDNNPlugin::impl_desc_type::unknown }));
 
 class MKLDNNGraphDynBatchCropTests: public MKLDNNGraphCropTests {
 protected:
@@ -260,7 +254,7 @@ protected:
             TestsCommon::SetUp();
             crop_test_params p = ::testing::WithParamInterface<crop_test_params>::GetParam();
             std::string model = getModel(p);
-            size_t MB = p.in.n;
+            size_t MB = p.in[0];
             if (MB < 2)
                 MB = 2;
 
@@ -273,8 +267,9 @@ protected:
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
             graph.CreateGraph(network);
 
-            InferenceEngine::SizeVector dims_src = {MB, p.in.c, p.in.h, p.in.w};
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::SizeVector dims_src = p.in;
+            dims_src[0] = MB;
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::TensorDesc::getLayoutByDims(dims_src) });
             InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
             if (srcPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";

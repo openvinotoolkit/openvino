@@ -16,179 +16,159 @@
 
 #include "fused_conv_eltwise_kernel_bfyx_1x1_opt.h"
 #include "kernel_selector_utils.h"
+#include <string>
+#include <vector>
 
 namespace kernel_selector {
 
-    ParamsKey fused_conv_eltwise_kernel_bfyx_1x1_opt::GetSupportedKey() const
-	{
-        ParamsKey k;
-        k.EnableInputDataType(Datatype::F32);
-        k.EnableInputWeightsType(WeightsType::F32);
-        k.EnableOutputDataType(Datatype::F32);
-        k.EnableInputLayout(DataLayout::bfyx);
-        k.EnableOutputLayout(DataLayout::bfyx);
-        k.EnableTensorOffset();
-        k.EnableTensorPitches();
-        k.EnableSubGroup();
-        //k.EnableSubGroupShort(); // we need it for FP16 only. we check it on the Validate phase
-        k.EnableBiasPerFeature();
-        k.EnableNonBiasTerm();
-        k.EnableBatching();
-        k.EnableFusedConvEltwSplitSupport();
-        k.EnableFusedConvEltwiseRWOutOpt(); // data for second input are already in output
-        return k;
-	}
+ParamsKey fused_conv_eltwise_kernel_bfyx_1x1_opt::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableSubGroup();
+    // k.EnableSubGroupShort(); // we need it for FP16 only. we check it on the Validate phase
+    k.EnableBiasPerFeature();
+    k.EnableNonBiasTerm();
+    k.EnableBatching();
+    k.EnableFusedConvEltwSplitSupport();
+    k.EnableFusedConvEltwiseRWOutOpt();  // data for second input are already in output
+    return k;
+}
 
-    struct block_params
-    {
-        int32_t out_width;
-        int32_t out_height;
-        int32_t out_depth;
-    };
+struct block_params {
+    int32_t out_width;
+    int32_t out_height;
+    int32_t out_depth;
+};
 
-    static block_params get_out_block_size(const fused_conv_eltwise_params& p)
-    {
-        auto out_depth = 8;
+static block_params get_out_block_size(const fused_conv_eltwise_params& p) {
+    auto out_depth = 8;
 
-        if (p.output.X().v == 7)
-        {
-            auto gws0 = p.output.X().v / 7;
-            auto gws1 = p.output.Y().v / 1;
-            auto gws2 = 2 * (p.output.Feature().v * p.output.Batch().v) / 8; // process 8 output channels per Workitem
+    if (p.output.X().v == 7) {
+        auto gws0 = p.output.X().v / 7;
+        auto gws1 = p.output.Y().v / 1;
+        auto gws2 = 2 * (p.output.Feature().v * p.output.Batch().v) / 8;  // process 8 output channels per Workitem
 
-            auto compute_units = p.engineInfo.computeUnitsCount;
-            auto total_threads = (gws0 * gws1 * gws2) / 64;
-            if (total_threads < compute_units)
-            {
-                out_depth /= 2;
-                total_threads *= 2;
-            }
-            if (total_threads < compute_units)
-            {
-                out_depth /= 2;
-                total_threads *= 2;
-            }
-            return { 7,1,out_depth };
+        auto compute_units = p.engineInfo.computeUnitsCount;
+        auto total_threads = (gws0 * gws1 * gws2) / 64;
+        if (total_threads < compute_units) {
+            out_depth /= 2;
+            total_threads *= 2;
         }
-        else if (p.output.X().v == 14)
-            return { 7,1,8 };
-        else if (p.output.X().v == 28)
-            return { 7,2,4 };
-        else if (p.output.X().v == 56)
-            return { 8,1,8 };
-
-        return { 1,1,1 };
+        if (total_threads < compute_units) {
+            out_depth /= 2;
+            total_threads *= 2;
+        }
+        return {7, 1, out_depth};
+    } else if (p.output.X().v == 14) {
+        return {7, 1, 8};
+    } else if (p.output.X().v == 28) {
+        return {7, 2, 4};
+    } else if (p.output.X().v == 56) {
+        return {8, 1, 8};
     }
 
-    std::string fused_conv_eltwise_kernel_bfyx_1x1_opt::GetKernelName(const fused_conv_eltwise_params& params) const
-    {
-        if (params.inputs[0].GetDType() == Datatype::F32)
-        {
-            return kernelName + "_fp32";
-        }
-        else
-        {
-            return kernelName + "_fp16";
-        }
-    }
+    return {1, 1, 1};
+}
 
-	bool fused_conv_eltwise_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_params& o) const
-	{
-		if (!fused_conv_eltwise_kernel_base::Validate(p, o) ||
-			!FusedConvolutionEltwiseCheckInput(p, o))
-		{
-			return false;
-		}
-
-		const fused_conv_eltwise_params& cp = static_cast<const fused_conv_eltwise_params&>(p);
-		
-        if (cp.conv.stride.x != 1 || cp.conv.stride.y != 1)
-            return false;
-
-        if (cp.conv.filterSize.x != 1 || cp.conv.filterSize.y != 1)
-            return false;
-
-        if (cp.output.Feature().v % 64 != 0)
-            return false;
-
-        if (cp.conv.padding.x != 0 || cp.conv.padding.y != 0)
-            return false;
-
-        // if block sizes are 1x1, then this algorithm is probably not the best
-        auto block = get_out_block_size(cp);
-        if (block.out_width == 1 && block.out_height == 1)
-            return false;
-
-        if (cp.output.X().v % block.out_width != 0)
-            return false;
-        if (cp.output.Y().v % block.out_height != 0)
-            return false;
-
-		return true;
-	}
-
-    std::vector<WeightsLayout> fused_conv_eltwise_kernel_bfyx_1x1_opt::GetSupportedWeightLayouts(const fused_conv_eltwise_params& p) const
-    {
-        auto block = get_out_block_size(p);
-        if (block.out_depth == 8)
-            return { WeightsLayout::os_iyx_osv64 };
-        if (block.out_depth == 4)
-            return { WeightsLayout::os_iyx_osv32 };
-        if (block.out_depth == 2)
-            return { WeightsLayout::os_iyx_osv16 };
-        else
-            return{ WeightsLayout::yxio };
-    }
-
-    fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_1x1_opt::SetDefault(const fused_conv_eltwise_params& arg, int) const
-	{
-        DispatchData runInfo = Parent::SetDefault(arg);
-
-        constexpr size_t sub_group_size = 8;
-
-        runInfo.effiency = FORCE_PRIORITY_3;
-
-        auto block = get_out_block_size(arg);
-
-        runInfo.gws0 = arg.output.X().v / block.out_width;
-        runInfo.gws1 = arg.output.Y().v / block.out_height;
-        runInfo.gws2 = 2 * (arg.output.Feature().v * arg.output.Batch().v) / block.out_depth; // process 8 output channels per Workitem
-
-        runInfo.lws0 = 1;
-        runInfo.lws1 = 1;
-        runInfo.lws2 = 2 * sub_group_size;
-
-        return runInfo;
-	}
-
-	JitConstants fused_conv_eltwise_kernel_bfyx_1x1_opt::GetJitConstants(const fused_conv_eltwise_params& params, const DispatchData& runInfo) const
-	{
-		auto jit = Parent::GetJitConstants(params, runInfo);
-
-        auto block = get_out_block_size(params);
-        jit.AddConstant(MakeJitConstant("OUT_BLOCK_WIDTH", block.out_width));
-        jit.AddConstant(MakeJitConstant("OUT_BLOCK_HEIGHT", block.out_height));
-        jit.AddConstant(MakeJitConstant("OUT_BLOCK_DEPTH", block.out_depth));
-
-        if (!params.eltw.stride.empty())
-        {
-            jit.AddConstant(MakeJitConstant("ELTW_STRIDE_X", params.eltw.stride[0].x));
-            jit.AddConstant(MakeJitConstant("ELTW_STRIDE_Y", params.eltw.stride[0].y));
-        }
-        else
-        {
-            jit.AddConstant(MakeJitConstant("ELTW_STRIDE_X", 1));
-            jit.AddConstant(MakeJitConstant("ELTW_STRIDE_Y", 1));
-        }
-
-        return jit;
-	}
-
-    KernelsData fused_conv_eltwise_kernel_bfyx_1x1_opt::GetKernelsData(const Params& params, const optional_params& options) const
-    {
-        KernelsData kd = GetCommonKernelsData(params, options);
-        if (!kd.empty())
-            kd[0].estimatedTime = FORCE_PRIORITY_1;
-        return kd;
+std::string fused_conv_eltwise_kernel_bfyx_1x1_opt::GetKernelName(const fused_conv_eltwise_params& params) const {
+    if (params.inputs[0].GetDType() == Datatype::F32) {
+        return kernelName + "_fp32";
+    } else {
+        return kernelName + "_fp16";
     }
 }
+
+bool fused_conv_eltwise_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_params& o) const {
+    if (!fused_conv_eltwise_kernel_base::Validate(p, o) || !FusedConvolutionEltwiseCheckInput(p, o)) {
+        return false;
+    }
+
+    const fused_conv_eltwise_params& cp = static_cast<const fused_conv_eltwise_params&>(p);
+
+    if (cp.conv.stride.x != 1 || cp.conv.stride.y != 1)
+        return false;
+
+    if (cp.conv.filterSize.x != 1 || cp.conv.filterSize.y != 1)
+        return false;
+
+    if (cp.output.Feature().v % 64 != 0)
+        return false;
+
+    if (cp.conv.padding.x != 0 || cp.conv.padding.y != 0)
+        return false;
+
+    // if block sizes are 1x1, then this algorithm is probably not the best
+    auto block = get_out_block_size(cp);
+    if (block.out_width == 1 && block.out_height == 1)
+        return false;
+
+    if (cp.output.X().v % block.out_width != 0)
+        return false;
+    if (cp.output.Y().v % block.out_height != 0)
+        return false;
+
+    return true;
+}
+
+std::vector<WeightsLayout> fused_conv_eltwise_kernel_bfyx_1x1_opt::GetSupportedWeightLayouts(
+    const fused_conv_eltwise_params& p) const {
+    auto block = get_out_block_size(p);
+    if (block.out_depth == 8)
+        return {WeightsLayout::os_iyx_osv64};
+    if (block.out_depth == 4)
+        return {WeightsLayout::os_iyx_osv32};
+    if (block.out_depth == 2)
+        return {WeightsLayout::os_iyx_osv16};
+    else
+        return {WeightsLayout::yxio};
+}
+
+fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_1x1_opt::SetDefault(
+    const fused_conv_eltwise_params& arg,
+    int) const {
+    DispatchData runInfo = Parent::SetDefault(arg);
+
+    constexpr size_t sub_group_size = 8;
+
+    runInfo.effiency = FORCE_PRIORITY_3;
+
+    auto block = get_out_block_size(arg);
+
+    runInfo.gws0 = arg.output.X().v / block.out_width;
+    runInfo.gws1 = arg.output.Y().v / block.out_height;
+    runInfo.gws2 = 2 * (arg.output.Feature().v * arg.output.Batch().v) /
+                   block.out_depth;  // process 8 output channels per Workitem
+
+    runInfo.lws0 = 1;
+    runInfo.lws1 = 1;
+    runInfo.lws2 = 2 * sub_group_size;
+
+    return runInfo;
+}
+
+JitConstants fused_conv_eltwise_kernel_bfyx_1x1_opt::GetJitConstants(const fused_conv_eltwise_params& params,
+                                                                     const DispatchData& runInfo) const {
+    auto jit = Parent::GetJitConstants(params, runInfo);
+
+    auto block = get_out_block_size(params);
+    jit.AddConstant(MakeJitConstant("OUT_BLOCK_WIDTH", block.out_width));
+    jit.AddConstant(MakeJitConstant("OUT_BLOCK_HEIGHT", block.out_height));
+    jit.AddConstant(MakeJitConstant("OUT_BLOCK_DEPTH", block.out_depth));
+
+    return jit;
+}
+
+KernelsData fused_conv_eltwise_kernel_bfyx_1x1_opt::GetKernelsData(const Params& params,
+                                                                   const optional_params& options) const {
+    KernelsData kd = GetCommonKernelsData(params, options);
+    if (!kd.empty())
+        kd[0].estimatedTime = FORCE_PRIORITY_1;
+    return kd;
+}
+}  // namespace kernel_selector

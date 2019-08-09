@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (c) 2019 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,40 +16,71 @@
 
 import unittest
 
+import numpy as np
+
 from extensions.front.reciprocal import ReciprocalReplacer
 from mo.utils.unittest.graph import build_graph, compare_graphs
 
+nodes_attributes = {
+    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    # Reciprocal operation
+    'reciprocal_1': {'kind': 'op', 'op': 'Reciprocal'},
+    # Test operation
+    'last': {'type': None, 'value': None, 'kind': 'op', 'op': None},
+    # Pow operations
+    'const': {'value': np.array(-1), 'op': 'Const', 'kind': 'op'},
+    'pow': {'type': 'Pow', 'kind': 'op', 'op': 'Pow'},
+}
+
 
 class ReciprocalReplacerTests(unittest.TestCase):
-    @staticmethod
-    def _create_graphs():
-        return (
-            build_graph(
-                {'placeholder': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
-                 'reciprocal': {'kind': 'op', 'op': 'Reciprocal'}},
-                [('placeholder', 'reciprocal')]),
+    def test_reciprocal_test_1(self):
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'reciprocal_1'),
+                             ('reciprocal_1', 'last')
+                             ],
+                            {'placeholder_1': {'shape': np.array([1, 227, 227, 3])},
+                             }, nodes_with_edges_only=True)
 
-            build_graph(
-                {'placeholder': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
-                 'power': {'type': 'Power', 'kind': 'op', 'op': 'Power', 'scale': 1, 'power': -1, 'shift': 0}},
-                [('placeholder', 'power')])
-        )
+        graph_ref = build_graph(nodes_attributes,
+                                [('placeholder_1', 'pow', {'in': 0}),
+                                 ('const', 'pow', {'in': 1}),
+                                 ('pow', 'last'),
+                                 ],
+                                {'placeholder_1': {'shape': np.array([1, 227, 227, 3])},
+                                 }, nodes_with_edges_only=True)
 
-    def test_replace_reciprocal(self):
-        graph, graph_ref = __class__._create_graphs()
+        graph.stage = 'front'
 
         pattern = ReciprocalReplacer()
         pattern.find_and_replace_pattern(graph)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'reciprocal/power_', last_node_ref='power', check_op_attrs=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
-    def test_neg_replace_reciprocal(self):
-        graph, graph_ref = __class__._create_graphs()
-        graph_ref.node['power']['power'] = 0
+    def test_neg_reciprocal_1(self):
+        # Test if power = 0
+
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'reciprocal_1'),
+                             ('reciprocal_1', 'last')
+                             ],
+                            {'placeholder_1': {'shape': np.array([1, 227, 227, 3])},
+                             }, nodes_with_edges_only=True)
+
+        graph_ref = build_graph(nodes_attributes,
+                                [('placeholder_1', 'pow'),
+                                 ('const', 'pow', {'in': 1}),
+                                 ('pow', 'last'),
+                                 ],
+                                {'placeholder_1': {'shape': np.array([1, 227, 227, 3])},
+                                 'const': {'value': np.array(0)},
+                                 }, nodes_with_edges_only=True)
+
+        graph.stage = 'front'
 
         pattern = ReciprocalReplacer()
         pattern.find_and_replace_pattern(graph)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'reciprocal/power_', last_node_ref='power', check_op_attrs=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
         self.assertTrue(not flag)

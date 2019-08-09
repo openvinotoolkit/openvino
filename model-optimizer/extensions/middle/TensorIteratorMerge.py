@@ -22,9 +22,10 @@ import numpy as np
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.graph.graph import Node, Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.ops.reshape import Reshape
-from mo.utils.graph import sub_graph_between_nodes
+from mo.utils.graph import sub_graph_between_nodes, invert_sub_graph_between_nodes
 
 stop_nodes = ['TensorIteratorInput', 'TensorIteratorOutput', 'TensorIteratorBackEdge', 'TensorIteratorCondition']
 
@@ -77,12 +78,20 @@ def dfs(graph: Graph, node_name: str, stop_nodes: list, visited: set = None):
 
 
 def get_body(graph, inputs, outputs):
-    nodes, extra_inputs = sub_graph_between_nodes(
-        graph,
-        inputs,
-        outputs,
-        lambda node: node.soft_get('op') == 'TensorIteratorInput'
-    )
+    if len(inputs) == 0:
+        nodes, extra_inputs = invert_sub_graph_between_nodes(
+            graph,
+            outputs,
+            inputs,
+            lambda node: node.soft_get('op') == 'TensorIteratorInput'
+        )
+    else:
+        nodes, extra_inputs = sub_graph_between_nodes(
+            graph,
+            inputs,
+            outputs,
+            lambda node: node.soft_get('op') == 'TensorIteratorInput'
+        )
     nodes = list(set(nodes) - set(inputs) - set(outputs) - set(extra_inputs))
     return nodes, extra_inputs
 
@@ -114,8 +123,6 @@ class TensorIteratorMerge(MiddleReplacementPattern):
         time_data = match['condition'].out_node(1) if len(match['condition'].out_nodes()) > 1 else None
         name = match['condition'].name
 
-        assert match['condition'].in_node(0).has_valid('value')
-
         back_edges = []
         inputs = []
         outputs = []
@@ -137,7 +144,6 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                 else:
                     # something goes wrong here
                     assert False
-
         condition = match['condition']
         tensor_sequence_length = condition.in_node(0)
         graph.remove_nodes_from([condition.id, cond_data.id, tensor_sequence_length.id])
@@ -277,10 +283,13 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                 dim = shape.copy()
                 # try to do it dynamically reshapable along one of the axis
                 # it is practically useful to reshape along batch dimension, but here we cannot detect where it is
-                # so, we are guessing based onother transflormaions that it is the major dimension
+                # so, we are guessing based on other transformations that it is the major dimension
                 dim[0] = -1
-                reshape_op = Reshape(body, dict(name=ext_inp['internal_data_id'].name + '/InputSqueeze', dim=dim))
-                reshape_op.create_node_with_data([new_input_data], data_nodes=[ext_inp['internal_data_id']])
+                reshape_op = Reshape(body, dict(name=ext_inp['internal_data_id'].name + '/InputSqueeze'))
+                reshape_dim_data = Const(body, {'name': ext_inp['internal_data_id'].name + '/ReshapeDim',
+                                                'value': dim}).create_node_with_data()
+                reshape_op.create_node_with_data([new_input_data, reshape_dim_data],
+                                                 data_nodes=[ext_inp['internal_data_id']])
                 ext_inp['internal_data_id'] = new_input_data
 
             ext_inp['internal_data_id']['is_input'] = True
@@ -312,9 +321,11 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                 # trying to make it dynamically reshapable (see related comment above for the first Reshape)
                 dim[0] = -1
                 assert not ext_out['internal_data_id'].has_valid('value')
-                reshape_op = Reshape(body, dict(name=ext_out['internal_data_id'].name + '/OutputUnsqueeze',
-                                                dim=np.insert(dim, ext_out['axis'], 1)))
-                ext_out['internal_data_id'] = reshape_op.create_node_with_data([ext_out['internal_data_id']])
+                reshape_op = Reshape(body, dict(name=ext_out['internal_data_id'].name + '/OutputUnsqueeze'))
+                reshape_dim_data = Const(body, {'name': ext_out['internal_data_id'].name + '/ReshapeDim',
+                                                'value': np.insert(dim, ext_out['axis'], 1)}).create_node_with_data()
+                ext_out['internal_data_id'] = reshape_op.create_node_with_data([ext_out['internal_data_id'],
+                                                                                reshape_dim_data])
 
             # TODO: add here working with simple outputs
 

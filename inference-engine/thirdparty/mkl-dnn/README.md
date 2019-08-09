@@ -1,5 +1,5 @@
 # Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN)
-![v0.18 beta](https://img.shields.io/badge/v0.18-beta-orange.svg)
+![v0.19 beta](https://img.shields.io/badge/v0.19-beta-orange.svg)
 
 Intel(R) Math Kernel Library for Deep Neural Networks (Intel(R) MKL-DNN) is
 an open-source performance library for deep-learning applications. The library
@@ -86,11 +86,10 @@ Intel MKL-DNN supports Intel 64 architecture and compatible architectures.
 The library is optimized for the systems based on
 * Intel Atom(R) processor with Intel SSE4.1 support
 * 4th, 5th, 6th, 7th, and 8th generation Intel(R) Core(TM) processor
-* Intel(R) Xeon(R) processor E5 v3 family (formerly Haswell)
-* Intel Xeon processor E5 v4 family (formerly Broadwell)
-* Intel Xeon Platinum processor family (formerly Skylake)
-* Intel(R) Xeon Phi(TM) processor x200 product family (formerly Knights Landing)
-* Intel Xeon Phi processor x205 product family (formerly Knights Mill)
+* Intel(R) Xeon(R) processor E3, E5, and E7 family (formerly Sandy Bridge,
+Ivy Bridge, Haswell, and Broadwell)
+* Intel(R) Xeon(R) Scalable processors (formerly Skylake and Cascade Lake)
+* Intel(R) Xeon Phi(TM) processors (formerly Knights Landing and Knights Mill)
 
 and compatible processors.
 

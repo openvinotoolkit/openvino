@@ -24,7 +24,7 @@ from mo.front.extractor import add_attrs_props
 from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.graph.port import Port
-from mo.middle.passes.fusing.helpers import get_value_id, get_tensor_id
+from mo.middle.passes.fusing.helpers import get_value_id, get_tensor_id, get_tensor_in_port, get_value_in_port
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.const import Const
 from mo.ops.scale_shift import ScaleShiftOp
@@ -54,6 +54,8 @@ def pad_op_transform(graph: Graph, match: dict):
     op.pad += pads
     op.pad_spatial_shape = op.pad[op.spatial_dims]
     op['auto_pad'] = None
+    if op.type == 'Pooling':
+        op['exclude_pad'] = False
     assert (graph[match['pad_output'].node][match['op'].node][0]['in'] == 0)
     edge_attrs = graph.get_edge_data(match['pad_output'].id, match['op'].id)[0]
     graph.remove_edge(match['pad_output'].id, match['op'].id)
@@ -105,7 +107,11 @@ def matmul_to_fully_connected_action(graph: Graph, match: dict):
         return
 
     matmul['out-size'] = matmul.out_node().shape[-1]
-    matmul['type'] = 'FullyConnected'
+    if graph.graph['cmd_params'].generate_experimental_IR_V10:
+        matmul['type'] = 'MatMul'
+    else:
+        matmul['type'] = 'FullyConnected'
+        matmul.in_edge(1)['bin'] = 'weights'
     matmul['channel_dims'] = len(match['output'].shape) - 1
     matmul['bias_addable'] = True
     matmul['input_channel_dim'] = 0  # MatMul weights in IO
@@ -116,27 +122,14 @@ def matmul_to_fully_connected_action(graph: Graph, match: dict):
     # Do not transpose weights in this pass, it will be done as a separate pass
 
 
-def transpose_fully_connected_weights(graph: Graph):
-    transposed_for_IE = 'transposed_for_IE'
-    for node in graph.nodes():
-        node = Node(graph, node)
-        if node.has_valid('type') and node.type == 'FullyConnected':
-            weights = node.in_node(1)
-            node.in_edge(1)['bin'] = 'weights'
-            if weights.has_and_set(transposed_for_IE):
-                continue
-            # IE accepts weights for fully-connected in OI, but MatMul is in IO, transpose
-            weights.value = np.transpose(weights.value)
-            weights[transposed_for_IE] = True
-            log.debug("Transposed weights {} for FC node {}; weights.shape = {}"
-                      "".format(weights.name, node.name, weights.shape))
-            weights.shape = np.array(weights.value.shape)
-
-
 def muladd_to_scaleshift_action(graph: Graph, match: dict):
     mul = match['mul']
     add = match['add']
     output = match['output']
+
+    # Pass works correctly only in case when node have only 1 output
+    if len(mul.out_port(0).get_destinations()) > 1:
+        return
 
     if mul.soft_get('can_be_scaleshift') is False or add.soft_get('can_be_scaleshift') is False:
         return
@@ -176,13 +169,16 @@ def muladd_to_scaleshift_action(graph: Graph, match: dict):
         return
 
     if bias.value.ndim != weights.value.ndim or bias.value.size != weights.value.size:
-        log.debug("Skipping Mul->Add to scaleshift or power conversion for nodes {}, {} because of different weights "
+        log.debug("Skipping Mul->Add to ScaleShift conversion for nodes {}, {} because of different weights "
                   "and biases".format(mul.name, add.name))
         return
 
-    op_name = "ScaleShift"
     if bias.value.size == 1 and weights.value.size == 1:
-        op_name = "Power"
+        log.debug("Skipping Mul->Add to ScaleShift conversion for nodes {}, {}. Will be converted to Power"
+                  "".format(mul.name, add.name))
+        return
+
+    op_name = "ScaleShift"
 
     log.debug("Fusing Mul->Add to {}. Input nodes: {} and {}, bias.shape = {}, weights.shape = {}"
               "".format(op_name, mul.id, add.id, bias.shape, weights.shape))
@@ -193,36 +189,30 @@ def muladd_to_scaleshift_action(graph: Graph, match: dict):
     graph.remove_edge(add.node, output.id)
 
     op_node = graph.unique_id(mul.name + '/Fused{}_'.format(op_name))
-    if op_name == 'ScaleShift':
-        graph.add_node(op_node, **add_attrs_props(dict(kind='op', precision="FP32", type=op_name, name=op_node,
-                                                       op=op_name, data_type=input.data_type)))
-        update_ie_fields(graph.node[op_node])
-        graph.add_edges_from([
-            (input.node, op_node, {'in': 0}),
-            (weights.node, op_node, {'in': 1, 'bin': 'weights'}),
-            (bias.node, op_node, {'in': 2, 'bin': 'biases'}),
-            (op_node, output.node, {'out': 0})
-        ])
-        scsh = Node(graph, op_node)
-        scsh.add_input_port(0)
-        scsh.add_input_port(1)
-        scsh.add_output_port(0)
-    else:
-        graph.add_node(op_node, **add_attrs_props(dict(kind='op', precision="FP32", type=op_name, name=op_node,
-                                                       op=op_name, data_type=input.data_type, power=1,
-                                                       scale=weights.value.item(), shift=bias.value.item())))
-        update_ie_fields(graph.node[op_node])
-        graph.add_edges_from([
-            (input.node, op_node, {'in': 0}),
-            (op_node, output.node, {'out': 0})
-        ])
-        scsh = Node(graph, op_node)
-        scsh.add_input_port(0)
-        scsh.add_output_port(0)
+
+    graph.add_node(op_node, **add_attrs_props(dict(kind='op', precision="FP32", type=op_name, name=op_node,
+                                                   op=op_name, data_type=input.data_type)))
+    scsh = Node(graph, op_node)
+    scsh.add_input_port(0)
+    scsh.add_input_port(1)
+    scsh.add_input_port(2)
+    scsh.add_output_port(0)
+
+    update_ie_fields(graph.node[op_node])
+    graph.add_edges_from([
+        (input.node, op_node, {'in': 0}),
+        (weights.node, op_node, {'in': 1, 'bin': 'weights'}),
+        (bias.node, op_node, {'in': 2, 'bin': 'biases'}),
+        (op_node, output.node, {'out': 0})
+    ])
+
     return
 
 
-def convert_muladd_to_scaleshift_or_power(graph: Graph):
+def convert_muladd_to_scaleshift(graph: Graph):
+    if hasattr(graph, 'graph') and 'cmd_params' in graph.graph and graph.graph['cmd_params'].generate_experimental_IR_V10:
+        return
+    # TODO nGraph remove BEGIN
     apply_pattern(
         graph,
         nodes=[
@@ -235,15 +225,16 @@ def convert_muladd_to_scaleshift_or_power(graph: Graph):
             ('add', dict(kind='op', op='Add'))
         ],
         edges=[
-            ('weights', 'mul', {'in': 0}),
-            ('input', 'mul', {'in': 1}),
+            ('weights', 'mul'),
+            ('input', 'mul'),
             ('mul', 'mout'),
-            ('mout', 'add', {'in': 0}),
-            ('bias', 'add', {'in': 1}),
+            ('mout', 'add'),
+            ('bias', 'add'),
             ('add', 'output'),
         ],
         action=muladd_to_scaleshift_action
     )
+    # TODO nGraph remove END
 
 
 def batch_norm_fuse_action(graph: Graph, match: dict):
@@ -285,31 +276,22 @@ def batch_norm_fuse(graph: Graph):
     return graph
 
 
-def get_tensor_in_port(node) -> Port:
-    tensor_ports = []
-    for port in node.in_ports().values():
-        if port.data.get_value() is None:
-            tensor_ports.append(port)
-    return None if len(tensor_ports) != 1 else tensor_ports[0]
-
-
-def get_value_in_port(node) -> Port:
-    value_ports = []
-    for port in node.in_ports().values():
-        if port.data.get_value() is not None:
-            value_ports.append(port)
-    return None if len(value_ports) != 1 else value_ports[0]
-
-
 def convert_add_or_mul_to_scaleshift(graph: Graph):
-    op_nodes = graph.get_op_nodes()
-    for node in op_nodes:
-        if node.soft_get('op') in ['BiasAdd', 'Add', 'Mul'] and len(node.in_ports()) == 2:
+    if graph.graph['cmd_params'].generate_experimental_IR_V10:
+        return
+    graph.strict_mode = False
+    for node in graph.get_op_nodes():
+        if node.soft_get('op') in ['Add', 'Mul'] and len(node.in_ports()) == 2:
+
             tensor_port, value_port = get_tensor_in_port(node), get_value_in_port(node)
 
-            if tensor_port is not None and value_port is not None and node.soft_get('can_be_scaleshift') is not False:
+            if tensor_port is not None and not tensor_port.disconnected() and value_port is not None and node.soft_get('can_be_scaleshift') is not False:
+                original_value = value_port.data.get_value()
+                if original_value.size == 1:
+                    continue
+
                 # Remove 1 dims from value array (should be 1D)
-                value_port.data.set_value(np.squeeze(value_port.data.get_value()))  # Updated shapes accordingly
+                value_port.data.set_value(np.squeeze(original_value))  # Updated shapes accordingly
 
                 # Create ScaleShift operation
                 scsh_op = ScaleShiftOp(graph, dict(name='ScaleShift/{}'.format(node.name))).create_node()
@@ -342,3 +324,4 @@ def convert_add_or_mul_to_scaleshift(graph: Graph):
                 # Set bin attribute to ScaleShift input ports
                 scsh_op.in_port(1).bin = 'weights'
                 scsh_op.in_port(2).bin = 'biases'
+    graph.strict_mode = True

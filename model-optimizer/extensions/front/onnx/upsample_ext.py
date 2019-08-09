@@ -14,14 +14,14 @@
  limitations under the License.
 """
 
-import logging as log
+import math
 
-from extensions.ops.resample import ResampleOp
+import numpy as np
+
+from extensions.ops.upsample import UpsampleOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.utils.error import Error
-
-import numpy as np
 
 
 class UpsampleFrontExtractor(FrontExtractorOp):
@@ -44,40 +44,28 @@ class UpsampleFrontExtractor(FrontExtractorOp):
                 supported_modes
             )
 
-        # TODO: this is a temporary limitation
-        if mode != 'nearest':
-            raise Error(
-                'Upsample mode {} for node {} is not supported. Only nearest is supported.',
-                mode,
-                node.name
-            )
-
-        # TODO: this is a temporary limitation
         if scales is not None:
-            raise Error(
-                'Upsample scales attribute is defined for node {}. Only scale_width and scale_height are supported.',
-                node.name
-            )
+            if scales.shape != (4,):
+                raise Error(
+                    'Upsample scales attribute is wrong for node {}. Only 4D scales are supported.',
+                    node.name
+                )
+            if math.fabs(scales[0] - 1) > 1e-5 or math.fabs(scales[1] - 1) > 1e-5:
+                raise Error(
+                    'Upsampling of batch and feature dimentions is not supported for node {}.',
+                    node.name
+                )
+            height_scale = scales[2]
+            width_scale = scales[3]
 
-        if width_scale is None or height_scale is None:
+        if (width_scale is None or height_scale is None) and len(node.in_nodes()) != 2:
             raise Error(
-                'One/both of widths_scale = {} and height_scale = {} is not defined for Upsampe node {}.',
+                'One/both of widths_scale = {} and height_scale = {} is not defined for Upsample node {}.',
                 width_scale,
                 height_scale,
                 node.name
             )
 
-        if width_scale != height_scale:
-            raise Error(
-                'Upsample node {} have different widths_scale = {} and height_scale = {}. It is not supported; they should match.',
-                node.name,
-                width_scale,
-                height_scale
-            )
-
-        mode_to_resample_type = {'nearest': 'caffe.ResampleParameter.NEAREST'}
-        assert mode in mode_to_resample_type
-        assert width_scale == height_scale
-        assert width_scale is not None
-        ResampleOp.update_node_stat(node, {'resample_type': mode_to_resample_type[mode], 'factor': width_scale, 'antialias': 0})
+        UpsampleOp.update_node_stat(node, {'mode': mode, 'height_scale': height_scale,
+                                           'width_scale': width_scale})
         return __class__.enabled

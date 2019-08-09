@@ -17,41 +17,37 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "event_impl.h"
 #include "engine_impl.h"
+#include <list>
 
-namespace cldnn
-{
+namespace cldnn {
 
-void event_impl::wait()
-{
+void event_impl::wait() {
     if (_set)
         return;
 
-    //TODO: refactor in context of multiple simultaneous calls (for generic engine)
+    // TODO: refactor in context of multiple simultaneous calls (for generic engine)
     wait_impl();
     _set = true;
     return;
 }
 
-bool event_impl::is_set()
-{
+bool event_impl::is_set() {
     if (_set)
         return true;
 
-    //TODO: refactor in context of multiple simultaneous calls (for generic engine)
+    // TODO: refactor in context of multiple simultaneous calls (for generic engine)
     _set = is_set_impl();
     return _set;
 }
 
-bool event_impl::add_event_handler(cldnn_event_handler handler, void* data)
-{
-    if (is_set())
-    {
+bool event_impl::add_event_handler(cldnn_event_handler handler, void* data) {
+    if (is_set()) {
         handler(data);
         return true;
     }
 
     std::lock_guard<std::mutex> lock(_handlers_mutex);
-    auto itr = _handlers.insert(_handlers.end(), { handler, data });
+    auto itr = _handlers.insert(_handlers.end(), {handler, data});
     auto ret = add_event_handler_impl(handler, data);
     if (!ret)
         _handlers.erase(itr);
@@ -59,8 +55,7 @@ bool event_impl::add_event_handler(cldnn_event_handler handler, void* data)
     return ret;
 }
 
-const std::list<cldnn_profiling_interval>& event_impl::get_profiling_info()
-{
+const std::list<cldnn_profiling_interval>& event_impl::get_profiling_info() {
     if (_profiling_captured)
         return _profiling_info;
 
@@ -68,19 +63,15 @@ const std::list<cldnn_profiling_interval>& event_impl::get_profiling_info()
     return _profiling_info;
 }
 
-
-void event_impl::call_handlers()
-{
+void event_impl::call_handlers() {
     std::lock_guard<std::mutex> lock(_handlers_mutex);
-    for (auto& pair : _handlers)
-    {
-        try
-        {
+    for (auto& pair : _handlers) {
+        try {
             pair.first(pair.second);
+        } catch (...) {
         }
-        catch (...) {}
     }
     _handlers.clear();
 }
 
-}
+}  // namespace cldnn

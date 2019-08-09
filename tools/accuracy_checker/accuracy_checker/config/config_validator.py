@@ -127,10 +127,11 @@ class ConfigValidator(BaseValidator):
 
 
 class BaseField(BaseValidator):
-    def __init__(self, optional=False, allow_none=False, **kwargs):
+    def __init__(self, optional=False, allow_none=False, description=None, **kwargs):
         super().__init__(**kwargs)
         self.optional = optional
         self.allow_none = allow_none
+        self.description = description
 
     def validate(self, entry, field_uri=None):
         super().validate(entry, field_uri)
@@ -278,9 +279,10 @@ class NumberField(BaseField):
 
 
 class PathField(BaseField):
-    def __init__(self, is_directory=False, **kwargs):
+    def __init__(self, is_directory=False, check_exists=True, **kwargs):
         super().__init__(**kwargs)
         self.is_directory = is_directory
+        self.check_exists = check_exists
 
     def validate(self, entry, field_uri=None):
         super().validate(entry, field_uri)
@@ -289,7 +291,7 @@ class PathField(BaseField):
 
         field_uri = field_uri or self.field_uri
         try:
-            get_path(entry, self.is_directory)
+            get_path(entry, self.is_directory, self.check_exists)
         except TypeError:
             self.raise_error(entry, field_uri, "values is expected to be path-like")
         except FileNotFoundError:

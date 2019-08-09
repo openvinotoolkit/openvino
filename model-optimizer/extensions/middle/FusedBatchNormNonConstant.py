@@ -13,17 +13,18 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+
+from extensions.ops.elementwise import Mul, Add, Pow
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.eltwise import Eltwise
-from mo.ops.power import Power
+from mo.ops.const import Const
 
 
 class FusedBatchNormNonConstant(MiddleReplacementPattern):
     """
     Replaces FusedBatchNorm(input, beta, gamma, mean, variance) with non-constant mean and variance,
-    but with constant beta and gamma to a sub-expression consisting of a combinatin of Eltwise and Power
-    layers and ScaleShift.
+    but with constant beta and gamma to a sub-expression consisting of a combinatin of Eltwise layers and ScaleShift.
     """
 
     enabled = True
@@ -56,21 +57,29 @@ class FusedBatchNormNonConstant(MiddleReplacementPattern):
                 node.in_node(2).value.ndim != 1):
             return
 
-        scale_mul = Eltwise(graph, dict(operation='mul', name=node.name + '/scale_mul_'))
-        shift_add = Eltwise(graph, dict(operation='sum', name=node.name + '/shift_add_'))
-        mean_add = Eltwise(graph, dict(operation='sum', name=node.name + '/mean_add_'))
-        variance_mul = Eltwise(graph, dict(operation='mul', name=node.name + '/variance_mul_'))
+        scale_mul = Mul(graph, dict(name=node.name + '/scale_mul_'))
+        shift_add = Add(graph, dict(name=node.name + '/shift_add_'))
+        mean_add = Add(graph, dict(name=node.name + '/mean_add_'))
+        variance_mul = Mul(graph, dict(name=node.name + '/variance_mul_'))
 
-        mean_negate = Power(graph, dict(scale=-1, name=node.name + '/mean_negate_'))
+        neg_const = Const(graph, dict(value=np.array(-1), name=node.name + '/mean_negate_'))
+        mean_negate = Mul(graph, dict(name=node.name + '/mean_negate_'))
         mean_arg = mean_add.create_node_with_data([
             node.in_node(0),
-            mean_negate.create_node_with_data([node.in_node(3)])])
+            mean_negate.create_node_with_data([node.in_node(3),
+                                               neg_const.create_node_with_data()
+                                               ])])
 
-        variance_square = Power(graph, dict(power=2, name=node.name + '/variance_square_'))
-        variance_denom = Power(graph, dict(shift=node.eps, power=-0.5, name=node.name + '/variance_denom_'))
+        shift_const = Const(graph, dict(value=node.eps, name=node.name + '/variance_denom_shift_const_'))
+        power_const = Const(graph, dict(value=-0.5, name=node.name + '/variance_denom_power_const_'))
+        variance_denom_shift = Add(graph, dict(name=node.name + '/variance_denom_shift_'))
+        variance_denom_power = Pow(graph, dict(name=node.name + '/variance_denom_power_'))
         variance_arg = variance_mul.create_node_with_data([
             mean_arg,
-            variance_denom.create_node_with_data([node.in_node(4)])])
+            variance_denom_power.create_node_with_data([
+                variance_denom_shift.create_node_with_data([node.in_node(4), shift_const.create_node_with_data()]),
+                power_const.create_node_with_data()]
+            )])
 
         shift_add.create_node_with_data([
             scale_mul.create_node_with_data([

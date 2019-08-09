@@ -126,7 +126,7 @@ REG_CONVERTER_FOR(PriorBox, [](const CNNLayerPtr& cnnLayer, Builder::Layer& laye
     layer.getParameters()["scale_all_sizes"] = cnnLayer->GetParamAsBool("scale_all_sizes", true);
     layer.getParameters()["step"] = cnnLayer->GetParamAsFloat("step", 0);
     layer.getParameters()["offset"] = cnnLayer->GetParamAsFloat("offset");
-    layer.getParameters()["variance"] = cnnLayer->GetParamAsFloat("variance", 0);
+    layer.getParameters()["variance"] = cnnLayer->GetParamAsFloats("variance", {});
     layer.getParameters()["aspect_ratio"] = cnnLayer->GetParamAsFloats("aspect_ratio", {});
     layer.getParameters()["min_size"] = static_cast<size_t>(cnnLayer->GetParamAsUInt("min_size", 0));
     layer.getParameters()["max_size"] = static_cast<size_t>(cnnLayer->GetParamAsUInt("max_size", 0));

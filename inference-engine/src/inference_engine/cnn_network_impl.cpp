@@ -24,7 +24,11 @@ CNNNetworkImpl::CNNNetworkImpl(): _targetDevice(TargetDevice::eDefault), _stats(
 
 CNNNetworkImpl::~CNNNetworkImpl() {
     for (auto& data : _data) {
+        if (!data.second)
+            continue;
         for (auto& input : data.second->getInputTo()) {
+            if (!input.second)
+                continue;
             input.second.reset();
         }
     }
@@ -53,80 +57,78 @@ void CNNNetworkImpl::removeData(const string& dataName) {
 }
 
 void CNNNetworkImpl::validate(int version) {
-    if (version != 1) {
-        std::set<std::string> layerNames;
-        std::set<std::string> dataNames;
+    std::set<std::string> layerNames;
+    std::set<std::string> dataNames;
 
-        InputsDataMap inputs;
-        this->getInputsInfo(inputs);
-        if (inputs.empty()) {
-            THROW_IE_EXCEPTION << "No input layers";
-        }
+    InputsDataMap inputs;
+    this->getInputsInfo(inputs);
+    if (inputs.empty()) {
+        THROW_IE_EXCEPTION << "No input layers";
+    }
 
-        bool res = CNNNetForestDFS(CNNNetGetAllInputLayers(*this), [&](CNNLayerPtr layer) {
-            std::string layerName = layer->name;
+    bool res = CNNNetForestDFS(CNNNetGetAllInputLayers(*this), [&](CNNLayerPtr layer) {
+        std::string layerName = layer->name;
 
-            for (auto i : layer->insData) {
-                auto data = i.lock();
-                if (data) {
-                    auto inputTo = data->getInputTo();
-                    auto iter = inputTo.find(layerName);
-                    auto dataName = data->name;
-                    if (iter == inputTo.end()) {
-                        THROW_IE_EXCEPTION << "Data " << data->getName() << " which inserted into the layer "
-                                           << layerName
-                                           << " does not point at this layer";
-                    }
-                    if (!data->getCreatorLayer().lock()) {
-                        THROW_IE_EXCEPTION << "Data " << dataName << " has no creator layer";
-                    }
-                } else {
-                    THROW_IE_EXCEPTION << "Data which inserted into the layer " << layerName << " is nullptr";
-                }
-            }
-            for (auto data : layer->outData) {
+        for (auto i : layer->insData) {
+            auto data = i.lock();
+            if (data) {
                 auto inputTo = data->getInputTo();
-                std::string dataName = data->getName();
-                for (auto layerIter : inputTo) {
-                    CNNLayerPtr layerInData = layerIter.second;
-                    if (!layerInData) {
-                        THROW_IE_EXCEPTION << "Layer which takes data " << dataName << " is nullptr";
-                    }
-                    auto insertedDatas = layerInData->insData;
-
-                    auto it = std::find_if(insertedDatas.begin(), insertedDatas.end(),
-                                           [&](InferenceEngine::DataWeakPtr& d) {
-                                               return d.lock() == data;
-                                           });
-                    if (it == insertedDatas.end()) {
-                        THROW_IE_EXCEPTION << "Layer " << layerInData->name << " which takes data " << dataName
-                                           << " does not point at this data";
-                    }
+                auto iter = inputTo.find(layerName);
+                auto dataName = data->getName();
+                if (iter == inputTo.end()) {
+                    THROW_IE_EXCEPTION << "Data " << data->getName() << " which inserted into the layer "
+                                       << layerName
+                                       << " does not point at this layer";
                 }
-                auto dataNameSetPair = dataNames.insert(dataName);
-                if (!dataNameSetPair.second) {
-                    THROW_IE_EXCEPTION << "Data name " << dataName << " is not unique";
+                if (!data->getCreatorLayer().lock()) {
+                    THROW_IE_EXCEPTION << "Data " << dataName << " has no creator layer";
                 }
-            }
-            auto layerSetPair = layerNames.insert(layerName);
-            if (!layerSetPair.second) {
-                THROW_IE_EXCEPTION << "Layer name " << layerName << " is not unique";
-            }
-        }, false);
-
-
-        std::string inputType = "Input";
-        for (auto i : inputs) {
-            CNNLayerPtr layer = i.second->getInputData()->creatorLayer.lock();
-            if (layer && !equal(layer->type, inputType)) {
-                THROW_IE_EXCEPTION << "Input layer " << layer->name
-                                   << " should have Input type but actually its type is " << layer->type;
+            } else {
+                THROW_IE_EXCEPTION << "Data which inserted into the layer " << layerName << " is nullptr";
             }
         }
+        for (auto data : layer->outData) {
+            auto inputTo = data->getInputTo();
+            std::string dataName = data->getName();
+            for (auto layerIter : inputTo) {
+                CNNLayerPtr layerInData = layerIter.second;
+                if (!layerInData) {
+                    THROW_IE_EXCEPTION << "Layer which takes data " << dataName << " is nullptr";
+                }
+                auto insertedDatas = layerInData->insData;
 
-        if (!res) {
-            THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
+                auto it = std::find_if(insertedDatas.begin(), insertedDatas.end(),
+                                       [&](InferenceEngine::DataWeakPtr& d) {
+                                           return d.lock() == data;
+                                       });
+                if (it == insertedDatas.end()) {
+                    THROW_IE_EXCEPTION << "Layer " << layerInData->name << " which takes data " << dataName
+                                       << " does not point at this data";
+                }
+            }
+            auto dataNameSetPair = dataNames.insert(dataName);
+            if (!dataNameSetPair.second) {
+                THROW_IE_EXCEPTION << "Data name " << dataName << " is not unique";
+            }
         }
+        auto layerSetPair = layerNames.insert(layerName);
+        if (!layerSetPair.second) {
+            THROW_IE_EXCEPTION << "Layer name " << layerName << " is not unique";
+        }
+    }, false);
+
+
+    std::string inputType = "Input";
+    for (auto i : inputs) {
+        CNNLayerPtr layer = i.second->getInputData()->getCreatorLayer().lock();
+        if (layer && !equal(layer->type, inputType)) {
+            THROW_IE_EXCEPTION << "Input layer " << layer->name
+                               << " should have Input type but actually its type is " << layer->type;
+        }
+    }
+
+    if (!res) {
+        THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
     }
 }
 
@@ -175,22 +177,18 @@ void CNNNetworkImpl::addOutput(const string& dataName) {
     _outputData[dataName] = data;
 }
 
-StatusCode CNNNetworkImpl::setBatchSize(const size_t size) noexcept {
-    return setBatchSize(size, nullptr);
-}
-
 size_t CNNNetworkImpl::getBatchSize() const noexcept {
     if (!_inputData.size())
         return 0;
     // currently CNNNetworkImpl::setBatchSize set the same values
     // for the latest dim as a batch, we can take the first input
     // and return batch size for it
-    SizeVector dims = _inputData.cbegin()->second->getDims();
+    SizeVector dims = _inputData.cbegin()->second->getTensorDesc().getDims();
     // 3D input layout doesn't have batch notation for input so batch is 1
     if (dims.size() == 3 || dims.size() == 1) {
         return 1;
     }
-    return dims.at(dims.size() - 1);
+    return dims.at(0);
 }
 
 StatusCode
@@ -243,14 +241,14 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
         auto originalBatchSize = getBatchSize();
         if (originalBatchSize == size)
             return OK;
-        SizeVector inputDims = _inputData.cbegin()->second->getDims();
+        SizeVector dims = _inputData.cbegin()->second->getTensorDesc().getDims();
 
         // 3D input layout doesn't have batch notation
-        if (inputDims.size() == 3 || inputDims.size() == 1) {
+        if (dims.size() == 3 || dims.size() == 1) {
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
         }
 
-        for (const auto &layer : _data) {
+        for (auto layer : _data) {
             SizeVector dims = layer.second->getDims();
             // Calculates original size for batch = 1
             size_t diff = dims.at(0) / originalBatchSize;
@@ -277,7 +275,7 @@ StatusCode CNNNetworkImpl::setBatchSizeReshape(size_t size, ResponseDesc* respon
                 if (data) {
                     auto dims = data->getTensorDesc().getDims();
                     dims[0] = size;
-                    inputShapes[data->name] = dims;
+                    inputShapes[data->getName()] = dims;
                 }
             }
         }

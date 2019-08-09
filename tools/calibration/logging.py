@@ -146,7 +146,7 @@ def info_layer_accuracy_drop(layers_accuracy_drop: list, *args, **kwargs):
     for layer_accuracy_drop in layers_accuracy_drop:
         layer_accuracy_drop_text += "\t{0}: {1:.4f}%\n".format(
             layer_accuracy_drop.layer_name[0:77] + "..." if len(layer_accuracy_drop.layer_name) > 80 else layer_accuracy_drop.layer_name,
-            layer_accuracy_drop.value * 100.0)
+            layer_accuracy_drop.value)
     info(layer_accuracy_drop_text, *args, **kwargs)
 
 
