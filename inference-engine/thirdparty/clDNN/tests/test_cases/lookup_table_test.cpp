@@ -165,7 +165,7 @@ TEST(lookup_table_with_arg_max, base) {
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(arg_max_min("arg_max", "input", arg_max_min::max));
+    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max));
     topology.add(lookup_table("table", "input", "arg_max"));
     vector<float> input_vec = {
         //y0x0 y0x1 y1x0 y1x1

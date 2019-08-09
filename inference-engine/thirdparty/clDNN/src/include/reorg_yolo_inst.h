@@ -18,14 +18,13 @@
 #pragma once
 #include "api/CPP/reorg_yolo.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 using reorg_yolo_node = typed_program_node<reorg_yolo>;
 
 template <>
-class typed_primitive_inst<reorg_yolo> : public typed_primitive_inst_base<reorg_yolo>
-{
+class typed_primitive_inst<reorg_yolo> : public typed_primitive_inst_base<reorg_yolo> {
     using parent = typed_primitive_inst_base<reorg_yolo>;
 
 public:
@@ -38,4 +37,4 @@ public:
 
 using reorg_yolo_inst = typed_primitive_inst<reorg_yolo>;
 
-}
+}  // namespace cldnn

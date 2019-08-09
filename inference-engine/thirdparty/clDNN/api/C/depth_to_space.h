@@ -15,11 +15,8 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef DEPTH_TO_SPACE_H
-#define DEPTH_TO_SPACE_H
-
+#pragma once
 #include "cldnn.h"
-
 
 /// @addtogroup c_api C API
 /// @{
@@ -46,4 +43,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(depth_to_space);
 /// @}
 /// @}
 /// @}
-#endif // DEPTH_TO_SPACE_H
+

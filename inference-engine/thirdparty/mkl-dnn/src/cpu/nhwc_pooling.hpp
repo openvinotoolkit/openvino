@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,18 +25,13 @@
 #include "mkldnn_thread.hpp"
 #include "type_helpers.hpp"
 #include "utils.hpp"
+#include "bfloat16_utils.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-namespace nhwc_pooling {
-size_t strided_offset(const int _n, const size_t _sn, const int _d,
-        const size_t _sd, const int _h, const size_t _sh, const int _w,
-        const size_t _sw);
-}
-
-template <impl::data_type_t data_type>
+template <data_type_t d_type>
 struct nhwc_pooling_fwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_pooling_fwd_pd_t {
         pd_t(engine_t *engine, const pooling_desc_t *adesc,
@@ -59,7 +54,7 @@ struct nhwc_pooling_fwd_t: public cpu_primitive_t {
                 && utils::one_of(desc()->alg_kind, pooling_max,
                         pooling_avg_include_padding,
                         pooling_avg_exclude_padding)
-                && utils::everyone_is(data_type,
+                && utils::everyone_is(d_type,
                         src_pd()->desc()->data_type,
                         dst_pd()->desc()->data_type)
                 && utils::one_of(src_format, nhwc, ndhwc)
@@ -86,15 +81,33 @@ struct nhwc_pooling_fwd_t: public cpu_primitive_t {
                 ws_pd_ = cpu_memory_t::pd_t(engine_, &indices_desc);
             }
 
+            init_scratchpad();
+
             return status::success;
         }
+
+        private:
+            void init_scratchpad() {
+                using namespace memory_tracking::names;
+                if (src_pd()->desc()->data_type == data_type::bf16) {
+                    size_t bf16cvt_sz_ = C() * mkldnn_get_max_threads();
+                    auto scratchpad = scratchpad_registry().registrar();
+                    scratchpad.book(key_pool_src_bf16cvt,
+                            sizeof(float) * bf16cvt_sz_);
+                    scratchpad.book(key_pool_dst_bf16cvt,
+                            sizeof(float) * bf16cvt_sz_);
+                }
+            }
     };
 
     nhwc_pooling_fwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
         : cpu_primitive_t(apd, inputs, outputs) {}
 
-    typedef typename prec_traits<data_type>::type data_t;
+    ~nhwc_pooling_fwd_t() {}
+
+    typedef typename prec_traits<d_type>::type data_t;
+    typedef typename prec_traits<data_type::f32>::type ker_data_t;
 
     virtual void execute(event_t *e) const {
         execute_forward();
@@ -103,23 +116,21 @@ struct nhwc_pooling_fwd_t: public cpu_primitive_t {
 
 private:
     void execute_forward() const;
-    void array_div_by_const(const int n, const data_t *src, const size_t num,
-            data_t *dst) const;
-    void array_add(const int n, const data_t *src, data_t *dst) const;
 
-    template <bool use_workspace>
-    void array_nhwc_max(const int n, data_t *dst, const data_t *src,
+    void array_max(const int n, ker_data_t *dst, const ker_data_t *src,
             unsigned char *ws, const size_t ws_offset, const data_type_t ws_dt,
             const int index) const {
-        assert(!((use_workspace == false) ^ (!ws))); // ensure ws pointer exists
+        assert(IMPLICATION(pd()->desc()->alg_kind == alg_kind::pooling_max &&
+                    pd()->desc()->prop_kind == prop_kind::forward_training,
+                    nullptr != ws));
         PRAGMA_OMP_SIMD()
         for (int oc = 0; oc < n; ++oc) {
             auto s = src[oc];
-            data_t mv = dst[oc];
+            ker_data_t mv = dst[oc];
 
             // update index of maximum
 #if defined __INTEL_COMPILER
-            if ((use_workspace) && (s > mv)) {
+            if (ws && (s > mv)) {
                 assert(ws_dt == data_type::u8 || ws_dt == data_type::s32);
                 if (ws_dt == data_type::u8) {
                     assert(0 <= index && index <= 255);
@@ -131,7 +142,7 @@ private:
             // Need to add explicit predicates for GCC to vectorize this.
             // And although the resulting code is ugly, it is still 4 times
             // faster than scalar
-            if (use_workspace) {
+            if (ws) {
                 assert(ws_dt == data_type::u8 || ws_dt == data_type::s32);
 
                 if (ws_dt == data_type::u8) {
@@ -151,31 +162,53 @@ private:
                 }
             }
 #endif
-            // update maximum
             dst[oc] = nstl::max(s, mv);
         }
     }
 
-    template <bool use_workspace>
-    void array_nhwc_initialize(const int n, data_t *dst, unsigned char *ws,
+    void array_initialize(const int n, ker_data_t *dst, unsigned char *ws,
             const size_t ws_offset, const data_type_t ws_dt) const {
-        assert(!((use_workspace == false) ^ (!ws))); // ensure ws pointer exists
+        assert(IMPLICATION(pd()->desc()->alg_kind == alg_kind::pooling_max &&
+                    pd()->desc()->prop_kind == prop_kind::forward_training,
+                    nullptr != ws));
         for (int oc = 0; oc < n; ++oc) {
-            if (use_workspace) {
+            if (ws) {
                 assert(ws_dt == data_type::u8 || ws_dt == data_type::s32);
                 if (ws_dt == data_type::u8) {
                     ws[ws_offset + oc] = 0;
                 } else
                     reinterpret_cast<int *>(ws)[ws_offset + oc] = 0;
             }
-            dst[oc] = nstl::numeric_limits<data_t>::lowest();
+            if (d_type == data_type::bf16) {
+                dst[oc] = bf16_cvt_utils::cvt_bfloat16_to_float(
+                        bf16_cvt_utils::approx_bfloat16_lowest());
+            } else
+                dst[oc] = nstl::numeric_limits<ker_data_t>::lowest();
+        }
+    }
+
+    void array_div_by_const(const int n, ker_data_t *dst,
+            const size_t num, ker_data_t *src) const {
+        for (int i = 0; i < n; ++i)
+        {
+            float ftmp = (float)src[i];
+            ftmp = ftmp / num;
+            dst[i] = math::out_round<ker_data_t>(ftmp);
+        }
+    }
+
+    template<typename ker_data_t>
+    void array_add(const int n, ker_data_t *dst, const ker_data_t *src) const {
+        for (int i = 0;  i < n; ++i)
+        {
+            dst[i] += src[i];
         }
     }
 
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 };
 
-template <impl::data_type_t data_type>
+template <impl::data_type_t d_type>
 struct nhwc_pooling_bwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_pooling_bwd_pd_t {
         pd_t(engine_t *engine, const pooling_desc_t *adesc,
@@ -197,7 +230,7 @@ struct nhwc_pooling_bwd_t: public cpu_primitive_t {
                 && utils::one_of(desc()->alg_kind, pooling_max,
                         pooling_avg_include_padding,
                         pooling_avg_exclude_padding)
-                && utils::everyone_is(data_type,
+                && utils::everyone_is(d_type,
                         diff_dst_pd()->desc()->data_type,
                         diff_src_pd()->desc()->data_type)
                 && utils::one_of(diff_dst_format, nhwc, ndhwc)
@@ -220,14 +253,32 @@ struct nhwc_pooling_bwd_t: public cpu_primitive_t {
                 ws_pd_ = *(cpu_memory_t::pd_t *)hint_fwd_pd_->workspace_pd();
             }
 
+            init_scratchpad();
+
             return status::success;
         }
+
+        private:
+            void init_scratchpad() {
+                using namespace memory_tracking::names;
+                if (diff_src_pd()->desc()->data_type == data_type::bf16) {
+                    size_t bf16cvt_sz_ = C() * mkldnn_get_max_threads();
+                    auto scratchpad = scratchpad_registry().registrar();
+                    scratchpad.book(key_pool_src_bf16cvt,
+                            sizeof(float) * bf16cvt_sz_);
+                    scratchpad.book(key_pool_dst_bf16cvt,
+                            sizeof(float) * bf16cvt_sz_);
+                }
+            }
     };
 
     nhwc_pooling_bwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
         : cpu_primitive_t(apd, inputs, outputs) {}
-    typedef typename prec_traits<data_type>::type data_t;
+
+    ~nhwc_pooling_bwd_t() {}
+
+    typedef typename prec_traits<d_type>::type data_t;
 
     virtual void execute(event_t *e) const {
         execute_backward();
@@ -237,6 +288,7 @@ struct nhwc_pooling_bwd_t: public cpu_primitive_t {
 private:
     void execute_backward() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
+
 };
 
 }// namespace cpu

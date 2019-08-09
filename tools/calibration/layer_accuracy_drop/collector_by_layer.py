@@ -45,12 +45,13 @@ class SingleLayerNetworkThread(threading.Thread):
 
 class CollectorByLayer:
 
-    def __init__(self, configuration, plugin, normalizer):
+    def __init__(self, configuration, plugin, normalizer, ignore_layer_names: list):
         self._configuration = configuration
         self._plugin = plugin
         self._normalizer = normalizer
+        self._ignore_layer_names = ignore_layer_names
 
-    def collect(self, statistics: dict(), full_network_result: InferenceResult) -> list:
+    def collect(self, statistics: dict, full_network_result: InferenceResult) -> list:
         '''
         Method get layers which can be quantized and affect on final accuracy. Separate network is created for each layer.
         '''
@@ -70,7 +71,8 @@ class CollectorByLayer:
             index = 1
             threads = list()
             for layer in network.layers.values():
-                if self._normalizer.is_quantization_supported(layer.type):
+                if layer.name not in self._ignore_layer_names and \
+                    self._normalizer.is_quantization_supported(layer.type):
                     layer_info = network_info.get_layer(layer.name)
                     if (len(layer_info.outputs) == 1) and (len(layer_info.outputs[0].layer.inputs) == 1):
                         quantization_layer = QuantizationLayer(index, layer)
@@ -101,7 +103,8 @@ class CollectorByLayer:
 
             for thread in threads:
                 thread.join()
-                accuracy_drop_by_layer.append(thread.result)
+                if thread.result:
+                    accuracy_drop_by_layer.append(thread.result)
 
             accuracy_drop_by_layer.sort(key=lambda accuracy_drop: accuracy_drop.value, reverse=True)
             return accuracy_drop_by_layer
@@ -110,7 +113,7 @@ class CollectorByLayer:
 
     def collect_in_thread(
         self,
-        statistics: dict(),
+        statistics: dict,
         full_network_result: InferenceResult,
         network: ie.IENetwork,
         network_info: NetworkInfo,
@@ -120,8 +123,11 @@ class CollectorByLayer:
         index = quantization_layer.index
         layer_to_clone = quantization_layer.layer
         layer_to_clone_info = network_info.get_layer(layer_to_clone.name)
-
-        activation_layer = network.layers[layer_to_clone_info.outputs[0].layer.name] if (len(layer_to_clone_info.outputs) == 1 and self._normalizer.is_quantization_fusing_supported(layer_to_clone_info, layer_to_clone_info.outputs[0].layer)) else None
+        original_precision = layer_to_clone_info.precision
+        activation_layer = network.layers[layer_to_clone_info.outputs[0].layer.name] if \
+            (len(layer_to_clone_info.outputs) == 1 and
+             self._normalizer.is_quantization_fusing_supported(layer_to_clone_info,
+                                                               layer_to_clone_info.outputs[0].layer)) else None
         if activation_layer:
             debug("create network #{} for layer {} ({}) -> {} ({})".format(index, layer_to_clone.name, layer_to_clone.type, activation_layer.name, activation_layer.type))
         else:
@@ -166,7 +172,8 @@ class CollectorByLayer:
 
             return LayerAccuracyDropInfo(
                 layer_name=single_layer_network.layer_name,
-                value=LayerAccuracyDropInfo.calculate(accuracy_drop_list))
+                value=LayerAccuracyDropInfo.calculate(accuracy_drop_list),
+                precision=original_precision)
 
     def infer_single_layer_network(self, single_layer_network: SingleLayerNetwork, full_network_results: list()):
         '''

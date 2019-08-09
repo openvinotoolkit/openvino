@@ -21,31 +21,24 @@ protected:
         return std::make_shared<ClampStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
         if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales.at(input);
+            auto inputScale = inputScales[0];
 
-            out[output] = inputScale;
+            _scaleInfo.setOutput(_outputEdges[0], inputScale);
 
             attrs().get<float>("min_value") *= inputScale;
             attrs().get<float>("max_value") *= inputScale;
         } else {
             // Clamp can only propagate scaling, not generate.
-            out[input] = 1.0f;
-            out[output] = 1.0f;
+            _scaleInfo.setInput(_inputEdges[0], 1.0f);
+            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
         }
-
-        return out;
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {

@@ -21,5 +21,7 @@ public:
 };
 
 TEST_F(CNNNetworkTests, throwsOnInitWithNull) {
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(CNNNetwork network(nullptr), InferenceEngine::details::InferenceEngineException);
+    IE_SUPPRESS_DEPRECATED_END
 }

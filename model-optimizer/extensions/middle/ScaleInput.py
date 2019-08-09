@@ -17,7 +17,7 @@ import numpy as np
 
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.lin_op import Mul
+from extensions.ops.elementwise import Mul
 from mo.ops.op import Op
 from mo.utils.error import Error
 
@@ -36,7 +36,7 @@ class ScaleInput(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('placeholder', dict(kind='op', op='Placeholder')),
+                ('placeholder', dict(kind='op', op='Parameter')),
                 ('data', dict(kind='data'))],
             edges=[
                 ('placeholder', 'data'),

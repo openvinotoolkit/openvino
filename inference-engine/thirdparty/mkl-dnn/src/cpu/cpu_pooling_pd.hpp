@@ -37,11 +37,14 @@ inline data_type_t pooling_index_data_type(const pooling_desc_t *p) {
     /* the simplest way to express 256... */
     const int u8_max =
         numeric_limits<typename prec_traits<data_type::u8>::type>::max();
+    /* value u8_max in the case of data_type::u8 is reserved for
+       designation of invalid index when pooling window is fully placed
+       outside of source domain */
     if( p->src_desc.ndims == 5 || p->diff_src_desc.ndims == 5 ) {
-        return p->kernel[0] * p->kernel[1] * p->kernel[2] <= u8_max
+        return p->kernel[0] * p->kernel[1] * p->kernel[2] < u8_max
             ? data_type::u8 : data_type::s32;
     } else {
-        return p->kernel[0] * p->kernel[1] <= u8_max
+        return p->kernel[0] * p->kernel[1] < u8_max
             ? data_type::u8 : data_type::s32;
     }
 }

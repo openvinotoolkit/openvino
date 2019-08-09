@@ -22,18 +22,17 @@
 #include "softmax_loss_grad/softmax_loss_grad_kernel_base.h"
 #include "error_handler.h"
 
-namespace cldnn { namespace gpu {
+namespace cldnn {
+namespace gpu {
 
-
-struct softmax_loss_grad_gpu : typed_primitive_gpu_impl<softmax_loss_grad>
-{
+struct softmax_loss_grad_gpu : typed_primitive_gpu_impl<softmax_loss_grad> {
     using parent = typed_primitive_gpu_impl<softmax_loss_grad>;
     using parent::parent;
-    
-    static primitive_impl* create(const softmax_loss_grad_node& arg) 
-    {
+
+    static primitive_impl* create(const softmax_loss_grad_node& arg) {
         auto sm_params = get_default_params<kernel_selector::softmax_loss_grad_params>(arg);
-        auto sm_optional_params = get_default_optional_params<kernel_selector::softmax_loss_grad_optional_params>(arg.get_program());
+        auto sm_optional_params =
+            get_default_optional_params<kernel_selector::softmax_loss_grad_optional_params>(arg.get_program());
 
         sm_params.gradient = true;
         sm_params.inputs.push_back(convert_data_tensor(arg.get_dependency(1).get_output_layout()));
@@ -41,29 +40,39 @@ struct softmax_loss_grad_gpu : typed_primitive_gpu_impl<softmax_loss_grad>
         auto& kernel_selector = kernel_selector::softmax_loss_grad_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(sm_params, sm_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
+        CLDNN_ERROR_BOOL(arg.id(),
+                         "Best_kernel.empty()",
+                         best_kernels.empty(),
+                         "Cannot find a proper kernel with this arguments");
 
         auto softmax_loss_grad_node = new softmax_loss_grad_gpu(arg, best_kernels[0]);
 
         return softmax_loss_grad_node;
-    };
+    }
 };
 
 namespace {
-    struct attach {
-        attach() {
-            auto val_fw = softmax_loss_grad_gpu::create;
-            implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
-            implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
-            implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-            implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-            implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
-            implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
-        }
-        ~attach() {}
-    };
+struct attach {
+    attach() {
+        auto val_fw = softmax_loss_grad_gpu::create;
+        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                                   val_fw);
+        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                                   val_fw);
+        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                                   val_fw);
+        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                                   val_fw);
+        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+                                                   val_fw);
+        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                                   val_fw);
+    }
+    ~attach() {}
+};
 
-    attach attach_impl;
-}
+attach attach_impl;
+}  // namespace
 
-} }
+}  // namespace gpu
+}  // namespace cldnn

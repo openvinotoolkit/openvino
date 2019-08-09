@@ -88,7 +88,7 @@ struct HwPlaneTile final {
     HwPlaneTileInfo heightInfo = {};
     HwPlaneTileInfo widthInfo = {};
 
-    std::vector<HwChannelTilePtr<Tiles>> channelTiles;
+    SmallVector<HwChannelTilePtr<Tiles>> channelTiles;
 };
 
 template <class Tiles>
@@ -97,7 +97,7 @@ struct HwTiling final {
     int sowTiles = 0;
     int socTiles = 0;
 
-    std::vector<HwPlaneTilePtr<Tiles>> planeTiles;
+    SmallVector<HwPlaneTilePtr<Tiles>> planeTiles;
 };
 
 template <class Tiles>
@@ -216,13 +216,13 @@ int calcOutputSize(
 // Plane tiles calculation.
 //
 
-std::vector<HwPlaneTileInfo> splitIntoPlaneTilesWithPool(
+SmallVector<HwPlaneTileInfo> splitIntoPlaneTilesWithPool(
         int inputSize,
         int kernelSize, int kernelStride,
         int pad,
         int maxOutputSize);
 
-std::vector<HwPlaneTileInfo> splitIntoPlaneTiles(
+SmallVector<HwPlaneTileInfo> splitIntoPlaneTiles(
         int inputSize, int outputSize,
         int kernelSize, int kernelStride,
         int padBefore, int padAfter,

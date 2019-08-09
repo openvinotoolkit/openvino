@@ -416,30 +416,7 @@ private:
     std::vector<int> roi_indices_;
 };
 
-class ONNXCustomProposalFactory : public ImplFactory<ONNXCustomProposalImpl> {
-public:
-    explicit ONNXCustomProposalFactory(const CNNLayer *layer): ImplFactory(layer) {}
-    // set output shapes by input shapes.
-    StatusCode getShapes(const std::vector<TensorDesc>& inShapes, std::vector<TensorDesc>& outShapes,
-                         ResponseDesc *resp) noexcept override {
-        try {
-            if (inShapes.size() != 1) {
-                THROW_IE_EXCEPTION << "Incorrect input shapes!";
-            }
-            outShapes.clear();
-            outShapes.emplace_back(cnnLayer.precision, inShapes[0].getDims(), inShapes[0].getLayout());
-            return OK;
-        } catch (const InferenceEngine::details::InferenceEngineException& e) {
-            if (resp) {
-                std::string errorMsg = e.what();
-                errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-            }
-            return GENERAL_ERROR;
-        }
-    }
-};
-
-REG_FACTORY_FOR(ONNXCustomProposalFactory, ExperimentalDetectronGenerateProposalsSingleImage);
+REG_FACTORY_FOR(ImplFactory<ONNXCustomProposalImpl>, ExperimentalDetectronGenerateProposalsSingleImage);
 
 }  // namespace Cpu
 }  // namespace Extensions

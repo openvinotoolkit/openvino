@@ -6,7 +6,16 @@
 // ----------------------------------------------------------------------------
 #ifndef _MVNC_COMM_H_
 #define _MVNC_COMM_H_
-#define NC_MAX_NAME_SIZE        28
+
+#include <stdint.h>
+#include <mvnc.h>
+
+#include "XLinkPublicDefines.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 // TODO: #-17902
 struct tensorDescriptor_t {
@@ -73,7 +82,7 @@ typedef enum {
 typedef struct {
     graphCommandType_t type;
     uint32_t id;
-    char streamName[16];
+    char streamName[MAX_STREAM_NAME_LENGTH];
     uint32_t buffId1;
     uint32_t buffId2;
     uint32_t executors_number;
@@ -82,7 +91,7 @@ typedef struct {
 
 typedef struct {
     bufferCommandType_t type;
-    char name[NC_MAX_NAME_SIZE];
+    char name[MAX_STREAM_NAME_LENGTH];
     uint32_t id;
     uint32_t elemCnt;
     struct tensorDescriptor_t desc;
@@ -168,5 +177,10 @@ typedef struct {
     uint32_t mv_tensor_version[2];
 } deviceCapabilities_t;
 
+ncStatus_t getFirmwarePath(char* mv_cmd_file_path, const char* dev_addr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

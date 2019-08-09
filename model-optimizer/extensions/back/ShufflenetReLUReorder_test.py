@@ -24,7 +24,7 @@ from mo.utils.unittest.graph import build_graph, compare_graphs
 # The dictionary with nodes attributes used to build various graphs. A key is the name of the node and the value is the
 # dictionary with node attributes.
 nodes_attributes = {
-    'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # ReLU
     'relu_1': {'type': 'ReLU', 'kind': 'op', 'op': 'ReLU'},
@@ -37,7 +37,7 @@ nodes_attributes = {
     'reshape_3': {'type': 'Reshape', 'kind': 'op', 'op': 'Reshape'},
     'reshape_3_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Transpose layer
-    'transpose_1': {'type': 'Permute', 'kind': 'op', 'op': 'Transpose'},
+    'transpose_1': {'type': 'Transpose', 'kind': 'op', 'op': 'Transpose'},
     'transpose_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Conv layer
     'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'Conv2d'},

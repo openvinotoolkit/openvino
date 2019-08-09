@@ -20,8 +20,10 @@ from mo.front.onnx.extractors.utils import onnx_attr
 
 def onnx_gemm_ext(node):
     return {
-        'alpha': onnx_attr(node, 'alpha', 'i', 0),
-        'beta': onnx_attr(node, 'beta', 'i', 0),
+        'op': 'GEMM',
+        'type': 'GEMM',
+        'alpha': onnx_attr(node, 'alpha', 'f', 1),
+        'beta': onnx_attr(node, 'beta', 'f', 1),
         'transpose_a': onnx_attr(node, 'transA', 'i', 0),
         'transpose_b': onnx_attr(node, 'transB', 'i', 0),
         'broadcast_c': onnx_attr(node, 'broadcast', 'i', 1),

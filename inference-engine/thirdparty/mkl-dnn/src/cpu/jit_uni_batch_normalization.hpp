@@ -32,8 +32,8 @@ namespace cpu {
 
 namespace { template <cpu_isa_t isa> struct uni_bnorm_driver_t; }
 
-template <cpu_isa_t isa>
-struct jit_uni_batch_normalization_fwd_t: public cpu_primitive_t {
+template <cpu_isa_t isa, data_type_t d_type>
+struct jit_uni_batch_normalization_fwd_t : public cpu_primitive_t {
     struct pd_t: public cpu_batch_normalization_fwd_pd_t {
         pd_t(engine_t *engine, const batch_normalization_desc_t *adesc,
                 const primitive_attr_t *attr,
@@ -41,14 +41,13 @@ struct jit_uni_batch_normalization_fwd_t: public cpu_primitive_t {
             : cpu_batch_normalization_fwd_pd_t(engine, adesc, attr,
                     hint_fwd_pd) {}
 
-        DECLARE_COMMON_PD_T(
-                JIT_IMPL_NAME_HELPER("jit:", isa, ""),
-                jit_uni_batch_normalization_fwd_t<isa>);
+        DECLARE_COMMON_PD_T(JIT_IMPL_NAME_HELPER("jit:", isa, ""),
+                jit_uni_batch_normalization_fwd_t<isa, d_type>);
 
         virtual status_t init() override;
     };
 
-    typedef typename prec_traits<data_type::f32>::type data_t;
+    typedef typename prec_traits<d_type>::type data_t;
 
     jit_uni_batch_normalization_fwd_t(const pd_t *apd,
             const input_vector &inputs, const output_vector &outputs);
@@ -62,8 +61,8 @@ private:
     uni_bnorm_driver_t<isa> *bnorm_driver_;
 };
 
-template <cpu_isa_t isa>
-struct jit_uni_batch_normalization_bwd_t: public cpu_primitive_t {
+template <cpu_isa_t isa, data_type_t d_type>
+struct jit_uni_batch_normalization_bwd_t : public cpu_primitive_t {
     struct pd_t: public cpu_batch_normalization_bwd_pd_t {
         pd_t(engine_t *engine, const batch_normalization_desc_t *adesc,
                 const primitive_attr_t *attr,
@@ -71,14 +70,13 @@ struct jit_uni_batch_normalization_bwd_t: public cpu_primitive_t {
             : cpu_batch_normalization_bwd_pd_t(engine, adesc, attr,
                     hint_fwd_pd) {}
 
-        DECLARE_COMMON_PD_T(
-                JIT_IMPL_NAME_HELPER("jit:", isa, ""),
-                jit_uni_batch_normalization_bwd_t<isa>);
+        DECLARE_COMMON_PD_T(JIT_IMPL_NAME_HELPER("jit:", isa, ""),
+                jit_uni_batch_normalization_bwd_t<isa, d_type>);
 
         virtual status_t init() override;
     };
 
-    typedef typename prec_traits<data_type::f32>::type data_t;
+    typedef typename prec_traits<d_type>::type data_t;
 
     jit_uni_batch_normalization_bwd_t(const pd_t *apd,
             const input_vector &inputs, const output_vector &outputs);

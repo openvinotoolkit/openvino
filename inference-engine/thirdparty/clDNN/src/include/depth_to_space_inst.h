@@ -18,12 +18,11 @@
 #pragma once
 #include "api/CPP/depth_to_space.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace  cldnn
-{
+namespace cldnn {
 template <>
-struct typed_program_node<depth_to_space> : public typed_program_node_base<depth_to_space>
-{
+struct typed_program_node<depth_to_space> : public typed_program_node_base<depth_to_space> {
     using parent = typed_program_node_base<depth_to_space>;
 
 public:
@@ -35,8 +34,7 @@ public:
 using depth_to_space_node = typed_program_node<depth_to_space>;
 
 template <>
-class typed_primitive_inst<depth_to_space> : public typed_primitive_inst_base<depth_to_space>
-{
+class typed_primitive_inst<depth_to_space> : public typed_primitive_inst_base<depth_to_space> {
     using parent = typed_primitive_inst_base<depth_to_space>;
 
 public:
@@ -48,4 +46,4 @@ public:
 };
 
 using depth_to_space_inst = typed_primitive_inst<depth_to_space>;
-}
+}  // namespace cldnn

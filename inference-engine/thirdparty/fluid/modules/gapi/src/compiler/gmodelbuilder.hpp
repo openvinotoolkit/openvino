@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GMODEL_BUILDER_HPP
@@ -14,7 +14,7 @@
 #include "opencv2/gapi/gproto.hpp"
 #include "opencv2/gapi/gcall.hpp"
 
-#include "api/gapi_priv.hpp"
+#include "api/gorigin.hpp"
 #include "api/gnode.hpp"
 #include "compiler/gmodel.hpp"
 
@@ -44,7 +44,8 @@ GAPI_EXPORTS Unrolled unrollExpr(const GProtoArgs &ins, const GProtoArgs &outs);
 // FIXME: GAPI_EXPORTS only because of tests!!!
 class GAPI_EXPORTS GModelBuilder
 {
-    GModel::Graph m_g;
+    ade::Graph &m_g;
+    GModel::Graph m_gm;
 
     // Mappings of G-API user framework entities to ADE node handles
     std::unordered_map<const cv::GNode::Priv*, ade::NodeHandle> m_graph_ops;

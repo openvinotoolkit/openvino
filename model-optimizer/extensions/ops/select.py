@@ -14,12 +14,10 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class Select(Op):
@@ -28,6 +26,7 @@ class Select(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'op': __class__.op,
+            'type': __class__.op,
             'in_ports_count': 3,
             'out_ports_count': 1,
             'infer': __class__.infer,
@@ -53,9 +52,10 @@ class Select(Op):
                 node.out_node(out).shape = np.array(output_shape)
             return
 
-        condition_value = condition_node.value[0]
+        assert condition_node.value.size == 1
+        condition_value = condition_node.value.item(0)
 
-        assert isinstance(condition_value, np.bool_), \
+        assert isinstance(condition_value, np.bool), \
             "TensorFlow \'Select\' operation has 3 inputs: \'condition\', \'then\' and \'else\' tensors. " \
             "Value of \'condition\' tensor must be boolen by TensorFlow reference"
 

@@ -38,13 +38,12 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
         return [RestorePorts]
 
     def run_before(self):
-        from extensions.front.pass_separator import FrontStart
-        return [FrontStart]
-
+        return []
+    
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('placeholder', dict(kind='op', op='Placeholder'))],
+            nodes=[('placeholder', dict(kind='op', op='Parameter'))],
             edges=[]
         )
 

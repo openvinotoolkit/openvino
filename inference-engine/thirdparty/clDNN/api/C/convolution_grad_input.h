@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef CONVOLUTION_GRAD_INPUT_H
-#define CONVOLUTION_GRAD_INPUT_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -31,7 +29,8 @@ extern "C" {
 #endif
 
 /// @brief Performs transposed convolution.
-/// @details convolution_grad_input is similar to convolution layer with the weights flipped on the axis and stride and input padding parameters used in opposite sense as in convolution.
+/// @details convolution_grad_input is similar to convolution layer with the weights flipped on the axis and stride
+/// and input padding parameters used in opposite sense as in convolution.
 CLDNN_BEGIN_PRIMITIVE_DESC(convolution_grad_input)
 /// @brief Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the convolution_grad_input window should start calculations.
 cldnn_tensor input_offset;
@@ -56,5 +55,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(convolution_grad_input);
 /// @}
 /// @}
 /// @}
-#endif /* CONVOLUTION_GRAD_INPUT_H */
 

@@ -12,6 +12,7 @@
 #include "mock_iformat_parser.hpp"
 #include <test_assertions.hpp>
 #include <single_layer_common.hpp>
+#include <thread>
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -29,7 +30,7 @@ struct MockFormatParserCreator : public FormatParserCreator {
         _parser = make_shared<MockIFormatParser>();
     }
 
-    std::shared_ptr<IFormatParser> create(int version) override {
+    std::shared_ptr<IFormatParser> create(size_t version) override {
         return _parser;
     }
 
@@ -2137,4 +2138,181 @@ TEST_F(CNNNetReaderImplTest, canParseScalar) {
     ASSERT_TRUE(scalarDesc.getDims().empty());
     ASSERT_EQ(scalarDesc.getLayout(), SCALAR);
     ASSERT_EQ(scalarDesc.getPrecision(), Precision::FP32);
+}
+
+TEST_F(CNNNetReaderImplTest, ReadInThreads) {
+    std::string model =
+            "<net name=\"PVANET\" version=\"6\" batch=\"1\">"
+            "    <layers>"
+            "        <layer name=\"data\" type=\"Input\" precision=\"FP32\" id=\"0\">"
+            "            <output>"
+            "                <port id=\"0\">"
+            "                    <dim>1</dim>"
+            "                    <dim>3</dim>"
+            "                    <dim>544</dim>"
+            "                    <dim>992</dim>"
+            "                </port>"
+            "            </output>"
+            "        </layer>"
+            "        <layer name=\"conv1_1_conv\" type=\"Convolution\" precision=\"FP32\" id=\"2\">"
+            "            <convolution_data stride-x=\"2\" stride-y=\"2\" pad-x=\"3\" pad-y=\"3\" kernel-x=\"7\" kernel-y=\"7\" output=\"16\" group=\"1\"/>"
+            "            <input>"
+            "                <port id=\"2\">"
+            "                    <dim>1</dim>"
+            "                    <dim>3</dim>"
+            "                    <dim>544</dim>"
+            "                    <dim>992</dim>"
+            "                </port>"
+            "            </input>"
+            "            <output>"
+            "                <port id=\"3\">"
+            "                    <dim>1</dim>"
+            "                    <dim>16</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "            </output>"
+            "            <weights offset=\"0\" size=\"9408\"/>"
+            "            <biases offset=\"9408\" size=\"64\"/>"
+            "        </layer>"
+            "        <layer name=\"conv1_1_neg\" type=\"Power\" precision=\"FP32\" id=\"3\">"
+            "            <power_data power=\"1\" scale=\"-1\" shift=\"0\"/>"
+            "            <input>"
+            "                <port id=\"4\">"
+            "                    <dim>1</dim>"
+            "                    <dim>16</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "            </input>"
+            "            <output>"
+            "                <port id=\"5\">"
+            "                    <dim>1</dim>"
+            "                    <dim>16</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "            </output>"
+            "        </layer>"
+            "        <layer name=\"conv1_1_concat\" type=\"Concat\" precision=\"FP32\" id=\"4\">"
+            "            <concat_data axis=\"1\"/>"
+            "            <input>"
+            "                <port id=\"6\">"
+            "                    <dim>1</dim>"
+            "                    <dim>16</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "                <port id=\"7\">"
+            "                    <dim>1</dim>"
+            "                    <dim>16</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "            </input>"
+            "            <output>"
+            "                <port id=\"8\">"
+            "                    <dim>1</dim>"
+            "                    <dim>32</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "            </output>"
+            "        </layer>"
+            "        <layer name=\"conv1_1_scale\" type=\"ScaleShift\" precision=\"FP32\" id=\"5\">"
+            "            <input>"
+            "                <port id=\"9\">"
+            "                    <dim>1</dim>"
+            "                    <dim>32</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "            </input>"
+            "            <output>"
+            "                <port id=\"10\">"
+            "                    <dim>1</dim>"
+            "                    <dim>32</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "            </output>"
+            "            <weights offset=\"9472\" size=\"128\"/>"
+            "            <biases offset=\"9600\" size=\"128\"/>"
+            "        </layer>"
+            "        <layer name=\"conv1_1_relu\" type=\"ReLU\" precision=\"FP32\" id=\"6\">"
+            "            <data negative_slope=\"0\" engine=\"caffe.ReLUParameter.DEFAULT\"/>"
+            "            <input>"
+            "                <port id=\"11\">"
+            "                    <dim>1</dim>"
+            "                    <dim>32</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "            </input>"
+            "            <output>"
+            "                <port id=\"12\">"
+            "                    <dim>1</dim>"
+            "                    <dim>32</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "            </output>"
+            "        </layer>"
+            "        <layer name=\"pool1\" type=\"Pooling\" precision=\"FP32\" id=\"7\">"
+            "            <pooling_data kernel-x=\"3\" kernel-y=\"3\" pad-x=\"0\" pad-y=\"0\" stride-x=\"2\" stride-y=\"2\" rounding-type=\"ceil\" pool-method=\"max\"/>"
+            "            <input>"
+            "                <port id=\"13\">"
+            "                    <dim>1</dim>"
+            "                    <dim>32</dim>"
+            "                    <dim>272</dim>"
+            "                    <dim>496</dim>"
+            "                </port>"
+            "            </input>"
+            "            <output>"
+            "                <port id=\"14\">"
+            "                    <dim>1</dim>"
+            "                    <dim>32</dim>"
+            "                    <dim>136</dim>"
+            "                    <dim>248</dim>"
+            "                </port>"
+            "            </output>"
+            "        </layer>"
+            "    </layers>"
+            "    <edges>"
+            "        <edge from-layer=\"0\" from-port=\"0\" to-layer=\"2\" to-port=\"2\"/>"
+            "        <edge from-layer=\"2\" from-port=\"3\" to-layer=\"3\" to-port=\"4\"/>"
+            "        <edge from-layer=\"2\" from-port=\"3\" to-layer=\"4\" to-port=\"6\"/>"
+            "        <edge from-layer=\"3\" from-port=\"5\" to-layer=\"4\" to-port=\"7\"/>"
+            "        <edge from-layer=\"4\" from-port=\"8\" to-layer=\"5\" to-port=\"9\"/>"
+            "        <edge from-layer=\"5\" from-port=\"10\" to-layer=\"6\" to-port=\"11\"/>"
+            "        <edge from-layer=\"6\" from-port=\"12\" to-layer=\"7\" to-port=\"13\"/>"
+            "    </edges>"
+            "</net>";
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 20; i++) {
+        threads.push_back(std::thread([i, model]{
+                    CNNNetReader networkReader;
+                    /** Read network model **/
+                    networkReader.ReadNetwork(model.data(), model.length());
+                    CNNNetwork network = networkReader.getNetwork();
+                    // -----------------------------------------------------------------------------------------------------
+
+                    // --------------------------- 3. Configure input & output ---------------------------------------------
+
+                    // --------------------------- Prepare input blobs -----------------------------------------------------
+
+                    auto input_shapes = network.getInputShapes();
+                    std::string input_name;
+                    InferenceEngine::SizeVector input_shape;
+
+                    std::tie(input_name, input_shape) = *input_shapes.begin();
+                    input_shape[0] = i;  // batch
+                    input_shapes[input_name] = input_shape;
+                    network.reshape(input_shapes);    // Not synchronized for reshape. This fails due to concurrency.
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    }));
+    }
+
+    for (auto& thr : threads)
+        thr.join();
 }

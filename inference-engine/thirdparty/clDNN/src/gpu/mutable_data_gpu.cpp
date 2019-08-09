@@ -18,30 +18,31 @@
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
 
-namespace cldnn { namespace gpu {
+namespace cldnn {
+namespace gpu {
 
-struct mutable_data_gpu : public typed_primitive_gpu_impl<mutable_data>
-{
+struct mutable_data_gpu : public typed_primitive_gpu_impl<mutable_data> {
     using parent = typed_primitive_gpu_impl<mutable_data>;
     using parent::parent;
 
 public:
+    bool validate_impl(const typed_primitive_inst<mutable_data>& instance) const override {
+        auto net_stream_id = instance.get_network().get_stream_id();
+        auto mem_stream_id = instance.output_memory().get_stream_id();
 
-    static primitive_impl* create(mutable_data_node const& arg) 
-    { 
-        return new mutable_data_gpu(arg, {});
+        bool res = net_stream_id == mem_stream_id;
+        return res;
     }
+
+    static primitive_impl* create(mutable_data_node const& arg) { return new mutable_data_gpu(arg, {}); }
 };
 
 namespace {
-    struct attach {
-        attach() {
-            implementation_map<mutable_data>::add({
-                { engine_types::ocl, mutable_data_gpu::create }
-            });
-        }
-        ~attach() {}
-    };
-    attach attach_impl;
-}
-} }
+struct attach {
+    attach() { implementation_map<mutable_data>::add({{engine_types::ocl, mutable_data_gpu::create}}); }
+    ~attach() {}
+};
+attach attach_impl;
+}  // namespace
+}  // namespace gpu
+}  // namespace cldnn

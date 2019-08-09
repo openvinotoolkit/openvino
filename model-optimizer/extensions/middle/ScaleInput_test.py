@@ -28,12 +28,12 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_3_data': {'value': None, 'kind': 'data', 'data_type': None},
                     # Placeholders
-                    'placeholder_1': {'shape': None, 'type': 'Input', 'kind': 'op', 'op': 'Placeholder'},
+                    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-                    'placeholder_2': {'shape': None, 'type': 'Input', 'kind': 'op', 'op': 'Placeholder'},
-                    'pl_1': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+                    'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+                    'pl_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'pl_1_data': {'value': None, 'kind': 'data', 'data_type': None},
-                    'pl_2': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+                    'pl_2': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'pl_2_data': {'value': None, 'kind': 'data', 'data_type': None},
                     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
                     # ScaleShift layer
@@ -45,7 +45,7 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'mul_1': {'type': None, 'kind': 'op', 'op': 'Mul'},
                     'mul_1_w': {'value': None, 'shape': None, 'kind': 'data'},
                     'mul_1_data': {'value': None, 'shape': None, 'kind': 'data'},
-                    'op_output': {'kind': 'op', 'op': 'OpOutput', 'infer': lambda x: None}
+                    'op_output': {'kind': 'op', 'op': 'Result', 'infer': lambda x: None}
                     }
 
 

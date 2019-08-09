@@ -194,8 +194,9 @@ void ref_simplernms(const InferenceEngine::TBlob<data_t> &src_cls, const Inferen
     data_t *anchors_ = new data_t[anchors_num * sizeof(anchor) / sizeof(float)];
     const anchor* anchors = (anchor*)anchors_;
 
-    int H = src_cls.dims()[2];
-    int W = src_cls.dims()[3];
+    IE_ASSERT(src_cls.getTensorDesc().getDims().size() == 4);
+    int H = src_cls.getTensorDesc().getDims()[2];
+    int W = src_cls.getTensorDesc().getDims()[3];
 
     int SZ = H * W;
 
@@ -390,7 +391,7 @@ protected:
             }
             InferenceEngine::SizeVector dims_src_cls = {p.in_cls.n, p.in_cls.c, p.in_cls.h, p.in_cls.w};
 
-            InferenceEngine::Blob::Ptr src_cls = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src_cls);
+            InferenceEngine::Blob::Ptr src_cls = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src_cls, InferenceEngine::NCHW});
             src_cls->allocate();
             fill_data(src_cls->buffer(), src_cls->size());
 
@@ -401,7 +402,7 @@ protected:
 
             InferenceEngine::SizeVector dims_delta = {p.in_delta.n, p.in_delta.c, p.in_delta.h, p.in_delta.w};
 
-            InferenceEngine::Blob::Ptr src_delta = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_delta);
+            InferenceEngine::Blob::Ptr src_delta = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_delta, InferenceEngine::NCHW});
             src_delta->allocate();
             fill_data(src_delta->buffer(), src_delta->size());
 
@@ -412,7 +413,7 @@ protected:
 
             InferenceEngine::SizeVector dims_info = {p.in_info.n, p.in_info.c};
 
-            InferenceEngine::Blob::Ptr src_info = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NC, dims_info);
+            InferenceEngine::Blob::Ptr src_info = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_info, InferenceEngine::NC});
             src_info->allocate();
             fill_data(src_info->buffer(), src_info->size());
             float * data_info = src_info->buffer();

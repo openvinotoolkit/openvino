@@ -14,11 +14,11 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from extensions.front.mxnet.ssd_pattern_remove_flatten import SsdPatternRemoveFlatten
 from extensions.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.ops.reshape import Reshape
 
@@ -60,14 +60,8 @@ class SsdPatternFlattenSoftmaxActivation(FrontReplacementSubgraph):
         out_port = edge_data[0]['out']
         in_port = edge_data[0]['in']
         graph.remove_edge(softmax_activation.id, multi_box_detection.id)
-        symbol_node = dict(
-            op='Flatten',
-            name=multi_box_detection.name + '/Reshape_',
-            dim=[0, -1],
-            axis=1,
-            end_axis=-1
-        )
-        new_reshape_op = Reshape(graph, {'symbol_dict': symbol_node})
-        new_reshape_node = new_reshape_op.create_node([softmax_activation])
-        new_reshape_node['dim'] = [0, -1]
+        new_reshape_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
+                                                            dict(op='Reshape',
+                                                                 name=multi_box_detection.name + '/Reshape_'),
+                                                            softmax_activation)
         graph.create_edge(new_reshape_node, multi_box_detection, in_port=in_port, out_port=out_port)

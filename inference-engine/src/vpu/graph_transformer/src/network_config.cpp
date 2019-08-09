@@ -25,8 +25,8 @@ void parseStringSet(const std::string& str, Set& set) {
     splitStringList(str, set, ',');
 }
 
-std::vector<std::string> splitString(const std::string& str, char sep) {
-    std::vector<std::string> out;
+SmallVector<std::string> splitString(const std::string& str, char sep) {
+    SmallVector<std::string> out;
     splitStringList(str, out, sep);
     return out;
 }
@@ -82,9 +82,6 @@ template <typename K> K xmlAttrToVal(const pugi::xml_attribute& attr);
 template<> std::string xmlAttrToVal<std::string>(const pugi::xml_attribute& attr) {
     return attr.as_string("");
 }
-template<> int xmlAttrToVal<int>(const pugi::xml_attribute& attr) {
-    return attr.as_int(0);
-}
 
 template <typename K>
 std::map<K, pugi::xml_node> xmlCollectChilds(const pugi::xml_node& xmlParent,
@@ -128,22 +125,6 @@ template <> bool parseVal<bool>(const std::string& val) {
 template <> float parseVal<float>(const std::string& val) {
     return parseScale(val);
 }
-template <> int parseVal<int>(const std::string& val) {
-    int size = 0;
-    try {
-        size = std::stoi(val);
-    } catch (...) {
-        VPU_THROW_EXCEPTION
-            << "Invalid integer value " << val;
-    }
-
-    if (size <= 0) {
-        VPU_THROW_EXCEPTION
-            << "Invalid integer value " << val;
-    }
-
-    return size;
-}
 
 template <typename K, typename V>
 void xmlUpdateMap(const pugi::xml_node& xmlNode,
@@ -178,8 +159,6 @@ bool NetworkConfig::hwDisabled(const std::string& layerName) const {
 }
 
 void NetworkConfig::parse(const CompilationConfig& config) {
-    ie::details::CaselessEq<std::string> cmp;
-
     parseStringSet(config.noneLayers, _noneLayers);
     parseStringSet(config.hwWhiteList, _hwWhiteList);
     parseStringSet(config.hwBlackList, _hwBlackList);

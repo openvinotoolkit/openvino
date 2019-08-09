@@ -50,6 +50,16 @@ class PriorBoxFrontExtractor(FrontExtractorOp):
             'offset': param.offset,
         }
 
+        # these params can be omitted in caffe.proto and in param as consequence,
+        # so check if it is set or set to default
+        fields = [field[0].name for field in param.ListFields()]
+        if 'density' in fields:
+            update_attrs['density'] = np.array(param.density)
+        if 'fixed_size' in fields:
+            update_attrs['fixed_size'] = np.array(param.fixed_size)
+        if 'fixed_ratio' in fields:
+            update_attrs['fixed_ratio'] = np.array(param.fixed_ratio)
+
         mapping_rule = merge_attrs(param, update_attrs)
 
         mapping_rule.update(layout_attrs())

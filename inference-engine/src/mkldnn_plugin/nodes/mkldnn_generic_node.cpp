@@ -12,7 +12,11 @@
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 
-MKLDNNGenericNode::MKLDNNGenericNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNGenericNode::MKLDNNGenericNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
+        MKLDNNNode(layer, eng, socket) {
+    params = layer->params;
+    blobs = layer->blobs;
+}
 
 void MKLDNNGenericNode::getSupportedDescriptors() {
     if (!extFactory) {
@@ -50,7 +54,12 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
         }
 
         for (auto& config : configs) {
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+            std::vector<memory::format> outFormats;
+            for (auto& outConfig : config.outConfs) {
+                outFormats.push_back(MKLDNNMemory::Convert(outConfig.desc.getLayout()));
+            }
+
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormats);
         }
     }
     if (impls.empty()) {
@@ -63,7 +72,7 @@ void MKLDNNGenericNode::createPrimitive() {
         return;
     }
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 }
 
 void MKLDNNGenericNode::execute(mkldnn::stream strm) {
@@ -83,6 +92,7 @@ bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
         // We should save extension manager in otder to avoid situation when
         // it will destroyed before extensibility primitives
         extFactory.reset(extMgr->CreateExtensionFactory(getCnnLayer()));
+        extShapeInference = extMgr->CreateReshaper(getCnnLayer());
 
         if (extFactory)
             setType(Generic);
@@ -98,10 +108,13 @@ void MKLDNNGenericNode::cleanup() {
 void MKLDNNGenericNode::execLayer() {
     bool isDynBatch = dynBatchLim > 0;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
+    std::vector<InferenceEngine::Blob::CPtr> constInputs;
     std::vector<InferenceEngine::TensorDesc> inputDescs;
-    std::vector<InferenceEngine::TensorDesc> outputDescs;
+    std::vector<InferenceEngine::SizeVector> outputShapes;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        inputs.push_back(getParentEdgeAt(i)->getBlob());
+        auto inputBlob = getParentEdgeAt(i)->getBlob();
+        inputs.push_back(inputBlob);
+        constInputs.push_back(inputBlob);
         if (isDynBatch && dynBatchLim >= inputs[inputs.size() - 1]->getTensorDesc().getDims()[0]) {
             isDynBatch = false;
         } else {
@@ -112,9 +125,13 @@ void MKLDNNGenericNode::execLayer() {
     }
 
     if (isDynBatch) {
-        auto sts = extFactory->getShapes(inputDescs, outputDescs, nullptr);
-        if (sts != InferenceEngine::StatusCode::OK)
+        if (extShapeInference) {
+            auto sts = extShapeInference->inferShapes(constInputs, params, blobs, outputShapes, nullptr);
+            if (sts != InferenceEngine::StatusCode::OK)
+                isDynBatch = false;
+        } else {
             isDynBatch = false;
+        }
     }
 
     if (isDynBatch) {
@@ -125,14 +142,14 @@ void MKLDNNGenericNode::execLayer() {
         }
     }
     std::vector<InferenceEngine::Blob::Ptr> outputs;
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
+    for (size_t i = 0; i < outDims.size(); i++) {
         if (isDynBatch) {
-            size_t idx = i >= outputDescs.size() ? 0 : i;
-            auto td = getChildEdgeAt(i)->getBlob()->getTensorDesc();
-            td.setDims(outputDescs[idx].getDims());
-            outputs.push_back(make_blob_with_precision(td, getChildEdgeAt(i)->getMemory().GetData()));
+            auto out_edge = getChildEdgesAtPort(i)[0];
+            auto td = out_edge->getBlob()->getTensorDesc();
+            td.setDims(outputShapes[i]);
+            outputs.push_back(make_blob_with_precision(td, out_edge->getMemory().GetData()));
         } else {
-            outputs.push_back(getChildEdgeAt(i)->getBlob());
+            outputs.push_back(getChildEdgesAtPort(i)[0]->getBlob());
         }
     }
     auto * execImpl = dynamic_cast<InferenceEngine::ILayerExecImpl *>(impls[0].get());

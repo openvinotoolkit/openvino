@@ -36,10 +36,11 @@ void tile_ref(const memory& input, memory& output, tile::tile_axis axis, int num
     {
         switch (axis)
         {
-            case tile::along_b: return std::make_pair(1, size.batch[0]*size.feature[0]*size.spatial[1]*size.spatial[0]);
-            case tile::along_f: return std::make_pair(size.batch[0], size.feature[0]*size.spatial[1]*size.spatial[0]);
-            case tile::along_y: return std::make_pair(size.batch[0]*size.feature[0], size.spatial[1]*size.spatial[0]);
-            case tile::along_x: return std::make_pair(size.batch[0]*size.feature[0]*size.spatial[1], size.spatial[0]);
+            case tile::along_b: return std::make_pair(1, size.batch[0]*size.feature[0]*size.spatial[2]*size.spatial[1]*size.spatial[0]);
+            case tile::along_f: return std::make_pair(size.batch[0], size.feature[0]*size.spatial[2]*size.spatial[1]*size.spatial[0]);
+            case tile::along_z: return std::make_pair(size.batch[0]*size.feature[0], size.spatial[2]*size.spatial[1]*size.spatial[0]);
+            case tile::along_y: return std::make_pair(size.batch[0]*size.feature[0]*size.spatial[2], size.spatial[1]*size.spatial[0]);
+            case tile::along_x: return std::make_pair(size.batch[0]*size.feature[0]*size.spatial[2]*size.spatial[1], size.spatial[0]);
             default: throw std::invalid_argument("Invalid axis(" + std::to_string(static_cast<int>(axis)) + ") in tile ref version");
         }
     };
@@ -223,3 +224,42 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
         EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
+
+TEST(tile_gpu, basic_in1x2x2x2_axis_z) {
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 2 } });
+    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 4 } });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(tile("tile", "input", tile::along_z, 2));
+
+    std::vector<float> input_vec = {
+        1.f, 0.f,
+        5.f, 1.5f,
+        2.f, 0.f,
+        6.f, 5.2f,
+        1.f, 0.f,
+        5.f, 1.5f,
+        2.f, 0.f,
+        6.f, 5.2f
+    };
+    set_values(input, input_vec);
+    tile_ref<float>(input, output_ref, tile::along_z, 2);
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("tile").get_memory();
+    auto output_ptr = output.pointer<float>();
+    auto output_ref_ptr = output_ref.pointer<float>();
+
+    for (unsigned int i = 0; i < output_ref.count(); ++i) {
+        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
+    }
+}
+

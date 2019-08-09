@@ -4,8 +4,11 @@
 
 #ifndef _XLINK_LINKPLATFORM_H
 #define _XLINK_LINKPLATFORM_H
+
+#define _XLINK_ENABLE_PRIVATE_INCLUDE_
+#include "XLinkPrivateDefines.h"
 #include <stdint.h>
-#include "XLinkPublicDefines.h"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -14,37 +17,28 @@ extern "C"
 #define MAX_POOLS_ALLOC 32
 #define PACKET_LENGTH (64*1024)
 
-#define MAX_LINKS 32
-
-int XLinkWrite(void* fd, void* data, int size, unsigned int timeout);
-int XLinkRead(void* fd, void* data, int size, unsigned int timeout);
-int XLinkPlatformConnect(const char* devPathRead,
-                           const char* devPathWrite, void** fd);
-int XLinkPlatformInit(XLinkProtocol_t protocol, int loglevel);
+int XLinkWrite(xLinkDeviceHandle_t* deviceHandle, void* data, int size, unsigned int timeout);
+int XLinkRead(xLinkDeviceHandle_t* deviceHandle, void* data, int size, unsigned int timeout);
+int XLinkPlatformConnect(const char* devPathRead, const char* devPathWrite,
+    XLinkProtocol_t protocol, void** fd);
+void XLinkPlatformInit();
 
 /**
- * @brief      Return Myriad device name on index
- * @param[in]  index Index of device in list of all Myriad devices
- * @param[out] name device name, which would be found
+ * @brief Return Myriad device name on index
  */
-int XLinkPlatformGetDeviceName(int index,
-                                char* name,
-                                int nameSize);
+int XLinkPlatformFindDeviceName(int index,
+    XLinkDeviceState_t state,
+    deviceDesc_t* in_deviceRequirements,
+    deviceDesc_t* out_foundDevice);
 
-/**
- * @brief      Returning Myriad device suitable for the parameters
- * @param[in]  index Device index in list of suitable (matches pid argument) devices
- * @param[out] name device name, which would be found
- * @param[in] pid  0x2485 for MX, 0x2150 for M2, 0 for any, -1 for any not booted
- */
-int XLinkPlatformGetDeviceNameExtended(int index,
-                                char* name,
-                                int nameSize,
-                                int pid);
+int XLinkPlatformIsDescriptionValid(deviceDesc_t *in_deviceDesc);
 
-int XLinkPlatformBootRemote(const char* deviceName,
-							const char* binaryPath);
-int XLinkPlatformCloseRemote(void *fd);
+int XLinkPlatformToPid(const XLinkPlatform_t platform);
+XLinkPlatform_t XLinkPlatformPidToPlatform(const int pid);
+
+int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc,
+                            const char* binaryPath);
+int XLinkPlatformCloseRemote(xLinkDeviceHandle_t* deviceHandle);
 
 void* allocateData(uint32_t size, uint32_t alignment);
 void deallocateData(void* ptr,uint32_t size, uint32_t alignment);

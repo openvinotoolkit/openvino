@@ -54,8 +54,8 @@ TEST(MKLDNNDumpTests, SerDeser) {
     BlobDumper(blob).dump(buff);
     Blob::Ptr deser_blob = BlobDumper::read(buff).get();
 
-    ASSERT_EQ(deser_blob->dims(), blob->dims());
-    ASSERT_EQ(deser_blob->precision(), blob->precision());
+    ASSERT_EQ(deser_blob->getTensorDesc().getDims(), blob->getTensorDesc().getDims());
+    ASSERT_EQ(deser_blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getPrecision());
 
     std::vector<uint8_t> data(blob->buffer().as<uint8_t*>(), blob->buffer().as<uint8_t*>() + blob->size());
     std::vector<uint8_t> deser_data(deser_blob->buffer().as<uint8_t*>(), deser_blob->buffer().as<uint8_t*>()
@@ -78,8 +78,8 @@ TEST(MKLDNNDumpTests, SerDeserWithScales) {
     auto deser_blob = deser.get();
     auto deser_scls = deser.getScales();
 
-    ASSERT_EQ(deser_blob->dims(), blob->dims());
-    ASSERT_EQ(deser_blob->precision(), blob->precision());
+    ASSERT_EQ(deser_blob->getTensorDesc().getDims(), blob->getTensorDesc().getDims());
+    ASSERT_EQ(deser_blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getPrecision());
 
     std::vector<uint8_t> data(blob->buffer().as<uint8_t*>(), blob->buffer().as<uint8_t*>() + blob->size());
     std::vector<uint8_t> deser_data(deser_blob->buffer().as<uint8_t*>(), deser_blob->buffer().as<uint8_t*>()

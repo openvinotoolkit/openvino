@@ -44,6 +44,7 @@ class DetectionOutput(Op):
             'clip_before_nms',
             'code_type',
             'confidence_threshold',
+            'decrease_label_id',
             'eta',
             'height',
             'height_scale',

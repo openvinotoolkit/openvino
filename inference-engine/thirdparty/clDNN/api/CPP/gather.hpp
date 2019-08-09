@@ -19,8 +19,7 @@
 #include "../C/gather.h"
 #include "primitive.hpp"
 
-namespace  cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -30,12 +29,10 @@ namespace  cldnn
 
 /// @brief
 /// @details
-struct gather : public primitive_base<gather, CLDNN_PRIMITIVE_DESC(gather)>
-{
+struct gather : public primitive_base<gather, CLDNN_PRIMITIVE_DESC(gather)> {
     CLDNN_DECLARE_PRIMITIVE(gather)
 
-    enum gather_axis
-    {
+    enum gather_axis {
         along_b = cldnn_gather_along_b,
         along_f = cldnn_gather_along_f,
         along_x = cldnn_gather_along_x,
@@ -48,36 +45,25 @@ struct gather : public primitive_base<gather, CLDNN_PRIMITIVE_DESC(gather)>
     /// @param idx Input indexes primitive id.
     /// @param axis Gathering axis.
     /// @param output_shape Output shape.
-    gather(
-            const primitive_id& id,
-            const primitive_id& dict,
-            const primitive_id& idx,
-            const gather_axis axis,
-            const tensor& output_shape,
-            const padding& output_padding = padding()
-    )
-            : primitive_base(id, {dict, idx}, output_padding)
-            , axis(axis)
-            , output_shape(output_shape)
-    {
-    }
+    gather(const primitive_id& id,
+           const primitive_id& dict,
+           const primitive_id& idx,
+           const gather_axis axis,
+           const tensor& output_shape,
+           const padding& output_padding = padding())
+        : primitive_base(id, {dict, idx}, output_padding), axis(axis), output_shape(output_shape) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{gather}
     gather(const dto* dto)
-            : primitive_base(dto)
-            , axis(static_cast<gather_axis >(dto->axis))
-            , output_shape(dto->output_shape)
-    {
-    }
+        : primitive_base(dto), axis(static_cast<gather_axis>(dto->axis)), output_shape(dto->output_shape) {}
 
     /// @brief Gathering axis
     gather_axis axis;
     /// @brief Gathering input shape
     tensor output_shape;
-protected:
 
-    void update_dto(dto& dto) const override
-    {
+protected:
+    void update_dto(dto& dto) const override {
         dto.axis = static_cast<cldnn_gather_axis>(axis);
         dto.output_shape = output_shape;
     }
@@ -85,4 +71,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

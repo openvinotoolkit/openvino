@@ -37,8 +37,8 @@
         <Define name="align_corners_" type="int" param="align_corners" default="1"/>
     </Kernel>
     <Buffers>
-        <Tensor arg-index="0" type="input" port-index="0"  format="ANY"/>
-        <Tensor arg-index="1" type="output" port-index="0" format="ANY"/>
+        <Tensor arg-index="0" type="input" port-index="0"  format="BFYX"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
     </Buffers>
 
     <CompilerOptions options="-cl-mad-enable"/>

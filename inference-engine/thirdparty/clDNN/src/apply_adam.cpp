@@ -18,33 +18,30 @@
 #include "primitive_type_base.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
-primitive_type_id apply_adam_type_id()
-{
+namespace cldnn {
+primitive_type_id apply_adam_type_id() {
     static primitive_type_base<apply_adam> instance;
     return &instance;
 }
 
-apply_adam_node::typed_program_node(const std::shared_ptr<apply_adam> prim, program_impl& prog)
-    : parent(prim, prog)
-{
-    can_share_buffer(false); //apply adam's output initial val should be either 0 or use same buffer as mutable_data after it (no allocation needed)
+apply_adam_node::typed_program_node(const std::shared_ptr<apply_adam> prim, program_impl& prog) : parent(prim, prog) {
+    can_share_buffer(false);  // apply adam's output initial val should be either 0 or use same buffer as mutable_data
+                              // after it (no allocation needed)
 }
-layout apply_adam_inst::calc_output_layout(apply_adam_node const& node)
-{
-    assert((bool)node.get_primitive()->output_data_type == false
-           && "Output data type forcing is not supported for apply_adam_node!");
+layout apply_adam_inst::calc_output_layout(apply_adam_node const& node) {
+    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+           "Output data type forcing is not supported for apply_adam_node!");
     return node.input().get_non_padded_output_layout();
 }
 
-std::string apply_adam_inst::to_string(apply_adam_node const& node)
-{
-    auto desc      = node.get_primitive();
+std::string apply_adam_inst::to_string(apply_adam_node const& node) {
+    auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
-    auto& m     = node.m();
-    auto& v     = node.v();
+    auto& m = node.m();
+    auto& v = node.v();
     auto& beta1_power = node.beta1_power();
     auto& beta2_power = node.beta2_power();
 
@@ -66,17 +63,35 @@ std::string apply_adam_inst::to_string(apply_adam_node const& node)
     return primitive_description.str();
 }
 
-apply_adam_inst::typed_primitive_inst(network_impl& network, apply_adam_node const& node)
-    :parent(network, node) 
-{
+apply_adam_inst::typed_primitive_inst(network_impl& network, apply_adam_node const& node) : parent(network, node) {
     auto m_format = node.m().get_output_layout().format;
     auto v_format = node.v().get_output_layout().format;
     auto beta1_power_format = node.beta1_power().get_output_layout().format;
     auto beta2_power_format = node.beta2_power().get_output_layout().format;
 
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "M format", m_format.value, "supported m formats", format::yxfb, format::bfyx );
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "V format", v_format.value, "supported v formats", format::yxfb, format::bfyx );
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "beta1_power format", beta1_power_format.value, "supported beta1_power formats", format::yxfb, format::bfyx);
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "beta2_power format", beta2_power_format.value, "supported beta2_power formats", format::yxfb, format::bfyx);
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
+                                  "M format",
+                                  m_format.value,
+                                  "supported m formats",
+                                  format::yxfb,
+                                  format::bfyx);
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
+                                  "V format",
+                                  v_format.value,
+                                  "supported v formats",
+                                  format::yxfb,
+                                  format::bfyx);
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
+                                  "beta1_power format",
+                                  beta1_power_format.value,
+                                  "supported beta1_power formats",
+                                  format::yxfb,
+                                  format::bfyx);
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
+                                  "beta2_power format",
+                                  beta2_power_format.value,
+                                  "supported beta2_power formats",
+                                  format::yxfb,
+                                  format::bfyx);
 }
-}
+}  // namespace cldnn

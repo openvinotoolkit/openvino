@@ -17,53 +17,41 @@
 #include "common_kernel_base.h"
 #include "kernel_selector_params.h"
 
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// gemm_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct gemm_params : public base_params {
+    gemm_params()
+        : base_params(KernelType::GEMM), alpha(1.0f), beta(0.0f), transpose_input0(false), transpose_input1(false) {}
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // gemm_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct gemm_params : public base_params
-    {
-        gemm_params() :
-			base_params(KernelType::GEMM),
-			alpha(1.0f),
-			beta(0.0f),
-			transpose_input1(false),
-			transpose_input2(false)
-		{}
+    float alpha;
+    float beta;
+    bool transpose_input0;
+    bool transpose_input1;
+};
 
-        float alpha;
-        float beta;
-        bool transpose_input1;
-        bool transpose_input2;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// gemm_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct gemm_optional_params : optional_params {
+    gemm_optional_params() : optional_params(KernelType::GEMM) {}
+};
 
-    };
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BorderKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class GemmKernelBase : public common_kernel_base {
+public:
+    using common_kernel_base::common_kernel_base;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // gemm_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct gemm_optional_params : optional_params
-    {
-        gemm_optional_params()
-            : optional_params(KernelType::GEMM)
-        {
-        }
-    };
+    using DispatchData = CommonDispatchData;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // BorderKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class GemmKernelBase : public common_kernel_base
-    {
-    public:
-        using common_kernel_base::common_kernel_base;
+protected:
+    JitConstants GetJitConstants(const gemm_params& params) const;
+    DispatchData SetDefault(const gemm_params& params) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
 
-        using DispatchData = CommonDispatchData;
-
-    protected:
-        JitConstants GetJitConstants(const gemm_params& params) const;
-        DispatchData SetDefault(const gemm_params& params) const;
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
-    };
-}
+    virtual Datatype GetAccumulatorType(const gemm_params& params) const;
+};
+}  // namespace kernel_selector

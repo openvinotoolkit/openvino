@@ -55,7 +55,11 @@ def determined_sort(outputs: list):
 def get_fw_tensor_debug_info(node: Node):
     while not node.has_valid('fw_tensor_debug_info') and not node.has_valid('output_sort_order') \
             and len(node.in_nodes()):
-        node = node.in_node()
+        try:
+            node = node.in_node()
+        except Exception as e:
+            log.warning('Was not able to determine tensor debug info for node {}'.format(node.name))
+            return "dummy_node_name"
     if node.has_valid('output_sort_order'):
         return node.soft_get('output_sort_order')
     return node.soft_get('fw_tensor_debug_info')
@@ -113,6 +117,7 @@ def relabel_nodes_inplace_safe(graph: Graph, new_labels: dict):
 
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
                     mean_data: [list, None] = None, input_names: list = [], meta_info: dict = dict()):
+    graph.strict_mode = False
     for sub_graph in [graph] + collect_sub_graphs(graph):
         op_order, data_order = determined_sort(get_sorted_outputs(sub_graph))
         mapping = {v: u for u, v in enumerate(op_order)}

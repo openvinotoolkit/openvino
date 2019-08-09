@@ -212,9 +212,9 @@ protected:
             }
             ASSERT_LE(4, nodes.size());
 
-            InferenceEngine::SizeVector dims_src = {p.in.w, p.in.h, p.in.c, p.in.n};
+            InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
             src->allocate();
             fill_data(src->buffer(), src->size());
 

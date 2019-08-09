@@ -33,8 +33,12 @@ class PriorBoxOp(Op):
             'max_size': np.array([]),
             'min_size': np.array([]),
             'aspect_ratio': np.array([]),
+            'density': np.array([]),
+            'fixed_size': np.array([]),
+            'fixed_ratio': np.array([]),
             'in_ports_count': 2,
             'out_ports_count': 1,
+
             'infer': PriorBoxOp.priorbox_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -54,6 +58,9 @@ class PriorBoxOp(Op):
             'step_h',
             'step_w',
             'offset',
+            'density',
+            'fixed_size',
+            'fixed_ratio',
         ]
 
     def backend_attrs(self):
@@ -66,6 +73,9 @@ class PriorBoxOp(Op):
             ('max_size', lambda node: attr_getter(node, 'max_size')),
             ('aspect_ratio', lambda node: attr_getter(node, 'aspect_ratio')),
             ('variance', lambda node: attr_getter(node, 'variance')),
+            ('density', lambda node: attr_getter(node, 'density')),
+            ('fixed_size', lambda node: attr_getter(node, 'fixed_size')),
+            ('fixed_ratio', lambda node: attr_getter(node, 'fixed_ratio')),
         ]
 
     @staticmethod
@@ -86,6 +96,16 @@ class PriorBoxOp(Op):
         num_ratios = 0
         if len(node.min_size) > 0:
             num_ratios = len(ar_seen) * len(node.min_size)
+
+        if node.has_valid('fixed_size') and len(node.fixed_size) > 0:
+            num_ratios = len(ar_seen) * len(node.fixed_size)
+
+        if node.has_valid('density') and len(node.density) > 0:
+            for d in node.density:
+                if node.has_valid('fixed_ratio') and len(node.fixed_ratio) > 0:
+                    num_ratios = num_ratios + len(node.fixed_ratio) * (pow(d, 2) - 1)
+                else:
+                    num_ratios = num_ratios + len(ar_seen) * (pow(d, 2) - 1)
 
         num_ratios = num_ratios + len(node.max_size)
 

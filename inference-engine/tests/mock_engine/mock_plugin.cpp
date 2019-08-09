@@ -17,6 +17,7 @@ MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
     _target = target;
 }
 
+IE_SUPPRESS_DEPRECATED_START
 StatusCode MockPlugin::Infer(const Blob &input, Blob &result, ResponseDesc *p) noexcept {
     return ACTION_IF_NOT_NULL(Infer(input, result, p));
 }
@@ -28,6 +29,12 @@ StatusCode MockPlugin::Infer(const BlobMap &input, BlobMap &result, ResponseDesc
 StatusCode MockPlugin::LoadNetwork(ICNNNetwork &network, ResponseDesc *resp) noexcept {
     return ACTION_IF_NOT_NULL(LoadNetwork(network, resp));
 }
+
+StatusCode MockPlugin::GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap,
+                                            ResponseDesc *p) const noexcept {
+    return ACTION_IF_NOT_NULL(GetPerformanceCounts(perfMap, p));
+}
+IE_SUPPRESS_DEPRECATED_END
 
 StatusCode MockPlugin::LoadNetwork(IExecutableNetwork::Ptr &ret, ICNNNetwork &network,
                                    const std::map<std::string, std::string> &config, ResponseDesc *resp) noexcept {
@@ -41,11 +48,6 @@ void MockPlugin::Release() noexcept {
 
 void MockPlugin::SetLogCallback(InferenceEngine::IErrorListener &listener) noexcept {
     IF_NOT_NULL(SetLogCallback(listener));
-}
-
-StatusCode MockPlugin::GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap,
-                                            ResponseDesc *p) const noexcept {
-    return ACTION_IF_NOT_NULL(GetPerformanceCounts(perfMap, p));
 }
 
 void MockPlugin::GetVersion(const Version *&versionInfo) noexcept {
@@ -89,6 +91,3 @@ INFERENCE_ENGINE_API(InferenceEngine::IInferencePlugin*)CreatePluginEngineProxy(
 INFERENCE_ENGINE_API(void) InjectProxyEngine(InferenceEngine::IInferencePlugin *target) {
     __target = target;
 }
-
-
-

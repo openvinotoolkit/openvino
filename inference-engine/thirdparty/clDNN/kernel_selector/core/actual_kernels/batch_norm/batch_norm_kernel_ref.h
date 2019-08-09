@@ -18,17 +18,13 @@
 
 #include "batch_norm_kernel_base.h"
 
-namespace kernel_selector
-{
-    class BatchNormKernelRef : public BatchNormKernelBase
-    {
-    public:
-        BatchNormKernelRef() : BatchNormKernelBase("batch_norm_gpu_ref") {}
-        virtual ~BatchNormKernelRef() {}
+namespace kernel_selector {
+class BatchNormKernelRef : public BatchNormKernelBase {
+public:
+    BatchNormKernelRef() : BatchNormKernelBase("batch_norm_gpu_ref") {}
+    virtual ~BatchNormKernelRef() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

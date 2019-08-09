@@ -57,7 +57,7 @@ class ConvertSlice(MiddleReplacementPattern):
 
         begin = node.start
         end = node.end
-        axis = node.axis if node.has_valid('axis') else range(begin.size)
+        axis = node.axis if node.has_valid('axis') else np.arange(begin.size)
         
 
         input = node.in_node(0)
@@ -71,13 +71,13 @@ class ConvertSlice(MiddleReplacementPattern):
         dims = 0
         axes = np.zeros(begin.size)
         for i in range(len(axis)):
-            if begin[i] != 0 or end[i] < input.shape[i]:
+            if begin[i] != 0 or end[i] < input.shape[axis[i]]:
                 dims += 1
                 axes[i] = 1
                 if begin[i] != 0:
                     axes_begin[axis[i]] = 1
                     begin_ext[axis[i]] = begin[i]
-                if end[i] < input.shape[i]:
+                if end[i] < input.shape[axis[i]]:
                     axes_end[axis[i]] = 1
                     end_ext[axis[i]] = end[i]
         axes = np.array(axes, dtype=bool)
@@ -103,7 +103,7 @@ class ConvertSlice(MiddleReplacementPattern):
             graph.remove_edge(node.id, output_data.id)
         else:
             # If Slice use more than one axis use Crop layer
-            crop = Crop(graph, dict(axis=np.arange(begin.size)[axes],
+            crop = Crop(graph, dict(axis=axis[axes],
                                     offset=begin[axes]))
             # creating node with data
             crop.create_node_with_data(inputs=[input], data_nodes=[output_data])

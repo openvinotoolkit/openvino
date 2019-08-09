@@ -16,7 +16,7 @@
 
 // @brief statistics reports types
 static constexpr char noCntReport[] = "no_counters";
-static constexpr char medianCntReport[] = "median_counters";
+static constexpr char averageCntReport[] = "average_counters";
 static constexpr char detailedCntReport[] = "detailed_counters";
 
 /// @brief Responsible for collecting of statistics and dumping to .csv file
@@ -28,19 +28,23 @@ public:
         size_t batch;
         size_t nireq;
         size_t niter;
+        uint64_t duration;
         size_t cpu_nthreads;
+        std::map<std::string, uint32_t> nstreams;
         std::string cpu_pin;
         std::string report_type;
         std::string report_folder;
     };
 
-    explicit StatisticsReport(const Config &config) : _config(config) {
-        if (_config.niter > 0) {
-            _performanceCounters.reserve(_config.niter);
+    explicit StatisticsReport(Config config) : _config(std::move(config)) {
+        if (_config.nireq > 0) {
+            _performanceCounters.reserve(_config.nireq);
         }
     }
 
-    void add(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &pmStat, const double &latency);
+    void addPerfCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &pmStat);
+
+    void addLatencies(const std::vector<double> &latency);
 
     void dump(const double &fps, const size_t &numProcessedReq, const double &totalExecTime);
 
@@ -64,4 +68,5 @@ private:
     std::map<std::string, std::vector<long long>> _perLayerRealTime;
     // mapping from network layer to a vector of calculated CPU Time values from each processed infer request.
     std::map<std::string, std::vector<long long>> _perLayerCpuTime;
+    std::vector<long long> _totalLayersTime;
 };

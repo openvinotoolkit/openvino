@@ -18,7 +18,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNEltwiseNode::MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {
+MKLDNNEltwiseNode::MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
+        MKLDNNNode(layer, eng, socket) {
     op = EltwiseLayer::Sum;
 }
 
@@ -45,6 +46,31 @@ bool MKLDNNEltwiseNode::isUnitScales() {
     return true;
 }
 
+bool MKLDNNEltwiseNode::isWithBroadcast() {
+    auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(getCnnLayer().get());
+    if (eltwiseLayer == nullptr)
+        THROW_IE_EXCEPTION << "Cannot get eltwise layer " << getName();
+
+    bool withBroadcast = false;
+    auto outDims = eltwiseLayer->outData[0]->getDims();
+    for (size_t i = 0; i < eltwiseLayer->insData.size(); i++) {
+        auto inDims = eltwiseLayer->insData[i].lock()->getDims();
+        for (size_t j = 1; j <= inDims.size(); j++) {
+            if (outDims[outDims.size() - j] != inDims[inDims.size() - j]) {
+                if (inDims[inDims.size() - j] == 1) {
+                    withBroadcast = true;
+                } else {
+                    THROW_IE_EXCEPTION << "Incorrect dimensions for broadcasting for " << eltwiseLayer->name;
+                }
+            }
+            if (inDims.size() < outDims.size())
+                withBroadcast = true;
+        }
+    }
+
+    return withBroadcast;
+}
+
 void MKLDNNEltwiseNode::getSupportedDescriptors() {
     auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(getCnnLayer().get());
 
@@ -64,17 +90,10 @@ void MKLDNNEltwiseNode::getSupportedDescriptors() {
     auto outDims = getChildEdgeAt(0)->getDims();
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto inDims = getParentEdgeAt(i)->getDims();
-        for (size_t j = 1; j <= inDims.ndims(); j++) {
-            if (outDims[outDims.ndims() - j] != inDims[inDims.ndims() - j]) {
-                if (inDims[inDims.ndims() - j] == 1) {
-                    broadcast = true;
-                } else {
-                    THROW_IE_EXCEPTION << "Incorrect dimentions for broadcasting for " << eltwiseLayer->name;
-                }
-            }
-        }
+        batch_dim = std::min(batch_dim, 5 - inDims.ndims());
     }
 
+    broadcast = isWithBroadcast();
     if (broadcast) {
         auto outDims = getChildEdgeAt(0)->getDims();
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -105,20 +124,26 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
     auto initDesc = [&] (mkldnn::memory::data_type inputDT, mkldnn::memory::data_type outputDT, memory::format format) -> PrimitiveDescInfo {
         InferenceEngine::LayerConfig config;
+        impl_desc_type impl_type = impl_desc_type::ref;
         config.dynBatchSupport = true;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             InferenceEngine::DataConfig dataConfig;
             dataConfig.inPlace = (!i && canBeInPlace()) ? 0 : -1;
             dataConfig.constant = false;
 
-            if (getParentEdgeAt(i)->getDims().ndims() == getChildEdgeAt(0)->getDims().ndims()) {
+            if (!broadcast) {
                 dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDT, format);
                 config.inConfs.push_back(dataConfig);
             } else {
                 // Broadcasting support
                 if (MKLDNNMemory::IsPlainFormat(format)) {
-                    dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDT, MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
+                    dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDT,
+                            MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
                     config.inConfs.push_back(dataConfig);
+                } else {
+                    // Unsupported format for broadcast mode. Should be skipped.
+                    // Will mark it as undef and outer code should filter it.
+                    impl_type = impl_desc_type::undef;
                 }
             }
         }
@@ -128,13 +153,17 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             dataConfig.constant = false;
             dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDT, format);
             config.outConfs.push_back(dataConfig);
-        return {config, impl_desc_type::ref};
+        return {config, impl_type, format};
     };
 
     for (const auto& format : getAvailableFormatsForDims(getChildEdgeAt(0)->getDims())) {
         mkldnn::memory::data_type inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->precision);
         mkldnn::memory::data_type outputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->precision);
-        supportedPrimitiveDescriptors.push_back(initDesc(inputDT, outputDT, format));
+        auto impl_desc = initDesc(inputDT, outputDT, format);
+
+        if (impl_desc.getImplementationType() != impl_desc_type::undef) {
+            supportedPrimitiveDescriptors.push_back(impl_desc);
+        }
     }
 }
 
@@ -146,7 +175,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 
     std::vector<memory::primitive_desc> srcs_pd;
     std::vector<primitive::at> srcs_p;
@@ -174,7 +203,10 @@ void MKLDNNEltwiseNode::createPrimitive() {
 }
 
 void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
 
@@ -203,7 +235,8 @@ void MKLDNNEltwiseNode::dims_calc(int *dims, const MKLDNNDims &edge_dims) {
     for (int i = 0; i < ndims; i++) {
         dims[4 - i] = edge_dims[ndims - 1 - i];
     }
-    dims[5 - ndims] = std::min(dims[5 - ndims], batchToProcess());
+    if (!(broadcast && edge_dims[0] == getChildEdgeAt(0)->getDims()[0]))
+        dims[batch_dim] = std::min(dims[batch_dim], batchToProcess());
 }
 
 void MKLDNNEltwiseNode::offset_out_calc(int *offset, int *dims) {
@@ -278,11 +311,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_add(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] + src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] + src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -308,10 +343,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_add(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] + src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] + src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -372,11 +409,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_prod(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] * src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] * src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -466,11 +505,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_max(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = std::max(src0_ptr[index_in0], (T0)src1_ptr[index_in1]);
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = std::max(src0_ptr[index_in0], (T0)src1_ptr[index_in1]);
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -496,10 +537,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_max(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = std::max(dst_ptr[index_out], (T0)src_ptr[index_in]);
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = std::max(dst_ptr[index_out], (T0)src_ptr[index_in]);
+                }
             });
 #endif
         }
@@ -560,11 +603,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_sub(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] - src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] - src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -590,10 +635,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_sub(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] - src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] - src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -654,11 +701,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_min(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = std::min(src0_ptr[index_in0], (T0)src1_ptr[index_in1]);
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = std::min(src0_ptr[index_in0], (T0)src1_ptr[index_in1]);
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -684,10 +733,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_min(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = std::min(dst_ptr[index_out], (T0)src_ptr[index_in]);
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = std::min(dst_ptr[index_out], (T0)src_ptr[index_in]);
+                }
             });
 #endif
         }
@@ -748,11 +799,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_div(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] / src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] / src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -778,10 +831,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_div(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] / src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] / src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -842,11 +897,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_squared_diff
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = (src0_ptr[index_in0] - src1_ptr[index_in1]) * (src0_ptr[index_in0] - src1_ptr[index_in1]);
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = (src0_ptr[index_in0] - src1_ptr[index_in1]) * (src0_ptr[index_in0] - src1_ptr[index_in1]);
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -872,10 +929,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_squared_diff
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = (dst_ptr[index_out] - src_ptr[index_in]) * (dst_ptr[index_out] - src_ptr[index_in]);
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = (dst_ptr[index_out] - src_ptr[index_in]) * (dst_ptr[index_out] - src_ptr[index_in]);
+                }
             });
 #endif
         }
@@ -929,18 +988,20 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_floor_mod(
                         size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
                         size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
                         size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] - src0_ptr[index_in1] / src1_ptr[index_in0] * src1_ptr[index_in1];
+                        dst_ptr[index_out] = src0_ptr[index_in0] - src0_ptr[index_in0] / src1_ptr[index_in1] * src1_ptr[index_in1];
                     }
                 }
             }
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] - src0_ptr[index_in1] / src1_ptr[index_in0] * src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] - src0_ptr[index_in0] / src1_ptr[index_in1] * src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -959,17 +1020,19 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_floor_mod(
                         for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
                             size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
                             size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] - dst_ptr[index_in] / src_ptr[index_out] * src_ptr[index_in];
+                            dst_ptr[index_out] = dst_ptr[index_out] - dst_ptr[index_out] / src_ptr[index_in] * src_ptr[index_in];
                         }
                     }
                 }
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] - dst_ptr[index_in] / src_ptr[index_out] * src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] - dst_ptr[index_out] / src_ptr[index_in] * src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -1030,11 +1093,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_pow(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = std::pow(src0_ptr[index_in0], src1_ptr[index_in1]);
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = std::pow(src0_ptr[index_in0], src1_ptr[index_in1]);
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -1060,10 +1125,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_pow(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = std::pow(dst_ptr[index_out], src_ptr[index_in]);
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = std::pow(dst_ptr[index_out], src_ptr[index_in]);
+                }
             });
 #endif
         }
@@ -1124,11 +1191,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_equal(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] == src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] == src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -1154,10 +1223,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_equal(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] == src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] == src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -1218,11 +1289,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_not_equal(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] != src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] != src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -1248,10 +1321,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_not_equal(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] != src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] != src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -1312,11 +1387,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_less(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] < src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] < src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -1342,10 +1419,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_less(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] < src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] < src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -1406,11 +1485,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_less_equal(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] <= src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] <= src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -1436,10 +1517,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_less_equal(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] <= src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] <= src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -1500,11 +1583,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_greater(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] > src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] > src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -1530,10 +1615,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_greater(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] > src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] > src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -1594,11 +1681,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_greater_equa
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] >= src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] >= src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -1624,10 +1713,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_greater_equa
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] >= src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] >= src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -1688,11 +1779,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_logical_and(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] && src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] && src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -1718,10 +1811,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_logical_and(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] && src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] && src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -1782,11 +1877,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_logical_or(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = src0_ptr[index_in0] || src1_ptr[index_in1];
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = src0_ptr[index_in0] || src1_ptr[index_in1];
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -1812,10 +1909,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_logical_or(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] || src_ptr[index_in];
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = dst_ptr[index_out] || src_ptr[index_in];
+                }
             });
 #endif
         }
@@ -1876,11 +1975,13 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_logical_xor(
         }
     }
 #else
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-            dst_ptr[index_out] = (src0_ptr[index_in0] || src1_ptr[index_in1]) - (src0_ptr[index_in0] && src1_ptr[index_in1]);
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
+                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                dst_ptr[index_out] = (src0_ptr[index_in0] || src1_ptr[index_in1]) - (src0_ptr[index_in0] && src1_ptr[index_in1]);
+            }
         });
 #endif
         for (size_t n = 2; n < getParentEdges().size(); n++) {
@@ -1906,10 +2007,12 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_logical_xor(
             }
         }
 #else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = (dst_ptr[index_out] || src_ptr[index_in]) - (dst_ptr[index_out] && src_ptr[index_in]);
+            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+                for (int i4 = 0; i4 < dims_out[4]; i4++) {
+                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
+                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
+                    dst_ptr[index_out] = (dst_ptr[index_out] || src_ptr[index_in]) - (dst_ptr[index_out] && src_ptr[index_in]);
+                }
             });
 #endif
         }
@@ -2038,6 +2141,10 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
             return false;
         }
     }
+
+    // Broadcast mode is complex for inplace usage
+    // So will disable it
+    if (broadcast) return false;
 
     return true;
 }

@@ -6,6 +6,7 @@
 #include "cnn_network_impl.hpp"
 #include "ie_util_internal.hpp"
 #include "exec_graph_info.hpp"
+#include "mkldnn_debug.h"
 
 #include <vector>
 #include <string>
@@ -34,7 +35,7 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
     net->setPrecision(Precision::FP32);
-    net->setName("runtime_cpu_graph");
+    net->setName(graph._name);
     std::map<MKLDNNNodePtr, CNNLayerPtr> node2layer;
 
     // Copy all nodes to network
@@ -61,12 +62,12 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
                 std::string data_name = node->getName() + "_out" + std::to_string(i);
                 pr->outData[i] = std::make_shared<Data>(data_name, edge->getDesc());
                 data = pr->outData[i];
-                data->creatorLayer = pr;
+                data->getCreatorLayer() = pr;
             } else {
                 data = pr->outData[0];
             }
 
-            data->inputTo[ch->name] = ch;
+            data->getInputTo()[ch->name] = ch;
             ch->insData[in_port] = data;
         }
     }
@@ -93,72 +94,74 @@ void dump_graph_as_dot(const MKLDNNGraph &graph, std::ostream &out) {
 // Special converters of meta data
 //**********************************
 
-static std::map<Type, std::string> type_n2l {
-    {Unknown, "Unknown"},
-    {Generic, "Unknown"},
-    {Reorder, "Reorder"},
-    {Copy, "Reorder"},
-    {Input, "Input"},
-    {Output, "Output"},
-    {Convolution, "Conv"},
-    {Deconvolution, "Deconv"},
-    {Convolution_Sum, "Conv_Eltw"},
-    {Convolution_Activation, "Conv_Activ"},
-    {Convolution_Sum_Activation, "Conv_Eltw_Activ"},
-    {Activation, "Activation"},
-    {Depthwise, "Depthwise"},
-    {Lrn, "Lrn"},
-    {Pooling, "Pool"},
-    {FullyConnected, "FC"},
-    {FullyConnected_Activation, "FC_Activ"},
-    {SoftMax, "SoftMax"},
-    {Split, "Split"},
-    {Concatenation, "Concat"},
-    {Power, "Power"},
-    {Eltwise, "Eltwise"},
-    {Crop, "Crop"},
-    {Reshape, "Reshape"},
-    {Tile, "Tile"},
-    {SimplerNMS, "Proposal"},
-    {ROIPooling, "ROIPooling"},
-    {BatchNormalization, "BatchNorm"},
-    {Flatten, "Flatten"},
-    {Permute, "Permute"},
-    {Quantize, "Quantize"},
-    {BinaryConvolution, "BinaryConvolution"},
-    {MemoryOutput, "MemoryIn"},
-    {MemoryInput, "MemoryOut"}
-};
-
 static const char BLUE[]  = "#D8D9F1";
 static const char GREEN[] = "#D9EAD3";
 
 void copy_node_metadata(const MKLDNNNodePtr &node, CNNLayer::Ptr &layer) {
-    layer->type = type_n2l[node->getType()];
-    layer->name = node->getName();  // Is ID
+    if (node->getType() == Input && node->isConstant()) {
+        // We need to separate Input and Const layers
+        layer->type = "Const";
+    } else if (node->getType() == Generic) {
+        // Path to print actual name for extension layers
+        layer->type = node->getTypeStr();
+    } else {
+        layer->type = NameFromType(node->getType());
+    }
+    layer->name = node->getName();
 
     // Original layers
-    layer->params[ExecGraphInfoSerialization::ORIGIN_NAMES] = node->getOriginalLayers();
+    layer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = node->getOriginalLayers();
 
     // Implementation type name
     layer->params[ExecGraphInfoSerialization::IMPL_TYPE] = node->getPrimitiveDescriptorType();
 
-    // Precision
-    // TODO: That is not fully correct mapping type to precision.
-    std::string precision = "FP32";
-    auto desc = node->getSelectedPrimitiveDescriptor();
-    if (desc == nullptr) {
-        THROW_IE_EXCEPTION << "Internal error - descriptor is empty";
+    std::string outputPrecisionsStr;
+    if (!node->getChildEdges().empty()) {
+        outputPrecisionsStr = node->getChildEdgeAt(0)->getDesc().getPrecision().name();
+
+        bool isAllEqual = true;
+        for (size_t i = 1; i < node->getChildEdges().size(); i++) {
+            if (node->getChildEdgeAt(i-1)->getDesc().getPrecision() != node->getChildEdgeAt(i)->getDesc().getPrecision()) {
+                isAllEqual = false;
+                break;
+            }
+        }
+
+        // If all output precisions are the same, we store the name only once
+        if (!isAllEqual) {
+            for (size_t i = 1; i < node->getChildEdges().size(); i++)
+                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getDesc().getPrecision().name());
+        }
+    } else {
+        // Branch to correctly handle output nodes
+        if (!node->getParentEdges().empty()) {
+            outputPrecisionsStr = node->getParentEdgeAt(0)->getDesc().getPrecision().name();
+        }
     }
-    impl_desc_type impl_type = desc->getImplementationType();
+    layer->params[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
 
-    if (impl_type == gemm_blas &&
-        node->getParentEdgeAt(0)->getDesc().getPrecision() == Precision::U8)  precision = "INT8";
+    std::string outputLayoutsStr;
+    auto outLayouts = node->getSelectedPrimitiveDescriptor()->getOutputLayouts();
+    if (!outLayouts.empty()) {
+        outputLayoutsStr = mkldnn_fmt2str(static_cast<mkldnn_memory_format_t>(outLayouts[0]));
 
-    if (impl_type & jit && impl_type & avx512 &&
-        node->getParentEdgeAt(0)->getDesc().getPrecision() == Precision::U8)  precision = "INT8";
+        bool isAllEqual = true;
+        for (size_t i = 1; i < outLayouts.size(); i++) {
+            if (outLayouts[i - 1] != outLayouts[i]) {
+                isAllEqual = false;
+                break;
+            }
+        }
 
-    layer->params[ExecGraphInfoSerialization::PRECISION] = precision;
+        // If all output layouts are the same, we store the name only once
+        if (!isAllEqual) {
+            for (size_t i = 1; i < outLayouts.size(); i++)
+                outputLayoutsStr += "," + std::string(mkldnn_fmt2str(static_cast<mkldnn_memory_format_t>(outLayouts[i])));
+        }
+    } else {
+        outputLayoutsStr = mkldnn_fmt2str(mkldnn_format_undef);
+    }
+    layer->params[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = outputLayoutsStr;
 
     // Performance
     if (node->PerfCounter().avg() != 0) {
@@ -166,6 +169,8 @@ void copy_node_metadata(const MKLDNNNodePtr &node, CNNLayer::Ptr &layer) {
     } else {
         layer->params[ExecGraphInfoSerialization::PERF_COUNTER] = "not_executed";  // it means it was not calculated yet
     }
+
+    layer->params[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
 }
 
 void drawer_callback(const InferenceEngine::CNNLayerPtr layer,
@@ -180,13 +185,13 @@ void drawer_callback(const InferenceEngine::CNNLayerPtr layer,
     }
 
     // Original names
-    auto orig = params.find(ExecGraphInfoSerialization::ORIGIN_NAMES);
+    auto orig = params.find(ExecGraphInfoSerialization::ORIGINAL_NAMES);
     if (orig != params.end()) {
         printed_properties.push_back({"originals", orig->second});
     }
 
     // Precision
-    auto prec = params.find(ExecGraphInfoSerialization::PRECISION);
+    auto prec = params.find(ExecGraphInfoSerialization::OUTPUT_PRECISIONS);
     if (prec != params.end()) {
         printed_properties.push_back({"precision", prec->second});
         // Set color

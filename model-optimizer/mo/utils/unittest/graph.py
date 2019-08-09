@@ -33,7 +33,7 @@ def not_all_new(old_elements: list, new_elements: list):
     return any([element in old_elements for element in new_elements])
 
 
-def check_and_update_ports(edges_data: list, in_port: bool = True):
+def check_and_update_ports(node, edges_data: list, in_port: bool = True):
     key = 'in' if in_port else 'out'
     key_in_edges = [key in edge_data for edge_data in edges_data]
     if all(key_in_edges):
@@ -41,6 +41,8 @@ def check_and_update_ports(edges_data: list, in_port: bool = True):
         if len(ports) != len(set(ports)):
             raise Error("Please, provide unique {} ports for nodes".format(key))
     elif not any(key_in_edges):
+        if node.has_valid('kind') and node.kind == 'data':
+            return
         for i, edge_data in enumerate(edges_data):
             edge_data[key] = i
     else:
@@ -68,7 +70,8 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
         raise Error('Some nodes from new_nodes_with_attrs are already in nodes.'
                     ' Please, add to new_nodes_with_attrs only NEW nodes.')
 
-    if not_all_new([(edge[0], edge[1]) for edge in edges_with_attrs], [(edge[0], edge[1]) for edge in new_edges_with_attrs]):
+    if not_all_new([(edge[0], edge[1]) for edge in edges_with_attrs],
+                   [(edge[0], edge[1]) for edge in new_edges_with_attrs]):
         raise Error('Some edges from new_edges_with_attrs are already in edges.'
                     ' Please, add to new_edges_with_attrs only NEW edges.')
 
@@ -121,10 +124,21 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
             for attr, value in new_attrs.items():
                 graph.node[node_name][attr] = value
 
-    for node in graph.nodes():
-        check_and_update_ports([graph.get_edge_data(edge[0], node)[0] for edge in graph.in_edges(node)], True)
-        check_and_update_ports([graph.get_edge_data(node, edge[1])[0] for edge in graph.out_edges(node)], False)
+    for node_id in graph.nodes():
+        node = Node(graph, node_id)
+        check_and_update_ports(node, [graph.get_edge_data(edge[0], node_id)[0] for edge in graph.in_edges(node_id)], True)
+        check_and_update_ports(node, [graph.get_edge_data(node_id, edge[1])[0] for edge in graph.out_edges(node_id)], False)
 
+    for node in graph.get_op_nodes():
+        # Add in_ports attribute
+        in_edges = node.in_edges()
+        for i in range(len(in_edges)):
+            node.add_input_port(idx=i)
+
+        # Add out_ports attribute
+        out_edges = node.out_edges()
+        for i in range(len(out_edges)):
+            node.add_output_port(idx=i)
     return graph
 
 
@@ -148,7 +162,7 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
         # filter nodes to keep only ones with edges connected
         filtered_nodes = {}
         for item in edges:
-            if len(item) == 2: # TODO: is there any better way in python to do that?
+            if len(item) == 2:  # TODO: is there any better way in python to do that?
                 node1, node2 = item
             else:
                 node1, node2, _ = item
@@ -177,7 +191,7 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
 
     if update_attributes is not None:
         for node_name, new_attrs in update_attributes.items():
-            assert (node_name in graph.nodes())
+            assert (node_name in graph.nodes()), 'Node with name "{}" is not in the graph'.format(node_name)
             for attr, value in new_attrs.items():
                 graph.node[node_name][attr] = value
 
@@ -219,8 +233,7 @@ def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attribute
     return graph
 
 
-def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref=None,
-                   check_op_attrs=False):
+def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref=None, check_op_attrs=False):
     if last_node_ref is None:
         last_node_ref = last_node
 
@@ -241,43 +254,49 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
 
         # Check that nodes has same amount of output nodes
         if len(node_ref.out_nodes()) != len(node.out_nodes()):
-            return False, '{} and {} has different amount of output nodes'.format(node.id, node_ref.id)
+            return False, 'Current node "{}" and reference node "{}" have different amount of output nodes: {} vs {}'.\
+                format(node.id, node_ref.id, len(node_ref.out_nodes()), len(node.out_nodes()))
 
         # Check that nodes has same amount of input nodes
         if len(node_ref.in_nodes()) != len(node.in_nodes()):
-            return False, '{} and {} has different amount of input nodes'.format(node.id, node_ref.id)
+            return False, 'Current node "{}" and reference node "{}" have different amount of input nodes: {} vs {}'.\
+                format(node.id, node_ref.id, len(node_ref.in_nodes()), len(node.in_nodes()))
 
         # Check that nodes has same 'kind'
         if node_ref.kind != node.kind:
-            return False, '{} and {} has different kind parameter'.format(node.id, node_ref.id)
+            return False, 'Current node "{}" and reference node "{}" have different kind parameter'.\
+                format(node.id, node_ref.id)
 
         # Check can_be_fused attr
         if node_ref.has_valid('can_be_fused'):
             if node_ref.soft_get('can_be_fused') != node.soft_get('can_be_fused'):
-                return False, '{} and {} has different can_be_fused parameter {} and {}'.format(
-                    node.id, node_ref.id, node.soft_get('can_be_fused'), node_ref.soft_get('can_be_fused'))
+                return False, 'Current node "{}" and reference node "{}" have different "can_be_fused" parameter ' \
+                              '{} and {}'.format(node.id, node_ref.id, node.soft_get('can_be_fused'),
+                                                 node_ref.soft_get('can_be_fused'))
 
         if node_ref.kind == 'op':
             # Check that nodes has same operation
             if check_op_attrs:
                 for attr in graph_ref.node[node_ref.id]:
-                    if graph_ref.node[node_ref.id][attr] is None or attr in ['name', 'id', '_in_ports', '_out_ports', 'infer', 'IE']:
+                    if graph_ref.node[node_ref.id][attr] is None or attr in ['name', 'id', '_in_ports', '_out_ports',
+                                                                             'infer', 'IE']:
                         continue
                     if attr not in graph.node[node.id]:
-                        return False, 'Node {} has missing attribute {}'.format(node.id, attr)
+                        return False, 'Current node "{}" has missing attribute {}'.format(node.id, attr)
 
                     if type(graph_ref.node[node_ref.id][attr]) in [np.ndarray, list]:
                         if not np.array_equal(graph.node[node.id][attr], graph_ref.node[node_ref.id][attr]):
-                            return False, '{} and {} has different attr {} : {} and {}'.format(
-                                node.id, node_ref.id, attr, graph.node[node.id][attr],
-                                graph_ref.node[node_ref.id][attr])
+                            return False, 'Current node "{}" and reference node "{}" have different attr "{}" : ' \
+                                          '{} and {}'.format(node.id, node_ref.id, attr, graph.node[node.id][attr],
+                                                             graph_ref.node[node_ref.id][attr])
                     elif isinstance(graph.node[node.id][attr], Number):
-                        if abs(graph.node[node.id][attr] - graph_ref.node[node_ref.id][attr]) > 1e-4:
+                        eps = 5e-2 if node.has('precision') and node['precision'] == 'FP16' else 1e-4
+                        if abs(graph.node[node.id][attr] - graph_ref.node[node_ref.id][attr]) > eps:
                             return False, '{} and {} has different attr {} : {} and {}'.format(
                                 node.id, node_ref.id, attr, graph.node[node.id][attr],
                                 graph_ref.node[node_ref.id][attr])
                     elif graph.node[node.id][attr] != graph_ref.node[node_ref.id][attr]:
-                        return False, '{} and {} has different attr {} : {} and {}'.format(
+                        return False, 'Current node "{}" and reference node "{}" have different attr "{}" : {} and {}'.format(
                             node.id, node_ref.id, attr, graph.node[node.id][attr],
                             graph_ref.node[node_ref.id][attr])
 
@@ -290,13 +309,14 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
             # Check that nodes has same shape and value
             if node_ref.has_valid('shape') and node_ref.shape is not None and not np.array_equal(node_ref.shape,
                                                                                                  node.shape):
-                return False, '{} and {} has different shapes {} and {}'.format(node.id, node_ref.id, node.shape,
-                                                                                node_ref.shape)
-            if node_ref.has_valid('value') and node_ref.value is not None and not np.allclose(node_ref.value,
-                                                                                              node.value, rtol=1e-05,
-                                                                                              atol=1e-08):
-                return False, '{} and {} has different values \n{} \nand \n{}'.format(node.id, node_ref.id, node.value,
-                                                                                      node_ref.value)
+                return False, 'Current node "{}" and reference node "{}" have different shapes {} and {}'.\
+                    format(node.id, node_ref.id, node.shape, node_ref.shape)
+
+            if node_ref.has_valid('value') and node_ref.value is not None:
+                eps = 5e-2 if np.asarray(node.value).dtype == 'float16' else 1e-4
+                if not np.allclose(node_ref.value, node.value, rtol=eps, atol=eps):
+                    return False, 'Current node "{}" and reference node "{}" have different values \n{} \nand \n{}'.\
+                        format(node.id, node_ref.id, node.value, node_ref.value)
         ports = sorted(node.in_nodes().keys()) if node.kind == 'op' else None
         in_nodes = [node.in_node(k) for k in ports] if node.kind == 'op' else node.in_nodes()
         for in_node in in_nodes:
@@ -305,7 +325,7 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
 
         ports_ref = sorted(node_ref.in_nodes().keys()) if node_ref.kind == 'op' else None
         if ports != ports_ref:
-            return False, '{} and {} has different ports'.format(node.id, node_ref.id)
+            return False, 'Current node "{}" and reference node "{}" have different ports'.format(node.id, node_ref.id)
 
         in_nodes = [node_ref.in_node(k) for k in ports] if node_ref.kind == 'op' else node_ref.in_nodes()
         for in_node in in_nodes:
@@ -330,6 +350,7 @@ class FakeNode:
         self.pb = pl
         self.model_pb = ml
         self.graph = None
+        self.update_node = lambda: None
 
     def __setitem__(self, key, value):
         setattr(self, key, value)

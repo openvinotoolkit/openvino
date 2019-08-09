@@ -27,7 +27,7 @@ from mo.utils.unittest.graph import build_graph
 class TestMxnetPipeline(unittest.TestCase):
     def test_mxnet_pipeline_1(self):
         graph = build_graph(
-            {'data': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'data': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'node_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
              'node_multi_box': {'type': '_contrib_MultiBoxPrior', 'kind': 'op', 'op': '_contrib_MultiBoxPrior'},
              },
@@ -49,7 +49,7 @@ class TestMxnetPipeline(unittest.TestCase):
 
     def test_mxnet_pipeline_2(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'node_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
              'node_multi_box': {'type': '_contrib_MultiBoxPrior', 'kind': 'op', 'op': '_contrib_MultiBoxPrior'},
              },

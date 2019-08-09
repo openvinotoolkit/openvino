@@ -55,6 +55,11 @@ struct cpu_depthwise_fwd_pd_t: public depthwise_fwd_pd_t {
 
     bool want_padded_weights() const {
         memory_desc_wrapper dst_d(&dst_pd_);
+        if (dst_d.format() == memory_format::nc) {
+            int simd_w = 16;
+            return this->C() % simd_w != 0;
+        }
+
         if (!dst_d.is_blocking_desc()) return false;
         return this->C() != dst_d.blocking_desc().padding_dims[1];
     }

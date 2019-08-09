@@ -66,9 +66,9 @@ KERNEL (mvn_gpu_bfyx_opt)(const __global UNIT_TYPE* input, __global UNIT_TYPE* o
 
 #if NORMALIZE_VARIANCE == 0
     for (uint i=0; i<ITEMS_NUM; ++i)
-        output[my_data_offset + i * workers_per_data_set] = ACTIVATION(UNIT_CVT_FUNC(input[my_data_offset + i * workers_per_data_set]) - UNIT_CVT_FUNC(my_sum), NL_M ,NL_N);
+        output[my_data_offset + i * workers_per_data_set] = ACTIVATION(UNIT_CVT_FUNC(input[my_data_offset + i * workers_per_data_set]) - UNIT_CVT_FUNC(my_sum), ACTIVATION_PARAMS);
     if (in_data_set_idx < LEFTOVERS)
-        output[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx] = ACTIVATION(UNIT_CVT_FUNC(input[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx]) - UNIT_CVT_FUNC(my_sum), NL_M ,NL_N);
+        output[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx] = ACTIVATION(UNIT_CVT_FUNC(input[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx]) - UNIT_CVT_FUNC(my_sum), ACTIVATION_PARAMS);
 #else
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -104,9 +104,9 @@ KERNEL (mvn_gpu_bfyx_opt)(const __global UNIT_TYPE* input, __global UNIT_TYPE* o
     my_variance = lg_storage[0];
 
     for (uint i=0; i<ITEMS_NUM; ++i)
-        output[my_data_offset + i * workers_per_data_set] = ACTIVATION((UNIT_CVT_FUNC(input[my_data_offset + i * workers_per_data_set]) - UNIT_CVT_FUNC(my_sum)) * UNIT_CVT_FUNC(my_variance), NL_M ,NL_N);
+        output[my_data_offset + i * workers_per_data_set] = ACTIVATION((UNIT_CVT_FUNC(input[my_data_offset + i * workers_per_data_set]) - UNIT_CVT_FUNC(my_sum)) * UNIT_CVT_FUNC(my_variance), ACTIVATION_PARAMS);
     if (in_data_set_idx < LEFTOVERS)
-        output[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx] = ACTIVATION((UNIT_CVT_FUNC(input[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx]) - UNIT_CVT_FUNC(my_sum)) * UNIT_CVT_FUNC(my_variance), NL_M ,NL_N);
+        output[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx] = ACTIVATION((UNIT_CVT_FUNC(input[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx]) - UNIT_CVT_FUNC(my_sum)) * UNIT_CVT_FUNC(my_variance), ACTIVATION_PARAMS);
 #endif
 }
 

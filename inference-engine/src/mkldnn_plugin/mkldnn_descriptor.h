@@ -52,6 +52,9 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::binary_convolution_forward::desc> desc);
     operator std::shared_ptr<mkldnn::binary_convolution_forward::desc>();
 
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::deformable_convolution_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::deformable_convolution_forward::desc>();
+
     mkldnn::primitive_desc_iterator createPrimitiveDescriptorIterator(const mkldnn::engine &engine,
             const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) const;
 

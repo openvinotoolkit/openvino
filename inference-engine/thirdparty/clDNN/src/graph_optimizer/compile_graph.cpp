@@ -25,15 +25,13 @@
 
 using namespace cldnn;
 
-void compile_graph::run(program_impl& p)
-{
-    for (auto& node : p.get_processing_order())
-    {
-        if (!node->is_type<internal_primitive>() && !node->is_type<data>())
-        {
+void compile_graph::run(program_impl& p) {
+    for (auto& node : p.get_processing_order()) {
+        if (!node->is_type<internal_primitive>() && !node->is_type<data>()) {
             node->get_output_layout();
-            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty()))
+            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
                 node->selected_impl = node->type()->choose_impl(p.get_engine(), *node);
+            }
         }
     }
 }

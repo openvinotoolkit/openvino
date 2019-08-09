@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef ARG_MAX_MIN_H
-#define ARG_MAX_MIN_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -31,15 +29,13 @@ extern "C" {
 #endif
 
 /// @brief Enum type to specify output type - index of max or min values
-typedef enum
-{
+typedef enum {
     cldnn_arg_max,
     cldnn_arg_min,
 } cldnn_arg_max_min_out;
 
 /// @brief Enum type to specify axis to maximize/minimize along.
-typedef enum
-{
+typedef enum {
     cldnn_arg_max_min_batch,
     cldnn_arg_max_min_feature,
     cldnn_arg_max_min_x,
@@ -57,6 +53,10 @@ cldnn_arg_max_min_out output_type;
 cldnn_arg_max_min_axis axis;
 /// @brief Indicates that the primitive has user defined axis to maximize/minimize along.
 uint32_t with_axis;
+/// @brief Sets output order: if True than first output contains values and second (optional) - indices.
+uint32_t values_first;
+/// @brief Type of sorting - by values or indices.
+uint32_t sort;
 CLDNN_END_PRIMITIVE_DESC(arg_max_min)
 
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(arg_max_min);
@@ -68,5 +68,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(arg_max_min);
 /// @}
 /// @}
 /// @}
-#endif /* ARG_MAX_MIN.H */
 

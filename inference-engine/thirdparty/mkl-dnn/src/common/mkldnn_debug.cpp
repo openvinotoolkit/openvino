@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2018-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ const char *mkldnn_dt2str(mkldnn_data_type_t v) {
     if (v == mkldnn_data_type_undef) return "undef";
     if (v == mkldnn_f32) return "f32";
     if (v == mkldnn_s32) return "s32";
+    if (v == mkldnn_bf16) return "bf16";
     if (v == mkldnn_s16) return "s16";
     if (v == mkldnn_s8) return "s8";
     if (v == mkldnn_u8) return "u8";
@@ -109,6 +110,7 @@ const char *mkldnn_fmt2str(mkldnn_memory_format_t v) {
     if (v == mkldnn_Owi16o) return "Owi16o";
     if (v == mkldnn_OIw8i16o2i) return "OIw8i16o2i";
     if (v == mkldnn_OIw8o16i2o) return "OIw8o16i2o";
+    if (v == mkldnn_IOw8o16i2o) return "IOw8o16i2o";
     if (v == mkldnn_IOw16o16i) return "IOw16o16i";
     if (v == mkldnn_hwio_s8s8) return "hwio_s8s8";
     if (v == mkldnn_oIhw8i) return "oIhw8i";
@@ -116,10 +118,14 @@ const char *mkldnn_fmt2str(mkldnn_memory_format_t v) {
     if (v == mkldnn_OIhw4i4o) return "OIhw4i4o";
     if (v == mkldnn_OIhw8i8o) return "OIhw8i8o";
     if (v == mkldnn_OIhw16i16o) return "OIhw16i16o";
+    if (v == mkldnn_OIw4i16o4i) return "OIw4i16o4i";
+    if (v == mkldnn_OIw4i16o4i_s8s8) return "OIw4i16o4i_s8s8";
     if (v == mkldnn_OIhw4i16o4i) return "OIhw4i16o4i";
     if (v == mkldnn_OIhw4i16o4i_s8s8) return "OIhw4i16o4i_s8s8";
     if (v == mkldnn_OIhw8i16o2i) return "OIhw8i16o2i";
+    if (v == mkldnn_IOhw8i16o2i) return "IOhw8i16o2i";
     if (v == mkldnn_OIhw8o16i2o) return "OIhw8o16i2o";
+    if (v == mkldnn_IOhw8o16i2o) return "IOhw8o16i2o";
     if (v == mkldnn_OIhw8o8i) return "OIhw8o8i";
     if (v == mkldnn_OIhw16o16i) return "OIhw16o16i";
     if (v == mkldnn_IOhw16o16i) return "IOhw16o16i";
@@ -147,6 +153,8 @@ const char *mkldnn_fmt2str(mkldnn_memory_format_t v) {
     if (v == mkldnn_Oidhw16o) return "Oidhw16o";
     if (v == mkldnn_Odhwi16o) return "Odhwi16o";
     if (v == mkldnn_OIdhw8i16o2i) return "OIdhw8i16o2i";
+    if (v == mkldnn_OIdhw8o16i2o) return "OIdhw8o16i2o";
+    if (v == mkldnn_IOdhw8o16i2o) return "IOdhw8o16i2o";
     if (v == mkldnn_gOwi4o) return "gOwi4o";
     if (v == mkldnn_gOIw4i4o) return "gOIw4i4o";
     if (v == mkldnn_gOwi8o) return "gOwi8o";
@@ -159,17 +167,22 @@ const char *mkldnn_fmt2str(mkldnn_memory_format_t v) {
     if (v == mkldnn_gOwi16o) return "gOwi16o";
     if (v == mkldnn_gOIw8i16o2i) return "gOIw8i16o2i";
     if (v == mkldnn_gOIw8o16i2o) return "gOIw8o16i2o";
+    if (v == mkldnn_gIOw8o16i2o) return "gIOw8o16i2o";
     if (v == mkldnn_gIOw16o16i) return "gIOw16o16i";
     if (v == mkldnn_hwigo_s8s8) return "hwigo_s8s8";
     if (v == mkldnn_gOIhw4i4o) return "gOIhw4i4o";
     if (v == mkldnn_gOIhw8i8o) return "gOIhw8i8o";
     if (v == mkldnn_gOIhw16i16o) return "gOIhw16i16o";
+    if (v == mkldnn_gOIw4i16o4i) return "gOIw4i16o4i";
+    if (v == mkldnn_gOIw4i16o4i_s8s8) return "gOIw4i16o4i_s8s8";
     if (v == mkldnn_gOIhw4i16o4i) return "gOIhw4i16o4i";
     if (v == mkldnn_gOIhw4i16o4i_s8s8) return "gOIhw4i16o4i_s8s8";
     if (v == mkldnn_gOIhw2i8o4i) return "gOIhw2i8o4i";
     if (v == mkldnn_gOIhw2i8o4i_s8s8) return "gOIhw2i8o4i_s8s8";
     if (v == mkldnn_gOIhw8i16o2i) return "gOIhw8i16o2i";
+    if (v == mkldnn_gIOhw8i16o2i) return "gIOhw8i16o2i";
     if (v == mkldnn_gOIhw8o16i2o) return "gOIhw8o16i2o";
+    if (v == mkldnn_gIOhw8o16i2o) return "gIOhw8o16i2o";
     if (v == mkldnn_gOIhw4o4i) return "gOIhw4o4i";
     if (v == mkldnn_gOIhw4o4i_s8s8) return "gOIhw4o4i_s8s8";
     if (v == mkldnn_gOIhw8o8i) return "gOIhw8o8i";
@@ -182,6 +195,8 @@ const char *mkldnn_fmt2str(mkldnn_memory_format_t v) {
     if (v == mkldnn_gOhwi4o) return "gOhwi4o";
     if (v == mkldnn_gOhwi16o) return "gOhwi16o";
     if (v == mkldnn_Goihw8g) return "Goihw8g";
+    if (v == mkldnn_Goiw16g) return "Goiw16g";
+    if (v == mkldnn_Goiw16g_s8s8) return "Goiw16g_s8s8";
     if (v == mkldnn_Goihw16g) return "Goihw16g";
     if (v == mkldnn_Goihw16g_s8s8) return "Goihw16g_s8s8";
     if (v == mkldnn_gOhIw16o4i) return "gOhIw16o4i";
@@ -193,6 +208,8 @@ const char *mkldnn_fmt2str(mkldnn_memory_format_t v) {
     if (v == mkldnn_gOIdhw8o8i) return "gOIdhw8o8i";
     if (v == mkldnn_gOdhwi8o) return "gOdhwi8o";
     if (v == mkldnn_gOIdhw8i16o2i) return "gOIdhw8i16o2i";
+    if (v == mkldnn_gOIdhw8o16i2o) return "gOIdhw8o16i2o";
+    if (v == mkldnn_gIOdhw8o16i2o) return "gIOdhw8o16i2o";
     if (v == mkldnn_gOIdhw16i16o) return "gOIdhw16i16o";
     if (v == mkldnn_gOIdhw16o16i) return "gOIdhw16o16i";
     if (v == mkldnn_gOidhw4o) return "gOidhw4o";
@@ -241,6 +258,7 @@ const char *mkldnn_prim_kind2str(mkldnn_primitive_kind_t v) {
     if (v == mkldnn_roi_pooling) return "roi_pooling";
     if (v == mkldnn_binary_convolution) return "binary_convolution";
     if (v == mkldnn_binarization) return "binarization";
+    if (v == mkldnn_deformable_convolution) return "deformable_convolution";
     assert(!"unknown prim_kind");
     return "unknown prim_kind";
 }
@@ -281,6 +299,7 @@ const char *mkldnn_alg_kind2str(mkldnn_alg_kind_t v) {
     if (v == mkldnn_roi_pooling_bilinear) return "roi_pooling_bilinear";
     if (v == mkldnn_binary_convolution_direct) return "binary_convolution_direct";
     if (v == mkldnn_binarization_depthwise) return "binarization_depthwise";
+    if (v == mkldnn_deformable_convolution_direct) return "deformable_convolution_direct";
     assert(!"unknown alg_kind");
     return "unknown alg_kind";
 }

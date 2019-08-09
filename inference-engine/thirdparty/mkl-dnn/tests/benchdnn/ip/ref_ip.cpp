@@ -30,33 +30,6 @@ void compute_ref_fwd(const prb_t *p, dnn_mem_t &src_m,
     gemm("C", "N", "T", M, N, K, 1.f, (float *)src_m, K, (float *)wei_m, K,
         0.f, (float *)dst_m, N);
 
-    auto maybe_scale = [&](float &d, int oc) {
-        if (!p->attr.oscale.is_def()) {
-            using policy_t = attr_t::scale_t::policy_t;
-            const auto &s = p->attr.oscale;
-            if (s.policy == policy_t::COMMON) {
-                d *= s.scale;
-            } else {
-                d *= p->scales[oc];
-            }
-        }
-    };
-
-    auto maybe_post_ops = [&](float &res) {
-        const auto &ops = p->attr.post_ops;
-        for (int idx = 0; idx < ops.len; ++idx) {
-            using pk = attr_t::post_ops_t::kind_t;
-            const auto &e = ops.entry[idx];
-            switch (e.kind) {
-            case pk::RELU:
-                res = e.eltwise.scale * (res < 0 ? 0 : res);
-                break;
-            default:
-                assert(!"unknown attr::post_ops::kind");
-            }
-        }
-    };
-
     mkldnn::impl::parallel_nd(p->mb, p->oc, [&](int mb, int oc) {
         size_t dst_off = dst_off_f(p, mb, oc);
         float &d = ((float *)dst_m)[dst_off];
@@ -64,8 +37,8 @@ void compute_ref_fwd(const prb_t *p, dnn_mem_t &src_m,
             size_t bia_off = bia_off_f(p, oc);
             d += ((float *)bia_m)[bia_off];
         }
-        maybe_scale(d, oc);
-        maybe_post_ops(d);
+        maybe_scale(d, p->scales, oc, p->attr);
+        maybe_post_ops(d, 0, p->attr);
     });
 }
 

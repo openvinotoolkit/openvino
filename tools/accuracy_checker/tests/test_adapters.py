@@ -28,7 +28,7 @@ def test_detection_adapter():
     }
     expected = make_representation('0.2,3,0,0,1,1;0.5,2,4,4,7,7;0.7,5,3,3,9,8')
 
-    actual = SSDAdapter({}, output_blob='detection_out')([raw], ['0'])
+    actual = SSDAdapter({}, output_blob='detection_out').process([raw], ['0'], [{}])
 
     assert np.array_equal(actual, expected)
 
@@ -41,7 +41,7 @@ def test_detection_adapter_partially_filling_output_blob():
     }
     expected = make_representation('0.2,3,0,0,1,1;0.5,2,4,4,7,7;0.7,5,3,3,9,8')
 
-    actual = SSDAdapter({}, output_blob='detection_out')([raw], ['0'])
+    actual = SSDAdapter({}, output_blob='detection_out').process([raw], ['0'])
 
     assert np.array_equal(actual, expected)
 
@@ -58,7 +58,7 @@ def test_detection_adapter_partially_filling_output_blob_with_zeros_at_the_end()
     }
     expected = make_representation('0.2,3,0,0,1,1;0.5,2,4,4,7,7;0.7,5,3,3,9,8')
 
-    actual = SSDAdapter({}, output_blob='detection_out')([raw], ['0'])
+    actual = SSDAdapter({}, output_blob='detection_out').process([raw], ['0'])
 
     assert np.array_equal(actual, expected)
 
@@ -69,7 +69,7 @@ def test_detection_adapter_batch_2():
     }
     expected = make_representation(['0.2,3,0,0,1,1;0.5,2,4,4,7,7', '0.7,5,3,3,9,8'])
 
-    actual = SSDAdapter({}, output_blob='detection_out')([raw], ['0', '1'])
+    actual = SSDAdapter({}, output_blob='detection_out').process([raw], ['0', '1'])
 
     assert np.array_equal(actual, expected)
 

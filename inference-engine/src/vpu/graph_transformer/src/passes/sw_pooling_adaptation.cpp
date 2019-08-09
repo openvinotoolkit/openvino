@@ -19,20 +19,17 @@ private:
         return std::make_shared<PoolStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>&,
             ScalePropagationStep) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
 
         auto finalOrder = input->desc().dimsOrder();
         if (input->desc().dim(Dim::N, 1) > 1) {
@@ -40,18 +37,15 @@ private:
             finalOrder = finalOrder.createMovedDim(Dim::C, 2);
         }
 
-        out[input] = finalOrder;
-        out[output] = finalOrder;
-
-        return out;
+        _orderInfo.setInput(_inputEdges[0], finalOrder);
+        _orderInfo.setOutput(_outputEdges[0], finalOrder);
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
 
         auto dimsOrder = input->desc().dimsOrder();
 
@@ -62,10 +56,8 @@ private:
             reqs.add(dimsOrder.dimInd(Dim::N), DimStride::Compact);
         }
 
-        DataMap<StridesRequirement> out;
-
-        out[input] = reqs;
-        out[output] = reqs;
+        _stridesInfo.setInput(_inputEdges[0], reqs);
+        _stridesInfo.setOutput(_outputEdges[0], reqs);
 
         //
         // * AvgPool/MaxPool support both YXZ and ZYX orders:
@@ -76,19 +68,16 @@ private:
 
         if (_type == StageType::MaxPool || _type == StageType::AvgPool) {
             if (dimsOrder.dimInd(Dim::C) == 0) {
-                out[input] = StridesRequirement::compact();
+                _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
             }
         }
-
-        return out;
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const  override {
+    void getBatchSupportInfoImpl() const  override {
         // Pooling will support batch by merging it with previous dimension.
-        return DataMap<BatchSupport>();
     }
 
     void finalCheckImpl() const override {

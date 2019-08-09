@@ -19,7 +19,7 @@ class GNAHWPrecisionTest : public GNATest {
 };
 
 TEST_F(GNAHWPrecisionTest, defaultPrecisionIsInt16) {
-    assert_that().onInfer1AFModel().gna().propagate_forward().called_with().
+    assert_that().onInfer1AFModel().gna().propagate_forward().called_with().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).
         nnet_input_precision(Precision::I16).
         nnet_ouput_precision(Precision::I32).
         nnet_weights_precision(Precision::I16).
@@ -28,7 +28,7 @@ TEST_F(GNAHWPrecisionTest, defaultPrecisionIsInt16) {
 
 TEST_F(GNAHWPrecisionTest, canPassInt8Precision) {
     assert_that().onInfer1AFModel().withConfig(PRECISION, Precision::I8).
-        gna().propagate_forward().called_with().
+        gna().propagate_forward().called_with().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).
             nnet_input_precision(Precision::I16).
             nnet_ouput_precision(Precision::I32).
             nnet_weights_precision(Precision::I8).
@@ -36,8 +36,8 @@ TEST_F(GNAHWPrecisionTest, canPassInt8Precision) {
 }
 
 TEST_F(GNAHWPrecisionTest, canPassInt16Precision) {
-    assert_that().onInfer1AFModel().withConfig(PRECISION, Precision::I16).
-        gna().propagate_forward().called_with().
+    assert_that().onInfer1AFModel().withConfig(PRECISION, Precision::I16).withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().
         nnet_input_precision(Precision::I16).
         nnet_ouput_precision(Precision::I32).
         nnet_weights_precision(Precision::I16).
@@ -45,5 +45,5 @@ TEST_F(GNAHWPrecisionTest, canPassInt16Precision) {
 }
 
 TEST_F(GNAHWPrecisionTest, failToCreatePluginWithUnsuportedPrecision) {
-    assert_that().creating().gna_plugin().withConfig(PRECISION, Precision::FP32).throws();
+    assert_that().creating().gna_plugin().withConfig(PRECISION, Precision::FP32).withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).throws();
 }

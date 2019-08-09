@@ -37,6 +37,9 @@ public:
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) override {
         auto res = std::make_shared<LT>(layerParsePrms.prms);
 
+        if (res->type == "FakeQuantize")
+            res->type = "Quantize";
+
         if (std::is_same<LT, FullyConnectedLayer>::value) {
             layerChild[res->name] = {"fc", "fc_data", "data"};
         } else if (std::is_same<LT, NormLayer>::value) {

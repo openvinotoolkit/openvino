@@ -19,32 +19,34 @@
 #include "primitive_type_base.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include <string>
 
-namespace cldnn
-{
-primitive_type_id fully_connected_grad_input_type_id()
-{
+namespace cldnn {
+primitive_type_id fully_connected_grad_input_type_id() {
     static primitive_type_base<fully_connected_grad_input> instance;
     return &instance;
 }
 
-layout fully_connected_grad_input_inst::calc_output_layout(fully_connected_grad_input_node const& node)
-{
-    assert((bool)node.get_primitive()->output_data_type == false
-           && "Output data type forcing is not supported for "
-              "fully_connected_grad_input_node!");
+layout fully_connected_grad_input_inst::calc_output_layout(fully_connected_grad_input_node const& node) {
+    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+           "Output data type forcing is not supported for "
+           "fully_connected_grad_input_node!");
     auto desc = node.get_primitive();
-    
+
     auto input_layout = node.input().get_output_layout();
     auto weights_layout = node.weights().get_output_layout();
 
-    return layout(input_layout.data_type, input_layout.format, tensor(input_layout.size.batch[0], weights_layout.size.feature[0], weights_layout.size.spatial[0], weights_layout.size.spatial[1]));
+    return layout(input_layout.data_type,
+                  input_layout.format,
+                  tensor(input_layout.size.batch[0],
+                         weights_layout.size.feature[0],
+                         weights_layout.size.spatial[0],
+                         weights_layout.size.spatial[1]));
 }
 
-std::string fully_connected_grad_input_inst::to_string(fully_connected_grad_input_node const& node)
-{
-    auto desc       = node.get_primitive();
-    auto node_info  = node.desc_to_json();
+std::string fully_connected_grad_input_inst::to_string(fully_connected_grad_input_node const& node) {
+    auto desc = node.get_primitive();
+    auto node_info = node.desc_to_json();
     auto weights_id = desc->weights;
 
     std::stringstream primitive_description;
@@ -58,13 +60,17 @@ std::string fully_connected_grad_input_inst::to_string(fully_connected_grad_inpu
     return primitive_description.str();
 }
 
-fully_connected_grad_input_inst::typed_primitive_inst(network_impl& network, fully_connected_grad_input_node const& node)
-    :parent(network, node)
-{
+fully_connected_grad_input_inst::typed_primitive_inst(network_impl& network,
+                                                      fully_connected_grad_input_node const& node)
+    : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input size", input_layout.size.raw.size(), "output size", output_layout.size.raw.size(), "");
-
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
+                          "Input size",
+                          input_layout.size.raw.size(),
+                          "output size",
+                          output_layout.size.raw.size(),
+                          "");
 }
-}
+}  // namespace cldnn

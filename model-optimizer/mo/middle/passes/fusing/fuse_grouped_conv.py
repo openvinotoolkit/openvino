@@ -23,7 +23,6 @@ import numpy as np
 from mo.front.extractor import add_attrs_props
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.eliminate import graph_clean_up
-from mo.utils.graph import pseudo_topological_sort
 from mo.middle.passes.fusing.helpers import get_next_operation, get_tensor_id
 
 
@@ -133,10 +132,8 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
 def grouped_convolutions_fusing(graph: Graph):
     while True:
         is_fused = False
-        graph_clean_up(graph, ['TFCustomSubgraphCall', 'Shape'])
-        nodes = pseudo_topological_sort(graph)
-        for idx in nodes:
-            node = Node(graph, idx)
+        graph_clean_up(graph, ['TFCustomSubgraphCall', 'ShapeOf', 'Shape'])
+        for node in graph.pseudo_topological_sort():
             if node.kind == 'op' and len(node.out_nodes()) > 1:
                 if node.soft_get('can_be_fused') == False:
                     continue

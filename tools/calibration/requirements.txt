@@ -1,8 +1,13 @@
-py-cpuinfo
+nibabel
 numpy
-progress
-pyyaml
 opencv-python
+pillow
+progress
+py-cpuinfo<=4.0
+pyyaml
+scipy<=0.19
 shapely
 sklearn
+tqdm
 xmltodict
+yamlloader

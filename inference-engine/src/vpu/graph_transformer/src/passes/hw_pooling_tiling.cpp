@@ -42,12 +42,14 @@ public:
               const DimValues& inputDims, const DimValues& outputDims,
               int kernelSizeX, int kernelSizeY,
               int kernelStride,
-              int paddingX, int paddingY)
+              int padLeft, int padRight,
+              int padTop, int padBottom)
         : _stageName(stageName),
           _inputDims(inputDims), _outputDims(outputDims),
           _kernelSizeX(kernelSizeX), _kernelSizeY(kernelSizeY),
           _kernelStride(kernelStride),
-          _paddingX(paddingX), _paddingY(paddingY) {
+          _padLeft(padLeft), _padRight(padRight),
+          _padTop(padTop), _padBottom(padBottom) {
     }
 
     bool optimize() {
@@ -66,10 +68,10 @@ public:
 
 private:
     void initTileSizes() {
-        int tempX = _inputDims[Dim::W] + 2 * _paddingX - _kernelSizeX;
-        int tempY = _inputDims[Dim::H] + 2 * _paddingY - _kernelSizeY;
+        int tempX = _inputDims[Dim::W] + _padLeft + _padRight  - _kernelSizeX;
+        int tempY = _inputDims[Dim::H] + _padTop  + _padBottom - _kernelSizeY;
 
-        int outWidthWithOutCeil = (tempX + _kernelStride) / _kernelStride;
+        int outWidthWithOutCeil  = (tempX + _kernelStride) / _kernelStride;
         int outHeightWithOutCeil = (tempY + _kernelStride) / _kernelStride;
 
         int outWidthWithCeil =  static_cast<int>(std::ceil(static_cast<double>(tempX) / _kernelStride + 1));
@@ -240,9 +242,10 @@ private:
                             auto pad = getHwPaddingInfo(
                                 fullInputTileDims, fullOutputTileDims,
                                 _kernelSizeX, _kernelSizeY,
-                                _kernelStride, _kernelStride);
+                                _kernelStride, _kernelStride,
+                                _padLeft, _padTop);
 
-                            if (pad.enable) {
+                            if (pad.enable && (pad.left > 0 || pad.right > 0 || pad.bottom > 0)) {
                                 int memPerPlane = alignVal(
                                             fullInputTileDims[Dim::W], 8) * sizeof(fp16_t)
                                           * ((fullInputTileDims[Dim::H] - 1) + (_kernelSizeY - 1));
@@ -381,15 +384,15 @@ private:
 
 private:
     void correctOutputPlaneSize() {
-        int maxOutputWidth = calcOutputSize(_inputTileDims[Dim::W], _kernelSizeX, _kernelStride, _paddingX, _paddingX, _useCeil);
+        int maxOutputWidth = calcOutputSize(_inputTileDims[Dim::W], _kernelSizeX, _kernelStride, _padLeft, _padRight, _useCeil);
         _outputTileDims.set(Dim::W, std::min(_outputTileDims[Dim::W], maxOutputWidth));
 
-        int maxOutputHeight = calcOutputSize(_inputTileDims[Dim::H], _kernelSizeY, _kernelStride, _paddingY, _paddingY, _useCeil);
+        int maxOutputHeight = calcOutputSize(_inputTileDims[Dim::H], _kernelSizeY, _kernelStride, _padTop, _padBottom, _useCeil);
         _outputTileDims.set(Dim::H, std::min(_outputTileDims[Dim::H], maxOutputHeight));
     }
 
-    std::vector<HwPlaneTileInfo> calcHeightTiles() {
-        std::vector<HwPlaneTileInfo> heightTiles;
+    SmallVector<HwPlaneTileInfo> calcHeightTiles() {
+        SmallVector<HwPlaneTileInfo> heightTiles;
 
         if (_outputTileDims[Dim::H] == _outputDims[Dim::H]) {
             HwPlaneTileInfo info;
@@ -409,7 +412,7 @@ private:
                 _outputDims[Dim::H],
                 _kernelSizeY,
                 _kernelStride,
-                _paddingY, _paddingY,
+                _padTop, _padBottom,
                 _outputTileDims[Dim::H],
                 false,
                 _useCeil);
@@ -418,8 +421,8 @@ private:
         return heightTiles;
     }
 
-    std::vector<HwPlaneTileInfo> calcWidthTiles() {
-        std::vector<HwPlaneTileInfo> widthTiles;
+    SmallVector<HwPlaneTileInfo> calcWidthTiles() {
+        SmallVector<HwPlaneTileInfo> widthTiles;
 
         if (_outputTileDims[Dim::W] == _outputDims[Dim::W]) {
             HwPlaneTileInfo info;
@@ -439,7 +442,7 @@ private:
                 _outputDims[Dim::W],
                 _kernelSizeX,
                 _kernelStride,
-                _paddingX, _paddingX,
+                _padLeft, _padRight,
                 _outputTileDims[Dim::W],
                 true,
                 _useCeil);
@@ -454,11 +457,13 @@ private:
     DimValues _inputDims;
     DimValues _outputDims;
 
-    int _kernelSizeX = 0;
-    int _kernelSizeY = 0;
+    int _kernelSizeX  = 0;
+    int _kernelSizeY  = 0;
     int _kernelStride = 0;
-    int _paddingX = 0;
-    int _paddingY = 0;
+    int _padLeft   = 0;
+    int _padRight  = 0;
+    int _padTop    = 0;
+    int _padBottom = 0;
 
     DimValues _inputTileDims;
     DimValues _outputTileDims;
@@ -478,6 +483,34 @@ private:
     StageBuilder::Ptr _stageBuidler;
 };
 
+HwPaddingInfo getPoolPadding(const HwPlaneTilePtr<HwPoolTileInfo>& tile,
+                             const DimValues& dims,
+                             int kernelSizeX,
+                             int kernelSizeY,
+                             int kernelStrideX,
+                             int kernelStrideY,
+                             int padLeft,
+                             int padRight,
+                             int padTop,
+                             int padBottom) {
+    const auto& widthInfo  = tile->widthInfo;
+    const auto& heightInfo = tile->heightInfo;
+
+    auto padW = (widthInfo.outputWithJunk  - 1)*kernelStrideX + kernelSizeX - widthInfo.inputWithJunk;
+    auto padH = (heightInfo.outputWithJunk - 1)*kernelStrideY + kernelSizeY - heightInfo.inputWithJunk;
+
+    HwPaddingInfo pad;
+
+    pad.left   = padLeft;
+    pad.right  = (dims[Dim::W] <= widthInfo.inputEndIndex)  ? padRight  : padW - pad.left;
+    pad.top    = padTop;
+    pad.bottom = (dims[Dim::H] <= heightInfo.inputEndIndex) ? padBottom : padH - pad.top;
+
+    pad.enable = pad.left || pad.right || pad.top || pad.bottom;
+
+    return pad;
+}
+
 void PassImpl::run(const Model::Ptr& model) {
     VPU_PROFILE(hwPoolTiling);
 
@@ -495,12 +528,12 @@ void PassImpl::run(const Model::Ptr& model) {
         auto origInput = origStage->input(0);
         auto origOutput = origStage->output(0);
 
-        auto kernelSizeX = origStage->attrs().get<int>("kernelSizeX");
-        auto kernelSizeY = origStage->attrs().get<int>("kernelSizeY");
+        auto kernelSizeX  = origStage->attrs().get<int>("kernelSizeX");
+        auto kernelSizeY  = origStage->attrs().get<int>("kernelSizeY");
         auto kernelStride = origStage->attrs().get<int>("kernelStrideX");
-        auto padLeft = origStage->attrs().get<int>("padLeft");
-        auto padRight = origStage->attrs().get<int>("padRight");
-        auto padTop = origStage->attrs().get<int>("padTop");
+        auto padLeft   = origStage->attrs().get<int>("padLeft");
+        auto padRight  = origStage->attrs().get<int>("padRight");
+        auto padTop    = origStage->attrs().get<int>("padTop");
         auto padBottom = origStage->attrs().get<int>("padBottom");
 
         auto withReLU = origStage->attrs().getOrDefault<bool>("withReLU", false);
@@ -516,7 +549,7 @@ void PassImpl::run(const Model::Ptr& model) {
                       hwInput->desc().dims(), hwOutput->desc().dims(),
                       kernelSizeX, kernelSizeY,
                       kernelStride,
-                      padLeft, padTop);
+                      padLeft, padRight, padTop, padBottom);
 
         if (!opt.optimize()) {
             origStage->attrs().set<bool>("tryHW", false);
@@ -555,6 +588,11 @@ void PassImpl::run(const Model::Ptr& model) {
 
         DataVector hwOutputTiles;
         std::vector<DimValues> hwOutputTilesOffsets;
+
+        hwInputTiles.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
+        hwInputTilesOffsets.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
+        hwOutputTiles.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
+        hwOutputTilesOffsets.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
 
         for (const auto& planeTile : tiling->planeTiles) {
             for (const auto& channelTile : planeTile->channelTiles) {
@@ -690,10 +728,11 @@ void PassImpl::run(const Model::Ptr& model) {
                 // Create HW stage for tile
                 //
 
-                auto hwPad = getHwPaddingInfo(
-                    hwInputTile->desc().dims(), hwOutputTile->desc().dims(),
+                auto hwPad = getPoolPadding(
+                    planeTile, hwInput->desc().dims(),
                     kernelSizeX, kernelSizeY,
-                    kernelStride, kernelStride);
+                    kernelStride, kernelStride,
+                    padLeft, padRight, padTop, padBottom);
 
                 auto hwTileWeights = model->addFakeData();
                 auto hwTileBiases = model->addFakeData();
@@ -730,7 +769,7 @@ void PassImpl::run(const Model::Ptr& model) {
                 model,
                 origStage->name() + "@split-input",
                 origStage->origLayer(),
-                hwInputTilesOffsets,
+                std::move(hwInputTilesOffsets),
                 hwInput,
                 hwInputTiles);
         }
@@ -740,7 +779,7 @@ void PassImpl::run(const Model::Ptr& model) {
                 model,
                 origStage->name() + "@concat-output",
                 origStage->origLayer(),
-                hwOutputTilesOffsets,
+                std::move(hwOutputTilesOffsets),
                 hwOutputTiles,
                 hwOutput);
         }

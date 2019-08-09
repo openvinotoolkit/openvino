@@ -48,8 +48,8 @@ class Convolution(Op):
            'group',
            ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
            ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-           ('kernel', lambda node: ','.join(map(str, node['kernel_spatial']))),
-
+           ('kernel', lambda node: ','.join(map(str, node['kernel_spatial'])) \
+               if node.has_valid('kernel_spatial') else None),
            ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0)))),
            ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1)))),
            'output',
@@ -125,6 +125,9 @@ class Convolution(Op):
         if not node.bias_term:
             weights_index = len(node.in_nodes()) - 1
 
+        if node.type == 'DeformableConvolution':
+            weights_index = 2
+
         # Reshape weights kernel to original shape
         # In case of caffe ot MXNet framework, values for weights has no structed shape like OIHW
         # so we have to reshape weights to normal shape
@@ -139,6 +142,7 @@ class Convolution(Op):
                                     *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]], dtype=np.int64)
             if node.type == 'Deconvolution':  # layout for Deconvolution weights is IOHW
                 kernel_shape[[0, 1]] = kernel_shape[[1, 0]]
+                #node.input_feature_channel, node.output_feature_channel = node.output_feature_channel, node.input_feature_channel
 
             if np.prod(kernel_shape) != np.prod(node.in_node(weights_index).value.shape):
                 log.error("Size of weights {} does not match kernel shape: {}\n".format(np.prod(node.in_node(weights_index).value.shape), kernel_shape) +
@@ -164,7 +168,7 @@ class Convolution(Op):
 
         if not node.has_valid('output'):
             # restore the number of output feature maps from the second argument that is weights
-            if node.type in ['Convolution', 'Deconvolution']:
+            if node.type in ['Convolution', 'Deconvolution', 'DeformableConvolution']:
                 node['output'] = kernel_shape[node.output_feature_channel]
             else:
                 raise Error(
@@ -229,8 +233,12 @@ class Convolution(Op):
                     float_spatial = Convolution.calc_deconvolution(node, input_spatial_shape, pad_spatial_shape,
                                                                    kernel_extent)
                     node['output_spatial_shape'] = int64_array(float_spatial)
+            elif node.type == 'DeformableConvolution':
+                # get the output spatial shape from the second input with offsets
+                node['output_spatial_shape'] = int64_array([node.in_node(1).shape[2:4]])
             else:
-                return
+                assert 'Unsupported layer type "{}"'.format(node.type)
+
 
         # For cases when group attribute wasn't set in extractor we should specify get_group attribute
         # this attribute should store lambda node: ... (check tf convolution extractor)
@@ -250,7 +258,7 @@ class Convolution(Op):
         for n in node.out_nodes():
             node.out_node(n).shape = output_shape
 
-        mark_input_bins(node)
+        mark_input_bins(node, start_port=1 if node.type != 'DeformableConvolution' else 2)
         assign_dims_to_weights(node.in_node(weights_index), node.kernel_spatial_idx, node.input_feature_channel,
                                node.output_feature_channel, len(kernel_shape))
 

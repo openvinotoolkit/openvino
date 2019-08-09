@@ -124,6 +124,36 @@ inline std::ostream & operator << (std::ostream &out, const Layout & p) {
         return out;
     }
 
+/**
+ * @enum Color format
+ * @brief Extra information about input color format for preprocessing
+ */
+enum ColorFormat : uint32_t {
+    RAW = 0u,    ///< Plain blob (default), no extra color processing required
+    RGB,         ///< RGB color format
+    BGR,         ///< BGR color format, default in DLDT
+    RGBX,        ///< RGBX color format with X ignored during inference
+    BGRX,        ///< BGRX color format with X ignored during inference
+    NV12,        ///< NV12 color format represented as compound Y+UV blob
+};
+inline std::ostream & operator << (std::ostream &out, const ColorFormat & fmt) {
+    switch (fmt) {
+#define PRINT_COLOR_FORMAT(name) \
+    case name : out << #name; break;
+
+        PRINT_COLOR_FORMAT(RAW);
+        PRINT_COLOR_FORMAT(RGB);
+        PRINT_COLOR_FORMAT(BGR);
+        PRINT_COLOR_FORMAT(RGBX);
+        PRINT_COLOR_FORMAT(BGRX);
+        PRINT_COLOR_FORMAT(NV12);
+
+#undef PRINT_COLOR_FORMAT
+
+        default: out << static_cast<uint32_t>(fmt); break;
+    }
+    return out;
+}
 
 /**
  * @struct InferenceEngineProfileInfo

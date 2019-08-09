@@ -19,18 +19,17 @@ from ..representation import BrainTumorSegmentationAnnotation, BrainTumorSegment
 from ..config import NumberField, ConfigError
 
 
+class ClipMaskConfigValidator(PostprocessorWithTargetsConfigValidator):
+    min_value = NumberField(floats=False, min_value=0, optional=True)
+    max_value = NumberField(floats=False)
+
+
 class ClipSegmentationMask(PostprocessorWithSpecificTargets):
     __provider__ = 'clip_segmentation_mask'
 
-    annotation_types = (BrainTumorSegmentationAnnotation,)
-    prediction_types = (BrainTumorSegmentationPrediction,)
-
-    def validate_config(self):
-        class _ConfigValidator(PostprocessorWithTargetsConfigValidator):
-            min_value = NumberField(floats=False, min_value=0, optional=True)
-            max_value = NumberField(floats=False)
-
-        _ConfigValidator(self.name, on_extra_argument=_ConfigValidator.ERROR_ON_EXTRA_ARGUMENT).validate(self.config)
+    annotation_types = (BrainTumorSegmentationAnnotation, )
+    prediction_types = (BrainTumorSegmentationPrediction, )
+    _config_validator_type = ClipMaskConfigValidator
 
     def configure(self):
         self.min_value = self.config.get('min_value', 0)

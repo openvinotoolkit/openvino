@@ -4,6 +4,7 @@
 
 #pragma once
 #include "gna_mem_requests.hpp"
+#include "ie_memcpy.h"
 #include <memory>
 #include <vector>
 #include <list>
@@ -78,7 +79,7 @@ class GNAMemory : public GNAMemRequestsQueue {
     void commit() {
         // 1st stage -- looking for expandable bind requests:
         for (auto &originated : _future_heap) {
-            if (originated._type == REQUEST_BIND) continue;
+            if (originated._type & REQUEST_BIND) continue;
             size_t offset = 0;
             iterate_binded(originated, [&](MemRequest & reference, MemRequest & binded) {
                 if (&originated == &reference) {
@@ -108,20 +109,28 @@ class GNAMemory : public GNAMemRequestsQueue {
 
                 if (re._ptr_out != nullptr) {
                     auto cptr = heap.get() + offset;
-                    *reinterpret_cast<void **>(re._ptr_out) = cptr;
+                    size_t cptr_avail_size = _total - offset;
+                    if (re._type & REQUEST_BIND) {
+                        cptr = reinterpret_cast<uint8_t*>(*reinterpret_cast<void **>(re._ptr_out));
+                        cptr_avail_size = sz;
+                    } else {
+                        *reinterpret_cast<void **>(re._ptr_out) = cptr;
+                    }
                     // std::cout << "ALLOCATED=" << cptr << ", size=" << re._element_size * re._num_elements << "\n";
                     iterate_binded(re, [](MemRequest & reference, MemRequest & binded) {
                         *reinterpret_cast<void **>(binded._ptr_out) =
                             binded._offset + reinterpret_cast<uint8_t *>(*reinterpret_cast<void **>(reference._ptr_out));
+                        binded._num_elements = reference._num_elements;
+                        binded._element_size = reference._element_size;
                     });
 
                     // std::cout << "size=" << ALIGN(sz, re._alignment) << "\n" << std::flush;
 
-                    switch (re._type) {
+                    switch (re._type & ~REQUEST_BIND) {
                         case REQUEST_ALLOCATE :break;
                         case REQUEST_STORE : {
                             if (re._ptr_in != nullptr) {
-                                memcpy(cptr, re._ptr_in, sz);
+                                ie_memcpy(cptr, cptr_avail_size, re._ptr_in, sz);
                             } else {
                                 size_t of = 0;
                                 for (int i = 0; i < re._num_elements; i++, of += re._element_size) {
@@ -136,17 +145,19 @@ class GNAMemory : public GNAMemRequestsQueue {
                         }
                     }
                 }
-
-                offset += ALIGN(sz + re._padding, re._alignment);
+                if (!(re._type & REQUEST_BIND)) {
+                    offset += ALIGN(sz + re._padding, re._alignment);
+                }
             }
         };
 
         setupOffsets([](MemRequest & request) {
-            return request._region != REGION_RW;
+            // TODO: consume bind requests separately from storage type
+            return !(request._type & REQUEST_BIND) && (request._region != REGION_RW);
         }, 0);
 
         setupOffsets([](MemRequest & request) {
-            return request._region != REGION_RO;
+            return (request._type & REQUEST_BIND) || request._region != REGION_RO;
         }, _rw_section_size);
     }
 
@@ -178,10 +189,12 @@ class GNAMemory : public GNAMemRequestsQueue {
     template<class T>
     void iterate_binded(MemRequest & reference, const T & visitor) {
         for (auto &re : _future_heap) {
-            if (re._type == REQUEST_BIND && re._ptr_in == reference._ptr_out) {
-                // std::cout << "  [binded=" << re._ptr_out <<"]\n";
+            if ((re._type & REQUEST_BIND) && (re._ptr_in == reference._ptr_out)) {
+                // std::cout << "  [binded=" << re._type << ", ptr=" << re._ptr_out <<"]\n";
                 visitor(reference, re);
-                // TODO: no circular dependency checking, only tree-style dependency supported
+                // primitive loop check
+                if (re._ptr_in == re._ptr_out) continue;
+                // TODO: no circular dependency checking, only tree-style dependency with loops supported
                 iterate_binded(re, visitor);
             }
         }

@@ -155,13 +155,23 @@ void enumerate_proposals_cpu(const float* bottom4d, const float* d_anchor4d, con
     });
 }
 
-static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn) {
-    parallel_for(pre_nms_topn, [&](size_t i) {
-        unpacked_boxes[0*pre_nms_topn + i] = p_proposals[5*i + 0];
-        unpacked_boxes[1*pre_nms_topn + i] = p_proposals[5*i + 1];
-        unpacked_boxes[2*pre_nms_topn + i] = p_proposals[5*i + 2];
-        unpacked_boxes[3*pre_nms_topn + i] = p_proposals[5*i + 3];
-    });
+static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn, bool store_prob) {
+    if (store_prob) {
+        parallel_for(pre_nms_topn, [&](size_t i) {
+            unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
+            unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
+            unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
+            unpacked_boxes[3 * pre_nms_topn + i] = p_proposals[5 * i + 3];
+            unpacked_boxes[4 * pre_nms_topn + i] = p_proposals[5 * i + 4];
+        });
+    } else {
+        parallel_for(pre_nms_topn, [&](size_t i) {
+            unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
+            unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
+            unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
+            unpacked_boxes[3 * pre_nms_topn + i] = p_proposals[5 * i + 3];
+        });
+    }
 }
 
 static
@@ -293,11 +303,12 @@ void retrieve_rois_cpu(const int num_rois, const int item_index,
                               const int num_proposals,
                               const float* proposals, const int roi_indices[],
                               float* rois, int post_nms_topn_,
-                              bool normalize, float img_h, float img_w, bool clip_after_nms) {
+                              bool normalize, float img_h, float img_w, bool clip_after_nms, float* probs) {
     const float *src_x0 = proposals + 0 * num_proposals;
     const float *src_y0 = proposals + 1 * num_proposals;
     const float *src_x1 = proposals + 2 * num_proposals;
     const float *src_y1 = proposals + 3 * num_proposals;
+    const float *src_probs = proposals + 4 * num_proposals;
 
     parallel_for(num_rois, [&](size_t roi) {
         int index = roi_indices[roi];
@@ -326,6 +337,9 @@ void retrieve_rois_cpu(const int num_rois, const int item_index,
         rois[roi * 5 + 2] = y0;
         rois[roi * 5 + 3] = x1;
         rois[roi * 5 + 4] = y1;
+
+        if (probs)
+            probs[roi] = src_probs[index];
     });
 
     if (num_rois < post_nms_topn_) {
@@ -342,10 +356,10 @@ class ProposalImpl : public ExtLayerBase {
 public:
     explicit ProposalImpl(const CNNLayer *layer) {
         try {
-            if (layer->insData.size() != 3 || layer->outData.size() != 1)
+            if (layer->insData.size() != 3 || (layer->outData.size() != 1 && layer->outData.size() != 2))
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
-            if (layer->insData[0].lock()->dims.size() != 4)
+            if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4)
                 THROW_IE_EXCEPTION << "Proposal supports only 4D blobs!";
 
             feat_stride_ = static_cast<size_t>(layer->GetParamAsInt("feat_stride"));
@@ -358,9 +372,9 @@ public:
             box_size_scale_ = layer->GetParamAsFloat("box_size_scale", 1.0);
             scales = layer->GetParamAsFloats("scale", {});
             ratios = layer->GetParamAsFloats("ratio", {});
-            normalize_ = layer->GetParamsAsBool("normalize", false);
-            clip_before_nms = layer->GetParamsAsBool("clip_before_nms", true);
-            clip_after_nms = layer->GetParamsAsBool("clip_after_nms", false);
+            normalize_ = layer->GetParamAsBool("normalize", false);
+            clip_before_nms = layer->GetParamAsBool("clip_before_nms", true);
+            clip_after_nms = layer->GetParamAsBool("clip_after_nms", false);
 
             anchors_shape_0 = ratios.size() * scales.size();
             anchors_.resize(anchors_shape_0 * 4);
@@ -383,8 +397,16 @@ public:
                              coordinates_offset, shift_anchors, round_ratios);
 
             roi_indices_.resize(post_nms_topn_);
-            addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
-                      {DataConfigurator(ConfLayout::PLN)});
+
+            store_prob = layer->outData.size() == 2;
+
+            if (store_prob) {
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
+                                 {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)});
+            } else {
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
+                                 {DataConfigurator(ConfLayout::PLN)});
+            }
         } catch (const InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
@@ -402,6 +424,9 @@ public:
             const float *p_d_anchor_item = inputs[1]->buffer();
             const float *p_img_info_cpu = inputs[2]->buffer();
             float *p_roi_item = outputs[0]->buffer();
+            float *p_prob_item = nullptr;
+            if (store_prob)
+                p_prob_item = outputs[1]->buffer();
 
             size_t img_info_size = inputs[2]->getTensorDesc().getDims()[1];
 
@@ -445,7 +470,8 @@ public:
                 float score;
             };
             std::vector<ProposalBox> proposals_(num_proposals);
-            std::vector<float> unpacked_boxes(4 * pre_nms_topn);
+            const int unpacked_boxes_buffer_size = store_prob ? 5 * pre_nms_topn : 4 * pre_nms_topn;
+            std::vector<float> unpacked_boxes(unpacked_boxes_buffer_size);
             std::vector<int> is_dead(pre_nms_topn);
 
             // Execute
@@ -463,12 +489,14 @@ public:
                                       return (struct1.score > struct2.score);
                                   });
 
-                unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
+                unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn, store_prob);
                 nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0, nms_thresh_,
                         post_nms_topn_, coordinates_offset);
+
+                float* p_probs = store_prob ? p_prob_item + n * post_nms_topn_ : nullptr;
                 retrieve_rois_cpu(num_rois, n, pre_nms_topn, &unpacked_boxes[0], &roi_indices_[0],
                                   p_roi_item + n * post_nms_topn_ * 5,
-                                  post_nms_topn_, normalize_, img_H, img_W, clip_after_nms);
+                                  post_nms_topn_, normalize_, img_H, img_W, clip_after_nms, p_probs);
             }
 
             return OK;
@@ -506,32 +534,10 @@ private:
     bool clip_after_nms;   // clip bounding boxes after nms step
     bool round_ratios;     // round ratios during anchors generation stage
     bool shift_anchors;    // shift anchors by half size of the box
+    bool store_prob;       // store blob with proposal probabilities
 };
 
-class ProposalFactory : public ImplFactory<ProposalImpl> {
-public:
-    explicit ProposalFactory(const CNNLayer *layer): ImplFactory(layer) {}
-    // set output shapes by input shapes.
-    StatusCode getShapes(const std::vector<TensorDesc>& inShapes, std::vector<TensorDesc>& outShapes,
-                         ResponseDesc *resp) noexcept override {
-        try {
-            if (inShapes.size() != 1) {
-                THROW_IE_EXCEPTION << "Incorrect input shapes!";
-            }
-            outShapes.clear();
-            outShapes.emplace_back(cnnLayer.precision, inShapes[0].getDims(), inShapes[0].getLayout());
-            return OK;
-        } catch (const InferenceEngine::details::InferenceEngineException& e) {
-            if (resp) {
-                std::string errorMsg = e.what();
-                errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-            }
-            return GENERAL_ERROR;
-        }
-    }
-};
-
-REG_FACTORY_FOR(ProposalFactory, Proposal);
+REG_FACTORY_FOR(ImplFactory<ProposalImpl>, Proposal);
 
 }  // namespace Cpu
 }  // namespace Extensions

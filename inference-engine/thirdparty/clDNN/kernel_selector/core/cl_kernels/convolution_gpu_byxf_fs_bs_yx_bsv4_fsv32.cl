@@ -96,7 +96,7 @@ for(uint r = 0; r < OBS; r++)
         dotProd[r][c] = (UNIT_TYPE)round(((float)dotProd[r][c] * quants[c] * I_QF + bias[c]) * O_QF);
     #endif // CALIBRATION_TERM
     #endif
-        char_output[c] = ACTIVATION(convert_char(dotProd[r][c]), NL_M, NL_N);
+        char_output[c] = ACTIVATION(convert_char(dotProd[r][c]), ACTIVATION_PARAMS);
     }
     const uint out_idx = intel_sub_group_shuffle(dst_index, r);
     intel_sub_group_block_write( (__global uint*)(output + out_idx) , as_uint(char_output));

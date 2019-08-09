@@ -22,30 +22,13 @@ namespace bnorm {
 
 void compute_ref_fwd(const prb_t *p, const dnn_mem_t &src, dnn_mem_t &mean,
         dnn_mem_t &var, const dnn_mem_t &ss, dnn_mem_t &dst) {
-    auto maybe_post_ops = [&](float &bn_res, float dst) {
-        const auto &ops = p->attr.post_ops;
-        for (int idx = 0; idx < ops.len; ++idx) {
-            using pk = attr_t::post_ops_t::kind_t;
-            const auto &e = ops.entry[idx];
-            switch (e.kind) {
-            case pk::SUM:
-                bn_res += e.sum.scale * dst;
-                break;
-            case pk::RELU:
-                bn_res = e.eltwise.scale * (bn_res < 0 ? 0 : bn_res);
-                break;
-            default:
-                assert(!"unknown attr::post_ops::kind");
-            }
-        }
-    };
 
     mkldnn::impl::parallel_nd(p->ic, [&](int c) {
         float smean = ((float *)mean)[c];
         float svar = ((float *)var)[c];
-        float rcp_denom = (float)(1.0f / (sqrtf(svar + p->eps)));
+        float sqrt_var = sqrtf(svar + p->eps);
 
-        float gamma = p->flags & USE_SCALESHIFT ? ((float *)ss)[c] : 1;
+        float gamma = (p->flags & USE_SCALESHIFT ? ((float *)ss)[c] : 1.0f) / sqrt_var;
         float beta = p->flags & USE_SCALESHIFT ? ((float *)ss)[p->ic + c] : 0;
 
         for (int mb = 0; mb < p->mb; ++mb)
@@ -53,11 +36,13 @@ void compute_ref_fwd(const prb_t *p, const dnn_mem_t &src, dnn_mem_t &mean,
         for (int h = 0; h < p->ih; ++h)
         for (int w = 0; w < p->iw; ++w) {
             auto off = data_off(p, mb, c, d, h, w);
-            float res = gamma * (((float *)src)[off] - smean) * rcp_denom + beta;
+            float res = gamma * (((float *)src)[off] - smean) + beta;
             float &D = ((float *)dst)[off];
             if ((p->flags & FUSE_BN_RELU) && res < 0) res = 0;
-            maybe_post_ops(res, D);
+            maybe_post_ops(res, D, p->attr);
             D = res;
+            if (p->dt == mkldnn_s8)
+                D = saturate_and_round(res);
         }
     });
 }

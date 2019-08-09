@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef LOOKUP_TABLE_H
-#define LOOKUP_TABLE_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -31,8 +29,7 @@ extern "C" {
 #endif
 
 /// @brief Enum type to specify axis to return values from.
-typedef enum
-{
+typedef enum {
     cldnn_lookup_table_batch,
     cldnn_lookup_table_feature,
     cldnn_lookup_table_x,
@@ -57,5 +54,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(lookup_table);
 /// @}
 /// @}
 /// @}
-#endif /* LOOKUP_TABLE.H */
 

@@ -105,15 +105,15 @@ macro(append_to_windows_path_list path_list path)
     endif()
 endmacro()
 
-function(target_link_libraries_private target list)
+function(target_link_libraries_build target list)
     # Foreach is required for compatibility with 2.8.11 ways
     foreach(lib ${list})
-        target_link_libraries(${target} LINK_PRIVATE
+        target_link_libraries(${target} LINK_PUBLIC
             "$<BUILD_INTERFACE:${lib}>")
     endforeach(lib)
 endfunction()
 
-function(target_link_libraries_public target list)
+function(target_link_libraries_install target list)
     # Foreach is required for compatibility with 2.8.11 ways
     foreach(lib ${list})
         get_filename_component(base "${lib}" NAME)

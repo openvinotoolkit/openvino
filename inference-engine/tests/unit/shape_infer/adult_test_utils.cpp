@@ -47,7 +47,7 @@ void BaseMatcher::fillBlobs(const std::vector<IE::Blob::Ptr>& blobs, const std::
             auto blob = blobs[blobIdx];
             // it's assumed that empty dims = empty data = no blob
             if (!data[blobIdx].empty()) {
-                switch (blob->precision()) {
+                switch (blob->getTensorDesc().getPrecision()) {
                     case Precision::FP32: {
                         auto* buffer = blob->buffer().as<float*>();
                         for (int dataIdx = 0; dataIdx < blob->size(); dataIdx++) {
@@ -63,7 +63,7 @@ void BaseMatcher::fillBlobs(const std::vector<IE::Blob::Ptr>& blobs, const std::
                     }
                         break;
                     default:
-                        THROW_IE_EXCEPTION << "Unsupported precision " << blob->precision() << " to fill blobs";
+                        THROW_IE_EXCEPTION << "Unsupported precision " << blob->getTensorDesc().getPrecision() << " to fill blobs";
                 }
             }
         }

@@ -23,7 +23,7 @@ import sys
 import tensorflow as tf
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Placeholder', 'Assert']
+unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Parameter', 'Assert']
 
 
 def children(op_name: str, graph: tf.Graph):

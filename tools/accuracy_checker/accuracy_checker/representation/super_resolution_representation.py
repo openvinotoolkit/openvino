@@ -50,8 +50,8 @@ class SuperResolutionAnnotation(SuperResolutionRepresentation):
 
     @property
     def value(self):
-        loader = BaseReader.provide(self._gt_loader)
-        gt = loader.read(self._image_path, self.metadata['data_source'])
+        loader = BaseReader.provide(self._gt_loader, self.metadata['data_source'])
+        gt = loader.read(self._image_path)
         return gt.astype(np.uint8)
 
 

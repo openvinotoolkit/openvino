@@ -163,6 +163,6 @@ REG_CONVERTER_FOR(DetectionOutput, [](const CNNLayerPtr& cnnLayer, Builder::Laye
     layer.getParameters()["interpolate_orientation"] = cnnLayer->GetParamAsInt("interpolate_orientation", 1);
     layer.getParameters()["nms_threshold"] = cnnLayer->GetParamAsFloat("nms_threshold");
     layer.getParameters()["confidence_threshold"] = cnnLayer->GetParamAsFloat("confidence_threshold", -FLT_MAX);
-    layer.getParameters()["share_location"] = cnnLayer->GetParamsAsBool("share_location", true);
-    layer.getParameters()["variance_encoded_in_target"] = cnnLayer->GetParamsAsBool("variance_encoded_in_target", false);
+    layer.getParameters()["share_location"] = cnnLayer->GetParamAsBool("share_location", true);
+    layer.getParameters()["variance_encoded_in_target"] = cnnLayer->GetParamAsBool("variance_encoded_in_target", false);
 });

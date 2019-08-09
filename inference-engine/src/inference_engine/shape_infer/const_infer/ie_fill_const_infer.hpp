@@ -71,7 +71,7 @@ public:
             }
         }
 
-        switch (outData[0]->precision()) {
+        switch (outData[0]->getTensorDesc().getPrecision()) {
             case Precision::FP32: {
                 float* dst_data = outData[0]->cbuffer().as<float*>() +
                                   outData[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();

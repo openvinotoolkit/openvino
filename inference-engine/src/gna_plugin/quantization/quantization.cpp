@@ -44,7 +44,9 @@ void QuantizeAffine16(float *ptr_float_weights,
         var_weight = mean_weight_squared - mean_weight * mean_weight;
         mean_plus_2stdev = mean_weight + 2.0f * static_cast<float>(sqrtf(var_weight));
 
-        *ptr_weight_scale_factor = static_cast<float>(MAX_VAL_2B_WEIGHT) / max_weight;
+        if (max_weight != 0.0f) {
+            *ptr_weight_scale_factor = static_cast<float>(MAX_VAL_2B_WEIGHT) / max_weight;
+        }
         *ptr_output_scale_factor = input_scale_factor * *ptr_weight_scale_factor;
     }
 

@@ -26,9 +26,9 @@ from mo.graph.graph import Node
 class TestSsdReorderDetectionOutInputs(unittest.TestCase):
     def test_reorder_detection_out_inputs(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
-             'node_2': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
-             'node_3': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
+             'node_2': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
+             'node_3': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
              'multi_box_detection': {'type': '_contrib_MultiBoxDetection', 'kind': 'op',
                                      'op': '_contrib_MultiBoxDetection'},
              },

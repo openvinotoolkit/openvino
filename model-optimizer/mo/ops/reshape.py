@@ -33,12 +33,19 @@ class Reshape(Op):
             'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
+            'reinterp_shape': True,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': lambda node: single_output_infer(node, tf_reshape_shape_infer,
-                                                      lambda node: np.reshape(node.in_node().value,
-                                                                              node.out_node().shape))
+            'infer': __class__.infer,
         }, attrs)
+
+    @staticmethod
+    def infer(node: Node):
+        single_output_infer(
+            node,
+            tf_reshape_shape_infer,
+            lambda node: np.reshape(node.in_node(0).value, node.out_node().shape)
+        )
 
     @staticmethod
     def kaldi_infer(node: Node):
@@ -48,7 +55,7 @@ class Reshape(Op):
         # Convolution/Pooling layers. Therefore there are 4 cases with different
         # partial inference.
         batch = input_shape[0]
-        if in_node.op in ['Convolution', 'Pooling', 'Permute']:
+        if in_node.op in ['Convolution', 'Pooling', 'Transpose']:
             output_spatial = np.array([batch, np.prod(input_shape[1:])], dtype=np.int64)
             return Reshape.set_shape_and_dim(node, output_spatial)
         # Supports ONLY NCHW and NH layouts

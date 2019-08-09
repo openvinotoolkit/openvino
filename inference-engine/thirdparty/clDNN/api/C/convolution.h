@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef CONVOLUTION_H
-#define CONVOLUTION_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -39,7 +37,7 @@ cldnn_tensor input_offset;
 /// @brief Defines shift in input buffer between adjacent calculations of output values.
 cldnn_tensor stride;
 /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
-/// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1. 
+/// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
 /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
 cldnn_tensor dilation;
 /// @brief Enable Relu activation.
@@ -66,10 +64,15 @@ float input_quantization_factor;
 float output_quantization_factor;
 /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
 uint32_t groups;
+/// @param deformable_groups Defines a number of deformable groups that splits trans input into several parts
+/// by channel dimension.
+uint32_t deformable_groups;
 /// @param padding_above Defines a padding added to input image on left (x axis) and top (y axis).
 cldnn_tensor padding_above;
 /// @param padding_below Defines a padding added to input image on right (x axis) and bottom (y axis).
 cldnn_tensor padding_below;
+/// @param deformable_mode.
+uint8_t deformable_mode;
 
 CLDNN_END_PRIMITIVE_DESC(convolution)
 
@@ -82,5 +85,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(convolution);
 /// @}
 /// @}
 /// @}
-#endif /* CONVOLUTION_H */
 

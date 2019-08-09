@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
@@ -62,4 +62,3 @@ class Memory(Op):
             raise Error('Model Optimizer is unable to calculate output shape of Memory node {}. ' +
                         refer_to_faq_msg(88),
                         node.id)
-

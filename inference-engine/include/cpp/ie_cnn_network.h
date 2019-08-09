@@ -34,10 +34,11 @@ public:
     CNNNetwork() = default;
 
     /**
+     * @deprecated Use CNNNetwork::CNNNetwork(std::shared_ptr<ICNNNetwork>) to construct a network
      * @brief Initialises helper class from externally managed pointer
-     * @deprecated use shared_pointers based version of CNNNetworks constructor
      * @param actual Pointer to the network object
      */
+    INFERENCE_ENGINE_DEPRECATED
     explicit CNNNetwork(ICNNNetwork* actual) : actual(actual) {
         if (actual == nullptr) {
             THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
@@ -142,11 +143,17 @@ public:
     }
 
     /**
+     * @deprecated No needs to specify target device to the network. Use InferenceEngine::Core with target device directly
      * @brief Sets tha target device
      * @param device Device instance to set
      */
+    #ifndef _WIN32
+    INFERENCE_ENGINE_DEPRECATED
+    #endif
     void setTargetDevice(TargetDevice device) {
+        IE_SUPPRESS_DEPRECATED_START
         actual->setTargetDevice(device);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**
@@ -212,7 +219,7 @@ public:
             if (info) {
                 auto data = info->getInputData();
                 if (data) {
-                    shapes[data->name] = data->getTensorDesc().getDims();
+                    shapes[data->getName()] = data->getTensorDesc().getDims();
                 }
             }
         }

@@ -11,7 +11,9 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNBatchNormalizationNode::MKLDNNBatchNormalizationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng): MKLDNNNode(layer, eng) {
+MKLDNNBatchNormalizationNode::MKLDNNBatchNormalizationNode(const InferenceEngine::CNNLayerPtr& layer,
+                                                           const mkldnn::engine& eng, int socket)
+        : MKLDNNNode(layer, eng, socket) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return GetVarianceDesc(primitive_desc_it.fetch());
     });
@@ -46,14 +48,14 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
 
     eps = bnLayer->epsilon;
 
-    size_t variancesSize = MKLDNNDims(bnLayer->_weights->dims()).size();
-    size_t meansSize = MKLDNNDims(bnLayer->_biases->dims()).size();
+    size_t variancesSize = MKLDNNDims(bnLayer->_weights->getTensorDesc().getDims()).size();
+    size_t meansSize = MKLDNNDims(bnLayer->_biases->getTensorDesc().getDims()).size();
 
     if (variancesSize != meansSize && variancesSize != 1)
         THROW_IE_EXCEPTION << "Incorrect weights and biases sizes!";
 
-    internalBlobs.push_back(createInternalBlob(bnLayer->_weights->dims(), true));
-    internalBlobs.push_back(createInternalBlob(bnLayer->_biases->dims(), false));
+    internalBlobs.push_back(createInternalBlob(bnLayer->_weights->getTensorDesc().getDims(), true));
+    internalBlobs.push_back(createInternalBlob(bnLayer->_biases->getTensorDesc().getDims(), false));
 
     auto parentOutDims = getParentEdgeAt(0)->getDims();
 
@@ -67,7 +69,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
 
         size_t C = static_cast<size_t>(getChildEdgeAt(0)->getDims()[1]);
         SizeVector mkldnn_weights = {2, C};
-        TensorDesc desc(scshLayer->_weights->precision(), mkldnn_weights, InferenceEngine::NC);
+        TensorDesc desc(scshLayer->_weights->getTensorDesc().getPrecision(), mkldnn_weights, InferenceEngine::NC);
         InferenceEngine::TBlob<float>::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
         internalBlob->allocate();
         float * data = internalBlob->buffer();
@@ -207,7 +209,10 @@ void MKLDNNBatchNormalizationNode::createDescriptor(const std::vector<InferenceE
 }
 
 void MKLDNNBatchNormalizationNode::initOptimalPrimitiveDescriptor() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
 
@@ -244,16 +249,19 @@ void MKLDNNBatchNormalizationNode::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(dataConfig);
             }
 
+            std::vector<memory::format> outFormats;
             for (size_t i = 0; i < desc.outputNumbers(); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
                 dataConfig.desc = getDstMemDesc(itpd, i);
                 config.outConfs.push_back(dataConfig);
+
+                outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
             }
             impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
         } while (itpd.next());
     }
 }

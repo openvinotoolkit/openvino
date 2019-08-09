@@ -43,7 +43,7 @@ class NNetComponentMatcher : public ::testing::MatcherInterface<const intel_nnet
                     // bad
                     if (foo->pLayers[j].pInputs == foo->pLayers[i].pOutputs) {
                         reason << "numberOfBytes per output int pLayers[" << i << "] should be " << (bitness/8) << ", but was "
-                               << foo->pLayers[i].nBytesPerOutput << "cannot use this output as inputs for layer :" << j;
+                               << foo->pLayers[i].nBytesPerOutput << " cannot use this output as inputs for layer :" << j;
                         return false;
                     }
                     if (foo->pLayers[j].nLayerKind == INTEL_AFFINE ||
@@ -52,7 +52,7 @@ class NNetComponentMatcher : public ::testing::MatcherInterface<const intel_nnet
 
                         if (pAffine->pWeights == foo->pLayers[i].pOutputs) {
                             reason << "numberOfBytes per output int pLayers[" << i << "] should be " << (bitness/8) << ", but was "
-                                   << foo->pLayers[i].nBytesPerOutput << "cannot use this output as weights for affine layer :" << j;
+                                   << foo->pLayers[i].nBytesPerOutput << " cannot use this output as weights for affine layer :" << j;
                             return false;
                         }
                     }

@@ -1,5 +1,5 @@
 """
-Copyright (C) 2018-2019 Intel Corporation
+Copyright (c) 2018 Intel Corporation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,9 +21,12 @@ from .pascal_voc import PascalVOCDetectionConverter
 from .sample_converter import SampleConverter
 from .wider import WiderFormatConverter
 from .detection_opencv_storage import DetectionOpenCVStorageFormatConverter
+from .bitvehicle import BITVehicle, BITVehicleJSON
 from .lfw import FaceReidPairwiseConverter
 from .vgg_face_regression import LandmarksRegression
+from .mighty import MightyFormatConverter
 from .super_resolution_converter import SRConverter
+from .mapillary_20 import Mapillary20Converters
 from .imagenet import ImageNetFormatConverter
 from .icdar import ICDAR13RecognitionDatasetConverter, ICDAR15DetectionDatasetConverter
 from .ms_coco import MSCocoDetectionConverter, MSCocoKeypointsConverter
@@ -43,13 +46,18 @@ __all__ = [
     'WiderFormatConverter',
     'MARSConverter',
     'DetectionOpenCVStorageFormatConverter',
+    'BITVehicle',
+    'BITVehicleJSON',
     'FaceReidPairwiseConverter',
+    'LandmarksRegression',
+    'MightyFormatConverter',
     'SRConverter',
+    'Mapillary20Converters',
     'ICDAR13RecognitionDatasetConverter',
     'ICDAR15DetectionDatasetConverter',
     'MSCocoKeypointsConverter',
     'MSCocoDetectionConverter',
     'CityscapesConverter',
     'NCFConverter',
-    'BratsConverter'
+    'BratsConverter',
 ]

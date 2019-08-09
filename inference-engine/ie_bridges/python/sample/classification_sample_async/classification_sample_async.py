@@ -22,7 +22,56 @@ import cv2
 import numpy as np
 import logging as log
 from time import time
-from openvino.inference_engine import IENetwork, IEPlugin
+from openvino.inference_engine import IENetwork, IECore
+import threading
+
+
+class InferReqWrap:
+    def __init__(self, request, id, num_iter):
+        self.id = id
+        self.request = request
+        self.num_iter = num_iter
+        self.cur_iter = 0
+        self.cv = threading.Condition()
+        self.request.set_completion_callback(self.callback, self.id)
+
+    def callback(self, statusCode, userdata):
+        if (userdata != self.id):
+            log.error("Request ID {} does not correspond to user data {}".format(self.id, userdata))
+        elif statusCode != 0:
+            log.error("Request {} failed with status code {}".format(self.id, statusCode))
+        self.cur_iter += 1
+        log.info("Completed {} Async request execution".format(self.cur_iter))
+        if self.cur_iter < self.num_iter:
+            # here a user can read output containing inference results and put new input
+            # to repeat async request again
+            self.request.async_infer(self.input)
+        else:
+            # continue sample execution after last Asynchronous inference request execution
+            self.cv.acquire()
+            self.cv.notify()
+            self.cv.release()
+
+    def execute(self, mode, input_data):
+        if (mode == "async"):
+            log.info("Start inference ({} Asynchronous executions)".format(self.num_iter))
+            self.input = input_data
+            # Start async request for the first time. Wait all repetitions of the async request
+            self.request.async_infer(input_data)
+            self.cv.acquire()
+            self.cv.wait()
+            self.cv.release()
+        elif (mode == "sync"):
+            log.info("Start inference ({} Synchronous executions)".format(self.num_iter))
+            for self.cur_iter in range(self.num_iter):
+                # here we start inference synchronously and wait for
+                # last inference request execution
+                self.request.infer(input_data)
+                log.info("Completed {} Sync request execution".format(self.cur_iter + 1))
+        else:
+            log.error("wrong inference mode is chosen. Please use \"sync\" or \"async\" mode")
+            sys.exit(1)
+
 
 
 def build_argparser():
@@ -36,19 +85,14 @@ def build_argparser():
     args.add_argument("-l", "--cpu_extension",
                       help="Optional. Required for CPU custom layers. Absolute path to a shared library with the"
                            " kernels implementations.", type=str, default=None)
-    args.add_argument("-pp", "--plugin_dir", help="Optional. Path to a plugin folder", type=str, default=None)
     args.add_argument("-d", "--device",
                       help="Optional. Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD is "
                            "acceptable. The sample will look for a suitable plugin for device specified. Default value is CPU",
                       default="CPU", type=str)
     args.add_argument("--labels", help="Optional. Labels mapping file", default=None, type=str)
     args.add_argument("-nt", "--number_top", help="Optional. Number of top results", default=10, type=int)
-    args.add_argument("-ni", "--number_iter", help="Optional. Number of inference iterations", default=1, type=int)
-    args.add_argument("-pc", "--perf_counts", help="Optional. Report performance counters",
-                      default=False, action="store_true")
 
     return parser
-
 
 def main():
     log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
@@ -57,19 +101,20 @@ def main():
     model_bin = os.path.splitext(model_xml)[0] + ".bin"
 
     # Plugin initialization for specified device and load extensions library if specified
-    plugin = IEPlugin(device=args.device, plugin_dirs=args.plugin_dir)
+    log.info("Creating Inference Engine")
+    ie = IECore()
     if args.cpu_extension and 'CPU' in args.device:
-        plugin.add_cpu_extension(args.cpu_extension)
+        ie.add_extension(args.cpu_extension, "CPU")
     # Read IR
     log.info("Loading network files:\n\t{}\n\t{}".format(model_xml, model_bin))
     net = IENetwork(model=model_xml, weights=model_bin)
 
-    if plugin.device == "CPU":
-        supported_layers = plugin.get_supported_layers(net)
+    if "CPU" in args.device:
+        supported_layers = ie.query_network(net, "CPU")
         not_supported_layers = [l for l in net.layers.keys() if l not in supported_layers]
         if len(not_supported_layers) != 0:
             log.error("Following layers are not supported by the plugin for specified device {}:\n {}".
-                      format(plugin.device, ', '.join(not_supported_layers)))
+                      format(args.device, ', '.join(not_supported_layers)))
             log.error("Please try to specify cpu extensions library path in sample's command line parameters using -l "
                       "or --cpu_extension command line argument")
             sys.exit(1)
@@ -95,27 +140,20 @@ def main():
 
     # Loading model to the plugin
     log.info("Loading model to the plugin")
-    exec_net = plugin.load(network=net)
+    exec_net = ie.load_network(network=net, device_name=args.device)
 
-    # Start sync inference
-    log.info("Starting inference ({} iterations)".format(args.number_iter))
-    infer_time = []
-    for i in range(args.number_iter):
-        t0 = time()
-        infer_request_handle = exec_net.start_async(request_id=0, inputs={input_blob: images})
-        infer_request_handle.wait()
-        infer_time.append((time() - t0) * 1000)
-    log.info("Average running time of one iteration: {} ms".format(np.average(np.asarray(infer_time))))
-    if args.perf_counts:
-        perf_counts = infer_request_handle.get_perf_counts()
-        log.info("Performance counters:")
-        print("{:<70} {:<15} {:<15} {:<15} {:<10}".format('name', 'layer_type', 'exet_type', 'status', 'real_time, us'))
-        for layer, stats in perf_counts.items():
-            print("{:<70} {:<15} {:<15} {:<15} {:<10}".format(layer, stats['layer_type'], stats['exec_type'],
-                                                              stats['status'], stats['real_time']))
+    # create one inference request for asynchronous execution
+    request_id = 0
+    infer_request = exec_net.requests[request_id];
+
+    num_iter = 10
+    request_wrap = InferReqWrap(infer_request, request_id, num_iter)
+    # Start inference request execution. Wait for last execution being completed
+    request_wrap.execute("sync", {input_blob: images})
+
     # Processing output blob
     log.info("Processing output blob")
-    res = infer_request_handle.outputs[out_blob]
+    res = infer_request.outputs[out_blob]
     log.info("Top {} results: ".format(args.number_top))
     if args.labels:
         with open(args.labels, 'r') as f:
@@ -140,7 +178,7 @@ def main():
                                           ' ' * space_num_after, ' ' * space_num_before_prob,
                                           probs[id]))
         print("\n")
-
+    log.info("This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n")
 
 if __name__ == '__main__':
     sys.exit(main() or 0)

@@ -30,5 +30,7 @@ class CreateTensorNodes(FrontReplacementPattern):
         return [FrontFinish]
 
     def find_and_replace_pattern(self, graph: Graph):
-        create_tensor_nodes(graph)
         graph.stage = 'middle'
+        graph.strict_mode = False
+        create_tensor_nodes(graph)
+        graph.strict_mode = True

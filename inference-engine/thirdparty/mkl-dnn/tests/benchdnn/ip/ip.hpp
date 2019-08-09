@@ -35,10 +35,10 @@ struct desc_t {
 typedef struct dt_conf_t {
     mkldnn_data_type_t dt;
     double min, max; /* representative */
-    int f_min, f_max; /* fill range */
+    double f_min, f_max; /* fill range */
     int f_base; /* fill base, use 0 */
-    int f_step; /* fill step, use 1 */
     double f_sparsity; /* amount of non-zeros, default 0.25 */
+    double f_scale; /* fill scale, scaling factor for integer generated data */
     double eps; /* acceptable error */
 } _dt_conf_t[DAT_TOTAL];
 
@@ -47,6 +47,10 @@ extern const _dt_conf_t conf_s32s16s16s32;
 extern const _dt_conf_t conf_u8s8s32s32;
 extern const _dt_conf_t conf_u8s8s8s32;
 extern const _dt_conf_t conf_u8s8u8s32;
+extern const _dt_conf_t conf_bf16bf16f32;
+extern const _dt_conf_t conf_bf16bf16bf16;
+extern const _dt_conf_t conf_f32bf16bf16;
+extern const _dt_conf_t conf_bf16f32bf16;
 
 struct prb_t : public desc_t {
     prb_t(const desc_t &desc, int mb, dir_t dir, const dt_conf_t *cfg,

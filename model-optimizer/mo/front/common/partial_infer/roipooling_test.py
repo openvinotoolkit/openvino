@@ -28,7 +28,7 @@ nodes_attributes = {'node_1': {'kind': 'data'},
                     'node_4': {'kind': 'data'},
                     'roipool': {'type': 'ROIPooling', 'kind': 'op', 'pooled_h': None, 'pooled_w': None},
                     'output': {'value': None, 'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
+                    'op_output': { 'kind': 'op', 'op': 'Result'},
                     }
 
 

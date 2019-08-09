@@ -15,4 +15,3 @@
 """
 
 from .benchmark import main
-from .utils.constants import HELP_MESSAGES

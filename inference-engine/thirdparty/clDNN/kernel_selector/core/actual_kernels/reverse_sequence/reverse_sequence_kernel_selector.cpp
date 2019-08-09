@@ -1,4 +1,3 @@
-/*
 // Copyright (c) 2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,20 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #include "reverse_sequence_kernel_selector.h"
 #include "reverse_sequence_kernel_ref.h"
 
 namespace kernel_selector {
 
-    reverse_sequence_kernel_selector::reverse_sequence_kernel_selector()
-    {
-        Attach<ReverseSequenceKernelRef>();
-    }
+reverse_sequence_kernel_selector::reverse_sequence_kernel_selector() { Attach<ReverseSequenceKernelRef>(); }
 
-    KernelsData reverse_sequence_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::REVERSE_SEQUENCE);
-    }
+KernelsData reverse_sequence_kernel_selector::GetBestKernels(const Params& params,
+                                                             const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::REVERSE_SEQUENCE);
 }
+}  // namespace kernel_selector

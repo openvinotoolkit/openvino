@@ -18,9 +18,9 @@
 #pragma once
 #include "../C/apply_adam.h"
 #include "primitive.hpp"
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -33,15 +33,14 @@ namespace cldnn
 /// variable accross network. If output is not mutable_data then it will be initialized with 0.
 /// "Adam: A Method for Stochastic Optimization" by Diederik P. Kingma, Jimmy Ba
 /// @n See: https://arxiv.org/abs/1412.6980
-/// 
+///
 /// <b>Algorithm:</b>
 /// @n float lr[t] = lr * sqrt(1 - beta2^t) / (1 - beta1^t);
 /// @n float m[t] = beta1 * m[t-1] + (1 - beta1) * grad[t];
 /// @n float v[t] = beta2 * v[t-1] + (1 - beta2) * grad[t] * grad[t];
 /// @n float result = result - lr[t] * m[t] / (sqrt(v[t]) + epsilon);
 
-struct apply_adam : public primitive_base<apply_adam, CLDNN_PRIMITIVE_DESC(apply_adam)>
-{
+struct apply_adam : public primitive_base<apply_adam, CLDNN_PRIMITIVE_DESC(apply_adam)> {
     CLDNN_DECLARE_PRIMITIVE(apply_adam)
 
     /// @brief Constructs apply Adam primitive.
@@ -56,47 +55,41 @@ struct apply_adam : public primitive_base<apply_adam, CLDNN_PRIMITIVE_DESC(apply
     /// @param beta2 Beta2 parameter.
     /// @param epsilon Epsilon.
     /// @param dependency_id Optional primitive id that need to complete before execution of this primitive. Used only for synchronization.
-    apply_adam(
-        const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& m,
-        const primitive_id& v,
-        const primitive_id& beta1_power,
-        const primitive_id& beta2_power,
-        float lr,
-        float beta1,
-        float beta2,
-        float epsilon,
-        const primitive_id& dependency_id = "",
-        const padding& output_padding = padding()
-    )
-        :primitive_base(id, {input}, output_padding)
-        , m(m)
-        , v(v)
-        , beta1_power(beta1_power)
-        , beta2_power(beta2_power)
-        , lr(lr)
-        , beta1(beta1)
-        , beta2(beta2)
-        , epsilon(epsilon)
-        , dependency_id(dependency_id)
-    {
-    }
+    apply_adam(const primitive_id& id,
+               const primitive_id& input,
+               const primitive_id& m,
+               const primitive_id& v,
+               const primitive_id& beta1_power,
+               const primitive_id& beta2_power,
+               float lr,
+               float beta1,
+               float beta2,
+               float epsilon,
+               const primitive_id& dependency_id = "",
+               const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          m(m),
+          v(v),
+          beta1_power(beta1_power),
+          beta2_power(beta2_power),
+          lr(lr),
+          beta1(beta1),
+          beta2(beta2),
+          epsilon(epsilon),
+          dependency_id(dependency_id) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{apply_adam}
     apply_adam(const dto* dto)
-        :primitive_base(dto)
-        , m(dto->m)
-        , v(dto->v)
-        , beta1_power(dto->beta1_power)
-        , beta2_power(dto->beta2_power)
-        , lr(dto->lr)
-        , beta1(dto->beta1)
-        , beta2(dto->beta2)
-        , epsilon(dto->epsilon)
-        , dependency_id(dto->dependency_id)
-    {
-    }
+        : primitive_base(dto),
+          m(dto->m),
+          v(dto->v),
+          beta1_power(dto->beta1_power),
+          beta2_power(dto->beta2_power),
+          lr(dto->lr),
+          beta1(dto->beta1),
+          beta2(dto->beta2),
+          epsilon(dto->epsilon),
+          dependency_id(dto->dependency_id) {}
 
     /// @brief Primitive id containing m data.
     primitive_id m;
@@ -118,17 +111,15 @@ struct apply_adam : public primitive_base<apply_adam, CLDNN_PRIMITIVE_DESC(apply
     primitive_id dependency_id;
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override
-    {
-        std::vector<std::reference_wrapper<const primitive_id>> ret{ m, v, beta1_power, beta2_power };
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
+        std::vector<std::reference_wrapper<const primitive_id>> ret{m, v, beta1_power, beta2_power};
         ret.reserve(!dependency_id.empty());
         if (!dependency_id.empty())
             ret.push_back(dependency_id);
         return ret;
     }
 
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.m = m.c_str();
         dto.v = v.c_str();
         dto.beta1_power = beta1_power.c_str();
@@ -143,4 +134,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

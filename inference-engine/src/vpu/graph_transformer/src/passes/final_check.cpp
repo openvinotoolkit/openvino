@@ -112,7 +112,7 @@ void PassImpl::run(const Model::Ptr& model) {
                 //
 
                 if (connectionStage->type() == StageType::Concat ||
-                    connectionStage->type() == StageType::Expand) {
+                    connectionStage->type() == StageType::Broadcast) {
                     IE_ASSERT(producer == child);
                     IE_ASSERT(consumer == parent);
                 } else if (connectionStage->type() == StageType::Split ||
@@ -217,23 +217,18 @@ void PassImpl::run(const Model::Ptr& model) {
         // Check Data DimsOrder requirements
         //
 
-        auto stageDataDimsOrderMap = stage->propagateDataOrder();
+        const auto& orderInfo = stage->propagateDataOrder();
 
-        auto inputs = stage->inputs();
-        auto outputs = stage->outputs();
-
-        for (const auto& input : inputs) {
-            auto it = stageDataDimsOrderMap.find(input);
-            if (it != stageDataDimsOrderMap.end()) {
-                auto requiredOrder = it->second;
-                IE_ASSERT(input->desc().dimsOrder() == requiredOrder);
+        for (const auto& inEdge : stage->inputEdges()) {
+            if (orderInfo.hasInput(inEdge)) {
+                auto requiredOrder = orderInfo.getInput(inEdge);
+                IE_ASSERT(inEdge->input()->desc().dimsOrder() == requiredOrder);
             }
         }
-        for (const auto& output : outputs) {
-            auto it = stageDataDimsOrderMap.find(output);
-            if (it != stageDataDimsOrderMap.end()) {
-                auto requiredOrder = it->second;
-                IE_ASSERT(output->desc().dimsOrder() == requiredOrder);
+        for (const auto& outEdge : stage->outputEdges()) {
+            if (orderInfo.hasOutput(outEdge)) {
+                auto requiredOrder = orderInfo.getOutput(outEdge);
+                IE_ASSERT(outEdge->output()->desc().dimsOrder() == requiredOrder);
             }
         }
 
@@ -241,20 +236,18 @@ void PassImpl::run(const Model::Ptr& model) {
         // Check Data Strides requirements
         //
 
-        auto stageDataStridesMap = stage->getDataStridesRequirements();
+        const auto& stridesInfo = stage->getDataStridesRequirements();
 
-        for (const auto& input : inputs) {
-            auto it = stageDataStridesMap.find(input);
-            if (it != stageDataStridesMap.end()) {
-                auto requiredStrides = it->second;
-                IE_ASSERT(input->checkStrides(requiredStrides));
+        for (const auto& inEdge : stage->inputEdges()) {
+            if (stridesInfo.hasInput(inEdge)) {
+                auto requiredStrides = stridesInfo.getInput(inEdge);
+                IE_ASSERT(inEdge->input()->checkStrides(requiredStrides));
             }
         }
-        for (const auto& output : outputs) {
-            auto it = stageDataStridesMap.find(output);
-            if (it != stageDataStridesMap.end()) {
-                auto requiredStrides = it->second;
-                IE_ASSERT(output->checkStrides(requiredStrides));
+        for (const auto& outEdge : stage->outputEdges()) {
+            if (stridesInfo.hasOutput(outEdge)) {
+                auto requiredStrides = stridesInfo.getOutput(outEdge);
+                IE_ASSERT(outEdge->output()->checkStrides(requiredStrides));
             }
         }
 
@@ -262,25 +255,23 @@ void PassImpl::run(const Model::Ptr& model) {
         // Check Data Batch support
         //
 
-        auto stageBatchSupport = stage->getBatchSupportInfo();
+        const auto& batchInfo = stage->getBatchSupportInfo();
 
-        for (const auto& input : inputs) {
-            auto it = stageBatchSupport.find(input);
-            if (it != stageBatchSupport.end()) {
-                auto requiredBatch = it->second;
+        for (const auto& inEdge : stage->inputEdges()) {
+            if (batchInfo.hasInput(inEdge)) {
+                auto requiredBatch = batchInfo.getInput(inEdge);
 
                 if (requiredBatch == BatchSupport::Split) {
-                    IE_ASSERT(input->desc().dim(Dim::N, 1) == 1);
+                    IE_ASSERT(inEdge->input()->desc().dim(Dim::N, 1) == 1);
                 }
             }
         }
-        for (const auto& output : outputs) {
-            auto it = stageBatchSupport.find(output);
-            if (it != stageBatchSupport.end()) {
-                auto requiredBatch = it->second;
+        for (const auto& outEdge : stage->outputEdges()) {
+            if (batchInfo.hasOutput(outEdge)) {
+                auto requiredBatch = batchInfo.getOutput(outEdge);
 
                 if (requiredBatch == BatchSupport::Split) {
-                    IE_ASSERT(output->desc().dim(Dim::N, 1) == 1);
+                    IE_ASSERT(outEdge->output()->desc().dim(Dim::N, 1) == 1);
                 }
             }
         }

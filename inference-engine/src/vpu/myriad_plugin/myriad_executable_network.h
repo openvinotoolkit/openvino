@@ -88,6 +88,8 @@ public:
         }
     }
 
+    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+
     void GetMappedTopology(
             std::map<std::string, std::vector<InferenceEngine::PrimitiveInfo::Ptr>> &deployedTopology) override {
         THROW_IE_EXCEPTION << "GetMappedTopology is not implemented\n";
@@ -101,12 +103,17 @@ private:
     DevicePtr _device;
     std::vector<StageMetaInfo> _stagesMetaData;
     std::shared_ptr<MyriadConfig> _config;
+    std::vector<std::string> _supportedMetrics;
 
     DataInfo _inputInfo;
     DataInfo _outputInfo;
 
     const size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;
+
+    ExecutableNetwork(std::vector<DevicePtr> &devicePool,
+                      const std::map<std::string, std::string> &config,
+                      ConfigMode mode = ConfigMode::DEFAULT_MODE);
 
     InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor() {
         std::string id = _taskExecutorGetResultIds.front();

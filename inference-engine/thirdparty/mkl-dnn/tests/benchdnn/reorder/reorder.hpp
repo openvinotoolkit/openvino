@@ -28,6 +28,10 @@
 
 namespace reorder {
 
+enum alg_t { ALG_REF, ALG_BOOT };
+alg_t str2alg(const char *str);
+const char *alg2str(alg_t alg);
+
 using dims_t = std::vector<ptrdiff_t>;
 
 struct dt_conf_s {
@@ -53,8 +57,13 @@ struct q10n_conf_t {
 
 struct prb_t {
     prb_t(const reorder_conf_t &r, const dt_conf_t &conf_in,
-            const dt_conf_t &conf_out, const attr_t &attr, float scale = 0.f)
-        : reorder(r), conf_in(conf_in), conf_out(conf_out), attr(attr) {
+            const dt_conf_t &conf_out, const attr_t &attr, alg_t alg,
+            float scale = 0.f)
+        : reorder(r)
+        , conf_in(conf_in)
+        , conf_out(conf_out)
+        , attr(attr)
+        , alg(alg) {
         if (scale != 0.f) this->attr.oscale.scale = scale;
     }
 
@@ -62,6 +71,7 @@ struct prb_t {
     dt_conf_t conf_in;
     dt_conf_t conf_out;
     attr_t attr;
+    alg_t alg;
 };
 
 extern const char *perf_template; /* performance output template */

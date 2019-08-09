@@ -39,5 +39,5 @@ KERNEL(shuffle_channels_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE
         output_index += dimensions[i] * INPUT0_PITCHES[INPUT0_DIMS - i - 1];
     }
 
-    output[output_index] = input[input_index];
+    output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
 }

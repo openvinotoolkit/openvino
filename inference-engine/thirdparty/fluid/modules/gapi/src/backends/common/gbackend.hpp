@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GBACKEND_HPP
@@ -53,8 +53,8 @@ using Mag = magazine::Class<cv::gapi::own::Mat, cv::gapi::own::Scalar, cv::detai
 
 namespace magazine
 {
-    void         bindInArg (Mag& mag, const RcDesc &rc, const GRunArg  &arg, bool is_umat = false);
-    void         bindOutArg(Mag& mag, const RcDesc &rc, const GRunArgP &arg, bool is_umat = false);
+    void         GAPI_EXPORTS bindInArg (Mag& mag, const RcDesc &rc, const GRunArg  &arg, bool is_umat = false);
+    void         GAPI_EXPORTS bindOutArg(Mag& mag, const RcDesc &rc, const GRunArgP &arg, bool is_umat = false);
 
     void         resetInternalData(Mag& mag, const Data &d);
     cv::GRunArg  getArg    (const Mag& mag, const RcDesc &ref);
@@ -99,7 +99,10 @@ inline cv::util::optional<T> getCompileArg(const cv::GCompileArgs &args)
     return cv::util::optional<T>();
 }
 
-
+void createMat(const cv::GMatDesc desc, cv::gapi::own::Mat& mat);
+#if !defined(GAPI_STANDALONE)
+void createMat(const cv::GMatDesc desc, cv::Mat& mat);
+#endif
 
 }} // cv::gimpl
 

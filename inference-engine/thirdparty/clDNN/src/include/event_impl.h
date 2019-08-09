@@ -21,13 +21,12 @@
 
 #include <list>
 #include <mutex>
+#include <utility>
 
-namespace cldnn
-{
+namespace cldnn {
 struct user_event;
 
-struct event_impl : public refcounted_obj<event_impl>
-{
+struct event_impl : public refcounted_obj<event_impl> {
 public:
     event_impl() = default;
 
@@ -35,9 +34,9 @@ public:
     bool is_set();
     virtual bool is_valid() const { return _attached; }
     virtual void reset() { _attached = false; }
-    //returns true if handler has been successfully added
+    // returns true if handler has been successfully added
     bool add_event_handler(cldnn_event_handler handler, void* data);
-    
+
     const std::list<cldnn_profiling_interval>& get_profiling_info();
 
 private:
@@ -49,27 +48,24 @@ private:
 
 protected:
     bool _set = false;
-    bool _attached = false; //because ocl event can be attached later, we need mechanism to check if such event was attached
+    bool _attached =
+        false;  // because ocl event can be attached later, we need mechanism to check if such event was attached
     void call_handlers();
 
     virtual void wait_impl() = 0;
     virtual bool is_set_impl() = 0;
     virtual bool add_event_handler_impl(cldnn_event_handler, void*) { return true; }
 
-    //returns whether profiling info has been captures successfully and there's no need to call this impl a second time when user requests to get profling info
-    virtual bool get_profiling_info_impl(std::list<cldnn_profiling_interval>&) { return true; };
+    // returns whether profiling info has been captures successfully and there's no need to call this impl a second time
+    // when user requests to get profling info
+    virtual bool get_profiling_info_impl(std::list<cldnn_profiling_interval>&) { return true; }
 };
 
-struct user_event : virtual public event_impl
-{
+struct user_event : virtual public event_impl {
 public:
-    user_event(bool set = false)
-    {
-        _set = set;
-    }
+    explicit user_event(bool set = false) { _set = set; }
 
-    void set()
-    { 
+    void set() {
         if (_set)
             return;
         _set = true;
@@ -81,6 +77,6 @@ private:
     virtual void set_impl() = 0;
 };
 
-}
+}  // namespace cldnn
 
 API_CAST(::cldnn_event, cldnn::event_impl)

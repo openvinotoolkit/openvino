@@ -16,7 +16,8 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-MKLDNNDepthwiseNode::MKLDNNDepthwiseNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {
+MKLDNNDepthwiseNode::MKLDNNDepthwiseNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, int socket)
+        : MKLDNNNode(layer, eng, socket) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });
@@ -75,7 +76,7 @@ void MKLDNNDepthwiseNode::createPrimitive() {
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
         THROW_IE_EXCEPTION << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 
     auto prim_desc = createPrimitiveDescriptor<depthwise_forward::primitive_desc, depthwise_forward::desc>();
 
@@ -174,7 +175,10 @@ void MKLDNNDepthwiseNode::createDescriptor(const std::vector<InferenceEngine::Te
 }
 
 void MKLDNNDepthwiseNode::initOptimalPrimitiveDescriptor() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
 

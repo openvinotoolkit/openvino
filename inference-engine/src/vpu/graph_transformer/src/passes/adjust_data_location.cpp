@@ -41,6 +41,8 @@ void PassImpl::run(const Model::Ptr& model) {
 
     const auto& env = CompileEnv::get();
 
+    VPU_LOGGER_SECTION(env.log);
+
     copyHwNetOutputs(model);
     collectMemReqs(model);
     allocNonIntermediateData(model);
@@ -58,6 +60,11 @@ void PassImpl::run(const Model::Ptr& model) {
 void PassImpl::copyHwNetOutputs(const Model::Ptr& model) {
     VPU_PROFILE(copyHwNetOutputs);
 
+    const auto& env = CompileEnv::get();
+
+    env.log->debug("Copy HW network outputs");
+    VPU_LOGGER_SECTION(env.log);
+
     for (const auto& stage : model->getStages()) {
         if (stage->category() != StageCategory::HW) {
             continue;
@@ -66,6 +73,8 @@ void PassImpl::copyHwNetOutputs(const Model::Ptr& model) {
         auto output = stage->output(0);
 
         if (output->usage() == DataUsage::Output) {
+            env.log->debug("HW Stage [%s] output [%s]", stage->name(), output->name());
+
             auto newOutput = model->duplicateData(
                 output,
                 "@intermediate");
@@ -100,6 +109,11 @@ inline void setDataMemReqs(const Data& data, MemoryType memType) {
 void PassImpl::collectMemReqs(const Model::Ptr& model) {
     VPU_PROFILE(collectMemReqs);
 
+    const auto& env = CompileEnv::get();
+
+    env.log->debug("Collect memory requirements");
+    VPU_LOGGER_SECTION(env.log);
+
     for (const auto& stage : model->getStages()) {
         if (stage->category() != StageCategory::HW) {
             continue;
@@ -118,8 +132,12 @@ void PassImpl::collectMemReqs(const Model::Ptr& model) {
             stage->attrs().get<HwPaddingInfo>("pad").enable &&
             hwInput->desc().dim(Dim::W) == 13 && hwInput->desc().dim(Dim::H) == 13 && hwInput->desc().dim(Dim::C) == 352 &&
             hwOutput->desc().dim(Dim::C) == 1024) {
+            env.log->debug("[Pattern Matching] Use CMX for HW Stage [%s] input [%s]", stage->name(), hwInput->name());
+
             setDataMemReqs(hwInput, MemoryType::CMX);
         } else {
+            env.log->debug("[Default behavior] Use CMX for HW Stage [%s] output [%s]", stage->name(), hwOutput->name());
+
             setDataMemReqs(hwOutput, MemoryType::CMX);
         }
     }
@@ -131,6 +149,11 @@ void PassImpl::collectMemReqs(const Model::Ptr& model) {
 
 void PassImpl::allocNonIntermediateData(const Model::Ptr& model) {
     VPU_PROFILE(allocNonIntermediateData);
+
+    const auto& env = CompileEnv::get();
+
+    env.log->debug("Allocate Const/Input/Output datas");
+    VPU_LOGGER_SECTION(env.log);
 
     auto& allocator = model->getAllocator();
 
@@ -146,7 +169,14 @@ void PassImpl::allocNonIntermediateData(const Model::Ptr& model) {
 void PassImpl::adjustModelForMemReqs(const Model::Ptr& model) {
     VPU_PROFILE(adjustModelForMemReqs);
 
+    const auto& env = CompileEnv::get();
+
+    env.log->debug("Adjust Model for memory requirements");
+    VPU_LOGGER_SECTION(env.log);
+
     auto& allocator = model->getAllocator();
+
+    StageSet allFailedStages;
 
     for (;;) {
         auto allocRes = runAllocator(model);
@@ -159,19 +189,24 @@ void PassImpl::adjustModelForMemReqs(const Model::Ptr& model) {
         auto failedStageInd = failedStage->index();
         IE_ASSERT(failedStageInd >= 0);
 
+        env.log->debug("Stage # %d [%s] failed to allocate : %s", failedStageInd, failedStage->name(), allocRes.status);
+        VPU_LOGGER_SECTION(env.log);
+
+        IE_ASSERT(allFailedStages.count(failedStage) == 0);
+        allFailedStages.emplace(failedStage);
+
         //
         // Try to flush Data allocated in CMX
         //
 
         auto allCmxDatas = allocator.getAllocatedDatas(MemoryType::CMX);
+        env.log->debug("Got %d datas in CMX : %v", allCmxDatas.size(), allCmxDatas);
 
         if (allCmxDatas.empty()) {
             if (allocRes.status == AllocationStatus::SHAVES_FAILED) {
-                VPU_THROW_EXCEPTION
-                    << "Can't allocate SHAVEs for stage " << failedStage->name();
+                VPU_LOG_AND_THROW(env.log, "Can't allocate SHAVEs for stage %s", failedStage->name());
             } else {
-                VPU_THROW_EXCEPTION
-                    << "Can't satisfy data location requirements for stage " << failedStage->name();
+                VPU_LOG_AND_THROW(env.log, "Can't satisfy data location requirements for stage %s", failedStage->name());
             }
         }
 
@@ -200,38 +235,30 @@ void PassImpl::adjustModelForMemReqs(const Model::Ptr& model) {
             }
         }
 
+        IE_ASSERT(!cmxConsumerEdges.empty());
+
         for (const auto& cmxConsumerEdge : cmxConsumerEdges) {
+            VPU_LOGGER_SECTION(env.log);
+
             auto cmxData = cmxConsumerEdge->input();
             auto cmxConsumer = cmxConsumerEdge->consumer();
 
-            auto& ddrCopies = cmxData->attrs().getOrSet<DataVector>("ddrCopies", DataVector());
-            ddrCopies.reserve(1);
-
-            const auto& strideReqsInfo = cmxConsumer->getDataStridesRequirements();
+            env.log->debug("CMX data [%s] consumer [%s]", cmxData->name(), cmxConsumer->name());
+            VPU_LOGGER_SECTION(env.log);
 
             Data ddrCopy;
-            for (const auto& ddrCandidate : ddrCopies) {
-                if (strideReqsInfo.count(cmxConsumerEdge->input()) != 0) {
-                    const auto& strideReqs = strideReqsInfo.at(cmxConsumerEdge->input());
+            if (cmxData->attrs().has("ddrCopy")) {
+                env.log->debug("It already has DDR spill");
 
-                    if (!ddrCandidate->checkStrides(strideReqs)) {
-                        continue;
-                    }
-                }
+                ddrCopy = cmxData->attrs().get<Data>("ddrCopy");
+            } else {
+                env.log->debug("Create new DDR spill");
 
-                ddrCopy = ddrCandidate;
-                break;
-            }
-
-            if (ddrCopy == nullptr) {
                 ddrCopy = model->duplicateData(
                     cmxData,
-                    "@DDR-copy");
+                    formatString("@DDR-copy"));
 
-                if (strideReqsInfo.count(cmxConsumerEdge->input()) != 0) {
-                    const auto& strideReqs = strideReqsInfo.at(cmxConsumerEdge->input());
-                    ddrCopy->updateRequiredStrides(strideReqs);
-                }
+                ddrCopy->updateRequiredStrides(cmxData->requiredStrides());
                 ddrCopy->setMemReqs(MemoryType::DDR);
 
                 auto copyStage = _stageBuilder->addCopyStage(
@@ -240,27 +267,34 @@ void PassImpl::adjustModelForMemReqs(const Model::Ptr& model) {
                     failedStage->origLayer(),
                     cmxData,
                     ddrCopy);
-
                 copyStage->attrs().set<bool>("CMX-to-DDR", true);
 
-                ddrCopies.emplace_back(ddrCopy);
+                cmxData->attrs().set("ddrCopy", ddrCopy);
             }
 
             model->replaceStageInput(cmxConsumerEdge, ddrCopy);
 
+            env.log->debug("Update child datas");
             for (const auto& childDataEdge : cmxData->childDataEdges()) {
+                VPU_LOGGER_SECTION(env.log);
+
                 auto order = childDataEdge->order();
 
                 if (order == SharedDataOrder::ParentWritesToChild &&
                     childDataEdge->connection() == cmxConsumer) {
                     auto childData = childDataEdge->child();
 
+                    auto mode = childDataEdge->mode();
+                    auto offset = childDataEdge->attrs().getOrDefault<DimValues>("offset", DimValues());
+
+                    env.log->debug("Child data [%s] : mode [%v] offset [%v]", childData->name(), mode, offset);
+
                     model->connectDatas()
                         .parent(ddrCopy)
                         .child(childData)
-                        .mode(childDataEdge->mode())
+                        .mode(mode)
                         .order(order)
-                        .offset(childDataEdge->attrs().getOrDefault<DimValues>("offset", DimValues()))
+                        .offset(offset)
                         .done();
 
                     loopOverData(childData, [](const Data& subData) {
@@ -280,6 +314,11 @@ void PassImpl::adjustModelForMemReqs(const Model::Ptr& model) {
 void PassImpl::copyHwMisalignedInput(const Model::Ptr& model) {
     VPU_PROFILE(copyHwMisalignedInput);
 
+    const auto& env = CompileEnv::get();
+
+    env.log->debug("Add Copy for misaligned HW inputs");
+    VPU_LOGGER_SECTION(env.log);
+
     for (const auto& stage : model->getStages()) {
         if (stage->category() != StageCategory::HW) {
             continue;
@@ -289,6 +328,8 @@ void PassImpl::copyHwMisalignedInput(const Model::Ptr& model) {
         IE_ASSERT(input->location() != DataLocation::None);
 
         if (input->memoryOffset() % 16 != 0) {
+            env.log->debug("HW Stage [%s] input [%s]", stage->name(), input->name());
+
             auto newInput = model->duplicateData(
                 input,
                 "@aligned-ptr");
@@ -312,6 +353,11 @@ void PassImpl::copyHwMisalignedInput(const Model::Ptr& model) {
 
 void PassImpl::packDataInCmx(const Model::Ptr& model) {
     VPU_PROFILE(packDataInCmx);
+
+    const auto& env = CompileEnv::get();
+
+    env.log->debug("Try to use CMX for HW inputs");
+    VPU_LOGGER_SECTION(env.log);
 
     auto& allocator = model->getAllocator();
 
@@ -363,6 +409,9 @@ void PassImpl::packDataInCmx(const Model::Ptr& model) {
         auto curCandidate = candidatesForCMX.front();
         candidatesForCMX.pop();
 
+        env.log->debug("Try use CMX for Data [%s]", curCandidate->name());
+        VPU_LOGGER_SECTION(env.log);
+
         IE_ASSERT(curCandidate->parentDataEdge() == nullptr);
         IE_ASSERT(curCandidate->usage() == DataUsage::Intermediate);
 
@@ -375,7 +424,11 @@ void PassImpl::packDataInCmx(const Model::Ptr& model) {
         });
 
         auto allocRes = runAllocator(model, true);
+        env.log->debug("Allocation result : %v", allocRes.status);
+
         if (allocRes.status != AllocationStatus::OK) {
+            env.log->debug("Revert CMX usage for Data [%s]", curCandidate->name());
+
             loopOverData(curCandidate, [](const Data& subData) {
                 subData->setMemReqs(MemoryType::DDR);
                 return DataLoopStatus::NextChild;

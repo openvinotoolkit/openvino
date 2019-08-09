@@ -63,13 +63,13 @@ KERNEL (concatenation_gpu_depth_bfyx_no_padding)(__global UNIT_TYPE* input, __gl
     if(element_group_offset + align_offset + WORK_GROUP_SIZE * ELEMENTS_PER_WORK_ITEM < INPUT0_ELEMENTS_COUNT)
     {
         MAKE_VECTOR_TYPE(UNIT_TYPE, 8) in = ALIGNED_BLOCK_READ8(input, input_offset + align_offset);
-        ALIGNED_BLOCK_WRITE8(output, output_offset + align_offset, ACTIVATION(in, NL_M, NL_N));
+        ALIGNED_BLOCK_WRITE8(output, output_offset + align_offset, ACTIVATION(in, ACTIVATION_PARAMS));
 
         //Fill the values that were missed upon adding align_offset
         if((align_offset != 0) && (element_offset + output_batch_offset < group_start_pos + align_offset))
         {
             for(uint i = 0; i < align_offset; i++)
-                output[output_offset + i] = ACTIVATION(input[input_offset + i], NL_M, NL_N);
+                output[output_offset + i] = ACTIVATION(input[input_offset + i], ACTIVATION_PARAMS);
         }
     }
     else
@@ -81,7 +81,7 @@ KERNEL (concatenation_gpu_depth_bfyx_no_padding)(__global UNIT_TYPE* input, __gl
             if(element_offset + i >= INPUT0_ELEMENTS_COUNT)
                 return;
 
-            output[output_offset + element_offset_in_workitem] = ACTIVATION(input[input_offset + element_offset_in_workitem], NL_M, NL_N);
+            output[output_offset + element_offset_in_workitem] = ACTIVATION(input[input_offset + element_offset_in_workitem], ACTIVATION_PARAMS);
             element_offset_in_workitem++;
         }
     }

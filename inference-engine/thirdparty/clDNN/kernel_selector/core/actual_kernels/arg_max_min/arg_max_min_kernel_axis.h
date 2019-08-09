@@ -18,17 +18,14 @@
 
 #include "arg_max_min_kernel_base.h"
 
-namespace kernel_selector
-{
-    class ArgMaxMinKernelAxis : public ArgMaxMinKernelBase
-    {
-    public:
-        ArgMaxMinKernelAxis() : ArgMaxMinKernelBase("arg_max_min_axis") {}
-        virtual ~ArgMaxMinKernelAxis() {}
+namespace kernel_selector {
+class ArgMaxMinKernelAxis : public ArgMaxMinKernelBase {
+public:
+    ArgMaxMinKernelAxis() : ArgMaxMinKernelBase("arg_max_min_axis") {}
+    virtual ~ArgMaxMinKernelAxis() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    JitConstants GetJitConstants(const arg_max_min_params& params) const override;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

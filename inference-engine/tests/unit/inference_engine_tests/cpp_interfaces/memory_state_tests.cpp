@@ -168,7 +168,7 @@ TEST_F(MemoryStateTests, MemoryStateCanPropagateSetState) {
     EXPECT_CALL(*mockMemoryStateInternal.get(), SetState(_)).WillOnce(SaveArg<0>(&saver));
 
     float data[] = {123, 124, 125};
-    auto stateBlob = make_shared_blob<float>(Precision::FP32, C, {3}, data, sizeof(data) / sizeof(*data));
+    auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 
     EXPECT_NO_THROW(net.QueryState().front().SetState(stateBlob));
     ASSERT_FLOAT_EQ(saver->buffer().as<float*>()[0], 123);
@@ -182,7 +182,7 @@ TEST_F(MemoryStateTests, MemoryStateCanPropagateGetLastState) {
     std::vector<IMemoryStateInternal::Ptr> toReturn;
 
     float data[] = {123, 124, 125};
-    auto stateBlob = make_shared_blob<float>(Precision::FP32, C, {3}, data, sizeof(data) / sizeof(*data));
+    auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 
 
     toReturn.push_back(mockMemoryStateInternal);
@@ -215,7 +215,7 @@ TEST_F(MemoryStateTests, MemoryStateInternalCanSaveState) {
 
     IMemoryStateInternal::Ptr pState(new MemoryStateInternalMockImpl("name"));
     float data[] = {123, 124, 125};
-    auto stateBlob = make_shared_blob<float>(Precision::FP32, C, {3}, data, sizeof(data) / sizeof(*data));
+    auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 
     pState->SetState(stateBlob);
     auto saver = pState->GetLastState();
@@ -230,7 +230,7 @@ TEST_F(MemoryStateTests, MemoryStateInternalCanSaveStateByReference) {
 
     IMemoryStateInternal::Ptr pState(new MemoryStateInternalMockImpl("name"));
     float data[] = {123, 124, 125};
-    auto stateBlob = make_shared_blob<float>(Precision::FP32, C, {3}, data, sizeof(data) / sizeof(*data));
+    auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 
     pState->SetState(stateBlob);
 

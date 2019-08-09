@@ -29,10 +29,12 @@ namespace cpu {
 enum conv_version_t {ver_unused, ver_fma, ver_avx512_core, ver_4fma, ver_4vnni,
                      ver_vnni};
 enum conv_loop_order_t {loop_cgn, loop_gnc, loop_ngc, loop_gncw, loop_cwgn,
-                            loop_ngcw, loop_nhwcg};
+                            loop_ngcw, loop_nhwcg, loop_nwcg};
 enum conv_1x1_loop_order_t {loop_rbl, loop_rlb, loop_lbr, loop_lrb, loop_blr,
                             loop_brl};
 enum conv_kernel_kind_t {embd_bcast, expl_bcast};
+enum conv_harness_t {harness_2d_reduction, harness_3d_reduction,
+                     harness_mb_reduction};
 
 enum {
     FLAG_MB_FIRST = 1 << 0, FLAG_MB_LAST = 1 << 1,
@@ -54,6 +56,7 @@ struct jit_conv_conf_t {
     prop_kind_t prop_kind;
     conv_version_t ver;
     conv_loop_order_t loop_order;
+    conv_harness_t harness;
 
     int simd_w;
     int ndims;
@@ -83,12 +86,16 @@ struct jit_conv_conf_t {
     const float* conv_weights;
     const float* conv_biases;
     int dw_conv_oh, dw_conv_ow;
+    data_type_t dw_conv_dst_dt;
 
     int nb_ic, ic_block;
     int nb_oc, oc_block;
     int nb_ow, ow_block;
-    int nb_ic_blocking, nb_oc_blocking; // blocking of nb_ic and nb_ic
-    int nb_ic_blocking_max;
+    int nb_oc_blocking; /* used in jit kernels for nb_oc work bloking taking
+                           into account vector registers distribution */
+    int nb_oc_blocking_thr_chunk; /* used for distibution of nb_oc work
+                                      within threads */
+    int nb_ic_blocking, nb_ic_blocking_max; // blocking of nb_ic work
     int nb_ic_L2;
     int h_blocking;
     int nb_oc_L2;
@@ -117,7 +124,10 @@ struct jit_conv_conf_t {
     int ur_ow_nsteps;
     data_type_t src_dt;
     data_type_t bia_dt;
+    /* bf16 data-type for output */
     data_type_t dst_dt;
+    data_type_t dsrc_dt;
+    data_type_t dwei_dt;
     /* avx512: max possible value is nregs(32) - aux_regs(4) */
     int src_offsets[28];
     int src_count;
@@ -127,13 +137,16 @@ struct jit_conv_conf_t {
     int max_regs_ur; // maximum accumulation registers
     // dw conv
     int nb_ch, ch_block, nb_ch_blocking;
-    bool is_depthwise, is_fast_depthwise;
+    bool is_depthwise, is_fast_depthwise, is_resrc_depthwise;
     int aligned_threads;
     // large spatial
     int oh_blk_size;
     // s8s8 convolution
     bool signed_input;
     float wei_adj_scale;
+
+    bool is_cpx;
+
     // planar conv
     int nb_ow_blocking;
 
@@ -298,6 +311,7 @@ struct jit_bin_conv_conf_t {
 
     int dw_conv_oh;
     int dw_conv_ow;
+    data_type_t dw_conv_dst_dt;
 
     int nb_ic, ic_block;
     int nb_oc, oc_block;
@@ -309,6 +323,38 @@ struct jit_bin_conv_conf_t {
     int typesize_bia;
     int typesize_acc;
     data_type_t src_dt;
+    data_type_t bia_dt;
+    data_type_t dst_dt;
+};
+
+struct jit_def_conv_conf_t {
+    prop_kind_t prop_kind;
+
+    int ndims;
+    int mb;
+    int dg;
+    int ngroups, ic, oc, oc_padded, ic_padded;
+    int id, ih, iw, od, oh, ow;
+    int f_pad, l_pad, t_pad;
+    int back_pad, r_pad, b_pad;
+    int kd, kh, kw;
+    int stride_d, stride_h, stride_w;
+    int dilate_d, dilate_h, dilate_w;
+    memory_format_t src_fmt;
+    bool with_bias;
+    bool with_sum;
+    int nthr;
+    int nb_ic, ic_block;
+    int nb_oc, oc_block;
+    int nb_ic_blocking, nb_oc_blocking;
+    int ur_h, ur_w;
+    int ur_w_tail;
+    int typesize_in;
+    int typesize_off;
+    int typesize_bia;
+    int typesize_out;
+    data_type_t src_dt;
+    data_type_t off_dt;
     data_type_t bia_dt;
     data_type_t dst_dt;
 };
@@ -327,10 +373,12 @@ struct jit_conv_call_s {
     const void *compensation;
     size_t kd_offset;
     size_t kd_offset_prf;
-    size_t d_index;
-    size_t d_index_prf;
-    size_t d_worksize;
-    size_t d_worksize_prf;
+    size_t kh_offset;
+    size_t kh_offset_prf;
+    size_t os_index_begin;
+    size_t os_index_begin_prf;
+    size_t os_index_end;
+    size_t os_index_end_prf;
     size_t kd_padding;
     size_t kd_padding_prf;
     size_t kh_padding;
@@ -429,7 +477,7 @@ struct jit_1x1_conv_conf_t {
     int reduce_dim, reduce_block, nb_reduce,
         nb_reduce_blocking, nb_reduce_blocking_max;
     int load_dim, load_block, nb_load,
-        nb_load_blocking, nb_load_blocking_max;
+        nb_load_blocking, nb_load_blocking_max, nb_load_chunk;
     int bcast_dim, bcast_block, nb_bcast,
         nb_bcast_blocking, nb_bcast_blocking_max;
 
@@ -459,6 +507,9 @@ struct jit_1x1_conv_conf_t {
     bool signed_input;
     float wei_adj_scale;
     int dw_conv_oh, dw_conv_ow;
+    data_type_t dw_conv_dst_dt;
+
+    bool is_cpx;
 
     /* u8s8s32x */
     int ic_dim, nb_ic, nb_ic_blocking, nb_ic_blocking_max;
@@ -529,6 +580,16 @@ struct jit_1x1_conv_call_s {
 	const void *oc_data;
 };
 
+struct jit_def_conv_call_s {
+    const void *src;
+    const void *off;
+    const void *filt;
+    const void *bias;
+    const void *dst;
+    const void *buf;
+    size_t oh_pos;
+};
+
 /* pooling */
 struct jit_pool_conf_t {
     int ndims;
@@ -536,7 +597,7 @@ struct jit_pool_conf_t {
     int id, ih, iw, od, oh, ow;
     int stride_d, stride_h, stride_w;
     int kd, kh, kw;
-    int f_pad, t_pad, l_pad, back_pad, b_pad, r_pad;
+    int f_pad, t_pad, l_pad, b_pad, r_pad, back_pad;
     alg_kind_t alg;
     bool is_training;
     bool pad_w_is_null;
@@ -551,14 +612,19 @@ struct jit_pool_conf_t {
     size_t tail[4];
     data_type_t src_dt;
     data_type_t dst_dt;
+
+    bool is_bf16;
+    int dt_size;
+
+    bool is_cpx;
 };
 
 struct jit_pool_call_s {
-    const float *src;
-    const float *dst;
+    const void *src;
+    const void *dst;
     const void *indices;
-    const float *src_prf;
-    const float *dst_prf;
+    const void *src_prf;
+    const void *dst_prf;
     const void *indices_prf;
     size_t oh;
     size_t kd_padding;
@@ -566,7 +632,7 @@ struct jit_pool_call_s {
     size_t kh_padding_shift;
     size_t kd_padding_shift;
     size_t kw_padding;
-    const float* init_value;
+    const void *init_value;
     float ker_area_h;
 };
 

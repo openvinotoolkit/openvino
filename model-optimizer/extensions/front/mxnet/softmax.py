@@ -15,10 +15,9 @@
 """
 
 import numpy as np
-import networkx as nx
 
 from mo.graph.graph import Graph
-from mo.ops.lin_op import Mul
+from extensions.ops.elementwise import Mul
 from mo.ops.const import Const
 from mo.front.common.replacement import FrontReplacementSubgraph
 

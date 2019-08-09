@@ -33,17 +33,31 @@ public:
         layer.type = _type;
         _validator->parseParams(&layer);
 
-        auto inBlob = *inData.begin();
+        auto inputBlob = inData.front();
+        Precision precision = inputBlob->getTensorDesc().getPrecision();
+
+        switch (precision.size()) {
+            case 4: split_copy_impl<int32_t>(layer._axis, inputBlob, outData); break;
+            case 2: split_copy_impl<int16_t>(layer._axis, inputBlob, outData); break;
+            case 1: split_copy_impl<int8_t> (layer._axis, inputBlob, outData); break;
+            default:
+                THROW_IE_EXCEPTION << "unsupported precision";
+        }
+    }
+
+    template<typename data_t>
+    static void split_copy_impl(size_t axis,
+            const Blob::CPtr &inBlob, const std::vector<Blob::Ptr> &outData) {
         SizeVector inShape = inBlob->getTensorDesc().getDims();
-        const auto* inBuffer = inBlob->cbuffer().as<float*>();
+        const auto* inBuffer = inBlob->cbuffer().as<data_t*>();
 
         size_t outerSize = 1;
-        for (int i = 0; i < layer._axis; i++)
+        for (int i = 0; i < axis; i++)
             outerSize *= inShape[i];
 
         for (size_t osIdx = 0; osIdx < outerSize; osIdx++) {
             for (auto& outBlob : outData) {
-                auto* outBuffer = outBlob->buffer().as<float*>();
+                auto* outBuffer = outBlob->buffer().as<data_t*>();
                 size_t innerSize = outBlob->size() / outerSize;
 
                 for (size_t j = 0; j < innerSize; j++, inBuffer++) {

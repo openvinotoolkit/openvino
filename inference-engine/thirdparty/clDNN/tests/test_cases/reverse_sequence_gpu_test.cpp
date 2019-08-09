@@ -34,8 +34,8 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_ba1_sa0) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
-    size_t batch_axis = 1;
-    size_t seq_axis = 0;
+    int32_t batch_axis = 1;
+    int32_t seq_axis = 0;
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
@@ -76,8 +76,8 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba0_sa1) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 3, 1, 3 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
-    size_t batch_axis = 0;
-    size_t seq_axis = 1;
+    int32_t batch_axis = 0;
+    int32_t seq_axis = 1;
 
     set_values(input, {
         0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
@@ -122,8 +122,8 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba2_sa0) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 3, 1, 3 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
-    size_t batch_axis = 2;
-    size_t seq_axis = 0;
+    int32_t batch_axis = 2;
+    int32_t seq_axis = 0;
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
@@ -168,8 +168,8 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa3) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 2, 3 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
-    size_t batch_axis = 0;
-    size_t seq_axis = 3;
+    int32_t batch_axis = 0;
+    int32_t seq_axis = 3;
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
@@ -215,8 +215,8 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa2) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 2, 3 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
-    size_t batch_axis = 0;
-    size_t seq_axis = 2;
+    int32_t batch_axis = 0;
+    int32_t seq_axis = 2;
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
@@ -262,8 +262,8 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba2_sa0) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 2, 3 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
-    size_t batch_axis = 2;
-    size_t seq_axis = 0;
+    int32_t batch_axis = 2;
+    int32_t seq_axis = 0;
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
@@ -309,8 +309,8 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_ba1_sa0) {
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 1 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
-    size_t batch_axis = 1;
-    size_t seq_axis = 0;
+    int32_t batch_axis = 1;
+    int32_t seq_axis = 0;
 
     set_values(input, {
             FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f)
@@ -351,8 +351,8 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba0_sa1) {
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 3, 1, 3 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
-    size_t batch_axis = 0;
-    size_t seq_axis = 1;
+    int32_t batch_axis = 0;
+    int32_t seq_axis = 1;
 
     set_values(input, {
             FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f), FLOAT16(9.0f),
@@ -397,8 +397,8 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba2_sa0) {
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 3, 1, 3 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
-    size_t batch_axis = 2;
-    size_t seq_axis = 0;
+    int32_t batch_axis = 2;
+    int32_t seq_axis = 0;
 
     set_values(input, {
             FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f), FLOAT16(9.0f),
@@ -443,8 +443,8 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa3) {
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 2, 3 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
-    size_t batch_axis = 0;
-    size_t seq_axis = 3;
+    int32_t batch_axis = 0;
+    int32_t seq_axis = 3;
 
     set_values(input, {
             FLOAT16(0.0f), FLOAT16( 1.0f), FLOAT16( 2.0f), FLOAT16( 3.0f), FLOAT16( 4.0f), FLOAT16( 5.0f), FLOAT16( 6.0f), FLOAT16( 7.0f), FLOAT16( 8.0f), FLOAT16( 9.0f),
@@ -490,8 +490,8 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa2) {
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 2, 3 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 1, 1 } });
-    size_t batch_axis = 0;
-    size_t seq_axis = 2;
+    int32_t batch_axis = 0;
+    int32_t seq_axis = 2;
 
     set_values(input, {
             FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f), FLOAT16(9.0f),
@@ -537,8 +537,8 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba2_sa0) {
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 2, 3 } });
     auto seq_lengths = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
-    size_t batch_axis = 2;
-    size_t seq_axis = 0;
+    int32_t batch_axis = 2;
+    int32_t seq_axis = 0;
 
     set_values(input, {
             FLOAT16(0.0f), FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f), FLOAT16(9.0f),

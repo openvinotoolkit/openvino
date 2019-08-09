@@ -89,7 +89,7 @@ caseless_map<std::string, std::function<void(GenericLayer*, mkldnn::algorithm&, 
         }}
 };
 
-MKLDNNActivationNode::MKLDNNActivationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNActivationNode::MKLDNNActivationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) : MKLDNNNode(layer, eng, socket) {}
 
 void MKLDNNActivationNode::getSupportedDescriptors() {
     if (!descs.empty())

@@ -1,13 +1,12 @@
 # Copyright (C) 2018-2019 Intel Corporation
-#
 # SPDX-License-Identifier: Apache-2.0
 #
 
 if(ENABLE_CPPLINT)
     find_package(PythonInterp 2.7 EXACT)
 
-    if(NOT PYTHONINTERP_FOUND)
-        message(WARNING "Python was not found (required for cpplint check)")
+    if(NOT PYTHONINTERP_FOUND OR NOT PYTHON_VERSION_MAJOR EQUAL 2)
+        message(WARNING "Python 2.7 was not found (required for cpplint check)")
         set(ENABLE_CPPLINT OFF)
     endif()
 endif()
@@ -127,7 +126,7 @@ function(add_cpplint_report_target)
             -D "OUTPUT_FILE=${cppcheck_output_file}"
             -P "${IE_MAIN_SOURCE_DIR}/cmake/cpplint_to_cppcheck_xml.cmake"
         DEPENDS
-            ${cpplint_output_file}
+            "${cpplint_output_file}"
             "${IE_MAIN_SOURCE_DIR}/scripts/cpplint_to_cppcheckxml.py"
             "${IE_MAIN_SOURCE_DIR}/cmake/cpplint_to_cppcheck_xml.cmake"
         COMMENT

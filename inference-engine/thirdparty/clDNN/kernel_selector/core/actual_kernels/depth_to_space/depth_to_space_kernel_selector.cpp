@@ -19,13 +19,9 @@
 
 namespace kernel_selector {
 
-    depth_to_space_kernel_selector::depth_to_space_kernel_selector()
-    {
-        Attach<DepthToSpaceKernelRef>();
-    }
+depth_to_space_kernel_selector::depth_to_space_kernel_selector() { Attach<DepthToSpaceKernelRef>(); }
 
-    KernelsData depth_to_space_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::DEPTH_TO_SPACE);
-    }
+KernelsData depth_to_space_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::DEPTH_TO_SPACE);
 }
+}  // namespace kernel_selector

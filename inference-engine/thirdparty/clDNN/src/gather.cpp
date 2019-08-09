@@ -19,30 +19,26 @@
 #include "primitive_type_base.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include <string>
 
-namespace cldnn
-{
-primitive_type_id gather_type_id()
-{
+namespace cldnn {
+primitive_type_id gather_type_id() {
     static primitive_type_base<gather> instance;
     return &instance;
 }
 
-layout gather_inst::calc_output_layout(gather_node const& node)
-{
+layout gather_inst::calc_output_layout(gather_node const& node) {
     auto desc = node.get_primitive();
 
-    auto input_layout = node.input(1).get_output_layout();
+    auto input_layout = node.input(0).get_output_layout();
     auto input_format = input_layout.format;
 
-    auto input_shape = node.get_primitive()->output_shape;
+    auto output_shape = desc->output_shape;
 
-
-    return layout{input_layout.data_type, input_format, input_shape};
+    return layout{input_layout.data_type, input_format, output_shape};
 }
 
-std::string gather_inst::to_string(gather_node const& node)
-{
+std::string gather_inst::to_string(gather_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
     auto& input = node.input();
@@ -60,9 +56,6 @@ std::string gather_inst::to_string(gather_node const& node)
     return primitive_description.str();
 }
 
-gather_inst::typed_primitive_inst(network_impl& network, gather_node const& node)
-    : parent(network, node)
-{
-}
+gather_inst::typed_primitive_inst(network_impl& network, gather_node const& node) : parent(network, node) {}
 
-}
+}  // namespace cldnn

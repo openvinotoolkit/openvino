@@ -20,10 +20,8 @@ import networkx as nx
 import numpy as np
 
 # TODO remove it
-from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.graph.graph import dict_includes
-from mo.middle.pattern_match import for_each_sub_graph
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg, shrink_str_value
 
@@ -57,10 +55,10 @@ def control_flow_infer(graph: Graph, node_name: str):
                              if 'control_flow_edge' not in attrs or not attrs['control_flow_edge']]
     in_cf_edges_with_data = [(u, v, attrs) for u, v, attrs in in_edges_with_data
                              if 'control_flow_edge' in attrs and attrs['control_flow_edge']]
-    is_executable_df = not all([not graph.node[u]['executable'] for u, _, attrs in in_df_edges_with_data]
-                               if len(in_df_edges_with_data) else [False])
-    is_executable_cf = not any([not graph.node[u]['executable'] for u, _, attrs in in_cf_edges_with_data]
-                               if len(in_cf_edges_with_data) else [False])
+    is_executable_df = all([graph.node[u]['executable'] for u, _, attrs in in_df_edges_with_data]
+                               if len(in_df_edges_with_data) else [True])
+    is_executable_cf = all([graph.node[u]['executable'] for u, _, attrs in in_cf_edges_with_data]
+                               if len(in_cf_edges_with_data) else [True])
     is_executable = is_executable_df and is_executable_cf
 
     node = Node(graph, node_name)
@@ -91,6 +89,8 @@ def partial_infer(graph: Graph, start_node: str = None):
     constant values. Partially or completely defined values are stored in data
     nodes (kind='data').
     """
+    # We have to turn off strict mode due to above we add and remove edeges without attributes that is prohibited
+    graph.strict_mode = False
     cycle_nodes = graph.get_nodes_with_attributes(is_cyclic=True)
     cycle_nodes = [Node(graph, node).out_node().id for node in cycle_nodes]
     ebunch_cyclic = list(graph.out_edges(nbunch=cycle_nodes, data=True, keys=True))
@@ -105,6 +105,7 @@ def partial_infer(graph: Graph, start_node: str = None):
 
     graph.remove_edges_from(ebunch_reconnected)
     graph.add_edges_from(ebunch_cyclic)
+    graph.strict_mode = True
 
     # Mark all nodes as not inferred yet
     if not start_node is None:
@@ -124,9 +125,10 @@ def partial_infer(graph: Graph, start_node: str = None):
             node_name = node.soft_get('name')
             if node.has('is_partial_inferred') and not node.is_partial_inferred:
                 if node.has('infer') and not node.infer is None:
-                    log.debug('-' * 20)
-                    log.debug('Partial infer for {}'.format(node.soft_get('name')))
-                    log.debug('Op: {}'.format(node.soft_get('op')))
+                    if debug_logger:
+                        log.debug('-' * 20)
+                        log.debug('Partial infer for {}'.format(node.soft_get('name')))
+                        log.debug('Op: {}'.format(node.soft_get('op')))
                     node.infer(node)
                     out_nodes = node.out_nodes()
 
@@ -207,7 +209,7 @@ def partial_infer(graph: Graph, start_node: str = None):
 
 def override_batch(graph: Graph, batch: int):
     """
-    Overrides batch for nodes with 'op' param set to 'Placeholder'
+    Overrides batch for nodes with 'op' param set to 'Parameter'
     Parameters
     ----------
     graph: graph to operate on
@@ -215,7 +217,7 @@ def override_batch(graph: Graph, batch: int):
     """
     if batch is not None:
         for node_id, data in graph.nodes(data=True):
-            if 'op' in data and data['op'] == 'Placeholder' and not data.get('fixed_batch', False):
+            if 'op' in data and data['op'] == 'Parameter' and not data.get('fixed_batch', False):
                 if len(data['shape']) == 0 or data['shape'][0] not in (-1, 0, 1):
                     raise Error(('The input layer {} has a shape {} defined in the model. \n\n' +
                                  'When you use -b (--batch) option, Model Optimizer applies its value to the first ' +
@@ -231,7 +233,7 @@ def override_batch(graph: Graph, batch: int):
 
 def override_placeholder_shapes(graph: Graph, user_shapes: dict, batch=None):
     """
-    This function overrides shapes for nodes with 'op' param set to 'Placeholder' with shapes defined by users (only
+    This function overrides shapes for nodes with 'op' param set to 'Parameter' with shapes defined by users (only
     for inputs without in/out port specified).
     And override batch if batch was specified and shape for input is not None.
     :param graph: graph to operate on
@@ -242,7 +244,7 @@ def override_placeholder_shapes(graph: Graph, user_shapes: dict, batch=None):
         # DON'T MOVE UPPER!!! WE NEED TO SET BATCH FIRST
         # user did not specify neither shapes nor inputs, keep models values
         return
-    placeholders = graph.get_nodes_with_attributes(kind='op', op='Placeholder')
+    placeholders = graph.get_nodes_with_attributes(kind='op', op='Parameter')
     for node_id in placeholders:
         node_attrs = graph.node[node_id]
         shape = None
@@ -264,7 +266,7 @@ def update_fully_connected_shapes(graph: Graph):
         should_infer = False
         for n in nodes:
             node = Node(graph, n)
-            if node.has('type') and node.type == 'FullyConnected' and node.in_node(0).shape.size == 3:
+            if node.has('type') and node.type == 'MatMul' and node.in_node(0).shape.size == 3:
                 log.debug("node.in_node(0).shape = {}".format(node.in_node(0).shape))
                 log.debug("channel_dims = {}".format(node.channel_dims))
                 assert (node.in_node(0).shape.size == 3 and node.channel_dims > 0)
@@ -281,29 +283,5 @@ def update_fully_connected_shapes(graph: Graph):
         if not should_infer:
             break
 
-
-# Convert MUL operation to Power layer in case when
-# mul op takes two inputs (scalar constant and tensor)
-def convert_mul_add_to_power(graph: Graph):
-    for_each_sub_graph(graph, convert_mul_add_to_power)
-    nodes = list(graph.nodes())
-    for n in nodes:
-        # As we remove nodes from graph, we should check that node exists in graph
-        if n in graph:
-            node = Node(graph, n)
-            if node.has('op') and (node.op == 'Mul' or node.op == 'Add') and len(node.in_nodes()) == 2 and \
-                    node.soft_get('can_be_scaleshift') is not False:
-                scalar_idx, tensor_idx = (0, 1) if not node.in_node(0).value is None else (1, 0)
-                if not node.in_node(scalar_idx).value is None and node.in_node(tensor_idx).value is None:
-                    if np.squeeze(node.in_node(scalar_idx).value).ndim == 0:
-                        node['type'] = 'Power'
-                        node['scale'] = node.in_node(scalar_idx).value.item() if node.op == 'Mul' else 1
-                        node['power'] = 1
-                        node['shift'] = node.in_node(scalar_idx).value.item() if node.op == 'Add' else 0
-                        node['op'] = 'Power'
-                        if node.has('operation'):
-                            del node.graph.node[node.id]['operation']
-                        update_ie_fields(graph.node[node.id])
-                        scalar_node = node.in_node(scalar_idx)
-                        graph.remove_edge(scalar_node.id, node.id)
-                        graph.remove_node(scalar_node.id)
+    if graph.graph['cmd_params'].generate_experimental_IR_V10:
+        return

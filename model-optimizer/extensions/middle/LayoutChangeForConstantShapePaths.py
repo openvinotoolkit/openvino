@@ -15,6 +15,7 @@
 """
 import numpy as np
 
+from extensions.back.InsertLayoutPropagationTransposes import is_output_data_in_correct_layout
 from extensions.ops.gather import Gather
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph, Node
@@ -55,11 +56,14 @@ class LayoutChangeForConstantShapePaths(BackReplacementPattern):
         #   - Search for Shape ops
         #   - Inserting Gather after them in case of [4] or [5] output shape
 
-        shape_ops = graph.get_op_nodes(op='Shape')
+        shape_ops = graph.get_op_nodes(op='ShapeOf')
         constant_shape_paths = set()
         gather_inserted = []
 
         for shape in shape_ops:
+            output_port = shape.in_port(0).get_source()
+            if is_output_data_in_correct_layout(output_port.node, output_port.idx):
+                continue
             shape_of_shape_op_output = shape.out_node().shape
 
             if np.array_equal(shape_of_shape_op_output, [4]):
@@ -70,7 +74,7 @@ class LayoutChangeForConstantShapePaths(BackReplacementPattern):
                 continue
 
             const = Const(graph, {'value': index}).create_node()
-            gather = Gather(graph, {}).create_node()
+            gather = Gather(graph, {'name': shape.name + '/GatherNCHWtoNHWC'}).create_node()
 
             shape.out_port(0).get_connection().set_source(gather.out_port(0))
             shape.out_port(0).connect(gather.in_port(0))
@@ -106,8 +110,8 @@ class LayoutChangeForConstantShapePaths(BackReplacementPattern):
                     continue
 
                 const = Const(graph, {'value': np.array(index)}).create_node()
-                gather = Gather(graph, {}).create_node()
+                gather = Gather(graph, {'name': node.name + '/GatherNHWCtoNCHW'}).create_node()
 
-                in_port.get_connection().set_destination(gather.in_port(0))
+                in_port.get_source().connect(gather.in_port(0))
+                in_port.get_connection().set_source(gather.out_port(0))
                 const.out_port(0).connect(gather.in_port(1))
-                gather.out_port(0).connect(in_port)

@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GCOMPILED_PRIV_HPP
@@ -15,7 +15,7 @@
 #include "executor/gexecutor.hpp"
 
 // NB: BTW, GCompiled is the only "public API" class which
-// private part (implementaion) is hosted in the "compiler/" module.
+// private part (implementation) is hosted in the "compiler/" module.
 //
 // This file is here just to keep ADE hidden from the top-level APIs.
 //

@@ -109,7 +109,7 @@ Builder::LSTMSequenceLayer& Builder::LSTMSequenceLayer::setDirection(const std::
 
 REG_CONVERTER_FOR(LSTMSequence, [](const CNNLayerPtr& cnnLayer, Builder::Layer& layer) {
     layer.getParameters()["hidden_size"] = cnnLayer->GetParamAsInt("hidden_size");
-    layer.getParameters()["sequence_dim"] = cnnLayer->GetParamsAsBool("sequence_dim", true);
+    layer.getParameters()["sequence_dim"] = cnnLayer->GetParamAsBool("sequence_dim", true);
     std::vector<std::string> activations;
     std::istringstream stream(cnnLayer->GetParamAsString("activations"));
     std::string str;
@@ -120,7 +120,7 @@ REG_CONVERTER_FOR(LSTMSequence, [](const CNNLayerPtr& cnnLayer, Builder::Layer& 
     layer.getParameters()["activations_alpha"] = cnnLayer->GetParamAsFloats("activations_alpha");
     layer.getParameters()["activations_beta"] = cnnLayer->GetParamAsFloats("activations_beta");
     layer.getParameters()["clip"] = cnnLayer->GetParamAsFloat("clip");
-    layer.getParameters()["input_forget"] = cnnLayer->GetParamsAsBool("input_forget", true);
+    layer.getParameters()["input_forget"] = cnnLayer->GetParamAsBool("input_forget", true);
     layer.getParameters()["direction"] = cnnLayer->GetParamAsString("direction", "");
 });
 

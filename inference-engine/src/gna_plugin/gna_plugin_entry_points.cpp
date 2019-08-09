@@ -13,7 +13,7 @@ using namespace GNAPluginNS;
 
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
-        plugin = make_ie_compatible_plugin({1, 6, "GNAPlugin", "GNAPlugin"}, make_shared<GNAPluginInternal>());
+        plugin = make_ie_compatible_plugin({2, 0, "GNAPlugin", "GNAPlugin"}, make_shared<GNAPluginInternal>());
         return OK;
     }
     catch (std::exception &ex) {

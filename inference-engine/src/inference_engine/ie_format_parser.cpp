@@ -20,19 +20,19 @@ using namespace std;
 
 void LayerParseParameters::addOutputPort(const LayerPortData &port) {
     outputPorts.insert(std::upper_bound(outputPorts.begin(), outputPorts.end(), port,
-                                        [=](const LayerParseParameters::LayerPortData &lhs,
-                                                const LayerParseParameters::LayerPortData &rhs) {
-                                            return lhs.portId < rhs.portId;
-                                        }), port);
+                [=](const LayerParseParameters::LayerPortData &lhs,
+                    const LayerParseParameters::LayerPortData &rhs) {
+                return lhs.portId < rhs.portId;
+                }), port);
 }
 
 
 void LayerParseParameters::addInputPort(const LayerPortData &port) {
     inputPorts.insert(std::upper_bound(inputPorts.begin(), inputPorts.end(), port,
-                                       [=](const LayerParseParameters::LayerPortData &lhs,
-                                               const LayerParseParameters::LayerPortData &rhs) {
-                                           return lhs.portId < rhs.portId;
-                                       }), port);
+                [=](const LayerParseParameters::LayerPortData &lhs,
+                    const LayerParseParameters::LayerPortData &rhs) {
+                return lhs.portId < rhs.portId;
+                }), port);
 }
 
 inline void ParseSegment(LayerParseParameters& prms, const pugi::xml_node &blob) {
@@ -50,8 +50,6 @@ inline void ParseSegment(LayerParseParameters& prms, const pugi::xml_node &blob)
     else
         segment.precision = prms.prms.precision;
 }
-
-int BaseCreator::version_ = 4;
 
 void FormatParser::ParsePort(LayerParseParameters::LayerPortData& port, pugi::xml_node &node) const {
     port.portId = GetIntAttr(node, "id");
@@ -75,7 +73,7 @@ void FormatParser::ParseGenericParams(pugi::xml_node& node, LayerParseParameters
 
     if (prms.precision == Precision::MIXED) {
         THROW_IE_EXCEPTION << "Layer precision must not be MIXED, at layer name: " << prms.name << ", offset: "
-                           << node.offset_debug();
+            << node.offset_debug();
     }
 
     auto outNode = node.child("output");
@@ -106,8 +104,8 @@ void FormatParser::ParseGenericParams(pugi::xml_node& node, LayerParseParameters
     }
     auto blobs = node.child("blobs");
     if (!blobs.empty()) {
-    for (blob = blobs.first_child(); !blob.empty(); blob = blob.next_sibling()) {
-        ParseSegment(layerParsePrms, blob);
+        for (blob = blobs.first_child(); !blob.empty(); blob = blob.next_sibling()) {
+            ParseSegment(layerParsePrms, blob);
         }
     }
 }
@@ -117,21 +115,21 @@ static inline std::string gen_id(int layer_id, int port_id) {
 }
 
 InferenceEngine::CNNLayer::Ptr FormatParser::CreateLayer(pugi::xml_node& node,
-                                                       LayerParseParameters& layerParsePrms) const {
-    for (auto &creator : getCreators()) {
+        LayerParseParameters& layerParsePrms) const {
+    for (auto &creator : creators) {
         if (!creator->shouldCreate(layerParsePrms.prms.type))
             continue;
         return creator->CreateLayer(node, layerParsePrms);
     }
-    static LayerCreator<GenericLayer> genericCreator("");
+    LayerCreator<GenericLayer> genericCreator("");
     return genericCreator.CreateLayer(node, layerParsePrms);
 }
 
 void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dataId,
-                                   CNNLayerPtr& targetLayer, int inputPort) {
+        CNNLayerPtr& targetLayer, int inputPort) {
     DataPtr& dataPtr = _portsToData[dataId];
     if (!dataPtr) THROW_IE_EXCEPTION << "in Layer " << targetLayer->name
-                                     << ": trying to connect an edge to non existing output port: " << dataId;
+        << ": trying to connect an edge to non existing output port: " << dataId;
 
     dataPtr->getInputTo()[targetLayer->name] = targetLayer;
     const LayerParseParameters& parseInfo = layersParseInfo[targetLayer->name];
@@ -147,16 +145,16 @@ void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dat
                 // TODO: Make a correct exception
 
                 /*THROW_IE_EXCEPTION << "in Layer " << targetLayer->name
-                                   << ": trying to connect an edge to mismatch precision of output port: "
-                                   << dataPtr->getName();*/
+                  << ": trying to connect an edge to mismatch precision of output port: "
+                  << dataPtr->getName();*/
             }
         }
         if (!equal(parseInfo.inputPorts[i].dims, dataPtr->getDims()))
             THROW_IE_EXCEPTION << "in Layer " << targetLayer->name
-                               << ": trying to connect an edge to mismatch dimensions of output port: "
-                               << dataPtr->getName()
-                               << " dims input: " << dumpVec(parseInfo.inputPorts[i].dims)
-                               << " dims output: " << dumpVec(dataPtr->getDims());
+                << ": trying to connect an edge to mismatch dimensions of output port: "
+                << dataPtr->getName()
+                << " dims input: " << dumpVec(parseInfo.inputPorts[i].dims)
+                << " dims output: " << dumpVec(dataPtr->getDims());
         targetLayer->insData[i] = dataPtr;
         const auto insId = gen_id(parseInfo.layerId, parseInfo.inputPorts[i].portId);
         _portsToData[insId] = dataPtr;
@@ -165,8 +163,98 @@ void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dat
     THROW_IE_EXCEPTION << "input port " << inputPort << " does not exist in layer " << targetLayer->name;
 }
 
-FormatParser::FormatParser(int version): _version(version) {
-    BaseCreator::version_ = version;
+FormatParser::FormatParser(size_t version): _version(version) {
+    // there should be unique_ptr but it cant be used with initializer lists
+    creators = {
+        std::make_shared<LayerCreator<PowerLayer>>("Power"),
+        std::make_shared<LayerCreator<ConvolutionLayer>>("Convolution"),
+        std::make_shared<LayerCreator<DeconvolutionLayer>>("Deconvolution"),
+        std::make_shared<LayerCreator<DeformableConvolutionLayer>>("DeformableConvolution"),
+        std::make_shared<LayerCreator<PoolingLayer>>("Pooling"),
+        std::make_shared<LayerCreator<FullyConnectedLayer>>("InnerProduct"),
+        std::make_shared<LayerCreator<FullyConnectedLayer>>("FullyConnected"),
+        std::make_shared<LayerCreator<NormLayer>>("LRN"),
+        std::make_shared<LayerCreator<NormLayer>>("Norm"),
+        std::make_shared<LayerCreator<SoftMaxLayer>>("Softmax"),
+        std::make_shared<LayerCreator<SoftMaxLayer>>("LogSoftmax"),
+        std::make_shared<LayerCreator<GRNLayer>>("GRN"),
+        std::make_shared<LayerCreator<MVNLayer>>("MVN"),
+        std::make_shared<LayerCreator<ReLULayer>>("ReLU"),
+        std::make_shared<LayerCreator<ClampLayer>>("Clamp"),
+        std::make_shared<LayerCreator<SplitLayer>>("Split"),
+        std::make_shared<LayerCreator<SplitLayer>>("Slice"),
+        std::make_shared<LayerCreator<ConcatLayer>>("Concat"),
+        std::make_shared<LayerCreator<EltwiseLayer>>("Eltwise"),
+        std::make_shared<LayerCreator<GemmLayer>>("Gemm"),
+        std::make_shared<LayerCreator<PadLayer>>("Pad"),
+        std::make_shared<LayerCreator<GatherLayer>>("Gather"),
+        std::make_shared<LayerCreator<StridedSliceLayer>>("StridedSlice"),
+        std::make_shared<LayerCreator<ShuffleChannelsLayer>>("ShuffleChannels"),
+        std::make_shared<LayerCreator<DepthToSpaceLayer>>("DepthToSpace"),
+        std::make_shared<LayerCreator<SpaceToDepthLayer>>("SpaceToDepth"),
+        std::make_shared<LayerCreator<ReverseSequenceLayer>>("ReverseSequence"),
+        std::make_shared<LayerCreator<CNNLayer>>("Squeeze"),
+        std::make_shared<LayerCreator<CNNLayer>>("Unsqueeze"),
+        std::make_shared<LayerCreator<RangeLayer>>("Range"),
+        std::make_shared<LayerCreator<BroadcastLayer>>("Broadcast"),
+        std::make_shared<LayerCreator<ScaleShiftLayer>>("ScaleShift"),
+        std::make_shared<LayerCreator<PReLULayer>>("PReLU"),
+        std::make_shared<LayerCreator<CropLayer>>("Crop"),
+        std::make_shared<LayerCreator<ReshapeLayer>>("Reshape"),
+        std::make_shared<LayerCreator<ReshapeLayer>>("Flatten"),
+        std::make_shared<LayerCreator<TileLayer>>("Tile"),
+        std::make_shared<ActivationLayerCreator>("Activation"),
+        std::make_shared<LayerCreator<BatchNormalizationLayer>>("BatchNormalization"),
+        std::make_shared<TILayerCreator>("TensorIterator"),
+        std::make_shared<LayerCreator<LSTMCell>>("LSTMCell"),
+        std::make_shared<LayerCreator<GRUCell>>("GRUCell"),
+        std::make_shared<LayerCreator<RNNCell>>("RNNCell"),
+        std::make_shared<LayerCreator<OneHotLayer>>("OneHot"),
+        std::make_shared<LayerCreator<RNNSequenceLayer>>("RNNSequence"),
+        std::make_shared<LayerCreator<RNNSequenceLayer>>("GRUSequence"),
+        std::make_shared<LayerCreator<RNNSequenceLayer>>("LSTMSequence"),
+        std::make_shared<LayerCreator<BinaryConvolutionLayer>>("BinaryConvolution"),
+        std::make_shared<LayerCreator<SelectLayer>>("Select"),
+        std::make_shared<LayerCreator<MathLayer>>("Abs"),
+        std::make_shared<LayerCreator<MathLayer>>("Acos"),
+        std::make_shared<LayerCreator<MathLayer>>("Acosh"),
+        std::make_shared<LayerCreator<MathLayer>>("Asin"),
+        std::make_shared<LayerCreator<MathLayer>>("Asinh"),
+        std::make_shared<LayerCreator<MathLayer>>("Atan"),
+        std::make_shared<LayerCreator<MathLayer>>("Atanh"),
+        std::make_shared<LayerCreator<MathLayer>>("Ceil"),
+        std::make_shared<LayerCreator<MathLayer>>("Cos"),
+        std::make_shared<LayerCreator<MathLayer>>("Cosh"),
+        std::make_shared<LayerCreator<MathLayer>>("Erf"),
+        std::make_shared<LayerCreator<MathLayer>>("Floor"),
+        std::make_shared<LayerCreator<MathLayer>>("HardSigmoid"),
+        std::make_shared<LayerCreator<MathLayer>>("Log"),
+        std::make_shared<LayerCreator<MathLayer>>("Neg"),
+        std::make_shared<LayerCreator<MathLayer>>("Reciprocal"),
+        std::make_shared<LayerCreator<MathLayer>>("Selu"),
+        std::make_shared<LayerCreator<MathLayer>>("Sign"),
+        std::make_shared<LayerCreator<MathLayer>>("Sin"),
+        std::make_shared<LayerCreator<MathLayer>>("Sinh"),
+        std::make_shared<LayerCreator<MathLayer>>("Softplus"),
+        std::make_shared<LayerCreator<MathLayer>>("Softsign"),
+        std::make_shared<LayerCreator<MathLayer>>("Tan"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceAnd"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceL1"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceL2"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceLogSum"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceLogSumExp"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceMax"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceMean"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceMin"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceOr"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceProd"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceSum"),
+        std::make_shared<LayerCreator<ReduceLayer>>("ReduceSumSquare"),
+        std::make_shared<LayerCreator<CNNLayer>>("GatherTree"),
+        std::make_shared<LayerCreator<TopKLayer>>("TopK")
+    };
+    creators.emplace_back(_version < 6 ? std::make_shared<LayerCreator<QuantizeLayer>>("Quantize") :
+            std::make_shared<LayerCreator<QuantizeLayer>>("FakeQuantize"));
 }
 
 CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
@@ -176,14 +264,6 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     _network->setPrecision(_defPrecision);
     // parse the input Data
     DataPtr inputData;
-    if (_version == 1) {
-        inputData = ParseInputData(root);
-        _portsToData[inputData->getName()] = inputData;  // hack as this input does not have ports ids
-        InputInfo::Ptr info(new InputInfo());
-        info->setInputData(inputData);
-        _network->setInputInfo(info);
-    }
-
     // parse the graph layers
     auto allLayersNode = root.child("layers");
     std::vector< CNNLayer::Ptr> inputLayers;
@@ -251,99 +331,60 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         auto targetLayer = layerById[toLayer];
         if (!targetLayer)
             THROW_IE_EXCEPTION << "Layer ID " << toLayer << " was not found while connecting edge at offset "
-                               << _ec.offset_debug();
+                << _ec.offset_debug();
 
         SetLayerInput(*_network, dataId, targetLayer, toPort);
     }
 
-    if (_version == 1) {
-        // a hacK: set input to the first layer that is not connected...
-        bool inputWasSet = false;
-        for (auto& kvp : layerById) {
-            CNNLayer::Ptr& layer = kvp.second;
-            const LayerParseParameters& parseInfo = layersParseInfo[layer->name];
-            size_t inSize = layer->insData.size();
-            if (inSize != 0) continue;
-            if (parseInfo.inputPorts.size() == 0)
-                THROW_IE_EXCEPTION << "Layer " << layer->name << " does not have any input";
-            SetLayerInput(*_network, inputData->getName(), layer, parseInfo.inputPorts[0].portId);
-            inputWasSet = true;
+    auto keep_input_info = [&] (DataPtr &in_data) {
+        InputInfo::Ptr info(new InputInfo());
+        info->setInputData(in_data);
+        Precision prc = info->getPrecision();
 
-            // Modification of default input precision which should be used for input blob
-            // Q78 needs an I16 otherwise pixels will overflow
-            // FP16 requires to pass FP32 as input from user
-            Precision inputPrecision;
-            inputPrecision = layer->precision == Precision::Q78 ? Precision::I16 :
-                layer->precision == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(layer->precision);
+        // Convert precision into native format (keep element size)
+        prc = prc == Precision::Q78 ? Precision::I16 :
+            prc == Precision::FP16 ? Precision::FP32 :
+            static_cast<Precision::ePrecision>(prc);
 
-            auto inputLayer = std::make_shared<GenericLayer>(LayerParams({inputData->getName(), "input",  inputPrecision}));
-            inputLayer->outData.push_back(inputData);
-            _network->addLayer(inputLayer);
-            inputData->creatorLayer = inputLayer;
+        info->setPrecision(prc);
+        _network->setInputInfo(info);
+    };
 
-            InputsDataMap inputs;
-            _network->getInputsInfo(inputs);
-            if (inputs.size() != 1) {
-                THROW_IE_EXCEPTION << "IR v1 must have one input layer";
-            }
-            inputs.begin()->second->setInputPrecision(inputPrecision);
+    // Keep all data from InputLayers
+    for (auto inLayer : inputLayers) {
+        if (inLayer->outData.size() != 1)
+            THROW_IE_EXCEPTION << "Input layer must have 1 output. "
+                "See documentation for details.";
+        keep_input_info(inLayer->outData[0]);
+    }
 
-            // And we need to leave original input precision unmodified for proper handling in plugin
-            inputData->setPrecision(layer->precision);
-            break;
-        }
-        if (!inputWasSet) THROW_IE_EXCEPTION << "network does not have any input layer";
-    } else {  // version 2: inputs are marked as input layers
-        auto keep_input_info = [&] (DataPtr &in_data) {
-            InputInfo::Ptr info(new InputInfo());
-            info->setInputData(in_data);
-            Precision prc = info->getInputPrecision();
+    // Keep all data which has no creator layer
+    for (auto &kvp : _network->allLayers()) {
+        const CNNLayer::Ptr& layer = kvp.second;
+        auto pars_info = layersParseInfo[layer->name];
 
-            // Convert precision into native format (keep element size)
-            prc = prc == Precision::Q78 ? Precision::I16 :
-                  prc == Precision::FP16 ? Precision::FP32 :
-                  static_cast<Precision::ePrecision>(prc);
+        if (layer->insData.empty())
+            layer->insData.resize(pars_info.inputPorts.size());
 
-            info->setInputPrecision(prc);
-            _network->setInputInfo(info);
-        };
+        for (int i = 0; i < layer->insData.size(); i++) {
+            if (!layer->insData[i].lock()) {
+                std::string data_name = (layer->insData.size() == 1)
+                    ? layer->name
+                    : layer->name + "." + std::to_string(i);
 
-        // Keep all data from InputLayers
-        for (auto inLayer : inputLayers) {
-            if (inLayer->outData.size() != 1)
-                THROW_IE_EXCEPTION << "Input layer must have 1 output. "
-                                      "See documentation for details.";
-            keep_input_info(inLayer->outData[0]);
-        }
-
-        // Keep all data which has no creator layer
-        for (auto &kvp : _network->allLayers()) {
-            const CNNLayer::Ptr& layer = kvp.second;
-            auto pars_info = layersParseInfo[layer->name];
-
-            if (layer->insData.empty())
-                layer->insData.resize(pars_info.inputPorts.size());
-
-            for (int i = 0; i < layer->insData.size(); i++) {
-                if (!layer->insData[i].lock()) {
-                    std::string data_name = (layer->insData.size() == 1)
-                            ? layer->name
-                            : layer->name + "." + std::to_string(i);
-
-                    DataPtr data(new Data(data_name,
+                DataPtr data(new Data(data_name,
                             pars_info.inputPorts[i].dims,
                             pars_info.inputPorts[i].precision,
                             TensorDesc::getLayoutByDims(pars_info.inputPorts[i].dims)));
-                    data->setDims(pars_info.inputPorts[i].dims);
+                data->setDims(pars_info.inputPorts[i].dims);
 
-                    layer->insData[i] = data;
-                    data->inputTo[layer->name] = layer;
+                layer->insData[i] = data;
+                data->getInputTo()[layer->name] = layer;
 
-                    const auto insId = gen_id(pars_info.layerId, pars_info.inputPorts[i].portId);
-                    _portsToData[insId] = data;
+                const auto insId = gen_id(pars_info.layerId, pars_info.inputPorts[i].portId);
+                _portsToData[insId] = data;
 
-                    keep_input_info(data);
-                }
+                keep_input_info(data);
             }
         }
     }
@@ -376,7 +417,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         for (unsigned i = 0; i < inSize; i++) {
             if (!layer->insData[i].lock()) {
                 THROW_IE_EXCEPTION << "Layer " << layer->name.c_str() << " input port "
-                                   << parseInfo.inputPorts[i].portId << " is not connected to any data";
+                    << parseInfo.inputPorts[i].portId << " is not connected to any data";
             }
         }
         layer->validateLayer();
@@ -390,14 +431,9 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     _network->getOutputsInfo(outputsInfo);
     for (auto outputInfo : outputsInfo) {
         if (outputInfo.second->getPrecision() != Precision::FP32 &&
-            outputInfo.second->getPrecision() != Precision::I32) {
+                outputInfo.second->getPrecision() != Precision::I32) {
             outputInfo.second->setPrecision(Precision::FP32);
         }
-    }
-
-    if (_version == 1) {
-        int batchSize = GetIntAttr(root, "batch", 1);
-        _network->setBatchSize(batchSize);
     }
 
     return _network;
@@ -418,16 +454,18 @@ inline Blob::Ptr GetTypedBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, con
     typename TBlobProxy<BlobType>::Ptr binBlob(new TBlobProxy<BlobType>(segment.precision, Layout::C, weights, segment.start, w_dims));
 
     /* this validation is not reduntant I have no prior knowledge of the weights anymore...
-    if (pbpWeights->byteSize() != lprms.weights.size)
-        THROW_IE_EXCEPTION << "bytes size weights for " << pWL->name << " mismatch, expecting "
-        << pbpWeights->byteSize() << " bytes which are " << pbpWeights->size() << " elements";
-        */
+       if (pbpWeights->byteSize() != lprms.weights.size)
+       THROW_IE_EXCEPTION << "bytes size weights for " << pWL->name << " mismatch, expecting "
+       << pbpWeights->byteSize() << " bytes which are " << pbpWeights->size() << " elements";
+       */
     return binBlob;
 }
 
 Blob::Ptr FormatParser::GetBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, const WeightSegment& segment) const {
     if (segment.precision == Precision::FP32) {
         return GetTypedBlobFromSegment<float>(weights, segment);
+    } else if (segment.precision == Precision::I64) {
+        return GetTypedBlobFromSegment<int64_t>(weights, segment);
     } else if (segment.precision == Precision::I32) {
         return GetTypedBlobFromSegment<int32_t>(weights, segment);
     } else if (segment.precision == Precision::I16 || segment.precision == Precision::Q78 || segment.precision == Precision::FP16) {
@@ -485,11 +523,24 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
         const std::string &inputName = kvp.first;
         auto &segments = kvp.second;
         auto inputInfo = _network->getInput(inputName);
-        if (!inputInfo) THROW_IE_EXCEPTION << "Internal error: missing input name " << inputName;
+        if (!inputInfo)
+            THROW_IE_EXCEPTION << "Internal error: missing input name " << inputName;
 
-        auto dims = inputInfo->getDims();
-        auto width = dims[0];
-        auto height = dims[1];
+        auto dims = inputInfo->getTensorDesc().getDims();
+        size_t width = 0ul, height = 0ul;
+
+        if (dims.size() == 3) {
+            height = dims.at(1);
+            width = dims.at(2);
+        } else if (dims.size() == 4) {
+            height = dims.at(2);
+            width = dims.at(3);
+        } else if (dims.size() == 5) {
+            height = dims.at(3);
+            width = dims.at(4);
+        } else {
+            THROW_IE_EXCEPTION << inputName << " has unsupported layout " << inputInfo->getTensorDesc().getLayout();
+        }
 
         PreProcessInfo &pp = inputInfo->getPreProcess();
 
@@ -497,7 +548,7 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
             if (segments[c].size == 0)
                 continue;
             Blob::Ptr blob = GetBlobFromSegment(weights, segments[c]);
-            blob->Reshape({ width, height }, Layout::HW);  // to fit input image sizes (summing it is an image)
+            blob->getTensorDesc().reshape({height, width}, Layout::HW);  // to fit input image sizes (summing it is an image)
             pp.setMeanImageForChannel(blob, c);
         }
     }
@@ -514,9 +565,6 @@ void FormatParser::ParseDims(SizeVector& dims, const pugi::xml_node &parentNode)
         }
         dims.push_back(dim);
     }
-
-    if (_version == 1)
-        dims.insert(dims.begin(), 1);  // for batch, in version 1, in version 2 it is already there.
 }
 
 const DataPtr& FormatParser::GetDataBy(int layer_id, int port_id) const {
@@ -546,13 +594,13 @@ DataPtr FormatParser::ParseInputData(pugi::xml_node& root) const {
 
 void FormatParser::ParsePreProcess(pugi::xml_node& root) {
     /*
-    <pre-process mean-precision="FP32">
-        <channel id = ”0”>
-            <mean value = ”104” / >  // in case of constant
-        // or
-            <mean offset = "121930449" size = "51529" / >  // in case of array – ref to the .bin file
-            <scale value = "1.2">
-        </channel>
+       <pre-process mean-precision="FP32">
+       <channel id = ”0”>
+       <mean value = ”104” / >  // in case of constant
+    // or
+    <mean offset = "121930449" size = "51529" / >  // in case of array – ref to the .bin file
+    <scale value = "1.2">
+    </channel>
     </pre-process>
     */
 
@@ -574,7 +622,7 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
         if (inputs.empty()) THROW_IE_EXCEPTION << "network has no input";
 
         for (auto i : inputs) {
-            if (i.second->getDims().size() == 4) {
+            if (i.second->getTensorDesc().getDims().size() == 4) {
                 preProcessInput = i.second;
                 break;
             }
@@ -591,13 +639,28 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
     }
 
     // dims vector without batch size
-    SizeVector inputDims = preProcessInput->getDims();
+    SizeVector inputDims = preProcessInput->getTensorDesc().getDims();
+    size_t noOfChannels = 0, width = 0, height = 0;
 
-    if (inputDims.size() < 2)
+    if (inputDims.size() < 2) {
         THROW_IE_EXCEPTION << "network did not define input dimensions properly";
-    size_t noOfChannels = inputDims[inputDims.size() - 2];
-    size_t width = inputDims[0];
-    size_t height = inputDims[1];
+    } else if (inputDims.size() == 2) {  // NC
+        noOfChannels = inputDims[1];
+        width = inputDims[1];
+        height = inputDims[0];
+    } else if (inputDims.size() == 3) {
+        width = inputDims[2];
+        height = inputDims[1];
+        noOfChannels = inputDims[0];
+    } else if (inputDims.size() == 4) {
+        width = inputDims[3];
+        height = inputDims[2];
+        noOfChannels = inputDims[1];
+    } else if (inputDims.size() == 5) {
+        width = inputDims[4];
+        height = inputDims[3];
+        noOfChannels = inputDims[2];
+    }
 
     PreProcessInfo &pp = preProcessInput->getPreProcess();
     std::vector<WeightSegment> &segments = _preProcessSegments[inputName];
@@ -640,8 +703,8 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
                 preProcessSegment.precision = meanSegmentPrecision;
                 if (width*height*meanSegmentPrecision.size() != preProcessSegment.size) {
                     THROW_IE_EXCEPTION << "mean blob size mismatch expected input, got: "
-                                       << preProcessSegment.size << " extpecting " << width
-                                       << " x " << height << " x " << meanSegmentPrecision.size();
+                        << preProcessSegment.size << " extpecting " << width
+                        << " x " << height << " x " << meanSegmentPrecision.size();
                 }
                 if (!meanSegmentPrecision || meanSegmentPrecision == Precision::MIXED)
                     THROW_IE_EXCEPTION << "mean blob defined without specifying precision.";
@@ -665,62 +728,9 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
         for (auto id : idsForMeanValue) { validMeanValuesIds += std::to_string(id) + " "; }
         for (auto id : idsForMeanImage) { validMeanImageIds += std::to_string(id) + " "; }
         THROW_IE_EXCEPTION << "mean is not provided for all channels\n"
-                "Provided mean values for : " << validMeanValuesIds << "\n"
-                                   "Provided mean image for: " << validMeanImageIds;
+            "Provided mean values for : " << validMeanValuesIds << "\n"
+            "Provided mean image for: " << validMeanImageIds;
     }
-}
-
-const std::vector<std::shared_ptr<BaseCreator> >& FormatParser::getCreators() const {
-    // there should be unique_ptr but it cant be used with initializer lists
-    static std::vector<std::shared_ptr<BaseCreator> > creators = {
-        std::make_shared<LayerCreator<PowerLayer>>("Power"),
-        std::make_shared<LayerCreator<ConvolutionLayer>>("Convolution"),
-        std::make_shared<LayerCreator<DeconvolutionLayer>>("Deconvolution"),
-        std::make_shared<LayerCreator<PoolingLayer>>("Pooling"),
-        std::make_shared<LayerCreator<FullyConnectedLayer>>("InnerProduct"),
-        std::make_shared<LayerCreator<FullyConnectedLayer>>("FullyConnected"),
-        std::make_shared<LayerCreator<NormLayer>>("LRN"),
-        std::make_shared<LayerCreator<NormLayer>>("Norm"),
-        std::make_shared<LayerCreator<SoftMaxLayer>>("Softmax"),
-        std::make_shared<LayerCreator<GRNLayer>>("GRN"),
-        std::make_shared<LayerCreator<MVNLayer>>("MVN"),
-        std::make_shared<LayerCreator<ReLULayer>>("ReLU"),
-        std::make_shared<LayerCreator<ClampLayer>>("Clamp"),
-        std::make_shared<LayerCreator<SplitLayer>>("Split"),
-        std::make_shared<LayerCreator<SplitLayer>>("Slice"),
-        std::make_shared<LayerCreator<ConcatLayer>>("Concat"),
-        std::make_shared<LayerCreator<EltwiseLayer>>("Eltwise"),
-        std::make_shared<LayerCreator<GemmLayer>>("Gemm"),
-        std::make_shared<LayerCreator<PadLayer>>("Pad"),
-        std::make_shared<LayerCreator<GatherLayer>>("Gather"),
-        std::make_shared<LayerCreator<StridedSliceLayer>>("StridedSlice"),
-        std::make_shared<LayerCreator<ShuffleChannelsLayer>>("ShuffleChannels"),
-        std::make_shared<LayerCreator<DepthToSpaceLayer>>("DepthToSpace"),
-        std::make_shared<LayerCreator<SpaceToDepthLayer>>("SpaceToDepth"),
-        std::make_shared<LayerCreator<ReverseSequenceLayer>>("ReverseSequence"),
-        std::make_shared<LayerCreator<SqueezeLayer>>("Squeeze"),
-        std::make_shared<LayerCreator<UnsqueezeLayer>>("Unsqueeze"),
-        std::make_shared<LayerCreator<RangeLayer>>("Range"),
-        std::make_shared<LayerCreator<ExpandLayer>>("Expand"),
-        std::make_shared<LayerCreator<ScaleShiftLayer>>("ScaleShift"),
-        std::make_shared<LayerCreator<PReLULayer>>("PReLU"),
-        std::make_shared<LayerCreator<CropLayer>>("Crop"),
-        std::make_shared<LayerCreator<ReshapeLayer>>("Reshape"),
-        std::make_shared<LayerCreator<ReshapeLayer>>("Flatten"),
-        std::make_shared<LayerCreator<TileLayer>>("Tile"),
-        std::make_shared<ActivationLayerCreator>("Activation"),
-        std::make_shared<LayerCreator<BatchNormalizationLayer>>("BatchNormalization"),
-        std::make_shared<TILayerCreator>("TensorIterator"),
-        std::make_shared<LayerCreator<LSTMCell>>("LSTMCell"),
-        std::make_shared<LayerCreator<GRUCell>>("GRUCell"),
-        std::make_shared<LayerCreator<RNNCell>>("RNNCell"),
-        std::make_shared<LayerCreator<RNNSequenceLayer>>("RNNSequence"),
-        std::make_shared<LayerCreator<RNNSequenceLayer>>("GRUSequence"),
-        std::make_shared<LayerCreator<RNNSequenceLayer>>("LSTMSequence"),
-        std::make_shared<LayerCreator<QuantizeLayer>>("Quantize"),
-        std::make_shared<LayerCreator<BinaryConvolutionLayer>>("BinaryConvolution"),
-    };
-    return creators;
 }
 
 void FormatParser::ParseStatisticSection(const pugi::xml_node& statNode) {

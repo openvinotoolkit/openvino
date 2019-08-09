@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNPoolingNode() override = default;
 
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,

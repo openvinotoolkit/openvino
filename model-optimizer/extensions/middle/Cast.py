@@ -13,6 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging as log
+
 import numpy as np
 
 from extensions.middle.RemoveIdentity import RemoveIdentity
@@ -30,12 +32,17 @@ class CastToFloatMark(MiddleReplacementPattern):
         from extensions.middle.pass_separator import PreMiddleStart
         return [PreMiddleStart]
 
+    identity_list = [np.float32, np.double, np.int32, np.int64]
+
     def pattern(self):
         return dict(
-            nodes=[('op', dict(op='Cast', dst_type=np.float32))],
+            nodes=[('op', dict(op='Cast', dst_type=lambda dst_type: dst_type in self.identity_list))],
             edges=[])
 
     def replace_pattern(self, graph: Graph, match: dict):
         # resulting network is fully floating point, so casts to float are useless
+        if match['op'].dst_type in [np.int32, np.int64]:
+            log.warning('Deleting Cast node {} to {} from network since Cast operation isn\'t supported yet. Inference results can be'
+                        ' incorrect'.format(match['op'].name, match['op'].dst_type))
+
         match['op']['identity'] = True
-    

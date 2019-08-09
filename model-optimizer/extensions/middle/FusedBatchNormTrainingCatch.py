@@ -20,12 +20,6 @@ from mo.utils.error import Error
 
 
 class FusedBatchNormTrainingCatch(MiddleReplacementPattern):
-    """
-    Replaces FusedBatchNorm(input, beta, gamma, mean, variance) with non-constant mean and variance,
-    but with constant beta and gamma to a sub-expression consisting of a combinatin of Eltwise and Power
-    layers and ScaleShift.
-    """
-
     enabled = True
     replacement_id = "Fused_Batch_Norm_is_training_true_catcher"
 

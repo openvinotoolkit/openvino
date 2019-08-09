@@ -23,7 +23,7 @@ from mo.graph.graph import Node
 
 class TestSsdPatternFlattenSoftmaxActivation(unittest.TestCase):
     def test_pattern_remove_transpose(self):
-        graph = build_graph({'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+        graph = build_graph({'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
                              'node_2': {'type': 'Identity', 'kind': 'op'},
                              'node_3': {'type': 'Identity', 'kind': 'op'},
                              'node_softmax_activation': {'type': 'SoftMax', 'kind': 'op', 'op': 'SoftMax'},

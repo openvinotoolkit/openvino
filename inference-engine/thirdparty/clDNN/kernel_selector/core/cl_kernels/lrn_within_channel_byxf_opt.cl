@@ -79,7 +79,7 @@ KERNEL(lrn_within_channel_byxf_opt)(__global const INPUT0_TYPE* input, __global 
 
     for(uint i = 0; i < FEATURE_PER_ITEM; i++)
     {
-        output[output_index+i] = ACTIVATION(normres[i], NL_M ,NL_N);
+        output[output_index+i] = ACTIVATION(normres[i], ACTIVATION_PARAMS);
     }
 }
 

@@ -35,13 +35,7 @@ void check_softmax_bwd(memory& dst, memory& diff_dst, memory &diff_src, int axis
     ASSERT_EQ(diff_dst_pd.data.data_type,
             memory::data_type::f32); // TODO: type assert
 
-    // Allocate buffer for reference BW result
     auto ndims = diff_dst_pd.data.ndims;
-    int total_dim_size = 1;
-    for (int i=0; i<ndims; ++i) {
-      total_dim_size *= diff_dst_pd.data.dims[i];
-    }
-    std::unique_ptr<data_t[]> diff_src_ref_ptr(new float[total_dim_size]);
 
     const float eps = 1e-7; //TODO: What should be the threshold?
 
@@ -55,23 +49,20 @@ void check_softmax_bwd(memory& dst, memory& diff_dst, memory &diff_src, int axis
         const int idx_start = ou * C * IN + in;
 
         float sbr = 0.0;
-        for (int c=0; c < C ; ++c) {
-            auto off_d = map_index(dst_pd, idx_start + c * IN);
-            auto off_dd = map_index(diff_dst_pd, idx_start + c * IN);
+        for (int c = 0; c < C; ++c) {
+            auto off_d = map_index(dst_pd, idx_start + c * IN, false);
+            auto off_dd = map_index(diff_dst_pd, idx_start + c * IN, false);
             sbr += dst_ptr[off_d] * diff_dst_ptr[off_dd];
         }
 
-        for (int c=0; c < C ; ++c) {
-            auto off_d = map_index(dst_pd, idx_start + c * IN);
-            auto off_dd = map_index(diff_dst_pd, idx_start + c * IN);
-            diff_src_ref_ptr[off_dd] =
+        for (int c = 0; c < C; ++c) {
+            auto off_d = map_index(dst_pd, idx_start + c * IN, false);
+            auto off_dd = map_index(diff_dst_pd, idx_start + c * IN, false);
+            const float diff_src_ref =
                 dst_ptr[off_d] * (diff_dst_ptr[off_dd] - sbr);
+            EXPECT_NEAR(diff_src_ptr[off_dd], diff_src_ref, eps);
         }
     });
-
-    // Actual check
-    for (int i=0; i < OU*C*IN; ++i)
-        EXPECT_NEAR(diff_src_ptr[i], diff_src_ref_ptr[i], eps);
 }
 
 template <typename data_t>
@@ -139,14 +130,17 @@ protected:
             // Fill the softmax forward input
             fill_data<data_t>(data_mem_prim_desc.get_size(),
                     (data_t *)src.get_data_handle(), mean, var);
+            check_zero_tail<data_t>(1, src);
 
             // Fill the softmax backward diffs
             // eg. data diff that comes from upper primitive/layer
             fill_data<data_t>(diff_mem_prim_desc.get_size(),
                     (data_t *)diff_dst.get_data_handle(), data_t(0), data_t(1));
+            check_zero_tail<data_t>(1, diff_dst);
 
             stream(stream::kind::lazy).submit({softmax, softmax_bwd}).wait();
             check_softmax_bwd<data_t>(dst, diff_dst, diff_src, p.axis);
+            check_zero_tail<data_t>(0, diff_src);
         };
 
         test_with_given_fill(-200, 1);
@@ -170,6 +164,8 @@ INSTANTIATE_TEST_CASE_P(TestSoftmaxBackward, softmax_backward_test_float,
             softmax_bwd_test_params_float{ engine::kind::cpu, memory::format::nchw, memory::format::nchw, {2, 19, 128, 256}, 3},
             softmax_bwd_test_params_float{ engine::kind::cpu, memory::format::nc, memory::format::nc, {16, 300}, 0},
             softmax_bwd_test_params_float{ engine::kind::cpu, memory::format::nc, memory::format::nc, {16, 30000}, 1},
-            softmax_bwd_test_params_float{ engine::kind::cpu, memory::format::nc, memory::format::nc, {2, 1000}, 1}
+            softmax_bwd_test_params_float{ engine::kind::cpu, memory::format::nc, memory::format::nc, {2, 1000}, 1},
+            softmax_bwd_test_params_float{ engine::kind::cpu, memory::format::nChw8c, memory::format::nChw8c, {64, 1011, 1, 1}, 1},
+            softmax_bwd_test_params_float{ engine::kind::cpu, memory::format::nChw8c, memory::format::nChw8c, {2, 1011, 32, 1}, 2}
 ));
 }

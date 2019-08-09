@@ -15,7 +15,10 @@ limitations under the License.
 """
 
 import os
+import errno
 import ntpath
+import pathlib
+from typing import Union
 
 
 class Path:
@@ -65,3 +68,15 @@ class Path:
 
         dir = os.path.dirname(file_path)
         return os.path.join(dir, name + addition + extension)
+
+    @staticmethod
+    def validate_path(entry: Union[str, pathlib.Path]):
+        try:
+            path = pathlib.Path(entry)
+        except TypeError:
+            raise TypeError('"{}" is expected to be a path-like'.format(entry))
+
+        if not os.path.exists(str(path)):
+            raise FileNotFoundError('{}: {}'.format(os.strerror(errno.ENOENT), path))
+
+        return path

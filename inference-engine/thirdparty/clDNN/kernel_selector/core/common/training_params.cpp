@@ -16,17 +16,14 @@
 
 #include "training_params.h"
 
-namespace kernel_selector
-{
-    ParamsKey training_params::GetParamsKey() const
-    {
-        ParamsKey k = weight_bias_params::GetParamsKey();
+namespace kernel_selector {
+ParamsKey training_params::GetParamsKey() const {
+    ParamsKey k = weight_bias_params::GetParamsKey();
 
-        if (use_momentum)
-        {
-            k.EnableMomentum();
-        }
-
-        return k;
+    if (use_momentum) {
+        k.EnableMomentum();
     }
+
+    return k;
 }
+}  // namespace kernel_selector

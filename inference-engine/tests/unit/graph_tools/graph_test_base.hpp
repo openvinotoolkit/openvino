@@ -31,7 +31,7 @@ class GraphTestsBase : public ::testing::Test {
     std::vector<std::vector<DataPtr>> datas;
 
     MockICNNNetwork mockNet;
-    InferenceEngine::CNNNetwork wrap = InferenceEngine::CNNNetwork(&mockNet);
+    InferenceEngine::CNNNetwork wrap;
 
     /**
      * layers that are used as lhs in oriented connect operations
@@ -50,9 +50,9 @@ class GraphTestsBase : public ::testing::Test {
                     dims.push_back(batchSize);
                     data->setDims(dims);
                     for (auto output : (*layer)->outData) {
-                        data->getInputTo() = output->inputTo;
+                        data->getInputTo() = output->getInputTo();
                     }
-                    data->creatorLayer = (*layer);
+                    data->getCreatorLayer() = (*layer);
                     info->setInputData(data);
                     inputsMap[(*layer)->name] = info;
                 }
@@ -77,23 +77,31 @@ class GraphTestsBase : public ::testing::Test {
 
     #define ASSERT_N_CONNECTIONS(a, b, n) \
         ASSERT_EQ(countForwardConnections(#a, #b), n);\
-        ASSERT_EQ(countBackwardConnections(#a, #b), n);
+        ASSERT_EQ(countBackwardConnections(#a, #b), n)
+
+    #define ASSERT_MN_CONNECTIONS(a, b, m, n) \
+        ASSERT_EQ(countForwardConnections(#a, #b), m);\
+        ASSERT_EQ(countBackwardConnections(#a, #b), n)
 
     #define ASSERT_CONNECTION(a, b) \
-        ASSERT_N_CONNECTIONS(a,b,1);
+        ASSERT_N_CONNECTIONS(a,b,1)
+
+    #define ASSERT_PORT_CONNECTION(a, from_port, b, to_port) \
+        ASSERT_EQ(countForwardConnections(#a, #b, from_port), 1);\
+        ASSERT_EQ(countBackwardConnections(#a, #b, to_port), 1)
 
     #define ASSERT_2_CONNECTIONS(a, b) \
-        ASSERT_N_CONNECTIONS(a,b,2);
+        ASSERT_N_CONNECTIONS(a,b,2)
 
     #define ASSERT_3_CONNECTIONS(a, b) \
-        ASSERT_N_CONNECTIONS(a,b,3);
+        ASSERT_N_CONNECTIONS(a,b,3)
 
     /**
      * @brief check connection without direction
      */
     #define ASSERT_NO_CONNECTION(a, b) \
         ASSERT_EQ(countConnections(#a, #b), 0);\
-        ASSERT_EQ(countConnections(#b, #a), 0);\
+        ASSERT_EQ(countConnections(#b, #a), 0)
 
     void ASSERT_DIMS(int x, const SizeVector & dims) {
 
@@ -103,7 +111,7 @@ class GraphTestsBase : public ::testing::Test {
         }
     }
 
-    int countForwardConnections(std::string a, std::string b) {
+    int countForwardConnections(std::string a, std::string b, int from_port_id=-1) {
         long int nForward = 0;
         CNNLayerPtr layerExist;
         try {
@@ -116,7 +124,13 @@ class GraphTestsBase : public ::testing::Test {
         }
 
         for (auto && outData : layerExist->outData) {
-            auto &inputMap = outData->inputTo;
+            if (from_port_id != -1) {
+                if (from_port_id > 0) {
+                    from_port_id--;
+                    continue;
+                }
+            }
+            auto &inputMap = outData->getInputTo();
             nForward +=
                 std::count_if(inputMap.begin(), inputMap.end(), [&](std::map<std::string, CNNLayerPtr>::value_type &vt) {
                     return vt.second->name == b;
@@ -126,7 +140,7 @@ class GraphTestsBase : public ::testing::Test {
         return nForward;
     }
 
-    int countBackwardConnections(std::string a, std::string b) {
+    int countBackwardConnections(std::string a, std::string b, int from_port_id=-1) {
         CNNLayerPtr layerExist;
         try {
             layerExist = wrap.getLayerByName(b.c_str());
@@ -137,13 +151,17 @@ class GraphTestsBase : public ::testing::Test {
             return 0;
         }
 
-        auto prevData = layerExist->insData;
-
-        auto nBackward = std::count_if(prevData.begin(), prevData.end(), [&](DataWeakPtr wp) {
+        auto countRef = [&](DataWeakPtr wp) {
             return wp.lock()->getCreatorLayer().lock()->name == a;
-        });
+        };
 
-        return  nBackward;
+        if (from_port_id == -1) {
+            auto prevData = layerExist->insData;
+
+            return std::count_if(prevData.begin(), prevData.end(), countRef);
+        } else {
+            return countRef(layerExist->insData[from_port_id]);
+        }
     }
 
     int countConnections(std::string a, std::string b) {
@@ -158,7 +176,7 @@ class GraphTestsBase : public ::testing::Test {
                                               Layout::NC);
 
         CNNLayerPtr newLayer = make_shared<GenericLayer>(LayerParams({name, "Generic_" + std::to_string(numCreated++), Precision::FP32}));
-        newData->creatorLayer = newLayer;
+        newData->getCreatorLayer() = newLayer;
         newLayer->outData.push_back(newData);
 
         return newLayer;
@@ -180,7 +198,7 @@ class GraphTestsBase : public ::testing::Test {
                 dims.push_back(batchSize);
                 data->setDims(dims);
                 for (auto output : (*layer)->outData) {
-                    data->getInputTo() = output->inputTo;
+                    data->getInputTo() = output->getInputTo();
                 }
                 info->setInputData(data);
                 inputsMap[(*layer)->name] = info;
@@ -214,6 +232,10 @@ class GraphTestsBase : public ::testing::Test {
      */
     int _batchSize = 1;
     void SetUp() override {
+        IE_SUPPRESS_DEPRECATED_START
+        wrap = InferenceEngine::CNNNetwork(&mockNet);
+        IE_SUPPRESS_DEPRECATED_END
+
         datas.resize(10);
         for (int i = 0; i < 10; i++) {
             layers.push_back(make_shared<CNNLayer>(LayerParams({std::to_string(i)})));

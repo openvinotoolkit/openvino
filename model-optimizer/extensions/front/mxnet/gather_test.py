@@ -25,7 +25,7 @@ from mo.graph.graph import Node
 
 class GatherTest(unittest.TestCase):
     def test_embedding_replace1(self):
-        graph = build_graph({'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+        graph = build_graph({'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                              'embedding_const': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'type': 'Const', 'op': 'Const'},
                              'embedding': {'type': None, 'kind': 'op', 'op': 'Embedding'},
                              'last': {'type': None, 'kind': 'op', 'op': None},
@@ -39,7 +39,7 @@ class GatherTest(unittest.TestCase):
                                                 'bias': np.array(np.random.random_integers(0, 225, (2000, 650)))},
                              }, nodes_with_edges_only=True)
 
-        graph_ref = build_graph({'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+        graph_ref = build_graph({'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                                  'embedding_const': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'type': 'Const', 'op': 'Const'},
                                  'embedding': {'type': None, 'kind': 'op', 'op': 'Gather'},
                                  'last': {'type': None, 'kind': 'op', 'op': None},

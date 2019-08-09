@@ -14,6 +14,7 @@
 #include "ie_icnn_network.hpp"
 #include "ie_imemory_state.hpp"
 #include "ie_input_info.hpp"
+#include "ie_parameter.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -96,7 +97,36 @@ public:
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: OK (0) for success, OUT_OF_BOUNDS (-6) no memory state for given index
      */
-    virtual StatusCode  QueryState(IMemoryState::Ptr & pState, size_t  idx, ResponseDesc *resp) noexcept = 0;
+    virtual StatusCode QueryState(IMemoryState::Ptr & pState, size_t  idx, ResponseDesc *resp) noexcept = 0;
+
+    /**
+     * @brief Sets configuration for current executable network
+     * @param config Map of pairs: (config parameter name, config parameter value)
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @return code of the operation. OK if succeeded
+     */
+    virtual StatusCode SetConfig(const std::map<std::string, Parameter> &config, ResponseDesc *resp) noexcept = 0;
+
+    /** @brief Gets configuration for current executable network. The method is responsible to extract information
+      * which affects executable network execution. The list of supported configuration values can be extracted via
+      * ExecutableNetwork::GetMetric with the SUPPORTED_CONFIG_KEYS key, but some of these keys cannot be changed dymanically, 
+      * e.g. DEVICE_ID cannot changed if an executable network has already been compiled for particular device.
+      * @param name - config key, can be found in ie_plugin_config.hpp
+      * @param result - value of config corresponding to config key
+      * @param resp - Pointer to the response message that holds a description of an error if any occurred
+      * @return code of the operation. OK if succeeded
+      */
+    virtual StatusCode GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const noexcept = 0;
+
+    /**
+     * @brief Gets general runtime metric for an executable network. It can be network name, actual device ID on
+     * which executable network is running or all other properties which cannot be changed dynamically.
+     * @param name  - metric name to request
+     * @param result - metric value corresponding to metric key
+     * @param resp - Pointer to the response message that holds a description of an error if any occurred
+     * @return code of the operation. OK if succeeded
+     */
+    virtual StatusCode GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const noexcept = 0;
 };
 
 }  // namespace InferenceEngine

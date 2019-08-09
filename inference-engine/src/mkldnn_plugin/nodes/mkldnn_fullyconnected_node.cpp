@@ -15,7 +15,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNFullyConnectedNode::MKLDNNFullyConnectedNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {
+MKLDNNFullyConnectedNode::MKLDNNFullyConnectedNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
+        : MKLDNNNode(layer, eng, socket) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });
@@ -93,7 +94,7 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     }
 
     Blob::Ptr weights = this->getCnnLayer()->blobs.find("weights")->second;
-    if (weights->precision() == Precision::I8) {
+    if (weights->getTensorDesc().getPrecision() == Precision::I8) {
         // The weights blob has incorrect dims, so we have to fix it
         TensorDesc wdesc = internalBlobs[0]->getTensorDesc();
         wdesc.setPrecision(Precision::I8);
@@ -145,8 +146,7 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
 }
 
 bool MKLDNNFullyConnectedNode::created() const {
-    return getType() == FullyConnected ||
-            getType() == FullyConnected_Activation;
+    return getType() == FullyConnected;
 }
 
 memory::format MKLDNNFullyConnectedNode::weightsFormatForSrcFormat(memory::format sourceFormat) {
@@ -248,7 +248,7 @@ void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<InferenceEngin
 
     Blob::Ptr weights = this->getCnnLayer()->blobs.find("weights")->second;
 
-    if (weights->precision() == Precision::I8) {
+    if (weights->getTensorDesc().getPrecision() == Precision::I8) {
         wdt = memory::s8;
         bdt = memory::s32;
 

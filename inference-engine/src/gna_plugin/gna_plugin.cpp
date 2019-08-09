@@ -14,10 +14,6 @@
 #include <limits>
 #include "ie_memcpy.h"
 
-#ifdef PLOT
-void ExportGnaNetworkAndrzej(const char *ptr_name, intel_nnet_type_t* pNeuralNetwork);
-#endif
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <iostream>
@@ -36,6 +32,7 @@ void ExportGnaNetworkAndrzej(const char *ptr_name, intel_nnet_type_t* pNeuralNet
 #include <memory>
 #include <dnn_memory.hpp>
 #include <ie_layers.h>
+#include <ie_util_internal.hpp>
 #include "details/caseless.hpp"
 #include <gna-api-types-xnn.h>
 #include "gna-api.h"
@@ -52,6 +49,9 @@ void ExportGnaNetworkAndrzej(const char *ptr_name, intel_nnet_type_t* pNeuralNet
 #include "gna_model_serial.hpp"
 #include "gna_memory_state.hpp"
 #include "details/ie_cnn_network_tools.h"
+#include "gna_pass_manager.hpp"
+#include "gna_fused_iterator.hpp"
+
 
 using namespace InferenceEngine;
 using namespace std;
@@ -123,7 +123,8 @@ void GNAPlugin::copyInputData(T *dst,
                 uint32_t num_group,
                 uint32_t num_vector_elements,
                 uint32_t num_vector_stride,
-                intel_dnn_orientation_t orientation) {
+                intel_dnn_orientation_t orientation,
+                float scaleFactor) {
     if (!dst || !src) {
         return;
     }
@@ -131,7 +132,7 @@ void GNAPlugin::copyInputData(T *dst,
         for (uint32_t i = 0; i < num_frames; i++) {
             for (uint32_t j = 0; j < num_vector_elements; j++) {
                 if (!std::is_same<T, U>::value) {
-                    dst[j * num_group + i] = GNAPluginNS::ConvertFloatToInt16(src[i * num_vector_elements + j] * get_input_scale_factor());
+                    dst[j * num_group + i] = GNAPluginNS::ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
                 } else {
                     dst[j * num_group + i] = src[i * num_vector_elements + j];
                 }
@@ -150,25 +151,26 @@ void GNAPlugin::copyInputData(T *dst,
     } else {
         if (!std::is_same<T, U>::value) {
             for (uint32_t i = 0; i < num_frames; i++) {
-                T *ptr_dst_vec = const_cast<T *>(reinterpret_cast<const T *>(dst) + i * num_vector_stride);
-                U *ptr_src_vec = const_cast<U *>(reinterpret_cast<const U *>(src) + i * num_vector_elements);
+                T *ptr_dst_vec = reinterpret_cast<T *>(dst) + i * num_vector_stride;
+                const U *ptr_src_vec = reinterpret_cast<const U *>(src) + i * num_vector_elements;
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
                 for (int j=0; j < num_vector_elements; j++) {
-                    ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt16(ptr_src_vec[j] * get_input_scale_factor());
+                    ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
                 }
             }
 
         } else {
             for (uint32_t i = 0; i < num_frames; i++) {
-                void *ptr_dst_vec = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(dst) + i * num_vector_stride * sizeof(T));
-                void *ptr_src_vec = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(src) + i * num_vector_elements * sizeof(U));
+                void *ptr_dst_vec = reinterpret_cast<uint8_t *>(dst) + i * num_vector_stride * sizeof(T);
+                const void *ptr_src_vec = reinterpret_cast<const uint8_t *>(src) + i * num_vector_elements * sizeof(U);
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
-                std::memcpy(ptr_dst_vec, ptr_src_vec, num_vector_elements * sizeof(T));
+                ie_memcpy(ptr_dst_vec, num_vector_elements * sizeof(T),
+                    ptr_src_vec, num_vector_elements * sizeof(T));
             }
         }
 
         for (uint32_t i = num_frames; i < num_group; i++) {
-            void *ptr_dst_vec = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(dst) + i * num_vector_stride * sizeof(T));
+            void *ptr_dst_vec = reinterpret_cast<uint8_t *>(dst) + i * num_vector_stride * sizeof(T);
             std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
         }
     }
@@ -178,7 +180,8 @@ template <typename T, typename U>
 void GNAPlugin::copyInputDataWithSplit(T *const dst,
                 const U *src,
                 const GNASplitLayer& splitInfo,
-                size_t precision_size) {
+                size_t precision_size,
+                int idx) {
     if (!dst || !src) {
         return;
     }
@@ -195,7 +198,7 @@ void GNAPlugin::copyInputDataWithSplit(T *const dst,
         }
         for (uint32_t i = begin; i < end; ++i) {
             if (!std::is_same<T, U>::value) {
-                *(dst_ptr++) = GNAPluginNS::ConvertFloatToInt16(*(src_ptr++) * get_input_scale_factor());
+                *(dst_ptr++) = GNAPluginNS::ConvertFloatToInt16(*(src_ptr++) * inputScaleFactors[idx]);
             } else {
                 *(dst_ptr++) = *(src_ptr++);
             }
@@ -208,7 +211,7 @@ void GNAPlugin::copyInputDataWithSplit(T *const dst,
 }
 
 void GNAPlugin::ExportScores(void *ptr_dst,
-                  void *ptr_src,
+                  const void *ptr_src,
                   intel_dnn_orientation_t orientation,
                   uint32_t num_frames,
                   uint32_t num_group,
@@ -222,7 +225,7 @@ void GNAPlugin::ExportScores(void *ptr_dst,
     if (orientation == kDnnInterleavedOrientation) {
         if (num_bytes_per_element == 2) {
             int16_t *dst = reinterpret_cast<int16_t *>(ptr_dst);
-            int16_t *src = reinterpret_cast<int16_t *>(ptr_src);
+            const int16_t *src = reinterpret_cast<const int16_t *>(ptr_src);
             for (uint32_t i = 0; i < num_frames; i++) {
                 for (uint32_t j = 0; j < num_active_elements; j++) {
                     dst[i * num_vector_elements + j] = src[j * num_group + i];
@@ -233,7 +236,7 @@ void GNAPlugin::ExportScores(void *ptr_dst,
             }
         } else if (num_bytes_per_element == 4) {  // should work for both int and float
             int32_t *dst = reinterpret_cast<int32_t *>(ptr_dst);
-            int8_t *src = reinterpret_cast<int8_t*>(ptr_src);
+            const int8_t *src = reinterpret_cast<const int8_t*>(ptr_src);
             for (uint32_t i = 0; i < num_frames; i++) {
                 for (uint32_t j = 0; j < num_active_elements; j++) {
                     auto input_ptr = src + (j * num_group + i) * num_bytes_per_element_input;
@@ -241,11 +244,11 @@ void GNAPlugin::ExportScores(void *ptr_dst,
 
                     switch (num_bytes_per_element_input) {
                         case 2 : {
-                            *dst_ptr  = static_cast<int32_t>(*reinterpret_cast<int16_t*>(input_ptr));
+                            *dst_ptr  = static_cast<int32_t>(*reinterpret_cast<const int16_t*>(input_ptr));
                             break;
                         }
                         case 4 : {
-                            *dst_ptr  = *reinterpret_cast<int32_t*>(input_ptr);
+                            *dst_ptr  = *reinterpret_cast<const int32_t*>(input_ptr);
                             break;
                         }
                         default:
@@ -262,17 +265,19 @@ void GNAPlugin::ExportScores(void *ptr_dst,
     } else {
         if (num_bytes_per_element == 2) {
             for (uint32_t i = 0; i < num_frames; i++) {
-                void *ptr_dst_vec = reinterpret_cast<void *> (reinterpret_cast<uint8_t *>(ptr_dst) + i * num_vector_elements * sizeof(int16_t));
-                void *ptr_src_vec = reinterpret_cast<void *> (reinterpret_cast<uint8_t *>(ptr_src) + i * num_vector_stride * sizeof(int16_t));
+                auto ptr_dst_vec = reinterpret_cast<uint8_t *>(ptr_dst) + i * num_vector_elements * sizeof(int16_t);
+                auto ptr_src_vec = reinterpret_cast<const uint8_t *>(ptr_src) + i * num_vector_stride * sizeof(int16_t);
                 memset(ptr_dst_vec, 0, num_vector_elements * sizeof(int16_t));
-                memcpy(ptr_dst_vec, ptr_src_vec, num_active_elements * sizeof(int16_t));
+                ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(int16_t),
+                    ptr_src_vec, num_active_elements * sizeof(int16_t));
             }
         } else if (num_bytes_per_element == 4) {  // should work for both int and float
             for (uint32_t i = 0; i < num_frames; i++) {
-                void *ptr_dst_vec = reinterpret_cast<void *> (reinterpret_cast<uint8_t *>(ptr_dst) + i * num_vector_elements * sizeof(float));
-                void *ptr_src_vec = reinterpret_cast<void *> (reinterpret_cast<uint8_t *>(ptr_src) + i * num_vector_stride * sizeof(float));
+                void *ptr_dst_vec = reinterpret_cast<uint8_t *>(ptr_dst) + i * num_vector_elements * sizeof(float);
+                const void *ptr_src_vec = reinterpret_cast<const uint8_t *>(ptr_src) + i * num_vector_stride * sizeof(float);
                 memset(ptr_dst_vec, 0, num_vector_elements * sizeof(float));
-                memcpy(ptr_dst_vec, ptr_src_vec, num_active_elements * sizeof(float));
+                ie_memcpy(ptr_dst_vec, num_active_elements * sizeof(float),
+                    ptr_src_vec, num_active_elements * sizeof(float));
             }
         } else {
             THROW_GNA_EXCEPTION << "Unsupported target precision for infer : " << num_bytes_per_element << "bytes";
@@ -284,6 +289,7 @@ void GNAPlugin::ImportFrames(
                   void *ptr_dst,
                   const void *ptr_src,
                   Precision input_precision,
+                  float scaleFactor,
                   intel_dnn_orientation_t orientation,
                   uint32_t num_frames,
                   uint32_t num_group,
@@ -292,55 +298,55 @@ void GNAPlugin::ImportFrames(
     if (orientation == kDnnInterleavedOrientation) {
         // TODO : fix that as well
         if (input_precision == Precision::U8) {
-            int16_t *dst = const_cast<int16_t *>(reinterpret_cast<const int16_t *>(ptr_dst));
-            uint8_t *src = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(ptr_src));
-            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation);
+            auto src = reinterpret_cast<const uint8_t *>(ptr_src);
+            auto dst = reinterpret_cast<int16_t *>(ptr_dst);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
         } else if (input_precision.size() == 2) {
-            int16_t *dst = const_cast<int16_t *>(reinterpret_cast<const int16_t *>(ptr_dst));
-            int16_t *src = const_cast<int16_t *>(reinterpret_cast<const int16_t *>(ptr_src));
-            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation);
+            auto dst = reinterpret_cast<int16_t *>(ptr_dst);
+            auto src = reinterpret_cast<const int16_t *>(ptr_src);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
         } else if (input_precision.size() == 4) {
             if (!gnadevice) {
-                float *dst = const_cast<float *>(reinterpret_cast<const float *>(ptr_dst));
-                float *src = const_cast<float *>(reinterpret_cast<const float *>(ptr_src));
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation);
+                auto dst = reinterpret_cast<float *>(ptr_dst);
+                auto src = reinterpret_cast<const float *>(ptr_src);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             } else {
-                int16_t *dst = reinterpret_cast<int16_t *>(ptr_dst);
-                const float *src = reinterpret_cast<const float *>(ptr_src);
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation);
+                auto dst = reinterpret_cast<int16_t *>(ptr_dst);
+                auto src = reinterpret_cast<const float *>(ptr_src);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
         }
     } else {
         if (input_precision == Precision::U8) {
-            uint8_t *src = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(ptr_src));
+            auto src = reinterpret_cast<const uint8_t *>(ptr_src);
             if (!gnadevice) {
-                float *dst = const_cast<float *>(reinterpret_cast<const float *>(ptr_dst));
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation);
+                auto dst = reinterpret_cast<float *>(ptr_dst);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             } else {
-                int16_t *dst = const_cast<int16_t *>(reinterpret_cast<const int16_t *>(ptr_dst));
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation);
+                auto dst = reinterpret_cast<int16_t *>(ptr_dst);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
 
         } else if (input_precision.size()== 2) {
-            int16_t *dst = const_cast<int16_t *>(reinterpret_cast<const int16_t *>(ptr_dst));
-            int16_t *src = const_cast<int16_t *>(reinterpret_cast<const int16_t *>(ptr_src));
-            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation);
+            auto dst = reinterpret_cast<int16_t *>(ptr_dst);
+            auto src = reinterpret_cast<const int16_t *>(ptr_src);
+            copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
         } else if (input_precision.size() == 4) {
             if (!gnadevice) {
-                float *dst = const_cast<float *>(reinterpret_cast<const float *>(ptr_dst));
-                float *src = const_cast<float *>(reinterpret_cast<const float *>(ptr_src));
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation);
+                auto dst = reinterpret_cast<float *>(ptr_dst);
+                auto src = reinterpret_cast<const float *>(ptr_src);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             } else {
-                uint16_t *dst = const_cast<uint16_t *>(reinterpret_cast<const uint16_t *>(ptr_dst));
-                float *src = const_cast<float *>(reinterpret_cast<const float *>(ptr_src));
-                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation);
+                auto dst = reinterpret_cast<uint16_t *>(ptr_dst);
+                auto src = reinterpret_cast<const float *>(ptr_src);
+                copyInputData(dst, src, num_frames, num_group, num_vector_elements, num_vector_stride, orientation, scaleFactor);
             }
         }
     }
 }
 
 void GNAPlugin::fillMemoryConnections(std::unordered_map<std::string,
-                                            std::vector<InferenceEngine::CNNLayerPtr>>& memoryPairs) {
+                                      std::vector<InferenceEngine::CNNLayerPtr>>& memoryPairs) {
     for (auto &memory : memoryPairs) {
         auto inputLayer = memory.second[1];
         auto outputLayer = memory.second[0];
@@ -348,7 +354,7 @@ void GNAPlugin::fillMemoryConnections(std::unordered_map<std::string,
         IE_ASSERT(1 == outputLayer->insData.size());
 
         // creating connection for layers output as form of extramap
-        memory_connection.emplace_back(memory.first, GNAMemoryLayer(inputLayer, outputLayer));
+        memory_connection.emplace_back(memory.first, GNAMemoryLayer(inputLayer, outputLayer, sw_fp32 ? 4 : 2));
     }
 }
 
@@ -438,6 +444,27 @@ void GNAPlugin::DiagonalPrimitive(InferenceEngine::CNNLayerPtr layer) {
     AffinePrimitive(layer, true);
 }
 
+void  GNAPlugin::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) {
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(constLayer);
+
+    if (constLayer->blobs.find("custom") == constLayer->blobs.end()) {
+        THROW_GNA_EXCEPTION << "const layer: " << constLayer->name << "doesn't have custom in blobs section";
+    }
+    auto constBlob = constLayer->blobs["custom"];
+
+    void * ptr_for_const_blob = &ptr_for_const_blob;
+    connectOutput(constLayer, ptr_for_const_blob, constBlob->size());
+
+    const_connections[constLayer->name] = ptr_for_const_blob;
+
+    // TODO: segment type for bind, bind initializer not used - need refactor to separate bind and allocation requests
+    // dont see practical use case when bind storage type need to be different that allocation type
+    gnamem->readonly().bind_initializer(ptr_for_const_blob, [constBlob](void * data, size_t size) {
+        ie_memcpy(data, size, constBlob->buffer(), constBlob->byteSize());
+    });
+}
+
+
 void GNAPlugin::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto &convolution = dynamic_cast<ConvolutionLayer &>(*layer.get());
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
@@ -458,14 +485,14 @@ void GNAPlugin::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) {
     void *ptr_weights;
     void *ptr_biases;
 
-    // TODO: questionable why for biases that are no in IR we inventing precision
+    // TODO: questionable why for biases that are not in IR we inventing precision
     auto biasPrecision = convolution._biases ? convolution._biases->precision() : outputs->precision;
 
     dnnComponentsForLayer.emplace_back(layer->name, intel_dnn_component_t());
     auto &currentComponent = dnnComponentsForLayer.back().second;
 
 #ifdef PLOT
-    cout << "IR layer : " << std::left << std::setw(20) << layer->name << dnnComponentsForLayer.size() - 1 << "\n";
+    std::cout << "IR layer : " << std::left << std::setw(20) << layer->name << " convolution_" << dnnComponentsForLayer.size() - 1 << std::endl;
 #endif
     auto num_input_padding = ALIGN(num_feature_maps * num_feature_map_columns * num_feature_map_rows, 8)
                                                         -  num_feature_maps * num_feature_map_columns * num_feature_map_rows;
@@ -512,7 +539,7 @@ void GNAPlugin::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) {
         dnn.num_rotate_columns = num_feature_map_rows;
     }
 
-    connectOutput(layer, ptr_outputs, ptr_inputs, num_data_bytes_out);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     // rotate
     auto TransposeMatrix = [](uint8_t *ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols) {
@@ -544,12 +571,13 @@ void GNAPlugin::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto paddedWeightsSize = paddedWeights * convolution.precision.size();
         auto elements_in_row = convolution._kernel_x * num_feature_map_columns;
         gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void * data, size_t size) {
-            for (int i = 0; i < convolution._out_depth; i++) {
-                memcpy(data,
+            size_t offset = 0;
+            for (int i = 0; i < convolution._out_depth && size >= offset; i++) {
+                ie_memcpy(reinterpret_cast<uint8_t *>(data) + offset, size - offset,
                        transposedWeights.data() + elements_in_row * i * convolution.precision.size(),
                        elements_in_row * convolution.precision.size());
 
-                data = reinterpret_cast<uint8_t *>(data) + elementsIn * convolution.precision.size();
+                offset += elementsIn * convolution.precision.size();
             }
         }, 64);
     }
@@ -605,7 +633,7 @@ void GNAPlugin::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
                             true);
 
 #ifdef PLOT
-    cout << "IR layer : " << std::left << std::setw(20) << layer->name << "diagonal_"<< dnnComponentsForLayer.size() - 1 << "\n";
+    std::cout << "IR layer : " << std::left << std::setw(20) << layer->name << " diagonal_"<< dnnComponentsForLayer.size() - 1 << std::endl;
 #endif
 
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->dims), end(outputs->dims))
@@ -614,20 +642,22 @@ void GNAPlugin::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t num_data_bytes_in = InferenceEngine::details::product(begin(input->dims), end(input->dims))
         * input->precision.size();
 
-    connectOutput(layer, ptr_outputs, ptr_inputs, num_data_bytes_out);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
     connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
 
-    if (power.scale != 1.0f) {
-        if (quantized == nullptr) {
-            gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
-        } else {
-            auto scaledIdentity = quantized->_weights_quant.scale * power.scale;
+    if (sw_fp32) {
+        gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
+        gnamem->readonly().push_value(ptr_biases, power.scale, num_rows_out, 64);
+    } else {
+        auto weightsScaledIdentity = quantized->_weights_quant.scale * power.scale;
+        auto biasesScaledIdentity = quantized->_bias_quant.scale * power.scale;
 
-            #define FLOAT_TO_INT16(a) static_cast<int16_t>(((a) < 0)?((a) - 0.5):((a) + 0.5))
+        #define FLOAT_TO_INT16(a) static_cast<int16_t>(((a) < 0)?((a) - 0.5):((a) + 0.5))
 
-            auto quantizedIdentity = FLOAT_TO_INT16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
-            gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
-        }
+        auto weightQuantizedIdentity = FLOAT_TO_INT16(std::min(weightsScaledIdentity, static_cast<float>(INT16_MAX)));
+        auto biasesQuantizedIdentity = FLOAT_TO_INT16(std::min(biasesScaledIdentity, static_cast<float>(INT16_MAX)));
+        gnamem->readonly().push_value<int16_t>(ptr_weights, weightQuantizedIdentity, num_rows_out, 64);
+        gnamem->readonly().push_value<int32_t>(ptr_biases, biasesQuantizedIdentity, num_rows_out, 64);
     }
 
     if (power.offset != 0.0f) {
@@ -661,7 +691,7 @@ void GNAPlugin::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto &currentComponent = dnnComponentsForLayer.back().second;
 
 #ifdef PLOT
-    cout << "IR layer : " << std::left << std::setw(20) << layer->name << dnnComponentsForLayer.size() - 1 << "\n";
+    std::cout << "IR layer : " << std::left << std::setw(20) << layer->name << " pooling_" <<  dnnComponentsForLayer.size() - 1 << std::endl;
 #endif
     switch (pooling._type) {
         case PoolingLayer::MAX: break;
@@ -693,7 +723,7 @@ void GNAPlugin::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t num_data_bytes_in = num_columns_in * (num_rows_in + num_padding) * inputs->precision.size();
 
     connectInput(layer, ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, ptr_inputs, num_data_bytes_out);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
 
 void GNAPlugin::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
@@ -714,6 +744,11 @@ void GNAPlugin::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     dnnComponentsForLayer.emplace_back(layer->name, intel_dnn_component_t());
     auto &currentComponent = dnnComponentsForLayer.back().second;
+
+#ifdef PLOT
+    std::cout << "IR layer : " << std::left << std::setw(20) << layer->name << " kDnnCopyOp_" << dnnComponentsForLayer.size() - 1 << std::endl;
+#endif
+
     dnn.InitCopyComponent(currentComponent,
                           orientation,
                           ALIGN(num_rows_in, 8),
@@ -734,7 +769,7 @@ void GNAPlugin::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t num_data_bytes_in = num_columns_in * ALIGN(num_rows_in, 8) * inputs->precision.size();
 
     connectInput(layer, ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, ptr_inputs, num_data_bytes_out);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
 
 void GNAPlugin::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
@@ -759,15 +794,24 @@ void GNAPlugin::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& concatLayerInfo = concat_connection.find(concatLayer->name)->second;
     for (auto &&outLayer : concatLayer->outData.front()->getInputTo()) {
         if ( LayerInfo(outLayer.second).isConcat() ) {
-            connectOutput(layer, &concatLayerInfo.gna_ptr,
-                          &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size);
+            connectOutput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size);
         }
     }
 
     size_t idx = 0;
     for (auto && inputLayer : concatLayerInfo.concatInputLayers) {
-        if ( InferenceEngine::details::CaselessEq<std::string>()
-                                            (inputLayer.name, "input") ) {
+        auto concatLayerInput = concat_connection.find(concatLayer->name)->second.getConcat();
+        int it = 0;
+
+        for (; it != concatLayerInput->insData.size(); it++) {
+            auto parent = CNNNetPrevLayer(concatLayerInput, it);
+            if (parent->name.find(inputLayer.name) != std::string::npos) {
+                break;
+            }
+        }
+        IE_ASSERT(it != concatLayerInput->insData.size());
+        auto layerInfo = LayerInfo(concatLayerInput->insData[it].lock()->getCreatorLayer().lock());
+        if (layerInfo.isInput()) {
             connectInput(layer, &concatLayerInfo.gna_ptr,
                                 concatLayerInfo.reserved_size-inputLayer.offset, static_cast<int32_t>(-inputLayer.offset), idx);
         }
@@ -783,7 +827,7 @@ void GNAPlugin::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
     if (cropLayer->axis.size() > 1) {
         THROW_GNA_EXCEPTION <<
-        "Crop layer does not support the number of cropped dimentions = "
+        "Crop layer does not support the number of cropped dimensions = "
         << cropLayer->axis.size() << ".";
     }
 
@@ -810,7 +854,7 @@ void GNAPlugin::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         for (auto &&outLayer : layer->outData.front()->getInputTo()) {
             auto& nextLayer = outLayer.second;
             if ( LayerInfo(nextLayer).isConcat() ) {
-                connectOutput(layer, &cropLayerInfo->second.gna_ptr, &cropLayerInfo->second.gna_ptr, cropOutputSize);
+                connectOutput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSize);
             }
         }
     } else {
@@ -818,9 +862,16 @@ void GNAPlugin::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto outputs = *layer->outData.begin();
         auto inputs = layer->insData.begin()->lock();
 
-        uint32_t num_rows_in = FROM_IR_DIM(inputs, 1);
-        uint32_t num_columns_in = FROM_IR_DIM(inputs, 2);
-        uint32_t num_rows_out = FROM_IR_DIM(outputs, 1);
+        // only 1D crops supported
+        if (cropLayer->axis.size() != 1) {
+            THROW_GNA_EXCEPTION << "only 1D crop layer supported: " << cropLayer->name;
+        }
+
+        // TODO: add unit tests for 4d crops blobs
+        uint32_t num_rows_in = FROM_IR_DIM(inputs, inputs->getDims().size() - cropLayer->axis[0]);
+        uint32_t num_columns_in = 1;
+
+        uint32_t num_rows_out = FROM_IR_DIM(outputs, outputs->getDims().size() - cropLayer->axis[0]);
         uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
         void *ptr_inputs;
@@ -830,6 +881,11 @@ void GNAPlugin::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
         dnnComponentsForLayer.emplace_back(layer->name, intel_dnn_component_t());
         auto &currentComponent = dnnComponentsForLayer.back().second;
+
+#ifdef PLOT
+        std::cout << "IR layer : " << std::left << std::setw(20) << layer->name << " Affine_" << dnnComponentsForLayer.size() - 1 << std::endl;
+#endif
+
         dnn.InitAffineComponent(currentComponent,
                                 num_rows_in + num_padding,
                                 num_columns_in,
@@ -854,7 +910,7 @@ void GNAPlugin::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
                 ALIGN(num_rows_in, 8) * inputs->precision.size();
 
         connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
-        connectOutput(layer, ptr_outputs, ptr_inputs, num_data_bytes_out);
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
         FillWeightOfAligningFilter(layer, ptr_weights, cropLayer->offset.back(), (quantized == nullptr) ? false : true);
 
@@ -929,7 +985,7 @@ void GNAPlugin::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
                             true);
 
 #ifdef PLOT
-    cout << "IR layer : " << std::left << std::setw(20) << layer->name << "diagonal_"<< dnnComponentsForLayer.size() - 1 << "\n";
+    cout << "IR layer : " << std::left << std::setw(20) << layer->name << " diagonal_"<< dnnComponentsForLayer.size() - 1 << std::endl;
 #endif
 
     size_t num_data_bytes_out =
@@ -938,7 +994,7 @@ void GNAPlugin::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t num_data_bytes_in =
         num_columns_in * (num_rows_in + num_padding) * inputs2Bytes->precision.size();
 
-    connectOutput(layer, ptr_outputs, ptr_inputs, num_data_bytes_out);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
     connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 1 - biasesLayerIdx);
 
     switch (eltwise._operation) {
@@ -977,6 +1033,7 @@ void GNAPlugin::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool isDiag)
 
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
+    auto inputPrecision = quantized ? Precision(Precision::I16) : inputs->precision;
 
     uint32_t num_rows_in = FROM_IR_DIM(inputs, 1);
     uint32_t num_columns_in = FROM_IR_DIM(inputs, 2);
@@ -988,21 +1045,34 @@ void GNAPlugin::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool isDiag)
     void *ptr_weights;
     void *ptr_biases;
 
-    // TODO: questionable why for biases that are no in IR we inventing precision
+    // TODO: questionable why for biases that are no in Model we inventing precision
     auto biasPrecision = weightable._biases ? weightable._biases->precision() : outputs->precision;
+
+    // layer without biases might be connected to functional layer without activations
+    auto prevLayer = CNNNetPrevLayer(layer);
+    bool useBiasConnection = false;
+    if (LayerInfo(prevLayer).has32BOutput()) {
+        if (weightable._biases) {
+            THROW_GNA_EXCEPTION << "Layer: "
+                                << layer->name << ", cannot be connected to its parent: " << prevLayer->name
+                                << " due to precision mismatch";
+        }
+        useBiasConnection = true;
+    }
 
     dnnComponentsForLayer.emplace_back(layer->name, intel_dnn_component_t());
     auto &currentComponent = dnnComponentsForLayer.back().second;
 
 #ifdef PLOT
-    cout << "IR layer : " << std::left << std::setw(20) << layer->name << (isDiag ? "diagonal_" : "affine_") << dnnComponentsForLayer.size() - 1 << "\n";
+    std::cout << "IR layer : " << std::left << std::setw(20) << layer->name << (isDiag ? " diagonal_" : " affine_")
+              << dnnComponentsForLayer.size() - 1 << std::endl;
 #endif
 
     dnn.InitAffineComponent(currentComponent,
                             num_rows_in + num_padding,
                             num_columns_in,
                             num_rows_out,
-                            inputs->precision.size(),
+                            inputPrecision.size(),
                             outputs->precision.size(),
                             weightable._weights->precision().size(),
                             biasPrecision.size(),
@@ -1019,8 +1089,8 @@ void GNAPlugin::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool isDiag)
 
     size_t num_data_bytes_in = num_columns_in * (num_rows_in + num_padding) * inputs->precision.size();
 
-    auto connectionInfo = connectInput(layer, ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, ptr_inputs, num_data_bytes_out);
+    auto connectionInfo = connectInput(layer, useBiasConnection ? ptr_biases : ptr_inputs, num_data_bytes_in);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     auto transpose = false;
     auto transposedRows = 0;
@@ -1065,7 +1135,13 @@ void GNAPlugin::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool isDiag)
                         for (int i = 0; i < transposedRows; i++) {
                             auto offsetWrite = (transposedRows * j + i) * weightable.precision.size();
                             auto offsetRead = (i * transposedCols + j) * weightable.precision.size();
-                            std::memcpy(u8Data + offsetWrite, cbuffer + offsetRead, weightable.precision.size());
+                            if (size < rowOffset + offsetWrite) {
+                                // zero out dest if error detected
+                                memset(data, 0, size);
+                                THROW_GNA_EXCEPTION << "Size error";
+                            }
+                            ie_memcpy(u8Data + offsetWrite, size - rowOffset - offsetWrite,
+                                cbuffer + offsetRead, weightable.precision.size());
                         }
                     }
                 }
@@ -1081,7 +1157,7 @@ void GNAPlugin::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool isDiag)
 
         gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void * data, size_t size) {
             for (int i = 0; i < (isDiag ? 1 : num_rows_out); i++) {
-                memcpy(data,
+                ie_memcpy(data, size,
                        weightable._weights->cbuffer().as<const uint8_t *>() + num_rows_in * i * weightable.precision.size(),
                        num_rows_in * weightable.precision.size());
                 data = reinterpret_cast<uint8_t *>(data) + (num_rows_in + num_padding) * weightable.precision.size();
@@ -1095,7 +1171,12 @@ void GNAPlugin::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool isDiag)
                          weightable._biases->byteSize(),
                          64);
     } else {
-        gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+        // in that case input from previous layer goes into biases, so we have to initialize input pointer by zero
+        if (useBiasConnection) {
+            gnamem->readonly().push_value(ptr_inputs, 0.0f, num_rows_in, 64);
+        } else {
+            gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+        }
     }
 }
 
@@ -1103,8 +1184,8 @@ void GNAPlugin::FillWeightOfAligningFilter(InferenceEngine::CNNLayerPtr layer, v
     auto outputs = *layer->outData.begin();
     auto inputs = layer->insData.begin()->lock();
 
-    uint32_t num_rows_in = FROM_IR_DIM(inputs, 1);
-    uint32_t num_rows_out = FROM_IR_DIM(outputs, 1);
+    uint32_t num_rows_in = product(++begin(inputs->getDims()), end(inputs->getDims()));
+    uint32_t num_rows_out = product(++begin(outputs->getDims()), end(outputs->getDims()));
 
     if (!ptrWeights) {
         THROW_GNA_EXCEPTION << "Weights memory is not allocated!!!";
@@ -1126,6 +1207,95 @@ void GNAPlugin::FillWeightOfAligningFilter(InferenceEngine::CNNLayerPtr layer, v
     }, 64);
 }
 
+void GNAPlugin::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
+    auto filterLayer = dynamic_cast<InferenceEngine::WeightableLayer *> (layer.get());
+
+    if (filterLayer == nullptr) {
+        return;
+    }
+
+    std::string& name = filterLayer->name;
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+
+    void *ptr_inputs;
+    void *ptr_outputs;
+    void *ptr_weights;
+    void *ptr_biases;
+
+    auto outputs = *layer->outData.begin();
+    auto inputs = layer->insData.begin()->lock();
+
+    // auto offset = filterLayer->GetParamAsInt("output_offset");
+
+    uint32_t num_columns_in = FROM_IR_DIM(inputs, 2);
+    uint32_t num_rows_out = FROM_IR_DIM(outputs, 1);
+    uint32_t num_rows_in = filterLayer->_weights->size() / num_rows_out;
+    uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
+
+    auto biasPrecision = filterLayer->_biases ? filterLayer->_biases->precision() : outputs->precision;
+    dnnComponentsForLayer.emplace_back(layer->name, intel_dnn_component_t());
+    auto &currentComponent = dnnComponentsForLayer.back().second;
+#ifdef  PLOT
+    gnalog() << "IR layer : " << std::left << std::setw(20) << layer->name << (" affine_") << dnnComponentsForLayer.size() - 1 << std::endl;
+#endif
+
+    dnn.InitAffineComponent(currentComponent,
+                            num_rows_in + num_padding,
+                            num_columns_in,
+                            num_rows_out,
+                            inputs->precision.size(),
+                            outputs->precision.size(),
+                            filterLayer->_weights->precision().size(),
+                            biasPrecision.size(),
+                            quantized == nullptr ? 1 : quantized->_weights_quant.scale,
+                            quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+                            ptr_inputs,
+                            ptr_outputs,
+                            ptr_weights,
+                            ptr_biases,
+                            false);
+
+    size_t num_data_bytes_out =
+        InferenceEngine::details::product(
+            begin(outputs->dims), end(outputs->dims)) * 4;
+
+    size_t num_data_bytes_in = num_columns_in *
+        ALIGN(num_rows_in, 8) * inputs->precision.size();
+
+    connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+
+    if (num_padding == 0) {
+        gnamem->readonly().push_ptr(ptr_weights,
+                                    filterLayer->_weights->cbuffer().as<const void *>(),
+                                    filterLayer->_weights->byteSize(),
+                                    64);
+    } else {
+        auto elementsIn = (num_rows_in + num_padding) * num_columns_in;
+        auto paddedWeights = elementsIn * num_rows_out;
+        auto paddedWeightsSize = paddedWeights * filterLayer->precision.size();
+
+        gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void * data, size_t size) {
+            size_t offset = 0;
+            for (int i = 0; i < num_rows_out && size >= offset; i++) {
+                ie_memcpy(reinterpret_cast<uint8_t *>(data) + offset, size - offset,
+                          filterLayer->_weights->cbuffer().as<const uint8_t *>() + num_rows_in * i * filterLayer->precision.size(),
+                          num_rows_in * filterLayer->precision.size());
+                offset += (num_rows_in + num_padding) * filterLayer->precision.size();
+            }
+        }, 64);
+    }
+
+    if (filterLayer->_biases) {
+        gnamem->readonly().push_ptr(ptr_biases,
+                                    filterLayer->_biases->cbuffer().as<const void *>(),
+                                    filterLayer->_biases->byteSize(),
+                                    64);
+    } else {
+        gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+    }
+}
+
 void GNAPlugin::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto filterLayer = dynamic_cast<InferenceEngine::WeightableLayer *> (layer.get());
 
@@ -1136,7 +1306,6 @@ void GNAPlugin::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
     std::string& name = filterLayer->name;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
 
-    // we look for this concat layer pointer in extra concat map
     auto prevLayer = CNNNetPrevLayer(layer.get(), 0);
     if (!LayerInfo(prevLayer).isSplit() && !LayerInfo(prevLayer).isSlice()) {
         THROW_GNA_EXCEPTION << "Case  with Affine Aligning Filter for not Split/Slice layers is not implemented yet!";
@@ -1155,8 +1324,9 @@ void GNAPlugin::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_rows_in = filterLayer->_weights->size() / num_rows_out;
 
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
-
-    gnalog() << "Filter " << layer->name << " is being inserted...\n";
+#ifdef  PLOT
+    gnalog() << "IR layer : " << std::left << std::setw(20) << layer->name << (" affine_") << dnnComponentsForLayer.size() - 1 << std::endl;
+#endif
     auto biasPrecision = filterLayer->_biases ? filterLayer->_biases->precision() : outputs->precision;
     dnnComponentsForLayer.emplace_back(layer->name, intel_dnn_component_t());
     auto &currentComponent = dnnComponentsForLayer.back().second;
@@ -1184,7 +1354,7 @@ void GNAPlugin::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
                             ALIGN(num_rows_in, 8) * inputs->precision.size();
 
     connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
-    connectOutput(layer, ptr_outputs, ptr_inputs, num_data_bytes_out);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     if (num_padding == 0) {
         gnamem->readonly().push_ptr(ptr_weights,
@@ -1197,11 +1367,12 @@ void GNAPlugin::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto paddedWeightsSize = paddedWeights * filterLayer->precision.size();
 
         gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void * data, size_t size) {
-            for (int i = 0; i < num_rows_out; i++) {
-                std::memcpy(data,
+            size_t offset = 0;
+            for (int i = 0; i < num_rows_out && size >= offset; i++) {
+                ie_memcpy(reinterpret_cast<uint8_t *>(data) + offset, size - offset,
                        filterLayer->_weights->cbuffer().as<const uint8_t *>() + num_rows_in * i * filterLayer->precision.size(),
                        num_rows_in * filterLayer->precision.size());
-                data = reinterpret_cast<uint8_t *>(data) + (num_rows_in + num_padding) * filterLayer->precision.size();
+                offset += (num_rows_in + num_padding) * filterLayer->precision.size();
             }
         }, 64);
     }
@@ -1349,11 +1520,11 @@ case name:\
         GET_ACTIVATION_NAME(kActKaldiLstmClipping);
         GET_ACTIVATION_NAME(kActIdentity);
     }
-    cout << "IR layer : " << std::left << std::setw(20) << layer->name <<  actName << "_" << dnnComponentsForLayer.size() - 1 <<"\n";
+    std::cout << "IR layer : " << std::left << std::setw(20) << layer->name << " " << actName << "_" << dnnComponentsForLayer.size() - 1 << std::endl;
 #endif
 
     connectInput(layer, ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, ptr_inputs, num_data_bytes_out);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     if (ptr_pwl_segments_target != nullptr) {
         gnamem->readonly().push_local_ptr(ptr_pwl_segments_target,
@@ -1397,10 +1568,12 @@ void GNAPlugin::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"FullyConnected", "InnerProduct"}, CREATE(AffinePrimitive)},
         {{"ScaleShift"}, CREATE(DiagonalPrimitive)},
         {{"AffineFilter"}, CREATE(AffineFilterPrimitive)},
-        {{"Eltwise"},
-         CREATE(EltwisePrimitive)},  // same as diagonal while weights are not taken from network, rather than from another output
+        {{"ConcatAlignFilter"}, CREATE(ConcatAlignFilterPrimitive)},
+        {{"Const"}, CREATE(ConstPrimitive)},
+        {{"Eltwise"}, CREATE(EltwisePrimitive)},  // same as diagonal while weights are not taken from network, rather than from another output
         {{"Split"}, SKIP},  // skip information about which part of prev layer need to consume handle during layer creation
         {{"Slice"}, SKIP},
+        {{"link"}, SKIP},
         {{"clamp", "sigmoid", "relu", "tanh", "identity"}, CREATE(PWLPrimitive)},
         {{"Convolution"}, CREATE(ConvolutionPrimitive)},
         {{"Permute"}, CREATE(PermutePrimitive)},  // permute of certain form (2D transpose) can be assimilated in followed FC layer
@@ -1410,6 +1583,8 @@ void GNAPlugin::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"Reshape"}, SKIP},  // TODO: handled not in GNA but rather in GNA plugin
         {{"Crop"}, CREATE(CropPrimitive)},
         {{"Copy"}, CREATE(CopyPrimitive)},
+        {{"TensorIterator"}, SKIP},
+        {{"LSTMCell"}, SKIP}
     };
     auto it = LayersBuilder::getStorage().find(layer->type);
     if (it != LayersBuilder::getStorage().end()) {
@@ -1418,7 +1593,6 @@ void GNAPlugin::CreateLayerPrimitive(CNNLayerPtr layer) {
         THROW_GNA_EXCEPTION << "Unsupported layer: " << layer->name << ":" << layer->type;
     }
 }
-
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     SetConfig(configMap);
@@ -1437,6 +1611,7 @@ GNAPluginNS::GNAPlugin::LayerType GNAPlugin::LayerTypeFromStr(const std::string 
         { "Split" , Split },
         { "Slice" , Slice },
         { "Eltwise" , Eltwise },
+        { "Const" , Const },
         { "Reshape" , Reshape },
         { "ScaleShift" , ScaleShift },
         { "Clamp" , Clamp },
@@ -1445,7 +1620,9 @@ GNAPluginNS::GNAPlugin::LayerType GNAPlugin::LayerTypeFromStr(const std::string 
         { "Permute" , Permute },
         { "Power" , Power},
         { "Memory" , Memory },
-        { "Crop" , Crop }
+        { "Crop" , Crop },
+        { "LSTMCell", LSTMCell },
+        { "TensorIterator", TensorIterator }
     };
     auto it = LayerNameToType.find(str);
     if (it != LayerNameToType.end())
@@ -1461,16 +1638,18 @@ bool GNAPlugin::AreLayersSupported(ICNNNetwork& network, std::string& errMessage
     auto specifiedDevice = network.getTargetDevice();
     auto network_precision = network.getPrecision();
     network.getInputsInfo(inputs);
-    auto network_input_precision = inputs.begin()->second->getInputPrecision();
+    auto network_input_precision = inputs.begin()->second->getPrecision();
     auto batch_size = network.getBatchSize();
-    if (network_precision != Precision::FP32) {
-        errMessage = "The plugin does not support networks with " + std::string(network_precision.name()) + " format.\n";
+    if (network_precision != Precision::FP32 && network_precision != Precision::FP16) {
+        errMessage = "The plugin does not support networks with " + std::string(network_precision.name()) + " format. Supported network precisions are FP32, "
+                                                                                                            "FP16\n";
         return false;
     }
     if (network_input_precision != Precision::FP32 &&
         network_input_precision != Precision::I16 &&
         network_input_precision != Precision::U8) {
-        errMessage = "The plugin does not support input precision with " + std::string(network_input_precision.name()) + " format.\n";
+        errMessage = "The plugin does not support input precision with " + std::string(network_input_precision.name()) + " format. Supported  input precisions "
+                     "FP32, I16, U8\n";
         return false;
     }
     if (specifiedDevice != InferenceEngine::TargetDevice::eCPU &&
@@ -1496,7 +1675,7 @@ bool GNAPlugin::AreLayersSupported(ICNNNetwork& network, std::string& errMessage
                                            secondLayers.begin()->second,
                                            [&](const CNNLayerPtr layer) {
                                                 if (LayerTypeFromStr(layer->type) == NO_TYPE) {
-                                                    errMessage = "Layer is unsupported by GNA: " + layer->name + ":" + layer->type + "\n";
+                                                    errMessage = "The plugin does not support layer: " + layer->name + ":" + layer->type + "\n";
                                                     check_result =  false;
                                                 }
                                                 if (batch_size != 1 && LayerInfo::isBatchSizeConstrained(layer->type)) {
@@ -1509,10 +1688,6 @@ bool GNAPlugin::AreLayersSupported(ICNNNetwork& network, std::string& errMessage
     return check_result;
 }
 
-float GNAPlugin::get_input_scale_factor() const {
-    return input_scale_factor.empty() ? 1.0 : input_scale_factor.begin()->second;
-}
-
 void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     //  Check the input network
     std::string error;
@@ -1522,49 +1697,49 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
 
     // network optimisation phases
     auto run_passes = [&] (CNNNetPtr network) {
-        auto layers = CNNNetSortTopologically(*network.get());
-        substitutePRelu(layers);
-        layers = CNNNetSortTopologically(*network.get());
-        reorderMaxPool(layers);
-        //  ToDo sort if bool flag "changed"
-        //  returned from insertion function
-        insertAligningFilterLayer(layers);
+        auto passes = make_shared<PassManager>(policy, network);
+        passes->registerPass<UnrollTIPass>();
+        passes->registerPass<UnrollLSTMCellPass>();
+        passes->registerPass<SubstitutePReluPass>();
+        passes->registerPass<ReorderMaxPoolPass>();
+        passes->registerPass<InsertSplitAligningFilterPass>();
+        passes->registerPass<InsertConcatAligningFilterPass>();
+        passes->registerPass<ReorderConcatInputsPass>();
 
-#if ENABLE_AUTO_PERMUTE
-        layers = CNNNetSortTopologically(*network.get());
-        reversePermutations(layers);
-#endif
-        layers = CNNNetSortTopologically(*network.get());
-        insertIdentityLayer(layers);
-        layers = CNNNetSortTopologically(*network.get());
-        insertCopyLayer(layers);
-        layers = CNNNetSortTopologically(*network.get());
-        insertDiagonalLayer(layers);
-        layers = CNNNetSortTopologically(*network.get());
-        substituteScaleShiftBroadCast(layers);
+        if (policy.PermutePolicy != Policy::Permute::DISABLED) {
+            passes->registerPass<ReversePermutationsPass>();
+        }
+        passes->registerPass<InsertIdentityLayerPass>();
+        passes->registerPass<InsertCopyLayerPass>();
+        passes->registerPass<InsertDiagonalLayerPass>();
+        passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
+        passes->registerPass<SubstituteScaleShiftBroadCastPass>();
+
+        passes->run();
     };
 
     Config supported = Config({
-        {TargetDevice::eGNA, Precision::FP32, [&](InferenceEngine::ICNNNetwork &network) -> CNNNetworkPtr {
+        {TargetDevice::eGNA, {Precision::FP32, Precision::FP16}, [&](InferenceEngine::ICNNNetwork &network) -> CNNNetworkPtr {
             if (gnaPrecision == Precision::I16) {
                 ModelQuantizer<QuantI16> q;
-                return q.quantize(network, run_passes, get_input_scale_factor());
+                return q.quantize(network, run_passes, inputScaleFactors);
             }
 
             if (gnaPrecision == Precision::I8) {
                 ModelQuantizer<QuantI8> q;
-                return q.quantize(network, run_passes, get_input_scale_factor());
+                return q.quantize(network, run_passes, inputScaleFactors);
             }
             THROW_GNA_EXCEPTION << "no mans land for GNA precision";
         }},
         // TODO: need to have advanced precision matcher based on layers/biases
-        {TargetDevice::eGNA, Precision::MIXED},
-        {TargetDevice::eGNA, Precision::I16},
-        {TargetDevice::eCPU, Precision::FP32
+        {TargetDevice::eGNA, {Precision::MIXED}},
+        {TargetDevice::eGNA, {Precision::I16}},
+        {TargetDevice::eCPU, {Precision::FP32}
 #define EMULATE_GNA_API_LAYERS
 #ifdef  EMULATE_GNA_API_LAYERS
             , [&](InferenceEngine::ICNNNetwork & network) {
             auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
+                transformLayer(lp, WeightsConverter());
                 return lp;
             };
             auto copiedNet = InferenceEngine::CNNNetCopy(network, visitor);
@@ -1576,13 +1751,11 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     }
     });
 
-    supported.setDefaultDevice(TargetDevice::eGNA);
+    supported.setDefaultDevice(sw_fp32 ?  TargetDevice::eCPU : TargetDevice::eGNA);
+
     auto newNet = supported.find_configuration(network).convert(network);
 
-
-
-    // creating intel dnn_t structures from network
-    auto sortedNet = CNNNetSortTopologically(*newNet);
+    auto sortedNet = CNNNetSortTopologicallyEx(*newNet, make_fuzed_order);
     std::vector<CNNLayerPtr> sortedNoMem;
     std::unordered_map<std::string, std::vector<InferenceEngine::CNNLayerPtr>> memoryPairs;
     // find all memory layers pairs and mark which one used as outputs
@@ -1639,7 +1812,14 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         THROW_GNA_EXCEPTION << "No outputs for the topology";
     }
     if (outputsDataMap.size() != 1) {
-        THROW_GNA_EXCEPTION << "cannot infer topologies with more than one output";
+        for (auto& output : outputsDataMap) {
+            if (output.first.find(std::string("TensorIterator")) != std::string::npos) {
+                outputsDataMap.erase(output.first);
+            }
+        }
+        if (outputsDataMap.size() != 1) {
+            THROW_GNA_EXCEPTION << "cannot infer topologies with more than one output";
+        }
     }
     outputDims = outputsDataMap.begin()->second->dims;
 
@@ -1675,14 +1855,14 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     gnamem->bind_ptr(&ptr_outputs_global.front(), &output_component->second.ptr_outputs);
 
     // make room for active list
-    gnamem->reserve_ptr(nullptr, ALIGN64(output_component->second.num_bytes_per_output * output_component->second.num_rows_out));
+    gnamem->reserve_ptr(nullptr, ALIGN64(output_component->second.num_bytes_per_output * output_component->second.num_rows_out), 64);
 
     void *pParallelExecutionData  = nullptr;
 
     // reserving more bytes for intermidiate data in parallel case - TODO: this works incorrectly in compact mode at lest
     rwSegmentSize = gnamem->getRWBytes();
     if (gna_lib_async_threads_num > 1) {
-        gnamem->reserve_ptr(&pParallelExecutionData, gnamem->getRWBytes() * (gna_lib_async_threads_num - 1));
+        gnamem->reserve_ptr(&pParallelExecutionData, gnamem->getRWBytes() * (gna_lib_async_threads_num - 1), 64);
     }
 
     gnamem->commit();
@@ -1807,8 +1987,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     DumpXNNToFile();
 
 #ifdef PLOT
-    dnn.WriteGraphWizModel("graph.dot");
-    // ExportGnaNetworkAndrzej("layers/loaded_from_ir", &nnet->obj);
+    dnn.WriteGraphWizModel("gna-blob.dot");
 #endif
 }
 void GNAPlugin::DumpXNNToFile() const {
@@ -1820,7 +1999,7 @@ void GNAPlugin::DumpXNNToFile() const {
         }
         auto dump = gnadevice->dumpXnn(&std::get<0>(nnets.front())->obj, ptr_active_indices, num_active_indices);
         dump.header.rw_region_size = gnamem->getRWBytes();
-        dump.header.input_scaling_factor = get_input_scale_factor();
+        dump.header.input_scaling_factor = inputScaleFactors.front();
         dump.header.output_scaling_factor = output_scale_factor;
         std::ofstream dumpStream(dumpXNNPath, std::ios::out | std::ios::binary);
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(intel_gna_model_header));
@@ -1846,7 +2025,8 @@ void RotateFeatures(uint8_t *ptr_feat,
                               element_size);
                 }
             }
-            memcpy(ptr_in, &temp.front(), num_feature_vector_elements * element_size);
+            ie_memcpy(ptr_in, num_feature_vector_elements * element_size,
+                &temp.front(), num_feature_vector_elements * element_size);
         }
     } else {
         THROW_GNA_EXCEPTION << "Rotate dimensions (" << num_rotate_rows << "," << num_rotate_columns
@@ -1912,11 +2092,13 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         ImportFrames(get_ptr_inputs_global(input.first)[idx],
                      input.second->cbuffer().as<float *>(),
                      input.second->precision(),
+                     inputScaleFactors.size() <= idx ? 1.0 : inputScaleFactors[idx],
                      orientation_in[input.first],
                      dims[dims.size() - 1],
                      is2D ? dims[1] : dims[dims.size() - 1],
                      is2D ? dims[0] : dims[0] * dims[1] * dims[2],
                      is2D ? dims[0] : dims[0] * dims[1] * dims[2]);
+
         bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
         if (((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
             != (orientation_in[input.first] == kDnnInterleavedOrientation))
@@ -2057,10 +2239,10 @@ void GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob 
     BlobMap bmInput;
     BlobMap bmOutput;
     if (inputsDataMap.size() != 1) {
-        THROW_GNA_EXCEPTION << "cannot infer using Infer(Blob&, Blob&)"<< "model accepts " << inputsDataMap.size() << "inputs";
+        THROW_GNA_EXCEPTION << "cannot infer using Infer(Blob&, Blob&)"<< "model accepts " << inputsDataMap.size() << " inputs";
     }
     if (outputsDataMap.size() != 1) {
-        THROW_GNA_EXCEPTION << "cannot infer using Infer(Blob&, Blob&)"<< "model accepts " << outputsDataMap.size() << "outputs";
+        THROW_GNA_EXCEPTION << "cannot infer using Infer(Blob&, Blob&)"<< "model accepts " << outputsDataMap.size() << " outputs";
     }
 
     bmInput[inputsDataMap.begin()->first] = std::shared_ptr<Blob>(const_cast<Blob*>(&input), [](Blob*){});
@@ -2096,6 +2278,14 @@ std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() 
     }
 
     return {std::make_shared<GNAMemoryState>(shared_from_this())};
+}
+
+std::string GNAPlugin::GetName() const noexcept {
+    return _pluginName;
+}
+
+void GNAPlugin::SetName(const std::string & pluginName) noexcept {
+    _pluginName = pluginName;
 }
 
 InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::string &modelFileName) {
@@ -2151,13 +2341,13 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::str
                                                  Layout::NC);
 
     output_scale_factor = header.output.scaleFactor;
-    input_scale_factor["input"] = header.input.scaleFactor;
+    inputScaleFactors.push_back(header.input.scaleFactor);
 
     num_rotate_rows = header.nRotateRows;
     num_rotate_columns = header.nRotateColumns;
 
     for (auto && memory : mt) {
-        GNAMemoryLayer memoryLayer(nullptr, nullptr);
+        GNAMemoryLayer memoryLayer(nullptr, nullptr, sw_fp32 ? 4 : 2);
         memoryLayer.gna_ptr = memory.first;
         memoryLayer.reserved_size = memory.second;
 
@@ -2167,8 +2357,7 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::str
     DumpXNNToFile();
 
 #ifdef PLOT
-    dnn.WriteGraphWizModel("graph.dot");
-    // ExportGnaNetworkAndrzej("layers/loaded_from_aot_file", &nnet->obj);
+    dnn.WriteGraphWizModel("gna-blob.dot");
 #endif
 
     return nullptr;
@@ -2192,7 +2381,7 @@ void GNAPlugin::Export(const std::string &fileName) {
     }
 
     auto serial = GNAModelSerial(&std::get<0>(nnets.front())->obj,
-                   {get_input_scale_factor(),
+                   {inputScaleFactors.front(),
                     ptr_inputs_global_storage.front()[0],
                     2,
                     static_cast<uint32_t>(InferenceEngine::details::product(inputsDataMap.begin()->second->getDims()))},
@@ -2218,18 +2407,7 @@ void GNAPlugin::GetPerformanceCounts(std::map<std::string, InferenceEngine::Infe
 void GNAPlugin::AddExtension(InferenceEngine::IExtensionPtr extension) {}
 
 void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config) {
-    std::vector<std::string> supportedConfigOptions = {
-        GNA_CONFIG_KEY(SCALE_FACTOR),
-        GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE),
-        GNA_CONFIG_KEY(DEVICE_MODE),
-        GNA_CONFIG_KEY(COMPACT_MODE),
-        CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
-        GNA_CONFIG_KEY(PRECISION),
-        GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN),
-        CONFIG_KEY(PERF_COUNT),
-        GNA_CONFIG_KEY(LIB_N_THREADS),
-        CONFIG_KEY(SINGLE_THREAD)
-    };
+    auto supportedConfigOptions = supportedConfigKeys();
 
     for (auto& item : config) {
         auto keys = std::find_if(supportedConfigOptions.begin(), supportedConfigOptions.end(), [&item](std::string supportedConfigOption) {
@@ -2270,21 +2448,29 @@ void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config) {
     auto & log = gnalog();
 
     if_start(GNA_CONFIG_KEY(SCALE_FACTOR), [&, this] {
-        // only identical scale factors supported so far
-        auto ref = input_scale_factor.size() ? input_scale_factor.begin()->second : 1.0;
-        input_scale_factor[key] = std::stod(value);
-        if (ref != 1.0 && !fp32eq(input_scale_factor[key], ref)) {
-            std::string message = "only identical input scale factors supported, but provided: "
-                    + std::to_string(ref) + " and " + std::to_string(input_scale_factor[key]);
-            log << "only identical input scale factors supported, but provided: " << ref <<" and " << input_scale_factor[key];
-            THROW_GNA_EXCEPTION << "only identical input scale factors supported, but provided: " << ref <<" and " << input_scale_factor[key];
+        uint64_t scaleForInput = std::stoul(key, NULL, 10);
+        if (scaleForInput > 10) {
+            THROW_GNA_EXCEPTION << "input scale factor with index(" << key << ") unsupported";
         }
+        auto scaleFactor = std::stod(value);
+        if (fp32eq(scaleFactor, 0.0f)) {
+            THROW_GNA_EXCEPTION << "input scale factor of 0.0f not supported";
+        }
+        // not appeared scale factors are to be 1.0f
+        if (inputScaleFactors.size() <= scaleForInput) {
+            inputScaleFactors.resize(scaleForInput + 1, 1.f);
+        }
+        inputScaleFactors[scaleForInput] = std::stod(value);
     });
 
-    if (input_scale_factor.empty()) {
+    if (inputScaleFactors.empty()) {
         if_set(GNA_CONFIG_KEY(SCALE_FACTOR), [&] {
-            input_scale_factor["placeHolder"] = std::stod(value);
+            inputScaleFactors.push_back(std::stod(value));
         });
+    }
+
+    if (inputScaleFactors.empty()) {
+        inputScaleFactors.push_back(1.f);
     }
 
     if_set(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), [&] {
@@ -2300,10 +2486,14 @@ void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config) {
         };
         auto procType = supported_values.find(value);
         if (procType == supported_values.end()) {
-            log << "GNA device mode unsupported: " << value;
-            THROW_GNA_EXCEPTION << "GNA device mode unsupported: " << value;
+            if (value == GNA_CONFIG_VALUE(SW_FP32)) {
+                sw_fp32 = true;
+            } else {
+                THROW_GNA_EXCEPTION << "GNA device mode unsupported: " << value;
+            }
+        } else {
+            gna_proc_type = static_cast<intel_gna_proc_t>(procType->second);
         }
-        gna_proc_type = static_cast<intel_gna_proc_t>(procType->second);
     });
 
     if_set(GNA_CONFIG_KEY(COMPACT_MODE), [&] {
@@ -2386,7 +2576,7 @@ void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config) {
 }
 
 /**
- * @depricated Use the version with config parameter
+ * @deprecated Use the version with config parameter
  */
 void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                              InferenceEngine::QueryNetworkResult& res) const {
@@ -2415,7 +2605,10 @@ void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                                            secondLayers.begin()->second,
                                            [&](CNNLayerPtr const layer) {
                                                 if (GNAPluginNS::GNAPlugin::LayerTypeFromStr(layer->type) != NO_TYPE) {
+                                                    res.supportedLayersMap.insert({ layer->name, GetName() });
+                                                    IE_SUPPRESS_DEPRECATED_START
                                                     res.supportedLayers.insert(layer->name);
+                                                    IE_SUPPRESS_DEPRECATED_END
                                                 }
                                             }, false);
     }
@@ -2427,7 +2620,8 @@ intel_dnn_component_t * GNAPlugin::find_first_unused_input(InferenceEngine::CNNL
 
     return findDnnLayer(prev_layer);
 }
-void GNAPlugin::connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr, void *ptr_inputs, size_t num_data_bytes_out) {
+
+void GNAPlugin::connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr, size_t num_data_bytes_out) {
     gnalog() << "Connecting output " << layer->name << " ...\n";
     // in case of Memory Layer it's input allocated in meminput layer
     if (layer->outData.size() == 1) {
@@ -2443,75 +2637,117 @@ void GNAPlugin::connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr, voi
                 auto &nextMemoryLayer = nextMemoryLayerIt->second;
                 // memory layer not yet initialized
                 if (nextMemoryLayer.reserved_size == 0) {
-                    gnamem->reserve_ptr(&nextMemoryLayer.gna_ptr, ALIGN64(num_data_bytes_out));
+                    auto memorySize = InferenceEngine::details::product(nextMemoryLayer.getDims()) * nextMemoryLayer.elementSizeBytes();
+
+                    gnamem->reserve_ptr(&nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
                     gnamem->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, 0);
 
-                    nextMemoryLayer.reserved_offset = 0;
-                    nextMemoryLayer.reserved_size = ALIGN64(num_data_bytes_out);
+                    nextMemoryLayer.reserved_size = ALIGN64(memorySize);
                 } else {
-                    IE_ASSERT(nextMemoryLayer.reserved_size == ALIGN64(num_data_bytes_out));
-                    // same offsets
+                    IE_ASSERT(nextMemoryLayer.reserved_size >= ALIGN64(num_data_bytes_out));
                     gnamem->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, 0);
                 }
                 return;
             }
         }
 
-        // if one of next layers is concat...
-        for (auto &&outLayer : layer->outData.front()->getInputTo()) {
-            auto nextLayer = outLayer.second;
-            if ( LayerInfo(nextLayer).isConcat() ) {
-                auto& name = layer->name;
-                // we look for this concat layer pointer in extra concat map
-                auto concatLayerInfo = concat_connection.find(
-                                nextLayer->name);
-
-                if (concatLayerInfo != concat_connection.end()) {
-                    auto &concatLayerInfoItem = concatLayerInfo->second;
-
-                    // find this input in vector sum all outputs in primitive
-                    auto it = std::find_if(concatLayerInfoItem.concatInputLayers.begin(),
-                                            concatLayerInfoItem.concatInputLayers.end(),
-                                            [&name](GNAPlugin::GNAConcatLayer::ConcatConnectedLayerInfo &item) {
-                                                return item.name == name;
-                                            });
-                    if (it != concatLayerInfoItem.concatInputLayers.end()) {
-                        // reserve full size for concat
-                        if (!concatLayerInfoItem.output_allocation_flag) {
-                            // check if this concat is being included by other one
-                            // by going thru each concat and checking inputs
-                            auto included =
-                                    std::find_if(concat_connection.begin(),
-                                                 concat_connection.end(),
-                                                 [&concatLayerInfo]
-                                                         (const std::pair<std::string, GNAPlugin::GNAConcatLayer> &concatItem) -> bool {
-                                                     auto it = std::find_if(concatItem.second.concatInputLayers.begin(),
-                                                                            concatItem.second.concatInputLayers.end(),
-                                                                            [&concatLayerInfo]
-                                                                                    (const GNAPlugin::GNAConcatLayer::ConcatConnectedLayerInfo &item) -> bool {
-                                                                                return item.name == concatLayerInfo->first;
-                                                                            });
-                                                     return it != concatItem.second.concatInputLayers.end();
-                                                 });
-                            if (included == concat_connection.end()) {
-                                gnamem->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(concatLayerInfoItem.reserved_size));
-
-                                for (auto &&inputLayer : concatLayerInfoItem.concatInputLayers) {
-                                    if (InferenceEngine::details::CaselessEq<std::string>()
-                                            (inputLayer.name, "input")) {
-                                        bytes_alllocated_for_input[inputLayer.name] = ALIGN64(concatLayerInfoItem.reserved_size) - inputLayer.offset;
-                                    }
-                                }
-                            }
-                            concatLayerInfo->second.output_allocation_flag = true;
-                        }
-                        gnamem->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, it->offset);
-                    }
-                } else {
-                    // error
+        // if one of next direct or via split layers is concat...
+        auto concatChild = [](CNNLayerPtr layer) {
+            CNNLayerPtr concat;
+            for (auto &&outLayer : layer->outData.front()->getInputTo()) {
+                auto nextLayer = outLayer.second;
+                if (LayerInfo(nextLayer).isConcat()) {
+                    concat = nextLayer;
                 }
-                return;
             }
+            return concat;
+        };
+        auto splitChild = [](CNNLayerPtr layer) {
+            std::list<CNNLayerPtr> split;
+            for (auto &&outLayer : layer->outData.front()->getInputTo()) {
+                auto nextLayer = outLayer.second;
+                if (LayerInfo(nextLayer).isSplit() || LayerInfo(nextLayer).isReshape()) {
+                    split.push_back(nextLayer);
+                }
+            }
+            return split;
+        };
+
+        std::list<CNNLayerPtr> splits;
+        auto concat = concatChild(layer);
+        auto concatFather = layer;
+        if (!concat) {
+            splits = splitChild(layer);
+        }
+
+        while (!concat && !splits.empty()) {
+            auto firstSplit = splits.front();
+            concat = concatChild(firstSplit);
+            // now concat prev layer would be this one
+            concatFather = firstSplit;
+            if (concat) {
+                break;
+            }
+            // inserting into front of queue alow DFS simulation while searching
+            splits.pop_front();
+            auto nexSplits = splitChild(firstSplit);
+            splits.insert(splits.begin(), nexSplits.begin(), nexSplits.end());
+        }
+
+        if (concat) {
+            auto& name = concatFather->name;
+            // we look for this concat layer pointer in extra concat map
+            auto concatLayerInfo = concat_connection.find(concat->name);
+
+            if (concatLayerInfo == concat_connection.end()) {
+                THROW_GNA_EXCEPTION << "Cannot find corresponding concat layer: " << concat->name;
+            }
+            auto &concatLayerInfoItem = concatLayerInfo->second;
+
+            // find this input in vector sum all outputs in primitive
+            auto it = std::find_if(concatLayerInfoItem.concatInputLayers.begin(),
+                                    concatLayerInfoItem.concatInputLayers.end(),
+                                    [&name](GNAPlugin::GNAConcatLayer::ConcatConnectedLayerInfo &item) {
+                                        return item.name == name;
+                                    });
+            if (it != concatLayerInfoItem.concatInputLayers.end()) {
+                // reserve full size for concat
+                if (!concatLayerInfoItem.output_allocation_flag) {
+                    // check if this concat is being included by other one
+                    // by going thru each concat and checking inputs
+                    auto included =
+                            std::find_if(concat_connection.begin(),
+                                         concat_connection.end(),
+                                         [&concatLayerInfo]
+                                                 (const std::pair<std::string, GNAPlugin::GNAConcatLayer> &concatItem) -> bool {
+                                             auto it = std::find_if(concatItem.second.concatInputLayers.begin(),
+                                                                    concatItem.second.concatInputLayers.end(),
+                                                                    [&concatLayerInfo]
+                                                                            (const GNAPlugin::GNAConcatLayer::ConcatConnectedLayerInfo &item) -> bool {
+                                                                        return item.name == concatLayerInfo->first;
+                                                                    });
+                                             return it != concatItem.second.concatInputLayers.end();
+                                         });
+                    if (included == concat_connection.end()) {
+                        gnamem->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(concatLayerInfoItem.reserved_size), 64);
+
+                        for (auto &&inputLayer : concatLayerInfoItem.concatInputLayers) {
+                            if (InferenceEngine::details::CaselessEq<std::string>()
+                                    (inputLayer.name, "input")) {
+                                bytes_alllocated_for_input[inputLayer.name] = ALIGN64(concatLayerInfoItem.reserved_size) - inputLayer.offset;
+                            }
+                        }
+                    }
+                    concatLayerInfo->second.output_allocation_flag = true;
+                }
+                // output offset precalculated to serve GNAAlignment requirements
+                auto output_offset = it->offset;
+                if (layer->params.find("output_offset") != layer->params.end()) {
+                    output_offset = layer->GetParamAsInt("output_offset");
+                }
+                gnamem->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, output_offset);
+            }
+            return;
         }
     }
 
@@ -2524,7 +2760,7 @@ void GNAPlugin::connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr, voi
     }
     // cannot reuse suitable input
     if (unused_input == nullptr) {
-        gnamem->reserve_ptr(ptr, ALIGN64(num_data_bytes_out));
+        gnamem->reserve_ptr(ptr, ALIGN64(num_data_bytes_out), 64);
     }
 }
 
@@ -2574,6 +2810,16 @@ GNAPlugin::ConnectionDetails GNAPlugin::connectInput(CNNLayerPtr layer, void *pt
             gnamem->bind_ptr(ptr, &get_ptr_inputs_global(prevLayer->name).front(), offset);
         } else {
             gnamem->bind_ptr(&get_ptr_inputs_global(prevLayer->name).front(), ptr, -offset);
+        }
+
+        return prevLayer;
+    }
+    // const input
+    if (LayerInfo(prevLayer).isConst()) {
+        if (offset >= 0) {
+            gnamem->bind_ptr(ptr, const_connections[prevLayer->name], offset);
+        } else {
+            gnamem->bind_ptr(const_connections[prevLayer->name], ptr, -offset);
         }
 
         return prevLayer;
@@ -2642,17 +2888,18 @@ GNAPlugin::ConnectionDetails GNAPlugin::connectInput(CNNLayerPtr layer, void *pt
         });
     if (prevMemoryLayer != memory_connection.end()) {
         // dnnLayer that is input for memory output layer
+        // TODO: this is duplicate with connect output
         auto& memoryLayer = prevMemoryLayer->second;
         if (memoryLayer.reserved_size == 0) {
-            gnamem->reserve_ptr(&memoryLayer.gna_ptr, ALIGN64(num_data_bytes_in));
+            auto memorySize = InferenceEngine::details::product(memoryLayer.getDims()) * memoryLayer.elementSizeBytes();
+
+            gnamem->reserve_ptr(&memoryLayer.gna_ptr, ALIGN64(memorySize), 64);
             gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
 
-            memoryLayer.reserved_offset = offset;
-            memoryLayer.reserved_size = ALIGN64(num_data_bytes_in);
+            memoryLayer.reserved_size = ALIGN64(memorySize);
         } else {
-            IE_ASSERT(memoryLayer.reserved_size == ALIGN64(num_data_bytes_in));
-            // same offsets
-            gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, memoryLayer.reserved_offset);
+            IE_ASSERT(memoryLayer.reserved_size >= ALIGN64(num_data_bytes_in));
+            gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
         }
 
         return prevLayer;

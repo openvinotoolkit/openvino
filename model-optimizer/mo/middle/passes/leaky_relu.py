@@ -18,65 +18,57 @@ import logging as log
 
 import numpy as np
 
+from extensions.ops.activation_ops import LeakyReLU
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import apply_pattern
-from mo.ops.relu import ReLU
 
 
 def _convert_to_leaky_relu_action(graph: Graph, matches: dict):
     """
     This function checks given patten and if pattern satisfies all requirements, converts to ReLU with negative slope
     """
-    power_op = matches['power_op']
-    power_data = matches['power_data']
+    mul_op = matches['mul_op']
+    mul_value_data = matches['const_data']
+    mul_data = matches['mul_data']
     input_data = matches['data']
-    eltwise_op = matches['eltwise_op']
-    eltwise_data = eltwise_op.out_node()
+    max_op = matches['max_op']
+    max_data = max_op.out_node()
 
     # Check that all nodes satisfies conversion requirements
-    if len(eltwise_op.in_nodes()) > 2:
-        log.debug('Eltwise layer ({}) can not participate in conversion to leaky ReLU due to it has more than two '
-                  'inputs ({})'.format(eltwise_op.id, len(eltwise_op.in_nodes())))
+    if len(max_op.in_nodes()) > 2:
+        log.debug('Maximum layer ({}) can not participate in conversion to leaky ReLU due to it has more than two '
+                  'inputs ({})'.format(max_op.id, len(max_op.in_nodes())))
         return
 
-    if eltwise_op.soft_get('operation') != 'max':
-        log.debug('Eltwise layer ({}) can not participate in conversion to leaky ReLU due to it has not satisfied '
-                  'operation type ({}) should be max'.format(eltwise_op.id, eltwise_op.soft_get('operation')))
+    if mul_value_data.has_valid('value') and mul_value_data.value.size != 1:
+        log.debug('Mul layer ({}) can not participate in conversion to leaky ReLU due to value {}'
+                  ''.format(mul_op.id, mul_value_data.soft_get('value')))
         return
 
-    if not (power_op.has_valid('scale') and power_op.has_valid('power') and power_op.has_valid('shift')):
-        log.debug('Power layer ({}) can not participate in conversion to leaky ReLU due to missing attribute (scale, '
-                  'power or shift)'.format(power_op.id))
-        return
+    value = mul_value_data.value.item(0)
 
-    if power_op.scale > 1 or power_op.power != 1 or power_op.shift != 0:
-        log.debug('Power layer ({}) can not participate in conversion to leaky ReLU due to wrong parameters(Scale = {} '
-                  '(should be < 1), Power {} (should be = 1), Shift {} (should be = 0))'
-                  ''.format(power_op.id, power_op.scale, power_op.power, power_op.shift))
-        return
-
-    if len(power_data.out_nodes()) > 1:
-        log.debug('Power layer({}) can not participate in conversion to leaky ReLU due to it has more than one consumer'
-                  ''.format(power_op.id))
+    if len(mul_data.out_nodes()) > 1:
+        log.debug('Mul layer({}) can not participate in conversion to leaky ReLU due to it has more than one consumer'
+                  ''.format(mul_op.id))
         return
 
     # Disconnect data nodes from ops
-    graph.remove_edge(eltwise_op.id, eltwise_data.id)
-    graph.remove_edge(input_data.id, power_op.id)
-    graph.remove_edge(input_data.id, eltwise_op.id)
+    graph.remove_edge(max_op.id, max_data.id)
+    graph.remove_edge(input_data.id, mul_op.id)
+    graph.remove_edge(input_data.id, max_op.id)
 
     # Create new ReLU operation
-    relu_op = ReLU(graph, dict(name="LeakyReLU_", negative_slope=np.array(power_op.scale)))
-    relu_op.create_node_with_data(inputs=[input_data], data_nodes=eltwise_data)
+    relu_op = LeakyReLU(graph, dict(name="LeakyReLU_", negative_slope=value))
+    relu_op.create_node_with_data(inputs=[input_data], data_nodes=max_data)
 
     log.debug('Successful conversion from {} {} to ReLU with negative slope (leaky ReLU)'
-              ''.format(eltwise_op.id, power_op.id))
+              ''.format(max_op.id, mul_op.id))
 
 
 def convert_mul_eltwise_to_leaky_relu(graph: Graph):
     """
     This function finds next subgraph:
-    -->Data-------->Eltwise(Max)-->Data
+    -->Data-------->Maximum-->Data
           `-->Mul---`
     and replace with ReLU with negative slope
     """
@@ -84,15 +76,19 @@ def convert_mul_eltwise_to_leaky_relu(graph: Graph):
         graph,
         nodes=[
             ('data', dict(kind='data')),
-            ('power_data', dict(kind='data')),
-            ('eltwise_op', dict(kind='op', type='Eltwise')),
-            ('power_op', dict(kind='op', type='Power')),
+            ('mul_data', dict(kind='data')),
+            ('max_op', dict(kind='op', type='Maximum')),
+            ('const_op', dict(kind='op', type='Const')),
+            ('const_data', dict(kind='data')),
+            ('mul_op', dict(kind='op', type='Multiply')),
         ],
         edges=[
-            ('data', 'power_op'),
-            ('power_op', 'power_data'),
-            ('data', 'eltwise_op'),
-            ('power_data', 'eltwise_op'),
+            ('data', 'mul_op'),
+            ('mul_op', 'mul_data'),
+            ('data', 'max_op'),
+            ('mul_data', 'max_op'),
+            ('const_op', 'const_data'),
+            ('const_data', 'mul_op')
         ],
         action=_convert_to_leaky_relu_action
     )

@@ -52,7 +52,7 @@ public:
         float* src_data = inputs[0]->buffer();
         float* dst_data = outputs[0]->buffer();
 
-        if (inputs[0]->layout() == NCHW || inputs[0]->layout() == NCDHW) {
+        if (inputs[0]->getTensorDesc().getLayout() == NCHW || inputs[0]->getTensorDesc().getLayout() == NCDHW) {
             mvn_pln(src_data, dst_data, inputs[0]->getTensorDesc().getDims());
         } else {
             mvn_blk(src_data, dst_data, inputs[0]->getTensorDesc().getDims());

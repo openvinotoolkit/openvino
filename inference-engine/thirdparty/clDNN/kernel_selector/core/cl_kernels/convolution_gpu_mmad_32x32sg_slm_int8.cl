@@ -348,15 +348,15 @@ KERNEL(Kernel_GEMM_MMAD8_32x32SG_128x128WG_SLM_INT8)
         // end of account for padding
 
         // B0 F0..31
-		regC_uchar8[offset_uc8].s0 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s0) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s1 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s0) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s2 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s0) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s3 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s0) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));	
+		regC_uchar8[offset_uc8].s0 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s0) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s1 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s0) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s2 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s0) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s3 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s0) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));
         // B1 F0..31		
-		regC_uchar8[offset_uc8].s4 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s1) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s5 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s1) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s6 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s1) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s7 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s1) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));	
+		regC_uchar8[offset_uc8].s4 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s1) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s5 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s1) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s6 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s1) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s7 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s1) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));
 
 		FUNC_CALL(sub_group_block_write_uchar8)(&g_outC_uchar[padded_offset], regC_uchar8[offset_uc8]);
         cOffset += sizeof(uchar8) * SG_SIZE;
@@ -364,15 +364,15 @@ KERNEL(Kernel_GEMM_MMAD8_32x32SG_128x128WG_SLM_INT8)
         offset_uc8++;
 
         // B2 F0..31
-        regC_uchar8[offset_uc8].s0 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s2) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s1 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s2) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s2 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s2) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s3 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s2) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));	
+        regC_uchar8[offset_uc8].s0 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s2) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s1 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s2) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s2 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s2) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s3 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s2) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));
         // B3 F0..31		
-		regC_uchar8[offset_uc8].s4 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s3) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s5 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s3) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s6 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s3) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s7 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s3) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));	
+		regC_uchar8[offset_uc8].s4 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s3) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s5 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s3) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s6 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s3) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s7 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s3) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));
 		
 		FUNC_CALL(sub_group_block_write_uchar8)(&g_outC_uchar[padded_offset], regC_uchar8[offset_uc8]);
 		cOffset += sizeof(uchar8) * SG_SIZE;
@@ -382,30 +382,30 @@ KERNEL(Kernel_GEMM_MMAD8_32x32SG_128x128WG_SLM_INT8)
         padded_offset = FUNC_CALL(calculate_output_offset_to_account_padding)(cOffset);
         //
 
-        regC_uchar8[offset_uc8].s0 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s4) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s1 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s4) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s2 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s4) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s3 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s4) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));	
+        regC_uchar8[offset_uc8].s0 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s4) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s1 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s4) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s2 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s4) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s3 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s4) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));
 		
-		regC_uchar8[offset_uc8].s4 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s5) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s5 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s5) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s6 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s5) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s7 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s5) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));
+		regC_uchar8[offset_uc8].s4 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s5) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s5 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s5) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s6 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s5) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s7 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s5) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));
 
 		FUNC_CALL(sub_group_block_write_uchar8)(&g_outC_uchar[padded_offset], regC_uchar8[offset_uc8]);
         cOffset += sizeof(uchar8) * SG_SIZE;
         padded_offset += sizeof(uchar8) * SG_SIZE;
         offset_uc8++;
 
-        regC_uchar8[offset_uc8].s0 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s6) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s1 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s6) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s2 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s6) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s3 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s6) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));	
+        regC_uchar8[offset_uc8].s0 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s6) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s1 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s6) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s2 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s6) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s3 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s6) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));
 		
-		regC_uchar8[offset_uc8].s4 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s7) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s5 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s7) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s6 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s7) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));
-		regC_uchar8[offset_uc8].s7 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s7) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));
+		regC_uchar8[offset_uc8].s4 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i].s7) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s5 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i].s7) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s6 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i].s7) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));
+		regC_uchar8[offset_uc8].s7 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i].s7) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));
 
 		FUNC_CALL(sub_group_block_write_uchar8)(&g_outC_uchar[padded_offset], regC_uchar8[offset_uc8]);
         cOffset += sizeof(uchar8) * SG_SIZE;

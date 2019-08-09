@@ -27,9 +27,11 @@ class SplitFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
+        size_splits = onnx_attr(node, 'split', 'ints', default=None, dst_type=int64_array)
         attrs = {
-            'size_splits': onnx_attr(node, 'split', 'ints', default=None, dst_type=int64_array),
-            'axis': onnx_attr(node, 'axis', 'i', default=0, dst_type=np.int64)
+            'size_splits': size_splits,
+            'axis': onnx_attr(node, 'axis', 'i', default=0, dst_type=np.int64),
+            'out_ports_count': len(size_splits),
         }
         # update the attributes of the node
         SplitV.update_node_stat(node, attrs)

@@ -16,12 +16,15 @@
 
 import numpy as np
 
-from mo.ops.unsqueeze import Unsqueeze
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
+from mo.ops.expand_dims import ExpandDims
 
 
 class UnsqueezeFrontExtractor(FrontExtractorOp):
+    """
+    Convert Unsqueeze layer to ExpandDims because the ExpandDims layer has fixed attribute with dimensions to unsqueeze.
+    """
     op = 'Unsqueeze'
     enabled = True
 
@@ -29,10 +32,5 @@ class UnsqueezeFrontExtractor(FrontExtractorOp):
     def extract(node):
         axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
 
-        attrs = {
-            'unsqueeze_dims': axis if len(axis) != 0 else None
-        }
-
-        # update the attributes of the node
-        Unsqueeze.update_node_stat(node, attrs)
+        ExpandDims.update_node_stat(node, {'expand_axis': axis})
         return __class__.enabled

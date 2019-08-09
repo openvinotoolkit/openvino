@@ -20,19 +20,15 @@ from ..representation import MultiLabelRecognitionAnnotation, MultiLabelRecognit
 from ..config import StringField, BoolField
 
 
+class MultiLabelConfigValidator(BaseMetricConfig):
+    label_map = StringField(optional=True)
+    calculate_average = BoolField(optional=True)
+
+
 class MultiLabelMetric(PerImageEvaluationMetric):
     annotation_types = (MultiLabelRecognitionAnnotation,)
     prediction_types = (MultiLabelRecognitionPrediction,)
-
-    def validate_config(self):
-        class _MultiLabelConfigValidator(BaseMetricConfig):
-            label_map = StringField(optional=True)
-            calculate_average = BoolField(optional=True)
-
-        config_validator = _MultiLabelConfigValidator(
-            'accuracy', on_extra_argument=_MultiLabelConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        config_validator.validate(self.config)
+    _config_validator_type = MultiLabelConfigValidator
 
     def configure(self):
         label_map = self.config.get('label_map', 'label_map')

@@ -28,18 +28,27 @@
 #include <map>
 #include <vector>
 #include <unordered_map>
+#include <string>
+#include <memory>
+#include <list>
+#include <set>
 
-namespace cldnn
-{
+namespace cldnn {
 
 class primitive_inst;
 
-struct network_impl : public refcounted_obj<network_impl>
-{
+struct network_impl : public refcounted_obj<network_impl> {
 public:
-    network_impl(const program_impl& program, bool is_internal = false);
-    network_impl(engine_impl& engine, const topology_impl& topo, const build_options& options = build_options(), bool is_internal = false);
-    network_impl(engine_impl& engine, const std::set<std::shared_ptr<program_node>>& nodes, const build_options & options, bool is_internal);
+    network_impl(const program_impl& program, uint16_t stream_id, bool is_internal = false);
+    network_impl(engine_impl& engine,
+                 const topology_impl& topo,
+                 const build_options& options = build_options(),
+                 uint16_t stream_id = 0,
+                 bool is_internal = false);
+    network_impl(engine_impl& engine,
+                 const std::set<std::shared_ptr<program_node>>& nodes,
+                 const build_options& options,
+                 bool is_internal);
 
     const program_impl& get_program() const { return *_program; }
     engine_impl& get_engine() const { return _program->get_engine(); }
@@ -49,11 +58,11 @@ public:
 
     void set_learning_rate(const float lr);
     float get_learning_rate();
+    uint16_t get_stream_id() const { return _stream_id; }
 
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
 
-    const std::vector<std::shared_ptr<const primitive_inst>>& get_outputs() const
-    {
+    const std::vector<std::shared_ptr<const primitive_inst>>& get_outputs() const {
         return reinterpret_cast<const std::vector<std::shared_ptr<const primitive_inst>>&>(_outputs);
     }
 
@@ -61,6 +70,8 @@ public:
     std::vector<primitive_id> get_executed_primitive_ids() const;
     std::vector<primitive_id> get_all_primitive_ids() const;
     std::vector<primitive_id> get_all_primitive_org_ids() const;
+    const program_impl::primitives_info& get_primitives_info() const;
+    const program_impl::graph_optimizer_info& get_optimizer_passes_info() const;
     void execute(const std::vector<event_impl::ptr>& events);
     void validate_primitives();
     // Implementation specific calls
@@ -69,17 +80,20 @@ public:
     const event_impl::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<program_node*>& nodes);
-    void execute_primitive(const std::shared_ptr<primitive_inst>& primitive, const std::vector<event_impl::ptr>& events);
+    void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
+                           const std::vector<event_impl::ptr>& events);
     void allocate_primitives();
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
-    void build_exec_order();    
+    void build_exec_order();
     bool is_internal() const { return _internal; }
+
 private:
-    uint32_t net_id = 0; 
+    uint32_t net_id = 0;
     const program_impl::cptr _program;
+    uint16_t _stream_id;
     bool _internal;
-    float _learning_rate = float(0.00001);
+    float _learning_rate = static_cast<float>(0.00001);
 
     std::map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<std::shared_ptr<primitive_inst>> _inputs;
@@ -90,11 +104,12 @@ private:
     std::unordered_map<primitive_id, event_impl::ptr> _events;
 
     void allocate_primitive_instance(program_node const& node);
+    void allocate_mutable_data_for_streams(std::vector<std::shared_ptr<program_node>>& mutable_data_nodes);
     void add_to_exec_order(const primitive_id& id);
     std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id);
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id);
     void check_names();
 };
-}
+}  // namespace cldnn
 
 API_CAST(::cldnn_network, cldnn::network_impl)

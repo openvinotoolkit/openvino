@@ -38,3 +38,13 @@ register_exe(simple-net-int8-cpp simple_net_int8.cpp "test")
 register_exe(simple-rnn-cpp simple_rnn.cpp "test")
 register_exe(simple-rnn-int8-cpp simple_rnn_int8.cpp "test")
 register_exe(simple-rnn-training-cpp simple_rnn_training.cpp "test")
+
+if (MKLDNN_INSTALL_MODE STREQUAL "BUNDLE")
+    file(GLOB example_sources "*.cpp" "*.c")
+    configure_file(CMakeLists.txt.in CMakeLists.txt @ONLY)
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/CMakeLists.txt
+        ${PROJECT_SOURCE_DIR}/cmake/template.vcxproj.user
+        ${example_sources}
+        DESTINATION examples)
+endif()

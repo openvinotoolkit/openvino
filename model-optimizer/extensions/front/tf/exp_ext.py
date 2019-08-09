@@ -15,7 +15,7 @@
 """
 
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.activation import Activation
+from extensions.ops.activation_ops import Exp
 
 
 class ExpExtractor(FrontExtractorOp):
@@ -24,5 +24,5 @@ class ExpExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
-        Activation.update_node_stat(node, {'operation': 'exp'})
+        Exp.update_node_stat(node)
         return __class__.enabled

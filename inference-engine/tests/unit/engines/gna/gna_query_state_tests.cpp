@@ -17,9 +17,9 @@ using namespace GNATestIRs;
 // Precision Threshold
 
 TEST_F(QueryStateTest, returnEmptyCollectionOfStatesIfNoMemoryInIR) {
-    assert_that().afterLoadingModel(TanhActivationModel()).queryState().isEmpty();
+    assert_that().afterLoadingModel(TanhActivationModel()).withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).queryState().isEmpty();
 }
 
 TEST_F(QueryStateTest, returnNonEmptyCollectionOfStatesForMemoryIR) {
-    assert_that().afterLoadingModel(affineToMemoryModel()).queryState().isNotEmpty();
+    assert_that().afterLoadingModel(affineToMemoryModel()).withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).queryState().isNotEmpty();
 }

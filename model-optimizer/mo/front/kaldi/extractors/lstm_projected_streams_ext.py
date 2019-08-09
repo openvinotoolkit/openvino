@@ -44,7 +44,8 @@ class LSTMProjectedStreamsFrontExtractor(FrontExtractorOp):
         mapping_rule = {'gifo_x_weights_shape': gifo_x_weights_shape,
                         'gifo_r_weights_shape': gifo_r_weights_shape,
                         'projection_weights_shape': projection_weights_shape,
-                        'clip_value': clip_value
+                        'clip_value': clip_value,
+                        'format': 'kaldi',
                         }
 
         embed_input(mapping_rule, 1, 'gifo_x_weights', gifo_x_weights)

@@ -19,7 +19,7 @@ import numpy as np
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph
 from mo.ops.const import Const
-from mo.ops.lin_op import Mul, Add
+from extensions.ops.elementwise import Mul, Add
 
 
 class ImageScaler(FrontReplacementOp):

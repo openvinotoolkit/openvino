@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNRNN : public MKLDNNNode {
 public:
-    MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNRNN() override = default;
 
     void getSupportedDescriptors() override;
@@ -22,7 +22,8 @@ public:
     bool created() const override;
 
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
+                          const std::vector<InferenceEngine::TensorDesc>& outputDesc,
+                          const std::vector<mkldnn::memory::format> &outputFormats);
 
     void execute(mkldnn::stream strm) override;
 

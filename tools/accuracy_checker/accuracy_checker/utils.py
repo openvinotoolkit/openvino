@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import collections
 import csv
 import errno
 import itertools
@@ -29,6 +28,7 @@ from warnings import warn
 from shapely.geometry.polygon import Polygon
 import numpy as np
 import yaml
+import yamlloader
 
 try:
     import lxml.etree as et
@@ -40,11 +40,14 @@ def concat_lists(*lists):
     return list(itertools.chain(*lists))
 
 
-def get_path(entry: Union[str, Path], is_directory=False):
+def get_path(entry: Union[str, Path], is_directory=False, check_exists=True):
     try:
         path = Path(entry)
     except TypeError:
         raise TypeError('"{}" is expected to be a path-like'.format(entry))
+
+    if not check_exists:
+        return path
 
     # pathlib.Path.exists throws an exception in case of broken symlink
     if not os.path.exists(str(path)):
@@ -259,15 +262,8 @@ def read_pickle(file: Union[str, Path], *args, **kwargs):
 
 
 def read_yaml(file: Union[str, Path], *args, **kwargs):
-    # yaml does not keep order of keys in dictionaries but it is important for reading pre/post processing
-    yaml.add_representer(collections.OrderedDict, lambda dumper, data: dumper.represent_dict(data.items()))
-    yaml.add_constructor(
-        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
-        lambda loader, node: collections.OrderedDict(loader.construct_pairs(node))
-    )
-
     with get_path(file).open() as content:
-        return yaml.load(content, Loader=yaml.SafeLoader, *args, **kwargs)
+        return yaml.load(content, *args, Loader=yamlloader.ordereddict.Loader, **kwargs)
 
 
 def read_csv(file: Union[str, Path], *args, **kwargs):
@@ -359,3 +355,31 @@ def convert_to_range(entry):
 def add_input_shape_to_meta(meta, shape):
     meta['input_shape'] = shape
     return meta
+
+
+def set_image_metadata(annotation, images):
+    image_sizes = []
+    data = images.data
+    if not isinstance(data, list):
+        data = [data]
+    for image in data:
+        image_sizes.append(image.shape)
+    annotation.set_image_size(image_sizes)
+
+    return annotation, images
+
+
+def get_indexs(container, element):
+    return [index for index, container_element in enumerate(container) if container_element == element]
+
+
+def find_nearest(array, value, mode=None):
+    if not array:
+        return -1
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    if mode == 'less':
+        return idx - 1 if array[idx] > value else idx
+    if mode == 'more':
+        return idx + 1 if array[idx] < value else idx
+    return idx

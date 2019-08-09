@@ -120,7 +120,15 @@ class Crop(Op):
         node.axis = start_axis
 
         reference_shape = np.array(shapes[1])
-        input_dim = input_shape.size
+        if node.has_valid('axes'):
+            '''
+            The axes parameter  contain shape indexes for second input and 
+            show which shape indexes we need to use for dim attribute.
+            '''
+            input_dim = node.axes
+            node.in_port(1).disconnect()
+        else:
+            input_dim = list(range(0, input_shape.size))
 
         # set new shape to current shape
         new_shape = input_shape.copy()
@@ -128,7 +136,7 @@ class Crop(Op):
         ir_offset = []
         dim = []
 
-        for i in range(0, input_dim):
+        for i in input_dim:
             if i < start_axis:
                 new_shape[i] = input_shape[i]
                 continue

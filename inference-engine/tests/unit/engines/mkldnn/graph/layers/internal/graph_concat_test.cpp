@@ -139,11 +139,11 @@ protected:
                     break;
             }
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, layout});
             src1->allocate();
 
             fill_data(src1->buffer(), src1->size());
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, layout});
             src2->allocate();
             fill_data(src2->buffer(), src2->size());
             InferenceEngine::BlobMap srcs;
@@ -172,9 +172,9 @@ protected:
             size_t dst_size = output->size();
 
             int len1 = 1, len2 = 1, cycles;
-            for (int dim = p.axis; dim < output->dims().size(); dim++) {
-                len1 *= src1->dims()[dim];
-                len2 *= src2->dims()[dim];
+            for (int dim = p.axis; dim < output->getTensorDesc().getDims().size(); dim++) {
+                len1 *= src1->getTensorDesc().getDims()[dim];
+                len2 *= src2->getTensorDesc().getDims()[dim];
             }
             cycles = p.axis;
 
@@ -341,11 +341,11 @@ protected:
                     break;
             }
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, layout});
             src1->allocate();
 
             fill_data(src1->buffer(), src1->size());
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, layout});
             src2->allocate();
             fill_data(src2->buffer(), src2->size());
             InferenceEngine::BlobMap srcs;
@@ -681,15 +681,15 @@ protected:
                     break;
             }
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, layout});
             src1->allocate();
             fill_data(src1->buffer(), src1->size());
 
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, layout});
             src2->allocate();
             fill_data(src2->buffer(), src2->size());
 
-            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src3);
+            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src3, layout});
             src3->allocate();
             fill_data(src3->buffer(), src3->size());
 
@@ -702,8 +702,8 @@ protected:
             out = net_reader.getNetwork().getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
-            for (auto it = out.begin(); it != out.end(); it++) {
-                std::pair<std::string, InferenceEngine::DataPtr> item = *it;
+            for (auto & it : out) {
+                std::pair<std::string, InferenceEngine::DataPtr> item = it;
                 InferenceEngine::TBlob<float>::Ptr output;
                 output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
                 output->allocate();
@@ -712,7 +712,7 @@ protected:
 
             graph.Infer(srcs, outputBlobs);
 
-            for (auto concat : {p.concat1, p.concat2}) {
+            for (const auto& concat : {p.concat1, p.concat2}) {
                 float *src1_ptr;
                 size_t src1_size;
                 float *src2_ptr;
@@ -758,9 +758,9 @@ protected:
                 size_t dst_size = outputBlobs[concat.name]->size();
 
                 int len1 = 1, len2 = 1, cycles;
-                for (int dim = concat.axis; dim < outputBlobs[concat.name]->dims().size(); dim++) {
-                    len1 *= src1_c->dims()[dim];
-                    len2 *= src2_c->dims()[dim];
+                for (int dim = concat.axis; dim < outputBlobs[concat.name]->getTensorDesc().getDims().size(); dim++) {
+                    len1 *= src1_c->getTensorDesc().getDims()[dim];
+                    len2 *= src2_c->getTensorDesc().getDims()[dim];
                 }
                 cycles = concat.axis;
 
@@ -953,14 +953,14 @@ protected:
             InferenceEngine::SizeVector dims_src1 = {1, 3, 2, 2};
             InferenceEngine::SizeVector dims_src2 = {1, 2, 2, 2};
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, InferenceEngine::NCHW});
             src1->allocate();
             float *src1_data = src1->buffer();
             for (size_t i = 0; i < src1->size(); i++) {
                 src1_data[i] = i + 1;
             }
 
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, InferenceEngine::NCHW});
             src2->allocate();
             fill_data(src2->buffer(), src2->size());
 
@@ -972,8 +972,8 @@ protected:
             out = net_reader.getNetwork().getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
-            for (auto it = out.begin(); it != out.end(); it++) {
-                std::pair<std::string, InferenceEngine::DataPtr> item = *it;
+            for (auto & it : out) {
+                std::pair<std::string, InferenceEngine::DataPtr> item = it;
                 InferenceEngine::TBlob<float>::Ptr output;
                 output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
                 output->allocate();
@@ -991,9 +991,9 @@ protected:
             size_t dst_size = outputBlobs["o_concat"]->size();
 
             int len1 = 1, len2 = 1, cycles;
-            for (int dim = 1; dim < outputBlobs["o_concat"]->dims().size(); dim++) {
-                len1 *= src2->dims()[dim];
-                len2 *= src1->dims()[dim];
+            for (int dim = 1; dim < outputBlobs["o_concat"]->getTensorDesc().getDims().size(); dim++) {
+                len1 *= src2->getTensorDesc().getDims()[dim];
+                len2 *= src1->getTensorDesc().getDims()[dim];
             }
             cycles = 1;
 

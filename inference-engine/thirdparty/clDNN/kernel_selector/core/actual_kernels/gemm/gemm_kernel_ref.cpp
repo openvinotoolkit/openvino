@@ -16,26 +16,28 @@
 
 #include "gemm_kernel_ref.h"
 
-namespace kernel_selector
-{
-    ParamsKey GemmKernelRef::GetSupportedKey() const
-    {
-        ParamsKey k;
+namespace kernel_selector {
+ParamsKey GemmKernelRef::GetSupportedKey() const {
+    ParamsKey k;
 
-        k.EnableInputDataType(Datatype::F16);
-        k.EnableInputDataType(Datatype::F32);
-        k.EnableOutputDataType(Datatype::F32);
-        k.EnableOutputDataType(Datatype::F16);
-        k.EnableInputLayout(DataLayout::bfyx);
-        k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfwzyx);
+    k.EnableOutputLayout(DataLayout::bfwzyx);
 
-        k.EnableBatching();
+    k.EnableBatching();
+    k.EnableTensorPitches();
 
-        return k;
-    }
-
-    KernelsData GemmKernelRef::GetKernelsData(const Params& params, const optional_params& options) const
-    {
-        return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
-    }
+    return k;
 }
+
+KernelsData GemmKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+}
+}  // namespace kernel_selector

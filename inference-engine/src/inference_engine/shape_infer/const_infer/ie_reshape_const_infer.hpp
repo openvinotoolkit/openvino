@@ -31,6 +31,9 @@ public:
         const auto* inBuffer = inBlob->cbuffer().as<uint8_t*>();
         auto outBlob = *outData.begin();
         auto* outBuffer = outBlob->buffer().as<uint8_t*>();
+        if (outBlob->byteSize() != inBlob->byteSize())
+            THROW_IE_EXCEPTION << "ReshapeConstInfer: input/output tensor size mismatch";
+
         ie_memcpy(outBuffer, outBlob->byteSize(), inBuffer, inBlob->byteSize());
     }
 };

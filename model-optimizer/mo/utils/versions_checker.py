@@ -70,6 +70,7 @@ def get_module_version_list_from_file(file_name):
             if line == '':
                 continue
             splited_line = re.split(r"==|>=|<=|>|<", line)
+            splited_line = [l.strip(',') for l in splited_line]
             if len(splited_line) == 1:
                 req_dict.append((splited_line[0], None, None))
             else:

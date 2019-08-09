@@ -15,18 +15,17 @@
 """
 from copy import deepcopy
 
-import numpy as np
-import networkx as nx
-
-from collections import namedtuple
-
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.connection import Connection
 from mo.utils.error import Error
 
 
 class Port:
-    def __init__(self, node, idx: int, type: str):
+    class DataAccessor:
+        def __init__(self):
+            pass
+
+    def __init__(self, node, idx: int, type: str, **kwargs):
         if type not in ['in', 'out']:
             raise Error("Inappropriate port type: {}".format(type))
 
@@ -34,7 +33,9 @@ class Port:
         self.__dict__['node'] = node
         self.__dict__['idx'] = idx
         self.__dict__['type'] = type
-        self.__dict__['data'] = namedtuple('Data', ['get_value', 'get_shape', 'get_attr', 'set_value', 'set_shape', 'set_attr', 'has_valid'])
+        self.__dict__['data'] = self.DataAccessor()
+        self.__dict__['control_flow'] = False
+        self.__dict__.update(kwargs)
 
         self.data.get_shape = self._get_shape
         self.data.set_shape = self._set_shape
@@ -49,11 +50,11 @@ class Port:
 
     def __eq__(self, other):
         return (
-            self.__class__ == other.__class__ and
-            self.node.graph == other.node.graph and
-            self.node.id == other.node.id and
-            self.type == other.type and
-            self.idx == other.idx
+                self.__class__ == other.__class__ and
+                self.node.graph == other.node.graph and
+                self.node.id == other.node.id and
+                self.type == other.type and
+                self.idx == other.idx
         )
 
     def __deepcopy__(self, memo):
@@ -65,11 +66,17 @@ class Port:
         return result
 
     def __setattr__(self, key, value):
-        edge = self.node.in_edge(self.idx) if self.type == 'in' else self.node.out_edge(self.idx)
+        edge = self.node.in_edge(self.idx, control_flow=self.control_flow) if self.type == 'in' else \
+            self.node.out_edge(self.idx, control_flow=self.control_flow)
         edge[key] = value
 
     def __getattr__(self, item):
-        edge = self.node.in_edge(self.idx) if self.type == 'in' else self.node.out_edge(self.idx)
+        edge = self.node.in_edge(self.idx, control_flow=self.control_flow) if self.type == 'in' else \
+            self.node.out_edge(self.idx, control_flow=self.control_flow)
+        if edge.get(item) is None:
+            raise Error(
+                "Edge from {}_port {} at node {} has no attribute {}".format(self.type, self.idx, self.node.name, item))
+        return edge[item]
 
     def _create_data_if_necessary(self):
         if self.node.graph.stage == 'front':
@@ -77,42 +84,44 @@ class Port:
         if self.type == 'in':
             raise Error("_create_data_if_necessary method is not applicable for 'in' Port type!")
 
-        if self.idx not in self.node.out_nodes():
+        if self.idx not in self.node.out_nodes(control_flow=self.control_flow):
             from mo.ops.op import Op
             Op.create_data_node(self.node.graph, self.node, out_port=self.idx)
             self.node['need_shape_inference'] = True
-        return self.node.out_node(self.idx)
+        return self.node.out_node(self.idx, control_flow=self.control_flow)
 
     def _get_shape(self):
         if self.node.graph.stage == 'front':
             return None
         else:
             if self.type == 'in':
-                return self.node.in_node(self.idx).shape
+                return self.node.in_node(self.idx, control_flow=self.control_flow).shape
             else:
-                return self.node.out_node(self.idx).shape
+                return self.node.out_node(self.idx, control_flow=self.control_flow).shape
 
     def _set_shape(self, shape):
         if self.node.graph.stage == 'front':
             raise NotImplementedError("set_shape not implemented for front phase")
         else:
             if self.type == 'in':
-                assert self.node.in_node(self.idx).value is None
-                self.node.in_node(self.idx).shape = int64_array(shape)
+                assert self.node.in_node(self.idx, control_flow=self.control_flow).value is None
+                self.node.in_node(self.idx, control_flow=self.control_flow).shape = int64_array(shape)
             else:
-                assert self.node.out_node(self.idx).value is None
-                self.node.out_node(self.idx).shape = int64_array(shape)
+                assert self.node.out_node(self.idx, control_flow=self.control_flow).value is None
+                self.node.out_node(self.idx, control_flow=self.control_flow).shape = int64_array(shape)
 
     def _get_value(self):
         if self.node.graph.stage == 'front':
             return None
         else:
             if self.type == 'in':
-                if self.idx in self.node.in_nodes() and self.node.in_node(self.idx).has_valid('value'):
-                    return self.node.in_node(self.idx).value
+                if self.idx in self.node.in_nodes(control_flow=self.control_flow) and \
+                        self.node.in_node(self.idx, control_flow=self.control_flow).has_valid('value'):
+                    return self.node.in_node(self.idx, control_flow=self.control_flow).value
             else:
-                if self.idx in self.node.out_nodes() and self.node.out_node(self.idx).has_valid('value'):
-                    return self.node.out_node(self.idx).value
+                if self.idx in self.node.out_nodes(control_flow=self.control_flow) and \
+                        self.node.out_node(self.idx, control_flow=self.control_flow).has_valid('value'):
+                    return self.node.out_node(self.idx, control_flow=self.control_flow).value
         return None
 
     def _set_value(self, value):
@@ -120,22 +129,33 @@ class Port:
             raise Error("set_value is not applicable for graph front phase")
         else:
             if self.type == 'in':
-                self.node.in_node(self.idx).value = value
-                self.node.in_node(self.idx).shape = int64_array(value.shape)
+                data_node = self.node.in_node(self.idx, control_flow=self.control_flow)
+                const_node = data_node.in_node(control_flow=self.control_flow)
+                # Set value to data node
+                data_node.value = value
+                data_node.shape = int64_array(value.shape)
+                # Set value to constant producer
+                const_node.value = value
+                const_node.shape = int64_array(value.shape)
             else:
-                self.node.out_node(self.idx).value = value
-                self.node.out_node(self.idx).shape = int64_array(value.shape)
+                self.node.out_node(self.idx, control_flow=self.control_flow).value = value
+                self.node.out_node(self.idx, control_flow=self.control_flow).shape = int64_array(value.shape)
+                if self.node.has_valid('type') and self.node.type == 'Const':
+                    self.node.value = value
+                    self.node.shape = int64_array(value.shape)
 
     def _get_attr(self, item: str):
         if self.node.graph.stage == 'front':
             return None
         else:
             if self.type == 'in':
-                if self.idx in self.node.in_nodes() and self.node.in_node(self.idx).has_valid(item):
-                    return self.node.in_node(self.idx)[item]
+                if self.idx in self.node.in_nodes(control_flow=self.control_flow) and \
+                        self.node.in_node(self.idx, control_flow=self.control_flow).has_valid(item):
+                    return self.node.in_node(self.idx, control_flow=self.control_flow)[item]
             else:
-                if self.idx in self.node.out_nodes() and self.node.out_node(self.idx).has_valid(item):
-                    return self.node.out_node(self.idx)[item]
+                if self.idx in self.node.out_nodes(control_flow=self.control_flow) and \
+                        self.node.out_node(self.idx, control_flow=self.control_flow).has_valid(item):
+                    return self.node.out_node(self.idx, control_flow=self.control_flow)[item]
         return None
 
     def _set_attr(self, item, value):
@@ -162,10 +182,12 @@ class Port:
             raise NotImplementedError
         else:
             if self.type == 'in':
-                if self.idx in self.node.in_nodes() and self.node.in_node(self.idx).has_valid(item):
+                if self.idx in self.node.in_nodes(control_flow=self.control_flow) and \
+                        self.node.in_node(self.idx, control_flow=self.control_flow).has_valid(item):
                     return True
             else:
-                if self.idx in self.node.out_nodes() and self.node.out_node(self.idx).has_valid(item):
+                if self.idx in self.node.out_nodes(control_flow=self.control_flow) and \
+                        self.node.out_node(self.idx, control_flow=self.control_flow).has_valid(item):
                     return True
         return False
 
@@ -189,25 +211,28 @@ class Port:
 
         has_producer = False
         if self.node.graph.stage == 'front':
-            for n, d in self.node.get_inputs():
+            for n, d in self.node.get_inputs(control_flow=self.control_flow):
                 if d['in'] == self.idx:
                     node = Node(self.node.graph, n)
-                    producer_ports.append(node.out_port(d['out']))
+                    producer_ports.append(node.out_port(d['out'], control_flow=self.control_flow))
                     has_producer = True
             if not has_producer:
                 return None
         else:
-            if self.idx not in self.node.in_nodes():
+            if self.idx not in self.node.in_nodes(control_flow=self.control_flow):
                 return None
 
-            in_data = self.node.in_node(self.idx)
-            for n, d in in_data.get_inputs():
+            in_data = self.node.in_node(self.idx, control_flow=self.control_flow)
+            for n, d in in_data.get_inputs(control_flow=self.control_flow):
                 node = Node(self.node.graph, n)
-                producer_ports.append(node.out_port(d['out']))
+                producer_ports.append(node.out_port(d['out'], control_flow=self.control_flow))
 
         if len(producer_ports) != 1:
-            raise Error("Something happened with graph! data node has {} producers".format(len(producer_ports)))
-
+            if self.node.graph.strict_mode:
+                raise Error('Something bad has happened with graph! Data node "{}" has {} producers'.format(
+                    self.node.id, len(producer_ports)))
+            else:
+                return None
         return producer_ports[0]
 
     def get_destination(self):
@@ -233,13 +258,14 @@ class Port:
             producer_node = self.node
         else:
             # In case if node has no output data node in given port, we return None
-            if self.idx not in self.node.out_nodes():
+            if self.idx not in self.node.out_nodes(control_flow=self.control_flow):
                 return []
-            producer_node = self.node.out_node(self.idx)
+            producer_node = self.node.out_node(self.idx, control_flow=self.control_flow)
 
-        for n, d in producer_node.get_outputs():
+        for n, d in producer_node.get_outputs(edge_attr={'out': self.idx} if self.node.graph.stage == 'front' else None,
+                                              control_flow=self.control_flow):
             node = Node(self.node.graph, n)
-            consumer_ports.append(node.in_port(d['in']))
+            consumer_ports.append(node.in_port(d['in'], control_flow=self.control_flow))
         return consumer_ports
 
     def disconnect(self):
@@ -264,9 +290,9 @@ class Port:
 
     def get_connection(self):
         if self.type == 'in':
-            return Connection(self.node.graph, self.get_source(), [self])
+            return Connection(self.node.graph, self.get_source(), [self], control_flow=self.control_flow)
         else:
-            return Connection(self.node.graph, self, self.get_destinations())
+            return Connection(self.node.graph, self, self.get_destinations(), control_flow=self.control_flow)
 
     def connect(self, port):
         if self.type == 'in':

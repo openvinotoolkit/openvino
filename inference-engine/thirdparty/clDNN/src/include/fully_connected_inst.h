@@ -18,21 +18,19 @@
 #pragma once
 #include "api/CPP/fully_connected.hpp"
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
+namespace cldnn {
 template <>
-struct typed_program_node<fully_connected> : public typed_program_node_base<fully_connected>
-{
+struct typed_program_node<fully_connected> : public typed_program_node_base<fully_connected> {
     using parent = typed_program_node_base<fully_connected>;
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
-        : parent(prim, prog)
-        , input_qf(this->get_primitive()->input_quantization_factor)
-        , output_qf(this->get_primitive()->output_quantization_factor)
-    {
-    }
+        : parent(prim, prog),
+          input_qf(this->get_primitive()->input_quantization_factor),
+          output_qf(this->get_primitive()->output_quantization_factor) {}
 
     program_node& input() const { return get_dependency(0); }
     program_node& weights() const { return get_dependency(1); }
@@ -53,8 +51,7 @@ private:
 using fully_connected_node = typed_program_node<fully_connected>;
 
 template <>
-class typed_primitive_inst<fully_connected> : public typed_primitive_inst_base<fully_connected>
-{
+class typed_primitive_inst<fully_connected> : public typed_primitive_inst_base<fully_connected> {
     using parent = typed_primitive_inst_base<fully_connected>;
 
 public:
@@ -76,4 +73,4 @@ public:
 
 using fully_connected_inst = typed_primitive_inst<fully_connected>;
 
-}
+}  // namespace cldnn

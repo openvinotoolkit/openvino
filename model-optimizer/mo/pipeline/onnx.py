@@ -22,24 +22,27 @@ import argparse
 import logging as log
 
 from extensions.back.CreateConstNodes import CreateConstNodesReplacement
-from extensions.middle.AddQuantizeFuse import AddQuantizeFuse
+from extensions.back.FuseReshapesSequence import FuseReshapesSequence
+from extensions.back.RemoveRedundantReshapes import RemoveRedundantReshapes
+from extensions.middle.AddFakeQuantizeFuse import AddFakeQuantizeFuse
 from extensions.middle.EltwiseInputNormalization import EltwiseInputNormalize
-from extensions.middle.MulQuantizeFuse import MulQuantizeFuse
+from extensions.middle.MulFakeQuantizeFuse import MulFakeQuantizeFuse
+from extensions.middle.quantize_fuses import MarkNodesToFuseUpToFakeQuantize, FakeQuantizeFuse
 from mo.front.common.register_custom_ops import update_extractors_with_extensions, check_for_duplicates
 from mo.front.extractor import extract_node_attrs, remove_output_ops
 from mo.front.onnx.extractor import onnx_op_extractor, onnx_op_extractors
 from mo.front.onnx.loader import load_onnx_model, protobuf2nx
-from mo.middle.passes.conv import convert_add_or_mul_to_scaleshift, convert_muladd_to_scaleshift_or_power, fuse_pad
+from mo.middle.passes.conv import convert_add_or_mul_to_scaleshift, convert_muladd_to_scaleshift, fuse_pad, \
+    convert_matmul_to_fully_connected
 from mo.middle.passes.eliminate import graph_clean_up_onnx, remove_const_ops
 from mo.middle.passes.fusing.decomposition import convert_batch_norm, convert_scale_shift_to_mul_add
 from mo.middle.passes.fusing.fuse_grouped_conv import grouped_convolutions_fusing
 from mo.middle.passes.fusing.fuse_linear_ops import fuse_linear_ops
 from mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
 from mo.middle.passes.fusing.mark_unfused_nodes import mark_unfused_nodes
-from mo.middle.passes.infer import convert_mul_add_to_power
 from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
-from mo.middle.passes.shape import convert_reshape, reverse_input_channels, \
-    fuse_sequence_of_reshapes, merge_nodes_permutations, permute_data_nodes_attrs, permute_op_nodes_attrs
+from mo.middle.passes.shape import reverse_input_channels, merge_nodes_permutations, permute_data_nodes_attrs, \
+    permute_op_nodes_attrs
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir
 from mo.utils import class_registration
@@ -70,7 +73,13 @@ def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: st
         graph.graph['cmd_params'] = argv
         graph.graph['fw'] = 'onnx'
         graph.graph['feature_dim'] = 1 if graph.graph['layout'] == 'NCHW' else 3
-        graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 5
+
+        if graph.graph['cmd_params'].generate_experimental_IR_V10:
+            version = 10
+        else:
+            version = 6
+        graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else version
+
     except Exception as e:
         raise Error(
             'Cannot pre-process ONNX graph after reading from model file "{}". ' \
@@ -88,6 +97,8 @@ def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: st
 
     fuse_pad(graph)
     graph_clean_up_onnx(graph)
+
+    for_graph_and_each_sub_graph_recursively(graph, convert_matmul_to_fully_connected)
 
     # Mark nodes with attr 'can_be_fused': False to disable fusing for specified nodes
     mark_unfused_nodes(graph, argv.finegrain_fusing)
@@ -117,16 +128,15 @@ def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: st
             fuse_linear_ops(graph)
             graph_clean_up_onnx(graph)
 
-    AddQuantizeFuse().find_and_replace_pattern(graph)
-    MulQuantizeFuse().find_and_replace_pattern(graph)
+    MarkNodesToFuseUpToFakeQuantize().find_and_replace_pattern(graph)
+    FakeQuantizeFuse().find_and_replace_pattern(graph)
 
-    convert_muladd_to_scaleshift_or_power(graph)
+    AddFakeQuantizeFuse().find_and_replace_pattern(graph)
+    MulFakeQuantizeFuse().find_and_replace_pattern(graph)
+
+    convert_muladd_to_scaleshift(graph)
     graph_clean_up_onnx(graph)
 
-    convert_mul_add_to_power(graph)
-    graph_clean_up_onnx(graph)
-
-    convert_reshape(graph)
     graph_clean_up_onnx(graph)
     convert_add_or_mul_to_scaleshift(graph)  # scale = 1
     graph_clean_up_onnx(graph)
@@ -141,7 +151,9 @@ def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: st
         move_scaleshift_to_preprocess(graph)
         graph_clean_up_onnx(graph)
 
-    fuse_sequence_of_reshapes(graph)
+    FuseReshapesSequence().find_and_replace_pattern(graph)
+    RemoveRedundantReshapes().find_and_replace_pattern(graph)
+
     graph_clean_up_onnx(graph)
 
     pattern = EltwiseInputNormalize()
@@ -151,6 +163,7 @@ def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: st
     permute_data_nodes_attrs(graph)
     permute_op_nodes_attrs(graph)
 
+    graph_clean_up_onnx(graph)
     class_registration.apply_replacements(graph, class_registration.ClassType.BACK_REPLACER)
 
     for_graph_and_each_sub_graph_recursively(graph, remove_const_ops)

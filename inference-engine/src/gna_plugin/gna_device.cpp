@@ -19,11 +19,6 @@ uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted)
     return reinterpret_cast<uint8_t *>(GNAAlloc(nGNAHandle, size_requested, size_granted));
 }
 
-void GNADeviceHelper::propagateSync(const intel_nnet_type_t *pNeuralNetwork,
-                                    const uint32_t *pActiveIndices,
-                                    uint32_t nActiveIndices) {
-    wait(propagate(pNeuralNetwork, pActiveIndices, nActiveIndices));
-}
 
 uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
                    const uint32_t *pActiveIndices,

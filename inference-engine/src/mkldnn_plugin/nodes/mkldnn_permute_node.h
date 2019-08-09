@@ -15,7 +15,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNPermuteNode : public MKLDNNNode {
 public:
-    MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNPermuteNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -32,7 +32,7 @@ private:
     InferenceEngine::SizeVector order;
 
     typedef std::function<void(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> permuteImpl;
-    typedef std::function<bool(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> isApplicable;
+    typedef std::function<bool(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> isApplicable;
     struct PermuteImpl {
         PermuteImpl(permuteImpl f0, isApplicable f1): execute(std::move(f0)), isValidParams(std::move(f1)) {}
 

@@ -1,0 +1,48 @@
+# Copyright (C) 2019 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(IE_MAIN_SOURCE_DIR "@CMAKE_SOURCE_DIR@")
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
+
+# inherit OpenCV from main IE project
+load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+find_package(OpenCV COMPONENTS imgcodecs)
+
+# Targets
+
+include("${CMAKE_CURRENT_LIST_DIR}/targets_developer.cmake")
+
+# add additional interface include directories needed for plugin development
+if(NOT TARGET IE::inference_engine)
+	message(FATAL_ERROR "The target IE::inference_engine does not exist")
+endif()
+
+set(ie_plugin_headers "${IE_MAIN_SOURCE_DIR}/src/inference_engine")
+set_property(TARGET IE::inference_engine APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${ie_plugin_headers}")
+set_property(TARGET IE::inference_engine PROPERTY IMPORTED_GLOBAL TRUE)
+
+get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
+set(InferenceEngine_LIBRARIES IE::inference_engine)
+
+# Variables to export in plugin's projects
+
+set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE")
+
+load_cache("${cache_path}" READ_WITH_PREFIX "" ${ie_options})
+
+message(STATUS "The following CMake options are exported from Inference Engine Developer package")
+message("")
+foreach(option IN LISTS ie_options)
+	message("    ${option}: ${${option}}")
+endforeach()
+message("")
+
+#
+# Common cmake includes
+#
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${IE_MAIN_SOURCE_DIR}/cmake")
+
+# generic stuff from developer package
+include(developer_package)

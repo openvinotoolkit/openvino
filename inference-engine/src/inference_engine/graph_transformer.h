@@ -23,11 +23,7 @@ namespace InferenceEngine {
  */
 class INFERENCE_ENGINE_API_CLASS(ConstTransformer) {
 public:
-    explicit ConstTransformer(details::CNNNetworkImpl* _network) {
-        if (!_network) THROW_IE_EXCEPTION << "[ERROR]: Failed to init ConstTransformer with null pointer of network";
-        network = _network;
-        cnnNetwork = CNNNetwork(network);
-    }
+    explicit ConstTransformer(details::CNNNetworkImpl* _network);
 
     /**
      * @brief calculates const layers, combines const subgraph into a single const layers
@@ -64,9 +60,8 @@ protected:
     virtual void trimShapeInputs(const std::vector<std::string>& constLayers);
 
 private:
-    const details::caseless_set<std::string> shapeTaking = {"Reshape", "Resample", "Interp"};
+    const details::caseless_set<std::string> shapeTaking = {"Reshape", "Resample", "Interp", "Squeeze", "Unsqueeze"};
     details::CNNNetworkImpl* network;
-    CNNNetwork cnnNetwork;
 };
 
 }  // namespace InferenceEngine

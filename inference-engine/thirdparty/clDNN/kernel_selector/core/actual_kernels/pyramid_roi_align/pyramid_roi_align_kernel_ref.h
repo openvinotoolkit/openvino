@@ -17,13 +17,10 @@
 #include "pyramid_roi_align_kernel_base.h"
 
 namespace kernel_selector {
-    class PyramidROIAlignKernelRef : public PyramidROIAlignKernelBase
-    {
-    public:
-        PyramidROIAlignKernelRef() : PyramidROIAlignKernelBase("pyramid_roi_align_gpu_ref") {}
-        KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        ParamsKey GetSupportedKey() const override;
-    };
-}
+class PyramidROIAlignKernelRef : public PyramidROIAlignKernelBase {
+public:
+    PyramidROIAlignKernelRef() : PyramidROIAlignKernelBase("pyramid_roi_align_gpu_ref") {}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector
