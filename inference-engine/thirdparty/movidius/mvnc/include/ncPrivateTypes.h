@@ -47,7 +47,9 @@ typedef enum {
 struct _devicePrivate_t {
     int throttle_happened;
     float *thermal_stats;
+    XLinkProtocol_t protocol;
     char *dev_addr;     // Device USB address as returned by usb_
+    XLinkProtocol_t protocol_booted;
     char *dev_addr_booted;
     char *dev_file;     // Device filename in /dev directory
     char *optimisation_list;

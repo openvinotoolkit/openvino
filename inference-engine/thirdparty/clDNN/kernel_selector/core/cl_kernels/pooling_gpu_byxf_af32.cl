@@ -139,7 +139,7 @@ KERNEL(pooling_gpu_byxf_af32)(
 for(uint op = 0; op < 4; op++)
 {
     const uint output_pos = GET_DATA_INDEX(OUTPUT, b, f+op, y, x);
-    output[output_pos] = ACTIVATION(convert_char(result[op]), NL_M ,NL_N);
+    output[output_pos] = ACTIVATION(convert_char(result[op]), ACTIVATION_PARAMS);
 }
 
 }

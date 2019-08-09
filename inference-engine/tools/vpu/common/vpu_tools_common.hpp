@@ -25,8 +25,6 @@
 
 InferenceEngine::CNNNetwork readNetwork(const std::string &xmlFileName);
 
-InferenceEngine::InferencePlugin loadPlugin(const std::string &plugin, const std::string &plugin_path);
-
 /* Set all precisions to FP16 */
 void setPrecisions(const InferenceEngine::CNNNetwork &network);
 
@@ -74,7 +72,7 @@ public:
 
 void loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blob);
 
-void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap);
+void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap, const std::string report = "per_layer");
 
 std::vector<std::string> extractFilesByExtension(const std::string& directory, const std::string& extension);
 std::vector<std::string> extractFilesByExtension(const std::string& directory, const std::string& extension,

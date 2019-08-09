@@ -188,8 +188,8 @@ void BlobReader::parse(const std::vector<char>& blob) {
         ie::TensorDesc ieDesc(iePrecision, ieDims, ieLayout);
         ie::Data outputData(outputName, ieDesc);
 
-        _networkOutputs[outputData.name]    = std::make_shared<ie::Data>(outputData);
-        _outputInfo.offset[outputData.name] = ioBufferOffset;
+        _networkOutputs[outputData.getName()]    = std::make_shared<ie::Data>(outputData);
+        _outputInfo.offset[outputData.getName()] = ioBufferOffset;
     }
 }
 

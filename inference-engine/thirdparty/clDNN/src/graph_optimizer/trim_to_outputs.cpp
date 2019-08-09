@@ -18,46 +18,46 @@
 
 #include "pass_manager.h"
 
-//ToDo: remove those include with the appropriate code below once we will have support for multiple outputs of a primitive
+// ToDo: remove those include with the appropriate code below once we will have support for multiple outputs of a
+// primitive
 #include "batch_norm_inst.h"
 #include "max_unpooling_inst.h"
 #include "pooling_inst.h"
+#include <vector>
+#include <list>
 
 using namespace cldnn;
 
-//This pass optimizes out nodes which have no impact on outputs
-void trim_to_outputs::run(program_impl& p)
-{
+// This pass optimizes out nodes which have no impact on outputs
+void trim_to_outputs::run(program_impl& p) {
     const size_t actual_nodes = p.get_processing_order().size();
-    if (!actual_nodes) //degenerated case but can happen
+    if (!actual_nodes)  // degenerated case but can happen
         return;
 
     if (p.get_outputs().size() == actual_nodes)
         return;
 
-    //do backward bfs starting from all outputs
-    std::list<const std::vector<program_node*>*> stack = { &(p.get_outputs()) };
+    // do backward bfs starting from all outputs
+    std::list<const std::vector<program_node*>*> stack = {&(p.get_outputs())};
 
     std::vector<program_node*> special_nodes;
-    for (auto& node : p.get_processing_order())
-    {
-        if (node->is_type<input_layout>() ||  //input layout may become disconnected during prior boxes calculations so it may have not been marked at this place but we don't want to remove it
-            node->is_type<max_unpooling>() || // ToDo: remove this after support for multi-outputs in primitives will be implemented.
+    for (auto& node : p.get_processing_order()) {
+        if (node->is_type<input_layout>() ||  // input layout may become disconnected during prior boxes calculations so
+                                              // it may have not been marked at this place but we don't want to remove it
+            node->is_type<max_unpooling>() ||  // ToDo: remove this after support for multi-outputs in primitives will
+                                               // be implemented.
             node->is_type<batch_norm>() ||
             (node->is_type<pooling>() && node->as<pooling>().get_primitive()->mode == pooling_mode::max_with_argmax))
-                special_nodes.push_back(node);
+            special_nodes.push_back(node);
     }
     stack.push_back(&special_nodes);
 
-    while (!stack.empty())
-    {
+    while (!stack.empty()) {
         auto nodes_list = stack.front();
         stack.pop_front();
 
-        for (auto& node : *nodes_list)
-        {
-            if (!node->is_marked())
-            {
+        for (auto& node : *nodes_list) {
+            if (!node->is_marked()) {
                 node->mark();
                 if (!node->get_dependencies().empty())
                     stack.push_back(&node->get_dependencies());
@@ -65,10 +65,9 @@ void trim_to_outputs::run(program_impl& p)
         }
     }
 
-    //all not-marked nodes should be removed
+    // all not-marked nodes should be removed
     std::list<program_node*> to_rem;
-    for (auto& node : p.get_processing_order())
-    {
+    for (auto& node : p.get_processing_order()) {
         if (!node->is_marked())
             to_rem.push_back(node);
     }

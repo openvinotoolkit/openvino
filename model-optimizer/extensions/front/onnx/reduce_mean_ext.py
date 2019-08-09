@@ -13,11 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
+
+from extensions.ops.ReduceOps import ReduceMean
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.graph.graph import Node
-from mo.ops.reduce import Reduce
 
 
 class ReduceMeanFrontExtractor(FrontExtractorOp):
@@ -26,7 +27,7 @@ class ReduceMeanFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node: Node):
-        axis = onnx_attr(node, 'axes', 'ints', default=None, dst_type= lambda x: np.array(x, dtype=np.int64))
+        axis = onnx_attr(node, 'axes', 'ints', default=None, dst_type=lambda x: int64_array(x))
         keep_dims = onnx_attr(node, 'keepdims', 'i', default=True)
-        Reduce.update_node_stat(node, {'axis': axis, 'keep_dims': keep_dims, 'reduce_type': 'mean'})
+        ReduceMean.update_node_stat(node, {'axis': axis, 'keep_dims': keep_dims})
         return __class__.enabled

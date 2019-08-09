@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2018-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef IGEMM_KERNEL_GENERATOR_HPP
-#define IGEMM_KERNEL_GENERATOR_HPP
+#ifndef JIT_AVX512_CORE_GEMM_S8U8S32_KERN_HPP
+#define JIT_AVX512_CORE_GEMM_S8U8S32_KERN_HPP
 
 #include "jit_generator.hpp"
 
@@ -26,14 +26,14 @@ namespace cpu {
 
 class jit_avx512_core_gemm_s8u8s32_kern : public jit_generator {
 public:
-    jit_avx512_core_gemm_s8u8s32_kern(bool beta_zero_, bool enable_offset_c_,
-        bool enable_offset_r_);
+    jit_avx512_core_gemm_s8u8s32_kern(bool beta_zero, bool enable_offset_c,
+        bool enable_offset_r);
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_core_gemm_s8u8s32_kern);
 
 protected:
-    bool beta_zero;
-    bool enable_offset_c, enable_offset_r;
-    bool vnni;
+    bool beta_zero_;
+    bool enable_offset_c_, enable_offset_r_;
+    bool vnni_;
 
     void prefetch_a(const Xbyak::Address &src) {
         prefetcht0(src);
@@ -62,40 +62,36 @@ protected:
 
 
 private:
-    static const int IGEMM_UNROLL_M = 48;
-    static const int IGEMM_UNROLL_N = 8;
+    static const int IGEMM_UNROLL_M_ = 48;
+    static const int IGEMM_UNROLL_N_ = 8;
 
-    static const int isize = 2;
-    static const int size = 4;
+    static const int isize_ = 2;
+    static const int size_ = 4;
 
     // Prefetch configuration
-    static const int prefetch_size_a = 32 * 5;
-    static const int prefetch_size_b = 32 * 4;
+    static const int prefetch_size_a_ = 32 * 5;
+    static const int prefetch_size_b_ = 32 * 4;
 
-    static const int offset_a = 256, offset_b = 256;
-    static const int max_unroll_m = 48, max_unroll_n = 8;
+    static const int offset_a_ = 256, offset_b_ = 256;
+    static const int max_unroll_m_ = 48, max_unroll_n_ = 8;
 
     // Integer register assignments
-    Xbyak::Reg64 M, N, K, A, B, C, LDC, I, J, LoopCount;
-    Xbyak::Reg64 AO, BO, CO1, CO2, AA;
+    Xbyak::Reg64 M_, N_, K_, A_, B_, C_, LDC_, I_, J_, LoopCount_;
+    Xbyak::Reg64 AO_, BO_, CO1_, CO2_, AA_;
 
     // Vector register assignments
-    Xbyak::Zmm dp_scratch, ones, a_regs[max_unroll_m >> 4], b_regs[2];
-    Xbyak::Zmm c_regs[max_unroll_m >> 4][max_unroll_n];
+    Xbyak::Zmm dp_scratch_, ones_, a_regs_[max_unroll_m_ >> 4], b_regs_[2];
+    Xbyak::Zmm c_regs_[max_unroll_m_ >> 4][max_unroll_n_];
 
     // Stack variable assignments
-    int stack_alloc_size;
-    Xbyak::Address arg_a, arg_b, arg_c, arg_ldc, arg_coffset_c, arg_coffset_r;
-    Xbyak::Address coffset_cx, coffset_cy, coffset_rx, coffset_ry;
-
-    void L_aligned(Xbyak::Label &label, int alignment = 16) {
-        align(alignment);
-        L(label);
-    }
+    int stack_alloc_size_;
+    Xbyak::Address arg_a_, arg_b_, arg_c_, arg_ldc_, arg_coffset_c_,
+        arg_coffset_r_;
+    Xbyak::Address coffset_cx_, coffset_cy_, coffset_rx_, coffset_ry_;
 };
 
 }
 }
 }
 
-#endif /* header guard */
+#endif // JIT_AVX512_CORE_GEMM_S8U8S32_KERN_HPP

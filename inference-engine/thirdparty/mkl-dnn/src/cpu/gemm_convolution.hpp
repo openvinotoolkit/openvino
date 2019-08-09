@@ -106,21 +106,28 @@ struct gemm_convolution_fwd_t: public cpu_primitive_t {
         }
 
         virtual bool is_gemm_conv_format() const {
-            auto const &po = this->attr()->post_ops_;
+            const auto &p = this->attr()->post_ops_;
 
-            auto is_eltwise = [&](int idx) { return po.entry_[idx].is_eltwise(); };
-            auto is_depthwise = [&](int idx) { return po.entry_[idx].is_depthwise(); };
-            auto is_sum = [&](int idx) { return po.entry_[idx].is_sum(); };
-            auto is_simple = [&](int idx) { return (is_eltwise(idx) || is_depthwise(idx)); };
+            int dw_conv_idx = p.find(primitive_kind::convolution);
+            bool with_dw_conv = dw_conv_idx != -1;
 
-            switch (po.len_) {
-            case 0: return true;
-            case 1: return is_simple(0) || is_sum(0);
-            case 2: return (is_sum(0) && is_simple(1)) || (is_simple(0) && is_simple(1));
-            case 3: return is_sum(0) && is_simple(1) && is_simple(2);
-            default: return false;
-            }
-            return false;
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                int end_idx = with_dw_conv ? dw_conv_idx : p.len_;
+                for (int i = 0; i < end_idx; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise);
+                }
+                return ok;
+            };
+            auto contain = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind, 0, dw_conv_idx) != -1; };
+            auto position = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind, 0, dw_conv_idx); };
+            auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind, 0, dw_conv_idx); };
+
+            return all_post_ops_supported() &&
+                   count(primitive_kind::sum) <= 1 &&
+                   IMPLICATION(contain(primitive_kind::sum), position(primitive_kind::sum) == 0) &&
+                   IMPLICATION(with_dw_conv, !contain(primitive_kind::sum));
         }
     };
 

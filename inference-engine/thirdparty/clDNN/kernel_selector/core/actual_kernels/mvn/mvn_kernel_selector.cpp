@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +11,19 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #include "mvn_kernel_selector.h"
 #include "mvn_kernel_ref.h"
 #include "mvn_kernel_bfyx_opt.h"
- 
-namespace kernel_selector 
-{
-    mvn_kernel_selector::mvn_kernel_selector()
-    {
-        Attach<MVNKernelRef>();
-        Attach<MVNKernelBfyxOpt>();
-    }
 
-    KernelsData mvn_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::MVN);
-    }
+namespace kernel_selector {
+mvn_kernel_selector::mvn_kernel_selector() {
+    Attach<MVNKernelRef>();
+    Attach<MVNKernelBfyxOpt>();
 }
+
+KernelsData mvn_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::MVN);
+}
+}  // namespace kernel_selector

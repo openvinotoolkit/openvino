@@ -20,7 +20,7 @@ from mo.graph.graph import Graph
 from mo.middle.pattern_match import find_isomorphisms
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
-from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize, permute_before_and_after
+from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
 
 
 class TensorIteratorLSTM(MiddleReplacementPattern):

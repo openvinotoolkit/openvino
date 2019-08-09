@@ -77,7 +77,7 @@ void MKLDNNGraphOptimizer::MergeGroupConvolution(MKLDNNGraph &graph) {
     for (auto node : graph.GetNodes()) {
         // Split with at least 2 Convolutions
         if (!IsOneOf(node->getType(), {Split}) || node->getChildEdges().size() < 2 ||
-                !IsOneOf(node->getChildEdgeAt(0)->getChild()->getType(), {Convolution, Convolution_Activation})) {
+                !IsOneOf(node->getChildEdgeAt(0)->getChild()->getType(), {Convolution})) {
             continue;
         }
         bool canBeMerged = true;
@@ -183,8 +183,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
             auto conv = graphNodes[i];
 
             auto fuse = [&] (MKLDNNNodePtr relu) {
-                if (graphNodes[i]->getType() != BinaryConvolution)
-                    conv->setType(Convolution_Activation);
                 conv->fuseWith(relu);
             };
 
@@ -230,7 +228,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDepthwise(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        bool isSutableConv = (node->getType() == Convolution || node->getType() == Convolution_Activation) &&
+        bool isSutableConv = (node->getType() == Convolution) &&
                              node->getCnnLayer()->precision == Precision::FP32;
         bool isSutableBinConv = node->getType() == BinaryConvolution;
         return (isSutableConv || isSutableBinConv) && node->getChildEdges().size() == 1;
@@ -258,8 +256,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDepthwise(MKLDNNGraph &graph) {
         if (!isSutableChildNode(depthwise0)) continue;
 
         conv->fuseWith(depthwise0);
-        if (conv->type != BinaryConvolution)
-            conv->setType(Convolution_Depthwise);
 
         if (depthwise0->getChildEdges().size() == 1) {
             auto depthwise1 = depthwise0->getChildEdgeAt(0)->getChild();
@@ -278,7 +274,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isConvolutionNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Convolution || node->getType() == Convolution_Activation;
+        return node->getType() == Convolution;
     };
 
     auto isBinaryConvolutionNode = [](MKLDNNNodePtr node) {
@@ -303,9 +299,10 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
                 THROW_IE_EXCEPTION << "Cannot get convolution layer " << node->getName();
 
             bool isSupportedParams = layer->_group == 1 &&
-                                     ((is1x1Convolution(layer) && layer->_stride[X_AXIS] == 1 &&
-                                       layer->_stride[Y_AXIS] == 1) || !is1x1Convolution(layer)) &&
-                                     (layer->precision == Precision::FP32 || layer->precision == Precision::I8);
+                                         ((is1x1Convolution(layer) && layer->_stride[X_AXIS] == 1 &&
+                                          layer->_stride[Y_AXIS] == 1) || !is1x1Convolution(layer)) &&
+                                          (layer->outData[0].get()->getPrecision() == Precision::FP32 ||
+                                           layer->outData[0].get()->getPrecision() == Precision::U8);
             if (!isSupportedParams) return false;
         }
 
@@ -319,9 +316,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
 
         if (!isBinaryConvolutionNode(parentNode)) {
             auto* parentLayer = dynamic_cast<ConvolutionLayer*>(parentNode->getCnnLayer().get());
-
             if (parentLayer == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get convolution layer " << parentNode->getName();
+
+            if (parentLayer->outData[0].get()->getPrecision() != childLayer->outData[0].get()->getPrecision())
+                return false;
+
             if (parentLayer->precision != childLayer->precision)
                 return false;
         }
@@ -527,13 +527,22 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
 
         if (!std::dynamic_pointer_cast<MKLDNNEltwiseNode>(graphNode)->isSum()) continue;
         if (!std::dynamic_pointer_cast<MKLDNNEltwiseNode>(graphNode)->isUnitScales()) continue;
+        if (std::dynamic_pointer_cast<MKLDNNEltwiseNode>(graphNode)->isWithBroadcast()) continue;
+
+        // TODO: Enlarge to several inputs
+        bool isSutableNode = graphNode->getParentEdges().size() == 2;
+        if (!isSutableNode)
+            continue;
 
         auto parent1 = graphNode->getParentEdgeAt(0)->getParent();
         auto parent2 = graphNode->getParentEdgeAt(1)->getParent();
-        // TODO: Enlarge to several inputs
-        if (graphNode->getParentEdges().size() != 2 ||
-            (parent1->getType() != Convolution && parent1->getType() != BinaryConvolution &&
-             parent2->getType() != Convolution && parent2->getType() != BinaryConvolution))
+
+        bool isSutableParent1 = (parent1->getType() == Convolution && parent1->fusedWith.empty()) ||
+                                parent1->getType() == BinaryConvolution;
+        bool isSutableParent2 = (parent2->getType() == Convolution && parent2->fusedWith.empty()) ||
+                                parent2->getType() == BinaryConvolution;
+
+        if (!isSutableParent1 && !isSutableParent2)
             continue;
 
         auto mergedConv = (parent1->getType() == Convolution || parent1->getType() == BinaryConvolution) ? parent1 : parent2;
@@ -566,12 +575,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
                 isFusingSupported(graphNode, graphNode->getChildEdgeAt(0)->getChild())) {
             auto relu_shared = graphNode->getChildEdgeAt(0)->getChild();
             lastNode = relu_shared;
-            if (mergedConv->getType() != BinaryConvolution)
-                mergedConv->setType(Convolution_Sum_Activation);
             mergedConv->fuseWith(sum);
-        } else {
-            if (mergedConv->getType() != BinaryConvolution)
-                mergedConv->setType(Convolution_Sum);
         }
 
         mergedConv->fuseWith(lastNode);
@@ -584,8 +588,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
             mergedConv->inDims.push_back(mergedConv->outDims[0]);
         }
 
-        size_t childIdx = 0;
-        for (childIdx = 0; childIdx < peerNode->getChildEdges().size(); childIdx++) {
+        size_t childIdx = 0lu;
+        for (; childIdx < peerNode->getChildEdges().size(); childIdx++) {
             if (peerNode->getChildEdgeAt(childIdx)->getChild() == sum) {
                 break;
             }
@@ -642,7 +646,6 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndActivation(MKLDNNGraph &graph) {
             auto fc = graphNodes[i];
 
             auto fuse = [&] (MKLDNNNodePtr relu) {
-                fc->setType(FullyConnected_Activation);
                 fc->fuseWith(relu);
             };
 
@@ -732,7 +735,7 @@ void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
             CNNLayerPtr layer(new CNNLayer({layerName,
                                             "Reorder",
                                             n->getInput().getPrecision()}));
-            MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, graph.getEngine()));
+            MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, graph.getEngine(), graph.socket));
             auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());
             if (reorderPtr) {
                 reorderPtr->setDescs(n->getInput(), nn->getOutput());
@@ -790,7 +793,7 @@ void MKLDNNGraphOptimizer::RemoveIOScaleShifts(MKLDNNGraph &graph) {
             if (cur == nullptr) {
                 THROW_IE_EXCEPTION << "[MKLDNN] error - invalid input data";
             }
-            if (cur->precision != l->outData[0]->precision) {
+            if (cur->getTensorDesc().getPrecision() != l->outData[0]->getTensorDesc().getPrecision()) {
                 if (node->name.find("_iScaleShift_") != std::string::npos) {
                     auto child = node->childEdges[0].lock()->getChild();
                     if (child->type == Reorder) {

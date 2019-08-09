@@ -19,8 +19,7 @@
 #include "../C/mvn.h"
 #include "primitive.hpp"
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -30,8 +29,7 @@ namespace cldnn
 
 /// @brief Mean Variance Normalization primitive.
 /// @details Normalizes the input to have 0-mean and/or unit (1) variance.
-struct mvn :public primitive_base<mvn, CLDNN_PRIMITIVE_DESC(mvn)>
-{
+struct mvn : public primitive_base<mvn, CLDNN_PRIMITIVE_DESC(mvn)> {
     CLDNN_DECLARE_PRIMITIVE(mvn)
 
     /// @brief Constructs mvn primitive.
@@ -40,27 +38,23 @@ struct mvn :public primitive_base<mvn, CLDNN_PRIMITIVE_DESC(mvn)>
     /// @param across_channels Determines if the normalization is done across or within channels. Default is within channels.'
     /// @param normalize_variance Determines if normalize variance is applied. Default is true.
     /// @param epsilon Epsilon for not dividing by zero while normalizing.
-    mvn(
-        const primitive_id& id,
+    mvn(const primitive_id& id,
         const primitive_id& input,
         const bool across_channels = false,
         const bool normalize_variance = true,
         const float epsilon = 1e-10f,
-        const padding& output_padding = padding()
-        )
-        : primitive_base(id, {input}, output_padding)
-        , across_channels(across_channels)
-        , normalize_variance(normalize_variance)
-        , epsilon(epsilon)
-    {}
+        const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          across_channels(across_channels),
+          normalize_variance(normalize_variance),
+          epsilon(epsilon) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{mvn}
     mvn(const dto* dto)
-        : primitive_base(dto)
-        , across_channels(dto->across_channels != 0)
-        , normalize_variance(dto->normalize_variance != 0)
-        , epsilon(dto->epsilon)
-    {}
+        : primitive_base(dto),
+          across_channels(dto->across_channels != 0),
+          normalize_variance(dto->normalize_variance != 0),
+          epsilon(dto->epsilon) {}
 
     /// @brief Determines if the normalization is done across or within channels.
     bool across_channels;
@@ -70,9 +64,7 @@ struct mvn :public primitive_base<mvn, CLDNN_PRIMITIVE_DESC(mvn)>
     float epsilon;
 
 protected:
-
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.across_channels = across_channels;
         dto.normalize_variance = normalize_variance;
         dto.epsilon = epsilon;
@@ -81,4 +73,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

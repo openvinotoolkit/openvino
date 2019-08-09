@@ -12,7 +12,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNLrnNode::MKLDNNLrnNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNLrnNode::MKLDNNLrnNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
+        MKLDNNNode(layer, eng, socket) {}
 
 void MKLDNNLrnNode::getSupportedDescriptors() {
     if (!descs.empty())
@@ -60,7 +61,10 @@ bool MKLDNNLrnNode::created() const {
 }
 
 void MKLDNNLrnNode::initOptimalPrimitiveDescriptor() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
 

@@ -26,7 +26,7 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'data'
                     'node_2': {'type': 'Identity', 'value': None, 'kind': 'data'},
                     'pbc': {'type': 'PriorBoxClustered', 'value': None, 'kind': 'op'},
                     'node_3': {'type': 'Identity', 'value': None, 'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+                    'op_output': { 'kind': 'op', 'op': 'Result'}
                     }
 
 

@@ -49,7 +49,8 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_lrn_backward.cpp
                               test_pooling_forward.cpp
                               test_pooling_backward.cpp
-                              test_batch_normalization.cpp
+                              test_batch_normalization_f32.cpp
+                              test_batch_normalization_s8.cpp
                               test_inner_product_forward.cpp
                               test_inner_product_backward_data.cpp
                               test_inner_product_backward_weights.cpp
@@ -70,6 +71,7 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_gemm_f32.cpp
                               test_gemm_s8u8s32.cpp
                               test_gemm_s8s8s32.cpp
+                              test_gemm_bf16bf16f32.cpp
                               test_rnn_forward.cpp
                               test_roi_pooling_forward.cpp
                               test_convolution_depthwise_forward_f32.cpp
@@ -87,6 +89,7 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_binary_convolution_dw_conv_depthwise_forward.cpp
                               test_binary_convolution_dw_conv_sum_forward.cpp
                               test_binary_convolution_dw_conv_binarization_forward.cpp
+                              test_deformable_convolution_forward_f32.cpp
                               ) #temporary
 
 foreach(TEST_FILE ${PRIM_TEST_CASES_SRC})

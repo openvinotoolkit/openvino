@@ -30,8 +30,16 @@ from ..representation import (
 )
 
 from .metric import PerImageEvaluationMetric, BaseMetricConfig
-from ..config import BaseField, NumberField, BoolField, ConfigError
+from ..config import BaseField, NumberField, BoolField, ConfigError, StringField
 from ..utils import string_to_tuple, finalize_metric_result
+
+
+class BaseIntervalRegressionMetricConfig(BaseMetricConfig):
+    intervals = BaseField(optional=True)
+    start = NumberField(optional=True)
+    end = NumberField(optional=True)
+    step = NumberField(optional=True)
+    ignore_values_not_in_interval = BoolField(optional=True)
 
 
 class BaseRegressionMetric(PerImageEvaluationMetric):
@@ -53,28 +61,14 @@ class BaseRegressionMetric(PerImageEvaluationMetric):
         return np.mean(self.magnitude), np.std(self.magnitude)
 
 
-class BaseIntervalRegressionMetricConfig(BaseMetricConfig):
-    intervals = BaseField(optional=True)
-    start = NumberField(optional=True)
-    end = NumberField(optional=True)
-    step = NumberField(optional=True)
-    ignore_values_not_in_interval = BoolField(optional=True)
-
-
 class BaseRegressionOnIntervals(PerImageEvaluationMetric):
     annotation_types = (RegressionAnnotation, )
     prediction_types = (RegressionPrediction, )
+    _config_validator_type = BaseIntervalRegressionMetricConfig
 
     def __init__(self, value_differ, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.value_differ = value_differ
-
-    def validate_config(self):
-        validator = BaseIntervalRegressionMetricConfig(
-            'regression_on_intervals_config',
-            on_extra_argument=BaseIntervalRegressionMetricConfig.ERROR_ON_EXTRA_ARGUMENT
-        )
-        validator.validate(self.config)
 
     def configure(self):
         self.meta.update({'scale': 1, 'postfix': ' ', 'calculate_mean': False})
@@ -225,12 +219,7 @@ class FacialLandmarksNormedError(PerImageEvaluationMetric):
 
     annotation_types = (FacialLandmarksAnnotation, )
     prediction_types = (FacialLandmarksPrediction, )
-
-    def validate_config(self):
-        config_validator = NormedErrorMetricConfig(
-            'normed_error_config', NormedErrorMetricConfig.ERROR_ON_EXTRA_ARGUMENT
-        )
-        config_validator.validate(self.config)
+    _config_validator_type = NormedErrorMetricConfig
 
     def configure(self):
         self.calculate_std = self.config.get('calculate_std', False)
@@ -307,6 +296,7 @@ class PeakSignalToNoiseRatio(BaseRegressionMetric):
     def validate_config(self):
         class _PSNRConfig(BaseMetricConfig):
             scale_border = NumberField(optional=True, min_value=0)
+            color_order = StringField(optional=True, choices=['BGR', 'RGB'])
 
         config_validator = _PSNRConfig('psnr', on_extra_argument=_PSNRConfig.ERROR_ON_EXTRA_ARGUMENT)
         config_validator.validate(self.config)
@@ -314,6 +304,13 @@ class PeakSignalToNoiseRatio(BaseRegressionMetric):
     def configure(self):
         super().configure()
         self.scale_border = self.config.get('scale_border', 4)
+        color_order = self.config.get('color_order', 'RGB')
+        channel_order = {
+            'BGR': [2, 1, 0],
+            'RGB': [0, 1, 2]
+        }
+        self.meta['postfix'] = 'Db'
+        self.channel_order = channel_order[color_order]
 
     def _psnr_differ(self, annotation_image, prediction_image):
         prediction = np.asarray(prediction_image).astype(np.float)
@@ -330,9 +327,9 @@ class PeakSignalToNoiseRatio(BaseRegressionMetric):
         ]
         image_difference = (prediction - ground_truth) / 255.  # rgb color space
 
-        r_channel_diff = image_difference[:, :, 0]
-        g_channel_diff = image_difference[:, :, 1]
-        b_channel_diff = image_difference[:, :, 2]
+        r_channel_diff = image_difference[:, :, self.channel_order[0]]
+        g_channel_diff = image_difference[:, :, self.channel_order[1]]
+        b_channel_diff = image_difference[:, :, self.channel_order[2]]
 
         channels_diff = (r_channel_diff * 65.738 + g_channel_diff * 129.057 + b_channel_diff * 25.064) / 256
 

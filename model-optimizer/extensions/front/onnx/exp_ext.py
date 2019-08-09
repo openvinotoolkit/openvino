@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
+from extensions.ops.activation_ops import Exp
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.activation import Activation
 
 
 class ExpExtractor(FrontExtractorOp):
@@ -24,5 +24,5 @@ class ExpExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
-        Activation.update_node_stat(node, {'operation': 'exp'})
+        Exp.update_node_stat(node)
         return __class__.enabled

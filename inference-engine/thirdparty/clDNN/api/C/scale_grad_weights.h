@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef SCALE_GRAD_WEIGHTS_H
-#define SCALE_GRAD_WEIGHTS_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -30,7 +28,7 @@
 extern "C" {
 #endif
 
-/// @brief Performs scale layer backward for scale_input and biases. 
+/// @brief Performs scale layer backward for scale_input and biases.
 CLDNN_BEGIN_PRIMITIVE_DESC(scale_grad_weights)
 /// @brief Scale input primitive id.
 cldnn_primitive_id scale_input;
@@ -38,7 +36,7 @@ cldnn_primitive_id scale_input;
 cldnn_primitive_id bias;
 /// @brief Primitive id containing scale gradient data calculated in previous iteration.
 cldnn_primitive_id prev_scale_grad;
-/// @brief Primitive id containing bias gradient data calculated in previous iteration. 
+/// @brief Primitive id containing bias gradient data calculated in previous iteration.
 cldnn_primitive_id prev_bias_grad;
 /// @brief Primitive id which uses weights and biases updated in this primitive.
 cldnn_primitive_id scale_grad;
@@ -53,5 +51,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(scale_grad_weights);
 /// @}
 /// @}
 /// @}
-#endif /* SCALE_GRAD_WEIGHTS_H */
 

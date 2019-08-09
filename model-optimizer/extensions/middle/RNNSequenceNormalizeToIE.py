@@ -17,8 +17,10 @@ from copy import deepcopy
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.ops.reshape import Reshape
 
@@ -153,7 +155,11 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             graph.add_edge(rnn_layer.id, data.id, key=0, out=i)
 
             reshape = Reshape(graph, dict(dim=old_shape))
-            reshape.create_node_with_data([data], dict(name=rnn_layer.name + '/SqueezeNumDirections/{}'.format(i)),
+
+            reshape_dim_data = Const(graph, {'name': rnn_layer.name + '/SqueezeNumDirections/{}/Dim'.format(i),
+                                             'value': old_shape}).create_node_with_data()
+            reshape.create_node_with_data([data, reshape_dim_data],
+                                          dict(name=rnn_layer.name + '/SqueezeNumDirections/{}'.format(i)),
                                           data_nodes=[old_data_node])
 
     @staticmethod
@@ -166,14 +172,21 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
 
         rnn_layer = match['rnn_layer']
 
-        reshape = Reshape(graph, dict(dim=[rnn_layer.in_node(0).shape[rnn_layer.batch_dim], rnn_layer.hidden_size]))
+        # Add input ports to rnn_layer
+        rnn_layer.add_sequence_of_ports(type='in', rng=range(7))
+
+        reshape = Reshape(graph, {})
 
         assert hidden_init_port in rnn_layer.in_nodes()
         init_h = rnn_layer.in_node(hidden_init_port)
         edge_attrs = deepcopy(graph.get_edge_data(init_h.id, rnn_layer.id)[0])
         edge_attrs['in'] = hidden_init_port
         graph.remove_edge(init_h.id, rnn_layer.id)
-        new_init_h = reshape.create_node_with_data([init_h], dict(name=rnn_layer.name + '/HiddenStateResize'))
+
+        new_dim = int64_array([rnn_layer.in_node(0).shape[rnn_layer.batch_dim], rnn_layer.hidden_size])
+        reshape_dim_data = Const(graph, {'name': rnn_layer.name + '/HiddenStateResizeDim',
+                                         'value': new_dim}).create_node_with_data()
+        new_init_h = reshape.create_node_with_data([init_h, reshape_dim_data], dict(name=rnn_layer.name + '/HiddenStateResize'))
         graph.add_edge(new_init_h.id, rnn_layer.id, **edge_attrs)
 
         if rnn_layer.op == 'LSTM':
@@ -183,7 +196,10 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             edge_attrs = deepcopy(graph.get_edge_data(init_c.id, rnn_layer.id)[0])
             edge_attrs['in'] = cell_init_port
             graph.remove_edge(init_c.id, rnn_layer.id)
-            new_init_c = reshape.create_node_with_data([init_c], dict(name=rnn_layer.name + '/CellStateResize'))
+            reshape_dim_data = Const(graph, {'name': rnn_layer.name + '/CellStateResizeDim',
+                                             'value': new_dim}).create_node_with_data()
+            new_init_c = reshape.create_node_with_data([init_c, reshape_dim_data],
+                                                       dict(name=rnn_layer.name + '/CellStateResize'))
             graph.add_edge(new_init_c.id, rnn_layer.id, **edge_attrs)
 
     @staticmethod

@@ -38,7 +38,7 @@ class FakePythonParam:
 nodes_attributes = {'input': {'kind': 'data'},
                     'pool_1': {'type': 'Pooling', 'kind': 'op'},
                     'output': {'kind': 'data'},
-                    'op_output': {'kind': 'op', 'op': 'OpOutput'},
+                    'op_output': {'kind': 'op', 'op': 'Result'},
                     }
 
 
@@ -79,7 +79,8 @@ class TestExtractor(unittest.TestCase):
     def test_attr_getter(self):
         nodes = {'input': {'kind': 'data'},
                  'reshape': {'type': 'Reshape', 'kind': 'op'},
-                 'output': {'kind': 'data'}
+                 'output': {'kind': 'data'},
+                 'op_output': {'type': 'Result', 'kind': 'op'},
                  }
         input_shape = np.array([1, 125, 13, 13])
         params = {
@@ -118,7 +119,7 @@ class TestAddInputOp(unittest.TestCase):
         graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges)
         new_input_shape = np.array([1, 2, 3, 4])
         graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges[1:],
-                                           new_nodes_with_attrs=[('input_node', {'kind': 'op', 'op': 'Placeholder',
+                                           new_nodes_with_attrs=[('input_node', {'kind': 'op', 'op': 'Parameter',
                                                                                  'shape': new_input_shape})],
                                            new_edges_with_attrs=[('input_node', 'op_node', {'in': 1, 'out': 0})])
         add_input_op(graph, 'op_node', 1, data=False, shape=new_input_shape)
@@ -130,7 +131,7 @@ class TestAddInputOp(unittest.TestCase):
         graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges)
         new_input_shape = np.array([1, 2, 3, 4])
         graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges[1:],
-                                           new_nodes_with_attrs=[('input_node', {'kind': 'op', 'op': 'Placeholder',
+                                           new_nodes_with_attrs=[('input_node', {'kind': 'op', 'op': 'Parameter',
                                                                                  'shape': new_input_shape}),
                                                                  ('input_data', {'kind': 'data'})],
                                            new_edges_with_attrs=[('input_node', 'input_data', {'in': 0, 'out': 0}),
@@ -152,7 +153,7 @@ class TestAddInputOp(unittest.TestCase):
         graph = build_graph_with_attrs(nodes_with_attrs=self.nodes_out, edges_with_attrs=self.edges_out)
         new_input_shape = np.array([1, 2, 3, 4])
         graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes_out, edges_with_attrs=self.edges_out[1:],
-                                           new_nodes_with_attrs=[('input_node', {'kind': 'op', 'op': 'Placeholder',
+                                           new_nodes_with_attrs=[('input_node', {'kind': 'op', 'op': 'Parameter',
                                                                                  'shape': new_input_shape})],
                                            new_edges_with_attrs=[('input_node', 'future_input', {'in': 0, 'out': 0})])
         add_input_op(graph, 'op_node', 1, data=False, shape=new_input_shape, is_out_port=True)
@@ -169,7 +170,7 @@ class TestAddInputOp(unittest.TestCase):
                                                              ('input_data', 'future_input', {'in': 0, 'out': 0})])
         new_input_shape = np.array([1, 2, 3, 4])
         graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes_out, edges_with_attrs=self.edges_out[1:],
-                                           new_nodes_with_attrs=[('input_node', {'kind': 'op', 'op': 'Placeholder',
+                                           new_nodes_with_attrs=[('input_node', {'kind': 'op', 'op': 'Parameter',
                                                                                  'shape': new_input_shape}),
                                                                  ('input_data', {'kind': 'data', 'shape': None})],
                                            new_edges_with_attrs=[('input_node', 'input_data', {'in': 0, 'out': 0}),
@@ -185,7 +186,7 @@ class TestAddInputOp(unittest.TestCase):
 
 class TestInputAddition(unittest.TestCase):
     # Tests for input
-    nodes = {'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+    nodes = {'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
              'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
              'relu_1': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder'},
              }
@@ -219,7 +220,7 @@ class TestInputAddition(unittest.TestCase):
         shape = np.array([1, 2, 3, 4])
         inputs = {'conv_1': [{'shape': shape}]}
         nodes = {
-            'old_input': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+            'old_input': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
             'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
             'relu_1': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder'},
             'output': {'type': 'SoftMax', 'kind': 'op', 'op': 'NotPlaceholder'}
@@ -243,7 +244,7 @@ class TestInputAddition(unittest.TestCase):
         shape = None
         inputs = {'conv_1': [{'shape': shape}]}
         nodes = {
-            'old_input': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+            'old_input': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
             'old_input_data': {'kind': 'data', 'value': None, 'shape': np.array([-1, 224, 224, 3])},
             'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
             'conv_1_data': {'kind': 'data', 'value': True, 'shape': np.array([-1, 224, 224, 3])},
@@ -251,7 +252,7 @@ class TestInputAddition(unittest.TestCase):
             'relu_1_data': {'kind': 'data', 'value': None, 'shape': np.array([-1, 112, 112, 64])},
             'output': {'type': 'SoftMax', 'kind': 'op', 'op': 'NotPlaceholder'},
             'output_data': {'name': 'output_data', 'kind': 'data', 'shape': np.array([-1, 112, 112, 64])},
-            'op_output': {'kind': 'op', 'op': 'OpOutput'}
+            'op_output': {'kind': 'op', 'op': 'Result'}
         }
         edges = [
             ('old_input', 'old_input_data'),
@@ -278,13 +279,13 @@ class TestInputAddition(unittest.TestCase):
         shape_2 = [4, 3, 2, 1]
         inputs = {'node_1': [{'shape': shape_1}], 'node_4': [{'shape': shape_2}]}
         nodes = {
-            'input_1': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
-            'input_2': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+            'input_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
+            'input_2': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
             'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
             'node_2': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
             'node_3': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
             'node_4': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
-            'output': {'kind': 'op', 'op': 'OpOutput'}
+            'output': {'kind': 'op', 'op': 'Result'}
         }
         edges = [
             ('input_1', 'node_1'),
@@ -310,14 +311,14 @@ class TestInputAddition(unittest.TestCase):
         shape_2 = [4, 3, 2, 1]
         inputs = {'node_1': [{'shape': shape_1}], 'node_4': [{'shape': shape_2}]}
         nodes = {
-            'input_1': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
-            'input_2': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+            'input_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
+            'input_2': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
             'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
             'node_2': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
             'node_3': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
             'node_4': {'type': 'Identity', 'kind': 'op', 'op': 'NotPlaceholder'},
-            'output': { 'kind': 'op', 'op': 'OpOutput'},
-            'input_3': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'}
+            'output': { 'kind': 'op', 'op': 'Result'},
+            'input_3': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'}
         }
         edges = [
             ('input_1', 'node_1'),
@@ -335,7 +336,7 @@ class TestInputAddition(unittest.TestCase):
         shape = np.array([1, 2, 3, 4])
         inputs = {'conv_1': [{'shape': shape, 'in': 0}]}
         nodes = {
-            'old_input': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+            'old_input': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
             'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
             'relu_1': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder'},
             'output': {'type': 'SoftMax', 'kind': 'op', 'op': 'NotPlaceholder'}
@@ -364,7 +365,7 @@ class TestInputAddition(unittest.TestCase):
         shape = np.array([1, 2, 3, 4])
         inputs = {'conv_1': [{'shape': shape, 'out': 0}]}
         nodes = {
-            'old_input': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+            'old_input': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
             'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
             'conv_2': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
             'relu_1': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder'},
@@ -379,7 +380,7 @@ class TestInputAddition(unittest.TestCase):
         graph = build_graph(nodes, edges)
         add_input_ops(graph=graph, user_defined_inputs=inputs, before_infer=True)
 
-        graph_ref = build_graph(nodes_attrs={'new_input': {'kind': 'op', 'op': 'Placeholder', 'shape': shape},
+        graph_ref = build_graph(nodes_attrs={'new_input': {'kind': 'op', 'op': 'Parameter', 'shape': shape},
                                              **nodes},
                                 edges=[('new_input', 'relu_1'),
                                        ('relu_1', 'output'),
@@ -404,7 +405,7 @@ class TestInputAddition(unittest.TestCase):
         shape = np.array([1, 2, 3, 4])
         inputs = {'conv_1': [{'shape': shape, 'out': 0}]}
         nodes = {
-            'old_input': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+            'old_input': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
             'inp_data' : {'kind': 'data', 'shape': shape + 1},
             'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
             'conv_data': {'kind': 'data', 'shape': shape},
@@ -419,7 +420,7 @@ class TestInputAddition(unittest.TestCase):
         graph = build_graph(nodes, edges)
         add_input_ops(graph=graph, user_defined_inputs=inputs, before_infer=False)
 
-        graph_ref = build_graph(nodes_attrs={'new_input': {'kind': 'op', 'op': 'Placeholder', 'shape': shape},
+        graph_ref = build_graph(nodes_attrs={'new_input': {'kind': 'op', 'op': 'Parameter', 'shape': shape},
                                              **nodes},
                                 edges=[('old_input', 'inp_data'),
                                        ('inp_data', 'conv_1'),
@@ -467,8 +468,8 @@ class TestOutputCut(unittest.TestCase):
 
     @generate({'C': [{'in': 0}]}, {'C': [{'in': 1}]})
     def test_output_port_cut(self, output):
-        nodes = {'A': {'op': 'Placeholder', 'kind': 'op'},
-                 'B': {'op': 'Placeholder', 'kind': 'op'},
+        nodes = {'A': {'op': 'Parameter', 'kind': 'op'},
+                 'B': {'op': 'Parameter', 'kind': 'op'},
                  'C': {'type': 'Identity', 'kind': 'op'},
                  'D': {'type': 'Identity', 'kind': 'op'},
                  'E': {'type': 'Identity', 'kind': 'op'},
@@ -486,8 +487,8 @@ class TestOutputCut(unittest.TestCase):
 
 
 class TestUserDataRepack(unittest.TestCase):
-    nodes = {'A': {'name': 'Aa', 'op': 'Placeholder', 'kind': 'op'},
-             'B': {'name': 'Bb', 'op': 'Placeholder', 'kind': 'op'},
+    nodes = {'A': {'name': 'Aa', 'op': 'Parameter', 'kind': 'op'},
+             'B': {'name': 'Bb', 'op': 'Parameter', 'kind': 'op'},
              'C': {'name': 'Cc', 'type': 'Identity', 'value': None, 'kind': 'op'},
              'D': {'name': 'Dd', 'type': 'Identity', 'value': None, 'kind': 'op'},
              'E': {'name': 'Ee', 'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -558,6 +559,30 @@ class TestUserDataRepack(unittest.TestCase):
         input, freeze_placeholder = input_user_data_repack(graph, shape_1, {'Bb': True})
         self.assertDictEqual(input, {'A': [{'shape': shape_1, 'port': None}], 'B': [{'shape': None, 'port': None}]})
         self.assertDictEqual(freeze_placeholder, {'B': True})
+
+    def test_freeze_new_placeholder_1(self):
+        # create a new placeholder Cc:0 by cutting output port with shape_2 = [5] and freeze a value [1.0 1.0 2.0 3.0 5.0]
+        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        shape_1 = np.array([1, 160, 160, 3])
+        shape_2 = np.array([5])
+        input, freeze_placeholder = input_user_data_repack(graph, {'Aa:0': shape_1, 'Cc:0' : shape_2}, {'Bb': False, 'Cc:0' : [1.0, 1.0, 2.0, 3.0, 5.0]})
+        self.assertDictEqual(input, {'A' : [{'shape' : shape_1, 'out' : 0}], 'B' : [{'shape' : None, 'port' : None}], 'C' : [{'shape' : shape_2, 'out' : 0}]})
+        self.assertEqual(freeze_placeholder, {'B' : False, 'C/placeholder_out_port_0' : [1.0, 1.0, 2.0, 3.0, 5.0]})
+
+    def test_freeze_new_placeholder_2(self):
+        # create a new placeholder Ee by cutting input port with shape_2 = [2, 2] and freeze a value [[1.0, 1.0], [2.0, 3.0]]
+        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        shape_1 = np.array([1, 160, 160, 3])
+        shape_2 = np.array([2, 2])
+        input, freeze_placeholder = input_user_data_repack(graph, {'Aa:0': shape_1, 'Ee' : shape_2}, {'Bb': False, 'Ee' : [[1.0, 1.0], [2.0, 3.0]]})
+        self.assertDictEqual(input, {'A' : [{'shape' : shape_1, 'out' : 0}], 'B' : [{'shape' : None, 'port' : None}], 'E' : [{'shape' : shape_2, 'port' : None}]})
+        self.assertEqual(freeze_placeholder, {'B' : False, 'E/placeholder_port_None' : [[1.0, 1.0], [2.0, 3.0]]})
+
+    def test_freeze_new_placeholder_error(self):
+        # shape is not specified for new placeholder Cc:0 with frozen value
+        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        shape_1 = np.array([1, 160, 160, 3])
+        self.assertRaises(Error, input_user_data_repack, graph, {'Aa:0': shape_1}, {'Bb': False, 'Cc:0' : [1.0, 1.0, 2.0, 3.0, 5.0]})
 
     def test_output_user_data_repack(self):
         graph = build_graph_with_edge_attrs(self.nodes, self.edges)

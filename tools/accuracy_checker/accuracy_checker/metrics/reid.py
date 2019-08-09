@@ -31,6 +31,26 @@ from .metric import BaseMetricConfig, FullDatasetEvaluationMetric
 PairDesc = namedtuple('PairDesc', 'image1 image2 same')
 
 
+class CMCConfigValidator(BaseMetricConfig):
+    top_k = NumberField(floats=False, min_value=1, optional=True)
+    separate_camera_set = BoolField(optional=True)
+    single_gallery_shot = BoolField(optional=True)
+    first_match_break = BoolField(optional=True)
+    number_single_shot_repeats = NumberField(floats=False, optional=True)
+
+
+class ReidMapConfig(BaseMetricConfig):
+    interpolated_auc = BoolField(optional=True)
+
+
+class PWAccConfig(BaseMetricConfig):
+    min_score = BaseField(optional=True)
+
+
+class PWAccSubsetConfig(BaseMetricConfig):
+    subset_number = NumberField(optional=True, min_value=1, floats=False)
+
+
 class CMCScore(FullDatasetEvaluationMetric):
     """
     Cumulative Matching Characteristics (CMC) score.
@@ -49,17 +69,7 @@ class CMCScore(FullDatasetEvaluationMetric):
 
     annotation_types = (ReIdentificationAnnotation, )
     prediction_types = (ReIdentificationPrediction, )
-
-    def validate_config(self):
-        class _CMCConfigValidator(BaseMetricConfig):
-            top_k = NumberField(floats=False, min_value=1, optional=True)
-            separate_camera_set = BoolField(optional=True)
-            single_gallery_shot = BoolField(optional=True)
-            first_match_break = BoolField(optional=True)
-            number_single_shot_repeats = NumberField(floats=False, optional=True)
-
-        validator = _CMCConfigValidator('cmc', on_extra_argument=_CMCConfigValidator.ERROR_ON_EXTRA_ARGUMENT)
-        validator.validate(self.config)
+    _config_validator_type = CMCConfigValidator
 
     def configure(self):
         self.top_k = self.config.get('top_k', 1)
@@ -94,13 +104,7 @@ class ReidMAP(FullDatasetEvaluationMetric):
 
     annotation_types = (ReIdentificationAnnotation, )
     prediction_types = (ReIdentificationPrediction, )
-
-    def validate_config(self):
-        class _ReidMapConfig(BaseMetricConfig):
-            interpolated_auc = BoolField(optional=True)
-
-        validator = _ReidMapConfig('reid_map', on_extra_argument=_ReidMapConfig.ERROR_ON_EXTRA_ARGUMENT)
-        validator.validate(self.config)
+    _config_validator_type = ReidMapConfig
 
     def configure(self):
         self.interpolated_auc = self.config.get('interpolated_auc', True)
@@ -119,13 +123,7 @@ class PairwiseAccuracy(FullDatasetEvaluationMetric):
 
     annotation_types = (ReIdentificationClassificationAnnotation, )
     prediction_types = (ReIdentificationPrediction, )
-
-    def validate_config(self):
-        class _PWAccConfig(BaseMetricConfig):
-            min_score = BaseField(optional=True)
-
-        validator = _PWAccConfig('pairwise_accuracy', on_extra_argument=_PWAccConfig.ERROR_ON_EXTRA_ARGUMENT)
-        validator.validate(self.config)
+    _config_validator_type = PWAccConfig
 
     def configure(self):
         self.min_score = self.config.get('min_score', 'train_median')
@@ -158,17 +156,9 @@ class PairwiseAccuracySubsets(FullDatasetEvaluationMetric):
 
     annotation_types = (ReIdentificationClassificationAnnotation, )
     prediction_types = (ReIdentificationPrediction, )
-
-    def validate_config(self):
-        class _PWAccConfig(BaseMetricConfig):
-            subset_number = NumberField(optional=True, min_value=1, floats=False)
-
-        validator = _PWAccConfig('pairwise_accuracy', on_extra_argument=_PWAccConfig.ERROR_ON_EXTRA_ARGUMENT)
-        validator.validate(self.config)
+    _config_validator_type = PWAccSubsetConfig
 
     def configure(self):
-        self.meta['scale'] = 1
-        self.meta['postfix'] = ' '
         self.subset_num = self.config.get('subset_number', 10)
         self.accuracy_metric = PairwiseAccuracy(self.config, self.dataset)
 

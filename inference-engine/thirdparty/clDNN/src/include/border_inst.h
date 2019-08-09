@@ -18,28 +18,28 @@
 #include <api/CPP/border.hpp>
 
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-
-namespace cldnn
-{
+namespace cldnn {
 template <>
-struct typed_program_node<border> : typed_program_node_base<border>
-{
+struct typed_program_node<border> : typed_program_node_base<border> {
 private:
     using parent = typed_program_node_base<border>;
 
 public:
     using parent::parent;
 
-    typed_program_node(const std::shared_ptr<border> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
+    typed_program_node(const std::shared_ptr<border> prim, program_impl& prog) : parent(prim, prog) {
+        support_padding_all(true);
+    }
     program_node& input() const { return get_dependency(0); }
 };
 
 using border_node = typed_program_node<border>;
 
 template <>
-class typed_primitive_inst<border> : public typed_primitive_inst_base<border>
-{
+class typed_primitive_inst<border> : public typed_primitive_inst_base<border> {
     using parent = typed_primitive_inst_base<border>;
 
 public:
@@ -49,4 +49,4 @@ public:
 };
 
 using border_inst = typed_primitive_inst<border>;
-}
+}  // namespace cldnn

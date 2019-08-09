@@ -23,6 +23,8 @@ class LayerInjector : public T {
 
 
 using AllLayers = std::tuple <
+    SelectLayer*,
+    DeformableConvolutionLayer*,
     DeconvolutionLayer*,
     ConvolutionLayer *,
     PoolingLayer*,
@@ -35,11 +37,9 @@ using AllLayers = std::tuple <
     DepthToSpaceLayer*,
     SpaceToDepthLayer*,
     ReverseSequenceLayer*,
-    SqueezeLayer*,
-    UnsqueezeLayer*,
     RangeLayer*,
     FillLayer*,
-    ExpandLayer*,
+    BroadcastLayer*,
     ConcatLayer*,
     SplitLayer*,
     NormLayer*,
@@ -64,7 +64,10 @@ using AllLayers = std::tuple <
     QuantizeLayer*,
     BinaryConvolutionLayer*,
     WeightableLayer*,
-    CNNLayer*
+    OneHotLayer*,
+    CNNLayer*,
+    MathLayer*,
+    ReduceLayer*
 >;
 
 template<typename InjectedType, typename T>

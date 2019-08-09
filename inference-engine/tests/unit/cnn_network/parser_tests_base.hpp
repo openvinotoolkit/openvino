@@ -287,11 +287,15 @@ xml().node("net").attr("name", "AlexNet").attr("version", x)\
 
     template <class T>
     InferenceEngine::TBlob<uint8_t>::Ptr makeBinBlobForMeanTest() {
-        typename InferenceEngine::TBlob<T>::Ptr binBlobFloat(new InferenceEngine::TBlob<T>(InferenceEngine::Precision::FP32, InferenceEngine::CHW, { MT_HEIGHT, MT_WIDTH, MT_CHANNELS }));
+        typename InferenceEngine::TBlob<T>::Ptr binBlobFloat(new InferenceEngine::TBlob<T>({ InferenceEngine::Precision::FP32, 
+            { MT_HEIGHT, MT_WIDTH, MT_CHANNELS }, InferenceEngine::CHW }));
         binBlobFloat->allocate();
+        IE_SUPPRESS_DEPRECATED_START
         binBlobFloat->set(MeanImage<T>::getValue());
+        IE_SUPPRESS_DEPRECATED_END
         InferenceEngine::SizeVector dims_dst = { MT_HEIGHT, MT_WIDTH * sizeof(T), MT_CHANNELS };
-        typename InferenceEngine::TBlobProxy<uint8_t>::Ptr binBlob(new InferenceEngine::TBlobProxy<uint8_t>(InferenceEngine::Precision::FP32, InferenceEngine::CHW, binBlobFloat, 0, dims_dst));
+        typename InferenceEngine::TBlobProxy<uint8_t>::Ptr binBlob(new 
+            InferenceEngine::TBlobProxy<uint8_t>(InferenceEngine::Precision::FP32, InferenceEngine::CHW, binBlobFloat, 0, dims_dst));
         return binBlob;
     }
 
@@ -317,8 +321,8 @@ xml().node("net").attr("name", "AlexNet").attr("version", x)\
         ASSERT_EQ(MT_CHANNELS, pp.getNumberOfChannels());
         for (size_t c = 0; c < pp.getNumberOfChannels(); c++) {
             auto actualMeanTBlob = std::dynamic_pointer_cast<InferenceEngine::TBlob<T> >(pp[c]->meanData);
-            ASSERT_EQ(MT_WIDTH, actualMeanTBlob->dims()[0]);
-            ASSERT_EQ(MT_HEIGHT, actualMeanTBlob->dims()[1]);
+            ASSERT_EQ(MT_WIDTH, actualMeanTBlob->getTensorDesc().getDims().back());
+            ASSERT_EQ(MT_HEIGHT, actualMeanTBlob->getTensorDesc().getDims()[actualMeanTBlob->getTensorDesc().getDims().size() - 2]);
             ASSERT_EQ(MT_WIDTH*MT_HEIGHT, actualMeanTBlob->size());
             for (unsigned index = 0; index < actualMeanTBlob->size(); index++) {
                 ASSERT_FLOAT_EQ(meanImage[index+c*MT_WIDTH*MT_HEIGHT], actualMeanTBlob->readOnly()[index]);

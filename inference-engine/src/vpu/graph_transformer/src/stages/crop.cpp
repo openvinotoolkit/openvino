@@ -17,83 +17,57 @@ private:
         return std::make_shared<CropStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(_inputEdges.size() >= 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input0 = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
         if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales.at(input0);
-
-            out[output] = inputScale;
+            auto inputScale = inputScales[0];
+            _scaleInfo.setOutput(_outputEdges[0], inputScale);
         } else {
             // Crop can only propagate scaling, not generate.
 
             for (const auto& inEdge : _inputEdges) {
-                out[inEdge->input()] = 1.0f;
+                _scaleInfo.setInput(inEdge, 1.0f);
             }
-            out[output] = 1.0f;
+            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
         }
-
-        return out;
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() >= 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
 
         auto inOrder = input->desc().dimsOrder();
 
-        DataMap<DimsOrder> out;
-
         // HWC only
-        out[input] = inOrder.createMovedDim(Dim::C, 0);
-        out[output] = inOrder.createMovedDim(Dim::C, 0);
-
-        return out;
+        _orderInfo.setInput(_inputEdges[0], inOrder.createMovedDim(Dim::C, 0));
+        _orderInfo.setOutput(_outputEdges[0], inOrder.createMovedDim(Dim::C, 0));
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() >= 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<StridesRequirement> out;
-
-        out[input] = StridesRequirement::compact();
-        out[output] = StridesRequirement::compact();
-
-        return out;
+        _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
+        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl() const override {
         IE_ASSERT(_inputEdges.size() >= 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
         for (const auto& inEdge : _inputEdges) {
-            out[inEdge->input()] =  BatchSupport::Split;
+            _batchInfo.setInput(inEdge, BatchSupport::Split);
         }
-        out[output] = BatchSupport::Split;
-
-        return out;
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {

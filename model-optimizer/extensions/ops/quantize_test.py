@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.quantize import QuantizeOp, broadcastable
+from extensions.ops.fakequantize import FakeQuantize, broadcastable
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
@@ -40,13 +40,14 @@ class TestBroadcastable(unittest.TestCase):
         self.assertFalse(broadcastable([1, 2, 3], [2, 3]))
         self.assertFalse(broadcastable([1, 2, 3], [1, 3]))
         self.assertFalse(broadcastable([1, 2, 3], [1, 1]))
-        self.assertFalse(broadcastable( [1, 2, 3], []))
+        self.assertFalse(broadcastable([1, 2, 3], []))
         self.assertFalse(broadcastable([1, 2, 3], [1]))
 
     def test_invalid(self):
         self.assertFalse(broadcastable([3, 2, 1], [1, 2, 3]))
         self.assertFalse(broadcastable([5], [6]))
         self.assertFalse(broadcastable([5], [1]))
+        self.assertFalse(broadcastable([64], [1, 55, 56, 56]))
 
 
 nodes_attributes = {'node_in_1': {'op': 'Identity', 'kind': 'op'},
@@ -54,13 +55,13 @@ nodes_attributes = {'node_in_1': {'op': 'Identity', 'kind': 'op'},
                     'node_in_3': {'op': 'Identity', 'kind': 'op'},
                     'node_in_4': {'op': 'Identity', 'kind': 'op'},
                     'node_in_5': {'op': 'Identity', 'kind': 'op'},
-                    'quantize': {'op': 'Quantize', 'kind': 'op', 'levels': 2},
+                    'quantize': {'op': 'FakeQuantize', 'kind': 'op', 'levels': 2},
                     'node_out_1': {'op': 'Identity', 'kind': 'op'},
-                    'op_output': {'kind': 'op', 'op': 'OpOutput'}
+                    'op_output': {'kind': 'op', 'op': 'Result'}
                     }
 
 
-class TestQuantizeOp(unittest.TestCase):
+class TestFakeQuantizeOp(unittest.TestCase):
     def test_shape_only(self):
         graph = build_graph(nodes_attributes,
                             [('node_in_1', 'quantize'),
@@ -80,7 +81,7 @@ class TestQuantizeOp(unittest.TestCase):
                              })
 
         quantize_node = Node(graph, 'quantize')
-        QuantizeOp.infer(quantize_node)
+        FakeQuantize.infer(quantize_node)
         quantize_shape = np.array([1, 3, 10, 20])
         res_shape = graph.node['node_out_1']['shape']
         for i in range(0, len(quantize_shape)):
@@ -124,7 +125,7 @@ class TestQuantizeOp(unittest.TestCase):
                             })
 
         exp_node = Node(graph, 'quantize')
-        QuantizeOp.infer(exp_node)
+        FakeQuantize.infer(exp_node)
         quantize_shape = np.array([4])
         quantize_value = np.array([0, 1, 0, 1], dtype=np.float32)
         res_shape = graph.node['node_out_1']['shape']

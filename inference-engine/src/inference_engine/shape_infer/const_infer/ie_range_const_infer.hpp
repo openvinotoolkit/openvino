@@ -87,7 +87,7 @@ public:
         }
 
         StatusCode retcode = OK;
-        switch (outData[0]->precision()) {
+        switch (outData[0]->getTensorDesc().getPrecision()) {
             case Precision::FP32: {
                 range((inData[RANGE_START]->cbuffer().as<float*>() +
                        inData[RANGE_START]->getTensorDesc().getBlockingDesc().getOffsetPadding())[0],

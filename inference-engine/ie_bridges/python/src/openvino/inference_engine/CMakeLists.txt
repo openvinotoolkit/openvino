@@ -13,7 +13,7 @@ file(GLOB SOURCE
 set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX TRUE
 )
 
-## Compatibility with python 2.7 which has depricated "register" specifier
+## Compatibility with python 2.7 which has deprecated "register" specifier
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     add_definitions("-Wno-register")
 endif()

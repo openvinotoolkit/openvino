@@ -23,9 +23,9 @@
 #include "engine.hpp"
 #include <memory>
 #include <iterator>
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
 /// @addtogroup cpp_api C++ API
 /// @{
@@ -33,14 +33,16 @@ namespace cldnn
 /// @defgroup cpp_memory Memory description and management
 /// @{
 
-template<typename T> struct pointer;
+template <typename T>
+struct pointer;
 
-namespace details { struct memory_c_to_cpp_converter; }
+namespace details {
+struct memory_c_to_cpp_converter;
+}
 
 /// @brief Represents buffer with particular @ref layout.
 /// @details Usually allocated by @ref engine except cases when attached to user-allocated buffer.
-struct memory
-{
+struct memory {
     friend struct data;
     friend struct mutable_data;
     friend struct network;
@@ -48,46 +50,43 @@ struct memory
     friend struct details::memory_c_to_cpp_converter;
 
     /// Allocate memory on @p engine using specified @p layout
-    static memory allocate(const engine& engine, const layout& layout)
-    {
+    static memory allocate(const engine& engine, const layout& layout, uint16_t stream_id = 0) {
         size_t size = layout.bytes_count();
-        if (size == 0) throw std::invalid_argument("size should be more than 0");
-        return check_status<cldnn_memory>("memory allocation failed", [&](status_t* status)
-        {
-            return cldnn_allocate_memory(engine.get(), layout, status);
+        if (size == 0)
+            throw std::invalid_argument("size should be more than 0");
+        memory status = (memory) check_status<cldnn_memory>("memory allocation failed", [&](status_t* status) {
+            return cldnn_allocate_memory(engine.get(), layout, stream_id, status);
         });
+        return status;
     }
 
     /// Create memory object attached to the buffer allocated by user.
     /// @param ptr  The pointer to user allocated buffer.
     /// @param size Size (in bytes) of the buffer. Should be equal to @p layout.data_size()
     /// @note User is responsible for buffer deallocation. Buffer lifetime should be bigger than lifetime of the memory object.
-    template<typename T>
-    static memory attach(const cldnn::layout& layout, T* ptr, size_t size)
-    {
-        if (!ptr) throw std::invalid_argument("pointer should not be null");
+    template <typename T>
+    static memory attach(const cldnn::layout& layout, T* ptr, size_t size, uint16_t stream_id = 0) {
+        if (!ptr)
+            throw std::invalid_argument("pointer should not be null");
         size_t data_size = size * sizeof(T);
         if (data_size != layout.bytes_count()) {
-            std::string err_str("buffer size mismatch - input size " + std::to_string(data_size) + " layout size " + std::to_string(layout.bytes_count()));
+            std::string err_str("buffer size mismatch - input size " + std::to_string(data_size) + " layout size " +
+                                std::to_string(layout.bytes_count()));
             throw std::invalid_argument(err_str);
         }
-        
-        return check_status<cldnn_memory>("memory attach failed", [&](status_t* status)
-        {
-            return cldnn_attach_memory(layout, ptr, data_size, status);
+
+        return (memory) check_status<cldnn_memory>("memory attach failed", [&](status_t* status) {
+            return cldnn_attach_memory(layout, ptr, data_size, stream_id, status);
         });
     }
 
-    memory(const memory& other)
-        :_impl(other._impl), _layout(other._layout)
-        ,_size(other._size), _count(other._count)
-    {
+    memory(const memory& other) : _impl(other._impl), _layout(other._layout), _size(other._size), _count(other._count) {
         retain();
     }
 
-    memory& operator=(const memory& other)
-    {
-        if (_impl == other._impl) return *this;
+    memory& operator=(const memory& other) {
+        if (_impl == other._impl)
+            return *this;
         release();
         _impl = other._impl;
         _layout = other._layout;
@@ -97,10 +96,7 @@ struct memory
         return *this;
     }
 
-    ~memory()
-    {
-        release();
-    }
+    ~memory() { release(); }
 
     friend bool operator==(const memory& lhs, const memory& rhs) { return lhs._impl == rhs._impl; }
     friend bool operator!=(const memory& lhs, const memory& rhs) { return !(lhs == rhs); }
@@ -113,28 +109,27 @@ struct memory
 
     /// Associated @ref layout
     const layout& get_layout() const { return _layout; }
+    int get_stream_id() const { return get_stream_id_impl(_impl); }
 
     /// Test if memory is allocated by @p engine
-    bool is_allocated_by(const engine& engine) const
-    {
-        auto my_engine = check_status<cldnn_engine>("get memory engine failed", [&](status_t* status)
-        {
+    bool is_allocated_by(const engine& engine) const {
+        auto my_engine = check_status<cldnn_engine>("get memory engine failed", [&](status_t* status) {
             return cldnn_get_memory_engine(_impl, status);
         });
         return my_engine == engine.get();
     }
 
-    bool is_the_same_buffer(const memory& other) const
-    {
-        return check_status<bool>("checking if two memories refers to the same buffer failed", [&](status_t* status)
-        {
+    bool is_the_same_buffer(const memory& other) const {
+        return check_status<bool>("checking if two memories refers to the same buffer failed", [&](status_t* status) {
             return cldnn_is_the_same_buffer(_impl, other._impl, status) != 0;
         });
     }
 
     /// Creates the @ref pointer object to get an access memory data
-    template<typename T> friend struct cldnn::pointer;
-    template<typename T> cldnn::pointer<T> pointer() const;
+    template <typename T>
+    friend struct cldnn::pointer;
+    template <typename T>
+    cldnn::pointer<T> pointer() const;
 
     /// C API memory handle
     cldnn_memory get() const { return _impl; }
@@ -145,62 +140,64 @@ private:
     layout _layout;
     size_t _size;
     size_t _count;
+    int _stream_id;
 
-    static layout get_layout_impl(cldnn_memory mem)
-    {
-        if (!mem) throw std::invalid_argument("mem");
+    static layout get_layout_impl(cldnn_memory mem) {
+        if (!mem)
+            throw std::invalid_argument("mem");
 
-        return check_status<layout>("get memory layout failed", [=](status_t* status)
-        {
-            return cldnn_get_memory_layout(mem, status);
-        });
+        return check_status<layout>("get memory layout failed",
+                                    [=](status_t* status) { return (layout) cldnn_get_memory_layout(mem, status); });
     }
 
-    memory(cldnn_memory data)
-        :_impl(data), _layout(get_layout_impl(data))
-        , _size(_layout.bytes_count()), _count(_layout.count())
-    {
+    static int get_stream_id_impl(cldnn_memory mem) {
+        if (!mem)
+            throw std::invalid_argument("mem");
+
+        return check_status<int>("get memory layout failed",
+                                 [=](status_t* status) { return cldnn_get_memory_stream_id(mem, status); });
+    }
+
+    explicit memory(cldnn_memory data)
+        : _impl(data),
+          _layout(get_layout_impl(data)),
+          _size(_layout.bytes_count()),
+          _count(_layout.count()),
+          _stream_id(get_stream_id_impl(data)) {
         if (_impl == nullptr)
             throw std::invalid_argument("implementation pointer should not be null");
     }
 
-    void retain()
-    {
+    void retain() {
         check_status<void>("retain memory failed", [=](status_t* status) { cldnn_retain_memory(_impl, status); });
     }
-    void release()
-    {
+    void release() {
         check_status<void>("release memory failed", [=](status_t* status) { cldnn_release_memory(_impl, status); });
     }
 
-    template<typename T>
-    T* lock() const
-    {
-        if (data_type_traits::align_of(_layout.data_type) % alignof(T) != 0)
-        {
+    template <typename T>
+    T* lock() const {
+        if (data_type_traits::align_of(_layout.data_type) % alignof(T) != 0) {
             throw std::logic_error("memory data type alignment do not match");
         }
-        return check_status<T*>("memory lock failed", [=](status_t* status) { return static_cast<T*>(cldnn_lock_memory(_impl, status)); });
+        return check_status<T*>("memory lock failed",
+                                [=](status_t* status) { return static_cast<T*>(cldnn_lock_memory(_impl, status)); });
     }
 
-    void unlock() const
-    {
-        check_status<void>("memory unlock failed", [=](status_t* status) { return cldnn_unlock_memory(_impl, status); });
+    void unlock() const {
+        check_status<void>("memory unlock failed",
+                           [=](status_t* status) { return cldnn_unlock_memory(_impl, status); });
     }
 };
 
-namespace details
-{
-//we need this hackish structure as long as primitives (which are used internally) use c++ api 'memory' (see: cldnn::data)
-struct memory_c_to_cpp_converter
-{
-    //does not retain @p c_mem
-    static memory convert(cldnn_memory c_mem)
-    {
-        return memory{ c_mem };
-    }
+namespace details {
+// we need this hackish structure as long as primitives (which are used internally) use c++ api 'memory' (see:
+// cldnn::data)
+struct memory_c_to_cpp_converter {
+    // does not retain @p c_mem
+    static memory convert(cldnn_memory c_mem) { return memory{c_mem}; }
 };
-}
+}  // namespace details
 
 /// @brief Helper class to get an access @ref memory data
 /// @details
@@ -208,25 +205,19 @@ struct memory_c_to_cpp_converter
 /// @ref memory object is locked on construction of pointer and "unlocked" on descruction.
 /// Objects of this class could be used in many STL utility functions like copy(), transform(), etc.
 /// As well as in range-for loops.
-template<typename T>
-struct pointer
-{
+template <typename T>
+struct pointer {
     /// @brief Constructs pointer from @ref memory and locks @c (pin) ref@ memory object.
-    pointer(const memory& mem)
-        : _mem(mem)
-        , _size(_mem.size()/sizeof(T))
-        , _ptr(_mem.lock<T>())
-    {}
+    explicit pointer(const memory& mem) : _mem(mem), _size(_mem.size() / sizeof(T)), _ptr(_mem.lock<T>()) {}
 
     /// @brief Unlocks @ref memory
     ~pointer() { _mem.unlock(); }
 
     /// @brief Copy construction.
-    pointer(const pointer& other) : pointer(other._mem){}
+    pointer(const pointer& other) : pointer(other._mem) {}
 
     /// @brief Copy assignment.
-    pointer& operator=(const pointer& other)
-    {
+    pointer& operator=(const pointer& other) {
         if (this->_mem != other._mem)
             do_copy(other._mem);
         return *this;
@@ -254,8 +245,7 @@ struct pointer
 #endif
 
     /// @brief Provides indexed access to pointed memory.
-    T& operator[](size_t idx) const&
-    {
+    T& operator[](size_t idx) const& {
         assert(idx < _size);
         return _ptr[idx];
     }
@@ -285,9 +275,8 @@ private:
     size_t _size;
     T* _ptr;
 
-    //TODO implement exception safe code.
-    void do_copy(const memory& mem)
-    {
+    // TODO implement exception safe code.
+    void do_copy(const memory& mem) {
         auto ptr = mem.lock<T>();
         _mem.unlock();
         _mem = mem;
@@ -298,11 +287,13 @@ private:
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 template <typename T>
-pointer<T> memory::pointer() const { return cldnn::pointer<T>(*this); }
+pointer<T> memory::pointer() const {
+    return cldnn::pointer<T>(*this);
+}
 #endif
 
 /// @}
 
 /// @}
 
-}
+}  // namespace cldnn

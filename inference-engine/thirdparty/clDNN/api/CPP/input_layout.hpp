@@ -20,8 +20,7 @@
 #include "primitive.hpp"
 #include "memory.hpp"
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -36,41 +35,34 @@ namespace cldnn
 /// @note User should call network::set_input_data() for every @p input_layout primitive before network execution.
 /// @note @p output_padding property of @p input_layout is ignored - its output layout is always equal to input layout defined during object creation.
 /// @sa network::set_input_data(), cldnn::data
-struct input_layout : public primitive_base<input_layout, CLDNN_PRIMITIVE_DESC(input_layout)>
-{
+struct input_layout : public primitive_base<input_layout, CLDNN_PRIMITIVE_DESC(input_layout)> {
     CLDNN_DECLARE_PRIMITIVE(input_layout)
 
     /// @brief Constructs input layout primitive.
     /// @param id This primitive id.
     /// @param layout Defines layout for the data will be passed to network.
     input_layout(const primitive_id& id, const layout& layout)
-        :primitive_base(id, {}, layout.data_padding)
-        , layout(layout)
-    {}
+        : primitive_base(id, {}, layout.data_padding), layout(layout) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{input_layout}
     explicit input_layout(const dto* dto)
-        :primitive_base(dto)
-        , layout(dto->layout)
-    {
+        : primitive_base(dto), layout(dto->layout) {
         output_padding = layout.data_padding;
     }
 
     /// @brief Defines layout for the data will be passed to network.
     mutable cldnn::layout layout;
 
-    void change_layout(cldnn::layout new_layout)
-    {
+    void change_layout(cldnn::layout new_layout) {
         layout = new_layout;
     }
 
 private:
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.layout = layout;
     }
 };
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

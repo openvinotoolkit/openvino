@@ -73,7 +73,7 @@ public:
         float* dst_data = outputs[0]->cbuffer().as<float *>() +
                           outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
-        switch (inputs[REVERSESEQUENCE_LENGTHS]->precision()) {
+        switch (inputs[REVERSESEQUENCE_LENGTHS]->getTensorDesc().getPrecision()) {
             case Precision::FP32: {
                 float *seq_lengths_data = inputs[REVERSESEQUENCE_LENGTHS]->cbuffer().as<float *>() +
                                           inputs[REVERSESEQUENCE_LENGTHS]->getTensorDesc().getBlockingDesc().getOffsetPadding();

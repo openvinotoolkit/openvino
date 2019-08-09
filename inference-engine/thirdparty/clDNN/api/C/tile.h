@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef TILE_H
-#define TILE_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -30,12 +28,12 @@
 extern "C" {
 #endif
 
-typedef enum
-{
+typedef enum {
     cldnn_tile_along_b = 0,
     cldnn_tile_along_f = CLDNN_TENSOR_BATCH_DIM_MAX,
     cldnn_tile_along_x = CLDNN_TENSOR_BATCH_DIM_MAX + CLDNN_TENSOR_FEATURE_DIM_MAX,
-    cldnn_tile_along_y = cldnn_tile_along_x + 1
+    cldnn_tile_along_y = cldnn_tile_along_x + 1,
+    cldnn_tile_along_z = cldnn_tile_along_y + 1
 } cldnn_tile_axis;
 
 CLDNN_BEGIN_PRIMITIVE_DESC(tile)
@@ -54,5 +52,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(tile);
 /// @}
 /// @}
 /// @}
-#endif /* TILE_H */
 

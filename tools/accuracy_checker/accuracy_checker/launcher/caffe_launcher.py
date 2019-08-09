@@ -18,10 +18,8 @@ import re
 
 import caffe
 
-from ..utils import extract_image_representations
 from ..config import PathField, StringField, NumberField, BoolField
 from .launcher import Launcher, LauncherConfig
-from .input_feeder import InputFeeder
 
 DEVICE_REGEX = r'(?P<device>cpu$|gpu)(_(?P<identifier>\d+))?'
 
@@ -46,19 +44,19 @@ class CaffeLauncher(Launcher):
 
     __provider__ = 'caffe'
 
-    def __init__(self, config_entry: dict, adapter, *args, **kwargs):
-        super().__init__(config_entry, adapter, *args, **kwargs)
+    def __init__(self, config_entry: dict, *args, **kwargs):
+        super().__init__(config_entry, *args, **kwargs)
 
         caffe_launcher_config = CaffeLauncherConfig('Caffe_Launcher')
-        caffe_launcher_config.validate(self._config)
+        caffe_launcher_config.validate(self.config)
 
-        self.model = str(self._config['model'])
-        self.weights = str(self._config['weights'])
+        self.model = str(self.config['model'])
+        self.weights = str(self.config['weights'])
 
         self.network = caffe.Net(self.model, self.weights, caffe.TEST)
-        self.allow_reshape_input = self._config.get('allow_reshape_input', False)
+        self.allow_reshape_input = self.config.get('allow_reshape_input', False)
 
-        match = re.match(DEVICE_REGEX, self._config['device'].lower())
+        match = re.match(DEVICE_REGEX, self.config['device'].lower())
         if match.group('device') == 'gpu':
             caffe.set_mode_gpu()
             identifier = match.group('identifier') or 0
@@ -66,16 +64,8 @@ class CaffeLauncher(Launcher):
         elif match.group('device') == 'cpu':
             caffe.set_mode_cpu()
 
-        self._batch = self._config.get('batch', 1)
-
-        inputs_map = {}
-        for input_blob in self.network.inputs:
-            inputs_map[input_blob] = self.network.blobs[input_blob]
-
-        self.input_feeder = InputFeeder(self._config.get('inputs') or [], inputs_map)
-
-        if self.adapter:
-            self.adapter.output_blob = self.adapter.output_blob or next(iter(self.network.outputs))
+        self._batch = self.config.get('batch', 1)
+        self.const_inputs = self.config.get('_list_const_inputs', [])
 
     @property
     def inputs(self):
@@ -83,13 +73,11 @@ class CaffeLauncher(Launcher):
         Returns:
             inputs in NCHW format.
         """
-
         self._inputs_shapes = {}
 
         for input_blob in self.network.inputs:
-            if input_blob in self.input_feeder.const_inputs:
+            if input_blob in self.const_inputs:
                 continue
-
             channels, height, width = self.network.blobs[input_blob].data.shape[1:]
             self.network.blobs[input_blob].reshape(self._batch, channels, height, width)
             self._inputs_shapes[input_blob] = channels, height, width
@@ -100,24 +88,25 @@ class CaffeLauncher(Launcher):
     def batch(self):
         return self._batch
 
-    def predict(self, identifiers, data_representation, *args, **kwargs):
+    @property
+    def output_blob(self):
+        return next(iter(self.network.outputs))
+
+    def predict(self, inputs, metadata, *args, **kwargs):
         """
         Args:
-            identifiers: list of input data identifiers.
-            data_representation: list of input data representations, which contain preprocessed data and its metadata.
+            inputs: dictionary where keys are input layers names and values are data for them.
+            metadata: metadata of input representations
         Returns:
-            output of model converted to appropriate representation.
+            raw data from network.
         """
-        _, meta = extract_image_representations(data_representation)
-        dataset_inputs = self.input_feeder.fill_non_constant_inputs(data_representation)
         results = []
-        for infer_input in dataset_inputs:
+        for infer_input in inputs:
             for input_blob in self.network.inputs:
-                if input_blob in self.input_feeder.const_inputs:
+                if input_blob in self.const_inputs:
                     continue
 
                 data = infer_input[input_blob]
-
                 if self.allow_reshape_input:
                     self.network.blobs[input_blob].reshape(*data.shape)
 
@@ -126,16 +115,21 @@ class CaffeLauncher(Launcher):
                         data.shape[0], *self.network.blobs[input_blob].data.shape[1:]
                     )
 
-            results.append(self.network.forward(**self.input_feeder.const_inputs, **infer_input))
-
-        if self.adapter:
-            results = self.adapter(results, identifiers, [self._provide_inputs_info_to_meta(meta_) for meta_ in meta])
+            results.append(self.network.forward(**infer_input))
+            for image_meta in metadata:
+                self._provide_inputs_info_to_meta(image_meta)
 
         return results
+
+    def get_all_inputs(self):
+        inputs_map = {}
+        for input_blob in self.network.inputs:
+            inputs_map[input_blob] = self.network.blobs[input_blob].data.shape
+
+        return inputs_map
 
     def release(self):
         """
         Releases launcher.
         """
-
         del self.network

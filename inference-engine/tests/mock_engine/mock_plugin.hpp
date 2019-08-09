@@ -8,7 +8,7 @@
 #include <ie_plugin_ptr.hpp>
 #include <ie_icnn_network.hpp>
 
-class MockPlugin : public InferenceEngine::IInferencePlugin{
+class MockPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::IInferencePlugin * _target = nullptr;
 public:
     MockPlugin(InferenceEngine::IInferencePlugin*target);
@@ -43,5 +43,3 @@ public:
 
     std::map<std::string, std::string> config;
 };
-
-

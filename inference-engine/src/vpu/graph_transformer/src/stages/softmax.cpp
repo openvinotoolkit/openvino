@@ -20,46 +20,22 @@ private:
         return std::make_shared<SoftMaxStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
 
-        DataMap<float> out;
-
-        out[input] = 1.0f;
-        out[output] = 1.0f;
-
-        return out;
+        _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
-
-        out[output] = input->desc().dimsOrder();
-
-        return out;
-    }
-
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+    void getDataStridesRequirementsImpl() const override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     void finalCheckImpl() const override {

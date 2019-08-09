@@ -82,8 +82,10 @@ class GatherNdNormalize(MiddleReplacementPattern):
 
         # 1. Add Reshape and connect
         new_shape = int64_array([-1] + list(input_shape[indices.shape[-1]:]))
-        reshape = Reshape(graph, {'name': gather.name + '/Reshape_for_GatherNd/', 'dim': new_shape, }).create_node()
+        reshape = Reshape(graph, {'name': gather.name + '/Reshape_for_GatherNd/'}).create_node()
+        reshape_const_node = Const(graph, {'name': reshape.name + '/Dim', 'value': new_shape}).create_node()
         gather.in_port(0).get_connection().set_destination(reshape.in_port(0))
+        reshape.in_port(1).connect(reshape_const_node.out_port(0))
 
         # 2. Change indices from Nd to 1d:
         new_indices = np.reshape(np.take(indices, indices=[gather_idx], axis=-1), [-1])

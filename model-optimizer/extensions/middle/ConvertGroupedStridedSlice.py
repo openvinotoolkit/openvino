@@ -14,18 +14,20 @@
  limitations under the License.
 """
 
+import logging as log
 from copy import deepcopy
 
-import logging as log
 import numpy as np
 
 from extensions.middle.SliceConverter import ConvertSlice
 from extensions.ops.splitv import SplitV
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node, Graph, add_opoutput
+from mo.graph.graph import Graph, Node, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.op import Op
-from mo.ops.reshape import Reshape
+from mo.ops.squeeze import Squeeze
+from mo.ops.unsqueeze import Unsqueeze
 
 
 class ConvertGroupedStridedSlice(MiddleReplacementPattern):
@@ -59,8 +61,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         # Iterate over all data nodes and find all with >= 1 consumers
-        data_nodes = [Node(graph, node) for node in graph.node if Node(graph, node).kind == 'data']
-        for input_data in data_nodes:
+        for input_data in list(graph.get_data_nodes()):
             # We don't use constant data nodes
             if input_data.value is not None:
                 continue
@@ -87,6 +88,9 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                         split_channel_dim = dim_id
                     else:
                         valid_for_replacement = False
+
+            if split_channel_dim is None:
+                valid_for_replacement = False
 
             # split_dims contains tuples with split range and output data node
             split_dims = []
@@ -128,12 +132,22 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                 # Split dims shouldn't intersect
                 if l < prev_r:
                     valid_for_replacement = False
+                prev_r = r
+
+            if prev_r > input_shape[split_channel_dim]:
+                valid_for_replacement = False
+
+            if not valid_for_replacement:
+                continue
+
+            prev_r = 0
+            for l, r, out in sorted_split_dims:
                 # Save missing tensor part
                 if l > prev_r:
                     shape = np.array(input_shape)
                     size_splits.append(l - prev_r)
                     shape[split_channel_dim] = l - prev_r
-                    data_node = Op._create_data_node(graph, 'fake_data', {'shape': shape})
+                    data_node = Op._create_data_node(graph, 'fake_data_'+out_nodes[0].name, {'shape': shape})
                     add_opoutput(graph, data_node.id, 0, False)
                     final_data_nodes_list.append(data_node)
 
@@ -141,27 +155,22 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                 size_splits.append(r - l)
                 final_data_nodes_list.append(out)
 
-            if prev_r > input_shape[split_channel_dim]:
-                valid_for_replacement = False
-            elif prev_r != input_shape[split_channel_dim]:
+            if prev_r < input_shape[split_channel_dim]:
                 # Add last part of tensor
                 shape = input_shape.copy()
                 shape[split_channel_dim] = input_shape[split_channel_dim] - prev_r
                 size_splits.append(input_shape[split_channel_dim] - prev_r)
-                data_node = Op._create_data_node(graph, 'fake_data', {'shape': shape})
+                data_node = Op._create_data_node(graph, 'fake_data_'+out_nodes[0].name, {'shape': shape})
                 add_opoutput(graph, data_node.id, 0, False)
                 final_data_nodes_list.append(data_node)
-
-            if not valid_for_replacement:
-                continue
 
             for node in out_nodes:
                 if not np.all([x == 0 for x in node.shrink_axis_mask]):
                     out_node = node.out_node()
                     if np.any(node['shrink_axis_mask']):
-                        self.add_reshape_for_shrink(graph, node)
+                        self.add_squeeze_for_shrink(graph, node)
                     if np.any(node['new_axis_mask']):
-                        self.add_reshape_for_new(graph, node)
+                        self.add_unsqueeze_for_new(graph, node)
 
                     for i in range(len(final_data_nodes_list)):
                         if final_data_nodes_list[i].name == out_node.name:
@@ -185,78 +194,64 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             split.create_node_with_data(inputs=[input_data], data_nodes=final_data_nodes_list)
 
     @staticmethod
-    def add_reshape_for_shrink(graph: Graph, ss_node):
-        # add Reshape for shrink_axis_mask
+    def add_squeeze_for_shrink(graph: Graph, ss_node: Node):
+        # add Squeeze for shrink_axis_mask
         log.info("StridedSlice op with shrink mask '{}' has been detected".format(ss_node.id))
-        node = ss_node
 
-        if len(node.in_nodes()) != 4 or len(node.out_nodes()) != 1:
+        if len(ss_node.in_nodes()) != 4 or len(ss_node.out_nodes()) != 1:
             return
 
-        shape_out = node.out_node().shape
-        dim = shape_out.copy()
+        shape_out = ss_node.out_node().shape
+        dim = np.array(range(len(ss_node['shrink_axis_mask'])))[np.array(ss_node['shrink_axis_mask'], dtype=bool)]
         ss_shape = []
         k = 0
 
         # Don't permute reshape if channels were squeezed
         dont_permute = False
-        if graph.graph['layout'] == 'NHWC' and node['shrink_axis_mask'][-1] == 1:
+        if graph.graph['layout'] == 'NHWC' and ss_node['shrink_axis_mask'][-1] == 1:
             dont_permute = True
 
-        for i in range(0, len(node['shrink_axis_mask'])):
-            if not node['shrink_axis_mask'][i]:
+        for i in range(0, len(ss_node['shrink_axis_mask'])):
+            if not ss_node['shrink_axis_mask'][i]:
                 ss_shape.append(shape_out[k])
                 k = k + 1
             else:
-                node['shrink_axis_mask'][i] = 0
+                ss_node['shrink_axis_mask'][i] = 0
                 ss_shape.append(1)
 
-        out_node = node.out_node(0)
+        ss_node.out_port(0).data.set_shape(ss_shape)
 
-        # insert data node for StridedSlice
-        data_node = Op._create_data_node(graph, node.name + "/Reshape_shrink_data", {'shape': int64_array(ss_shape)})
-        attrs = deepcopy(graph.get_edge_data(node.id, out_node.id)[0])
-        graph.remove_edge(node.id, out_node.id)
-        graph.add_edge(node.id, data_node.id, **attrs)
+        # insert Squeeze
+        squeeze_node = Squeeze(graph, dict(name=ss_node.name + '/Squeeze_shrink',
+                                           nchw_layout=dont_permute,
+                                           correct_data_layout=dont_permute)).create_node()
+        ss_node.out_port(0).get_connection().insert_node(squeeze_node)
+        squeeze_node.out_port(0).data.set_shape(shape_out)
 
-        # insert Reshape
-        if dont_permute:
-            reshape = Reshape(graph, dict(name=node.name + "/Reshape_shrink",
-                                          dim=np.array(dim, dtype=np.int64), nchw_layout=True))
-            reshape_data_node = reshape.create_node_with_data([data_node], reshape.attrs,
-                                                              data_nodes=[out_node])
-            reshape_data_node['nchw_layout'] = True
-        else:
-            reshape = Reshape(graph, dict(name=node.name + "/Reshape_shrink",
-                                          dim=np.array(dim, dtype=np.int64)))
-            reshape_data_node = reshape.create_node_with_data([data_node], reshape.attrs,
-                                                              data_nodes=[out_node])
+        dims_node = Const(graph, {'name': squeeze_node.id + '/Indices', 'value': int64_array(dim)}).create_node()
+        dims_node.out_port(0).connect(squeeze_node.in_port(1))
 
     @staticmethod
-    def add_reshape_for_new(graph: Graph, ss_node):
+    def add_unsqueeze_for_new(graph: Graph, ss_node: Node):
         log.info("StridedSlice op with new axis mask '{}' has been detected".format(ss_node.id))
-        node = ss_node
-
-        if len(node.in_nodes()) != 4 or len(node.out_nodes()) != 1:
+        if len(ss_node.in_nodes()) != 4 or len(ss_node.out_nodes()) != 1:
             return
 
-        shape_out = node.out_node().shape
-        dim = shape_out.copy()
+        shape_out = ss_node.out_node().shape
+        dim = np.array(range(len(ss_node['new_axis_mask'])))[np.array(ss_node['new_axis_mask'], dtype=bool)]
         ss_shape = []
-        for i in range(0, len(node['new_axis_mask'])):
-            if not node['new_axis_mask'][i]:
+        for i in range(0, len(ss_node['new_axis_mask'])):
+            if not ss_node['new_axis_mask'][i]:
                 ss_shape.append(shape_out[i])
             else:
-                node['new_axis_mask'][i] = 0
+                ss_node['new_axis_mask'][i] = 0
 
-        out_node = node.out_node(0)
-        # insert data node for StridedSlice
-        data_node = Op._create_data_node(graph, node.name + "/Reshape_new_data", {'shape': ss_shape})
-        attrs = deepcopy(graph.get_edge_data(node.id, out_node.id)[0])
-        graph.remove_edge(node.id, out_node.id)
-        graph.add_edge(node.id, data_node.id, **attrs)
+        ss_node.out_port(0).data.set_shape(ss_shape)
 
-        # insert Reshape
-        reshape = Reshape(graph, dict(name=node.name + "/Reshape_new",
-                                      dim=np.array(dim, dtype=np.int64)))
-        reshape.create_node_with_data([data_node], reshape.attrs, data_nodes=[out_node])
+        # insert Unsqueeze
+        unsqueeze_node = Unsqueeze(graph, dict(name=ss_node.name + '/Unsqueeze_new')).create_node()
+        ss_node.out_port(0).get_connection().insert_node(unsqueeze_node)
+        unsqueeze_node.out_port(0).data.set_shape(shape_out)
+
+        dims_node = Const(graph, {'name': unsqueeze_node.id + '/Indices', 'value': int64_array(dim)}).create_node()
+        dims_node.out_port(0).connect(unsqueeze_node.in_port(1))

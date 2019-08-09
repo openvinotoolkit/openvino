@@ -12,52 +12,63 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *******************************************************************************/
+ ******************************************************************************/
 
 #include "gemv.hpp"
+
+#include "../gemm_info.hpp"
+#include "common_u8.hpp"
+#include "jit_generator.hpp"
+#include "mkldnn_thread.hpp"
+#include "nstl.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-int gemm_s8u8s32_jump_to_gemv_s8u8s32(blas_t *arg) {
+template <typename T>
+int gemm_s8u8s32_jump_to_gemv_s8u8s32(T *arg);
 
-    blas_t arg_gemv = *arg;
+template <>
+int gemm_s8u8s32_jump_to_gemv_s8u8s32(
+        gemm_info_t<int8_t, uint8_t, int32_t> *arg) {
 
-    if ((arg -> offsetc == FIX_OFFSET) && // Fix offset
-        (arg -> ao == 0) &&
-        (arg -> bo == 0) &&
-        (arg -> co[0] == 0) &&
-        (*(arg -> alpha) == 1.0f) &&
-        ((*(arg -> beta) == 1.0f) || *(arg -> beta) == 0.0f)) {
+    gemm_info_t<int8_t, uint8_t, int32_t> arg_gemv = *arg;
 
-        if (arg -> n == 1) {
+    if ((arg->offsetc == FIX_OFFSET) && // Fix offset
+        (arg->ao == 0) &&
+        (arg->bo == 0) &&
+        (arg->co[0] == 0) &&
+        (*(arg->alpha) == 1.0f) &&
+        ((*(arg->beta) == 1.0f) || *(arg->beta) == 0.0f)) {
 
-            if (arg -> transa == 1) { // A transpose
-                arg_gemv.n = arg -> k;
+        if (arg->n == 1) {
+
+            if (arg->transa == do_trans) {
+                arg_gemv.n = arg->k;
                 arg_gemv.ldc = 1;
                 arg_gemv.swap = 0;
-                if (arg -> transb == 0) { // B non transpose
+                if (arg->transb == no_trans) {
                     arg_gemv.ldb = 1;
                 }
-                // B transpose arg_gemv.ldb = arg -> ldb
+                // B transpose arg_gemv.ldb = arg->ldb
                 gemv_threading_driver(&arg_gemv);
                 return 1;
             }
         }
 
-        if (arg -> m == 1) {
+        if (arg->m == 1) {
 
-            if (arg -> transb == 0) { // B non transpose
-                arg_gemv.transa = 1;
-                arg_gemv.m = arg -> n;
-                arg_gemv.n = arg -> k;
-                arg_gemv.a = (int8_t *) arg -> b;
-                arg_gemv.lda = arg -> ldb;
-                arg_gemv.b = (uint8_t *) arg -> a;
+            if (arg->transb == no_trans) {
+                arg_gemv.transa = do_trans;
+                arg_gemv.m = arg->n;
+                arg_gemv.n = arg->k;
+                arg_gemv.a = (int8_t *) arg->b;
+                arg_gemv.lda = arg->ldb;
+                arg_gemv.b = (uint8_t *) arg->a;
                 arg_gemv.swap = 1;
-                if (arg -> transa == 0) { // A non transpose
-                    arg_gemv.ldb = arg -> lda;
+                if (arg->transa == no_trans) {
+                    arg_gemv.ldb = arg->lda;
                 }
                 else { // A transpose
                     arg_gemv.ldb = 1;
@@ -72,27 +83,27 @@ int gemm_s8u8s32_jump_to_gemv_s8u8s32(blas_t *arg) {
 }
 
 
-int gemv_kernel_driver(blas_t *arg) {
+int gemv_kernel_driver(gemm_info_t<int8_t, uint8_t, int32_t> *arg) {
 
-    dim_t m = arg -> m;
-    dim_t n = arg -> n;
-    uint8_t *a = (uint8_t *) arg -> a;
-    dim_t lda = arg -> lda;
-    int8_t *b = (int8_t *) arg -> b;
-    float beta = *(arg -> beta);
+    dim_t m = arg->m;
+    dim_t n = arg->n;
+    uint8_t *a = (uint8_t *) arg->a;
+    dim_t lda = arg->lda;
+    int8_t *b = (int8_t *) arg->b;
+    float beta = *(arg->beta);
 
-    if (arg -> swap) {
-        arg -> gemv_u8s8s32_kernel(m, n, 1.0f, a, lda, b, beta, arg -> c);
+    if (arg->swap) {
+        arg->gemv_u8s8s32_kernel(m, n, 1.0f, a, lda, b, beta, arg->c);
     }
     else {
-        arg -> gemv_s8u8s32_kernel(arg -> m, arg -> n, 1.0f, arg -> a,
-                                   arg -> lda, arg -> b, *(arg -> beta), arg -> c);
+        arg->gemv_s8u8s32_kernel(arg->m, arg->n, 1.0f, arg->a, arg->lda,
+                arg->b, *(arg->beta), arg->c);
     }
 
     return 0;
 }
 
-int gemv_threading_driver(blas_t *arg) {
+int gemv_threading_driver(gemm_info_t<int8_t, uint8_t, int32_t> *arg) {
 
     dim_t nthr_m, nthr_n = 1;
     dim_t MB, NB, UM = 16, UN = 64;
@@ -105,16 +116,16 @@ int gemv_threading_driver(blas_t *arg) {
     uint8_t *new_x = NULL;
     int32_t *tmp_y = NULL, *new_y = NULL;
 
-    dim_t m = arg -> m, n = arg -> n;
+    dim_t m = arg->m, n = arg->n;
 
-    blas_t arg_seq = *arg;
+    gemm_info_t<int8_t, uint8_t, int32_t> arg_seq = *arg;
     float zero = 0.0f;
 
-    nthr_m = std::min(std::max(m / BLOCKM, (dim_t) 1), nthr);
+    nthr_m = nstl::min(nstl::max(m / BLOCKM, (dim_t) 1), nthr);
     MB = m / nthr_m;
     MB = (((MB / UM) * UM) == MB) ? MB : (MB / UM) * UM + UM;
     nthr_m = (((m / MB) * MB) == m) ? m / MB : m / MB + 1;
-    nthr_m = std::min(std::max(nthr_m, (dim_t) 1), nthr);
+    nthr_m = nstl::min(nstl::max(nthr_m, (dim_t) 1), nthr);
 
     while ((nthr_m * (nthr_n + 1) <= nthr) && ((n / (nthr_n + 1)) >= BLOCKN)) {
         nthr_n++;
@@ -123,26 +134,27 @@ int gemv_threading_driver(blas_t *arg) {
     NB = n / nthr_n;
     NB = (((NB / UN) * UN) == NB) ? NB : (NB / UN) * UN + UN;
     nthr_n = (((n / NB) * NB) == n) ? n / NB : n / NB + 1;
-    nthr_n = std::min(std::max(nthr_n, (dim_t) 1), nthr / nthr_m);
+    nthr_n = nstl::min(nstl::max(nthr_n, (dim_t) 1), nthr / nthr_m);
 
     nthr = nthr_m * nthr_n;
 
-    if (arg -> ldb != 1) {
+    if (arg->ldb != 1) {
         new_x = (uint8_t *)malloc(n, 64);
         if (new_x == NULL)
             return 1;
         for (i = 0; i < n; i++) {
-            new_x[i] = (arg -> b)[i * arg -> ldb];
+            new_x[i] = (arg->b)[i * arg->ldb];
         }
         arg_seq.b = new_x;
         arg_seq.ldb = 1;
     }
-    else new_x = (uint8_t *) arg -> b;
+    else new_x = (uint8_t *) arg->b;
 
-    if (arg -> ldc != 1) {
-        new_y = (int32_t *) malloc(nthr_m * PADD_BYTESIZE_ONPAGE(MB, sizeof(int32_t)), 64);
+    if (arg->ldc != 1) {
+        new_y = (int32_t *)
+            malloc(nthr_m * PADD_BYTESIZE_ONPAGE(MB, sizeof(int32_t)), 64);
         if (new_y == NULL) {
-            if (arg -> ldb != 1) {
+            if (arg->ldb != 1) {
                 free(new_x);
             }
             return 1;
@@ -152,35 +164,37 @@ int gemv_threading_driver(blas_t *arg) {
     // GEMV computation
     if (nthr == 1) {
 
-        if (arg -> ldc != 1) {
-            if (*(arg -> beta) != 0.0f) {
+        if (arg->ldc != 1) {
+            if (*(arg->beta) != 0.0f) {
                 for (i = 0; i < m; i++) {
-                    new_y[i] = arg -> c[i * arg -> ldc];
+                    new_y[i] = arg->c[i * arg->ldc];
                 }
             }
         }
 
         status = gemv_kernel_driver(&arg_seq);
 
-        if (arg -> ldc != 1) {
+        if (arg->ldc != 1) {
             for (i = 0; i < m; i++) {
-                arg -> c[i * arg -> ldc] = new_y[i];
+                arg->c[i * arg->ldc] = new_y[i];
             }
         }
 
-        if (arg -> ldb != 1) {
+        if (arg->ldb != 1) {
             free(new_x);
         }
-        if (arg -> ldc != 1) {
+        if (arg->ldc != 1) {
             free(new_y);
         }
         return status;
     }
 
     if (nthr_n > 1) {
-        tmp_y = (int32_t *) malloc((nthr_n - 1) * PADD_BYTESIZE_ONPAGE(m, sizeof(int32_t)), PAGESIZE);
+        tmp_y = (int32_t *)
+            malloc((nthr_n - 1) * PADD_BYTESIZE_ONPAGE(m, sizeof(int32_t)),
+                    PAGE_4K);
         if (tmp_y == NULL) {
-            if (arg -> ldb != 1) {
+            if (arg->ldb != 1) {
                 free(new_x);
             }
             return 1;
@@ -196,7 +210,7 @@ int gemv_threading_driver(blas_t *arg) {
             dim_t loc_incy = 1;
             int32_t *loc_y;
 
-            blas_t arg_loc = arg_seq;
+            gemm_info_t<int8_t, uint8_t, int32_t> arg_loc = arg_seq;
             int j;
 
             m_id = ithr / nthr_n;
@@ -218,18 +232,19 @@ int gemv_threading_driver(blas_t *arg) {
 
             if (n_id != 0) {
                 arg_loc.beta = &zero;
-                loc_y = tmp_y + (NEXT_THR_STRIDE(m, sizeof(int32_t))) * (n_id - 1) + m_from;
+                loc_y = tmp_y + (NEXT_THR_STRIDE(m, sizeof(int32_t)))
+                    * (n_id - 1) + m_from;
             }
             else {
-                if (arg -> ldc == 1) {
+                if (arg->ldc == 1) {
                     loc_y = arg_seq.c + m_from;
                 }
                 else {
                     // need to copy the block of c in new_y
                     loc_y = new_y + m_id * NEXT_THR_STRIDE(MB, sizeof(int32_t));
-                    if (*(arg -> beta) != 0.0f) {
+                    if (*(arg->beta) != 0.0f) {
                         for (j = 0; j < myM; j++) {
-                            loc_y[j] = arg -> c[(m_from + j) * arg -> ldc];
+                            loc_y[j] = arg->c[(m_from + j) * arg->ldc];
                         }
                     }
                 }
@@ -244,9 +259,9 @@ int gemv_threading_driver(blas_t *arg) {
 
             gemv_kernel_driver(&arg_loc);
 
-            if ((n_id == 0) && (arg -> ldc != 1)) {
+            if ((n_id == 0) && (arg->ldc != 1)) {
                 for (j = 0; j < myM; j++) {
-                    arg -> c[(m_from + j) * arg -> ldc] = loc_y[j];
+                    arg->c[(m_from + j) * arg->ldc] = loc_y[j];
                 }
             }
 
@@ -266,19 +281,20 @@ int gemv_threading_driver(blas_t *arg) {
                 for (j = j_from; j < j_to; j++) {
                     acc = 0;
                     for (ii = 0; ii < nthr_n - 1; ii++) {
-                        acc += tmp_y[ii * NEXT_THR_STRIDE(m, sizeof(int32_t)) + j];
+                        acc += tmp_y[ii
+                        * NEXT_THR_STRIDE(m, sizeof(int32_t)) + j];
                     }
-                    (arg -> c)[j * arg -> ldc] += acc;
+                    (arg->c)[j * arg->ldc] += acc;
                 }
             });
         free(tmp_y);
     }
 
-    if (arg -> ldb != 1) {
+    if (arg->ldb != 1) {
         free(new_x);
     }
 
-    if (arg -> ldc != 1) {
+    if (arg->ldc != 1) {
         free(new_y);
     }
 

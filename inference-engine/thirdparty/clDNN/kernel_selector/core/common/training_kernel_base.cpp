@@ -17,21 +17,18 @@
 #include "training_kernel_base.h"
 #include "weight_bias_kernel_base.h"
 
-namespace kernel_selector
-{
-    JitConstants training_kernel_base::GetJitConstants(const training_params& params) const
-    {
-        JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
+namespace kernel_selector {
+JitConstants training_kernel_base::GetJitConstants(const training_params& params) const {
+    JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
 
-        if (params.use_momentum)
-        {
-            jit.AddConstant(MakeJitConstant("MOMENTUM", 1));
-            jit.AddConstant(MakeJitConstant("MOMENTUM_FACTOR", params.momentum_factor));
-        }
-
-        jit.AddConstant(MakeJitConstant("DECAY_RATE", params.weights_decay));
-
-        return jit;
+    if (params.use_momentum) {
+        jit.AddConstant(MakeJitConstant("MOMENTUM", 1));
+        jit.AddConstant(MakeJitConstant("MOMENTUM_FACTOR", params.momentum_factor));
     }
 
+    jit.AddConstant(MakeJitConstant("DECAY_RATE", params.weights_decay));
+
+    return jit;
 }
+
+}  // namespace kernel_selector

@@ -21,7 +21,7 @@ from mo.middle.passes.fusing.helpers import forward_bfs, backward_bfs, get_next_
 from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
-    'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # ScaleShift layer
     'scaleshift_1': {'type': 'ScaleShift', 'kind': 'op', 'op': 'ScaleShift'},
@@ -55,16 +55,16 @@ nodes_attributes = {
     'conv_2_b': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     # FullyConnected
-    'fc_1': {'type': 'FullyConnected', 'kind': 'op', 'op': 'InnerProduct', 'layout': 'NHWC'},
+    'fc_1': {'type': 'MatMul', 'kind': 'op', 'op': 'InnerProduct', 'layout': 'NHWC'},
     'fc_1_w': {'value': None, 'shape': None, 'kind': 'data'},
     'fc_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'fc_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Placeholders
-    'placeholder_2': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'placeholder_3': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_3': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+    'op_output': { 'kind': 'op', 'op': 'Result'}
 }
 
 
@@ -110,16 +110,16 @@ class BFSTests(unittest.TestCase):
                              ('add_1_data', 'op_output')
                              ])
 
-        res = backward_bfs(Node(graph, 'add_1_data'), ['Add', 'ScaleShift', 'Mul'], ['Placeholder'])
+        res = backward_bfs(Node(graph, 'add_1_data'), ['Add', 'ScaleShift', 'Mul'], ['Parameter'])
         self.assertTrue(len(res) == 1 and res[0].id == 'placeholder_1', 'Placeholder operation was not found by bfs')
 
-        res = backward_bfs(Node(graph, 'add_1'), [], ['Placeholder'], allowed_all=True)
+        res = backward_bfs(Node(graph, 'add_1'), [], ['Parameter'], allowed_all=True)
         self.assertTrue(len(res) == 1 and res[0].id == 'placeholder_1', 'Placeholder operation was not found by bfs')
 
         res = backward_bfs(Node(graph, 'add_1_data'), ['Add'], ['ScaleShift'])
         self.assertTrue(len(res) == 0, 'No one node should be found! But bfs found {} nodes'.format(len(res)))
 
-        res = backward_bfs(Node(graph, 'add_1_data'), ['Add', 'Mul'], ['Placeholder', 'ScaleShift'])
+        res = backward_bfs(Node(graph, 'add_1_data'), ['Add', 'Mul'], ['Parameter', 'ScaleShift'])
         self.assertTrue(len(res) == 1 and res[0].id == 'scaleshift_1', 'BFS should find only one ScaleShift operation')
 
     def test_forward_bfs_hard(self):
@@ -183,7 +183,7 @@ class BFSTests(unittest.TestCase):
                              ('concat_1_data', 'op_output')
                              ])
 
-        res = backward_bfs(Node(graph, 'concat_1'), ['ScaleShift', 'Mul', 'Add'], ['Placeholder'])
+        res = backward_bfs(Node(graph, 'concat_1'), ['ScaleShift', 'Mul', 'Add'], ['Parameter'])
         self.assertTrue(len(res) == 0, 'Smth went wrong with bfs')
 
         res = backward_bfs(Node(graph, 'concat_1'), ['Mul'], ['Add'])
@@ -221,7 +221,7 @@ class BFSTests(unittest.TestCase):
                              ('concat_1_data', 'op_output')
                              ])
 
-        res = backward_bfs(Node(graph, 'concat_1'), ['Mul', 'Add'], ['Placeholder'])
+        res = backward_bfs(Node(graph, 'concat_1'), ['Mul', 'Add'], ['Parameter'])
         self.assertTrue(len(res) == 0, 'Smth went wrong with bfs')
 
         res = backward_bfs(Node(graph, 'concat_1'), ['Mul'], ['Add'])
@@ -253,7 +253,7 @@ class BFSTests(unittest.TestCase):
                              ('add_1_data', 'op_output')
                              ])
 
-        res = backward_bfs(Node(graph, 'add_1_data'), ['Add', 'ScaleShift', 'Mul', 'Placeholder'], ['Conv2D'])
+        res = backward_bfs(Node(graph, 'add_1_data'), ['Add', 'ScaleShift', 'Mul', 'Parameter'], ['Conv2D'])
         self.assertTrue(len(res) == 0, 'Sholdn\'t find any nodes due to cycle in graph')
 
 

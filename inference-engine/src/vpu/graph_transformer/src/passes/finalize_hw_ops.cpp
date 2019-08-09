@@ -241,8 +241,6 @@ void PassImpl::run(const Model::Ptr& model) {
                         hwOpParams.a1 = 1;
                     }
 
-                    auto lastOutC = std::min(output->desc().dim(Dim::C), outputOffset + tiling.workOutN) - 1;
-
                     hwOps.vec.emplace_back(hwOpParams);
 
                     inputOffset += tiling.workInN;

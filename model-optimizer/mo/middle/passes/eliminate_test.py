@@ -22,8 +22,8 @@ from mo.graph.graph import Node, Graph
 from mo.middle.passes.eliminate import mark_output_reachable_nodes, graph_clean_up, mark_const_producer_nodes
 from mo.utils.unittest.graph import build_graph
 
-nodes_attributes = {'placeholder_1': {'type': 'Placeholder', 'kind': 'op'},
-                    'placeholder_2': {'type': 'Placeholder', 'kind': 'op'},
+nodes_attributes = {'placeholder_1': {'type': 'Parameter', 'kind': 'op'},
+                    'placeholder_2': {'type': 'Parameter', 'kind': 'op'},
                     'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -42,9 +42,9 @@ nodes_attributes = {'placeholder_1': {'type': 'Placeholder', 'kind': 'op'},
                     'tf_call_1': {'type': 'TFCustomSubgraphCall', 'kind': 'op'},
                     'tf_call_2': {'type': 'TFCustomSubgraphCall', 'kind': 'op'},
                     'tf_call_3': {'type': 'TFCustomSubgraphCall', 'kind': 'op'},
-                    'op_output': {'kind': 'op', 'op': 'OpOutput'},
-                    'op_output_1': {'kind': 'op', 'op': 'OpOutput'},
-                    'op_output_2': {'kind': 'op', 'op': 'OpOutput'}
+                    'op_output': {'kind': 'op', 'op': 'Result'},
+                    'op_output_1': {'kind': 'op', 'op': 'Result'},
+                    'op_output_2': {'kind': 'op', 'op': 'Result'}
                     }
 
 

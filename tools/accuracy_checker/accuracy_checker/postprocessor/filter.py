@@ -39,15 +39,12 @@ class FilterPostprocessor(PostprocessorWithSpecificTargets):
 
     annotation_types = (DetectionAnnotation, TextDetectionAnnotation)
     prediction_types = (DetectionPrediction, TextDetectionPrediction)
+    _config_validator_type = FilterConfig
 
     def __init__(self, *args, **kwargs):
         self._filters = []
         self.remove_filtered = False
         super().__init__(*args, **kwargs)
-
-    def validate_config(self):
-        filter_config = FilterConfig(self.__provider__, on_extra_argument=FilterConfig.ERROR_ON_EXTRA_ARGUMENT)
-        filter_config.validate(self.config)
 
     def configure(self):
         config = self.config.copy()

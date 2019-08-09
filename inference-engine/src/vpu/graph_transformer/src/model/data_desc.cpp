@@ -114,7 +114,7 @@ DimsOrder DimsOrder::fromNumDims(int numDims) {
     }
 }
 
-DimsOrder DimsOrder::fromPermutation(const std::vector<Dim>& perm) {
+DimsOrder DimsOrder::fromPermutation(const SmallVector<Dim, MAX_DIMS_64>& perm) {
     StorageOrder64 code = 0;
 
     for (int sh = 0, i = 0; i < perm.size(); i++, sh += 4) {
@@ -182,9 +182,8 @@ int DimsOrder::dimInd(Dim d) const {
     VPU_THROW_EXCEPTION << "Dim " << d << " is not avaialble in layout " << toString(*this);
 }
 
-std::vector<Dim> DimsOrder::toPermutation() const {
-    std::vector<Dim> out;
-    out.reserve(MAX_DIMS_64);
+SmallVector<Dim, MAX_DIMS_64> DimsOrder::toPermutation() const {
+    SmallVector<Dim, MAX_DIMS_64> out;
 
     auto code = _code;
 
@@ -301,6 +300,9 @@ DataDesc::DataDesc(const ie::TensorDesc& ieDesc) {
     switch (ieDesc.getPrecision()) {
     case ie::Precision::U8:
         _type = DataType::U8;
+        break;
+    case ie::Precision::I8:
+         _type = DataType::I8;
         break;
     case ie::Precision::FP16:
         _type = DataType::FP16;

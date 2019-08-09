@@ -15,7 +15,7 @@
 """
 import numpy as np
 
-from extensions.ops.quantize import QuantizeOp
+from extensions.ops.fakequantize import FakeQuantize
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
 from mo.ops.const import Const
@@ -37,7 +37,7 @@ class BinarizationToQuantize(FrontReplacementOp):
         in_2 = threshold
         in_3 = Const(graph, {'name': node.id + "/Input_3", "value": broadcast(-1)}).create_node()
         in_4 = Const(graph, {'name': node.id + "/Input_4", "value": broadcast(+1)}).create_node()
-        quant = QuantizeOp(graph, {'name': node.id + "/Quantize_", "levels": 2}).create_node(
+        quant = FakeQuantize(graph, {'name': node.id + "/FakeQuantize_", "levels": 2}).create_node(
             inputs=[in_node_0, in_1, in_2, in_3, in_4])
 
         return [quant.id]

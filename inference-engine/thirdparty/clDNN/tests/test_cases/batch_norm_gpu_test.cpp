@@ -889,7 +889,7 @@ TEST(batch_normalization_gpu, basic_in2x2x3x2_bfyx_padding) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(data("mean", mean));
     topology.add(data("variance", variance));
-    topology.add(reorder("reorder", "input", input.get_layout().with_padding({ { 0, 0, 1, 2 }, 0 })));
+    topology.add(reorder("reorder", "input", input.get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })));
     topology.add(batch_norm("batch_norm", "reorder", "mean", "variance", epsilon, padding({ 0, 0, 2, 1 }, 0)));
 
     set_values(input, {
@@ -1881,15 +1881,15 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b1c2h2w2)
 {
     const auto& engine = get_test_engine();
 
-    tensor input_shape = { 1, 2, 2, 2 };
+    tensor input_shape{ 1, 2, 2, 2 };
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, input_shape });
-    tensor mean_shape = { feature(2) };
+    tensor mean_shape{ feature(2) };
     auto mean = memory::allocate(engine, { data_types::f32, format::bfyx, mean_shape });
-    tensor var_shape = { feature(2) };
+    tensor var_shape{ feature(2) };
     auto variance = memory::allocate(engine, { data_types::f32, format::bfyx, var_shape });
-    tensor gamma_shape = { feature(2) };
+    tensor gamma_shape{ feature(2) };
     auto gamma = memory::allocate(engine, { data_types::f32, format::bfyx, gamma_shape });
-    tensor beta_shape = { feature(2) };
+    tensor beta_shape{ feature(2) };
     auto beta = memory::allocate(engine, { data_types::f32, format::bfyx, beta_shape });
 
     float eps = 0.001f;
@@ -1977,15 +1977,15 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b2c2h2w1)
 {
     const auto& engine = get_test_engine();
 
-    tensor input_shape = { 2, 2, 1, 2 };
+    tensor input_shape{ 2, 2, 1, 2 };
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, input_shape });
-    tensor mean_shape = { feature(2) };
+    tensor mean_shape{ feature(2) };
     auto mean = memory::allocate(engine, { data_types::f32, format::bfyx, mean_shape });
-    tensor var_shape = { feature(2) };
+    tensor var_shape{ feature(2) };
     auto variance = memory::allocate(engine, { data_types::f32, format::bfyx, var_shape });
-    tensor gamma_shape = { feature(2) };
+    tensor gamma_shape{ feature(2) };
     auto gamma = memory::allocate(engine, { data_types::f32, format::bfyx, gamma_shape });
-    tensor beta_shape = { feature(2) };
+    tensor beta_shape{ feature(2) };
     auto beta = memory::allocate(engine, { data_types::f32, format::bfyx, beta_shape });
 
     float eps = 0.001f;
@@ -2080,15 +2080,15 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_inference_b2c2h2w1)
 {
     const auto& engine = get_test_engine();
 
-    tensor input_shape = { 2, 2, 1, 2 };
+    tensor input_shape{ 2, 2, 1, 2 };
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, input_shape });
-    tensor mean_shape = { feature(2) };
+    tensor mean_shape{ feature(2) };
     auto mean = memory::allocate(engine, { data_types::f32, format::bfyx, mean_shape });
-    tensor var_shape = { feature(2) };
+    tensor var_shape{ feature(2) };
     auto variance = memory::allocate(engine, { data_types::f32, format::bfyx, var_shape });
-    tensor gamma_shape = { feature(2) };
+    tensor gamma_shape{ feature(2) };
     auto gamma = memory::allocate(engine, { data_types::f32, format::bfyx, gamma_shape });
-    tensor beta_shape = { feature(2) };
+    tensor beta_shape{ feature(2) };
     auto beta = memory::allocate(engine, { data_types::f32, format::bfyx, beta_shape });
 
     float eps = 0.001f;
@@ -2647,15 +2647,15 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b1c2h2w2_no_bn_output)
 {
     engine engine;
 
-    tensor input_shape = { 1, 2, 2, 2 };
+    tensor input_shape{ 1, 2, 2, 2 };
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, input_shape });
-    tensor mean_shape = { feature(2) };
+    tensor mean_shape{ feature(2) };
     auto mean = memory::allocate(engine, { data_types::f32, format::bfyx, mean_shape });
-    tensor var_shape = { feature(2) };
+    tensor var_shape{ feature(2) };
     auto variance = memory::allocate(engine, { data_types::f32, format::bfyx, var_shape });
-    tensor gamma_shape = { feature(2) };
+    tensor gamma_shape{ feature(2) };
     auto gamma = memory::allocate(engine, { data_types::f32, format::bfyx, gamma_shape });
-    tensor beta_shape = { feature(2) };
+    tensor beta_shape{ feature(2) };
     auto beta = memory::allocate(engine, { data_types::f32, format::bfyx, beta_shape });
 
     float eps = 0.001f;

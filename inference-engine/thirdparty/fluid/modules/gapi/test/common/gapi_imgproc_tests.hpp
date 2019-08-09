@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_IMGPROC_TESTS_HPP
@@ -26,12 +26,15 @@ struct Erode3x3Test : public TestParams <std::tuple<compare_f,MatType,cv::Size,b
 struct DilateTest : public TestParams <std::tuple<compare_f,MatType,int,cv::Size,int,bool,cv::GCompileArgs>> {};
 struct Dilate3x3Test : public TestParams <std::tuple<compare_f,MatType,cv::Size,bool,int,cv::GCompileArgs>> {};
 struct SobelTest : public TestParams <std::tuple<compare_f,MatType,int,cv::Size,int,int,int,bool,cv::GCompileArgs>> {};
+struct SobelXYTest : public TestParams <std::tuple<compare_f,MatType,int,cv::Size,int,int,int,int,cv::GCompileArgs>> {};
 struct EqHistTest : public TestParams <std::tuple<compare_f,cv::Size,bool,cv::GCompileArgs>> {};
 struct CannyTest : public TestParams <std::tuple<compare_f,MatType,cv::Size,double,double,int,bool,bool,cv::GCompileArgs>> {};
 struct RGB2GrayTest : public  TestParams<std::tuple<compare_f,cv::Size,bool,cv::GCompileArgs>> {};
 struct BGR2GrayTest : public TestParams<std::tuple<compare_f,cv::Size,bool,cv::GCompileArgs>> {};
 struct RGB2YUVTest : public TestParams<std::tuple<compare_f,cv::Size,bool,cv::GCompileArgs>> {};
 struct YUV2RGBTest : public TestParams<std::tuple<compare_f,cv::Size,bool,cv::GCompileArgs>> {};
+struct NV12toRGBTest : public TestParams<std::tuple<compare_f,cv::Size,cv::GCompileArgs>> {};
+struct NV12toBGRTest : public TestParams<std::tuple<compare_f,cv::Size,cv::GCompileArgs>> {};
 struct RGB2LabTest : public TestParams<std::tuple<compare_f,cv::Size,bool,cv::GCompileArgs>> {};
 struct BGR2LUVTest : public TestParams<std::tuple<compare_f,cv::Size,bool,cv::GCompileArgs>> {};
 struct LUV2BGRTest : public TestParams<std::tuple<compare_f,cv::Size,bool,cv::GCompileArgs>> {};

@@ -29,7 +29,7 @@
 #define DNN_RAND_INT32_AMPLITUDE 1048576.0f
 #define DNN_RAND_FLOAT32_AMPLITUDE 8.0f
 
-enum DnnActivationType {
+enum DnnActivationType : uint8_t {
     kActNone,
     kActSigmoid,
     kActTanh,

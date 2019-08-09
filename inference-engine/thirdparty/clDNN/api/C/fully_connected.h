@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef FULLY_CONNECTED_H
-#define FULLY_CONNECTED_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -61,5 +59,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(fully_connected);
 /// @}
 /// @}
 /// @}
-#endif /* FULLY_CONNECTED_H */
 

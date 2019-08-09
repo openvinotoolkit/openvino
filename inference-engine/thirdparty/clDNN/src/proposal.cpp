@@ -19,44 +19,44 @@
 #include "json_object.h"
 
 #include <cmath>
+#include <string>
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 
-static void generate_anchors(unsigned base_size, const std::vector<float>& ratios, const std::vector<float>& scales,
+static void generate_anchors(unsigned base_size,
+                             const std::vector<float>& ratios,
+                             const std::vector<float>& scales,
                              std::vector<proposal_inst::anchor>& anchors,
                              float coordinates_offset,
                              bool shift_anchors,
                              bool round_ratios);
 
-
-primitive_type_id proposal_type_id()
-{
+primitive_type_id proposal_type_id() {
     static primitive_type_base<proposal> instance;
     return &instance;
 }
 
-
-layout proposal_inst::calc_output_layout(proposal_node const& node)
-{
-    assert((bool)node.get_primitive()->output_data_type == false
-           && "Output data type forcing is not supported for proposal_node!");
+layout proposal_inst::calc_output_layout(proposal_node const& node) {
+    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+           "Output data type forcing is not supported for proposal_node!");
     auto desc = node.get_primitive();
     layout input_layout = node.get_dependency(cls_scores_index).get_output_layout();
 
-    return layout(input_layout.data_type, format::bfyx, { input_layout.size.batch[0] * desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1 });
+    return layout(input_layout.data_type,
+                  format::bfyx,
+                  {input_layout.size.batch[0] * desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1});
 }
 
-static inline std::string stringify_vector(std::vector<float> v)
-{
+static inline std::string stringify_vector(std::vector<float> v) {
     std::stringstream s;
 
     s << "{ ";
 
-    for (size_t i = 0; i < v.size(); ++i)
-    {
+    for (size_t i = 0; i < v.size(); ++i) {
         s << v.at(i);
-        if (i + 1 < v.size()) s << ", ";
+        if (i + 1 < v.size())
+            s << ", ";
     }
 
     s << " }";
@@ -64,9 +64,8 @@ static inline std::string stringify_vector(std::vector<float> v)
     return s.str();
 }
 
-//TODO: rename to?
-static std::string stringify_port(const program_node & p)
-{
+// TODO: rename to?
+static std::string stringify_port(const program_node& p) {
     std::stringstream res;
     auto node_info = p.desc_to_json();
     node_info->dump(res);
@@ -74,21 +73,20 @@ static std::string stringify_port(const program_node & p)
     return res.str();
 }
 
-
-std::string proposal_inst::to_string(proposal_node const& node)
-{
-    auto desc         = node.get_primitive();
-    auto node_info    = node.desc_to_json();
-    auto scales_parm  = desc->scales;
+std::string proposal_inst::to_string(proposal_node const& node) {
+    auto desc = node.get_primitive();
+    auto node_info = node.desc_to_json();
+    auto scales_parm = desc->scales;
 
     std::stringstream primitive_description;
 
-    auto swap_xy         = desc->swap_xy         ? "true" : "false";
-    auto initial_clip    = desc->initial_clip    ? "true" : "false";
-    auto round_ratios    = desc->round_ratios    ? "true" : "false";
-    auto shift_anchors   = desc->shift_anchors   ? "true" : "false";
+    auto swap_xy = desc->swap_xy ? "true" : "false";
+    auto initial_clip = desc->initial_clip ? "true" : "false";
+    auto round_ratios = desc->round_ratios ? "true" : "false";
+    auto shift_anchors = desc->shift_anchors ? "true" : "false";
     auto clip_before_nms = desc->clip_before_nms ? "true" : "false";
-    auto clip_after_nms  = desc->clip_after_nms  ? "true" : "false";
+    auto clip_after_nms = desc->clip_after_nms ? "true" : "false";
+    auto for_deformable = desc->clip_after_nms ? "true" : "false";
 
     json_composite proposal_info;
     proposal_info.add("cls score", stringify_port(node.cls_score()));
@@ -113,6 +111,7 @@ std::string proposal_inst::to_string(proposal_node const& node)
     params.add("shift anchors", shift_anchors);
     params.add("clip_before_nms", clip_before_nms);
     params.add("clip_after_nms", clip_after_nms);
+    params.add("for_deformable", for_deformable);
     proposal_info.add("params", params);
 
     node_info->add("proposal info", proposal_info);
@@ -121,22 +120,23 @@ std::string proposal_inst::to_string(proposal_node const& node)
     return primitive_description.str();
 }
 
-proposal_inst::typed_primitive_inst(network_impl& network, proposal_node const& node)
-    :parent(network, node)
-{
-    generate_anchors(argument.base_bbox_size, argument.ratios, argument.scales, _anchors, argument.coordinates_offset,
-                     argument.shift_anchors, argument.round_ratios);
+proposal_inst::typed_primitive_inst(network_impl& network, proposal_node const& node) : parent(network, node) {
+    generate_anchors(argument.base_bbox_size,
+                     argument.ratios,
+                     argument.scales,
+                     _anchors,
+                     argument.coordinates_offset,
+                     argument.shift_anchors,
+                     argument.round_ratios);
 }
-
 
 static void generate_anchors(unsigned int base_size,
                              const std::vector<float>& ratios,
-                             const std::vector<float>& scales,   // input
-                             std::vector<proposal_inst::anchor>& anchors, // output
+                             const std::vector<float>& scales,             // input
+                             std::vector<proposal_inst::anchor>& anchors,  // output
                              float coordinates_offset,
                              bool shift_anchors,
-                             bool round_ratios)
-{
+                             bool round_ratios) {
     const float base_area = static_cast<float>(base_size * base_size);
     const float half_base_size = base_size * 0.5f;
     const float center = 0.5f * (base_size - coordinates_offset);
@@ -177,6 +177,5 @@ static void generate_anchors(unsigned int base_size,
             anchors.push_back(anchor);
         }
     }
-
 }
-} // namespace cldnn
+}  // namespace cldnn

@@ -65,6 +65,7 @@ class Tile(Op):
                 node['tiles'] = tile_array[node['axis']]
             else:
                 node['type'] = None
+                node['tile_array'] = tile_array
                 log.warning("Tile operation with more than one dimension not equal to 1 is not supported.")
                 # do not return here to allow infer shape and values for the constant propagation case
             node.graph.remove_edge(node.in_node(1).id, node.id)

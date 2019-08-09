@@ -137,5 +137,5 @@ REG_CONVERTER_FOR(PriorBoxClustered, [](const CNNLayerPtr& cnnLayer, Builder::La
     layer.getParameters()["height"] = cnnLayer->GetParamAsFloat("height", 0);
     layer.getParameters()["width"] = cnnLayer->GetParamAsFloat("width", 0);
     layer.getParameters()["offset"] = cnnLayer->GetParamAsFloat("offset", 0);
-    layer.getParameters()["variance"] = cnnLayer->GetParamAsFloat("variance", 0);
+    layer.getParameters()["variance"] = cnnLayer->GetParamAsFloats("variance", {});
 });

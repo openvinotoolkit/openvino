@@ -50,7 +50,7 @@ class TestUnsqueezeONNXExt(unittest.TestCase):
         UnsqueezeFrontExtractor.extract(node)
 
         exp_res = {
-            'unsqueeze_dims': axes,
+            'expand_axis': axes,
         }
 
         for key in exp_res.keys():

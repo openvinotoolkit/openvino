@@ -22,10 +22,7 @@ Options:
     -h                      Print a usage message
     -i "<path>"             Required. Path to a .bmp image file or a sequence of paths separated by spaces.
     -m "<path>"             Required. Path to an .xml file with a trained model.
-    -pp "<path>"            Path to a plugin folder
-    -d "<device>"           The target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD is acceptable. The sample looks for a suitable plugin for the device specified.
-    -ni "<integer>"         Number of iterations. Default value is 1
-    -pc                     Enables per-layer performance report
+    -d "<device>"           The target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. The sample looks for a suitable plugin for the device specified.
     -mean_val_r,
     -mean_val_g,
     -mean_val_b             Mean values. Required if the model needs mean values for preprocessing and postprocessing
@@ -34,7 +31,7 @@ Options:
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-To perform inference on an image using a trained model of NST network on Intel® CPUs, use the following command:
+To perform inference of an image using a trained model of NST network on Intel® CPUs, use the following command:
 ```sh
 ./style_transfer_sample -i <path_to_image>/cat.bmp -m <path_to_model>/1_decoder_FP32.xml
 ```

@@ -16,17 +16,12 @@
 
 #include "index_select_kernel_base.h"
 
+namespace kernel_selector {
+class IndexSelectKernelRef : public IndexSelectKernelBase {
+public:
+    IndexSelectKernelRef() : IndexSelectKernelBase("index_select_gpu_ref") {}
 
-namespace kernel_selector
-{
-    class IndexSelectKernelRef : public IndexSelectKernelBase
-    {
-    public:
-        IndexSelectKernelRef() : IndexSelectKernelBase("index_select_gpu_ref") {}
-
-        KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

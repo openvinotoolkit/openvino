@@ -106,7 +106,9 @@ TEST_F(GraphCopyTests, canPreserveAttributes) {
     ADD_ATTR(1, "id", "r-1-2-3");
     ADD_ATTR(2, "id", "r-1-2-3");
 
+    IE_SUPPRESS_DEPRECATED_START
     CNNNetwork cloned (clone.get());
+    IE_SUPPRESS_DEPRECATED_END
     auto idMemOutput = cloned.getLayerByName("1")->GetParamAsString("id");
     auto idMemInput  = cloned.getLayerByName("2")->GetParamAsString("id");
 
@@ -157,7 +159,7 @@ using FP32_2_FP32 = GNAPluginNS::details::QuantPair<_FP32_2_FP32 , _FP32_2_FP32 
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
 
-    auto iclone = ModelQuantizer<FP32_2_FP32>().quantize(mockNet, 1.0f);
+    auto iclone = ModelQuantizer<FP32_2_FP32>().quantize(mockNet, std::vector<float >({1.0f, 1.0f}));
     auto clone = CNNNetwork(iclone);
 
     CNNNetBFS(clone.getLayerByName("1"), [&](CNNLayerPtr layer) {
@@ -222,7 +224,9 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithClampLayer) {
     struct EmptyStruct {};
     auto visitor = [&](CNNLayerPtr lp) { return injectData<EmptyStruct>(lp); };
     auto copied_net_ptr = CNNNetCopy(network, visitor);
+    IE_SUPPRESS_DEPRECATED_START
     auto copied_net = CNNNetwork(copied_net_ptr.get());
+    IE_SUPPRESS_DEPRECATED_END
 
     //check that Clamp layer was properly copied
     auto layer = std::dynamic_pointer_cast<ClampLayer>(copied_net.getLayerByName("ClampLayer"));
@@ -290,7 +294,9 @@ TEST(CNNSpecificGraphCopyTests, copyPreprocess) {
     struct EmptyStruct {};
     auto visitor = [&](CNNLayerPtr lp) { return injectData<EmptyStruct>(lp); };
     auto copied_net_ptr = CNNNetCopy(network, visitor);
+    IE_SUPPRESS_DEPRECATED_START
     auto copied_net = CNNNetwork(copied_net_ptr.get());
+    IE_SUPPRESS_DEPRECATED_END
 
     //check that pre process Info existed in copied network
     auto &pp = copied_net.getInputsInfo().begin()->second->getPreProcess();
@@ -353,7 +359,9 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithDeconvolution) {
     struct EmptyStruct {};
     auto visitor = [&](CNNLayerPtr lp) { return injectData<EmptyStruct>(lp); };
     auto copied_net_ptr = CNNNetCopy(network, visitor);
+    IE_SUPPRESS_DEPRECATED_START
     auto copied_net = CNNNetwork(copied_net_ptr.get());
+    IE_SUPPRESS_DEPRECATED_END
 
     // check that Clamp layer was properly copied
     auto layer = std::dynamic_pointer_cast<DeconvolutionLayer>(copied_net.getLayerByName("upsample_merged"));

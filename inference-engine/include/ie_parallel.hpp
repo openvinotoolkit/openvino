@@ -5,7 +5,7 @@
 /**
  * @brief Contains declarations and definitions for sequential and multi-threading implementations.
  * Multi-threading support is implemented in two variants: using the Threading Building Blocks library and OpenMP* product.
- * To build a particular implementation, use the corresponding identifier: IE_THREAD_TBB, IE_THREAD_OMP or IE_THREAD_SEQ.
+ * To build a particular implementation, use the corresponding identifier: IE_THREAD_TBB, IE_THREAD_TBB_AUTO, IE_THREAD_OMP or IE_THREAD_SEQ.
  * @file ie_parallel.hpp
  */
 
@@ -16,8 +16,9 @@
 #define IE_THREAD_TBB 0
 #define IE_THREAD_OMP 1
 #define IE_THREAD_SEQ 2
+#define IE_THREAD_TBB_AUTO 3
 
-#if IE_THREAD == IE_THREAD_TBB
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 #define TBB_PREVIEW_LOCAL_OBSERVER 1
 #include "tbb/task_scheduler_observer.h"
 #include "tbb/parallel_for.h"
@@ -33,7 +34,11 @@ inline int  parallel_get_num_threads() { return parallel_get_max_threads(); }
 inline int  parallel_get_thread_num()  { return tbb::this_task_arena::current_thread_index(); }
 inline void parallel_set_num_threads(int n) { return; }
 inline int  parallel_get_env_threads() { return 0; }
-
+#if IE_THREAD == IE_THREAD_TBB
+    #define PARTITIONING , tbb::static_partitioner()
+#else
+    #define PARTITIONING
+#endif
 #elif IE_THREAD == IE_THREAD_OMP
 #include <cstdlib>
 #include <string>
@@ -73,7 +78,7 @@ namespace InferenceEngine {
 
 template <typename F>
 void parallel_nt(int nthr, const F &func) {
-#if IE_THREAD == IE_THREAD_TBB
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     if (nthr == 0) nthr = parallel_get_max_threads();
     if (nthr == 1) {
         func(0, 1);
@@ -110,7 +115,7 @@ void parallel_nt_static(int nthr, const F &func) {
     }
 
     if (nthr == 0) nthr = parallel_get_max_threads();
-#if IE_THREAD == IE_THREAD_TBB
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     tbb::parallel_for(0, nthr, [&](int ithr) {
             func(ithr, nthr);
         }
@@ -127,7 +132,7 @@ void parallel_nt_static(int nthr, const F &func) {
 
 template <typename T0, typename R, typename F>
 R parallel_sum(const T0 &D0, const R &input, const F &func) {
-#if IE_THREAD == IE_THREAD_TBB
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     return tbb::parallel_reduce(
         tbb::blocked_range<T0>(0, D0), input,
         [&](const tbb::blocked_range<T0>& r, R init)->R {
@@ -138,7 +143,7 @@ R parallel_sum(const T0 &D0, const R &input, const F &func) {
         },
         [](R x, R y)->R {
             return x + y;
-        });
+        } PARTITIONING);
 #else
     R sum = input;
 
@@ -160,7 +165,7 @@ R parallel_sum(const T0 &D0, const R &input, const F &func) {
 
 template <typename T0, typename T1, typename R, typename F>
 R parallel_sum2d(const T0 &D0, const T1 &D1, const R &input, const F &func) {
-#if IE_THREAD == IE_THREAD_TBB
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     return tbb::parallel_reduce(
         tbb::blocked_range2d<T0, T1>(0, D0, 0, D1), input,
         [&](const tbb::blocked_range2d<T0, T1>& r, R init)->R {
@@ -174,7 +179,7 @@ R parallel_sum2d(const T0 &D0, const T1 &D1, const R &input, const F &func) {
         },
         [](R x, R y)->R {
             return x + y;
-        });
+        } PARTITIONING);
 #else
     R sum = input;
 
@@ -199,7 +204,7 @@ R parallel_sum2d(const T0 &D0, const T1 &D1, const R &input, const F &func) {
 }
 template <typename T0, typename T1, typename T2, typename R, typename F>
 R parallel_sum3d(const T0 &D0, const T1 &D1, const T2 &D2, const R &input, const F &func) {
-#if IE_THREAD == IE_THREAD_TBB
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     return tbb::parallel_reduce(
         tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2), input,
         [&](const tbb::blocked_range3d<T0, T1, T2>& r, R init)->R {
@@ -215,7 +220,7 @@ R parallel_sum3d(const T0 &D0, const T1 &D1, const T2 &D2, const R &input, const
         },
         [](R x, R y)->R {
             return x + y;
-        });
+        } PARTITIONING);
 #else
     R sum = input;
 
@@ -289,12 +294,24 @@ void for_1d(const int &ithr, const int &nthr, const T0 &D0, const F &func) {
 template <typename T0, typename F>
 void parallel_for(const T0 &D0, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
+    auto work_amount = static_cast<size_t>(D0);
+    int nthr = parallel_get_max_threads();
+    if (static_cast<size_t>(nthr) > work_amount)
+        nthr = static_cast<int>(work_amount);
+    if (nthr == 1) {
+        for_1d(0, 1, D0, func);
+    } else {
+        tbb::parallel_for(0, nthr, [&](int ithr) {
+            for_1d(ithr, nthr, D0, func);
+        }, tbb::static_partitioner());
+    }
+#elif IE_THREAD == IE_THREAD_TBB_AUTO
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
         for_1d(ithr, nthr, D0, func);
     });
 #elif IE_THREAD == IE_THREAD_OMP
-    #   pragma omp parallel
+#   pragma omp parallel
     for_1d(parallel_get_thread_num(), parallel_get_num_threads(), D0, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_1d(0, 1, D0, func);
@@ -320,12 +337,24 @@ void for_2d(const int &ithr, const int &nthr, const T0 &D0, const T1 &D1, const 
 template <typename T0, typename T1, typename F>
 void parallel_for2d(const T0 &D0, const T1 &D1, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
+    auto work_amount = static_cast<size_t>(D0 * D1);
+    int nthr = parallel_get_max_threads();
+    if (static_cast<size_t>(nthr) > work_amount)
+        nthr = static_cast<int>(work_amount);
+    if (nthr == 1) {
+        for_2d(0, 1, D0, D1, func);
+    } else {
+        tbb::parallel_for(0, nthr, [&](int ithr) {
+            for_2d(ithr, nthr, D0, D1, func);
+        }, tbb::static_partitioner());
+    }
+#elif IE_THREAD == IE_THREAD_TBB_AUTO
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
         for_2d(ithr, nthr, D0, D1, func);
     });
 #elif IE_THREAD == IE_THREAD_OMP
-    #   pragma omp parallel
+#   pragma omp parallel
     for_2d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_2d(0, 1, D0, D1, func);
@@ -352,12 +381,24 @@ void for_3d(const int &ithr, const int &nthr, const T0 &D0, const T1 &D1,
 template <typename T0, typename T1, typename T2, typename F>
 void parallel_for3d(const T0 &D0, const T1 &D1, const T2 &D2, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
+    auto work_amount = static_cast<size_t>(D0 * D1 * D2);
+    int nthr = parallel_get_max_threads();
+    if (static_cast<size_t>(nthr) > work_amount)
+        nthr = static_cast<int>(work_amount);
+    if (nthr == 1) {
+        for_3d(0, 1, D0, D1, D2, func);
+    } else {
+        tbb::parallel_for(0, nthr, [&](int ithr) {
+            for_3d(ithr, nthr, D0, D1, D2, func);
+        }, tbb::static_partitioner());
+    }
+#elif IE_THREAD == IE_THREAD_TBB_AUTO
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
         for_3d(ithr, nthr, D0, D1, D2, func);
     });
 #elif IE_THREAD == IE_THREAD_OMP
-    #   pragma omp parallel
+#   pragma omp parallel
     for_3d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_3d(0, 1, D0, D1, D2, func);
@@ -383,12 +424,24 @@ void for_4d(const int &ithr, const int &nthr, const T0 &D0, const T1 &D1,
 template <typename T0, typename T1, typename T2, typename T3, typename F>
 void parallel_for4d(const T0 &D0, const T1 &D1, const T2 &D2, const T3 &D3, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
+    auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3);
+    int nthr = parallel_get_max_threads();
+    if (static_cast<size_t>(nthr) > work_amount)
+        nthr = static_cast<int>(work_amount);
+    if (nthr == 1) {
+        for_4d(0, 1, D0, D1, D2, D3, func);
+    } else {
+        tbb::parallel_for(0, nthr, [&](int ithr) {
+            for_4d(ithr, nthr, D0, D1, D2, D3, func);
+        }, tbb::static_partitioner());
+    }
+#elif IE_THREAD == IE_THREAD_TBB_AUTO
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
         for_4d(ithr, nthr, D0, D1, D2, D3, func);
     });
 #elif IE_THREAD == IE_THREAD_OMP
-    #   pragma omp parallel
+#   pragma omp parallel
     for_4d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_4d(0, 1, D0, D1, D2, D3, func);
@@ -415,49 +468,27 @@ template <typename T0, typename T1, typename T2, typename T3, typename T4, typen
 void parallel_for5d(const T0 &D0, const T1 &D1, const T2 &D2, const T3 &D3,
                     const T4 &D4, const F &func) {
 #if IE_THREAD == IE_THREAD_TBB
+    auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4);
+    int nthr = parallel_get_max_threads();
+    if (static_cast<size_t>(nthr) > work_amount)
+        nthr = static_cast<int>(work_amount);
+    if (nthr == 1) {
+        for_5d(0, 1, D0, D1, D2, D3, D4, func);
+    } else {
+        tbb::parallel_for(0, nthr, [&](int ithr) {
+            for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
+        }, tbb::static_partitioner());
+    }
+#elif IE_THREAD == IE_THREAD_TBB_AUTO
     const int nthr = parallel_get_max_threads();
     tbb::parallel_for(0, nthr, [&](int ithr) {
         for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
     });
 #elif IE_THREAD == IE_THREAD_OMP
-    #   pragma omp parallel
+#   pragma omp parallel
     for_5d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_5d(0, 1, D0, D1, D2, D3, D4, func);
-#endif
-}
-
-
-template <typename T0, typename T1, typename T2, typename T3, typename T4, typename T5, typename F>
-void for_6d(const int &ithr, const int &nthr, const T0 &D0, const T1 &D1,
-        const T2 &D2, const T3 &D3, const T4 &D4, const T5 &D5, F func) {
-    const size_t work_amount = (size_t)D0 * D1 * D2 * D3 * D4 * D5;
-    if (work_amount == 0) return;
-    size_t start{ 0 }, end{ 0 };
-    splitter(work_amount, nthr, ithr, start, end);
-
-    T0 d0{ 0 }; T1 d1{ 0 }; T2 d2{ 0 }; T3 d3{ 0 }; T4 d4{ 0 }; T5 d5{ 0 };
-    parallel_it_init(start, d0, D0, d1, D1, d2, D2, d3, D3, d4, D4,
-        d5, D5);
-    for (size_t iwork = start; iwork < end; ++iwork) {
-        func(d0, d1, d2, d3, d4, d5);
-        parallel_it_step(d0, D0, d1, D1, d2, D2, d3, D3, d4, D4, d5, D5);
-    }
-}
-
-template <typename T0, typename T1, typename T2, typename T3, typename T4, typename T5, typename F>
-void parallel_for6d(const T0 &D0, const T1 &D1, const T2 &D2, const T3 &D3,
-    const T4 &D4, const T5 &D5, F func) {
-#if IE_THREAD == IE_THREAD_TBB
-    const int nthr = parallel_get_max_threads();
-    tbb::parallel_for(0, nthr, [&](int ithr) {
-        for_6d(ithr, nthr, D0, D1, D2, D3, D4, D5, func);
-    });
-#elif IE_THREAD == IE_THREAD_OMP
-#   pragma omp parallel
-    for_6d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, D5, func);
-#elif IE_THREAD == IE_THREAD_SEQ
-    for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
 #endif
 }
 

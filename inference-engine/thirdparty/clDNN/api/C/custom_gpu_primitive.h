@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef CUSTOM_GPU_PRIMITIVE_H
-#define CUSTOM_GPU_PRIMITIVE_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -66,5 +64,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(custom_gpu_primitive);
 /// @}
 /// @}
 /// @}
-#endif /* CUSTOM_GPU_PRIMITIVE_H */
 

@@ -26,14 +26,13 @@ from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg, deprecated_api, shrink_str_value
 
 
-def dict_to_ordered_dict(d: dict):
-    return collections.OrderedDict(sorted(d.items(), key=lambda t: t[0]))
+def dict_to_ordered_dict(d: dict, func=lambda t: t):
+    return collections.OrderedDict(sorted(d.items(), key=lambda t: func(t[0])))
 
 
 class Node:
     def __init__(self, graph, node: str):
-        if node not in graph:
-            raise AttributeError("Attempt to access node {} that not in graph".format(node))
+        assert node in graph, "Attempt to access node {} that not in graph".format(node)
 
         super(Node, self).__setattr__('graph', graph)
         super(Node, self).__setattr__('node', node)  # obsolete
@@ -41,14 +40,15 @@ class Node:
 
     def __str__(self, max_length: int = 100):
         node_dict = self.graph.node[self.id]
-        print_dict = {k: v if k != 'value' else shrink_str_value(v, max_symbols=max_length) for k, v in node_dict.items()}
+        print_dict = {k: v if k != 'value' else shrink_str_value(v, max_symbols=max_length) for k, v in
+                      node_dict.items()}
         return str(print_dict)
 
     def __setattr__(self, k, v):
         # you can assign only existing attributes
         attrs = self.graph.node[self.node]
         if not k in attrs:
-            raise AttributeError
+            raise AttributeError("Attribute {} missing in {} node".format(k, self.name))
         attrs[k] = v
 
     def __getattr__(self, k):
@@ -64,51 +64,86 @@ class Node:
     def __contains__(self, k):
         return self.has(k)
 
-    def add_input_port(self, idx):
+    def __eq__(self, other):
+        return (
+                self.__class__ == other.__class__ and
+                self.graph == other.graph and
+                self.id == other.id
+        )
+
+    def __hash__(self):
+        return hash((self.graph, self.id))
+
+    def __delitem__(self, k):
+        del self.graph.node[self.node][k]
+
+    def add_input_port(self, idx, skip_if_exist=False, **kwargs):
         if not self.has_valid('_in_ports'):
-            Node(self.graph, self.id)['_in_ports'] = set()
-        if idx in self.in_ports():
+            Node(self.graph, self.id)['_in_ports'] = {}
+        control_flow = kwargs['control_flow'] if kwargs.get('control_flow') is not None else False
+        if skip_if_exist is False and idx in self.in_ports(control_flow=control_flow):
             raise Error("Input port with {} index already exists for {} node.".format(idx, self.name))
-        self._in_ports.add(idx)
+        self._in_ports.update({idx: kwargs})
 
-    def add_output_port(self, idx):
+    def add_output_port(self, idx, skip_if_exist=False, **kwargs):
         if not self.has_valid('_out_ports'):
-            Node(self.graph, self.id)['_out_ports'] = set()
-        if idx in self.out_ports():
+            Node(self.graph, self.id)['_out_ports'] = {}
+        control_flow = kwargs['control_flow'] if kwargs.get('control_flow') is not None else False
+        if skip_if_exist is False and idx in self.out_ports(control_flow=control_flow):
             raise Error("Output port with {} index already exists for {} node.".format(idx, self.name))
-        self._out_ports.add(idx)
+        self._out_ports.update({idx: kwargs})
 
-    def in_port(self, idx=None) -> Port:
+    def add_sequence_of_ports(self, type: str, rng):
+        assert type in ['in', 'out']
+        for idx in rng:
+            if type == 'in':
+                self.add_input_port(idx, skip_if_exist=True)
+            if type == 'out':
+                self.add_output_port(idx, skip_if_exist=True)
+
+    def in_port(self, idx=None, control_flow=False) -> Port:
         if not self.has_valid('_in_ports'):
             raise Error("Operation {} {} has no _in_ports attribute", self.op, self.name)
         if idx not in self._in_ports:
             raise Error("Input port with index {} is not in node {}".format(idx, self.name))
-        return Port(node=self, idx=idx, type='in')
+        if not control_flow and 'control_flow' in self._in_ports[idx] and self._in_ports[idx]['control_flow']:
+            raise Error("Attempt to access control flow port when it's prohibited for node {}".format(self.name))
+        return Port(node=self, idx=idx, type='in', **self._in_ports[idx])
 
-    def in_ports(self):
+    def in_ports(self, control_flow=False):
         if not self.has_valid('_in_ports'):
             raise Error("Operation {} {} has no _in_ports attribute", self.op, self.name)
-        return dict_to_ordered_dict({idx: self.in_port(idx) for idx in self._in_ports})
+        ports = {}
+        for idx in self._in_ports:
+            if control_flow or 'control_flow' not in self._in_ports[idx] or not self._in_ports[idx]['control_flow']:
+                ports.update({idx: self.in_port(idx, control_flow=control_flow)})
+        return dict_to_ordered_dict(ports, func=lambda t: str(t))
 
-    def out_port(self, idx=None) -> Port:
+    def out_port(self, idx=None, control_flow=False) -> Port:
         if not self.has_valid('_out_ports'):
             raise Error("Operation {} {} has no _out_ports attribute", self.op, self.name)
         if idx not in self._out_ports:
             raise Error("Output port with index {} is not in node {}".format(idx, self.name))
-        return Port(node=self, idx=idx, type='out')
+        if not control_flow and 'control_flow' in self._out_ports[idx] and self._out_ports[idx]['control_flow']:
+            raise Error("Attempt to access control flow port when it's prohibited for node {}".format(self.name))
+        return Port(node=self, idx=idx, type='out', **self._out_ports[idx])
 
-    def out_ports(self):
+    def out_ports(self, control_flow=False):
         if not self.has_valid('_out_ports'):
             raise Error("Operation {} {} has no _out_ports attribute", self.op, self.name)
-        return dict_to_ordered_dict({idx: self.out_port(idx) for idx in self._out_ports})
+        ports = {}
+        for idx in self._out_ports:
+            if control_flow or 'control_flow' not in self._out_ports[idx] or not self._out_ports[idx]['control_flow']:
+                ports.update({idx: self.out_port(idx, control_flow=control_flow)})
+        return dict_to_ordered_dict(ports, func=lambda t: str(t))
 
-    def has_port(self, port_type, idx):
+    def has_port(self, port_type, idx, control_flow=False):
         assert port_type in ['in', 'out'], "Invalid usage of has_port method"
 
         if port_type == 'in':
-            return self.has_valid('_in_ports') and idx in self.in_ports()
+            return self.has_valid('_in_ports') and idx in self.in_ports(control_flow=control_flow)
         else:
-            return self.has_valid('_out_ports') and idx in self.out_ports()
+            return self.has_valid('_out_ports') and idx in self.out_ports(control_flow=control_flow)
 
     def attrs(self):
         return self.graph.node[self.node]
@@ -122,23 +157,23 @@ class Node:
     def has_and_set(self, k):
         return self.has_valid(k) and self[k]
 
-    def in_nodes_edges(self, control_flow: bool=False):
+    def in_nodes_edges(self, control_flow: bool = False):
         return dict_to_ordered_dict({x[1]['in']: (Node(self.graph, x[0]), x[1]) for x in
                                      self.get_inputs(control_flow=control_flow)})
 
-    def in_nodes(self, control_flow: bool=False):
+    def in_nodes(self, control_flow: bool = False):
         assert self.has('kind')  # TODO: remove as it always exists
-        assert self.kind in ['op', 'data'] # TODO: remove as it always exists
+        assert self.kind in ['op', 'data']  # TODO: remove as it always exists
         if self.kind == 'op':
             return dict_to_ordered_dict({x[1]['in']: Node(self.graph, x[0]) for x in
                                          self.get_inputs(control_flow=control_flow)})
         elif self.kind == 'data':
             return [Node(self.graph, n) for n, d in self.get_inputs(control_flow=control_flow)]
 
-    def in_node(self, key=0, control_flow: bool=False):
+    def in_node(self, key=0, control_flow: bool = False):
         return self.in_nodes(control_flow=control_flow)[key]
 
-    def in_edges(self, control_flow: bool=False):
+    def in_edges(self, control_flow: bool = False):
         assert self.has('kind')
         assert self.kind in ['op', 'data']
         if self.kind == 'op':
@@ -146,11 +181,11 @@ class Node:
         elif self.kind == 'data':
             return [d for n, d in self.get_inputs(control_flow=control_flow)]
 
-    def out_nodes_edges(self, control_flow: bool=False):
+    def out_nodes_edges(self, control_flow: bool = False):
         return dict_to_ordered_dict({x[1]['out']: (Node(self.graph, x[0]), x[1]) for x in
                                      self.get_outputs(control_flow=control_flow)})
 
-    def out_nodes(self, control_flow: bool=False):
+    def out_nodes(self, control_flow: bool = False):
         assert self.has('kind')
         assert self.kind in ['op', 'data']
         if self.kind == 'op':
@@ -159,7 +194,7 @@ class Node:
         elif self.kind == 'data':
             return [Node(self.graph, n) for n, d in self.get_outputs(control_flow=control_flow)]
 
-    def out_edges(self, control_flow: bool=False):
+    def out_edges(self, control_flow: bool = False):
         assert self.has('kind')
         assert self.kind in ['op', 'data']
         if self.kind == 'op':
@@ -167,13 +202,13 @@ class Node:
         elif self.kind == 'data':
             return [d for n, d in self.get_outputs(control_flow=control_flow)]
 
-    def out_node(self, key=0, control_flow: bool=False):
+    def out_node(self, key=0, control_flow: bool = False):
         return self.out_nodes(control_flow=control_flow)[key]
 
-    def in_edge(self, key=0, control_flow: bool=False):
+    def in_edge(self, key=0, control_flow: bool = False):
         return self.in_edges(control_flow=control_flow)[key]
 
-    def out_edge(self, key=0, control_flow: bool=False):
+    def out_edge(self, key=0, control_flow: bool = False):
         return self.out_edges(control_flow=control_flow)[key]
 
     def get_attrs(self):
@@ -208,7 +243,7 @@ class Node:
     def soft_get(self, k):
         return self[k] if self.has_valid(k) else '<UNKNOWN>'
 
-    def edges(self, attrs: dict=None):
+    def edges(self, attrs: dict = None):
         """ Get a single edge with specified set of attributes.
 
             If none or multiple edges satisfies this criteria, exception is raised
@@ -218,7 +253,7 @@ class Node:
         edges = list(self.graph.in_edges([self.id], data=True)) + list(self.graph.out_edges([self.id], data=True))
         return [(u, v, d) for u, v, d in edges if dict_includes(d, attrs)]
 
-    def edge(self, attrs: dict=None):
+    def edge(self, attrs: dict = None):
         """ Get a single edge with specified set of attributes.
 
             If none or multiple edges satisfies this criteria, exception is raised
@@ -237,8 +272,9 @@ class Node:
             dst_graph = self.graph
 
         attrs = deepcopy(self.attrs())
+        new_id = dst_graph.unique_id(attrs['name']) if 'name' in attrs else dst_graph.unique_id()
+        attrs['name'] = new_id
         attrs.update(new_attrs)
-        new_id = dst_graph.unique_id()
         dst_graph.add_node(new_id, **attrs)
         return Node(dst_graph, new_id)
 
@@ -386,7 +422,7 @@ class Node:
             graph.remove_edge(self.id, dst_name, edge_key)
         graph.create_edge(self, new_node, node_out_port, 0, {})
 
-    def replace_node(self, new_node, new_node_out_port: int=None):
+    def replace_node(self, new_node, new_node_out_port: int = None):
         """
         Replaces node 'old_node' with a node 'new_node' preserving edge attributes.
         :param old_node: node to be replaced.
@@ -407,7 +443,7 @@ class Node:
             graph.add_edge(new_node.id, dst_node_name, **new_edge_attrs)
 
         # if the node for replace is output node then we propagate this attribute to a new node
-        if len(self.out_nodes()) == 1 and self.out_node().has('op') and self.out_node().op == 'OpOutput':
+        if len(self.out_nodes()) == 1 and self.out_node().has('op') and self.out_node().op == 'Result':
             graph.remove_node(self.out_node().id)
             add_opoutput(graph, new_node.id, 0, False)
         graph.remove_node(self.id)
@@ -420,9 +456,34 @@ class Node:
         """
         return [i for i in range(len(self.in_nodes())) if self.in_node(i).id == node.id]
 
+    def update_node(self):
+        """
+        Update internal node attributes. Currently it just add input/output ports.
+        :return: None
+        """
+        in_ports_count = self.in_ports_count if self.has_valid('in_ports_count') else None
+        out_ports_count = self.out_ports_count if self.has_valid('out_ports_count') else None
+
+        if not self.has_valid('_in_ports'):
+            Node(self.graph, self.id)['_in_ports'] = dict()
+        if not self.has_valid('_out_ports'):
+            Node(self.graph, self.id)['_out_ports'] = dict()
+
+        if in_ports_count is not None:
+            for idx in range(in_ports_count):
+                if idx not in self._in_ports:
+                    self.add_input_port(idx=idx)
+
+        if out_ports_count is not None:
+            for idx in range(out_ports_count):
+                if idx not in self._out_ports:
+                    self.add_output_port(idx=idx)
+
+
 class Graph(nx.MultiDiGraph):
     def __init__(self, data=None, **attr):
         self.stage = None
+        self.strict_mode = True
         super().__init__(data, **attr)
 
     unique_id_count = 0
@@ -435,22 +496,35 @@ class Graph(nx.MultiDiGraph):
         # TODO: check required attrs for node
         super().add_node(node_for_adding, **attrs)
         node = Node(self, node_for_adding)
-
-        in_ports_count = node.in_ports_count if node.has_valid('in_ports_count') else None
-        out_ports_count = node.out_ports_count if node.has_valid('out_ports_count') else None
-
-        node['_in_ports'] = set()
-        node['_out_ports'] = set()
-
-        if in_ports_count is not None:
-            for idx in range(in_ports_count):
-                node.add_input_port(idx=idx)
-
-        if out_ports_count is not None:
-            for idx in range(out_ports_count):
-                node.add_output_port(idx=idx)
+        node.update_node()
 
     def add_edge(self, u_for_edge, v_for_edge, key=None, **attr):
+
+        # TODO: turn on strict mode
+        if self.strict_mode:
+            unode = Node(self, u_for_edge)
+            vnode = Node(self, v_for_edge)
+
+            # Check that we connect Op->Op in front phase, and data->Op or Op->data in middle(back) phase
+            # Also check that all necessary ports are exists
+            message = "Attempt to connect {} to {}.".format(u_for_edge, v_for_edge)
+            if self.stage == 'front':
+                assert unode.kind == 'op' and vnode.kind == 'op', "{} Wrong add_adge usage! You can connect only two operations in front phase".format(message)
+                assert 'in' in attr and 'out' in attr, "Missing necessary attribute in or out when adding edge between {} and {}".format(u_for_edge, v_for_edge)
+                is_control_flow = 'control_flow_edge' in attr and attr['control_flow_edge'] is True
+                in_port = 'control_flow_{}'.format(attr['in']) if is_control_flow else attr['in']
+                out_port = 'control_flow_{}'.format(attr['out']) if is_control_flow else attr['out']
+                assert unode.has_port('out', out_port, control_flow=is_control_flow), "{} Missing out port ({}) in {} node".format(message, out_port, unode.name)
+                assert vnode.has_port('in', in_port, control_flow=is_control_flow), "{} Missing in port ({}) in {} node".format(message, in_port, vnode.name)
+            elif self.stage in ['middle', 'back']:
+                assert (unode.kind == 'data' and vnode.kind == 'op') or (unode.kind == 'op' and vnode.kind == 'data')
+                if unode.kind == 'data' and vnode.kind == 'op':
+                    assert 'in' in attr, "Attribute in is missing when adding edge to {}".format(v_for_edge)
+                    assert vnode.has_port('in', attr['in']), "{} Node {} has no in port ({})".format(message, vnode.name, attr['in'])
+                if unode.kind == 'op' and vnode.kind == 'data':
+                    assert 'out' in attr, "Attribute out is missing when adding edge from {}".format(u_for_edge)
+                    assert unode.has_port('out', attr['out']), "{} Node {} has no out port ({})".format(message, unode.name, attr['out'])
+
         return super().add_edge(u_for_edge, v_for_edge, key=key, **attr)
 
     def add_edges_from(self, ebunch_to_add, **attr):
@@ -495,7 +569,7 @@ class Graph(nx.MultiDiGraph):
         if len(outputs) == 0 and len(inputs) != 0:
             from mo.front.extractor import add_output_ops
             input_ids = {input_node_id: {'port': {'out': [attrs['out']]}} for input_node_id, _, attrs in inputs}
-            if node.has('op') and node.op == 'OpOutput':
+            if node.has('op') and node.op == 'Result':
                 add_output_ops(self, input_ids)
 
         if len(outputs) == 0 or len(inputs) == 0:
@@ -609,33 +683,93 @@ class Graph(nx.MultiDiGraph):
             for idx in range(len(node.out_ports())):
                 if idx not in node.out_ports():
                     raise Error("Node {} has not consecutive out ports indexes: {}".format(node.name,
-                                                                                           list(node.out_ports().keys())))
+                                                                                           list(
+                                                                                               node.out_ports().keys())))
 
-    def dump_graph_for_graphviz(self, node_attrs: list = ['kind', 'op', 'shape'],
-                                edge_attrs: list = ['in', 'out'],
-                                nodes_to_dump: list = None, save_to_svg=False):
+    def dump_graph_for_graphviz(self, node_attrs: list = ['kind', 'op', 'shape', 'correct_data_layout', 'nchw_layout'],
+                                edge_attrs: list = ['in', 'out'], nodes_to_dump: list = None,
+                                save_to_svg=False, highlight_nodes: list = None):
+
+        from extensions.ops.tensor_iterator import _get_internal_output_node_id, _get_internal_input_node_id
+
+        fill_color = {'op': 'lightblue', 'data': 'whitesmoke', 'highlight': 'firebrick'}
+        fill_color_by_type = {'Const': 'lightpink', 'Parameter': 'yellowgreen', 'TensorIterator': 'lemonchiffon'}
+        style = {'op': 'filled,bold', 'data': 'filled,rounded'}
+
+        subgraphs = {}
+        if highlight_nodes is None:
+            highlight_nodes = []
+
+        def _subgraph_label(node_id, node_attrs: dict, attrs_to_print: list):
+            subgraphs[node_id] = "cluster_{}".format(node_id)
+            label = 'subgraph "cluster_{}" '.format(node_id) + '{\n'
+            label += 'label = "{}"; \n'.format(node_id)
+            label += 'color={}; \nstyle="filled,rounded";\n'.format(fill_color_by_type[node_attrs['op']])
+
+            subgraph_name = node_attrs['sub_graphs']
+            assert len(subgraph_name) == 1
+            body = node_attrs[subgraph_name[0]].dump_graph_for_graphviz()
+            body = body.split('\n')[2:-1]
+            label += '\n'.join(body)
+            label += '\n}\n'
+            return label
+
+        def _node_label(node_id, node_attrs: dict, attrs_to_print: list):
+            label = node_id + '\\n' + '\\n'.join([str(key) + '=' + str(node_attrs.get(key, 'None'))
+                                                  for key in attrs_to_print if key in node_attrs])
+            if node_attrs.get('type', '') == 'Const':
+                if 'value' not in attrs_to_print and 'value' in node_attrs:
+                    label += '\\nvalue=\\"' + ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
+            return label
+
+        def _dump_nodes_attrs():
+            string = ''
+            for node_id in nodes_to_dump:
+                attrs = self.node[node_id]
+                color = fill_color_by_type.get(attrs.get('type', ''), fill_color[attrs['kind']])
+
+                if node_id in highlight_nodes or 'highlight' in node_attrs and node_attrs['highlight']:
+                    color = fill_color['highlight']
+
+                if attrs.get('op') == 'TensorIterator':
+                    string += _subgraph_label(node_id, attrs, node_attrs)
+                else:
+                    string += '"{}" [fillcolor={} style="{}" shape=box label="{}"];\n'.format(
+                        node_id, color, style[attrs['kind']], _node_label(node_id, attrs, node_attrs))
+            return string
+
+        def _dump_edges_attrs():
+            string = ''
+            for src_node_id, dst_node_id, attrs in self.edges(data=True):
+                if src_node_id not in nodes_to_dump or dst_node_id not in nodes_to_dump:
+                    continue
+
+                if src_node_id in subgraphs:
+                    edge_label = subgraphs[src_node_id]
+                    edge_label_name = 'ltail'
+                    src_node_id = _get_internal_output_node_id(self, src_node_id, attrs['external_port_id'])
+                elif dst_node_id in subgraphs:
+                    edge_label = subgraphs[dst_node_id]
+                    edge_label_name = 'lhead'
+                    dst_node_id = _get_internal_input_node_id(self, dst_node_id, attrs['external_port_id'])
+                else:
+                    edge_label = ' '.join(
+                        [str(key) + '=' + str(attrs.get(key, 'None')) for key in edge_attrs if key in attrs])
+                    edge_label_name = 'label'
+
+                string += '"{}" -> "{}" [{} = "{}"];\n'.format(src_node_id, dst_node_id, edge_label_name, edge_label)
+            return string
+
         log.debug("---- GRAPHVIZ OUTPUT STARTS ----")
+
         if nodes_to_dump is None:
             nodes_to_dump = self.nodes()
+
         string = '\ndigraph {\n'
-        visited_nodes = set()
-        for src_node_name, dst_node_name, attrs in self.edges(data=True):
-            visited_nodes.add(src_node_name)
-            visited_nodes.add(dst_node_name)
-            if src_node_name not in nodes_to_dump or dst_node_name not in nodes_to_dump:
-                continue
-            src_node = self.node[src_node_name]
-            dst_node = self.node[dst_node_name]
-            src_node_string = str(src_node_name) + '\\n' + '\\n'.join(
-                [str(key) + '=' + str(src_node.get(key, 'None')) for key in node_attrs if key in src_node])
-            dst_node_string = str(dst_node_name) + '\\n' + '\\n'.join(
-                [str(key) + '=' + str(dst_node.get(key, 'None')) for key in node_attrs if key in dst_node])
-            edge_string = ' '.join([str(key) + '=' + str(attrs.get(key, 'None')) for key in edge_attrs if key in attrs])
-            string += '"{}" -> "{}" [label = "{}"];\n'.format(src_node_string, dst_node_string, edge_string)
-        for node in nodes_to_dump:
-            if node not in visited_nodes:
-                string += '"{}"'.format(node)  # TODO: add attributes like it was done in the loop above
-                visited_nodes.add(node)
+
+        string += _dump_nodes_attrs()
+        string += _dump_edges_attrs()
+
         string += '}'
         log.debug(string)
         log.debug("---- GRAPHVIZ OUTPUT ENDS ----")
@@ -711,6 +845,56 @@ class Graph(nx.MultiDiGraph):
         # TODO: in case if in_port do not exists, we should raise an Exception here
         graph.add_edges_from([(src_node.id, dst_node.id, edge_attrs)])
 
+    def dfs(self, node_name: str, visited: set):
+        """
+        Implementation of the depth-first search algorithm starting from the specific node.
+        :param graph: networkx graph to operate on.
+        :param node_name: node name to start search from.
+        :param visited: set of already visited nodes.
+        :return: list of nodes in the DFS-visit order.
+        """
+        order = []
+        stack = [node_name]
+        while len(stack) != 0:
+            node_name = stack[0]
+            stack.pop(0)
+            visited.add(node_name)
+            has_child = False
+            for _, out_node_name in self.out_edges(node_name):
+                if out_node_name not in visited:
+                    stack.insert(0, node_name)
+                    stack.insert(0, out_node_name)
+                    has_child = True
+                    break
+            if not has_child:
+                order.append(node_name)
+        return order
+
+    def pseudo_topological_sort(self, reverse: bool = False):
+        """
+        The function performs topological sort but doesn't check for cycle existence. So it may produce wrong nodes order
+        for some applications.
+        :param graph: graph to pseudo-topologically sort.
+        :param reverse: flag indicating whether need to reverse nodes order.
+        :return: nodes in the topological sort if cycle doesn't exist and in pseudo-topological sort if not.
+        """
+        nodes_without_inputs = list()
+        for node_name in self.nodes():
+            if len(self.in_edges(node_name)) == 0:
+                nodes_without_inputs.append(node_name)
+        order = list()
+        visited = set()
+        for node_name in nodes_without_inputs:
+            if node_name not in visited:
+                order.extend(self.dfs(node_name, visited))
+
+        order = [Node(self, node) for node in order]
+
+        if reverse:
+            return order
+        else:
+            return list(reversed(order))
+
 
 def create_graph_with_nodes(src_nodes, get_id: callable, get_attrs: callable):
     """
@@ -745,19 +929,19 @@ def dict_includes(big: dict, sub_dict: dict, skip_attr_names=[]):
 
 def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True):
     """
-    Creates and connects OpOutput node to node_name port. Cuts existing port if requested.
+    Creates and connects Result node to node_name port. Cuts existing port if requested.
     :param graph: graph to operate with
-    :param node_name: name of existing node in the graph that we want to add OpOutput to
-    :param port: output port of node to connect OpOutput to
+    :param node_name: name of existing node in the graph that we want to add Result to
+    :param port: output port of node to connect Result to
     :param cut: determines way of operating with edge specified by node_name and port
     """
     # we import it here because Op imports add_attrs_props and update_ie_fields from this file
-    from mo.ops.output import Output
+    from mo.ops.result import Result
     node = Node(graph, node_name)
     if cut and len(node.out_edges()) != 0:
-        opoutput_node = Output(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port)})
+        opoutput_node = Result(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port)})
     else:
-        opoutput_node = Output(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port)})
+        opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port)})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
         opoutput_node.in_edge()['fw_tensor_debug_info'] = [(node_name, port)]
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))
@@ -903,7 +1087,7 @@ def insert_node_after(node: Node, new_node: Node, node_out_port: int = 0):
 
 
 @deprecated_api(Node)
-def replace_node(old_node: Node, new_node: Node, new_node_out_port: int=None):
+def replace_node(old_node: Node, new_node: Node, new_node_out_port: int = None):
     """
     Replaces node 'old_node' with a node 'new_node' preserving edge attributes.
     :param old_node: node to be replaced.
@@ -914,7 +1098,7 @@ def replace_node(old_node: Node, new_node: Node, new_node_out_port: int=None):
 
 
 @deprecated_api(Node)
-def copy_node(src_node: Node, new_attrs: dict=None, dst_graph: nx.MultiDiGraph = None):
+def copy_node(src_node: Node, new_attrs: dict = None, dst_graph: nx.MultiDiGraph = None):
     """ Copies node with all attributes (optionally updated) within the same graph or to different graph."""
     return src_node.copy_node(new_attrs=new_attrs, dst_graph=dst_graph)
 

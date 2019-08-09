@@ -20,8 +20,7 @@
 #include "../C/reverse_sequence.h"
 #include "primitive.hpp"
 
-namespace  cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -31,8 +30,7 @@ namespace  cldnn
 
 /// @brief
 /// @details
-struct reverse_sequence : public primitive_base<reverse_sequence, CLDNN_PRIMITIVE_DESC(reverse_sequence)>
-{
+struct reverse_sequence : public primitive_base<reverse_sequence, CLDNN_PRIMITIVE_DESC(reverse_sequence)> {
     CLDNN_DECLARE_PRIMITIVE(reverse_sequence)
 
     /// @brief Constructs reverse_sequence primitive.
@@ -41,18 +39,13 @@ struct reverse_sequence : public primitive_base<reverse_sequence, CLDNN_PRIMITIV
     /// @param seq_lengths Sequence lengths primitive id.
     /// @param seq_axis The axis which is partially reversed.
     /// @param batch_axis The axis along which reversal is performed.
-    reverse_sequence(
-            const primitive_id& id,
-            const primitive_id& input,
-            const primitive_id& seq_lengths,
-            const int32_t seq_axis,
-            const int32_t batch_axis = 0,
-            const padding& output_padding = padding()
-    )
-            : primitive_base(id, {input, seq_lengths}, output_padding)
-            , seq_axis(seq_axis)
-            , batch_axis(batch_axis)
-    {
+    reverse_sequence(const primitive_id& id,
+                     const primitive_id& input,
+                     const primitive_id& seq_lengths,
+                     const int32_t seq_axis,
+                     const int32_t batch_axis = 0,
+                     const padding& output_padding = padding())
+        : primitive_base(id, {input, seq_lengths}, output_padding), seq_axis(seq_axis), batch_axis(batch_axis) {
         const int32_t number_of_dims = 4;
 
         int32_t batch_a = batch_axis;
@@ -75,21 +68,15 @@ struct reverse_sequence : public primitive_base<reverse_sequence, CLDNN_PRIMITIV
     }
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{reverse_sequence}
-    reverse_sequence(const dto* dto)
-            : primitive_base(dto)
-            , seq_axis(dto->seq_axis)
-            , batch_axis(dto->batch_axis)
-    {
-    }
+    reverse_sequence(const dto* dto) : primitive_base(dto), seq_axis(dto->seq_axis), batch_axis(dto->batch_axis) {}
 
     /// @brief The axis which is partially reversed.
     int32_t seq_axis;
     /// @brief The axis along which reversal is performed.
     int32_t batch_axis;
-protected:
 
-    void update_dto(dto& dto) const override
-    {
+protected:
+    void update_dto(dto& dto) const override {
         dto.seq_axis = seq_axis;
         dto.batch_axis = batch_axis;
     }
@@ -97,4 +84,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

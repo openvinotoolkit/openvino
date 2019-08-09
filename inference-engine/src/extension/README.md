@@ -16,23 +16,28 @@ when cross-compiling this library for another platform.
 ## List of layers that come within the library
 
  * ArgMax
+ * Broadcast
  * CTCGreedyDecoder
  * DepthToSpace
  * DetectionOutput
- * Expand
  * Fill
  * Gather
+ * GatherTree
  * GRN
  * Interp
+ * LogSoftmax
+ * Math (Abs, Acos, Acosh, Asin, Asinh, Atan, Atanh, Ceil, Cos, Cosh, Erf, Floor, HardSigmoid, Log, Neg, Reciprocal, Selu, Sign, Sin, Sinh, Softplus, Softsign, Tan)
  * MVN
  * Normalize
+ * OneHot
+ * Pad
  * PowerFile
- * PReLU
  * PriorBox
  * PriorBoxClustered
  * Proposal
  * PSROIPooling
  * Range
+ * Reduce (And, L1, L2, LogSum, LogSumExp, Max, Mean, Min, Or, Prod, Sum, SumSquare)
  * RegionYolo
  * ReorgYolo
  * Resample
@@ -42,6 +47,7 @@ when cross-compiling this library for another platform.
  * SpaceToDepth
  * Squeeze
  * StridedSlice
+ * TopK
  * Unsqueeze
 
 In order to add a new layer, you can use [the extensibility mechanism](./docs/IE_DG/Integrate_your_kernels_into_IE.md).

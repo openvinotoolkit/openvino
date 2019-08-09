@@ -23,10 +23,10 @@ from mo.graph.graph import Node
 
 class TestSsdPatternRemoveTranspose(unittest.TestCase):
     def test_pattern_remove_transpose(self):
-        graph = build_graph({'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+        graph = build_graph({'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
                              'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
                              'node_4': {'type': 'Identity', 'value': None, 'kind': 'op'},
-                             'node_transpose': {'type': 'transpose', 'value': None, 'kind': 'op', 'op': 'transpose'},
+                             'node_transpose': {'type': 'transpose', 'value': None, 'kind': 'op', 'op': 'Transpose'},
                              'node_softmax_activation': {'type': 'SoftMax', 'value': None, 'kind': 'op',
                                                          'op': 'SoftMax'},
                              'node_multi_box_detection': {'type': '_contrib_MultiBoxDetection', 'value': None,

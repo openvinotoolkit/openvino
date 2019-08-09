@@ -20,6 +20,8 @@ from mo.graph.graph import Graph
 
 class OutputCut(FrontReplacementPattern):
     enabled = True
+    run_not_recursively = True
+    force_clean_up = True
 
     def run_after(self):
         from extensions.front.user_data_repack import UserDataRepack

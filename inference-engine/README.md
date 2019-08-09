@@ -63,7 +63,7 @@ The software was validated on:
     git submodule update --recursive
     ```
 2. Install build dependencies using the `install_dependencies.sh` script in the project root folder.
-3. By default, the build enables the Inference Engine GPU plugin to infer models on your Intel® Processor Graphics. This requires you to [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.04.12237](https://github.com/intel/compute-runtime/releases/tag/19.04.12237) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_CLDNN=ON` CMake build option and skip the installation of the Intel® Graphics Compute Runtime for OpenCL™ Driver.
+3. By default, the build enables the Inference Engine GPU plugin to infer models on your Intel® Processor Graphics. This requires you to [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.04.12237](https://github.com/intel/compute-runtime/releases/tag/19.04.12237) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_CLDNN=OFF` CMake build option and skip the installation of the Intel® Graphics Compute Runtime for OpenCL™ Driver.
 4. Create a build folder:
 ```sh
   mkdir build && cd build
@@ -82,7 +82,7 @@ You can use the following additional build options:
 
 - To switch to OpenBLAS\* implementation, use the `GEMM=OPENBLAS` option and `BLAS_INCLUDE_DIRS` and `BLAS_LIBRARIES` CMake options to specify path to the OpenBLAS headers and library. For example use the following options on CentOS\*: `-DGEMM=OPENBLAS -DBLAS_INCLUDE_DIRS=/usr/include/openblas -DBLAS_LIBRARIES=/usr/lib64/libopenblas.so.0`.
 
-- To switch to the optimized MKL-ML\* GEMM implementation, use `-DGEMM=MKL` and `-DMKLROOT=<path_to_MKL>` CMake options to specify a path to unpacked MKL-ML with the `include` and `lib` folders. MKL-ML\* package can be downloaded from the [MKL-DNN repository](https://github.com/intel/mkl-dnn/releases/download/v0.17/mklml_lnx_2019.0.1.20180928.tgz).
+- To switch to the optimized MKL-ML\* GEMM implementation, use `-DGEMM=MKL` and `-DMKLROOT=<path_to_MKL>` CMake options to specify a path to unpacked MKL-ML with the `include` and `lib` folders. MKL-ML\* package can be downloaded from the [MKL-DNN repository](https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_lnx_2019.0.5.20190502.tgz).
 
 - Threading Building Blocks (TBB) is used by default. To build the Inference Engine with OpenMP* threading, set the `-DTHREADING=OMP` option.
 
@@ -165,7 +165,7 @@ Native compilation of the Inference Engine is the most straightforward solution.
   cmake -DCMAKE_BUILD_TYPE=Release \
         -DENABLE_SSE42=OFF \
         -DTHREADING=SEQ \
-        -DENABLE_GNA=OFF .. && make -j2
+        -DENABLE_GNA=OFF .. && make
   ```
 
 ### Cross Compilation Using Docker*
@@ -302,7 +302,7 @@ The software was validated on:
 3. Install OpenBLAS:
     1. Download [OpenBLAS\*](https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download)
     2. Unzip the downloaded package to a directory on your machine. In this document, this directory is referred to as `<OPENBLAS_DIR>`.
-4. By default, the build enables the Inference Engine GPU plugin to infer models on your Intel® Processor Graphics. This requires you to [download and install the Intel® Graphics Driver for Windows* [25.20] driver package](https://downloadcenter.intel.com/download/28646/Intel-Graphics-Windows-10-DCH-Drivers?product=80939) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_CLDNN=ON` CMake build option and skip the installation of the Intel® Graphics Driver.    
+4. By default, the build enables the Inference Engine GPU plugin to infer models on your Intel® Processor Graphics. This requires you to [download and install the Intel® Graphics Driver for Windows* [25.20] driver package](https://downloadcenter.intel.com/download/28646/Intel-Graphics-Windows-10-DCH-Drivers?product=80939) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_CLDNN=OFF` CMake build option and skip the installation of the Intel® Graphics Driver.    
 5. Create build directory:
     ```sh
     mkdir build
@@ -323,7 +323,7 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 
 - Internal JIT GEMM implementation is used by default.
 - To switch to OpenBLAS GEMM implementation, use the `-DGEMM=OPENBLAS` CMake option and specify path to OpenBLAS using the `-DBLAS_INCLUDE_DIRS=<OPENBLAS_DIR>\include` and `-DBLAS_LIBRARIES=<OPENBLAS_DIR>\lib\libopenblas.dll.a` options. Prebuilt OpenBLAS\* package can be downloaded [here](https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download). mingw64* runtime dependencies can be downloaded [here](https://sourceforge.net/projects/openblas/files/v0.2.14/mingw64_dll.zip/download).
-- To switch to the optimized MKL-ML\* GEMM implementation, use the `-DGEMM=MKL` and `-DMKLROOT=<path_to_MKL>` CMake options to specify a path to unpacked MKL-ML with the `include` and `lib` folders. MKL-ML\* package can be downloaded from the [MKL-DNN repository](https://github.com/intel/mkl-dnn/releases/download/v0.17/mklml_win_2019.0.1.20180928.zip).
+- To switch to the optimized MKL-ML\* GEMM implementation, use the `-DGEMM=MKL` and `-DMKLROOT=<path_to_MKL>` CMake options to specify a path to unpacked MKL-ML with the `include` and `lib` folders. MKL-ML\* package can be downloaded from the [MKL-DNN repository](https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_win_2019.0.5.20190502.zip).
 
 - Threading Building Blocks (TBB) is used by default. To build the Inference Engine with OpenMP* threading, set the `-DTHREADING=OMP` option.
 
@@ -385,7 +385,7 @@ The software was validated on:
 
 You can use the following additional build options:
 - Internal JIT GEMM implementation is used by default.
-- To switch to the optimized MKL-ML\* GEMM implementation, use `-DGEMM=MKL` and `-DMKLROOT=<path_to_MKL>` cmake options to specify a path to unpacked MKL-ML with the `include` and `lib` folders. MKL-ML\* package can be downloaded [here](https://github.com/intel/mkl-dnn/releases/download/v0.17.1/mklml_mac_2019.0.1.20180928.tgz)
+- To switch to the optimized MKL-ML\* GEMM implementation, use `-DGEMM=MKL` and `-DMKLROOT=<path_to_MKL>` cmake options to specify a path to unpacked MKL-ML with the `include` and `lib` folders. MKL-ML\* package can be downloaded [here](https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_mac_2019.0.5.20190502.tgz)
 
 - Threading Building Blocks (TBB) is used by default. To build the Inference Engine with OpenMP* threading, set the `-DTHREADING=OMP` option.
 

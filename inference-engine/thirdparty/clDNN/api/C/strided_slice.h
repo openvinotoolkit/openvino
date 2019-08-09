@@ -15,11 +15,8 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef STRIDED_SLICE_H
-#define STRIDED_SLICE_H
-
+#pragma once
 #include "cldnn.h"
-
 
 /// @addtogroup c_api C API
 /// @{
@@ -52,4 +49,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(strided_slice);
 /// @}
 /// @}
 /// @}
-#endif // STRIDED_SLICE_H
+

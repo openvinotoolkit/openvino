@@ -36,11 +36,13 @@ public:
 };
 
 TEST_F(TensorDescTests, CreateBlobWithIncorrectLayout) {
-    ASSERT_THROW(make_shared_blob<float>(Precision::FP32, Layout::NC, {1, 3, 32}), details::InferenceEngineException);
+    ASSERT_THROW(make_shared_blob<float>({ Precision::FP32, {1, 3, 32}, Layout::NC }), details::InferenceEngineException);
 }
 
 TEST_F(TensorDescTests, CreateEmptyBlob) {
+    IE_SUPPRESS_DEPRECATED_START
     Blob::Ptr blob = make_shared_blob<float>(Precision::FP32);
+    IE_SUPPRESS_DEPRECATED_END
 
     ASSERT_EQ(blob->getTensorDesc().getLayout(), Layout::NCHW);
 }
@@ -53,8 +55,8 @@ TEST_F(TensorDescTests, CreateBlockedBlobNCHW) {
     ASSERT_NE(blockedBlob->getTensorDesc().offset(5), nchwBlob->getTensorDesc().offset(5));
     ASSERT_EQ(6, blockedBlob->getTensorDesc().offset(5));
     ASSERT_EQ(5, nchwBlob->getTensorDesc().offset(5));
-    ASSERT_EQ(Layout::NCHW, nchwBlob->layout());
-    ASSERT_EQ(Layout::BLOCKED, blockedBlob->layout());
+    ASSERT_EQ(Layout::NCHW, nchwBlob->getTensorDesc().getLayout());
+    ASSERT_EQ(Layout::BLOCKED, blockedBlob->getTensorDesc().getLayout());
 }
 
 TEST_F(TensorDescTests, CreateBlockedBlobNCDHW) {
@@ -65,8 +67,8 @@ TEST_F(TensorDescTests, CreateBlockedBlobNCDHW) {
     ASSERT_NE(blockedBlob->getTensorDesc().offset(6), ncdhwBlob->getTensorDesc().offset(6));
     ASSERT_EQ(5, blockedBlob->getTensorDesc().offset(6));
     ASSERT_EQ(6, ncdhwBlob->getTensorDesc().offset(6));
-    ASSERT_EQ(Layout::NCDHW, ncdhwBlob->layout());
-    ASSERT_EQ(Layout::BLOCKED, blockedBlob->layout());
+    ASSERT_EQ(Layout::NCDHW, ncdhwBlob->getTensorDesc().getLayout());
+    ASSERT_EQ(Layout::BLOCKED, blockedBlob->getTensorDesc().getLayout());
 }
 
 TEST_F(TensorDescTests, CompareNHWCandNCHWLayouts) {

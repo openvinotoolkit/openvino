@@ -34,7 +34,7 @@ class KaldiRemoveMemoryOutputTest(unittest.TestCase):
         },
         'op_output': {
             'kind': 'data',
-            'op': 'OpOutput',
+            'op': 'Result',
         }
     }
 

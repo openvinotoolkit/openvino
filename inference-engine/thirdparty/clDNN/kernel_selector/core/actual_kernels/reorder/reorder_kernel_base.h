@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,106 +11,98 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
 #include "common_kernel_base.h"
 #include "kernel_selector_params.h"
+#include <vector>
 
-namespace kernel_selector 
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // reorder_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct reorder_params : public base_params
-    {
-        reorder_params() : base_params(KernelType::REORDER) {}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// reorder_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct reorder_params : public base_params {
+    reorder_params() : base_params(KernelType::REORDER) {}
 
-        MeanSubtractMode    mode = MeanSubtractMode::NONE;
-        MeanOp              mean_op = MeanOp::SUB;
-        std::vector<float>  meanValues;
-        DataTensor          mean;
-        uint32_t            winograd_input_offset_x;
-        uint32_t            winograd_input_offset_y;
-        uint32_t            winograd_nr_tiles_x;
-        bool                winograd = false;
+    MeanSubtractMode mode = MeanSubtractMode::NONE;
+    MeanOp mean_op = MeanOp::SUB;
+    std::vector<float> meanValues;
+    DataTensor mean;
+    uint32_t winograd_input_offset_x;
+    uint32_t winograd_input_offset_y;
+    uint32_t winograd_nr_tiles_x;
+    bool winograd = false;
+    bool has_padded_output = false;
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            auto k = base_params::GetParamsKey();
+    virtual ParamsKey GetParamsKey() const {
+        auto k = base_params::GetParamsKey();
 
-            if (winograd)
-            {
-                k.EnableWinogradReorder();
-            }
-            return k;
+        if (winograd) {
+            k.EnableWinogradReorder();
         }
-    };
+        return k;
+    }
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // reorder_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct reorder_optional_params : optional_params
-    {
-        reorder_optional_params() : optional_params(KernelType::REORDER) {}
-    };
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// reorder_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct reorder_optional_params : optional_params {
+    reorder_optional_params() : optional_params(KernelType::REORDER) {}
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // reorder_weights_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct reorder_weights_params : public Params
-    {
-        reorder_weights_params() : Params(KernelType::REORDER, "") {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// reorder_weights_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct reorder_weights_params : public Params {
+    reorder_weights_params() : Params(KernelType::REORDER, "") {}
 
-        WeightsTensor input;
-        WeightsTensor output;
-        bool winograd = false;
+    WeightsTensor input;
+    WeightsTensor output;
+    bool winograd = false;
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            ParamsKey k;
-            k.EnableInputWeightsType(input.GetDType());
-            k.EnableOutputWeightsType(output.GetDType());
-            k.EnableInputWeightsLayout(input.GetLayout());
-            k.EnableOutputWeightsLayout(output.GetLayout());
+    virtual ParamsKey GetParamsKey() const {
+        ParamsKey k;
+        k.EnableInputWeightsType(input.GetDType());
+        k.EnableOutputWeightsType(output.GetDType());
+        k.EnableInputWeightsLayout(input.GetLayout());
+        k.EnableOutputWeightsLayout(output.GetLayout());
 
-            if (input.PitchesDifferFromLogicalDims() ||
-                output.PitchesDifferFromLogicalDims())
-            {
-                k.EnableTensorPitches();
-            }
-
-            if (input.GetFirstElementOffset() != 0 || output.GetFirstElementOffset() != 0)
-            {
-                k.EnableTensorOffset();
-            }
-
-            if (winograd)
-            {
-                k.EnableWinogradReorder();
-            }
-            return k;
+        if (input.PitchesDifferFromLogicalDims() || output.PitchesDifferFromLogicalDims()) {
+            k.EnableTensorPitches();
         }
-    };
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // ReorderKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class ReorderKernelBase : public common_kernel_base
-    {
-    public:
-        using common_kernel_base::common_kernel_base;
-        virtual ~ReorderKernelBase() {}
+        if (input.GetFirstElementOffset() != 0 || output.GetFirstElementOffset() != 0) {
+            k.EnableTensorOffset();
+        }
 
-        using DispatchData = CommonDispatchData;
-    
-    protected:
-        virtual JitConstants GetJitConstants(const reorder_weights_params& params) const;
-        virtual JitConstants GetJitConstants(const reorder_params& params) const;
-        virtual DispatchData SetDefault(const reorder_weights_params& params) const;
-        virtual DispatchData SetDefault(const reorder_params& params) const;
-        KernelsData GetCommonKernelsData(const reorder_weights_params& params, const optional_params&, float estimated_time) const;
-        KernelsData GetCommonKernelsData(const reorder_params& params, const optional_params&, float estimated_time) const;
-    };
-}
+        if (winograd) {
+            k.EnableWinogradReorder();
+        }
+        return k;
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ReorderKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class ReorderKernelBase : public common_kernel_base {
+public:
+    using common_kernel_base::common_kernel_base;
+    virtual ~ReorderKernelBase() {}
+
+    using DispatchData = CommonDispatchData;
+
+protected:
+    virtual JitConstants GetJitConstants(const reorder_weights_params& params) const;
+    virtual JitConstants GetJitConstants(const reorder_params& params) const;
+    virtual DispatchData SetDefault(const reorder_weights_params& params) const;
+    virtual DispatchData SetDefault(const reorder_params& params) const;
+    KernelsData GetCommonKernelsData(const reorder_weights_params& params,
+                                     const optional_params&,
+                                     float estimated_time) const;
+    KernelsData GetCommonKernelsData(const reorder_params& params, const optional_params&, float estimated_time) const;
+};
+}  // namespace kernel_selector

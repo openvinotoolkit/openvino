@@ -22,6 +22,14 @@ from .metric import BaseMetricConfig, PerImageEvaluationMetric
 from .average_meter import AverageMeter
 
 
+class AccuracyConfig(BaseMetricConfig):
+    top_k = NumberField(floats=False, min_value=1, optional=True)
+
+
+class PerClassAccuracyConfig(AccuracyConfig):
+    abel_map = StringField(optional=True)
+
+
 class ClassificationAccuracy(PerImageEvaluationMetric):
     """
     Class for evaluating accuracy metric of classification models.
@@ -31,26 +39,15 @@ class ClassificationAccuracy(PerImageEvaluationMetric):
 
     annotation_types = (ClassificationAnnotation, )
     prediction_types = (ClassificationPrediction, )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        def loss(annotation_label, prediction_top_k_labels):
-            return int(annotation_label in prediction_top_k_labels)
-        self.accuracy = AverageMeter(loss)
-
-    def validate_config(self):
-        class _AccuracyValidator(BaseMetricConfig):
-            top_k = NumberField(floats=False, min_value=1, optional=True)
-
-        accuracy_validator = _AccuracyValidator(
-            'accuracy',
-            on_extra_argument=_AccuracyValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        accuracy_validator.validate(self.config)
+    _config_validator_type = AccuracyConfig
 
     def configure(self):
         self.top_k = self.config.get('top_k', 1)
+
+        def loss(annotation_label, prediction_top_k_labels):
+            return int(annotation_label in prediction_top_k_labels)
+
+        self.accuracy = AverageMeter(loss)
 
     def update(self, annotation, prediction):
         self.accuracy.update(annotation.label, prediction.top_k(self.top_k))
@@ -69,16 +66,7 @@ class ClassificationAccuracyClasses(PerImageEvaluationMetric):
     annotation_types = (ClassificationAnnotation, )
     prediction_types = (ClassificationPrediction, )
 
-    def validate_config(self):
-        class _AccuracyValidator(BaseMetricConfig):
-            top_k = NumberField(floats=False, min_value=1, optional=True)
-            label_map = StringField(optional=True)
-
-        accuracy_validator = _AccuracyValidator(
-            'accuracy',
-            on_extra_argument=_AccuracyValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        accuracy_validator.validate(self.config)
+    _config_validator_type = PerClassAccuracyConfig
 
     def configure(self):
         self.top_k = self.config.get('top_k', 1)
@@ -105,3 +93,44 @@ class ClassificationAccuracyClasses(PerImageEvaluationMetric):
 
     def evaluate(self, annotations, predictions):
         return self.accuracy.evaluate()
+
+
+class AverageProbMeter(AverageMeter):
+    def __init__(self):
+        def loss(annotation_label, prediction_scores):
+            return prediction_scores
+        super().__init__(loss=loss)
+
+
+class ClipAccuracy(PerImageEvaluationMetric):
+    __provider__ = 'clip_accuracy'
+
+    annotation_types = (ClassificationAnnotation, )
+    prediction_types = (ClassificationPrediction, )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.clip_accuracy = AverageMeter()
+        self.video_accuracy = AverageMeter()
+        self.video_avg_prob = AverageProbMeter()
+        self.previous_video_id = None
+        self.previous_video_label = None
+
+    def update(self, annotation, prediction):
+        video_id = annotation.identifier.video
+
+        if self.previous_video_id is not None and video_id != self.previous_video_id:
+            video_top_label = np.argmax(self.video_avg_prob.evaluate())
+            self.video_accuracy.update(video_top_label, self.previous_video_label)
+            self.video_avg_prob = AverageProbMeter()
+
+        self.video_avg_prob.update(annotation.label, prediction.scores)
+
+        self.clip_accuracy.update(annotation.label, prediction.label)
+
+        self.previous_video_id = video_id
+        self.previous_video_label = annotation.label
+
+    def evaluate(self, annotations, predictions):
+        self.meta['names'] = ['clip_accuracy', 'video_accuracy']
+        return [self.clip_accuracy.evaluate(), self.video_accuracy.evaluate()]

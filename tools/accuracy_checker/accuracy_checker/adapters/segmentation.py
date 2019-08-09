@@ -32,16 +32,7 @@ class SegmentationAdapter(Adapter):
 
     def _extract_predictions(self, outputs_list, meta):
         if not 'tiles_shape' in (meta[-1] or {}):
-            new_raw = {}
-            for out in outputs_list:
-                for key, val in out.items():
-                    out_previous = new_raw.get(key, [])
-                    out_previous.append(val)
-                    new_raw[key] = out_previous
-
-            for k in new_raw:
-                new_raw[k] = [new_raw[k]]
-            return  new_raw
+            return outputs_list[0]
         tiles_shapes = [meta['tiles_shape'] for meta in meta]
         restore_output = []
         offset = 0

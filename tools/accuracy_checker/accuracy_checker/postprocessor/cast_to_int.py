@@ -20,30 +20,26 @@ from ..config import StringField
 from ..representation import DetectionAnnotation, DetectionPrediction, TextDetectionPrediction, TextDetectionAnnotation
 from .postprocessor import Postprocessor, BasePostprocessorConfig
 
+round_policies_func = {
+    'nearest': np.rint,
+    'nearest_to_zero': np.trunc,
+    'lower': np.floor,
+    'greater': np.ceil
+}
+
+
+class CastToIntConfigValidator(BasePostprocessorConfig):
+    round_policy = StringField(optional=True, choices=round_policies_func.keys())
+
 
 class CastToInt(Postprocessor):
     __provider__ = 'cast_to_int'
     annotation_types = (DetectionAnnotation, TextDetectionAnnotation)
     prediction_types = (DetectionPrediction, TextDetectionPrediction)
-
-    round_policies_func = {
-        'nearest': np.rint,
-        'nearest_to_zero': np.trunc,
-        'lower': np.floor,
-        'greater': np.ceil
-    }
-
-    def validate_config(self):
-        class _CastToIntConfigValidator(BasePostprocessorConfig):
-            round_policy = StringField(optional=True, choices=self.round_policies_func.keys())
-
-        cast_to_int_config_validator = _CastToIntConfigValidator(
-            self.__provider__, on_extra_argument=_CastToIntConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        cast_to_int_config_validator.validate(self.config)
+    _config_validator_type = CastToIntConfigValidator
 
     def configure(self):
-        self.round_func = self.round_policies_func[self.config.get('round_policy', 'nearest')]
+        self.round_func = round_policies_func[self.config.get('round_policy', 'nearest')]
 
     def process_image(self, annotation, prediction):
         @singledispatch

@@ -14,38 +14,11 @@
  limitations under the License.
 """
 
-from copy import deepcopy
-
 import numpy as np
 
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.op import Op
-from mo.ops.permute import Permute
-
-
-def permute_before_and_after(inp: Node, middle: Node, out: Node, input_order, output_order):
-    """
-        Insert two permutes: before middle node and after middle node.
-
-        Both permutes has a given order (input/output).
-    """
-    # Permute before input
-    permute = Permute(middle.graph, dict(order=np.array(input_order)))
-
-    edge_attrs = deepcopy(middle.graph.get_edge_data(inp.id, middle.id)[0])
-    middle.graph.remove_edge(inp.id, middle.id)
-    new_inp = permute.create_node_with_data([inp], dict(name=middle.name + '/InputPermute'))
-    middle.graph.add_edge(new_inp.id, middle.id, **edge_attrs)
-
-    # Permute after output
-    permute = Permute(middle.graph, dict(order=output_order))
-
-    middle.graph.remove_edge(middle.id, out.id)
-    new_out = Op._create_data_node(middle.graph, name=middle.name + '/WithoutPermute',
-                                   attrs={'shape': out.shape[output_order]})
-    middle.graph.add_edge(middle.id, new_out.id, key=0, out=0)
-    permute.create_node_with_data([new_out], dict(name=middle.name + '/OutputPermute'), data_nodes=out)
 
 
 class ONNXRNNSequenceNormalize(MiddleReplacementPattern):
@@ -159,33 +132,6 @@ class ONNXRNNSequenceNormalize(MiddleReplacementPattern):
                 {'value': blob, 'shape': np.array(blob.shape, dtype=np.int64)},
                 {'in': port, 'permutation': None}
             )
-
-    @staticmethod
-    def batch_sequence_transpose(graph: Graph, match: dict):
-        """
-
-        """
-        rnn_layer = match['rnn_layer']
-        inp = match['input']
-        out = rnn_layer.out_node(0)
-
-        if rnn_layer.batch_dim == 0:
-            assert rnn_layer.sequence_dim == 1
-            # nothing to do -- it's already in normal form
-            return
-
-        assert rnn_layer.sequence_dim == 0
-        assert rnn_layer.batch_dim == 1
-        assert len(inp.shape) == 3
-
-        # Reorder the first two dimensions on both ends: input and output.
-        # Two Permute ops are inserted before and after the LSTM node.
-        # In this transformation we don't analyze the rest of the model around
-        # LSTM cell, so these Permute ops are not fused to some other layers here.
-        # But other transformations in the pipeline may optimize the Permute ops out.
-
-        rnn_layer.batch_dim, rnn_layer.sequence_dim = rnn_layer.sequence_dim, rnn_layer.batch_dim
-        permute_before_and_after(inp, rnn_layer, out, [1, 0, 2], [2, 1, 0, 3])
 
     @staticmethod
     def check_init_states(graph: Graph, match: dict):

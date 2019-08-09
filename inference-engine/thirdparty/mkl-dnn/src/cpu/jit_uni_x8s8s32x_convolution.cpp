@@ -135,7 +135,7 @@ void _jit_uni_x8s8s32x_convolution_fwd_t<isa, src_type, dst_type>::execute_forwa
         }
     };
 
-    parallel(0, ker);
+    parallel(0, work_amount, ker);
 }
 
 template <cpu_isa_t isa, impl::data_type_t src_type, data_type_t dst_type>
@@ -303,7 +303,7 @@ void _jit_uni_x8s8s32x_convolution_fwd_t<isa, src_type, dst_type>::execute_forwa
         }
     };
 
-    parallel(0, ker);
+    parallel(0, work_amount, ker);
 }
 
 template struct _jit_uni_x8s8s32x_convolution_fwd_t<avx2, data_type::u8, data_type::u8>;

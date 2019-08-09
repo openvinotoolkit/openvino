@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef DECONVOLUTION_H
-#define DECONVOLUTION_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -32,7 +30,8 @@ extern "C" {
 
 /// @brief Performs transposed convolution.
 /// Also supports built-in Relu @CLDNN_PRIMITIVE_DESC{activation} available by setting it in arguments.
-/// @details Deconvolution is similar to convolution layer with the weights flipped on the axis and stride and input padding parameters used in opposite sense as in convolution.
+/// @details Deconvolution is similar to convolution layer with the weights flipped on the axis
+/// and stride and input padding parameters used in opposite sense as in convolution.
 CLDNN_BEGIN_PRIMITIVE_DESC(deconvolution)
 /// @brief Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the deconvolution window should start calculations.
 cldnn_tensor input_offset;
@@ -67,5 +66,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(deconvolution);
 /// @}
 /// @}
 /// @}
-#endif /* DECONVOLUTION_H */
 

@@ -138,7 +138,7 @@ protected:
             if (info) {
                 auto data = info->getInputData();
                 if (data) {
-                    inputShapes[data->name] = data->getTensorDesc().getDims();
+                    inputShapes[data->getName()] = data->getTensorDesc().getDims();
                 }
             }
         }

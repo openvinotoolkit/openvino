@@ -22,7 +22,7 @@ import numpy as np
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import apply_pattern
 from mo.utils.error import Error
-from mo.utils.graph import bfs_search, pseudo_topological_sort
+from mo.utils.graph import bfs_search
 
 
 # TODO: dep warning
@@ -60,10 +60,10 @@ def mark_output_nodes(graph: Graph, node_name: str, key: str, value):
 def mark_output_reachable_nodes(graph: Graph):
     """
     Mark nodes whether they are outputs reachable or not. The node is considered output reachable if it is connected to
-    one of the nodes that has attribute op=OpOutput.
+    one of the nodes that has attribute op=Result.
     """
     nx.set_node_attributes(G=graph, name='is_output_reachable', values=False)
-    outputs = graph.get_nodes_with_attributes(op='OpOutput')
+    outputs = graph.get_nodes_with_attributes(op='Result')
     log.debug('The following nodes are seeded as output reachable:\n{}'.format('\n'.join(sorted(map(str, outputs)))))
     nx.set_node_attributes(G=graph, name='is_output_reachable', values={n: True for n in outputs})
     visited = set()
@@ -83,7 +83,7 @@ def mark_undead_nodes(graph: Graph, undead_types: list):
     nx.set_node_attributes(G=graph, name='is_undead', values=False)
 
     # mark output nodes as undead
-    outputs = graph.get_nodes_with_attributes(op='OpOutput')
+    outputs = graph.get_nodes_with_attributes(op='Result')
     nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in outputs})
 
     # mark specifically defined with node type set of nodes
@@ -114,15 +114,14 @@ def mark_const_producer_nodes(graph: Graph):
     """
     nx.set_node_attributes(G=graph, name='is_const_producer', values=True)
 
-    for n in pseudo_topological_sort(graph):
-        node = Node(graph, n)
-        for input, output, attrs in graph.in_edges(n, data=True):
+    for node in graph.pseudo_topological_sort():
+        for input, output, attrs in graph.in_edges(node.id, data=True):
             if 'control_flow_edge' in attrs and attrs['control_flow_edge']:
                 graph.node[input]['is_const_producer'] = False
                 graph.node[output]['is_const_producer'] = False
 
         if not node.has('value') or node.value is None:
-            for input, _ in graph.in_edges(n):
+            for input, _ in graph.in_edges(node.id):
                 graph.node[input]['is_const_producer'] = False
 
 
@@ -142,7 +141,8 @@ def add_constant_operations(graph: Graph):
         if len(node.in_nodes()) == 0 and len(node.out_nodes()) != 0:
             # It's necessary to import here due to cycle dependencies
             from mo.ops.const import Const
-            Const(graph, dict(value=node.value, shape=np.array(node.value.shape))).create_node_with_data(data_nodes=node)
+            const_node = Const(graph, dict(value=node.value)).create_node()
+            graph.add_edges_from([(const_node.id, node.id, {'out': 0})])
 
 
 def remove_const_ops(graph: Graph):
@@ -153,16 +153,15 @@ def remove_const_ops(graph: Graph):
 
 
 def shape_inference(graph: Graph):
-    nodes = pseudo_topological_sort(graph)
-    for node in nodes:
-        node = Node(graph, node)
+    for node in graph.pseudo_topological_sort():
         if node.has_and_set('need_shape_inference'):
-            old_out_shapes = [port.data.get_shape() for port in node.out_ports().values()]
+            old_out_shapes = [port.data.get_shape() for port in node.out_ports().values() if not port.disconnected()]
             node.infer(node)
-            new_out_shapes = [port.data.get_shape() for port in node.out_ports().values()]
+            new_out_shapes = [port.data.get_shape() for port in node.out_ports().values() if not port.disconnected()]
             for shape1, shape2 in zip(old_out_shapes, new_out_shapes):
                 if shape1 is not None and not np.array_equal(shape1, shape2):
-                    raise Error("After partial shape inference were found shape collision for node {} (old shape: {}, new shape: {})".format(node.name, shape1, shape2))
+                    raise Error("After partial shape inference were found shape collision for node {} (old shape: {}, "
+                                "new shape: {})".format(node.name, shape1, shape2))
             node.need_shape_inference = False
 
 
@@ -173,21 +172,24 @@ def graph_clean_up(graph: Graph, undead_node_types: list = None):
     if 'Shape' in undead_node_types and not graph.graph['cmd_params'].keep_shape_ops:
         undead_node_types.remove('Shape')
 
+    if 'ShapeOf' in undead_node_types and not graph.graph['cmd_params'].keep_shape_ops:
+        undead_node_types.remove('ShapeOf')
+
     mark_output_reachable_nodes(graph)
+    shape_inference(graph)
     mark_undead_nodes(graph, undead_node_types)
     mark_const_producer_nodes(graph)
     eliminate_dead_nodes(graph)
     # Add Const op for constant data nodes
     add_constant_operations(graph)
-    shape_inference(graph)
 
 
 def graph_clean_up_tf(graph: Graph):
-    graph_clean_up(graph, ['TFCustomSubgraphCall', 'Shape'])
+    graph_clean_up(graph, ['TFCustomSubgraphCall', 'ShapeOf', 'Shape'])
 
 
 def graph_clean_up_onnx(graph: Graph):
-    graph_clean_up(graph, ['Shape'])
+    graph_clean_up(graph, ['ShapeOf', 'Shape'])
 
 
 def remove_identity_action(graph: Graph, matches: dict):
@@ -196,8 +198,8 @@ def remove_identity_action(graph: Graph, matches: dict):
 
 # TODO: unit tests
 def merge_data_nodes(graph: Graph, survived: Node, removed: Node):
-    if survived.has_and_set('op') and survived.op == 'OpOutput':
-        graph.node[removed.id].update({'op': 'OpOutput'})
+    if survived.has_and_set('op') and survived.op == 'Result':
+        graph.node[removed.id].update({'op': 'Result'})
 
     for u, v, d in list(graph.in_edges(removed.id, data=True)):
         graph.add_edges_from([(u, survived.id, d)])

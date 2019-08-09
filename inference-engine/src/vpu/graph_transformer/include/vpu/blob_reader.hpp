@@ -34,6 +34,9 @@ public:
     uint32_t getVersionMajor() const { return _blobHeader.blob_ver_major; }
     uint32_t getVersionMinor() const { return _blobHeader.blob_ver_minor; }
 
+    uint32_t getNumberOfShaves() const { return _blobHeader.number_of_shaves; }
+    uint32_t getNumberOfSlices() const { return _blobHeader.number_of_cmx_slices; }
+
     const DataInfo& getInputInfo()  const { return _inputInfo; }
     const DataInfo& getOutputInfo() const { return _outputInfo; }
 

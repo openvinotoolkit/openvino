@@ -49,8 +49,13 @@ KERNEL (fully_connected_gpu_yxfn)(
         {
             for(uint i = 0; i < INPUT0_SIZE_X; i++)
             {
-                uint4 widx = FUNC(reshape_dims)(batch_id, k,j,i, INPUT0_SIZE_Y, INPUT0_SIZE_X, FILTER_SIZE_Y, FILTER_SIZE_X, INPUT0_DIMS, FILTER_DIMS);
-                uint weight_idx = weight_offset + widx[1]*FILTER_IFM_PITCH + widx[2]*FILTER_Y_PITCH + widx[3]*FILTER_X_PITCH;
+                // Due to reshape from DataTensor to WeightTensor reshape_dims function is called directly
+                uint8 widx = FUNC_CALL(reshape_dims)(
+                    batch_id, k, 0, 0, j, i,   // b, f, w, z, y, x
+                    INPUT0_FEATURE_NUM, INPUT0_SIZE_W, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X,
+                    FILTER_IFM_NUM, 1, FILTER_SIZE_Z, FILTER_SIZE_Y, FILTER_SIZE_X,
+                    INPUT0_DIMS, FILTER_DIMS);
+                uint weight_idx = weight_offset + widx[1]*FILTER_IFM_PITCH + widx[4]*FILTER_Y_PITCH + widx[5]*FILTER_X_PITCH;
                 uint input_idx = INPUT0_OFFSET + k*INPUT0_FEATURE_PITCH + j*INPUT0_Y_PITCH + i*INPUT0_X_PITCH + batch_id*INPUT0_BATCH_PITCH;
                 result += input[input_idx] * weights[weight_idx];
             }
@@ -61,5 +66,5 @@ KERNEL (fully_connected_gpu_yxfn)(
 #if BIAS_TERM
     result += biases[neuronIdx];
 #endif
-    output[output_idx] = ACTIVATION(result, NL_M, NL_N);
+    output[output_idx] = ACTIVATION(result, ACTIVATION_PARAMS);
 }

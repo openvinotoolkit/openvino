@@ -1,33 +1,13 @@
 # Copyright (C) 2018-2019 Intel Corporation
-#
 # SPDX-License-Identifier: Apache-2.0
 #
 
 cmake_policy(SET CMP0054 NEW)
 
-#features trigger supported by build system
-include(check_features)
-include(debug)
-
 #we have number of dependencies stored on ftp
 include(dependency_solver)
 
-#prepare temporary folder
-if (DEFINED ENV{${DL_SDK_TEMP}} AND NOT $ENV{${DL_SDK_TEMP}} STREQUAL "")
-    if (WIN32)
-        string(REPLACE "\\" "\\\\" TEMP $ENV{${DL_SDK_TEMP}})
-    else(WIN32)
-        set(TEMP $ENV{${DL_SDK_TEMP}})
-    endif(WIN32)
-
-    if (ENABLE_ALTERNATIVE_TEMP)
-        set(ALTERNATIVE_PATH ${IE_MAIN_SOURCE_DIR}/temp)
-    endif()
-else ()
-    message(STATUS "DL_SDK_TEMP envionment not set")
-    set(TEMP ${IE_MAIN_SOURCE_DIR}/temp)
-endif ()
-
+set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
 
 include(ExternalProject)
 
@@ -37,9 +17,14 @@ else()
     set(MODELS_BRANCH "master")
 endif()
 
+include(linux_name)
+if(COMMAND get_linux_name)
+    get_linux_name(LINUX_OS_NAME)
+endif()
+
 if (ENABLE_MYRIAD)
     RESOLVE_DEPENDENCY(VPU_FIRMWARE_MA2450
-            ARCHIVE_UNIFIED firmware_ma2450_491.zip
+            ARCHIVE_UNIFIED firmware_ma2450_676.zip
             TARGET_PATH "${TEMP}/vpu/firmware/ma2450"
             ENVIRONMENT "VPU_FIRMWARE_MA2450"
             FOLDER)
@@ -47,12 +32,12 @@ if (ENABLE_MYRIAD)
 endif ()
 
 if (ENABLE_MYRIAD)
-    RESOLVE_DEPENDENCY(VPU_FIRMWARE_MA2480
-            ARCHIVE_UNIFIED firmware_ma2480_mdk_R7_9.zip
-            TARGET_PATH "${TEMP}/vpu/firmware/ma2480"
-            ENVIRONMENT "VPU_FIRMWARE_MA2480"
+    RESOLVE_DEPENDENCY(VPU_FIRMWARE_MA2X8X
+            ARCHIVE_UNIFIED firmware_ma2x8x_mdk_R8_9.zip
+            TARGET_PATH "${TEMP}/vpu/firmware/ma2x8x"
+            ENVIRONMENT "VPU_FIRMWARE_MA2X8X"
             FOLDER)
-    debug_message(STATUS "ma2480=" ${VPU_FIRMWARE_MA2480})
+    debug_message(STATUS "ma2x8x=" ${VPU_FIRMWARE_MA2X8X})
 endif ()
 
 ## enable cblas_gemm from OpenBLAS package
@@ -103,7 +88,7 @@ debug_message(STATUS "intel_omp=" ${OMP})
 endif ()
 
 ## TBB package
-if (THREADING STREQUAL "TBB")
+if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
 if (WIN32)
     #TODO: add target_path to be platform specific as well, to avoid following if
     RESOLVE_DEPENDENCY(TBB
@@ -128,57 +113,53 @@ debug_message(STATUS "tbb=" ${TBB})
 endif ()
 
 if (ENABLE_OPENCV)
+  set(OPENCV_VERSION "4.1.1")
+  set(OPENCV_BUILD "595")
+  set(OPENCV_SUFFIX "")
 if (WIN32)
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_WIN "opencv_4.1.0-0437.zip"
-            TARGET_PATH "${TEMP}/opencv_4.1.0"
+            ARCHIVE_WIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.zip"
+            TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "\\opencv_4.1.0\\bin")
+    log_rpath_from_dir(OPENCV "\\opencv_${OPENCV_VERSION}\\bin")
     set( ENV{OpenCV_DIR} ${OPENCV}/cmake )
 elseif(APPLE)
     RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_MAC "opencv_4.1.0-0437_osx.tar.xz"
-            TARGET_PATH "${TEMP}/opencv_4.1.0_osx"
+            ARCHIVE_MAC "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.tar.xz"
+            TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx"
             ENVIRONMENT "OpenCV_DIR"
             VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "opencv_4.1.0_osx/lib")
+    log_rpath_from_dir(OPENCV "opencv_${OPENCV_VERSION}_osx/lib")
     set( ENV{OpenCV_DIR} ${OPENCV}/cmake )
 elseif(LINUX)
-if (${LINUX_OS_NAME} STREQUAL "Ubuntu 16.04")
-    RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_4.1.0-0437_ubuntu16.tar.xz"
-            TARGET_PATH "${TEMP}/opencv_4.1.0_ubuntu16"
-            ENVIRONMENT "OpenCV_DIR"
-            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "opencv_4.1.0_ubuntu16/lib")
-elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 18.04")
-    RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_4.1.0-0437_ubuntu18.tar.xz"
-            TARGET_PATH "${TEMP}/opencv_4.1.0_ubuntu18"
-            ENVIRONMENT "OpenCV_DIR"
-            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "opencv_4.1.0_ubuntu18/lib")
-elseif (${LINUX_OS_NAME} STREQUAL "CentOS 7")
-    RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_4.1.0-0437_centos7.tar.xz"
-            TARGET_PATH "${TEMP}/opencv_4.1.0_centos"
-            ENVIRONMENT "OpenCV_DIR"
-            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "opencv_4.1.0_centos/lib")
-elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7l" AND
-        (${LINUX_OS_NAME} STREQUAL "Debian 9" OR
-         ${LINUX_OS_NAME} STREQUAL "Raspbian 9"))
-    RESOLVE_DEPENDENCY(OPENCV
-            ARCHIVE_LIN "opencv_4.1.0-0437_debian9arm.tar.xz"
-            TARGET_PATH "${TEMP}/opencv_4.1.0_debian9arm"
-            ENVIRONMENT "OpenCV_DIR"
-            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    log_rpath_from_dir(OPENCV "opencv_4.1.0_debian9arm/lib")
+    if (${LINUX_OS_NAME} STREQUAL "Ubuntu 16.04")
+        set(OPENCV_SUFFIX "ubuntu16")
+    elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 18.04")
+        set(OPENCV_SUFFIX "ubuntu18")
+    elseif (${LINUX_OS_NAME} STREQUAL "CentOS 7")
+        set(OPENCV_SUFFIX "centos7")
+    elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7l" AND
+            (${LINUX_OS_NAME} STREQUAL "Debian 9" OR
+             ${LINUX_OS_NAME} STREQUAL "Raspbian 9" OR
+             ${LINUX_OS_NAME} STREQUAL "Debian 10" OR
+             ${LINUX_OS_NAME} STREQUAL "Raspbian 10"))
+        set(OPENCV_SUFFIX "debian9arm")
+    endif()
 endif()
+
+if (OPENCV_SUFFIX)
+    RESOLVE_DEPENDENCY(OPENCV
+            ARCHIVE_LIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.tar.xz"
+            TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}"
+            ENVIRONMENT "OpenCV_DIR"
+            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+    log_rpath_from_dir(OPENCV "opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/lib")
     set( ENV{OpenCV_DIR} ${OPENCV}/cmake )
 endif()
+
 debug_message(STATUS "opencv=" ${OPENCV})
+set(OpenCV_DIR "${OPENCV}" CACHE PATH "Path to OpenCV in temp directory")
 endif()
 
 
@@ -191,16 +172,16 @@ if (ENABLE_GNA)
 endif()
 
 configure_file(
-        "${CMAKE_SOURCE_DIR}/cmake/share/InferenceEngineConfig.cmake.in"
+        "${PROJECT_SOURCE_DIR}/cmake/share/InferenceEngineConfig.cmake.in"
         "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
         @ONLY)
 
 configure_file(
-        "${CMAKE_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
+        "${PROJECT_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
         "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
         COPYONLY)
 
 configure_file(
-        "${CMAKE_SOURCE_DIR}/cmake/ie_parallel.cmake"
+        "${PROJECT_SOURCE_DIR}/cmake/ie_parallel.cmake"
         "${CMAKE_BINARY_DIR}/share/ie_parallel.cmake"
         COPYONLY)

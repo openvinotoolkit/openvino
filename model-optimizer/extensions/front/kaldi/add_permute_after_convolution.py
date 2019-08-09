@@ -19,14 +19,16 @@ import numpy as np
 
 from extensions.front.kaldi.add_reshape_around_convolution import ReplaceConvolutionReshape
 from extensions.middle.TensorIteratorMerge import op_type
+from extensions.ops.activation_ops import activation_ops
+from extensions.ops.transpose import Transpose
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
-from mo.ops.permute import Permute
+from mo.ops.const import Const
 
 
-class ReplaceConvolutionPermute(FrontReplacementSubgraph):
+class ReplaceConvolutionTranspose(FrontReplacementSubgraph):
     """
-    This pass adds Permute around a Convolution layer if after there is sequence Pooling or Activation afterConvolution
+    This pass adds Transpose around a Convolution layer if after there is sequence Pooling or Activation afterConvolution
     **IMPORTANT**: This pass must run after inserting Reshapes around Poolings and Convolutions
        For example:
            Let's suppose we have next graph:
@@ -39,7 +41,7 @@ class ReplaceConvolutionPermute(FrontReplacementSubgraph):
 
            So this pass will convert this graph to the next one:
 
-           Convolution -> * -> Permute (order 0, 3, 2, 1 )-> Next_Layer -> ... -> (ScaleShift|FullyConnected)
+           Convolution -> * -> Transpose (order 0, 3, 2, 1 )-> Next_Layer -> ... -> (ScaleShift|FullyConnected)
 
     """
     enabled = True
@@ -58,9 +60,10 @@ class ReplaceConvolutionPermute(FrontReplacementSubgraph):
         convolution_nodes = [node for node in nodes_with_weights if Node(graph, node).op == 'Convolution']
         for convolution_node in convolution_nodes:
             target_node = self.search_target_node(Node(graph, convolution_node))
-            permute_op = Permute(graph, {'order': np.array([0, 3, 2, 1])})
-            permute_node = permute_op.add_node({'name': '{}/Permute'.format(target_node.name)})
-            target_node.insert_node_after( permute_node, 0)
+            order_const = Const(graph, dict(value=np.array([0, 3, 2, 1]))).create_node()
+            permute_node = Transpose(graph, dict(name=target_node.name + '/Transpose')).create_node()
+            target_node.insert_node_after(permute_node, 0)
+            order_const.out_port(0).connect(permute_node.in_port(1))
 
     def run_after(self):
         from extensions.front.kaldi.add_reshape_around_pooling import ReplacePoolingReshape
@@ -68,17 +71,16 @@ class ReplaceConvolutionPermute(FrontReplacementSubgraph):
 
     @staticmethod
     def search_target_node(node: Node):
-        target_node = ReplaceConvolutionPermute.skip_reshapes(node)
-        sequence_layers = ['Pooling', 'Activation']
-        if target_node.op not in sequence_layers:
+        target_node = ReplaceConvolutionTranspose.skip_reshapes(node)
+        sequence_layers = [['Pooling'], activation_ops]
+        if target_node.op not in ['Pooling'] + activation_ops:
             return node
-        if target_node.op == 'Activation':
+        if target_node.op in activation_ops:
             sequence_layers.reverse()
-        if target_node.op == sequence_layers[0]:
-            next_node = ReplaceConvolutionPermute.skip_reshapes(target_node)
-            if next_node.op == sequence_layers[1]:
+        if target_node.op in sequence_layers[0]:
+            next_node = ReplaceConvolutionTranspose.skip_reshapes(target_node)
+            if next_node.op in sequence_layers[1]:
                 target_node = next_node
-
         return target_node
 
     @staticmethod

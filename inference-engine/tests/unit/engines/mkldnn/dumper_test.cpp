@@ -75,7 +75,7 @@ TEST(MKLDNNLayersTests, DumpSimpleGraph) {
 
     ASSERT_EQ(layers.size(), 4);
     ASSERT_EQ(layers[0]->type, "Input");
-    ASSERT_EQ(layers[1]->type, "Conv_Activ");
+    ASSERT_EQ(layers[1]->type, "Convolution");
     ASSERT_EQ(layers[2]->type, "Reorder");
     ASSERT_EQ(layers[3]->type, "Output");
 }

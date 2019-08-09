@@ -40,14 +40,21 @@ CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerPar
         {"tanh", std::make_shared<LayerCreator<CNNLayer>>("TanH")},
     };
 
+    CNNLayer::Ptr activation;
+
     auto activationBuilder = activationCreators.find(type);
     if (activationBuilder == activationCreators.end()) {
-        THROW_IE_EXCEPTION << "Unsupported Activation layer type: " << type;
+        auto activationCreator = std::make_shared<LayerCreator<CNNLayer>>(type);
+        if (!activationCreator)
+            THROW_IE_EXCEPTION << "Cannot create activation layer with type " << type;
+
+        activation = activationCreator->CreateLayer(node, layerParsePrms);
+        activation->type = type;
+    } else {
+        activation = activationBuilder->second->CreateLayer(node, layerParsePrms);
+        activation->type = activationBuilder->first;
     }
 
-    auto activation = activationBuilder->second->CreateLayer(node, layerParsePrms);
-
-    activation->type = activationBuilder->first;
     activation->params.erase("type");
 
     return activation;
@@ -100,7 +107,7 @@ using WBlob = TBlob<uint8_t>::Ptr;
 
 class BodyParser {
 public:
-    BodyParser(pugi::xml_node &net_node, int ir_version) :
+    BodyParser(pugi::xml_node &net_node, size_t ir_version) :
         body(net_node), parser(FormatParser(ir_version)) {}
 
     void parse(PortSet in_request, PortSet out_request) {
@@ -114,7 +121,7 @@ public:
         // Mark data as network output. Just for check
         for (const auto &kvp : outputs) {
             auto &data = kvp.second;
-            auto layer = data->creatorLayer.lock();
+            auto layer = data->getCreatorLayer().lock();
             auto &outs = layer->outData;
             auto o_idx = std::find(outs.begin(), outs.end(), data) - outs.begin();
             auto sts = net->addOutput(layer->name, o_idx, nullptr);
@@ -129,7 +136,6 @@ public:
         net->getOutputsInfo(out_info_map);
 
         IE_ASSERT(in_info_map.size() == inputs.size())   << "TI body. There are unlinked inputs";
-        IE_ASSERT(out_info_map.size() == outputs.size()) << "TI body. There are unlinked outputs";
     }
 
     void setWeights(const WBlob &weights) {

@@ -22,14 +22,14 @@ from extensions.front.freeze_placeholder_value import FreezePlaceholderValue
 from mo.utils.unittest.graph import build_graph
 
 nodes_bool = {
-    '0': {'name': 'input1', 'kind': 'op', 'op': 'Placeholder', 'data_type': bool, 'shape': np.array([])},
-    '1': {'name': 'input2', 'kind': 'op', 'op': 'Placeholder', 'data_type': bool, 'shape': np.array([])},
+    '0': {'name': 'input1', 'kind': 'op', 'op': 'Parameter', 'data_type': bool, 'shape': np.array([])},
+    '1': {'name': 'input2', 'kind': 'op', 'op': 'Parameter', 'data_type': bool, 'shape': np.array([])},
     '2': {'name': 'node_1', 'kind': 'op', 'op': 'NotPlaceholder'},
     '3': {'name': 'node_2', 'kind': 'op', 'op': 'NotPlaceholder'},
     '4': {'name': 'node_3', 'kind': 'op', 'op': 'NotPlaceholder'},
     '5': {'name': 'node_4', 'kind': 'op', 'op': 'NotPlaceholder'},
-    '6': {'name': 'output1', 'kind': 'op', 'op': 'OpOutput', 'type': 'OpOutput'},
-    '7': {'name': 'output2', 'kind': 'op', 'op': 'OpOutput', 'type': 'OpOutput'}
+    '6': {'name': 'output1', 'kind': 'op', 'op': 'Result', 'type': 'Result'},
+    '7': {'name': 'output2', 'kind': 'op', 'op': 'Result', 'type': 'Result'}
 
 }
 edges = {

@@ -57,5 +57,5 @@ REG_VALIDATOR_FOR(CTCGreedyDecoder, [](const InferenceEngine::Builder::Layer::CP
 });
 
 REG_CONVERTER_FOR(CTCGreedyDecoder, [](const CNNLayerPtr& cnnLayer, Builder::Layer& layer) {
-    layer.getParameters()["ctc_merge_repeated"] = cnnLayer->GetParamsAsBool("ctc_merge_repeated", false);
+    layer.getParameters()["ctc_merge_repeated"] = cnnLayer->GetParamAsBool("ctc_merge_repeated", false);
 });

@@ -78,6 +78,7 @@ def split(input_data_node: Node, node: Node, axis: int, part_sizes: list):
             log.error('Just deduced dimension for the split has negative value that means that split input shape and '
                       'desired parts are not compatible')
             return
+        part_sizes[undef_index] = deduced_dim
 
     all_parts_size = np.add.reduce(part_sizes)
     if all_parts_size != input_data_node.shape[axis]:
@@ -185,6 +186,8 @@ def tf_split_v_infer(node: Node):
     if input.shape is None or size_splits is None:
         log.error('input shape or size of splits are not defined for node {}'.format(node.soft_get('name')))
         return
+
+    node['size_splits'] = size_splits
 
     log.debug('split_dim = {}, input.shape = {}, size_splits.value = {}'.format(split_dim, input.shape, size_splits))
 

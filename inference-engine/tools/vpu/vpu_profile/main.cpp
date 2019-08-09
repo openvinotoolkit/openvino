@@ -35,39 +35,38 @@
 
 #include "vpu_tools_common.hpp"
 #include "vpu/vpu_plugin_config.hpp"
+#include "vpu/private_plugin_config.hpp"
 #include "samples/common.hpp"
 
-static constexpr char help_message[]        = "Print a usage message.";
+static constexpr char help_message[]        = "Print a help(this) message.";
 static constexpr char model_message[]       = "Path to xml model.";
-static constexpr char inputs_dir_message[]  = "Path to folder with images. Default: \".\".";
-static constexpr char plugin_path_message[] = "Path to a plugin folder.";
+static constexpr char inputs_dir_message[]  = "Path to folder with images, only bitmap(.bmp) supported. Default: \".\".";
 static constexpr char config_message[]      = "Path to the configuration file. Default value: \"config\".";
-static constexpr char platform_message[]    = "Specifies movidius platform.";
 static constexpr char iterations_message[]  = "Specifies number of iterations. Default value: 16.";
 static constexpr char plugin_message[]      = "Specifies plugin. Supported values: myriad.\n"
     "\t            \t         \tDefault value: \"myriad\".";
+static constexpr char report_message[]      = "Specifies report type. Supported values: per_layer, per_stage.\n"
+    "\t            \t         \tOverrides value in configuration file if provided. Default value: \"per_stage\"";
 
 DEFINE_bool(h,                false, help_message);
 DEFINE_string(model,             "", model_message);
 DEFINE_string(inputs_dir,       ".", inputs_dir_message);
-DEFINE_string(plugin_path,       "", plugin_path_message);
 DEFINE_string(config,            "", config_message);
-DEFINE_string(platform,          "", platform_message);
 DEFINE_int32(iterations,         16, iterations_message);
 DEFINE_string(plugin,      "myriad", plugin_message);
+DEFINE_string(report,      "", report_message);
 
 static void showUsage() {
     std::cout << std::endl;
     std::cout << "vpu_profile [OPTIONS]" << std::endl;
     std::cout << "[OPTIONS]:" << std::endl;
-    std::cout << "\t-help       \t         \t"   << help_message        << std::endl;
+    std::cout << "\t-h          \t         \t"   << help_message        << std::endl;
     std::cout << "\t-model      \t <value> \t"   << model_message       << std::endl;
     std::cout << "\t-inputs_dir \t <value> \t"   << inputs_dir_message  << std::endl;
-    std::cout << "\t-plugin_path\t <value> \t"   << plugin_path_message << std::endl;
     std::cout << "\t-config     \t <value> \t"   << config_message      << std::endl;
-    std::cout << "\t-platform   \t <value> \t"   << platform_message    << std::endl;
     std::cout << "\t-iterations \t <value> \t"   << iterations_message  << std::endl;
     std::cout << "\t-plugin     \t <value> \t"   << plugin_message      << std::endl;
+    std::cout << "\t-report     \t <value> \t"   << report_message      << std::endl;
     std::cout << std::endl;
 }
 
@@ -98,14 +97,23 @@ static bool parseCommandLine(int *argc, char ***argv) {
     return true;
 }
 
-static std::map<std::string, std::string> configure(const std::string& confFileName) {
+static std::map<std::string, std::string> configure(const std::string& confFileName, const std::string& report) {
     auto config = parseConfig(confFileName);
 
     /* Since user can specify config file we probably can avoid it */
     config[VPU_CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
     config[VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME)] = CONFIG_VALUE(YES);
-
+    /* 
+        Default is PER_LAYER
+    */
+    if (report == "per_layer") {
+        config[VPU_CONFIG_KEY(PERF_REPORT_MODE)] = VPU_CONFIG_VALUE(PER_LAYER);
+    } else if (report == "per_stage") {
+        config[VPU_CONFIG_KEY(PERF_REPORT_MODE)] = VPU_CONFIG_VALUE(PER_STAGE);
+    } else if (config.find(VPU_CONFIG_KEY(PERF_REPORT_MODE)) == config.end()) {
+        config[VPU_CONFIG_KEY(PERF_REPORT_MODE)] = VPU_CONFIG_VALUE(PER_LAYER);
+    }
     return config;
 }
 
@@ -144,7 +152,7 @@ static std::string process_user_input(const std::string &src) {
 
 static std::size_t getNumberRequests(const std::string &plugin) {
     static const std::unordered_map<std::string, std::size_t> supported_plugins = {
-        { "MYRIAD", 4 },
+        { "MYRIAD", 4 }
     };
 
     auto num_requests = supported_plugins.find(plugin);
@@ -168,8 +176,8 @@ int main(int argc, char* argv[]) {
 
         auto user_plugin = process_user_input(FLAGS_plugin);
 
-        auto plugin = loadPlugin(user_plugin, FLAGS_plugin_path);
-        InferenceEngine::ExecutableNetwork executableNetwork = plugin.LoadNetwork(network, configure(FLAGS_config));
+        InferenceEngine::Core ie;
+        auto executableNetwork = ie.LoadNetwork(network, user_plugin, configure(FLAGS_config, FLAGS_report));
 
         auto num_requests = getNumberRequests(user_plugin);
 
@@ -248,7 +256,7 @@ int main(int argc, char* argv[]) {
         }
 
         doneFuture.wait();
-        printPerformanceCounts(performance);
+        printPerformanceCounts(performance, FLAGS_report);
     } catch (const std::exception &error) {
         std::cerr << error.what() << std::endl;
         return EXIT_FAILURE;

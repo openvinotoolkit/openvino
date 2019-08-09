@@ -20,20 +20,18 @@
 #include "memory_impl.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
-primitive_type_id reshape_type_id()
-{
+primitive_type_id reshape_type_id() {
     static primitive_type_base<reshape> instance;
     return &instance;
 }
 
-layout reshape_inst::calc_output_layout(reshape_node const& node)
-{
-    assert((bool)node.get_primitive()->output_data_type == false
-           && "Output data type forcing is not supported for reshape_node!");
+layout reshape_inst::calc_output_layout(reshape_node const& node) {
+    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+           "Output data type forcing is not supported for reshape_node!");
     auto input_layout = node.input().get_non_padded_output_layout();
     auto sizes = node.get_primitive()->output_shape.sizes();
     auto input_sizes = input_layout.size.sizes();
@@ -54,17 +52,16 @@ layout reshape_inst::calc_output_layout(reshape_node const& node)
         shape_count *= sizes[i];
     }
     if (need_recalc)
-        sizes[need_recalc] = (int)input_layout.size.count() / shape_count;
+        sizes[need_recalc] = static_cast<int>(input_layout.size.count()) / shape_count;
 
     input_layout.size = tensor(sizes);
     return input_layout;
 }
 
-std::string reshape_inst::to_string(reshape_node const& node)
-{
-    auto desc      = node.get_primitive();
+std::string reshape_inst::to_string(reshape_node const& node) {
+    auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
-    auto& input    = node.input();
+    auto& input = node.input();
 
     std::stringstream primitive_description;
 
@@ -78,25 +75,32 @@ std::string reshape_inst::to_string(reshape_node const& node)
     return primitive_description.str();
 }
 
-reshape_inst::typed_primitive_inst(network_impl& network, reshape_node const& node)
-    : parent(network, node, false)
-{
+reshape_inst::typed_primitive_inst(network_impl& network, reshape_node const& node) : parent(network, node, false) {
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
-    CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(), "Input layout data typr", input_layout.data_type, "output layout data type", output_layout.data_type, "");
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Output layout count", output_layout.count(), "input layout count", input_layout.count(), "Output layout of reshape primitive changes size of input buffer");
+    CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
+                                    "Input layout data typr",
+                                    input_layout.data_type,
+                                    "output layout data type",
+                                    output_layout.data_type,
+                                    "");
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
+                          "Output layout count",
+                          output_layout.count(),
+                          "input layout count",
+                          input_layout.count(),
+                          "Output layout of reshape primitive changes size of input buffer");
 
-    //if reshape operated in-place, postpone creation of the output until network run,
-    //then create new memory object as the reinterpreted output of the previous primitive
-    if (!node.is_in_place())
+    // if reshape operated in-place, postpone creation of the output until network run,
+    // then create new memory object as the reinterpreted output of the previous primitive
+    if (!node.can_be_optimized())
         _output = allocate_output();
     else
         reuse_input();
 }
 
-void reshape_inst::on_execute()
-{
-    if (!node.is_in_place())
+void reshape_inst::on_execute() {
+    if (!node.can_be_optimized())
         return;
 
     if (_output && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
@@ -105,10 +109,9 @@ void reshape_inst::on_execute()
     reuse_input();
 }
 
-void reshape_inst::reuse_input()
-{
-    build_deps(); //reshape need deps
+void reshape_inst::reuse_input() {
+    build_deps();  // reshape need deps
     _output = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
 }
 
-}
+}  // namespace cldnn

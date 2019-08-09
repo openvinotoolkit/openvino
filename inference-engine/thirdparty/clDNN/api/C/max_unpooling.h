@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef MAX_UNPOOLING_H
-#define MAX_UNPOOLING_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -35,7 +33,8 @@ extern "C" {
 CLDNN_BEGIN_PRIMITIVE_DESC(max_unpooling)
 /// @brief Primitive id which contains indices of each max pooling region. Indices must be in flattened bfyx format with no padding. Needs to be fp32 data type.
 cldnn_primitive_id argmax;
-/// @brief Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the pooling window should start calculations. Used only for output size computation.
+/// @brief Defines a shift, relative to (0,0) position of the input buffer,
+/// where (0,0) point of the pooling window should start calculations. Used only for output size computation.
 cldnn_tensor input_offset;
 /// @brief Defines shift in input buffer between adjacent calculations of output values. Used only for output size computation.
 cldnn_tensor stride;
@@ -56,5 +55,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(max_unpooling);
 /// @}
 /// @}
 /// @}
-#endif /* MAX_UNPOOLING_H */
 

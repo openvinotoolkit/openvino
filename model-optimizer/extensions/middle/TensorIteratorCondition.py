@@ -16,10 +16,34 @@
 
 import logging as log
 
-from extensions.ops.TensorIterator_ops import TensorIteratorCondition
+import numpy as np
+
+from extensions.middle.PartialInfer import PartialInfer
+from extensions.middle.TensorIterator_utils import delete_selects_from
+from extensions.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
+from extensions.ops.elementwise import Mul
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-import numpy as np
+from mo.ops.const import Const
+
+
+def make_nodes_1D(nodes: list):
+    """
+    Reshape every node from nodes from 0D to 1D (nodes should have shape attribute).
+    """
+    for node in nodes:
+        assert node.shape is None or len(node.shape) == 0
+        node.shape = np.array([1], dtype=np.int64)
+        if node.value is not None:
+            node.value = np.reshape(node.value, node.shape)
+
+
+def looking_for_op_in_list(nodes: list, op: str):
+    for node in nodes:
+        if node.has_valid('op') and node.op == op:
+            return node
+
+    return None
 
 
 class LoopConditionMatcher(MiddleReplacementPattern):
@@ -185,6 +209,17 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
         assert sum(results) == 1
         return candidates[results == True][0]
 
+    @staticmethod
+    def check_dynamic_seq_len(graph: Graph, match: dict):
+        """
+        Cycle is dynamic if at least one of the boundaries isn't constant OR this boundaries is different from tensor
+        shape.
+        """
+        dynamic_seq_len = match['Enter_1_less_data'].value is None or match['Enter_2_less_data'].value is None or \
+                                not np.array_equal(match['Enter_1_less_data'].value, match['Enter_2_less_data'].value)
+
+        return dynamic_seq_len
+
     def replace_pattern(self, graph: Graph, match: dict):
         log.debug('================== ConditionFind ===============')
         # init_1
@@ -205,22 +240,50 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
         assert match['add_2_y_data'].value is not None
         step_2 = int(match['add_2_y_data'].value)
 
-        match['loop_cond_data'].value = None
-        match['Identity_2_data'].value = None
+        dynamic_seq_len = self.check_dynamic_seq_len(graph, match)
 
         # Create condition node and delete all useless nodes from condition pattern
-        loop_condiiton = match['loop_cond_data']
+        loop_condition = match['loop_cond_data']
         iterator_data = self.looking_for_iteration_counter(graph, match)
 
         condition_attrs = dict(time=dict(init=init_2, step=step_2), iter=dict(init=init_1, step=step_1),
                                name=match['loop_cond'].name + '/TensorIteratorCondition_')
         condition = TensorIteratorCondition(graph, attrs=condition_attrs)
-        condition.create_node_with_data(inputs=[match['Strided_slice_data'], match['minimum_data']],
-                                        data_nodes=[loop_condiiton, iterator_data])
+        condition_data = condition.create_node_with_data(inputs=[match['Strided_slice_data'], match['minimum_data']],
+                                                         data_nodes=[loop_condition, iterator_data])
+
+        safe_nodes = ['loop_cond_data', 'Identity_1_data', 'Identity_2_data', 'Strided_slice', 'Strided_slice_data',
+                      'minimum', 'minimum_data']
+
+        identity_ops = [n.op for n in iterator_data.out_nodes()]
+        if 'GreaterEqual' in identity_ops:
+            greater_equal_id = [n.id for n in iterator_data.out_nodes() if n.op == 'GreaterEqual'][0]
+
+            if dynamic_seq_len:
+                # Add BackEdge for time iterator node
+                backedge = TensorIteratorBackEdge(graph, dict(name='/TimeIterator/TensorIteratorBackEdge_'))
+                backedge_data = backedge.create_node_with_data(inputs=[match['init_2_data'], match['add_2_data'],
+                                                               condition_data[0]],)
+
+                graph.remove_edge(match['add_2'].in_node(0).id, match['add_2'].id)
+                graph.add_edge(backedge_data.id, match['add_2'].id, **{'in': 0})
+
+                graph.remove_edge(iterator_data.id, greater_equal_id)
+                graph.add_edge(backedge_data.id, greater_equal_id, **{'in': 0})
+
+                # nodes for time iterator
+                safe_nodes += ['init_2_data', 'init_2', 'Identity_2_data', 'add_2_data', 'add_2', 'add_2_y', 'add_2_y_data']
+
+                # Manually reshape all iterator nodes (for time) from 0D to 1D
+                iterator_data_nodes = [backedge_data, match['add_2_data'], match['add_2_y_data'], match['add_2_y'],
+                                       match['init_2_data'], match['init_2']]
+                make_nodes_1D(iterator_data_nodes)
+            else:
+                # Delete Selects from this cycle to make it not dynamic:
+                greater_equal_idxs = [n.id for n in iterator_data.out_nodes() if n.op == 'GreaterEqual']
+                delete_selects_from(graph, greater_equal_idxs)
 
         # Delete useless nodes
-        safe_nodes = ['loop_cond_data', 'Identity_1_data', 'Identity_2_data',  'Strided_slice', 'Strided_slice_data',
-                      'minimum', 'minimum_data']
         nodes_for_remove = []
         for node in match.keys():
             if node not in safe_nodes:
@@ -326,6 +389,122 @@ class SimpleConditionMatcher(MiddleReplacementPattern):
 
         # Delete useless nodes
         safe_nodes = ['loop_cond_data', 'Identity_1_data', 'Strided_slice', 'Strided_slice_data']
+        nodes_for_remove = []
+        for node in match.keys():
+            if node not in safe_nodes:
+                nodes_for_remove.append(match[node].id)
+        graph.remove_nodes_from(nodes_for_remove)
+
+
+class DynamicDecoderConditionMatcher(MiddleReplacementPattern):
+    """
+        This pattern match condition for dynamic decoder and create TensorIteratorCondition node instead of it.
+    """
+    enabled = True
+    graph_condition = [lambda graph: graph.graph['is_cyclic']]
+
+    def run_after(self):
+        return [SimpleConditionMatcher]
+
+    def run_before(self):
+        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        return [TensorIteratorMerge]
+
+    @staticmethod
+    def pattern():
+        log.debug('+++++++++++++++ DynamicDecoderConditionMatching ++++++++++++++++')
+        return dict(
+            nodes=[
+                ('loop_cond', dict(kind='op', op='LoopCond')),
+                ('loop_cond_data', dict(kind='data')),
+
+                ('logical_not', dict(kind='op', op='Not')),
+                ('logical_not_data', dict(kind='data')),
+
+                ('all', dict(kind='op', op='ReduceAnd')),
+                ('all_data', dict(kind='data')),
+
+                ('Merge_16', dict(kind='op', op='Merge')),
+                ('merge_16_data', dict(kind='data')),
+
+                ('NextIteration_16', dict(kind='op', op='NextIteration')),
+                ('nextIteration_data', dict(kind='data')),
+
+                ('Switch', dict(kind='op', op='Switch')),
+                ('switch_data', dict(kind='data')),
+
+                ('Identity', dict(kind='op', op='Identity')),
+                ('identity_data', dict(kind='data')),
+
+                ('add', dict(kind='op', op='Add')),
+                ('add_data', dict(kind='data')),
+
+                ('Less_enter',  dict(kind='op', op='Enter')),
+                ('Less_enter_data', dict(kind='data')),
+
+                ('And', dict(kind='op', op='LogicalAnd')),
+                ('And_data', dict(kind='data')),
+
+                ('Less',  dict(kind='op', op='Less')),
+                ('Less_data', dict(kind='data')),
+
+                ('TensorIteratorOutput', dict(kind='op', op='TensorIteratorOutput')),
+                ('TensorIteratorOutput_1', dict(kind='op', op='TensorIteratorOutput')),
+            ],
+            edges=[
+                ('NextIteration_16', 'nextIteration_data'),
+                ('nextIteration_data', 'Merge_16'),
+                ('Merge_16', 'merge_16_data'),
+                ('merge_16_data', 'all'),
+                ('all', 'all_data'),
+                ('all_data', 'logical_not'),
+                ('logical_not', 'logical_not_data'),
+
+                ('Less_enter', 'Less_enter_data'),
+                ('Less_enter_data', 'Less'),
+
+                ('Less', 'Less_data'),
+                ('Less_data', 'And'),
+
+                ('logical_not_data', 'And'),
+                ('And', 'And_data'),
+                ('And_data', 'loop_cond'),
+
+                ('loop_cond', 'loop_cond_data'),
+
+                ('loop_cond_data', 'Switch'),
+
+                ('Switch', 'switch_data'),
+
+                ('switch_data', 'Identity'),
+
+                ('Identity', 'identity_data'),
+
+                ('identity_data', 'add'),
+                ('add', 'add_data'),
+
+                ('identity_data', 'TensorIteratorOutput'),
+                ('identity_data', 'TensorIteratorOutput_1'),
+            ],
+        )
+
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
+        """
+        Create condition node and delete all useless nodes (like Switch/Merge/Identity) from condition pattern
+        """
+        log.debug('================== DynamicDecoderConditionFind  ==================')
+        # Create and connect condition node for dynamic decoder in TF
+        loop_condiiton = match['loop_cond_data']
+        iterator_data = match['identity_data']
+
+        condition_attrs = dict(name=match['loop_cond'].name + '/TensorIteratorCondition_')
+        condition = TensorIteratorCondition(graph, attrs=condition_attrs)
+        condition.create_node_with_data(inputs=[match['Less_enter'].in_node()],
+                                        data_nodes=[loop_condiiton, iterator_data])
+
+        # Delete useless nodes
+        safe_nodes = ['loop_cond_data', 'identity_data', 'TensorIteratorOutput', 'TensorIteratorOutput_1']
         nodes_for_remove = []
         for node in match.keys():
             if node not in safe_nodes:

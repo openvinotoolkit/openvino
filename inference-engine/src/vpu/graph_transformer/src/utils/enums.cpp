@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <vpu/utils/string.hpp>
+#include <vpu/utils/containers.hpp>
 
 namespace vpu {
 
@@ -21,15 +22,13 @@ void removeCharFromString(std::string& str, char ch) {
 
 }  // namespace
 
-std::unordered_map<int32_t, std::string> generateEnumMap(const std::string& strMap) {
-    std::unordered_map<int32_t, std::string> retMap;
-
+std::ostream& printValue(std::ostream& os, const std::string& strMap, int32_t val) {
     std::string strMapCopy = strMap;
 
     removeCharFromString(strMapCopy, ' ');
     removeCharFromString(strMapCopy, '(');
 
-    std::vector<std::string> enumTokens;
+    SmallVector<std::string> enumTokens;
     splitStringList(strMapCopy, enumTokens, ',');
 
     int32_t inxMap = 0;
@@ -39,7 +38,7 @@ std::unordered_map<int32_t, std::string> generateEnumMap(const std::string& strM
         if (token.find('=') == std::string::npos) {
             enumName = token;
         } else {
-            std::vector<std::string> enumNameValue;
+            SmallVector<std::string, 2> enumNameValue;
             splitStringList(token, enumNameValue, '=');
             IE_ASSERT(enumNameValue.size() == 2);
 
@@ -47,12 +46,16 @@ std::unordered_map<int32_t, std::string> generateEnumMap(const std::string& strM
             inxMap = std::stoi(enumNameValue[1], nullptr, 0);
         }
 
-        retMap[inxMap] = enumName;
+        if (inxMap == val) {
+            os << enumName;
+            return os;
+        }
 
         ++inxMap;
     }
 
-    return retMap;
+    os << std::to_string(val);
+    return os;
 }
 
 }  // namespace vpu

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -126,7 +126,7 @@ namespace tests
         if (layer_params->input[0] == "reorder0")
         {
             // Add reorder layer with output padding as input to the tested layer.
-            topology.add(reorder("reorder0", "input0", input_mems[0].get_layout().with_padding({ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
+            topology.add(reorder("reorder0", "input0", input_mems[0].get_layout().with_padding(padding{ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
         }
 
         prepare_input_for_test(input_mems);
@@ -222,11 +222,21 @@ namespace tests
     static size_t calc_offfset(const layout & layout, const pitches& p)
     {
         auto lower_padding = layout.data_padding.lower_size();
-        return
-            p.b * lower_padding.batch[0] +
-            p.f * lower_padding.feature[0] +
-            p.y * lower_padding.spatial[1] +
-            p.x * lower_padding.spatial[0];
+        if (layout.format == format::bfzyx) {
+            return
+                p.b * lower_padding.batch[0] +
+                p.f * lower_padding.feature[0] +
+                p.z * lower_padding.spatial[2] +
+                p.y * lower_padding.spatial[1] +
+                p.x * lower_padding.spatial[0];
+        }
+        else {
+            return
+                p.b * lower_padding.batch[0] +
+                p.f * lower_padding.feature[0] +
+                p.y * lower_padding.spatial[1] +
+                p.x * lower_padding.spatial[0];
+        }
     }
 
     memory_desc generic_test::get_linear_memory_desc(const layout & layout)
@@ -267,6 +277,15 @@ namespace tests
                 p.b = layout.get_buffer_size().sizes(format::byxf)[1] * p.y;
                 break;
             }
+            case format::bfzyx:
+            {
+                p.x = 1;
+                p.y = layout.get_buffer_size().sizes(format::bfzyx)[4] * p.x;
+                p.z = layout.get_buffer_size().sizes(format::bfzyx)[3] * p.y;
+                p.f = layout.get_buffer_size().sizes(format::bfzyx)[2] * p.z;
+                p.b = layout.get_buffer_size().sizes(format::bfzyx)[1] * p.f;
+                break;
+            }
             default:
             {
                 throw std::runtime_error("Format not supported yet.");
@@ -283,6 +302,17 @@ namespace tests
             b*desc.pitch.b + 
             f*desc.pitch.f + 
             y*desc.pitch.y + 
+            x*desc.pitch.x;
+    }
+
+    size_t generic_test::get_linear_index(const layout&, size_t b, size_t f, size_t z, size_t y, size_t x, const memory_desc& desc)
+    {
+        return
+            desc.offset +
+            b*desc.pitch.b +
+            f*desc.pitch.f +
+            z*desc.pitch.z +
+            y*desc.pitch.y +
             x*desc.pitch.x;
     }
 

@@ -62,5 +62,5 @@ KERNEL (fully_connected_gpu_xb_bx_b8)(
     result += _data.s0 + _data.s1 + _data.s2 + _data.s3 +
               _data.s4 + _data.s5 + _data.s6 + _data.s7;
 
-    output[outXIdx * INPUT0_BATCH_NUM + batch_id] = ACTIVATION(result, NL_M, NL_N);
+    output[outXIdx * INPUT0_BATCH_NUM + batch_id] = ACTIVATION(result, ACTIVATION_PARAMS);
 }

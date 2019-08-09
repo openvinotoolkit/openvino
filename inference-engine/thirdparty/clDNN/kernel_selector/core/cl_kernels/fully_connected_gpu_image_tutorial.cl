@@ -50,6 +50,6 @@ KERNEL(fully_connected_gpu_image_tutorial)(
     dotProd += (ACCUMULATOR_TYPE)biases[ofm];
 #endif
 
-    output[output_idx] = ACTIVATION((UNIT_TYPE)dotProd, NL_M, NL_N);
+    output[output_idx] = ACTIVATION((UNIT_TYPE)dotProd, ACTIVATION_PARAMS);
     MAKE_VECTOR_TYPE(UNIT_TYPE, 4) weights_val = IMAGE_READ(weights, (int2)(1, 0));
 }

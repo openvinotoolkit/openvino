@@ -68,17 +68,6 @@ public:
 #define REG_FACTORY_FOR(__prim, __type) \
 static ExtRegisterBase<__prim> __reg__##__type(#__type)
 
-template<typename Impl>
-class ShapeInferImplRegister {
-public:
-    explicit ShapeInferImplRegister(const std::string& type) {
-        CpuExtensions::AddShapeInferImpl(type, std::make_shared<Impl>());
-    }
-};
-
-#define REG_SHAPE_INFER_FOR_TYPE(__impl, __type) \
-static ShapeInferImplRegister<__impl> __reg__si__##__type(#__type)
-
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace InferenceEngine

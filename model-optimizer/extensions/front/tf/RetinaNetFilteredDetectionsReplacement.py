@@ -17,14 +17,15 @@
 import numpy as np
 
 from extensions.ops.DetectionOutput import DetectionOutput
+from extensions.ops.elementwise import Mul, Sub
 from extensions.ops.splitv import SplitV
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.subgraph_matcher import SubgraphMatch
+from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
 from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
 from mo.ops.const import Const
-from mo.ops.eltwise import Eltwise
-from mo.ops.power import Power
 from mo.ops.reshape import Reshape
 
 
@@ -41,13 +42,6 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
     """
     replacement_id = 'RetinaNetFilteredDetectionsReplacement'
 
-    @staticmethod
-    def _create_sub(graph: Graph, input_1: Node, port_1: int, input_2: Node, port_2: int):
-        negate = Power(graph, dict(scale=-1, name=input_2.name + '/negate_'))
-        add = Eltwise(graph, dict(operation='sum', name=input_1.name + '/add_'))
-        out_node = add.create_node([(input_1, port_1), negate.create_node([(input_2, port_2)])])
-        return out_node
-
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         return {match.output_node(0)[0].id: new_sub_graph['detection_output_node'].id}
 
@@ -59,13 +53,13 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         return new_nodes_to_remove
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
-        reshape_classes_op = Reshape(graph, {'dim': np.array([0, -1])})
-        reshape_classes_node = reshape_classes_op.create_node([match.single_input_node(1)[0]],
-                                                              dict(name='do_reshape_classes'))
+        reshape_classes_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
+                                                                dict(name='do_reshape_classes'),
+                                                                match.single_input_node(1)[0])
 
         priors_node = match.single_input_node(2)[0]
 
-        placeholder = [Node(graph, node_id) for node_id in graph.nodes() if Node(graph, node_id).op == 'Placeholder'][0]
+        placeholder = [Node(graph, node_id) for node_id in graph.nodes() if Node(graph, node_id).op == 'Parameter'][0]
         im_height = placeholder.shape[1]
         im_width = placeholder.shape[2]
 
@@ -74,24 +68,29 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
                                                                    1 / im_height,
                                                                    1 / im_width,
                                                                    1 / im_height])}).create_node([])
-        priors_scale_node = Eltwise(graph, {'name': 'scale_priors', 'operation': 'mul'}).create_node(
+        priors_scale_node = Mul(graph, {'name': 'scale_priors'}).create_node(
             [priors_node, priors_scale_const_node])
 
         # calculate prior boxes widths and heights
-        split_node = SplitV(graph, {'axis': 2, 'size_splits': [1, 1, 1, 1], 'out_ports_count': 4}).create_node([priors_scale_node])
-        priors_width_node = __class__._create_sub(graph, split_node, 2, split_node, 0)
-        priors_height_node = __class__._create_sub(graph, split_node, 3, split_node, 1)
+        split_node = SplitV(graph, {'axis': 2, 'size_splits': [1, 1, 1, 1],
+                                    'out_ports_count': 4}).create_node([priors_scale_node])
+
+        priors_width_node = Sub(graph, dict(name=split_node.name + '/sub_2-0_')
+                                ).create_node([(split_node, 2), (split_node, 0)])
+        priors_height_node = Sub(graph, dict(name=split_node.name + '/sub_3-1_')
+                                 ).create_node([(split_node, 3), (split_node, 1)])
 
         # concat weights and heights into a single tensor and multiple with the box coordinates regression values
-        concat_width_height_node = Concat(graph, {'name': 'concat_priors_width_height', 'axis': -1, 'in_ports_count': 4}).create_node(
+        concat_width_height_node = Concat(graph, {'name': 'concat_priors_width_height',
+                                                  'axis': -1, 'in_ports_count': 4}).create_node(
             [priors_width_node, priors_height_node, priors_width_node, priors_height_node])
-        applied_width_height_regressions_node = Eltwise(graph, {'name': 'final_regressions', 'operation': 'mul'}). \
-            create_node([concat_width_height_node, match.single_input_node(0)[0]])
+        applied_width_height_regressions_node = Mul(graph, {'name': 'final_regressions'}).create_node(
+            [concat_width_height_node, match.single_input_node(0)[0]])
 
         # reshape to 2D tensor as Inference Engine Detection Output layer expects
-        reshape_regression_op = Reshape(graph, {'dim': np.array([0, -1])})
-        reshape_regression_node = reshape_regression_op.create_node([applied_width_height_regressions_node],
-                                                                    {'name': 'reshape_regression'})
+        reshape_regression_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
+                                                                   dict(name='reshape_regression'),
+                                                                   applied_width_height_regressions_node)
 
         detection_output_op = DetectionOutput(graph, match.custom_replacement_desc.custom_attributes)
         detection_output_op.attrs['old_infer'] = detection_output_op.attrs['infer']

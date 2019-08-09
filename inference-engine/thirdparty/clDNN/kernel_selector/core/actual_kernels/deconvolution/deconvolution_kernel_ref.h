@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
@@ -20,15 +19,15 @@
 
 namespace kernel_selector {
 
-    class DeconvolutionKernelRef : public DeconvolutionKernelBase
-    {
-    public:
-        DeconvolutionKernelRef() : DeconvolutionKernelBase("deconvolution_gpu_ref") {}
-        virtual ~DeconvolutionKernelRef() {}
+class DeconvolutionKernelRef : public DeconvolutionKernelBase {
+public:
+    DeconvolutionKernelRef() : DeconvolutionKernelBase("deconvolution_gpu_ref") {}
+    virtual ~DeconvolutionKernelRef() {}
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        CommonDispatchData SetDefault(const deconvolution_params& params) const override;
-        JitConstants GetJitConstants(const deconvolution_params& params) const override;
-    };
-}
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    CommonDispatchData SetDefault(const deconvolution_params& params) const override;
+    JitConstants GetJitConstants(const deconvolution_params& params) const override;
+};
+}  // namespace kernel_selector

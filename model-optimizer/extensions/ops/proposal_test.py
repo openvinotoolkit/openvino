@@ -16,35 +16,51 @@
 
 import unittest
 
-import numpy as np
-
 from extensions.ops.proposal import ProposalOp
 from mo.front.common.extractors.utils import layout_attrs
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
-nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
-                    'proposal': {'type': 'proposal', 'kind': 'op'},
-                    'node_3': {'type': 'Identity', 'kind': 'op'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+nodes_attributes = {'proposal_input': {'kind': 'data', 'shape': None, 'value': None},
+                    'proposal': {'type': 'Proposal', 'kind': 'op'},
+                    'proposal_out_data_1': {'kind': 'data', 'shape': None, 'value': None},
+                    'proposal_out_data_2': {'kind': 'data', 'shape': None, 'value': None},
+                    'op_output': {'kind': 'op', 'op': 'Result'},
+                    'op_output2': {'kind': 'op', 'op': 'Result'},
                     }
 
 
 class TestProposal(unittest.TestCase):
-    def test_proposal_infer(self):
+    def test_proposal_infer_one_output(self):
         graph = build_graph(nodes_attributes,
-                            [('node_1', 'proposal'),
-                             ('proposal', 'node_3'),
-                             ('node_3', 'op_output')
+                            [('proposal_input', 'proposal'),
+                             ('proposal', 'proposal_out_data_1'),
+                             ('proposal_out_data_1', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
-                             'node_1': {'shape': np.array([1, 3, 227, 227])},
+                            {'proposal_input': {'shape': int64_array([1, 3, 227, 227])},
                              'proposal': {'post_nms_topn': 2, **layout_attrs()}
                              })
 
         proposal_node = Node(graph, 'proposal')
         ProposalOp.proposal_infer(proposal_node)
-        exp_shape = np.array([1 * 2, 5])
-        res_shape = graph.node['node_3']['shape']
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
+
+        self.assertListEqual([1 * 2, 5], list(graph.node['proposal_out_data_1']['shape']))
+
+    def test_proposal_infer_two_outputs(self):
+        graph = build_graph(nodes_attributes,
+                            [('proposal_input', 'proposal'),
+                             ('proposal', 'proposal_out_data_1'),
+                             ('proposal', 'proposal_out_data_2'),
+                             ('proposal_out_data_1', 'op_output'),
+                             ('proposal_out_data_2', 'op_output')
+                             ],
+                            {'proposal_input': {'shape': int64_array([1, 3, 227, 227])},
+                             'proposal': {'post_nms_topn': 2, **layout_attrs()}
+                             })
+
+        proposal_node = Node(graph, 'proposal')
+        ProposalOp.proposal_infer(proposal_node)
+
+        self.assertListEqual(list([1 * 2, 5]), list(graph.node['proposal_out_data_1']['shape']))
+        self.assertListEqual(list([1 * 2]), list(graph.node['proposal_out_data_2']['shape']))

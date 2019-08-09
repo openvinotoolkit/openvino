@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from tqdm import tqdm
+from pathlib import Path
 
 from ..config import PathField, BoolField
 from ..representation import DetectionAnnotation, SegmentationAnnotation
@@ -70,19 +71,19 @@ class PascalVOCSegmentationConverter(BaseFormatConverter):
         self.image_set_file = self.config['image_set_file']
         self.image_dir = self.config.get('images_dir')
         if not self.image_dir:
-            self.image_dir = get_path(self.image_set_file.parent / 'JPEGImages')
+            self.image_dir = get_path(self.image_set_file.parents[-2] / 'JPEGImages', is_directory=True)
 
         self.mask_dir = self.config.get('mask_dir')
         if not self.mask_dir:
-            self.mask_dir = get_path(self.image_set_file.parent / 'SegmentationClass')
+            self.mask_dir = get_path(self.image_set_file.parents[-2] / 'SegmentationClass', is_directory=True)
 
     def convert(self):
 
         annotations = []
         for image in read_txt(self.image_set_file):
             annotation = SegmentationAnnotation(
-                str(self.image_dir.name / '{}.jpg'.format(image)),
-                str(self.mask_dir.name / '{}.png'.format(image)),
+                str(Path(self.image_dir.name) / '{}.jpg'.format(image)),
+                str(Path(self.mask_dir.name) / '{}.png'.format(image)),
                 mask_loader=GTMaskLoader.SCIPY
             )
 
@@ -113,7 +114,7 @@ class PascalVOCDetectionConverter(BaseFormatConverter):
         self.image_set_file = self.config['image_set_file']
         self.image_dir = self.config.get('images_dir')
         if not self.image_dir:
-            self.image_dir = get_path(self.image_set_file.parent / 'JPEGImages')
+            self.image_dir = get_path(self.image_set_file.parents[-2] / 'JPEGImages')
         self.annotations_dir = self.config['annotations_dir']
         self.has_background = self.config.get('has_background', True)
 

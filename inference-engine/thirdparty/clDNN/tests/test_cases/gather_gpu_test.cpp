@@ -30,8 +30,8 @@ using namespace cldnn;
 using namespace ::tests;
 
 TEST(gather_gpu_fp16, d14_axisB) {
-    //  Indexes  : 2x2x1x1
-    //  Dictionary : 1x4x1x1
+    //  Dictionary : 2x2x1x1
+    //  Indexes : 1x4x1x1
     //  Axis : 0
     //  Output : 1x4x2x1
     //  Input values in fp16
@@ -88,8 +88,8 @@ TEST(gather_gpu_fp16, d14_axisB) {
 }
 
 TEST(gather_gpu_fp16, d222_axisB) {
-    //  Indexes  : 3x2x2x1
-    //  Dictionary : 2x2x1x1
+    //  Dictionary : 3x2x2x1
+    //  Indexes : 2x2x1x1
     //  Axis : 0
     //  Output : 2x2x2x2
     //  Input values in fp16
@@ -150,8 +150,8 @@ TEST(gather_gpu_fp16, d222_axisB) {
 }
 
 TEST(gather_gpu_fp16, d22_axisY) {
-    //  Indexes  : 2x2x3x1
-    //  Dictionary : 2x2x1x1
+    //  Dictionary : 2x2x3x1
+    //  Indexes : 2x2x1x1
     //  Axis : 2
     //  Output : 2x2x2x2
     //  Input values in fp16
@@ -211,8 +211,8 @@ TEST(gather_gpu_fp16, d22_axisY) {
 }
 
 TEST(gather_gpu_fp16, d22_axisF) {
-    //  Indexes  : 2x3x2x1
-    //  Dictionary : 2x2x1x1
+    //  Dictionary : 2x3x2x1
+    //  Indexes : 2x2x1x1
     //  Axis : 2
     //  Output : 2x2x2x2
     //  Input values in fp16
@@ -272,8 +272,8 @@ TEST(gather_gpu_fp16, d22_axisF) {
 }
 
 TEST(gather_gpu_fp32, d14_axisB) {
-    //  Indexes  : 2x2x1x1
-    //  Dictionary : 1x4x1x1
+    //  Dictionary : 2x2x1x1
+    //  Indexes : 1x4x1x1
     //  Axis : 0
     //  Output : 1x4x2x1
     //  Input values in fp32
@@ -330,8 +330,8 @@ TEST(gather_gpu_fp32, d14_axisB) {
 }
 
 TEST(gather_gpu_fp32, d222_axisB) {
-    //  Indexes  : 3x2x2x1
-    //  Dictionary : 2x2x1x1
+    //  Dictionary : 3x2x2x1
+    //  Indexes : 2x2x1x1
     //  Axis : 0
     //  Output : 2x2x2x2
     //  Input values in fp32
@@ -391,8 +391,8 @@ TEST(gather_gpu_fp32, d222_axisB) {
 }
 
 TEST(gather_gpu_fp32, d22_axisY) {
-    //  Indexes  : 2x2x3x1
-    //  Dictionary : 2x2x1x1
+    //  Dictionary : 2x2x3x1
+    //  Indexes : 2x2x1x1
     //  Axis : 2
     //  Output : 2x2x2x2
     //  Input values in fp32
@@ -452,8 +452,8 @@ TEST(gather_gpu_fp32, d22_axisY) {
 }
 
 TEST(gather_gpu_fp32, d22_axisF) {
-    //  Indexes  : 2x3x2x1
-    //  Dictionary : 2x2x1x1
+    //  Dictionary : 2x3x2x1
+    //  Indexes : 2x2x1x1
     //  Axis : 1
     //  Output : 2x2x2x2
     //  Input values in fp32

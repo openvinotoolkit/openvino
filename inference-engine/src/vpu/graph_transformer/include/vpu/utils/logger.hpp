@@ -53,14 +53,16 @@ class Logger final {
 public:
     using Ptr = std::shared_ptr<Logger>;
 
+    static constexpr const int IDENT_SIZE = 4;
+
     class Section final {
     public:
-        explicit Section(const Logger::Ptr& log) : _log(log) {
+        inline explicit Section(const Logger::Ptr& log) : _log(log) {
             IE_ASSERT(_log != nullptr);
             ++_log->_ident;
         }
 
-        ~Section() {
+        inline ~Section() {
             --_log->_ident;
         }
 
@@ -69,37 +71,42 @@ public:
     };
 
 public:
-    Logger(const std::string& name, LogLevel lvl, const OutputStream::Ptr& out) :
+    inline Logger(const std::string& name, LogLevel lvl, const OutputStream::Ptr& out) :
             _name(name), _logLevel(lvl), _out(out) {
         IE_ASSERT(_out != nullptr);
     }
 
-    LogLevel level() const { return _logLevel; }
+    inline LogLevel level() const {
+        return _logLevel;
+    }
+    inline bool isActive(LogLevel msgLevel) const {
+        return static_cast<int>(msgLevel) <= static_cast<int>(_logLevel);
+    }
 
     template <typename... Args>
-    void error(const char* format, const Args&... args) const noexcept {
+    inline void error(const char* format, const Args&... args) const noexcept {
         addEntry(LogLevel::Error, format, args...);
     }
 
     template <typename... Args>
-    void warning(const char* format, const Args&... args) const noexcept {
+    inline void warning(const char* format, const Args&... args) const noexcept {
         addEntry(LogLevel::Warning, format, args...);
     }
 
     template <typename... Args>
-    void info(const char* format, const Args&... args) const noexcept {
+    inline void info(const char* format, const Args&... args) const noexcept {
         addEntry(LogLevel::Info, format, args...);
     }
 
     template <typename... Args>
-    void debug(const char* format, const Args&... args) const  noexcept {
+    inline void debug(const char* format, const Args&... args) const noexcept {
         addEntry(LogLevel::Debug, format, args...);
     }
 
 private:
     template <typename... Args>
     void addEntry(LogLevel msgLevel, const char* format, const Args&... args) const noexcept {
-        if (static_cast<int>(msgLevel) > static_cast<int>(_logLevel)) {
+        if (!isActive(msgLevel)) {
             return;
         }
 
@@ -125,5 +132,12 @@ private:
 };
 
 #define VPU_LOGGER_SECTION(log) vpu::Logger::Section VPU_COMBINE(logSec, __LINE__) (log)
+
+#define VPU_LOG_AND_THROW(log, ...) \
+    do { \
+        auto msg = vpu::formatString(__VA_ARGS__); \
+        log->error("%s", msg); \
+        VPU_THROW_EXCEPTION << msg; \
+    } while (false)
 
 }  // namespace vpu

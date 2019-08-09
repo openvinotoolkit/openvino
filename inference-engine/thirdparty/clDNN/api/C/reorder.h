@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef REORDER_H
-#define REORDER_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -54,5 +52,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(reorder);
 /// @}
 /// @}
 /// @}
-#endif /* REORDER_H */
 

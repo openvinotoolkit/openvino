@@ -33,11 +33,11 @@ public:
             if (layer->insData.size() > 3 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
-            if (layer->insData[INPUT_PRIORS].lock()->dims.size() != 2 ||
+            if (layer->insData[INPUT_PRIORS].lock()->getTensorDesc().getDims().size() != 2 ||
                     (layer->insData.size() > INPUT_FEATUREMAP &&
-                     layer->insData[INPUT_FEATUREMAP].lock()->dims.size() != 4) ||
+                     layer->insData[INPUT_FEATUREMAP].lock()->getTensorDesc().getDims().size() != 4) ||
                     (layer->insData.size() > INPUT_IMAGE &&
-                     layer->insData[INPUT_IMAGE].lock()->dims.size() != 4))
+                     layer->insData[INPUT_IMAGE].lock()->getTensorDesc().getDims().size() != 4))
                 THROW_IE_EXCEPTION << "Unsupported shape of input blobs!";
 
             grid_w_ = layer->GetParamAsInt("w", 0);

@@ -27,7 +27,7 @@ class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
             nodes=[
                 ('memory_node', dict(op='Memory')),
                 ('data_node', dict(kind='data')),
-                ('op_output', dict(op='OpOutput'))
+                ('op_output', dict(op='Result'))
             ],
             edges=[
                 ('memory_node', 'data_node'),
@@ -38,10 +38,10 @@ class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         """
-        Need to find the pattern: Memory -> Data -> OpOutput
+        Need to find the pattern: Memory -> Data -> Result
 
         It is needed to make Memory nodes appear in IR,
-        but they are output nodes by default and we remove the OpOutput node after each output memory.
+        but they are output nodes by default and we remove the Result node after each output memory.
 
         DO NOT use graph clean up after it
         otherwise Memory nodes would be removed as they are not on the path from input to output

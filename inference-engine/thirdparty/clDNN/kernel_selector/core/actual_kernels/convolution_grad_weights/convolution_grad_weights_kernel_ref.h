@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
@@ -20,14 +19,11 @@
 
 namespace kernel_selector {
 
-    class ConvolutionGradWeightsKernelRef : public ConvolutionGradWeightsKernelBase
-    {
-    public:
-        ConvolutionGradWeightsKernelRef() : ConvolutionGradWeightsKernelBase("convolution_grad_weights_ref") {}
-        virtual ~ConvolutionGradWeightsKernelRef() {}
+class ConvolutionGradWeightsKernelRef : public ConvolutionGradWeightsKernelBase {
+public:
+    ConvolutionGradWeightsKernelRef() : ConvolutionGradWeightsKernelBase("convolution_grad_weights_ref") {}
+    virtual ~ConvolutionGradWeightsKernelRef() {}
 
-
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

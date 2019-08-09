@@ -16,7 +16,7 @@
 
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder
+from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, collect_until_token
 from mo.front.kaldi.utils import read_binary_matrix, read_binary_vector
 from mo.ops.inner_product import InnerProduct
 from mo.utils.error import Error
@@ -29,10 +29,7 @@ class FixedAffineComponentFrontExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
         pb = node.parameters
-        tag = find_next_tag(pb)
-        if tag != '<LinearParams>':
-            raise Error('FixedAffineComponent must contain LinearParams')
-        read_placeholder(pb, 1)
+        collect_until_token(pb, b'<LinearParams>')
         weights, weights_shape = read_binary_matrix(pb)
         tag = find_next_tag(pb)
         read_placeholder(pb, 1)

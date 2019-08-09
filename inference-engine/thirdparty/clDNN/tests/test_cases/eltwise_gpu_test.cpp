@@ -108,8 +108,8 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
     topology topology;
     topology.add(input_layout("input1", input1.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
-    topology.add(reorder("reorder1", "input1", input1.get_layout().with_padding({{ 0, 0, input_padding_x, input_padding_y }, 0 })));
-    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, relu, slope, { { 0, 0, output_padding_x, output_padding_y }, 0 }));
+    topology.add(reorder("reorder1", "input1", input1.get_layout().with_padding(padding{{ 0, 0, input_padding_x, input_padding_y }, 0 })));
+    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, relu, slope, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
 
     network network(engine, topology);
     network.set_input_data("input1", input1);
@@ -1786,6 +1786,45 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
     }
 }
 
+TEST(eltwise_gpu_int, w_callib_2x2x2x2)
+{
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, {data_types::i8, format::bfyx, {2, 2, 2, 2}});
+    auto input2 = memory::allocate(engine, {data_types::i8, format::bfyx, {2, 2, 2, 2}});
+    auto callib = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 2, 1, 1}});
+
+    std::vector<char> input_1_vec = {2, 0, 4, 99, 2, 0, 4, 99, -2, 0, -4, -99, -20, 2, -40, -120};
+    std::vector<char> input_2_vec = {0, 3, 5, 99, 0, 3, 5, 99, 0, -3, -5, -99, 2, -30, 50, -120};
+    std::vector<float> callib_vec = {1.0f, 0.625f};
+    std::vector<char> expected = {2, 3, 9, 127, 1, 2, 6, 124, -2, -3, -9, -128, -11, -18, 6, -128};
+
+    set_values(input, input_1_vec);
+    set_values(input2, input_2_vec);
+    set_values(callib, callib_vec);
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(data("callib", callib));
+    topology.add(eltwise("eltwise", "input", "input2", "callib", eltwise_mode::sum));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    auto outputs = network.execute();
+
+    auto output = outputs.find("eltwise");
+    ASSERT_NE(output, outputs.end());
+    auto output_ptr = output->second.get_memory().pointer<char>();
+
+    ASSERT_EQ(expected.size(), output_ptr.size());
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+        ASSERT_EQ(expected[i], output_ptr[i]);
+    }
+}
+
 TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
     // Same params as in eltwise_gpu_f32, sub_basic_in4x4x4x4 but using int types for first input.
     //
@@ -1963,8 +2002,8 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4_input_padding) {
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
-    topology.add(reorder("reorder", "input", input.get_layout().with_padding({ { 0, 0, 2, 1 }, 0 })));
-    topology.add(reorder("reorder2", "input2", input.get_layout().with_padding({ { 0, 0, 2, 1 }, 0 })));
+    topology.add(reorder("reorder", "input", input.get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })));
+    topology.add(reorder("reorder2", "input2", input.get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })));
     topology.add(eltwise("eltwise", {"reorder", "reorder2"}, eltwise_mode::max));
 
     set_values(input, {
@@ -2234,9 +2273,9 @@ TEST(eltwise_gpu_f32, max_3inputs_in4x4x4x4_input_padding) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
     topology.add(input_layout("input3", input3.get_layout()));
-    topology.add(reorder("reorder", "input", input.get_layout().with_padding({ { 0, 0, 2, 1 }, 0 })));
-    topology.add(reorder("reorder2", "input2", input.get_layout().with_padding({ { 0, 0, 2, 1 }, 0 })));
-    topology.add(reorder("reorder3", "input3", input.get_layout().with_padding({ { 0, 0, 2, 1 }, 0 })));
+    topology.add(reorder("reorder", "input", input.get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })));
+    topology.add(reorder("reorder2", "input2", input.get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })));
+    topology.add(reorder("reorder3", "input3", input.get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })));
     topology.add(eltwise("eltwise", {"reorder", "reorder2", "reorder3"}, eltwise_mode::max));
 
     set_values(input, {
@@ -2442,6 +2481,388 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2) {
     }
 }
 
+TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
+{
+    // Inputs are 2x2x2x2
+    // Inputs:
+    //       B1          B2
+    //
+    //    1111 1112  2111 2112
+    //F1
+    //    1121 1122  2121 2122
+    //
+    //
+    //    1211 1212  2211 2212
+    //F2
+    //    1221 1222  2221 2222
+
+
+    tensor input_tensor(2, 2, 2, 2);
+    auto fp16_bfyx_2x2x2x2_input =
+    {
+        FLOAT16(1111),FLOAT16(1112),FLOAT16(1121),FLOAT16(1122),
+        FLOAT16(1211),FLOAT16(1212),FLOAT16(1221),FLOAT16(1222),
+        FLOAT16(2111),FLOAT16(2112),FLOAT16(2121),FLOAT16(2122),
+        FLOAT16(2211),FLOAT16(2212),FLOAT16(2221),FLOAT16(2222)
+    };
+
+    const auto& engine = get_test_engine();
+    bool f16_supported = !!engine.get_info().supports_fp16;
+    if (!f16_supported) {
+        std::cout << "[ SKIPPED  ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
+        return;
+    }
+
+    auto input1 = memory::allocate(engine, { data_types::f16,format::bfyx, input_tensor });
+    auto input2 = memory::allocate(engine, { data_types::f16,format::bfyx, input_tensor });
+
+    set_values(input1, fp16_bfyx_2x2x2x2_input);
+    set_values(input2, fp16_bfyx_2x2x2x2_input);
+
+    // GOLDEN BFYX ELTWISE
+    topology golden_topology;
+    golden_topology.add(input_layout("input1", input1.get_layout()));
+    golden_topology.add(input_layout("input2", input2.get_layout()));
+    golden_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::sum));
+
+    network golden_network(engine, golden_topology);
+    golden_network.set_input_data("input1", input1);
+    golden_network.set_input_data("input2", input2);
+
+    auto golden_outputs = golden_network.execute();
+    auto golden_output = golden_outputs.at("eltwise").get_memory();
+    auto golden_ptr = golden_output.pointer<FLOAT16>();
+    // GOLDEN BFYX ELTWISE - END
+    // FS_B_YX_FSV32 ELTWISE
+    topology FSV32_topology;
+    FSV32_topology.add(input_layout("input1", input1.get_layout()));
+    FSV32_topology.add(input_layout("input2", input2.get_layout()));
+    FSV32_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
+    FSV32_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
+    FSV32_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum));
+    FSV32_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor)));
+
+    network FSV32_network(engine, FSV32_topology);
+    FSV32_network.set_input_data("input1", input1);
+    FSV32_network.set_input_data("input2", input2);
+
+    auto FSV32_outputs = FSV32_network.execute();
+    auto FSV32_output = FSV32_outputs.at("reorderOutput").get_memory();
+    auto FSV32_ptr = FSV32_output.pointer<FLOAT16>();
+    // FS_B_YX_FSV32 ELTWISE - END
+
+    ASSERT_EQ(golden_ptr.size(), FSV32_ptr.size());
+
+    for (size_t i = 0; i < golden_ptr.size(); i++)
+    {
+        EXPECT_EQ(float(golden_ptr[i]), float(FSV32_ptr[i]));
+    }
+}
+
+TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2x2) {
+    //  Input  : 2x2x2x2x1
+    //  Input2 : 2x2x1x1x2
+    //  Output : 2x2x2x2x2
+
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 2, 2, 2, 2, 1 } });
+    auto input2 = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 2, 2, 1, 1, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(eltwise("eltwise", { "input", "input2" }, eltwise_mode::sum));
+
+    set_values(input, {
+        1.f,   0.f, 5.f, 1.5f,
+        2.f,   0.f, 6.f, 5.2f,
+        3.f,  0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f,  8.f
+    });
+
+    set_values(input2, { 0.5f, 2.5f, 0.5f, 2.5f, 1.f, 2.f, 3.f, 4.f });
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "eltwise");
+
+    auto output = outputs.at("eltwise").get_memory();
+
+    float answers[32] = {
+        1.5f,   0.5f,   5.5f,   2.f,
+        3.5f,   2.5f,   7.5f,   4.f,
+        2.5f,   0.5f,   6.5f,   5.7f,
+        4.5f,   2.5f,   8.5f,   7.7f,
+        4.f,    1.5f,   8.f,    13.f,
+        5.f,    2.5f,   9.f,    14.f,
+        7.f,    2.5f,   11.f,   11.f,
+        8.f,    3.5f,   12.f,   12.f
+    };
+
+    auto output_ptr = output.pointer<float>();
+
+    for (int i = 0; i < 32; i++)
+    {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
+{
+    // Inputs are 32x96x2x2
+
+    tensor input_tensor(32, 96, 20, 20);
+    VVVVF<FLOAT16> input_rnd = generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
+    VF<FLOAT16> fp16_bfyx_32x96x2x2_input = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
+
+    const auto& engine = get_test_engine();
+    bool f16_supported = !!engine.get_info().supports_fp16;
+    if (!f16_supported) {
+        std::cout << "[ SKIPPED  ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
+        return;
+    }
+
+    auto input1 = memory::allocate(engine, { data_types::f16,format::bfyx, input_tensor });
+    auto input2 = memory::allocate(engine, { data_types::f16,format::bfyx, input_tensor });
+
+    set_values(input1, fp16_bfyx_32x96x2x2_input);
+    set_values(input2, fp16_bfyx_32x96x2x2_input);
+
+    // GOLDEN BFYX ELTWISE
+    topology golden_topology;
+    golden_topology.add(input_layout("input1", input1.get_layout()));
+    golden_topology.add(input_layout("input2", input2.get_layout()));
+    golden_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::sum));
+
+    network golden_network(engine, golden_topology);
+    golden_network.set_input_data("input1", input1);
+    golden_network.set_input_data("input2", input2);
+
+    auto golden_outputs = golden_network.execute();
+    auto golden_output = golden_outputs.at("eltwise").get_memory();
+    auto golden_ptr = golden_output.pointer<FLOAT16>();
+    // GOLDEN BFYX ELTWISE - END
+    // MIXED INPUT, FS_B_YX_FSV32 OUTPUT
+    topology FS_B_YX_FSV32_OUTPUT_topology;
+    FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input1", input1.get_layout()));
+    FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input2", input2.get_layout()));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::byxf, input_tensor)));
+    FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor)));
+
+    network FS_B_YX_FSV32_OUTPUT_network(engine, FS_B_YX_FSV32_OUTPUT_topology);
+    FS_B_YX_FSV32_OUTPUT_network.set_input_data("input1", input1);
+    FS_B_YX_FSV32_OUTPUT_network.set_input_data("input2", input2);
+
+    auto FS_B_YX_FSV32_OUTPUT_outputs = FS_B_YX_FSV32_OUTPUT_network.execute();
+    auto FS_B_YX_FSV32_OUTPUT_output = FS_B_YX_FSV32_OUTPUT_outputs.at("reorderOutput").get_memory();
+    auto FS_B_YX_FSV32_OUTPUT_ptr = FS_B_YX_FSV32_OUTPUT_output.pointer<FLOAT16>();
+    // MIXED INPUT, FS_B_YX_FSV32 OUTPUT - END
+    // MIXED INPUT, BYXF OUTPUT
+    topology BYXF_OUTPUT_topology;
+    BYXF_OUTPUT_topology.add(input_layout("input1", input1.get_layout()));
+    BYXF_OUTPUT_topology.add(input_layout("input2", input2.get_layout()));
+    BYXF_OUTPUT_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::byxf, input_tensor)));
+    BYXF_OUTPUT_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
+    BYXF_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum));
+    BYXF_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor)));
+
+    network BYXF_OUTPUT_network(engine, BYXF_OUTPUT_topology);
+    BYXF_OUTPUT_network.set_input_data("input1", input1);
+    BYXF_OUTPUT_network.set_input_data("input2", input2);
+
+    auto BYXF_OUTPUT_outputs = BYXF_OUTPUT_network.execute();
+    auto BYXF_OUTPUT_output = BYXF_OUTPUT_outputs.at("reorderOutput").get_memory();
+    auto BYXF_OUTPUT_ptr = BYXF_OUTPUT_output.pointer<FLOAT16>();
+    // MIXED INPUT, BYXF OUTPUT - END
+
+    ASSERT_EQ(golden_ptr.size(), FS_B_YX_FSV32_OUTPUT_ptr.size());
+    ASSERT_EQ(golden_ptr.size(), BYXF_OUTPUT_ptr.size());
+
+    for (size_t i = 0; i < golden_ptr.size(); i++)
+    {
+        EXPECT_EQ(float(golden_ptr[i]), float(FS_B_YX_FSV32_OUTPUT_ptr[i]));
+    }
+    for (size_t i = 0; i < golden_ptr.size(); i++)
+    {
+        EXPECT_EQ(float(golden_ptr[i]), float(BYXF_OUTPUT_ptr[i]));
+    }
+}
+
+TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding)
+{
+    // Inputs are 32x96x2x2
+
+    tensor input_tensor(32, 96, 20, 20);
+    VVVVF<FLOAT16> input_rnd = generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
+    VF<FLOAT16> fp16_bfyx_32x96x2x2_input = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
+
+    const auto& engine = get_test_engine();
+    bool f16_supported = !!engine.get_info().supports_fp16;
+    if (!f16_supported) {
+        std::cout << "[ SKIPPED  ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
+        return;
+    }
+
+    auto input1 = memory::allocate(engine, { data_types::f16,format::bfyx, input_tensor });
+    auto input2 = memory::allocate(engine, { data_types::f16,format::bfyx, input_tensor });
+
+    set_values(input1, fp16_bfyx_32x96x2x2_input);
+    set_values(input2, fp16_bfyx_32x96x2x2_input);
+
+    // GOLDEN BFYX ELTWISE
+    topology golden_topology;
+    golden_topology.add(input_layout("input1", input1.get_layout()));
+    golden_topology.add(input_layout("input2", input2.get_layout()));
+    golden_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::sum,false,0.0f, padding{ {0,0,5,10} , 0 }));
+
+    network golden_network(engine, golden_topology);
+    golden_network.set_input_data("input1", input1);
+    golden_network.set_input_data("input2", input2);
+
+    auto golden_outputs = golden_network.execute();
+    auto golden_output = golden_outputs.at("eltwise").get_memory();
+    auto golden_ptr = golden_output.pointer<FLOAT16>();
+    // GOLDEN BFYX ELTWISE - END
+    // MIXED INPUT, FS_B_YX_FSV32 OUTPUT
+    topology FS_B_YX_FSV32_OUTPUT_topology;
+    FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input1", input1.get_layout()));
+    FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input2", input2.get_layout()));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::byxf, input_tensor)));
+    FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum,false,0.0f, padding{ {0,0,5,10} , 0 }));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,5,10} , 0 })));
+
+    network FS_B_YX_FSV32_OUTPUT_network(engine, FS_B_YX_FSV32_OUTPUT_topology);
+    FS_B_YX_FSV32_OUTPUT_network.set_input_data("input1", input1);
+    FS_B_YX_FSV32_OUTPUT_network.set_input_data("input2", input2);
+
+    auto FS_B_YX_FSV32_OUTPUT_outputs = FS_B_YX_FSV32_OUTPUT_network.execute();
+    auto FS_B_YX_FSV32_OUTPUT_output = FS_B_YX_FSV32_OUTPUT_outputs.at("reorderOutput").get_memory();
+    auto FS_B_YX_FSV32_OUTPUT_ptr = FS_B_YX_FSV32_OUTPUT_output.pointer<FLOAT16>();
+    // MIXED INPUT, FS_B_YX_FSV32 OUTPUT - END
+    // MIXED INPUT, BYXF OUTPUT
+    topology BYXF_OUTPUT_topology;
+    BYXF_OUTPUT_topology.add(input_layout("input1", input1.get_layout()));
+    BYXF_OUTPUT_topology.add(input_layout("input2", input2.get_layout()));
+    BYXF_OUTPUT_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::byxf, input_tensor)));
+    BYXF_OUTPUT_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
+    BYXF_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum, false, 0.0f, padding{ {0,0,5,10} , 0 }));
+    BYXF_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,5,10} , 0 })));
+
+    network BYXF_OUTPUT_network(engine, BYXF_OUTPUT_topology);
+    BYXF_OUTPUT_network.set_input_data("input1", input1);
+    BYXF_OUTPUT_network.set_input_data("input2", input2);
+
+    auto BYXF_OUTPUT_outputs = BYXF_OUTPUT_network.execute();
+    auto BYXF_OUTPUT_output = BYXF_OUTPUT_outputs.at("reorderOutput").get_memory();
+    auto BYXF_OUTPUT_ptr = BYXF_OUTPUT_output.pointer<FLOAT16>();
+    // MIXED INPUT, BYXF OUTPUT - END
+
+    ASSERT_EQ(golden_ptr.size(), FS_B_YX_FSV32_OUTPUT_ptr.size());
+    ASSERT_EQ(golden_ptr.size(), BYXF_OUTPUT_ptr.size());
+
+    for (size_t i = 0; i < golden_ptr.size(); i++)
+    {
+        EXPECT_EQ(float(golden_ptr[i]), float(FS_B_YX_FSV32_OUTPUT_ptr[i]));
+    }
+    for (size_t i = 0; i < golden_ptr.size(); i++)
+    {
+        EXPECT_EQ(float(golden_ptr[i]), float(BYXF_OUTPUT_ptr[i]));
+    }
+}
+
+TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
+{
+    // Inputs are 32x96x20x20
+
+    tensor input_tensor(32, 96, 20, 20);
+    VVVVF<FLOAT16> input_rnd = generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
+    VF<FLOAT16> fp16_bfyx_32x96x2x2_input = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
+
+    const auto& engine = get_test_engine();
+    bool f16_supported = !!engine.get_info().supports_fp16;
+    if (!f16_supported) {
+        std::cout << "[ SKIPPED  ] float16 combinations are skipped (cl_khr_fp16 is not supported)." << std::endl;
+        return;
+    }
+
+    auto input1 = memory::allocate(engine, { data_types::f16,format::bfyx, input_tensor });
+    auto input2 = memory::allocate(engine, { data_types::f16,format::bfyx, input_tensor });
+
+    set_values(input1, fp16_bfyx_32x96x2x2_input);
+    set_values(input2, fp16_bfyx_32x96x2x2_input);
+
+    // GOLDEN BFYX ELTWISE
+    topology golden_topology;
+    golden_topology.add(input_layout("input1", input1.get_layout()));
+    golden_topology.add(input_layout("input2", input2.get_layout()));
+    golden_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,10,15},0.0f })));
+    golden_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,5,7},0.0f })));
+    golden_topology.add(eltwise("eltwise", "input1", "input2", eltwise_mode::sum));
+
+    network golden_network(engine, golden_topology);
+    golden_network.set_input_data("input1", input1);
+    golden_network.set_input_data("input2", input2);
+
+    auto golden_outputs = golden_network.execute();
+    auto golden_output = golden_outputs.at("eltwise").get_memory();
+    auto golden_ptr = golden_output.pointer<FLOAT16>();
+    // GOLDEN BFYX ELTWISE - END
+    // MIXED INPUT, FS_B_YX_FSV32 OUTPUT
+    topology FS_B_YX_FSV32_OUTPUT_topology;
+    FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input1", input1.get_layout()));
+    FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input2", input2.get_layout()));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ {0,0,10,15},0.0f })));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::byxf, input_tensor, padding{ {0,0,5,7},0.0f })));
+    FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum));
+    FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor)));
+
+    network FS_B_YX_FSV32_OUTPUT_network(engine, FS_B_YX_FSV32_OUTPUT_topology);
+    FS_B_YX_FSV32_OUTPUT_network.set_input_data("input1", input1);
+    FS_B_YX_FSV32_OUTPUT_network.set_input_data("input2", input2);
+
+    auto FS_B_YX_FSV32_OUTPUT_outputs = FS_B_YX_FSV32_OUTPUT_network.execute();
+    auto FS_B_YX_FSV32_OUTPUT_output = FS_B_YX_FSV32_OUTPUT_outputs.at("reorderOutput").get_memory();
+    auto FS_B_YX_FSV32_OUTPUT_ptr = FS_B_YX_FSV32_OUTPUT_output.pointer<FLOAT16>();
+    // MIXED INPUT, FS_B_YX_FSV32 OUTPUT - END
+    // MIXED INPUT, BYXF OUTPUT
+    topology BYXF_OUTPUT_topology;
+    BYXF_OUTPUT_topology.add(input_layout("input1", input1.get_layout()));
+    BYXF_OUTPUT_topology.add(input_layout("input2", input2.get_layout()));
+    BYXF_OUTPUT_topology.add(reorder("reorder1", "input1", layout(data_types::f16, format::byxf, input_tensor, padding{ {0,0,10,15},0.0f })));
+    BYXF_OUTPUT_topology.add(reorder("reorder2", "input2", layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor, padding{ {0,0,5,7},0.0f })));
+    BYXF_OUTPUT_topology.add(eltwise("eltwise", "reorder1", "reorder2", eltwise_mode::sum));
+    BYXF_OUTPUT_topology.add(reorder("reorderOutput", "eltwise", layout(data_types::f16, format::bfyx, input_tensor)));
+
+    network BYXF_OUTPUT_network(engine, BYXF_OUTPUT_topology);
+    BYXF_OUTPUT_network.set_input_data("input1", input1);
+    BYXF_OUTPUT_network.set_input_data("input2", input2);
+
+    auto BYXF_OUTPUT_outputs = BYXF_OUTPUT_network.execute();
+    auto BYXF_OUTPUT_output = BYXF_OUTPUT_outputs.at("reorderOutput").get_memory();
+    auto BYXF_OUTPUT_ptr = BYXF_OUTPUT_output.pointer<FLOAT16>();
+    // MIXED INPUT, BYXF OUTPUT - END
+
+    ASSERT_EQ(golden_ptr.size(), FS_B_YX_FSV32_OUTPUT_ptr.size());
+    ASSERT_EQ(golden_ptr.size(), BYXF_OUTPUT_ptr.size());
+
+    for (size_t i = 0; i < golden_ptr.size(); i++)
+    {
+        EXPECT_EQ(float(golden_ptr[i]), float(FS_B_YX_FSV32_OUTPUT_ptr[i]));
+    }
+    for (size_t i = 0; i < golden_ptr.size(); i++)
+    {
+        EXPECT_EQ(float(golden_ptr[i]), float(BYXF_OUTPUT_ptr[i]));
+    }
+}
 
 template <typename T>
 int8_t eltwise_bool_execute(cldnn::eltwise_mode mode, T x, T y) {
@@ -2515,8 +2936,8 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
     topology topology;
     topology.add(input_layout("input1", input1.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
-    topology.add(reorder("reorder1", "input1", input1.get_layout().with_padding({{ 0, 0, input_padding_x, input_padding_y }, 0 })));
-    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, false, 0.f, { { 0, 0, output_padding_x, output_padding_y }, 0 }));
+    topology.add(reorder("reorder1", "input1", input1.get_layout().with_padding(padding{{ 0, 0, input_padding_x, input_padding_y }, 0 })));
+    topology.add(eltwise("eltwise", {"reorder1", "input2"}, mode, false, 0.f, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
 
     network network(engine, topology);
     network.set_input_data("input1", input1);

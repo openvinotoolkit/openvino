@@ -67,7 +67,7 @@ void gemm_convolution_fwd_t::execute_forward() const {
     const int nb_oh = div_up(jcp.oh, jcp.oh_block);
     const int nb_ow = div_up(jcp.ow, jcp.ow_block);
     const size_t work_amount = jcp.ngroups * MB * jcp.od * nb_oh * nb_ow;
-    parallel(jcp.nthr, [&](const int ithr, const int nthr) {
+    parallel(jcp.nthr, work_amount, [&](const int ithr, const int nthr) {
         data_t *_col = col + (ptrdiff_t)ithr * jcp.im2col_sz;
 
         int g{ 0 }, n{ 0 }, od{ 0 }, ohb{ 0 }, owb{ 0 };
@@ -86,10 +86,10 @@ void gemm_convolution_fwd_t::execute_forward() const {
             const int w_step = nstl::min(jcp.ow_block, jcp.ow - ow);
             if (jcp.im2col_sz) {
                 if (jcp.id == 1)
-                    jit_gemm_convolution_utils::im2col(
+                    jit_gemm_convolution_utils::im2col<float>(
                             jcp, _src, _col, oh, h_step, ow, w_step);
                 else
-                    jit_gemm_convolution_utils::im2col_3d(jcp, _src, _col, od);
+                    jit_gemm_convolution_utils::im2col_3d<float>(jcp, _src, _col, od);
             }
 
             const data_t one = 1.0;
@@ -208,7 +208,7 @@ void gemm_convolution_bwd_data_t::execute_backward_data() const {
         }
     }
 
-    parallel(jcp.nthr, [&](const int ithr, const int nthr) {
+    parallel(jcp.nthr, work_amount, [&](const int ithr, const int nthr) {
         data_t *_col = col + (ptrdiff_t)ithr * jcp.im2col_sz;
 
         int g{0}, n{0};
@@ -266,7 +266,7 @@ void gemm_convolution_bwd_weights_t::execute_backward_weights() const {
     parallel_nd(jcp.im2col_sz * jcp.nthr,
             [&](ptrdiff_t i) { col[i] = (data_t)0; });
 
-    parallel(jcp.nthr, [&](const int ithr, const int nthr) {
+    parallel(jcp.nthr, jcp.nthr, [&](const int ithr, const int nthr) {
         int ithr_g, nthr_g, ithr_mb, nthr_mb;
         size_t g_start{0}, g_end{0}, mb_start{0}, mb_end{0};
 
@@ -300,10 +300,10 @@ void gemm_convolution_bwd_weights_t::execute_backward_weights() const {
 
                     if (jcp.im2col_sz) {
                         if (jcp.id == 1)
-                            jit_gemm_convolution_utils::im2col(
+                            jit_gemm_convolution_utils::im2col<float>(
                                     jcp, _src, _col, 0, jcp.oh, 0, jcp.ow);
                         else
-                            jit_gemm_convolution_utils::im2col_3d(jcp, _src,
+                            jit_gemm_convolution_utils::im2col_3d<float>(jcp, _src,
                                 _col, od);
                     }
 

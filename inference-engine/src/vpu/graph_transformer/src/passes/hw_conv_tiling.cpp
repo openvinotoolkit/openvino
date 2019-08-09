@@ -618,8 +618,8 @@ private:
         _outputDims = _origOutputDims;
     }
 
-    std::vector<HwPlaneTileInfo> calcHeightTiles() {
-        std::vector<HwPlaneTileInfo> heightTiles;
+    SmallVector<HwPlaneTileInfo> calcHeightTiles() {
+        SmallVector<HwPlaneTileInfo> heightTiles;
 
         if (_outputTileDims[Dim::H] == _outputDims[Dim::H]) {
             HwPlaneTileInfo info;
@@ -657,8 +657,8 @@ private:
         return heightTiles;
     }
 
-    std::vector<HwPlaneTileInfo> calcWidthTiles() {
-        std::vector<HwPlaneTileInfo> widthTiles;
+    SmallVector<HwPlaneTileInfo> calcWidthTiles() {
+        SmallVector<HwPlaneTileInfo> widthTiles;
 
         if (_outputTileDims[Dim::W] == _outputDims[Dim::W]) {
             HwPlaneTileInfo info;
@@ -756,9 +756,7 @@ void PassImpl::run(const Model::Ptr& model) {
         auto kernelSizeY = origStage->attrs().get<int>("kernelSizeY");
         auto kernelStride = origStage->attrs().get<int>("kernelStrideX");
         auto padLeft = origStage->attrs().get<int>("padLeft");
-        auto padRight = origStage->attrs().get<int>("padRight");
         auto padTop = origStage->attrs().get<int>("padTop");
-        auto padBottom = origStage->attrs().get<int>("padBottom");
 
         auto withReLU = origStage->attrs().getOrDefault<bool>("withReLU", false);
         auto negativeSlope = origStage->attrs().getOrDefault<float>("negativeSlope", 0.0f);
@@ -929,7 +927,7 @@ void PassImpl::run(const Model::Ptr& model) {
         }
 
         //
-        // Expand input/output if needed
+        // Broadcast input/output if needed
         //
 
         const auto& tiling = opt.getTiling();
@@ -954,9 +952,9 @@ void PassImpl::run(const Model::Ptr& model) {
                 "@extended",
                 newDesc);
 
-            _stageBuilder->addExpandStage(
+            _stageBuilder->addBroadcastStage(
                 model,
-                origStage->name() + "@expand-input",
+                origStage->name() + "@broadcast-input",
                 origStage->origLayer(),
                 hwInput,
                 hwInputExtended);
@@ -979,10 +977,10 @@ void PassImpl::run(const Model::Ptr& model) {
                 auto origBiasesPtr = origBiasesContent->get<fp16_t>();
                 IE_ASSERT(origBiasesPtr != nullptr);
 
-                auto hwTileBiasesBlob = ie::make_shared_blob<fp16_t>(
+                auto hwTileBiasesBlob = ie::make_shared_blob<fp16_t>(InferenceEngine::TensorDesc(
                     ie::Precision::FP16,
-                    ie::Layout::C,
-                    {static_cast<size_t>(maxExtendedOutputDimC)});
+                    {static_cast<size_t>(maxExtendedOutputDimC)},
+                    ie::Layout::C));
                 hwTileBiasesBlob->allocate();
 
                 auto hwTileBiasesBlobPtr = hwTileBiasesBlob->buffer().as<fp16_t*>();
@@ -1044,6 +1042,11 @@ void PassImpl::run(const Model::Ptr& model) {
 
         DataVector hwOutputTiles;
         std::vector<DimValues> hwOutputTilesOffsets;
+
+        hwInputTiles.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
+        hwInputTilesOffsets.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
+        hwOutputTiles.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
+        hwOutputTilesOffsets.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
 
         for (const auto& planeTile : tiling->planeTiles) {
             auto planeTilePostfix = getPlaneTilePostfix(planeTile);
@@ -1290,7 +1293,8 @@ void PassImpl::run(const Model::Ptr& model) {
                 auto hwPad = getHwPaddingInfo(
                     hwInputTile->desc().dims(), hwOutputTileDims,
                     kernelSizeX, kernelSizeY,
-                    kernelStride, kernelStride);
+                    kernelStride, kernelStride,
+                    padLeft, padTop);
 
                 auto hwStage = model->addNewStage<MyriadXHwStage>(
                     origStage->name() + tilePostfix,
@@ -1340,7 +1344,7 @@ void PassImpl::run(const Model::Ptr& model) {
                 model,
                 origStage->name() + "@split-input",
                 origStage->origLayer(),
-                hwInputTilesOffsets,
+                std::move(hwInputTilesOffsets),
                 hwInput,
                 hwInputTiles);
         }
@@ -1350,7 +1354,7 @@ void PassImpl::run(const Model::Ptr& model) {
                 model,
                 origStage->name() + "@concat-output",
                 origStage->origLayer(),
-                hwOutputTilesOffsets,
+                std::move(hwOutputTilesOffsets),
                 hwOutputTiles,
                 hwOutput);
         }

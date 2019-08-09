@@ -13,11 +13,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-from ..config import BaseField, ConfigError
-from ..adapters import Adapter, AdapterField
+import numpy as np
+from ..config import BaseField
+from ..adapters import AdapterField
 from ..config import ConfigValidator, StringField, ListField
-from ..dependency import ClassProvider, provide
+from ..dependency import ClassProvider
 
 
 class Launcher(ClassProvider):
@@ -27,21 +27,25 @@ class Launcher(ClassProvider):
 
     __provider_type__ = 'launcher'
 
-    adapter = provide(Adapter)
+    def __init__(self, config_entry, *args, **kwargs):
+        self.config = config_entry
 
-    def __init__(self, config_entry, adapter, *args, **kwargs):
-        self.adapter = adapter
-        self._config = config_entry
-
-    def predict(self, identifiers, data_representation, *args, **kwargs):
+    def predict(self, inputs, metadata, *args, **kwargs):
         """
         Args:
-            identifiers: list of input data identifiers.
-            data_representation: list of input data representations, which contain preprocessed data and its metadata.
+            inputs: dictionary where keys are input layers names and values are data for them.
+            metadata: metadata of input representations
         Returns:
             raw data from network.
         """
 
+        raise NotImplementedError
+
+    def __call__(self, context, *args, **kwargs):
+        context.prediction_batch = self.predict(context.input_blobs, context.batch_meta)
+
+
+    def get_all_inputs(self):
         raise NotImplementedError
 
     def release(self):
@@ -49,6 +53,10 @@ class Launcher(ClassProvider):
 
     @property
     def batch(self):
+        raise NotImplementedError
+
+    @property
+    def output_blob(self):
         raise NotImplementedError
 
     @property
@@ -60,10 +68,17 @@ class Launcher(ClassProvider):
 
         return meta
 
+    @staticmethod
+    def fit_to_input(data, input_layer):
+        if len(np.shape(data)) == 4:
+            return np.transpose(data, [0, 3, 1, 2])
+        return np.array(data)
+
+INPUTS_TYPES = ('CONST_INPUT', 'INPUT')
 
 class InputValidator(ConfigValidator):
     name = StringField()
-    type = StringField(choices=('CONST_INPUT', 'INPUT'))
+    type = StringField(choices=INPUTS_TYPES)
     value = BaseField()
 
 
@@ -90,15 +105,30 @@ class LauncherConfig(ConfigValidator):
     framework = StringField(choices=Launcher.providers)
     tags = ListField(allow_empty=False, optional=True)
     inputs = ListInputsField(optional=True)
-    adapter = AdapterField()
+    adapter = AdapterField(optional=True)
+
+    def validate(self, entry, field_uri=None):
+        super().validate(entry, field_uri)
+        inputs = entry.get('inputs')
+        if inputs:
+            inputs_by_type = {input_type: [] for input_type in INPUTS_TYPES}
+            for input_layer in inputs:
+                input_type = input_layer['type']
+                inputs_by_type[input_type].append(input_layer['name'])
+
+            additional_attributes = {
+                '_list_{}s'.format(input_type.lower()): inputs for input_type, inputs in inputs_by_type.items()
+            }
+            for additional_attribute, values in additional_attributes.items():
+                self.fields[additional_attribute] = values
 
 
 def unsupported_launcher(name, error_message=None):
     class UnsupportedLauncher(Launcher):
         __provider__ = name
 
-        def __init__(self, config_entry, adapter, *args, **kwargs):
-            super().__init__(config_entry, adapter, *args, **kwargs)
+        def __init__(self, config_entry, *args, **kwargs):
+            super().__init__(config_entry, *args, **kwargs)
 
             msg = "{launcher} launcher is disabled. Please install {launcher} to enable it.".format(launcher=name)
             raise ValueError(error_message or msg)
@@ -116,11 +146,10 @@ def unsupported_launcher(name, error_message=None):
     return UnsupportedLauncher
 
 
-def create_launcher(launcher_config, dataset_meta=None):
+def create_launcher(launcher_config):
     """
     Args:
         launcher_config: launcher configuration file entry.
-        dataset_meta: metadata dictionary for dataset annotation.
     Returns:
         framework-specific launcher object.
     """
@@ -130,20 +159,6 @@ def create_launcher(launcher_config, dataset_meta=None):
         on_extra_argument=ConfigValidator.IGNORE_ON_EXTRA_ARGUMENT
     )
     launcher_config_validator.validate(launcher_config)
-
-    label_map = None
-    if dataset_meta:
-        label_map = dataset_meta.get('label_map')
-
     config_framework = launcher_config['framework']
-    config_adapter = launcher_config.get('adapter')
-    if not config_adapter:
-        adapter = None
-    elif isinstance(config_adapter, str):
-        adapter = Adapter.provide(config_adapter, launcher_config, label_map=label_map)
-    elif isinstance(config_adapter, dict):
-        adapter = Adapter.provide(config_adapter['type'], config_adapter, label_map=label_map)
-    else:
-        raise ConfigError
 
-    return Launcher.provide(config_framework, launcher_config, adapter=adapter)
+    return Launcher.provide(config_framework, launcher_config)

@@ -117,4 +117,6 @@ inline mkldnn_primitive_attr_t create_mkldnn_attr(const attr_t &attr,
         int scale_cnt, const float *scales)
 { return create_mkldnn_attr(attr, scale_cnt, -1, scales); }
 
+void maybe_scale(float &d, float *scales, int oc, const attr_t &attr);
+void maybe_post_ops(float &d, float dst, const attr_t &attr);
 #endif

@@ -141,8 +141,7 @@ struct jit_avx512_core_fp32_wino_conv_4x3_fwd_t
                                this->desc()->weights_desc.data_type,
                                this->desc()->dst_desc.data_type)
                     && IMPLICATION(this->with_bias(), data_type::f32
-                                       == this->desc()->bias_desc.data_type)
-                    && mkldnn_thr_syncable();
+                                       == this->desc()->bias_desc.data_type);
             if (!ok)
                 return status::unimplemented;
 

@@ -132,7 +132,7 @@ KERNEL(convolution_bfyx_1x1)(
     #if LEFTOVERS
         if(group_f+i < OUTPUT_FEATURE_NUM)
     #endif
-        output[dst_index] = ACTIVATION(blockC00[i], NL_M, NL_N);   
+        output[dst_index] = ACTIVATION(blockC00[i], ACTIVATION_PARAMS);
     }
 }
 

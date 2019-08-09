@@ -36,13 +36,13 @@ struct fc_test_params {
 template <typename data_t>
 void ref_innerproduct(const InferenceEngine::TBlob<data_t> &src, const data_t *weights, const size_t weightsSize,
                       InferenceEngine::TBlob<data_t> &dst, fc_test_params prm) {
-    auto dims_size = src.dims().size();
+    auto dims_size = src.getTensorDesc().getDims().size();
 
-    size_t IB = src.dims()[0];
-    size_t IC = src.dims()[1];
-    size_t ID = dims_size == 5 ? src.dims()[dims_size - 3] : 1u;
-    size_t IH = src.dims()[dims_size - 2];
-    size_t IW = src.dims()[dims_size - 1];
+    size_t IB = src.getTensorDesc().getDims()[0];
+    size_t IC = src.getTensorDesc().getDims()[1];
+    size_t ID = dims_size == 5 ? src.getTensorDesc().getDims()[dims_size - 3] : 1u;
+    size_t IH = src.getTensorDesc().getDims()[dims_size - 2];
+    size_t IW = src.getTensorDesc().getDims()[dims_size - 1];
 
     size_t OC = prm.out_c;
 
@@ -52,7 +52,7 @@ void ref_innerproduct(const InferenceEngine::TBlob<data_t> &src, const data_t *w
     data_t *dst_data = dst.data();
 
     IE_ASSERT( IW*IH*ID*IC*OC + OC == weightsSize );
-    IE_ASSERT( OC == dst.dims()[0] );
+    IE_ASSERT( OC == dst.getTensorDesc().getDims()[1] );
 
     for (size_t n = 0; n < IB; n++) {
         for (size_t oc = 0; oc < OC; oc++) {
@@ -162,7 +162,8 @@ protected:
                 weights_size *= p.in_dims[i];
             }
             weights_size = (weights_size + p.out_c) * sizeof(float);
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {weights_size});
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
+                {weights_size}, InferenceEngine::C });
             weights->allocate();
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
@@ -194,11 +195,11 @@ protected:
                     break;
             }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, layout});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
-            InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
+            auto* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
 
             if (srcPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
@@ -265,7 +266,7 @@ class MKLDNNGraphDynBatchFullyConnectedTests: public MKLDNNGraphFullyConnectedTe
                 weights_size *= p.in_dims[i];
             }
             weights_size = (weights_size + p.out_c) * sizeof(float);
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {weights_size});
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::C });
             weights->allocate();
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
@@ -292,11 +293,11 @@ class MKLDNNGraphDynBatchFullyConnectedTests: public MKLDNNGraphFullyConnectedTe
                     break;
             }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, layout});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
-            InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
+            auto* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
 
             if (srcPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";

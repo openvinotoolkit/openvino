@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef GEMM_H
-#define GEMM_H
-
+#pragma once
 #include <stdbool.h>
 #include "cldnn.h"
 /// @addtogroup c_api C API
@@ -39,13 +37,12 @@ float alpha;
 /// @brief Variable containing BETA parameter
 float beta;
 /// @brief Flag for transposing first input matrix
-bool transpose_input1;
+bool transpose_input0;
 /// @brief Flag for transposing second input matrix
-bool transpose_input2;
+bool transpose_input1;
 CLDNN_END_PRIMITIVE_DESC(gemm)
 
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(gemm);
-
 
 #ifdef __cplusplus
 }
@@ -54,5 +51,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(gemm);
 /// @}
 /// @}
 /// @}
-#endif /* GEMM_H */
 

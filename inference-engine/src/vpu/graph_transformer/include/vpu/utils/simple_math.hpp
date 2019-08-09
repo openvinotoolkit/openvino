@@ -11,6 +11,8 @@
 #include <string>
 #include <utility>
 
+#include <vpu/utils/containers.hpp>
+
 //
 // Simple integer arithmetics to be used for the work sizes calculation.
 // Supported operations : +,-,*,/,%,(,)
@@ -44,7 +46,7 @@ private:
 
 private:
     std::map<char, int> _vars;
-    std::vector<Token> _parsedTokens;
+    SmallVector<Token> _parsedTokens;
 };
 
 }  // namespace vpu

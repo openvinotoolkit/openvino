@@ -21,7 +21,8 @@ from mo.front.common.partial_infer.inner_product import caffe_inner_product
 def inner_product_ext(pb_layer, pb_model):
     param = pb_layer.inner_product_param
     attrs = {
-        'type': 'FullyConnected',
+        'op': 'MatMul',
+        'type': 'MatMul',
         'out-size': param.num_output,
         'layout': 'NCHW',
         'infer': caffe_inner_product

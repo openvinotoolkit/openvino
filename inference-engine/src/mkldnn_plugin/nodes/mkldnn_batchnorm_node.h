@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNBatchNormalizationNode : public MKLDNNNode {
 public:
-    MKLDNNBatchNormalizationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNBatchNormalizationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
 
     ~MKLDNNBatchNormalizationNode() override = default;
     void initSupportedPrimitiveDescriptors() override;

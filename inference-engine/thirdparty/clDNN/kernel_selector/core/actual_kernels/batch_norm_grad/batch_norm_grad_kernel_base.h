@@ -19,44 +19,39 @@
 #include "common_kernel_base.h"
 #include "kernel_selector_params.h"
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // batch_norm_grad_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct batch_norm_grad_params : public base_params
-    {
-        batch_norm_grad_params() : base_params(KernelType::BATCH_NORM_GRAD) {}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// batch_norm_grad_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct batch_norm_grad_params : public base_params {
+    batch_norm_grad_params() : base_params(KernelType::BATCH_NORM_GRAD) {}
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            return base_params::GetParamsKey();
-        }
-    };
+    virtual ParamsKey GetParamsKey() const {
+        return base_params::GetParamsKey();
+    }
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // batch_norm_grad_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct batch_norm_grad_optional_params : optional_params
-    {
-        batch_norm_grad_optional_params() : optional_params(KernelType::BATCH_NORM_GRAD) {}
-    };
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// batch_norm_grad_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct batch_norm_grad_optional_params : optional_params {
+    batch_norm_grad_optional_params() : optional_params(KernelType::BATCH_NORM_GRAD) {}
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // BatchNormGradKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class BatchNormGradKernelBase : public common_kernel_base
-    {
-    public:
-        using common_kernel_base::common_kernel_base;
-        virtual ~BatchNormGradKernelBase() {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BatchNormGradKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class BatchNormGradKernelBase : public common_kernel_base {
+public:
+    using common_kernel_base::common_kernel_base;
+    virtual ~BatchNormGradKernelBase() {}
 
-        using DispatchData = CommonDispatchData;
+    using DispatchData = CommonDispatchData;
 
-    protected:
-        virtual bool Validate(const Params& params, const optional_params& options) const override;
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
-        virtual JitConstants GetJitConstants(const batch_norm_grad_params& params) const;
-        virtual DispatchData SetDefault(const batch_norm_grad_params& params) const;
-    };
-}
+protected:
+    bool Validate(const Params& params, const optional_params& options) const override;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
+    virtual JitConstants GetJitConstants(const batch_norm_grad_params& params) const;
+    virtual DispatchData SetDefault(const batch_norm_grad_params& params) const;
+};
+}  // namespace kernel_selector

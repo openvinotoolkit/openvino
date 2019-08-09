@@ -82,7 +82,9 @@ void jit_avx512_core_x8s8s32x_1x1_convolution_fwd_t
         }
     }
 
-    parallel(kernel_->jcp.nthr, [&](const int ithr, const int nthr) {
+    const int work_amount = pd()->jcp_.mb * pd()->jcp_.ngroups * pd()->jcp_.nb_bcast * pd()->jcp_.nb_load;
+
+    parallel(kernel_->jcp.nthr, (size_t)work_amount, [&](const int ithr, const int nthr) {
         execute_forward_thr(ithr, nthr, src, weights, bias, dst, scratchpad);
     });
 }
@@ -129,10 +131,14 @@ void jit_avx512_core_x8s8s32x_1x1_convolution_fwd_t<src_type, dst_type>
     const int nb_oc = jcp.nb_load;
     const int os_block = jcp.bcast_block;
 
-
     int bcast_start{0}, bcast_end{0}, ocb_start{0}, ocb_end{0};
     balance2D(nthr, ithr, work_amount, bcast_start, bcast_end,
-        jcp.nb_load, ocb_start, ocb_end, jcp.load_grp_count);
+        jcp.nb_load / jcp.nb_load_chunk, ocb_start, ocb_end,
+        jcp.load_grp_count);
+    if (jcp.nb_load_chunk > 1) {
+        ocb_start *= jcp.nb_load_chunk;
+        ocb_end *= jcp.nb_load_chunk;
+    }
 
     auto init_bcast = [&](int iwork, int &n, int &g, int &bcast_step,
             int &oh, int &ow, int &ih, int &iw)

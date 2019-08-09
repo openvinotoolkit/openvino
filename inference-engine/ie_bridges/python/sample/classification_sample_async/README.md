@@ -1,28 +1,23 @@
 # Image Classification Python* Sample Async
 
-This sample demonstrates how to build and execute inference in pipelined mode on example of classifications networks.
+This sample demonstrates how to run the Image Classification sample application with inference executed in the asynchronous mode.
 
-The pipelined mode might increase the throughput of the pictures. The latency of one inference will be the same as for synchronous execution.
-<br>
-The throughput increases due to follow reasons:
-* Some plugins have heterogeneity inside themselves: data transferring, execution on remote device, pre-processing and post-processing on the host.
-* Using of explicit heterogeneous plugin with execution of different parts of network on different devices, for example HETERO:CPU,GPU.
+The sample demonstrates how to use the new Infer Request API of Inference Engine in applications.
+Refer to [Integrate the Inference Engine New Request API with Your Application](./docs/IE_DG/Integrate_with_customer_application_new_API.md) for details.
+The sample demonstrates how to build and execute an inference request 10 times in the asynchronous mode on example of classifications networks.
+The asynchronous mode might increase the throughput of the pictures.
 
-When two or more devices process one image, creating several infer requests and starting asynchronous inference allow for using devices in the most efficient way.
-If two devices are involved in execution, the most optimal value for `-nireq` option is 2.
-To process infer requests more efficiently, Classification Sample Async uses round-robin algorithm. It starts execution of the current infer request and switches to waiting for results of the previous one. After finishing of waiting, it switches infer requests and repeat the procedure.
-
-Another required aspect of good throughput is a number of iterations. Only with big number of iterations you can emulate the real application work and get good performance.
-
-The batch mode is an independent attribute on the pipelined mode. Pipelined mode works efficiently with any batch size.
+The batch mode is an independent attribute on the asynchronous mode. Asynchronous mode works efficiently with any batch size.
 
 ## How It Works
 
-Upon the start-up, the sample application reads command line parameters and loads a network and an image to the Inference
-Engine plugin.
-Then application creates several infer requests pointed in `-nireq` parameter and loads images for inference.
+Upon the start-up, the sample application reads command line parameters and loads specified network and input images (or a
+folder with images) to the Inference Engine plugin. The batch size of the network is set according to the number of read images.
 
-Then in a loop it starts inference for the current infer request and switches to waiting for the previous one. When results are ready, it swaps infer requests.
+Then, the sample creates an inference request object and assigns completion callback for it. In scope of the completion callback
+handling the inference request is executed again.
+
+After that, the application starts inference for the first infer request and waits of 10th inference request execution being completed.
 
 When inference is done, the application outputs data to the standard output stream.
 
@@ -39,7 +34,7 @@ The command yields the following usage message:
 usage: classification_sample_async.py [-h] -m MODEL -i INPUT [INPUT ...]
                                       [-l CPU_EXTENSION] [-pp PLUGIN_DIR]
                                       [-d DEVICE] [--labels LABELS]
-                                      [-nt NUMBER_TOP] [-ni NUMBER_ITER] [-pc]
+                                      [-nt NUMBER_TOP]
 
 Options:
   -h, --help            Show this help message and exit.
@@ -62,10 +57,6 @@ Options:
   --labels LABELS       Optional. Labels mapping file
   -nt NUMBER_TOP, --number_top NUMBER_TOP
                         Optional. Number of top results
-  -ni NUMBER_ITER, --number_iter NUMBER_ITER
-                        Optional. Number of inference iterations
-  -pc, --perf_counts    Optional. Report performance counters
-
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
@@ -75,7 +66,7 @@ To run the sample, you can use AlexNet and GoogLeNet or other image classificati
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 
-You can do inference on an image using a trained AlexNet network on FPGA with fallback to CPU using the following command:
+You can do inference of an image using a trained AlexNet network on FPGA with fallback to CPU using the following command:
 ```
     python3 classification_sample_async.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d HETERO:FPGA,CPU -nireq 2 -ni 200
 ```

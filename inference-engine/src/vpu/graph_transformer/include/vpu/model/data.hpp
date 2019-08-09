@@ -306,7 +306,12 @@ public:
             const Stage& stage,
             BlobSerializer& serializer,
             DimsOrder newOrder = DimsOrder(),
-            const EnumMap<Dim, std::vector<Dim>>& dimsReloc = EnumMap<Dim, std::vector<Dim>>());
+            const EnumMap<Dim, SmallVector<Dim, MAX_DIMS_64>>& dimsReloc = EnumMap<Dim, SmallVector<Dim, MAX_DIMS_64>>());
+
+    void serializeOldBufferNC(
+            const Stage& stage,
+            BlobSerializer& serializer);
+
 
     void serializeIOInfo(BlobSerializer& serializer) const;
 

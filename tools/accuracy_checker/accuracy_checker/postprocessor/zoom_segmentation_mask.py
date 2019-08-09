@@ -1,5 +1,5 @@
 """
-Copyright (C) 2018-2019 Intel Corporation
+Copyright (c) 2018 Intel Corporation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,6 +21,10 @@ from ..representation import SegmentationAnnotation, SegmentationPrediction
 from ..config import NumberField
 
 
+class ZoomSegMaskConfigValidator(BasePostprocessorConfig):
+    zoom = NumberField(floats=False, min_value=1)
+
+
 class ZoomSegMask(Postprocessor):
     """
     Zoom probabilities of segmentation prediction.
@@ -30,15 +34,7 @@ class ZoomSegMask(Postprocessor):
 
     annotation_types = (SegmentationAnnotation, )
     prediction_types = (SegmentationPrediction, )
-
-    def validate_config(self):
-        class _ZoomSegMaskConfigValidator(BasePostprocessorConfig):
-            zoom = NumberField(floats=False, min_value=1)
-
-        zoom_segmentation_mask_config_validator = _ZoomSegMaskConfigValidator(
-            self.__provider__, on_extra_argument=_ZoomSegMaskConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        zoom_segmentation_mask_config_validator.validate(self.config)
+    _config_validator_type = ZoomSegMaskConfigValidator
 
     def configure(self):
         self.zoom = self.config['zoom']

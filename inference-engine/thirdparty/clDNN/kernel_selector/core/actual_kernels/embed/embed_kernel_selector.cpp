@@ -19,13 +19,9 @@
 
 namespace kernel_selector {
 
-    embed_kernel_selector::embed_kernel_selector()
-    {
-        Attach<EmbedKernelRef>();
-    }
+embed_kernel_selector::embed_kernel_selector() { Attach<EmbedKernelRef>(); }
 
-    KernelsData embed_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::EMBED);
-    }
+KernelsData embed_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::EMBED);
 }
+}  // namespace kernel_selector

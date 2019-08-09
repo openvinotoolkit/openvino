@@ -39,6 +39,7 @@ class Postprocessor(ClassProvider):
 
     annotation_types = ()
     prediction_types = ()
+    _config_validator_type = BasePostprocessorConfig
 
     def __init__(self, config, name=None, meta=None, state=None):
         self.config = config
@@ -84,9 +85,10 @@ class Postprocessor(ClassProvider):
         pass
 
     def validate_config(self):
-        BasePostprocessorConfig(
+        config_validator = self._config_validator_type(
             self.name, on_extra_argument=BasePostprocessorConfig.ERROR_ON_EXTRA_ARGUMENT
-        ).validate(self.config)
+        )
+        config_validator.validate(self.config)
 
     def get_entries(self, annotation, prediction):
         message_not_found = '{}: {} is not found in container'
@@ -133,12 +135,6 @@ class PostprocessorWithTargetsConfigValidator(BasePostprocessorConfig):
 
 
 class PostprocessorWithSpecificTargets(Postprocessor):
-    def validate_config(self):
-        _config_validator = PostprocessorWithTargetsConfigValidator(
-            self.__provider__, on_extra_argument=PostprocessorWithTargetsConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        _config_validator.validate(self.config)
-
     def setup(self):
         apply_to = self.config.get('apply_to')
         self.apply_to = ApplyToOption(apply_to) if apply_to else None

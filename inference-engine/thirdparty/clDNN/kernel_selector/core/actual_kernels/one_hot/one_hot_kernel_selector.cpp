@@ -12,19 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "one_hot_kernel_selector.h"
 #include "one_hot_kernel_ref.h"
 
-namespace kernel_selector
-{
-    one_hot_kernel_selector::one_hot_kernel_selector()
-    {
-        Attach<OneHotKernelRef>();
-    }
+namespace kernel_selector {
+one_hot_kernel_selector::one_hot_kernel_selector() { Attach<OneHotKernelRef>(); }
 
-    KernelsData one_hot_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::ONE_HOT);
-    }
+KernelsData one_hot_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::ONE_HOT);
 }
+}  // namespace kernel_selector

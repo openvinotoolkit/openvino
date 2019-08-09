@@ -10,9 +10,10 @@ extern "C"
 {
 #endif
 
-#define NC_MAX_NAME_SIZE 28
 #define NC_THERMAL_BUFFER_SIZE 100
 #define NC_DEBUG_BUFFER_SIZE   120
+#define NC_MAX_DEVICES         (32)
+#define NC_MAX_NAME_SIZE       (28)
 
 #define NOMINMAX
 #define MVNC_EXPORT_API
@@ -133,14 +134,20 @@ typedef enum {
     NC_RO_DEVICE_HW_VERSION = 2015,             //returns HW Version, enum
     NC_RO_DEVICE_ID = 2016,                     // returns device id
     NC_RO_DEVICE_PLATFORM = 2017,               // returns device platform (MyriadX, Myriad2)
+    NC_RO_DEVICE_PROTOCOL = 2018,               // returns device protocol (USB, PCIe)
 } ncDeviceOption_t;
 
 typedef enum {
-    UNKNOWN_PLATFORM = 0,
-    MYRIAD_2 = 2450,
-    MYRIAD_X = 2480,
+    NC_ANY_PLATFORM = 0,
+    NC_MYRIAD_2 = 2450,
+    NC_MYRIAD_X = 2480,
 } ncDevicePlatform_t;
 
+typedef enum {
+    NC_ANY_PROTOCOL = 0,
+    NC_USB,
+    NC_PCIE,
+} ncDeviceProtocol_t;
 
 typedef struct _devicePrivate_t devicePrivate_t;
 typedef struct _graphPrivate_t graphPrivate_t;
@@ -160,6 +167,12 @@ struct ncGraphHandle_t {
 struct ncDeviceHandle_t {
     // keep place for public data here
     devicePrivate_t* private_data;
+};
+
+struct ncDeviceDescr_t {
+    ncDeviceProtocol_t protocol;
+    ncDevicePlatform_t platform;
+    char name[NC_MAX_NAME_SIZE];
 };
 
 typedef enum {
@@ -233,14 +246,23 @@ MVNC_EXPORT_API ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t *deviceHand
 
 /**
  * @brief Create handle and open any free device
- * @param platform MYRIAD_2, MYRIAD_X or UNKNOWN_PLATFORM for any device
+ * @param in_ncDeviceDesc a set of parameters that the device must comply with
  * @param watchdogInterval Time interval to ping device in milliseconds. 0 to disable watchdog.
  * @param customFirmwareDirectory Custom path to directory with firmware.
  *          If NULL or empty, default path searching behavior will be used.
  */
 MVNC_EXPORT_API ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
-        ncDevicePlatform_t platform, int watchdogInterval,
-        const char* customFirmwareDirectory);
+    struct ncDeviceDescr_t in_ncDeviceDesc, int watchdogInterval, const char* customFirmwareDirectory);
+
+/**
+ * @brief Returns a description of all available devices in the system
+ * @param deviceDescrPtr is pre-allocated array to get names of available devices
+ * @param maxDevices size of deviceDescrPtr
+ * @param out_countDevices count of available devices
+ */
+MVNC_EXPORT_API ncStatus_t ncAvailableDevices(struct ncDeviceDescr_t *deviceDescrPtr,
+                                              int maxDevices, int* out_countDevices);
+
 /**
  * @brief Close device and destroy handler
  */

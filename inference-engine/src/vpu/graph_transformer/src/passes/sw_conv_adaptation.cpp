@@ -64,13 +64,13 @@ private:
         return std::make_shared<ConvStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>&,
             ScalePropagationStep) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 3);
         IE_ASSERT(_outputEdges.size() == 1);
 
@@ -84,42 +84,31 @@ private:
             finalOrder.moveDim(Dim::C, 2);
         }
 
-        DataMap<DimsOrder> out;
-
         if (_type == StageType::Conv ||
             _type == StageType::Im2ColConvolution) {
             if (finalOrder != input->desc().dimsOrder()) {
-                out[input] = finalOrder;
+                _orderInfo.setInput(_inputEdges[0], finalOrder);
             }
-            out[output] = finalOrder;
+            _orderInfo.setOutput(_outputEdges[0], finalOrder);
         } else if (_type == StageType::DepthConv) {
             if (finalOrder != input->desc().dimsOrder()) {
-                out[input] = finalOrder;
+                _orderInfo.setInput(_inputEdges[0], finalOrder);
             }
-            out[output] = finalOrder;
+            _orderInfo.setOutput(_outputEdges[0], finalOrder);
         } else {
-            out[input] = finalOrder.createMovedDim(Dim::C, 0);
-            out[output] = finalOrder.createMovedDim(Dim::C, 0);
+            _orderInfo.setInput(_inputEdges[0], finalOrder.createMovedDim(Dim::C, 0));
+            _orderInfo.setOutput(_outputEdges[0], finalOrder.createMovedDim(Dim::C, 0));
         }
-
-        return out;
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 3);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<StridesRequirement> out;
-
         if (_type != StageType::DepthConv) {
-            out[input] = StridesRequirement::compact();
-            out[output] = StridesRequirement::compact();
+            _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
+            _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
         }
-
-        return out;
     }
 
     void finalizeDataLayoutImpl() override {
@@ -237,24 +226,12 @@ private:
         _model->replaceStageInput(_inputEdges[1], swWeights);
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const  override {
+    void getBatchSupportInfoImpl() const  override {
         IE_ASSERT(_inputEdges.size() == 3);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto weights = _inputEdges[1]->input();
-        auto biases = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
-        IE_ASSERT(weights->usage() == DataUsage::Const);
-        IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
-
-        return out;
+        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
 
     void finalCheckImpl() const override {

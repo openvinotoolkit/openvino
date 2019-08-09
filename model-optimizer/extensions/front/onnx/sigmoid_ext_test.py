@@ -38,8 +38,7 @@ class SigmoidONNXExtractorTest(unittest.TestCase):
         return (
             # reference output Node attributes
             dict(
-                op='Activation',
-                operation='sigmoid'
+                op='Sigmoid',
             )
         )
 

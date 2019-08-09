@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNDeconvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNDeconvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNDeconvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNDeconvolutionNode() override = default;
 
     void getSupportedDescriptors() override;

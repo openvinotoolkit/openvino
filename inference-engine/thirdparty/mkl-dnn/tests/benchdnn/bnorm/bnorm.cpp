@@ -32,7 +32,35 @@
 
 namespace bnorm {
 
-static int prepare_fwd(const prb_t *p, dnn_mem_t &src, dnn_mem_t &mean,
+static int prepare_fwd_with_stats(const prb_t *p, dnn_mem_t &src,
+        dnn_mem_t &mean, dnn_mem_t &var, dnn_mem_t &ss) {
+    mkldnn::impl::parallel_nd(p->ic, p->mb, p->id, p->ih, p->iw,
+            [&](int64_t c, int64_t mb, int64_t d, int64_t h, int64_t w) {
+        int64_t l_base = mb * p->id * p->ih * p->iw + c * 239 * 2;
+        float *s = (float *)src + data_off(p, mb, c, 0, 0, 0);
+
+        const int64_t sp = d * p->ih * p->iw + h * p->iw + w;
+        const int64_t l = l_base + sp;
+        s[sp] = (l % 256) - 128;
+        if (p->dt == mkldnn_s8)
+            s[sp] = saturate_and_round(s[sp]);
+
+        ((float *)mean)[c] = 4 * ((c % 5) - 2);
+        ((float *)var)[c] = ((c % 7) << 1);
+
+        if (p->flags & USE_SCALESHIFT) {
+            ((float *)ss)[c] = 8 * (1 << (c % 7));
+            ((float *)ss)[p->ic + c] = ((c % 3) - 1) * ((float *)ss)[c];
+        } else {
+            ((float *)ss)[c] = 1;
+            ((float *)ss)[p->ic + c] = 0;
+        }
+    });
+
+    return OK;
+}
+
+static int prepare_fwd_no_stats(const prb_t *p, dnn_mem_t &src, dnn_mem_t &mean,
         dnn_mem_t &var, dnn_mem_t &ss) {
     /** Idea: choose src[] values so that both mean and variance are computed
      * exactly (independently of the order of the computations).
@@ -63,7 +91,8 @@ static int prepare_fwd(const prb_t *p, dnn_mem_t &src, dnn_mem_t &mean,
         alg = (exact_bits - logL) / 2 - 1 >= min_flex_bits ? ALG_1 : ALG_0;
 
     const int flex_bits = alg == ALG_0
-        ? want_flex_bits : ((exact_bits - logL) / 2 - 1);
+        ? want_flex_bits /* BFloat16 has only 7 bits of mantissa */
+        : MIN2(p->dt == mkldnn_bf16 ? 7 : exact_bits, (exact_bits - logL) / 2 - 1);
 
     if (flex_bits < min_flex_bits)
         return FAIL;
@@ -123,6 +152,14 @@ static int prepare_fwd(const prb_t *p, dnn_mem_t &src, dnn_mem_t &mean,
     });
 
     return OK;
+}
+
+static int prepare_fwd(const prb_t *p, dnn_mem_t &src, dnn_mem_t &mean,
+        dnn_mem_t &var, dnn_mem_t &ss) {
+    if (p->flags & GLOB_STATS)
+        return prepare_fwd_with_stats(p, src, mean, var, ss);
+    else
+        return prepare_fwd_no_stats(p, src, mean, var, ss);
 }
 
 /** @brief L = 2^k * P, P % 2 != 0 */
@@ -258,11 +295,16 @@ static int prepare_bwd(const prb_t *p, dnn_mem_t &src, dnn_mem_t &d_dst,
             if (p->flags & FUSE_BN_RELU)
                 ((float *)mask)[l0] = ((float *)mask)[l1] = 1;
 
-            float f1 = ((target_db - db) + (target_dg - dg)) /2;
-            float f0 = ((target_db - db) - (target_dg - dg)) /2;
+            float f1 = ((target_db - db) + (target_dg - dg)) / 2;
+            float f0 = ((target_db - db) - (target_dg - dg)) / 2;
 
             ((float *)d_dst)[l1] = f1 + m;
             ((float *)d_dst)[l0] = f0 + m;
+
+            if (p->dt == mkldnn_bf16) { // truncate to bf16
+                ((uint16_t *)(&((float *)d_dst)[l1]))[0] = 0;
+                ((uint16_t *)(&((float *)d_dst)[l0]))[0] = 0;
+            }
         }
 
         if (p->flags & USE_SCALESHIFT) {
@@ -278,11 +320,15 @@ static int prepare_bwd(const prb_t *p, dnn_mem_t &src, dnn_mem_t &d_dst,
 }
 
 static int compare(const prb_t *p, data_kind_t kind, const dnn_mem_t &fp_mem,
-        const dnn_mem_t &dt_mem, res_t *r) {
+        const dnn_mem_t &dt_mem, res_t *r, const dnn_mem_t *ss = nullptr) {
     const char *skind = data_kind2str(kind);
-    const float eps = p->dir & FLAG_FWD
-        ? (kind == DATA ? 5e-7 : 0)
-        : (kind == DATA ? 2e-7 : 0);
+    const float eps = kind != DATA
+        ? 0
+        : p->dt == mkldnn_bf16
+            ? 1.e-2
+            : p->dir & FLAG_FWD
+                ? 5e-7
+                : 2e-7;
 
     /* With all the stability tricks bwd_d is still pretty unstable.
      * So let's rely on relative error in L1, L2, and L_inf norms.
@@ -290,14 +336,18 @@ static int compare(const prb_t *p, data_kind_t kind, const dnn_mem_t &fp_mem,
     const bool rely_on_norm = false
         || (kind == DATA && (p->dir & FLAG_BWD) && (p->flags | GLOB_STATS));
 
-    const size_t nelems = kind == DATA
-        ? (size_t)p->mb * p->ic * p->id * p->ih * p->iw
-        : (size_t)p->ic * (kind == SS ? 2 : 1);
+
+    const int64_t N = kind == DATA ? p->mb : 1;
+    const int64_t C = kind == DATA ? p->ic : p->ic * (kind == SS ? 2 : 1);
+    const int64_t SP = kind == DATA ? p->id * p->ih * p->iw : 1;
+    const int64_t nelems = N * C * SP;
     r->total += rely_on_norm ? 1 : nelems;
 
     diff_norm_t diff_norm;
-
-    for (size_t i = 0; i < nelems; ++i) {
+    for (int64_t n = 0; n < N; n++) {
+    for (int64_t c = 0; c < C; c++) {
+    for (int64_t sp = 0; sp < SP; ++sp) {
+        int64_t i = (n * C + c) * SP + sp;
         const float fp = ((const float *)fp_mem)[i];
         const float dt = ((const float *)dt_mem)[i];
         diff_norm.update(fp, dt);
@@ -307,7 +357,30 @@ static int compare(const prb_t *p, data_kind_t kind, const dnn_mem_t &fp_mem,
 
         const float diff = fabsf(fp - dt);
         const float rel_diff = diff / (fabsf(fp) > FLT_MIN ? fabsf(fp) : 1);
-        const bool ok = (fabs(fp) > 1e-5 ? rel_diff : diff) <= eps;
+        bool ok = (fabsf(fp) > 1e-5 ? rel_diff : diff) <= eps;
+
+        /* When the error is larger than eps, It could be
+         * due to catastrophic cancellation in final result
+         * which is computed as `Y = a * X + b`.
+         * When `a * X`  is close to `b` and `sign(a * X) = - sign(b)`.
+         * Then large error in `a * X` could result in a final
+         * result (which has a cancellation i.e. `|Y| = |a*X - (-b)|`)
+         * which has no meaningful digits left in mantissa.*/
+        if (!ok && (p->dir & FLAG_FWD) && kind == DATA && ss) {
+            const float beta = ((float *)*ss)[p->ic + c];
+            /* Using an empirically derived threshold,
+             * check if cancellation error
+             * in `|Y| = |a*X - (-b)|` is huge.*/
+            bool maybe_cancellation_error = (fabsf(fp - beta) /
+                    (fabsf(fp) > FLT_MIN ? fabsf(fp) : 1)) > 1.0f;
+            if (maybe_cancellation_error) {
+                /* Check for error in `a * X` */
+                float diff_aX = fabsf((fp - beta) - (dt - beta));
+                float rel_diff_aX = diff_aX /
+                    (fabsf(fp - beta) > FLT_MIN ? fabsf(fp - beta) : 1);
+                ok = rel_diff_aX <= eps;
+            }
+        }
 
         r->errors += !ok;
 
@@ -332,6 +405,8 @@ static int compare(const prb_t *p, data_kind_t kind, const dnn_mem_t &fp_mem,
                     (unsigned long)i, p->dir & FLAG_BWD ? "D_" : "", skind,
                     ind_str, fp, dt, diff, rel_diff);
         }
+    }
+    }
     }
 
     diff_norm.done();
@@ -372,7 +447,6 @@ int check_fwd_ws(const dnn_mem_t &data_dt, const dnn_mem_t &ws_dt, res_t *r) {
     /* so far we know ws is just bit-mask of whether value was negative or
      * positive */
     const size_t nelems = data_dt.nelems(true);
-    const float *d = (const float *)data_dt;
     const uint8_t *ws = (const uint8_t *)ws_dt;
 
     /* some internal knowledge: flags in ws are either stored as bytes (e.g.
@@ -386,7 +460,8 @@ int check_fwd_ws(const dnn_mem_t &data_dt, const dnn_mem_t &ws_dt, res_t *r) {
      * zero, and the respective ws_dt elements should be set accordingly */
     for (size_t i = 0; i < nelems; i += 8) {
         for (size_t j = 0; j < MIN2(8, nelems - i); ++j) {
-            const bool want = *d > 0;
+            const float data = data_dt.get_elem(i + j);
+            const bool want = data > 0.f;
             const bool bit_set = ws_type == ws_byte ? *ws : !!(*ws & (1<<j));
 
             const bool ok = bit_set == want;
@@ -397,10 +472,9 @@ int check_fwd_ws(const dnn_mem_t &data_dt, const dnn_mem_t &ws_dt, res_t *r) {
                 || (verbose >= 50 && i < 30);
             if (dump) {
                 print(0, "[%lu] ws exp:%d got:%d (data:%g:%a)\n",
-                        (unsigned long)(i + j), want, bit_set, *d, *d);
+                        (unsigned long)(i + j), want, bit_set, data, data);
             }
 
-            ++d;
             if (ws_type == ws_byte) ++ws;
         }
         if (ws_type == ws_bit) ++ws;
@@ -444,8 +518,13 @@ static int init_pd(const prb_t *p, mkldnn_batch_normalization_desc_t &bd,
         mkldnn_batch_normalization_desc_t bd_fwd;
         DNN_SAFE(mkldnn_batch_normalization_forward_desc_init(&bd_fwd,
                     mkldnn_forward_training, &data_d, p->eps, flags), WARN);
-        DNN_SAFE(mkldnn_primitive_desc_create_v2(&hint_fwd_pd, &bd_fwd, NULL,
-                    engine, NULL), WARN);
+        mkldnn_status_t init_status = mkldnn_primitive_desc_create_v2(
+                &hint_fwd_pd, &bd_fwd, NULL, engine, NULL);
+        // if fwd pass is unimplemented, bwd pass is useless
+        if (init_status == mkldnn_unimplemented)
+            return r->state = UNIMPLEMENTED, OK;
+        else
+            SAFE(init_status, WARN);
     }
     mkldnn_status_t init_status = mkldnn_primitive_desc_create_v2(&bpd, &bd,
             mkldnn_attr, engine, hint_fwd_pd);
@@ -605,7 +684,7 @@ int doit(const prb_t *p, res_t *r) {
                 SAFE(compare(p, VAR, var_fp, var_dt, r), WARN);
             }
             dnn_mem_t data(data_dt, fp, src_format);
-            SAFE(compare(p, DATA, data_fp, data, r), WARN);
+            SAFE(compare(p, DATA, data_fp, data, r, &ss_fp), WARN);
             if ((p->flags & FUSE_BN_RELU) && !(p->dir & FLAG_INF))
                 SAFE(check_fwd_ws(data_dt, ws_dt, r), WARN);
         }

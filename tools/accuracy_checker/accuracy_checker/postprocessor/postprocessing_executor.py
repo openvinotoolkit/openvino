@@ -74,6 +74,11 @@ class PostprocessingExecutor:
     def has_dataset_processors(self):
         return len(self._dataset_processors) != 0
 
+    def __call__(self, context, *args, **kwargs):
+        batch_annotation = context.annotation_batch
+        batch_prediction = context.prediction_batch
+        context.batch_annotation, context.batch_prediction = self.process_batch(batch_annotation, batch_prediction)
+
 
 class PostprocessorConfig(ConfigValidator):
     type = StringField(choices=Postprocessor.providers)

@@ -21,20 +21,16 @@ from ..postprocessor.postprocessor import Postprocessor, BasePostprocessorConfig
 from ..representation import FacialLandmarksAnnotation, FacialLandmarksPrediction
 
 
+class NormalizeConfigValidator(BasePostprocessorConfig):
+    use_annotation_rect = BoolField(optional=True)
+
+
 class NormalizeLandmarksPoints(Postprocessor):
     __provider__ = 'normalize_landmarks_points'
 
     annotation_types = (FacialLandmarksAnnotation, )
     prediction_types = (FacialLandmarksPrediction, )
-
-    def validate_config(self):
-        class _ConfigValidator(BasePostprocessorConfig):
-            use_annotation_rect = BoolField(optional=True)
-
-        config_validator = _ConfigValidator(
-            self.__provider__, on_extra_argument=_ConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        config_validator.validate(self.config)
+    _config_validator_type = NormalizeConfigValidator
 
     def configure(self):
         self.use_annotation_rect = self.config.get('use_annotation_rect', False)

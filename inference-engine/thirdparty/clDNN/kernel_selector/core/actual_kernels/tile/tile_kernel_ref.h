@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,49 +11,39 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #pragma once
 
 #include "common_kernel_base.h"
- 
-namespace kernel_selector 
-{    
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // tile_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct tile_params : public base_params
-    {
-        tile_params() : base_params(KernelType::TILE) {}
 
-        TileAxis axis;
-        int tiles;
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// tile_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct tile_params : public base_params {
+    tile_params() : base_params(KernelType::TILE) {}
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            return base_params::GetParamsKey();
-        }
-    };
+    TileAxis axis;
+    int tiles;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // tile_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct tile_optional_params : optional_params
-    {
-        tile_optional_params() : optional_params(KernelType::TILE) {}
-    };
+    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
+};
 
-    class TileKernelRef : public common_kernel_base
-    {
-    public:
-        TileKernelRef() : common_kernel_base("tile_ref") {}
-        virtual ~TileKernelRef() {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// tile_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct tile_optional_params : optional_params {
+    tile_optional_params() : optional_params(KernelType::TILE) {}
+};
 
-        virtual JitConstants GetJitConstants(const tile_params& params) const;
-        virtual CommonDispatchData SetDefault(const tile_params& params, const optional_params&) const;
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+class TileKernelRef : public common_kernel_base {
+public:
+    TileKernelRef() : common_kernel_base("tile_ref") {}
+    virtual ~TileKernelRef() {}
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    virtual JitConstants GetJitConstants(const tile_params& params) const;
+    virtual CommonDispatchData SetDefault(const tile_params& params, const optional_params&) const;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

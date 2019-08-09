@@ -13,16 +13,19 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 from collections import namedtuple
 from copy import deepcopy
+
 from mo.utils.error import Error
 
 
 class Connection:
-    def __init__(self, graph, source, destinations: list):
+    def __init__(self, graph, source, destinations: list, control_flow=False):
         self.graph = graph
         self.source = source
         self.destinations = destinations
+        self.control_flow = control_flow
         self.data = namedtuple('Data', ['get_value', 'get_shape'])
         self.data.get_value = self._get_value
         self.data.get_shape = self._get_shape
@@ -30,12 +33,12 @@ class Connection:
     def _get_value(self):
         if self.graph.stage == 'front':
             return None
-        return self.source.node.out_node().value
+        return self.source.node.out_node(self.source.idx, control_flow=self.control_flow).value
 
     def _get_shape(self):
         if self.graph.stage == 'front':
             return None
-        return self.source.node.out_node().shape
+        return self.source.node.out_node(self.source.idx, control_flow=self.control_flow).shape
 
     def get_source(self):
         return self.source
@@ -75,6 +78,9 @@ class Connection:
         if port.type == 'in':
             raise Error("Wrong port type in set_source method. Should be 'out' but given 'in'")
 
+        if self.control_flow is True:
+            raise Error("Cannot operate with connection with control_flow=True")
+
         if self.graph.stage == 'front':
             scr_node = port.node
             # Reconnecting all destinations as consumers to the source port preserving edge attrs
@@ -96,6 +102,10 @@ class Connection:
                 source_out_data = self.source.node.out_node(self.source.idx)
                 # Copy attrs from source_out_data to port_out_data
                 attrs = deepcopy(source_out_data.attrs())
+                # Remove debug info
+                if 'fw_tensor_debug_info' in source_out_data.attrs():
+                    del self.graph.node[source_out_data.id]['fw_tensor_debug_info']
+                # Copy attrs to new data node
                 for attr in attrs:
                     port_out_data[attr] = attrs[attr]
 
@@ -138,6 +148,8 @@ class Connection:
                             "Broken Connection object! Destination (node:{}) is not connected to source.".format(
                                 destination.node.name))
                     destination.disconnect()
+                    return edge_attrs
+            return None
 
         if self.destinations and len(self.destinations) > 1:
             raise Error("set_destination applicable only for connections that has exactly one destination or \
@@ -145,6 +157,9 @@ class Connection:
 
         if port.type == 'out':
             raise Error("Wrong port type in set_destination method. Should be 'in' but given 'out'")
+
+        if self.control_flow is True:
+            raise Error("Cannot operate with connection with control_flow=True")
 
         if self.graph.stage == 'front':
             if self.source is not None:
@@ -157,8 +172,9 @@ class Connection:
             # in case if data node exists just use it as is
             if self.source is not None:
                 data_node = self.source._create_data_if_necessary()
-                check_and_remove_edge()
-                self.graph.add_edge(data_node.id, port.node.id, **{'in': port.idx})
+                edge_attrs = check_and_remove_edge() or {}
+                edge_attrs.update({'in': port.idx})
+                self.graph.add_edge(data_node.id, port.node.id, **edge_attrs)
             self.destinations = [port]
 
     def add_destination(self, port):
@@ -181,6 +197,9 @@ class Connection:
         #                                 ,-->Op3(in_port:0)
         #               Op1(out_port:0)--->Op2(in_port:0)
         #
+
+        if self.control_flow is True:
+            raise Error("Cannot operate with connection with control_flow=True")
 
         if self.source is None:
             raise Error("Can not add destination for connection without source port!")
@@ -219,3 +238,9 @@ class Connection:
                 dst_port.disconnect()
         self.source = None
         self.destinations = []
+
+    def insert_node(self, new_node):
+        assert len(new_node.out_ports()) == 1, 'The node {} has several output ports'.format(new_node.soft_get('name'))
+        source_port = self.get_source()
+        self.set_source(new_node.out_port(0))
+        source_port.connect(new_node.in_port(0))

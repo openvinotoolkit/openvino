@@ -34,6 +34,7 @@ class SliceFrontExtractor(FrontExtractorOp):
             'slice_point': read_blob(pb, num_slice_points, np.int32),
             'batch_dims': 0,
             'spatial_dims': 1,
+            'out_ports_count': num_slice_points + 1,
             'infer': caffe_slice_infer
         }
         node.parameters.close()

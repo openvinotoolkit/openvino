@@ -18,15 +18,13 @@
 
 #include "lstm_gemm_kernel_base.h"
 
-namespace kernel_selector
-{
-    class LSTMGemvKernel_subgroup1x64_bfyx_ff_SIMD16 : public LSTMGemmKernelBase
-    {
-    public:
-        LSTMGemvKernel_subgroup1x64_bfyx_ff_SIMD16() : LSTMGemmKernelBase("lstm_gemv_gpu_subgroup1x64_bfyx_ff_SIMD16") {}
-        virtual ~LSTMGemvKernel_subgroup1x64_bfyx_ff_SIMD16() {}
+namespace kernel_selector {
+class LSTMGemvKernel_subgroup1x64_bfyx_ff_SIMD16 : public LSTMGemmKernelBase {
+public:
+    LSTMGemvKernel_subgroup1x64_bfyx_ff_SIMD16() : LSTMGemmKernelBase("lstm_gemv_gpu_subgroup1x64_bfyx_ff_SIMD16") {}
+    virtual ~LSTMGemvKernel_subgroup1x64_bfyx_ff_SIMD16() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

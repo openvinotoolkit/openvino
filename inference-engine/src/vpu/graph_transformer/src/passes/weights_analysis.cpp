@@ -171,6 +171,9 @@ bool checkGrowingOutput(const Model::Ptr& model) {
         auto inputScale = stage->name().find("@SCALE=");
         auto fusedScaleShift = stage->name().find("FusedScaleShift_");
         auto fusedPowerShift = stage->name().find("FusedPower_");
+        if (fusedPowerShift == std::string::npos) {
+            fusedPowerShift = stage->name().find("fused_power");
+        }
         auto addScale = stage->name().find("Add_");
 
         if (inputScale != std::string::npos ||
@@ -293,7 +296,7 @@ void PerLayerScalePassImpl::run(const Model::Ptr& model) {
         shift        = std::min(-meanExp, shift);
 
         if (stats.empty()) {
-            if (firstStage && shift < 4 && isGrowingOutput) {
+            if (firstStage && shift < 4 && isGrowingOutput && weights->desc().dim(Dim::C) > 1) {
                 normalVal = 5;
             }
 

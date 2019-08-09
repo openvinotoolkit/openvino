@@ -195,7 +195,7 @@ public:
      * @brief Returns the constant vector of dimensions
      * @return dimensions
      */
-    const SizeVector& getDims() const {
+    const SizeVector& getDims() const noexcept {
         return dims;
     }
     /**
@@ -329,18 +329,34 @@ private:
 };
 
 /**
- * @deprecated
+ * @deprecated Deprecated since provides dims in reverse order
  */
+INFERENCE_ENGINE_DEPRECATED
 static const size_t I_N = 3;
+
+/**
+ * @deprecated Deprecated since provides dims in reverse order
+ */
+INFERENCE_ENGINE_DEPRECATED
 static const size_t I_C = 2;
+
+/**
+ * @deprecated Deprecated since provides dims in reverse order
+ */
+INFERENCE_ENGINE_DEPRECATED
 static const size_t I_H = 1;
+
+/**
+ * @deprecated Deprecated since provides dims in reverse order
+ */
+INFERENCE_ENGINE_DEPRECATED
 static const size_t I_W = 0;
 
 /**
  * @deprecated Uses TensorDesc working with layouts
  * @brief This class helps calculating offset in different layouts
  */
-class INFERENCE_ENGINE_API_CLASS(LayoutOffsetCounter) {
+class INFERENCE_ENGINE_DEPRECATED INFERENCE_ENGINE_API_CLASS(LayoutOffsetCounter) {
 private:
     Layout _layout;
     SizeVector _dims;
@@ -359,6 +375,24 @@ public:
      */
     LayoutOffsetCounter(Layout layout, SizeVector dims);
 
+    IE_SUPPRESS_DEPRECATED_START
+    /**
+     * @brief A copy constructor
+     */
+    LayoutOffsetCounter(const LayoutOffsetCounter & l);
+
+    /**
+     * @brief A copy assignment operator
+     * @param l A value to copy from
+     */
+    LayoutOffsetCounter & operator = (const LayoutOffsetCounter & l);
+    IE_SUPPRESS_DEPRECATED_END
+
+    /**
+     * @brief A destructor
+     */
+    ~LayoutOffsetCounter();
+
     /**
      * @brief Calculates an offset for the specified layout
      * @param pos Tensor position array (reverse NCHW order as in the IR: w,h,c,n)
@@ -367,9 +401,12 @@ public:
 };
 
 /**
- * @deprecated Please use TensorDescriptors for conversion
+ * @deprecated Please use TensorDesc for conversion
  */
-template<typename T> void ConvertLayout(Layout sourceLayout, Layout destLayout, const T* sourceBuffer, T* destBuffer, SizeVector dims) {
+template<typename T>
+INFERENCE_ENGINE_DEPRECATED
+void ConvertLayout(Layout sourceLayout, Layout destLayout, const T* sourceBuffer, T* destBuffer, SizeVector dims) {
+    IE_SUPPRESS_DEPRECATED_START
     if (dims.size() == 0) return;
 
     SizeVector pos(dims.size(), 0);
@@ -396,6 +433,7 @@ template<typename T> void ConvertLayout(Layout sourceLayout, Layout destLayout, 
             pos[caret]++;
         }
     }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace InferenceEngine

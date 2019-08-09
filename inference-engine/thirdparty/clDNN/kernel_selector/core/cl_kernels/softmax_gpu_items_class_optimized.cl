@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,13 +24,19 @@
 __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(softmax_items_class_optimized)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
+#if INPUT0_DIMS == 5
+    const uint other0 = get_group_id(0) % INPUT0_OTHER0_SIZE;
+    const uint other2 = get_group_id(0) / INPUT0_OTHER0_SIZE;
+#else
     const uint other0 = get_group_id(0);
+    const uint other2 = 0;
+#endif
     const uint other1 = get_group_id(1);
     const uint batch  = get_group_id(2);
     const uint simd_lane = get_sub_group_local_id();
 
-    const uint in_depth_offset  = batch*INPUT0_BATCH_PITCH + other1*INPUT0_OTHER1_PITCH + other0*INPUT0_OTHER0_PITCH + INPUT0_OFFSET;
-    const uint out_depth_offset = batch*OUTPUT_BATCH_PITCH + other1*OUTPUT_OTHER1_PITCH + other0*OUTPUT_OTHER0_PITCH + OUTPUT_OFFSET;
+    const uint in_depth_offset  = batch*INPUT0_BATCH_PITCH + other2*INPUT0_OTHER2_PITCH + other1*INPUT0_OTHER1_PITCH + other0*INPUT0_OTHER0_PITCH + INPUT0_OFFSET;
+    const uint out_depth_offset = batch*OUTPUT_BATCH_PITCH + other2*OUTPUT_OTHER2_PITCH + other1*OUTPUT_OTHER1_PITCH + other0*OUTPUT_OTHER0_PITCH + OUTPUT_OFFSET;
 
     UNIT_TYPE max_value = UNIT_VAL_MIN;
     UNIT_TYPE data[DATA_PER_WORKITEM];
@@ -73,13 +79,13 @@ KERNEL(softmax_items_class_optimized)(__global INPUT0_TYPE* input, __global OUTP
     for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
     {
         const UNIT_TYPE res = data[cls] / (UNIT_TYPE)denominator;
-        output[output_idx] = ACTIVATION(res, NL_M, NL_N);
+        output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
         output_idx += WORKITEMS_PER_CLASSES * OUTPUT_CLASS_PITCH;
     }
     if(simd_lane < LEFTOVERS)
     {
         const UNIT_TYPE res = data[DATA_PER_WORKITEM-1] / (UNIT_TYPE)denominator;
-        output[output_idx] = ACTIVATION(res, NL_M, NL_N);
+        output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
     }
 }
 

@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#if defined(_WIN32)
+# define NOMINMAX      // to avoid defining min/max macros
+#endif  // _WIN32
 #include "graph_tools.hpp"
 #include "details/ie_cnn_network_tools.h"
 #include <vector>
+#include <limits>
+#include <string>
 
 using namespace std;
 
@@ -41,7 +46,7 @@ void CNNNetSubstituteLayer(InferenceEngine::ICNNNetwork &network,
 
     // Redirect dst data
     for (auto& dst : layer->outData) {
-        dst->creatorLayer = newLayer;
+        dst->getCreatorLayer() = newLayer;
     }
     newLayer->outData = layer->outData;
 
@@ -49,4 +54,5 @@ void CNNNetSubstituteLayer(InferenceEngine::ICNNNetwork &network,
 }
 
 
+size_t invalid_data_idx = std::numeric_limits<size_t>::max();
 }  // namespace InferenceEngine

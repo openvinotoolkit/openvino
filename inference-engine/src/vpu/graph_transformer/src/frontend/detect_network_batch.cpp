@@ -24,13 +24,20 @@ ie::CNNNetwork FrontEnd::detectNetworkBatch(
 
     const auto& env = CompileEnv::get();
 
+    env.log->debug("Detect network batch");
+    VPU_LOGGER_SECTION(env.log);
+
     ie::details::CaselessEq<std::string> cmp;
 
     auto batchSize = origNetwork.getBatchSize();
+    env.log->debug("Batch size = %d", batchSize);
 
     if (batchSize == 1 || !env.config.detectBatch) {
-        // Keep original network.
+        env.log->debug("Keep original network");
+
+        IE_SUPPRESS_DEPRECATED_START
         return ie::CNNNetwork(const_cast<ie::ICNNNetwork*>(&origNetwork));
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     model->setBatchSize(batchSize);
@@ -48,28 +55,36 @@ ie::CNNNetwork FrontEnd::detectNetworkBatch(
     // Collect input shapes and remove batch from them.
     //
 
+    env.log->debug("Remove batch from inputs");
+
     ie::ICNNNetwork::InputShapes inputShapes;
 
     for (const auto& p : inputsInfo) {
+        VPU_LOGGER_SECTION(env.log);
+
         auto info = p.second;
         IE_ASSERT(info != nullptr);
 
         auto ieData = info->getInputData();
         IE_ASSERT(ieData != nullptr);
 
-        inputShapes[ieData->name] = ieData->getTensorDesc().getDims();
+        auto ieShapes = ieData->getTensorDesc().getDims();
+        env.log->debug("Input [%s] : %v", p.first, ieShapes);
+
         switch (ieData->getLayout()) {
             case ie::Layout::NCHW:
             case ie::Layout::NHWC:
             case ie::Layout::NC:
-                inputShapes[ieData->name][0] = 1;
+                ieShapes[0] = 1;
                 break;
             case ie::Layout::CN:
-                inputShapes[ieData->name][1] = 1;
+                ieShapes[1] = 1;
                 break;
             default:
                 VPU_THROW_EXCEPTION << "Unexpected input layout : " << ieData->getLayout();
         }
+
+        inputShapes[ieData->getName()] = ieShapes;
     }
 
     //
@@ -80,18 +95,20 @@ ie::CNNNetwork FrontEnd::detectNetworkBatch(
         if (!cmp(layer->type, "DetectionOutput"))
             continue;
 
+        env.log->debug("Found DetectionOutput layer [%s]", layer->name);
+
         if (layer->outData.empty()) {
-            VPU_THROW_EXCEPTION << "Unsupported layer configuration for " << layer->name;
+            VPU_LOG_AND_THROW(env.log, "Unsupported layer configuration for %s", layer->name);
         }
 
         // 1. Don't support if DetectionOutput is not the last layer in network
         if (!layer->outData.front()->getInputTo().empty()) {
-            VPU_THROW_EXCEPTION << "Unsupported configuration : layer "<< layer->name << " is not a network output";
+            VPU_LOG_AND_THROW(env.log, "Unsupported configuration : layer %s is not a network output", layer->name);
         }
 
         // 2. Don't support if there multiple outputs as well
         if (outputsInfo.size() != 1) {
-            VPU_THROW_EXCEPTION << "Unsupported configuration : layer "<< layer->name << " must be the only output of the network";
+            VPU_LOG_AND_THROW(env.log, "Unsupported configuration : layer %s must be the only output of the network", layer->name);
         }
 
         model->attrs().set<bool>("withDetectionOutput", true);
@@ -114,22 +131,30 @@ ie::CNNNetwork FrontEnd::detectNetworkBatch(
     // Reshape the network.
     //
 
+    env.log->debug("Reshape the network");
+
     reshapedNetwork.reshape(inputShapes);
 
     //
     // Checks outputs that doesn't change their shape.
     //
 
+    env.log->debug("Checks for unbatched outputs");
+
     outputsInfo = reshapedNetwork.getOutputsInfo();
 
-    for (const auto& pair : outputsInfo) {
-        auto ieData = pair.second;
+    for (const auto& p : outputsInfo) {
+        VPU_LOGGER_SECTION(env.log);
+
+        auto ieData = p.second;
         IE_ASSERT(ieData != nullptr);
 
-        auto origShape = outputShapes[pair.first];
+        auto origShape = outputShapes[p.first];
         auto newShape = ieData->getDims();
 
         if (origShape == newShape) {
+            env.log->debug("Output [%s] is unbatched", p.first);
+
             _unbatchedOutputs.insert(ieData);
         }
     }

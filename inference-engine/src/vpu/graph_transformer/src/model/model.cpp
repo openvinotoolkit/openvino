@@ -12,7 +12,9 @@
 #include <algorithm>
 
 #include <details/caseless.hpp>
+
 #include <vpu/utils/auto_scope.hpp>
+#include <vpu/utils/profiling.hpp>
 
 namespace vpu {
 
@@ -43,17 +45,10 @@ void printTo(DotLabel& lbl, const Resources& res) {
 
 void Model::setBatchSize(int batchSize) {
     // Check `batchSize` value.
-    IE_ASSERT(batchSize >= 1);
+    VPU_THROW_UNLESS(batchSize >= 1);
 
     _batchSize = batchSize;
     _allocator.setBatchSize(batchSize);
-}
-
-void Model::setNumberOfSubGraphs(int numberOfSubGraphs) {
-    // Check `numberOfSubGraphs` value.
-    IE_ASSERT(numberOfSubGraphs >= 1);
-
-    _numberOfSubGraphs = numberOfSubGraphs;
 }
 
 Data Model::addInputData(
@@ -729,8 +724,6 @@ InjectedStage Model::injectStageImpl(
 
     _resetStageOrder = true;;
 
-    _initialStages.erase(child);
-
     //
     // Create new Edge.
     //
@@ -835,6 +828,8 @@ InjectedStage Model::injectStageImpl(
     IE_ASSERT(child->_ptrPosInModel != _stagePtrList.end());
     _stagePtrList.erase(child->_ptrPosInModel);
     child->_ptrPosInModel = _stagePtrList.end();
+
+    _initialStages.erase(child);
 
     if (parent->_prevStages.empty()) {
         _initialStages.emplace(parent);
@@ -1310,7 +1305,7 @@ SharedAllocation Model::connectDatasImpl(
         //
 
         if (connectionStage->_type == StageType::Concat ||
-            connectionStage->_type == StageType::Expand) {
+            connectionStage->_type == StageType::Broadcast) {
             IE_ASSERT(producer == child);
             IE_ASSERT(consumer == parent);
         } else if (connectionStage->_type == StageType::Split ||
@@ -1504,8 +1499,6 @@ void Model::disconnectStageDatas(const Stage& stage) {
 
     stage->_tempBufferEdges.clear();
 
-    _initialStages.emplace(stage);
-
     _allocator.setNeedToAllocNonIntermData();
 }
 
@@ -1558,8 +1551,8 @@ void Model::cleanUpDatas() {
     }
 }
 
-void Model::buildStageOrder(BuildStageOrder order) const {
-    if ((!_resetStageOrder) && (order == _stageOrder)) {
+void Model::buildStageOrder() const {
+    if (!_resetStageOrder) {
         IE_ASSERT(_orderedStageList.size() == _stagePtrList.size());
         return;
     }
@@ -1568,7 +1561,6 @@ void Model::buildStageOrder(BuildStageOrder order) const {
 
     _orderedStageList.clear();
     _resetStageOrder = false;
-    _stageOrder = order;
 
     if (_stagePtrList.empty()) {
         return;
@@ -1581,19 +1573,8 @@ void Model::buildStageOrder(BuildStageOrder order) const {
     IE_ASSERT(!_initialStages.empty());
 
     StageMap<bool> visitedMap;
-    if (order == BuildStageOrder::DFS) {
-        for (const auto& stage : _initialStages) {
-            runDFS(stage, visitedMap);
-        }
-    } else if (order == BuildStageOrder::BFS) {
-        StageList queue(&StageNode::_posInBfsQueue);
-        for (const auto& stage : _initialStages) {
-            queue.push_back(stage);
-            visitedMap[stage] = true;
-        }
-        runBFS(queue, visitedMap);
-    } else {
-        VPU_THROW_EXCEPTION << "Unsupported order " << order;
+    for (const auto& stage : _initialStages) {
+        runDFS(stage, visitedMap);
     }
 
     IE_ASSERT(_orderedStageList.size() == _stagePtrList.size());
@@ -1633,34 +1614,6 @@ void Model::runDFS(
     visitedMap[stage] = true;
 
     _orderedStageList.push_front(stage);
-}
-
-void Model::runBFS(
-        StageList& queue,
-        StageMap<bool>& visitedMap) const {
-    while (!queue.empty()) {
-        auto curStage = queue.front();
-        queue.pop_front();
-
-        _orderedStageList.push_back(curStage);
-
-        for (const auto& nextStage : curStage->_nextStages) {
-            auto it = visitedMap.find(nextStage.first);
-
-            if (it != visitedMap.end()) {
-                auto visited = it->second;
-
-                if (!visited) {
-                    VPU_THROW_EXCEPTION << "Graph has cycle";
-                }
-
-                continue;
-            }
-
-            queue.push_back(nextStage.first);
-            visitedMap[nextStage.first] = true;
-        }
-    }
 }
 
 Stage Model::addNewStageImpl(

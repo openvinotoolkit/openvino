@@ -18,6 +18,7 @@ import logging as log
 from collections import deque
 
 from mo.graph.graph import Node
+from mo.graph.port import Port
 
 
 def get_value_id(node: Node):
@@ -40,6 +41,22 @@ def get_tensor_id(node: Node):
                 return None
             tensor_id = port
     return tensor_id
+
+
+def get_tensor_in_port(node) -> Port:
+    tensor_ports = []
+    for port in node.in_ports().values():
+        if port.data.get_value() is None:
+            tensor_ports.append(port)
+    return None if len(tensor_ports) != 1 else tensor_ports[0]
+
+
+def get_value_in_port(node) -> Port:
+    value_ports = []
+    for port in node.in_ports().values():
+        if port.data.get_value() is not None:
+            value_ports.append(port)
+    return None if len(value_ports) != 1 else value_ports[0]
 
 
 def common_bfs(start_node: Node, allowed_ops: list, op_name: list, is_backward: bool = True, allowed_all: bool = False):

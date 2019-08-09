@@ -27,7 +27,8 @@ class Merge(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'op': __class__.op,
-            'infer': __class__.merge_infer
+            'infer': __class__.merge_infer,
+            'cf_infer': __class__.control_flow_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -52,3 +53,17 @@ class Merge(Op):
 
         tensor = inferred_nodes[0]
         node.out_node().shape = int64_array(tensor.shape)
+
+    @staticmethod
+    def control_flow_infer(node: Node, is_executable: bool, mark_executability: callable):
+        graph = node.graph
+
+        in_data_nodes = node.in_nodes(control_flow=True)
+        out_data_nodes = node.out_nodes(control_flow=True)
+
+        is_executable = any([d.has_and_set('executable') for i, d in in_data_nodes.items()]
+                            if len(in_data_nodes) else [False])
+
+        for i, d in out_data_nodes.items():
+            mark_executability(d.id, is_executable)
+

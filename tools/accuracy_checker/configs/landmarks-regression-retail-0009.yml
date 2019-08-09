@@ -6,58 +6,82 @@ models:
         tags:
           - FP32
         device: CPU
-        model:   landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
-        weights: landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.bin
+        model:   Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.xml
+        weights: Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.bin
         adapter: landmarks_regression
         cpu_extensions: AUTO
 
       - framework: dlsdk
         tags:
-          - GPU32
+          - FP32
         device: GPU
-        model:   landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
-        weights: landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.bin
+        model:   Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.xml
+        weights: Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.bin
         adapter: landmarks_regression
 
       - framework: dlsdk
         tags:
-          - GPU16
+          - FP16
         device: GPU
-        model:   landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.xml
-        weights: landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.bin
+        model:   Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009-fp16.xml
+        weights: Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009-fp16.bin
         adapter: landmarks_regression
 
       - framework: dlsdk
         device: MYRIAD
-        model:   landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.xml
-        weights: landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.bin
+        model:   Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009-fp16.xml
+        weights: Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009-fp16.bin
         adapter: landmarks_regression
 
       - framework: dlsdk
         device: HDDL
-        model:   landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.xml
-        weights: landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.bin
+        model:   Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009-fp16.xml
+        weights: Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009-fp16.bin
         adapter: landmarks_regression
 
       - framework: dlsdk
         tags:
-          - FPGA16
+          - A10_devkit
+          - FP16
         device: HETERO:FPGA,CPU
-        model:   landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
-        weights: landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.bin
+        model:   Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.xml
+        weights: Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.bin
         adapter: landmarks_regression
         cpu_extensions: AUTO
         bitstream: 2019R1_A10DK_FP16_AlexNet_GoogleNet.aocx
 
       - framework: dlsdk
         tags:
-          - FPGA11
+          - A10_devkit
+          - FP11
         device: HETERO:FPGA,CPU
-        model:   landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
-        weights: landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.bin
+        model:   Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.xml
+        weights: Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.bin
         adapter: landmarks_regression
-        cpu_extensions: libcpu_extension_avx2.so
+        cpu_extensions: AUTO
         bitstream: 2019R1_A10DK_FP11_RMNet.aocx
+
+      - framework: dlsdk
+        tags:
+          - HDDL-F
+          - FP16
+        device: HETERO:FPGA,CPU
+        model:   Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.xml
+        weights: Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.bin
+        adapter: landmarks_regression
+        cpu_extensions: AUTO
+        bitstream: 2019R1_PL1_FP16_ResNet_SqueezeNet_VGG_ELU.aocx
+
+      - framework: dlsdk
+        tags:
+          - HDDL-F
+          - FP11
+        device: HETERO:FPGA,CPU
+        model:   Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.xml
+        weights: Retail/object_attributes/landmarks_regression/0009/dldt/landmarks-regression-retail-0009.bin
+        adapter: landmarks_regression
+        cpu_extensions: AUTO
+        bitstream: 2019R1_PL1_FP11_RMNet.aocx
 
     datasets:
       - name: vgg2face

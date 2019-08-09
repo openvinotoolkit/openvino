@@ -18,11 +18,11 @@ python3 style_transfer_sample.py --help
 The command yields the following usage message:
 ```
 usage: style_transfer_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
-                                [-l CPU_EXTENSION] [-pp PLUGIN_DIR]
-                                [-d DEVICE] [-nt NUMBER_TOP] [-ni NUMBER_ITER]
+                                [-l CPU_EXTENSION] [-d DEVICE] 
+                                [-nt NUMBER_TOP] [-ni NUMBER_ITER]
                                 [--mean_val_r MEAN_VAL_R]
                                 [--mean_val_g MEAN_VAL_G]
-                                [--mean_val_b MEAN_VAL_B] [-pc]
+                                [--mean_val_b MEAN_VAL_B]
 
 Options:
   -h, --help            Show this help message and exit.
@@ -34,16 +34,12 @@ Options:
                         Optional. Required for CPU custom layers. Absolute
                         MKLDNN (CPU)-targeted custom layers. Absolute path to
                         a shared library with the kernels implementations
-  -pp PLUGIN_DIR, --plugin_dir PLUGIN_DIR
-                        Path to a plugin folder
   -d DEVICE, --device DEVICE
                         Specify the target device to infer on; CPU, GPU, FPGA,
                         HDDL or MYRIAD is acceptable. Sample will look for a
                         suitable plugin for device specified. Default value is CPU
   -nt NUMBER_TOP, --number_top NUMBER_TOP
                         Number of top results
-  -ni NUMBER_ITER, --number_iter NUMBER_ITER
-                        Number of inference iterations
   --mean_val_r MEAN_VAL_R, -mean_val_r MEAN_VAL_R
                         Mean value of red chanel for mean value subtraction in
                         postprocessing
@@ -53,13 +49,11 @@ Options:
   --mean_val_b MEAN_VAL_B, -mean_val_b MEAN_VAL_B
                         Mean value of blue chanel for mean value subtraction
                         in postprocessing
-  -pc, --perf_counts    Report performance counters
-
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-To perform inference on an image using a trained model of NST network on Intel® CPUs, use the following command:
+To perform inference of an image using a trained model of NST network on Intel® CPUs, use the following command:
 ```
     python3 style_transfer_sample.py -i <path_to_image>/cat.bmp -m <path_to_model>/1_decoder_FP32.xml
 ```

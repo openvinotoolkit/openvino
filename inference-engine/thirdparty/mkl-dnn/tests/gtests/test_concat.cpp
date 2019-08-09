@@ -18,6 +18,7 @@
 #include "gtest/gtest.h"
 
 #include "mkldnn.hpp"
+#include "cpu_isa_traits.hpp"
 
 namespace mkldnn {
 
@@ -89,6 +90,9 @@ class concat_test: public ::testing::TestWithParam<concat_test_params> {
 
 protected:
     virtual void SetUp() {
+        SKIP_IF(data_traits<data_t>::data_type == impl::data_type::bf16
+                && !impl::cpu::mayiuse(impl::cpu::avx512_core),
+                "current ISA doesn't support bfloat16 data type");
         concat_test_params p
             = ::testing::TestWithParam<decltype(p)>::GetParam();
         catch_expected_failures([=](){Test();}, p.expect_to_fail,
@@ -161,9 +165,11 @@ protected:
 
 using concat_test_float = concat_test<float>;
 using concat_test_s8 = concat_test<int8_t>;
+using concat_test_bf16 = concat_test<mkldnn_bfloat16_t>;
 
 TEST_P(concat_test_float, TestsConcat) {}
 TEST_P(concat_test_s8, TestsConcat) {}
+TEST_P(concat_test_bf16, TestsConcat) {}
 
 using fmt = memory::format;
 
@@ -300,4 +306,217 @@ INSTANTIATE_TEST_CASE_P(TestConcat, concat_test_s8, ::testing::Values(
     {{2, 8, 3, 4}, {2, 8, 3, 4}}, {2, 16, 3, 4}}
     ));
 
+INSTANTIATE_TEST_CASE_P(
+        TestConcat_ZeroDim, concat_test_bf16,
+        ::testing::Values(
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw8c }, fmt::nChw8c,
+                        { { 4, 0, 5, 5 }, { 4, 5, 5, 5 } }, { 4, 5, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw8c }, fmt::nChw8c,
+                        { { 4, 4, 5, 5 }, { 4, 0, 5, 5 } }, { 4, 4, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nhwc, fmt::nhwc }, fmt::nhwc,
+                        { { 0, 4, 5, 5 }, { 0, 2, 5, 5 } }, { 0, 6, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nhwc, fmt::nhwc }, fmt::nhwc,
+                        { { 2, 4, 0, 5 }, { 2, 2, 0, 5 } }, { 2, 6, 0, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nchw, fmt::nchw }, fmt::nchw,
+                        { { 0, 4, 5, 5 }, { 0, 2, 5, 5 } }, { 0, 6, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nchw, fmt::nchw }, fmt::nchw,
+                        { { 2, 4, 0, 5 }, { 2, 2, 0, 5 } }, { 2, 6, 0, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 0, 5, 5 }, { 4, 5, 5, 5 } }, { 4, 5, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 4, 5, 5 }, { 4, 0, 5, 5 } }, { 4, 4, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 0, 4, 5, 5 }, { 0, 2, 5, 5 } }, { 0, 6, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 2, 4, 0, 5 }, { 2, 2, 0, 5 } }, { 2, 6, 0, 5 } }
+));
+
+INSTANTIATE_TEST_CASE_P(
+        TestConcat_EF, concat_test_bf16,
+        ::testing::Values(
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 2, 5, 5 }, { 4, 5, 5, 5 } }, { 4, 5, 5, 5 },
+                        true, mkldnn_invalid_arguments },
+                concat_test_params{ engine::kind::cpu, 2,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 2, 5, 5 }, { 4, 3, 5, 5 } }, { 4, 5, 5, 5 },
+                        true, mkldnn_invalid_arguments },
+                concat_test_params{ engine::kind::cpu, 5,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 4, 5, 5 }, { 4, 0, 5, 5 } }, { 4, 4, 5, 5 },
+                        true, mkldnn_invalid_arguments },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw8c }, fmt::nChw8c,
+                        { { 4, -1, 5, 5 }, { 4, 5, 5, 5 } }, { 4, 5, 5, 5 },
+                        true, mkldnn_invalid_arguments },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw8c }, fmt::nChw8c,
+                        { { 4, 4, 5, 5 }, { 4, 4, 5, 5 } }, { 4, 4, 5, 5 },
+                        true, mkldnn_invalid_arguments },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 0, 4, 5, 5 }, { 0, 4, 5, 5 } }, { 0, 6, 5, 5 },
+                        true, mkldnn_invalid_arguments },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 2, 4, 2, 5 }, { 2, 2, 1, 5 } }, { 2, 6, 2, 5 },
+                        true, mkldnn_invalid_arguments },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nhwc, fmt::nhwc }, fmt::nhwc,
+                        { { 1, 4, 5, 5 }, { 1, 2, 5, 5 } }, { 1, 7, 5, 5 },
+                        true, mkldnn_invalid_arguments },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nchw, fmt::nchw }, fmt::nchw,
+                        { { 1, 4, 5, 5 }, { 1, 2, 5, 5 } }, { 1, 6, 6, 5 },
+                        true, mkldnn_invalid_arguments }
+));
+
+INSTANTIATE_TEST_CASE_P(
+        TestConcat_padded, concat_test_bf16,
+        ::testing::Values(
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw16c, fmt::nChw16c }, fmt::nChw16c,
+                        { { 4, 4, 5, 5 }, { 4, 6, 5, 5 } }, { 4, 10, 5, 5 },
+                        true, mkldnn_unimplemented },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw16c, fmt::nChw16c }, fmt::nChw16c,
+                        { { 4, 16, 5, 5 }, { 4, 3, 5, 5 } }, { 4, 19, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw8c }, fmt::nChw8c,
+                        { { 4, 8, 5, 5 }, { 4, 3, 5, 5 } }, { 4, 11, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw16c, fmt::nChw16c }, fmt::nChw16c,
+                        { { 4, 25, 5, 5 }, { 4, 45, 5, 5 } }, { 4, 70, 5, 5 },
+                        true, mkldnn_unimplemented },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw16c, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 25, 5, 5 }, { 4, 45, 5, 5 } }, { 4, 70, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw8c }, fmt::nchw,
+                        { { 4, 25, 5, 5 }, { 4, 45, 5, 5 } }, { 4, 70, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw16c, fmt::nChw8c }, fmt::nchw,
+                        { { 4, 25, 5, 5 }, { 4, 45, 5, 5 } }, { 4, 70, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 25, 5, 5 }, { 4, 45, 5, 5 } }, { 4, 70, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw16c, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 4, 5, 5 }, { 4, 6, 5, 5 } }, { 4, 10, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nchw, fmt::nChw16c }, fmt::nChw16c,
+                        { { 4, 25, 5, 5 }, { 4, 45, 5, 5 } }, { 4, 70, 5, 5 },
+                        true, mkldnn_unimplemented },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nchw, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 25, 5, 5 }, { 4, 45, 5, 5 } }, { 4, 70, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw16c, fmt::nChw16c }, fmt::nChw8c,
+                        { { 4, 16, 5, 5 }, { 4, 3, 5, 5 } }, { 4, 19, 5, 5 } },
+                concat_test_params{ engine::kind::cpu, 1,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nChw16c,
+                        { { 4, 8, 5, 5 }, { 4, 3, 5, 5 } }, { 4, 11, 5, 5 } },
+                // not over channels
+                concat_test_params{ engine::kind::cpu, 2,
+                        { fmt::nChw16c, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 25, 5, 5 }, { 4, 25, 5, 5 } },
+                        { 4, 25, 10, 5 } },
+                concat_test_params{ engine::kind::cpu, 2,
+                        { fmt::nChw8c, fmt::nChw8c }, fmt::nchw,
+                        { { 4, 25, 5, 5 }, { 4, 25, 5, 5 } },
+                        { 4, 25, 10, 5 } },
+                concat_test_params{ engine::kind::cpu, 2,
+                        { fmt::nChw8c, fmt::nChw16c }, fmt::nchw,
+                        { { 4, 25, 5, 5 }, { 4, 25, 5, 5 } },
+                        { 4, 25, 10, 5 } }
+));
+
+INSTANTIATE_TEST_CASE_P(TestConcat3D, concat_test_bf16, ::testing::Values(
+    concat_test_params{engine::kind::cpu, 0,
+    {memory::format::ncdhw, memory::format::ncdhw}, memory::format::ncdhw,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {4, 8, 3, 4, 5}},
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::ncdhw, memory::format::ncdhw}, memory::format::ncdhw,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 16, 3, 4, 5}},
+    concat_test_params{engine::kind::cpu, 2,
+    {memory::format::ncdhw, memory::format::ncdhw}, memory::format::ncdhw,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 8, 6, 4, 5}},
+    concat_test_params{engine::kind::cpu, 3,
+    {memory::format::ncdhw, memory::format::ncdhw}, memory::format::ncdhw,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 8, 3, 8, 5}},
+    concat_test_params{engine::kind::cpu, 4,
+    {memory::format::ncdhw, memory::format::ncdhw}, memory::format::ncdhw,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 8, 3, 4, 10}},
+    concat_test_params{engine::kind::cpu, 0,
+    {memory::format::nCdhw8c, memory::format::nCdhw8c}, memory::format::nCdhw8c,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {4, 8, 3, 4, 5}},
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::nCdhw8c, memory::format::nCdhw8c}, memory::format::nCdhw8c,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 16, 3, 4, 5}},
+    concat_test_params{engine::kind::cpu, 2,
+    {memory::format::nCdhw8c, memory::format::nCdhw8c}, memory::format::nCdhw8c,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 8, 6, 4, 5}},
+    concat_test_params{engine::kind::cpu, 3,
+    {memory::format::nCdhw8c, memory::format::nCdhw8c}, memory::format::nCdhw8c,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 8, 3, 8, 5}},
+    concat_test_params{engine::kind::cpu, 4,
+    {memory::format::nCdhw8c, memory::format::nCdhw8c}, memory::format::nCdhw8c,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 8, 3, 4, 10}},
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::nCdhw8c, memory::format::ncdhw}, memory::format::nCdhw8c,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 16, 3, 4, 5}},
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::ncdhw, memory::format::ncdhw}, memory::format::nCdhw8c,
+    {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 16, 3, 4, 5}}
+));
+
+INSTANTIATE_TEST_CASE_P(TestConcat, concat_test_bf16, ::testing::Values(
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::nchw, memory::format::nchw}, memory::format::nchw,
+    {{2, 8, 3, 4}, {2, 8, 3, 4}}, {2, 16, 3, 4}},
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::nChw8c, memory::format::nChw8c}, memory::format::nChw8c,
+    {{2, 16, 1, 1}, {2, 16, 1, 1}}, {2, 32, 1, 1}},
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::nhwc, memory::format::nhwc}, memory::format::nhwc,
+    {{2, 16, 1, 1}, {2, 16, 1, 1}}, {2, 32, 1, 1}},
+    concat_test_params{engine::kind::cpu, 0,
+    {memory::format::nchw, memory::format::nchw}, memory::format::nchw,
+    {{2, 8, 3, 4}, {2, 8, 3, 4}}, {4, 8, 3, 4}},
+    concat_test_params{engine::kind::cpu, 0,
+    {memory::format::nChw8c, memory::format::nChw8c}, memory::format::nChw8c,
+    {{2, 16, 1, 1}, {2, 16, 1, 1}}, {4, 16, 1, 1}},
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::nChw8c, memory::format::nChw8c}, memory::format::nChw8c,
+    {{2, 8, 1, 1}, {2, 8, 1, 1}}, {2, 16, 1, 1}},
+
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::nchw, memory::format::nchw}, memory::format::nChw8c,
+    {{2, 16, 1, 1}, {2, 16, 1, 1}}, {2, 32, 1, 1}},
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::nChw8c, memory::format::nChw8c}, memory::format::nchw,
+    {{2, 16, 1, 1}, {2, 16, 1, 1}}, {2, 32, 1, 1}},
+
+    concat_test_params{engine::kind::cpu, 0,
+    {memory::format::nchw, memory::format::nchw}, memory::format::nChw8c,
+    {{2, 16, 1, 1}, {2, 16, 1, 1}}, {4, 16, 1, 1}},
+    concat_test_params{engine::kind::cpu, 0,
+    {memory::format::nChw8c, memory::format::nChw8c}, memory::format::nchw,
+    {{2, 16, 1, 1}, {2, 16, 1, 1}}, {4, 16, 1, 1}},
+
+    concat_test_params{engine::kind::cpu, 1,
+    {memory::format::nChw8c, memory::format::nChw16c}, memory::format::nChw8c,
+    {{2, 8, 1, 1}, {2, 16, 1, 1}}, {2, 24, 1, 1}}
+));
 }

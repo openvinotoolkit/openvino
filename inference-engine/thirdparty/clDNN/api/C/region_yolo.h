@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef REGION_YOLO_H
-#define REGION_YOLO_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -29,27 +27,27 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    
-    /// @brief region softmax specific for yolo2 topology
-    /// @details
-    /// @par Algorithm:
-    ///   
-    /// @par Where:
-    ///   
-    CLDNN_BEGIN_PRIMITIVE_DESC(region_yolo)
-    /// @brief paramter coords
-        uint32_t coords;
-    /// @brief paramter classes
-        uint32_t classes;
-    /// @brief Number of anchors
-        uint32_t num;
-    /// @brief Apply softmax after logistic
-        uint32_t do_softmax;
-    /// @brief Number of really used anchors
-        uint32_t mask_size;
-    CLDNN_END_PRIMITIVE_DESC(region_yolo)
 
-        CLDNN_DECLARE_PRIMITIVE_TYPE_ID(region_yolo);
+/// @brief region softmax specific for yolo2 topology
+/// @details
+/// @par Algorithm:
+///
+/// @par Where:
+///
+CLDNN_BEGIN_PRIMITIVE_DESC(region_yolo)
+/// @brief paramter coords
+uint32_t coords;
+/// @brief paramter classes
+uint32_t classes;
+/// @brief Number of anchors
+uint32_t num;
+/// @brief Apply softmax after logistic
+uint32_t do_softmax;
+/// @brief Number of really used anchors
+uint32_t mask_size;
+CLDNN_END_PRIMITIVE_DESC(region_yolo)
+
+CLDNN_DECLARE_PRIMITIVE_TYPE_ID(region_yolo);
 
 #ifdef __cplusplus
 }
@@ -58,5 +56,4 @@ extern "C" {
 /// @}
 /// @}
 /// @}
-#endif /* REGION_YOLO_H */
 

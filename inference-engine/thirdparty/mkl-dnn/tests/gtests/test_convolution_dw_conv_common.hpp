@@ -181,8 +181,6 @@ protected:
                 conv2_bias.get_primitive_desc().get_size()
                 / sizeof(float),(float *)conv2_bias.get_data_handle(), 1., true);
 
-//        auto conv1_depthwise_weights_desc = create_md({ cd.conv2_oc }, mkldnn::memory::data_type::f32, memory::x);
-//        auto conv1_depthwise_weights = memory({conv1_depthwise_weights_desc, eng});
         std::vector<float> conv1_depthwise_weights;
         conv1_depthwise_weights.resize(cd.conv1_oc);
         fill_data<float>(conv1_depthwise_weights.size(), &conv1_depthwise_weights[0], 1.f / ((float)cd.ic), 1.f / ((float)cd.ic * cd.conv1_kh * cd.conv1_kw));
@@ -193,22 +191,12 @@ protected:
 
         std::vector<float> conv2_depthwise_bias;
         conv2_depthwise_bias.resize(cd.conv1_oc);
-//        fill_data<float>(conv2_depthwise_bias.size(), &conv2_depthwise_bias[0], 1., true);
         memset(&conv2_depthwise_bias[0], 0, conv2_depthwise_bias.size() * sizeof(float));
-
-//        auto conv2_depthwise_weights_desc = create_md({ cd.conv2_oc }, mkldnn::memory::data_type::f32, memory::x);
-//        auto conv2_depthwise_bias_desc = create_md({ cd.conv2_oc }, mkldnn::memory::data_type::f32, memory::x);
-//
-//        auto conv2_depthwise_weights = memory({conv2_depthwise_weights_desc, eng});
-//        auto conv2_depthwise_bias = memory({conv2_depthwise_bias_desc, eng});
-
-//        fill_data<float>(conv2_depthwise_weights.get_primitive_desc().get_size() / sizeof(float),
-//                         (float *)conv2_depthwise_weights.get_data_handle(), 1., true);
-//        memset((float*)conv2_depthwise_bias.get_data_handle(), 0, conv2_depthwise_bias.get_primitive_desc().get_size());
 
         mkldnn::post_ops conv1_post_ops;
         conv1_post_ops.append_eltwise(1.0, mkldnn::algorithm::eltwise_relu, 0.0f, 0.0f);
         conv1_post_ops.append_dw_conv(conv1_oh, conv1_ow, cd.conv2_kh, cd.conv2_kw, cd.conv2_strh, cd.conv2_strw,
+                                      memory::convert_to_c(data_type_dst),
                                       static_cast<const float*>(conv2_weights.get_data_handle()),
                                       static_cast<const float*>(conv2_bias.get_data_handle()));
 

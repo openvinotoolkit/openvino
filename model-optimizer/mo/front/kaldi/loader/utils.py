@@ -45,7 +45,18 @@ supported_components = [
     'tanhcomponent',
     'normalizecomponent',
     'affinecomponentpreconditionedonline',
-    'rectifiedlinearcomponent'
+    'rectifiedlinearcomponent',
+    'batchnormcomponent',
+    'naturalgradientaffinecomponent',
+    'logsoftmaxcomponent',
+    'naturalgradientperelementscalecomponent',
+    'sigmoidcomponent',
+    'tanhcomponent',
+    'elementwiseproductcomponent',
+    'clipgradientcomponent',
+    'noopcomponent',
+    'lstmnonlinearitycomponent',
+    'backproptruncationcomponent',
 ]
 
 
@@ -55,7 +66,12 @@ def get_bool(s: bytes) -> bool:
     :param s: bytes array contains bool value
     :return: bool value from bytes array
     """
-    return struct.unpack('?', s)[0]
+    if str(s) == "b\'F\'":
+        return False
+    elif str(s) == "b\'T\'":
+        return True
+    else:
+        return struct.unpack('?', s)[0]
 
 
 def get_uint16(s: bytes) -> int:
@@ -117,6 +133,22 @@ def read_binary_integer64_token(file_desc: io.BufferedReader) -> int:
     return get_uint64(file_desc.read(buffer_size[0]))
 
 
+def read_binary_float_token(file_desc: io.BufferedReader) -> float:
+    """
+    Get next float32 value from file
+    The carriage moves forward to 5 position.
+    :param file_desc: file descriptor
+    :return: next float32 value in file
+    """
+    buffer_size = file_desc.read(1)
+    s = file_desc.read(buffer_size[0])
+    return np.fromstring(s, dtype=np.float32)[0]
+
+
+def read_string(file_desc: io.BufferedReader) -> int:
+    return collect_until_whitespace(file_desc)
+
+
 def find_next_tag(file_desc: io.BufferedReader) -> str:
     """
     Get next tag in the file
@@ -167,6 +199,8 @@ def find_next_component(file_desc: io.BufferedReader) -> str:
             # There is whitespace after component's name
             read_placeholder(file_desc, 1)
             return component_name
+        elif tag == '<ComponentName>':
+            raise Error('Component has unsupported or not specified type')
 
 
 def get_name_from_path(path: str) -> str:
@@ -222,7 +256,7 @@ def read_token_value(file_desc: io.BufferedReader, token: bytes = b'', value_typ
     getters = {
         np.uint32: read_binary_integer32_token,
         np.uint64: read_binary_integer64_token,
-        bool: read_binary_bool_token
+        np.bool: read_binary_bool_token
     }
     current_token = collect_until_whitespace(file_desc)
     if token != b'' and token != current_token:
@@ -250,6 +284,7 @@ def collect_until_token(file_desc: io.BufferedReader, token):
     """
     Read from file until the token
     :param file_desc: file descriptor
+    :param token: token that we find
     :return:
     """
     while True:
@@ -257,6 +292,7 @@ def collect_until_token(file_desc: io.BufferedReader, token):
         res = collect_until_whitespace(file_desc)
         if res == token or res[-len(token):] == token:
             return
+        size = 0
         if isinstance(file_desc, io.BytesIO):
             size = len(file_desc.getbuffer())
         elif isinstance(file_desc, io.BufferedReader):
@@ -265,16 +301,36 @@ def collect_until_token(file_desc: io.BufferedReader, token):
             raise Error('End of the file. Token {} not found. {}'.format(token, file_desc.tell()))
 
 
-def create_edge_attrs(prev_layer_id: str, next_layer_id: str) -> dict:
+def collect_until_token_and_read(file_desc: io.BufferedReader, token, value_type: type = np.uint32):
+    """
+    Read from file until the token
+    :param file_desc: file descriptor
+    :param token: token to find and read
+    :param value_type: type of value to read
+    :return:
+    """
+    getters = {
+        np.uint32: read_binary_integer32_token,
+        np.uint64: read_binary_integer64_token,
+        np.bool: read_binary_bool_token,
+        np.string_: read_string
+    }
+    collect_until_token(file_desc, token)
+    return getters[value_type](file_desc)
+
+
+def create_edge_attrs(prev_layer_id: str, next_layer_id: str, in_port=0, out_port=0) -> dict:
     """
     Create common edge's attributes
     :param prev_layer_id: id of previous layer
     :param next_layer_id: id of next layer
+    :param in_port: 'in' port
+    :param out_port: 'out' port
     :return: dictionary contains common attributes for edge
     """
     return {
-        'out': 0,
-        'in': 0,
+        'out': out_port,
+        'in': in_port,
         'name': next_layer_id,
         'fw_tensor_debug_info': [(prev_layer_id, next_layer_id)],
         'in_attrs': ['in', 'name'],
@@ -297,3 +353,56 @@ def read_blob(file_desc: io.BufferedReader, size: int, dtype=np.float32):
     }
     data = file_desc.read(size * dsizes[dtype])
     return np.fromstring(data, dtype=dtype)
+
+
+def get_args_for_specifier(string):
+    """
+    Parse arguments in brackets and return list of arguments
+    :param string: string in format (<arg1>, <arg2>, .., <argn>)
+    :return: list with arguments
+    """
+    open_bracket = 1
+    pos = 1
+    args = []
+    prev_arg_pos = 1
+    while pos < len(string):
+        pos_open = string.find(b'(', pos)
+        pos_close = string.find(b')', pos)
+        pos_sep = string.find(b',', pos)
+
+        if pos_open == -1:
+            if open_bracket == 1:
+                args = args + string[prev_arg_pos:pos_close].replace(b' ', b'').split(b',')
+                pos = len(string)
+            else:
+                open_bracket = open_bracket - 1
+                while open_bracket > 1:
+                    pos_close = string.find(b')', pos_close+1)
+                    if pos_close != -1:
+                        open_bracket = open_bracket - 1
+                    else:
+                        raise Error("Syntax error in model: incorrect number of brackets")
+                args.append(string[prev_arg_pos:pos_close+1].strip())
+                prev_arg_pos = string.find(b',', pos_close+1) + 1
+                if prev_arg_pos != 0 and string[prev_arg_pos:-2].replace(b' ', b'').split(b',') != [b'']:
+                    args = args + string[prev_arg_pos:-2].replace(b' ', b'').split(b',')
+                pos = len(string)
+        else:
+            if pos_sep < pos_open and open_bracket == 1:
+                pos_sep = string[pos_sep:pos_open].rfind(b',') + pos_sep
+                args = args + string[prev_arg_pos:pos_sep].replace(b' ', b'').split(b',')
+                prev_arg_pos = pos_sep + 1
+
+            if pos_open < pos_close:
+                open_bracket = open_bracket + 1
+                pos = pos_open + 1
+            else:
+                open_bracket = open_bracket - 1
+                if open_bracket == 1:
+                    args.append(string[prev_arg_pos:pos_close + 1].strip())
+                    prev_arg_pos = string.find(b',', pos_close+1) + 1
+                    pos = prev_arg_pos
+                else:
+                    pos = pos_close + 1
+
+    return args

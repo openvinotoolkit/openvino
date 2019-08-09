@@ -18,14 +18,13 @@
 #pragma once
 #include "api/CPP/softmax.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 using softmax_node = typed_program_node<softmax>;
 
 template <>
-class typed_primitive_inst<softmax> : public typed_primitive_inst_base<softmax>
-{
+class typed_primitive_inst<softmax> : public typed_primitive_inst_base<softmax> {
     using parent = typed_primitive_inst_base<softmax>;
 
 public:
@@ -38,4 +37,4 @@ public:
 
 using softmax_inst = typed_primitive_inst<softmax>;
 
-}
+}  // namespace cldnn

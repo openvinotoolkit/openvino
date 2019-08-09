@@ -27,10 +27,11 @@ class TestRegressionMetric:
     def test_mae_with_zero_diff_between_annotation_and_prediction(self):
         annotations = [RegressionAnnotation('identifier', 3)]
         predictions = [RegressionPrediction('identifier', 3)]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mae'}]}
+        config = [{'type': 'mae'}]
         expected = EvaluationResult(
             pytest.approx([0.0, 0.0]),
             None,
+            'mae',
             'mae',
             None,
             {'postfix': ' ', 'scale': 1, 'names': ['mean', 'std'], 'calculate_mean': False}
@@ -45,10 +46,11 @@ class TestRegressionMetric:
     def test_mae_with_negative_diff_between_annotation_and_prediction(self):
         annotations = [RegressionAnnotation('identifier', 3), RegressionAnnotation('identifier2', 1)]
         predictions = [RegressionPrediction('identifier', 5), RegressionPrediction('identifier2', 5)]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mae'}]}
+        config = [{'type': 'mae'}]
         expected = EvaluationResult(
             pytest.approx([3.0, 1.0]),
             None,
+            'mae',
             'mae',
             None,
             {'postfix': ' ', 'scale': 1, 'names': ['mean', 'std'], 'calculate_mean': False}
@@ -63,10 +65,11 @@ class TestRegressionMetric:
     def test_mae_with_positive_diff_between_annotation_and_prediction(self):
         annotations = [RegressionAnnotation('identifier', 3), RegressionAnnotation('identifier2', 1)]
         predictions = [RegressionPrediction('identifier', 1), RegressionPrediction('identifier2', -3)]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mae'}]}
+        config = [{'type': 'mae'}]
         expected = EvaluationResult(
             pytest.approx([3.0, 1.0]),
             None,
+            'mae',
             'mae',
             None,
             {'postfix': ' ', 'scale': 1, 'names': ['mean', 'std'], 'calculate_mean': False}
@@ -81,10 +84,11 @@ class TestRegressionMetric:
     def test_mse_with_zero_diff_between_annotation_and_prediction(self):
         annotations = [RegressionAnnotation('identifier', 3)]
         predictions = [RegressionPrediction('identifier', 3)]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mse'}]}
+        config = [{'type': 'mse'}]
         expected = EvaluationResult(
             pytest.approx([0.0, 0.0]),
             None,
+            'mse',
             'mse',
             None,
             {'postfix': ' ', 'scale': 1, 'names': ['mean', 'std'], 'calculate_mean': False}
@@ -99,10 +103,11 @@ class TestRegressionMetric:
     def test_mse_with_negative_diff_between_annotation_and_prediction(self):
         annotations = [RegressionAnnotation('identifier', 3), RegressionAnnotation('identifier2', 1)]
         predictions = [RegressionPrediction('identifier', 5), RegressionPrediction('identifier2', 5)]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mse'}]}
+        config = [{'type': 'mse'}]
         expected = EvaluationResult(
             pytest.approx([10.0, 6.0]),
             None,
+            'mse',
             'mse',
             None,
             {'postfix': ' ', 'scale': 1, 'names': ['mean', 'std'], 'calculate_mean': False}
@@ -117,10 +122,11 @@ class TestRegressionMetric:
     def test_mse_with_positive_diff_between_annotation_and_prediction(self):
         annotations = [RegressionAnnotation('identifier', 3), RegressionAnnotation('identifier2', 1)]
         predictions = [RegressionPrediction('identifier', 1), RegressionPrediction('identifier2', -3)]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mse'}]}
+        config = [{'type': 'mse'}]
         expected = EvaluationResult(
             pytest.approx([10.0, 6.0]),
             None,
+            'mse',
             'mse',
             None,
             {'postfix': ' ', 'scale': 1, 'names': ['mean', 'std'], 'calculate_mean': False}
@@ -133,17 +139,18 @@ class TestRegressionMetric:
             assert evaluation_result == expected
 
     def test_missed_interval(self):
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mae_on_interval'}]}
+        config = [{'type': 'mae_on_interval'}]
         with pytest.raises(ValueError):
             MetricsExecutor(config, None)
 
     def test_mae_on_interval_default_all_missed(self):
         annotations = [RegressionAnnotation('identifier', -2)]
         predictions = [RegressionPrediction('identifier', 1)]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mae_on_interval', 'end': 1}]}
+        config = [{'type': 'mae_on_interval', 'end': 1}]
         expected = EvaluationResult(
             pytest.approx([0.0]),
             None,
+            'mae_on_interval',
             'mae_on_interval',
             None,
             {'postfix': ' ', 'scale': 1, 'names': [], 'calculate_mean': False}
@@ -164,6 +171,7 @@ class TestRegressionMetric:
             pytest.approx([2.0, 0.0, 0.0, 0.0]),
             None,
             'mae_on_interval',
+            'mae_on_interval',
             None,
             {
                 'postfix': ' ',
@@ -172,10 +180,7 @@ class TestRegressionMetric:
                 'calculate_mean': False
             }
         )
-        config = {
-            'annotation': 'mocked',
-            'metrics': [{'type': 'mae_on_interval', 'end': 1, 'ignore_values_not_in_interval': False}]
-        }
+        config = [{'type': 'mae_on_interval', 'end': 1, 'ignore_values_not_in_interval': False}]
         dispatcher = MetricsExecutor(config, None)
 
         dispatcher.update_metrics_on_batch(annotations, predictions)
@@ -186,10 +191,11 @@ class TestRegressionMetric:
     def test_mae_on_interval_values_in_range(self):
         annotations = [RegressionAnnotation('identifier', 0.5), RegressionAnnotation('identifier', 0.5)]
         predictions = [RegressionPrediction('identifier', 1), RegressionPrediction('identifier', 0.25)]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mae_on_interval', 'end': 1}]}
+        config = [{'type': 'mae_on_interval', 'end': 1}]
         expected = EvaluationResult(
             pytest.approx([0.375, 0.125]),
             None,
+            'mae_on_interval',
             'mae_on_interval',
             None,
             {'postfix': ' ', 'scale': 1, 'names': ['mean: <= 0.0 < 1.0', 'std: <= 0.0 < 1.0'], 'calculate_mean': False}
@@ -212,13 +218,11 @@ class TestRegressionMetric:
             RegressionPrediction('identifier', 2),
             RegressionPrediction('identifier', 1)
         ]
-        config = {
-            'annotation': 'mocked',
-            'metrics': [{'type': 'mae_on_interval', 'end': 1, 'ignore_values_not_in_interval': False}]
-        }
+        config = [{'type': 'mae_on_interval', 'end': 1, 'ignore_values_not_in_interval': False}]
         expected = EvaluationResult(
             pytest.approx([2.0, 0.0, 0.5, 0.0,  0.0, 0.0]),
             None,
+            'mae_on_interval',
             'mae_on_interval',
             None,
             {
@@ -253,13 +257,11 @@ class TestRegressionMetric:
             RegressionPrediction('identifier', 3),
             RegressionPrediction('identifier', 1)
         ]
-        config = {
-            'annotation': 'mocked',
-            'metrics': [{'type': 'mae_on_interval', 'intervals': [0.0, 2.0, 4.0]}]
-        }
+        config = [{'type': 'mae_on_interval', 'intervals': [0.0, 2.0, 4.0]}]
         expected = EvaluationResult(
             pytest.approx([0.0, 0.0, 1.0, 0.0]),
             None,
+            'mae_on_interval',
             'mae_on_interval',
             None,
             {
@@ -287,10 +289,11 @@ class TestRegressionMetric:
             RegressionPrediction('identifier', 3),
             RegressionPrediction('identifier', 1)
         ]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mae_on_interval', 'intervals': [0.0, 2.0, 2.0, 4.0]}]}
+        config = [{'type': 'mae_on_interval', 'intervals': [0.0, 2.0, 2.0, 4.0]}]
         expected = EvaluationResult(
             pytest.approx([0.0, 0.0, 1.0, 0.0]),
             None,
+            'mae_on_interval',
             'mae_on_interval',
             None,
             {
@@ -318,10 +321,11 @@ class TestRegressionMetric:
             RegressionPrediction('identifier', 3),
             RegressionPrediction('identifier', 1)
         ]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'mae_on_interval', 'intervals': [2.0,  0.0, 4.0]}]}
+        config = [{'type': 'mae_on_interval', 'intervals': [2.0,  0.0, 4.0]}]
         expected = EvaluationResult(
             pytest.approx([0.0, 0.0, 1.0, 0.0]),
             None,
+            'mae_on_interval',
             'mae_on_interval',
             None,
             {

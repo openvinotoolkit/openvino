@@ -39,10 +39,10 @@
 
 #define QUANTIZATION \
     char4 out;\
-    out[0] = ACTIVATION(convert_char(round( ((float)dotProd[out_idx + OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * 0][b]  * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0 ) ), NL_M, NL_N);\
-    out[1] = ACTIVATION(convert_char(round( ((float)dotProd[out_idx + OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * 1][b]  * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1 ) ), NL_M, NL_N);\
-    out[2] = ACTIVATION(convert_char(round( ((float)dotProd[out_idx + OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * 2][b]  * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2 ) ), NL_M, NL_N);\
-    out[3] = ACTIVATION(convert_char(round( ((float)dotProd[out_idx + OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * 3][b]  * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3 ) ), NL_M, NL_N);
+    out[0] = ACTIVATION(convert_char(round( ((float)dotProd[out_idx + OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * 0][b]  * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0 ) ), ACTIVATION_PARAMS);\
+    out[1] = ACTIVATION(convert_char(round( ((float)dotProd[out_idx + OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * 1][b]  * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1 ) ), ACTIVATION_PARAMS);\
+    out[2] = ACTIVATION(convert_char(round( ((float)dotProd[out_idx + OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * 2][b]  * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2 ) ), ACTIVATION_PARAMS);\
+    out[3] = ACTIVATION(convert_char(round( ((float)dotProd[out_idx + OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * 3][b]  * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3 ) ), ACTIVATION_PARAMS);
 
 #endif
 
@@ -70,20 +70,21 @@ KERNEL(convolution_mmad_batched_block_1x1)(
     const uint x = get_global_id(0) * OUT_BLOCK_WIDTH;
     const uint y = get_global_id(1) * OUT_BLOCK_HEIGHT;
 
+    const uint b_f = (get_group_id(2) * WG_BATCH_COUNT + get_sub_group_id());
 #if WEIGHTS_PER_WORKITEM == 4
-    const uint f = (get_group_id(2) * 32 + get_sub_group_local_id() * 4) % FILTER_OFM_ALIGNED;
+    const uint f = (b_f * 32 + get_sub_group_local_id() * 4) % FILTER_OFM_ALIGNED;
 #else
-    const uint f = ((get_group_id(2) * WEIGHTS_PER_WORKITEM * 8) + get_sub_group_local_id() ) % FILTER_OFM_ALIGNED;
+    const uint f = ((b_f * WEIGHTS_PER_WORKITEM * 8) + get_sub_group_local_id() ) % FILTER_OFM_ALIGNED;
 #endif
-    const uint b_block = (get_group_id(2) * 8 * WEIGHTS_PER_WORKITEM) / FILTER_OFM_ALIGNED;
+    const uint b_block = (b_f * 8 * WEIGHTS_PER_WORKITEM) / FILTER_OFM_ALIGNED;
 
     int4 dotProd[OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * WEIGHTS_PER_WORKITEM] = { 0 };
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-    const uint filter_offset = ((get_group_id(2) * WEIGHTS_PER_WORKITEM) % FILTER_OFM_MMAD_NUM) * FILTER_OFM_BLOCK_PITCH;
-    const uint input_offset = IN_OFFSET + IN_B_BLOCK_PITCH * b_block;
+    const uint filter_offset = ((b_f * WEIGHTS_PER_WORKITEM) % FILTER_OFM_MMAD_NUM) * FILTER_OFM_BLOCK_PITCH;
+    uint input_offset = IN_OFFSET + IN_B_BLOCK_PITCH * b_block;
 
     uint filter_idx = filter_offset;
     for (uint k = 0; k < FILTER_IFM_MMAD_NUM; ++k)
@@ -97,7 +98,7 @@ KERNEL(convolution_mmad_batched_block_1x1)(
                 const int input_offset_y = input_y + h;
                 const int input_offset_x = input_x + p;
 
-                uint input_idx = input_offset + input_offset_y * IN_Y_PITCH + input_offset_x * IN_X_PITCH + k * IN_F_BLOCK_PITCH;
+                uint input_idx = input_offset + input_offset_y * IN_Y_PITCH + input_offset_x * IN_X_PITCH;
                 preloaded_input[p + h * NEEDED_INPUT_X] = as_int4(intel_sub_group_block_read4((const __global uint*)(input + input_idx)));
             }
         }
@@ -135,6 +136,7 @@ KERNEL(convolution_mmad_batched_block_1x1)(
                 filter_idx += FILTER_X_PITCH;
             }
         }
+        input_offset += IN_F_BLOCK_PITCH;
     }
 
 
@@ -143,14 +145,16 @@ KERNEL(convolution_mmad_batched_block_1x1)(
 float4 quant_f = vload4(0, quantizations + f);
 float4 bias_f = vload4(0, biases + f);
 float4 calib_f = vload4(0, calibrations + f);
+
+uint dst_index = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(OUTPUT, b_block*4, f, y, x);
+
 __attribute__((opencl_unroll_hint(OUT_BLOCK_HEIGHT)))
 for(uint h = 0; h < OUT_BLOCK_HEIGHT; h++)
 {
+    uint tmp_dst_index = dst_index;
     __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
     for(uint o = 0; o < OUT_BLOCK_WIDTH; o++)
     {
-        const uint dst_index = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(OUTPUT, b_block*4, f, y + h, x + o);
-
         uint4 to_output;
         __attribute__((opencl_unroll_hint(4)))
         for(uint b = 0; b < 4; b++)
@@ -160,8 +164,10 @@ for(uint h = 0; h < OUT_BLOCK_HEIGHT; h++)
             QUANTIZATION;
             to_output[b] = as_uint(out);
         }
-        intel_sub_group_block_write4((__global uint*)(output + dst_index), to_output);
+        intel_sub_group_block_write4((__global uint*)(output + tmp_dst_index), to_output);
+        tmp_dst_index += OUT_X_PITCH;
     }
+    dst_index += OUT_Y_PITCH;
 }
 
 #else // WEIGHTS_PER_WORKITEM ==4
@@ -209,8 +215,8 @@ for(uint h = 0; h < OUT_BLOCK_HEIGHT; h++)
             #if WEIGHTS_PER_WORKITEM == 2
                 char2 out;
                 const uint out_idx = o + OUT_BLOCK_WIDTH * h;
-                out[0] = ACTIVATION(convert_char(dotProd[out_idx][b]), NL_M, NL_N);
-                out[1] = ACTIVATION(convert_char(dotProd[out_idx + OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT][b]), NL_M, NL_N);
+                out[0] = ACTIVATION(convert_char(dotProd[out_idx][b]), ACTIVATION_PARAMS);
+                out[1] = ACTIVATION(convert_char(dotProd[out_idx + OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT][b]), ACTIVATION_PARAMS);
 
                 intel_sub_group_block_write_uc2((__global uchar*)(output + dst_index + b * 32), as_uchar2(out));
             #else
@@ -219,7 +225,7 @@ for(uint h = 0; h < OUT_BLOCK_HEIGHT; h++)
             {
                 const uint out_idx = o + OUT_BLOCK_WIDTH * (h + w * OUT_BLOCK_HEIGHT);
                 const uint dst_index = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(OUTPUT, b_block*4, f + w * 8, y + h, x + o);
-                char char_val = ACTIVATION(convert_char(dotProd[out_idx][b]), NL_M, NL_N);
+                char char_val = ACTIVATION(convert_char(dotProd[out_idx][b]), ACTIVATION_PARAMS);
                 output[dst_index + b * 32] = char_val;
             }
             #endif

@@ -30,6 +30,7 @@ public:
         I8 = 50,    /**< 8bit signed integer value */
         U16 = 60,   /**< 16bit unsigned integer value */
         I32 = 70,   /**< 32bit signed integer value */
+        I64 = 72,   /**< 64bit signed integer value */
         BIN = 71,   /**< 1bit integer value */
         CUSTOM = 80 /**< custom precision has it's own name and size of elements */
     };
@@ -97,6 +98,7 @@ public:
                 CASE2(FP16, int16_t, uint16_t);
                 CASE(I16, int16_t);
                 CASE(I32, int32_t);
+                CASE(I64, int64_t);
                 CASE(U16, uint16_t);
                 CASE(U8, uint8_t);
                 CASE(I8, int8_t);
@@ -164,6 +166,7 @@ public:
             PRECISION_NAME(I8),
             PRECISION_NAME(I16),
             PRECISION_NAME(I32),
+            PRECISION_NAME(I64),
             PRECISION_NAME(U16),
             PRECISION_NAME(FP32),
             PRECISION_NAME(FP16),
@@ -215,6 +218,7 @@ public:
             CASE(FP16);
             CASE(I16);
             CASE(I32);
+            CASE(I64);
             CASE(U16);
             CASE(U8);
             CASE(I8);
@@ -267,6 +271,10 @@ struct PrecisionTrait<Precision::I8> {
 template<>
 struct PrecisionTrait<Precision::I32> {
     using value_type = int32_t;
+};
+template<>
+struct PrecisionTrait<Precision::I64> {
+    using value_type = int64_t;
 };
 template<>
 struct PrecisionTrait<Precision::BIN> {
