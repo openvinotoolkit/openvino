@@ -72,6 +72,14 @@ std::vector<float> RangeTest::refGen(const InOutData& inOutData) {
     return result;
 }
 
+std::vector<float> BroadcastTest::refGen(const InOutData& inOutData) {
+    const size_t BROADCAST_DIMS = 0;
+    const size_t BROADCAST_VALUE = 1;
+    float value = inOutData.inData[BROADCAST_VALUE][0];
+    auto shape = inOutData.inData[BROADCAST_DIMS];
+    return std::vector<float>(product(shape), value);
+}
+
 TEST_P(BlobTest, impl) {
     assertThat().constInferResultFor().withBlobs(blobsParam).equals().toData(inOutData.outData);
 }
@@ -115,6 +123,16 @@ TEST_P(RangeTest, impl) {
 
 TEST_P(RangeTest, shapeInfer) {
     assertThat().shapeInferResultFor().equals().toShapes(inOutData.inOutShapes.outDims);
+}
+
+TEST_P(BroadcastTest, impl) {
+    assertThat().constInferResultFor().withInputPrecisions({Precision::FP32, Precision::I32})
+            .equals().toData({refGen(inOutData)});
+}
+
+TEST_P(BroadcastTest, shapeInfer) {
+    assertThat().shapeInferResultFor().withInputPrecisions({Precision::FP32, Precision::I32})
+            .equals().toShapes(inOutData.inOutShapes.outDims);
 }
 
 static std::vector<float> singleInputData = {4.f, 8.f, 12.f, 16.f};
@@ -645,4 +663,22 @@ INSTANTIATE_TEST_CASE_P(
                                                                           {{0.f}, {5.f}, {1.f}},
                                                                           {{}}}))
         )
+);
+
+INSTANTIATE_TEST_CASE_P(
+        Broadcast, BroadcastTest,
+        ::testing::Values(
+                ::testing::make_tuple(LayerType("Broadcast"), InOutDataParam({{{{3}, {2}},
+                                                                      {{3, 3}}},
+                                                              {{},    {3, 3}},
+                                                              {}})),
+                ::testing::make_tuple(LayerType("Broadcast"), InOutDataParam({{{{16, 50, 1}, {4}},
+                                                                      {{1, 16, 50, 50}}},
+                                                              {{},    {1, 16, 50, 50}},
+                                                              {}})),
+                ::testing::make_tuple(LayerType("Broadcast"), InOutDataParam({{{{1}, {3}},
+                                                                      {{1, 50, 50}}},
+                                                              {{},    {1, 50, 50}},
+                                                              {}}))
+)
 );

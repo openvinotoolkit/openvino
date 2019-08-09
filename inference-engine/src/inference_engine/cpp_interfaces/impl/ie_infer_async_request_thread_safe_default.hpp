@@ -26,7 +26,7 @@ class CallbackManager {
     StatusCode _requestStatus = OK;
     IInferRequest::CompletionCallback _callback = nullptr;
     bool _enabled = false;
-    IInferRequest::WeakPtr _publicInterface;
+    IInferRequest::Ptr _publicInterface;
     ITaskExecutor::Ptr _callbackExecutor;
 
 public:
@@ -53,11 +53,8 @@ public:
 
     void runCallback() {
         if (isCallbackEnabled()) {
-            auto requestPtr = _publicInterface.lock();
-            if (!requestPtr) {
-                THROW_IE_EXCEPTION << "Failed to run callback: can't get pointer to request";
-            }
-            _callback(requestPtr, _requestStatus);
+            if (nullptr == _publicInterface) THROW_IE_EXCEPTION << "Failed to run callback: can't get pointer to request";
+            _callback(_publicInterface, _requestStatus);
             if (_requestException) std::rethrow_exception(_requestException);
         }
     }
@@ -76,7 +73,7 @@ public:
     }
 
     void set_publicInterface(IInferRequest::Ptr publicInterface) {
-        _publicInterface = publicInterface;
+        _publicInterface = std::shared_ptr<IInferRequest>(publicInterface.get(), [](IInferRequest*){});
     }
 };
 
@@ -142,7 +139,8 @@ public:
     }
 
     virtual void startAsyncTask() {
-        if (!_requestExecutor->startTask(_currentTask)) THROW_IE_EXCEPTION << REQUEST_BUSY_str;
+        if (!_requestExecutor->startTask(_currentTask))
+            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::REQUEST_BUSY << REQUEST_BUSY_str;
     }
 
     void StartAsync_ThreadUnsafe() override {

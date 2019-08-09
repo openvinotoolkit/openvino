@@ -20,18 +20,17 @@
 
 namespace kernel_selector {
 
-    // TODO Currently the best 1x1 IMAD convolution kernel is not completely done.
-    // Temporary solution to implement 1x1 using 3x3 IMAD convolution kernel with a
-    // little modifications.
-    class ConvolutionKernel_imad_1x1 : public ConvolutionKernel_imad_3x3
-    {
-    public:
-        using Parent = ConvolutionKernel_imad_3x3;
-        ConvolutionKernel_imad_1x1() : ConvolutionKernel_imad_3x3(1, 1) {}
-        virtual ~ConvolutionKernel_imad_1x1() {}
+// TODO Currently the best 1x1 IMAD convolution kernel is not completely done.
+// Temporary solution to implement 1x1 using 3x3 IMAD convolution kernel with a
+// little modifications.
+class ConvolutionKernel_imad_1x1 : public ConvolutionKernel_imad_3x3 {
+public:
+    using Parent = ConvolutionKernel_imad_3x3;
+    ConvolutionKernel_imad_1x1() : ConvolutionKernel_imad_3x3(1, 1) {}
+    virtual ~ConvolutionKernel_imad_1x1() {}
 
-    protected:
-        // For 3x3 based IMAD convolution only 'GetJitConstants' method is required
-        JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
-    };
-}
+protected:
+    // For 3x3 based IMAD convolution only 'GetJitConstants' method is required
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+};
+}  // namespace kernel_selector

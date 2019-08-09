@@ -16,9 +16,15 @@ limitations under the License.
 
 
 class LayerAccuracyDropInfo:
-    def __init__(self, layer_name: str, value: float):
+    def __init__(self, layer_name: str, value: float, precision: str):
         self._layer_name = layer_name
         self._value = value
+        self._precision = precision
+
+    def __lt__(self, other):
+        if self.value != other.value:
+            return self.value < other.value
+        return self.layer_name < other.layer_name
 
     @property
     def layer_name(self):
@@ -27,6 +33,10 @@ class LayerAccuracyDropInfo:
     @property
     def value(self):
         return self._value
+
+    @property
+    def precision(self):
+        return self._precision
 
     @staticmethod
     def calculate(accuracy_drop: list) -> float:

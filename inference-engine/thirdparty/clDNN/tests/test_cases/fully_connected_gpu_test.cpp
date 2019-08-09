@@ -808,7 +808,7 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     // Weights
     std::vector<char> Weights(W_B * W_F);
     i = 0;
-    std::generate(Weights.begin(), Weights.end(), [W_F, i]() mutable {
+    std::generate(Weights.begin(), Weights.end(), [=]() mutable {
         return i % 2 ? -(i++) / W_F - 1 : (i++) / W_F + 1;
     });
     auto weights_gold =
@@ -896,5 +896,155 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     for (size_t i = 0; i < gold_ptr.size(); i++)
     {
         ASSERT_EQ(gold_ptr[i], test_ptr[i]);
+    }
+}
+
+TEST(fully_connected_gpu, fs_byx_fsv32_b12)
+{
+    const auto& engine = get_test_engine();
+
+    if (!engine.get_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+    // Test parameters
+    const int batch_num = 12;
+    const int output_f = 40;
+    const int input_x = 3;
+    const int input_y = 3;
+    const int input_f = 64;
+
+    // Allocate memory
+    auto input_prim = memory::allocate(engine, { data_types::f16, format::bfyx, { batch_num, input_f, input_y, input_x } });
+    auto weights_prim = memory::allocate(engine, { data_types::f16,format::bfyx,{ output_f, input_f, input_y, input_x } });
+    auto bias_prim = memory::allocate(engine, { data_types::f16,format::bfyx,{ 1, 1, output_f, 1 } });
+
+    // Generate random input data and set values
+    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, input_y, input_x, -1, 1);
+    auto bias_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+
+    set_values(input_prim, input_data_bfyx);
+    set_values(weights_prim, weights_data_bfyx);
+    set_values(bias_prim, bias_data);
+
+    // Calculate CPU reference
+    auto reference_output = fully_connected_reference(input_data, weights_data, bias_data, true);
+
+    // Create topology to test
+    topology topology(
+        input_layout("input", input_prim.get_layout()),
+        data("weights", weights_prim),
+        data("bias", bias_prim),
+        reorder("input_fsv", "input", {data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
+        fully_connected("fc", "input_fsv", "weights", "bias", true)
+    );
+
+    // Set data optimization to allow weights reordering to optimal format
+    build_options opts;
+    opts.set_option(build_option::optimize_data(true));
+
+    network network(engine, topology, opts);
+    network.set_input_data("input", input_prim);
+
+    auto outputs = network.execute();
+
+    auto output_prim = outputs.at("fc").get_memory();
+    auto output_ptr = output_prim.pointer<FLOAT16>();
+
+    for (size_t bi = 0; bi < batch_num; ++bi)
+    {
+        for (size_t fi = 0; fi < output_f; ++fi)
+        {
+            auto ref_val = reference_output[bi][0][0][fi];
+            auto val = output_ptr[bi * output_f + fi];
+            auto equal = floating_point_equal(ref_val, val);
+
+            EXPECT_TRUE(equal);
+            if (!equal)
+            {
+                std::cout << "At b = " << bi << ", f = " << fi << std::endl;
+            }
+        }
+    }
+}
+
+TEST(fully_connected_gpu, fs_byx_fsv32_b34)
+{
+    const auto& engine = get_test_engine();
+
+    if (!engine.get_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+    // Test parameters
+    const int batch_num = 34;
+    const int output_f = 40;
+    const int input_x = 3;
+    const int input_y = 3;
+    const int input_f = 64;
+
+    // Allocate memory
+    auto input_prim = memory::allocate(engine, { data_types::f16, format::bfyx, { batch_num, input_f, input_y, input_x } });
+    auto weights_prim = memory::allocate(engine, { data_types::f16,format::bfyx,{ output_f, input_f, input_y, input_x } });
+    auto bias_prim = memory::allocate(engine, { data_types::f16,format::bfyx,{ 1, 1, output_f, 1 } });
+
+    // Generate random input data and set values
+    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, input_y, input_x, -1, 1);
+    auto bias_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+
+    set_values(input_prim, input_data_bfyx);
+    set_values(weights_prim, weights_data_bfyx);
+    set_values(bias_prim, bias_data);
+
+    // Calculate CPU reference
+    auto reference_output = fully_connected_reference(input_data, weights_data, bias_data, true);
+
+    // Create topology to test
+    topology topology(
+        input_layout("input", input_prim.get_layout()),
+        data("weights", weights_prim),
+        data("bias", bias_prim),
+        reorder("input_fsv", "input", { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
+        fully_connected("fc", "input_fsv", "weights", "bias", true)
+    );
+
+    // Set data optimization to allow weights reordering to optimal format
+    build_options opts;
+    opts.set_option(build_option::optimize_data(true));
+
+    network network(engine, topology, opts);
+    network.set_input_data("input", input_prim);
+
+    auto outputs = network.execute();
+
+    auto output_prim = outputs.at("fc").get_memory();
+    auto output_ptr = output_prim.pointer<FLOAT16>();
+
+    for (size_t bi = 0; bi < batch_num; ++bi)
+    {
+        for (size_t fi = 0; fi < output_f; ++fi)
+        {
+            auto ref_val = reference_output[bi][0][0][fi];
+            auto val = output_ptr[bi * output_f + fi];
+            auto equal = floating_point_equal(ref_val, val);
+
+            EXPECT_TRUE(equal);
+            if (!equal)
+            {
+                std::cout << "At b = " << bi << ", f = " << fi << std::endl;
+            }
+        }
     }
 }

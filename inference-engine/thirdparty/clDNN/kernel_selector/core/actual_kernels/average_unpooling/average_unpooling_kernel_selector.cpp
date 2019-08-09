@@ -19,13 +19,11 @@
 
 namespace kernel_selector {
 
-    average_unpooling_kernel_selector::average_unpooling_kernel_selector()
-    {
-        Attach<AverageUnpoolingKernelGPURef>();
-    }
-
-    KernelsData average_unpooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::AVERAGE_UNPOOLING);
-    }
+average_unpooling_kernel_selector::average_unpooling_kernel_selector() {
+    Attach<AverageUnpoolingKernelGPURef>();
 }
+
+KernelsData average_unpooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::AVERAGE_UNPOOLING);
+}
+}  // namespace kernel_selector

@@ -50,6 +50,9 @@ CompiledGraph::Ptr BackEnd::build(
     compiledGraph->inputBufSize = usedMemory.input;
     compiledGraph->outputBufSize = usedMemory.output;
 
+    compiledGraph->numShaves = checked_cast<std::uint32_t>(model->attrs().get<Resources>("resources").numSHAVEs);
+    compiledGraph->numSlices = checked_cast<std::uint32_t>(model->attrs().get<Resources>("resources").numCMXSlices);
+
     compiledGraph->inputInfo.totalSize  = usedMemory.input;
     compiledGraph->outputInfo.totalSize = usedMemory.output;
 

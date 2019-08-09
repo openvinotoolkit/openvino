@@ -18,9 +18,9 @@
 #pragma once
 #include "../C/fused_conv_bn_scale.h"
 #include "api/CPP/primitive.hpp"
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -29,8 +29,7 @@ namespace cldnn
 /// @{
 
 /// @brief Primitives that fuses convolution, batch norm, scale and optionally Relu.
-struct fused_conv_bn_scale : public primitive_base<fused_conv_bn_scale, CLDNN_PRIMITIVE_DESC(fused_conv_bn_scale)>
-{
+struct fused_conv_bn_scale : public primitive_base<fused_conv_bn_scale, CLDNN_PRIMITIVE_DESC(fused_conv_bn_scale)> {
     CLDNN_DECLARE_PRIMITIVE(fused_conv_bn_scale)
 
     /// @brief Constructs convolution primitive fused with batch norm and scale.
@@ -41,62 +40,59 @@ struct fused_conv_bn_scale : public primitive_base<fused_conv_bn_scale, CLDNN_PR
     /// @param epsilon Small number to protect from 0 dividing.
     /// @param scale_input Scale input primitive id with values needed for product computation. Used in fused scale part.
     /// @param scale_bias Primitive id containing bias data for fused scale part.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the convolution window should start calculations.
+    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
+    /// where (0,0) point of the convolution window should start calculations.
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param inv_variance Primitive id containing inverted variance calculated in this primitive. Used in fused batch norm part.
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
-    fused_conv_bn_scale(
-        const primitive_id& id,
-        const primitive_id& input,
-        const std::vector<primitive_id>& weights,
-        const std::vector<primitive_id>& bias,
-        float epsilon,
-        const primitive_id& scale_input,
-        const primitive_id& scale_bias = "",
-        tensor stride = { 1, 1, 1, 1 },
-        tensor dilation = { 1, 1, 1, 1 },
-        tensor input_offset = { 0,0,0,0 },
-        const primitive_id& inv_variance = "",
-        bool with_activation = false,
-        float activation_slp = 0.0f,
-        const padding& output_padding = padding()
-    )
-        :primitive_base(id, { input, scale_input }, output_padding)
-        , weights(_weights.cpp_ids)
-        , bias(_bias.cpp_ids)
-        , input_offset(input_offset)
-        , stride(stride)
-        , dilation(dilation)
-        , with_activation(with_activation)
-        , activation_negative_slope(activation_slp)
-        , with_output_size(false)
-        , scale_bias(scale_bias)
-        , inv_variance(inv_variance)
-        , epsilon(epsilon)
-        , _weights(weights)
-        , _bias(bias)
-    {
+    fused_conv_bn_scale(const primitive_id& id,
+                        const primitive_id& input,
+                        const std::vector<primitive_id>& weights,
+                        const std::vector<primitive_id>& bias,
+                        float epsilon,
+                        const primitive_id& scale_input,
+                        const primitive_id& scale_bias = "",
+                        tensor stride = {1, 1, 1, 1},
+                        tensor dilation = {1, 1, 1, 1},
+                        tensor input_offset = {0, 0, 0, 0},
+                        const primitive_id& inv_variance = "",
+                        bool with_activation = false,
+                        float activation_slp = 0.0f,
+                        const padding& output_padding = padding())
+        : primitive_base(id, {input, scale_input}, output_padding),
+          weights(_weights.cpp_ids),
+          bias(_bias.cpp_ids),
+          input_offset(input_offset),
+          stride(stride),
+          dilation(dilation),
+          with_activation(with_activation),
+          activation_negative_slope(activation_slp),
+          with_output_size(false),
+          scale_bias(scale_bias),
+          inv_variance(inv_variance),
+          epsilon(epsilon),
+          _weights(weights),
+          _bias(bias) {
         if ((bias.size() != 0) && (weights.size() != bias.size()))
             throw std::runtime_error("convolution's weights/bias count does not match");
     }
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{fused_conv_bn_scale}
     fused_conv_bn_scale(const dto* dto)
-        :primitive_base(dto)
-        , weights(_weights.cpp_ids)
-        , bias(_bias.cpp_ids)
-        , input_offset(dto->input_offset)
-        , stride(dto->stride)
-        , dilation(dto->dilation)
-        , with_activation(dto->with_activation != 0)
-        , activation_negative_slope(dto->activation_negative_slope)
-        , scale_bias(dto->scale_bias)
-        , inv_variance(dto->inv_variance)
-        , epsilon(dto->epsilon)
-        , _weights(dto->weights)
-        , _bias(dto->bias)
-    {
+        : primitive_base(dto),
+          weights(_weights.cpp_ids),
+          bias(_bias.cpp_ids),
+          input_offset(dto->input_offset),
+          stride(dto->stride),
+          dilation(dto->dilation),
+          with_activation(dto->with_activation != 0),
+          activation_negative_slope(dto->activation_negative_slope),
+          scale_bias(dto->scale_bias),
+          inv_variance(dto->inv_variance),
+          epsilon(dto->epsilon),
+          _weights(dto->weights),
+          _bias(dto->bias) {
         if (!dto->split || (weights.size() != bias.size() && bias.size() != 0) || dto->split != weights.size())
             throw std::invalid_argument("Invalid convolution dto: bad split value");
     }
@@ -110,7 +106,7 @@ struct fused_conv_bn_scale : public primitive_base<fused_conv_bn_scale, CLDNN_PR
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
     tensor stride;
     /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
-    /// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1. 
+    /// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
     tensor dilation;
     /// @brief Enable Relu activation.
@@ -134,14 +130,11 @@ protected:
     primitive_id_arr _weights;
     primitive_id_arr _bias;
 
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override
-    {
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.reserve(weights.size() + bias.size() + !scale_bias.empty() + !inv_variance.empty());
-        for (auto& w : weights)
-            ret.push_back(w);
-        for (auto& b : bias)
-            ret.push_back(b);
+        for (auto& w : weights) ret.push_back(w);
+        for (auto& b : bias) ret.push_back(b);
         if (!scale_bias.empty())
             ret.push_back(scale_bias);
         if (!inv_variance.empty())
@@ -149,8 +142,7 @@ protected:
         return ret;
     }
 
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.weights = _weights.ref();
         dto.bias = _bias.ref();
         dto.input_offset = input_offset;
@@ -167,4 +159,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

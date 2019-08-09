@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "test_precomp.hpp"
@@ -67,11 +67,11 @@ TEST_F(GCompiledValidateMetaTyped, InvalidMeta)
     cv::Scalar sc(33);
     cv::Mat out;
 
-    // 3 channels intead 1
+    // 3 channels instead 1
     cv::Mat in1 = cv::Mat::eye(cv::Size(64,32), CV_8UC3);
     EXPECT_THROW(f(in1, sc, out), std::logic_error);
 
-    // 32f intead 8u
+    // 32f instead 8u
     cv::Mat in2 = cv::Mat::eye(cv::Size(64,32), CV_32F);
     EXPECT_THROW(f(in2, sc, out), std::logic_error);
 
@@ -112,11 +112,11 @@ TEST_F(GCompiledValidateMetaUntyped, InvalidMetaValues)
     cv::Scalar sc(33);
     cv::Mat out;
 
-    // 3 channels intead 1
+    // 3 channels instead 1
     cv::Mat in1 = cv::Mat::eye(cv::Size(64,32), CV_8UC3);
     EXPECT_THROW(f(cv::gin(in1, sc), cv::gout(out)), std::logic_error);
 
-    // 32f intead 8u
+    // 32f instead 8u
     cv::Mat in2 = cv::Mat::eye(cv::Size(64,32), CV_32F);
     EXPECT_THROW(f(cv::gin(in2, sc), cv::gout(out)), std::logic_error);
 

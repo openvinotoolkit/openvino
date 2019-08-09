@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #pragma once
 
 #include "upsampling_kernel_base.h"
 
-namespace kernel_selector
-{
-    class UpSamplingKernelRef : public UpSamplingKernelBase
-    {
-    public:
-        UpSamplingKernelRef() : UpSamplingKernelBase("upsampling_ref") {}
-        virtual ~UpSamplingKernelRef() {}
+namespace kernel_selector {
+class UpSamplingKernelRef : public UpSamplingKernelBase {
+public:
+    UpSamplingKernelRef() : UpSamplingKernelBase("upsampling_ref") {}
+    virtual ~UpSamplingKernelRef() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

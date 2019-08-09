@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef REORG_YOLO_H
-#define REORG_YOLO_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -29,20 +27,20 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    
-    /// @brief yolo2 topology specific data reorganization primitive
-    /// @details
-    /// @par Algorithm:
-    ///   
-    /// @par Where:
-    ///   
-    CLDNN_BEGIN_PRIMITIVE_DESC(reorg_yolo)
-    /// @brief paramter stride
-        uint32_t stride;
 
-    CLDNN_END_PRIMITIVE_DESC(reorg_yolo)
+/// @brief yolo2 topology specific data reorganization primitive
+/// @details
+/// @par Algorithm:
+///
+/// @par Where:
+///
+CLDNN_BEGIN_PRIMITIVE_DESC(reorg_yolo)
+/// @brief paramter stride
+uint32_t stride;
 
-        CLDNN_DECLARE_PRIMITIVE_TYPE_ID(reorg_yolo);
+CLDNN_END_PRIMITIVE_DESC(reorg_yolo)
+
+CLDNN_DECLARE_PRIMITIVE_TYPE_ID(reorg_yolo);
 
 #ifdef __cplusplus
 }
@@ -51,5 +49,4 @@ extern "C" {
 /// @}
 /// @}
 /// @}
-#endif /* REORG_YOLO_H */
 

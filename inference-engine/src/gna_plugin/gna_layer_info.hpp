@@ -47,7 +47,7 @@ class LayerInfo {
     }
     bool has16BOutput() const noexcept {
         IS_VALID();
-        static InferenceEngine::details::caseless_set<std::string> layersWith16BOutputs = {"memory", "input", "split", "slice", "concat", "copy"};
+        static InferenceEngine::details::caseless_set<std::string> layersWith16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
         return layersWith16BOutputs.find(layer->type) != layersWith16BOutputs.end() ||
                                                                         isActivation() ||
                                                             (isCrop() && !isCropAffined());
@@ -55,7 +55,7 @@ class LayerInfo {
     bool has32BOutput() const noexcept {
         IS_VALID();
         static  InferenceEngine::details::caseless_set<std::string> layersWith32BOutputs =
-                {"FullyConnected", "InnerProduct", "AffineFilter", "Eltwise", "ScaleShift", "Convolution", "Pooling"};
+                {"FullyConnected", "InnerProduct", "AffineFilter", "ConcatAlignFilter", "Eltwise", "ScaleShift", "Convolution", "Pooling", "Power"};
         return (layersWith32BOutputs.find(layer->type) != layersWith32BOutputs.end()) ||
                                                             (isCrop() && isCropAffined());
     }
@@ -65,28 +65,37 @@ class LayerInfo {
     }
     bool isActivation() const noexcept {
         IS_VALID();
-        static InferenceEngine::details::caseless_set<std::string> activations = {"clamp", "sigmoid", "identity", "relu", "leakyrelu", "tanh", "prelu"};
+        static InferenceEngine::details::caseless_set<std::string> activations =
+            { "clamp", "sigmoid", "identity", "relu",
+              "leakyrelu", "tanh", "prelu", "exp", "log", "sign", "abs", "neghalflog"};
         return activations.find(layer->type) != activations.end();
     }
+
+    bool isWeightable() const noexcept {
+        auto weigtable_ptr = as<const InferenceEngine::WeightableLayer*>();
+        return weigtable_ptr != nullptr;
+    }
+    bool isConcatAlignFilter() const noexcept {
+        return isOfType("ConcatAlignFilter");
+    }
     bool isRelu() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "relu");
+        return isOfType("relu");
     }
     bool isConvolution() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "convolution");
+        return isOfType("convolution");
     }
     bool isPower() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "power");
+        return isOfType("power");
     }
     bool has32BInput() const noexcept {
         IS_VALID();
         return isActivation() || isPooling();
     }
     bool isInput() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "input");
+        return isOfType("input");
+    }
+    bool isConst() const noexcept {
+        return isOfType("const");
     }
     bool isScaleShift() const noexcept {
         IS_VALID();
@@ -114,36 +123,28 @@ class LayerInfo {
             InferenceEngine::EltwiseLayer::Prod;
     }
     bool isIdentity() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "identity");
+        return isOfType("identity");
     }
     bool isFullyConnected() const noexcept {
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "FullyConnected") ||
-                InferenceEngine::details::CaselessEq<std::string>()(layer->type, "InnerProduct");
+        return isOfType("FullyConnected") || isOfType("InnerProduct");
     }
     bool isSplit() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "split");
+        return isOfType("split");
     }
     bool isSlice() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "slice");
+        return isOfType("slice");
     }
     bool isConcat() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "concat");
+        return isOfType("concat");
     }
     bool isReshape() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "reshape");
+        return isOfType("reshape");
     }
     bool isPermute() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "permute");
+        return isOfType("permute");
     }
     bool isPooling() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "Pooling");
+        return isOfType("pooling");
     }
     bool isMaxPooling() const noexcept {
         IS_VALID();
@@ -151,12 +152,10 @@ class LayerInfo {
         return as<const InferenceEngine::PoolingLayer*>()->_type == InferenceEngine::PoolingLayer::MAX;
     }
     bool isMemory() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "memory");
+        return isOfType("memory");
     }
     bool isCrop() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "crop");
+        return isOfType("crop");
     }
     bool isCropAffined() const noexcept {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
@@ -169,10 +168,9 @@ class LayerInfo {
         return false;
     }
     bool isCopy() const noexcept {
-        IS_VALID();
-        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, "copy");
+        return isOfType("copy");
     }
-    size_t paddingSize() const noexcept {
+    size_t paddingSize() const {
         static InferenceEngine::details::caseless_set<std::string> layersWithPossiblePadding = {"FullyConnected",
                                                                         "InnerProduct",
                                                                              "Pooling",
@@ -181,8 +179,8 @@ class LayerInfo {
             size_t size_without_padding = 0;
             auto inputs = layer->insData.begin()->lock();
             if (inputs) {
-                size_without_padding = InferenceEngine::details::product(begin(inputs->dims),
-                                                                   end(inputs->dims));
+                size_without_padding = InferenceEngine::details::product(begin(inputs->getTensorDesc().getDims()),
+                                                                         end(inputs->getTensorDesc().getDims()));
             }
             return ALIGN(size_without_padding, 8) - size_without_padding;
         }
@@ -206,6 +204,11 @@ class LayerInfo {
         return std::shared_ptr<InferenceEngine::CNNLayer>(layer, [] (InferenceEngine::CNNLayer * p) {});
     }
 
+ protected:
+    bool isOfType(const std::string & type) const noexcept {
+        IS_VALID();
+        return InferenceEngine::details::CaselessEq<std::string>()(layer->type, type);
+    }
     #undef IS_VALID
 };
 

@@ -16,17 +16,23 @@
 
 import numpy as np
 
+from extensions.back.ReshapeMutation import ReshapeMutation
 from extensions.back.EltwiseBroadcast import EltwiseBroadcast
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
+from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 
 
 class TileReshaper(BackReplacementPattern):
     enabled = True
+    force_shape_inference = True
 
     def run_after(self):
         return [EltwiseBroadcast]
+
+    def run_before(self):
+        return [ReshapeMutation]
 
     @staticmethod
     def pattern():
@@ -70,6 +76,17 @@ class TileReshaper(BackReplacementPattern):
         inp_shape = inp_data.shape
         new_inp_shape = np.append(inp_shape, [1])
 
-        tile.bracket_op_with_another_op(inp=inp_data, out=out_data, new_op_class=Reshape,
-                                        op_before_params={'dim': new_inp_shape},
-                                        op_after_params={'dim': out_shape})
+        reshape = Reshape(graph, {'name': tile.name + '/reshape'}).create_node()
+        reshape_dim = Const(graph, {'value': new_inp_shape, 'name': reshape.id + '/Dim'}).create_node()
+        tile.in_port(0).get_connection().insert_node(reshape)
+        reshape.in_port(1).connect(reshape_dim.out_port(0))
+
+        reshape_back = Reshape(graph, {'name': tile.name + '/reshape_back'}).create_node()
+        reshape_back_dim = Const(graph, {'value': out_shape, 'name': reshape.id + '/Dim'}).create_node()
+        tile.out_port(0).get_connection().insert_node(reshape_back)
+        reshape_back.in_port(1).connect(reshape_back_dim.out_port(0))
+
+        # run shape inference manually for several nodes to override shapes of the model nodes which changed behaviour
+        reshape_dim.infer(reshape_dim)
+        reshape.infer(reshape)
+        tile.infer(tile)

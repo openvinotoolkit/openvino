@@ -46,11 +46,6 @@ InferenceEngine::CNNNetwork readNetwork(const std::string &xmlFileName) {
     return reader.getNetwork();
 }
 
-InferenceEngine::InferencePlugin loadPlugin(const std::string &plugin, const std::string &plugin_path) {
-    /* Unfortunately, there is no check on invalid device inside IE API */
-    return InferenceEngine::PluginDispatcher({plugin_path}).getPluginByDevice(plugin);
-}
-
 void setPrecisions(const InferenceEngine::CNNNetwork &network) {
     for (auto &&layer : network.getInputsInfo()) {
         layer.second->setPrecision(InferenceEngine::Precision::FP16);
@@ -139,13 +134,14 @@ void loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blo
 
     BitMap reader(imageFilename);
 
-    size_t batch = blob->dims()[3];
-    size_t w = blob->dims()[0];
-    size_t h = blob->dims()[1];
+    const auto dims = tensDesc.getDims();
+    auto numBlobChannels = dims[1];
+    size_t batch = dims[0];
+    size_t w = dims[3];
+    size_t h = dims[2];
     size_t img_w = reader.width();
     size_t img_h = reader.height();
 
-    auto numBlobChannels = blob->dims()[2];
     size_t numImageChannels = reader.size() / (reader.width() * reader.height());
     if (numBlobChannels != numImageChannels && numBlobChannels != 1) {
         throw std::invalid_argument("Input channels mismatch: image channels " + std::to_string(numImageChannels) +
@@ -180,7 +176,7 @@ void loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blo
     }
 }
 
-void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) {
+void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap, const std::string report) {
     std::vector<std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfVec(perfMap.begin(),
                                                                                              perfMap.end());
     std::sort(perfVec.begin(), perfVec.end(),
@@ -198,7 +194,7 @@ void printPerformanceCounts(const std::map<std::string, InferenceEngine::Inferen
     size_t indexWidth = 7, nameWidth = maxLayerName + 5, typeWidth = maxExecType + 5, timeWidth = 10;
     size_t totalWidth = indexWidth + nameWidth + typeWidth + timeWidth;
 
-    std::cout << std::endl << "Detailed Per Stage Profile" << std::endl;
+    std::cout << std::endl << "Detailed " << report << " Profile" << std::endl;
     for (size_t i = 0; i < totalWidth; i++)
         std::cout << "=";
     std::cout << std::endl;

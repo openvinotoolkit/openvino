@@ -24,9 +24,9 @@ from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'value': 2, 'kind': 'data'},
                     'node_2': {'value': 3, 'kind': 'data'},
-                    'eltw_1': {'type': 'Eltwise', 'kind': 'op'},
+                    'eltw_1': {'kind': 'op'},
                     'node_3': {'value': None, 'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
+                    'op_output': { 'kind': 'op', 'op': 'Result'},
                     }
 
 

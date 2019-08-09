@@ -19,85 +19,75 @@
 #include "common_kernel_base.h"
 #include "kernel_selector_params.h"
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // lstm_gemm_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct lstm_gemm_params : public base_params
-    {
-        lstm_gemm_params() : base_params(KernelType::LSTM_GEMM) {}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// lstm_gemm_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct lstm_gemm_params : public base_params {
+    lstm_gemm_params() : base_params(KernelType::LSTM_GEMM) {}
 
-        DataTensor weights;
-        DataTensor recurrent;
-        DataTensor bias;
-        DataTensor hidden;
-        bool hasBias = false;
-        bool hasHidden = false;
-        uint32_t direction = 0;
-        uint32_t input_direction = 0; // for bidirectional node fusion in stacked LSTMs
-        uint32_t hidden_direction = 0;
+    DataTensor weights;
+    DataTensor recurrent;
+    DataTensor bias;
+    DataTensor hidden;
+    bool hasBias = false;
+    bool hasHidden = false;
+    uint32_t direction = 0;
+    uint32_t input_direction = 0;  // for bidirectional node fusion in stacked LSTMs
+    uint32_t hidden_direction = 0;
 
-        void SetBias(const DataTensor& v) {
-            bias = v;
-            hasBias = true;
+    void SetBias(const DataTensor& v) {
+        bias = v;
+        hasBias = true;
+    }
+
+    void SetHidden(const DataTensor& v) {
+        hidden = v;
+        hasHidden = true;
+    }
+
+    ParamsKey GetParamsKey() const override {
+        ParamsKey k = base_params::GetParamsKey();
+
+        if (hasBias) {
+            k.EnableLSTMGEMMBias();
         }
 
-        void SetHidden(const DataTensor& v) {
-            hidden = v;
-            hasHidden = true;
+        if (hasHidden) {
+            k.EnableLSTMGEMMHidden();
         }
 
-        virtual ParamsKey GetParamsKey() const override
-        {
-            ParamsKey k = base_params::GetParamsKey();
+        return k;
+    }
+};
 
-            if (hasBias)
-            {
-                k.EnableLSTMGEMMBias();
-            }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// lstm_gemm_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct lstm_gemm_optional_params : optional_params {
+    lstm_gemm_optional_params() : optional_params(KernelType::LSTM_GEMM) {}
+};
 
-            if (hasHidden)
-            {
-                k.EnableLSTMGEMMHidden();
-            }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// LSTMGemmKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class LSTMGemmKernelBase : public common_kernel_base {
+public:
+    using common_kernel_base::common_kernel_base;
+    virtual ~LSTMGemmKernelBase() {}
 
-            return k;
+    struct DispatchData : public CommonDispatchData {};
+
+protected:
+    virtual JitConstants GetJitConstants(const lstm_gemm_params& params) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params& optParams) const;
+
+    bool Validate(const Params& p, const optional_params&) const override {
+        if (p.GetType() != KernelType::LSTM_GEMM) {
+            return false;
         }
-    };
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // lstm_gemm_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct lstm_gemm_optional_params : optional_params
-    {
-        lstm_gemm_optional_params() : optional_params(KernelType::LSTM_GEMM) {}
-    };
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // LSTMGemmKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class LSTMGemmKernelBase : public common_kernel_base
-    {
-    public:
-		using common_kernel_base::common_kernel_base;
-        virtual ~LSTMGemmKernelBase() {}
-
-        struct DispatchData : public CommonDispatchData
-        {};
-
-    protected:
-        virtual JitConstants GetJitConstants(const lstm_gemm_params& params) const;
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params& optParams) const;
-
-        bool Validate(const Params& p, const optional_params&) const override
-        {
-            if (p.GetType() != KernelType::LSTM_GEMM)
-            {
-                return false;
-            }
-
-            return true;
-        }
-    };
-}
+        return true;
+    }
+};
+}  // namespace kernel_selector

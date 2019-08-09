@@ -27,14 +27,23 @@
 #endif
 #include "usb_boot.h"
 
+#include "mvStringUtils.h"
 
-#define DEFAULT_VID					0x03E7
 
-#define DEFAULT_WRITE_TIMEOUT		  2000
-#define DEFAULT_CONNECT_TIMEOUT    20000
-#define DEFAULT_SEND_FILE_TIMEOUT  10000
-#define DEFAULT_CHUNKSZ				1024*1024
-#define USB1_CHUNKSZ       64
+#define DEFAULT_VID                 0x03E7
+
+#define DEFAULT_WRITE_TIMEOUT       2000
+#define DEFAULT_CONNECT_TIMEOUT     20000
+#define DEFAULT_SEND_FILE_TIMEOUT   10000
+#define DEFAULT_CHUNKSZ             1024*1024
+#define USB1_CHUNKSZ                64
+
+/*
+ * ADDRESS_BUFF_SIZE 35 = 4*7+7.
+ * '255-' x 7 (also gives us nul-terminator for last entry)
+ * 7 => to add "-maXXXX"
+ */
+#define ADDRESS_BUFF_SIZE           35
 
 #define OPEN_DEV_ERROR_MESSAGE_LENGTH 128
 
@@ -66,7 +75,7 @@ static deviceBootInfo_t supportedDevices[] = {
 // for now we'll only use the loglevel for usb boot. can bring it into
 // the rest of usblink later
 // use same levels as mvnc_loglevel for now
-int usb_loglevel;
+int usb_loglevel = 0;
 #if (defined(_WIN32) || defined(_WIN64) )
 void initialize_usb_boot()
 {
@@ -130,11 +139,14 @@ const char * usb_get_pid_name(int pid)
     return get_pid_name(pid);
 }
 
-static int get_pid_by_name(const char* name)
+int get_pid_by_name(const char* name)
 {
     char* p = strchr(name, '-');
     if (p == NULL) {
-        fprintf(stderr, "%s(): Error name (%s) not supported\n", __func__, name);
+        if (usb_loglevel) {
+            fprintf(stderr, "%s(): Error name (%s) not supported\n", __func__, name);
+        }
+
         return -1;
     }
     p++; //advance to point to the name
@@ -189,8 +201,7 @@ static int isNotBootedMyriadDevice(const int idVendor, const int idProduct) {
 #if (!defined(_WIN32) && !defined(_WIN64) )
 static const char *gen_addr(libusb_device *dev, int pid)
 {
-    static char buff[4 * 7 + 7];    // '255-' x 7 (also gives us nul-terminator for last entry)
-                                    // 7 => to add "-maXXXX"
+    static char buff[ADDRESS_BUFF_SIZE];
     uint8_t pnums[7];
     int pnum_cnt, i;
     char *p;
@@ -198,24 +209,24 @@ static const char *gen_addr(libusb_device *dev, int pid)
     pnum_cnt = libusb_get_port_numbers(dev, pnums, 7);
     if (pnum_cnt == LIBUSB_ERROR_OVERFLOW) {
         // shouldn't happen!
-        strcpy(buff, "<error>");
+        mv_strcpy(buff, ADDRESS_BUFF_SIZE, "<error>");
         return buff;
     }
     p = buff;
 
     uint8_t bus = libusb_get_bus_number(dev);
-    p += sprintf(p, "%u.", bus);
+    p += snprintf(p, sizeof(buff), "%u.", bus);
 
     for (i = 0; i < pnum_cnt - 1; i++)
-        p += sprintf(p, "%u.", pnums[i]);
+        p += snprintf(p, sizeof(buff),"%u.", pnums[i]);
 
-    p += sprintf(p, "%u", pnums[i]);
+    p += snprintf(p, sizeof(buff),"%u", pnums[i]);
     const char* dev_name = get_pid_name(pid);
 
     if (dev_name != NULL) {
-        sprintf(p, "-%s", dev_name);
+        snprintf(p, sizeof(buff),"-%s", dev_name);
     } else {
-        strcpy(buff, "<error>");
+        mv_strcpy(buff, ADDRESS_BUFF_SIZE,"<error>");
         return buff;
     }
 
@@ -226,7 +237,8 @@ static pthread_mutex_t globalMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * @brief Find usb device address
- * @param addr      Device name (address) which would be returned
+ * @param addr         Device name (address) which would be returned
+ * @param searchByName Means that need to find device with name which contains in addr parameter
  *
  * @details
  * Find any device (device = 0):
@@ -242,7 +254,7 @@ static pthread_mutex_t globalMutex = PTHREAD_MUTEX_INITIALIZER;
  * It will loop only over suitable devices specified by vid and pid
  */
 usbBootError_t usb_find_device_with_bcd(unsigned idx, char *addr,
-        unsigned addrsize, void **device, int vid, int pid, uint16_t* bcdusb) {
+        unsigned addrsize, void **device, int vid, int pid, uint16_t* bcdusb, int searchByName) {
     if (pthread_mutex_lock(&globalMutex)) {
         fprintf(stderr, "Mutex lock failed\n");
         return USB_BOOT_ERROR;
@@ -323,13 +335,26 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *addr,
                     }
                     return USB_BOOT_SUCCESS;
                 }
+            } else if (searchByName) {
+                const char *caddr = gen_addr(dev, get_pid_by_name(addr));
+                // If the same add as input
+                if (!strcmp(caddr, addr)) {
+                    if (usb_loglevel > 1) {
+                        fprintf(stderr, "Found Address: %s - VID/PID %04x:%04x\n",
+                                addr, desc.idVendor, desc.idProduct);
+                    }
+
+                    if (pthread_mutex_unlock(&globalMutex)) {
+                        fprintf(stderr, "Mutex unlock failed\n");
+                    }
+                    return USB_BOOT_SUCCESS;
+                }
             } else if (idx == count) {
                 const char *caddr = gen_addr(dev, desc.idProduct);
                 if (usb_loglevel > 1)
                     fprintf(stderr, "Device %d Address: %s - VID/PID %04x:%04x\n",
                             idx, caddr, desc.idVendor, desc.idProduct);
-                strncpy(addr, caddr, addrsize - 1);
-                addr[addrsize - 1] = '\0';
+                mv_strncpy(addr, addrsize, caddr, addrsize - 1);
                 if (pthread_mutex_unlock(&globalMutex)) {
                     fprintf(stderr, "Mutex unlock failed\n");
                 }
@@ -348,7 +373,7 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *addr,
 #endif
 
 #if (defined(_WIN32) || defined(_WIN64) )
-usbBootError_t usb_find_device(unsigned idx, char *addr, unsigned addrsize, void **device, int vid, int pid)
+usbBootError_t usb_find_device(unsigned idx, char *addr, unsigned addrsize, void **device, int vid, int pid, int specificDevice)
 {
     // TODO There is no global mutex as in linux version
     int res;
@@ -410,13 +435,21 @@ usbBootError_t usb_find_device(unsigned idx, char *addr, unsigned addrsize, void
                     return USB_BOOT_SUCCESS;
                 }
             }
+            else if (specificDevice) {
+                const char *caddr = &devs[res][4];
+                if (strstr(addr, caddr))
+                {
+                    if (usb_loglevel > 1)
+                        fprintf(stderr, "Found Address: %s - VID/PID %04x:%04x\n", caddr, (int)(devs[res][0] << 8 | devs[res][1]), (int)(devs[res][2] << 8 | devs[res][3]));
+                    return USB_BOOT_SUCCESS;
+                }
+            }
             else if (idx == count)
             {
                 const char *caddr = &devs[res][4];
                 if (usb_loglevel > 1)
                     fprintf(stderr, "Device %d Address: %s - VID/PID %04x:%04x\n", idx, caddr, (int)(devs[res][0] << 8 | devs[res][1]), (int)(devs[res][2] << 8 | devs[res][3]));
-                strncpy(addr, caddr, addrsize - 1);
-                addr[addrsize - 1] = '\0';
+                mv_strncpy(addr, addrsize, caddr, addrsize - 1);
                 return USB_BOOT_SUCCESS;
             }
             count++;
@@ -476,7 +509,8 @@ static libusb_device_handle *usb_open_device(libusb_device *dev, uint8_t *endpoi
         }
     }
     libusb_free_config_descriptor(cdesc);
-    strcpy(err_string_buff, "Unable to find BULK OUT endpoint\n");
+    mv_strcpy(err_string_buff, OPEN_DEV_ERROR_MESSAGE_LENGTH,
+        "Unable to find BULK OUT endpoint\n");
     libusb_close(h);
     return 0;
 }
@@ -516,10 +550,10 @@ static int wait_findopen(const char *device_address, int timeout, libusb_device 
     int addr_size = strlen(device_address);
 #if (!defined(_WIN32) && !defined(_WIN64) )
         rc = usb_find_device_with_bcd(0, (char*)device_address, addr_size, (void**)dev,
-            DEFAULT_VID, get_pid_by_name(device_address), bcdusb);
+            DEFAULT_VID, get_pid_by_name(device_address), bcdusb, 0);
 #else
         rc = usb_find_device(0, (char *)device_address, addr_size, (void **)dev,
-            DEFAULT_VID, get_pid_by_name(device_address));
+            DEFAULT_VID, get_pid_by_name(device_address), 0);
 #endif
 		if(rc < 0)
 			return USB_BOOT_ERROR;
@@ -528,7 +562,7 @@ static int wait_findopen(const char *device_address, int timeout, libusb_device 
 #if (!defined(_WIN32) && !defined(_WIN64) )
             *devh = usb_open_device(*dev, endpoint, last_open_dev_err, OPEN_DEV_ERROR_MESSAGE_LENGTH);
 #else
-            *devh = usb_open_device(*dev, endpoint, 0, last_open_dev_err);
+            *devh = usb_open_device(*dev, endpoint, 0, last_open_dev_err, OPEN_DEV_ERROR_MESSAGE_LENGTH);
 #endif
             if(*devh != NULL)
 			{

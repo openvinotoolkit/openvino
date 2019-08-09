@@ -53,14 +53,10 @@ rnn_cell_execution_sig(ref_rnn_fwd_f32_t::cell_execution_gru) {
             rnn.states_ws_ld, 1.0, ws_gates_, rnn.gates_ws_ld);
 
     // 3. activation zt and rt + elemwise multiplication rt,ht-1
-    parallel_nd(rnn.mb, [&](int i) {
-        PRAGMA_OMP_SIMD()
-        for (int j = 0; j < rnn.dic; j++) {
-            ws_gates(i, 0, j) = logistic_fwd(ws_gates(i, 0, j) + bias(0, j));
-            ws_gates(i, 1, j) = logistic_fwd(ws_gates(i, 1, j) + bias(1, j));
-            states_t_l(i, j) = states_tm1_l(i, j) * ws_gates(i, 1, j);
-        }
-    });
+    rnn_postgemm_->execute(rnn, ws_gates_, states_t_l_, c_states_t_l_,
+            states_tm1_l_, c_states_tm1_l_, diff_states_t_l_,
+            diff_states_t_lp1_, diff_states_tp1_l_, bias_[0], ws_grid_,
+            ws_cell_);
 
     // 4. gemm Wh[2],h~t
     (this->*gemm_iter_func)('N', 'N', rnn.dic, rnn.mb, rnn.sic, 1.0, w_iter_[1],
@@ -68,14 +64,10 @@ rnn_cell_execution_sig(ref_rnn_fwd_f32_t::cell_execution_gru) {
             &(ws_gates(0, 2, 0)), rnn.gates_ws_ld);
 
     // 5. activation h~t + calculate ht
-    parallel_nd(rnn.mb, [&](int i) {
-        PRAGMA_OMP_SIMD()
-        for (int j = 0; j < rnn.dic; j++) {
-            ws_gates(i, 2, j) = tanh_fwd(ws_gates(i, 2, j) + bias(2, j));
-            states_t_l(i, j) = states_tm1_l(i, j) * ws_gates(i, 0, j)
-                    + (1.0f - ws_gates(i, 0, j)) * ws_gates(i, 2, j);
-        }
-    });
+    rnn_postgemm_->execute_part2(rnn, ws_gates_, states_t_l_, c_states_t_l_,
+            states_tm1_l_, c_states_tm1_l_, diff_states_t_l_,
+            diff_states_t_lp1_, diff_states_tp1_l_, bias_[0], ws_grid_,
+            ws_cell_);
 }
 
 template <>
@@ -101,25 +93,10 @@ rnn_cell_execution_sig(ref_rnn_bwd_f32_t::cell_execution_gru) {
     AOC<float, 2> hG1(hG1_, rnn.states_nld, rnn.states_ws_ld);
 
     // 1. calculate dG2, dG1, and part of dht-1
-    // dG2^ = dh * (1 - G0) * (1 - G2^2)
-    // dG0^ = dh * (ht-1 - G2) * u * (1 - G0)
-    // dht-1 (part) = dh * G0
-    parallel_nd(rnn.mb, [&](int i) {
-        PRAGMA_OMP_SIMD()
-        for (int j = 0; j < rnn.dic; j++) {
-            float h = states_tm1_l(i, j);
-            float dHt = diff_states_tp1_l(0, i, j)
-                    + diff_states_t_lp1(rnn.n_states, i, j);
-            float dG2 = (1.0f - ws_gates(i, 0, j)) * dHt
-                    * one_m_square(ws_gates(i, 2, j));
-            float dG0 = (h - ws_gates(i, 2, j)) * dHt
-                    * x_m_square(ws_gates(i, 0, j));
-
-            diff_states_t_l(0, i, j) = dHt * ws_gates(i, 0, j);
-            ws_gates(i, 0, j) = dG0;
-            ws_gates(i, 2, j) = dG2;
-        }
-    });
+    rnn_postgemm_->execute(rnn, ws_gates_, states_t_l_, c_states_t_l_,
+            states_tm1_l_, c_states_tm1_l_, diff_states_t_l_,
+            diff_states_t_lp1_, diff_states_tp1_l_, bias_[0], ws_grid_,
+            ws_cell_);
 
     // 2. calculate intermediate d(hG1)
     // d(hG1) = dG2 * W2h^t
@@ -128,19 +105,10 @@ rnn_cell_execution_sig(ref_rnn_bwd_f32_t::cell_execution_gru) {
             dhG1_, rnn.states_ws_ld);
 
     // 3. calculate dG1^ and part of dht-1
-    // dG1^ = d(hG1) * h * G1 * (1 - G1)
-    // dht-1 (part) += d(hG1) * G1
-    // h * G1 (required for dWh)
-    parallel_nd(rnn.mb, [&](int i) {
-        PRAGMA_OMP_SIMD()
-        for (int j = 0; j < rnn.dic; j++) {
-            float h = states_tm1_l(i, j);
-            float G1 = ws_gates(i, 1, j);
-            diff_states_t_l(0, i, j) += dhG1(i, j) * G1;
-            ws_gates(i, 1, j) = dhG1(i, j) * h * x_m_square(G1);
-            hG1(i, j) = G1 * h;
-        }
-    });
+    rnn_postgemm_->execute_part2(rnn, ws_gates_, states_t_l_, c_states_t_l_,
+            states_tm1_l_, c_states_tm1_l_, diff_states_t_l_,
+            diff_states_t_lp1_, diff_states_tp1_l_, bias_[0], ws_grid_,
+            ws_cell_);
 
     // 4. calculate diff weights
     // dWh1 += dG1 * h, dWh2 += dG2 * h, dWh3 += dG3 * (G1(*)h)

@@ -32,6 +32,5 @@ TEST_P(convolution_test, TestConvolution)
 #define S16S16S32
 #define DIRECTION_FORWARD
 #include "convolution_common.h"
-#include "dilated_convolution.h"
 
 }

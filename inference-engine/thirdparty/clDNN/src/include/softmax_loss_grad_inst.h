@@ -18,14 +18,13 @@
 #pragma once
 #include "api/CPP/softmax_loss_grad.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 using softmax_loss_grad_node = typed_program_node<softmax_loss_grad>;
 
 template <>
-class typed_primitive_inst<softmax_loss_grad> : public typed_primitive_inst_base<softmax_loss_grad>
-{
+class typed_primitive_inst<softmax_loss_grad> : public typed_primitive_inst_base<softmax_loss_grad> {
     using parent = typed_primitive_inst_base<softmax_loss_grad>;
 
 public:
@@ -38,4 +37,4 @@ public:
 
 using softmax_loss_grad_inst = typed_primitive_inst<softmax_loss_grad>;
 
-}
+}  // namespace cldnn

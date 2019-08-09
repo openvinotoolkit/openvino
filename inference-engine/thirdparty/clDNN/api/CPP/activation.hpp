@@ -18,9 +18,9 @@
 #pragma once
 #include "../C/activation.h"
 #include "primitive.hpp"
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -36,8 +36,7 @@ namespace cldnn
 ///   @li out(i,x,y) : value at x, y from i-th feature map after activation.
 ///   @li in(i,x,y) : value at x, y from i-th feature map before activation.
 ///   @li slope(i) : the slope value of the i-th feature map (can be shared across channels or one slope per channel).
-struct activation : public primitive_base<activation, CLDNN_PRIMITIVE_DESC(activation)>
-{
+struct activation : public primitive_base<activation, CLDNN_PRIMITIVE_DESC(activation)> {
     CLDNN_DECLARE_PRIMITIVE(activation)
 
     /// @brief Constructs Relu primitive.
@@ -45,19 +44,15 @@ struct activation : public primitive_base<activation, CLDNN_PRIMITIVE_DESC(activ
     /// @param input Input primitive id.
     /// @param activation_func activation function.
     /// @param additional_params additional params (slope/max_val/linear a,b).
-    activation(
-        const primitive_id& id,
-        const primitive_id& input,
-        cldnn_activation_func activation_func,
-        cldnn_activation_additional_params additional_params = { 0.f,0.f },
-        const padding& output_padding = padding()
-        )
-        : primitive_base(id, {input}, output_padding)
-        , activation_func(activation_func)
-        , additional_params(additional_params)
-        , additional_params_input("")
-    {
-    }
+    activation(const primitive_id& id,
+               const primitive_id& input,
+               cldnn_activation_func activation_func,
+               cldnn_activation_additional_params additional_params = {0.f, 0.f},
+               const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          activation_func(activation_func),
+          additional_params(additional_params),
+          additional_params_input("") {}
 
     /// @brief Constructs activation with input per feature.
     /// @param id This primitive id.
@@ -65,28 +60,22 @@ struct activation : public primitive_base<activation, CLDNN_PRIMITIVE_DESC(activ
     /// @param additional_params_input additional params stored on a memory.
     /// Input x dimension should be equal to input feature size (one value per channel. in case of linear is one pair per channel).
     /// All other dimensions should be 1.
-    activation(
-        const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& additional_params_input,
-        cldnn_activation_func activation_func,
-        const padding& output_padding = padding()
-    )
-        : primitive_base(id, { input }, output_padding)
-        , activation_func(activation_func)
-        , additional_params({ 0,0 })
-        , additional_params_input(additional_params_input)
-    {
-    }
+    activation(const primitive_id& id,
+               const primitive_id& input,
+               const primitive_id& additional_params_input,
+               cldnn_activation_func activation_func,
+               const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          activation_func(activation_func),
+          additional_params({0, 0}),
+          additional_params_input(additional_params_input) {}
 
     /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{activation}
     activation(const dto* dto)
-        : primitive_base(dto)
-        , activation_func(dto->activation_func)
-        , additional_params(dto->additional_params)
-        , additional_params_input(dto->additional_params_input)
-    {
-    }
+        : primitive_base(dto),
+          activation_func(dto->activation_func),
+          additional_params(dto->additional_params),
+          additional_params_input(dto->additional_params_input) {}
 
     /// @brief activation function.
     cldnn_activation_func activation_func;
@@ -100,16 +89,13 @@ struct activation : public primitive_base<activation, CLDNN_PRIMITIVE_DESC(activ
     primitive_id additional_params_input;
 
 protected:
-
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override
-    {
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         if (additional_params_input.empty())
-            return{};
-        return{ additional_params_input };
+            return {};
+        return {additional_params_input};
     }
 
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.activation_func = activation_func;
         dto.additional_params = additional_params;
         dto.additional_params_input = additional_params_input.c_str();
@@ -118,4 +104,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

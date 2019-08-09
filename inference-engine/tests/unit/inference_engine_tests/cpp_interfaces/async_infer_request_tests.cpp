@@ -30,6 +30,7 @@ protected:
     std::string _inputName;
     std::string _failedToFindInOutError;
     std::string _inputDataNotAllocatedError;
+    std::string _inputDataIsEmptyError;
 
     virtual void TearDown() {
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockInferRequestInternal.get()));
@@ -46,6 +47,8 @@ protected:
                 NOT_FOUND_str + "Failed to find input or output with name: \'" + _incorrectName + "\'";
         _inputDataNotAllocatedError = std::string("Input data was not allocated. Input name: \'")
                                       + _inputName + "\'";
+        _inputDataIsEmptyError = std::string("Input data is empty. Input name: \'")
+                                 + _inputName + "\'";
     }
 
     InferRequest::Ptr getInferRequestWithMockImplInside() {
@@ -71,13 +74,19 @@ protected:
     }
 
     BlobMap getBlobMapWithIncorrectName() const {
-        Blob::Ptr Blob = make_shared_blob<float>(Precision::FP32, NCHW, {});
+        Blob::Ptr Blob = make_shared_blob<float>({ Precision::FP32, {1, 1, 1, 1}, NCHW });
         Blob->allocate();
         return BlobMap{{_incorrectName, Blob}};
     }
 
     BlobMap getBlobMapWithNotAllocatedInput() const {
-        Blob::Ptr Blob = make_shared_blob<float>(Precision::FP32, NCHW, {});
+        Blob::Ptr Blob = make_shared_blob<float>({ Precision::FP32, {1, 1, 1, 1}, NCHW });
+        return BlobMap{{_inputName, Blob}};
+    }
+
+    BlobMap getBlobMapWithEmptyDimensions() const {
+        Blob::Ptr Blob = make_shared_blob<float>({ Precision::FP32, {}, NCHW });
+        Blob->allocate();
         return BlobMap{{_inputName, Blob}};
     }
 };
@@ -168,7 +177,7 @@ TEST_F(InferRequestTests, getOutputCallsSetBlob) {
 
 // GetBlob
 TEST_F(InferRequestTests, canForwardGetBlob) {
-    Blob::Ptr blob = make_shared_blob<float>(Precision::FP32, NCHW, {});
+    Blob::Ptr blob = make_shared_blob<float>({ Precision::FP32, {}, NCHW });
     blob->allocate();
     std::string name = "blob1";
 
@@ -261,4 +270,11 @@ TEST_F(InferRequestTests, failToSetInputWithNotAllocatedInput) {
     auto blobMap = getBlobMapWithNotAllocatedInput();
     auto exceptionMessage = getExceptionMessage([&]() { InferRequest->SetInput(blobMap); });
     ASSERT_EQ(_inputDataNotAllocatedError, exceptionMessage.substr(0, _inputDataNotAllocatedError.size()));
+}
+
+TEST_F(InferRequestTests, failToSetInputWithEmptyDimensions) {
+    auto InferRequest = getInferRequestWithMockImplInside();
+    auto blobMap = getBlobMapWithEmptyDimensions();
+    auto exceptionMessage = getExceptionMessage([&]() { InferRequest->SetInput(blobMap); });
+    ASSERT_EQ(_inputDataIsEmptyError, exceptionMessage.substr(0, _inputDataIsEmptyError.size()));
 }

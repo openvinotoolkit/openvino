@@ -7,6 +7,8 @@
 #include <vector>
 #include <string>
 #include <tuple>
+#include <set>
+#include <math.h>
 #include "ie_layers_internal.hpp"
 #include "layer_transform.hpp"
 
@@ -36,8 +38,10 @@ Paddings getPaddingsInternal(const Layer &layer) {
                 return {PropertyVector<unsigned>(layer._kernel.size(), 0u),
                         PropertyVector<unsigned>(layer._kernel.size(), 0u)};
             } else {
-                if (insData.size() != 1)
+                if (insData.size() != 1 && layer.type != "DeformableConvolution")
                     THROW_IE_EXCEPTION << "number of inputs should be equal 1";
+                if (insData.size() != 2 && layer.type == "DeformableConvolution")
+                    THROW_IE_EXCEPTION << "number of inputs should be equal 2";
                 auto firstInput = insData[0].lock();
                 if (!firstInput)
                     THROW_IE_EXCEPTION << "input is empty";
@@ -49,27 +53,41 @@ Paddings getPaddingsInternal(const Layer &layer) {
                 std::vector<int> shapes;
                 shapes.push_back(shape[shape_size - 1]);
                 shapes.push_back(shape[shape_size - 2]);
-                if (shape.size() > 4)
+                if (shape_size > 4)
                     shapes.push_back(shape[shape_size - 3]);
 
                 PropertyVector<unsigned int> pad_begin, pad_end;
 
+                bool same_upper = it->second == "same_upper";
+                bool same_lower = it->second == "same_lower";
+                bool is_deconv = (layer.type == "Deconvolution");
+
                 for (size_t i = 0; i < layer._kernel.size(); i++) {
-                    int PA = 0;
+                    float PA = 0;
                     int kernel = getKernel(layer, i);
 
                     int stride = layer._stride.size() > i ? layer._stride[i] : 1;
                     int sh = shapes[i];
-                    if (sh % stride == 0) {
+                    if (is_deconv)
+                        sh *= stride;
+
+                    int rm = sh % stride;
+                    if (rm == 0) {
                         PA = std::max(kernel - stride, 0);
                     } else {
-                        PA = std::max(kernel - (sh % stride), 0);
+                        PA = std::max(kernel - rm, 0);
                     }
-                    unsigned p_begin = PA / 2;
-                    unsigned p_end = PA - p_begin;
+                    float p_begin = PA * 0.5f, p_end = PA - p_begin;
 
-                    pad_begin.insert(i, p_begin);
-                    pad_end.insert(i, p_end);
+                    if (same_upper) {
+                        p_begin = std::floor(p_begin);
+                        p_end = std::ceil(p_end);
+                    } else if (same_lower) {
+                        p_begin = std::ceil(p_begin);
+                        p_end = std::floor(p_end);
+                    }
+                    pad_begin.insert(i, static_cast<unsigned int>(p_begin));
+                    pad_end.insert(i, static_cast<unsigned int>(p_end));
                 }
 
                 return {pad_begin, pad_end};
@@ -98,9 +116,51 @@ class PaddingsUpdater {
 
 Paddings getPaddingsImpl(const CNNLayer &layer) {
     Paddings actual;
-    details::visitActualLayer(std::tuple <DeconvolutionLayer*, ConvolutionLayer*, BinaryConvolutionLayer*, PoolingLayer*,
+    details::visitActualLayer(std::tuple <DeformableConvolutionLayer*, DeconvolutionLayer*, ConvolutionLayer*, BinaryConvolutionLayer*, PoolingLayer*,
             CNNLayer*>(), layer, PaddingsUpdater(actual));
     return actual;
+}
+
+int getNumIteration(const TensorIterator &ti) {
+    int iter_num = 1;  // 1 means no iteration
+
+    for (auto & rule : ti.input_port_map) {
+        if (rule.axis == -1) continue;
+
+        auto data = ti.insData[rule.from].lock();
+        IE_ASSERT(data);
+
+        auto shape = data->getDims();
+        size_t size = shape[rule.axis];
+        size_t step = std::abs(rule.stride);
+        size_t cur_iter_size = size / step;
+
+        if (iter_num == 1) {
+            iter_num = cur_iter_size;
+        } else {
+            if (iter_num != cur_iter_size)
+                return -1;  // TI is inconsistent
+        }
+    }
+
+    for (auto & rule : ti.output_port_map) {
+        if (rule.axis == -1) continue;
+
+        auto data = ti.outData[rule.from];
+        auto shape = data->getDims();
+
+        size_t size = shape[rule.axis];
+        size_t step = std::abs(rule.stride);
+        size_t cur_iter_size = size / step;
+
+        if (iter_num == 1) {
+            iter_num = cur_iter_size;
+        } else {
+            if (iter_num != cur_iter_size)
+                return -1;  // TI is inconsistent
+        }
+    }
+    return iter_num;
 }
 
 }  // namespace InferenceEngine

@@ -32,8 +32,8 @@ public:
             if (layer->insData.size() != 2 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
-            if (layer->insData[INPUT_ROIS].lock()->dims.size() != 2 ||
-                layer->insData[INPUT_PROBS].lock()->dims.size() != 1)
+            if (layer->insData[INPUT_ROIS].lock()->getTensorDesc().getDims().size() != 2 ||
+                layer->insData[INPUT_PROBS].lock()->getTensorDesc().getDims().size() != 1)
                 THROW_IE_EXCEPTION << "Unsupported shape of input blobs!";
 
             max_rois_num_ = layer->GetParamAsInt("max_rois", 0);

@@ -3,7 +3,6 @@
 //
 
 #include <utility>
-
 #include <gtest/gtest.h>
 #include <tests_common.hpp>
 #include <memory>

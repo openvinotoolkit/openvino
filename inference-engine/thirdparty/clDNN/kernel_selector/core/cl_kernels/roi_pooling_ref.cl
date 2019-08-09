@@ -60,7 +60,7 @@ KERNEL(roi_pooling_gpu)
     const uint x = i % DST_W;
     const uint y = i / DST_W % DST_H;
     const uint c = i / DST_W / DST_H % DST_C;
-    const uint r = i / DST_W / DST_H / DST_C % OUTPUT_ROI_NUM;
+    const uint r = i / DST_W / DST_H / DST_C % OUTPUT_BATCH_NUM;
     // const uint b = i / DST_W / DST_H / DST_C / OUTPUT_ROI_NUM; - TODO: support batching correctly
     // Note: The rounding of the coordinates is done prior to the mul
     //       with SPATIAL_SCALE: It makes sense since the resolution of
@@ -71,7 +71,7 @@ KERNEL(roi_pooling_gpu)
     const int src_batch_idx = (int)(roi_ptr[0]);
 
 #if BILINEAR_POOLING
-    const uint output_offset = OUTPUT_OFFSET + x*OUTPUT_X_PITCH + y*OUTPUT_Y_PITCH + c*OUTPUT_FEATURE_PITCH + r*OUTPUT_ROI_PITCH;
+    const uint output_offset = OUTPUT_OFFSET + x*OUTPUT_X_PITCH + y*OUTPUT_Y_PITCH + c*OUTPUT_FEATURE_PITCH + r*OUTPUT_BATCH_PITCH;
 
     COORD_T roi_start_w = roi_ptr[1];
     COORD_T roi_start_h = roi_ptr[2];
@@ -85,7 +85,7 @@ KERNEL(roi_pooling_gpu)
     COORD_T in_x = x*width_scale  + roi_start_w*(COORD_T)(SRC_W - 1.0f);
 
     if (in_y < 0 || in_y > (COORD_T)(SRC_H - 1) || in_x < 0 || in_x > (COORD_T)(SRC_W - 1) || src_batch_idx == -1) {
-        dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)0, NL_M, NL_N);
+        dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)0, ACTIVATION_PARAMS);
         return;
     }
 
@@ -106,7 +106,7 @@ KERNEL(roi_pooling_gpu)
 
     ACCUM_T res = top + (bottom - top) * (in_y - top_y_index);
 
-    dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)res, NL_M, NL_N);
+    dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)res, ACTIVATION_PARAMS);
 #else
 
     const int roi_x  = round(roi_ptr[1] * SPATIAL_SCALE);
@@ -163,7 +163,7 @@ KERNEL(roi_pooling_gpu)
     }
 #endif
 
-    const uint output_offset = OUTPUT_OFFSET + x*OUTPUT_X_PITCH + y*OUTPUT_Y_PITCH + c*OUTPUT_FEATURE_PITCH + r*OUTPUT_ROI_PITCH;
-    dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)res, NL_M, NL_N);
+    const uint output_offset = OUTPUT_OFFSET + x*OUTPUT_X_PITCH + y*OUTPUT_Y_PITCH + c*OUTPUT_FEATURE_PITCH + r*OUTPUT_BATCH_PITCH;
+    dst_data[output_offset] = ACTIVATION((OUTPUT_TYPE)res, ACTIVATION_PARAMS);
 #endif
 }

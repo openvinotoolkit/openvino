@@ -16,12 +16,10 @@
 
 import logging as log
 
-import networkx as nx
-
 from extensions.front.squared_difference import SquaredDifference
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
-from mo.ops.eltwise import Eltwise
+from extensions.ops.elementwise import Mul, Add
 from mo.ops.op import Op
 
 
@@ -35,10 +33,10 @@ class MVN(FrontReplacementSubgraph):
         log.debug('Enabled MVN replacement')
         return dict(
             nodes=[
-                ('mean', dict(op='Mean')),
+                ('mean', dict(op='ReduceMean')),
                 ('stop_grad', dict(op='StopGradient')),
                 ('sqdiff', dict(op='SquaredDifference')),
-                ('variance', dict(op='Mean')),
+                ('variance', dict(op='ReduceMean')),
                 ('squeeze_mean', dict(op='Squeeze')),
                 ('squeeze_variance', dict(op='Squeeze')),
                 ('fbn', dict(op='FusedBatchNorm')),
@@ -71,8 +69,8 @@ class MVN(FrontReplacementSubgraph):
         mvn.attrs['old_infer'] = mvn.attrs['infer']
         mvn.attrs['infer'] = __class__.infer
 
-        mul = Eltwise(graph, dict(operation='mul', name=fbn.name + '/Mul_'))
-        add = Eltwise(graph, dict(operation='sum', name=fbn.name + '/Add_'))
+        mul = Mul(graph, dict(operation='mul', name=fbn.name + '/Mul_'))
+        add = Add(graph, dict(operation='sum', name=fbn.name + '/Add_'))
 
         input_gamma = fbn.in_node(1)
         input_beta = fbn.in_node(2)

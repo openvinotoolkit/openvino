@@ -96,24 +96,66 @@ struct dnn_mem_t {
     float get_elem(size_t idx) const {
         float elem = 0.0;
         switch (dt()) {
-            case mkldnn_s8: elem = static_cast<int8_t *>(data_)[idx]; break;
-            case mkldnn_u8: elem = static_cast<uint8_t *>(data_)[idx]; break;
-            case mkldnn_s16: elem = static_cast<int16_t *>(data_)[idx]; break;
-            case mkldnn_s32: elem = static_cast<int32_t *>(data_)[idx]; break;
-            case mkldnn_f32: elem = static_cast<float *>(data_)[idx]; break;
-            default: assert(!"bad data type");
+        case mkldnn_s8:
+            elem = static_cast<int8_t *>(data_)[idx];
+            break;
+        case mkldnn_u8:
+            elem = static_cast<uint8_t *>(data_)[idx];
+            break;
+        case mkldnn_s16:
+            elem = static_cast<int16_t *>(data_)[idx];
+            break;
+        case mkldnn_s32:
+            elem = static_cast<int32_t *>(data_)[idx];
+            break;
+        case mkldnn_f32:
+            elem = static_cast<float *>(data_)[idx];
+            break;
+        case mkldnn_bf16:
+        {
+            union {
+                float vfloat;
+                mkldnn_bfloat16_t vbfloat[2];
+            } cvt = {0};
+            cvt.vbfloat[1] = static_cast<mkldnn_bfloat16_t *>(data_)[idx];
+            elem = cvt.vfloat;
+            break;
+        }
+        default:
+            assert(!"bad data type");
         }
         return elem;
     }
 
     void set_elem(size_t idx, float value) {
         switch (dt()) {
-            case mkldnn_s8: ((int8_t *)data_)[idx] = value; break;
-            case mkldnn_u8: ((uint8_t *)data_)[idx] = value; break;
-            case mkldnn_s16: ((int16_t *)data_)[idx] = value; break;
-            case mkldnn_s32: ((int32_t *)data_)[idx] = value; break;
-            case mkldnn_f32: ((float *)data_)[idx] = value; break;
-            default: assert(!"bad data type");
+        case mkldnn_s8:
+            ((int8_t *)data_)[idx] = value;
+            break;
+        case mkldnn_u8:
+            ((uint8_t *)data_)[idx] = value;
+            break;
+        case mkldnn_s16:
+            ((int16_t *)data_)[idx] = value;
+            break;
+        case mkldnn_s32:
+            ((int32_t *)data_)[idx] = value;
+            break;
+        case mkldnn_f32:
+            ((float *)data_)[idx] = value;
+            break;
+        case mkldnn_bf16:
+        {
+            union {
+                float vfloat;
+                mkldnn_bfloat16_t vbfloat[2];
+            } cvt = {0};
+            cvt.vfloat = value;
+            ((mkldnn_bfloat16_t *)data_)[idx] = cvt.vbfloat[1];
+            break;
+        }
+        default:
+            assert(!"bad data type");
         }
     }
 

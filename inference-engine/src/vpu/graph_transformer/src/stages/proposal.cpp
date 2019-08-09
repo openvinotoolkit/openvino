@@ -22,66 +22,31 @@ private:
         return std::make_shared<ProposalStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 3);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input0 = _inputEdges[0]->input();
         auto input1 = _inputEdges[1]->input();
-        auto input2 = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
 
-        DataMap<float> out;
-
-        out[input0] = 1.0f;
-        out[input1] = 1.0f;
-        out[input2] = 1.0f;
-        out[output] = 1.0f;
-
-        return out;
+        _orderInfo.setInput(_inputEdges[0], input0->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        _orderInfo.setInput(_inputEdges[1], input1->desc().dimsOrder().createMovedDim(Dim::C, 2));
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 3);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-
-        DataMap<DimsOrder> out;
-
-        out[input0] = input0->desc().dimsOrder().createMovedDim(Dim::C, 2);
-        out[input1] = input1->desc().dimsOrder().createMovedDim(Dim::C, 2);
-
-        return out;
-    }
-
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto input2 = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<StridesRequirement> out;
-
-        out[input0] = StridesRequirement::compact();
-        out[input1] = StridesRequirement::compact();
-        out[input2] = StridesRequirement::compact();
-        out[output] = StridesRequirement::compact();
-
-        return out;
+        _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
+        _stridesInfo.setInput(_inputEdges[1], StridesRequirement::compact());
+        _stridesInfo.setInput(_inputEdges[2], StridesRequirement::compact());
+        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     void finalCheckImpl() const override {

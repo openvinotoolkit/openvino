@@ -230,6 +230,9 @@ public:
             threadRunning = true;
 
             poolThread = std::thread([this]() {
+                if (pthread_setname_np(pthread_self(), "WatchdogThread") != 0) {
+                    perror("Setting name for watchdog thread failed");
+                }
                 watchdog_routine();
             });
         } else {

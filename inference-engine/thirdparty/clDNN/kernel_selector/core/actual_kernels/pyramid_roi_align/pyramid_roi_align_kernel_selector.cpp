@@ -16,13 +16,10 @@
 #include "pyramid_roi_align_kernel_ref.h"
 
 namespace kernel_selector {
-    PyramidROIAlign_kernel_selector::PyramidROIAlign_kernel_selector()
-    {
-        Attach<PyramidROIAlignKernelRef>();
-    }
+PyramidROIAlign_kernel_selector::PyramidROIAlign_kernel_selector() { Attach<PyramidROIAlignKernelRef>(); }
 
-    KernelsData PyramidROIAlign_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::PYRAMID_ROI_ALIGN);
-    }
+KernelsData PyramidROIAlign_kernel_selector::GetBestKernels(const Params& params,
+                                                            const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::PYRAMID_ROI_ALIGN);
 }
+}  // namespace kernel_selector

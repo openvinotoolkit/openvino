@@ -104,7 +104,7 @@ struct HwOpParams final {
 };
 
 struct HwOpList final {
-    std::vector<HwOpParams> vec;
+    SmallVector<HwOpParams> vec;
 };
 
 void printTo(std::ostream& os, const HwOpList& hwOps);
@@ -125,7 +125,8 @@ struct HwPaddingInfo final {
 HwPaddingInfo getHwPaddingInfo(
         const DimValues& inDims, const DimValues& outDims,
         int kernelDimX, int kernelDimY,
-        int kernelStrideX, int kernelStrideY);
+        int kernelStrideX, int kernelStrideY,
+        int padLeft, int padTop);
 
 void printTo(std::ostream& os, const HwPaddingInfo& hwPad);
 void printTo(DotLabel& lbl, const HwPaddingInfo& hwPad);

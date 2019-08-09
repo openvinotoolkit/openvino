@@ -15,6 +15,7 @@
 """
 
 import os
+import sys
 import tempfile
 import unittest
 
@@ -184,6 +185,7 @@ class TestingSimpleProtoParser(unittest.TestCase):
         self.assertDictEqual(result, expected_result)
         os.unlink(file_name)
 
+    @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
     def test_proto_reader_from_non_readable_file(self):
         file = tempfile.NamedTemporaryFile('wt', delete=False)
         file.write(correct_proto_message_1)

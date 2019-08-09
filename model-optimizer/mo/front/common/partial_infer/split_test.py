@@ -120,6 +120,17 @@ class TestTFSplitVInfer(unittest.TestCase):
         for ind, out_node in split_node.out_nodes().items():
             self.assertTrue(np.all(exp_shape[ind] == out_node.shape))
 
+    def test_tf_split_infer_undef_size(self):
+        split_node = Node(self.graph, 'split_node')
+        self.graph.node['split_dim']['value'] = np.array(1)
+        self.graph.node['data_to_split']['shape'] = int64_array([2, 12, 25, 30])
+        self.graph.node['size_splits']['value'] = np.array([3, 2, -1])       
+
+        tf_split_v_infer(split_node)
+        exp_shape = [int64_array([2, 3, 25, 30]), int64_array([2, 2, 25, 30]), int64_array([2, 7, 25, 30])]
+        for ind, out_node in split_node.out_nodes().items():
+            self.assertTrue(np.all(exp_shape[ind] == out_node.shape))
+
 
 class TestTFUnpack(unittest.TestCase):
     graph = None

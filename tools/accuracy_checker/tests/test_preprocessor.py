@@ -31,7 +31,8 @@ from accuracy_checker.preprocessor import (
     PointAligner
 )
 from accuracy_checker.preprocessor.preprocessing_executor import PreprocessingExecutor
-from accuracy_checker.dataset import DataRepresentation
+from accuracy_checker.preprocessor.preprocessors import OPENCV_INTERPOLATION
+from accuracy_checker.data_readers import DataRepresentation
 
 
 class TestResize:
@@ -46,7 +47,7 @@ class TestResize:
         assert resize.dst_width == 200
         assert resize.dst_height == 200
         cv2_resize_mock.assert_called_once_with(
-            input_mock, (200, 200), interpolation=Resize.OPENCV_INTERPOLATION['LINEAR']
+            input_mock, (200, 200), interpolation=OPENCV_INTERPOLATION['LINEAR']
         )
 
     def test_custom_resize(self, mocker):
@@ -64,7 +65,7 @@ class TestResize:
         assert resize.dst_height == 128
         cv2_resize_mock.assert_called_once_with(
             input_mock, (126, 128),
-            interpolation=Resize.OPENCV_INTERPOLATION['CUBIC']
+            interpolation=OPENCV_INTERPOLATION['CUBIC']
         )
 
     def test_resize_without_save_aspect_ratio(self):

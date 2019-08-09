@@ -183,7 +183,9 @@ struct rnn_prb_t : public rnn_desc_t {
         , direction(direction)
         , activation(activation)
         , attr(attr)
-        , scale_policy(scale_policy) {
+        , scale_policy(scale_policy)
+        , ops(0.0) {
+        count_ops();
         if (mb) this->mb = mb;
         wei_oc_scales = NULL;
         if (scale_policy == PER_OC)
@@ -194,6 +196,14 @@ struct rnn_prb_t : public rnn_desc_t {
     ~rnn_prb_t() {
         if (wei_oc_scales)
             zfree(wei_oc_scales);
+    }
+
+    void count_ops() {
+        // Here, we count only the ops in GEMM portion as there is no
+        // theoretical number of ops for the post-gemm operations
+        size_t num_cells = (size_t) n_directions() * n_layer * n_iter;
+        size_t cell_ops = (size_t) 2 * (n_gates() * dic) * mb * (sic + slc);
+        ops = num_cells * cell_ops;
     }
 
     int n_directions() const {
@@ -220,6 +230,8 @@ struct rnn_prb_t : public rnn_desc_t {
     activation_t activation;
     attr_t attr;
     policy_t scale_policy;
+
+    double ops;
 
     float data_scale, data_shift;
     float wei_scale;

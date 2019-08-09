@@ -9,6 +9,7 @@
 #include <map>
 #include <string>
 #include <ie_iinfer_request.hpp>
+#include <ie_parameter.hpp>
 #include <ie_primitive_info.hpp>
 #include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
 
@@ -40,7 +41,6 @@ public:
      */
     virtual ConstInputsDataMap GetInputsInfo() const = 0;
 
-
     /**
      * @brief Create an inference request object used to infer the network
      *  Note: the returned request will have allocated input and output blobs (that can be changed later)
@@ -67,6 +67,30 @@ public:
     virtual void GetExecGraphInfo(ICNNNetwork::Ptr &graphPtr) = 0;
 
     virtual std::vector<IMemoryStateInternal::Ptr> QueryState() = 0;
+
+    /**
+     * @brief Sets configuration for current executable network
+     * @param config Map of pairs: (config parameter name, config parameter value)
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     */
+    virtual void SetConfig(const std::map<std::string, Parameter> &config, ResponseDesc *resp) = 0;
+
+    /** 
+      * @brief Gets configuration dedicated to plugin behaviour
+      * @param name - config key, can be found in ie_plugin_config.hpp
+      * @param result - value of config corresponding to config key
+      * @param resp Pointer to the response message that holds a description of an error if any occurred
+      */
+    virtual void GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const = 0;
+
+    /**
+     * @brief Gets general runtime metric for dedicated hardware
+     * @param name  - metric name to request
+     * @param result - metric value corresponding to metric key
+     * @param resp - Pointer to the response message that holds a description of an error if any
+     *             occurred
+     */
+    virtual void GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const = 0;
 };
 
 }  // namespace InferenceEngine

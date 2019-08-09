@@ -97,12 +97,12 @@ int calcOutputSize(
 // Plane tiles calculation.
 //
 
-std::vector<HwPlaneTileInfo> splitIntoPlaneTilesWithPool(
+SmallVector<HwPlaneTileInfo> splitIntoPlaneTilesWithPool(
         int inputSize,
         int kernelSize, int kernelStride,
         int pad,
         int maxOutputSize) {
-    std::vector<HwPlaneTileInfo> tiles;
+    SmallVector<HwPlaneTileInfo> tiles;
 
     // This is very specific case for 3x3p1s1 convlution, followed by 2x2s2 pooling with even height
     IE_ASSERT(kernelSize == 3 && kernelStride == 1 && pad == 1);
@@ -296,7 +296,7 @@ int maximizeOutput(
 
 }  // namespace
 
-std::vector<HwPlaneTileInfo> splitIntoPlaneTiles(
+SmallVector<HwPlaneTileInfo> splitIntoPlaneTiles(
         int inputSize, int outputSize,
         int kernelSize, int kernelStride,
         int padBefore, int padAfter,
@@ -307,7 +307,7 @@ std::vector<HwPlaneTileInfo> splitIntoPlaneTiles(
     IE_ASSERT(outputSize > 0);
     IE_ASSERT(maxOutputSize > 0);
 
-    std::vector<HwPlaneTileInfo> tiles;
+    SmallVector<HwPlaneTileInfo> tiles;
 
     int outputStartIndex = 0;
 
@@ -323,7 +323,7 @@ std::vector<HwPlaneTileInfo> splitIntoPlaneTiles(
             alignInputTile,
             useCeil);
         if (newOutputEndIndex <= outputStartIndex) {
-            return std::vector<HwPlaneTileInfo>();
+            return SmallVector<HwPlaneTileInfo>();
         }
 
         int inputStartIndex = 0, inputEndIndex = 0;

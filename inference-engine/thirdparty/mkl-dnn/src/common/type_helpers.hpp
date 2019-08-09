@@ -64,6 +64,7 @@ inline size_t data_type_size(data_type_t data_type) {
     case s16: return sizeof(prec_traits<s16>::type);
     case s8: return sizeof(prec_traits<s8>::type);
     case u8: return sizeof(prec_traits<u8>::type);
+    case bf16: return sizeof(prec_traits<bf16>::type);
     case bin: return sizeof(prec_traits<u8>::type);
     case data_type::undef:
     default: assert(!"unknown data_type");
@@ -125,6 +126,7 @@ inline memory_format_t format_normalize(const memory_format_t fmt) {
             Owi16o,
             OIw8i16o2i,
             OIw8o16i2o,
+            IOw8o16i2o,
             IOw16o16i,
             oihw,
             ihwo,
@@ -150,11 +152,17 @@ inline memory_format_t format_normalize(const memory_format_t fmt) {
             OIhw4i4o,
             OIhw8i8o,
             OIhw16i16o,
+            OIw4i16o4i,
+            OIw4i16o4i_s8s8,
             OIhw4i16o4i,
             OIhw4i16o4i_s8s8,
             OIhw8i16o2i,
-            OIdhw8i16o2i,
+            IOhw8i16o2i,
             OIhw8o16i2o,
+            IOhw8o16i2o,
+            OIdhw8i16o2i,
+            OIdhw8o16i2o,
+            IOdhw8o16i2o,
             OIhw8o8i,
             OhIw8o4i,
             OhIw8o32i,
@@ -180,6 +188,7 @@ inline memory_format_t format_normalize(const memory_format_t fmt) {
             gOwi16o,
             gOIw8i16o2i,
             gOIw8o16i2o,
+            gIOw8o16i2o,
             gIOw16o16i,
             goihw,
             hwigo,
@@ -188,13 +197,16 @@ inline memory_format_t format_normalize(const memory_format_t fmt) {
             gOIhw4i4o,
             gOIhw8i8o,
             gOIhw16i16o,
+            gOIw4i16o4i,
+            gOIw4i16o4i_s8s8,
             gOIhw4i16o4i,
             gOIhw4i16o4i_s8s8,
             gOIhw2i8o4i,
             gOIhw2i8o4i_s8s8,
             gOIhw8i16o2i,
-            gOIdhw8i16o2i,
+            gIOhw8i16o2i,
             gOIhw8o16i2o,
+            gIOhw8o16i2o,
             gOIhw4o4i,
             gOIhw4o4i_s8s8,
             gOIhw8o8i,
@@ -208,6 +220,8 @@ inline memory_format_t format_normalize(const memory_format_t fmt) {
             gOhwi4o,
             gOhwi16o,
             Goihw8g,
+            Goiw16g,
+            Goiw16g_s8s8,
             Goihw16g,
             Goihw16g_s8s8,
             goidhw,
@@ -218,6 +232,9 @@ inline memory_format_t format_normalize(const memory_format_t fmt) {
             gOdhwi8o,
             gOIdhw16i16o,
             gOIdhw16o16i,
+            gOIdhw8i16o2i,
+            gOIdhw8o16i2o,
+            gIOdhw8o16i2o,
             gOidhw16o,
             gOidhw4o,
             gOdhwi16o,
@@ -232,10 +249,16 @@ inline memory_format_t format_normalize(const memory_format_t fmt) {
 
 inline bool is_format_double_blocked(memory_format_t fmt) {
     using namespace memory_format;
-    return utils::one_of(OIw8o16i2o, OIw8i16o2i, OIhw8i16o2i, OIdhw8i16o2i,
-            OIhw8o16i2o, OIhw4i16o4i, OIhw4i16o4i_s8s8,
-            gOIw8o16i2o, gOIw8i16o2i, gOIhw8i16o2i, gOIdhw8i16o2i, gOIhw8o16i2o,
-            gOIhw4i16o4i, gOIhw4i16o4i_s8s8, gOIhw2i8o4i, gOIhw2i8o4i_s8s8);
+    return utils::one_of(fmt, OIw8i16o2i, OIw8o16i2o, IOw8o16i2o, OIw4i16o4i,
+                         OIhw8i16o2i, OIhw8o16i2o, IOhw8o16i2o,
+                         IOhw8i16o2i, gIOhw8i16o2i,
+                         OIdhw8i16o2i, OIdhw8o16i2o, IOdhw8o16i2o,
+                         OIhw4i16o4i, OIhw4i16o4i_s8s8,
+                         gOIw4i16o4i, gOIw8i16o2i, gOIw8o16i2o, gIOw8o16i2o,
+                         gOIhw8i16o2i, gOIhw8o16i2o, gIOhw8o16i2o,
+                         gOIdhw8i16o2i, gOIdhw8o16i2o, gIOdhw8o16i2o,
+                         gOIhw4i16o4i, gOIhw4i16o4i_s8s8,
+                         gOIhw2i8o4i, gOIhw2i8o4i_s8s8);
 }
 
 inline bool blocking_desc_is_equal(const blocking_desc_t &lhs,
@@ -330,6 +353,8 @@ inline data_type_t default_accum_data_type(data_type_t src_dt,
 
     if (one_of(s8, src_dt, dst_dt) || one_of(u8, src_dt, dst_dt)) return s32;
 
+    if (one_of(bf16, src_dt, dst_dt)) return f32;
+
     assert(!"unimplemented use-case: no default parameters available");
     return dst_dt;
 }
@@ -349,6 +374,8 @@ inline data_type_t default_accum_data_type(data_type_t src_dt,
         if ((src_dt == u8 || src_dt == s8)
             && wei_dt == s8 && one_of(dst_dt, f32, s32, s8, u8))
             return s32;
+        if ((src_dt == bf16) && (wei_dt == bf16) && one_of(dst_dt, f32, bf16))
+            return f32;
         if (src_dt == bin && wei_dt == bin && (dst_dt == f32 || dst_dt == bin))
             return s32;
     } else if (prop_kind == backward_data) {
@@ -357,9 +384,13 @@ inline data_type_t default_accum_data_type(data_type_t src_dt,
         if (one_of(src_dt, f32, s32, s8, u8) && wei_dt == s8 &&
                 one_of(dst_dt, s8, u8))
             return s32;
+        if (one_of(src_dt, f32, bf16) && (dst_dt == bf16) && (wei_dt == bf16))
+            return f32;
     } else if (prop_kind == backward_weights) {
         if (src_dt == s16 && wei_dt == s32 && dst_dt == s16)
             return s32;
+        if (src_dt == bf16 && one_of(wei_dt, f32, bf16) && dst_dt == bf16)
+            return f32;
     }
 
     assert(!"unimplemented use-case: no default parameters available");

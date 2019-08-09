@@ -16,9 +16,9 @@
 
 import logging as log
 
-import networkx as nx
 import numpy as np
 
+from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -60,9 +60,14 @@ class Gather(Op):
 
         # both inputs are constant
         if data.value is not None and indices.value is not None:
+            indices.value = np.array(indices.value, dtype=np.int64)
             node.out_node(0).value = np.take(data.value, indices.value, axis)
             node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)
             return
+
+        # Convert negative axis
+        axis = get_canonical_axis_index(data.shape, axis)
+        node.axis = axis
 
         shape = np.concatenate((data.shape[:axis], indices.shape))
         if axis < len(data.shape) - 1:

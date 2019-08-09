@@ -12,7 +12,14 @@
 #pragma once
 
 #include <string>
+
 #include "ie_plugin_config.hpp"
+#include "myriad_plugin_config.hpp"
+#include "ie_api.h"
+
+//
+// Common options
+//
 
 #define VPU_CONFIG_KEY(name) InferenceEngine::VPUConfigParams::_CONFIG_KEY(VPU_##name)
 #define VPU_CONFIG_VALUE(name) InferenceEngine::VPUConfigParams::VPU_##name
@@ -20,8 +27,20 @@
 #define DECLARE_VPU_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPU_##name)
 #define DECLARE_VPU_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(VPU_##name)
 
+//
+// Common metrics
+//
+
+#define VPU_METRIC(name) METRIC_KEY(VPU_##name)
+#define DECLARE_VPU_METRIC(name, ...)  DECLARE_METRIC_KEY(VPU_##name, __VA_ARGS__)
+
 namespace InferenceEngine {
+
 namespace VPUConfigParams {
+
+//
+// Common options
+//
 
 /**
  * @brief Turn on HW stages usage (applicable for MyriadX devices only).
@@ -41,6 +60,7 @@ DECLARE_VPU_CONFIG_KEY(LOG_LEVEL);
  * @brief The key to define normalization coefficient for the network input.
  * This option should used with be a real number. Example "255.f"
  */
+INFERENCE_ENGINE_DEPRECATED
 DECLARE_VPU_CONFIG_KEY(INPUT_NORM);
 
 /**
@@ -48,6 +68,7 @@ DECLARE_VPU_CONFIG_KEY(INPUT_NORM);
  * @brief The flag to specify Bias value that is added to each element of the network input.
  * This option should used with be a real number. Example "0.1f"
  */
+INFERENCE_ENGINE_DEPRECATED
 DECLARE_VPU_CONFIG_KEY(INPUT_BIAS);
 
 /**
@@ -55,12 +76,6 @@ DECLARE_VPU_CONFIG_KEY(INPUT_BIAS);
  * This option should be used with values: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
  */
 DECLARE_VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME);
-
-/**
- * @brief The flag to reset stalled devices: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
- * This is a plugin scope option and must be used with the plugin's SetConfig method
- */
-DECLARE_VPU_CONFIG_KEY(FORCE_RESET);
 
 /**
  * @brief This option allows to pass extra configuration for executable network.
@@ -85,12 +100,6 @@ DECLARE_VPU_CONFIG_KEY(NETWORK_CONFIG);
 DECLARE_VPU_CONFIG_KEY(COMPUTE_LAYOUT);
 
 /**
- * @brief This option allows to pass custom layers binding xml.
- * If layer is present in such an xml, it would be used during inference even if the layer is natively supported
- */
-DECLARE_VPU_CONFIG_KEY(CUSTOM_LAYERS);
-
-/**
  * @brief Supported keys definition for VPU_CONFIG_KEY(COMPUTE_LAYOUT) option.
  */
 DECLARE_VPU_CONFIG_VALUE(AUTO);
@@ -98,16 +107,10 @@ DECLARE_VPU_CONFIG_VALUE(NCHW);
 DECLARE_VPU_CONFIG_VALUE(NHWC);
 
 /**
- * @brief This option allows to specify device.
- * If specified device is not available then creating infer request will throw an exception.
+ * @brief This option allows to pass custom layers binding xml.
+ * If layer is present in such an xml, it would be used during inference even if the layer is natively supported
  */
-DECLARE_VPU_CONFIG_KEY(PLATFORM);
-
-/**
- * @brief Supported keys definition for VPU_CONFIG_KEY(PLATFORM) option.
- */
-DECLARE_VPU_CONFIG_VALUE(2450);
-DECLARE_VPU_CONFIG_VALUE(2480);
+DECLARE_VPU_CONFIG_KEY(CUSTOM_LAYERS);
 
 /**
  * @brief Ignore statistic in IR by plugin.
@@ -117,5 +120,37 @@ DECLARE_VPU_CONFIG_VALUE(2480);
  */
 DECLARE_VPU_CONFIG_KEY(IGNORE_IR_STATISTIC);
 
+/**
+ * @brief This option allows to specify protocol.
+ */
+DECLARE_VPU_MYRIAD_CONFIG_KEY(PROTOCOL);
+
+/**
+ * @brief Supported keys definition for VPU_MYRIAD_CONFIG_KEY(PROTOCOL) option.
+ */
+DECLARE_VPU_MYRIAD_CONFIG_VALUE(PCIE);
+DECLARE_VPU_MYRIAD_CONFIG_VALUE(USB);
+
+/**
+ * @deprecated Use VPU_MYRIAD_CONFIG_KEY(FORCE_RESET) instead.
+ */
+INFERENCE_ENGINE_DEPRECATED
+DECLARE_VPU_CONFIG_KEY(FORCE_RESET);
+
+/**
+ * @deprecated Use VPU_MYRIAD_CONFIG_KEY(PLATFORM) instead.
+ */
+INFERENCE_ENGINE_DEPRECATED
+DECLARE_VPU_CONFIG_KEY(PLATFORM);
+
+/**
+ * @brief Supported keys definition for DECLARE_VPU_CONFIG_KEY(PLATFORM) option.
+ */
+INFERENCE_ENGINE_DEPRECATED
+DECLARE_VPU_CONFIG_VALUE(2450);
+INFERENCE_ENGINE_DEPRECATED
+DECLARE_VPU_CONFIG_VALUE(2480);
+
 }  // namespace VPUConfigParams
+
 }  // namespace InferenceEngine

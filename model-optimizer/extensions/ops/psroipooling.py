@@ -31,6 +31,8 @@ class PSROIPoolingOp(Op):
             'mode': 'average',
             'in_ports_count': 2,
             'out_ports_count': 1,
+            'trans_std': 0,
+            'no_trans': True,
             'infer': PSROIPoolingOp.psroipooling_infer
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -43,6 +45,11 @@ class PSROIPoolingOp(Op):
             'mode',
             'spatial_bins_x',
             'spatial_bins_y',
+            'trans_std',
+            'no_trans',
+            'pooled_width',
+            'pooled_height',
+            'part_size',
         ]
 
     @staticmethod

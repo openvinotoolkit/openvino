@@ -13,8 +13,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-from mo.front.common.partial_infer.transpose import transpose_infer
 from mo.front.extractor import attr_getter
 from mo.graph.graph import Graph
 from mo.ops.op import Op
@@ -29,14 +27,10 @@ class Permute(Op):
             'order': None,
             'type': __class__.op,
             'op': __class__.op,
-            'infer': self.infer,
+            'infer': None,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
 
     def supported_attrs(self):
         return [('order', lambda node: attr_getter(node, 'order'))]
-
-    @staticmethod
-    def infer(*args, **kwargs):
-        return transpose_infer(*args, **kwargs)

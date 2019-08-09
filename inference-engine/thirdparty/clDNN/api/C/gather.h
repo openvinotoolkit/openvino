@@ -15,11 +15,8 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef GATHER_H
-#define GATHER_H
-
+#pragma once
 #include "cldnn.h"
-
 
 /// @addtogroup c_api C API
 /// @{
@@ -31,8 +28,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-typedef enum
-{
+typedef enum {
     cldnn_gather_along_b = 0,
     cldnn_gather_along_f = CLDNN_TENSOR_BATCH_DIM_MAX,
     cldnn_gather_along_x = CLDNN_TENSOR_BATCH_DIM_MAX + CLDNN_TENSOR_FEATURE_DIM_MAX,
@@ -55,4 +51,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(gather);
 /// @}
 /// @}
 /// @}
-#endif // GATHER_H
+

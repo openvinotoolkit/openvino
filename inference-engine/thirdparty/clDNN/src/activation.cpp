@@ -18,27 +18,40 @@
 #include "primitive_type_base.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include <string>
+#include <vector>
 
-namespace cldnn
-{
-primitive_type_id activation_type_id()
-{
+namespace cldnn {
+primitive_type_id activation_type_id() {
     static primitive_type_base<activation> instance;
     return &instance;
 }
 
-layout activation_inst::calc_output_layout(activation_node const& node)
-{
-    assert((bool)node.get_primitive()->output_data_type == false
-           && "Output data type forcing is not supported for activation_node!");
-    return node.input().get_non_padded_output_layout();
+layout activation_inst::calc_output_layout(activation_node const& node) {
+    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+           "Output data type forcing is not supported for activation_node!");
+
+    auto input_node_layout = node.input().get_non_padded_output_layout();
+    auto func = node.get_primitive()->activation_func;
+
+    std::vector<cldnn_activation_func> activations_int8 = {
+        activation_none,
+        activation_negative,
+        activation_not,
+        activation_relu};
+
+    if (input_node_layout.data_type == data_types::i8) {
+        if (std::find(activations_int8.begin(), activations_int8.end(), func) == activations_int8.end())
+            CLDNN_ERROR_MESSAGE(node.id(), "Requested activation is not supported for integer type (int8).");
+    }
+
+    return input_node_layout;
 }
 
-std::string activation_inst::to_string(activation_node const& node)
-{   
+std::string activation_inst::to_string(activation_node const& node) {
     auto node_info = node.desc_to_json();
-    auto desc      = node.get_primitive();
-       
+    auto desc = node.get_primitive();
+
     std::stringstream primitive_description;
 
     json_composite activation_info;
@@ -53,25 +66,38 @@ std::string activation_inst::to_string(activation_node const& node)
     return primitive_description.str();
 }
 
-activation_inst::typed_primitive_inst(network_impl& network, activation_node const& node)
-    : parent(network, node)
-{
-    auto input_arg  = node.input().get_output_layout();
+activation_inst::typed_primitive_inst(network_impl& network, activation_node const& node) : parent(network, node) {
+    auto input_arg = node.input().get_output_layout();
     auto output_arg = node.get_output_layout();
-    
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "ReLU input number", input_arg.size.raw.size(), "ReLU output number", output_arg.size.raw.size(), "Relu input/output num dismatch");
 
-    if (is_parameterized())
-    {
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
+                          "ReLU input number",
+                          input_arg.size.raw.size(),
+                          "ReLU output number",
+                          output_arg.size.raw.size(),
+                          "Relu input/output num dismatch");
+
+    if (is_parameterized()) {
         /// Slope input x dimension should be equal to input feature size (one slope per channel).
         auto slope_layout = node.slope_input().get_output_layout();
         auto slope_input_size = slope_layout.size;
         auto input_feature_size = slope_layout.size.feature[0];
 
-        CLDNN_ERROR_LESS_THAN(node.id(), "Slope x size", slope_input_size.spatial[0], "input feature size", input_feature_size, "Dimensions mismatch between input and slope input in Activation layer(slope x size should be equal to input feature size)!");
+        CLDNN_ERROR_LESS_THAN(node.id(),
+                              "Slope x size",
+                              slope_input_size.spatial[0],
+                              "input feature size",
+                              input_feature_size,
+                              "Dimensions mismatch between input and slope input in Activation layer(slope x size "
+                              "should be equal to input feature size)!");
 
         // All other dimensions should be 1
-        CLDNN_ERROR_NOT_EQUAL(node.id(), "Slope input size count", slope_input_size.count(), "Slope input size x", slope_input_size.spatial[0], "Dimensions mismatch of slope input in Activation layer!");
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                              "Slope input size count",
+                              slope_input_size.count(),
+                              "Slope input size x",
+                              slope_input_size.spatial[0],
+                              "Dimensions mismatch of slope input in Activation layer!");
     }
 }
-}
+}  // namespace cldnn

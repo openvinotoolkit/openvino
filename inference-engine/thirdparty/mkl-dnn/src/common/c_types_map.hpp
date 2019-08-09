@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016-2018 Intel Corporation
+* Copyright 2016-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -94,6 +94,7 @@ namespace alg_kind {
     const alg_kind_t roi_pooling_bilinear = mkldnn_roi_pooling_bilinear;
     const alg_kind_t binary_convolution_direct = mkldnn_binary_convolution_direct;
     const alg_kind_t binarization_depthwise = mkldnn_binarization_depthwise;
+    const alg_kind_t deformable_convolution_direct = mkldnn_deformable_convolution_direct;
 }
 
 using data_type_t = mkldnn_data_type_t;
@@ -104,6 +105,7 @@ namespace data_type {
     const data_type_t s16 = mkldnn_s16;
     const data_type_t s8 = mkldnn_s8;
     const data_type_t u8 = mkldnn_u8;
+    const data_type_t bf16 = mkldnn_bf16;
     const data_type_t bin = mkldnn_bin;
 }
 
@@ -147,6 +149,7 @@ namespace memory_format {
     const memory_format_t io = mkldnn_io;
     const memory_format_t oiw = mkldnn_oiw;
     const memory_format_t wio = mkldnn_wio;
+    const memory_format_t owi = mkldnn_owi;
     const memory_format_t Owi4o = mkldnn_Owi4o;
     const memory_format_t OIw4i4o = mkldnn_OIw4i4o;
     const memory_format_t Owi8o = mkldnn_Owi8o;
@@ -157,15 +160,18 @@ namespace memory_format {
     const memory_format_t Oiw16o = mkldnn_Oiw16o;
     const memory_format_t Oiw4o = mkldnn_Oiw4o;
     const memory_format_t Owi16o = mkldnn_Owi16o;
-    const memory_format_t OIw8i16o2i = mkldnn_OIw8i16o2i;
     const memory_format_t IOw16o16i = mkldnn_IOw16o16i;
+    const memory_format_t OIw8i16o2i = mkldnn_OIw8i16o2i;
     const memory_format_t OIw8o16i2o = mkldnn_OIw8o16i2o;
+    const memory_format_t IOw8o16i2o = mkldnn_IOw8o16i2o;
     const memory_format_t oihw = mkldnn_oihw;
     const memory_format_t ihwo = mkldnn_ihwo;
     const memory_format_t hwio = mkldnn_hwio;
+    const memory_format_t ohwi = mkldnn_ohwi;
     const memory_format_t iohw = mkldnn_iohw;
     const memory_format_t hwio_s8s8 = mkldnn_hwio_s8s8;
     const memory_format_t dhwio = mkldnn_dhwio;
+    const memory_format_t odhwi = mkldnn_odhwi;
     const memory_format_t oidhw = mkldnn_oidhw;
     const memory_format_t OIdhw4i4o = mkldnn_OIdhw4i4o;
     const memory_format_t Odhwi4o = mkldnn_Odhwi4o;
@@ -184,11 +190,17 @@ namespace memory_format {
     const memory_format_t OIhw4i4o = mkldnn_OIhw4i4o;
     const memory_format_t OIhw8i8o = mkldnn_OIhw8i8o;
     const memory_format_t OIhw16i16o = mkldnn_OIhw16i16o;
+    const memory_format_t OIw4i16o4i = mkldnn_OIw4i16o4i;
+    const memory_format_t OIw4i16o4i_s8s8 = mkldnn_OIw4i16o4i_s8s8;
     const memory_format_t OIhw4i16o4i = mkldnn_OIhw4i16o4i;
     const memory_format_t OIhw4i16o4i_s8s8 = mkldnn_OIhw4i16o4i_s8s8;
     const memory_format_t OIhw8i16o2i = mkldnn_OIhw8i16o2i;
-    const memory_format_t OIdhw8i16o2i = mkldnn_OIdhw8i16o2i;
+    const memory_format_t IOhw8i16o2i = mkldnn_IOhw8i16o2i;
     const memory_format_t OIhw8o16i2o = mkldnn_OIhw8o16i2o;
+    const memory_format_t IOhw8o16i2o = mkldnn_IOhw8o16i2o;
+    const memory_format_t OIdhw8i16o2i = mkldnn_OIdhw8i16o2i;
+    const memory_format_t OIdhw8o16i2o = mkldnn_OIdhw8o16i2o;
+    const memory_format_t IOdhw8o16i2o = mkldnn_IOdhw8o16i2o;
     const memory_format_t OIhw8o8i = mkldnn_OIhw8o8i;
     const memory_format_t OIhw16o16i = mkldnn_OIhw16o16i;
     const memory_format_t IOhw16o16i = mkldnn_IOhw16o16i;
@@ -212,9 +224,10 @@ namespace memory_format {
     const memory_format_t gOiw16o = mkldnn_gOiw16o;
     const memory_format_t gOiw4o = mkldnn_gOiw4o;
     const memory_format_t gOwi16o = mkldnn_gOwi16o;
-    const memory_format_t gOIw8i16o2i = mkldnn_gOIw8i16o2i;
     const memory_format_t gIOw16o16i = mkldnn_gIOw16o16i;
+    const memory_format_t gOIw8i16o2i = mkldnn_gOIw8i16o2i;
     const memory_format_t gOIw8o16i2o = mkldnn_gOIw8o16i2o;
+    const memory_format_t gIOw8o16i2o = mkldnn_gIOw8o16i2o;
     const memory_format_t goihw = mkldnn_goihw;
     const memory_format_t hwigo = mkldnn_hwigo;
     const memory_format_t giohw = mkldnn_giohw;
@@ -222,13 +235,16 @@ namespace memory_format {
     const memory_format_t gOIhw4i4o = mkldnn_gOIhw4i4o;
     const memory_format_t gOIhw8i8o = mkldnn_gOIhw8i8o;
     const memory_format_t gOIhw16i16o = mkldnn_gOIhw16i16o;
+    const memory_format_t gOIw4i16o4i = mkldnn_gOIw4i16o4i;
+    const memory_format_t gOIw4i16o4i_s8s8 = mkldnn_gOIw4i16o4i_s8s8;
     const memory_format_t gOIhw4i16o4i = mkldnn_gOIhw4i16o4i;
     const memory_format_t gOIhw4i16o4i_s8s8 = mkldnn_gOIhw4i16o4i_s8s8;
     const memory_format_t gOIhw2i8o4i = mkldnn_gOIhw2i8o4i;
     const memory_format_t gOIhw2i8o4i_s8s8 = mkldnn_gOIhw2i8o4i_s8s8;
     const memory_format_t gOIhw8i16o2i = mkldnn_gOIhw8i16o2i;
-    const memory_format_t gOIdhw8i16o2i = mkldnn_gOIdhw8i16o2i;
+    const memory_format_t gIOhw8i16o2i = mkldnn_gIOhw8i16o2i;
     const memory_format_t gOIhw8o16i2o = mkldnn_gOIhw8o16i2o;
+    const memory_format_t gIOhw8o16i2o = mkldnn_gIOhw8o16i2o;
     const memory_format_t gOIhw4o4i = mkldnn_gOIhw4o4i;
     const memory_format_t gOIhw4o4i_s8s8 = mkldnn_gOIhw4o4i_s8s8;
     const memory_format_t gOIhw8o8i = mkldnn_gOIhw8o8i;
@@ -240,6 +256,8 @@ namespace memory_format {
     const memory_format_t gOhwi4o = mkldnn_gOhwi4o;
     const memory_format_t gOhwi16o = mkldnn_gOhwi16o;
     const memory_format_t Goihw8g = mkldnn_Goihw8g;
+    const memory_format_t Goiw16g = mkldnn_Goiw16g;
+    const memory_format_t Goiw16g_s8s8 = mkldnn_Goiw16g_s8s8;
     const memory_format_t Goihw16g = mkldnn_Goihw16g;
     const memory_format_t Goihw16g_s8s8 = mkldnn_Goihw16g_s8s8;
     const memory_format_t goidhw = mkldnn_goidhw;
@@ -250,6 +268,9 @@ namespace memory_format {
     const memory_format_t gOdhwi8o = mkldnn_gOdhwi8o;
     const memory_format_t gOIdhw16i16o = mkldnn_gOIdhw16i16o;
     const memory_format_t gOIdhw16o16i = mkldnn_gOIdhw16o16i;
+    const memory_format_t gOIdhw8i16o2i = mkldnn_gOIdhw8i16o2i;
+    const memory_format_t gOIdhw8o16i2o = mkldnn_gOIdhw8o16i2o;
+    const memory_format_t gIOdhw8o16i2o = mkldnn_gIOdhw8o16i2o;
     const memory_format_t gOidhw4o = mkldnn_gOidhw4o;
     const memory_format_t gOidhw16o = mkldnn_gOidhw16o;
     const memory_format_t gOdhwi16o = mkldnn_gOdhwi16o;
@@ -299,6 +320,7 @@ namespace primitive_kind {
     const primitive_kind_t roi_pooling = mkldnn_roi_pooling;
     const primitive_kind_t binary_convolution = mkldnn_binary_convolution;
     const primitive_kind_t binarization = mkldnn_binarization;
+    const primitive_kind_t deformable_convolution = mkldnn_deformable_convolution;
 }
 
 using query_t = mkldnn_query_t;
@@ -333,6 +355,7 @@ namespace query {
     const query_t roi_pooling_d = mkldnn_query_roi_pooling_d;
     const query_t binary_convolution_d = mkldnn_query_binary_convolution_d;
     const query_t binarization_d = mkldnn_query_binarization_d;
+    const query_t deformable_convolution_d = mkldnn_query_deformable_convolution_d;
 
     const query_t some_pd = mkldnn_query_some_pd;
     const query_t input_pd = mkldnn_query_input_pd;
@@ -364,6 +387,7 @@ using roi_pooling_desc_t = mkldnn_roi_pooling_desc_t;
 using depthwise_desc_t = mkldnn_depthwise_desc_t;
 using binary_convolution_desc_t = mkldnn_binary_convolution_desc_t;
 using binarization_desc_t = mkldnn_binarization_desc_t;
+using deformable_convolution_desc_t = mkldnn_deformable_convolution_desc_t;
 
 using rnn_direction_t = mkldnn_rnn_direction_t;
 using rnn_cell_desc_t = mkldnn_rnn_cell_desc_t;
@@ -391,6 +415,7 @@ struct op_desc_t {
         depthwise_desc_t depthwise;
         binary_convolution_desc_t binary_convolution;
         binarization_desc_t binarization;
+        deformable_convolution_desc_t deformable_convolution;
     };
 
     op_desc_t(const primitive_kind_t &_): kind(_) {}
@@ -416,6 +441,7 @@ struct op_desc_t {
     DECL_CTOR_AND_CONVERTERS(roi_pooling_desc_t, roi_pooling);
     DECL_CTOR_AND_CONVERTERS(binary_convolution_desc_t, binary_convolution);
     DECL_CTOR_AND_CONVERTERS(binarization_desc_t, binarization);
+    DECL_CTOR_AND_CONVERTERS(deformable_convolution_desc_t, deformable_convolution);
 
 #   undef DECL_CTOR_AND_CONVERTERS
 };

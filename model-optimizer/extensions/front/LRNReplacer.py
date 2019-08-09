@@ -15,17 +15,17 @@
 """
 
 import numpy as np
-import networkx as nx
 
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph
-from mo.ops.lin_op import Mul
+from extensions.ops.elementwise import Mul
 from mo.ops.const import Const
 
 
 class LRNReplacer(FrontReplacementOp):
     op = 'LRN'
     enabled = True
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['op']
@@ -36,17 +36,16 @@ class LRNReplacer(FrontReplacementOp):
         # Calculate scale value & create Const op
         scale_value = np.array(1. / (pow(node.bias, node.beta)))
         node.alpha /= node.bias
-        const_node = Const(graph, dict(value=scale_value, shape=scale_value.shape))
+        const_node = Const(graph, {'value': scale_value, 'shape': scale_value.shape,
+                                   'name': node.name + "/Const_Mul_"}).create_node()
 
-        # Get all outputs for LRN layer
-        out_nodes = [node for node in node.out_nodes().values()]
+        # Create Mul node
+        mul_node = Mul(graph, {'name': node.name + "/Mul_"}).create_node()
 
-        # Create Mul node with inputs
-        mul_node = Mul(graph, dict(name=node.id + "/Mul_"))
-        mnode = mul_node.create_node(inputs=[node, const_node.create_node()])
+        # Connect nodes
+        const_node.out_port(0).connect(mul_node.in_port(1))
+        node.out_port(0).get_connection().set_source(mul_node.out_port(0))
+        node.out_port(0).connect(mul_node.in_port(0))
 
-        # Move edges from LRN to Mul node
-        for out_node in out_nodes:
-            edge_attrs = graph.get_edge_data(node.id, out_node.id)[0]
-            graph.remove_edge(node.id, out_node.id)
-            graph.add_edges_from([(mnode.id, out_node.id, edge_attrs)])
+        # Delete bias, if it is not deleted it will appear in IR v6
+        del node['bias']

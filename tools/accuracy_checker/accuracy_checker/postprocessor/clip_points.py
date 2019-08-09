@@ -33,12 +33,7 @@ class ClipPoints(PostprocessorWithSpecificTargets):
 
     annotation_types = (TextDetectionAnnotation, )
     prediction_types = (TextDetectionPrediction, )
-
-    def validate_config(self):
-        clip_points_config_validator = ClipPointsConfigValidator(
-            self.__provider__, on_extra_argument=ClipPointsConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        clip_points_config_validator.validate(self.config)
+    _config_validator_type = ClipPointsConfigValidator
 
     def configure(self):
         self.dst_height, self.dst_width = get_size_from_config(self.config, allow_none=True)

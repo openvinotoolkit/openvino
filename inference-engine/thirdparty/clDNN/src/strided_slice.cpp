@@ -19,11 +19,11 @@
 #include "error_handler.h"
 #include "json_object.h"
 #include "data_inst.h"
+#include <string>
+#include <vector>
 
-namespace cldnn
-{
-primitive_type_id strided_slice_type_id()
-{
+namespace cldnn {
+primitive_type_id strided_slice_type_id() {
     static primitive_type_base<strided_slice> instance;
     return &instance;
 }
@@ -35,13 +35,11 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node) {
     auto input_format = input_layout.format;
 
     auto completeStridedSliceParams = [&](std::vector<int32_t>& param) {
-        for (size_t i = param.size(); i < numberOfDims; ++i)
-            param.push_back(1);
+        for (size_t i = param.size(); i < numberOfDims; ++i) param.push_back(1);
     };
 
     auto completeStridedSliceMasks = [&](std::vector<uint8_t>& mask) {
-        for (size_t i = mask.size(); i < numberOfDims; ++i)
-            mask.push_back(0);
+        for (size_t i = mask.size(); i < numberOfDims; ++i) mask.push_back(0);
     };
 
     auto maskStridedSliceParams = [&](std::vector<int32_t>& param, const std::vector<uint8_t>& mask) {
@@ -72,19 +70,12 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node) {
     const auto& strides = stridedSliceArgs[2];
     std::vector<int32_t> outputDimsSizes;
 
-    // If the ith bit of begin_mask is set, begin[i] is ignored and the fullest possible range in that dimension is used instead.
+    // If the ith bit of begin_mask is set, begin[i] is ignored and the fullest possible range in that dimension is used
+    // instead.
     maskStridedSliceParams(begin, beginMask);
     // end_mask works analogously
     maskStridedSliceParams(end, endMask);
 
-    auto isShiftPossible = [] (std::vector<int32_t>& dims) -> bool {
-        if (dims[dims.size() - 1] == 1)
-            return true;
-        else
-            return false;
-    };
-
-    // If the new_axis_mask is set, then begin, end, and stride are ignored
     if (std::find(desc->new_axis_mask.begin(), desc->new_axis_mask.end(), 1) == desc->new_axis_mask.end()) {
         for (size_t i = 0; i < numberOfDims; ++i) {
             int32_t outputDimSize = (end[i] - begin[i]) / strides[i];
@@ -94,20 +85,14 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node) {
         }
     } else {
         outputDimsSizes = input_layout.size.sizes(format::bfyx);
-        for (size_t i = 0; i < desc->new_axis_mask.size(); ++i)
-            if (desc->new_axis_mask[desc->new_axis_mask.size() - i - 1] == 1)
-                if (isShiftPossible(outputDimsSizes)) {
-                    for (size_t j = outputDimsSizes.size() - 1; j > i; --j)
-                        outputDimsSizes[j] = outputDimsSizes[j - 1];
-                    outputDimsSizes[i] = 1;
-                }
     }
 
-    return layout{input_layout.data_type, input_format, tensor(outputDimsSizes[0], outputDimsSizes[1], outputDimsSizes[3], outputDimsSizes[2])};
+    return layout{input_layout.data_type,
+                  input_format,
+                  tensor(outputDimsSizes[0], outputDimsSizes[1], outputDimsSizes[3], outputDimsSizes[2])};
 }
 
-std::string strided_slice_inst::to_string(strided_slice_node const& node)
-{
+std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
     auto& input = node.input();
@@ -134,8 +119,6 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node)
 }
 
 strided_slice_inst::typed_primitive_inst(network_impl& network, strided_slice_node const& node)
-    : parent(network, node)
-{
-}
+    : parent(network, node) {}
 
-}
+}  // namespace cldnn

@@ -20,7 +20,7 @@ import datetime
 import openvino.inference_engine as ie
 
 from ..accuracy_checker.accuracy_checker.config import ConfigReader
-from ..accuracy_checker.accuracy_checker.model_evaluator import ModelEvaluator
+from ..accuracy_checker.accuracy_checker.evaluators.model_evaluator import ModelEvaluator
 from ..accuracy_checker.accuracy_checker.progress_reporters import PrintProgressReporter, TQDMReporter
 
 from ..network import Network
@@ -47,6 +47,18 @@ class BenchmarkCallback:
             ie_network = self._network.ie_network
         else:
             ie_network = ie.IENetwork(self._configuration.model, self._configuration.weights)
+
+        do_reshape = False
+        for name in ie_network.inputs.keys():
+            if name in network_inputs_data and \
+                    tuple(ie_network.inputs[name].shape) != network_inputs_data[name].shape:
+                do_reshape = True
+                break
+
+        if do_reshape:
+            new_shapes = {layer_name: data.shape for layer_name, data in network_inputs_data.items()}
+            ie_network.reshape(new_shapes)
+
         plugin = ie.IEPlugin(self._configuration.device)
         if self._configuration.cpu_extension:
             plugin.add_cpu_extension(self._configuration.cpu_extension)

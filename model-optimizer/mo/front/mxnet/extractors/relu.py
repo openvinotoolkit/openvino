@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
+from extensions.ops.activation_ops import ReLU
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.relu import ReLU
 
 
 class ReLUFrontExtractor(FrontExtractorOp):

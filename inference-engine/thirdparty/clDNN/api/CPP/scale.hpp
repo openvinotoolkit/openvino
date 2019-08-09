@@ -18,9 +18,9 @@
 #pragma once
 #include "../C/scale.h"
 #include "primitive.hpp"
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -41,47 +41,35 @@ namespace cldnn
 /// Performs scale over feature when the scale feature size is equal to input feature size.<br>
 /// Performs scale over feature in batch when the scale feature and scale batch sizes are equal to input feature and input batch sizes.<br>
 /// Optionally it can also add provided biases by providing bias data.<br>
-struct scale : public primitive_base<scale, CLDNN_PRIMITIVE_DESC(scale)>
-{
+struct scale : public primitive_base<scale, CLDNN_PRIMITIVE_DESC(scale)> {
     CLDNN_DECLARE_PRIMITIVE(scale)
 
     /// @brief Constructs scale primitive without adding bias.
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param scale_input Scale input primitive id with values needed for product computation.
-    scale(
-        const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& scale_input, //should be bfyx or yxfb, where each dimension can be 1, if all dimensions are 1 then this is scalar
-        const padding& output_padding = padding()
-    )
-        :primitive_base(id, { input, scale_input }, output_padding)
-        , bias("")
-    {
-    }
+    scale(const primitive_id& id,
+          const primitive_id& input,
+          const primitive_id& scale_input,  // should be bfyx or yxfb, where each dimension can be 1, if all dimensions
+                                            // are 1 then this is scalar
+          const padding& output_padding = padding())
+        : primitive_base(id, {input, scale_input}, output_padding), bias("") {}
 
     /// @brief Constructs scale primitive with optional adding bias.
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param scale_input Scale input primitive id with values needed for product computation.
     /// @param bias Primitive id containing bias data.
-    scale(
-        const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& scale_input, //should be bfyx or yxfb, where each dimension can be 1, if all dimensions are 1 then this is scalar
-        const primitive_id& bias, //should be same size as scale_input
-        const padding& output_padding = padding()
-    )
-        :primitive_base(id, { input, scale_input }, output_padding)
-        , bias(bias)
-    {
-    }
+    scale(const primitive_id& id,
+          const primitive_id& input,
+          const primitive_id& scale_input,  // should be bfyx or yxfb, where each dimension can be 1, if all dimensions
+                                            // are 1 then this is scalar
+          const primitive_id& bias,  // should be same size as scale_input
+          const padding& output_padding = padding())
+        : primitive_base(id, {input, scale_input}, output_padding), bias(bias) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{scale}
-    scale(const dto* dto)
-        :primitive_base(dto)
-        , bias(dto->bias)
-    {
+    scale(const dto* dto) : primitive_base(dto), bias(dto->bias) {
         if (dto->input.size != 2)
             throw std::invalid_argument("scale dto should contains exactly 2 inputs");
     }
@@ -90,20 +78,16 @@ struct scale : public primitive_base<scale, CLDNN_PRIMITIVE_DESC(scale)>
     primitive_id bias;
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override
-    { 
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         if (bias.empty())
-            return{};
+            return {};
         else
-            return{ bias };
+            return {bias};
     }
 
-    void update_dto(dto& dto) const override
-    {
-        dto.bias = bias.c_str();
-    }
+    void update_dto(dto& dto) const override { dto.bias = bias.c_str(); }
 };
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

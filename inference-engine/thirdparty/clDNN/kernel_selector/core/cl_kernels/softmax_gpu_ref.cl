@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,12 +21,18 @@
 __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(softmax)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
+#if INPUT0_DIMS == 5
+    const uint other0 = get_global_id(0) % INPUT0_OTHER0_SIZE;
+    const uint other2 = get_global_id(0) / INPUT0_OTHER0_SIZE;
+#else
     const uint other0 = get_global_id(0);
+    const uint other2 = 0;
+#endif
     const uint other1 = get_global_id(1);
     const uint batch  = get_global_id(2);
 
-    const uint in_depth_offset  = batch*INPUT0_BATCH_PITCH + other1*INPUT0_OTHER1_PITCH + other0*INPUT0_OTHER0_PITCH + INPUT0_OFFSET;
-    const uint out_depth_offset = batch*OUTPUT_BATCH_PITCH + other1*OUTPUT_OTHER1_PITCH + other0*OUTPUT_OTHER0_PITCH + OUTPUT_OFFSET;
+    const uint in_depth_offset  = batch*INPUT0_BATCH_PITCH + other2*INPUT0_OTHER2_PITCH + other1*INPUT0_OTHER1_PITCH + other0*INPUT0_OTHER0_PITCH + INPUT0_OFFSET;
+    const uint out_depth_offset = batch*OUTPUT_BATCH_PITCH + other2*OUTPUT_OTHER2_PITCH + other1*OUTPUT_OTHER1_PITCH + other0*OUTPUT_OTHER0_PITCH + OUTPUT_OFFSET;
     
     UNIT_TYPE max_value = UNIT_VAL_MIN;
     UNIT_TYPE data[INPUT0_CLASS_NUM];
@@ -51,6 +57,6 @@ KERNEL(softmax)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
     {
         const UNIT_TYPE res = data[cls] / (UNIT_TYPE)denominator;
         const uint output_idx = out_depth_offset + cls*OUTPUT_CLASS_PITCH;
-        output[output_idx] = ACTIVATION(res, NL_M, NL_N);
+        output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
     }
 }

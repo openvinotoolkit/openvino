@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -20,6 +20,7 @@
 #include "backends/common/gbackend.hpp"
 #include "compiler/gmodelbuilder.hpp"
 #include "logger.hpp"    // GAPI_LOG
+#include "api/gproto_priv.hpp" // is_dynamic, rewrap
 
 namespace
 {
@@ -129,7 +130,7 @@ void cv::gimpl::passes::expandKernels(ade::passes::PassContext &ctx, const gapi:
     GModel::Graph gr(ctx.graph);
 
     // Repeat the loop while there are compound kernels.
-    // Restart procedure after every successfull unrolling
+    // Restart procedure after every successful unrolling
     bool has_compound_kernel = true;
     while (has_compound_kernel)
     {

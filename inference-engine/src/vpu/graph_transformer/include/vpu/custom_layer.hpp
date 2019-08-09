@@ -16,6 +16,7 @@
 #include <pugixml.hpp>
 
 #include <vpu/utils/enums.hpp>
+#include <vpu/utils/containers.hpp>
 
 namespace vpu {
 
@@ -32,8 +33,15 @@ VPU_DECLARE_ENUM(CustomParamType,
     Input,
     Output,
     Data,
+    InputBuffer,
+    OutputBuffer,
     Int,
     Float
+)
+
+VPU_DECLARE_ENUM(CustomDimSource,
+    Input,
+    Output
 )
 
 class CustomLayer final {
@@ -46,28 +54,37 @@ public:
         std::string argName;
         int portIndex = -1;
         std::string irSource;
+        SmallVector<std::string> bufferSizeRules;
+        CustomDimSource dimSource;
+        int dimIdx = -1;
     };
 
-    static ie::details::caseless_map<std::string, CustomLayer::Ptr> loadFromFile(
+    static ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> loadFromFile(
                 const std::string& configFile,
                 bool canBeMissed = false);
 
     const std::string& kernelBinary() const { return _kernelBinary; }
 
+    void setStageNumInputs(int id);
+    int stageNumInputs() const;
     int kernelAddress(int idx = 1) const;
+    int maxShaves() const;
+    const std::map<std::string, std::string>& whereParams() const { return _whereParams; }
 
-    const std::vector<KernelParam>& bindings() const { return _kernelParams; }
-    const std::vector<std::string>& parameters() const { return _parameters; }
+    const SmallVector<KernelParam>& bindings() const { return _kernelParams; }
+    const SmallVector<std::string>& parameters() const { return _parameters; }
 
-    const std::vector<std::string>& globalSizeRules() const { return _globalSizeRules; }
-    const std::vector<std::string>& localSizeRules() const { return _localSizeRules; }
+    const SmallVector<std::string>& globalSizeRules() const { return _globalSizeRules; }
+    const SmallVector<std::string>& localSizeRules() const { return _localSizeRules; }
 
-    int inputDimSourceIndex() { return _wgDimInputIdx; }
+    CustomDimSource dimSource() const { return _wgDimSource; }
+    int dimSourceIndex() const { return _wgDimIdx; }
 
 private:
     explicit CustomLayer(const std::string& dirname) : _configDir(dirname) {}
 
     void loadSingleLayer(const pugi::xml_node& node);
+    void processWhere(const pugi::xml_node& node);
     void processKernelNode(const pugi::xml_node& node);
     void processParametersNode(const pugi::xml_node& node);
     void processWorkSizesNode(const pugi::xml_node& node);
@@ -80,15 +97,20 @@ private:
     std::string _layerName;
     std::string _kernelEntry;
     std::string _kernelBinary;
+    std::map<std::string, std::string> _whereParams;
 
-    std::vector<KernelParam> _kernelParams;
-    std::vector<std::string> _globalSizeRules;
-    std::vector<std::string> _localSizeRules;
-    std::vector<std::string> _parameters;
+    int _maxShaves = 0;
+    int _stageNumInputs = -1;
+
+    SmallVector<KernelParam> _kernelParams;
+    SmallVector<std::string> _globalSizeRules;
+    SmallVector<std::string> _localSizeRules;
+    SmallVector<std::string> _parameters;
 
     std::map<uint32_t, uint32_t, std::greater<uint32_t>> _kernelAddress;
 
-    int _wgDimInputIdx = 0;
+    CustomDimSource _wgDimSource = CustomDimSource::Input;
+    int _wgDimIdx = -1;
 };
 
 };  // namespace vpu

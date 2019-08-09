@@ -14,6 +14,7 @@
 #include <ie_parallel.hpp>
 
 #include <vpu/utils/numeric.hpp>
+#include <vpu/utils/profiling.hpp>
 
 namespace vpu {
 
@@ -46,12 +47,10 @@ protected:
         auto _img_h = _layer->GetParamAsInt("img_h", 0);
         auto _img_w = _layer->GetParamAsInt("img_w", 0);
         auto _step = _layer->GetParamAsFloat("step", 0);
-        auto _step_h = _layer->GetParamAsFloat("step_h", 0);
-        auto _step_w = _layer->GetParamAsFloat("step_w", 0);
         auto _offset = _layer->GetParamAsFloat("offset", 0);
         auto _scale_all_sizes = static_cast<bool>(_layer->GetParamAsInt("scale_all_sizes", 1));
 
-        std::vector<float> _aspect_ratios;
+        SmallVector<float> _aspect_ratios;
         _aspect_ratios.reserve(aspect_ratios.size() + 1);
 
         _aspect_ratios.push_back(1.0f);
@@ -67,6 +66,10 @@ protected:
             if (!exist) {
                 _aspect_ratios.push_back(aspect_ratio);
                 if (_flip) {
+                    if (isFloatEqual(aspect_ratio, 0.f)) {
+                        THROW_IE_EXCEPTION << "[VPU] PriorBox has 0.0 aspect ratio param in flip mode, "
+                                           << " possible division by zero";
+                    }
                     _aspect_ratios.push_back(1.0f / aspect_ratio);
                 }
             }

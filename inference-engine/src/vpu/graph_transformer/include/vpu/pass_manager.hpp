@@ -12,6 +12,7 @@
 #include <vpu/model/model.hpp>
 #include <vpu/frontend/stage_builder.hpp>
 #include <vpu/backend/backend.hpp>
+#include <vpu/utils/profiling.hpp>
 
 namespace vpu {
 
@@ -55,11 +56,14 @@ public:
 
     void run(const Model::Ptr& model) const;
 
-    void addPass(const Pass::Ptr& pass) { _passes.emplace_back(pass); }
-    void addPass(Pass::Ptr&& pass) { _passes.emplace_back(std::move(pass)); }
+    inline void addPass(
+            const Pass::Ptr& pass,
+            const std::string& name = std::string()) {
+        _passes.emplace_back(pass, name);
+    }
 
 private:
-    std::vector<Pass::Ptr> _passes;
+    std::vector<std::pair<Pass::Ptr, std::string>> _passes;
 };
 
 //
@@ -79,12 +83,6 @@ public:
     PassSet::Ptr buildMiddleEnd();
 
 public:
-    //
-    // Find SubGraphs for allocation
-    //
-
-    Pass::Ptr findSubGraphs();
-
     //
     // To overcome fp16 limitations
     //
@@ -139,6 +137,7 @@ public:
     //
 
     Pass::Ptr mergeReLUAndBias();
+    Pass::Ptr mergeEltwiseAndReLU();
 
     //
     // Data layout adjustment
@@ -193,6 +192,13 @@ public:
     //
 
     Pass::Ptr dumpModel(const std::string& postfix);
+
+    //
+    // Dilation Conv NCE  passes
+    //
+
+    Pass::Ptr reshapeDilationConv();
+
 
 protected:
     StageBuilder::Ptr _stageBuilder;

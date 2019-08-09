@@ -34,11 +34,13 @@ public:
         _validator->parseParams(&layer);
 
         auto inBlob = *inData.begin();
+        auto inBlobDataSize = inBlob.get()->getTensorDesc().getPrecision().size();
         SizeVector inShape = inBlob->getTensorDesc().getDims();
-        const auto* inBuffer = inBlob->cbuffer().as<float*>();
+        const auto* inBuffer = inBlob->cbuffer().as<uint8_t*>();
 
         auto outBlob = *outData.begin();
-        auto* outBuffer = outBlob->buffer().as<float*>();
+        auto outBlobDataSize = outBlob.get()->getTensorDesc().getPrecision().size();
+        auto* outBuffer = outBlob->buffer().as<uint8_t*>();
 
         int m_outer_dim = 1;
         int m_inner_dim = 1;
@@ -48,10 +50,10 @@ public:
 
         for (int i = 0; i < m_outer_dim; ++i) {
             for (int t = 0; t < layer.tiles; ++t) {
-                ie_memcpy(outBuffer, outBlob->byteSize(), inBuffer, m_inner_dim * sizeof(float));
-                outBuffer += m_inner_dim;
+                ie_memcpy(outBuffer, outBlob->byteSize(), inBuffer, m_inner_dim * inBlobDataSize);
+                outBuffer += m_inner_dim * outBlobDataSize;
             }
-            inBuffer += m_inner_dim;
+            inBuffer += m_inner_dim * inBlobDataSize;
         }
     }
 };

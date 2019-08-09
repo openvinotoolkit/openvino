@@ -20,13 +20,11 @@
 
 namespace kernel_selector {
 
-    class ScaleGradWeightsKernelRef : public ScaleGradWeightsKernelBase
-    {
-    public:
-        ScaleGradWeightsKernelRef() : ScaleGradWeightsKernelBase("scale_grad_weights_gpu_ref") {}
-        virtual ~ScaleGradWeightsKernelRef() {}
+class ScaleGradWeightsKernelRef : public ScaleGradWeightsKernelBase {
+public:
+    ScaleGradWeightsKernelRef() : ScaleGradWeightsKernelBase("scale_grad_weights_gpu_ref") {}
+    virtual ~ScaleGradWeightsKernelRef() {}
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

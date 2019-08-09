@@ -18,13 +18,12 @@
 #pragma once
 #include "api/CPP/activation_grad.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<activation_grad> : public typed_program_node_base<activation_grad>
-{
+struct typed_program_node<activation_grad> : public typed_program_node_base<activation_grad> {
     using parent = typed_program_node_base<activation_grad>;
 
 public:
@@ -40,13 +39,13 @@ public:
 using activation_grad_node = typed_program_node<activation_grad>;
 
 template <>
-class typed_primitive_inst<activation_grad> : public typed_primitive_inst_base<activation_grad>
-{
+class typed_primitive_inst<activation_grad> : public typed_primitive_inst_base<activation_grad> {
     using parent = typed_primitive_inst_base<activation_grad>;
 
 public:
     static layout calc_output_layout(activation_grad_node const& node);
     static std::string to_string(activation_grad_node const& node);
+
 public:
     typed_primitive_inst(network_impl& network, activation_grad_node const& node);
 
@@ -56,4 +55,4 @@ public:
 };
 
 using activation_grad_inst = typed_primitive_inst<activation_grad>;
-}
+}  // namespace cldnn

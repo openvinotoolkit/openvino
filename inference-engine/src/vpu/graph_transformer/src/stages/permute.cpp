@@ -9,14 +9,15 @@
 #include <unordered_set>
 #include <memory>
 #include <set>
+#include <string>
 
 namespace vpu {
 
 namespace {
 
 template <class Cont1, class Cont2>
-std::vector<typename Cont1::value_type> permuteArray(const Cont1& src, const Cont2& permutation) {
-    std::vector<typename Cont1::value_type> out(permutation.size());
+SmallVector<typename Cont1::value_type, MAX_DIMS_64> permuteArray(const Cont1& src, const Cont2& permutation) {
+    SmallVector<typename Cont1::value_type, MAX_DIMS_64> out(permutation.size());
 
     for (int i = 0; i < out.size(); i++) {
         auto newInd = static_cast<int>(permutation[i]);
@@ -36,51 +37,37 @@ private:
         return std::make_shared<PermuteStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
         if (step == ScalePropagationStep::Propagate) {
-            out[output] = inputScales.at(input);
+            _scaleInfo.setOutput(_outputEdges[0], inputScales[0]);
         } else {
             // Copy can only propagate scaling.
-            out[input] = 1.0f;
-            out[output] = 1.0f;
+            _scaleInfo.setInput(_inputEdges[0], 1.0f);
+            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
         }
-
-        return out;
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
 
-        DataMap<DimsOrder> out;
-
-        out[output] = input->desc().dimsOrder();
-
-        return out;
+        _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+    void getDataStridesRequirementsImpl() const override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
@@ -95,7 +82,7 @@ private:
 
         auto input = _inputEdges[0]->input();
 
-        const auto& order = attrs().get<std::vector<int>>("order");
+        const auto& order = attrs().get<SmallVector<int, MAX_DIMS_64>>("order");
 
         auto perm = input->desc().dimsOrder().toPermutation();
         auto ind = input->desc().dimsOrder().toIndices();
@@ -139,7 +126,7 @@ void FrontEnd::parsePermute(
 
     auto maxIeOrder = *std::max_element(ieOrder.begin(), ieOrder.end());
 
-    std::vector<int> vpuOrder(MAX_DIMS_64, -1);
+    SmallVector<int, MAX_DIMS_64> vpuOrder(MAX_DIMS_64, -1);
     for (size_t i = 0; i < ieOrder.size(); i++) {
         vpuOrder[i] = maxIeOrder - ieOrder[ieOrder.size() - 1 - i];
     }
@@ -154,7 +141,38 @@ void FrontEnd::parsePermute(
         inputs,
         outputs);
 
-    stage->attrs().set<std::vector<int>>("order", vpuOrder);
+    stage->attrs().set<SmallVector<int, MAX_DIMS_64>>("order", vpuOrder);
+}
+
+Stage StageBuilder::addPermuteStage(
+        const Model::Ptr& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const DataVector& inputs,
+        const DataVector& outputs,
+        const SmallVector<int, MAX_DIMS_64>& ieOrder) {
+    IE_ASSERT(inputs.size() == 1);
+    IE_ASSERT(outputs.size() == 1);
+
+    auto maxIeOrder = *std::max_element(ieOrder.begin(), ieOrder.end());
+
+    SmallVector<int, MAX_DIMS_64> vpuOrder(MAX_DIMS_64, -1);
+    for (size_t i = 0; i < ieOrder.size(); i++) {
+        vpuOrder[i] = maxIeOrder - ieOrder[ieOrder.size() - 1 - i];
+    }
+
+    auto input = inputs[0];
+    auto output = outputs[0];
+
+    auto stage = model->addNewStage<PermuteStage>(
+        layer->name,
+        StageType::Permute,
+        layer,
+        inputs,
+        outputs);
+    stage->attrs().set<SmallVector<int, MAX_DIMS_64>>("order", vpuOrder);
+
+    return stage;
 }
 
 }  // namespace vpu

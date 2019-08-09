@@ -6,55 +6,77 @@ models:
         tags:
           - FP32
         device: CPU
-        model:   face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.xml
-        weights: face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.bin
+        model:   Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.xml
+        weights: Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.bin
         adapter: reid
 
       - framework: dlsdk
         tags:
-          - GPU32
+          - FP32
         device: GPU
-        model:   face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.xml
-        weights: face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.bin
+        model:   Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.xml
+        weights: Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.bin
         adapter: reid
 
       - framework: dlsdk
         tags:
-          - GPU16
+          - FP16
         device: GPU
-        model:   face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.xml
-        weights: face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.bin
+        model:   Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095-fp16.xml
+        weights: Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095-fp16.bin
         adapter: reid
 
       - framework: dlsdk
         device: MYRIAD
-        model:   face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.xml
-        weights: face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.bin
+        model:   Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095-fp16.xml
+        weights: Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095-fp16.bin
         adapter: reid
 
       - framework: dlsdk
         device: HDDL
-        model:   face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.xml
-        weights: face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.bin
+        model:   Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095-fp16.xml
+        weights: Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095-fp16.bin
         adapter: reid
 
       - framework: dlsdk
         tags:
-          - FPGA16
+          - A10_devkit
+          - FP16
         device: HETERO:FPGA,CPU
-        model:   face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.xml
-        weights: face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.bin
+        model:   Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.xml
+        weights: Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.bin
         adapter: reid
         bitstream: 2019R1_A10DK_FP16_SSD300.aocx
 
       - framework: dlsdk
         tags:
+          - A10_devkit
           - FPGA11
         device: HETERO:FPGA,CPU
-        model:   face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.xml
-        weights: face-reidentification-retail-0095/FP32/face-reidentification-retail-0095.bin
+        model:   Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.xml
+        weights: Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.bin
         adapter: reid
         bitstream: 2019R1_A10DK_FP11_CaffeMobileNet.aocx
+
+      - framework: dlsdk
+        tags:
+          - HDDL-F
+          - FP16
+        device: HETERO:FPGA,CPU
+        model:   Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.xml
+        weights: Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.bin
+        adapter: reid
+        bitstream: 2019R1_PL1_FP16_MobileNet_Clamp.aocx
+
+      - framework: dlsdk
+        tags:
+          - HDDL-F
+          - FP11
+        device: HETERO:FPGA,CPU
+        model:   Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.xml
+        weights: Retail/object_reidentification/face/mobilenet_based/dldt/face-reidentification-retail-0095.bin
+        adapter: reid
+        bitstream: 2019R1_PL1_FP11_MobileNetCaffe.aocx
 
     datasets:
       - name: lfw

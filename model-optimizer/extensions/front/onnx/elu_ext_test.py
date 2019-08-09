@@ -20,7 +20,7 @@ import onnx
 from generator import generator, generate
 
 from extensions.front.onnx.elu_ext import EluFrontExtractor
-from mo.ops.activation import Activation
+from extensions.ops.activation_ops import Elu
 from mo.ops.op import Op
 from mo.utils.unittest.extractors import PB
 
@@ -40,7 +40,7 @@ class TestEluONNXExt(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        Op.registered_ops['Elu'] = Activation
+        Op.registered_ops['Elu'] = Elu
 
     @generate(*[1.0, 2.0, 3.0])
     def test_elu_ext(self, alpha):
@@ -48,10 +48,9 @@ class TestEluONNXExt(unittest.TestCase):
         EluFrontExtractor.extract(node)
 
         exp_res = {
-            'type': 'Activation',
-            'operation': 'elu',
+            'type': 'Elu',
             'alpha': alpha,
-            'infer': Activation.infer
+            'infer': Elu.infer
         }
 
         for key in exp_res.keys():

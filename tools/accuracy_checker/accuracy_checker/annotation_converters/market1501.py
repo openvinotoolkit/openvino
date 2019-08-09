@@ -25,7 +25,7 @@ MARKET_IMAGE_PATTERN = re.compile(r'([-\d]+)_c(\d)')
 
 
 class Market1501Converter(DirectoryBasedAnnotationConverter):
-    __provider__ = "market1501"
+    __provider__ = 'market1501'
 
     def convert(self):
         gallery = self.data_dir / 'bounding_box_test'

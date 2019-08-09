@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-import numpy as np
 
 from mo.front.onnx.extractors.concat import concat_ext
 from mo.front.onnx.extractors.const import onnx_const_ext
@@ -22,7 +21,6 @@ from mo.front.onnx.extractors.constant import onnx_constant_ext
 from mo.front.onnx.extractors.eltwise import make_tf_eltwise
 from mo.front.onnx.extractors.fused_bn import tf_fused_bn_extractor
 from mo.front.onnx.extractors.matmul import onnx_gemm_ext
-from mo.front.onnx.extractors.placeholder import onnx_placeholder_ext
 from mo.front.onnx.extractors.reshape import onnx_reshape_ext
 from mo.graph.graph import Node
 
@@ -34,14 +32,10 @@ def node_pb_arg(pb_extractor: callable):
 onnx_op_extractors = {
     'BatchNormalization': tf_fused_bn_extractor,
     'Gemm': onnx_gemm_ext,
-    'Placeholder': onnx_placeholder_ext,
     'Concat': concat_ext,
     'Const': onnx_const_ext,
     'Constant': onnx_constant_ext,
     'Identity': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
-    'Sum': node_pb_arg(
-        make_tf_eltwise(lambda a, b: a + b, attrs={'type': 'Eltwise', 'operation': 'sum', 'can_be_bias': True})),
-    'Relu': node_pb_arg(make_tf_eltwise(lambda v: np.maximum(0, v), attrs={'type': 'ReLU'})),  # 0 is an integer
     'Reshape': onnx_reshape_ext,
 }
 

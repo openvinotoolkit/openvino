@@ -13,6 +13,7 @@
 #include "mkldnn_graph.h"
 #include "ie_parallel.hpp"
 #include "mkldnn_streams.h"
+#include "ie_compound_blob.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -66,7 +67,6 @@ bool pin_thread_to_vacant_core(int thr_idx, int hyperthreads, int ncores, const 
     const size_t size = CPU_ALLOC_SIZE(ncores);
     const int num_cpus = CPU_COUNT_S(size, proc_mask);
     thr_idx %= num_cpus;  // To limit unique number in [; num_cpus-1] range
-
     // Place threads with specified step
     int cpu_idx = 0;
     for (int i = 0, offset = 0; i < thr_idx; ++i) {
@@ -89,6 +89,31 @@ bool pin_thread_to_vacant_core(int thr_idx, int hyperthreads, int ncores, const 
     CPU_FREE(target_mask);
     return res;
 }
+bool pin_current_thread_to_socket(int socket) {
+    const int sockets = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
+    const int cores = MKLDNNPlugin::cpu::getNumberOfCPUCores();
+    const int cores_per_socket = cores/sockets;
+
+    int ncpus;
+    cpu_set_t *mask;
+    if (!get_process_mask(ncpus, mask))
+        return false;
+    cpu_set_t *target_mask = CPU_ALLOC(ncpus);
+    const size_t size = CPU_ALLOC_SIZE(ncpus);
+    CPU_ZERO_S(size, target_mask);
+
+    for (int core = socket*cores_per_socket; core < (socket+1)*cores_per_socket; core++) {
+        CPU_SET_S(core, size, target_mask);
+    }
+    // respect the user-defined mask for the entire process
+    CPU_AND_S(size, target_mask, target_mask, mask);
+    CPU_FREE(mask);
+    bool res = false;
+    if (CPU_COUNT_S(size, target_mask))  // if we have non-zero mask to set
+        res = pin_current_thread_by_mask(size, target_mask);
+    CPU_FREE(target_mask);
+    return res;
+}
 #else   // no threads pinning/binding on Win/MacOS
 bool get_process_mask(int& ncpus, cpu_set_t*& mask) {
     ncpus = 0;
@@ -101,14 +126,21 @@ bool pin_thread_to_vacant_core(int thr_idx, int hyperthreads, int ncores, const 
 bool pin_current_thread_by_mask(int ncores, const cpu_set_t* proc_mask) {
     return false;
 }
+bool pin_current_thread_to_socket(int socket) {
+    return false;
+}
 #endif  // !(defined(__APPLE__) || defined(_WIN32))
 
 MultiWorkerTaskExecutor::MultiWorkerTaskExecutor(const std::vector<Task::Ptr>& init_tasks, std::string name) :
         _isStopped(false), _name(name), _initCount(0) {
-    for (auto t : init_tasks) {
-        _threads.push_back(std::thread([&, t] {
+    const int sockets = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
+    const int worker_per_sockets = init_tasks.size() / sockets;
+    for (int t= 0; t < init_tasks.size(); t++) {
+        _threads.push_back(std::thread([&, t, init_tasks] {
+            int socket = t/worker_per_sockets;
+            pin_current_thread_to_socket(socket);
             // initialization (no contention, every worker thread is doing it's own task)
-            t->runNoThrowNoBusyCheck();
+            init_tasks[t]->runNoThrowNoBusyCheck();
             _initCount++;
 
             while (!_isStopped) {
@@ -206,15 +238,17 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
             }
             InferenceEngine::Blob::Ptr iconv;
             InferenceEngine::TBlob<float> *in_f = nullptr;
-            switch (input.second->precision()) {
+            switch (input.second->getTensorDesc().getPrecision()) {
                 case InferenceEngine::Precision::FP32:
+                case InferenceEngine::Precision::I32:
+                case InferenceEngine::Precision::I8:
                     graph->PushInputData(input.first, input.second);
                     break;
                 case InferenceEngine::Precision::U16:
                     // U16 is unsupported by mkldnn, so here we convert the blob and send FP32
-                    iconv = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
-                            InferenceEngine::Precision::FP32,
-                            input.second->getTensorDesc().getLayout(), input.second->dims());
+                    iconv = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32,
+                                                                      input.second->getTensorDesc().getDims(),
+                                                                      input.second->getTensorDesc().getLayout()});
                     convertedInputs.push_back(iconv);
                     iconv->allocate();
                     in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
@@ -226,9 +260,9 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
                 case InferenceEngine::Precision::I16:
                     if (graph->hasMeanImageFor(input.first)) {
                         // If a mean image exists, we convert the blob and send FP32
-                        iconv = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
-                                InferenceEngine::Precision::FP32,
-                                input.second->getTensorDesc().getLayout(), input.second->dims());
+                        iconv = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32,
+                                                                          input.second->getTensorDesc().getDims(),
+                                                                          input.second->getTensorDesc().getLayout()});
                         convertedInputs.push_back(iconv);
                         iconv->allocate();
                         in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
@@ -244,9 +278,9 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
                 case InferenceEngine::Precision::U8:
                     if (graph->hasMeanImageFor(input.first)) {
                         // If a mean image exists, we convert the blob and send FP32
-                        iconv = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
-                                InferenceEngine::Precision::FP32,
-                                input.second->getTensorDesc().getLayout(), input.second->dims());
+                        iconv = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32,
+                                                                          input.second->getTensorDesc().getDims(),
+                                                                          input.second->getTensorDesc().getLayout()});
                         convertedInputs.push_back(iconv);
                         iconv->allocate();
                         in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
@@ -260,7 +294,7 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
                     }
                     break;
                 default:
-                    THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->precision();
+                    THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
             }
         }
         graph->Infer(m_curBatch);
@@ -270,7 +304,7 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
             graph->GetPerfData(m_perfMap);
         }
     };
-#if IE_THREAD == IE_THREAD_TBB
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     auto_scope_observing observer(MKLDNNPlugin::MultiWorkerTaskExecutor::ptrContext.ptrGraph->ptrObserver);
     // a TBB arena is made "this" for Infer call via executing lambda for the arena
     MKLDNNPlugin::MultiWorkerTaskExecutor::ptrContext.ptrGraph->ptrArena->execute([&] { infer(); });
@@ -328,28 +362,40 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::GetBlob(const char *name, Infere
 }
 
 void MKLDNNPlugin::MKLDNNGraphlessInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr &data) {
-    if (!data)
-        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
-    if (data->buffer() == nullptr)
-        THROW_IE_EXCEPTION << "Input data was not allocated. Input name: \'" << name << "\'";
     if (name == nullptr) {
         THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
     }
+    if (!data)
+        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
+    const bool compoundBlobPassed = data->is<CompoundBlob>();
+    if (!compoundBlobPassed && data->buffer() == nullptr)
+        THROW_IE_EXCEPTION << "Input data was not allocated. Input name: \'" << name << "\'";
+    if (data->size() == 0) {
+        THROW_IE_EXCEPTION << "Input data is empty. Input name: \'" << name << "\'";
+    }
+
     InferenceEngine::InputInfo::Ptr foundInput;
     InferenceEngine::DataPtr foundOutput;
     size_t dataSize = data->size();
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        if (foundInput->getInputPrecision() != data->precision()) {
+        if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set Blob with precision "
-                               << data->precision();
+                               << data->getTensorDesc().getPrecision();
         }
 
-        if (foundInput->getPreProcess().getResizeAlgorithm() != InferenceEngine::ResizeAlgorithm::NO_RESIZE) {
+        const bool preProcRequired = preProcessingRequired(foundInput, data);
+        if (compoundBlobPassed && !preProcRequired) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "cannot set compound blob: supported only for input pre-processing";
+        }
+
+        if (preProcRequired) {
             PreProcessData::isApplicable(data, _inputs[name]);
-            // Stores the given blob as ROI blob. It will be used to fill in network input during pre-processing.
+            // Stores the given blob as ROI blob. It will be used to fill in network input during
+            // pre-processing.
             _preProcData[name].setRoiBlob(data);
         } else {
-            size_t inputSize = InferenceEngine::details::product(foundInput->getDims());
+            size_t inputSize = InferenceEngine::details::product(foundInput->getTensorDesc().getDims());
             if (dataSize != inputSize) {
                 THROW_IE_EXCEPTION << "Input blob size is not equal network input size ("
                                    << dataSize << "!=" << inputSize << ").";
@@ -357,12 +403,16 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::SetBlob(const char *name, const 
             _inputs[name] = data;
         }
     } else {
+        if (compoundBlobPassed) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "cannot set compound blob: supported only for input pre-processing";
+        }
         size_t outputSize = InferenceEngine::details::product(foundOutput->getDims());
         if (dataSize != outputSize) {
             THROW_IE_EXCEPTION << "Output blob size is not equal network output size ("
                                << dataSize << "!=" << outputSize << ").";
         }
-        if (foundOutput->getPrecision() != data->precision()) {
+        if (foundOutput->getPrecision() != data->getTensorDesc().getPrecision()) {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
                                << "Failed to set Blob with precision not corresponding to user output precision";
         }

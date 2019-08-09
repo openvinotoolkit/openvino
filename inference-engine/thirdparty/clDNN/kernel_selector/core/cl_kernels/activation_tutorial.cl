@@ -50,21 +50,25 @@ KERNEL(activation)(
     const uint dst_index = GET_DATA_INDEX(OUTPUT, batch, feature, y, x);
 
 #if defined PARAMETERIZED                                                   // in case that the input additional params is located on a bufffer
-    #if   PARAMS_NUM == 2
-        const float nl_m = (float)params[2*feature + 0];
-        const float nl_n = (float)params[2*feature + 1];
+        #if PARAMS_NUM > 2
+        #error Too many params
+    #elif PARAMS_NUM == 2
+        #define NL_M_PARAMETERIZED (float)params[2*feature + 0]
+        #define NL_N_PARAMETERIZED (float)params[2*feature + 1]
     #elif PARAMS_NUM == 1
-        const float nl_m = (float)params[feature];
-        const float nl_n = (float)NL_N;
+        #define NL_M_PARAMETERIZED (float)params[feature]
+        #define NL_N_PARAMETERIZED (float)NL_N
     #else
-        const float nl_m = (float)NL_M;
-        const float nl_n = (float)NL_N;
+        #define NL_M_PARAMETERIZED (float)NL_M
+        #define NL_N_PARAMETERIZED (float)NL_N
     #endif
+    #define PARAMETERIZED_ACTIVATION_PARAMS NL_M_PARAMETERIZED, NL_N_PARAMETERIZED
+    output[dst_index] = ACTIVATION(input[src_index], PARAMETERIZED_ACTIVATION_PARAMS);
 #else
     const float nl_m = (float)NL_M;
     const float nl_n = (float)NL_N;
+    output[dst_index] = ACTIVATION(input[src_index], ACTIVATION_PARAMS);           // Do the activation
 #endif
-    output[dst_index] = ACTIVATION(input[src_index], nl_m, nl_n);           // Do the activation
 }
 
 #else

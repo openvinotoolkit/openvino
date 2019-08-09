@@ -13,7 +13,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNPermuteNode::MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNPermuteNode::MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
+        : MKLDNNNode(layer, eng, socket) {}
 
 void MKLDNNPermuteNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
@@ -56,38 +57,38 @@ void MKLDNNPermuteNode::initSupportedPrimitiveDescriptors() {
     if (getParentEdgeAt(0)->getDims().ndims() == 4) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nchw);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nchw);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nchw});
 
         auto srcDims = getParentEdgeAt(0)->getDims();
         if (srcDims[1] % 8 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw8c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nChw8c});
         }
 
         if (srcDims[1] % 16 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw16c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nChw16c});
         }
     } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::ncdhw);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::ncdhw);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::ncdhw});
 
         auto srcDims = getParentEdgeAt(0)->getDims();
         if (srcDims[1] % 8 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw8c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nCdhw8c});
         }
 
         if (srcDims[1] % 16 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw16c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nCdhw16c});
         }
     } else {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::any);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
                                                    MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims()));
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims())});
     }
 }
 
@@ -99,7 +100,7 @@ void MKLDNNPermuteNode::createPrimitive() {
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
         THROW_IE_EXCEPTION << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 }
 
 static void permute_to_0231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
@@ -120,25 +121,19 @@ static void permute_to_0231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
     // NHWC
     const int src_stride = H * W * block_size;
 
-    int src_off = 0;
-    int dst_off = 0;
+    parallel_for3d(MB, H, W, [&](int n, int h, int w) {
+        int src_off = n * C * H * W + (h * W + w) * block_size;
+        int dst_off = n * H * W * C + h * W * C + w * C;
 
-    for (int n = 0; n < MB; n++) {
-        for (int h = 0; h < H; h++) {
-            for (int w = 0; w < W; w++) {
-                src_off = n * C * H * W + (h * W + w) * block_size;
-
-                for (int c = 0; c < C; c += block_size) {
-                    for (int b = 0; b < block_size; b++) {
-                        dst_data[dst_off] = src_data[src_off + b];
-                        dst_off++;
-                    }
-
-                    src_off += src_stride;
-                }
+        for (int c = 0; c < C; c += block_size) {
+            for (int b = 0; b < block_size; b++) {
+                dst_data[dst_off] = src_data[src_off + b];
+                dst_off++;
             }
+
+            src_off += src_stride;
         }
-    }
+    });
 }
 
 static void permute_to_0213(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
@@ -162,6 +157,25 @@ static void permute_to_0213(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
             for (int b = 0; b < block_size; b++) {
                 dst_data[dst_off + b] = src_data[src_off + b];
             }
+        }
+    });
+}
+
+static void permute_to_0312(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int C = srcMemPtr->GetDims()[1];
+    const int H = srcMemPtr->GetDims()[2];
+    const int W = srcMemPtr->GetDims()[3];
+
+    parallel_for3d(MB, C, H, [&](int n, int c, int h) {
+        for (int w = 0; w < W; w++) {
+            int src_off = n*C*H*W + c*H*W + h*W + w;
+            int dst_off = n*W*C*H + w*C*H + c*H + h;
+            dst_data[dst_off] = src_data[src_off];
         }
     });
 }
@@ -299,28 +313,243 @@ static void permute_to_034152(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPt
     }
 }
 
+static void permute_to_0132(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    int src_block_size = 1;
+    if (!MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat())) {
+        src_block_size = srcMemPtr->GetDescriptor().data.layout_desc.blocking.block_dims[1];
+    }
+
+    const int C = srcMemPtr->GetDims()[1];
+    const int H = srcMemPtr->GetDims()[2];
+    const int W = srcMemPtr->GetDims()[3];
+
+    parallel_for3d(MB, C/src_block_size, H, [&](int n, int c, int h) {
+        for (int w = 0; w < W; w++) {
+            int src_off = n*C*H*W + (c*H*W + h*W + w)*src_block_size;
+            int dst_off = n*C*H*W + c*H*W*src_block_size + w*H + h;
+            for (int b = 0; b < src_block_size; b++) {
+                dst_data[dst_off + b*H*W] = src_data[src_off + b];
+            }
+        }
+    });
+}
+
+static void permute_to_03142(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int DIM1 = srcMemPtr->GetDims()[1];
+    const int DIM2 = srcMemPtr->GetDims()[2];
+    const int DIM3 = srcMemPtr->GetDims()[3];
+    const int DIM4 = srcMemPtr->GetDims()[4];
+
+    int src_off = 0;
+    int dst_off = 0;
+
+    for (int n = 0; n < MB; n++) {
+        for (int dim3 = 0; dim3 < DIM3; dim3++) {
+            for (int dim1 = 0; dim1 < DIM1; dim1++) {
+                for (int dim4 = 0; dim4 < DIM4; dim4++) {
+                    for (int dim2 = 0; dim2 < DIM2; dim2++) {
+                        src_off = n * DIM1 * DIM2 * DIM3 * DIM4 +
+                                  dim1 * DIM2 * DIM3 * DIM4 +
+                                  dim2 * DIM3 * DIM4 +
+                                  dim3 * DIM4 +
+                                  dim4;
+
+                        dst_data[dst_off] = src_data[src_off];
+                        dst_off++;
+                    }
+                }
+            }
+        }
+    }
+}
+
+static void permute_to_1203(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int C = srcMemPtr->GetDims()[1];
+    const int H = srcMemPtr->GetDims()[2];
+    const int W = srcMemPtr->GetDims()[3];
+
+    parallel_for3d(MB, C, H, [&](int n, int c, int h) {
+        for (int w = 0; w < W; w++) {
+            int src_off = n * C * H * W + c * H * W + h * W + w;
+            int dst_off = c * H * MB * W + h * MB * W + n * W + w;
+            dst_data[dst_off] = src_data[src_off];
+        }
+    });
+}
+
+static void permute_to_02134(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int DIM1 = srcMemPtr->GetDims()[1];
+    const int DIM2 = srcMemPtr->GetDims()[2];
+    const int DIM3 = srcMemPtr->GetDims()[3];
+    const int DIM4 = srcMemPtr->GetDims()[4];
+
+    parallel_for4d(MB, DIM2, DIM1, DIM3, [&](int n, int dim2, int dim1, int dim3) {
+        for (int dim4 = 0; dim4 < DIM4; dim4++) {
+            int src_off = n * DIM1 * DIM2 * DIM3 * DIM4 +
+                          dim1 * DIM2 * DIM3 * DIM4 +
+                          dim2 * DIM3 * DIM4 +
+                          dim3 * DIM4 +
+                          dim4;
+            int dst_off = n * DIM2 * DIM1 * DIM3 * DIM4 +
+                          dim2 * DIM1 * DIM3 * DIM4 +
+                          dim1 * DIM3 * DIM4 +
+                          dim3 * DIM4 +
+                          dim4;
+
+            dst_data[dst_off] = src_data[src_off];
+        }
+    });
+}
+
+static void permute_to_02431(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int DIM1 = srcMemPtr->GetDims()[1];
+    const int DIM2 = srcMemPtr->GetDims()[2];
+    const int DIM3 = srcMemPtr->GetDims()[3];
+    const int DIM4 = srcMemPtr->GetDims()[4];
+
+    parallel_for4d(MB, DIM2, DIM4, DIM3, [&](int n, int dim2, int dim4, int dim3) {
+        for (int dim1 = 0; dim1 < DIM1; dim1++) {
+            int src_off = n * DIM1 * DIM2 * DIM3 * DIM4 +
+                          dim1 * DIM2 * DIM3 * DIM4 +
+                          dim2 * DIM3 * DIM4 +
+                          dim3 * DIM4 +
+                          dim4;
+            int dst_off = n * DIM2 * DIM4 * DIM3 * DIM1 +
+                          dim2 * DIM4 * DIM3 * DIM1 +
+                          dim4 * DIM3 * DIM1 +
+                          dim3 * DIM1 +
+                          dim1;
+
+            dst_data[dst_off] = src_data[src_off];
+        }
+    });
+}
+
+static void permute_to_04231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int DIM1 = srcMemPtr->GetDims()[1];
+    const int DIM2 = srcMemPtr->GetDims()[2];
+    const int DIM3 = srcMemPtr->GetDims()[3];
+    const int DIM4 = srcMemPtr->GetDims()[4];
+
+    parallel_for4d(MB, DIM4, DIM2, DIM3, [&](int n, int dim4, int dim2, int dim3) {
+        for (int dim1 = 0; dim1 < DIM1; dim1++) {
+            int src_off = n * DIM1 * DIM2 * DIM3 * DIM4 +
+                          dim1 * DIM2 * DIM3 * DIM4 +
+                          dim2 * DIM3 * DIM4 +
+                          dim3 * DIM4 +
+                          dim4;
+            int dst_off = n * DIM4 * DIM2 * DIM3 * DIM1 +
+                          dim4 * DIM2 * DIM3 * DIM1 +
+                          dim2 * DIM3 * DIM1 +
+                          dim3 * DIM1 +
+                          dim1;
+
+            dst_data[dst_off] = src_data[src_off];
+        }
+    });
+}
+
+static void permute_to_102(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int C  = srcMemPtr->GetDims()[1];
+    const int S  = srcMemPtr->GetDims()[2];
+
+    parallel_for2d(MB, S, [&](int n, int s) {
+        int src_off = 0;
+        int dst_off = 0;
+
+        for (int c = 0; c < C; c++) {
+            src_off = n * C * S +
+                      c * S +
+                      s;
+            dst_off = c * MB * S +
+                      n * S +
+                      s;
+
+            dst_data[dst_off] = src_data[src_off];
+        }
+    });
+}
+
 std::multimap<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl> MKLDNNPermuteNode::OptimizedCases = {
-        {{0, 2, 3, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_0231, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+        {{0, 2, 3, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_0231, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return true;
         })},  // NCHW -> NHWC case
-        {{0, 1, 4, 2, 5, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_014253<2, 2>, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+        {{0, 1, 4, 2, 5, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_014253<2, 2>, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat()) && srcMemPtr->GetDims()[2] == 2 && srcMemPtr->GetDims()[3] == 2;
         })},  // Dense upsample convolution case (scale = 2)
-        {{0, 1, 4, 2, 5, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_014253<0, 0>, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+        {{0, 1, 4, 2, 5, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_014253<0, 0>, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
         })},  // Dense upsample convolution case (generic)
-        {{3, 0, 1, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_3012, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        {{3, 0, 1, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_3012, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat()) && MB == srcMemPtr->GetDims()[0];
         })},  // LPR case
-        {{0, 2, 1, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_0213, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+        {{0, 2, 1, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_0213, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
         })},  // shufflenet
-        {{0, 2, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_021, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+        {{0, 2, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_021, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
         })},  // self attention block
-        {{0, 3, 4, 1, 5, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_034152, [](MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+        {{0, 3, 4, 1, 5, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_034152, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
         })},  // learning-to-see-in-the-dark-sony
+        {{0, 1, 3, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_0132, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return true;
+        })},
+        {{0, 3, 1, 4, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_03142, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        })},
+        {{1, 2, 0, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_1203, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat()) && MB == srcMemPtr->GetDims()[0];
+        })},
+        {{0, 2, 1, 3, 4}, MKLDNNPermuteNode::PermuteImpl(permute_to_02134, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        })},
+        {{0, 2, 4, 3, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_02431, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        })},
+        {{0, 4, 2, 3, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_04231, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        })},
+        {{0, 3, 1, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_0312, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        })},
+        {{1, 0, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_102, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat()) && MB == srcMemPtr->GetDims()[0];
+        })}
 };
 
 void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
@@ -330,7 +559,7 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
     auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
 
     for (const auto &impl : OptimizedCases) {
-        if (impl.first == order && impl.second.isValidParams(srcMemPtr, dstMemPtr)) {
+        if (impl.first == order && impl.second.isValidParams(batchToProcess(), srcMemPtr, dstMemPtr)) {
             impl.second.execute(batchToProcess(), srcMemPtr, dstMemPtr);
             return;
         }

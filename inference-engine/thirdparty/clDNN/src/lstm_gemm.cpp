@@ -19,20 +19,17 @@
 #include "primitive_type_base.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include <string>
 
-namespace cldnn
-{
-primitive_type_id lstm_gemm_type_id()
-{
+namespace cldnn {
+primitive_type_id lstm_gemm_type_id() {
     static primitive_type_base<lstm_gemm> instance;
     return &instance;
 }
 
-
-layout lstm_gemm_inst::calc_output_layout(lstm_gemm_node const& node)
-{
-    assert((bool)node.get_primitive()->output_data_type == false
-           && "Output data type forcing is not supported for lstm_gemm_node!");
+layout lstm_gemm_inst::calc_output_layout(lstm_gemm_node const& node) {
+    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+           "Output data type forcing is not supported for lstm_gemm_node!");
     auto desc = node.get_primitive();
     auto input_layout = node.input().get_output_layout();
     auto weights_layout = node.weights().get_output_layout();
@@ -43,18 +40,20 @@ layout lstm_gemm_inst::calc_output_layout(lstm_gemm_node const& node)
     //   biases{bfyx}    = [b: 1,     f:1 ,          x: direction,       y:  4 * hidden_size ]
     //   hidden{bfyx}    = [b: batch, f:  direction, x: 1 ,              y: hidden_size ] optional
     //   tempGEMM{bfyx}  = [b: batch, f: direction,  x: 4*hidden_size,   y: 1] output
-    auto result = layout(input_layout.data_type, input_layout.format, tensor(input_layout.size.batch[0], weights_layout.size.feature[0], weights_layout.size.spatial[1], 1));
+    auto result =
+        layout(input_layout.data_type,
+               input_layout.format,
+               tensor(input_layout.size.batch[0], weights_layout.size.feature[0], weights_layout.size.spatial[1], 1));
     return result;
 }
 
-std::string lstm_gemm_inst::to_string(lstm_gemm_node const& node)
-{
-    auto desc         = node.get_primitive();
-    auto node_info    = node.desc_to_json();
-    auto weights_id   = desc->weights;
+std::string lstm_gemm_inst::to_string(lstm_gemm_node const& node) {
+    auto desc = node.get_primitive();
+    auto node_info = node.desc_to_json();
+    auto weights_id = desc->weights;
     auto recurrent_id = desc->recurrent;
-    auto bias_id      = desc->bias != "" ? desc->bias : "no bias";
-    auto hidden_id    = desc->hidden != "" ? desc->hidden : "no inital hidden";
+    auto bias_id = desc->bias != "" ? desc->bias : "no bias";
+    auto hidden_id = desc->hidden != "" ? desc->hidden : "no inital hidden";
 
     std::stringstream primitive_description;
 
@@ -69,10 +68,13 @@ std::string lstm_gemm_inst::to_string(lstm_gemm_node const& node)
     return primitive_description.str();
 }
 
-lstm_gemm_inst::typed_primitive_inst(network_impl& network, lstm_gemm_node const& node)
-    :parent(network, node)
-{
+lstm_gemm_inst::typed_primitive_inst(network_impl& network, lstm_gemm_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(), "input format", input_layout.format.value, "expected format", format::bfyx, format::fyxb);
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
+                                  "input format",
+                                  input_layout.format.value,
+                                  "expected format",
+                                  format::bfyx,
+                                  format::fyxb);
 }
-}
+}  // namespace cldnn

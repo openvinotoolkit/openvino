@@ -489,7 +489,7 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
 #if BIAS_TERM
             expanded_acc += bias[bias_id];
 #endif
-            output[output_id] = ACTIVATION(expanded_acc, NL_M, NL_N);
+            output[output_id] = ACTIVATION(expanded_acc, ACTIVATION_PARAMS);
         }
     }
 }

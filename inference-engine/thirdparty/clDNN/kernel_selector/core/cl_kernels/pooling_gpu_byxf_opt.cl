@@ -75,9 +75,9 @@ KERNEL(pooling_gpu_byxf_opt)(const __global UNIT_TYPE* input, __global UNIT_TYPE
     {
         if(f+i < INPUT0_FEATURE_NUM){
 #if defined MAX_POOLING
-            output[output_pos+i] = ACTIVATION(out[i], NL_M ,NL_N);
+            output[output_pos+i] = ACTIVATION(out[i], ACTIVATION_PARAMS);
 #elif defined AVG_POOLING
-            output[output_pos+i] = ACTIVATION(out[i]/(UNIT_TYPE)(POOL_SIZE_X*POOL_SIZE_Y), NL_M ,NL_N);
+            output[output_pos+i] = ACTIVATION(out[i]/(UNIT_TYPE)(POOL_SIZE_X*POOL_SIZE_Y), ACTIVATION_PARAMS);
 #endif
         }
     }

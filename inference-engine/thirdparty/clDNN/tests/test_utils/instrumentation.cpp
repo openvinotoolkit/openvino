@@ -398,7 +398,7 @@ namespace instrumentation {
         }
     }
 
-    void logger::log_memory_to_file(const cldnn::memory& mem, std::string prefix, bool single_batch, cldnn::tensor::value_type batch_id, bool single_feature, cldnn::tensor::value_type feature_id)
+    void logger::log_memory_to_file(const cldnn::memory& mem, std::string prefix, bool single_batch, cldnn::tensor::value_type batch_id, cldnn::tensor::value_type feature_id)
     {
         auto batch = mem.get_layout().size.batch[0];
         auto feature = mem.get_layout().size.feature[0];

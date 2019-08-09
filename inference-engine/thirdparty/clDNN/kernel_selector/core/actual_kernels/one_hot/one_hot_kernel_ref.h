@@ -16,17 +16,12 @@
 
 #include "one_hot_kernel_base.h"
 
+namespace kernel_selector {
+class OneHotKernelRef : public OneHotKernelBase {
+public:
+    OneHotKernelRef() : OneHotKernelBase("one_hot_ref") {}
 
-namespace kernel_selector
-{
-    class OneHotKernelRef : public OneHotKernelBase
-    {
-    public:
-        OneHotKernelRef() : OneHotKernelBase("one_hot_ref") {}
-
-        KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

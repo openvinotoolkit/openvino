@@ -85,7 +85,7 @@ logging.config.dictConfig(_LOGGING_CONFIGURATION)
 _default_logger = logging.getLogger(_DEFAULT_LOGGER_NAME)
 
 
-def _warning_handler(message, category, filename, line_number):
+def _warning_handler(message, category, filename, line_number, *args, **kwargs):
     s = warnings.formatwarning(message, category, filename, line_number)
     _default_logger.warning(s)
 

@@ -17,15 +17,11 @@
 #include "scale_grad_weights_kernel_selector.h"
 #include "scale_grad_weights_kernel_ref.h"
 
-namespace kernel_selector
-{
-    scale_grad_weights_kernel_selector::scale_grad_weights_kernel_selector()
-    {
-        Attach<ScaleGradWeightsKernelRef>();
-    }
+namespace kernel_selector {
+scale_grad_weights_kernel_selector::scale_grad_weights_kernel_selector() { Attach<ScaleGradWeightsKernelRef>(); }
 
-    KernelsData scale_grad_weights_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::SCALE_GRAD_WEIGHTS);
-    }
+KernelsData scale_grad_weights_kernel_selector::GetBestKernels(const Params& params,
+                                                               const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::SCALE_GRAD_WEIGHTS);
 }
+}  // namespace kernel_selector

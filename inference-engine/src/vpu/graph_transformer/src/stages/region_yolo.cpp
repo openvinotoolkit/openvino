@@ -19,70 +19,36 @@ private:
         return std::make_shared<RegionYoloStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
-        out[input] = 1.0f;
-        out[output] = 1.0f;
-
-        return out;
-    }
-
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
 
         if (!attrs().get<bool>("doSoftMax")) {
-            out[output] = output->desc().dimsOrder().createMovedDim(Dim::C, 2);  // CHW
+            _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, 2));  // CHW
         }
-
-        return out;
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-
-        DataMap<StridesRequirement> out;
 
         if (attrs().get<bool>("doSoftMax")) {
             // Major dimension must be compact.
-            out[input] = StridesRequirement().add(2, DimStride::Compact);
+            _stridesInfo.setInput(_inputEdges[0], StridesRequirement().add(2, DimStride::Compact));
         }
-
-        return out;
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
-
-        return out;
+        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
 
     void finalCheckImpl() const override {

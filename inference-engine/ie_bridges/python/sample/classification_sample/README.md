@@ -22,7 +22,6 @@ The command yields the following usage message:
 usage: classification_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
                                 [-l CPU_EXTENSION] [-pp PLUGIN_DIR]
                                 [-d DEVICE] [--labels LABELS] [-nt NUMBER_TOP]
-                                [-ni NUMBER_ITER] [-pc]
 
 Options:
   -h, --help            Show this help message and exit.
@@ -45,9 +44,6 @@ Options:
   --labels LABELS       Optional. Path to a labels mapping file
   -nt NUMBER_TOP, --number_top NUMBER_TOP
                         Optional. Number of top results
-  -ni NUMBER_ITER, --number_iter NUMBER_ITER
-                        Optional. Number of inference iterations
-  -pc, --perf_counts    Optional. Report performance counters
 ```
 
 Running the application with the empty list of options yields the usage message given above.

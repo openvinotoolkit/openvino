@@ -18,9 +18,9 @@
 #pragma once
 #include "../C/batch_norm_grad.h"
 #include "primitive.hpp"
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -29,10 +29,9 @@ namespace cldnn
 /// @{
 
 /// @brief Performs backward batch normalization layer.
-/// @details Calculates mean gradient and gradient * input for every feature in data, 
+/// @details Calculates mean gradient and gradient * input for every feature in data,
 /// then output is calculated as inv_variance * (input_grad - mean_grad_input * input - mean_grad)
-struct batch_norm_grad : public primitive_base<batch_norm_grad, CLDNN_PRIMITIVE_DESC(batch_norm_grad)>
-{
+struct batch_norm_grad : public primitive_base<batch_norm_grad, CLDNN_PRIMITIVE_DESC(batch_norm_grad)> {
     CLDNN_DECLARE_PRIMITIVE(batch_norm_grad)
 
     /// @brief Constructs batch normalization backward layer.
@@ -45,35 +44,28 @@ struct batch_norm_grad : public primitive_base<batch_norm_grad, CLDNN_PRIMITIVE_
         const primitive_id& input_grad,
         const primitive_id& input,
         const primitive_id& inv_variance,
-        const padding& output_padding = padding()
-    )
-        : primitive_base(id, { input_grad, input }, output_padding)
-        , inv_variance(inv_variance)
-    {
+        const padding& output_padding = padding())
+        : primitive_base(id, {input_grad, input}, output_padding), inv_variance(inv_variance) {
     }
 
     /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{batch_norm_grad}
     batch_norm_grad(const dto* dto)
-        :primitive_base(dto)
-        , inv_variance(dto->inv_variance)
-    {
+        : primitive_base(dto), inv_variance(dto->inv_variance) {
     }
 
     /// @brief Primitive id containing inverted variance from forward pass.
     primitive_id inv_variance;
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override
-    {
-        return{ inv_variance };
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
+        return {inv_variance};
     }
 
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.inv_variance = inv_variance.c_str();
     }
 };
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

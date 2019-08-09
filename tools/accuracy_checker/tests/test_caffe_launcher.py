@@ -22,7 +22,7 @@ import numpy as np
 
 from accuracy_checker.launcher.launcher import create_launcher
 from accuracy_checker.config import ConfigError
-from accuracy_checker.dataset import DataRepresentation
+from accuracy_checker.data_readers import DataRepresentation
 
 
 def get_caffe_test_model(models_dir):
@@ -46,17 +46,17 @@ class TestCaffeLauncher:
         c, h, w = caffe_test_model.inputs['data']
         img_raw = cv2.imread(str(data_dir / '1.jpg'))
         img_resized = cv2.resize(img_raw, (w, h))
-        res = caffe_test_model.predict(['1.jpg'], [DataRepresentation(img_resized)])
+        input_blob = np.transpose([img_resized], (0, 3, 1, 2))
+        res = caffe_test_model.predict([{'data': input_blob.astype(np.float32)}], [{}])
 
-        assert res[0].label == 6
+        assert np.argmax(res[0]['fc3']) == 6
 
     def test_caffe_launcher_provide_input_shape_to_adapter(self, mocker, models_dir):
         mocker.patch('caffe.Net.forward', return_value={'fc3': 0})
-        adapter_mock = mocker.patch('accuracy_checker.adapters.ClassificationAdapter.process')
         launcher = get_caffe_test_model(models_dir)
-        launcher.predict(['1.png'], [DataRepresentation(np.zeros((32, 32, 3)))])
-        adapter_mock.assert_called_once_with([{'fc3': 0}], ['1.png'], [{'input_shape': {'data': (3, 32, 32)}, 'image_size': (32, 32, 3)}])
-
+        zeros = DataRepresentation(np.zeros((1, 3, 32, 32)))
+        launcher.predict([{'data': zeros.data}], [zeros.metadata])
+        assert zeros.metadata['input_shape'] == {'data': (3, 32, 32)}
 
 
 def test_missed_model_in_create_caffe_launcher_raises_config_error_exception():

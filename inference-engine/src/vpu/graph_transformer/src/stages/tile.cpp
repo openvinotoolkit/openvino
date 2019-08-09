@@ -19,55 +19,39 @@ protected:
         return std::make_shared<TileStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
         if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales.at(input);
-
-            out[output] = inputScale;
+            auto inputScale = inputScales[0];
+            _scaleInfo.setOutput(_outputEdges[0], inputScale);
         } else {
             // Tile can only propagate scaling, not generate.
-
-            out[input] = 1.0f;
-            out[output] = 1.0f;
+            _scaleInfo.setInput(_inputEdges[0], 1.0f);
+            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
         }
-
-        return out;
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
 
         auto inOrder = input->desc().dimsOrder();
         auto finalOrder = inOrder;
 
-        DataMap<DimsOrder> out;
-
-        out[input] = finalOrder;
-        out[output] = finalOrder;
-
-        return out;
+        _orderInfo.setInput(_inputEdges[0], finalOrder);
+        _orderInfo.setOutput(_outputEdges[0], finalOrder);
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+    void getDataStridesRequirementsImpl() const override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     void finalizeDataLayoutImpl() override {
@@ -138,8 +122,8 @@ void FrontEnd::parseTile(
         {input},
         {output});
 
-    stage->attrs().set<Dim>("axis", axis);
-    stage->attrs().set<int>("tiles", layer->tiles);
+    stage->attrs().set("axis", axis);
+    stage->attrs().set("tiles", layer->tiles);
 }
 
 }  // namespace vpu

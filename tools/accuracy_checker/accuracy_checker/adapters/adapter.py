@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ..config import BaseField, ConfigValidator, StringField
+from ..config import BaseField, ConfigValidator, StringField, ConfigError
 from ..dependency import ClassProvider
 
 
@@ -33,8 +33,12 @@ class Adapter(ClassProvider):
         self.validate_config()
         self.configure()
 
-    def __call__(self, *args, **kwargs):
-        return self.process(*args, **kwargs)
+    def __call__(self, context=None, outputs=None, **kwargs):
+        if outputs is not None:
+            return self.process(outputs, **kwargs)
+        predictions = self.process(context.prediction_batch, context.identifiers_batch, **kwargs)
+        context.prediction_batch = predictions
+        return context
 
     def process(self, raw, identifiers=None, frame_meta=None):
         raise NotImplementedError
@@ -69,3 +73,19 @@ class AdapterField(BaseField):
             dict_adapter_validator.validate(entry)
         else:
             self.raise_error(entry, field_uri_, 'adapter must be either string or dictionary')
+
+
+def create_adapter(adapter_config, launcher, dataset=None):
+    if isinstance(adapter_config, str):
+        adapter = Adapter.provide(adapter_config, launcher.config)
+    elif isinstance(adapter_config, dict):
+        adapter = Adapter.provide(adapter_config['type'], adapter_config)
+    else:
+        raise ConfigError('Unknown type for adapter configuration')
+    adapter.output_blob = launcher.output_blob
+    if dataset:
+        metadata = dataset.metadata
+        if metadata:
+            adapter.label_map = dataset.metadata.get('label_map')
+
+    return adapter

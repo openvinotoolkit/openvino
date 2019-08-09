@@ -21,7 +21,6 @@ from extensions.front.caffe.normalize_ext import NormalizeFrontExtractor
 from extensions.ops.normalize import NormalizeOp
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.ops.op import Op
 
 
@@ -59,7 +58,6 @@ class TestNormalizeExt(unittest.TestCase):
             'across_spatial': 1,
             'channel_shared': 0,
             'eps': 0.00001,
-            'infer': copy_shape_infer
         }
 
         for key in exp_res.keys():

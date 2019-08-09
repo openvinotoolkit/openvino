@@ -95,7 +95,8 @@ function(detect_mkl LIBNAME)
     if (MKLINC AND LIBNAME MATCHES "mklml")
         get_filename_component(__mklinc_root "${MKLINC}" PATH)
         find_library(tmp_MKLLIB NAMES "mkl_rt"
-            HINTS ${__mklinc_root}/lib/intel64)
+            HINTS ${__mklinc_root}/lib/intel64
+            NO_DEFAULT_PATH)
         set_if(tmp_MKLLIB MKLINC "")
         unset(tmp_MKLLIB CACHE)
     endif()
@@ -121,10 +122,14 @@ function(detect_mkl LIBNAME)
     endif()
 
     get_filename_component(__mklinc_root "${MKLINC}" PATH)
+
+    unset(MKLLIB CACHE) # make find_library to redo the search
+    # At first, try to locate Intel MKL in the path where the header was found
     find_library(MKLLIB NAMES ${LIBNAME}
-        HINTS   ${MKLROOT}/lib ${MKLROOT}/lib/intel64
-                $ENV{MKLROOT}/lib $ENV{MKLROOT}/lib/intel64
-                ${__mklinc_root}/lib ${__mklinc_root}/lib/intel64)
+        PATHS ${__mklinc_root}/lib ${__mklinc_root}/lib/intel64
+        NO_DEFAULT_PATH)
+    # On failure, check the system paths
+    find_library(MKLLIB NAMES ${LIBNAME})
     if(NOT MKLLIB)
         return()
     endif()
@@ -141,7 +146,8 @@ function(detect_mkl LIBNAME)
         endif()
     endif()
 
-    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Intel"
+            OR MKLDNN_INSTALL_MODE STREQUAL "BUNDLE")
         get_filename_component(MKLLIBPATH ${MKLLIB} PATH)
         find_library(MKLIOMP5LIB
             NAMES "iomp5" "iomp5md" "libiomp5" "libiomp5md"
@@ -166,6 +172,15 @@ function(detect_mkl LIBNAME)
         set(MKLIOMP5DLL)
     endif()
 
+    if(MKLDNN_INSTALL_MODE STREQUAL "BUNDLE"
+            AND NOT MKLDNN_THREADING STREQUAL "TBB"
+            AND NOT (MKLDNN_THREADING STREQUAL "OMP:COMP"
+            AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+        set(INSTALL_IOMP5 TRUE)
+    else()
+        set(INSTALL_IOMP5 FALSE)
+    endif()
+
     get_filename_component(MKLLIBPATH "${MKLLIB}" PATH)
     string(FIND "${MKLLIBPATH}" ${CMAKE_CURRENT_SOURCE_DIR}/external __idx)
     if(${__idx} EQUAL 0)
@@ -175,6 +190,13 @@ function(detect_mkl LIBNAME)
         else()
             install(PROGRAMS ${MKLLIB} ${MKLIOMP5LIB}
                 DESTINATION ${CMAKE_INSTALL_LIBDIR})
+        endif()
+    elseif(INSTALL_IOMP5)
+        if(WIN32)
+            install(PROGRAMS ${MKLIOMP5DLL} DESTINATION ${CMAKE_INSTALL_BINDIR})
+            install(PROGRAMS ${MKLIOMP5LIB} DESTINATION ${CMAKE_INSTALL_LIBDIR})
+        else()
+            install(PROGRAMS ${MKLIOMP5LIB} DESTINATION ${CMAKE_INSTALL_LIBDIR})
         endif()
     endif()
 
@@ -231,6 +253,12 @@ detect_mkl("mklml")
 detect_mkl("mkl_rt")
 
 if(HAVE_MKL)
+    if(MKLDNN_INSTALL_MODE STREQUAL "BUNDLE"
+            AND NOT MKLDNN_USE_MKL STREQUAL "FULL:STATIC")
+        message(FATAL_ERROR "MKL-DNN can only be installed as a bundle with
+                MKLDNN_USE_MKL set to FULL:STATIC")
+    endif()
+
     if (MKLDNN_USE_MKL STREQUAL "FULL:STATIC")
         set(MKLDLL "")
         get_filename_component(MKLLIBPATH "${MKLLIB}" PATH)

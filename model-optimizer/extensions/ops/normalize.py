@@ -14,8 +14,9 @@
  limitations under the License.
 """
 
+from mo.front.common.partial_infer.utils import mark_input_bins
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 
 
@@ -29,10 +30,15 @@ class NormalizeOp(Op):
             'type': __class__.op,
             'op': __class__.op,
             'eps': None,
-            'in_ports_count': 1,
+            'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': copy_shape_infer
+            'infer': __class__.infer
         }, attrs)
 
     def supported_attrs(self):
-        return ['eps', 'across_spatial', 'channel_shared']
+        return ['eps', 'eps_mode', 'across_spatial', 'channel_shared']
+
+    @staticmethod
+    def infer(node: Node):
+        mark_input_bins(node)
+        copy_shape_infer(node)

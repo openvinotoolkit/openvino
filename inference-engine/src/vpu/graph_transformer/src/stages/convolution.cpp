@@ -73,7 +73,7 @@ void FrontEnd::parseConvolution(
     }
 
     // TODO: support dilated convolution
-    if (dilationX != 1 || dilationY != 1) {
+    if ((dilationX != 1 || dilationY != 1) && (!env.config.hwDilation)) {
         tryHW = false;
     }
 

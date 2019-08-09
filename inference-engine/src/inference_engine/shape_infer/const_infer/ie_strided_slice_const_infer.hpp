@@ -4,8 +4,6 @@
 
 #pragma once
 
-#define NOMINMAX
-
 #include <ie_blob.h>
 #include <map>
 #include <memory>
@@ -189,11 +187,16 @@ public:
                 else
                     j++;
 
-                if (shrink_axis_mask.size() > k && shrink_axis_mask[k] == 1)
+                if (shrink_axis_mask.size() > k && shrink_axis_mask[k] == 1) {
                     end_dms[i] = begin_dms[i];
-                else
+                    if (max_dims == 1) {
+                        out_dims.push_back(static_cast<int>(ceil(static_cast<float>(abs(end_dms[i] - begin_dms[i]) + 1) /
+                            static_cast<float>(abs(stride_dms[i])))));
+                    }
+                } else {
                     out_dims.push_back(static_cast<int>(ceil(static_cast<float>(abs(end_dms[i] - begin_dms[i]) + 1) /
-                                                             static_cast<float>(abs(stride_dms[i])))));
+                        static_cast<float>(abs(stride_dms[i])))));
+                }
 
                 our_dims.push_back(static_cast<int>(ceil(static_cast<float>(abs(end_dms[i] - begin_dms[i]) + 1) /
                                                          static_cast<float>(abs(stride_dms[i])))));
@@ -214,6 +217,8 @@ public:
                 THROW_IE_EXCEPTION << "parameter mismatch";
         }
         dstStrides = outData[0]->getTensorDesc().getBlockingDesc().getStrides();
+        if (dst_dims.size() == 1 && dst_dims[0] == 1)
+            dstStrides.push_back(1);
         if (outData.size() != 1)
             THROW_IE_EXCEPTION << " Incorrect number of input/output edges!";
         float* dst_data = outData[0]->cbuffer().as<float*>() +

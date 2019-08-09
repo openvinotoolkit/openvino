@@ -18,14 +18,10 @@ import logging as log
 
 import numpy as np
 
-from extensions.middle.CheckForCycle import CheckForCycle
-from extensions.middle.DeleteControlFlowEdges import DeleteControlFlowEdges
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
-from mo.ops.lin_op import Mul, Add
-from mo.ops.op import Op
-from mo.ops.power import Power
+from extensions.ops.elementwise import Mul, Add
 
 
 class ConvToBinaryConv(MiddleReplacementPattern):
@@ -41,7 +37,8 @@ class ConvToBinaryConv(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('quantize', dict(kind='op', op='Quantize')),
+                # This pass is applicable for binarization only. Other intX variants are not relevant.
+                ('quantize', dict(kind='op', op='FakeQuantize', levels=2)),
                 ('quantized', dict()),  # input tensor, not weights
                 ('operator', dict(kind='op', type='Convolution')),
             ],
@@ -55,9 +52,6 @@ class ConvToBinaryConv(MiddleReplacementPattern):
         assert match['operator'].has('multiplication_transparent_ports')
 
         quantize = match['quantize']
-        # This pass is applicable for binarization only. Other intX variants are not relevant.
-        if quantize.levels != 2:
-            return
 
         port = match['operator'].input_ports_with(match['quantized'])
         assert len(port) >= 1
@@ -72,7 +66,7 @@ class ConvToBinaryConv(MiddleReplacementPattern):
         if len(applicable) == 0:
             return
 
-        # Look at 3-rd and 4-th inputs of Quantize -- they have constants that should be passed through.
+        # Look at 3-rd and 4-th inputs of FakeQuantize -- they have constants that should be passed through.
         # Assume that the constant that should be passed through is a scalar.
         output_low = quantize.in_node(3)
         output_high = quantize.in_node(4)

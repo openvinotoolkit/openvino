@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2017-2018 Intel Corporation
+* Copyright 2017-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@
 
 #include "mkl_version.h"
 
-#define USE_MKL_PACKED_GEMM 0
+#define USE_MKL_PACKED_GEMM (INTEL_MKL_VERSION >= 20190001)
 #define USE_MKL_IGEMM \
     (INTEL_MKL_VERSION >= 20180000 && __INTEL_MKL_BUILD_DATE >= 20170628)
 

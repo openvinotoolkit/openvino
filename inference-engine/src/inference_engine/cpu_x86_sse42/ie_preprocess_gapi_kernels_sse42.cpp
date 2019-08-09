@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <utility>
+
 #include "ie_preprocess_gapi_kernels.hpp"
 #include "ie_preprocess_gapi_kernels_impl.hpp"
 #include "ie_preprocess_gapi_kernels_sse42.hpp"
@@ -1467,6 +1470,8 @@ void mergeRow_8UC2(const uint8_t in0[],
         v_store_interleave(&out[2*l], r0, r1);
     }
 
+    // FIXME: get rid of all gotos below
+    // Also to think about how to remove those ifs
     if (l < length && length >= 16) {
         l = length - 16;
         goto cycle;
@@ -1806,6 +1811,219 @@ void splitRow_32FC4(const float in[],
         out1[l] = in[4*l + 1];
         out2[l] = in[4*l + 2];
         out3[l] = in[4*l + 3];
+    }
+}
+
+static const int ITUR_BT_601_CY = 1220542;
+static const int ITUR_BT_601_CUB = 2116026;
+static const int ITUR_BT_601_CUG = -409993;
+static const int ITUR_BT_601_CVG = -852492;
+static const int ITUR_BT_601_CVR = 1673527;
+static const int ITUR_BT_601_SHIFT = 20;
+
+static inline void uvToRGBuv(const uchar u, const uchar v, int& ruv, int& guv, int& buv) {
+    int uu, vv;
+    uu = static_cast<int>(u) - 128;
+    vv = static_cast<int>(v) - 128;
+
+    ruv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVR * vv;
+    guv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVG * vv + ITUR_BT_601_CUG * uu;
+    buv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CUB * uu;
+}
+
+static inline void uvToRGBuv(const v_uint8x16& u, const v_uint8x16& v,
+                             v_int32x4 (&ruv)[4],
+                             v_int32x4 (&guv)[4],
+                             v_int32x4 (&buv)[4]) {
+    v_uint8x16 v128 = v_setall_u8(128);
+    v_int8x16 su = v_reinterpret_as_s8(v_sub_wrap(u, v128));
+    v_int8x16 sv = v_reinterpret_as_s8(v_sub_wrap(v, v128));
+
+    v_int16x8 uu0, uu1, vv0, vv1;
+    v_expand(su, uu0, uu1);
+    v_expand(sv, vv0, vv1);
+    v_int32x4 uu[4], vv[4];
+    v_expand(uu0, uu[0], uu[1]); v_expand(uu1, uu[2], uu[3]);
+    v_expand(vv0, vv[0], vv[1]); v_expand(vv1, vv[2], vv[3]);
+
+    v_int32x4 vshift = v_setall_s32(1 << (ITUR_BT_601_SHIFT - 1));
+    v_int32x4 vr = v_setall_s32(ITUR_BT_601_CVR);
+    v_int32x4 vg = v_setall_s32(ITUR_BT_601_CVG);
+    v_int32x4 ug = v_setall_s32(ITUR_BT_601_CUG);
+    v_int32x4 ub = v_setall_s32(ITUR_BT_601_CUB);
+
+    for (int k = 0; k < 4; k++) {
+        ruv[k] = vshift + vr * vv[k];
+        guv[k] = vshift + vg * vv[k] + ug * uu[k];
+        buv[k] = vshift + ub * uu[k];
+    }
+}
+
+static inline void yRGBuvToRGB(const uchar vy, const int ruv, const int guv, const int buv,
+                                uchar& r, uchar& g, uchar& b) {
+    int yy = static_cast<int>(vy);
+    int y = std::max(0, yy - 16) * ITUR_BT_601_CY;
+    r = saturate_cast<uchar>((y + ruv) >> ITUR_BT_601_SHIFT);
+    g = saturate_cast<uchar>((y + guv) >> ITUR_BT_601_SHIFT);
+    b = saturate_cast<uchar>((y + buv) >> ITUR_BT_601_SHIFT);
+}
+
+
+static inline void yRGBuvToRGB(const v_uint8x16& vy,
+                                const v_int32x4 (&ruv)[4],
+                                const v_int32x4 (&guv)[4],
+                                const v_int32x4 (&buv)[4],
+                                v_uint8x16& rr, v_uint8x16& gg, v_uint8x16& bb) {
+    v_uint8x16 v16 = v_setall_u8(16);
+    v_uint8x16 posY = vy - v16;
+    v_uint16x8 yy0, yy1;
+    v_expand(posY, yy0, yy1);
+    v_int32x4 yy[4];
+    v_int32x4 yy00, yy01, yy10, yy11;
+    v_expand(v_reinterpret_as_s16(yy0), yy[0], yy[1]);
+    v_expand(v_reinterpret_as_s16(yy1), yy[2], yy[3]);
+
+    v_int32x4 vcy = v_setall_s32(ITUR_BT_601_CY);
+
+    v_int32x4 y[4], r[4], g[4], b[4];
+    for (int k = 0; k < 4; k++) {
+        y[k] = yy[k]*vcy;
+        r[k] = (y[k] + ruv[k]) >> ITUR_BT_601_SHIFT;
+        g[k] = (y[k] + guv[k]) >> ITUR_BT_601_SHIFT;
+        b[k] = (y[k] + buv[k]) >> ITUR_BT_601_SHIFT;
+    }
+
+    v_int16x8 r0, r1, g0, g1, b0, b1;
+    r0 = v_pack(r[0], r[1]);
+    r1 = v_pack(r[2], r[3]);
+    g0 = v_pack(g[0], g[1]);
+    g1 = v_pack(g[2], g[3]);
+    b0 = v_pack(b[0], b[1]);
+    b1 = v_pack(b[2], b[3]);
+
+    rr = v_pack_u(r0, r1);
+    gg = v_pack_u(g0, g1);
+    bb = v_pack_u(b0, b1);
+}
+
+void calculate_nv12_to_rgb(const  uchar **srcY,
+                           const  uchar *srcUV,
+                                  uchar **dstRGBx,
+                                    int width) {
+    int i = 0;
+
+    #if CV_SIMD128
+
+    const int vsize = v_uint8x16::nlanes;
+
+    for ( ; i <= width - 2*vsize; i += 2*vsize) {
+        v_uint8x16 u, v;
+        v_load_deinterleave(srcUV + i, u, v);
+
+        v_uint8x16 vy[4];
+        v_load_deinterleave(srcY[0] + i, vy[0], vy[1]);
+        v_load_deinterleave(srcY[1] + i, vy[2], vy[3]);
+
+        v_int32x4 ruv[4], guv[4], buv[4];
+        uvToRGBuv(u, v, ruv, guv, buv);
+
+        v_uint8x16 r[4], g[4], b[4];
+
+        for (int k = 0; k < 4; k++) {
+            yRGBuvToRGB(vy[k], ruv, guv, buv, r[k], g[k], b[k]);
+        }
+
+        for (int k = 0; k < 4; k++)
+            std::swap(r[k], b[k]);
+
+        // [r0...], [r1...] => [r0, r1, r0, r1...], [r0, r1, r0, r1...]
+        v_uint8x16 r0_0, r0_1, r1_0, r1_1;
+        v_zip(r[0], r[1], r0_0, r0_1);
+        v_zip(r[2], r[3], r1_0, r1_1);
+        v_uint8x16 g0_0, g0_1, g1_0, g1_1;
+        v_zip(g[0], g[1], g0_0, g0_1);
+        v_zip(g[2], g[3], g1_0, g1_1);
+        v_uint8x16 b0_0, b0_1, b1_0, b1_1;
+        v_zip(b[0], b[1], b0_0, b0_1);
+        v_zip(b[2], b[3], b1_0, b1_1);
+
+        v_store_interleave(dstRGBx[0] + i * 3, b0_0, g0_0, r0_0);
+        v_store_interleave(dstRGBx[0] + i * 3 + 3 * vsize, b0_1, g0_1, r0_1);
+
+        v_store_interleave(dstRGBx[1] + i * 3, b1_0, g1_0, r1_0);
+        v_store_interleave(dstRGBx[1] + i * 3 + 3 * vsize, b1_1, g1_1, r1_1);
+    }
+
+    v_cleanup();
+
+    #endif
+
+    for (; i < width; i += 2) {
+        uchar u = srcUV[i];
+        uchar v = srcUV[i + 1];
+        int ruv, guv, buv;
+        uvToRGBuv(u, v, ruv, guv, buv);
+
+        for (int y = 0; y < 2; y++) {
+            for (int x = 0; x < 2; x++) {
+                uchar vy = srcY[y][i + x];
+                uchar r, g, b;
+                yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
+
+                dstRGBx[y][3*(i + x)]     = r;
+                dstRGBx[y][3*(i + x) + 1] = g;
+                dstRGBx[y][3*(i + x) + 2] = b;
+            }
+        }
+    }
+}
+
+template <typename VecT, typename T>
+void copyRow_impl(const T in[], T out[], int l) {
+    VecT r;
+    r = v_load(&in[l]);
+    v_store(&out[l], r);
+}
+
+void copyRow_8U(const uint8_t in[],
+                 uint8_t out[],
+                 int length) {
+    int l = 0;
+
+#if CV_SIMD128
+    for (; l <= length - 16; l += 16) {
+        copyRow_impl<v_uint8x16>(in, out, l);
+    }
+
+    if (l < length && length >= 16) {
+        copyRow_impl<v_uint8x16>(in, out, length - 16);
+        l = length;
+    }
+#endif
+
+    for (; l < length; l++) {
+        out[l] = in[l];
+    }
+}
+
+void copyRow_32F(const float in[],
+                 float out[],
+                 int length) {
+    int l = 0;
+
+#if CV_SIMD128
+    for (; l <= length - 4; l += 4) {
+        copyRow_impl<v_float32x4>(in, out, l);
+    }
+
+    if (l < length && length >= 4) {
+        copyRow_impl<v_float32x4>(in, out, length - 4);
+        l = length;
+    }
+#endif
+
+    for (; l < length; l++) {
+        out[l] = in[l];
     }
 }
 

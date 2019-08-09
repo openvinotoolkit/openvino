@@ -18,20 +18,19 @@
 #pragma once
 #include "api/CPP/scale_grad_weights.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<scale_grad_weights> : public typed_program_node_base<scale_grad_weights>
-{
+struct typed_program_node<scale_grad_weights> : public typed_program_node_base<scale_grad_weights> {
     using parent = typed_program_node_base<scale_grad_weights>;
 
 public:
     using parent::parent;
 
     program_node& input() const { return get_dependency(0); }
-    program_node& input_grad() const { return get_dependency(1); };
+    program_node& input_grad() const { return get_dependency(1); }
     program_node& weights() const { return get_dependency(2); }
     program_node& bias() const { return get_dependency(3); }
     program_node& prev_scale_grad() const { return bias_term() ? get_dependency(4) : get_dependency(3); }
@@ -44,8 +43,7 @@ public:
 using scale_grad_weights_node = typed_program_node<scale_grad_weights>;
 
 template <>
-class typed_primitive_inst<scale_grad_weights> : public typed_primitive_inst_base<scale_grad_weights>
-{
+class typed_primitive_inst<scale_grad_weights> : public typed_primitive_inst_base<scale_grad_weights> {
     using parent = typed_primitive_inst_base<scale_grad_weights>;
 
 public:
@@ -66,4 +64,4 @@ public:
 
 using scale_grad_weights_inst = typed_primitive_inst<scale_grad_weights>;
 
-}
+}  // namespace cldnn

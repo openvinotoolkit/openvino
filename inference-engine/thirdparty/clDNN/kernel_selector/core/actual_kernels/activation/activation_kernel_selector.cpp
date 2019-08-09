@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +11,21 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #include "activation_kernel_selector.h"
 #include "activation_kernel_opt.h"
 #include "activation_kernel_ref.h"
 #include "activation_kernel_tutorial.h"
- 
-namespace kernel_selector 
-{
-    activation_kernel_selector::activation_kernel_selector()
-    {
-        Attach<ActivationKernelRef>();
-        Attach<ActivationKernelOpt>();
-        Attach<ActivationKernel_Tutorial>();
-    }
 
-    KernelsData activation_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::ACTIVATION);
-    }
+namespace kernel_selector {
+activation_kernel_selector::activation_kernel_selector() {
+    Attach<ActivationKernelRef>();
+    Attach<ActivationKernelOpt>();
+    Attach<ActivationKernel_Tutorial>();
 }
+
+KernelsData activation_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::ACTIVATION);
+}
+}  // namespace kernel_selector

@@ -109,6 +109,7 @@ status_t post_ops_t::append_depthwise(alg_kind_t alg,
 }
 
 status_t post_ops_t::append_dw_conv(int in_h, int in_w, int ker_h, int ker_w, int str_h, int str_w,
+                                    mkldnn::impl::data_type_t in_dt,
                                     const float* weights_data,
                                     const float* biases_data) {
     if (len_ == capacity)
@@ -121,6 +122,7 @@ status_t post_ops_t::append_dw_conv(int in_h, int in_w, int ker_h, int ker_w, in
     entry_[len_].dw_conv.ker_w = ker_w;
     entry_[len_].dw_conv.str_h = str_h;
     entry_[len_].dw_conv.str_w = str_w;
+    entry_[len_].dw_conv.in_dt = in_dt;
     entry_[len_].dw_conv.weights_data = weights_data;
     entry_[len_].dw_conv.biases_data = biases_data;
 
@@ -375,21 +377,23 @@ status_t mkldnn_post_ops_get_params_depthwise(const post_ops_t *post_ops,
 
 status_t mkldnn_post_ops_append_dw_conv(post_ops_t *post_ops,
                                         int in_h, int in_w, int ker_h, int ker_w, int str_h, int str_w,
+                                        mkldnn::impl::data_type_t in_dt,
                                         const float* weights_data,
                                         const float* biases_data) {
     if (post_ops == nullptr)
         return invalid_arguments;
 
-    return post_ops->append_dw_conv(in_h, in_w, ker_h, ker_w, str_h, str_w, weights_data, biases_data);
+    return post_ops->append_dw_conv(in_h, in_w, ker_h, ker_w, str_h, str_w, in_dt, weights_data, biases_data);
 }
 
 status_t mkldnn_post_ops_get_params_dw_conv(const post_ops_t *post_ops,
                                             int index, int *in_h, int *in_w, int *ker_h, int *ker_w, int *str_h, int *str_w,
+                                            mkldnn::impl::data_type_t* in_dt,
                                             const float** weights_data,
                                             const float** biases_data) {
     bool ok = true
               && simple_get_params_check(post_ops, index, primitive_kind::convolution)
-              && !any_null(in_h, in_w, ker_h, ker_w, str_h, str_w, weights_data, biases_data);
+              && !any_null(in_h, in_w, ker_h, ker_w, str_h, str_w, in_dt, weights_data, biases_data);
     if (!ok)
         return invalid_arguments;
 
@@ -400,6 +404,7 @@ status_t mkldnn_post_ops_get_params_dw_conv(const post_ops_t *post_ops,
     *ker_w = e.ker_w;
     *str_h = e.str_h;
     *str_w = e.str_w;
+    *in_dt = e.in_dt;
     *weights_data = e.weights_data;
     *biases_data = e.biases_data;
 

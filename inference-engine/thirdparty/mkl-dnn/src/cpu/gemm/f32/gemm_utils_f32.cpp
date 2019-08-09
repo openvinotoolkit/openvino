@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2018-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -38,8 +38,8 @@ namespace gemm_utils {
 // BM/BN/BK - blocking values
 void calc_nthr_nocopy_avx(int m, int n, int k,
         int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k, int *BM, int *BN,
-        int *BK)
-{
+        int *BK) {
+
     int nthr, nthr_m, nthr_n, nthr_k;
     int MB, NB, KB;
 
@@ -149,8 +149,8 @@ void calc_nthr_nocopy_avx(int m, int n, int k,
 // BM/BN/BK - blocking values
 void calc_nthr_nocopy_avx512_common(int m,
         int n, int k, int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k,
-        int *BM, int *BN, int *BK)
-{
+        int *BM, int *BN, int *BK) {
+
     int nthr, nthr_m, nthr_n, nthr_k = 1;
     int MB, NB, KB;
     nthr = nthrs;
@@ -313,9 +313,9 @@ void calc_nthr_nocopy_avx512_common(int m,
 // Partition n values as equally as possible among nthr threads
 // and set the offset (t_offset) and number of values (t_block) for ithr
 // Assumption: 0 <= ithr < nthr
-void partition_unit_diff(
-        int ithr, int nthr, int n, int *t_offset, int *t_block)
-{
+void partition_unit_diff(int ithr, int nthr, int n, int *t_offset,
+        int *t_block) {
+
     int band = n / nthr;
     if (band == 0)
         band = 1;
@@ -347,8 +347,8 @@ void partition_unit_diff(
 template<typename data_t>
 void sum_two_matrices(int m, int n,
         data_t * __restrict p_src, dim_t ld_src,
-        data_t * __restrict p_dst, dim_t ld_dst)
-{
+        data_t * __restrict p_dst, dim_t ld_dst) {
+
     int i, j;
     for (j = 0; j < n; j++) {
         for (i = 0; i < m; i++) {

@@ -31,8 +31,8 @@ def null_ext(attr_dict):
         }
     else:
         return {
-            'op': 'Placeholder',
-            'type': 'Input',
+            'op': 'Parameter',
+            'type': 'Parameter',
             'shape': None,
             'infer': lambda node: single_output_infer(node, lambda n: n.shape)
         }

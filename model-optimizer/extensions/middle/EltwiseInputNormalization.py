@@ -18,7 +18,7 @@ import networkx as nx
 import numpy as np
 
 from extensions.middle.EltwiseInputReshape import EltwiseInputReshape
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -27,7 +27,7 @@ class EltwiseInputNormalize(EltwiseInputReshape, MiddleReplacementPattern):
     enabled = False
 
     def find_and_replace_pattern(self, graph: Graph):
-        eltwise_nodes = [Node(graph, node) for node in graph.node if Node(graph, node).soft_get('type') == 'Eltwise']
+        eltwise_nodes = graph.get_op_nodes(is_eltwise=True)
         # Iterating over all Eltwise operations and check that every input has similar shape
         # in case of different shapes, we inserts new_shape attribute and then call EltwiseInputReshape extension
         # that insert reshapes (in case of not constant nodes) or directly reshapes values in data nodes for specified

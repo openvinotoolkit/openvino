@@ -38,8 +38,7 @@ class TanhONNXExtractorTest(unittest.TestCase):
         return (
             # reference output Node attributes
             dict(
-                op='Activation',
-                operation='tanh'
+                op='Tanh',
             )
         )
 

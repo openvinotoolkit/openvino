@@ -19,13 +19,13 @@ from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.ops.regionyolo import RegionYoloOp
 from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Node, Graph
-from mo.ops.output import Output
+from mo.ops.result import Result
 from mo.utils.error import Error
 
 
 class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):
     """
-    Replaces all OpOutput nodes in graph with YoloRegion->OpOutput nodes chain.
+    Replaces all Result nodes in graph with YoloRegion->Result nodes chain.
     YoloRegion node attributes are taken from configuration file
     """
     replacement_id = 'TFYOLO'
@@ -34,7 +34,7 @@ class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):
         return [NoOpEraser, StandaloneConstEraser]
 
     def transform_graph(self, graph: Graph, replacement_descriptions):
-        op_outputs = [n for n, d in graph.nodes(data=True) if 'op' in d and d['op'] == 'OpOutput']
+        op_outputs = [n for n, d in graph.nodes(data=True) if 'op' in d and d['op'] == 'Result']
         for op_output in op_outputs:
             last_node = Node(graph, op_output).in_node(0)
             op_params = dict(name=last_node.id + '/YoloRegion', axis=1, end_axis=-1)
@@ -43,19 +43,19 @@ class YoloRegionAddon(FrontReplacementFromConfigFileGeneral):
             region_layer_node = region_layer.create_node([last_node])
             # here we remove 'axis' from 'dim_attrs' to avoid permutation from axis = 1 to axis = 2
             region_layer_node.dim_attrs.remove('axis')
-            Output(graph).create_node([region_layer_node])
+            Result(graph).create_node([region_layer_node])
 
 
 class YoloV3RegionAddon(FrontReplacementFromConfigFileGeneral):
     """
-    Replaces all OpOutput nodes in graph with YoloRegion->OpOutput nodes chain.
+    Replaces all Result nodes in graph with YoloRegion->Result nodes chain.
     YoloRegion node attributes are taken from configuration file
     """
     replacement_id = 'TFYOLOV3'
 
     def transform_graph(self, graph: Graph, replacement_descriptions):
-        graph.remove_nodes_from(graph.get_nodes_with_attributes(op='OpOutput'))
-        for input_node_name in replacement_descriptions['entry_points']:
+        graph.remove_nodes_from(graph.get_nodes_with_attributes(op='Result'))
+        for i, input_node_name in enumerate(replacement_descriptions['entry_points']):
             if input_node_name not in graph.nodes():
                 raise Error('TensorFlow YOLO V3 conversion mechanism was enabled. '
                             'Entry points "{}" were provided in the configuration file. '
@@ -66,7 +66,10 @@ class YoloV3RegionAddon(FrontReplacementFromConfigFileGeneral):
             last_node = Node(graph, input_node_name).in_node(0)
             op_params = dict(name=last_node.id + '/YoloRegion', axis=1, end_axis=-1, do_softmax=0)
             op_params.update(replacement_descriptions)
+            if 'masks' in op_params:
+                op_params['mask'] = op_params['masks'][i]
+                del op_params['masks']
             region_layer_node = RegionYoloOp(graph, op_params).create_node([last_node])
             # TODO: do we need change axis for further permutation
             region_layer_node.dim_attrs.remove('axis')
-            Output(graph, {'name': region_layer_node.id + '/OpOutput'}).create_node([region_layer_node])
+            Result(graph, {'name': region_layer_node.id + '/Result'}).create_node([region_layer_node])

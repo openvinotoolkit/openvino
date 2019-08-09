@@ -81,10 +81,14 @@ KERNEL(eltwise_b_fs_yx_fsv4)(
         #endif // CALIBRATION_TERM
         #endif // QUANTIZATION_TERM
         
+        #if QUANTIZATION_TERM
         #ifdef ELTW_UNSIGNED
-            char_res[j] = ACTIVATION(convert_uchar(res_tmp), NL_M, NL_N);
+            char_res[j] = ACTIVATION(convert_uchar_sat(res_tmp), ACTIVATION_PARAMS);
         #else
-            char_res[j] = ACTIVATION(convert_char(res_tmp), NL_M, NL_N);
+            char_res[j] = ACTIVATION(convert_char_sat(res_tmp), ACTIVATION_PARAMS);
+        #endif
+        #else
+            char_res[j] = ACTIVATION(convert_char(res_tmp), ACTIVATION_PARAMS);
         #endif
         }
         // put 4 chars into output

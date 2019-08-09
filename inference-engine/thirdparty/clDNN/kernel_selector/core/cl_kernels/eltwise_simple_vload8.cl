@@ -27,7 +27,7 @@ KERNEL(eltwise_gpu_vload8)(
 
     DO_ELTWISE
     
-    res = ACTIVATION(res, NL_M, NL_N);
+    res = ACTIVATION(res, ACTIVATION_PARAMS);
 
     vstore8(res, global_id, output);
 

@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "../test_precomp.hpp"
@@ -130,6 +130,30 @@ INSTANTIATE_TEST_CASE_P(SobelTestFluid32F, SobelTest,
                                 Values(0, 1),
                                 Values(1, 2),
                                 Values(true, false),
+                                Values(cv::compile_args(IMGPROC_FLUID))));
+
+INSTANTIATE_TEST_CASE_P(SobelXYTestFluid, SobelXYTest,
+                        Combine(Values(AbsExact().to_compare_f()),
+                                Values(CV_8UC1, CV_8UC3, CV_16UC1, CV_16SC1),
+                                Values(3),
+                                Values(cv::Size(1280, 720),
+                                       cv::Size(640, 480)),
+                                Values(-1, CV_16S, CV_32F),
+                                Values(1, 2),
+                                Values(BORDER_CONSTANT, BORDER_REPLICATE, BORDER_REFLECT_101),
+                                Values(0, 1, 255),
+                                Values(cv::compile_args(IMGPROC_FLUID))));
+
+INSTANTIATE_TEST_CASE_P(SobelXYTestFluid32F, SobelXYTest,
+                        Combine(Values(ToleranceFilter(1e-4f, 0.01).to_compare_f()),
+                                Values(CV_32FC1),
+                                Values(3),
+                                Values(cv::Size(1280, 720),
+                                       cv::Size(640, 480)),
+                                Values(CV_32F),
+                                Values(1, 2),
+                                Values(BORDER_CONSTANT, BORDER_REPLICATE, BORDER_REFLECT_101),
+                                Values(0, 1, 255),
                                 Values(cv::compile_args(IMGPROC_FLUID))));
 
 INSTANTIATE_TEST_CASE_P(boxFilterTestFluid32, BoxFilterTest,

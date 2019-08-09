@@ -69,7 +69,7 @@ void jit_sse42_convolution_fwd_t::execute_forward() const {
         bias = padded_bias;
     }
 
-    parallel(0, [&](const int ithr, const int nthr) {
+    parallel(0, work_amount, [&](const int ithr, const int nthr) {
         size_t start{ 0 }, end{ 0 };
         balance211(work_amount, nthr, ithr, start, end);
 
@@ -303,7 +303,7 @@ void jit_sse42_convolution_fwd_t::execute_forward_with_dw_conv() const {
         dw_bias = dw_padded_bias;
     }
 
-    parallel(0, ker);
+    parallel(0, work_amount, ker);
 
     if (pd()->wants_zero_pad_dst())
         output_memory_primitive(0)->zero_pad();

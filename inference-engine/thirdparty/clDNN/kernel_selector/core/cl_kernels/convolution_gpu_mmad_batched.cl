@@ -103,9 +103,9 @@ for(uint b = 0; b < 4; b++)
 
     const uint dst_index = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(OUTPUT, b_block*4 + b, f, y, x);
 #if QUANTIZATION_TERM
-    output[dst_index] = ACTIVATION(convert_char(dotProd[b]), NL_M, NL_N);
+    output[dst_index] = ACTIVATION(convert_char(dotProd[b]), ACTIVATION_PARAMS);
 #else
-    output[dst_index] = ACTIVATION(dotProd[b], NL_M, NL_N);
+    output[dst_index] = ACTIVATION(dotProd[b], ACTIVATION_PARAMS);
 #endif  
 }
 }

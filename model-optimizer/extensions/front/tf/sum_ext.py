@@ -13,9 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from extensions.ops.ReduceOps import ReduceSum
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
-from mo.ops.reduce import Reduce
 
 
 class SumFrontExtractor(FrontExtractorOp):
@@ -24,5 +24,5 @@ class SumFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node: Node):
-        Reduce.update_node_stat(node, {'keep_dims': node.pb.attr["keep_dims"].b, 'reduce_type': 'sum'})
+        ReduceSum.update_node_stat(node, {'keep_dims': node.pb.attr["keep_dims"].b})
         return __class__.enabled

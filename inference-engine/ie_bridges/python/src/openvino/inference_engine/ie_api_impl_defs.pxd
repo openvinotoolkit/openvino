@@ -1,12 +1,12 @@
 from libc.stddef cimport size_t
+from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.map cimport map
 from libcpp.set cimport set
 from libcpp.pair cimport pair
 from libcpp.memory cimport unique_ptr, shared_ptr
-from libc.stdint cimport int64_t
-
+from libc.stdint cimport int64_t, uint8_t
 
 
 cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
@@ -24,6 +24,14 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
     cdef cppclass Precision:
         const char*name() const
 
+    cdef struct apiVersion:
+        int minor
+        int major
+
+    cdef cppclass Version:
+        const char *buildNumber
+        const char *description
+        apiVersion apiVersion
 
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef cppclass IENetLayer:
@@ -69,17 +77,21 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef cppclass IEExecNetwork:
         vector[InferRequestWrap] infer_requests
+        IENetwork GetExecGraphInfo() except +
+        object getMetric(const string & metric_name)
+        object getConfig(const string & metric_name)
 
     cdef cppclass IENetwork:
         IENetwork() except +
-        IENetwork(const string &, const string &) except +
+        IENetwork(const string &, const string &, bool ngraph_compatibility) except +
         string name
         size_t batch_size
+        string precision
         map[string, vector[size_t]] inputs
         const vector[pair[string, IENetLayer]] getLayers() except +
         map[string, InputInfo] getInputs() except +
         map[string, OutputInfo] getOutputs() except +
-        void addOutputs(vector[string] &, string &) except +
+        void addOutput(string &, size_t, string &) except +
         void setAffinity(map[string, string] & types_affinity_map, map[string, string] & layers_affinity_map) except +
         void setBatch(size_t size) except +
         void setLayerParams(map[string, map[string, string]] params_map) except +
@@ -87,6 +99,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void reshape(map[string, vector[size_t]] input_shapes) except +
         void setStats(map[string, map[string, vector[float]]] & stats) except +
         map[string, map[string, vector[float]]] getStats() except +
+        void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
 
     cdef cppclass IEPlugin:
         IEPlugin() except +
@@ -101,12 +114,30 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef cppclass InferRequestWrap:
         double exec_time;
-        void getBlobPtr(const string &blob_name, Blob.Ptr &blob_ptr) except +
+        void getBlobPtr(const string & blob_name, Blob.Ptr & blob_ptr) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() except +
         void infer_async() except +
         int wait(int64_t timeout) except +
         void setBatch(int size) except +
+        void setCyCallback(void (*)(void*, int), void *) except +
+
+    cdef cppclass IECore:
+        IECore() except +
+        IECore(const string & xml_config_file) except +
+        map[string, Version] getVersions(const string & deviceName) except +
+        unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
+                                              const map[string, string] & config, int num_requests) except +
+        map[string, string] queryNetwork(IENetwork network, const string deviceName,
+                                         const map[string, string] & config) except +
+        void setConfig(const map[string, string] & config, const string & deviceName) except +
+        void registerPlugin(const string & pluginName, const string & deviceName) except +
+        void unregisterPlugin(const string & deviceName) except +
+        void registerPlugins(const string & xmlConfigFile) except +
+        void addExtension(const string & ext_lib_path, const string & deviceName) except +
+        vector[string] getAvailableDevices() except +
+        object getMetric(const string & deviceName, const string & name) except +
+        object getConfig(const string & deviceName, const string & name) except +
 
     cdef T*get_buffer[T](Blob &)
 

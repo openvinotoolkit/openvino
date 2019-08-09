@@ -29,4 +29,8 @@ public:
     MOCK_METHOD1(GetMappedTopology, void(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &));
     MOCK_METHOD0(QueryState, std::vector<IMemoryStateInternal::Ptr>());
     MOCK_METHOD1(GetExecGraphInfo, void(ICNNNetwork::Ptr &));
+
+    MOCK_METHOD2(SetConfig, void(const std::map<std::string, Parameter> &config, ResponseDesc *resp));
+    MOCK_CONST_METHOD3(GetConfig, void(const std::string &name, Parameter &result, ResponseDesc *resp));
+    MOCK_CONST_METHOD3(GetMetric, void(const std::string &name, Parameter &result, ResponseDesc *resp));
 };

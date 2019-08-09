@@ -44,7 +44,7 @@ def swap_weights_xy(nodes: list):
         weights_node.value = new_swapped_weights
         # biases
         for m in node.out_node().out_nodes():
-            if m.has_valid('op') and m.op in ['Add', 'BiasAdd']:
+            if m.has_valid('op') and m.op in ['Add']:
                 biases = m.in_node(1).value  # biases are weights of the (Bias)Add op
                 # swap Y and X to the regular order that the IE expects
                 reshaped_biases = biases.reshape((-1, 2))

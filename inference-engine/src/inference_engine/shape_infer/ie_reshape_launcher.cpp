@@ -84,13 +84,7 @@ void ReshapeLauncher::reshape(const std::set<ReshapeLauncher::Ptr>& launchers) {
         TI_shaper->setOriginalLayer(_layer);
     }
 
-    // try to call new API with input blobs
     auto sts = _reshapeImpl->inferShapes(_iController->getBlobs(true), _layer->params, _layer->blobs, outShapes, &resp);
-    // in case of old custom shape infer function call old API
-    if (sts == NOT_IMPLEMENTED) {
-        sts = _reshapeImpl->inferShapes(_iController->getShapes(true), _layer->params, _layer->blobs, outShapes,
-                                        &resp);
-    }
     _oController->setShapes(outShapes);
     if (sts != OK)
         THROW_IE_EXCEPTION <<
@@ -253,7 +247,7 @@ void OutputOnlyReshapeLauncher::constInfer(const std::set<ReshapeLauncher::Ptr>&
         _inferImpl->infer({}, _layer->params, _layer->blobs, outBlobs);
         auto shapes = _oController->getShapes(true);
         for (int i = 0; i < outBlobs.size(); i++) {
-            outBlobs[i]->Reshape(SizeVector(shapes[i].rbegin(), shapes[i].rend()), TensorDesc::getLayoutByDims(shapes[i]));
+            outBlobs[i]->getTensorDesc().reshape(shapes[i], TensorDesc::getLayoutByDims(shapes[i]));
         }
         _oController->setBlobs(outBlobs);
         _oController->propagateBlobs(launchers);

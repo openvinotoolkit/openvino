@@ -46,28 +46,23 @@ private:
         return std::make_shared<PowerStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
 
         auto power = attrs().get<float>("power");
         auto& scale = attrs().get<float>("scale");
         auto& bias = attrs().get<float>("bias");
 
-        DataMap<float> out;
-
         if (power != 1.0f) {
-            out[input] = 1.0f;
-            out[output] = 1.0f;
+            _scaleInfo.setInput(_inputEdges[0], 1.0f);
+            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
         } else {
-            auto inputScale = inputScales.at(input);
+            auto inputScale = inputScales[0];
 
-            out[output] = inputScale;
+            _scaleInfo.setOutput(_outputEdges[0], inputScale);
 
             if (step == ScalePropagationStep::ScaleInput) {
                 scale *= inputScale;
@@ -76,8 +71,6 @@ private:
                 bias *= inputScale;
             }
         }
-
-        return out;
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {

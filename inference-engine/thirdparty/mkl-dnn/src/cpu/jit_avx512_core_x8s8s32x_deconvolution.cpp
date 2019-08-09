@@ -55,6 +55,8 @@ status_t jit_avx512_core_x8s8s32x_deconv_fwd_kernel::init_conf(
 
     const bool with_groups = weights_d.ndims() == src_d.ndims() + 1;
     jcp.signed_input = src_d.data_type() == data_type::s8;
+    const int ndims = jcp.ndims = dst_d.ndims();
+    const bool is_1d = ndims == 3;
 
     jcp.ngroups = with_groups ? weights_d.dims()[0] : 1;
     jcp.oc = dst_d.dims()[1] / jcp.ngroups;
@@ -70,17 +72,25 @@ status_t jit_avx512_core_x8s8s32x_deconv_fwd_kernel::init_conf(
     if (jcp.is_depthwise && jcp.signed_input)
         return status::unimplemented;
 
-    const auto w_format = jcp.is_depthwise ? Goihw16g : with_groups ?
-            (jcp.signed_input ? gOIhw4i16o4i_s8s8 : gOIhw4i16o4i) :
-            (jcp.signed_input ? OIhw4i16o4i_s8s8 : OIhw4i16o4i);
+    auto dst_format = pick(ndims - 3, nwc, nhwc);
+    auto src_format = pick(ndims - 3, nwc, nhwc);
+#define pick_signed(fmt) (jcp.signed_input ? fmt##_s8s8 : fmt)
+    const auto w_format = is_1d ?
+            (jcp.is_depthwise ? Goiw16g :
+                                (with_groups ? pick_signed(gOIw4i16o4i) :
+                                               pick_signed(OIw4i16o4i))) :
+            (jcp.is_depthwise ? Goihw16g :
+                                (with_groups ? pick_signed(gOIhw4i16o4i) :
+                                               pick_signed(OIhw4i16o4i)));
+#undef pick_signed
 
     if (dst_d.format() == any)
-        CHECK(dst_pd.set_format(nhwc));
-    if (dst_d.format() != nhwc)
+        CHECK(dst_pd.set_format(dst_format));
+    if (dst_d.format() != dst_format)
         return status::unimplemented;
     if (src_d.format() == any)
-        CHECK(src_pd.set_format(nhwc));
-    if (src_d.format() != nhwc)
+        CHECK(src_pd.set_format(src_format));
+    if (src_d.format() != src_format)
         return status::unimplemented;
     if (weights_d.format() == any)
         CHECK(weights_pd.set_format(w_format));
@@ -95,19 +105,18 @@ status_t jit_avx512_core_x8s8s32x_deconv_fwd_kernel::init_conf(
             return status::unimplemented;
     }
 
-    jcp.ndims = dst_d.ndims();
     jcp.prop_kind = cd.prop_kind;
     jcp.mb = src_d.dims()[0];
-    jcp.ih = src_d.dims()[2];
-    jcp.iw = src_d.dims()[3];
-    jcp.oh = dst_d.dims()[2];
-    jcp.ow = dst_d.dims()[3];
-    jcp.kh = weights_d.dims()[with_groups + 2];
-    jcp.kw = weights_d.dims()[with_groups + 3];
-    jcp.t_pad = cd.padding[0][0];
-    jcp.l_pad = cd.padding[0][1];
-    jcp.stride_h = cd.strides[0];
-    jcp.stride_w = cd.strides[1];
+    jcp.ih = is_1d ? 1 : src_d.dims()[ndims - 2];
+    jcp.iw = src_d.dims()[ndims - 1];
+    jcp.oh = is_1d ? 1 : dst_d.dims()[ndims - 2];
+    jcp.ow = dst_d.dims()[ndims - 1];
+    jcp.kh = is_1d ? 1 : weights_d.dims()[with_groups + ndims - 2];
+    jcp.kw = weights_d.dims()[with_groups + ndims - 1];
+    jcp.t_pad = is_1d ? 0 : cd.padding[0][ndims - 4];
+    jcp.l_pad = cd.padding[0][ndims - 3];
+    jcp.stride_h = is_1d ? 1 : cd.strides[ndims - 4];
+    jcp.stride_w = cd.strides[ndims - 3];
     jcp.src_fmt = src_d.format();
 
     if (jcp.is_depthwise) {
@@ -127,8 +136,8 @@ status_t jit_avx512_core_x8s8s32x_deconv_fwd_kernel::init_conf(
             return status::unimplemented;
     }
 
-    jcp.dilate_h = cd.dilates[0];
-    jcp.dilate_w = cd.dilates[1];
+    jcp.dilate_h = is_1d ? 0 : cd.dilates[ndims - 4];
+    jcp.dilate_w = cd.dilates[ndims - 3];
 
     if (!IMPLICATION(jcp.dilate_h, jcp.stride_h == 1)
             || !IMPLICATION(jcp.dilate_w, jcp.stride_w == 1))
@@ -412,7 +421,7 @@ void jit_avx512_core_x8s8s32x_deconv_fwd_kernel::kh_loop(int ur_w,
     mov(aux_reg_src, reg_src);
     mov(aux_reg_filt, reg_filt);
 
-    if (jcp.signed_input) {
+    if (jcp.signed_input && jcp.ndims > 3) {
         /* Weights are transposed, so first compute 'bottom' padding. */
         mov(reg_overflow, ptr[param1 + GET_OFF(b_overflow)]);
         cmp(reg_overflow, 0);
@@ -465,7 +474,7 @@ void jit_avx512_core_x8s8s32x_deconv_fwd_kernel::kh_loop(int ur_w,
         jg(kh_loop_label, T_NEAR);
     }
     L(skip_kh_loop);
-    if (jcp.signed_input) {
+    if (jcp.signed_input && jcp.ndims > 3) {
         mov(reg_overflow, ptr[param1 + GET_OFF(t_overflow)]);
         cmp(reg_overflow, 0);
         je(no_t_overflow_label, T_NEAR);
@@ -773,7 +782,90 @@ void jit_avx512_core_x8s8s32x_deconv_fwd_kernel::generate() {
 
 template <data_type_t src_type, data_type_t dst_type>
 void _jit_avx512_core_x8s8s32x_deconvolution_fwd_t<src_type,
-        dst_type>::execute_forward() const {
+        dst_type>::execute_forward_1d() const {
+    auto src = reinterpret_cast<const src_data_t *>(this->input_memory(0));
+    auto weights = reinterpret_cast<const wei_data_t *>(this->input_memory(1));
+    auto bias = reinterpret_cast<const char *>(this->input_memory(2));
+    auto dst = reinterpret_cast<dst_data_t *>(this->memory());
+
+    const memory_desc_wrapper src_d(pd()->src_pd());
+    const memory_desc_wrapper dst_d(pd()->dst_pd());
+    const memory_desc_wrapper weights_d(pd()->weights_pd(0));
+    const memory_desc_wrapper bias_d(pd()->weights_pd(1));
+
+    auto &jcp = kernel_->jcp;
+
+    int oc_chunks = jcp.nb_oc / jcp.nb_oc_blocking;
+    int nb_groups = jcp.nb_ch;
+
+    const float *oscales = pd()->attr()->output_scales_.scales_;
+    if (jcp.signed_input && jcp.ver != ver_vnni) {
+        auto local_scales
+                = scratchpad().template get<float>(key_conv_adjusted_scales);
+        size_t count = pd()->attr()->output_scales_.count_;
+        float factor = 1.f / pd()->jcp_.wei_adj_scale;
+        if (count == 1) {
+            utils::array_set(local_scales, oscales[0] * factor, 16);
+        } else {
+            for (size_t c = 0; c < count; c++)
+                local_scales[c] = oscales[c] * factor;
+        }
+        oscales = local_scales;
+    }
+    size_t offset = (size_t)jcp.ngroups * jcp.oc * jcp.ic * jcp.kh * jcp.kw;
+    auto w = const_cast<wei_data_t *>(weights);
+    int32_t *compensation
+            = (jcp.signed_input) ? reinterpret_cast<int32_t *>(&w[offset]) : 0;
+
+    parallel(0, [&](const int ithr, const int nthr) {
+        int start{ 0 }, end{ 0 };
+        int work_amount = jcp.mb * nb_groups * oc_chunks;
+        balance211(work_amount, nthr, ithr, start, end);
+
+        auto p = jit_deconv_call_s();
+
+        int n{ 0 }, g{ 0 }, occ{ 0 };
+        if (jcp.loop_order == loop_ngc)
+            nd_iterator_init(start, n, jcp.mb, g, nb_groups, occ, oc_chunks);
+        else if (jcp.loop_order == loop_cgn)
+            nd_iterator_init(start, occ, oc_chunks, g, nb_groups, n, jcp.mb);
+        else
+            assert(!"unsupported loop order");
+        while (start < end) {
+
+            int ocb = occ * jcp.nb_oc_blocking;
+            int g_oc = (g * jcp.ch_block * jcp.nb_oc + ocb) * jcp.oc_block;
+            int g_ic = g * jcp.ch_block * jcp.ic;
+
+            p.dst = dst + dst_d.blk_off(n, g_oc);
+            p.src = src + src_d.blk_off(n, g_ic);
+            p.filt = weights + wht_blk_off(weights_d, g, ocb, 0);
+            p.bias = jcp.with_bias ?
+                    bias + (bias_d.blk_off(g_oc) * jcp.typesize_bia) :
+                    0;
+            p.compensation = (jcp.signed_input) ? compensation + g_oc : 0;
+            p.scales = &oscales[jcp.is_oc_scale * g_oc];
+            p.t_overflow = 0;
+            p.b_overflow = 0;
+            p.kh_padding = jcp.kh;
+            p.oc_blocks = jcp.is_depthwise ? g : ocb;
+
+            kernel_->jit_ker(&p);
+
+            ++start;
+            if (jcp.loop_order == loop_ngc)
+                nd_iterator_step(n, jcp.mb, g, nb_groups, occ, oc_chunks);
+            else if (jcp.loop_order == loop_cgn)
+                nd_iterator_step(occ, oc_chunks, g, nb_groups, n, jcp.mb);
+            else
+                assert(!"unsupported loop order");
+        }
+    });
+}
+
+template <data_type_t src_type, data_type_t dst_type>
+void _jit_avx512_core_x8s8s32x_deconvolution_fwd_t<src_type,
+        dst_type>::execute_forward_2d() const {
     auto src = reinterpret_cast<const src_data_t *>(this->input_memory(0));
     auto weights = reinterpret_cast<const wei_data_t *>(this->input_memory(1));
     auto bias = reinterpret_cast<const char *>(this->input_memory(2));
@@ -812,9 +904,10 @@ void _jit_avx512_core_x8s8s32x_deconvolution_fwd_t<src_type,
     int32_t *compensation
             = (jcp.signed_input) ? reinterpret_cast<int32_t *>(&w[offset]) : 0;
 
-    parallel(0, [&](const int ithr, const int nthr) {
+    int work_amount = jcp.mb * nb_groups * oc_chunks * jcp.oh;
+
+    parallel(0, (size_t)work_amount, [&](const int ithr, const int nthr) {
         int start{ 0 }, end{ 0 };
-        int work_amount = jcp.mb * nb_groups * oc_chunks * jcp.oh;
         balance211(work_amount, nthr, ithr, start, end);
 
         auto p = jit_deconv_call_s();

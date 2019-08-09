@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
@@ -20,16 +19,16 @@
 
 namespace kernel_selector {
 
-    class FullyConnected_bs_f_bsv16_b1 : public FullyConnectedKernelBase
-    {
-    public:
-        FullyConnected_bs_f_bsv16_b1() : FullyConnectedKernelBase("fully_connected_gpu_bs_f_bsv16_b1") {}
+class FullyConnected_bs_f_bsv16_b1 : public FullyConnectedKernelBase {
+public:
+    FullyConnected_bs_f_bsv16_b1() : FullyConnectedKernelBase("fully_connected_gpu_bs_f_bsv16_b1") {}
 
-        KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
 
-    protected:
-        ParamsKey GetSupportedKey() const override;
-        JitConstants GetJitConstants(const fully_connected_params& params, const FullyConnectedKernelBase::DispatchData& kd) const override;
-        DispatchData SetDefault(const fully_connected_params& arg, int autoTuneIndex = -1) const override;
-    };
-}
+protected:
+    JitConstants GetJitConstants(const fully_connected_params& params,
+                                 const FullyConnectedKernelBase::DispatchData& kd) const override;
+    DispatchData SetDefault(const fully_connected_params& arg, int autoTuneIndex = -1) const override;
+};
+}  // namespace kernel_selector

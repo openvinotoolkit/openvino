@@ -15,26 +15,24 @@
 #include "pyramid_roi_align_kernel_ref.h"
 
 namespace kernel_selector {
-    ParamsKey PyramidROIAlignKernelRef::GetSupportedKey() const
-    {
-        ParamsKey k;
+ParamsKey PyramidROIAlignKernelRef::GetSupportedKey() const {
+    ParamsKey k;
 
-        k.EnableInputDataType(Datatype::F16);
-        k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
 
-        k.EnableOutputDataType(Datatype::F32);
-        k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
 
-        k.EnableInputLayout(DataLayout::bfyx);
-        k.EnableOutputLayout(DataLayout::bfyx);
-        k.EnableBatching();
-        k.EnableDifferentTypes();
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableBatching();
+    k.EnableDifferentTypes();
 
-        return k;
-    }
-
-    KernelsData PyramidROIAlignKernelRef::GetKernelsData(const Params& params, const optional_params& options) const
-    {
-        return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
-    }
+    return k;
 }
+
+KernelsData PyramidROIAlignKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+}
+}  // namespace kernel_selector

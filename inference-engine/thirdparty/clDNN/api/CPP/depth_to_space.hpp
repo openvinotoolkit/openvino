@@ -20,8 +20,7 @@
 #include "../C/depth_to_space.h"
 #include "primitive.hpp"
 
-namespace  cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -31,42 +30,29 @@ namespace  cldnn
 
 /// @brief
 /// @details
-struct depth_to_space : public primitive_base<depth_to_space, CLDNN_PRIMITIVE_DESC(depth_to_space)>
-{
+struct depth_to_space : public primitive_base<depth_to_space, CLDNN_PRIMITIVE_DESC(depth_to_space)> {
     CLDNN_DECLARE_PRIMITIVE(depth_to_space)
 
     /// @brief Constructs depth_to_space primitive.
     /// @param id This primitive id.
     /// @param input Input dictionary primitive id.
     /// @param block_size Block size.
-    depth_to_space(
-        const primitive_id& id,
-        const primitive_id& input,
-        const size_t block_size,
-        const padding& output_padding = padding()
-    )
-        : primitive_base(id, {input}, output_padding)
-        , block_size(block_size)
-    {
-    }
+    depth_to_space(const primitive_id& id,
+                   const primitive_id& input,
+                   const size_t block_size,
+                   const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding), block_size(block_size) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{depth_to_space}
-    depth_to_space(const dto* dto)
-        : primitive_base(dto)
-        , block_size(dto->block_size)
-    {
-    }
+    depth_to_space(const dto* dto) : primitive_base(dto), block_size(dto->block_size) {}
 
     /// @brief Block size.
     size_t block_size;
-protected:
 
-    void update_dto(dto& dto) const override
-    {
-        dto.block_size = block_size;
-    }
+protected:
+    void update_dto(dto& dto) const override { dto.block_size = block_size; }
 };
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

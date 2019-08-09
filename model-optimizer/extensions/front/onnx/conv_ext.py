@@ -166,7 +166,8 @@ class ConvTransposeFrontExtractor(FrontExtractorOp):
 
             'input_feature_channel': 0,
             'output_feature_channel': 1,
-            'get_pad': ConvTransposeFrontExtractor.get_pad
+            'get_pad': ConvTransposeFrontExtractor.get_pad,
+            'get_output_feature_dim': lambda node: node.kernel_shape[node.output_feature_channel] * node.group,
         }
 
         # update the attributes of the node

@@ -22,40 +22,46 @@ from extensions.front.instance_normalization import InstanceNormalization
 from mo.utils.unittest.graph import build_graph
 from mo.middle.pattern_match import node_match
 
+nodes_attributes = {
+    'input': {'kind': 'op', 'op': 'AnyOp'},
+    'scale': {'kind': 'op', 'op': 'AnyOp'},
+    'B': {'kind': 'op', 'op': 'AnyOp'},
+    'node': {'kind': 'op', 'op': 'InstanceNormalization', 'epsilon': None},
+}
+
+nodes_ref_attributes = {
+    'input': {'op': 'AnyOp'},
+    'scale': {'op': 'AnyOp'},
+    'B': {'op': 'AnyOp'},
+    'mvn': {'kind': 'op', 'op': 'MVN', 'name': 'node/Ins_Norm/MVN_', 'eps': None},
+    'mul': {'kind': 'op', 'op': 'Mul', 'name': 'node/Ins_Norm/mul_'},
+    'add': {'kind': 'op', 'op': 'Add', 'name': 'node/Ins_Norm/add_'},
+}
+
 
 class TestInstanceNormalization(unittest.TestCase):
-    def test_default(self):
-        nodes = {
-            'input': {'kind': 'op', 'op': 'AnyOp'},
-            'scale': {'kind': 'op', 'op': 'AnyOp'},
-            'B': {'kind': 'op', 'op': 'AnyOp'},
-            'node': {'kind': 'op', 'op': 'InstanceNormalization', 'epsilon': 0.123},
-        }
-        edges = [
-            ('input', 'node'),
-            ('scale', 'node'),
-            ('B', 'node'),
-        ]
+    def test_instance_normalization_test_1(self):
+        graph = build_graph(nodes_attributes,
+                            [('input', 'node'),
+                             ('scale', 'node'),
+                             ('B', 'node'),
+                             ],
+                            {'node': {'epsilon': 0.123},
+                             }, nodes_with_edges_only=True)
 
-        graph = build_graph(nodes, edges)
+        ref_graph = build_graph(nodes_ref_attributes,
+                                [('input', 'mvn'),
+                                 ('mvn', 'mul'),
+                                 ('scale', 'mul'),
+                                 ('mul', 'add'),
+                                 ('B', 'add'),
+                                 ],
+                                {'mvn': {'eps': 0.123},
+                                 }, nodes_with_edges_only=True)
+
+        graph.stage = 'front'
+
         tested_class = InstanceNormalization()
         tested_class.find_and_replace_pattern(graph)
 
-        ref_nodes = {
-            'input': {'op': 'AnyOp'},
-            'scale': {'op': 'AnyOp'},
-            'B': {'op': 'AnyOp'},
-            'mvn': {'kind': 'op', 'op': 'MVN', 'name': 'node/InstanceNormalization/MVN', 'eps': 0.123},
-            'mul': {'kind': 'op', 'op': 'Mul', 'name': 'node/InstanceNormalization/Mul'},
-            'add': {'kind': 'op', 'op': 'Add', 'name': 'node/InstanceNormalization/Add'},
-        }
-        ref_edges = [
-            ('input', 'mvn'),
-            ('mvn', 'mul'),
-            ('scale', 'mul'),
-            ('mul', 'add'),
-            ('B', 'add'),
-        ]
-
-        ref_graph = build_graph(ref_nodes, ref_edges)
         self.assertTrue(nx.is_isomorphic(graph, ref_graph, node_match))

@@ -21,6 +21,10 @@ from ..representation import SegmentationAnnotation, SegmentationPrediction
 from ..config import NumberField, ConfigError
 
 
+class ExtendSegmentationMaskConfigValidator(BasePostprocessorConfig):
+    filling_label = NumberField(optional=True, floats=False)
+
+
 class ExtendSegmentationMask(Postprocessor):
     """
     Extend annotation segmentation mask to prediction size filling border with specific label.
@@ -30,15 +34,7 @@ class ExtendSegmentationMask(Postprocessor):
 
     annotation_types = (SegmentationAnnotation, )
     prediction_types = (SegmentationPrediction, )
-
-    def validate_config(self):
-        class _ExtendSegmentationMaskConfigValidator(BasePostprocessorConfig):
-            filling_label = NumberField(optional=True, floats=False)
-
-        extend_mask_config_validator = _ExtendSegmentationMaskConfigValidator(
-            self.__provider__, on_extra_argument=_ExtendSegmentationMaskConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        extend_mask_config_validator.validate(self.config)
+    _config_validator_type = ExtendSegmentationMaskConfigValidator
 
     def configure(self):
         self.filling_label = self.config.get('filling_label', 255)

@@ -565,21 +565,18 @@ bool jit_uni_x8s8s32x_dw_conv_fwd_kernel<isa>::post_ops_ok(
         jit_conv_conf_t &jcp, const primitive_attr_t &attr) {
     const auto &p = attr.post_ops_;
 
-    auto is_eltwise = [&](int idx) { return p.entry_[idx].is_eltwise(); };
-    auto is_depthwise = [&](int idx) { return p.entry_[idx].is_depthwise(); };
-    auto is_sum = [&](int idx) { return p.entry_[idx].is_sum(false); };
-    auto is_simple = [&](int idx) { return is_eltwise(idx) || is_depthwise(idx); };
+    auto all_post_ops_supported = [&]() {
+        bool ok = true;
 
-    switch (p.len_) {
-        case 0: return true;
-        case 1: return is_simple(0) || is_sum(0);
-        case 2: return (is_sum(0) && is_simple(1)) || (is_simple(0) && is_sum(1)) ||
-                       (is_simple(0) && is_simple(1));
-        case 3: return (is_simple(0) && is_sum(1) && is_simple(2));
-        default: return false;
-    }
+        for (int i = 0; i < p.len_; i++) {
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise);
+        }
+        return ok;
+    };
+    auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind); };
 
-    return false;
+    return all_post_ops_supported() &&
+           count(primitive_kind::sum) <= 1;
 }
 
 template <cpu_isa_t isa>

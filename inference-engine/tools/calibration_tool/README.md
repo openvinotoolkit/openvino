@@ -14,12 +14,12 @@ The Calibration Tool is configured in the same way as the Accuracy Checker. You 
 ### Command-Line Arguments for the Accuracy Checker Tool reused in Calibration Tool
 | Argument                                     | Type   | Description                                             |
 | -------------------------------------------- | ------ | ------------------------------------------------------- |
-| -c, --config                                 | string | Required. Path to the YML file with local configuration |
+| -c, --config                                 | string | Optional. Path to the YML file with local configuration |
 | -d, --definitions                            | string | Optional. Path to the YML file with definitions         |
-| -m, --models                                 | string | Optional. Prefix path to the models and weights         |
-| -s, --source                                 | string | Optional. Prefix path to the data source                |
+| -m, --models                                 | string | Optional. Prefix path to the models and weights. In the simplified mode, it is the path to IR .xml file   |
+| -s, --source                                 | string | Optional. Prefix path to the data source. In the simplified mode, it is the path to a folder with images   |
 | -a, --annotations                            | string | Optional. Prefix path to the converted annotations and datasets meta data |
-| -e, --extensions                             | string | Optional. Prefix path to extensions folder              |
+| -e, --extensions                             | string | Optional. Prefix path to extensions folder. In simplified mode is a path to extensions library |
 | --cpu_extensions_mode, --cpu-extensions-mode | string | Optional. specified preferable set of processor instruction for automatic searching the CPU extension lib: `avx2` or `sse4` |
 | -C, --converted_models, --converted-models   | string | Optional. Directory to store Model Optimizer converted models. Used for DLSDK launcher only |
 | -M, --model_optimizer, --model-optimizer     | string | Optional. Path to model optimizer Caffe* directory       |
@@ -32,17 +32,23 @@ The Calibration Tool is configured in the same way as the Accuracy Checker. You 
 ### Specific Command Line Arguments for Calibration Tool
 | Argument                          | Type   | Description                                               |
 | --------------------------------- | ------ | --------------------------------------------------------- |
-| -p, --precision                   | string | Optional. Precision to calibrate. Default value is INT8   |
+| -p, --precision                   | string | Optional. Precision to calibrate. Default value is INT8. In the simplified mode, determines output IR precision   |
 | --ignore_layer_types, --ignore-layer-types | string | Optional. Layer types list which will be skipped during quantization |
 | --ignore_layer_types_path, --ignore-layer-types-path | string | Optional. Ignore layer types file path |
 | --ignore_layer_names, --ignore-layer-names | string | Optional. Layer names list which will be skipped during quantization |
 | --ignore_layer_names_path, --ignore-layer-names-path | string | Optional. Ignore layer names file path |
 | --batch_size, --batch-size        | integer| Optional. Batch size value. If not specified, the batch size value is determined from IR |
 | -th, --threshold                  | float | Optional. Accuracy drop of quantized model should not exceed this threshold. Should be pointer in percents without percent sign. (1% is default) |
-| -ic, --benchmark_iterations_count, --benchmark-iterations-count | integer | Optional. Benchmark iterations count (1000 is default). |
+| -ic, --benchmark_iterations_count, --benchmark-iterations-count | integer | Optional. Benchmark iterations count (1 is default). |
 | -mn, --metric_name, --metric-name | string | Optional. Metric name used during calibration |
 | -mt, --metric_type, --metric-type | string | Optional. Metric type used during calibration |
 | -o, --output_dir, --output-dir    | string | Optional. Directory to store converted models. Original model directory is used if not defined |
+
+### Simplified mode
+| Argument                          | Type   | Description                                               |
+| --------------------------------- | ------ | --------------------------------------------------------- |
+| -sm, --simplified_mode, --simplified-mode |   | Optional. If specified, the Calibration Tool collects statistics without searching for optimal data thresholds. |
+| -ss, --subset                     | integer | Optional. This option is used only with --simplified_mode. Specifies a number of images from a folder that is set using `-s` option. |
 
 ## Model Calibration Flow
 
@@ -148,4 +154,14 @@ Command line:
 ```sh
 python benchmark.py --config ~/inception_v1.yml -d ~/defenitions.yml -M /home/user/intel/openvino/deployment_tools/model_optimizer --tf_custom_op_config_dir ~/tf_custom_op_configs --models ~/models --source /media/user/calibration/datasets --annotations ~/annotations --converted_models ~/models
 ```
+
+## Simplified Mode Flow
+
+The Calibration Tool in the simplified mode helps to quickly estimate performance of a model. It converts all possible layers into INT8 and collects statistics without achieving needed accuracy. The tool generates new IR, which is used in performance tests. Therefore, the tool in this mode does not use Accuracy Checker, configuration and annotation files, but you should specify paths to an IR .xml file and a dataset folder. Optionally, you can specify a path to an extensions library and the number of images from the dataset folder. In simplified mode path to an extensions is a path to extensions library.
+
+To run the Calibration Tool in the simplified mode, use the following command:
+```sh
+python3 calibrate.py -sm -m <path-to-ir.xml> -s <path-to-dataset> -ss img_num -e <path-to-extensions-library> -td target_device
+```
+It accepts models with FP32, FP16 precisions and images as dataset.
 

@@ -19,26 +19,24 @@
 
 namespace kernel_selector {
 
-    ParamsKey LSTMGemmKernelRef::GetSupportedKey() const
-    {
-        ParamsKey k;
-        k.EnableInputDataType(Datatype::F16);
-        k.EnableInputDataType(Datatype::F32);
-        k.EnableOutputDataType(Datatype::F16);
-        k.EnableOutputDataType(Datatype::F32);
-        k.EnableDifferentTypes();
-        k.EnableAllInputLayout();
-        k.EnableAllOutputLayout();
-        k.EnableTensorOffset();
-        k.EnableTensorPitches();
-        k.EnableBatching();
-        k.EnableLSTMGEMMBias();
-        k.EnableLSTMGEMMHidden();
-        return k;
-    }
-
-    KernelsData LSTMGemmKernelRef::GetKernelsData(const Params& params, const optional_params& options) const
-    {
-        return GetCommonKernelsData(params, options);
-    }
+ParamsKey LSTMGemmKernelRef::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableDifferentTypes();
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBatching();
+    k.EnableLSTMGEMMBias();
+    k.EnableLSTMGEMMHidden();
+    return k;
 }
+
+KernelsData LSTMGemmKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+    return GetCommonKernelsData(params, options);
+}
+}  // namespace kernel_selector

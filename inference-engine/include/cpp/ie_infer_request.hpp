@@ -13,6 +13,7 @@
 #include <map>
 #include "ie_iinfer_request.hpp"
 #include "details/ie_exception_conversion.hpp"
+#include "ie_plugin_ptr.hpp"
 
 namespace InferenceEngine {
 
@@ -57,6 +58,7 @@ public:
  */
 class InferRequest {
     IInferRequest::Ptr actual;
+    InferenceEnginePluginPtr plg;
     std::shared_ptr<details::ICompletionCallbackWrapper> callback;
 
     static void callWrapper(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) {
@@ -68,6 +70,10 @@ class InferRequest {
 
 public:
     InferRequest() = default;
+
+    ~InferRequest() {
+        actual = nullptr;
+    }
 
     /**
      * @brief Sets input/output data to infer
@@ -147,7 +153,8 @@ public:
      * constructs InferRequest from initialised shared_pointer
      * @param actual
      */
-    explicit InferRequest(IInferRequest::Ptr request) : actual(request) {}
+    explicit InferRequest(IInferRequest::Ptr request, InferenceEnginePluginPtr plg = {})
+    : actual(request), plg(plg) {}
 
     /**
      * @brief Start inference of specified input(s) in asynchronous mode

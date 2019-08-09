@@ -1,12 +1,11 @@
 # Copyright (C) 2018-2019 Intel Corporation
-#
 # SPDX-License-Identifier: Apache-2.0
 #
 
 function(set_ie_threading_interface_for TARGET_NAME)
     set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
 
-    if (THREADING STREQUAL "TBB")
+    if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (NOT (IE_MAIN_SOURCE_DIR))
             set(incl_path ${IE_EXTERNAL_DIR}/tbb/include)
             if (WIN32)
@@ -22,7 +21,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
             set(lib_dbg_path ${lib_rel_path})
         endif ()
 
-        if (NOT TBB_INCLUDE_DIRS OR NOT TBB_LIBRARIES_RELEASE OR NOT TBB_LIBRARIES_DEBUG)
+        if (NOT TBB_INCLUDE_DIRS OR NOT TBB_LIBRARIES_RELEASE)
             find_path(TBB_INCLUDE_DIRS tbb/tbb.h ${incl_path} NO_DEFAULT_PATH)
             find_library(TBB_LIBRARIES_RELEASE tbb ${lib_rel_path} NO_DEFAULT_PATH)
             find_library(TBB_LIBRARIES_DEBUG tbb_debug ${lib_dbg_path} NO_DEFAULT_PATH)
@@ -31,20 +30,31 @@ function(set_ie_threading_interface_for TARGET_NAME)
             ext_message(STATUS "TBB Debug lib: ${TBB_LIBRARIES_DEBUG}")
         endif ()
 
-        if (NOT TBB_INCLUDE_DIRS OR NOT TBB_LIBRARIES_RELEASE OR NOT TBB_LIBRARIES_DEBUG)
+        if (NOT TBB_INCLUDE_DIRS OR NOT TBB_LIBRARIES_RELEASE)
             ext_message(WARNING "TBB not found. TBB support will be disabled. ${IE_THREAD_DEFINE} is defined")
         else ()
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
+
             target_include_directories(${TARGET_NAME} PUBLIC ${TBB_INCLUDE_DIRS})
             if (WIN32)
                 target_link_libraries(${TARGET_NAME} PUBLIC "-nodefaultlib:vcomp")
-                target_link_libraries(${TARGET_NAME} PUBLIC "$<$<CONFIG:DEBUG>:${TBB_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${TBB_LIBRARIES_RELEASE}>")
-            else()
-                if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-                    target_link_libraries(${TARGET_NAME} PUBLIC ${TBB_LIBRARIES_DEBUG})
-                else()
-                    target_link_libraries(${TARGET_NAME} PUBLIC ${TBB_LIBRARIES_RELEASE})
+            endif ()
+
+            # Debug binaries are optional.
+            if (TBB_LIBRARIES_DEBUG)
+                if (WIN32)
+                    target_link_libraries(${TARGET_NAME} PUBLIC "$<$<CONFIG:DEBUG>:${TBB_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${TBB_LIBRARIES_RELEASE}>")
+                else ()
+                    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+                        target_link_libraries(${TARGET_NAME} PUBLIC ${TBB_LIBRARIES_DEBUG})
+                    else()
+                        target_link_libraries(${TARGET_NAME} PUBLIC ${TBB_LIBRARIES_RELEASE})
+                    endif ()
                 endif ()
+            else ()
+                # Link Release library to all configurations.
+                ext_message(WARNING "TBB Debug binaries are missed.")
+                target_link_libraries(${TARGET_NAME} PUBLIC ${TBB_LIBRARIES_RELEASE})
             endif ()
         endif ()
     elseif (THREADING STREQUAL "OMP")
@@ -67,31 +77,41 @@ function(set_ie_threading_interface_for TARGET_NAME)
             set(lib_dbg_path ${lib_rel_path})
         endif ()
 
-        if (NOT OMP_LIBRARIES_RELEASE OR NOT OMP_LIBRARIES_DEBUG)
+        if (NOT OMP_LIBRARIES_RELEASE)
             find_library(OMP_LIBRARIES_RELEASE ${omp_lib_name} ${lib_rel_path} NO_DEFAULT_PATH)
             find_library(OMP_LIBRARIES_DEBUG ${omp_lib_name} ${lib_dbg_path} NO_DEFAULT_PATH)
             ext_message(STATUS "OMP Release lib: ${OMP_LIBRARIES_RELEASE}")
             ext_message(STATUS "OMP Debug lib: ${OMP_LIBRARIES_DEBUG}")
         endif ()
 
-        if (NOT OMP_LIBRARIES_RELEASE OR NOT OMP_LIBRARIES_DEBUG)
+        if (NOT OMP_LIBRARIES_RELEASE)
             ext_message(WARNING "Intel OpenMP not found. Intel OpenMP support will be disabled. ${IE_THREAD_DEFINE} is defined")
         else ()
             set(IE_THREAD_DEFINE "IE_THREAD_OMP")
-            
+
             if (WIN32)
                 target_compile_options(${TARGET_NAME} PUBLIC ${OpenMP_CXX_FLAGS} /openmp)
                 target_compile_options(${TARGET_NAME} PUBLIC ${OpenMP_CXX_FLAGS} /Qopenmp)
-
                 target_link_libraries(${TARGET_NAME} PUBLIC "-nodefaultlib:vcomp")
-                target_link_libraries(${TARGET_NAME} PUBLIC "$<$<CONFIG:DEBUG>:${OMP_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${OMP_LIBRARIES_RELEASE}>")
             else()
                 target_compile_options(${TARGET_NAME} PUBLIC ${OpenMP_CXX_FLAGS} -fopenmp)
-                if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-                    target_link_libraries(${TARGET_NAME} PUBLIC ${OMP_LIBRARIES_DEBUG})
+            endif ()
+
+            # Debug binaries are optional.
+            if (OMP_LIBRARIES_DEBUG)
+                if (WIN32)
+                    target_link_libraries(${TARGET_NAME} PUBLIC "$<$<CONFIG:DEBUG>:${OMP_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${OMP_LIBRARIES_RELEASE}>")
                 else()
-                    target_link_libraries(${TARGET_NAME} PUBLIC ${OMP_LIBRARIES_RELEASE})
+                    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+                        target_link_libraries(${TARGET_NAME} PUBLIC ${OMP_LIBRARIES_DEBUG})
+                    else()
+                        target_link_libraries(${TARGET_NAME} PUBLIC ${OMP_LIBRARIES_RELEASE})
+                    endif ()
                 endif ()
+            else ()
+                # Link Release library to all configurations.
+                ext_message(WARNING "OMP Debug binaries are missed.")
+                target_link_libraries(${TARGET_NAME} PUBLIC ${OMP_LIBRARIES_RELEASE})
             endif ()
         endif ()
 

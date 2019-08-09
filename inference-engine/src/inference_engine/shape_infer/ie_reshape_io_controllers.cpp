@@ -26,7 +26,7 @@ InputController::InputController(const std::vector<DataPtr>& dataVec, const std:
     checker->run(_dataVec, layerName);
     for (const auto& data : _dataVec) {
         if (data) {
-            _dataNames.push_back(data->name);
+            _dataNames.push_back(data->getName());
             SizeVector dims = data->getTensorDesc().getDims();
             _irShapes.push_back(dims);
             // TODO probably need to create blobs with dimensions, not on getBlobs stage
@@ -134,7 +134,7 @@ void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& lau
     checkCorrespondence();
     unsigned idx = 0;
     for (auto const& outData : _dataVec) {
-        for (auto const& inputTo : outData->inputTo) {
+        for (auto const& inputTo : outData->getInputTo()) {
             CNNLayerPtr layer = inputTo.second;
             if (layer == nullptr) {
                 THROW_IE_EXCEPTION << "Failed to propagate shapes for layer (" << inputTo.first
@@ -147,7 +147,7 @@ void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& lau
                                               });
             if (foundLauncher == launchers.end())
                 THROW_IE_EXCEPTION << "Failed to find ReshapeLauncher for layer: '" << layerName << "'";
-            (*foundLauncher)->setShapeByName(_shapes[idx], outData->name);
+            (*foundLauncher)->setShapeByName(_shapes[idx], outData->getName());
         }
         idx++;
     }
@@ -157,7 +157,7 @@ void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& lau
 void OutputController::propagateBlobs(const std::set<ReshapeLauncher::Ptr>& launchers) {
     unsigned idx = 0;
     for (auto const& outData : _dataVec) {
-        for (auto const& inputTo : outData->inputTo) {
+        for (auto const& inputTo : outData->getInputTo()) {
             CNNLayerPtr layer = inputTo.second;
             if (layer == nullptr) {
                 THROW_IE_EXCEPTION << "Failed to propagate shapes for layer (" << inputTo.first
@@ -170,7 +170,7 @@ void OutputController::propagateBlobs(const std::set<ReshapeLauncher::Ptr>& laun
                                               });
             if (foundLauncher == launchers.end())
                 THROW_IE_EXCEPTION << "Failed to find ReshapeLauncher for layer: '" << layerName << "'";
-            (*foundLauncher)->setBlobByName(_inferedData[idx], outData->name);
+            (*foundLauncher)->setBlobByName(_inferedData[idx], outData->getName());
         }
         idx++;
     }

@@ -173,6 +173,9 @@ protected:
     /**  Adds ScaleShift between two specified layers  */
     static void AddScaleShiftBetween(CNNNetwork& net, const CNNLayerPtr layer1, const CNNLayerPtr layer2, CNNStatisticHelper& statHelper);
 
+    /** creates dw convolution with unary weights and zero biases with i8 output and the same
+     *  statistic. it will provide requantization from U8 to I8*/
+    static CNNLayer::Ptr addU8ToI8Conversion(DataPtr data, CNNLayer::Ptr successor, CNNStatisticHelper &statHelper);
 
     /**
      * Function which recalculate weights according to input scales, and quantize weights, biases and
@@ -234,6 +237,12 @@ protected:
     * convolution can convert to FP32 for free, while adding one more scale will decrease performance
     */
     static void returnTailToFP32(const CNNLayer::Ptr layer);
+
+    /**
+     * Verifies whether layer can be potentially int8
+     * @return true if layer does not have improper activation for fusion
+     */
+    static bool canLayerBeI8(const CNNLayer::Ptr& layer);
 
     /**
      * Verifies if next layer has type which potentially can be fused with convolution

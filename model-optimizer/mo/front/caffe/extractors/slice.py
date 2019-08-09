@@ -34,6 +34,8 @@ def slice_ext(proto_layer, model_layer):
         mapping_rule['slice_point'] = []
     mapping_rule.update({
         'type': 'Slice',
+        'in_ports_count': 1,
+        'out_ports_count': len(mapping_rule['slice_point']) + 1,
         'infer': caffe_slice_infer
     })
     return mapping_rule

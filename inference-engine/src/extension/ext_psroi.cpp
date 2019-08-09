@@ -18,17 +18,18 @@ class PSROIPoolingImpl: public ExtLayerBase {
 public:
     explicit PSROIPoolingImpl(const CNNLayer* layer) {
         try {
-            if (layer->insData.size() != 2 || layer->outData.size() != 1)
-                THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+            mode_ = layer->GetParamAsString("mode", "average");
+            if (mode_ != "bilinear_deformable")
+                if (layer->insData.size() !=  2 || layer->outData.size() != 1)
+                    THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
             // LayerSetUp
             output_dim_ = static_cast<size_t>(layer->GetParamAsInt("output_dim"));
             group_size_ = static_cast<size_t>(layer->GetParamAsInt("group_size"));
             spatial_scale_ = layer->GetParamAsFloat("spatial_scale");
-            pooled_height_ = group_size_;
-            pooled_width_ = group_size_;
+            pooled_height_ = static_cast<size_t>(layer->GetParamAsInt("pooled_height", static_cast<int>(group_size_)));
+            pooled_width_ = static_cast<size_t>(layer->GetParamAsInt("pooled_width", static_cast<int>(group_size_)));
             spatial_bins_x_ = static_cast<size_t>(layer->GetParamAsInt("spatial_bins_x", 1));
             spatial_bins_y_ = static_cast<size_t>(layer->GetParamAsInt("spatial_bins_y", 1));
-            mode_ = layer->GetParamAsString("mode", "average");
 
             SizeVector inDims = layer->insData[0].lock()->getTensorDesc().getDims();
             channels = static_cast<int>(inDims[1]);
@@ -41,7 +42,17 @@ public:
             nh = static_cast<int>(outDims[2]);
             nw = static_cast<int>(outDims[3]);
 
-            addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});
+            //  for Deformable PSROIPolling
+            no_trans_ = layer->GetParamAsBool("no_trans", true);
+            part_size_ = layer->GetParamAsInt("part_size", 1);
+            trans_std_ = layer->GetParamAsFloat("trans_std", 1);
+
+            if (no_trans_) {
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});
+            } else {
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
+                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});
+            }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
@@ -60,6 +71,16 @@ public:
             if (roi_batch_ind == -1) {
                 break;
             }
+        }
+
+        //  for Deformable PSROIPooling
+        float *bottom_trans = nullptr;
+        int num_classes = 1;
+        int channels_each_class = output_dim_;
+        if (!no_trans_) {
+            bottom_trans = inputs[2]->buffer();
+            num_classes = static_cast<int>(inputs[2]->getTensorDesc().getDims()[1]) / 2;
+            channels_each_class /= num_classes;
         }
 
         size_t num_bins = spatial_bins_x_*spatial_bins_y_;
@@ -86,6 +107,14 @@ public:
                 roi_start_h = static_cast<float>(round(bottom_rois[2])) * spatial_scale_;
                 roi_end_w   = static_cast<float>(round(bottom_rois[3]) + 1.0f) * spatial_scale_;
                 roi_end_h   = static_cast<float>(round(bottom_rois[4]) + 1.0f) * spatial_scale_;
+                // Force too small ROIs to be 1x1
+                roi_width  = std::max<float>(roi_end_w - roi_start_w, 0.1f);  // avoid 0
+                roi_height = std::max<float>(roi_end_h - roi_start_h, 0.1f);
+            } else if (mode_ == "bilinear_deformable") {
+                roi_start_w = static_cast<float>(round(bottom_rois[1])) * spatial_scale_ - 0.5f;
+                roi_start_h = static_cast<float>(round(bottom_rois[2])) * spatial_scale_ - 0.5f;
+                roi_end_w   = static_cast<float>(round(bottom_rois[3]) + 1.0f) * spatial_scale_ - 0.5f;
+                roi_end_h   = static_cast<float>(round(bottom_rois[4]) + 1.0f) * spatial_scale_ - 0.5f;
                 // Force too small ROIs to be 1x1
                 roi_width  = std::max<float>(roi_end_w - roi_start_w, 0.1f);  // avoid 0
                 roi_height = std::max<float>(roi_end_h - roi_start_h, 0.1f);
@@ -172,6 +201,51 @@ public:
                                 }
                             }
                             dst_data[index] /= num_bins;
+                        } else if (mode_ == "bilinear_deformable") {
+                            // Compute w and h at bottom
+                            float bin_size_h = roi_height / static_cast<float>(pooled_height_);
+                            float bin_size_w = roi_width  / static_cast<float>(pooled_width_);
+
+                            float sub_bin_size_h = bin_size_h / static_cast<float>(spatial_bins_x_);
+                            float sub_bin_size_w = bin_size_w / static_cast<float>(spatial_bins_y_);
+
+                            int part_h = h * part_size_ / pooled_height_;
+                            int part_w = w * part_size_ / pooled_width_;
+                            int class_id = c / channels_each_class;
+                            float trans_x = no_trans_ ? 0 :
+                                    bottom_trans[(((n * num_classes + class_id) * 2) * part_size_ + part_h)
+                                                                                      * part_size_ + part_w] * trans_std_;
+                            float trans_y = no_trans_ ? 0 :
+                                            bottom_trans[(((n * num_classes + class_id) * 2 + 1) * part_size_ + part_h)
+                                                         * part_size_ + part_w] * trans_std_;
+
+                            float wstart = w * bin_size_w + roi_start_w + trans_x * roi_width;
+                            float hstart = h * bin_size_h + roi_start_h + trans_y * roi_height;
+
+                            float sum = 0;
+                            int count = 0;
+                            int gw = w * group_size_ / pooled_width_;
+                            int gh = h * group_size_ / pooled_height_;
+                            gw = std::min(std::max(gw, 0), static_cast<int>(group_size_ - 1));
+                            gh = std::min(std::max(gh, 0), static_cast<int>(group_size_ - 1));
+
+                            const float* offset_bottom_data = bottom_data_beginning + (roi_batch_ind * channels) * height * width;
+                            for (size_t ih = 0; ih < spatial_bins_y_; ih++) {
+                                for (size_t iw = 0; iw < spatial_bins_x_; iw++) {
+                                    float w1 = wstart + iw * sub_bin_size_w;
+                                    float h1 = hstart + ih * sub_bin_size_h;
+                                    // bilinear interpolation
+                                    if (w1 < -0.5 || w1 > width - 0.5 || h1 < -0.5 || h1 > height - 0.5)
+                                        continue;
+                                    w1 = static_cast<float>(std::min(std::max(static_cast<double>(w1), 0.0), width - 1.0));
+                                    h1 = static_cast<float>(std::min(std::max(static_cast<double>(h1), 0.0), height - 1.0));
+                                    int c1 = static_cast<int>((c * group_size_ + gh) * group_size_ + gw);
+                                    float val = bilinear_interp(offset_bottom_data + c1 * height * width, w1, h1, width);
+                                    sum += val;
+                                    count++;
+                                }
+                            }
+                            dst_data[index] = count == 0 ? 0 : sum / count;
                         }
                     }
                 }
@@ -186,6 +260,22 @@ public:
         }
 
         return OK;
+    }
+
+    inline float bilinear_interp(const float* data, const float x, const float y, const int width) {
+        int x1 = static_cast<int>(std::floor(x));
+        int x2 = static_cast<int>(std::ceil(x));
+        int y1 = static_cast<int>(std::floor(y));
+        int y2 = static_cast<int>(std::ceil(y));
+        float dist_x = x - x1;
+        float dist_y = y - y1;
+        float value11 = data[y1 * width + x1];
+        float value12 = data[y2 * width + x1];
+        float value21 = data[y1 * width + x2];
+        float value22 = data[y2 * width + x2];
+        float value = (1 - dist_x) * (1 - dist_y) * value11 + (1 - dist_x) * dist_y * value12
+                      + dist_x * (1 - dist_y) * value21 + dist_x * dist_y * value22;
+        return value;
     }
 
 private:
@@ -206,6 +296,11 @@ private:
     int nc = 0;
     int nh = 0;
     int nw = 0;
+
+    //  for Deformable PSROIPolling
+    bool no_trans_;
+    int part_size_;
+    float trans_std_;
 };
 
 REG_FACTORY_FOR(ImplFactory<PSROIPoolingImpl>, PSROIPooling);

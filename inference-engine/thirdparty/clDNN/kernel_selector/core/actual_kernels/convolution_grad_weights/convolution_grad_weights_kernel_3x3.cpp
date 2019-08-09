@@ -15,61 +15,58 @@
 */
 
 #include "convolution_grad_weights_kernel_3x3.h"
+#include <algorithm>
 
-namespace kernel_selector
-{
+namespace kernel_selector {
 
-    ParamsKey ConvolutionGradWeightsKernel3x3::GetSupportedKey() const
-    {
-        ParamsKey k;
-        k.EnableInputDataType(Datatype::F32);
-        k.EnableInputWeightsType(WeightsType::F32);
-        k.EnableOutputDataType(Datatype::F32);
-        k.EnableInputLayout(DataLayout::bfyx);
-        k.EnableOutputLayout(DataLayout::yxfb);
-        k.EnableOutputLayout(DataLayout::bfyx);
-        k.EnableOutputLayout(DataLayout::byxf);
-        k.EnableTensorOffset();
-        k.EnableTensorPitches();
-        k.EnableBiasPerFeature();
-        k.EnableNonBiasTerm();
-        k.EnableMomentum();
-        k.EnableBatching();
-        k.EnableSplitSupport();
-        k.EnableGradient();
-        k.DisableTuning();
-        return k;
-    }
-
-    bool ConvolutionGradWeightsKernel3x3::Validate(const Params& p, const optional_params&) const
-    {
-        const auto& params = static_cast<const convolution_grad_weights_params&>(p);
-
-        if (params.stride.x != 1 || params.stride.y != 1)
-            return false;
-        if (params.filterSize.x != 3 || params.filterSize.y != 3)
-            return false;
-        return true;
-    }
-
-    ConvolutionGradWeightsKernelBase::DispatchData ConvolutionGradWeightsKernel3x3::SetDefault(const convolution_grad_weights_params& params) const
-    {
-        auto input_features = params.weights.IFM().v;
-        auto output_features = params.weights.OFM().v;
-
-        DispatchData kd;
-
-        kd.gws0 = Align(output_features, 16);
-        kd.gws1 = input_features;
-        kd.gws2 = 1;
-        kd.lws0 = std::min(std::max(kd.gws0, static_cast<size_t>(1)), static_cast<size_t>(32));
-        while (kd.gws0 % kd.lws0 != 0)
-        {
-            kd.lws0 -= 16;
-        }
-        kd.lws1 = 1;
-        kd.lws2 = 1;
-        kd.effiency = FORCE_PRIORITY_8;
-        return kd;
-    }
+ParamsKey ConvolutionGradWeightsKernel3x3::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBiasPerFeature();
+    k.EnableNonBiasTerm();
+    k.EnableMomentum();
+    k.EnableBatching();
+    k.EnableSplitSupport();
+    k.EnableGradient();
+    k.DisableTuning();
+    return k;
 }
+
+bool ConvolutionGradWeightsKernel3x3::Validate(const Params& p, const optional_params&) const {
+    const auto& params = static_cast<const convolution_grad_weights_params&>(p);
+
+    if (params.stride.x != 1 || params.stride.y != 1)
+        return false;
+    if (params.filterSize.x != 3 || params.filterSize.y != 3)
+        return false;
+    return true;
+}
+
+ConvolutionGradWeightsKernelBase::DispatchData ConvolutionGradWeightsKernel3x3::SetDefault(
+    const convolution_grad_weights_params& params) const {
+    auto input_features = params.weights.IFM().v;
+    auto output_features = params.weights.OFM().v;
+
+    DispatchData kd;
+
+    kd.gws0 = Align(output_features, 16);
+    kd.gws1 = input_features;
+    kd.gws2 = 1;
+    kd.lws0 = std::min(std::max(kd.gws0, static_cast<size_t>(1)), static_cast<size_t>(32));
+    while (kd.gws0 % kd.lws0 != 0) {
+        kd.lws0 -= 16;
+    }
+    kd.lws1 = 1;
+    kd.lws2 = 1;
+    kd.effiency = FORCE_PRIORITY_8;
+    return kd;
+}
+}  // namespace kernel_selector

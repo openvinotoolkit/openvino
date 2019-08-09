@@ -16,20 +16,14 @@
 
 namespace vpu {
 
-std::unordered_map<int32_t, std::string> generateEnumMap(const std::string& strMap);
+std::ostream& printValue(std::ostream& os, const std::string& strMap, int32_t val);
 
 #define VPU_DECLARE_ENUM(EnumName, ...)                                         \
     enum class EnumName : int32_t {                                             \
         __VA_ARGS__                                                             \
     };                                                                          \
     inline std::ostream& operator<<(std::ostream& os, EnumName val) {           \
-        static const auto mapName = vpu::generateEnumMap(#__VA_ARGS__);         \
-        auto it = mapName.find(static_cast<int32_t>(val));                      \
-        if (it != mapName.end())                                                \
-            os << it->second;                                                   \
-        else                                                                    \
-            os << static_cast<int32_t>(val);                                    \
-        return os;                                                              \
+        return vpu::printValue(os, #__VA_ARGS__, static_cast<int32_t>(val));\
     }                                                                           \
     template <typename I>                                                       \
     inline I checked_cast(EnumName val) {                                       \

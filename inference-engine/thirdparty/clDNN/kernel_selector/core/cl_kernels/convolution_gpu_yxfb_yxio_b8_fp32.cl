@@ -132,9 +132,9 @@ KERNEL(convolution_gpu_yxfb_yxio_b8)(
     ADD_BIAS_8(_data1, bias[ofm_offset + sub_group_id + 8]);
 #endif
 #endif // #if BIAS_TERM
-    _data0 = ACTIVATION(_data0, NL_M, NL_N);
+    _data0 = ACTIVATION(_data0, ACTIVATION_PARAMS);
 #if OFM_PER_WORK_ITEM == 16
-    _data1 = ACTIVATION(_data1, NL_M, NL_N);
+    _data1 = ACTIVATION(_data1, ACTIVATION_PARAMS);
 #endif
 
     const uint _out_id = OUTPUT_OFFSET + out_id;

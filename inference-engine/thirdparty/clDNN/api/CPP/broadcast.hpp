@@ -17,10 +17,9 @@
 
 #include "../C/broadcast.h"
 #include "primitive.hpp"
+#include <vector>
 
-
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -68,8 +67,7 @@ namespace cldnn
 /// @n - @p output_shape must be greater (dividable) than or equal to reinterpreted
 ///      input on all dimensions.
 /// @n Breaking any of these conditions will raise an exception.
-struct broadcast : public primitive_base<broadcast, CLDNN_PRIMITIVE_DESC(broadcast)>
-{
+struct broadcast : public primitive_base<broadcast, CLDNN_PRIMITIVE_DESC(broadcast)> {
     CLDNN_DECLARE_PRIMITIVE(broadcast)
 
     /// @brief Constructs broadcast primitive / layer.
@@ -84,18 +82,14 @@ struct broadcast : public primitive_base<broadcast, CLDNN_PRIMITIVE_DESC(broadca
     ///                        axes must be greater (dividable) or equal to corresponding input
     ///                        dimension values.
     /// @param output_padding  Optional padding for output from primitive.
-    broadcast(
-        const primitive_id& id,
-        const primitive_id& input,
-        const tensor& broadcast_sizes,
-        const std::vector<uint16_t>& broadcast_axes = {},
-        const padding& output_padding = padding()
-    )
+    broadcast(const primitive_id& id,
+              const primitive_id& input,
+              const tensor& broadcast_sizes,
+              const std::vector<uint16_t>& broadcast_axes = {},
+              const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           broadcast_sizes(broadcast_sizes),
-          broadcast_axes(broadcast_axes)
-    {
-    }
+          broadcast_axes(broadcast_axes) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{broadcast}
     broadcast(const dto* dto)
@@ -103,8 +97,7 @@ struct broadcast : public primitive_base<broadcast, CLDNN_PRIMITIVE_DESC(broadca
           broadcast_sizes(dto->broadcast_sizes),
           broadcast_axes(uint16_t_arr_to_vector(dto->broadcast_axes))
 
-    {
-    }
+    {}
 
     /// @brief Expected sizes of output from broadcast primitive.
     tensor broadcast_sizes;
@@ -113,14 +106,12 @@ struct broadcast : public primitive_base<broadcast, CLDNN_PRIMITIVE_DESC(broadca
     std::vector<uint16_t> broadcast_axes;
 
 protected:
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.broadcast_sizes = broadcast_sizes;
         dto.broadcast_axes = uint16_t_vector_to_arr(broadcast_axes);
-
     }
 };
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

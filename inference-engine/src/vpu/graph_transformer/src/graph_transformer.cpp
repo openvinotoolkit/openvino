@@ -61,6 +61,12 @@ const CompileEnv& CompileEnv::get() {
     return *g_compileEnv;
 }
 
+const CompileEnv* CompileEnv::getOrNull() {
+    IE_ASSERT(g_compileEnv == nullptr || g_compileEnv->initialized);
+
+    return g_compileEnv;
+}
+
 void CompileEnv::init(
         Platform platform,
         const CompilationConfig& config,
@@ -71,6 +77,10 @@ void CompileEnv::init(
     g_compileEnv->platform = platform;
     g_compileEnv->config = config;
     g_compileEnv->log = log;
+
+#if ENABLE_PROFILING_RAW
+    g_compileEnv->profile.setLogger(log);
+#endif
 
     if (g_compileEnv->platform == Platform::MYRIAD_2) {
         g_compileEnv->config.hwOptimization = false;
@@ -151,6 +161,11 @@ void CompileEnv::free() {
 namespace {
 
 CompiledGraph::Ptr compileImpl(const ie::ICNNNetwork& network) {
+    const auto& env = CompileEnv::get();
+
+    env.log->debug("Compile network [%s]", network.getName());
+    VPU_LOGGER_SECTION(env.log);
+
     auto stageBuilder = std::make_shared<StageBuilder>();
     auto frontEnd = std::make_shared<FrontEnd>(stageBuilder);
     auto backEnd = std::make_shared<BackEnd>();
@@ -176,12 +191,12 @@ CompiledGraph::Ptr compileNetwork(
         Platform platform,
         const CompilationConfig& config,
         const Logger::Ptr& log) {
-    VPU_PROFILE(compileNetwork);
-
     CompileEnv::init(platform, config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
     });
+
+    VPU_PROFILE(compileNetwork);
 
     return compileImpl(network);
 }
@@ -212,13 +227,12 @@ std::set<std::string> getSupportedLayers(
         Platform platform,
         const CompilationConfig& config,
         const Logger::Ptr& log) {
-    VPU_PROFILE(getSupportedLayers);
-
     CompileEnv::init(platform, config, log);
-
     AutoScope autoDeinit([] {
         CompileEnv::free();
     });
+
+    VPU_PROFILE(getSupportedLayers);
 
     auto stageBuilder = std::make_shared<StageBuilder>();
     auto frontEnd = std::make_shared<FrontEnd>(stageBuilder);

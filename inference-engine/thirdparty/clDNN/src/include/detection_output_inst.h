@@ -19,16 +19,16 @@
 #include "api/CPP/detection_output.hpp"
 #include "primitive_inst.h"
 #include "topology_impl.h"
+#include <string>
 
-#define PRIOR_BOX_SIZE 4 // Each prior-box consists of [xmin, ymin, xmax, ymax].
-#define DETECTION_OUTPUT_ROW_SIZE (3+PRIOR_BOX_SIZE) // Each detection consists of [image_id, label, confidence, xmin, ymin, xmax, ymax].
+#define PRIOR_BOX_SIZE 4  // Each prior-box consists of [xmin, ymin, xmax, ymax].
+#define DETECTION_OUTPUT_ROW_SIZE \
+    (3 + PRIOR_BOX_SIZE)  // Each detection consists of [image_id, label, confidence, xmin, ymin, xmax, ymax].
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-class typed_program_node<detection_output> : public typed_program_node_base<detection_output>
-{
+class typed_program_node<detection_output> : public typed_program_node_base<detection_output> {
     using parent = typed_program_node_base<detection_output>;
 
 public:
@@ -43,8 +43,7 @@ public:
 using detection_output_node = typed_program_node<detection_output>;
 
 template <>
-class typed_primitive_inst<detection_output> : public typed_primitive_inst_base<detection_output>
-{
+class typed_primitive_inst<detection_output> : public typed_primitive_inst_base<detection_output> {
     using parent = typed_primitive_inst_base<detection_output>;
 
 public:
@@ -62,8 +61,7 @@ public:
 using detection_output_inst = typed_primitive_inst<detection_output>;
 
 template <>
-class typed_program_node<detection_output_sort> : public typed_program_node_base<detection_output_sort>
-{
+class typed_program_node<detection_output_sort> : public typed_program_node_base<detection_output_sort> {
     using parent = typed_program_node_base<detection_output_sort>;
 
 public:
@@ -75,8 +73,7 @@ public:
 using detection_output_sort_node = typed_program_node<detection_output_sort>;
 
 template <>
-class typed_primitive_inst<detection_output_sort> : public typed_primitive_inst_base<detection_output_sort>
-{
+class typed_primitive_inst<detection_output_sort> : public typed_primitive_inst_base<detection_output_sort> {
     using parent = typed_primitive_inst_base<detection_output_sort>;
 
 public:
@@ -90,9 +87,9 @@ public:
 using detection_output_sort_inst = typed_primitive_inst<detection_output_sort>;
 
 namespace gpu {
-    primitive_impl* runDetectOutCpu(const detection_output_node& arg);
-    primitive_impl* runDetectOutGpu(const detection_output_node& arg, kernel_selector::KernelData kernel);
-    primitive_impl* runDetectOutSortGpu(const detection_output_sort_node& arg, kernel_selector::KernelData kernel);
-}
+primitive_impl* runDetectOutCpu(const detection_output_node& arg);
+primitive_impl* runDetectOutGpu(const detection_output_node& arg, kernel_selector::KernelData kernel);
+primitive_impl* runDetectOutSortGpu(const detection_output_sort_node& arg, kernel_selector::KernelData kernel);
+}  // namespace gpu
 
-}
+}  // namespace cldnn

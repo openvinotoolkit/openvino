@@ -61,21 +61,21 @@ public:
      */
     T &at(int index) {
         if (index >= N) {
-            THROW_IE_EXCEPTION << "Property index is out of bounds(" << index << "/" << N;
+            THROW_IE_EXCEPTION << "Property index is out of bounds (" << index << "/" << N;
         }
         return _axises[index];
     }
 
     const T &operator[](size_t index) const {
         if (index >= N ||!_allocated[index]) {
-            THROW_IE_EXCEPTION << "Property index ("<< index <<")is out of bounds";
+            THROW_IE_EXCEPTION << "Property index ("<< index <<") is out of bounds";
         }
         return _axises[index];
     }
 
     T &operator[](size_t index) {
         if (index >= N || !_allocated[index]) {
-            THROW_IE_EXCEPTION << "Property index ("<< index <<")is out of bounds";
+            THROW_IE_EXCEPTION << "Property index ("<< index <<") is out of bounds";
         }
         return _axises[index];
     }

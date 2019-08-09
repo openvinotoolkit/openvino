@@ -18,20 +18,18 @@
 
 #include "kernel_selector.h"
 
-namespace kernel_selector
-{
-    class scale_grad_weights_kernel_selector : public kernel_selector_base
-    {
-    public:
-        static scale_grad_weights_kernel_selector &Instance() {
-            static scale_grad_weights_kernel_selector instance_;
-            return instance_;
-        }
+namespace kernel_selector {
+class scale_grad_weights_kernel_selector : public kernel_selector_base {
+public:
+    static scale_grad_weights_kernel_selector& Instance() {
+        static scale_grad_weights_kernel_selector instance_;
+        return instance_;
+    }
 
-        scale_grad_weights_kernel_selector();
+    scale_grad_weights_kernel_selector();
 
-        virtual ~scale_grad_weights_kernel_selector() {}
+    virtual ~scale_grad_weights_kernel_selector() {}
 
-        virtual KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-    };
-}
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+};
+}  // namespace kernel_selector

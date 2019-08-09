@@ -18,6 +18,7 @@ import logging as log
 
 import numpy as np
 
+from extensions.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
 from extensions.ops.TensorIterator_ops import TensorIteratorInput
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
@@ -43,8 +44,7 @@ class SmartInputMatcher(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['is_cyclic']]
 
     def run_after(self):
-        from extensions.middle.TensorIterator_utils import DeleteSelect
-        return [DeleteSelect]
+        return [AddIsCyclicAttribute]
 
     def run_before(self):
         from extensions.middle.TensorIteratorMerge import TensorIteratorMerge

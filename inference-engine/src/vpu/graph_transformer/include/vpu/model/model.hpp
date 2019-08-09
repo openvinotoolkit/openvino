@@ -41,10 +41,6 @@ void printTo(DotLabel& lbl, const Resources& res);
 // Model
 //
 
-VPU_DECLARE_ENUM(BuildStageOrder,
-                 DFS,
-                 BFS)
-
 class Model final :
         public EnableHandleFromThis<Model>,
         public EnableCustomAttributes {
@@ -52,14 +48,7 @@ private:
     // Need to declare here to use decltype
     DataList _dataList;
     mutable StageList _orderedStageList;
-
-    struct SubGraphFilter final {
-        int subGraphNumber = -1;
-
-        inline bool operator()(const Stage& stage) const {
-            return stage->subGraphNumber() == subGraphNumber;
-        }
-    };
+    std::set<Stage, StageNode::StageNameCmp> _initialStages;
 
     //
     // Main attributes
@@ -70,8 +59,6 @@ private:
     VPU_MODEL_ATTRIBUTE(int, batchSize, 1)
 
     VPU_MODEL_ATTRIBUTE(InferenceEngine::NetworkStatsMap, nodesStats, {})
-
-    VPU_MODEL_ATTRIBUTE(int, numberOfSubGraphs, 1)
 
 public:
     using Ptr = ModelPtr;
@@ -93,8 +80,6 @@ public:
     void setBatchSize(int batchSize);
 
     inline void setNodesStats(const ie::NetworkStatsMap& stats) { _nodesStats = stats; }
-
-    void setNumberOfSubGraphs(int numberOfSubGraphs);
 
     //
     // Data nodes
@@ -266,7 +251,7 @@ public:
     //
 
     // TODO: allow to override stage order.
-    void buildStageOrder(BuildStageOrder order = BuildStageOrder::DFS) const;
+    void buildStageOrder() const;
 
     //
     // Nodes accessors
@@ -278,14 +263,12 @@ public:
     }
 
     inline int numStages() const { return _stagePtrList.size(); }
-    inline auto getStages(BuildStageOrder order = BuildStageOrder::DFS) const -> decltype(contRange(_orderedStageList)) {
-        buildStageOrder(order);
-        return contRange(_orderedStageList);
+    inline auto initialStages() const -> decltype(contRange(_initialStages)) {
+        return contRange(_initialStages);
     }
-    inline auto getSubGraphStages(int subGraphNumber) const -> decltype(filterRange<SubGraphFilter>(getStages(BuildStageOrder::DFS))) {
-        SubGraphFilter f;
-        f.subGraphNumber = subGraphNumber;
-        return filterRange(getStages(), f);
+    inline auto getStages() const -> decltype(contRange(_orderedStageList)) {
+        buildStageOrder();
+        return contRange(_orderedStageList);
     }
 
     //
@@ -318,10 +301,6 @@ private:
             const Stage& stage,
             StageMap<bool>& visitedMap) const;
 
-    void runBFS(
-            StageList& queue,
-            StageMap<bool>& visitedMap) const;
-
 private:
     DataPtrList _dataPtrList;
     StagePtrList _stagePtrList;
@@ -334,10 +313,7 @@ private:
 
     Allocator _allocator;
 
-    std::set<Stage, StageNode::StageCmp> _initialStages;
-
     mutable bool _resetStageOrder = true;
-    mutable BuildStageOrder _stageOrder = BuildStageOrder::DFS;
 
     friend class InjectStageHelper;
     friend class DataEdgeHelper;

@@ -16,62 +16,59 @@
 
 #include "convolution_grad_weights_kernel_yxfb.h"
 
-namespace kernel_selector
-{
+namespace kernel_selector {
 
-	ParamsKey ConvolutionGradWeightsKernel_yxfb::GetSupportedKey() const
-	{
-		ParamsKey k;
-		k.EnableInputDataType(Datatype::F32);
-		k.EnableInputWeightsType(WeightsType::F32);
-		k.EnableOutputDataType(Datatype::F32);
-		k.EnableInputLayout(DataLayout::yxfb);
-		k.EnableOutputLayout(DataLayout::yxfb);
-		k.EnableOutputLayout(DataLayout::bfyx);
-		k.EnableOutputLayout(DataLayout::byxf);
-		k.EnableSubGroup();
-		k.EnableTensorOffset();
-		k.EnableTensorPitches();
-		k.EnableBiasPerFeature();
-		k.EnableNonBiasTerm();
-		k.EnableMomentum();
-		k.EnableBatching();
-		k.EnableSplitSupport();
-		k.EnableGradient();
-		k.DisableTuning();
-		return k;
-	}
-
-	bool ConvolutionGradWeightsKernel_yxfb::Validate(const Params& p, const optional_params&) const
-	{
-		const convolution_grad_weights_params& params = static_cast<const convolution_grad_weights_params&>(p);
-		auto batch = params.inputs[0].Batch().v;
-
-		if (batch % 16 != 0)
-			return false;
-		if (params.stride.x != 1 || params.stride.y != 1)
-			return false;
-		return true;
-	}
-
-	ConvolutionGradWeightsKernelBase::DispatchData ConvolutionGradWeightsKernel_yxfb::SetDefault(const convolution_grad_weights_params& params) const
-	{
-		auto input_features = params.weights.IFM().v;
-		auto output_features = params.weights.OFM().v;
-		auto x = params.weights.X().v;
-		auto y = params.weights.Y().v;
-
-		DispatchData kd;
-
-		kd.gws0 = 16;
-		kd.gws1 = input_features * output_features;
-		kd.gws2 = x * y;
-
-        kd.lws0 = 16;
-		kd.lws1 = 1;
-		kd.lws2 = 1;
-		kd.effiency = FORCE_PRIORITY_7;
-
-		return kd;
-	}
+ParamsKey ConvolutionGradWeightsKernel_yxfb::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableInputLayout(DataLayout::yxfb);
+    k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableSubGroup();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBiasPerFeature();
+    k.EnableNonBiasTerm();
+    k.EnableMomentum();
+    k.EnableBatching();
+    k.EnableSplitSupport();
+    k.EnableGradient();
+    k.DisableTuning();
+    return k;
 }
+
+bool ConvolutionGradWeightsKernel_yxfb::Validate(const Params& p, const optional_params&) const {
+    const convolution_grad_weights_params& params = static_cast<const convolution_grad_weights_params&>(p);
+    auto batch = params.inputs[0].Batch().v;
+
+    if (batch % 16 != 0)
+        return false;
+    if (params.stride.x != 1 || params.stride.y != 1)
+        return false;
+    return true;
+}
+
+ConvolutionGradWeightsKernelBase::DispatchData ConvolutionGradWeightsKernel_yxfb::SetDefault(
+    const convolution_grad_weights_params& params) const {
+    auto input_features = params.weights.IFM().v;
+    auto output_features = params.weights.OFM().v;
+    auto x = params.weights.X().v;
+    auto y = params.weights.Y().v;
+
+    DispatchData kd;
+
+    kd.gws0 = 16;
+    kd.gws1 = input_features * output_features;
+    kd.gws2 = x * y;
+
+    kd.lws0 = 16;
+    kd.lws1 = 1;
+    kd.lws2 = 1;
+    kd.effiency = FORCE_PRIORITY_7;
+
+    return kd;
+}
+}  // namespace kernel_selector

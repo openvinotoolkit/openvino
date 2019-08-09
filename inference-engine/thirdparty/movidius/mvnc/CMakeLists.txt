@@ -16,11 +16,7 @@ if(NOT WIN32)
 endif()
 
 file(GLOB MVNC_SOURCES "include/*" "src/*")
-
-# Watchdog would  be disabled on PCIE configuration
-if (NOT ENABLE_MYX_PCIE)
-    file(GLOB WATCHDOG_SOURCES "../watchdog/*")
-endif()
+file(GLOB WATCHDOG_SOURCES "../watchdog/*")
 
 # FIXME: WIN_PTHREAD also should be built as a library
 if(WIN32)
@@ -56,11 +52,7 @@ target_compile_definitions(${TARGET_NAME}
         HAVE_STRUCT_TIMESPEC
         _CRT_SECURE_NO_WARNINGS)
 
-if (ENABLE_MYX_PCIE)
-    target_compile_definitions(${TARGET_NAME} PRIVATE USE_PCIE)
-else ()
-    target_compile_definitions(${TARGET_NAME} PRIVATE USE_USB_VSC)
-endif()
+target_compile_definitions(${TARGET_NAME} PRIVATE USE_USB_VSC)
 
 if (ENABLE_MYRIAD_NO_BOOT)
     target_compile_definitions(${TARGET_NAME} PRIVATE NO_BOOT)
@@ -108,3 +100,6 @@ if(NOT WIN32)
             ${LIBUSB_LIBRARY})
 endif()
 
+if(ENABLE_TESTS AND ENABLE_MYRIAD_MVNC_TESTS)
+    add_subdirectory(tests)
+endif()

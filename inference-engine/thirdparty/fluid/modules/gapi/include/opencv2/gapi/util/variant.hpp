@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_UTIL_VARIANT_HPP
@@ -328,7 +328,8 @@ namespace util
             util::type_list_index<T, Types...>::value;
 
         if (v.index() == t_index)
-            return reinterpret_cast<T&>(v.memory);
+            return *(T*)(&v.memory);  // workaround for ICC 2019
+            // original code: return reinterpret_cast<T&>(v.memory);
         else
             throw_error(bad_variant_access());
     }
@@ -340,7 +341,8 @@ namespace util
             util::type_list_index<T, Types...>::value;
 
         if (v.index() == t_index)
-            return reinterpret_cast<const T&>(v.memory);
+            return *(const T*)(&v.memory);  // workaround for ICC 2019
+            // original code: return reinterpret_cast<const T&>(v.memory);
         else
             throw_error(bad_variant_access());
     }

@@ -18,12 +18,11 @@
 #pragma once
 #include "api/CPP/gather.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace  cldnn
-{
+namespace cldnn {
 template <>
-struct typed_program_node<gather> : public typed_program_node_base<gather>
-{
+struct typed_program_node<gather> : public typed_program_node_base<gather> {
     using parent = typed_program_node_base<gather>;
 
 public:
@@ -35,8 +34,7 @@ public:
 using gather_node = typed_program_node<gather>;
 
 template <>
-class typed_primitive_inst<gather> : public typed_primitive_inst_base<gather>
-{
+class typed_primitive_inst<gather> : public typed_primitive_inst_base<gather> {
     using parent = typed_primitive_inst_base<gather>;
 
 public:
@@ -48,4 +46,4 @@ public:
 };
 
 using gather_inst = typed_primitive_inst<gather>;
-}
+}  // namespace cldnn

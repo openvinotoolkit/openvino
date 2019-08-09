@@ -87,7 +87,7 @@ KERNEL(fully_connected_gpu_IMAD)(
 #endif // BIAS_TERM
 
     const uint out_index = GET_DATA_INDEX(OUTPUT, b, f, 0, 0);
-    output[out_index] = ACTIVATION(convert_char(dotProd), NL_M, NL_N);
+    output[out_index] = ACTIVATION(convert_char(dotProd), ACTIVATION_PARAMS);
 }
 
 #undef SIMD_SIZE

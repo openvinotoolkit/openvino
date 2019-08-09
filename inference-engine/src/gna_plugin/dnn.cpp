@@ -27,6 +27,7 @@ extern bool global_debug;
 #include "pwl.h"
 #include "util.h"
 #include "gna_plugin_log.hpp"
+#include "ie_memcpy.h"
 
 #ifdef WIN32
 # define rand_r(X) rand()
@@ -586,8 +587,8 @@ __inline void ApplyAffineTransform(intel_dnn_component_t *component, uint32_t *l
             }
         }
             break;
-        default:fprintf(stderr, "Bad data width in ApplyAffineTransform!\n");
-            throw -1;
+        default:
+            THROW_GNA_EXCEPTION << "Bad data width in ApplyAffineTransform: " << component->num_bytes_per_input;
     }
 }
 
@@ -651,10 +652,10 @@ __inline void ApplyDiagonalTransform(intel_dnn_component_t *component) {
                 cblas_ssbmv1(CblasRowMajor, CblasLower, m, 0, 1.0, A, 1, Bcol, 1, 1.0, Ccol, 1);
             }
             //  PrintMatrixFloat32("C float after", C, m, n, ldc);
-        }
             break;
-        default:fprintf(stderr, "Bad data width in ApplyDiagonalTransform!\n");
-            throw -1;
+        }
+        default:
+            THROW_GNA_EXCEPTION << "Bad data width in ApplyDiagonalTransform: " << component->num_bytes_per_input;
     }
 }
 
@@ -714,10 +715,10 @@ __inline void ApplyRecurrentTransform(intel_dnn_component_t *component, uint32_t
             //  PrintMatrixFloat32("B float", B, 1, n, n);
             sgemv_split(n, k1, k2, A1, A2, X, B, C);
             //  PrintMatrixFloat32("C float", C, 1, n, n);
-        }
             break;
-        default:fprintf(stderr, "Bad data width in ApplyRecurrentTransform!\n");
-            throw -1;
+        }
+        default:
+            THROW_GNA_EXCEPTION << "Bad data width in ApplyRecurrentTransform: " << component->num_bytes_per_input;
     }
 }
 
@@ -741,8 +742,8 @@ __inline void ApplyConvolutional1DTransform(intel_dnn_component_t *component) {
             //  PrintMatrixFloat32("Output float", reinterpret_cast<float*>(component->ptr_outputs, component->num_rows_out,
             // component->num_columns_out, component->num_columns_out);
             break;
-        default:fprintf(stderr, "Bad data width in ApplyConvolutionalTransform!\n");
-            throw -1;
+        default:
+            THROW_GNA_EXCEPTION << "Bad data width in ApplyConvolutionalTransform: " << component->num_bytes_per_input;
     }
 }
 
@@ -760,8 +761,7 @@ __inline void ApplyPiecewiseLinearTransform(intel_dnn_component_t *component,
             PwlApply16(component, listsize);
 #endif  // #ifdef INTEGER_REF
     } else {
-        fprintf(stderr, "Bad data width in ApplyPiecewiseLinearTransform!\n");
-        throw -1;
+        THROW_GNA_EXCEPTION << "Bad data width in ApplyPiecewiseLinearTransform: " << number_type;
     }
 }
 
@@ -776,8 +776,7 @@ __inline void ApplyPiecewiseLinearTransform(intel_dnn_component_t *component,
             PwlApply16(component, num_row, num_row, 0, listsize-1);
 #endif  // #ifdef INTEGER_REF
     } else {
-        fprintf(stderr, "Bad data width in ApplyPiecewiseLinearTransform!\n");
-        throw -1;
+        THROW_GNA_EXCEPTION << "Bad data width in ApplyPiecewiseLinearTransform: " << number_type;
     }
 }
 
@@ -900,7 +899,8 @@ uint32_t AmIntelDnn::CopyActiveList(std::vector<std::vector<uint32_t> > &active_
 
         if (ptr_active_outputs_ != nullptr) {
             num_active_outputs_ = active_list[list_index].size();
-            memcpy(ptr_active_outputs_, active_list[list_index].data(), num_active_outputs_ * sizeof(uint32_t));
+            ie_memcpy(ptr_active_outputs_, num_active_outputs_ * sizeof(uint32_t),
+                active_list[list_index].data(), num_active_outputs_ * sizeof(uint32_t));
         }
     }
 
@@ -1212,7 +1212,7 @@ void AmIntelDnn::WriteGraphWizModel(const char *filename) {
         return ptra >= ptrb  && ptra < reinterpret_cast<char*>(ptrb) + bsize;
     };
 
-    std::fstream graph("graph.dot", std::ios::out);
+    std::fstream graph(filename, std::ios::out);
     graph << "strict digraph {";
     std::set<void*> weights;
     std::set<void*> biases;
@@ -1240,6 +1240,9 @@ void AmIntelDnn::WriteGraphWizModel(const char *filename) {
             graph << "  <TR><TD> wscale</TD><TD>" <<  components[k].op.affine.weight_scale_factor<< "</TD></TR>\n";
             graph << "  <TR><TD> wbit</TD><TD>" <<  components[k].op.affine.num_bytes_per_weight<< "</TD></TR>\n";
             graph << "  <TR><TD> bbit</TD><TD>" <<  components[k].op.affine.num_bytes_per_bias<< "</TD></TR>\n";
+
+            graph << "  <TR><TD> wadr</TD><TD>" <<  components[k].op.affine.ptr_weights<< "</TD></TR>\n";
+            graph << "  <TR><TD> badr</TD><TD>" <<  components[k].op.affine.ptr_biases<< "</TD></TR>\n";
         }
         if (IS_RELU(k)) {
             graph << "  <TR><TD> negative_slope</TD><TD>" <<  components[k].op.pwl.func_id.negative_slope<< "</TD></TR>\n";
@@ -1255,7 +1258,11 @@ void AmIntelDnn::WriteGraphWizModel(const char *filename) {
             graph << "  <TR><TD> wscale</TD><TD>" <<  conv.weight_scale_factor<< "</TD></TR>\n";
             graph << "  <TR><TD> wbit</TD><TD>" <<  conv.num_bytes_per_weight<< "</TD></TR>\n";
             graph << "  <TR><TD> bbit</TD><TD>" <<  conv.num_bytes_per_bias<< "</TD></TR>\n";
+            graph << "  <TR><TD> wadr</TD><TD>" <<  components[k].op.conv1D.ptr_filters<< "</TD></TR>\n";
+            graph << "  <TR><TD> badr</TD><TD>" <<  components[k].op.conv1D.ptr_biases<< "</TD></TR>\n";
         }
+        graph << "  <TR><TD> iadr</TD><TD>" <<  components[k].ptr_inputs << "</TD></TR>\n";
+        graph << "  <TR><TD> oadr</TD><TD>" <<  components[k].ptr_outputs<< "</TD></TR>\n";
         graph<<   "  <TR><TD> num_rows_in</TD><TD>" <<  components[k].num_rows_in<< "</TD></TR>\n"
                   "  <TR><TD> num_columns_in</TD><TD>" <<  components[k].num_columns_in<< "</TD></TR>\n"
                   "  <TR><TD> num_rows_out</TD><TD>" <<  components[k].num_rows_out<< "</TD></TR>\n"
@@ -1933,9 +1940,9 @@ void AmIntelDnn::InitGNAStruct(intel_nnet_type_t *ptr_nnet) {
     if (ptr_nnet == nullptr)
         THROW_GNA_EXCEPTION << "Invalid input parameter";
     if (ptr_nnet->pLayers != nullptr)
-        THROW_GNA_EXCEPTION << "InitGNAStruct can't work on prellocated layers array";
+        THROW_GNA_EXCEPTION << "InitGNAStruct can't work on preallocated layers array";
     if (component.empty())
-        THROW_GNA_EXCEPTION << "empty model in AmIntelDnn::FillGNAStruct()";
+        THROW_GNA_EXCEPTION << "empty model in AmIntelDnn::InitGNAStruct()";
 
     ptr_nnet->nLayers = 0;
     for (auto && c : component) {
@@ -1954,6 +1961,7 @@ void AmIntelDnn::InitGNAStruct(intel_nnet_type_t *ptr_nnet) {
     ptr_nnet->pLayers = reinterpret_cast<intel_nnet_layer_t *>(_mm_malloc(ptr_nnet->nLayers * sizeof(intel_nnet_layer_t), 64));
     if (ptr_nnet->pLayers == nullptr)
         THROW_GNA_EXCEPTION << "out of memory in AmIntelDnn::FillGNAStruct()";
+    memset(ptr_nnet->pLayers, 0, ptr_nnet->nLayers * sizeof(intel_nnet_layer_t));
     pLayer = ptr_nnet->pLayers;
 
     for (int i = 0; i < component.size(); i++) {
@@ -2125,7 +2133,7 @@ void AmIntelDnn::InitGNAStruct(intel_nnet_type_t *ptr_nnet) {
                 pLayer->pOutputs = component[i].ptr_outputs;
                 pLayer->nBytesPerOutput = component[i].num_bytes_per_output;
                 if (pLayer->pLayerStruct == nullptr) {
-                    THROW_GNA_EXCEPTION << pLayer->nLayerKind << " layer structure was not initialized.";
+                    THROW_GNA_EXCEPTION << "["<< i <<"]"<< pLayer->nLayerKind << " layer structure was not initialized.";
                 }
                 if (i == 0) {
                     THROW_GNA_EXCEPTION << "PWL component with no preceding component.";
@@ -2410,7 +2418,8 @@ void AmIntelDnn::WriteInputAndOutputText() {
                     auto value = reinterpret_cast<int16_t *>(component[i].ptr_outputs)[k * component[i].num_columns_out+ j];
                     floatValue = static_cast<float>(value);
                 }
-                out_file << std::setw(8) << floatValue / component[i].output_scale_factor << "\n";
+                floatValue /= component[i].output_scale_factor;
+                out_file << std::setw(8) << floatValue << "\n";
 
                 if (ref_out_file) {
                     float ref_value = 0.f;

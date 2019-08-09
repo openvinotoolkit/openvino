@@ -27,6 +27,7 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
+using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(x) offsetof(ctx_t, x)
@@ -422,24 +423,21 @@ void jit_trans_iw_ic_int16_t::transpose(int nrows, int l_pad, int r_pad,
             vmovups(addr, zmm_zero);
         };
 
-        int store_tail = (nrows%2) ? nrows+1 : nrows;
-
-        int store_pad = (l_pad%2) ? l_pad/2 + 1 : l_pad/2;
         mov(reg_tr_src_tmp, reg_tr_src);
         if (l_pad > 0) {
+            int store_pad = div_up(l_pad, 2);
             padding(reg_tr_src, store_pad);
             add(reg_tr_src_tmp, l_pad * typesize);
         }
         if (r_pad > 0) {
-            store_pad = (r_pad%2) ? r_pad/2 + 1 : r_pad/2;
-            int addr_shift = (r_pad%2) ? 1 : 0;
+            int store_pad = div_up(r_pad, 2);
+            int addr_shift = r_pad % 2;
             add(reg_tr_src_tmp, (nrows - addr_shift) * typesize);
             padding(reg_tr_src_tmp, store_pad);
+            sub(reg_tr_src_tmp, (nrows - addr_shift) * typesize);
         }
 
-        mov(reg_tr_src_tmp, reg_tr_src);
-        add(reg_tr_src_tmp, l_pad * typesize);
-
+        int store_tail = rnd_up(nrows, 2);
         kmovw(kTail, (1 << store_tail/2) - 1);
         auto k = kTail;
         auto base = reg_tr_src_tmp;
@@ -570,7 +568,6 @@ void jit_trans_iw_ic_int16_t::transpose(int nrows, int l_pad, int r_pad,
     store(src_zmm(12), 13);
     store(src_zmm(15), 14);
     store(src_zmm(14), 15);
-
 }
 
 void jit_trans_iw_ic_int16_t::generate() {
@@ -590,27 +587,10 @@ void jit_trans_iw_ic_int16_t::generate() {
     const int ic_block = conf_->ic_block;
     const int iw = conf_->iw;
     const int tr_iw = conf_->tr_iw;
-    const int transposes = utils::div_up(iw, transpose_size);
-    int loop_iters = nstl::max(0, transposes - 1);
-    tail = iw - loop_iters * transpose_size;
-
-    src_stride = ic_block * typesize;
-    tr_src_stride = tr_iw * typesize;
-
-    bool nontemporal_stores = false;
-    enable_prefetch = iw > small_spatial ? 1 : 0;
-
+    const int str_w = conf_->stride_w;
+    assert(tr_iw % str_w == 0);
+    const int tr_iw_s = tr_iw / str_w;
     assert(transpose_size == ic_block);
-    const int src_step = ic_block * transpose_size * typesize;
-    const int tr_src_step = ic_block * typesize;
-
-    const int left_pad = conf_->l_pad;
-    const int right_pad = tr_iw - iw - left_pad;
-
-    mov(reg_src, ptr [param1 + GET_OFF(src)]);
-    mov(reg_tr_src, ptr [param1 + GET_OFF(tr_src)]);
-    mov(reg_src_prf, ptr [param1 + GET_OFF(src_prf)]);
-    mov(reg_tr_src_prf, ptr [param1 + GET_OFF(tr_src_prf)]);
 
     auto kmovw = [=](Opmask k, unsigned w) {
         mov(regw_tmp, w);
@@ -641,35 +621,69 @@ void jit_trans_iw_ic_int16_t::generate() {
     vmovdqa32(vidx4, idx4);
     vmovdqa32(vidx5, idx5);
 
-    if (left_pad > 0 && loop_iters > 0) {
-        loop_iters--;
-        transpose(transpose_size, left_pad, 0, nontemporal_stores);
-        add(reg_src, src_step);
-        add(reg_tr_src, tr_src_step + left_pad * typesize);
-        add(reg_src_prf, src_step);
-        add(reg_tr_src_prf, tr_src_step + left_pad * typesize);
-    }
+    // Data for every strided case is placed consecutively
+    for (int s = 0; s < str_w; s++) {
+        const int left_pad = div_up(conf_->l_pad - s, str_w);
+        const int iw1 = iw + conf_->l_pad;
+        const int iw_s = (s < (iw1 % str_w) ? div_up(iw1, str_w) : iw1 / str_w)
+                           - left_pad;
+        const int right_pad = tr_iw_s - iw_s - left_pad;
 
-    if (loop_iters) {
-        mov(reg_loop, loop_iters);
-        Label loop;
-        L(loop); {
-            transpose(transpose_size, 0, 0, nontemporal_stores);
-            add(reg_src, src_step);
-            add(reg_tr_src, tr_src_step);
-            add(reg_src_prf, src_step);
-            add(reg_tr_src_prf, tr_src_step);
-            sub(reg_loop, 1);
-            jnz(loop);
+        const int transposes = utils::div_up(iw_s, transpose_size);
+        int loop_iters = nstl::max(0, transposes - 1);
+        tail = iw_s - loop_iters * transpose_size;
+
+        src_stride = ic_block * typesize * str_w;
+        tr_src_stride = tr_iw * typesize;
+
+        bool nontemporal_stores = false;
+        enable_prefetch = iw > small_spatial ? 1 : 0;
+
+        const int src_step = ic_block * transpose_size * str_w * typesize;
+        const int tr_src_step = transpose_size * typesize;
+
+        mov(reg_src, ptr [param1 + GET_OFF(src)]);
+        mov(reg_tr_src, ptr [param1 + GET_OFF(tr_src)]);
+        mov(reg_src_prf, ptr [param1 + GET_OFF(src_prf)]);
+        mov(reg_tr_src_prf, ptr [param1 + GET_OFF(tr_src_prf)]);
+
+        if (str_w > 1) {
+            int tr_src_shift = s;
+            int src_shift = (str_w - (conf_->l_pad % str_w) + s) % str_w;
+            add(reg_src, src_shift * ic_block * typesize);
+            add(reg_tr_src, tr_src_shift * tr_iw_s * typesize);
+            add(reg_src_prf, src_shift * ic_block * typesize);
+            add(reg_tr_src_prf, tr_src_shift * tr_iw_s * typesize);
         }
+
+        if (left_pad > 0 && loop_iters > 0) {
+            loop_iters--;
+            transpose(transpose_size, left_pad, 0, nontemporal_stores);
+            add(reg_src, src_step);
+            add(reg_tr_src, tr_src_step + left_pad * typesize);
+            add(reg_src_prf, src_step);
+            add(reg_tr_src_prf, tr_src_step + left_pad * typesize);
+        }
+
+        if (loop_iters) {
+            mov(reg_loop, loop_iters);
+            Label loop;
+            L(loop); {
+                transpose(transpose_size, 0, 0, nontemporal_stores);
+                add(reg_src, src_step);
+                add(reg_tr_src, tr_src_step);
+                add(reg_src_prf, src_step);
+                add(reg_tr_src_prf, tr_src_step);
+                sub(reg_loop, 1);
+                jnz(loop);
+            }
+        }
+        if (transposes > 1)
+            transpose(tail, 0, right_pad, nontemporal_stores);
+        else
+            transpose(tail, left_pad, right_pad, nontemporal_stores);
     }
-    if (transposes > 1)
-        transpose(tail, 0, right_pad, nontemporal_stores);
-    else
-        transpose(tail, left_pad, right_pad, nontemporal_stores);
-
     postamble();
-
 }
 
 struct jit_trans_ow_oc_t: public jit_trans_dst_t, public jit_generator {

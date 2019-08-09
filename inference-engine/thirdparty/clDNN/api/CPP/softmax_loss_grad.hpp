@@ -19,8 +19,7 @@
 #include "../C/softmax_loss_grad.h"
 #include "primitive.hpp"
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -30,34 +29,26 @@ namespace cldnn
 
 /// @brief Backward pass for Softmax log loss.
 /// @details The output values are the same as input_prob, except for the correct one based on the label which is subtracted by 1.
-struct softmax_loss_grad : public primitive_base<softmax_loss_grad, CLDNN_PRIMITIVE_DESC(softmax_loss_grad)>
-{
+struct softmax_loss_grad : public primitive_base<softmax_loss_grad, CLDNN_PRIMITIVE_DESC(softmax_loss_grad)> {
     CLDNN_DECLARE_PRIMITIVE(softmax_loss_grad)
 
     /// @brief Constructs softmax_loss_grad primitive.
     /// @param id This primitive id.
     /// @param input_prob Input primitive id.
     /// @param labels Labels primitive id.
-    softmax_loss_grad(
-        const primitive_id& id,
-        const primitive_id& input_prob,
-        const primitive_id& labels,
-        const padding& output_padding = padding()
-    )
-        :primitive_base(id, { input_prob, labels }, output_padding)
-    {}
+    softmax_loss_grad(const primitive_id& id,
+                      const primitive_id& input_prob,
+                      const primitive_id& labels,
+                      const padding& output_padding = padding())
+        : primitive_base(id, {input_prob, labels}, output_padding) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{softmax_loss_grad}
-    softmax_loss_grad(const dto* dto)
-        :primitive_base(dto)
-    {}
+    softmax_loss_grad(const dto* dto) : primitive_base(dto) {}
 
 private:
-    void update_dto(dto&) const override
-    {
-    }
+    void update_dto(dto&) const override {}
 };
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

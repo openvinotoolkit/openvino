@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
     if (max_ms_per_prb < 100 || max_ms_per_prb > 60e3)
         max_ms_per_prb = 3e3;
 
+    init_fp_mode();
     init();
 
     switch (prim) {

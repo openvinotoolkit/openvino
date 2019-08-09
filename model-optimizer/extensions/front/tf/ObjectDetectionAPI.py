@@ -19,35 +19,39 @@ from math import sqrt
 
 import numpy as np
 
+from extensions.back.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
+    mark_input_as_in_correct_layout, \
+    mark_output_as_in_correct_layout
 from extensions.front.Pack import Pack
+from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
 from extensions.front.div import Div
 from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.front.sub import Sub
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from extensions.front.tf.Unpack import Unpack
 from extensions.ops.DetectionOutput import DetectionOutput
+from extensions.ops.ReduceOps import ReduceMean
+from extensions.ops.activation_ops import Sigmoid
+from extensions.ops.elementwise import Mul
+from extensions.ops.parameter import Parameter
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
 from extensions.ops.proposal import ProposalOp
 from extensions.ops.psroipooling import PSROIPoolingOp
+from extensions.ops.transpose import Transpose
 from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.weights import swap_weights_xy
-from mo.front.extractor import output_user_data_repack, add_output_ops, update_attrs
+from mo.front.extractor import output_user_data_repack, add_output_ops
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
-    squeeze_reshape_and_concat, add_fake_background_loc
+    squeeze_reshape_and_concat, add_fake_background_loc, create_op_node_with_second_input
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
-from mo.ops.activation import Activation
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.crop import Crop
-from mo.ops.eltwise import Eltwise
-from mo.ops.input import Input
 from mo.ops.op import PermuteAttrs
-from mo.ops.output import Output
-from mo.ops.permute import Permute
-from mo.ops.reduce import Reduce
+from mo.ops.result import Result
 from mo.ops.reshape import Reshape
 from mo.ops.roipooling import ROIPooling
 from mo.ops.shape import Shape
@@ -143,7 +147,7 @@ def _relax_reshape_nodes(graph: Graph, pipeline_config: PipelineConfig):
     """
     Finds the 'Reshape' operations following the SSD head nodes which have hard-coded output dimensions and replaces
     them with new ones with one of the dimensions sizes equal to -1. This function is used to make TF OD API SSD models
-    reshapable.
+    reshape-able.
     :param graph: graph with the topology.
     :param pipeline_config: PipelineConfig object with parsed values.
     :return: None
@@ -154,13 +158,12 @@ def _relax_reshape_nodes(graph: Graph, pipeline_config: PipelineConfig):
         num_layers = pipeline_config.get_param('multiscale_anchor_generator_max_level') - \
                      pipeline_config.get_param('multiscale_anchor_generator_min_level') + 1
     for ssd_head_ind in range(num_layers):
-        # fix hard-coded value for the number of items in tensor produced by the convolution to make topology reshapable
         input_node = _find_ssd_head_node(graph, ssd_head_ind, 'box')
         assert (input_node is not None)
         old_reshape_node = _skip_node_of_type(input_node.out_node(), ['Identity'])
-        assert (old_reshape_node.op == 'Reshape')
+        assert old_reshape_node.op == 'Reshape'
         reshape_size_node = Const(graph, {'value': int64_array([0, -1, 1, 4])}).create_node([])
-        new_reshape_op = Reshape(graph, {'name': input_node.id + '/Reshape', 'correct_data_layout': True})
+        new_reshape_op = Reshape(graph, {'name': input_node.id + '/Reshape'})
         new_reshape_node = new_reshape_op.create_node([input_node, reshape_size_node])
         old_reshape_node.replace_node(new_reshape_node)
 
@@ -168,9 +171,9 @@ def _relax_reshape_nodes(graph: Graph, pipeline_config: PipelineConfig):
         input_node = _find_ssd_head_node(graph, ssd_head_ind, 'class')
         assert (input_node is not None)
         old_reshape_node = _skip_node_of_type(input_node.out_node(), ['Identity'])
-        assert (old_reshape_node.op == 'Reshape')
+        assert old_reshape_node.op == 'Reshape'
         reshape_size_node_2 = Const(graph, {'value': int64_array([0, -1, num_classes + 1])}).create_node([])
-        new_reshape_op_2 = Reshape(graph, {'name': input_node.id + '/Reshape', 'correct_data_layout': True})
+        new_reshape_op_2 = Reshape(graph, {'name': input_node.id + '/Reshape'})
         new_reshape_node_2 = new_reshape_op_2.create_node([input_node, reshape_size_node_2])
         old_reshape_node.replace_node(new_reshape_node_2)
 
@@ -278,6 +281,12 @@ def _create_multiscale_prior_boxes_node(graph: Graph, pipeline_config: PipelineC
     else:
         concat_prior_boxes_op = Concat(graph, {'axis': -1, 'in_ports_count': len(prior_box_nodes)})
         return concat_prior_boxes_op.create_node(prior_box_nodes, {'name': 'ConcatPriorBoxesClustered'})
+
+
+def skip_nodes_by_condition(current_node: Node, condition: callable):
+    while condition(current_node):
+        current_node = current_node.in_node()
+    return current_node
 
 
 def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int, max_size: int):
@@ -390,7 +399,7 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
     replacement_id = 'ObjectDetectionAPIPreprocessorReplacement'
 
     def run_before(self):
-        return [Pack, Sub]
+        return [Pack, Sub, TransposeOrderNormalizer]
 
     def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
         new_nodes_to_remove = match.matched_nodes_names()
@@ -462,7 +471,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
     replacement_id = 'ObjectDetectionAPIDetectionOutputReplacement'
 
     def run_before(self):
-        return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement, Unpack, Sub]
+        return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement, Unpack, Sub, TransposeOrderNormalizer]
 
     def run_after(self):
         return [ObjectDetectionAPIProposalReplacement, CropAndResizeReplacement]
@@ -473,9 +482,9 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         for output in outputs:
             children = Node(graph, output).out_nodes()
             if len(children) != 1:
-                log.warning('Output {} has {} children. It should have only one output: with op==`OpOutput`'
+                log.warning('Output {} has {} children. It should have only one output: with op==`Result`'
                             ''.format(output, len(children)))
-            elif children[list(children.keys())[0]].op == 'OpOutput':
+            elif children[list(children.keys())[0]].op == 'Result':
                 new_nodes_to_remove.append(children[list(children.keys())[0]].id)
             else:
                 continue
@@ -486,12 +495,6 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         # the DetectionOutput in IE produces single tensor, but in TF it produces four tensors, so we need to create
         # only one output edge match
         return {match.output_node(0)[0].id: new_sub_graph['detection_output_node'].id}
-
-    @staticmethod
-    def skip_nodes_by_condition(current_node: Node, condition: callable):
-        while condition(current_node):
-            current_node = current_node.in_node()
-        return current_node
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
         argv = graph.graph['cmd_params']
@@ -510,18 +513,21 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         # The batch value of the input tensor is not equal to the batch of the topology, so it is not possible to use
         # "0" value in the Reshape layer attribute to refer to the batch size, but we know how to
         # calculate the second dimension so the batch value will be deduced from it with help of "-1".
-        reshape_conf_op = Reshape(graph, dict(dim=int64_array([-1, (num_classes + 1) * max_proposals])))
-        reshape_conf_node = reshape_conf_op.create_node([activation_conf_node], dict(name='do_reshape_conf'))
+        reshape_conf_node = create_op_node_with_second_input(graph, Reshape,
+                                                             int64_array([-1, (num_classes + 1) * max_proposals]),
+                                                             dict(name='do_reshape_conf'), activation_conf_node)
 
-        # Workaround for PermuteForReshape pass.
+        mark_as_correct_data_layout(reshape_conf_node)
+
+        # Workaround for TransposeForReshape pass.
         # We looking for first not Reshape-typed node before match.single_input_node(0)[0].in_node(0).
         # And add  reshape_loc node after this first not Reshape-typed node.
-        current_node = self.skip_nodes_by_condition(match.single_input_node(0)[0].in_node(0),
-                                                    lambda x: x['kind'] == 'op' and x.soft_get('type') == 'Reshape')
+        current_node = skip_nodes_by_condition(match.single_input_node(0)[0].in_node(0),
+                                               lambda x: x['kind'] == 'op' and x.has_and_set('reinterp_shape'))
 
-        reshape_loc_op = Reshape(graph, dict(dim=int64_array([-1, num_classes, 1, 4])))
-        reshape_loc_node = reshape_loc_op.create_node([current_node], dict(name='reshape_loc', nchw_layout=True))
-        update_attrs(reshape_loc_node, 'shape_attrs', 'dim')
+        reshape_loc_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, num_classes, 1, 4]),
+                                                            dict(name='reshape_loc'), current_node)
+        mark_as_correct_data_layout(reshape_loc_node)
 
         # constant node with variances
         variances_const_op = Const(graph, dict(value=_variance_from_pipeline_config(pipeline_config)))
@@ -533,12 +539,12 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         PermuteAttrs.set_permutation(reshape_loc_node, loc_node, None)
 
         # reshape locations tensor to 2D so it could be passed to Eltwise which will be converted to ScaleShift
-        reshape_loc_2d_op = Reshape(graph, dict(dim=int64_array([-1, 4])))
-        reshape_loc_2d_node = reshape_loc_2d_op.create_node([loc_node], dict(name='reshape_locs_2d', nchw_layout=True))
-        PermuteAttrs.set_permutation(loc_node, reshape_loc_2d_node, None)
+        reshape_loc_2d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 4]),
+                                                               dict(name='reshape_locs_2d'), loc_node)
+        mark_as_correct_data_layout(reshape_loc_2d_node)
 
         # element-wise multiply locations with variances
-        eltwise_locs_op = Eltwise(graph, dict(operation='mul'))
+        eltwise_locs_op = Mul(graph, dict())
         eltwise_locs_node = eltwise_locs_op.create_node([reshape_loc_2d_node, variances_const_node],
                                                         dict(name='scale_locs'))
 
@@ -546,7 +552,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         # The batch value of the input tensor is not equal to the batch of the topology, so it is not possible to use
         # "0" value in the Reshape layer attribute to refer to the batch size, but we know how to
         # calculate the second dimension so the batch value will be deduced from it with help of "-1".
-        reshape_loc_do_op = Reshape(graph, dict(dim=int64_array([-1, (num_classes + 1) * max_proposals * 4])))
+        reshape_loc_do_op = Reshape(graph, dict(name='do_reshape_locs'))
 
         custom_attributes = match.custom_replacement_desc.custom_attributes
         coordinates_swap_method = 'add_convolution'
@@ -568,9 +574,15 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
 
         if coordinates_swap_method == 'add_convolution':
             swapped_locs_node = add_convolution_to_swap_xy_coordinates(graph, eltwise_locs_node, 4)
-            reshape_loc_do_node = reshape_loc_do_op.create_node([swapped_locs_node], dict(name='do_reshape_locs'))
+            reshape_loc_do_node = reshape_loc_do_op.create_node([swapped_locs_node])
         else:
-            reshape_loc_do_node = reshape_loc_do_op.create_node([eltwise_locs_node], dict(name='do_reshape_locs'))
+            reshape_loc_do_node = reshape_loc_do_op.create_node([eltwise_locs_node])
+
+        reshape_loc_do_dims = Const(graph, {'value': int64_array([-1, (num_classes + 1) * max_proposals * 4]),
+                                            'name': reshape_loc_do_node.name + '/Dim'}).create_node()
+        reshape_loc_do_dims.out_port(0).connect(reshape_loc_do_node.in_port(1))
+
+        mark_as_correct_data_layout(reshape_loc_do_node)
 
         # find Proposal output which has the data layout as in TF: YXYX coordinates without batch indices.
         proposal_nodes_ids = [node_id for node_id, attrs in graph.nodes(data=True)
@@ -587,9 +599,10 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
             proposal_node = add_convolution_to_swap_xy_coordinates(graph, proposal_node, 4)
 
         # reshape priors boxes as Detection Output expects
-        reshape_priors_op = Reshape(graph, dict(dim=int64_array([-1, 1, max_proposals * 4])))
-        reshape_priors_node = reshape_priors_op.create_node([proposal_node],
-                                                            dict(name='DetectionOutput_reshape_priors_'))
+        reshape_priors_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 1, max_proposals * 4]),
+                                                               dict(name='DetectionOutput_reshape_priors_'),
+                                                               proposal_node)
+        mark_as_correct_data_layout(reshape_priors_node)
 
         detection_output_op = DetectionOutput(graph, {})
         if coordinates_swap_method == 'swap_weights':
@@ -613,7 +626,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         # sets specific name to the node so we can find it in other replacers
         detection_output_node.name = 'detection_output'
 
-        output_op = Output(graph, dict(name='do_OutputOp'))
+        output_op = Result(graph, dict(name='do_OutputOp'))
         output_op.create_node([detection_output_node])
 
         print('The graph output nodes "num_detections", "detection_boxes", "detection_classes", "detection_scores" '
@@ -654,12 +667,13 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
         detection_output_node = Node(graph, detection_output_nodes_ids[0])
 
         # add reshape of Detection Output so it can be an output of the topology
-        reshape_detection_output_2d_op = Reshape(graph, dict(dim=int64_array([-1, 7])))
-        reshape_detection_output_2d_node = reshape_detection_output_2d_op.create_node(
-            [detection_output_node], dict(name='reshape_do_2d'))
+        reshape_detection_output_2d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 7]),
+                                                                            dict(name='reshape_do_2d'),
+                                                                            detection_output_node)
+        mark_as_correct_data_layout(reshape_detection_output_2d_node)
 
         # adds special node of type "Output" that is a marker for the output nodes of the topology
-        output_op = Output(graph, dict(name='do_reshaped_OutputOp'))
+        output_op = Result(graph, dict(name='do_reshaped_OutputOp'))
         output_node = output_op.create_node([reshape_detection_output_2d_node])
 
         # add attribute 'output_sort_order' so it will be used as a key to sort output nodes before generation of IR
@@ -682,11 +696,12 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
                                                                                            nchw_layout=True))
 
         # reshape bounding boxes as required by ROIPooling
-        reshape_do_op = Reshape(graph, dict(dim=int64_array([-1, 5])))
-        reshape_do_node = reshape_do_op.create_node([concat_node], dict(name='reshape_do'))
+        reshape_do_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 5]),
+                                                           dict(name='reshape_do'), concat_node)
+        mark_as_correct_data_layout(reshape_do_node)
 
-        roi_pooling_op = ROIPooling(graph, dict(method="bilinear", spatial_scale=1,
-                                                pooled_h=roi_pool_size, pooled_w=roi_pool_size))
+        roi_pooling_op = ROIPooling(graph, dict(method="bilinear", spatial_scale=1, pooled_h=roi_pool_size,
+                                                pooled_w=roi_pool_size))
         roi_pooling_node = roi_pooling_op.create_node([match.single_input_node(0)[0].in_node(), reshape_do_node],
                                                       dict(name='ROI_pooling_2'))
         return {'roi_pooling_node': roi_pooling_node}
@@ -704,18 +719,17 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
 
     def transform_graph(self, graph: Graph, replacement_descriptions):
         output_node = None
-        op_outputs = [n for n, d in graph.nodes(data=True) if 'op' in d and d['op'] == 'OpOutput']
+        op_outputs = [n for n, d in graph.nodes(data=True) if 'op' in d and d['op'] == 'Result']
         for op_output in op_outputs:
             last_node = Node(graph, op_output).in_node(0)
             if last_node.name.startswith('SecondStageBoxPredictor'):
-                sigmoid_op = Activation(graph, dict(operation='sigmoid'))
-                sigmoid_node = sigmoid_op.create_node([last_node], dict(name=last_node.id + '/sigmoid'))
+                sigmoid_node = Sigmoid(graph, dict(name=last_node.id + '/sigmoid')).create_node([last_node])
                 sigmoid_node.name = 'masks'
 
                 if output_node is not None:
                     raise Error('Identified two possible outputs from the topology. Cannot proceed.')
                 # add special node of type "Output" that is a marker for the output nodes of the topology
-                output_op = Output(graph, dict(name=sigmoid_node.name + '/OutputOp'))
+                output_op = Result(graph, dict(name=sigmoid_node.name + '/OutputOp'))
                 output_node = output_op.create_node([sigmoid_node])
 
         print('The predicted masks are produced by the "masks" layer for each bounding box generated with a '
@@ -736,7 +750,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         return [ObjectDetectionAPIPreprocessorReplacement]
 
     def run_before(self):
-        return [Sub, CropAndResizeReplacement]
+        return [Sub, CropAndResizeReplacement, TransposeOrderNormalizer]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         return {match.output_node(0)[0].id: new_sub_graph['proposal_node'].id}
@@ -760,27 +774,32 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         anchors_count = len(proposal_ratios) * len(proposal_scales)
 
         # Convolution/matmul node that produces classes predictions
-        # Permute result of the tensor with classes permissions so it will be in a correct layout for Softmax
+        # Transpose result of the tensor with classes permissions so it will be in a correct layout for Softmax
         predictions_node = backward_bfs_for_operation(match.single_input_node(1)[0], ['Add'])[0]
 
-        reshape_classes_op = Reshape(graph, dict(dim=int64_array([0, anchors_count, 2, -1])))
-        reshape_classes_node = reshape_classes_op.create_node([], dict(name='predictions/Reshape', nchw_layout=True))
+        reshape_classes_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, anchors_count, 2, -1]),
+                                                                dict(name='predictions/Reshape'))
         predictions_node.insert_node_after(reshape_classes_node, 0)
+        mark_as_correct_data_layout(reshape_classes_node)
 
         softmax_conf_op = Softmax(graph, dict(axis=2, nchw_layout=True, name=reshape_classes_node.id + '/Softmax'))
         softmax_conf_node = softmax_conf_op.create_node([reshape_classes_node])
-        permute_reshape_softmax_op = Permute(graph, dict(order=int64_array([0, 2, 1, 3]), nchw_layout=True))
-        permute_reshape_softmax_node = permute_reshape_softmax_op.create_node([softmax_conf_node], dict(
-            name=softmax_conf_node.name + '/Permute'))
+
+        order_const = Const(graph, dict(value=int64_array([0, 2, 1, 3]),
+                                        name=softmax_conf_node.name + '/TransposeOrder')).create_node()
+        permute_reshape_softmax_op = Transpose(graph, dict())
+        permute_reshape_softmax_node = permute_reshape_softmax_op.create_node([softmax_conf_node, order_const], dict(
+            name=softmax_conf_node.name + '/Transpose'))
+        mark_input_as_in_correct_layout(permute_reshape_softmax_node, 1)
+        mark_output_as_in_correct_layout(permute_reshape_softmax_node, 0)
 
         initial_shape_op = Shape(graph, dict(name=predictions_node.id + '/Shape'))
         initial_shape_node = initial_shape_op.create_node([predictions_node])
 
-        # implement custom reshape infer function because we need to know the input convolution node output dimension
-        # sizes but we can know it only after partial infer
-        reshape_permute_op = Reshape(graph, dict())
-        reshape_permute_node = reshape_permute_op.create_node([permute_reshape_softmax_node, initial_shape_node],
-                                                              dict(name='Reshape_Permute_Class'))
+        reshape_permute_op = Reshape(graph, dict(name='Reshape_Transpose_Class'))
+        reshape_permute_node = reshape_permute_op.create_node([permute_reshape_softmax_node, initial_shape_node])
+        mark_input_as_in_correct_layout(reshape_permute_node, 0)
+        mark_output_as_in_correct_layout(reshape_permute_node, 0)
 
         variance_height = pipeline_config.get_param('frcnn_variance_height')
         variance_width = pipeline_config.get_param('frcnn_variance_width')
@@ -827,7 +846,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
         # creates input to store input image height, width and scales (usually 1.0s)
         # the batch size for this input is fixed because it is allowed to pass images of the same size only as input
-        input_op_with_image_size = Input(graph, dict(shape=int64_array([1, 3]), fixed_batch=True))
+        input_op_with_image_size = Parameter(graph, dict(shape=int64_array([1, 3]), fixed_batch=True))
         input_with_image_size_node = input_op_with_image_size.create_node([], dict(name='image_info'))
 
         proposal_node = proposal_op.create_node([reshape_permute_node, anchors_node, input_with_image_size_node],
@@ -839,9 +858,10 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         else:
             swapped_proposals_node = add_convolution_to_swap_xy_coordinates(graph, proposal_node, 5)
 
-        proposal_reshape_2d_op = Reshape(graph, dict(dim=int64_array([-1, 5]), nchw_layout=True))
-        proposal_reshape_2d_node = proposal_reshape_2d_op.create_node([swapped_proposals_node],
-                                                                      dict(name="reshape_swap_proposals_2d"))
+        proposal_reshape_2d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 5]),
+                                                                    dict(name="reshape_swap_proposals_2d"),
+                                                                    swapped_proposals_node)
+        mark_input_as_in_correct_layout(proposal_reshape_2d_node, 0)
 
         # feed the CropAndResize node with a correct boxes information produced with the Proposal layer
         # find the first CropAndResize node in the BFS order
@@ -857,18 +877,20 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
             graph.remove_edge(crop_and_resize_node.in_node(1).id, crop_and_resize_node.id)
             graph.create_edge(proposal_reshape_2d_node, crop_and_resize_node, out_port=0, in_port=1)
 
-        tf_proposal_reshape_4d_op = Reshape(graph, dict(dim=int64_array([-1, 1, max_proposals, 5]), nchw_layout=True))
-        tf_proposal_reshape_4d_node = tf_proposal_reshape_4d_op.create_node([swapped_proposals_node],
-                                                                            dict(name="reshape_proposal_4d"))
+        tf_proposal_reshape_4d_node = create_op_node_with_second_input(graph, Reshape,
+                                                                       int64_array([-1, 1, max_proposals, 5]),
+                                                                       dict(name="reshape_proposal_4d"),
+                                                                       swapped_proposals_node)
 
         crop_op = Crop(graph, dict(axis=int64_array([3]), offset=int64_array([1]), dim=int64_array([4]),
                                    nchw_layout=True))
         crop_node = crop_op.create_node([tf_proposal_reshape_4d_node], dict(name='crop_proposals'))
 
-        tf_proposals_crop_reshape_3d_op = Reshape(graph, dict(dim=int64_array([0, -1, 4]), nchw_layout=True))
-        tf_proposals_crop_reshape_3d_node = tf_proposals_crop_reshape_3d_op.create_node([crop_node],
-                                                                                        dict(name="reshape_crop_3d"))
+        mark_as_correct_data_layout(tf_proposal_reshape_4d_node)
 
+        tf_proposals_crop_reshape_3d_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1, 4]),
+                                                                             dict(name="reshape_crop_3d"), crop_node)
+        mark_input_as_in_correct_layout(tf_proposals_crop_reshape_3d_node, 0)
         return {'proposal_node': tf_proposals_crop_reshape_3d_node}
 
 
@@ -882,7 +904,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         # the replacer uses node of type "RealDiv" as one of the start points, but Model Optimizer replaces nodes of
         # type "RealDiv" with a new ones, so it is necessary to replace the sub-graph before replacing the "RealDiv"
         # nodes
-        return [Div, StandaloneConstEraser]
+        return [Div, StandaloneConstEraser, TransposeOrderNormalizer]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         # the DetectionOutput in IE produces single tensor, but in TF it produces two tensors, so create only one output
@@ -896,29 +918,34 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
         num_classes = _value_or_raise(match, pipeline_config, 'num_classes')
 
-        # reshapes confidences to 4D before applying activation function
-        expand_dims_op = Reshape(graph, {'dim': int64_array([0, 1, -1, num_classes + 1])})
-        # do not convert from NHWC to NCHW this node shape
-        expand_dims_node = expand_dims_op.create_node([match.input_nodes(1)[0][0].in_node(0)],
-                                                      dict(name='do_ExpandDims_conf'))
+        # reshapes confidences to 4D before applying activation function and do not convert from NHWC to NCHW this node
+        expand_dims_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, 1, -1, num_classes + 1]),
+                                                            {'name': 'do_ExpandDims_conf'})
+        expand_dims_node.in_port(0).connect(match.input_nodes(1)[0][0].in_node(0).out_port(0))
+
+        mark_as_correct_data_layout(expand_dims_node)
 
         activation_function = _value_or_raise(match, pipeline_config, 'postprocessing_score_converter')
         activation_conf_node = add_activation_function_after_node(graph, expand_dims_node, activation_function)
-        PermuteAttrs.set_permutation(expand_dims_node, expand_dims_node.out_node(), None)
 
         # IE DetectionOutput layer consumes flattened tensors
         # reshape operation to flatten locations tensor
-        reshape_loc_op = Reshape(graph, {'dim': int64_array([0, -1])})
-        reshape_loc_node = reshape_loc_op.create_node([match.input_nodes(0)[0][0].in_node(0)],
-                                                      dict(name='do_reshape_loc'))
+        reshape_loc_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
+                                                            {'name': 'do_reshape_loc'})
+
+        current_node = skip_nodes_by_condition(match.input_nodes(0)[0][0].in_node(0),
+                                               lambda x: x.op == 'Identity' or x.has_and_set('reinterp_shape'))
+        reshape_loc_node.in_port(0).connect(current_node.out_port(0))
+        mark_as_correct_data_layout(reshape_loc_node)
 
         # IE DetectionOutput layer consumes flattened tensors
         # reshape operation to flatten confidence tensor
-        reshape_conf_op = Reshape(graph, {'dim': int64_array([0, -1])})
-        reshape_conf_node = reshape_conf_op.create_node([activation_conf_node], dict(name='do_reshape_conf'))
+        reshape_conf_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
+                                                             {'name': 'do_reshape_conf'}, activation_conf_node)
+        mark_as_correct_data_layout(reshape_conf_node)
 
         if pipeline_config.get_param('ssd_anchor_generator_num_layers') is not None or \
-                        pipeline_config.get_param('multiscale_anchor_generator_min_level') is not None:
+                pipeline_config.get_param('multiscale_anchor_generator_min_level') is not None:
             # change the Reshape operations with hardcoded number of output elements of the convolution nodes to be
             # reshapable
             _relax_reshape_nodes(graph, pipeline_config)
@@ -1000,7 +1027,7 @@ class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral)
     replacement_id = 'ObjectDetectionAPIOutputReplacement'
 
     def run_before(self):
-        return [ObjectDetectionAPIPreprocessorReplacement]
+        return [ObjectDetectionAPIPreprocessorReplacement, TransposeOrderNormalizer]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         if graph.graph['cmd_params'].output is not None:
@@ -1024,7 +1051,7 @@ class ObjectDetectionAPIPSROIPoolingReplacement(FrontReplacementFromConfigFileSu
     replacement_id = 'ObjectDetectionAPIPSROIPoolingReplacement'
 
     def run_after(self):
-        return [ObjectDetectionAPIProposalReplacement]
+        return [ObjectDetectionAPIProposalReplacement, TransposeOrderNormalizer]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         return {match.output_node(0)[0].id: new_sub_graph['output_node'].id}
@@ -1049,31 +1076,31 @@ class ObjectDetectionAPIPSROIPoolingReplacement(FrontReplacementFromConfigFileSu
         if crop_height != crop_width:
             raise Error('Different "crop_height" and "crop_width" parameters from the pipeline config are not '
                         'supported: {} vs {}'.format(crop_height, crop_width))
-        psroipooling_op = PSROIPoolingOp(graph, {'name': input_node.soft_get('name') + '/PSROIPooling',
-                                                 'output_dim': psroipooling_output_dim,
-                                                 'group_size': crop_width / num_spatial_bins_width,
-                                                 'spatial_bins_x': num_spatial_bins_width,
-                                                 'spatial_bins_y': num_spatial_bins_height,
-                                                 'mode': 'bilinear',
-                                                 'spatial_scale': 1,
-                                                 })
 
         if 'reshape_swap_proposals_2d' in graph.nodes():
             reshape_swap_proposals_node = Node(graph, 'reshape_swap_proposals_2d')
         else:
             swap_proposals_node = add_convolution_to_swap_xy_coordinates(graph, Node(graph, 'proposals'), 5)
-            reshape_swap_proposals_node = Reshape(graph, {'dim': [-1, 5], 'nchw_layout': True,
-                                                          'name': 'reshape_swap_proposals_2d'}).create_node(
-                [swap_proposals_node])
-        psroipooling_node = psroipooling_op.create_node([input_node, reshape_swap_proposals_node])
+            reshape_swap_proposals_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 5]),
+                                                                           {'name': 'reshape_swap_proposals_2d'},
+                                                                           swap_proposals_node)
+            mark_input_as_in_correct_layout(reshape_swap_proposals_node, 0)
 
-        reduce_op = Reduce(graph, {'name': 'mean',
-                                   'reduce_type': 'mean',
-                                   'axis': int64_array([1, 2]),
-                                   'keep_dims': True
-                                   })
-        reduce_node = reduce_op.create_node([psroipooling_node])
+        psroipooling_node = PSROIPoolingOp(graph, {'name': input_node.soft_get('name') + '/PSROIPooling',
+                                                   'output_dim': psroipooling_output_dim,
+                                                   'group_size': crop_width / num_spatial_bins_width,
+                                                   'spatial_bins_x': num_spatial_bins_width,
+                                                   'spatial_bins_y': num_spatial_bins_height,
+                                                   'mode': 'bilinear',
+                                                   'spatial_scale': 1,
+                                                   }).create_node([input_node, reshape_swap_proposals_node])
 
+        reduce_node = create_op_node_with_second_input(graph, ReduceMean, int64_array([1, 2]),
+                                                       {'name': 'mean', 'keep_dims': True}, psroipooling_node)
+
+        output_node = match.output_node(0)[0].out_node()
+        if len(output_node.in_ports()) == 2 and not output_node.in_port(1).disconnected():
+            output_node.in_port(1).disconnect()  # disconnect the second input to make "erase_node" function work
         graph.erase_node(match.output_node(0)[0].out_node())
 
         return {'output_node': reduce_node}
@@ -1095,7 +1122,7 @@ class ObjectDetectionAPIConstValueOverride(FrontReplacementFromConfigFileGeneral
     replacement_id = 'ObjectDetectionAPIConstValueOverride'
 
     def run_before(self):
-        return [ObjectDetectionAPIPreprocessorReplacement]
+        return [ObjectDetectionAPIPreprocessorReplacement, TransposeOrderNormalizer]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         argv = graph.graph['cmd_params']

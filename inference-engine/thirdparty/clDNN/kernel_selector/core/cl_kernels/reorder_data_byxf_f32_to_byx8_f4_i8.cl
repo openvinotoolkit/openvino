@@ -76,7 +76,7 @@ KERNEL (reorder_data_byxf_f32_to_byx8_f4_i8)(
 {
     const uint x = get_global_id(0);
     const uint y = get_group_id(1);
-    const uint b = get_group_id(2);
+    const uint b = get_group_id(2) * WG_BATCH_SIZE + get_sub_group_id();
 
     const uint input_idx  = FUNC_CALL(get_input_index)(b, 0, y, x);
     const uint output_idx = FUNC_CALL(get_output_index)(b, 0, y, x);
@@ -107,15 +107,9 @@ KERNEL (reorder_data_byxf_f32_to_byx8_f4_i8)(
     res.s2 = TO_MEAN_TYPE(input[input_idx+2]);
     res.s3 = 0; 
 
-    uint4 msv;
-    msv = FUNC_CALL(reshape_dims)(b,0,y,x, INPUT0_SIZE_Y, INPUT0_SIZE_X, MEAN_SUBTRACT_SIZE_Y, MEAN_SUBTRACT_SIZE_X, INPUT0_DIMS, MEAN_SUBTRACT_DIMS);
-    res.s0 = MEAN_OP(res.s0, mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[0], msv[1], msv[2], msv[3])]);
-
-    msv = FUNC_CALL(reshape_dims)(b,1,y,x, INPUT0_SIZE_Y, INPUT0_SIZE_X, MEAN_SUBTRACT_SIZE_Y, MEAN_SUBTRACT_SIZE_X, INPUT0_DIMS, MEAN_SUBTRACT_DIMS);
-    res.s1 = MEAN_OP(res.s1, mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[0], msv[1], msv[2], msv[3])]);
-
-    msv = FUNC_CALL(reshape_dims)(b,2,y,x, INPUT0_SIZE_Y, INPUT0_SIZE_X, MEAN_SUBTRACT_SIZE_Y, MEAN_SUBTRACT_SIZE_X, INPUT0_DIMS, MEAN_SUBTRACT_DIMS);
-    res.s2 = MEAN_OP(res.s2, mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[0], msv[1], msv[2], msv[3])]);
+    res.s0 = MEAN_OP(res.s0, mean_subtract[0]);
+    res.s1 = MEAN_OP(res.s1, mean_subtract[1]);
+    res.s2 = MEAN_OP(res.s2, mean_subtract[2]);
 #endif
 #else
     MAKE_VECTOR_TYPE(CALC_TYPE, 4) res;
@@ -126,9 +120,9 @@ KERNEL (reorder_data_byxf_f32_to_byx8_f4_i8)(
 #endif
 
     char4 out_vals;
-    out_vals.s0 = ACTIVATION(TO_OUTPUT_REORDER_TYPE(res.s0), NL_M ,NL_N);
-    out_vals.s1 = ACTIVATION(TO_OUTPUT_REORDER_TYPE(res.s1), NL_M ,NL_N);
-    out_vals.s2 = ACTIVATION(TO_OUTPUT_REORDER_TYPE(res.s2), NL_M ,NL_N);
+    out_vals.s0 = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res.s0), NL_M, NL_N);
+    out_vals.s1 = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res.s1), NL_M, NL_N);
+    out_vals.s2 = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res.s2), NL_M, NL_N);
     out_vals.s3 = 0;
 
     __global uint* dst = (__global uint*)output;

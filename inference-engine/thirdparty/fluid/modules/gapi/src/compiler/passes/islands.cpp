@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -101,7 +101,7 @@ void cv::gimpl::passes::checkIslands(ade::passes::PassContext &ctx)
 {
     GModel::ConstGraph gr(ctx.graph);
 
-    // The algorithm is teh following:
+    // The algorithm is the following:
     //
     // 1. Put all Tagged nodes (both Operations and Data) into a set
     // 2. Initialize Visited set as (empty)

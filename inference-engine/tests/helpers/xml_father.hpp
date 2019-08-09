@@ -31,12 +31,12 @@ namespace testing {
 
 #else
     inline std::string make_content(const std::string & tag, const std::string & content) {
-        return std::string("<") + tag +">" + content + "</" + tag +">" ;
+        return std::string("<") + tag +">" + content + "</" + tag +">\n" ;
     }
 
     inline std::string make_content(const std::string & tag, const std::string & attribute, const std::string & content) {
         return attribute.empty() ? make_content(tag, content):
-        (std::string("<") + tag + attribute + ">" + content + "</" + tag +">");
+        (std::string("<") + tag + attribute + ">" + content + "</" + tag +">\n");
     }
 #endif
 
@@ -179,7 +179,7 @@ namespace testing {
             }
             std::stringstream ss;
             for (auto s : tokens) {
-                ss << s << std::endl;
+                ss << s;
             }
             return _please=ss.str();
         }

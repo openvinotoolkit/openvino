@@ -16,55 +16,52 @@
 
 #include "convolution_grad_weights_kernel_1x1.h"
 
-namespace kernel_selector
-{
+namespace kernel_selector {
 
-    ParamsKey ConvolutionGradWeightsKernel1x1::GetSupportedKey() const
-    {
-        ParamsKey k;
-        k.EnableInputDataType(Datatype::F32);
-        k.EnableInputWeightsType(WeightsType::F32);
-        k.EnableOutputDataType(Datatype::F32);
-        k.EnableInputLayout(DataLayout::bfyx);
-        k.EnableOutputLayout(DataLayout::yxfb);
-        k.EnableOutputLayout(DataLayout::bfyx);
-        k.EnableOutputLayout(DataLayout::byxf);
-		k.EnableSubGroup();
-        k.EnableTensorOffset();
-        k.EnableTensorPitches();
-        k.EnableBiasPerFeature();
-        k.EnableNonBiasTerm();
-        k.EnableMomentum();
-        k.EnableBatching();
-        k.EnableSplitSupport();
-        k.EnableGradient();
-        k.DisableTuning();
-        return k;
-    }
-
-    bool ConvolutionGradWeightsKernel1x1::Validate(const Params& p, const optional_params&) const
-    {
-        const convolution_grad_weights_params& params = static_cast<const convolution_grad_weights_params&>(p);
-
-        if (params.filterSize.x != 1 || params.filterSize.y != 1)
-            return false;
-        return true;
-    }
-
-    ConvolutionGradWeightsKernelBase::DispatchData ConvolutionGradWeightsKernel1x1::SetDefault(const convolution_grad_weights_params& params) const
-    {
-        auto input_features = params.weights.IFM().v;
-        auto output_features = params.weights.OFM().v;
-
-        DispatchData kd;
-
-        kd.gws0 = 16;
-        kd.gws1 = input_features;
-        kd.gws2 = output_features;
-        kd.lws0 = 16;
-        kd.lws1 = 1;
-        kd.lws2 = 1;
-        kd.effiency = FORCE_PRIORITY_8;
-        return kd;
-    }
+ParamsKey ConvolutionGradWeightsKernel1x1::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableSubGroup();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBiasPerFeature();
+    k.EnableNonBiasTerm();
+    k.EnableMomentum();
+    k.EnableBatching();
+    k.EnableSplitSupport();
+    k.EnableGradient();
+    k.DisableTuning();
+    return k;
 }
+
+bool ConvolutionGradWeightsKernel1x1::Validate(const Params& p, const optional_params&) const {
+    const convolution_grad_weights_params& params = static_cast<const convolution_grad_weights_params&>(p);
+
+    if (params.filterSize.x != 1 || params.filterSize.y != 1)
+        return false;
+    return true;
+}
+
+ConvolutionGradWeightsKernelBase::DispatchData ConvolutionGradWeightsKernel1x1::SetDefault(
+    const convolution_grad_weights_params& params) const {
+    auto input_features = params.weights.IFM().v;
+    auto output_features = params.weights.OFM().v;
+
+    DispatchData kd;
+
+    kd.gws0 = 16;
+    kd.gws1 = input_features;
+    kd.gws2 = output_features;
+    kd.lws0 = 16;
+    kd.lws1 = 1;
+    kd.lws2 = 1;
+    kd.effiency = FORCE_PRIORITY_8;
+    return kd;
+}
+}  // namespace kernel_selector

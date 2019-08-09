@@ -13,11 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-from mo.ops.relu import ReLU
+from extensions.ops.activation_ops import LeakyReLU, ReLU
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-
 
 
 class LeakyReLUFrontExtractor(FrontExtractorOp):
@@ -27,5 +25,8 @@ class LeakyReLUFrontExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
         negative_slope = onnx_attr(node, 'alpha', 'f', default=1.0)
-        ReLU.update_node_stat(node, {'negative_slope': negative_slope})
-        return LeakyReLUFrontExtractor.enabled
+        if negative_slope == 0:
+            ReLU.update_node_stat(node)
+        else:
+            LeakyReLU.update_node_stat(node, {'negative_slope': negative_slope})
+        return __class__.enabled

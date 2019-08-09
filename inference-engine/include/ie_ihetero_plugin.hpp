@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <ie_api.h>
 #include <ie_icnn_network.hpp>
 #include <ie_iexecutable_network.hpp>
 #include <ie_plugin.hpp>
@@ -17,7 +18,8 @@
 namespace InferenceEngine {
 
 /**
- * This interface describes a mechanism of custom loaders to be used in heterogeneous
+ * @deprecated Use InferenceEngine::Core to work with HETERO device
+ * @brief This interface describes a mechanism of custom loaders to be used in heterogeneous
  * plugin during setting of affinity and loading of split sub-network to the plugins
  * The custom loader can define addition settings for the plugins or network loading
  * Examples of cases when this interface should be implemented in the application:
@@ -34,13 +36,13 @@ namespace InferenceEngine {
  *  IHeteroInferencePlugin::SetDeviceLoader("Device1", HeteroDeviceLoaderImpl1)
  *  IHeteroInferencePlugin::SetDeviceLoader("Device2", HeteroDeviceLoaderImpl2)
 */
-class IHeteroDeviceLoader {
+class INFERENCE_ENGINE_DEPRECATED INFERENCE_ENGINE_API_CLASS(IHeteroDeviceLoader) {
 public:
-    using Ptr = std::shared_ptr<IHeteroDeviceLoader>;
-    virtual ~IHeteroDeviceLoader() = default;
+    virtual ~IHeteroDeviceLoader();
 
     /**
-     * Loads network to the device. The instantiation of plugin should be in the implementation
+     * @deprecated Use InferenceEngine::Core with HETERO device in InferenceEngine::Core::LoadNetwork.
+     * @brief Loads network to the device. The instantiation of plugin should be in the implementation
      * of the IHeteroDeviceLoader. As well setting of special config option should happen in the
      * implementation as well
      * @param device Loading of network should happen for this device
@@ -50,6 +52,7 @@ public:
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return Status code of the operation. OK if succeeded
      */
+    INFERENCE_ENGINE_DEPRECATED
     virtual StatusCode LoadNetwork(
         const std::string& device,
         IExecutableNetwork::Ptr &ret,
@@ -58,54 +61,75 @@ public:
         ResponseDesc *resp) noexcept = 0;
 
     /**
-     * @depricated Use the version with config parameter
-     * This function calls plugin function QueryNetwork for the plugin being instantiated
+     * @deprecated Use the IHeteroDeviceLoader::QueryNetwork
+     * @brief This function calls plugin function QueryNetwork for the plugin being instantiated
      * in the implementation of IHeteroDeviceLoader
      * @param device QueryNetwork will be executed for this device
      * @param network Network object acquired from CNNNetReader
-     * @param res
+     * @param res Query network result object
      */
+    INFERENCE_ENGINE_DEPRECATED
     virtual void QueryNetwork(const std::string &device,
                               const ICNNNetwork &network,
-                              QueryNetworkResult &res) noexcept  = 0;
+                              QueryNetworkResult &res) noexcept {
+        IE_SUPPRESS_DEPRECATED_START
+        QueryNetwork(device, network, { }, res);
+        IE_SUPPRESS_DEPRECATED_END
+    }
 
     /**
-     * This function calls plugin function QueryNetwork for the plugin being instantiated
+     * @deprecated Use InferenceEngine::Core with HETERO device in InferenceEngine::Core::QueryNetwork.
+     * @brief This function calls plugin function QueryNetwork for the plugin being instantiated
      * in the implementation of IHeteroDeviceLoader
      * @param device QueryNetwork will be executed for this device
      * @param network Network object acquired from CNNNetReader
      * @param config  Network configuration parameters
-     * @param res
+     * @param res Query network result object
      */
+    INFERENCE_ENGINE_DEPRECATED
     virtual void QueryNetwork(const std::string &device,
                               const ICNNNetwork &network,
                               const std::map<std::string, std::string>& /*config*/,
-                              QueryNetworkResult &res) noexcept {
-        QueryNetwork(device, network, res);
-    };
+                              QueryNetworkResult &res) noexcept = 0;
 
+    INFERENCE_ENGINE_DEPRECATED
     virtual void SetLogCallback(IErrorListener &listener) = 0;
+
+    IE_SUPPRESS_DEPRECATED_START
+    using Ptr = std::shared_ptr<IHeteroDeviceLoader>;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
+IE_SUPPRESS_DEPRECATED_START
 using MapDeviceLoaders = std::map<std::string, InferenceEngine::IHeteroDeviceLoader::Ptr>;
+IE_SUPPRESS_DEPRECATED_END
 
 /**
- * This interface extends regular plugin interface for heterogeneous case. Not all plugins
+ * @deprecated Use InferenceEngine::Core with HETERO mode in LoadNetwork, QueryNetwork, etc
+ * @brief This interface extends regular plugin interface for heterogeneous case. Not all plugins
  * implements it. The main purpose of this interface - to register loaders and have an ability
  * to get default settings for affinity on certain devices.
  */
-class IHeteroInferencePlugin : public IInferencePlugin {
+class INFERENCE_ENGINE_DEPRECATED INFERENCE_ENGINE_API_CLASS(IHeteroInferencePlugin) : public IInferencePlugin {
 public:
+    virtual ~IHeteroInferencePlugin();
+
     /**
+     * @deprecated Use InferenceEngine::Core to work with HETERO device
      * Registers device loader for the device
      * @param device - the device name being used in CNNNLayer::affinity
      * @param loader - helper class allowing to analyze if layers are supported and allow
      * to load network to the plugin being defined in the IHeteroDeviceLoader implementation
      */
+    IE_SUPPRESS_DEPRECATED_START
+    INFERENCE_ENGINE_DEPRECATED
     virtual void SetDeviceLoader(const std::string &device, IHeteroDeviceLoader::Ptr loader) noexcept = 0;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
-     * The main goal of this function to set affinity according to the options set for the plugin\
+     * @deprecated Use InferenceEngine::Core::QueryNetwork with HETERO device and QueryNetworkResult::supportedLayersMap
+     * to set affinities to a network
+     * @brief The main goal of this function to set affinity according to the options set for the plugin
      * implementing IHeteroInferencePlugin.
      * This function works only if all affinity in the network are empty.
      * @param network Network object acquired from CNNNetReader
@@ -113,6 +137,7 @@ public:
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return Status code of the operation. OK if succeeded
      */
+    INFERENCE_ENGINE_DEPRECATED
     virtual StatusCode SetAffinity(
         ICNNNetwork& network,
         const std::map<std::string, std::string> &config,

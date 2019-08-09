@@ -11,6 +11,7 @@
 #include <memory>
 #include <set>
 #include <unordered_set>
+#include <utility>
 
 #include <vpu/utils/numeric.hpp>
 
@@ -24,47 +25,43 @@ protected:
         return std::make_shared<ConcatStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(!_inputEdges.empty());
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto output = _outputEdges[0]->output();
 
-        DataMap<float> out;
-
         if (step == ScalePropagationStep::Propagate) {
             // Keep the largest input scale factor.
             auto maxScale = std::numeric_limits<float>::lowest();
             for (const auto& inEdge : _inputEdges) {
-                maxScale = std::max(maxScale, inputScales.at(inEdge->input()));
+                maxScale = std::max(maxScale, inputScales[inEdge->portInd()]);
             }
 
             IE_ASSERT(maxScale > 0.0f);
 
             for (const auto& inEdge : _inputEdges) {
-                auto curScale = inputScales.at(inEdge->input());
+                auto curScale = inputScales[inEdge->portInd()];
 
                 if (!isFloatEqual(curScale, maxScale)) {
-                    out[inEdge->input()] = maxScale / curScale;
+                    _scaleInfo.setInput(inEdge, maxScale / curScale);
                 }
             }
 
-            out[output] = maxScale;
+            _scaleInfo.setOutput(_outputEdges[0], maxScale);
         } else {
             // Concat can only propagate scaling.
             for (const auto& inEdge : _inputEdges) {
-                out[inEdge->input()] = 1.0f;
+                _scaleInfo.setInput(inEdge, 1.0f);
             }
 
-            out[output] = 1.0f;
+            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
         }
-
-        return out;
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(!_inputEdges.empty());
         IE_ASSERT(_outputEdges.size() == 1);
 
@@ -99,18 +96,14 @@ protected:
         IE_ASSERT(finalOrder.numDims() > 0);
         IE_ASSERT(curVotes > 0);
 
-        DataMap<DimsOrder> out;
-
         for (const auto& inEdge : _inputEdges) {
-            out[inEdge->input()] = finalOrder;
+            _orderInfo.setInput(inEdge, finalOrder);
         }
 
-        out[output] = finalOrder;
-
-        return out;
+        _orderInfo.setOutput(_outputEdges[0], finalOrder);
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(!_inputEdges.empty());
         IE_ASSERT(_outputEdges.size() == 1);
 
@@ -122,7 +115,7 @@ protected:
         // Get smallest Dim over which Concat is done.
         //
 
-        auto minConcatDimInd = dimsOrder.numDims();
+        auto minConcatDimInd = dimsOrder.numDims() - 1;
 
         for (const auto& inEdge : _inputEdges) {
             auto input = inEdge->input();
@@ -169,12 +162,11 @@ protected:
         // Merge output consumers StridesRequirement.
         //
 
-        for (const auto& consumer : output->consumers()) {
-            auto consumerInfo = consumer->getDataStridesRequirements();
+        for (const auto& consumerEdge : output->consumerEdges()) {
+            const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
 
-            auto consumerStrideIt = consumerInfo.find(output);
-            if (consumerStrideIt != consumerInfo.end()) {
-                auto consumerReqs = consumerStrideIt->second;
+            if (consumerInfo.hasInput(consumerEdge)) {
+                const auto& consumerReqs = consumerInfo.getInput(consumerEdge);
 
                 for (int i = 0; i < minConcatDimInd + 1; ++i) {
                     if (outputReqs.get(i) == DimStride::Any) {
@@ -191,22 +183,16 @@ protected:
         // Return merged StridesRequirement.
         //
 
-        DataMap<StridesRequirement> out;
-
         for (const auto& inEdge : _inputEdges) {
-            auto input = inEdge->input();
-            out[input] = inputReqs;
+            _stridesInfo.setInput(inEdge, inputReqs);
         }
-        out[output] = outputReqs;
-
-        return out;
+        _stridesInfo.setOutput(_outputEdges[0], outputReqs);
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     void finalCheckImpl() const override {
@@ -252,6 +238,7 @@ Stage StageBuilder::addConcatStage(
         const DataVector& inputs,
         const Data& output) {
     std::vector<DimValues> offsets;
+    offsets.reserve(inputs.size());
 
     DimValues curOffset({{axis, 0}});
     for (const auto& input : inputs) {
@@ -259,7 +246,7 @@ Stage StageBuilder::addConcatStage(
         curOffset.set(axis, curOffset[axis] + input->desc().dim(axis));
     }
 
-    auto stage = addConcatStage(model, name, layer, offsets, inputs, output);
+    auto stage = addConcatStage(model, name, layer, std::move(offsets), inputs, output);
 
     stage->attrs().set("axis", axis);
 
@@ -270,7 +257,7 @@ Stage StageBuilder::addConcatStage(
         const Model::Ptr& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
-        const std::vector<DimValues>& offsets,
+        std::vector<DimValues>&& offsets,
         const DataVector& inputs,
         const Data& output) {
     IE_ASSERT(offsets.size() == inputs.size());
@@ -282,7 +269,7 @@ Stage StageBuilder::addConcatStage(
         inputs,
         {output});
 
-    stage->attrs().set<std::vector<DimValues>>("offsets", offsets);
+    stage->attrs().set("offsets", std::move(offsets));
 
     return stage;
 }

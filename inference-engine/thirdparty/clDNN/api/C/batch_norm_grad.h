@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef BATCH_NORM_GRAD_H
-#define BATCH_NORM_GRAD_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -31,7 +29,7 @@ extern "C" {
 #endif
 
 /// @brief Performs backward batch normalization layer.
-/// @details Calculates mean gradient and gradient * input for every feature in data, 
+/// @details Calculates mean gradient and gradient * input for every feature in data,
 /// then output is calculated as inv_variance * (input_grad - mean_grad_input * input - mean_grad)
 CLDNN_BEGIN_PRIMITIVE_DESC(batch_norm_grad)
 /// @brief Primitive id containing inverted variance from forward pass.
@@ -47,5 +45,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(batch_norm_grad);
 /// @}
 /// @}
 /// @}
-#endif /* BATCH_NORM_GRAD_H */
 

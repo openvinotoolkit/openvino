@@ -114,7 +114,7 @@ public:
             const Model::Ptr& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
-            const std::vector<DimValues>& offsets,
+            std::vector<DimValues>&& offsets,
             const DataVector& inputs,
             const Data& output);
 
@@ -130,7 +130,7 @@ public:
             const Model::Ptr& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
-            const std::vector<DimValues>& offsets,
+            std::vector<DimValues>&& offsets,
             const Data& input,
             const DataVector& outputs);
 
@@ -150,7 +150,7 @@ public:
             const Data& biases,
             Data output);
 
-    Stage addExpandStage(
+    Stage addBroadcastStage(
             const Model::Ptr& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
@@ -182,6 +182,37 @@ public:
             float max,
             const Data& input,
             const Data& output);
+
+    Stage addGemmStage(
+            const Model::Ptr& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            float alpha,
+            float beta,
+            bool transposeA,
+            bool transposeB,
+            const Data& inputA,
+            const Data& inputB,
+            const Data& inputC,
+            const Data& output);
+
+
+    Stage addGatherStage(
+            const Model::Ptr& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input0,
+            const Data& input1,
+            const Data& output,
+            Dim axis);
+
+    Stage addPermuteStage(
+            const Model::Ptr& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const DataVector& input,
+            const DataVector& output,
+            const SmallVector<int, MAX_DIMS_64>& ieOrder);
 };
 
 }  // namespace vpu

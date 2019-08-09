@@ -147,7 +147,7 @@ __kernel void convolution_f16_8x8x16(
                 {
                     half_t vBlockC;
                     half *pvBlockC = (half*)&vBlockC;
-                    for (unsigned i = 0; i < TILE_K; i++) pvBlockC[i] = activation_function(blockC[y * TILE_K + i] + bias, NL_M, NL_N);
+                    for (unsigned i = 0; i < TILE_K; i++) pvBlockC[i] = activation_function(blockC[y * TILE_K + i] + bias, ACTIVATION_PARAMS);
                     *(__global half_t*)(out + y * OUTPUT_Y_PITCH) = vBlockC;
                 }
             }
@@ -161,7 +161,7 @@ __kernel void convolution_f16_8x8x16(
                 {
                     half_t vBlockC;
                     half *pvBlockC = (half*)&vBlockC;
-                    for (unsigned i = 0; i < RIGHT_PARTIAL_TILE_K; i++) pvBlockC[i] = activation_function(blockC[y * TILE_K + i] + bias, NL_M, NL_N);
+                    for (unsigned i = 0; i < RIGHT_PARTIAL_TILE_K; i++) pvBlockC[i] = activation_function(blockC[y * TILE_K + i] + bias, ACTIVATION_PARAMS);
                     *(__global half_t*)(out + y * OUTPUT_Y_PITCH) = vBlockC;
                 }
             }

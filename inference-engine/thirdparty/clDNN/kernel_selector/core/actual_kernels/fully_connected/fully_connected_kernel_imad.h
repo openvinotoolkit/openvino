@@ -1,4 +1,3 @@
-/*
 // Copyright (c) 2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
@@ -20,18 +19,17 @@
 
 namespace kernel_selector {
 
-    class FullyConnectedKernelIMAD : public FullyConnectedKernelBase
-    {
-    public:
-        using Parent = FullyConnectedKernelBase;
+class FullyConnectedKernelIMAD : public FullyConnectedKernelBase {
+public:
+    using Parent = FullyConnectedKernelBase;
 
-        FullyConnectedKernelIMAD() : Parent("fully_connected_gpu_imad") {}
+    FullyConnectedKernelIMAD() : Parent("fully_connected_gpu_imad") {}
 
-        KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
 
-    protected:
-        ParamsKey GetSupportedKey() const override;
-        virtual bool Validate(const Params& params, const optional_params& options) const override;
-        DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
-    };
-}
+protected:
+    bool Validate(const Params& params, const optional_params& options) const override;
+    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
+};
+}  // namespace kernel_selector

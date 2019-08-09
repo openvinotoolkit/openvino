@@ -104,7 +104,7 @@ KERNEL(fully_connected_kernel_mmad_batched)(
 #else
             const uint dst_index = GET_DATA_INDEX(OUTPUT, curr_b, f, 0, 0);
 #endif
-            output[dst_index] = ACTIVATION(convert_char(tileC[i]), NL_M, NL_N);
+            output[dst_index] = ACTIVATION(convert_char(tileC[i]), ACTIVATION_PARAMS);
         }
     }
 }

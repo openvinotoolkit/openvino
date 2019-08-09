@@ -19,7 +19,8 @@ from mo.front.common.partial_infer.inner_product import caffe_inner_product
 
 def fully_connected_ext(attr):
     node_attrs = {
-        'type': 'FullyConnected',
+        'op': 'MatMul',
+        'type': 'MatMul',
         'out-size': attr.int('num_hidden', None),
         'layout': 'NCHW',
         'infer': caffe_inner_product

@@ -25,8 +25,7 @@ class CharacterRecognitionAccuracy(PerImageEvaluationMetric):
     annotation_types = (CharacterRecognitionAnnotation, )
     prediction_types = (CharacterRecognitionPrediction, )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def configure(self):
         self.accuracy = AverageMeter(lambda annotation, prediction: int(annotation == prediction))
 
     def update(self, annotation, prediction):

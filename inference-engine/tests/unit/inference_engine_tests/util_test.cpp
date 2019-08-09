@@ -409,7 +409,8 @@ TEST(UtilTests, cloneNet) {
                .finalize();
 
     net->setPrecision(IE::Precision::Q78);
-    net->setBatchSize(42);
+    InferenceEngine::ResponseDesc resp;
+    ASSERT_EQ(InferenceEngine::StatusCode::OK, net->setBatchSize(42, &resp));
     net->setName("net");
     net->setTargetDevice(IE::TargetDevice::eHETERO);
 
@@ -418,7 +419,7 @@ TEST(UtilTests, cloneNet) {
         net->getInputsInfo(inputs);
         for (auto &&it : inputs) {
             it.second->getPreProcess().init(1);
-            it.second->getPreProcess().setMeanImage(IE::make_shared_blob<float>(IE::Precision::FP32, IE::Layout::CHW, {1,1,1}));
+            it.second->getPreProcess().setMeanImage(IE::make_shared_blob<float>({ IE::Precision::FP32, {1,1,1}, IE::Layout::CHW }));
             it.second->getPreProcess().setResizeAlgorithm(IE::ResizeAlgorithm::RESIZE_BILINEAR);
         }
     }
@@ -813,7 +814,7 @@ TEST(UtilTests, getRootDataObjects) {
     ASSERT_EQ(6, root_data.size());
     std::unordered_set<std::string> data_names;
     for (auto& data : root_data) {
-        data_names.insert(data->name);
+        data_names.insert(data->getName());
     }
     ASSERT_TRUE(IE::contains(data_names, "data1"));
     ASSERT_TRUE(IE::contains(data_names, "data2"));
@@ -1567,7 +1568,7 @@ TEST(UtilTests, replaceLayerWithNewLayer) {
         ASSERT_EQ(layer1Check, newLayer1);
         ASSERT_EQ(layer1Check->outData.size(), 1);
         ASSERT_EQ(layer1Check->outData[0], data.find("data2")->second);
-        ASSERT_EQ(layer1Check->outData[0]->creatorLayer.lock(), newLayer1);
+        ASSERT_EQ(layer1Check->outData[0]->getCreatorLayer().lock(), newLayer1);
     }
     {   // Replace L2
         auto newLayer2 = std::make_shared<IE::CNNLayer>(IE::LayerParams{"layer2", "dummy", IE::Precision::UNSPECIFIED});
@@ -1579,7 +1580,7 @@ TEST(UtilTests, replaceLayerWithNewLayer) {
         ASSERT_EQ(layer2Check, newLayer2);
         ASSERT_EQ(layer2Check->outData.size(), 1);
         ASSERT_EQ(layer2Check->outData[0], data.find("data3")->second);
-        ASSERT_EQ(layer2Check->outData[0]->creatorLayer.lock(), newLayer2);
+        ASSERT_EQ(layer2Check->outData[0]->getCreatorLayer().lock(), newLayer2);
     }
     {   // Replace L3
         auto newLayer3 = std::make_shared<IE::CNNLayer>(IE::LayerParams{"layer3", "dummy", IE::Precision::UNSPECIFIED});
@@ -1591,7 +1592,7 @@ TEST(UtilTests, replaceLayerWithNewLayer) {
         ASSERT_EQ(layer3Check, newLayer3);
         ASSERT_EQ(layer3Check->outData.size(), 1);
         ASSERT_EQ(layer3Check->outData[0], data.find("data4")->second);
-        ASSERT_EQ(layer3Check->outData[0]->creatorLayer.lock(), newLayer3);
+        ASSERT_EQ(layer3Check->outData[0]->getCreatorLayer().lock(), newLayer3);
         ASSERT_TRUE(layer3Check->insData[0].lock() == data.find("data2")->second ||
                     layer3Check->insData[0].lock() == data.find("data3")->second);
         ASSERT_TRUE(layer3Check->insData[1].lock() == data.find("data2")->second ||

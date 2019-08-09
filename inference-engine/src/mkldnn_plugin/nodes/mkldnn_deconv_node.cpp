@@ -17,7 +17,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNDeconvolutionNode::MKLDNNDeconvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {
+MKLDNNDeconvolutionNode::MKLDNNDeconvolutionNode(const InferenceEngine::CNNLayerPtr& layer,
+                                                 const mkldnn::engine& eng, int socket) : MKLDNNNode(layer, eng, socket) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });
@@ -121,7 +122,7 @@ void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
 
         float *output = dst->buffer().as<float *>() + dst->getTensorDesc().getBlockingDesc().getOffsetPadding();
         auto dims_size = dst->getTensorDesc().getDims().size();
-        auto layout = dst->layout();
+        auto layout = dst->getTensorDesc().getLayout();
 
         const size_t N = dst->getTensorDesc().getDims()[0];
         size_t C = dst->getTensorDesc().getBlockingDesc().getBlockDims()[1] / groupNum;

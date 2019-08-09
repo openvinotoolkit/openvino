@@ -59,7 +59,6 @@ struct prb_t: public desc_t {
     ~prb_t() {}
 
     check_alg_t check_alg;
-
     dir_t dir;
     mkldnn_data_type_t dt;
     mkldnn_memory_format_t fmt;
@@ -92,6 +91,11 @@ inline void inv_data_off(const prb_t *p, size_t off, int &mb, int &c, int &d,
 inline bool is_bnorm_3d(const prb_t *p)
 {
     return (p->id > 1) ? 1 : 0;
+}
+
+inline float saturate_and_round(float value) {
+    // hard code for s8 data type
+    return MAX2(INT8_MIN, MIN2(INT8_MAX, nearbyintf(value)));
 }
 
 void compute_ref_fwd(const prb_t *p, const dnn_mem_t &src, dnn_mem_t &mean,

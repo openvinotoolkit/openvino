@@ -25,13 +25,13 @@ from mo.utils.unittest.graph import build_graph_with_edge_attrs
 class TestFIFOQueueReplacement(unittest.TestCase):
     def test_fifo_with_label_batch(self):
         nodes = {
-            'placeholder': {'op': 'Placeholder', 'data_type': np.int32, 'kind': 'op', 'shape': np.array(1)},
+            'placeholder': {'op': 'Parameter', 'data_type': np.int32, 'kind': 'op', 'shape': np.array(1)},
             'batch_join/fifo_queue': {'op': 'FIFOQueueV2', 'name': 'batch_join/fifo_queue',
                                       'shapes': np.array([[1, 2, 3]]), 'kind': 'op'},
             'batch_join': {'op': 'QueueDequeueUpToV2', 'kind': 'op'},
             'image_batch': {'op': 'Identity', 'data_type': np.float32, 'kind': 'op'},
             'label_batch': {'op': 'Identity', 'kind': 'op'},
-            'label_batch_op_output': {'op': 'OpOutput', 'kind': 'op'},
+            'label_batch_op_output': {'op': 'Result', 'kind': 'op'},
         }
         edges = [
             ('placeholder', 'batch_join', {'out': 0, 'in': 0}),
@@ -54,7 +54,7 @@ class TestFIFOQueueReplacement(unittest.TestCase):
 
     def test_fifo_with_out_label_batch(self):
         nodes_no_label = {
-            'placeholder': {'op': 'Placeholder', 'data_type': np.int32, 'kind': 'op', 'shape': np.array(0)},
+            'placeholder': {'op': 'Parameter', 'data_type': np.int32, 'kind': 'op', 'shape': np.array(0)},
             'batch_join/fifo_queue': {'op': 'FIFOQueueV2', 'name': 'batch_join/fifo_queue',
                                       'shapes': np.array([[1, 2, 3]]), 'kind': 'op'},
             'batch_join': {'op': 'QueueDequeueUpToV2', 'kind': 'op'},

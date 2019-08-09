@@ -25,12 +25,19 @@ class LRN(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': 'Norm',
+            'type': 'LRN',
             'op': __class__.op,
             'in_ports_count': 1,
             'out_ports_count': 1,
+            'bias': 1,
             'infer': copy_shape_infer
         }, attrs)
 
     def supported_attrs(self):
-        return ['alpha', "beta", ("local-size", lambda node: node.local_size), "region"]
+        return [
+            'bias',    # supported in V10 only; should be eliminated for other versions
+            'alpha',
+            'beta',
+            ('local-size', lambda node: node.local_size),
+            'region'   # deprecated in V10 attribute, but it is kept for V6 compatibility
+        ]

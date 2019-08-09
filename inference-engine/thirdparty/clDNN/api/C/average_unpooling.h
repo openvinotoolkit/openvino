@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef AVERAGE_UNPOOLING_H
-#define AVERAGE_UNPOOLING_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -51,5 +49,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(average_unpooling);
 /// @}
 /// @}
 /// @}
-#endif /* AVERAGE_UNPOOLING_H */
 

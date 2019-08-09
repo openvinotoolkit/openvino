@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 2.8.11)
 
 project(Samples)
 
@@ -12,12 +12,11 @@ if (CMAKE_BUILD_TYPE STREQUAL "")
 endif()
 
 if (NOT(BIN_FOLDER))
-    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
-        set (ARCH armv7l)
-    elseif("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-        set (ARCH intel64)
-    else()
-        set (ARCH ia32)
+    string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
+    if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
+        set(ARCH intel64)
+    elseif(ARCH STREQUAL "i386")
+        set(ARCH ia32)
     endif()
 
     set (BIN_FOLDER ${ARCH})
@@ -79,7 +78,6 @@ else()
     endif()
 endif()
 
-
 ####################################
 ## to use C++11
 set (CMAKE_CXX_STANDARD 11)
@@ -99,10 +97,6 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
 
-include_directories (
-        ${CMAKE_CURRENT_SOURCE_DIR}/common
-        ${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader
-)
 add_subdirectory(common/format_reader)
 
 # samples build can be switched off during whole IE build
@@ -132,22 +126,85 @@ function(add_samples_to_build)
     endforeach()
 endfunction(add_samples_to_build)
 
+include(CMakeParseArguments)
+
+#
+# ie_add_sample(NAME <target name>
+#               SOURCES <source files>
+#               [HEADERS <header files>]
+#               [INCLUDE_DIRECTORIES <include dir>]
+#               [DEPENDENCIES <dependencies>]
+#               [OPENCV_DENENDENCIES <opencv modules>]
+#               [EXCLUDE_CPPLINT]
+#
+macro(ie_add_sample)
+    set(options EXCLUDE_CPPLINT)
+    set(oneValueArgs NAME)
+    set(multiValueArgs SOURCES HEADERS DEPENDENCIES OPENCV_DEPENDENCIES INCLUDE_DIRECTORIES)
+    cmake_parse_arguments(IE_SAMPLE "${options}" "${oneValueArgs}"
+                          "${multiValueArgs}" ${ARGN} )
+
+    # Find OpenCV components if exist
+    if(IE_SAMPLE_OPENCV_DEPENDENCIES)
+        find_package(OpenCV COMPONENTS ${IE_SAMPLE_OPENCV_DEPENDENCIES} QUIET)
+        if(NOT OpenCV_FOUND)
+            message(WARNING "OPENCV is disabled or not found, " ${IE_SAMPLE_NAME} " skipped")
+            return()
+        else()
+            add_definitions(-DUSE_OPENCV)
+        endif()
+    endif()
+
+    # Create named folders for the sources within the .vcproj
+    # Empty name lists them directly under the .vcproj
+    source_group("src" FILES ${IE_SAMPLES_SOURCES})
+    if(IE_SAMPLES_HEADERS)
+        source_group("include" FILES ${IE_SAMPLES_HEADERS})
+    endif()
+
+    # Create executable file from sources
+    add_executable(${IE_SAMPLE_NAME} ${IE_SAMPLE_SOURCES} ${IE_SAMPLES_HEADERS})
+
+    if(WIN32)
+        set_target_properties(${IE_SAMPLE_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_SAMPLE_NAME})
+    endif()
+
+    if(IE_SAMPLE_INCLUDE_DIRECTORIES)
+        target_include_directories(${IE_SAMPLE_NAME} PRIVATE ${IE_SAMPLE_INCLUDE_DIRECTORIES})
+    endif()
+    target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
+
+    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${InferenceEngine_LIBRARIES}
+                                                    ${IE_SAMPLE_DEPENDENCIES} IE::ie_cpu_extension gflags)
+
+    if(UNIX)
+        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE pthread)
+    endif()
+
+    # create global target with all samples / demo apps
+    if(NOT TARGET ie_samples)
+        add_custom_target(ie_samples ALL)
+    endif()
+    add_dependencies(ie_samples ${IE_SAMPLE_NAME})
+
+    if(COMMAND add_cpplint_target AND NOT IE_SAMPLE_EXCLUDE_CPPLINT)
+        add_cpplint_target(${IE_SAMPLE_NAME}_cpplint FOR_TARGETS ${IE_SAMPLE_NAME})
+    endif()
+endmacro()
+
+
 # use this flag if you need to throw custom message in case if the IE package is not found.
 if (IE_NOT_FOUND_MESSAGE)
-    find_package(InferenceEngine 1.6 QUIET)
+    find_package(InferenceEngine 2.0 QUIET)
     if (NOT(InferenceEngine_FOUND))
         message(FATAL_ERROR ${IE_NOT_FOUND_MESSAGE})
     endif()
 else()
-    find_package(InferenceEngine 1.6 REQUIRED)
-endif()
-
-if (UNIX)
-    set (LIB_DL dl)
+    find_package(InferenceEngine 2.0 REQUIRED)
 endif()
 
 # collect all samples subdirectories
 file(GLOB samples_dirs RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
 # skip building of unnecessary subdirectories
-list(REMOVE_ITEM samples_dirs archived common thirdparty)
+list(REMOVE_ITEM samples_dirs common thirdparty)
 add_samples_to_build(${samples_dirs})

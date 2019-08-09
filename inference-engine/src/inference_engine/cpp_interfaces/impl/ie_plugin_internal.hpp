@@ -69,7 +69,7 @@ public:
      * @param config string-string map of config parameters relevant only for this load operation
      * @return shared_ptr to the ExecutableNetwork object
      */
-    virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(ICNNNetwork &network,
+    virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICore * core, ICNNNetwork &network,
                                                               const std::map<std::string, std::string> &config) = 0;
 
     /**
@@ -101,7 +101,7 @@ public:
                                   blob->cbuffer(), blob->byteSize());
                     }
                 }
-                newData->inputTo.clear();
+                newData->getInputTo().clear();
                 newPtr->setInputData(newData);
             }
             _networkInputs[it.first] = newPtr;
@@ -111,11 +111,11 @@ public:
             DataPtr newData;
             if (it.second) {
                 newData.reset(new Data(*it.second));
-                newData->inputTo.clear();
+                newData->getInputTo().clear();
             }
             _networkOutputs[it.first] = newData;
         }
-        auto impl = LoadExeNetworkImpl(RemoveConstLayers(network), config);
+        auto impl = LoadExeNetworkImpl(GetCore(), RemoveConstLayers(network), config);
         impl->setNetworkInputs(_networkInputs);
         impl->setNetworkOutputs(_networkOutputs);
         // skip setting shared ptr to avoid curricular dependency: ExecutableNetworkBase -> IExecutableNetworkInternal -> InferencePluginInternal
@@ -127,7 +127,7 @@ public:
             p->Release();
         });
         _isDeprecatedLoad = false;
-    };
+    }
 
     /**
      * Given optional implementation of deprecated infer to avoid need for it to be implemented by plugin
@@ -178,39 +178,72 @@ public:
     /**
      * Given optional implementation of ImportNetwork to avoid need for it to be implemented by plugin
      */
-    IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) override {
+    IExecutableNetwork::Ptr ImportNetwork(const std::string &/*modelFileName*/, const std::map<std::string, std::string> &/*config*/) override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
     /**
      * Given optional implementation of SetConfig to avoid need for it to be implemented by plugin
      */
-    void SetConfig(const std::map<std::string, std::string> &config) override {}
+    void SetConfig(const std::map<std::string, std::string> &config) override {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    }
 
     /**
      * Given optional implementation of SetLogCallback to avoid need for it to be implemented by plugin
      */
-    void SetLogCallback(IErrorListener &listener) override {}
+    void SetLogCallback(IErrorListener &/*listener*/) override {}
+
+    /**
+     * Given optional implementation of SetLogCallback to avoid need for it to be implemented by plugin
+     */
+    void SetCore(ICore* core) noexcept override {
+        assert(nullptr != core);
+        _core = core;
+    }
+
+    /**
+     * Given optional implementation of SetLogCallback to avoid need for it to be implemented by plugin
+     */
+    const ICore* GetCore() const noexcept override {
+        return _core;
+    }
 
     /**
      * Given optional implementation of AddExtension to avoid need for it to be implemented by plugin
      */
-    void AddExtension(InferenceEngine::IExtensionPtr extension) override {
+    void AddExtension(InferenceEngine::IExtensionPtr /*extension*/) override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
     /**
-     * @depricated Use the version with config parameter
+     * @deprecated Use the version with config parameter
      */
     void QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& res) const override {
         QueryNetwork(network, {}, res);
     }
 
-    void QueryNetwork(const ICNNNetwork &network, const std::map<std::string, std::string>& config, QueryNetworkResult &res) const override {
+    void QueryNetwork(const ICNNNetwork &/*network*/, const std::map<std::string, std::string>& /*config*/, QueryNetworkResult &/*res*/) const override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
+    void SetName(const std::string & pluginName) noexcept override {
+        _pluginName = pluginName;
+    }
+
+    std::string GetName() const noexcept override {
+        return _pluginName;
+    }
+
+    Parameter GetConfig(const std::string& /*name*/, const std::map<std::string, Parameter> & /*options*/) const override {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    }
+
+    Parameter GetMetric(const std::string& /*name*/, const std::map<std::string, Parameter> & /*options*/) const override {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    }
 
 protected:
+    std::string _pluginName;
     IExecutableNetwork::Ptr _loadedNetwork;
     std::string _firstInput;
     std::string _firstOutput;
@@ -219,6 +252,7 @@ protected:
     InferenceEngine::OutputsDataMap _networkOutputs;
     std::map<std::string, std::string> _config;
     bool _isDeprecatedLoad = false;
+    ICore*   _core = nullptr;
 };
 
 }  // namespace InferenceEngine

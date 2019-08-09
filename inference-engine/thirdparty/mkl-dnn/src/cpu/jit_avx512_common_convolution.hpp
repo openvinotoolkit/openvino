@@ -370,11 +370,12 @@ private:
     void prepare_scratchpad_data() const;
     struct thread_info_t;
     void compute_diff_weights(const thread_info_t *) const;
+    void compute_diff_weights_2d(const thread_info_t *) const;
     void compute_diff_weights_3d(const thread_info_t *) const;
     void reduce_diff_weights(const thread_info_t *) const;
     void reduce_diff_weights_3d(const thread_info_t *) const;
     void compute_diff_bias(const thread_info_t *) const;
-    void compute_diff_bias_3d(const thread_info_t *) const;
+    void reduce_diff_bias(const thread_info_t *) const;
 
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 

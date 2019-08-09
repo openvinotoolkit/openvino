@@ -209,12 +209,13 @@ struct jit_uni_scale_shift_kernel_f32 : public jit_uni_depthwise_kernel_f32,
         assert(desc.alg_kind == alg_kind::depthwise_scale_shift);
         assert(isa == sse42 || isa == avx2 || isa == avx512_common);
 
-        bool isFlat = desc.src_desc.format == nchw && desc.dst_desc.format == nchw;
+        bool isFlat = (desc.src_desc.format == nchw && desc.dst_desc.format == nchw) ||
+                      (desc.src_desc.format == ncdhw && desc.dst_desc.format == ncdhw);
 
         Reg64 param = abi_param1;
 
         const int block_size = isa == avx512_common ? 16 : 8;
-        const int main_loop_step = isFlat ? block_size : 1;
+        const int main_loop_step = (isFlat || desc.src_desc.format == nc) ? block_size : 1;
 
         this->preamble();
 
@@ -227,6 +228,7 @@ struct jit_uni_scale_shift_kernel_f32 : public jit_uni_depthwise_kernel_f32,
 
         Label main_loop_label;
         Label tail_loop_label;
+        Label tail_loop_flat_label;
         Label exit_label;
 
         int repeats = isa == sse42 ? 2 : 1;
@@ -256,7 +258,7 @@ struct jit_uni_scale_shift_kernel_f32 : public jit_uni_depthwise_kernel_f32,
 
         L(main_loop_label); {
             cmp(reg_work_amount, main_loop_step-1);
-            jle(tail_loop_label, T_NEAR);
+            jle(isFlat ? tail_loop_flat_label : tail_loop_label, T_NEAR);
 
             int repeats = isa == sse42 ? 2 : 1;
             for (int i = 0; i < repeats; i++) {
@@ -278,6 +280,26 @@ struct jit_uni_scale_shift_kernel_f32 : public jit_uni_depthwise_kernel_f32,
             jle(exit_label, T_NEAR);
 
             movss(xmm_src, ptr[reg_from]);
+            movss(xmm_shift, ptr[reg_shift]);
+            movss(xmm_scale, ptr[reg_scale]);
+            uni_vmovups(xmm_dst, xmm_shift);
+            uni_vfmadd231ps(xmm_dst, xmm_src, xmm_scale);
+            movss(ptr[reg_to], xmm_dst);
+
+            add(reg_from, 1*sizeof(float));
+            add(reg_to, 1*sizeof(float));
+            add(reg_shift, 1*sizeof(float));
+            add(reg_scale, 1*sizeof(float));
+            dec(reg_work_amount);
+
+            jmp(tail_loop_label, T_NEAR);
+        }
+
+        L(tail_loop_flat_label); {
+            cmp(reg_work_amount, 0);
+            jle(exit_label, T_NEAR);
+
+            movss(xmm_src, ptr[reg_from]);
             uni_vmovups(xmm_dst, xmm_shift);
             uni_vfmadd231ps(xmm_dst, xmm_src, xmm_scale);
             movss(ptr[reg_to], xmm_dst);
@@ -286,7 +308,7 @@ struct jit_uni_scale_shift_kernel_f32 : public jit_uni_depthwise_kernel_f32,
             add(reg_to, 1*sizeof(float));
             dec(reg_work_amount);
 
-            jmp(tail_loop_label, T_NEAR);
+            jmp(tail_loop_flat_label, T_NEAR);
         }
 
         L(exit_label);
@@ -328,12 +350,13 @@ struct jit_uni_prelu_kernel_f32 : public jit_uni_depthwise_kernel_f32,
         assert(desc.alg_kind == alg_kind::depthwise_prelu);
         assert(isa == sse42 || isa == avx2 || isa == avx512_common);
 
-        bool isFlat = desc.src_desc.format == nchw && desc.dst_desc.format == nchw;
+        bool isFlat = (desc.src_desc.format == nchw && desc.dst_desc.format == nchw) ||
+                      (desc.src_desc.format == ncdhw && desc.dst_desc.format == ncdhw);
 
         Reg64 param = abi_param1;
 
         const int block_size = isa == avx512_common ? 16 : 8;
-        const int main_loop_step = isFlat ? block_size : 1;
+        const int main_loop_step = (isFlat || desc.src_desc.format == nc) ? block_size : 1;
 
         this->preamble();
 
@@ -359,11 +382,12 @@ struct jit_uni_prelu_kernel_f32 : public jit_uni_depthwise_kernel_f32,
 
         Label main_loop_label;
         Label tail_loop_label;
+        Label tail_loop_flat_label;
         Label exit_label;
 
         L(main_loop_label); {
             cmp(reg_work_amount, main_loop_step-1);
-            jle(tail_loop_label, T_NEAR);
+            jle(isFlat ? tail_loop_flat_label :tail_loop_label, T_NEAR);
 
             for (int i = 0; i < repeats; i++) {
                 uni_vmovups(vmm_src, ptr[reg_from + i*4*sizeof(float)]);
@@ -400,6 +424,29 @@ struct jit_uni_prelu_kernel_f32 : public jit_uni_depthwise_kernel_f32,
             jle(exit_label, T_NEAR);
 
             movss(xmm_src, ptr[reg_from]);
+            movss(xmm_scale, ptr[reg_scale]);
+
+            pxor(xmm_mask, xmm_mask);
+            cmpps(xmm_mask, xmm_src, _cmp_gt_os);
+            movups(xmm_dst, xmm_src);
+            mulps(xmm_src, xmm_scale);
+            blendvps(xmm_dst, xmm_src);
+
+            movss(ptr[reg_to], xmm_dst);
+
+            add(reg_from, 1*sizeof(float));
+            add(reg_to, 1*sizeof(float));
+            add(reg_scale, 1*sizeof(float));
+            dec(reg_work_amount);
+
+            jmp(tail_loop_label, T_NEAR);
+        }
+
+        L(tail_loop_flat_label); {
+            cmp(reg_work_amount, 0);
+            jle(exit_label, T_NEAR);
+
+            movss(xmm_src, ptr[reg_from]);
 
             pxor(xmm_mask, xmm_mask);
             cmpps(xmm_mask, xmm_src, _cmp_gt_os);
@@ -413,7 +460,7 @@ struct jit_uni_prelu_kernel_f32 : public jit_uni_depthwise_kernel_f32,
             add(reg_to, 1*sizeof(float));
             dec(reg_work_amount);
 
-            jmp(tail_loop_label, T_NEAR);
+            jmp(tail_loop_flat_label, T_NEAR);
         }
 
         L(exit_label);
@@ -454,7 +501,17 @@ template <cpu_isa_t isa>
 status_t jit_uni_depthwise_fwd_t<isa>::pd_t::init() {
     using namespace alg_kind;
 
-    auto desired_blk_fmt = isa == avx512_common ? nChw16c : nChw8c;
+    memory_format_t desired_blk_fmt, desired_pln_fmt;
+    if (desc()->src_desc.ndims == 5) {
+        desired_blk_fmt = isa == avx512_common ? nCdhw16c : nCdhw8c;
+        desired_pln_fmt = ncdhw;
+    } else if (desc()->src_desc.ndims == 4) {
+        desired_blk_fmt = isa == avx512_common ? nChw16c : nChw8c;
+        desired_pln_fmt = nchw;
+    } else {
+        desired_blk_fmt = nc;
+        desired_pln_fmt = nc;
+    }
 
     assert(engine()->kind() == engine_kind::cpu);
     bool ok = true && mayiuse(isa)
@@ -462,8 +519,8 @@ status_t jit_uni_depthwise_fwd_t<isa>::pd_t::init() {
                 prop_kind::forward_inference)
         && utils::everyone_is(data_type::f32, desc()->src_desc.data_type, desc()->dst_desc.data_type)
         && desc()->src_desc.format == desc()->dst_desc.format
-        && utils::one_of(desc()->src_desc.format, desired_blk_fmt, nchw)
-        && utils::one_of(desc()->dst_desc.format, desired_blk_fmt, nchw)
+        && utils::one_of(desc()->src_desc.format, desired_blk_fmt, desired_pln_fmt)
+        && utils::one_of(desc()->dst_desc.format, desired_blk_fmt, desired_pln_fmt)
         && utils::one_of(desc()->weights_desc.format, x)
         && IMPLICATION(this->with_bias(), x == desc()->bias_desc.format)
         && attr()->has_default_values();
@@ -521,13 +578,14 @@ void jit_uni_depthwise_fwd_t<isa>::execute_forward() const {
     const memory_desc_wrapper weights_d(pd()->weights_pd(0));
     const memory_desc_wrapper bias_d(pd()->weights_pd(1));
 
-    const int N = data_d.dims()[0];
-    const int C = data_d.dims()[1];
-    const int H = data_d.dims()[2];
-    const int W = data_d.dims()[3];
+    const int MB = pd()->MB();
+    const int C = pd()->C();
+    const int D = pd()->D();
+    const int H = pd()->H();
+    const int W = pd()->W();
 
     const int simd_w = isa == avx512_common ? 16 : 8;
-    const int ch_block_size = data_d.format() == nchw ? 1 : simd_w;
+    const int ch_block_size = (data_d.format() == nchw) || (data_d.format() == ncdhw) ? 1 : simd_w;
     const int CB = div_up(C, ch_block_size);
 
     if (pd()->want_padded_weights()) {
@@ -542,16 +600,22 @@ void jit_uni_depthwise_fwd_t<isa>::execute_forward() const {
         }
     }
 
-    parallel_nd(N, CB, H,
-        [&](int n, int cb, int h) {
+    parallel_nd(MB, CB, D, H,
+        [&](int mb, int cb, int d, int h) {
         auto arg = jit_args();
 
-        arg.from    = &src[data_d.blk_off(n, cb, h)];
-        arg.to      = &dst[data_d.blk_off(n, cb, h)];
+        size_t data_off = data_d.ndims() == 4
+                          ? data_d.blk_off(mb, cb, h)
+                          : data_d.ndims() == 5
+                            ? data_d.blk_off(mb, cb, d, h)
+                            : data_d.blk_off(mb, cb * ch_block_size);
+
+        arg.from    = &src[data_off];
+        arg.to      = &dst[data_off];
         arg.weights = &weights[weights_d.blk_off(cb * ch_block_size)];
         if (bias)
             arg.bias = &bias[bias_d.blk_off(cb * ch_block_size)];
-        arg.work_amount = (size_t)W;
+        arg.work_amount = data_d.format() == nc ? nstl::min(ch_block_size, C - cb * ch_block_size) : (size_t)W;
 
         (*kernel_)(&arg);
     });
@@ -1155,24 +1219,27 @@ template <cpu_isa_t isa>
 bool jit_uni_dw_conv_row_f32<isa>::post_ops_ok(jit_conv_conf_t &jcp, const primitive_attr_t &attr) {
     const auto &p = attr.post_ops_;
 
-    auto is_eltwise = [&](int idx) { return p.entry_[idx].is_eltwise(); };
-    auto is_depthwise = [&](int idx) { return p.entry_[idx].is_depthwise(); };
-    auto is_sum = [&](int idx) { return p.entry_[idx].is_sum(); };
-    auto is_simple = [&](int idx) { return is_eltwise(idx) || is_depthwise(idx); };
-    auto is_binarization = [&](int idx) { return p.entry_[idx].is_binarization(); };
-
     int start_idx = p.find(primitive_kind::convolution) + 1;
 
-    switch (p.len_ - start_idx) {
-    case 0: return true; // no post_ops
-    case 1: return is_simple(start_idx) || is_sum(start_idx) || is_binarization(start_idx);
-    case 2: return (is_sum(start_idx) && is_simple(start_idx+1)) || (is_simple(start_idx) && is_simple(start_idx+1)) ||
-                   (is_simple(start_idx) && is_binarization(start_idx+1));
-    case 3: return (is_sum(start_idx) && is_simple(start_idx+1) && is_simple(start_idx+2));
-    default: return false;
-    }
+    auto all_post_ops_supported = [&]() {
+        bool ok = true;
 
-    return false;
+        for (int i = start_idx; i < p.len_; i++) {
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise,
+                                                       primitive_kind::binarization);
+        }
+        return ok;
+    };
+    auto contain = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind, start_idx, -1) != -1; };
+    auto position = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind, start_idx, -1); };
+    auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind, start_idx, -1); };
+
+    return all_post_ops_supported() &&
+           count(primitive_kind::sum) <= 1 &&
+           count(primitive_kind::binarization) <= 1 &&
+           IMPLICATION(contain(primitive_kind::sum), position(primitive_kind::sum) == start_idx) &&
+           IMPLICATION(contain(primitive_kind::binarization), position(primitive_kind::binarization) == p.len_-1) &&
+           IMPLICATION(contain(primitive_kind::binarization), !contain(primitive_kind::sum));
 }
 
 template <cpu_isa_t isa>
@@ -1210,12 +1277,12 @@ status_t jit_uni_dw_conv_row_f32<isa>::init_conf(jit_1x1_conv_conf_t &jcp, jit_c
 
     jcp_dw.ur_w = 4;
 
-    jcp_dw.src_dt = jcp.src_dt;
-    jcp_dw.dst_dt = jcp.dst_dt;
+    jcp_dw.src_dt = jcp.dst_dt;
+    jcp_dw.dst_dt = jcp.dw_conv_dst_dt;
     jcp_dw.bia_dt = jcp.bia_dt;
-    jcp_dw.typesize_in = (int)types::data_type_size(jcp.src_dt);
-    jcp_dw.typesize_bia = (int)types::data_type_size(jcp.bia_dt);
-    jcp_dw.typesize_out = (int)types::data_type_size(jcp.dst_dt);
+    jcp_dw.typesize_in = (int)types::data_type_size(jcp_dw.src_dt);
+    jcp_dw.typesize_bia = (int)types::data_type_size(jcp_dw.bia_dt);
+    jcp_dw.typesize_out = (int)types::data_type_size(jcp_dw.dst_dt);
 
     if (jcp_dw.src_dt != mkldnn_f32 && jcp_dw.src_dt != mkldnn_u8)
         return status::unimplemented;
@@ -1259,11 +1326,11 @@ status_t jit_uni_dw_conv_row_f32<isa>::init_conf(jit_conv_conf_t &jcp, jit_conv_
     jcp_dw.ur_w = 4;
 
     jcp_dw.src_dt = jcp.dst_dt;
-    jcp_dw.dst_dt = jcp.dst_dt;
+    jcp_dw.dst_dt = jcp.dw_conv_dst_dt;
     jcp_dw.bia_dt = jcp.bia_dt;
-    jcp_dw.typesize_in = (int)types::data_type_size(jcp.src_dt);
-    jcp_dw.typesize_bia = (int)types::data_type_size(jcp.bia_dt);
-    jcp_dw.typesize_out = (int)types::data_type_size(jcp.dst_dt);
+    jcp_dw.typesize_in = (int)types::data_type_size(jcp_dw.src_dt);
+    jcp_dw.typesize_bia = (int)types::data_type_size(jcp_dw.bia_dt);
+    jcp_dw.typesize_out = (int)types::data_type_size(jcp_dw.dst_dt);
 
     if (jcp_dw.src_dt != mkldnn_f32 && jcp_dw.src_dt != mkldnn_u8)
         return status::unimplemented;

@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #include "select_kernel_selector.h"
 #include "select_kernel_ref.h"
 
-namespace kernel_selector 
-{
-    select_kernel_selector::select_kernel_selector()
-    {
-        Attach<SelectKernelRef>();
-    }
+namespace kernel_selector {
+select_kernel_selector::select_kernel_selector() { Attach<SelectKernelRef>(); }
 
-    KernelsData select_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::SELECT);
-    }
+KernelsData select_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::SELECT);
 }
+}  // namespace kernel_selector

@@ -45,6 +45,6 @@ KERNEL(strided_slice_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* o
             y * OUTPUT_Y_PITCH +
             x * OUTPUT_X_PITCH;
 
-    output[output_index] = input[input_index];
+    output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
 #endif
 }

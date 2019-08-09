@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef INPUT_LAYOUT_H
-#define INPUT_LAYOUT_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -50,5 +48,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(input_layout);
 /// @}
 /// @}
 /// @}
-#endif /* INPUT_LAYOUT_H */
 

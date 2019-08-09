@@ -17,7 +17,8 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-MKLDNNQuantizeNode::MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNQuantizeNode::MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, int socket) :
+        MKLDNNNode(layer, eng, socket) {}
 
 void MKLDNNQuantizeNode::initValues() {
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
@@ -169,7 +170,7 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
             dataConfig.constant = false;
             dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
             config.outConfs.push_back(dataConfig);
-        return {config, impl};
+        return {config, impl, fmt};
     };
 
     supportedPrimitiveDescriptors.push_back(same(memory::nhwc, ref_any));

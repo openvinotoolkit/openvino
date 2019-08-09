@@ -27,6 +27,19 @@ namespace cldnn
         {
             p.add_connection(prev, next);
         }
+        template <class Pass, typename... Args>
+        static void apply_opt_pass(program_impl& p, Args&&... args)
+        {
+            p.apply_opt_pass<Pass>(std::forward<Args>(args)...);
+        }
+        static void run_graph_compilation(program_impl& p)
+        {
+            p.run_graph_compilation();
+        }
+        static void prepare_memory_dependencies(program_impl& p)
+        {
+            p.prepare_memory_dependencies();
+        }
     };
 
 }

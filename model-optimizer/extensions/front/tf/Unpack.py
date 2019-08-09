@@ -14,8 +14,12 @@
  limitations under the License.
 """
 
+
+import numpy as np
+
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
+from mo.ops.const import Const
 from mo.ops.squeeze import Squeeze
 
 
@@ -32,9 +36,11 @@ class Unpack(FrontReplacementOp):
         return []
 
     def replace_op(self, graph: Graph, node: Node):
-        for ind in range(len(node.out_nodes())):
-            squeeze_node = Squeeze(graph, dict(squeeze_dims=[node.axis], name=node.name + '/Squeeze_')).create_node([])
-            node.insert_node_after(squeeze_node, ind)
+        for out_port in node.out_ports().values():
+            squeeze_node = Squeeze(graph, dict(name=node.name + '/Squeeze_')).create_node([])
+            dims_node = Const(graph, {'value': np.array(node.axis), 'name': node.name + '/Squeeze_axis'}).create_node()
 
+            out_port.get_connection().insert_node(squeeze_node)
+            dims_node.out_port(0).connect(squeeze_node.in_port(1))
         # do not replace any output edge
         return []
