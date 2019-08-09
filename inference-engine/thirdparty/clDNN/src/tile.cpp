@@ -19,19 +19,17 @@
 #include "memory_impl.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include <string>
 
-namespace cldnn
-{
-primitive_type_id tile_type_id()
-{
+namespace cldnn {
+primitive_type_id tile_type_id() {
     static primitive_type_base<tile> instance;
     return &instance;
 }
 
-layout tile_inst::calc_output_layout(tile_node const& node)
-{
-    assert((bool)node.get_primitive()->output_data_type == false
-           && "Output data type forcing is not supported for tile_node!");
+layout tile_inst::calc_output_layout(tile_node const& node) {
+    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+           "Output data type forcing is not supported for tile_node!");
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
@@ -43,31 +41,27 @@ layout tile_inst::calc_output_layout(tile_node const& node)
 
     // calculate sum of features from all inputs
     result_sizes[axis_index] *= tiles;
-    return layout{ input_layout.data_type, input_format, result_sizes };
+    return layout{input_layout.data_type, input_format, (tensor) result_sizes};
 }
 
-std::string tile_inst::to_string(tile_node const& node)
-{
-    auto desc           = node.get_primitive();
-    auto node_info      = node.desc_to_json();
-    auto& input         = node.input();
-    
+std::string tile_inst::to_string(tile_node const& node) {
+    auto desc = node.get_primitive();
+    auto node_info = node.desc_to_json();
+    auto& input = node.input();
+
     std::stringstream primitive_description;
 
     json_composite tile_info;
     tile_info.add("input id", input.id());
     tile_info.add("axis", desc->axis);
     tile_info.add("tiles", desc->tiles);
-    
+
     node_info->add("tile info", tile_info);
     node_info->dump(primitive_description);
 
     return primitive_description.str();
 }
 
-tile_inst::typed_primitive_inst(network_impl& network, tile_node const& node)
-    :parent(network, node)
-{
-}
+tile_inst::typed_primitive_inst(network_impl& network, tile_node const& node) : parent(network, node) {}
 
-}
+}  // namespace cldnn

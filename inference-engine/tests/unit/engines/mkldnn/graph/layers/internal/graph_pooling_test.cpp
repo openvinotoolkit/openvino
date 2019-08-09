@@ -74,7 +74,8 @@ void ref_pool(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<
     const data_t *src_data = src.readOnly();
     data_t *dst_data = dst.data();
 
-    IE_ASSERT(OC == dst.dims()[dims_size - 2]);
+    InferenceEngine::SizeVector dims = dst.getTensorDesc().getDims(); 
+    IE_ASSERT(OC == dims[1]);
 
     int k1 = OH * OW,
            k2 = k1 * OD,
@@ -313,7 +314,7 @@ protected:
             }
 
             InferenceEngine::Blob::Ptr src =
-                InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, p.dims);
+                InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, p.dims, layout});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -378,6 +379,8 @@ INSTANTIATE_TEST_CASE_P(
                             MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 pooling_test_params{{1u, 4u, 128u, 128u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, PoolingLayer::MAX, false, 3u,
                             MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                pooling_test_params{{1u, 1u, 128u, 128u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, PoolingLayer::MAX, false, 2u,
+                                    MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 // TODO Fix jit implementation. End paddings
 //                pooling_test_params{{1u, 4u, 128u, 128u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, {2u, 0u}, PoolingLayer::AVG, true, 3u,
 //                            MKLDNNPlugin::impl_desc_type::jit },
@@ -412,7 +415,9 @@ INSTANTIATE_TEST_CASE_P(
                 pooling_test_params{{1u, 4u, 128u, 128u, 128u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, PoolingLayer::AVG, false, 3u,
                             MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 pooling_test_params{{1u, 4u, 128u, 128u, 128u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, PoolingLayer::AVG, false, 3u,
-                            MKLDNNPlugin::impl_desc_type::jit } ));
+                            MKLDNNPlugin::impl_desc_type::jit },
+                pooling_test_params{{1u, 1u, 128u, 128u, 128u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, PoolingLayer::AVG, false, 2u,
+                                    MKLDNNPlugin::impl_desc_type::ref }));
 
 
 class MKLDNNGraphDynBatchPoolingTests: public MKLDNNGraphPoolingTests {
@@ -450,7 +455,7 @@ protected:
                     break;
             }
             InferenceEngine::Blob::Ptr src =
-                InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, p.dims);
+                InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, p.dims, layout});
             src->allocate();
             fill_data(src->buffer(), src->size());
 

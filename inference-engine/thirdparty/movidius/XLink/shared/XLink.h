@@ -42,11 +42,12 @@ XLinkError_t XLinkCloseStream(streamId_t streamId);
 XLinkError_t XLinkGetAvailableStreams(linkId_t id);
 
 /**
- * @brief Return Myriad device name
- * @param index Return device on index from suitable (matches pid argument) devices list
- * @param pid   0x2485 for MX, 0x2150 for M2, 0 for any, -1 for any not booted 
+ * @brief Return Myriad device description which meets the requirements
+ * @param index a set of parameters that the device must comply with
+ * @param index Return device on index from suitable devices list
  */
-XLinkError_t XLinkGetDeviceName(int index, char* name, int nameSize, int pid);
+XLinkError_t XLinkFindDevice(int index, XLinkDeviceState_t state,
+    deviceDesc_t* in_deviceRequirements, deviceDesc_t* out_foundDevice);
 
 // Send a package to initiate the writing of data to a remote stream
 // Note that the actual size of the written data is ALIGN_UP(size, 64)
@@ -70,9 +71,8 @@ XLinkError_t XLinkReleaseData(streamId_t streamId);
 //Read fill level
 XLinkError_t XLinkGetFillLevel(streamId_t streamId, int isRemote, int* fillLevel);
 
-// Boot the remote (This is intended as an interface to boot the Myriad
-// from PC)
-XLinkError_t XLinkBootRemote(const char* deviceName, const char* binaryPath);
+// Boot the remote (This is intended as an interface to boot the Myriad from PC)
+XLinkError_t XLinkBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath);
 
 // Reset the remote
 XLinkError_t XLinkResetRemote(linkId_t id);

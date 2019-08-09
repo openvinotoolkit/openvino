@@ -19,54 +19,48 @@
 #include "common_kernel_base.h"
 #include "kernel_selector_params.h"
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // batch_norm_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct batch_norm_params : public base_params
-    {
-        batch_norm_params() : base_params(KernelType::BATCH_NORM_GRAD) {}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// batch_norm_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct batch_norm_params : public base_params {
+    batch_norm_params() : base_params(KernelType::BATCH_NORM_GRAD) {}
 
-        struct DedicatedParams
-        {
-            float epsilon;
-            bool with_inv_var;
-			bool with_scale_shift;
-			bool with_mean_var_out = false;
-        };
-
-        DedicatedParams batchNormParams;
-
-        virtual ParamsKey GetParamsKey() const
-        {
-            return base_params::GetParamsKey();
-        }
+    struct DedicatedParams {
+        float epsilon;
+        bool with_inv_var;
+        bool with_scale_shift;
+        bool with_mean_var_out = false;
     };
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // batch_norm_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct batch_norm_optional_params : optional_params
-    {
-        batch_norm_optional_params() : optional_params(KernelType::BATCH_NORM_GRAD) {}
-    };
+    DedicatedParams batchNormParams;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // BatchNormKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class BatchNormKernelBase : public common_kernel_base
-    {
-    public:
-        using common_kernel_base::common_kernel_base;
-        virtual ~BatchNormKernelBase() {}
+    virtual ParamsKey GetParamsKey() const {
+        return base_params::GetParamsKey();
+    }
+};
 
-        using DispatchData = CommonDispatchData;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// batch_norm_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct batch_norm_optional_params : optional_params {
+    batch_norm_optional_params() : optional_params(KernelType::BATCH_NORM_GRAD) {}
+};
 
-    protected:
-        virtual bool Validate(const Params& params, const optional_params& options) const override;
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
-        virtual JitConstants GetJitConstants(const batch_norm_params& params) const;
-        virtual DispatchData SetDefault(const batch_norm_params& params) const;
-    };
-}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BatchNormKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class BatchNormKernelBase : public common_kernel_base {
+public:
+    using common_kernel_base::common_kernel_base;
+    virtual ~BatchNormKernelBase() {}
+
+    using DispatchData = CommonDispatchData;
+
+protected:
+    bool Validate(const Params& params, const optional_params& options) const override;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
+    virtual JitConstants GetJitConstants(const batch_norm_params& params) const;
+    virtual DispatchData SetDefault(const batch_norm_params& params) const;
+};
+}  // namespace kernel_selector

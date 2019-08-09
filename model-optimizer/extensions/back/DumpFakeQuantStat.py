@@ -14,44 +14,33 @@
  limitations under the License.
 """
 
-import networkx as nx
-import numpy as np
-
 from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Node
-from mo.middle.passes.eliminate import remove_op_nodes
-from mo.utils.graph import pseudo_topological_sort
+from mo.graph.graph import Graph
+from mo.middle.passes.eliminate import remove_op_node_with_data_node
 
 
 class DumpFakeQuantStat(BackReplacementPattern):
     enabled = True
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
+    def find_and_replace_pattern(self, graph: Graph):
         intervals = {}
-        for n in pseudo_topological_sort(graph):
-            node = Node(graph, n)
-            if not node.has('op') or (node.op != 'FakeQuantWithMinMaxVars' and node.op != 'Quantize'):
-                continue
-            if node.op == 'Quantize':
-                # check if input range matches output range
-                low_match = np.all(node.in_node(1).value == node.in_node(3).value)
-                high_match = np.all(node.in_node(2).value == node.in_node(4).value)
-                if not low_match or not high_match:
-                    continue
-
+        for node in graph.get_op_nodes(type='FakeQuantize', keep_in_IR=False):
             prev_node = node.in_node().in_node()
             prev_node_id = prev_node.id
             prev_node_out_shape = prev_node.out_node()['shape']
             C = prev_node_out_shape[1]
             assert node.in_node(1).value.size == 1
             assert node.in_node(2).value.size == 1
+            # Input and output ranges should match if we want to remove FakeQuantize from model
+            assert_msg = "FakeQuantize cannot be removed because input and output intervals do not match"
+            assert node.in_node(1).value == node.in_node(3).value, assert_msg
+            assert node.in_node(2).value == node.in_node(4).value, assert_msg
             min = ', '.join([str(node.in_node(1).value.flatten()[0])] * C)
             max = ', '.join([str(node.in_node(2).value.flatten()[0])] * C)
             intervals[prev_node_id] = {'min': min, 'max': max}
+            remove_op_node_with_data_node(graph, node)
         if intervals:
             if 'statistics' not in graph.graph:
                 graph.graph['statistics'] = intervals
             else:
                 graph.graph['statistics'].update(intervals)
-            remove_op_nodes(graph, {'op': 'FakeQuantWithMinMaxVars'})
-            remove_op_nodes(graph, {'op': 'Quantize'})

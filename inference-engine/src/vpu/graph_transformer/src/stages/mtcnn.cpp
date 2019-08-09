@@ -32,71 +32,34 @@ private:
         return std::make_shared<MTCNNStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 2);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto innerGraphs = _inputEdges[1]->input();
         auto output = _outputEdges[0]->output();
 
-        DataMap<float> out;
-
-        out[input] = 1.0f;
-        out[innerGraphs] = 1.0f;
-        out[output] = 1.0f;
-
-        return out;
+        _orderInfo.setInput(_inputEdges[0], input->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, 0));
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 2);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
-
-        out[input] = input->desc().dimsOrder().createMovedDim(Dim::C, 2);
-        out[output] = output->desc().dimsOrder().createMovedDim(Dim::C, 0);
-
-        return out;
-    }
-
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<StridesRequirement> out;
-
-        out[input] = StridesRequirement::compact();
-        out[output] = StridesRequirement::compact();
-
-        return out;
+        _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
+        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl() const override {
         IE_ASSERT(_inputEdges.size() == 2);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
-
-        return out;
+        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
 
     void finalCheckImpl() const override {
@@ -106,7 +69,7 @@ private:
         auto debug_pnet_post_nms = attrs().get<int>("debug_pnet_post_nms");
         auto debug_rnet_post_nms = attrs().get<int>("debug_rnet_post_nms");
         auto mode = attrs().get<MTCNN_Mode>("mode");
-        const auto& pyramid = attrs().get<std::vector<std::pair<int, int>>>("pyramid");
+        const auto& pyramid = attrs().get<SmallVector<std::pair<int, int>>>("pyramid");
         auto stage2_zdir_batch_size = attrs().get<int>("stage2_zdir_batch_size");
 
         serializer.append(static_cast<int32_t>(pyramid.size()));
@@ -118,7 +81,7 @@ private:
         serializer.append(static_cast<int32_t>(debug_pnet_post_nms));
         serializer.append(static_cast<int32_t>(debug_rnet_post_nms));
         serializer.append(static_cast<int32_t>(mode));
-        serializer.append(static_cast<int32_t>(attrs().get<int>("stage2_zdir_batch_size")));
+        serializer.append(static_cast<int32_t>(stage2_zdir_batch_size));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -250,7 +213,7 @@ void FrontEnd::parseMTCNN(
     std::pair<int, int> r_net_input = {24, 24};
     std::pair<int, int> o_net_input = {48, 48};
 
-    std::vector<std::pair<int, int>> pyramid;
+    SmallVector<std::pair<int, int>> pyramid;
 
     std::istringstream stream(pnet_resolutions_str);
     std::string str;
@@ -265,7 +228,7 @@ void FrontEnd::parseMTCNN(
         }
     }
 
-    std::vector<CompiledGraph::Ptr> compiledSubNetworks;
+    SmallVector<CompiledGraph::Ptr> compiledSubNetworks;
     compiledSubNetworks.reserve(pyramid.size() + 2);
 
     //

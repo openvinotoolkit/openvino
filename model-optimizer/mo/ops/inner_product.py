@@ -25,8 +25,8 @@ class InnerProduct(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': 'FullyConnected',
-            'op': 'FullyConnected',
+            'type': 'MatMul',
+            'op': 'MatMul',
             'out-size': None,
             'layout': 'NCHW',
             'in_ports_count': 3,

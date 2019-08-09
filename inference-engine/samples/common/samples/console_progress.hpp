@@ -31,6 +31,7 @@ public:
         if (total == 0) {
             total = 1;
         }
+        std::cout << std::unitbuf;
     }
 
     /**
@@ -38,19 +39,23 @@ public:
      * @return
      */
     void showProgress() const {
-        std::cout << "\rProgress: [";
+        std::stringstream strm;
+        if (!stream_output) {
+            strm << '\r';
+        }
+        strm << "Progress: [";
         size_t i = 0;
         for (; i < detalization * current / total; i++) {
-            std::cout << ".";
+            strm << ".";
         }
         for (; i < detalization; i++) {
-            std::cout << " ";
+            strm << " ";
         }
-        std::cout << "] " << std::fixed << std::setprecision(2) << 100 * static_cast<float>(current) / total << "% done";
+        strm << "] " << std::fixed << std::setprecision(2) << 100 * static_cast<float>(current) / total << "% done";
         if (stream_output) {
-            std::cout << std::endl;
+            std::cout << strm.str() << std::endl;
         } else {
-            std::flush(std::cout);
+            std::cout << strm.str() << std::flush;
         }
     }
 
@@ -80,6 +85,6 @@ public:
      * @return
      */
     void finish() {
-        std::cout << "\n";
+        std::cerr << std::nounitbuf << "\n";
     }
 };

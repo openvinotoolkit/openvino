@@ -16,29 +16,33 @@ limitations under the License.
 
 from unittest.mock import Mock, MagicMock
 
-from accuracy_checker.model_evaluator import ModelEvaluator
+from accuracy_checker.evaluators import ModelEvaluator
 
 
 class TestModelEvaluator:
     def setup_method(self):
         self.launcher = Mock()
         self.launcher.predict.return_value = []
-
+        data = MagicMock(data=MagicMock(), metadata=MagicMock(), identifier=0)
         self.preprocessor = Mock()
+        self.preprocessor.process = Mock(return_value=data)
         self.postprocessor = Mock()
+        self.adapter = MagicMock(return_value=[])
+        self.input_feeder = Mock()
+        self.data_reader = Mock(return_value=data)
+        self.data_reader.data_source = 'source'
 
-        annotation_0 = Mock()
+        annotation_0 = MagicMock()
         annotation_0.identifier = 0
-        annotation_1 = Mock()
+        annotation_0.metadata = {'data_source': MagicMock()}
+        annotation_1 = MagicMock()
         annotation_1.identifier = 1
-        annotation_container_0 = Mock()
-        annotation_container_0.values = Mock(return_value=[annotation_0])
-        annotation_container_1 = Mock()
-        annotation_container_1.values = Mock(return_value=([annotation_1]))
-        self.annotations = [
-            ([annotation_container_0], [annotation_container_0]),
-            ([annotation_container_1], [annotation_container_1])
-        ]
+        annotation_1.metadata = {'data_source': MagicMock()}
+        annotation_container_0 = MagicMock()
+        annotation_container_0.values = MagicMock(return_value=[annotation_0])
+        annotation_container_1 = MagicMock()
+        annotation_container_1.values = MagicMock(return_value=([annotation_1]))
+        self.annotations = [[annotation_container_0], [annotation_container_1]]
 
         self.dataset = MagicMock()
         self.dataset.__iter__.return_value = self.annotations
@@ -56,7 +60,7 @@ class TestModelEvaluator:
         self.metric = Mock()
         self.metric.update_metrics_on_batch = Mock()
 
-        self.evaluator = ModelEvaluator(self.launcher, self.preprocessor, self.postprocessor, self.dataset, self.metric)
+        self.evaluator = ModelEvaluator(self.launcher, self.input_feeder, self.adapter, self.data_reader, self.preprocessor, self.postprocessor, self.dataset, self.metric)
         self.evaluator.store_predictions = Mock()
         self.evaluator.load = Mock(return_value=(
             ([annotation_container_0], [annotation_container_0]), ([annotation_container_1], [annotation_container_1])
@@ -115,7 +119,7 @@ class TestModelEvaluator:
         assert not self.postprocessor.full_process.called
 
     def test_process_dataset_with_loading_predictions_and_without_dataset_processors(self, mocker):
-        mocker.patch('accuracy_checker.model_evaluator.get_path')
+        mocker.patch('accuracy_checker.evaluators.model_evaluator.get_path')
         self.postprocessor.has_dataset_processors = False
 
         self.evaluator.process_dataset('path', None)
@@ -129,7 +133,7 @@ class TestModelEvaluator:
         assert self.postprocessor.full_process.called
 
     def test_process_dataset_with_loading_predictions_and_with_dataset_processors(self, mocker):
-        mocker.patch('accuracy_checker.model_evaluator.get_path')
+        mocker.patch('accuracy_checker.evaluators.model_evaluator.get_path')
         self.postprocessor.has_dataset_processors = True
 
         self.evaluator.process_dataset('path', None)

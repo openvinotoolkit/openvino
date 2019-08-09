@@ -48,7 +48,7 @@ public:
         std::string padType = deconvLayer._auto_pad;
         if (padType == "valid") {
             for (int i = 0; i < spacial_d_size; i++)
-                OD_temp[i] = dims[dims_size - 1 - i] * deconvLayer._stride[i] + KDims[i] - 1;
+                OD_temp[i] = (dims[dims_size - 1 - i] - 1) * deconvLayer._stride[i] + KDims[i];
         } else if ((padType == "same_upper") || (padType == "same_lower")) {
             for (int i = 0; i < spacial_d_size; i++)
                 OD_temp[i] = dims[dims_size - 1 - i] * deconvLayer._stride[i];

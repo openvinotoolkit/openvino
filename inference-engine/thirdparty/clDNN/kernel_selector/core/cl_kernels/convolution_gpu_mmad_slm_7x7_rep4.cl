@@ -65,25 +65,25 @@
 #else
 
 #define QUANTIZATION \
-    out_write_N2K4[0].s0 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec0.s0) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N)); /*K= lane_id,N=0*/ \
-    out_write_N2K4[0].s1 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec1.s0) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N)); /*K= lane_id + 8,N=0*/\
-    out_write_N2K4[0].s2 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec2.s0) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N)); /*K= lane_id + 16,N=0*/\
-    out_write_N2K4[0].s3 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec3.s0) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N)); /*K= lane_id + 24,N=0*/\
+    out_write_N2K4[0].s0 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec0.s0) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS)); /*K= lane_id,N=0*/ \
+    out_write_N2K4[0].s1 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec1.s0) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS)); /*K= lane_id + 8,N=0*/\
+    out_write_N2K4[0].s2 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec2.s0) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS)); /*K= lane_id + 16,N=0*/\
+    out_write_N2K4[0].s3 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec3.s0) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS)); /*K= lane_id + 24,N=0*/\
     \    
-    out_write_N2K4[0].s4 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec0.s1) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N)); /*K= lane_id,N=1*/\
-    out_write_N2K4[0].s5 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec1.s1) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N)); /*K= lane_id + 8,N=1*/\
-    out_write_N2K4[0].s6 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec2.s1) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N)); /*K= lane_id + 16,N=1*/\
-    out_write_N2K4[0].s7 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec3.s1) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N)); /*K= lane_id + 24,N=1*/\
+    out_write_N2K4[0].s4 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec0.s1) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS)); /*K= lane_id,N=1*/\
+    out_write_N2K4[0].s5 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec1.s1) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS)); /*K= lane_id + 8,N=1*/\
+    out_write_N2K4[0].s6 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec2.s1) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS)); /*K= lane_id + 16,N=1*/\
+    out_write_N2K4[0].s7 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec3.s1) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS)); /*K= lane_id + 24,N=1*/\
     \
-    out_write_N2K4[1].s0 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec0.s2) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N)); /*K= lane_id,N=2*/\
-    out_write_N2K4[1].s1 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec1.s2) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N)); /*K= lane_id + 8,N=2*/\
-    out_write_N2K4[1].s2 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec2.s2) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N)); /*K= lane_id + 16,N=2*/\
-    out_write_N2K4[1].s3 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec3.s2) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N)); /*K= lane_id + 24,N=2*/\
+    out_write_N2K4[1].s0 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec0.s2) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS)); /*K= lane_id,N=2*/\
+    out_write_N2K4[1].s1 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec1.s2) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS)); /*K= lane_id + 8,N=2*/\
+    out_write_N2K4[1].s2 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec2.s2) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS)); /*K= lane_id + 16,N=2*/\
+    out_write_N2K4[1].s3 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec3.s2) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS)); /*K= lane_id + 24,N=2*/\
     \
-    out_write_N2K4[1].s4 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec0.s3) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N)); /*K= lane_id,N=3*/\
-    out_write_N2K4[1].s5 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec1.s3) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N)); /*K= lane_id + 8,N=3*/\
-    out_write_N2K4[1].s6 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec2.s3) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N)); /*K= lane_id + 16,N=3*/\
-    out_write_N2K4[1].s7 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec3.s3) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N)); /*K= lane_id + 24,N=3*/
+    out_write_N2K4[1].s4 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec0.s3) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS)); /*K= lane_id,N=3*/\
+    out_write_N2K4[1].s5 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec1.s3) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS)); /*K= lane_id + 8,N=3*/\
+    out_write_N2K4[1].s6 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec2.s3) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS)); /*K= lane_id + 16,N=3*/\
+    out_write_N2K4[1].s7 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec3.s3) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS)); /*K= lane_id + 24,N=3*/
 
 #endif
 

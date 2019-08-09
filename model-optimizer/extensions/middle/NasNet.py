@@ -104,7 +104,7 @@ class NasNet(MiddleReplacementPattern):
         # Pad -> Conv
         conv_node = graph.unique_id(pad_op.name + '/Conv_')
         conv_weights_node = graph.unique_id(pad_op.name + '/ConvW_')
-        conv_weights = np.ones((1, 1, input.shape[3], 1))
+        conv_weights = np.ones((input.shape[3], 1, 1, 1))
         conv_output = graph.unique_id(pad_op.name + '/ConvOut_')
         output_shape = np.array([input.shape[0], input.shape[1] + 1, input.shape[2] + 1, input.shape[3]])
 
@@ -115,7 +115,7 @@ class NasNet(MiddleReplacementPattern):
                                 group=input.shape[3], bias_addable=True, bias_term=False,
                                 spatial_dims=np.array([1, 2]),
                                 kernel_spatial=np.array([1, 1]),
-                                pad=np.array([[0, 0], [0, 0], [0, 0], [0, 0]]), output_shape=output_shape,
+                                pad=np.array([[0, 0], [0, 1], [0, 1], [0, 0]]), output_shape=output_shape,
                                 channel_dims=np.array([3]),
                                 in_ports_count=3, out_ports_count=1)))
 

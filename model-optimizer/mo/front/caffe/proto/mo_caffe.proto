@@ -1343,6 +1343,13 @@ message PriorBoxParameter {
   repeated float width = 14;
   // height (in pixels).
   repeated float height = 15;
+
+  // initial box size
+  repeated float fixed_size = 16;
+  // aspect ration for box
+  repeated float fixed_ratio = 17;
+  // density of some type of boxes on image
+  repeated float density = 18;
 }
 
 message PSROIPoolingParameter {

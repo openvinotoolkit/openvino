@@ -56,5 +56,10 @@ DECLARE_CLDNN_CONFIG_KEY(GRAPH_DUMPS_DIR);
 */
 DECLARE_CLDNN_CONFIG_KEY(SOURCES_DUMPS_DIR);
 
+/**
+* @brief This key turns usage of int8 optimizations and qunatized models on.
+*/
+DECLARE_CLDNN_CONFIG_KEY(INT8_ENABLED);
+
 }  // namespace CLDNNConfigParams
 }  // namespace InferenceEngine

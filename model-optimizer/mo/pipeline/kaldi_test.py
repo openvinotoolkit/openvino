@@ -30,7 +30,7 @@ class TestKaldiPipeline(unittest.TestCase):
                  'biases': {'value': np.zeros(10), 'kind': 'data'},
                  'sc': {'op': 'ScaleShift', 'kind': 'op'},
                  'output': {'kind': 'data'},
-                 'op_output': {'op': 'OpOutput', 'kind': 'op'}
+                 'op_output': {'op': 'Result', 'kind': 'op'}
                  }
         graph = build_graph(nodes,
                             [
@@ -49,9 +49,9 @@ class TestKaldiPipeline(unittest.TestCase):
         nodes = {'input': {'kind': 'data'},
                  'weights': {'kind': 'data'},
                  'biases': {'value': None, 'shape': None, 'kind': 'data'},
-                 'fc': {'op': 'FullyConnected', 'kind': 'op'},
+                 'fc': {'op': 'MatMul', 'kind': 'op'},
                  'output': {'kind': 'data'},
-                 'op_output': {'op': 'OpOutput', 'kind': 'op'}
+                 'op_output': {'op': 'Result', 'kind': 'op'}
                  }
         graph = build_graph(nodes,
                             [
@@ -70,11 +70,11 @@ class TestKaldiPipeline(unittest.TestCase):
         nodes = {'input': {'kind': 'data'},
                  'weights': {'value': None, 'kind': 'data'},
                  'biases': {'value': None, 'shape': None, 'kind': 'data'},
-                 'fc': {'op': 'FullyConnected', 'kind': 'op'},
+                 'fc': {'op': 'MatMul', 'kind': 'op'},
                  'data': {'kind': 'data'},
                  'softmax': {'op': 'SoftMax', 'kind': 'op'},
                  'output': {'kind': 'data'},
-                 'op_output': {'op': 'OpOutput', 'kind': 'op'}
+                 'op_output': {'op': 'Result', 'kind': 'op'}
                  }
         graph = build_graph(nodes,
                             [

@@ -18,9 +18,9 @@
 #pragma once
 #include "../C/permute.h"
 #include "primitive.hpp"
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -36,42 +36,29 @@ namespace cldnn
 /// output_dimensions = { 6, 3, 3, 5 } <br>
 /// <br>
 /// When permute_order is { 0, 1, 2, 3 } then input_dimensions = output_dimensions
-struct permute : public primitive_base<permute, CLDNN_PRIMITIVE_DESC(permute)>
-{
+struct permute : public primitive_base<permute, CLDNN_PRIMITIVE_DESC(permute)> {
     CLDNN_DECLARE_PRIMITIVE(permute)
 
     /// @brief Constructs permute primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param permute_order Array of permuted output order in bfyx format.
-    permute(
-        const primitive_id& id,
-        const primitive_id& input,
-        const std::vector<uint16_t>& permute_order = {},
-        const padding& output_padding = padding()
-    )
-        : primitive_base(id, { input }, output_padding)
-        , permute_order(permute_order)
-    {
-    }
+    permute(const primitive_id& id,
+            const primitive_id& input,
+            const std::vector<uint16_t>& permute_order = {},
+            const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding), permute_order(permute_order) {}
 
     /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{reorder}
-    permute(const dto* dto)
-        : primitive_base(dto)
-        , permute_order(uint16_t_arr_to_vector(dto->permute_order))
-    {
-    }
+    permute(const dto* dto) : primitive_base(dto), permute_order(uint16_t_arr_to_vector(dto->permute_order)) {}
 
     /// @brief Array of permuted output order in bfyx format.
     std::vector<uint16_t> permute_order;
 
 protected:
-    void update_dto(dto& dto) const override
-    {
-        dto.permute_order = uint16_t_vector_to_arr(permute_order);
-    }
+    void update_dto(dto& dto) const override { dto.permute_order = uint16_t_vector_to_arr(permute_order); }
 };
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

@@ -17,12 +17,14 @@ import argparse
 import logging as log
 
 from extensions.back.CreateConstNodes import CreateConstNodesReplacement
+from extensions.back.FuseReshapesSequence import FuseReshapesSequence
+from extensions.back.RemoveRedundantReshapes import RemoveRedundantReshapes
 from mo.front.caffe import custom_layers_mapping, loader
 from mo.front.caffe.extractor import caffe_type_extractors, caffe_extractor
 from mo.front.common.register_custom_ops import update_extractors_with_extensions, check_for_duplicates
 from mo.front.extractor import extract_node_attrs, remove_output_ops
 from mo.middle.passes.conv import convert_add_or_mul_to_scaleshift
-from mo.middle.passes.conv import convert_muladd_to_scaleshift_or_power, \
+from mo.middle.passes.conv import convert_muladd_to_scaleshift, \
     convert_matmul_to_fully_connected, batch_norm_fuse
 from mo.middle.passes.eliminate import graph_clean_up
 from mo.middle.passes.eliminate import remove_const_ops
@@ -31,9 +33,9 @@ from mo.middle.passes.fusing.fuse_linear_ops import fuse_linear_ops
 from mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
 from mo.middle.passes.fusing.mark_unfused_nodes import mark_unfused_nodes
 from mo.middle.passes.fusing.resnet_optimization import stride_optimization
-from mo.middle.passes.infer import convert_mul_add_to_power
 from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
-from mo.middle.passes.shape import reverse_input_channels, fuse_sequence_of_reshapes
+from mo.middle.passes.shape import reverse_input_channels, merge_nodes_permutations, permute_data_nodes_attrs, \
+    permute_op_nodes_attrs
 from mo.pipeline.common import prepare_emit_ir
 from mo.utils import class_registration
 from mo.utils.cli_parser import get_meta_info
@@ -43,11 +45,13 @@ from mo.utils.utils import refer_to_faq_msg
 
 
 def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str, output_model_name: str,
-           output_dir: str, mean_file: str = "",
+           output_dir: str, caffe_proto_path: str, mean_file: str = "",
            mean_file_offsets: tuple = None, custom_layers_mapping_path: str = None):
     meta_info = get_meta_info(argv)
 
-    proto, model = loader.load_caffe_proto_model(proto_file_name, model_file_name)
+    caffe_pb2 = loader.import_caffe_pb2(caffe_proto_path)
+
+    proto, model = loader.load_caffe_proto_model(caffe_pb2, proto_file_name, model_file_name)
 
     update_extractors_with_extensions(
         caffe_type_extractors,
@@ -71,7 +75,11 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     graph.graph['layout'] = 'NCHW'
     graph.graph['cmd_params'] = argv
     graph.graph['fw'] = 'caffe'
-    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 5
+    if graph.graph['cmd_params'].generate_experimental_IR_V10:
+        version = 10
+    else:
+        version = 6
+    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else version
 
     custom_layers_map = custom_layers_mapping.load_layers_xml(custom_layers_mapping_path)
     custom_layers_mapping.update_extractors(
@@ -106,11 +114,9 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     if not argv.disable_resnet_optimization:
         stride_optimization(graph)
 
-    convert_muladd_to_scaleshift_or_power(graph)
+    convert_muladd_to_scaleshift(graph)
     convert_matmul_to_fully_connected(graph)
     batch_norm_fuse(graph)
-    convert_mul_add_to_power(graph)
-    graph_clean_up(graph)
     convert_add_or_mul_to_scaleshift(graph)  # scale = 1
     graph_clean_up(graph)
 
@@ -124,13 +130,14 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
         move_scaleshift_to_preprocess(graph)
         graph_clean_up(graph)
 
-    fuse_sequence_of_reshapes(graph)
+    FuseReshapesSequence().find_and_replace_pattern(graph)
+    RemoveRedundantReshapes().find_and_replace_pattern(graph)
 
     input_names = find_inputs(graph)
     mf = []
     try:
         if mean_file and len(original_shapes) == 1:
-            mf = loader.parse_mean(mean_file, original_shapes[input_names[0]], mean_file_offsets)
+            mf = loader.parse_mean(mean_file, original_shapes[input_names[0]], mean_file_offsets, caffe_pb2)
         elif mean_file:
             raise Error('Mean file for topologies with multiple inputs is not supported. ' +
                         refer_to_faq_msg(9))
@@ -138,6 +145,11 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
         raise Error('Cannot load or process mean file: value error {}. ' +
                     refer_to_faq_msg(10), str(e)) from e
 
+    merge_nodes_permutations(graph)
+    permute_data_nodes_attrs(graph)
+    permute_op_nodes_attrs(graph)
+
+    graph_clean_up(graph)
     class_registration.apply_replacements(graph, class_registration.ClassType.BACK_REPLACER)
 
     remove_const_ops(graph)

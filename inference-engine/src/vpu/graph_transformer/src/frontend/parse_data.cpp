@@ -81,7 +81,15 @@ void FrontEnd::parseInputAndOutputData(const Model::Ptr& model) {
         auto ieBlob = constInfo.second;
         IE_ASSERT(ieBlob != nullptr);
 
-        DataDesc vpuDesc(ieData->getTensorDesc());
+        auto ieDesc = ieData->getTensorDesc();
+
+        if (ieDesc.getPrecision() != ie::Precision::FP16) {
+            if (ieDesc.getPrecision() != ie::Precision::FP32 || !env.config.allowFP32Models) {
+                VPU_THROW_EXCEPTION << "Unsupported precision " << ieDesc.getPrecision() << "for data " << ieData->getName();
+            }
+        }
+
+        DataDesc vpuDesc(ieDesc);
         vpuDesc.setType(DataType::FP16);
 
         auto vpuData = model->addConstData(

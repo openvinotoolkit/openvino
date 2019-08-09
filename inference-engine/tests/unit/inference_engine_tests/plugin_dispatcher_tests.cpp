@@ -20,7 +20,7 @@
 #include "ie_plugin_dispatcher.hpp"
 #include "ie_plugin_ptr.hpp"
 #include "ie_device.hpp"
-
+#include <fstream>
 
 using namespace InferenceEngine;
 using namespace ::testing;
@@ -113,15 +113,10 @@ TEST_F(PluginDispatcherTests, triesToLoadEveryPluginSuitableForDevice) {
 #ifdef ENABLE_MKL_DNN
     EXPECT_CALL(disp, getPluginByName(nameExt("MKLDNNPlugin"))).Times(1);
 #endif
-#ifdef ENABLE_OPENVX_CVE
-    EXPECT_CALL(disp, getPluginByName(nameExt("OpenVXPluginCVE"))).Times(1);
-#elif defined ENABLE_OPENVX
-    EXPECT_CALL(disp, getPluginByName(nameExt("OpenVXPlugin"))).Times(1);
-#endif
     ASSERT_THROW(disp.getSuitablePlugin(TargetDevice::eCPU), InferenceEngine::details::InferenceEngineException);
 }
 
-#if defined(ENABLE_OPENVX) || defined(ENABLE_MKL_DNN) || defined(ENABLE_OPENVX_CVE)
+#if defined(ENABLE_MKL_DNN)
 TEST_F(PluginDispatcherTests, returnsIfLoadSuccessfull) {
     MockDispatcher disp({ "./", "./lib" });
     PluginDispatcher dispatcher({ "", "./", "./lib" });
@@ -130,4 +125,36 @@ TEST_F(PluginDispatcherTests, returnsIfLoadSuccessfull) {
     EXPECT_CALL(disp, getPluginByName(_)).WillOnce(Return(ptr));
     ASSERT_NO_THROW(disp.getSuitablePlugin(TargetDevice::eCPU));
 }
+
+#if defined ENABLE_MKL_DNN && !defined _WIN32 && !defined __CYGWIN__ && !defined __APPLE__
+TEST_F(PluginDispatcherTests, libMKLDNNPluginSymbolsExposure) {
+    std::vector<std::string> locations = {"/libMKLDNNPlugin.so", "/lib/libMKLDNNPlugin.so"};
+    char path[PATH_MAX];
+    if (readlink("/proc/self/exe", path, sizeof(path)/sizeof(path[0])) < 0) {
+        return;
+    }
+
+    std::string Path = path;
+    for (auto location : locations) {
+        std::string fullPath = Path.substr(0, Path.find_last_of("/")) + location;
+        if (std::ifstream(fullPath.c_str()).good()) {
+            std::string command = "readelf --dyn-syms ";
+            command += fullPath;
+            command += " | grep UNIQUE | c++filt";
+            std::array<char, 128> buffer;
+            std::string result;
+            std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
+            if (pipe) {
+                while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+                    result += buffer.data();
+                }
+            }
+            if (result.size())
+                FAIL() << " Visibility is not hidden and there are symbols exposure:\n" << result << std::endl;
+        }
+    }
+
+}
+#endif
+
 #endif

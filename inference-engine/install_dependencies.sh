@@ -5,7 +5,7 @@
 
 params=$@
 
-function yes_or_no {
+yes_or_no() {
     if [ "$params" == "-y" ]; then
         return 0
     fi
@@ -20,7 +20,7 @@ function yes_or_no {
 }
 
 # install dependencies
-if [[ -f /etc/lsb-release ]]; then
+if [ -f /etc/lsb-release ]; then
     # Ubuntu
     sudo -E apt update
     sudo -E apt-get install -y \
@@ -56,7 +56,7 @@ if [[ -f /etc/lsb-release ]]; then
     else
         sudo -E apt-get install -y libpng-dev
     fi
-elif [[ -f /etc/redhat-release ]]; then
+elif [ -f /etc/redhat-release ]; then
     # CentOS 7.x
     sudo -E yum install -y centos-release-scl epel-release
     sudo -E yum install -y \
@@ -123,6 +123,40 @@ elif [[ -f /etc/redhat-release ]]; then
     else
         echo "FFmpeg installation skipped. You may build FFmpeg from sources as described here: https://trac.ffmpeg.org/wiki/CompilationGuide/Centos"
         echo
+    fi
+elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
+    # Raspbian
+    sudo -E apt update
+    sudo -E apt-get install -y \
+            build-essential \
+            cmake \
+            curl \
+            wget \
+            libssl-dev \
+            ca-certificates \
+            git \
+            libboost-regex-dev \
+            libgtk2.0-dev \
+            pkg-config \
+            unzip \
+            automake \
+            libtool \
+            autoconf \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libglib2.0-dev \
+            libgtk2.0-dev \
+            libswscale-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libgstreamer1.0-0 \
+            gstreamer1.0-plugins-base \
+            libusb-1.0-0-dev \
+            libopenblas-dev
+    if apt-cache search --names-only '^libpng12'| grep -q libpng12; then
+        sudo -E apt-get install -y libpng12-dev
+    else
+        sudo -E apt-get install -y libpng-dev
     fi
 else
     echo "Unknown OS, please install build dependencies manually"

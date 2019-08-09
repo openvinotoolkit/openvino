@@ -85,7 +85,7 @@ status_t deconv_desc_init(deconvolution_desc_t *deconv_desc,
     const int g = with_groups ? weights_desc->dims[0] : 1;
     bool consistency = true
             && src_desc->ndims == dst_desc->ndims
-            && utils::one_of(src_desc->ndims, 4, 5)
+            && utils::one_of(src_desc->ndims, 3, 4, 5)
             && utils::one_of(weights_desc->ndims, src_desc->ndims,
                     src_desc->ndims + 1)
             && (with_bias ? bias_desc->ndims == 1 : true)

@@ -23,6 +23,8 @@
 # include <windows.h>
 #endif
 
+#include <bitset>
+
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 #include <details/caseless.hpp>
@@ -82,6 +84,7 @@ VPU_PACKED(KernelHdr {
     uint32_t sectionSize;   // Section size, offset to the next kernel
     uint32_t argOffset;     // offset to arguments
     uint32_t stackSize;     // Size of the stack required for kernel
+    uint32_t stackSizeWI;     // Size of the stack required for kernel per WI
 };)
 
 VPU_PACKED(KernelArgHdr {
@@ -91,6 +94,14 @@ VPU_PACKED(KernelArgHdr {
     uint32_t size;
     uint32_t laneSize;
 };)
+
+enum Flags {
+  CL_Vecz          = 0x01,
+  CL_Unrolled      = 0x02,
+  CL_Predicated    = 0x04,
+  CL_Dma           = 0x08,
+  CL_VeczDma       = 0x10
+};
 
 std::pair<const Elf32Section*, const Elf32Section*> findSymbolTable(
         const char* ELFData) {
@@ -145,7 +156,7 @@ uint32_t getKernelEntry(const char* ELFData, const std::string& kernelName) {
     VPU_THROW_EXCEPTION << "Cannot find kernel entry point for custom kernel " << kernelName;
 }
 
-std::vector<std::string> deduceKernelParameters(
+SmallVector<std::string> deduceKernelParameters(
         const char* ELFData,
         uint32_t kernelAddress) {
     ie::details::CaselessEq<std::string> cmp;
@@ -174,7 +185,7 @@ std::vector<std::string> deduceKernelParameters(
     }
     IE_ASSERT(kernelArgStrings != nullptr);
 
-    std::vector<std::string> parameters;
+    SmallVector<std::string> parameters;
     for (size_t i = 0; i < numSymEntries; i++) {
         if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.info")) {
             auto ptr = ELFData + shdr[sym[i].stShndx].shOffset;
@@ -188,7 +199,9 @@ std::vector<std::string> deduceKernelParameters(
                     auto aHdr = reinterpret_cast<const KernelArgHdr*>(
                         reinterpret_cast<const char*>(&(kHdr->argOffset)) + sizeof(kHdr->argOffset) + kHdr->argOffset);
 
-                    auto numArgs = reinterpret_cast<const int*>(kHdr + 1)[(kHdr->flags == 1) ? 2 : 0];
+                    std::bitset<5> optBits(kHdr->flags);
+                    auto numArgs = reinterpret_cast<const int*>(kHdr + 1)[optBits.count()*2];
+
                     for (int n = 0; n < numArgs; n++, aHdr++) {
                         parameters.push_back(kernelArgStrings + aHdr->stringOffset);
                     }
@@ -196,7 +209,7 @@ std::vector<std::string> deduceKernelParameters(
                     break;
                 }
 
-                metaOffset += kHdr->sectionSize;
+                metaOffset += kHdr->sectionSize + sizeof(kHdr->address) + sizeof(kHdr->flags);
             }
         }
     }
@@ -247,7 +260,7 @@ std::pair<uint32_t, uint32_t> deduceVectorized(
                     return std::make_pair(vecInfo[1], vecInfo[0]-phdr->pVaddr);
                 }
 
-                metaOffset += kHdr->sectionSize;
+                metaOffset += kHdr->sectionSize + sizeof(kHdr->address) + sizeof(kHdr->flags);
             }
         }
     }
@@ -257,10 +270,10 @@ std::pair<uint32_t, uint32_t> deduceVectorized(
 
 }  // namespace
 
-ie::details::caseless_map<std::string, CustomLayer::Ptr> CustomLayer::loadFromFile(
+ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLayer::loadFromFile(
         const std::string& configFile,
         bool canBeMissed) {
-    ie::details::caseless_map<std::string, CustomLayer::Ptr> out;
+    ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> out;
 
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load_file(configFile.c_str());
@@ -313,15 +326,27 @@ ie::details::caseless_map<std::string, CustomLayer::Ptr> CustomLayer::loadFromFi
 
         layer->loadSingleLayer(r);
 
-        out[layer->_layerName] = layer;
+        out[layer->_layerName].push_back(layer);
     }
 
     return out;
 }
 
+int CustomLayer::maxShaves() const {
+    return _maxShaves;
+}
+
+void CustomLayer::setStageNumInputs(int id) {
+    _stageNumInputs = id;
+}
+
+int CustomLayer::stageNumInputs() const {
+    return _stageNumInputs;
+}
+
 int CustomLayer::kernelAddress(int idx) const {
     for (const auto& x : _kernelAddress) {
-        if ((x.first % idx) == 0) {
+        if ((idx % x.first) == 0) {
             return x.second;
         }
     }
@@ -348,16 +373,28 @@ void CustomLayer::loadSingleLayer(const pugi::xml_node& node) {
     auto version = XMLParseUtils::GetIntAttr(node, "version", -1);
     IE_ASSERT(version == 1);
 
-    _layerName = XMLParseUtils::GetStrAttr(node, "name", "");
-    if (_layerName.empty()) {
+    auto layerStage = XMLParseUtils::GetStrAttr(node, "stage", "");
+    auto layerName = XMLParseUtils::GetStrAttr(node, "name", "");
+    if (layerName.empty()) {
         VPU_THROW_EXCEPTION << "Missing Layer name in CustomLayer";
     }
+    _layerName = layerStage.empty() ? layerName : layerName + "@stage_" + layerStage;
+
+    _maxShaves = XMLParseUtils::GetIntAttr(node, "max-shaves", 0);
+
+    processWhere(node.child("Where"));
 
     processKernelNode(node.child("Kernel"));
 
     processParametersNode(node.child("Parameters"));
 
     processWorkSizesNode(node.child("WorkSizes"));
+}
+
+void CustomLayer::processWhere(const pugi::xml_node& node) {
+    for (auto child : node.attributes()) {
+        _whereParams[child.name()] = child.value();
+    }
 }
 
 void CustomLayer::processKernelNode(const pugi::xml_node& node) {
@@ -389,6 +426,10 @@ void CustomLayer::processKernelNode(const pugi::xml_node& node) {
         std::ostringstream contentStream;
         contentStream << inputFile.rdbuf();
         _kernelBinary.append(contentStream.str());
+
+        if (_kernelBinary.size() >= 16*1024) {
+            VPU_THROW_EXCEPTION << "Kernel binary exceeds 16KB." << fileName;
+        }
     }
 
     _kernelAddress[1] = getKernelEntry(&_kernelBinary[0], _kernelEntry);
@@ -416,6 +457,12 @@ void CustomLayer::processParametersNode(const pugi::xml_node& node) {
             kp.type = CustomParamType::Input;
         } else if (cmp(typeStr, "output")) {
             kp.type = CustomParamType::Output;
+        } else if (cmp(typeStr, "input_buffer")) {
+            kp.type = CustomParamType::InputBuffer;
+        } else if (cmp(typeStr, "output_buffer")) {
+            kp.type = CustomParamType::OutputBuffer;
+        } else if (cmp(typeStr, "data")) {
+            kp.type = CustomParamType::Data;
         } else {
             VPU_THROW_EXCEPTION << "Tensor node has an invalid type " << typeStr;
         }
@@ -433,6 +480,52 @@ void CustomLayer::processParametersNode(const pugi::xml_node& node) {
         kp.portIndex = XMLParseUtils::GetIntAttr(tensorNode, "port-index", -1);
         if (kp.portIndex == -1) {
             VPU_THROW_EXCEPTION << "Tensor node has no port-index";
+        }
+
+        if (kp.type == CustomParamType::InputBuffer || kp.type == CustomParamType::OutputBuffer) {
+            std::string bufferSize(XMLParseUtils::GetStrAttr(tensorNode, "size", ""));
+            while (!bufferSize.empty()) {
+                auto pos = bufferSize.find_first_of(',');
+                auto rule = bufferSize.substr(0, pos);
+                if (!isLegalSizeRule(rule)) {
+                    VPU_THROW_EXCEPTION << "Invalid BufferSize " << rule;
+                }
+
+                kp.bufferSizeRules.emplace_back(std::move(rule));
+
+                if (pos == std::string::npos) {
+                    bufferSize.clear();
+                } else {
+                    bufferSize = bufferSize.substr(pos + 1, std::string::npos);
+                }
+            }
+
+            kp.dimIdx = -1;
+            std::string dim_src_string(XMLParseUtils::GetStrAttr(tensorNode, "dim", ""));
+            if (!dim_src_string.empty()) {
+                // Try to locate index separator.
+                auto pos = dim_src_string.find_first_of(',');
+                auto flag = dim_src_string.substr(0, pos);
+                if (cmp(flag, "input")) {
+                    kp.dimSource = CustomDimSource::Input;
+                } else if (cmp(flag, "output")) {
+                    kp.dimSource = CustomDimSource::Output;
+                } else {
+                    VPU_THROW_EXCEPTION << "Invalid WG dim source " << flag;
+                }
+
+                int idx = 0;
+                if (pos != std::string::npos) {
+                    // User explicitly set input index in config.
+                    auto input_idx_string = dim_src_string.substr(pos + 1, std::string::npos);
+                    idx = std::stoi(input_idx_string);
+                }
+                if (idx < 0) {
+                    VPU_THROW_EXCEPTION << "Invalid tensor index " << idx;
+                }
+
+                kp.dimIdx = idx;
+            }
         }
 
         kp.irSource.clear();
@@ -480,7 +573,7 @@ void CustomLayer::processParametersNode(const pugi::xml_node& node) {
             VPU_THROW_EXCEPTION << "Scalar node has no arg-name";
         }
 
-        kp.portIndex = -1;
+        kp.portIndex = XMLParseUtils::GetIntAttr(scalarNode, "port-index", 0);
 
         kp.irSource = XMLParseUtils::GetStrAttr(scalarNode, "source", "");
         if (kp.irSource.empty()) {
@@ -499,27 +592,31 @@ void CustomLayer::processWorkSizesNode(const pugi::xml_node & node) {
         VPU_THROW_EXCEPTION << "Wrong node, expected WorkSizes found " << nodeName;
     }
 
-    _wgDimInputIdx = -1;
+    _wgDimIdx = -1;
     std::string dim_src_string(node.attribute("dim").as_string(""));
-    if (!dim_src_string.empty() && !cmp(dim_src_string, "output")) {
+    if (!dim_src_string.empty()) {
         // Try to locate index separator.
         auto pos = dim_src_string.find_first_of(',');
         auto flag = dim_src_string.substr(0, pos);
-        if (!cmp(flag, "input")) {
+        if (cmp(flag, "input")) {
+            _wgDimSource = CustomDimSource::Input;
+        } else if (cmp(flag, "output")) {
+            _wgDimSource = CustomDimSource::Output;
+        } else {
             VPU_THROW_EXCEPTION << "Invalid WG dim source " << flag;
         }
 
-        int input_idx = 0;
+        int idx = 0;
         if (pos != std::string::npos) {
             // User explicitly set input index in config.
             auto input_idx_string = dim_src_string.substr(pos + 1, std::string::npos);
-            input_idx = std::stoi(input_idx_string);
+            idx = std::stoi(input_idx_string);
         }
-        if (input_idx < 0) {
-            VPU_THROW_EXCEPTION << "Invalid input tensor index " << input_idx;
+        if (idx < 0) {
+            VPU_THROW_EXCEPTION << "Invalid tensor index " << idx;
         }
 
-        _wgDimInputIdx = input_idx;
+        _wgDimIdx = idx;
     }
 
     std::string gws(node.attribute("global").as_string(""));

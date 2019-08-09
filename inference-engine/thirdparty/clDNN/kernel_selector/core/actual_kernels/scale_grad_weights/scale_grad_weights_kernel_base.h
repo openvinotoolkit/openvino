@@ -19,45 +19,40 @@
 #include "training_kernel_base.h"
 #include "kernel_selector_params.h"
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // scale_grad_weights_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct scale_grad_weights_params : public training_params
-    {
-        scale_grad_weights_params() : training_params(KernelType::SCALE_GRAD_WEIGHTS) {}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// scale_grad_weights_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct scale_grad_weights_params : public training_params {
+    scale_grad_weights_params() : training_params(KernelType::SCALE_GRAD_WEIGHTS) {}
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            ParamsKey k = training_params::GetParamsKey();
+    virtual ParamsKey GetParamsKey() const {
+        ParamsKey k = training_params::GetParamsKey();
 
-            return k;
-        }
-    };
+        return k;
+    }
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // scale_grad_weights_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct scale_grad_weights_optional_params : training_optional_params
-    {
-        scale_grad_weights_optional_params() : training_optional_params(KernelType::SCALE_GRAD_WEIGHTS) {}
-    };
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// scale_grad_weights_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct scale_grad_weights_optional_params : training_optional_params {
+    scale_grad_weights_optional_params() : training_optional_params(KernelType::SCALE_GRAD_WEIGHTS) {}
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // ScaleGradWeightsKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class ScaleGradWeightsKernelBase : public training_kernel_base
-    {
-    public:
-        using training_kernel_base::training_kernel_base;
-        virtual ~ScaleGradWeightsKernelBase() {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ScaleGradWeightsKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class ScaleGradWeightsKernelBase : public training_kernel_base {
+public:
+    using training_kernel_base::training_kernel_base;
+    virtual ~ScaleGradWeightsKernelBase() {}
 
-        using DispatchData = CommonDispatchData;
+    using DispatchData = CommonDispatchData;
 
-    protected:
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const;
-        virtual JitConstants GetJitConstants(const scale_grad_weights_params& params) const;
-        virtual DispatchData SetDefault(const scale_grad_weights_params& params) const;
-    };
-}
+protected:
+    virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const;
+    virtual JitConstants GetJitConstants(const scale_grad_weights_params& params) const;
+    virtual DispatchData SetDefault(const scale_grad_weights_params& params) const;
+};
+}  // namespace kernel_selector

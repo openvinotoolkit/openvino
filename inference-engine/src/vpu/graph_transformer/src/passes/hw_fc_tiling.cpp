@@ -31,7 +31,7 @@ namespace {
 
 std::tuple<int, int, HwFullyConnectedTileInfo> splitFullyConnected(
         int inN, int outN,
-        const std::vector<HwOpMode>& modes = {HwOpMode::MODE_1_256, HwOpMode::MODE_2_128, HwOpMode::MODE_4_64, HwOpMode::MODE_8_32, HwOpMode::MODE_16_16}) {
+        const SmallVector<HwOpMode>& modes = {HwOpMode::MODE_1_256, HwOpMode::MODE_2_128, HwOpMode::MODE_4_64, HwOpMode::MODE_8_32, HwOpMode::MODE_16_16}) {
     struct Solution final {
         HwOpMode mode = HwOpMode::MODE_1_256;
         int newInN = 0;
@@ -99,56 +99,41 @@ private:
         return std::make_shared<HwFcRelayoutStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>&,
             ScalePropagationStep) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
         auto output = _outputEdges[0]->output();
 
-        DataMap<DimsOrder> out;
-
-        out[input] = input->desc().dimsOrder().createMovedDim(Dim::C, 2);
-        out[output] = output->desc().dimsOrder().createMovedDim(Dim::C, 2);
-
-        return out;
+        _orderInfo.setInput(_inputEdges[0], input->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, 2));
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto output = _outputEdges[0]->output();
 
-        DataMap<StridesRequirement> out;
-
-        out[output] = StridesRequirement().add(1, DimStride::Aligned);
-
-        return out;
+        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement().add(1, DimStride::Aligned));
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
-
-        return out;
+        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
@@ -291,7 +276,7 @@ void PassImpl::run(const Model::Ptr& model) {
         model->disconnectStageDatas(origStage);
 
         //
-        // Expand input/output if needed
+        // Broadcast input/output if needed
         //
 
         auto origInputDimC = hwInput->desc().dim(Dim::C);
@@ -306,9 +291,9 @@ void PassImpl::run(const Model::Ptr& model) {
                 "@extended",
                 newDesc);
 
-            _stageBuilder->addExpandStage(
+            _stageBuilder->addBroadcastStage(
                 model,
-                origStage->name() + "@expand-input",
+                origStage->name() + "@broadcast-input",
                 origStage->origLayer(),
                 hwInput,
                 hwInputExtended);
@@ -352,7 +337,10 @@ void PassImpl::run(const Model::Ptr& model) {
                 auto origBiasesPtr = origBiasesContent->get<fp16_t>();
                 IE_ASSERT(origBiasesPtr != nullptr);
 
-                auto hwBiasesBlob = ie::make_shared_blob<fp16_t>(ie::Precision::FP16, ie::Layout::C, {static_cast<size_t>(extendedOutputDimC)});
+                auto hwBiasesBlob = ie::make_shared_blob<fp16_t>(InferenceEngine::TensorDesc(
+                    ie::Precision::FP16,
+                    {static_cast<size_t>(extendedOutputDimC)},
+                    ie::Layout::C));
                 hwBiasesBlob->allocate();
 
                 auto hwBiasesBlobPtr = hwBiasesBlob->buffer().as<fp16_t*>();

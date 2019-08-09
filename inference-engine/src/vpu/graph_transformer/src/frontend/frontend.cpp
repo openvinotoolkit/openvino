@@ -9,6 +9,8 @@
 #include <string>
 #include <tuple>
 #include <set>
+#include <map>
+#include <vector>
 
 #include <vpu/compile_env.hpp>
 
@@ -48,8 +50,10 @@ ie::details::caseless_map<std::string, parser_t> g_parsers = {
     {"Copy",               &FrontEnd::parseCopy},
     {"Reshape",            &FrontEnd::parseReshape},
     {"ELU",                &FrontEnd::parseELU},
-    // Flatten is represented as Reshape in VPU model
+    // Flatten, Squeeze and Unsqueeze are represented as Reshape in VPU model
     {"Flatten",            &FrontEnd::parseReshape},
+    {"Squeeze",            &FrontEnd::parseReshape},
+    {"Unsqueeze",          &FrontEnd::parseReshape},
     {"Crop",               &FrontEnd::parseCrop},
     {"Tile",               &FrontEnd::parseTile},
     {"Normalize",          &FrontEnd::parseNormalize},
@@ -71,6 +75,11 @@ ie::details::caseless_map<std::string, parser_t> g_parsers = {
     {"Resample",           &FrontEnd::parseResample},
     {"ArgMax",             &FrontEnd::parseArgMax},
     {"LSTMSequence",       &FrontEnd::parseRNN},
+    {"GEMM",               &FrontEnd::parseGEMM},
+    {"Log",                &FrontEnd::parseLog},
+    {"ReverseSequence",    &FrontEnd::parseReverseSequence},
+    {"Gather",             &FrontEnd::parseGather},
+    {"ReduceAnd",          &FrontEnd::parseReduce},
 };
 
 std::atomic<int> g_counter(0);
@@ -131,17 +140,39 @@ void FrontEnd::eliminatePriorBoxData(const Model::Ptr& model) {
     }
 }
 
+static bool hasSuitableCustom(const std::vector<CustomLayer::Ptr>& customLayers,
+                              const std::map<std::string, std::string>& layerParams) {
+    ie::details::CaselessEq<std::string> cmp;
+
+    for (const auto & customLayer : customLayers) {
+        bool suitable = true;
+        for (auto whereParam : customLayer->whereParams()) {
+            if (layerParams.find(whereParam.first) == layerParams.end() || !cmp(layerParams.find(whereParam.first)->second, whereParam.second)) {
+                suitable = false;
+            }
+        }
+        if (suitable) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 Model::Ptr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
     const auto& env = CompileEnv::get();
 
+    env.log->debug("Build initial Model");
+    VPU_LOGGER_SECTION(env.log);
+
     auto model = runCommonPasses(network, LayersOrder::DFS);
 
+    DataVector inputs, outputs;
     for (const auto& layer : _ieNetworkParser.orderedLayers) {
         IE_ASSERT(layer != nullptr);
 
-        env.log->debug("try to parse layer %s", layer->name);
+        env.log->debug("Try to parse layer [%s]", layer->name);
 
-        DataVector inputs, outputs;
         getInputAndOutputData(model, layer, inputs, outputs);
 
         if (env.netConfig.skipAllLayers() ||
@@ -150,10 +181,14 @@ Model::Ptr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
             continue;
         }
 
-        auto it =
-                (_customLayers.count(layer->type) > 0) ?
-                    g_parsers.find("Custom") :
-                    g_parsers.find(layer->type);
+        auto customLayerFound0 = _customLayers.find(layer->type);
+        auto customLayerFound1 = _customLayers.find(layer->type + "@stage_0");
+
+        auto it = (((customLayerFound0 != _customLayers.end()) && hasSuitableCustom(customLayerFound0->second, layer->params)) ||
+                   ((customLayerFound1 != _customLayers.end()) && hasSuitableCustom(customLayerFound1->second, layer->params)) )
+                   ? g_parsers.find("Custom")
+                   : g_parsers.find(layer->type);
+
         if (it == g_parsers.end()) {
             if (env.config.ignoreUnknownLayers) {
                 _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
@@ -188,12 +223,12 @@ std::set<std::string> FrontEnd::checkSupportedLayers(const ie::ICNNNetwork& netw
 
     std::set<std::string> layerNames;
 
+    DataVector inputs, outputs;
     for (const auto& layer : _ieNetworkParser.orderedLayers) {
         IE_ASSERT(layer != nullptr);
 
         env.log->debug("Try to parse layer %s", layer->name);
 
-        DataVector inputs, outputs;
         getInputAndOutputData(model, layer, inputs, outputs);
 
         auto it =
@@ -230,8 +265,7 @@ Model::Ptr FrontEnd::runCommonPasses(
 
     if (!env.config.customLayers.empty()) {
         if (env.platform == Platform::MYRIAD_2) {
-            VPU_THROW_EXCEPTION
-                    << "Custom layers are not supported for Myriad 2 platforms";
+            VPU_LOG_AND_THROW(env.log, "Custom layers are not supported for Myriad 2 platforms");
         }
 
         _customLayers = CustomLayer::loadFromFile(env.config.customLayers);
@@ -350,7 +384,7 @@ void FrontEnd::getInputAndOutputData(
             dataDesc.setType(DataType::FP16);
 
             outputs[i] = model->addNewData(
-                layerOutput->name,
+                layerOutput->getName(),
                 dataDesc);
 
             bindData(outputs[i], layerOutput);

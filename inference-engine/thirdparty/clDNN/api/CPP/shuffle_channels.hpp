@@ -20,8 +20,7 @@
 #include "../C/shuffle_channels.h"
 #include "primitive.hpp"
 
-namespace  cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -31,8 +30,7 @@ namespace  cldnn
 
 /// @brief
 /// @details
-struct shuffle_channels : public primitive_base<shuffle_channels, CLDNN_PRIMITIVE_DESC(shuffle_channels)>
-{
+struct shuffle_channels : public primitive_base<shuffle_channels, CLDNN_PRIMITIVE_DESC(shuffle_channels)> {
     CLDNN_DECLARE_PRIMITIVE(shuffle_channels)
 
     /// @brief Constructs shuffle_channels primitive.
@@ -40,35 +38,23 @@ struct shuffle_channels : public primitive_base<shuffle_channels, CLDNN_PRIMITIV
     /// @param input Input dictionary primitive id.
     /// @param group The number of groups to split the channel dimension.
     /// @param axis The index of the channel dimension.
-    shuffle_channels(
-            const primitive_id& id,
-            const primitive_id& input,
-            const int32_t group,
-            const int32_t axis = 1,
-            const padding& output_padding = padding()
-    )
-            : primitive_base(id, {input}, output_padding)
-            , group(group)
-            , axis(axis)
-    {
-    }
+    shuffle_channels(const primitive_id& id,
+                     const primitive_id& input,
+                     const int32_t group,
+                     const int32_t axis = 1,
+                     const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding), group(group), axis(axis) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{shuffle_channels}
-    shuffle_channels(const dto* dto)
-            : primitive_base(dto)
-            , group(dto->group)
-            , axis(dto->axis)
-    {
-    }
+    shuffle_channels(const dto* dto) : primitive_base(dto), group(dto->group), axis(dto->axis) {}
 
     /// @brief The number of groups to split the channel dimension. This number must evenly divide the channel dimension size.
     int32_t group;
     /// @brief The index of the channel dimension (default is 1).
     int32_t axis;
-protected:
 
-    void update_dto(dto& dto) const override
-    {
+protected:
+    void update_dto(dto& dto) const override {
         dto.group = group;
         dto.axis = axis;
     }
@@ -76,4 +62,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

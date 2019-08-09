@@ -1,4 +1,4 @@
-#if defined(FP32)
+#if defined(FP32) || defined(BF16BF16F32)
 INST_TEST_CASE(TestGEMM,
     test_params{'n', 'n', 3, 2, 1, 1.0, 0.0, 2, 5, 8, {}, true, mkldnn_invalid_arguments},
     test_params{'t', 'n', 3, 2, 2, 1.0, 0.0, 1, 5, 8, {}, true, mkldnn_invalid_arguments},

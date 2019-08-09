@@ -389,6 +389,7 @@ private:
     using reg64_t = const Xbyak::Reg64;
     enum {typesize = sizeof(float)};
     static const int max_ur_w;
+    static const int min_oh_reduce;
 
     reg64_t param = abi_param1;
     reg64_t reg_input = rax;
@@ -413,7 +414,8 @@ private:
     reg64_t aux_reg_kernel = r13;
     reg64_t reg_bias = rbx;
 
-    inline void bias_kernel();
+    inline void bias_kernel_2d();
+    inline void bias_kernel_3d();
     inline void maybe_zero_kernel();
     inline void compute_oh_step_unroll_ow_icblock(int ic_block_step,
             int max_ur_w);
@@ -439,6 +441,8 @@ private:
     inline void compute_oh_step_common(int ic_block_step, int max_ur_w);
     inline void compute_oh_step_disp();
     inline void compute_oh_loop_common();
+    inline void compute_oh_loop_partial();
+    inline void compute_od_loop_partial();
 
     inline bool compute_full_spat_loop();
     inline bool flat_4ops_compute();

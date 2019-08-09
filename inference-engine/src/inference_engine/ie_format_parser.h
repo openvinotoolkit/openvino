@@ -44,20 +44,21 @@ struct LayerParseParameters {
 
     std::function<void(const TBlob<uint8_t>::Ptr &weights)> internalWeightSet;
 
-    int underIRVersion = 0;
+    size_t underIRVersion = 0;
 
     void addOutputPort(const LayerPortData &port);
     void addInputPort(const LayerPortData &port);
 };
 
 class BaseCreator {
+private:
     std::string type_;
+
 protected:
     explicit BaseCreator(const std::string& type) : type_(type) {}
 
 public:
     virtual ~BaseCreator() {}
-    static int version_;
 
     virtual CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) = 0;
 
@@ -69,7 +70,7 @@ public:
 
 class INFERENCE_ENGINE_API_CLASS(FormatParser) : public IFormatParser {
 public:
-    explicit FormatParser(int version);
+    explicit FormatParser(size_t version);
 
     CNNNetworkImplPtr Parse(pugi::xml_node& root) override;
 
@@ -82,13 +83,13 @@ protected:
     std::map<std::string, LayerParseParameters> layersParseInfo;
 
 private:
-    int _version;
+    size_t _version;
     Precision _defPrecision;
+    std::vector<std::shared_ptr<BaseCreator>> creators;
     std::map<std::string, DataPtr> _portsToData;
 
     CNNNetworkImplPtr _network;
     std::map<std::string, std::vector<WeightSegment>> _preProcessSegments;
-    const std::vector<std::shared_ptr<BaseCreator> > &getCreators() const;
     void ParsePort(LayerParseParameters::LayerPortData& port, pugi::xml_node &node) const;
     void ParseGenericParams(pugi::xml_node& node, LayerParseParameters& layerParsePrms) const;
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& prms) const;
@@ -99,6 +100,9 @@ private:
 
     void ParsePreProcess(pugi::xml_node& node);
     void ParseStatisticSection(const pugi::xml_node& statNode);
+
+    // Generate different set of creators depending on required IR version
+    static std::vector<std::shared_ptr<BaseCreator> > generateCreators(int version);
 };
 }  // namespace details
 }  // namespace InferenceEngine

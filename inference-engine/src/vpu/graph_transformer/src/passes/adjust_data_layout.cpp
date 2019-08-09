@@ -11,6 +11,7 @@
 #include <string>
 #include <set>
 #include <algorithm>
+#include <vector>
 
 namespace vpu {
 
@@ -22,25 +23,22 @@ private:
         return std::make_shared<ConvertOrderStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>&,
             ScalePropagationStep) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
-        return DataMap<DimsOrder>();
+    void propagateDataOrderImpl() const override {
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+    void getDataStridesRequirementsImpl() const override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
@@ -156,7 +154,7 @@ void PassImpl::run(const Model::Ptr& model) {
 
     {
         for (const auto& stage : model->getStages()) {
-            auto curStageInfo = stage->propagateDataOrder();
+            const auto& curStageInfo = stage->propagateDataOrder();
 
             //
             // Check inputs.
@@ -165,12 +163,11 @@ void PassImpl::run(const Model::Ptr& model) {
             for (const auto& inEdge : stage->inputEdges()) {
                 auto input = inEdge->input();
 
-                auto orderIt = curStageInfo.find(input);
-                if (orderIt == curStageInfo.end()) {
+                if (!curStageInfo.hasInput(inEdge)) {
                     continue;
                 }
 
-                auto requiredOrder = orderIt->second;
+                auto requiredOrder = curStageInfo.getInput(inEdge);
 
                 if (input->desc().dimsOrder() == requiredOrder) {
                     continue;
@@ -206,19 +203,17 @@ void PassImpl::run(const Model::Ptr& model) {
 
                 auto requiredOrder = output->desc().dimsOrder();
 
-                auto orderIt = curStageInfo.find(output);
-                if (orderIt != curStageInfo.end()) {
-                    requiredOrder = orderIt->second;
+                if (curStageInfo.hasOutput(outEdge)) {
+                    requiredOrder = curStageInfo.getOutput(outEdge);
                 } else {
                     //
                     // Check consumers.
                     //
 
-                    for (const auto& consumer : output->consumers()) {
-                        auto consumerInfo = consumer->propagateDataOrder();
-                        auto consumerOrderIt = consumerInfo.find(output);
-                        if (consumerOrderIt != consumerInfo.end()) {
-                            requiredOrder = consumerOrderIt->second;
+                    for (const auto& consumerEdge : output->consumerEdges()) {
+                        const auto& consumerInfo = consumerEdge->consumer()->propagateDataOrder();
+                        if (consumerInfo.hasInput(consumerEdge)) {
+                            requiredOrder = consumerInfo.getInput(consumerEdge);
                             break;
                         }
                     }
@@ -259,7 +254,7 @@ void PassImpl::run(const Model::Ptr& model) {
 
     {
         for (const auto& stage : model->getStages()) {
-            auto curStageInfo = stage->getDataStridesRequirements();
+            const auto& curStageInfo = stage->getDataStridesRequirements();
 
             //
             // Check inputs.
@@ -270,9 +265,8 @@ void PassImpl::run(const Model::Ptr& model) {
 
                 auto requiredStrides = StridesRequirement();
 
-                auto strideIt = curStageInfo.find(input);
-                if (strideIt != curStageInfo.end()) {
-                    requiredStrides = strideIt->second;
+                if (curStageInfo.hasInput(inEdge)) {
+                    requiredStrides = curStageInfo.getInput(inEdge);
                 }
 
                 if (input->checkStrides(requiredStrides)) {
@@ -318,21 +312,18 @@ void PassImpl::run(const Model::Ptr& model) {
 
                 auto requiredStrides = StridesRequirement();
 
-                auto strideIt = curStageInfo.find(output);
-
-                if (strideIt != curStageInfo.end()) {
-                    requiredStrides = strideIt->second;
+                if (curStageInfo.hasOutput(outEdge)) {
+                    requiredStrides = curStageInfo.getOutput(outEdge);
                 }
 
                 //
                 // Check consumers.
                 //
 
-                for (const auto& consumer : output->consumers()) {
-                    auto consumerInfo = consumer->getDataStridesRequirements();
-                    auto consumerStrideIt = consumerInfo.find(output);
-                    if (consumerStrideIt != consumerInfo.end()) {
-                        auto consumerRequiredStrides = consumerStrideIt->second;
+                for (const auto& consumerEdge : output->consumerEdges()) {
+                    const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
+                    if (consumerInfo.hasInput(consumerEdge)) {
+                        auto consumerRequiredStrides = consumerInfo.getInput(consumerEdge);
 
                         for (int i = 0; i < output->desc().numDims(); ++i) {
                             if (requiredStrides.get(i) == DimStride::Any) {
@@ -387,38 +378,34 @@ void PassImpl::run(const Model::Ptr& model) {
         for (const auto& stage : model->getStages()) {
             stage->finalizeDataLayout();
 
-            auto requiredOrder = stage->propagateDataOrder();
-            auto requiredStrides = stage->getDataStridesRequirements();
+            const auto& orderInfo = stage->propagateDataOrder();
+            const auto& strideInfo = stage->getDataStridesRequirements();
 
-            for (const auto& input : stage->inputs()) {
-                auto orderIt = requiredOrder.find(input);
-                if (orderIt != requiredOrder.end()) {
-                    auto requiredOrder = orderIt->second;
-                    IE_ASSERT(input->desc().dimsOrder() == requiredOrder);
+            for (const auto& inEdge : stage->inputEdges()) {
+                if (orderInfo.hasInput(inEdge)) {
+                    auto requiredOrder = orderInfo.getInput(inEdge);
+                    IE_ASSERT(inEdge->input()->desc().dimsOrder() == requiredOrder);
                 }
 
-                auto strideIt = requiredStrides.find(input);
-                if (strideIt != requiredStrides.end()) {
-                    auto requiredStrides = strideIt->second;
-                    IE_ASSERT(input->checkStrides(requiredStrides));
+                if (strideInfo.hasInput(inEdge)) {
+                    auto requiredStrides = strideInfo.getInput(inEdge);
+                    IE_ASSERT(inEdge->input()->checkStrides(requiredStrides));
                 }
 
-                if (input->usage() == DataUsage::Const) {
-                    IE_ASSERT(input->checkStrides(StridesRequirement::compact()));
+                if (inEdge->input()->usage() == DataUsage::Const) {
+                    IE_ASSERT(inEdge->input()->checkStrides(StridesRequirement::compact()));
                 }
             }
 
-            for (const auto& output : stage->outputs()) {
-                auto orderIt = requiredOrder.find(output);
-                if (orderIt != requiredOrder.end()) {
-                    auto requiredOrder = orderIt->second;
-                    IE_ASSERT(output->desc().dimsOrder() == requiredOrder);
+            for (const auto& outEdge : stage->outputEdges()) {
+                if (orderInfo.hasOutput(outEdge)) {
+                    auto requiredOrder = orderInfo.getOutput(outEdge);
+                    IE_ASSERT(outEdge->output()->desc().dimsOrder() == requiredOrder);
                 }
 
-                auto strideIt = requiredStrides.find(output);
-                if (strideIt != requiredStrides.end()) {
-                    auto requiredStrides = strideIt->second;
-                    IE_ASSERT(output->checkStrides(requiredStrides));
+                if (strideInfo.hasOutput(outEdge)) {
+                    auto requiredStrides = strideInfo.getOutput(outEdge);
+                    IE_ASSERT(outEdge->output()->checkStrides(requiredStrides));
                 }
             }
         }

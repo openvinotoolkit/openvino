@@ -25,7 +25,7 @@ class FlattenFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
-        axis = onnx_attr(node, 'axis', 'i', None)
+        axis = onnx_attr(node, 'axis', 'i', 1)
         attrs = {
             'axis': axis
         }

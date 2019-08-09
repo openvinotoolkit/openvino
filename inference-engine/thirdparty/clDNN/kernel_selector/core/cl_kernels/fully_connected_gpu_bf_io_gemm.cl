@@ -123,9 +123,9 @@ KERNEL(fc_f16)(
 
     #if BIAS_TERM
     const half bias = biases[y];
-    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0] + bias, NL_M, NL_N);
+    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0] + bias, ACTIVATION_PARAMS);
     #else
-    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0], NL_M, NL_N);
+    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0], ACTIVATION_PARAMS);
     #endif
 }
 #endif 
@@ -240,7 +240,7 @@ KERNEL(fc_f32)(
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
-    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0] + bias, NL_M, NL_N);
+    if (x == 0) dst_vector[oidx] = ACTIVATION(slm[0] + bias, ACTIVATION_PARAMS);
 }
 #endif 
 

@@ -27,40 +27,47 @@ namespace InferenceEngine {
 class INFERENCE_ENGINE_API_CLASS(Data) {
 public:
     /**
-     * @deprecated Deprecated. Please use getPrecision()
+     * @deprecated Use Data::getPrecision
      * @brief A precision type of this Data instance
      */
+    INFERENCE_ENGINE_DEPRECATED
     Precision precision;
     /**
-     * @deprecated Deprecated. Please use getFormat()
+     * @deprecated Use Data::getFormat
      * @brief A data layout of this Data instance
      */
+    INFERENCE_ENGINE_DEPRECATED
     Layout layout;
     /**
-     * @deprecated Deprecated. Please use getDims()
+     * @deprecated Use Data::getDims
      * @brief A tensor dimension array (the order is opposite to the order in the IR: w,h,c,n) of this Data instance
      */
+    INFERENCE_ENGINE_DEPRECATED
     SizeVector dims;
     /**
-     * @deprecated Deprecated. Please use getCreatorLayer()
+     * @deprecated Use Data::getCreatorLayer
      * @brief A pointer to the layer that creates this data element, null for input data elements
      */
+    INFERENCE_ENGINE_DEPRECATED
     CNNLayerWeakPtr creatorLayer;
     /**
-     * @deprecated Deprecated. Please use getName()
+     * @deprecated Use Data::getName
      * @brief A unique name that identifies this data node
      */
+    INFERENCE_ENGINE_DEPRECATED
     std::string name;
     /**
-     * @deprecated Deprecated. Please use getInputTo()
+     * @deprecated Use Data::getInputTo
      * @brief A map of layers that use this node as input.
      * It is useful for recursive NN graph traversal.
      */
+    INFERENCE_ENGINE_DEPRECATED
     std::map<std::string, CNNLayerPtr> inputTo;
     /**
-     * @deprecated Deprecated. Please use getUserObject()
+     * @deprecated Use Data::getUserObject
      * @brief A user utility place holder
      */
+    INFERENCE_ENGINE_DEPRECATED
     UserValue userObject;
 
     /**
@@ -85,6 +92,22 @@ public:
     Data(const std::string &name, const TensorDesc& desc);
 
     /**
+     * @brief A copy constructor
+     * @param data A data
+     */
+    Data(const Data & data);
+
+    /**
+     * @brief A destructor
+     */
+    ~Data();
+
+    /**
+     * @brief An assignment operator
+     */
+    Data & operator = (const Data &);
+
+    /**
      * @brief Checks if the current node is resolved
      * @return true if resolved, false otherwise.
      */
@@ -98,11 +121,12 @@ public:
     void setDims(const SizeVector &a_dims);
 
     /**
-    * @deprecated
+    * @deprecated Use Data::setDims to set batch size.
     * @brief Sets the batch value in the data dimensions.
     * Batch is defined as the last element in the dimensions vector.
     * @param batch_size Batch size to set
     */
+    INFERENCE_ENGINE_DEPRECATED
     void setBatchSize(size_t batch_size);
 
     /**
@@ -136,8 +160,8 @@ public:
     const Precision& getPrecision() const;
 
     /**
-     * @brief Gets a precision type of this Data instance
-     * @return Precision type
+     * @brief Sets a precision type of this Data instance
+     * @param precision Precision of the data
      */
     void setPrecision(const Precision& precision);
 
@@ -155,6 +179,14 @@ public:
      * @return name of the data object
      */
     const std::string& getName() const;
+
+
+    /**
+     * @brief Sets a name the Data object
+     * @param name Name of the data node
+     */
+
+    void setName(const std::string& newName);
 
     /**
      * @brief returns child layers in di-graph

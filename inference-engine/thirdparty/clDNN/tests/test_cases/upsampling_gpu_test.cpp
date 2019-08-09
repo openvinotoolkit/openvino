@@ -49,7 +49,7 @@ TEST(upsampling_gpu, basic_in2x3x2x2_nearest) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(upsampling("upsampling", "input", scale, 0, upsampling_sample_type::nearest));
+    topology.add(upsampling("upsampling", "input", scale, 0.0f, upsampling_sample_type::nearest));
 
     set_values(input, {
         1.f, 2.f, -10.f,
@@ -114,13 +114,13 @@ TEST(upsampling_gpu, basic_in2x3x2x2_bilinear) {
 
     const auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
 
     uint32_t scale = 2;
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(upsampling("upsampling", "input", scale, 1, upsampling_sample_type::bilinear));
+    topology.add(upsampling("upsampling", "input", scale, 1.0f, upsampling_sample_type::bilinear));
 
     set_values(input, {
         1.f, 2.f,
@@ -128,13 +128,14 @@ TEST(upsampling_gpu, basic_in2x3x2x2_bilinear) {
     });
 
     network network(engine, topology);
-
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
 
     auto output = outputs.at("upsampling").get_memory();
     auto output_ptr = output.pointer<float>();
+
+    EXPECT_EQ(output.get_layout().get_linear_size(), (size_t) 16);
 
     float answers[16] = {
         0.5625f, 0.9375f, 1.3125f, 1.125f,

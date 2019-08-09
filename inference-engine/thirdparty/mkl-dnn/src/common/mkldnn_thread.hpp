@@ -23,6 +23,7 @@
 #define MKLDNN_THR_SEQ 0
 #define MKLDNN_THR_OMP 1
 #define MKLDNN_THR_TBB 2
+#define MKLDNN_THR_TBB_AUTO 3
 
 /* Ideally this condition below should never happen (if the library is built
  * using regular cmake). For the 3rd-party projects that build the library
@@ -59,7 +60,7 @@ inline void mkldnn_thr_barrier() {
 
 #define PRAGMA_OMP(...) PRAGMA_MACRO(CHAIN2(omp, __VA_ARGS__))
 
-#elif MKLDNN_THR == MKLDNN_THR_TBB
+#elif (MKLDNN_THR == MKLDNN_THR_TBB || MKLDNN_THR == MKLDNN_THR_TBB_AUTO)
 #include "tbb/task_arena.h"
 #include "tbb/parallel_for.h"
 #define MKLDNN_THR_SYNC 0

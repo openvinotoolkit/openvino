@@ -6,6 +6,7 @@
 
 #include <queue>
 #include <algorithm>
+#include <vector>
 
 #include <vpu/model/edges.hpp>
 #include <vpu/model/data.hpp>
@@ -14,11 +15,6 @@
 #include <vpu/compile_env.hpp>
 
 namespace vpu {
-
-void StageNode::setSubGraphNumber(int subGraphNumber) {
-    IE_ASSERT(subGraphNumber >= -1);
-    _subGraphNumber = subGraphNumber;
-}
 
 void StageNode::setNumSHAVEs(int numSHAVEs) {
     if (_parentStageEdge == nullptr) {
@@ -49,8 +45,8 @@ void StageNode::setNumSHAVEs(int numSHAVEs) {
     }
 }
 
-DataMap<float> StageNode::propagateScaleFactors(
-        const DataMap<float>& inputScales,
+const StageDataInfo<float>& StageNode::propagateScaleFactors(
+        const SmallVector<float>& inputScales,
         ScalePropagationStep step) {
     //
     // Stage <-> Stage edges are not allowed here.
@@ -64,113 +60,91 @@ DataMap<float> StageNode::propagateScaleFactors(
     //
 
     IE_ASSERT(inputScales.size() == _inputEdges.size());
-    for (const auto& inEdge : _inputEdges) {
-        IE_ASSERT(inputScales.count(inEdge->input()) > 0);
-    }
 
     //
     // Get result from Stage implementation.
     //
 
-    auto res = propagateScaleFactorsImpl(inputScales, step);
+    _scaleInfo.init(_inputEdges.size(), _outputEdges.size());
+    propagateScaleFactorsImpl(inputScales, step);
 
     //
     // Check that implementation returned valid map.
     //
 
 #ifndef NDEBUG
-    IE_ASSERT(res.size() <= (_inputEdges.size() + _outputEdges.size()));
-
-    for (const auto& p : res) {
-        auto it1 = std::find_if(_inputEdges.begin(), _inputEdges.end(), [p](const StageInput& inEdge) {
-            return inEdge->input() == p.first;
-        });
-        auto it2 = std::find_if(_outputEdges.begin(), _outputEdges.end(), [p](const StageOutput& outEdge) {
-            return outEdge->output() == p.first;
-        });
-        IE_ASSERT(it1 != _inputEdges.end() || it2 != _outputEdges.end());
-    }
-
     for (const auto& outEdge : _outputEdges) {
-        IE_ASSERT(res.count(outEdge->output()) > 0);
+        IE_ASSERT(_scaleInfo.hasOutput(outEdge));
     }
 #endif
 
-    return res;
+    return _scaleInfo;
 }
 
-DataMap<DimsOrder> StageNode::propagateDataOrder() const {
+const StageDataInfo<DimsOrder>& StageNode::propagateDataOrder() const {
     //
     // Get result from Stage implementation.
     //
 
-    auto res = propagateDataOrderImpl();
+    _orderInfo.init(_inputEdges.size(), _outputEdges.size());
+    propagateDataOrderImpl();
 
     //
     // Merge with the results from injected Stages.
     //
 
     for (const auto& injectedStageEdge : _injectedStageEdges) {
-        auto childRes = injectedStageEdge->child()->propagateDataOrder();
-        res.insert(childRes.begin(), childRes.end());
+        const auto& child = injectedStageEdge->child();
+        const auto& childRes = child->propagateDataOrder();
+
+        for (const auto& inEdge : child->inputEdges()) {
+            if (childRes.hasInput(inEdge)) {
+                IE_ASSERT(!_orderInfo.hasInput(inEdge->parentEdge()));
+                _orderInfo.setInput(inEdge->parentEdge(), childRes.getInput(inEdge));
+            }
+        }
+        for (const auto& outEdge : child->outputEdges()) {
+            if (childRes.hasOutput(outEdge)) {
+                IE_ASSERT(!_orderInfo.hasOutput(outEdge->parentEdge()));
+                _orderInfo.setOutput(outEdge->parentEdge(), childRes.getOutput(outEdge));
+            }
+        }
     }
 
-    //
-    // Check that implemenation returned valid map.
-    //
-
-#ifndef NDEBUG
-    IE_ASSERT(res.size() <= (_inputEdges.size() + _outputEdges.size()));
-
-    for (const auto& p : res) {
-        auto it1 = std::find_if(_inputEdges.begin(), _inputEdges.end(), [p](const StageInput& inEdge) {
-            return inEdge->input() == p.first;
-        });
-        auto it2 = std::find_if(_outputEdges.begin(), _outputEdges.end(), [p](const StageOutput& outEdge) {
-            return outEdge->output() == p.first;
-        });
-        IE_ASSERT(it1 != _inputEdges.end() || it2 != _outputEdges.end());
-    }
-#endif
-
-    return res;
+    return _orderInfo;
 }
 
-DataMap<StridesRequirement> StageNode::getDataStridesRequirements() const {
+const StageDataInfo<StridesRequirement>& StageNode::getDataStridesRequirements() const {
     //
     // Get result from Stage implementation.
     //
 
-    auto res = getDataStridesRequirementsImpl();
+    _stridesInfo.init(_inputEdges.size(), _outputEdges.size());
+    getDataStridesRequirementsImpl();
 
     //
     // Merge with the results from injected Stages.
     //
 
     for (const auto& injectedStageEdge : _injectedStageEdges) {
-        auto childRes = injectedStageEdge->child()->getDataStridesRequirements();
-        res.insert(childRes.begin(), childRes.end());
+        const auto& child = injectedStageEdge->child();
+        const auto& childRes = child->getDataStridesRequirements();
+
+        for (const auto& inEdge : child->inputEdges()) {
+            if (childRes.hasInput(inEdge)) {
+                IE_ASSERT(!_stridesInfo.hasInput(inEdge->parentEdge()));
+                _stridesInfo.setInput(inEdge->parentEdge(), childRes.getInput(inEdge));
+            }
+        }
+        for (const auto& outEdge : child->outputEdges()) {
+            if (childRes.hasOutput(outEdge)) {
+                IE_ASSERT(!_stridesInfo.hasOutput(outEdge->parentEdge()));
+                _stridesInfo.setOutput(outEdge->parentEdge(), childRes.getOutput(outEdge));
+            }
+        }
     }
 
-    //
-    // Check that implemenation returned valid map.
-    //
-
-#ifndef NDEBUG
-    IE_ASSERT(res.size() <= (_inputEdges.size() + _outputEdges.size()));
-
-    for (const auto& p : res) {
-        auto it1 = std::find_if(_inputEdges.begin(), _inputEdges.end(), [p](const StageInput& inEdge) {
-            return inEdge->input() == p.first;
-        });
-        auto it2 = std::find_if(_outputEdges.begin(), _outputEdges.end(), [p](const StageOutput& outEdge) {
-            return outEdge->output() == p.first;
-        });
-        IE_ASSERT(it1 != _inputEdges.end() || it2 != _outputEdges.end());
-    }
-#endif
-
-    return res;
+    return _stridesInfo;
 }
 
 void StageNode::finalizeDataLayout() {
@@ -184,41 +158,27 @@ void StageNode::finalizeDataLayout() {
     finalizeDataLayoutImpl();
 }
 
-DataMap<BatchSupport> StageNode::getBatchSupportInfo() const {
+const StageDataInfo<BatchSupport>& StageNode::getBatchSupportInfo() const {
     //
     // Get result from Stage implementation.
     //
 
-    auto res = getBatchSupportInfoImpl();
+    _batchInfo.init(_inputEdges.size(), _outputEdges.size());
+    getBatchSupportInfoImpl();
 
     //
     // Check that implemenation returned valid map.
     //
 
 #ifndef NDEBUG
-    IE_ASSERT(res.size() <= (_inputEdges.size() + _outputEdges.size()));
-
-    for (const auto& p : res) {
-        auto it1 = std::find_if(_inputEdges.begin(), _inputEdges.end(), [p](const StageInput& inEdge) {
-            return inEdge->input() == p.first;
-        });
-        auto it2 = std::find_if(_outputEdges.begin(), _outputEdges.end(), [p](const StageOutput& outEdge) {
-            return outEdge->output() == p.first;
-        });
-        IE_ASSERT(it1 != _inputEdges.end() || it2 != _outputEdges.end());
-    }
-
     bool hasSplit = false;
     for (const auto& inEdge : _inputEdges) {
         if (inEdge->childEdge() != nullptr) {
             continue;
         }
 
-        auto input = inEdge->input();
-
-        auto it = res.find(input);
-        if (it != res.end()) {
-            auto curReq = it->second;
+        if (_batchInfo.hasInput(inEdge)) {
+            auto curReq = _batchInfo.getInput(inEdge);
 
             if (curReq == BatchSupport::Split) {
                 hasSplit = true;
@@ -233,14 +193,13 @@ DataMap<BatchSupport> StageNode::getBatchSupportInfo() const {
             continue;
         }
 
-        auto it = res.find(outEdge->output());
         if (hasSplit) {
-            IE_ASSERT(it != res.end());
+            IE_ASSERT(_batchInfo.hasOutput(outEdge));
 
-            auto curReq = it->second;
+            auto curReq = _batchInfo.getOutput(outEdge);
             IE_ASSERT(curReq == BatchSupport::Split);
         } else {
-            IE_ASSERT(it == res.end());
+            IE_ASSERT(!_batchInfo.hasOutput(outEdge));
         }
     }
 #endif
@@ -254,11 +213,24 @@ DataMap<BatchSupport> StageNode::getBatchSupportInfo() const {
     //
 
     for (const auto& injectedStageEdge : _injectedStageEdges) {
-        auto childRes = injectedStageEdge->child()->getBatchSupportInfo();
-        res.insert(childRes.begin(), childRes.end());
+        const auto& child = injectedStageEdge->child();
+        const auto& childRes = child->getBatchSupportInfo();
+
+        for (const auto& inEdge : child->inputEdges()) {
+            if (childRes.hasInput(inEdge)) {
+                IE_ASSERT(!_batchInfo.hasInput(inEdge->parentEdge()));
+                _batchInfo.setInput(inEdge->parentEdge(), childRes.getInput(inEdge));
+            }
+        }
+        for (const auto& outEdge : child->outputEdges()) {
+            if (childRes.hasOutput(outEdge)) {
+                IE_ASSERT(!_batchInfo.hasOutput(outEdge->parentEdge()));
+                _batchInfo.setOutput(outEdge->parentEdge(), childRes.getOutput(outEdge));
+            }
+        }
     }
 
-    return res;
+    return _batchInfo;
 }
 
 StageSHAVEsRequirements StageNode::getSHAVEsRequirements() const {
@@ -267,7 +239,7 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirements() const {
     //
 
     // return max for Myriad2
-    auto compileEnv = CompileEnv::get();
+    const auto& compileEnv = CompileEnv::get();
     if (compileEnv.platform == Platform::MYRIAD_2) {
         return StageSHAVEsRequirements::NeedMax;
     }
@@ -322,23 +294,19 @@ void StageNode::serialize(BlobSerializer& serializer) const {
     serializer.overWriteTailSize(stageHeaderPos);
 }
 
-DataMap<float> StageNode::propagateScaleFactorsImpl(
-        const DataMap<float>&,
+void StageNode::propagateScaleFactorsImpl(
+        const SmallVector<float>&,
         ScalePropagationStep) {
     //
     // Default implementation assumes no scaling support.
     //
 
-    DataMap<float> out;
-
     for (const auto& inEdge : _inputEdges) {
-        out[inEdge->input()] = 1.0f;
+        _scaleInfo.setInput(inEdge, 1.0f);
     }
     for (const auto& outEdge : _outputEdges) {
-        out[outEdge->output()] = 1.0f;
+        _scaleInfo.setOutput(outEdge, 1.0f);
     }
-
-    return out;
 }
 
 StageSHAVEsRequirements StageNode::getSHAVEsRequirementsImpl() const {

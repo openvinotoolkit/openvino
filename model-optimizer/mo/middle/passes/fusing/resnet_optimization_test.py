@@ -29,10 +29,10 @@ max_elt_lambda = lambda node: eltwise_infer(node, lambda a, b: np.maximum(a, b))
 
 nodes_attributes = {
     # Placeholders
-    'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Concat1 operation
-    'eltwise_1': {'type': 'Eltwise', 'kind': 'op', 'op': 'Concat', 'infer': max_elt_lambda, 'operation': 'max'},
+    'eltwise_1': {'type': 'Maximum', 'kind': 'op', 'op': 'Maximum', 'infer': max_elt_lambda},
     'eltwise_1_data': {'name': 'eltwise_1_data', 'value': None, 'shape': None, 'kind': 'data'},
     # Convolutions
     'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'Conv2D', 'layout': 'NCHW',

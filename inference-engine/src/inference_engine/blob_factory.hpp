@@ -12,11 +12,16 @@ template <InferenceEngine::Precision::ePrecision precision>
 class BlobFactory {
  public:
     using BlobType = typename InferenceEngine::PrecisionTrait<precision>::value_type;
+
+    INFERENCE_ENGINE_DEPRECATED
     static InferenceEngine::Blob::Ptr make(InferenceEngine::Layout l, InferenceEngine::SizeVector dims) {
-        return InferenceEngine::make_shared_blob<BlobType>(precision, l, dims);
+        InferenceEngine::SizeVector rdims(dims.rbegin(), dims.rend());
+        return InferenceEngine::make_shared_blob<BlobType>(InferenceEngine::TensorDesc(precision, rdims, l));
     }
+    INFERENCE_ENGINE_DEPRECATED
     static InferenceEngine::Blob::Ptr make(InferenceEngine::Layout l, InferenceEngine::SizeVector dims, void* ptr) {
-        return InferenceEngine::make_shared_blob<BlobType>(precision, l, dims, reinterpret_cast<BlobType*>(ptr));
+        InferenceEngine::SizeVector rdims(dims.rbegin(), dims.rend());
+        return InferenceEngine::make_shared_blob<BlobType>(InferenceEngine::TensorDesc(precision, rdims, l),  reinterpret_cast<BlobType*>(ptr));
     }
     static InferenceEngine::Blob::Ptr make(const InferenceEngine::TensorDesc& desc) {
         return InferenceEngine::make_shared_blob<BlobType>(desc);
@@ -41,9 +46,8 @@ INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr) make_blob_with_precision(co
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr) make_blob_with_precision(const InferenceEngine::TensorDesc& desc, void* ptr);
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr) make_blob_with_precision(const InferenceEngine::TensorDesc& desc,
                                                                               const std::shared_ptr<InferenceEngine::IAllocator>& alloc);
-INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr) make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVector dims);
 
-INFERENCE_ENGINE_API_CPP(InferenceEngine::Layout) plain_layout(InferenceEngine::SizeVector dims);
+INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr) make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVector dims);
 
 template <class ... Args>
 InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision precision, Args &&... args) {
@@ -56,6 +60,7 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
         USE_FACTORY(I8);
         USE_FACTORY(U16);
         USE_FACTORY(I32);
+        USE_FACTORY(I64);
         USE_FACTORY(BIN);
         default:
             THROW_IE_EXCEPTION << "cannot locate blob for precision: " << precision;

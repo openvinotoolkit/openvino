@@ -17,6 +17,7 @@
 namespace InferenceEngine {
 
 /**
+ * @deprecated Deprecated since the enum is not scalable for 3rd party plugins / devices. All devices are managed by InferenceEngine::Core
  * @enum TargetDevice
  * @brief Describes known device types
  */
@@ -32,14 +33,16 @@ enum class TargetDevice : uint8_t {
 };
 
 /**
+ * @deprecated Deprecated since InferenceEngine::TargetDevice is deprecated
  * @brief Describes the relationship between the enumerator type and the actual device's name
  */
-class TargetDeviceInfo {
+class INFERENCE_ENGINE_DEPRECATED TargetDeviceInfo {
     struct Info {
         TargetDevice device;
         std::string name;
         Info(TargetDevice device, std::string name) : device(device), name(name){}
     };
+
     static const std::vector<Info> & getAll() {
 #define DECL_DEVICE(device_type) {TargetDevice::e##device_type, #device_type}
 
@@ -51,13 +54,18 @@ class TargetDeviceInfo {
             DECL_DEVICE(FPGA),
             DECL_DEVICE(MYRIAD),
             DECL_DEVICE(GNA),
-            DECL_DEVICE(HETERO),
+            DECL_DEVICE(HETERO)
         };
 #undef DECLARE
         return g_allDeviceInfos;
     }
 
  public:
+    /**
+     * @deprecated Deprecated since InferenceEngine::TargetDevice is deprecated
+     * @brief Converts string representation of device to InferenceEngine::TargetDevice enum value
+     */
+    INFERENCE_ENGINE_DEPRECATED
     static TargetDevice fromStr(const std::string &deviceName) {
         static std::map<std::string, InferenceEngine::TargetDevice> deviceFromNameMap = {
             { "CPU", InferenceEngine::TargetDevice::eCPU },
@@ -66,63 +74,88 @@ class TargetDeviceInfo {
             { "MYRIAD", InferenceEngine::TargetDevice::eMYRIAD },
             { "GNA", InferenceEngine::TargetDevice::eGNA },
             { "BALANCED", InferenceEngine::TargetDevice::eBalanced },
-            { "HETERO", InferenceEngine::TargetDevice::eHETERO },
+            { "HETERO", InferenceEngine::TargetDevice::eHETERO }
         };
         auto val = deviceFromNameMap.find(deviceName);
         return val != deviceFromNameMap.end() ? val->second : InferenceEngine::TargetDevice::eDefault;
     }
 
+    /**
+     * @deprecated Deprecated since InferenceEngine::TargetDevice is deprecated
+     * @brief Converts InferenceEngine::TargetDevice enum value to string representation
+     */
+    INFERENCE_ENGINE_DEPRECATED
     static const char * name(TargetDevice device) {
+        IE_SUPPRESS_DEPRECATED_START
         auto res = std::find_if(getAll().cbegin(), getAll().cend(), [&](const Info & info){
             return device == info.device;
         });
         if (res == getAll().cend()) {
             return "Unknown device";
         }
+        IE_SUPPRESS_DEPRECATED_END
         return res->name.c_str();
     }
 };
 
 /**
+ * @deprecated Deprecated since InferenceEngine::TargetDevice is deprecated
  * @brief Returns the device name
- * @param device Instance of TargetDevice
+ * @param device Instance of InferenceEngine::TargetDevice
  * @return A c-string with the name
  */
+INFERENCE_ENGINE_DEPRECATED
 inline const char *getDeviceName(TargetDevice device) {
+    IE_SUPPRESS_DEPRECATED_START
     return TargetDeviceInfo::name(device);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 /**
+ * @deprecated Deprecated since InferenceEngine::TargetDevice is deprecated
  * @struct FindPluginRequest
- * @brief Defines a message that contains the TargetDevice object to find a plugin for
+ * @brief Defines a message that contains the InferenceEngine::TargetDevice object to find a plugin for
  */
-struct FindPluginRequest {
+struct INFERENCE_ENGINE_DEPRECATED FindPluginRequest {
     /**
-     * @brief object of TargetDevice to find a plugin for
+     * @brief object of InferenceEngine::TargetDevice to find a plugin for
      */
     TargetDevice device;
 };
 
 /**
+ * @deprecated Deprecated since InferenceEngine::TargetDevice is deprecated
  * @struct FindPluginResponse
  * @brief Defines a message that contains a list of appropriate plugin names
  */
-struct FindPluginResponse {
+struct INFERENCE_ENGINE_DEPRECATED FindPluginResponse {
     /**
      * @brief A list of appropriate plugin names
      */
     std::vector<std::string> names;
 };
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
+ * @deprecated Deprecated since InferenceEngine::TargetDevice is deprecated
+ * @brief Finds an appropriate plugin for requested target device
+ * @param req A requested target device
+ * @return A response object
+ */
+FindPluginResponse findPlugin(const FindPluginRequest &req);
+
+/**
+ * @deprecated Deprecated since InferenceEngine::TargetDevice is deprecated
  * @brief Finds an appropriate plugin for requested target device
  * @param req A requested target device
  * @param result The results of the request
  * @param resp The response message description
- * @return A response message
+ * @return A status code
  */
-FindPluginResponse findPlugin(const FindPluginRequest &req);
-
 INFERENCE_ENGINE_API(StatusCode) findPlugin(const FindPluginRequest &req, FindPluginResponse &result,
                                             ResponseDesc *resp) noexcept;
+
+IE_SUPPRESS_DEPRECATED_END
+
 }  // namespace InferenceEngine

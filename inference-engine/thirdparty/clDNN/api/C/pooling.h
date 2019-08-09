@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef POOLING_H
-#define POOLING_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -31,8 +29,7 @@ extern "C" {
 #endif
 
 /// @brief Select method for Pooling layer ( @CLDNN_PRIMITIVE_DESC{pooling} ).
-typedef enum /*:int32_t*/
-{
+typedef enum /*:int32_t*/ {
     /// @brief Maximum-pooling method.
     cldnn_pooling_max,
     /// @brief Average-pooling method.
@@ -42,7 +39,9 @@ typedef enum /*:int32_t*/
     /// @brief Maximum-pooling method with additional buffer to store argmax indices.
     cldnn_pooling_max_with_argmax,
     /// @brief Pooling with bilinear interpolation
-    cldnn_pooling_bilinear
+    cldnn_pooling_bilinear,
+    /// @brief Deformable pooling with bilinear interpolation
+    cldnn_pooling_deformable_bilinear
 } cldnn_pooling_mode;
 
 /// @brief Performs "pooling" operation which is a form of non-linear down-sampling.
@@ -75,4 +74,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(pooling);
 /// @}
 /// @}
 /// @}
-#endif /* POOLING_H */
+

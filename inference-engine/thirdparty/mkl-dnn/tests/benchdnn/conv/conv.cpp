@@ -36,9 +36,7 @@ inline bool is_conv_3d(const prb_t *p) {
 }
 
 inline bool is_conv_1d(const prb_t *p) {
-    return !is_conv_3d(p) && p->ih == 1 && p->kh == 1
-                   && p->cfg[SRC].dt != mkldnn_s8 // temporary workaround until
-                   && p->cfg[SRC].dt != mkldnn_u8; // int8 jit supports 1d
+    return !is_conv_3d(p) && p->ih == 1 && p->kh == 1;
 }
 
 double get_trust_nz_level(const prb_t *p, data_kind_t kind,
@@ -154,7 +152,7 @@ inline int compare_dat(const prb_t *p, data_kind_t kind, dnn_mem_t &mem_dt,
         const float fp0 = ((float*)mem_fp)[i];
 
         float fp = fp0;
-        if (p->cfg[kind].dt != mkldnn_f32) {
+        if (p->cfg[kind].dt != mkldnn_f32 && p->cfg[kind].dt != mkldnn_bf16) {
             using R = attr_t::round_mode_t;
             switch (p->attr.irmode) {
                 case R::DOWN: fp = floorf(fp0); break;
@@ -598,6 +596,7 @@ int doit(const prb_t *p, res_t *r) {
     dnn_mem_t src_dt(src_dt_d, p->cfg[SRC].dt);
     dnn_mem_t wei_dt(wei_dt_d, p->cfg[WEI].dt);
     dnn_mem_t dst_dt(dst_dt_d, p->cfg[DST].dt);
+
     dnn_mem_t *p_bia_dt = p->dir & FLAG_BIA
         ? new dnn_mem_t(bia_dt_d, p->cfg[BIA].dt) : new dnn_mem_t();
     dnn_mem_t &bia_dt = *p_bia_dt;
@@ -610,6 +609,7 @@ int doit(const prb_t *p, res_t *r) {
     dnn_mem_t src_fp(src_dt_d, fp, src_format);
     dnn_mem_t wei_fp(wei_dt_d, fp, wei_format);
     dnn_mem_t dst_fp(dst_dt_d, fp, src_format);
+
     dnn_mem_t *p_bia_fp = p->dir & FLAG_BIA
         ? new dnn_mem_t(bia_dt_d, fp, mkldnn_x) : new dnn_mem_t();
     dnn_mem_t &bia_fp = *p_bia_fp;
@@ -617,6 +617,7 @@ int doit(const prb_t *p, res_t *r) {
     SAFE(fill_src(p, src_dt, src_fp, r), WARN);
     SAFE(fill_wei(p, wei_dt, wei_fp, r), WARN);
     SAFE(fill_dst(p, dst_dt, dst_fp, r), WARN);
+
     if (p->dir & FLAG_BIA)
         SAFE(fill_bia(p, bia_dt, bia_fp, r), WARN);
 

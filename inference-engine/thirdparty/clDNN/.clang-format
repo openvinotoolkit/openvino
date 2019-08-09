@@ -1,0 +1,20 @@
+---
+BasedOnStyle: Google
+SortIncludes: false
+MaxEmptyLinesToKeep: 1
+IndentWidth: 4
+TabWidth: 4
+AccessModifierOffset: -4
+UseTab: 'Never'
+ColumnLimit: 120
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllConstructorInitializersOnNextLine: true
+CommentPragmas: '^/'
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: false
+BinPackParameters: false
+BinPackArguments: false
+...

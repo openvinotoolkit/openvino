@@ -134,7 +134,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
     char4 char_res;
     for(uint op = 0; op < 4; op++)
     {
-        char_res[op] = ACTIVATION(convert_char(result[op]), NL_M ,NL_N);
+        char_res[op] = ACTIVATION(convert_char(result[op]), ACTIVATION_PARAMS);
     }
     const uint output_pos = GET_DATA_B_FS_YX_FSV4_INDEX(OUTPUT, b, f, y, x);
     *((__global int*)(output + output_pos)) = as_int(char_res);

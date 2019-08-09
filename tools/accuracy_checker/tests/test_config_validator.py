@@ -275,6 +275,12 @@ class TestPathField:
             with pytest.raises(ConfigError):
                 dir_field.validate(prefix_path / 'foo' / 'bar')
 
+    def test_path_not_checked(self):
+        with mock_filesystem(['foo/bar']) as prefix:
+            prefix_path = Path(prefix)
+            file_field = PathField(is_directory=False, check_exists=False)
+            file_field.validate(prefix_path / 'foo' / 'bar')
+
 
 class TestConfigValidator:
     def test_compound(self):

@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef LSTM_H
-#define LSTM_H
-
+#pragma once
 #include <stdbool.h>
 #include "cldnn.h"
 /// @addtogroup c_api C API
@@ -38,8 +36,7 @@ extern "C" {
 /// Caffe order: ifoz
 /// pyTorch order: izof
 /// IE order: fizo
-typedef enum /*:int32_t*/
-{
+typedef enum /*:int32_t*/ {
     cldnn_lstm_offset_order_iofz = 0,
     cldnn_lstm_offset_order_ifoz,
     cldnn_lstm_offset_order_izof,
@@ -48,9 +45,8 @@ typedef enum /*:int32_t*/
 
 /// @brief LSTM Output selection
 /// @details The current implementation allows the use to select the output
-/// of an LSTM node by specifing any of the following options 
-typedef enum /*:int32_t*/
-{
+/// of an LSTM node by specifing any of the following options
+typedef enum /*:int32_t*/ {
     /// output the entire hidden sequence
     cldnn_lstm_output_sequence = 0,
     /// output just the last hidden value
@@ -101,8 +97,6 @@ CLDNN_END_PRIMITIVE_DESC(lstm)
 
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(lstm);
 
-
-
 /// @brief LSTM Layer GEMM helper primitive.
 /// @details The current helper primitive performs fused GEMM operations.
 CLDNN_BEGIN_PRIMITIVE_DESC(lstm_gemm)
@@ -119,8 +113,6 @@ uint32_t direction;
 CLDNN_END_PRIMITIVE_DESC(lstm_gemm)
 
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(lstm_gemm);
-
-
 
 /// @brief LSTM Layer element-wise helper primitive.
 /// @details The current helper primitive performs fused element-wise operations.
@@ -152,5 +144,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(lstm_elt);
 /// @}
 /// @}
 /// @}
-#endif /* LSTM_H */
 

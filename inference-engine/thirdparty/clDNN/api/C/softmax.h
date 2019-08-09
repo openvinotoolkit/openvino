@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef SOFTMAX_H
-#define SOFTMAX_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -31,12 +29,13 @@ extern "C" {
 #endif
 
 /// @brief Enum type to specify softmax's normalization scope (see cldnn_softmax_desc::dimension).
-typedef enum
-{
+typedef enum {
     cldnn_softmax_normalize_f,
     cldnn_softmax_normalize_x,
     cldnn_softmax_normalize_y,
+    cldnn_softmax_normalize_z,
     cldnn_softmax_normalize_fyx,
+    cldnn_softmax_normalize_all,
 } cldnn_softmax_dimension;
 
 /// @brief Normalizes results so they sum to 1. The scope of normalization is defined by a member @p dimension.
@@ -56,6 +55,7 @@ CLDNN_BEGIN_PRIMITIVE_DESC(softmax)
 /// - when set to @link cldnn_softmax_dimension cldnn_softmax_normalize_y @endlink each input column is normalized independently,
 /// - when set to @link cldnn_softmax_dimension cldnn_softmax_normalize_f @endlink each in-depth vector of input is normalized independently,
 /// - when set to @link cldnn_softmax_dimension cldnn_softmax_normalize_fyx @endlink each 3d image within input is normalized independently,
+/// - when set to @link cldnn_softmax_dimension cldnn_softmax_normalize_all @endlink everything is normalized,
 cldnn_softmax_dimension dimension;
 CLDNN_END_PRIMITIVE_DESC(softmax)
 
@@ -68,5 +68,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(softmax);
 /// @}
 /// @}
 /// @}
-#endif /* SOFTMAX_H */
 

@@ -137,7 +137,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
 #endif
     for(uint s = 0; s < BATCHES_PER_WORK_ITEM; s++)
     {
-        _data[s] = ACTIVATION(_data[s], NL_M, NL_N);
+        _data[s] = ACTIVATION(_data[s], ACTIVATION_PARAMS);
     }
 
 #if defined(USE_BLOCK_READ_2) || defined(USE_BLOCK_READ_1)

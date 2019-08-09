@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -52,6 +52,7 @@ private:
     ptrdiff_t dw_conv_iw;
     std::vector<ptrdiff_t> dw_conv_kernel;
     std::vector<ptrdiff_t> dw_conv_strides;
+    mkldnn::memory::data_type dw_conv_in_dt;
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 
     InferenceEngine::ConvolutionLayer* convLayer;

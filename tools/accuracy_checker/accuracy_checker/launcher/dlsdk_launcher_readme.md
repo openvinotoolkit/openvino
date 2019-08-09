@@ -12,6 +12,7 @@ You can provide:
 
 * `caffe_model` and `caffe_weights` for Caffe model and weights (*.prototxt and *.caffemodel).
 * `tf_model` for TensorFlow model (*.pb, *.pb.frozen, *.pbtxt).
+* `tf_meta` for TensorFlow MetaGraph (*.meta).
 * `mxnet_weights` for MXNet params (*.params).
 * `onnx_model` for ONNX model (*.onnx).
 * `kaldi_model` for Kaldi model (*.nnet).

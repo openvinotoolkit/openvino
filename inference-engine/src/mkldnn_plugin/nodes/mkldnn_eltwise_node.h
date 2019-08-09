@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNEltwiseNode : public MKLDNNNode {
 public:
-    MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNEltwiseNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -25,6 +25,7 @@ public:
 
     bool isSum();
     bool isUnitScales();
+    bool isWithBroadcast();
     void initOptimalPrimitiveDescriptor() override;
 
 private:
@@ -32,6 +33,7 @@ private:
     InferenceEngine::EltwiseLayer::eOperation op;
     std::vector<float> sum_scales;
     bool broadcast = false;
+    int batch_dim = 5;
 
     template <typename T0, typename T1> void ref_eltwise(int in0, int in1);
     void dims_calc(int *dims, const MKLDNNDims &edge_dims);

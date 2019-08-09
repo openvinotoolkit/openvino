@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef FUSED_CONV_BN_SCALE_H
-#define FUSED_CONV_BN_SCALE_H
-
+#pragma once
 #include "api/C/cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -37,7 +35,7 @@ cldnn_tensor input_offset;
 /// @brief Defines shift in input buffer between adjacent calculations of output values.
 cldnn_tensor stride;
 /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
-/// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1. 
+/// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
 /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
 cldnn_tensor dilation;
 /// @brief Enable Relu activation.
@@ -69,5 +67,3 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(fused_conv_bn_scale);
 /// @}
 /// @}
 /// @}
-#endif /* FUSED_CONV_BN_SCALE.H */
-

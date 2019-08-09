@@ -13,11 +13,8 @@
 // limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef BORDER_H
-#define BORDER_H
-
+#pragma once
 #include "cldnn.h"
-
 
 /// @addtogroup c_api C API
 /// @{
@@ -32,11 +29,10 @@ extern "C" {
 
 /// @brief Type of border that will be added to the input by current layer / primitive
 ///        ( @CLDNN_PRIMITIVE_DESC{border} ​).
-typedef enum /*:int32_t*/
-{
+typedef enum /*:int32_t*/ {
     /// @brief All points in the border are set to constant value.
     cldnn_border_constant,
-    cldnn_border_zero = cldnn_border_constant, /// keep bwd compatibilty 
+    cldnn_border_zero = cldnn_border_constant,  /// keep bwd compatibilty
     /// @brief Border is constructed as an mirror of image (edge is also mirrored).
     /// @details Size of border in any dimension cannot be larger than size of
     ///          input in the same dimension.
@@ -50,7 +46,6 @@ typedef enum /*:int32_t*/
     ///          input in the same dimension.
     cldnn_border_edge
 } cldnn_border_type;
-
 
 /// @brief Adds border around input.
 ///
@@ -75,7 +70,6 @@ cldnn_border_type border_type;
 float border_value;
 CLDNN_END_PRIMITIVE_DESC(border)
 
-
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(border);
 
 #ifdef __cplusplus
@@ -85,4 +79,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(border);
 /// @}
 /// @}
 /// @}
-#endif // BORDER_H
+

@@ -71,7 +71,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     const __global UNIT_TYPE* weights,
 #if BIAS_TERM
     const __global UNIT_TYPE* bias,
-#endif   
+#endif
     uint split_idx,
     const __global UNIT_TYPE* eltw_input) // TODO: removing this parameter cause a performance degradation... :)
 {
@@ -208,7 +208,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
-            out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION(out[r * OUTPUT_BLOCK_WIDTH + c], NL_M, NL_N);
+            out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION_CONV(out[r * OUTPUT_BLOCK_WIDTH + c], ACTIVATION_PARAMS_CONV);
         }
     }
 
@@ -222,7 +222,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
             out[r * OUTPUT_BLOCK_WIDTH + c] += eltw_input[eltw_addr + r * INPUT1_Y_PITCH * ELTW_STRIDE_Y + c * ELTW_STRIDE_X];
-            out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION_ELTW(out[r * OUTPUT_BLOCK_WIDTH + c], NL_M_ELTW, NL_N_ELTW);
+            out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION_ELTW(out[r * OUTPUT_BLOCK_WIDTH + c], ACTIVATION_PARAMS_ELTW);
         }
     }
     // end of eltwise part
@@ -240,7 +240,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
                 {
 #if IN_OUT_OPT == 1
                     out[r * OUTPUT_BLOCK_WIDTH + c] += output[out_addr + r * OUTPUT_Y_PITCH + c];
-                    out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION_ELTW(out[r * OUTPUT_BLOCK_WIDTH + c], NL_M_ELTW, NL_N_ELTW);
+                    out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION_ELTW(out[r * OUTPUT_BLOCK_WIDTH + c], ACTIVATION_PARAMS_ELTW);
 #endif
                     output[out_addr + r * OUTPUT_Y_PITCH + c] = out[r * OUTPUT_BLOCK_WIDTH + c];
                 }

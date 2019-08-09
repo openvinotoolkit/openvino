@@ -70,7 +70,7 @@ KERNEL(eltwise_fs_bs_yx_bsv4_fsv32)(
         #else  // CALIBRATION_TERM
             res_tmp = (int)round(((float)res_tmp) * O_QF);
         #endif // CALIBRATION_TERM
-            char_res[f] = ACTIVATION(convert_char(res_tmp), NL_M, NL_N);
+            char_res[f] = ACTIVATION(convert_char_sat(res_tmp), ACTIVATION_PARAMS);
         }
         // pack 4 chars into int
         char_result[b] = as_int(char_res);

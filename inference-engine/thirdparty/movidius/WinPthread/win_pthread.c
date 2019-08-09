@@ -3,7 +3,9 @@
 //
 
 #include "win_pthread.h"
+#include <string.h>
 
+#include "mvStringUtils.h"
 
 //Mutex implementation
 int pthread_mutex_lock(pthread_mutex_t *mutex)
@@ -161,3 +163,26 @@ void pthread_exit(void *res)
         _endthreadex(0);
 }
 
+int pthread_setname_np(pthread_t target_thread, const char * name)
+{
+    HRESULT hr = SetThreadDescription(target_thread.handle, name);
+    if (FAILED(hr))
+    {
+        return 1;
+    }
+    return 0;
+}
+
+int pthread_getname_np(pthread_t target_thread, char *buf, size_t len)
+{
+    char *data;
+    HRESULT hr = GetThreadDescription(target_thread.handle, &data);
+    if (FAILED(hr))
+    {
+        return 1;
+    }
+
+    mv_strncpy(buf, len, data, len - 1);
+    LocalFree(data);
+    return 0;
+}

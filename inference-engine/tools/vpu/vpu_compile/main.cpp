@@ -38,8 +38,10 @@ static constexpr char plugin_path_message[] = "Optional. Path to a plugin folder
 static constexpr char output_message[] = "Optional. Path to the output file. Default value: \"<model_xml_file>.blob\".";
 static constexpr char config_message[] = "Optional. Path to the configuration file. Default value: \"config\".";
 static constexpr char platform_message[] = "Optional. Specifies movidius platform."
-                                           " Supported values: VPU_2450, VPU_2480."
-                                           " Overwrites value from config.";
+                                           " Supported values: VPU_MYRIAD_2450, VPU_MYRIAD_2480."
+                                           " Overwrites value from config.\n"
+"                                             This option must be used in order to compile blob"
+                                           " without a connected Myriad device.";
 static constexpr char number_of_shaves_message[] = "Optional. Specifies number of shaves."
                                                    " Should be set with \"VPU_NUMBER_OF_CMX_SLICES\"."
                                                    " Overwrites value from config.";
@@ -58,14 +60,14 @@ static constexpr char iop_message[] = "Optional. Specifies precision for input/o
 "                                             Overwrites precision from ip and op options for specified layers.";
 
 DEFINE_bool(h, false, help_message);
-DEFINE_string(m, "", help_message);
+DEFINE_string(m, "", model_message);
 DEFINE_string(pp, "", plugin_path_message);
 DEFINE_string(o, "", output_message);
 DEFINE_string(c, "config", config_message);
 DEFINE_string(ip, "", inputs_precision_message);
 DEFINE_string(op, "", outputs_precision_message);
 DEFINE_string(iop, "", iop_message);
-DEFINE_string(VPU_PLATFORM, "", platform_message);
+DEFINE_string(VPU_MYRIAD_PLATFORM, "", platform_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 
@@ -73,17 +75,17 @@ static void showUsage() {
     std::cout << std::endl;
     std::cout << "myriad_compile [OPTIONS]" << std::endl;
     std::cout << "[OPTIONS]:" << std::endl;
-    std::cout << "    -h                                       " << help_message << std::endl;
-    std::cout << "    -m                           <value>     " << model_message << std::endl;
-    std::cout << "    -pp                          <value>     " << plugin_path_message << std::endl;
-    std::cout << "    -o                           <value>     " << output_message << std::endl;
-    std::cout << "    -c                           <value>     " << config_message << std::endl;
-    std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
-    std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
-    std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
-    std::cout << "    -VPU_PLATFORM                <value>     " << platform_message << std::endl;
-    std::cout << "    -VPU_NUMBER_OF_SHAVES        <value>     " << number_of_shaves_message << std::endl;
-    std::cout << "    -VPU_NUMBER_OF_CMX_SLICES    <value>     " << number_of_cmx_slices_message << std::endl;
+    std::cout << "    -h                                       "   << help_message                 << std::endl;
+    std::cout << "    -m                           <value>     "   << model_message                << std::endl;
+    std::cout << "    -pp                          <value>     "   << plugin_path_message          << std::endl;
+    std::cout << "    -o                           <value>     "   << output_message               << std::endl;
+    std::cout << "    -c                           <value>     "   << config_message               << std::endl;
+    std::cout << "    -ip                          <value>     "   << inputs_precision_message     << std::endl;
+    std::cout << "    -op                          <value>     "   << outputs_precision_message    << std::endl;
+    std::cout << "    -iop                        \"<value>\"    " << iop_message                  << std::endl;
+    std::cout << "    -VPU_MYRIAD_PLATFORM         <value>     "   << platform_message             << std::endl;
+    std::cout << "    -VPU_NUMBER_OF_SHAVES        <value>     "   << number_of_shaves_message     << std::endl;
+    std::cout << "    -VPU_NUMBER_OF_CMX_SLICES    <value>     "   << number_of_cmx_slices_message << std::endl;
     std::cout << std::endl;
 }
 
@@ -117,8 +119,8 @@ static bool parseCommandLine(int *argc, char ***argv) {
 static std::map<std::string, std::string> configure(const std::string &configFile, const std::string &xmlFileName) {
     auto config = parseConfig(configFile);
 
-    if (!FLAGS_VPU_PLATFORM.empty()) {
-        config[VPU_CONFIG_KEY(PLATFORM)] = FLAGS_VPU_PLATFORM;
+    if (!FLAGS_VPU_MYRIAD_PLATFORM.empty()) {
+        config[VPU_MYRIAD_CONFIG_KEY(PLATFORM)] = FLAGS_VPU_MYRIAD_PLATFORM;
     }
 
     if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
@@ -165,21 +167,37 @@ static std::map<std::string, std::string> parsePrecisions(const std::string &iop
     return precisions;
 }
 
-static InferenceEngine::Precision getPrecision(const std::string &value) {
-    static const std::unordered_map<std::string, InferenceEngine::Precision> supported_precisions = {
-         { "FP32", InferenceEngine::Precision::FP32 },
-         { "FP16", InferenceEngine::Precision::FP16 },
-         { "U8", InferenceEngine::Precision::U8 }
-    };
+using supported_precisions_t = std::unordered_map<std::string, InferenceEngine::Precision>;
 
+static InferenceEngine::Precision getPrecision(const std::string &value,
+                                               const supported_precisions_t &supported_precisions,
+                                               const std::string& error_report = std::string()) {
     std::string upper_value = value;
     std::transform(value.begin(), value.end(), upper_value.begin(), ::toupper);
     auto precision = supported_precisions.find(upper_value);
     if (precision == supported_precisions.end()) {
-        throw std::logic_error(value + " is not a valid precision");
+        std::string report = error_report.empty() ? ("") : (" " + error_report);
+        throw std::logic_error("\"" + value + "\"" + " is not a valid precision" + report);
     }
 
     return precision->second;
+}
+
+static InferenceEngine::Precision getInputPrecision(const std::string &value) {
+    static const supported_precisions_t supported_precisions = {
+         { "FP32", InferenceEngine::Precision::FP32 },
+         { "FP16", InferenceEngine::Precision::FP16 },
+         { "U8", InferenceEngine::Precision::U8 }
+    };
+    return getPrecision(value, supported_precisions, "for input layer");
+}
+
+static InferenceEngine::Precision getOutputPrecision(const std::string &value) {
+    static const supported_precisions_t supported_precisions = {
+         { "FP32", InferenceEngine::Precision::FP32 },
+         { "FP16", InferenceEngine::Precision::FP16 }
+    };
+    return getPrecision(value, supported_precisions, "for output layer");
 }
 
 void setPrecisions(const InferenceEngine::CNNNetwork &network, const std::string &iop) {
@@ -189,15 +207,14 @@ void setPrecisions(const InferenceEngine::CNNNetwork &network, const std::string
 
     for (auto &&layer : precisions) {
         auto name = layer.first;
-        auto precision = getPrecision(layer.second);
 
         auto input_precision = inputs.find(name);
         auto output_precision = outputs.find(name);
 
         if (input_precision != inputs.end()) {
-            input_precision->second->setPrecision(precision);
+            input_precision->second->setPrecision(getInputPrecision(layer.second));
         } else if (output_precision != outputs.end()) {
-            output_precision->second->setPrecision(precision);
+            output_precision->second->setPrecision(getOutputPrecision(layer.second));
         } else {
             throw std::logic_error(name + " is not an input neither output");
         }
@@ -210,14 +227,14 @@ static void processPrecisions(InferenceEngine::CNNNetwork &network,
     setPrecisions(network);
 
     if (!inputs_precision.empty()) {
-        auto precision = getPrecision(inputs_precision);
+        auto precision = getInputPrecision(inputs_precision);
         for (auto &&layer : network.getInputsInfo()) {
             layer.second->setPrecision(precision);
         }
     }
 
     if (!outputs_precision.empty()) {
-        auto precision = getPrecision(outputs_precision);
+        auto precision = getOutputPrecision(outputs_precision);
         for (auto &&layer : network.getOutputsInfo()) {
             layer.second->setPrecision(precision);
         }
@@ -240,8 +257,8 @@ int main(int argc, char *argv[]) {
 
         processPrecisions(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
 
-        auto plugin = loadPlugin("MYRIAD", FLAGS_pp);
-        InferenceEngine::ExecutableNetwork executableNetwork = plugin.LoadNetwork(network, configure(FLAGS_c, FLAGS_m));
+        InferenceEngine::Core ie;
+        auto executableNetwork = ie.LoadNetwork(network, "MYRIAD", configure(FLAGS_c, FLAGS_m));
 
         std::string outputName = FLAGS_o;
         if (outputName.empty()) {
@@ -256,5 +273,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    std::cout << "Done" << std::endl;
     return EXIT_SUCCESS;
 }

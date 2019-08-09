@@ -48,8 +48,8 @@ KERNEL(reorder_from_winograd_2x3_s1)(global const UNIT_TYPE* input_winograd, glo
     UNIT_TYPE out_tile[output_tile_width];
 
     //transform back
-    out_tile[0] = ACTIVATION(winograd_tile[0] + winograd_tile[1] + winograd_tile[2], NL_M ,NL_N);
-    out_tile[1] = ACTIVATION(winograd_tile[1] - winograd_tile[2] - winograd_tile[3], NL_M ,NL_N);
+    out_tile[0] = ACTIVATION(winograd_tile[0] + winograd_tile[1] + winograd_tile[2], ACTIVATION_PARAMS);
+    out_tile[1] = ACTIVATION(winograd_tile[1] - winograd_tile[2] - winograd_tile[3], ACTIVATION_PARAMS);
 
     int out_idx = (OUTPUT_PAD_BEFORE_BATCH_NUM + batch_idx) * OUTPUT_BATCH_PITCH +
                   (OUTPUT_PAD_BEFORE_FEATURE_NUM + feature_idx) * OUTPUT_FEATURE_PITCH +

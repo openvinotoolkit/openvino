@@ -19,9 +19,12 @@ import logging as log
 
 import numpy as np
 
+from extensions.back.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
+    mark_output_as_in_correct_layout
+from extensions.ops.activation_ops import Sigmoid
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import update_attrs
 from mo.graph.graph import Node, Graph
-from mo.ops.activation import Activation
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.convolution import Convolution
@@ -29,6 +32,19 @@ from mo.ops.crop import Crop
 from mo.ops.reshape import Reshape
 from mo.ops.softmax import Softmax
 from mo.utils.error import Error
+
+
+def create_op_node_with_second_input(graph: Graph, op: callable, second_input_value: np.array, op_attrs=None,
+                                     input_node=None):
+    operation = op(graph, op_attrs)
+    node = operation.create_node()
+    if input_node is not None:
+        input_node.out_port(0).connect(node.in_port(0))
+    second_input_node = Const(graph, {'name': node.name + '/value', 'value': second_input_value}).create_node()
+    second_input_node.out_port(0).connect(node.in_port(1))
+    if graph.stage != 'front':
+        second_input_node.infer(second_input_node)
+    return node
 
 
 def squeeze_reshape_and_concat(start_nodes: list):
@@ -49,15 +65,14 @@ def squeeze_reshape_and_concat(start_nodes: list):
         if cur_node.has_valid('type'):
             if cur_node.type == 'DetectionOutput':  # do not go beyond the DetectionOutput node
                 continue
-            if cur_node.type == 'Reshape' and len(cur_node.out_node().shape) == 4:
-                log.debug("Found Reshape op with 4D output {}".format(cur_node.id))
+            if cur_node.op == 'Reshape' and len(cur_node.out_node().shape) == 4:
+                log.debug("Found reshape op with 4D output {}".format(cur_node.id))
                 if cur_node.in_node(1).has_valid('value') and cur_node.in_node(1).value is not None:
                     new_shape = cur_node.in_node(1).value
                     assert new_shape[2] == 1
                     new_shape = np.delete(new_shape, 2)
                     cur_node.in_node(1).value = new_shape
                     cur_node.in_node(1).shape = np.array(new_shape.shape, dtype=np.int64)
-                    cur_node['dim'] = new_shape.copy()
                     # run infer function once again
                     cur_node.infer(cur_node)
                 else:
@@ -67,6 +82,10 @@ def squeeze_reshape_and_concat(start_nodes: list):
                 cur_node.axis = 1
                 # run infer function once again
                 cur_node.infer(cur_node)
+                if cur_node.out_port(0).get_destination().node.op == 'Squeeze':
+                    # remove Squeeze node after the Concat
+                    squeeze_consumer = cur_node.out_port(0).get_destination().node.out_port(0).get_destination()
+                    cur_node.out_port(0).get_connection().set_destination(squeeze_consumer)
 
         out_node_size = len(cur_node.out_nodes())
         for ind in range(out_node_size):
@@ -89,9 +108,12 @@ def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coord
     """
     # swap of input tensor with 4 or 5 numbers describing boxes are supported
     assert (coordinates_size in [4, 5])
-    input_reshape_4d_op = Reshape(input_node.graph, dict(dim=np.array([-1, 1, 1, coordinates_size])))
-    input_reshape_4d_node = input_reshape_4d_op.create_node([input_node], dict(name=input_node.name + '/reshape_4d'))
-    update_attrs(input_reshape_4d_node, 'shape_attrs', 'dim')
+
+    input_reshape_4d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 1, 1, coordinates_size]),
+                                                             dict(name=input_node.name + '/reshape_4d'), input_node)
+    mark_input_as_in_correct_layout(input_reshape_4d_node, 0)
+    # do not mark second input because the reshape works in initial model layout and needs to be transformed to NCHW
+    mark_output_as_in_correct_layout(input_reshape_4d_node, 0)
 
     if coordinates_size == 5:
         # zero indexed element is not box coordinate ("batch id" in case of Proposal)
@@ -108,6 +130,8 @@ def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coord
                                                 [0, 0, 1, 0]]]],
                                              dtype=np.float32))
 
+    conv_filter_data = np.transpose(conv_filter_data, [2, 3, 0, 1])
+
     conv_filter_const_op = Const(graph, dict(value=conv_filter_data))
     conv_filter_const_node = conv_filter_const_op.create_node([], dict(name=input_node.name + '/weights'))
 
@@ -115,8 +139,8 @@ def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coord
         'bias_addable': True,
         'channel_dims': np.array([3]),
         'batch_dims': np.array([0]),
-        'input_feature_channel': 2,
-        'output_feature_channel': 3,
+        'input_feature_channel': 0,
+        'output_feature_channel': 1,
         'group': 1,
         'layout': 'NHWC',
     })
@@ -158,7 +182,7 @@ def add_activation_function_after_node(graph: Graph, node: Node, activation_func
         activation_node = softmax_conf_op.create_node([node], dict(name=node.name + '/softmax'))
     elif activation_function == 'SIGMOID':
         # sigmoid activation function to be applied to the confidence
-        sigmoid_conf_op = Activation(graph, dict(operation='sigmoid', nchw_layout=True))
+        sigmoid_conf_op = Sigmoid(graph, dict(nchw_layout=True))
         activation_node = sigmoid_conf_op.create_node([node], dict(name=node.name + '/sigmoid'))
     elif activation_function == 'IDENTITY':
         # in case of Identity do nothing and just use result from the input node

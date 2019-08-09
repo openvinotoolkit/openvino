@@ -99,7 +99,7 @@ TEST_F(V2TopologyVerificationTests, testDefaultPrecisionsForFP16InputAndOutputLa
     InputsDataMap inputsDataMap;
     cnnNetworkImplPtr->getInputsInfo(inputsDataMap);
     for (auto inputData: inputsDataMap) {
-        ASSERT_TRUE(inputData.second->getInputPrecision() == Precision::FP32);
+        ASSERT_TRUE(inputData.second->getPrecision() == Precision::FP32);
     }
 }
 
@@ -122,7 +122,7 @@ TEST_F(V2TopologyVerificationTests, testDefaultPrecisionsFP32InputAndOutputLayer
     InputsDataMap inputsDataMap;
     cnnNetworkImplPtr->getInputsInfo(inputsDataMap);
     for (auto inputData: inputsDataMap) {
-        ASSERT_TRUE(inputData.second->getInputPrecision() == Precision::FP32);
+        ASSERT_TRUE(inputData.second->getPrecision() == Precision::FP32);
     }
 }
 
@@ -145,7 +145,7 @@ TEST_F(V2TopologyVerificationTests, testDefaultPrecisionsForQ78InputAndOutputLay
     InputsDataMap inputsDataMap;
     cnnNetworkImplPtr->getInputsInfo(inputsDataMap);
     for (auto inputData: inputsDataMap) {
-        ASSERT_TRUE(inputData.second->getInputPrecision() == Precision::I16);
+        ASSERT_TRUE(inputData.second->getPrecision() == Precision::I16);
     }
 }
 

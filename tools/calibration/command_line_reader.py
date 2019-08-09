@@ -19,7 +19,7 @@ from functools import partial
 from argparse import ArgumentParser
 
 from ..accuracy_checker.accuracy_checker.utils import get_path
-
+from ..utils.path import Path
 
 class CommandLineReader:
     @staticmethod
@@ -34,20 +34,20 @@ class CommandLineReader:
 
         parser.add_argument(
             '-c', '--config',
-            help='Required. Path to the YML file with local configuration',
+            help='Optional. Path to the YML file with local configuration',
             type=get_path,
-            required=True)
+            required=False)
 
         parser.add_argument(
             '-m', '--models',
-            help='Optional. Prefix path to the models and weights',
-            type=partial(get_path, is_directory=True),
+            help='Optional. Prefix path to the models and weights. In the simplified mode, it is the path to IR .xml file',
+            type=Path.validate_path,
             default=pathlib.Path.cwd(),
             required=False)
 
         parser.add_argument(
             '-s', '--source',
-            help='Optional. Prefix path to the data source',
+            help='Optional. Prefix path to the data source. In the simplified mode, it is the path to a folder with images',
             type=partial(get_path, is_directory=True),
             default=pathlib.Path.cwd(),
             required=False)
@@ -61,8 +61,8 @@ class CommandLineReader:
 
         parser.add_argument(
             '-e', '--extensions',
-            help='Optional. Prefix path to extensions folder',
-            type=partial(get_path, is_directory=True),
+            help='Optional. Prefix path to extensions folder. In simplified mode is a path to extensions library',
+            type=Path.validate_path,
             default=pathlib.Path.cwd(),
             required=False)
 
@@ -129,7 +129,8 @@ class CommandLineReader:
         parser.add_argument(
             '-p',
             '--precision',
-            help='Optional. Precision to calibrate. Default value is INT8',
+            help='Optional. Precision to calibrate. Default value is INT8. '
+                 'In simplified mode determines output IR precision',
             type=str,
             required=False,
             default='INT8')
@@ -177,10 +178,10 @@ class CommandLineReader:
 
         parser.add_argument(
             '-ic', '--benchmark_iterations_count', '--benchmark-iterations-count',
-            help='Optional. Benchmark itertations count. (1000 is default)',
+            help='Optional. Benchmark itertations count. (1 is default)',
             type=int,
             required=False,
-            default=1000)
+            default=1)
 
         parser.add_argument(
             '-mn', '--metric_name', '--metric-name',
@@ -205,5 +206,37 @@ class CommandLineReader:
             help='Optional. FullyConnected INT8 convertion support (False is default)',
             action="store_true",
             required=False)
+
+        parser.add_argument(
+            '-thstep', '--threshold_step', '--threshold-step',
+            help='Optional. Activation statistics threshold step',
+            type=float,
+            required=False,
+            default=0.5
+        )
+
+        parser.add_argument(
+            '-thboundary', '--threshold_boundary', '--threshold-boundary',
+            help='Optional. Activation statistics lower boundary',
+            type=float,
+            required=False,
+            default=95.0
+        )
+
+        parser.add_argument(
+            '-sm', '--simplified_mode', '--simplified-mode',
+            help='Optional. If specified, calibration tool will just collect statistics without searching optimal data thresholds.',
+            action="store_true",
+            required=False
+        )
+
+        parser.add_argument(
+            '-ss', '--subset',
+            help='Optional. This option is used just with --simplified_mode. '
+                 'Specifies number of images from folder set via -s option.',
+            type=int,
+            required=False,
+            default=0
+        )
 
         return parser

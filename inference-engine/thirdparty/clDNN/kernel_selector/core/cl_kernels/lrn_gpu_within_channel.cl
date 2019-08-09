@@ -65,6 +65,6 @@ KERNEL (lrn_gpu_within_channel)(const __global UNIT_TYPE* input, __global UNIT_T
         acc = native_powr(acc, -TO_UNIT_TYPE(BETA));
 
         const uint output_idx = OUTPUT_OFFSET + batch_id*OUTPUT_BATCH_PITCH + feature_id*OUTPUT_FEATURE_PITCH + y*OUTPUT_Y_PITCH + x*OUTPUT_X_PITCH;
-        output[output_idx] = ACTIVATION(acc * input[input_id], NL_M ,NL_N);
+        output[output_idx] = ACTIVATION(acc * input[input_id], ACTIVATION_PARAMS);
     }
 }

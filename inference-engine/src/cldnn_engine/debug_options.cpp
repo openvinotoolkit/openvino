@@ -188,7 +188,6 @@ void DebugOptions::PrintNetworkOutputs(std::map<cldnn::primitive_id, cldnn::netw
         return;
     }
 
-    std::chrono::nanoseconds total(0);
     for (auto& layer : outputsMap) {
         std::cout << layer.first << ":\n";
         auto mem = layer.second.get_memory();
@@ -329,6 +328,7 @@ std::string DebugOptions::IELayoutToString(InferenceEngine::Layout layout) {
     case InferenceEngine::ANY: return "ANY";
     case InferenceEngine::NCHW: return "NCHW";
     case InferenceEngine::NHWC: return "NHWC";
+    case InferenceEngine::NCDHW: return "NCDHW";
     case InferenceEngine::OIHW: return "OIHW";
     case InferenceEngine::C: return "C";
     case InferenceEngine::CHW: return "CHW";

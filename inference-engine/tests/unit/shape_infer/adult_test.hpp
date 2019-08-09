@@ -75,4 +75,9 @@ protected:
     std::vector<float> refGen(const InOutData& inOutData);
 };
 
+class BroadcastTest : public BasicTest {
+protected:
+    std::vector<float> refGen(const InOutData& inOutData);
+};
+
 }  // namespace ShapeInferTests

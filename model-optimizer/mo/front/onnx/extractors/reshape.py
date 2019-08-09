@@ -16,9 +16,8 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.elemental import single_output_infer
-from mo.front.common.partial_infer.reshape import tf_reshape_shape_infer
 from mo.front.onnx.extractors.utils import onnx_attr
+from mo.ops.reshape import Reshape
 
 
 def onnx_reshape_ext(node):
@@ -29,10 +28,7 @@ def onnx_reshape_ext(node):
     dim = onnx_attr(node, 'shape', 'ints', None)
     if dim is not None:
         dim = np.array(dim, dtype=np.int64)
-    return {
-        'type': 'Reshape',
-        'dim': dim,
-        'infer': lambda node: single_output_infer(node, tf_reshape_shape_infer,
-                                                  lambda node: np.reshape(node.in_node().value,
-                                                                          node.out_node().shape) if node.in_node().value is not None else None)
-    }
+        Reshape.update_node_stat(node, {'dim': dim})
+    else:
+        Reshape.update_node_stat(node)
+    return node.graph.node[node.id]

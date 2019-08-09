@@ -15,8 +15,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNPowerNode::MKLDNNPowerNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng)
-        : MKLDNNNode(layer, eng), scale(1.0f), shift(1.0f), power(1.0f) {}
+MKLDNNPowerNode::MKLDNNPowerNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
+        : MKLDNNNode(layer, eng, socket), scale(1.0f), shift(1.0f), power(1.0f) {}
 
 void MKLDNNPowerNode::getSupportedDescriptors() {
     auto * powerLayer = dynamic_cast<PowerLayer*>(getCnnLayer().get());
@@ -71,7 +71,7 @@ void MKLDNNPowerNode::initSupportedPrimitiveDescriptors() {
                                                                           std::numeric_limits<size_t>::max()
                                                                   });
         }
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, format);
     }
 }
 
@@ -83,7 +83,7 @@ void MKLDNNPowerNode::createPrimitive() {
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
         THROW_IE_EXCEPTION << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 }
 
 void MKLDNNPowerNode::execute(mkldnn::stream strm) {
@@ -99,6 +99,11 @@ void MKLDNNPowerNode::execute(mkldnn::stream strm) {
     if (power == 1.0f) {
         parallel_for(data_size, [&](size_t i) {
             dst_ptr[i] = src_ptr[i] * scale + shift;
+        });
+    } else if (power == 2.0f) {
+        parallel_for(data_size, [&](size_t i) {
+            float val = src_ptr[i] * scale + shift;
+            dst_ptr[i] = val * val;
         });
     } else {
         parallel_for(data_size, [&](size_t i) {

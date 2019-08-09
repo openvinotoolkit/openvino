@@ -151,6 +151,19 @@ void splitRow_32FC4(const float in[],
                           float out3[],
                             int length);
 
+void calculate_nv12_to_rgb(const  uchar **srcY,
+                           const  uchar *srcUV,
+                                  uchar **dstRGBx,
+                                    int width);
+
+void copyRow_8U(const uint8_t in[],
+                uint8_t out[],
+                int length);
+
+void copyRow_32F(const float in[],
+                 float out[],
+                 int length);
+
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

@@ -7,11 +7,8 @@
  * @file style_transfer_sample/main.cpp
  * @example style_transfer_sample/main.cpp
  */
-#include <fstream>
-#include <iomanip>
 #include <vector>
 #include <string>
-#include <chrono>
 #include <memory>
 
 #include <format_reader_ptr.h>
@@ -33,11 +30,8 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
+        showAvailableDevices();
         return false;
-    }
-
-    if (FLAGS_ni < 1) {
-        throw std::logic_error("Parameter -ni should be more than 0 !!! (default 1)");
     }
 
     if (FLAGS_i.empty()) {
@@ -65,12 +59,13 @@ int main(int argc, char *argv[]) {
         if (imageNames.empty()) throw std::logic_error("No suitable images were found");
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 1. Load Plugin for inference engine -------------------------------------
-        slog::info << "Loading plugin" << slog::endl;
-        InferencePlugin plugin = PluginDispatcher({FLAGS_pp}).getPluginByDevice(FLAGS_d);
+        // --------------------------- 1. Load inference engine -------------------------------------
+        slog::info << "Loading Inference Engine" << slog::endl;
+        Core ie;
 
-        /** Printing plugin version **/
-        printPluginVersion(plugin, std::cout);
+        /** Printing device version **/
+        slog::info << "Device info: " << slog::endl;
+        std::cout << ie.GetVersions(FLAGS_d) << std::endl;
 
         /** Loading default extensions **/
         if (FLAGS_d.find("CPU") != std::string::npos) {
@@ -79,18 +74,18 @@ int main(int argc, char *argv[]) {
              * custom MKLDNNPlugin layer implementations. These layers are not supported
              * by mkldnn, but they can be useful for inferring custom topologies.
             **/
-            plugin.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>());
+            ie.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>(), "CPU");
         }
 
         if (!FLAGS_l.empty()) {
             // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
             IExtensionPtr extension_ptr = make_so_pointer<IExtension>(FLAGS_l);
-            plugin.AddExtension(extension_ptr);
+            ie.AddExtension(extension_ptr, "CPU");
             slog::info << "CPU Extension loaded: " << FLAGS_l << slog::endl;
         }
         if (!FLAGS_c.empty()) {
             // clDNN Extensions are loaded from an .xml description and OpenCL kernel files
-            plugin.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}});
+            ie.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, "GPU");
             slog::info << "GPU Extension loaded: " << FLAGS_c << slog::endl;
         }
         // -----------------------------------------------------------------------------------------------------
@@ -123,7 +118,7 @@ int main(int argc, char *argv[]) {
         std::vector<std::shared_ptr<uint8_t>> imagesData;
 
         /** Specifying the precision of input data.
-         * This should be called before load of the network to the plugin **/
+         * This should be called before load of the network to the device **/
         inputInfoItem.second->setPrecision(Precision::FP32);
 
         /** Collect images data ptrs **/
@@ -170,12 +165,13 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 4. Loading model to the plugin ------------------------------------------
-        slog::info << "Loading model to the plugin" << slog::endl;
-        ExecutableNetwork executable_network = plugin.LoadNetwork(network, {});
+        // --------------------------- 4. Loading model to the device ------------------------------------------
+        slog::info << "Loading model to the device" << slog::endl;
+        ExecutableNetwork executable_network = ie.LoadNetwork(network, FLAGS_d);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Create infer request -------------------------------------------------
+        slog::info << "Create infer request" << slog::endl;
         InferRequest infer_request = executable_network.CreateInferRequest();
         // -----------------------------------------------------------------------------------------------------
 
@@ -205,30 +201,8 @@ int main(int argc, char *argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 7. Do inference ---------------------------------------------------------
-        slog::info << "Start inference (" << FLAGS_ni << " iterations)" << slog::endl;
-
-        typedef std::chrono::high_resolution_clock Time;
-        typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
-        typedef std::chrono::duration<float> fsec;
-
-        double total = 0.0;
-        /** Start inference & calc performance **/
-        for (size_t iter = 0; iter < FLAGS_ni; ++iter) {
-            auto t0 = Time::now();
-            infer_request.Infer();
-            auto t1 = Time::now();
-            fsec fs = t1 - t0;
-            ms d = std::chrono::duration_cast<ms>(fs);
-            total += d.count();
-        }
-
-        /** Show performance results **/
-        std::cout << std::endl << "Average running time of one iteration: " << total / static_cast<double>(FLAGS_ni)
-                  << " ms" << std::endl;
-
-        if (FLAGS_pc) {
-            printPerformanceCounts(infer_request, std::cout);
-        }
+        slog::info << "Start inference" << slog::endl;
+        infer_request.Infer();
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 8. Process output -------------------------------------------------------
@@ -295,5 +269,7 @@ int main(int argc, char *argv[]) {
     }
 
     slog::info << "Execution successful" << slog::endl;
+    slog::info << slog::endl << "This sample is an API example, for any performance measurements "
+                                "please use the dedicated benchmark_app tool" << slog::endl;
     return 0;
 }

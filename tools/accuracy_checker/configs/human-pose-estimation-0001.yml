@@ -6,8 +6,8 @@ models:
         tags:
           - FP32
         device: CPU
-        model:   human-pose-estimation-0001/FP32/human-pose-estimation-0001.xml
-        weights: human-pose-estimation-0001/FP32/human-pose-estimation-0001.bin
+        model:   Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.xml
+        weights: Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.bin
         allow_reshape_input: True
         adapter:
           type: human_pose_estimation
@@ -16,10 +16,10 @@ models:
 
       - framework: dlsdk
         tags:
-          - GPU32
-        device: GPU
-        model:   human-pose-estimation-0001/FP32/human-pose-estimation-0001.xml
-        weights: human-pose-estimation-0001/FP32/human-pose-estimation-0001.bin
+          - INT8
+        device: CPU
+        model:   Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001-int8.xml
+        weights: Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001-int8.bin
         allow_reshape_input: True
         adapter:
           type: human_pose_estimation
@@ -28,10 +28,22 @@ models:
 
       - framework: dlsdk
         tags:
-          - GPU16
+          - FP32
         device: GPU
-        model:   human-pose-estimation-0001/FP16/human-pose-estimation-0001.xml
-        weights: human-pose-estimation-0001/FP16/human-pose-estimation-0001.bin
+        model:   Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.xml
+        weights: Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.bin
+        allow_reshape_input: True
+        adapter:
+          type: human_pose_estimation
+          part_affinity_fields_out: Mconv7_stage2_L1
+          keypoints_heatmap_out: Mconv7_stage2_L2
+
+      - framework: dlsdk
+        tags:
+          - FP16
+        device: GPU
+        model:   Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001-fp16.xml
+        weights: Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001-fp16.bin
         allow_reshape_input: True
         adapter:
           type: human_pose_estimation
@@ -40,8 +52,8 @@ models:
 
       - framework: dlsdk
         device: MYRIAD
-        model:   human-pose-estimation-0001/FP16/human-pose-estimation-0001.xml
-        weights: human-pose-estimation-0001/FP16/human-pose-estimation-0001.bin
+        model:   Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001-fp16.xml
+        weights: Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001-fp16.bin
         allow_reshape_input: True
         adapter:
           type: human_pose_estimation
@@ -50,8 +62,8 @@ models:
 
       - framework: dlsdk
         device: HDDL
-        model:   human-pose-estimation-0001/FP16/human-pose-estimation-0001.xml
-        weights: human-pose-estimation-0001/FP16/human-pose-estimation-0001.bin
+        model:   Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001-fp16.xml
+        weights: Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001-fp16.bin
         allow_reshape_input: True
         adapter:
           type: human_pose_estimation
@@ -60,10 +72,11 @@ models:
 
       - framework: dlsdk
         tags:
-          - FPGA16
+          - A10_devkit
+          - FP16
         device: HETERO:FPGA,CPU
-        model:   human-pose-estimation-0001/FP32/human-pose-estimation-0001.xml
-        weights: human-pose-estimation-0001/FP32/human-pose-estimation-0001.bin
+        model:   Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.xml
+        weights: Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.bin
         allow_reshape_input: True
         adapter:
           type: human_pose_estimation
@@ -73,10 +86,11 @@ models:
 
       - framework: dlsdk
         tags:
-          - FPGA11
+          - A10_devkit
+          - FP11
         device: HETERO:FPGA,CPU
-        model:   human-pose-estimation-0001/FP32/human-pose-estimation-0001.xml
-        weights: human-pose-estimation-0001/FP32/human-pose-estimation-0001.bin
+        model:   Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.xml
+        weights: Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.bin
         allow_reshape_input: True
         adapter:
           type: human_pose_estimation
@@ -84,6 +98,33 @@ models:
           keypoints_heatmap_out: Mconv7_stage2_L2
         bitstream: 2019R1_A10DK_FP11_ELU.aocx
 
+      - framework: dlsdk
+        tags:
+          - HDDL-F
+          - FP16
+        device: HETERO:FPGA,CPU
+        model:   Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.xml
+        weights: Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.bin
+        allow_reshape_input: True
+        adapter:
+          type: human_pose_estimation
+          part_affinity_fields_out: Mconv7_stage2_L1
+          keypoints_heatmap_out: Mconv7_stage2_L2
+        bitstream: 2019R1_PL1_FP16_ResNet_SqueezeNet_VGG_ELU.aocx
+
+      - framework: dlsdk
+        tags:
+          - HDDL-F
+          - FP11
+        device: HETERO:FPGA,CPU
+        model:   Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.xml
+        weights: Transportation/human_pose_estimation/mobilenet-v1/dldt/human-pose-estimation-0001.bin
+        allow_reshape_input: True
+        adapter:
+          type: human_pose_estimation
+          part_affinity_fields_out: Mconv7_stage2_L1
+          keypoints_heatmap_out: Mconv7_stage2_L2
+        bitstream: 2019R1_PL1_FP11_ELU.aocx
 
     datasets:
       - name: ms_coco_keypoints

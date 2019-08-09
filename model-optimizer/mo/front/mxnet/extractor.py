@@ -17,7 +17,6 @@
 from mo.front.mxnet.extractors.batchnorm import batch_norm_ext
 from mo.front.mxnet.extractors.concat import concat_ext
 from mo.front.mxnet.extractors.crop import crop_ext
-from mo.front.mxnet.extractors.eltwise import eltwise_ext
 from mo.front.mxnet.extractors.fully_connected import fully_connected_ext
 from mo.front.mxnet.extractors.l2_normalization import l2_normalization_ext
 from mo.front.mxnet.extractors.lrn import lrn_ext
@@ -26,7 +25,6 @@ from mo.front.mxnet.extractors.multibox_prior import multi_box_prior_ext
 from mo.front.mxnet.extractors.null import null_ext
 from mo.front.mxnet.extractors.scaleshift import scale_shift_ext
 from mo.front.mxnet.extractors.slice_axis import slice_axis_ext
-from mo.front.mxnet.extractors.transpose import transpose_ext
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.graph.graph import Node
 from mo.utils.error import Error
@@ -44,23 +42,18 @@ mxnet_op_extractors = {
     'slice_axis': extractor_wrapper(slice_axis_ext),
     'null': lambda node: null_ext(node.symbol_dict),
     'Concat': extractor_wrapper(concat_ext),
-    'elemwise_add': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a + b, op_type="sum")),
-    'elemwise_mul': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a * b, op_type="mul")),
-    '_Plus': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a + b, op_type="sum")),
     'FullyConnected': extractor_wrapper(fully_connected_ext),
-    'transpose': extractor_wrapper(transpose_ext),
     'LRN': extractor_wrapper(lrn_ext),
     'L2Normalization': extractor_wrapper(l2_normalization_ext),
     '_contrib_MultiBoxPrior': extractor_wrapper(multi_box_prior_ext),
     '_contrib_MultiBoxDetection': extractor_wrapper(multi_box_detection_ext),
-    'broadcast_add': extractor_wrapper(lambda attrs: eltwise_ext(attrs, infer=lambda a, b: a + b, op_type="sum")),
 }
 
 
 def common_mxnet_fields(node: Node):
     return {
         'kind': 'op',
-        'name': node['symbol_dict']['name'],
+        'name': node.id,
         'type': node['symbol_dict']['op'],
         'op': node['symbol_dict']['op'],
         'infer': None,

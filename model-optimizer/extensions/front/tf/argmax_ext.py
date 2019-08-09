@@ -26,5 +26,5 @@ class ArgMaxFrontExtractor(FrontExtractorOp):
     def extract(node):
         # update the attributes of the node
         Op.get_op_class_by_name(__class__.op).update_node_stat(node, {'out_max_val': 0, 'top_k': 1, 'axis': None,
-                                                                      'dim_attrs': ['axis']})
+                                                                      'dim_attrs': ['axis'], 'keepdims': 0})
         return __class__.enabled

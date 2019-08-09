@@ -13,16 +13,19 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from extensions.back.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
+    mark_input_as_in_correct_layout, mark_output_as_in_correct_layout
+from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.permute import Permute
+from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 
 
 class DepthToSpace(MiddleReplacementPattern):
     """
-    Replaces DepthToSpace with 6D_Reshape->Permute->4D_Reshape sequence
+    Replaces DepthToSpace with 6D_Reshape->Transpose->4D_Reshape sequence
     """
 
     enabled = True
@@ -53,22 +56,28 @@ class DepthToSpace(MiddleReplacementPattern):
         N, H, W, C = match['in_data'].shape
         block_size = node['block_size']
 
-        graph.remove_edge(match['in_data'].id, match['op'].id)
-        graph.remove_edge(match['op'].id, match['out_data'].id)
+        graph.remove_edge(match['in_data'].id, node.id)
+        graph.remove_edge(node.id, match['out_data'].id)
 
         dim_6D = int64_array([N, block_size, block_size, int(C / (block_size ** 2)), H, W])
         order_6D = int64_array([0, 3, 4, 1, 5, 2])
         dim_4D = int64_array([N, int(H * block_size), int(W * block_size), int(C / (block_size ** 2))])
 
-        reshape_data_node = Reshape(graph=graph, attrs={'name': match['op'].id + '/Reshape_to_6D',
-                                                        'dim': dim_6D}).create_node_with_data([match['in_data']])
-        permute_data_node = Permute(graph=graph, attrs={'name': match['op'].id + '/Permute',
-                                                        'order': order_6D}).create_node_with_data([reshape_data_node])
-        reshape_node = Reshape(graph=graph, attrs={'name': match['op'].id + '/Reshape_to_4D',
-                                                   'dim': dim_4D}).create_node_with_data([permute_data_node],
-                                                                                         data_nodes=[match['out_data']])
+        reshape_6_op = Reshape(graph, dict(name=node.id + '/Reshape_to_6D'))
+        reshape_6_const_data = Const(graph, dict(value=dim_6D)).create_node_with_data()
+        reshape_6_data_node = reshape_6_op.create_node_with_data([match['in_data'], reshape_6_const_data])
+        mark_as_correct_data_layout(reshape_6_data_node.in_node(0))
 
-        reshape_data_node.in_node()['nchw_layout'] = True
-        reshape_data_node['nchw_layout'] = True
-        permute_data_node.in_node()['nchw_layout'] = True
-        permute_data_node['nchw_layout'] = True
+        order_const_data = Const(graph, dict(value=order_6D)).create_node_with_data()
+
+        transpose_op = Transpose(graph, dict(name=node.id + '/Transpose'))
+        transpose_data_node = transpose_op.create_node_with_data([reshape_6_data_node, order_const_data])
+        mark_as_correct_data_layout(transpose_data_node.in_node(0))
+
+        reshape_4_op = Reshape(graph, dict(name=node.id + '/Reshape_to_4D'))
+        reshape_4_const_data = Const(graph, dict(value=dim_4D)).create_node_with_data()
+        reshape_4_data_node = reshape_4_op.create_node_with_data([transpose_data_node, reshape_4_const_data],
+                                                                 data_nodes=[match['out_data']])
+        mark_input_as_in_correct_layout(reshape_4_data_node.in_node(0), 0)
+        mark_output_as_in_correct_layout(reshape_4_data_node.in_node(0), 0)
+

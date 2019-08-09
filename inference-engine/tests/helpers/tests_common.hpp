@@ -68,7 +68,7 @@ private:
                 std::make_shared<LayerTestCreator<InferenceEngine::NormLayer>>("LRN"),
                 std::make_shared<LayerTestCreator<InferenceEngine::NormLayer>>("Norm"),
                 std::make_shared<LayerTestCreator<InferenceEngine::SoftMaxLayer>>("Softmax"),
-                std::make_shared<LayerTestCreator<InferenceEngine::SoftMaxLayer>>("SoftMax"),
+                std::make_shared<LayerTestCreator<InferenceEngine::SoftMaxLayer>>("LogSoftMax"),
                 std::make_shared<LayerTestCreator<InferenceEngine::GRNLayer>>("GRN"),
                 std::make_shared<LayerTestCreator<InferenceEngine::MVNLayer>>("MVN"),
                 std::make_shared<LayerTestCreator<InferenceEngine::ReLULayer>>("ReLU"),
@@ -89,7 +89,42 @@ private:
                 std::make_shared<LayerTestCreator<InferenceEngine::StridedSliceLayer>>("StridedSlice"),
                 std::make_shared<LayerTestCreator<InferenceEngine::ShuffleChannelsLayer>>("ShuffleChannels"),
                 std::make_shared<LayerTestCreator<InferenceEngine::DepthToSpaceLayer>>("DepthToSpace"),
-                std::make_shared<LayerTestCreator<InferenceEngine::ReverseSequenceLayer>>("ReverseSequence")
+                std::make_shared<LayerTestCreator<InferenceEngine::ReverseSequenceLayer>>("ReverseSequence"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Abs"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Acos"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Acosh"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Asin"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Asinh"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Atan"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Atanh"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Ceil"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Cos"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Cosh"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Erf"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Floor"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("HardSigmoid"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Log"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Reciprocal"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Selu"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Sign"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Sin"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Sinh"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Softplus"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Softsign"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Tan"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceAnd"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceL1"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceL2"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceLogSum"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceLogSumExp"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceMax"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceMean"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceMin"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceOr"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceProd"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceSum"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceSumSquare"),
+                std::make_shared<LayerTestCreator<InferenceEngine::TopKLayer>>("TopK")
         };
         return creators;
     }
@@ -214,6 +249,10 @@ public:
         fill_data(blob->buffer().as<float*>(), blob->byteSize() / sizeof(float));
     }
 
+    static void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val) {
+        fill_data_const(blob->buffer().as<float*>(), blob->size(), val);
+    }
+
     static void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
         for (size_t i = 0; i < size; i++) {
             if ( ( i / duty_ratio)%2 == 1) {
@@ -255,9 +294,9 @@ public:
         }
     }
 
-    static void fill_data_dbgval(float *data, size_t size) {
+    static void fill_data_dbgval(float *data, size_t size, float alpha = 1.0f) {
         for (size_t i = 0; i < size; i++) {
-            data[i] = i;
+            data[i] = i * alpha;
         }
     }
 
@@ -310,7 +349,7 @@ public:
         ASSERT_LE(sum, max_nrmsd);
     }
 
-    static void compare(float* res, float* ref, size_t size, float max_diff = 0.01f) {
+    static void compare(const float* res, const float* ref, size_t size, float max_diff = 0.01f) {
         for (size_t i = 0; i < size; i++) {
             ASSERT_NEAR(res[i], ref[i], max_diff);
         }

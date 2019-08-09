@@ -44,8 +44,8 @@ class FakeExtensions : public IExtension {
 
     void GetVersion(const Version *&versionInfo) const noexcept override {
         static Version ExtensionDescription = {
-            {1, 6},    // extension API version
-            "1.6",
+            {2, 0},    // extension API version
+            "2.0",
             "ie-cpu-ext"  // extension description message
         };
 

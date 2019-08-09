@@ -16,6 +16,8 @@
 #include <stdint.h>
 #include "usb_winusb.h"
 
+#include "mvStringUtils.h"
+
 #define USB_DIR_OUT		0
 #define USB_DIR_IN		1
 
@@ -215,7 +217,7 @@ int usb_list_devices(uint16_t vid, uint16_t pid, uint8_t dev_des[][2 + 2 + 4 * 7
         dev_des[i][1] = ((fvid & 0x00FF) >> 0);
         dev_des[i][2] = ((fpid & 0xFF00) >> 8);
         dev_des[i][3] = ((fpid & 0x00FF) >> 0);
-        sprintf((char *)&dev_des[i][4], "%s", gen_addr(devInfo, &devInfoData, fpid));
+        sprintf_s((char *)&dev_des[i][4], sizeof(dev_des[i]) - 4, "%s", gen_addr(devInfo, &devInfoData, fpid));
     }
     SetupDiDestroyDeviceInfoList(devInfo);
 
@@ -330,7 +332,7 @@ int usb_check_connected(usb_dev dev) {
 	return 1;
 }
 
-void * usb_open_device(usb_dev dev, uint8_t *ep, uint8_t intfaceno, char *err_string_buff) {
+void * usb_open_device(usb_dev dev, uint8_t *ep, uint8_t intfaceno, char *err_string_buff, size_t err_max_len) {
 	HANDLE devHan = INVALID_HANDLE_VALUE;
 	WINUSB_INTERFACE_HANDLE winUsbHan = INVALID_HANDLE_VALUE;
 	USB_INTERFACE_DESCRIPTOR ifaceDesc;
@@ -363,7 +365,7 @@ void * usb_open_device(usb_dev dev, uint8_t *ep, uint8_t intfaceno, char *err_st
 
 	han = calloc(1, sizeof(*han));
 	if(han == NULL) {
-		strcpy(err_string_buff, _strerror("malloc"));
+		mv_strcpy(err_string_buff, err_max_len, _strerror("malloc"));
 		goto exit_err;
 	}
 	han->devHan = devHan;
@@ -391,19 +393,19 @@ void * usb_open_device(usb_dev dev, uint8_t *ep, uint8_t intfaceno, char *err_st
 		*ep = han->eps[USB_DIR_OUT].ep;
 
 	if(err_string_buff && (han->eps[USB_DIR_IN].ep == 0)) {
-		sprintf(err_string_buff, "Unable to find BULK IN endpoint\n");
+		sprintf_s(err_string_buff, strnlen(err_string_buff, err_max_len), "Unable to find BULK IN endpoint\n");
 		goto exit_err;
 	}
 	if(err_string_buff && (han->eps[USB_DIR_OUT].ep == 0)) {
-		sprintf(err_string_buff, "Unable to find BULK OUT endpoint\n");
+		sprintf_s(err_string_buff, strnlen(err_string_buff, err_max_len), "Unable to find BULK OUT endpoint\n");
 		goto exit_err;
 	}
 	if(err_string_buff && (han->eps[USB_DIR_IN].sz == 0)) {
-		sprintf(err_string_buff, "Unable to find BULK IN endpoint size\n");
+		sprintf_s(err_string_buff, strnlen(err_string_buff, err_max_len), "Unable to find BULK IN endpoint size\n");
 		goto exit_err;
 	}
 	if(err_string_buff && (han->eps[USB_DIR_OUT].sz == 0)) {
-		sprintf(err_string_buff, "Unable to find BULK OUT endpoint size\n");
+		sprintf_s(err_string_buff, strnlen(err_string_buff, err_max_len), "Unable to find BULK OUT endpoint size\n");
 		goto exit_err;
 	}
 	return han;

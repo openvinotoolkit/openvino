@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef DETECTION_OUTPUT_H
-#define DETECTION_OUTPUT_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -31,8 +29,7 @@ extern "C" {
 #endif
 
 /// @brief Select method for coding the prior-boxes in Detection Output layer ( @CLDNN_PRIMITIVE_DESC{detection_output} ).
-typedef enum /*:int32_t*/
-{
+typedef enum /*:int32_t*/ {
     cldnn_code_type_corner,
     cldnn_code_type_center_size,
     cldnn_code_type_corner_size,
@@ -89,4 +86,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(detection_output);
 /// @}
 /// @}
 /// @}
-#endif /* DETECTION_OUTPUT_H */
+

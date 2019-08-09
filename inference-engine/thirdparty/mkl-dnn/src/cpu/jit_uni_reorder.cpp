@@ -26,6 +26,7 @@
 #include "cpu_reorder_pd.hpp"
 #include "jit_uni_reorder.hpp"
 
+#include "jit_avx512_core_bf16cvt.hpp"
 #include "jit_generator.hpp"
 
 // #define TR_DEBUG
@@ -109,14 +110,18 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
 
         bool ok = true
             && p.ndims > 0
-            && utils::one_of(p.itype, f32, s32, s8, u8)
-            && utils::one_of(p.otype, f32, s32, s8, u8)
+            && utils::one_of(p.itype, f32, bf16, s32, s8, u8)
+            && utils::one_of(p.otype, f32, bf16, s32, s8, u8)
+            && IMPLICATION(p.itype == bf16, utils::one_of(p.otype, f32, bf16))
+            && IMPLICATION(p.otype == bf16, utils::one_of(p.itype, f32, bf16))
             && utils::everyone_is(0, p.ioff, p.ooff) /* do we need this? */
             && utils::one_of(p.beta, 0.f, 1.f) /* anything else? */
             && simple_impl_desc_init(p, nullptr)
             && mayiuse(sse42)
             && IMPLICATION(!utils::everyone_is(f32, p.itype, p.otype),
-                    mayiuse(avx));
+                    mayiuse(avx))
+            && IMPLICATION((p.itype == bf16 || p.otype == bf16),
+                    mayiuse(avx512_core));
         if (!ok) return false;
 
         const ptrdiff_t max_stride = (1LL<<31) - 1;
@@ -183,8 +188,16 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
     }
 
     void tr8x8_avx2(int i_off, int o_off) {
-        for (int i = 0; i < 8; i++)
-            vmovups(Ymm(i), i_addr(i_off + i * 8));
+        for (int i = 0; i < 8; i++) {
+            using namespace data_type;
+
+            if (prb_.itype == s32 && prb_.otype == f32)
+                vcvtdq2ps(Ymm(i), i_addr(i_off + i * 8));
+            else if (prb_.itype == f32 && prb_.otype == s32)
+                vcvtps2dq(Ymm(i), i_addr(i_off + i * 8));
+            else
+                vmovups(Ymm(i), i_addr(i_off + i * 8));
+        }
 
         for (int i = 0; i < 8 / 2; i++) {
             vunpcklps(Ymm(8 + i), Ymm(2 * i), Ymm(2 * i + 1));
@@ -290,6 +303,7 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
                 if (src.isMEM() || src.getIdx() != dst.getIdx())
                     vmovups(dst, src);
                 break;
+            case bf16: vpmovzxwd(dst, src); vpslld(dst, dst, 0x10); break;
             case s32: vcvtdq2ps(dst, src); break;
             case s8: vpmovsxbd(dst, src); vcvtdq2ps(dst_pure, dst); break;
             case u8: vpmovzxbd(dst, src); vcvtdq2ps(dst_pure, dst); break;
@@ -297,8 +311,18 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
             }
         };
 
-        auto cvt2int = [=](const Xmm &xmm, data_type_t odt, data_type_t idt) {
+        auto cvt2odt = [=](const Xmm &xmm, data_type_t odt, data_type_t idt) {
             switch (odt) {
+            case bf16:
+                if (idt == f32) {
+                    if (is_cpx_) {
+                        vcvtneps2bf16(xmm, xmm);
+                    } else {
+                        bf16_emu_->r_vcvtneps2bf16(
+                                Ymm(xmm.getIdx()), Zmm(xmm.getIdx()));
+                    }
+                }
+                break;
             case s32:
                 if (idt == f32) vcvtps2dq(xmm, xmm);
                 else if (idt == s8) vpmovsxbd(xmm, xmm);
@@ -336,7 +360,9 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
         auto load = [=](const Xmm &xmm, const Address &addr, int size) {
             switch (size) {
             case 16: movups(xmm, addr); break;
+            case 8: movsd(xmm, addr); break;
             case 4: movss(xmm, addr); break;
+            case 2: pinsrw(xmm, addr, 0x0); break;
             case 1: pinsrb(xmm, addr, 0x0); break;
             default: assert(!"unreachable");
             }
@@ -345,7 +371,9 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
         auto store = [=](const Address &addr, const Xmm &xmm, int size) {
             switch (size) {
             case 16: movups(addr, xmm); break;
+            case 8: movsd(addr, xmm); break;
             case 4: movss(addr, xmm); break;
+            case 2: pextrw(addr, xmm, 0x0); break;
             case 1: pextrb(addr, xmm, 0x0); break;
             default: assert(!"unreachable");
             }
@@ -377,6 +405,8 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
                 for (int r = 0; r < ur_step; ++r) {
                     if (itype_sz == 4)
                         pinsrd(Xmm(ur), i_addr(i_off[ur + r]), r);
+                    else if (itype_sz == 2)
+                        pinsrw(Xmm(ur), i_addr(i_off[ur + r]), r);
                     else
                         pinsrb(Xmm(ur), i_addr(i_off[ur + r]), r);
                 }
@@ -402,11 +432,13 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
                     if (prb_.scale_type == scale_type_t::COMMON)
                         mulps(Xmm(ur), xmm_scale);
                     if (prb_.otype != f32)
-                        cvt2int(Xmm(ur), prb_.otype,
+                        cvt2odt(Xmm(ur), prb_.otype,
                                 interim_f32 ? f32 : prb_.itype);
                     for (int r = 0; r < load_step; ++r) {
                         if (otype_sz == 4)
                             pextrd(o_addr(o_off[ur + r]), Xmm(ur), r);
+                        else if (otype_sz == 2)
+                            pextrw(o_addr(o_off[ur + r]), Xmm(ur), r);
                         else
                             pextrb(o_addr(o_off[ur + r]), Xmm(ur), r);
                     }
@@ -419,6 +451,10 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
                 for (int ur = 0; ur < reg_unroll; ur += load_step)
                     for (int r = 1; r < load_step; ++r)
                         vshufps(Xmm(ur + r), Xmm(ur), Xmm(ur), r);
+            } else if (itype_sz == 2) {
+                for (int ur = 0; ur < reg_unroll; ur += load_step)
+                    for (int r = 1; r < load_step; ++r)
+                        vpalignr(Xmm(ur + r), Xmm(ur), Xmm(ur), 2 * r);
             } else {
                 for (int ur = 0; ur < reg_unroll; ur += load_step)
                     for (int r = 1; r < load_step; ++r)
@@ -523,7 +559,7 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
 
         for (int ur = 0; ur < reg_unroll; ur += ur_step) {
             if (prb_.otype != f32)
-                cvt2int(Xmm(ur), prb_.otype, interim_f32 ? f32 : prb_.itype);
+                cvt2odt(Xmm(ur), prb_.otype, interim_f32 ? f32 : prb_.itype);
             store(o_addr(o_off[ur]), Xmm(ur), ur_step * otype_sz);
         }
     }
@@ -631,10 +667,16 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
     }
 
     jit_uni_reorder_kernel_f32(const desc_t &desc)
-        : kernel_t(desc), jit_generator() {
+        : kernel_t(desc), jit_generator(), bf16_emu_(nullptr) {
         itype_sz = data_type_size(prb_.itype);
         otype_sz = data_type_size(prb_.otype);
         stype_sz = sizeof(float);
+        is_cpx_ = mayiuse(avx512_core_bf16);
+        if (prb_.otype == data_type::bf16 && !is_cpx_) {
+            bf16_emu_ = new bf16_emulation_t(this, vcvt_bf16_one, vcvt_bf16_eve,
+                    vcvt_bf16_sel, reg_bf16_scratch, vcvt_bf16_tmp, vcvt_bf16_tmp);
+            bf16_emu_->init_vcvtneps2bf16();
+        }
 
         preamble();
 #       define PARAM(x) ptr[abi_param1 + offsetof(call_param_t, x)]
@@ -662,6 +704,7 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
         postamble();
         ker_ = (void (*)(const call_param_t *))getCode();
     }
+    ~jit_uni_reorder_kernel_f32() { delete bf16_emu_; }
 
 private:
     int itype_sz;
@@ -682,6 +725,15 @@ private:
     Xmm xmm_zero = xmm14;
     Xmm xmm_4x127b = xmm13; // TODO: unite with xmm_zero
     Xmm xmm_tmp = xmm12;
+
+    /* bf16 support */
+    bool is_cpx_;
+    bf16_emulation_t *bf16_emu_;
+    Reg64 reg_bf16_scratch = reg_tmp;
+    Zmm vcvt_bf16_one = Zmm(16);
+    Zmm vcvt_bf16_eve = Zmm(17);
+    Zmm vcvt_bf16_sel = Zmm(18);
+    Zmm vcvt_bf16_tmp = Zmm(19);
 };
 
 status_t kernel_t::desc_init(kernel_t::desc_t &desc, const prb_t &prb,
@@ -976,7 +1028,17 @@ struct jit_uni_reorder_t : public cpu_primitive_t {
             omp_driver_0d(ndims_ker, in, out, scale);
             restore_rnd_mode();
         } else {
-            parallel(0, [&](const int ithr, const int nthr) {
+            size_t work_amount = 0;
+            const tr::node_t *ns = pd()->prb_.nodes + ndims_ker;
+            switch (ndims - ndims_ker) {
+                case 1: work_amount = (size_t)ns[0].n; break;
+                case 2: work_amount = (size_t)ns[1].n * (size_t)ns[0].n; break;
+                case 3: work_amount = (size_t)ns[2].n * (size_t)ns[1].n * (size_t)ns[0].n; break;
+                case 4: work_amount = (size_t)ns[3].n * (size_t)ns[2].n * (size_t)ns[1].n * (size_t)ns[0].n; break;
+                default: assert(!"unimplemented");
+            }
+
+            parallel(0, work_amount, [&](const int ithr, const int nthr) {
                 set_rnd_mode(pd()->attr()->round_mode_);
                 switch (ndims - ndims_ker) {
                 case 1: omp_driver_1d(ithr, nthr, ndims_ker, in, out, scale); break;

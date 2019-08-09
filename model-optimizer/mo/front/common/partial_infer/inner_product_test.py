@@ -24,10 +24,10 @@ from mo.utils.unittest.extractors import FakeValue
 from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
-                    'inner': {'type': 'FullyConnected', 'value': None, 'kind': 'op'},
+                    'inner': {'type': 'MatMul', 'value': None, 'kind': 'op'},
                     'node_2': {'value': FakeValue(None), 'kind': 'data'},
                     'node_3': {'value': None, 'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+                    'op_output': { 'kind': 'op', 'op': 'Result'}
                     }
 
 

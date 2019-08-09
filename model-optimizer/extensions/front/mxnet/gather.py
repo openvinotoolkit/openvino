@@ -15,7 +15,7 @@
 """
 
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from extensions.ops.gather import Gather
 
 

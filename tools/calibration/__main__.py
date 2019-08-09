@@ -40,9 +40,9 @@ def collect_statistics():
     config = calibration.CommandLineReader.read()
     calibrator = calibration.CalibratorFactory.create(config.precision, calibration.CalibratorConfiguration(config))
 
-    print("Collecting FP32 statistics for {}...".format(config.model))
+    print("Collecting original network statistics for {}...".format(config.model))
     fp32_result = calibrator.infer(add_outputs=True, collect_aggregated_statistics=True)
-    print("FP32 accuracy: {0:.4f}%".format(100.0 * fp32_result.metrics.accuracy))
+    print("Original network accuracy: {0:.4f}%".format(100.0 * fp32_result.metrics.accuracy))
 
     output_model_file_path = \
         os.path.splitext(config.model)[0] + ("_{}_statistics_without_ignored.xml".format(config.precision.lower()) if

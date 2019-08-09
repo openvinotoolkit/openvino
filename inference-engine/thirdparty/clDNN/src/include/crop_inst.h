@@ -18,28 +18,29 @@
 #pragma once
 #include "api/CPP/crop.hpp"
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<crop> : public typed_program_node_base<crop>
-{
+struct typed_program_node<crop> : public typed_program_node_base<crop> {
 private:
     using parent = typed_program_node_base<crop>;
 
 public:
     using parent::parent;
 
-    typed_program_node(const std::shared_ptr<crop> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
+    typed_program_node(const std::shared_ptr<crop> prim, program_impl& prog) : parent(prim, prog) {
+        support_padding_all(true);
+    }
     program_node& input() const { return get_dependency(0); }
 };
 
 using crop_node = typed_program_node<crop>;
 
 template <>
-class typed_primitive_inst<crop> : public typed_primitive_inst_base<crop>
-{
+class typed_primitive_inst<crop> : public typed_primitive_inst_base<crop> {
     using parent = typed_primitive_inst_base<crop>;
 
 public:
@@ -54,4 +55,4 @@ private:
 };
 
 using crop_inst = typed_primitive_inst<crop>;
-}
+}  // namespace cldnn

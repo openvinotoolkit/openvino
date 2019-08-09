@@ -16,17 +16,12 @@
 
 #include "gemm_kernel_base.h"
 
+namespace kernel_selector {
+class GemmKernelRef : public GemmKernelBase {
+public:
+    GemmKernelRef() : GemmKernelBase("gemm_ref") {}
 
-namespace kernel_selector
-{
-    class GemmKernelRef : public GemmKernelBase
-    {
-    public:
-        GemmKernelRef() : GemmKernelBase("gemm_ref") {}
-
-        KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

@@ -17,15 +17,10 @@
 #include "gemm_kernel_selector.h"
 #include "gemm_kernel_ref.h"
 
-namespace kernel_selector
-{
-    gemm_kernel_selector::gemm_kernel_selector()
-    {
-        Attach<GemmKernelRef>();
-    }
+namespace kernel_selector {
+gemm_kernel_selector::gemm_kernel_selector() { Attach<GemmKernelRef>(); }
 
-    KernelsData gemm_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::GEMM);
-    }
+KernelsData gemm_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::GEMM);
 }
+}  // namespace kernel_selector

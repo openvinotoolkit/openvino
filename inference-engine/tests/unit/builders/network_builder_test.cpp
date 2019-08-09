@@ -117,7 +117,7 @@ public:
 
             // Output connections
             for (size_t i = 0; i < cnnLayer->outData.size(); i++) {
-                for (const auto& it : cnnLayer->outData[i]->inputTo) {
+                for (const auto& it : cnnLayer->outData[i]->getInputTo()) {
                     size_t j = 0;
                     for (; j < it.second->insData.size(); j++) {
                         auto lockedData = it.second->insData[j].lock();
@@ -149,7 +149,7 @@ public:
                 auto inData = cnnLayer->insData[i].lock();
                 if (!inData)
                     continue;
-                auto creatorLayer = inData->creatorLayer.lock();
+                auto creatorLayer = inData->getCreatorLayer().lock();
                 if (!creatorLayer)
                     continue;
                 size_t j = 0;
@@ -191,7 +191,9 @@ public:
     }
 
     void compareICNNNetworks(const ICNNNetwork& newNetwork, const ICNNNetwork& oldNetwork) {
+        IE_SUPPRESS_DEPRECATED_START
         CNNNetwork network((ICNNNetwork*)&newNetwork);
+        IE_SUPPRESS_DEPRECATED_END
 
         if (newNetwork.layerCount() != oldNetwork.layerCount())
             THROW_IE_EXCEPTION << "ICNNNetworks have different numbers of layers!";
@@ -207,11 +209,11 @@ public:
             for (size_t i = 0; i < layer->insData.size() && success; i++) {
                 auto lockedOldData = oldLayer->insData[i].lock();
                 auto lockedData = layer->insData[i].lock();
-                success = success && lockedOldData->name == lockedData->name &&
+                success = success && lockedOldData->getName() == lockedData->getName() &&
                           lockedOldData->getTensorDesc() == lockedData->getTensorDesc();
             }
             for (size_t i = 0; i < layer->outData.size() && success; i++) {
-                success = success && oldLayer->outData[i]->name == layer->outData[i]->name &&
+                success = success && oldLayer->outData[i]->getName() == layer->outData[i]->getName() &&
                         oldLayer->outData[i]->getTensorDesc() == layer->outData[i]->getTensorDesc();
             }
 
@@ -546,7 +548,7 @@ TEST_F(NetworkBuilderTest, convertFromICNNNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-    InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {9728});
+    InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {9728}, InferenceEngine::C });
     weights->allocate();
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
@@ -713,7 +715,7 @@ TEST_F(NetworkBuilderTest, convertFromICNNNetworkToICNNNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-    InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {9728});
+    InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {9728}, InferenceEngine::C });
     weights->allocate();
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
@@ -819,7 +821,7 @@ TEST_F(NetworkBuilderTest, connectTwoNetworks) {
     InferenceEngine::CNNNetReader net_reader;
     ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-    InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {9472});
+    InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {9472}, InferenceEngine::C });
     weights->allocate();
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);

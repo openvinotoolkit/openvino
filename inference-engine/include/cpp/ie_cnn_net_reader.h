@@ -17,6 +17,7 @@
 #include "ie_common.h"
 #include "ie_icnn_net_reader.h"
 #include "details/ie_exception_conversion.hpp"
+#include "details/os/os_filesystem.hpp"
 
 namespace InferenceEngine {
 /**
@@ -34,6 +35,16 @@ public:
      * @brief A default constructor
      */
     CNNNetReader() : actual(shared_from_irelease(InferenceEngine::CreateCNNNetReader())) {}
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Resolve wstring path then call orginal ReadNetwork
+     * ICNNNetReader::ReadNetwork
+    */
+    void ReadNetwork(const std::wstring &filepath) {
+        CALL_STATUS_FNC(ReadNetwork, details::wStringtoMBCSstringChar(filepath).c_str());
+    }
+#endif
 
     /**
      * @brief Wraps original method
@@ -55,15 +66,25 @@ public:
      * @brief Wraps original method
      * ICNNNetReader::SetWeights
      */
-    void SetWeights(const TBlob<uint8_t>::Ptr &weights) const {
+    void SetWeights(const TBlob<uint8_t>::Ptr &weights) {
         CALL_STATUS_FNC(SetWeights, weights);
     }
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    /**
+    * @brief Resolve wstring path then call orginal ReadWeights
+    * ICNNNetReader::ReadWeights
+    */
+    void ReadWeights(const std::wstring &filepath) {
+        CALL_STATUS_FNC(ReadWeights, details::wStringtoMBCSstringChar(filepath).c_str());
+    }
+#endif
 
     /**
      * @brief Wraps original method
      * ICNNNetReader::ReadWeights
      */
-    void ReadWeights(const std::string &filepath) const {
+    void ReadWeights(const std::string &filepath) {
         CALL_STATUS_FNC(ReadWeights, filepath.c_str());
     }
 

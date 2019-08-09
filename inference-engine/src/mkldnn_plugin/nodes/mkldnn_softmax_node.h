@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNSoftMaxNode : public MKLDNNNode {
 public:
-    MKLDNNSoftMaxNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNSoftMaxNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNSoftMaxNode() override = default;
 
     void initOptimalPrimitiveDescriptor() override;

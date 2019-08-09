@@ -1,4 +1,3 @@
-/*
 // Copyright (c) 2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,20 +11,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #include "strided_slice_kernel_selector.h"
 #include "strided_slice_kernel_ref.h"
 
 namespace kernel_selector {
 
-    strided_slice_kernel_selector::strided_slice_kernel_selector()
-    {
-        Attach<StridedSliceKernelRef>();
-    }
+strided_slice_kernel_selector::strided_slice_kernel_selector() { Attach<StridedSliceKernelRef>(); }
 
-    KernelsData strided_slice_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::STRIDED_SLICE);
-    }
+KernelsData strided_slice_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::STRIDED_SLICE);
 }
+}  // namespace kernel_selector

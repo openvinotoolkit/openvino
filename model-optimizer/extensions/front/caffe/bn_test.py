@@ -44,11 +44,11 @@ class TestBNReplacer(unittest.TestCase):
                                  FakeParam('data', scale),
                                  FakeParam('data', shift)])
         nodes = {
-            'node_1': {'kind': 'op', 'type': 'Identity', 'op': 'Placeholder'},
+            'node_1': {'kind': 'op', 'type': 'Identity', 'op': 'Parameter'},
             'bn': {'type': 'BN', 'kind': 'op', 'op': 'BN',
                    'pb': bn_pb,
                    'model_pb': bn_bin},
-            'node_2': {'kind': 'op', 'type': 'Identity', 'op': 'Placeholder'}}
+            'node_2': {'kind': 'op', 'type': 'Identity', 'op': 'Parameter'}}
         edges = [
             ('node_1', 'bn', {'in': 0}),
             ('bn', 'node_2', {'in': 0})]

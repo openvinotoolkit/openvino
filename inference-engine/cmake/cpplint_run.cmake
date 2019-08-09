@@ -1,5 +1,4 @@
 # Copyright (C) 2018-2019 Intel Corporation
-#
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,12 +21,12 @@ execute_process(
 message("${output}")
 
 # Store cpplint output to file (replace problematic symbols)
-string(REPLACE "\"" "&quot\;" output ${output})
-string(REPLACE "<" "&lt\;" output ${output})
-string(REPLACE ">" "&gt\;" output ${output})
-string(REPLACE "'" "&apos\;" output ${output})
-string(REPLACE "&" "&amp\;" output ${output})
-file(WRITE "${OUTPUT_FILE}" ${output})
+string(REPLACE "\"" "&quot\;" output "${output}")
+string(REPLACE "<" "&lt\;" output "${output}")
+string(REPLACE ">" "&gt\;" output "${output}")
+string(REPLACE "'" "&apos\;" output "${output}")
+string(REPLACE "&" "&amp\;" output "${output}")
+file(WRITE "${OUTPUT_FILE}" "${output}")
 
 if(NOT SKIP_RETURN_CODE)
     # Pass through the cpplint return code

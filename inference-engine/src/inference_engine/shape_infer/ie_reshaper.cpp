@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <mutex>
 #include <tuple>
 #include <ie_layers.h>
 #include <graph_tools.hpp>
@@ -26,7 +27,7 @@ using namespace ShapeInfer;
 
 Reshaper::Reshaper(Builder::Network* network): network(network) {}
 
-static std::vector<CNNLayerPtr> SortTopologicallyStartsFrom(const std::vector<DataPtr> &inputs) {
+inline static std::vector<CNNLayerPtr> SortTopologicallyStartsFrom(const std::vector<DataPtr> &inputs) {
     std::vector<CNNLayerPtr> all_layers;
     CNNNetForestDFS(inputs, [&](CNNLayerPtr  current){
         all_layers.push_back(current);
@@ -42,7 +43,7 @@ Reshaper::Reshaper(std::vector<DataPtr> insDatas, const LauncherCreator::Ptr& la
 
     _allSortedLayers = SortTopologicallyStartsFrom(insDatas);
     for (auto &in_data : insDatas) {
-        for (auto layer : in_data->inputTo) {
+        for (auto layer : in_data->getInputTo()) {
             _inputLayers.insert(layer.second);
         }
     }
@@ -148,39 +149,45 @@ StatusCode Reshaper::run(const std::map<std::string, SizeVector>& inputShapes, R
     if (network) {
         return networkShapeInfer(inputShapes, resp);
     }
-    // Reset all shapes from previous run
-    for (const auto& launcher : _launchers) {
-        launcher->reset();
-    }
 
-    // Set new input shapes
-    for (auto const& input : _inputLayers) {
-        std::string layerName = input->name;
-        for (auto const& outData : input->outData) {
-            std::string dataName = outData->name;
-            auto foundShapeIt = inputShapes.find(dataName);
-            auto foundLauncher = getLauncherByLayerName(layerName);
-            if (foundShapeIt != inputShapes.end()) {
-                foundLauncher->setShapeByName(foundShapeIt->second, dataName);
-            } else {
-                foundLauncher->setIRShapeByName(dataName);
+    // WA: In another case we should change the registration logic of shape implementations
+    static std::mutex reshapeMutex;
+    {
+        std::lock_guard<std::mutex> lock(reshapeMutex);
+        // Reset all shapes from previous run
+        for (const auto& launcher : _launchers) {
+            launcher->reset();
+        }
+
+        // Set new input shapes
+        for (auto const& input : _inputLayers) {
+            std::string layerName = input->name;
+            for (auto const& outData : input->outData) {
+                std::string dataName = outData->getName();
+                auto foundShapeIt = inputShapes.find(dataName);
+                auto foundLauncher = getLauncherByLayerName(layerName);
+                if (foundShapeIt != inputShapes.end()) {
+                    foundLauncher->setShapeByName(foundShapeIt->second, dataName);
+                } else {
+                    foundLauncher->setIRShapeByName(dataName);
+                }
             }
         }
-    }
 
-    // do reshape
-    for (auto& layer : _allSortedLayers) {
-        auto foundLauncher = getLauncherByLayerName(layer->name);
-        foundLauncher->reshape(_launchers);
-        foundLauncher->constInfer(_launchers);
-    }
+        // do reshape
+        for (auto& layer : _allSortedLayers) {
+            auto foundLauncher = getLauncherByLayerName(layer->name);
+            foundLauncher->reshape(_launchers);
+            foundLauncher->constInfer(_launchers);
+        }
 
-    // apply changes
-    for (auto& layer : _allSortedLayers) {
-        auto foundLauncher = getLauncherByLayerName(layer->name);
-        foundLauncher->applyChanges(layer.get());
+        // apply changes
+        for (auto& layer : _allSortedLayers) {
+            auto foundLauncher = getLauncherByLayerName(layer->name);
+            foundLauncher->applyChanges(layer.get());
+        }
+        return OK;
     }
-    return OK;
 }
 
 StatusCode Reshaper::runNoApply(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) {
@@ -194,7 +201,7 @@ StatusCode Reshaper::runNoApply(const std::map<std::string, SizeVector>& inputSh
         std::string layerName = input->name;
         for (auto const& inData_w : input->insData) {
             auto inData = inData_w.lock();
-            auto dataName = inData->name;
+            auto dataName = inData->getName();
             auto foundShapeIt = inputShapes.find(dataName);
             auto foundLauncher = getLauncherByLayerName(layerName);
             if (foundShapeIt != inputShapes.end()) {
@@ -223,7 +230,7 @@ StatusCode Reshaper::apply(ResponseDesc* resp) {
 }
 
 SizeVector Reshaper::getResultShapeFor(DataPtr &data, ResponseDesc* resp) {
-    auto creator_layer = data->creatorLayer.lock();
+    auto creator_layer = data->getCreatorLayer().lock();
     std::string creator_layer_name;
     if (creator_layer) {
         creator_layer_name = creator_layer->name;

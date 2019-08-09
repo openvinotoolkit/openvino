@@ -20,7 +20,7 @@ from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.ops.roipooling import ROIPooling
 
 
-class PoolingFrontExtractor(FrontExtractorOp):
+class ROIPoolingFrontExtractor(FrontExtractorOp):
     op = 'ROIPooling'
     enabled = True
 

@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <memory>
 #include <functional>
+#include <vector>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 
 namespace MKLDNNPlugin {
@@ -40,6 +41,7 @@ protected:
 
 class MKLDNNWeightsSharing {
 public:
+    typedef std::shared_ptr<MKLDNNWeightsSharing> Ptr;
     MKLDNNMemoryPtr findOrCreate(const std::string& name_hash,
                              std::function<MKLDNNMemoryPtr(void)> create) {
         std::unique_lock<std::mutex> lock(guard);
@@ -62,11 +64,11 @@ protected:
 
 class Engine : public InferenceEngine::InferencePluginInternal {
 public:
-    Engine() = default;
+    Engine();
     ~Engine() override = default;
 
     InferenceEngine::ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(InferenceEngine::ICNNNetwork &network,
+    LoadExeNetworkImpl(const ICore * core, InferenceEngine::ICNNNetwork &network,
                        const std::map<std::string, std::string> &config) override;
 
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
@@ -76,6 +78,10 @@ public:
      */
     void SetConfig(const std::map<std::string, std::string> &config) override;
 
+    InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+
+    InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+
     /**
      * @deprecated Use the version with config parameter
      */
@@ -83,14 +89,12 @@ public:
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                       const std::map<std::string, std::string>& config, InferenceEngine::QueryNetworkResult& res) const override;
 
-    static MKLDNNWeightsSharing& GetWeightsSharing() { return weightsSharing; }
+    static MKLDNNWeightsSharing::Ptr GetWeightsSharing(int socket) { return weightsSharing[socket]; }
 
 private:
+    static std::vector<MKLDNNWeightsSharing::Ptr> weightsSharing;
     Config engConfig;
     MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
-
-protected:
-    static MKLDNNWeightsSharing weightsSharing;
 };
 
 }  // namespace MKLDNNPlugin

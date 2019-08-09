@@ -122,7 +122,7 @@ struct _gemm_x8s8s32x_convolution_fwd_t: public cpu_primitive_t {
     _gemm_x8s8s32x_convolution_fwd_t(const pd_t *apd, const input_vector &inputs,
            const output_vector &outputs)
         : cpu_primitive_t(apd, inputs, outputs, true) {
-        pp_ker_ = new pp_ker_t(apd);
+        pp_ker_ = new pp_ker_t(this->pd());
     }
     ~_gemm_x8s8s32x_convolution_fwd_t() {
         delete pp_ker_;
@@ -154,6 +154,9 @@ private:
             const char *bias, const float *scales,
             float nslope, float sum_scale, float signed_scale,
             int g, size_t start, size_t end);
+
+        size_t dst_os_stride_;
+
     private:
         void generate();
 
@@ -181,7 +184,6 @@ private:
         bool do_relu_;
         bool do_sum_;
         bool do_signed_scaling_;
-        size_t dst_os_stride_;
         size_t vlen_;
     };
 

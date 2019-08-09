@@ -12,24 +12,26 @@ using namespace InferenceEngine;
 
 class InferenceEngineTests : public ::testing::Test {
 public:
-	InferenceEngineTests(): output(Precision::FP32, C)
+	InferenceEngineTests(): output(TensorDesc(Precision::FP32, C))
 	{
 	}
 
 protected:
     InferenceEngine::TBlob<float> output;
     vector<unsigned> results;
+    std::vector<float> values;
+
     virtual void TearDown() override{
     }
 
-    virtual void SetUp() override{
-        output.Resize({10, 1}, Layout::NC);
-        output.set({ 0.3f, 0.1f, 0.01f, 0.9f, 0.99f, 0.12f, 0.001f, 0, 0.999f, 0.0000001f });
+    virtual void SetUp() override {
+        values = { 0.3f, 0.1f, 0.01f, 0.9f, 0.99f, 0.12f, 0.001f, 0, 0.999f, 0.0000001f };
+        output = TBlob<float>(TensorDesc(Precision::FP32, { 1, 10 }, Layout::NC), &values[0]);
     }
 
     InferenceEngine::TBlob<float>::Ptr getCopiedTBlob(InferenceEngine::SizeVector size) {
-        InferenceEngine::TBlob<float>::Ptr blob(new InferenceEngine::TBlob<float>(Precision::FP32,
-                                                                                  TensorDesc::getLayoutByDims(size), size));
+        InferenceEngine::TBlob<float>::Ptr blob(new InferenceEngine::TBlob<float>(TensorDesc(Precision::FP32, size,
+                                                                                  TensorDesc::getLayoutByDims(size))));
         blob->allocate();
         const size_t arr_size = 4;
         uint8_t data[arr_size] = { 1, 2, 3, 4 };
@@ -39,8 +41,8 @@ protected:
 };
 
 TEST_F(InferenceEngineTests, checkZeroInput) {
-    InferenceEngine::TBlob<float> output(Precision::FP32, C);
-    output.set({});
+    InferenceEngine::TBlob<float> output(TensorDesc(Precision::FP32, C));
+    output.allocate();
     EXPECT_THROW(InferenceEngine::TopResults(5, output, results), InferenceEngine::details::InferenceEngineException);
 }
 

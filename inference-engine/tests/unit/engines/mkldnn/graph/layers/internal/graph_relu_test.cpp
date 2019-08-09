@@ -34,12 +34,12 @@ struct relu_test_params {
 template <typename data_t>
 void ref_relu(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<data_t> &dst, relu_test_params prm)
 {
-    auto dims_size = src.dims().size();
+    auto dims_size = src.getTensorDesc().getDims().size();
     
-    size_t IW = src.dims()[dims_size - 1];
-    size_t IH = src.dims()[dims_size - 2];
-    size_t ID = dims_size == 5 ? src.dims()[dims_size - 3] : 1u;
-    size_t IC = src.dims()[1];
+    size_t IW = src.getTensorDesc().getDims()[dims_size - 1];
+    size_t IH = src.getTensorDesc().getDims()[dims_size - 2];
+    size_t ID = dims_size == 5 ? src.getTensorDesc().getDims()[dims_size - 3] : 1u;
+    size_t IC = src.getTensorDesc().getDims()[1];
 
     const data_t *src_data = src.readOnly();
     data_t *dst_data = dst.data();
@@ -167,7 +167,7 @@ protected:
                     break;
             }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, layout});
             src->allocate();
             fill_data(src->buffer(), src->size());
 

@@ -15,12 +15,12 @@
 """
 import numpy as np
 
-from extensions.middle.FusePermutesSequence import FusePermutesSequence
 from extensions.middle.RNNSequenceNormalizeToIE import RNNSequenceNormalize
 from extensions.ops.lstm_cell import LSTMCell
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.graph.graph import Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.ops.reshape import Reshape
 
@@ -45,7 +45,8 @@ class LSTMToTensorIterator(MiddleReplacementPattern):
         return [RNNSequenceNormalize]
 
     def run_before(self):
-        return [FusePermutesSequence]
+        from extensions.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
+        return [TransposeTensorIteratorLSTM]
 
     def pattern(self):
         return dict(
@@ -84,11 +85,11 @@ class LSTMToTensorIterator(MiddleReplacementPattern):
         reshape_dim = inputs[0].shape.copy()
         reshape_dim[lstm.batch_dim] = -1
         reshape_dim = np.delete(reshape_dim, lstm.sequence_dim)
-        input_squeeze = Reshape(
-            body,
-            dict(name=lstm.name + '/input_squeeze', internal_layer_id=0, dim=reshape_dim)
-        )
-        inputs[0] = input_squeeze.create_node_with_data([inputs[0]], edge_attrs=[{'internal_port_id': 0}])
+        input_squeeze = Reshape(body, dict(name=lstm.name + '/input_squeeze', internal_layer_id=0))
+        squeeze_dim_data = Const(body, {'name': lstm.name + '/input_squeeze_dim',
+                                        'value': reshape_dim}).create_node_with_data()
+        inputs[0] = input_squeeze.create_node_with_data([inputs[0], squeeze_dim_data],
+                                                        edge_attrs=[{'internal_port_id': 0}])
 
         # 2. Output unsqueeze Reshape
         outputs = [Op._create_data_node(body, lstm.name + '/outport/' + str(out),
@@ -102,8 +103,9 @@ class LSTMToTensorIterator(MiddleReplacementPattern):
         squeezed_output_shape = np.delete(unsqueezed_output_shape, lstm.sequence_dim)
         outputs[0].shape = squeezed_output_shape
         unsqueezed_output_shape[lstm.batch_dim] = -1
-        output_unsqueeze = Reshape(body, dict(name=lstm.name + 'output_unsqueeze', dim=unsqueezed_output_shape,
-                                              internal_layer_id=2))
+        output_unsqueeze = Reshape(body, dict(name=lstm.name + 'output_unsqueeze', internal_layer_id=2))
+        unsqueeze_dim_data = Const(body, {'name': lstm.name + '/output_unsqueeze_dim',
+                                        'value': unsqueezed_output_shape}).create_node_with_data()
 
         # 3. LSTMCell
         lstm_cell_op = LSTMCell(body, dict(hidden_size=lstm.hidden_size,
@@ -120,7 +122,7 @@ class LSTMToTensorIterator(MiddleReplacementPattern):
                                                                         {'bin': 'biases'}])
         lstm_cell_node[0].in_node().out_edge(0)['internal_port_id'] = 4
         lstm_cell_node[0].in_node().out_edge(1)['internal_port_id'] = 5
-        lstm_cell_node[0] = output_unsqueeze.create_node_with_data([lstm_cell_node[0]])
+        lstm_cell_node[0] = output_unsqueeze.create_node_with_data([lstm_cell_node[0], unsqueeze_dim_data])
         lstm_cell_node[0].in_node().out_edge(0)['internal_port_id'] = 3
         add_opoutput(body, lstm_cell_node[0].id, 0, False)
 

@@ -22,7 +22,7 @@ typedef int (*getRespFunction) (xLinkEvent_t*,
 xLinkEvent_t* dispatcherAddEvent(xLinkEventOrigin_t origin,
                                     xLinkEvent_t *event);
 
-int dispatcherWaitEventComplete(void* xlinkFD, unsigned int timeout);
+int dispatcherWaitEventComplete(xLinkDeviceHandle_t* deviceHandle, unsigned int timeout);
 int dispatcherUnblockEvent(eventId_t id,
                             xLinkEventType_t type,
                             streamId_t stream,
@@ -34,11 +34,11 @@ struct dispatcherControlFunctions {
                                 getRespFunction localGetResponse;
                                 getRespFunction remoteGetResponse;
                                 void (*closeLink) (void* fd);
-                                void (*closeDeviceFd) (void* fd);
+                                void (*closeDeviceFd) (xLinkDeviceHandle_t* deviceHandle);
                                 };
 
 int dispatcherInitialize(struct dispatcherControlFunctions* controlFunc);
-int dispatcherStart(void* fd);
+int dispatcherStart(xLinkDeviceHandle_t* deviceHandle);
 int dispatcherClean(void* xLinkFD);
 
 #ifdef __cplusplus

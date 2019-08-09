@@ -33,37 +33,26 @@ def tf_matmul_infer(node):
         return
 
     if node.transpose_a:
-        if not node.in_node(0).has_valid('value'):
-            log.error("MatMul wasn't able to infer shape")
-            return
-        else:
-            perm = np.array(range(len(node.in_node(0).shape)), dtype=np.int64)
-            perm[-1], perm[-2] = perm[-2], perm[-1]
-            inv = PermuteAttrs.get_inverse_permutation(perm)
-            permutation = PermuteAttrs.Permutation(perm=perm, inv=int64_array(inv))
-            PermuteAttrs.set_permutation(node.in_node(0), node, permutation)
-            shapes[0] = shapes[0][perm]
+        perm = np.array(range(len(node.in_node(0).shape)), dtype=np.int64)
+        perm[-1], perm[-2] = perm[-2], perm[-1]
+        inv = PermuteAttrs.get_inverse_permutation(perm)
+        permutation = PermuteAttrs.Permutation(perm=perm, inv=int64_array(inv))
+        PermuteAttrs.set_permutation(node.in_node(0), node, permutation)
+        shapes[0] = shapes[0][perm]
 
     if node.transpose_b:
-        if not node.in_node(1).has_valid('value'):
-            log.error("MatMul wasn't able to infer shape")
-            return
-        else:
-            perm = np.array(range(len(node.in_node(1).shape)), dtype=np.int64)
-            perm[-1], perm[-2] = perm[-2], perm[-1]
-            inv = PermuteAttrs.get_inverse_permutation(perm)
-            permutation = PermuteAttrs.Permutation(perm=perm, inv=int64_array(inv))
-            PermuteAttrs.set_permutation(node.in_node(1), node, permutation)
-            shapes[1] = shapes[1][perm]
+        perm = np.array(range(len(node.in_node(1).shape)), dtype=np.int64)
+        perm[-1], perm[-2] = perm[-2], perm[-1]
+        inv = PermuteAttrs.get_inverse_permutation(perm)
+        permutation = PermuteAttrs.Permutation(perm=perm, inv=int64_array(inv))
+        PermuteAttrs.set_permutation(node.in_node(1), node, permutation)
+        shapes[1] = shapes[1][perm]
 
     if any(shapes[0][:-2] != shapes[1][:-2]) or shapes[0][-1] != shapes[1][-2]:
         log.error("MatMul wasn't able to infer shape because input dimensions are not compatible")
         return
-    if any(shapes[0][1:-1] != 1):
-        log.error("MatMul wasn't able to infer shapes because input[0] shape is invalid: {}".format(shapes[0]))
-        return
 
-    shape_tuple = (np.array([shapes[0][0]], dtype=np.int64), np.array([shapes[1][-1]], dtype=np.int64))
+    shape_tuple = (np.array(shapes[0][:-1], dtype=np.int64), np.array([shapes[1][-1]], dtype=np.int64))
     if len(shapes[0]) > 2:
         # TODO Investigate case when MatMul have inputs with not matching output dimensions
         # It looks to be a practical case and if we add outer dimensions of the first argument
@@ -75,6 +64,7 @@ def tf_matmul_infer(node):
     node.out_node().shape = np.concatenate(shape_tuple)
     node['channel_dims'] = node.out_node().shape.size - 1
     log.debug('matmul shape: {}'.format(node.out_node().shape))
+
 
 
 def onnx_gemm_infer(node):
@@ -95,7 +85,7 @@ def onnx_gemm_infer(node):
     if node.transpose_b:
         shapeB = shapeB[[1, 0]]
     if node.broadcast_c and shapeC.size == 1:
-        shapeC = np.array([shapeA[0], shapeC[0]])
+        shapeC = np.array([shapeA[0], shapeB[1]])
 
     node.out_node().shape = shapeC
     return

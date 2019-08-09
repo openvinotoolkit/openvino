@@ -18,15 +18,17 @@
 #pragma once
 #include "api/CPP/permute.hpp"
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<permute> : public typed_program_node_base<permute>
-{
+struct typed_program_node<permute> : public typed_program_node_base<permute> {
     using parent = typed_program_node_base<permute>;
-    typed_program_node(const std::shared_ptr<permute> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
+    typed_program_node(const std::shared_ptr<permute> prim, program_impl& prog) : parent(prim, prog) {
+        support_padding_all(true);
+    }
 
 public:
     using parent::parent;
@@ -37,8 +39,7 @@ public:
 using permute_node = typed_program_node<permute>;
 
 template <>
-class typed_primitive_inst<permute> : public typed_primitive_inst_base<permute>
-{
+class typed_primitive_inst<permute> : public typed_primitive_inst_base<permute> {
     using parent = typed_primitive_inst_base<permute>;
 
 public:
@@ -51,4 +52,4 @@ public:
 
 using permute_inst = typed_primitive_inst<permute>;
 
-}
+}  // namespace cldnn

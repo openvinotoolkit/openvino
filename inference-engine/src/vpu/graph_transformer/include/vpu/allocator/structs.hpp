@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <vpu/utils/enums.hpp>
+#include <vpu/utils/containers.hpp>
 #include <vpu/model/data.hpp>
 
 namespace vpu {
@@ -46,7 +47,7 @@ struct MemoryPool final {
     int curMemOffset = 0;
     int memUsed = 0;
     std::list<MemChunk> allocatedChunks;
-    std::vector<FreeMemory> freePool;
+    SmallVector<FreeMemory> freePool;
 
     void clear() {
         curMemOffset = 0;

@@ -18,39 +18,32 @@
 
 #include "common_kernel_base.h"
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // gather_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct gather_params : public base_params
-    {
-        gather_params() : base_params(KernelType::GATHER) {}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// gather_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct gather_params : public base_params {
+    gather_params() : base_params(KernelType::GATHER) {}
 
-        GatherAxis axis;
+    GatherAxis axis;
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            return base_params::GetParamsKey();
-        }
-    };
+    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // gather_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct gather_optional_params : optional_params
-    {
-        gather_optional_params() : optional_params(KernelType::GATHER) {}
-    };
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// gather_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct gather_optional_params : optional_params {
+    gather_optional_params() : optional_params(KernelType::GATHER) {}
+};
 
-    class GatherKernelRef : public common_kernel_base
-    {
-    public:
-        GatherKernelRef() : common_kernel_base("gather_ref") {}
-        virtual ~GatherKernelRef() {}
-        virtual JitConstants GetJitConstants(const gather_params& params) const;
-        virtual CommonDispatchData SetDefault(const gather_params& params, const optional_params&) const;
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+class GatherKernelRef : public common_kernel_base {
+public:
+    GatherKernelRef() : common_kernel_base("gather_ref") {}
+    virtual ~GatherKernelRef() {}
+    virtual JitConstants GetJitConstants(const gather_params& params) const;
+    virtual CommonDispatchData SetDefault(const gather_params& params, const optional_params&) const;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

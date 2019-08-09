@@ -147,7 +147,7 @@ void _jit_uni_x8s8s32x_dw_convolution_fwd_t<isa, src_type, dst_type>::execute_fo
         }
     };
 
-    parallel(0, ker);
+    parallel(0, work_amount, ker);
 }
 
 template struct _jit_uni_x8s8s32x_dw_convolution_fwd_t<avx2, data_type::u8, data_type::u8>;

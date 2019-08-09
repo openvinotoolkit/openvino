@@ -33,7 +33,7 @@ void translateVisitLayer(VisitedLayersMap& visited,
     }
     visited.insert({layer, node});
     for (auto&& data : layer->outData) {
-        for (auto&& layerIt : data->inputTo) {
+        for (auto&& layerIt : data->getInputTo()) {
             auto nextLayer = layerIt.second;
             auto it = visited.find(nextLayer);
             if (visited.end() == it) {

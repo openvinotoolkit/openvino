@@ -77,56 +77,6 @@ def bfs_search(graph: Graph, start_nodes: list = list()):
     return result
 
 
-def dfs(graph: Graph, node_name: str, visited: set):
-    """
-    Implementation of the depth-first search algorithm starting from the specific node.
-    :param graph: networkx graph to operate on.
-    :param node_name: node name to start search from.
-    :param visited: set of already visited nodes.
-    :return: list of nodes in the DFS-visit order.
-    """
-    order = []
-    stack = [node_name]
-    while len(stack) != 0:
-        node_name = stack[0]
-        stack.pop(0)
-        visited.add(node_name)
-        has_child = False
-        for _, out_node_name in graph.out_edges(node_name):
-            if out_node_name not in visited:
-                stack.insert(0, node_name)
-                stack.insert(0, out_node_name)
-                has_child = True
-                break
-        if not has_child:
-            order.append(node_name)
-    return order
-
-
-def pseudo_topological_sort(graph: Graph, reverse: bool = False):
-    """
-    The function performs topological sort but doesn't check for cycle existence. So it may produce wrong nodes order
-    for some applications.
-    :param graph: graph to pseudo-topologically sort.
-    :param reverse: flag indicating whether need to reverse nodes order.
-    :return: nodes in the topological sort if cycle doesn't exist and in pseudo-topological sort if not.
-    """
-    nodes_without_inputs = list()
-    for node_name in graph.nodes():
-        if len(graph.in_edges(node_name)) == 0:
-            nodes_without_inputs.append(node_name)
-    order = list()
-    visited = set()
-    for node_name in nodes_without_inputs:
-        if node_name not in visited:
-            order.extend(dfs(graph, node_name, visited))
-
-    if reverse:
-        return order
-    else:
-        return list(reversed(order))
-
-
 def nodes_matching_name_pattern(graph: Graph, pattern: str):
     """
     Returns list of node names of the graph that match regular expression.
@@ -205,7 +155,7 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
     # use forward dfs to check that all end nodes are reachable from at least one of input nodes
     forward_visited = set()
     for start_node in start_nodes:
-        dfs(graph, start_node, forward_visited)
+        graph.dfs(start_node, forward_visited)
     for end_node in end_nodes:
         if end_node not in forward_visited:
             raise Error('End node "{}" is not reachable from start nodes: {}. '.format(end_node, start_nodes) +
@@ -213,7 +163,55 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
 
     for node_name in sub_graph_nodes:
         # sub-graph should not contain Placeholder nodes
-        if graph.node[node_name].get('op', '') == 'Placeholder':
+        if graph.node[node_name].get('op', '') == 'Parameter':
+            path = list()
+            cur_node = node_name
+            while cur_node and 'prev' in graph.node[cur_node]:
+                path.append(str(cur_node))
+                cur_node = graph.node[cur_node]['prev']
+            log.debug("The path from input node is the following: {}".format('\n'.join(path)))
+            raise Error('The matched sub-graph contains network input node "{}". '.format(node_name) +
+                        refer_to_faq_msg(75))
+    if detect_extra_start_node is None:
+        return sub_graph_nodes
+    else:
+        return sub_graph_nodes, extra_start_nodes
+
+
+def invert_sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None):
+    """
+    Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. But doing it from start_nodes stepping
+    backward by in edges.
+
+    Input nodes for the sub-graph nodes are also added to the sub-graph. Constant inputs of the 'start_nodes'
+    are also added to the sub-graph.
+    :param graph: graph to operate on.
+    :param start_nodes: list of nodes names that specifies start nodes.
+    :param end_nodes: list of nodes names that specifies end nodes.
+    :return: list of nodes of the identified sub-graph or None if the sub-graph cannot be extracted.
+    """
+    sub_graph_nodes = list()
+    visited = set(start_nodes)
+    d = deque(start_nodes)
+    extra_start_nodes = []
+
+    nx.set_node_attributes(G=graph, name='prev', values=None)
+    while len(d) != 0:
+        cur_node_name = d.popleft()
+        sub_graph_nodes.append(cur_node_name)
+        if cur_node_name not in start_nodes and detect_extra_start_node(Node(graph, cur_node_name)):
+            extra_start_nodes.append(cur_node_name)
+        else:
+            if cur_node_name not in end_nodes:  # do not add output nodes of the end_nodes
+                for src_node_name, _ in graph.in_edges(cur_node_name):
+                    if src_node_name not in visited:
+                        d.append(src_node_name)
+                        visited.add(src_node_name)
+                        graph.node[cur_node_name]['prev'] = src_node_name
+
+    for node_name in sub_graph_nodes:
+        # sub-graph should not contain Input nodes
+        if graph.node[node_name].get('op', '') == 'Parameter':
             path = list()
             cur_node = node_name
             while cur_node and 'prev' in graph.node[cur_node]:

@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +11,21 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #pragma once
 
 #include "select_kernel_base.h"
 
-namespace kernel_selector
-{
-    class SelectKernelRef : public SelectKernelBase
-    {
-    public:
-		SelectKernelRef() : SelectKernelBase("select_gpu_ref") {}
-        virtual ~SelectKernelRef() {}
+namespace kernel_selector {
+class SelectKernelRef : public SelectKernelBase {
+public:
+    SelectKernelRef() : SelectKernelBase("select_gpu_ref") {}
+    virtual ~SelectKernelRef() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        bool Validate(const Params& p, const optional_params& o) const override;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
 
-    };
-}
+protected:
+    bool Validate(const Params& p, const optional_params& o) const override;
+};
+}  // namespace kernel_selector

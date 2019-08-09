@@ -103,7 +103,9 @@ void Logger::printHeader(LogLevel msgLevel) const noexcept {
         _out->get() << "[" << _name << "] ";
 
         for (size_t i = 0; i < _ident; ++i) {
-            _out->get() << "    ";
+            for (int j = 0; j < IDENT_SIZE; ++j) {
+                _out->get() << ' ';
+            }
         }
     } catch (...) {
         std::cerr << "[VPU] Cannot print header\n";

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,14 +16,18 @@
 #pragma once
 
 #include <set>
+#include <array>
 
 #include "api/CPP/primitive.hpp"
 #include "internal_primitive.h"
 
 #include "meta_utils.h"
+#include <vector>
+#include <memory>
+#include <list>
+#include <algorithm>
 
-namespace cldnn
-{
+namespace cldnn {
 
 struct program_impl;
 class reorder_inputs;
@@ -49,12 +53,12 @@ class xml_composite;
     At graph level, all connections between nodes are directly stored inside program_nodes - in oposite
     to API level where all primitives store only ids of related ones.
 */
-struct program_node
-{
+struct program_node {
     friend struct program_impl;                     // to be removed when possible
     friend class compile_graph;                     // to be removed when possible
     friend class graph_initializations;             // to be removed when possible
     friend class prepare_primitive_fusing;          // to be removed when possible
+    friend class prepare_binarization;              // to be removed when possible
     friend class prepare_conv_eltw_fusing;          // to be removed when possible
     friend class prepare_conv_eltw_read_write_opt;  // to be removed when possible
     friend class propagate_constants;               // to be removed when possible
@@ -74,9 +78,10 @@ public:
     virtual primitive_type_id type() const { return desc->type; }
 
     template <class PType>
-    bool is_type() const
-    {
-        static_assert(meta::is_primitive<PType>::value, "Type argument for program_node::is_type should be a non-const, non-volatile type derived from primitive");
+    bool is_type() const {
+        static_assert(
+            meta::is_primitive<PType>::value,
+            "Type argument for program_node::is_type should be a non-const, non-volatile type derived from primitive");
         return type() == PType::type_id();
     }
 
@@ -84,13 +89,15 @@ public:
     program_impl const& get_program() const { return myprog; }
 
     std::shared_ptr<primitive_impl> get_selected_impl() const { return selected_impl; }
+    void set_selected_impl(std::shared_ptr<primitive_impl> impl) { selected_impl = impl; }
 
     std::vector<program_node*> const& get_dependencies() const { return dependencies; }
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
 
-    //replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
+    // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
     void replace_dependency(size_t idx, program_node& new_dep);
-    //searches for 'old_dep' in dependencies list of 'this' and replaces it with 'new_dep', calls program::remove_if_dangling(old_dep)
+    // searches for 'old_dep' in dependencies list of 'this' and replaces it with 'new_dep', calls
+    // program::remove_if_dangling(old_dep)
     void replace_dependency(program_node const& old_dep, program_node& new_dep);
 
     std::vector<primitive_id> get_dependencies_ids() const;
@@ -102,12 +109,11 @@ public:
     void add_memory_dependency(primitive_id);
     void add_memory_dependency(std::vector<primitive_id>);
 
-    template<class PType>
-    bool have_user_with_type() const
-    {
-        for (auto const& usr : users)
-        {
-            if (usr->is_type<PType>()) return true;
+    template <class PType>
+    bool have_user_with_type() const {
+        for (auto const& usr : users) {
+            if (usr->is_type<PType>())
+                return true;
         }
         return false;
     }
@@ -116,40 +122,41 @@ public:
 
     std::list<program_node*> const& get_users() { return users; }
     // for const method, add const to stored successors/predecessors
-    std::list<const program_node*> const& get_users() const { return reinterpret_cast<const std::list<const program_node*>&>(users); }
+    std::list<const program_node*> const& get_users() const {
+        return reinterpret_cast<const std::list<const program_node*>&>(users);
+    }
 
     std::unique_ptr<json_composite> desc_to_json() const;
-    //do not modify primitive directly to keep synchronisation with graph
+    // do not modify primitive directly to keep synchronisation with graph
     std::shared_ptr<const primitive> get_primitive() const { return desc; }
-    //primitive modification functions
-    void set_output_padding(padding const& padd)
-    {
-        //changing output padding shouldn't cause any changes to other primitives
-        //so just change it
+    // primitive modification functions
+    void set_output_padding(padding const& padd) {
+        // changing output padding shouldn't cause any changes to other primitives
+        // so just change it
         output_layout.data_padding = padd;
     }
 
-    void merge_output_padding(padding const& padd)
-    {
+    void merge_output_padding(padding const& padd) {
         set_output_padding(padding::max(padd, output_layout.data_padding));
     }
 
-    //only calculated output layout (for external usage), does not modify/use cached output layout nor invalidate users
+    // only calculated output layout (for external usage), does not modify/use cached output layout nor invalidate users
     layout calc_output_layout() const;
 
-    //uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all users if layout has changed and @p invalidate_users_if_changed is set to true
+    // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all
+    // users if layout has changed and @p invalidate_users_if_changed is set to true
     layout get_output_layout(bool invalidate_users_if_changed = true);
-    //returns cached output layout if valid, otherwise throws an exception
+    // returns cached output layout if valid, otherwise throws an exception
     layout get_output_layout() const;
-    //returns result of get_output_layout without padding
+    // returns result of get_output_layout without padding
     layout get_non_padded_output_layout(bool invalidate_users_if_changed = true);
 
-    //sets cached output layout to an arbitrary value, invalidates users if new layout differs from previous one and @p invalidate_users_if_changed is set to true
-    //returns whether output layout has changed
+    // sets cached output layout to an arbitrary value, invalidates users if new layout differs from previous one and @p
+    // invalidate_users_if_changed is set to true returns whether output layout has changed
     bool set_output_layout(layout new_layout, bool invalidate_users_if_changed = true);
 
-    //forces recalculation of cached output layout, invalidates users if new layout is different than previous one and @p invalidate_users_if_changed is set to true
-    //returns whether output layout has changed
+    // forces recalculation of cached output layout, invalidates users if new layout is different than previous one and
+    // @p invalidate_users_if_changed is set to true returns whether output layout has changed
     bool recalc_output_layout(bool invalidate_users_if_changed = true);
 
     bool is_padded() { return static_cast<bool>(get_output_layout().data_padding); }
@@ -165,25 +172,25 @@ public:
 
     bool is_valid_output_layout() const { return valid_output_layout; }
 
-    uint8_t mark(uint8_t val = 1) { uint8_t ret = user_mark; user_mark = val; return ret; }
+    uint8_t mark(uint8_t val = 1) {
+        uint8_t ret = user_mark;
+        user_mark = val;
+        return ret;
+    }
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
     bool is_marked(uint8_t val) const { return user_mark == val; }
     uint8_t get_user_mark() const { return user_mark; }
 
-    void set_fused_activation(cldnn_activation_func activation_func, cldnn_activation_additional_params additional_params)
-    {
+    void set_fused_activation(cldnn_activation_func activation_func,
+                              cldnn_activation_additional_params additional_params) {
         fused_activation.activation_func = activation_func;
         fused_activation.additional_params = additional_params;
     }
 
-    cldnn_activation_func get_fused_activation_func() const
-    {
-        return fused_activation.activation_func;
-    }
+    cldnn_activation_func get_fused_activation_func() const { return fused_activation.activation_func; }
 
-    cldnn_activation_additional_params get_fused_activation_params() const
-    {
+    cldnn_activation_additional_params get_fused_activation_params() const {
         return fused_activation.additional_params;
     }
 
@@ -195,21 +202,27 @@ public:
     bool can_share_buffer() const { return share_buffer; }
     void can_share_buffer(bool share) { share_buffer = share; }
 
-    // check/set if the node support padding in x,y,b and f
-    bool support_padding() const { return _support_padding; }
-    void support_padding(bool support) { _support_padding = support; }
+    // Sets padding support for all axis
+    void support_padding_all(bool support);
+    // Sets padding support for specified axis
+    void support_padding(int axis, bool support) { _support_padding_in_axis[axis] = support; }
+
+    // Checks if primitive supports any padding in specified axis
+    bool support_padding(int axis) const { return _support_padding_in_axis[axis]; }
+    // Checks whether with current format specified padding is supported;
+    bool is_padding_supported(int axis, int padding) const;
 
     primitive_id get_org_primitive_id() const { return org_id; }
 
     bool is_constant() const { return constant; }
-    
-    // returns true if this node is within main data flow of the network (i.e. it does not describe helper data like convolution's weights etc.)
+
+    // returns true if this node is within main data flow of the network (i.e. it does not describe helper data like
+    // convolution's weights etc.)
     bool is_in_data_flow() const { return data_flow; }
 
-    //conversion from generic to specific
+    // conversion from generic to specific
     template <class To, class..., class = typename std::enable_if<!std::is_same<To, primitive>::value>::type>
-    typed_program_node<To>& as()
-    {
+    typed_program_node<To>& as() {
         if (type() != To::type_id())
             throw std::invalid_argument("program_node: mismatching primitive's type");
 
@@ -217,8 +230,7 @@ public:
     }
 
     template <class To, class..., class = typename std::enable_if<!std::is_same<To, primitive>::value>::type>
-    typed_program_node<To> const& as() const
-    {
+    typed_program_node<To> const& as() const {
         if (type() != To::type_id())
             throw std::invalid_argument("program_node: mismatching primitive's type");
 
@@ -226,25 +238,24 @@ public:
     }
 
     template <class To>
-    operator typed_program_node<To>& ()
-    {
+    operator typed_program_node<To>&() {
         return as<To>();
     }
 
     template <class To>
-    operator typed_program_node<To> const& () const
-    {
+    operator typed_program_node<To> const&() const {
         return as<To>();
     }
 
-    void set_reused_memory_color(uint32_t color) const
-    {
+    void set_reused_memory_color(uint32_t color) const {
         has_reused_memory = true;
         reused_memory_color = color;
     }
 
-    bool is_reusing_memory() { return has_reused_memory; };
-    uint32_t get_reused_memory_color() { return reused_memory_color; ; }
+    bool is_reusing_memory() { return has_reused_memory; }
+    uint32_t get_reused_memory_color() {
+        return reused_memory_color;
+    }
 
 protected:
     std::shared_ptr<primitive> desc;
@@ -268,17 +279,16 @@ protected:
     uint8_t user_mark = 0;
     bool optimized = false;
     bool share_buffer = true;
-    bool _support_padding = false;
+    std::array<bool, CLDNN_TENSOR_DIM_MAX> _support_padding_in_axis = {};  // zero-initialization
 
     mutable bool has_reused_memory = false;
     mutable uint32_t reused_memory_color = 0;
 
     const primitive_id org_id;
 
-    struct fused_activation_params
-    {
+    struct fused_activation_params {
         cldnn_activation_func activation_func = activation_none;
-        cldnn_activation_additional_params additional_params = { 0.0f, 0.0f };
+        cldnn_activation_additional_params additional_params = {0.0f, 0.0f};
     };
 
     fused_activation_params fused_activation;
@@ -286,67 +296,64 @@ protected:
     void invalidate_users() const;
 };
 
-namespace details
-{
-    template <class PType>
-    struct api_typed_program_node_base : public program_node
-    {
-        static_assert(meta::is_api_primitive<PType>::value, "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from cldnn::internal_primitive");
-        friend class cldnn::graph_initializations;
-        friend struct cldnn::program_impl;
-        friend class cldnn::reorder_inputs;
-    public:
-        using program_node::program_node;
+namespace details {
+template <class PType>
+struct api_typed_program_node_base : public program_node {
+    static_assert(meta::is_api_primitive<PType>::value,
+                  "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from "
+                  "cldnn::internal_primitive");
+    friend class cldnn::graph_initializations;
+    friend struct cldnn::program_impl;
+    friend class cldnn::reorder_inputs;
 
-        std::shared_ptr<const PType> get_primitive() const { return std::static_pointer_cast<const PType>(program_node::get_primitive()); }
+public:
+    using program_node::program_node;
 
-    protected:
-        std::shared_ptr<PType> typed_desc() const { return std::static_pointer_cast<PType>(desc); }
-    };
+    std::shared_ptr<const PType> get_primitive() const {
+        return std::static_pointer_cast<const PType>(program_node::get_primitive());
+    }
 
-    struct internal_program_node_base : public program_node
-    {
-        friend struct cldnn::program_impl;
+protected:
+    std::shared_ptr<PType> typed_desc() const { return std::static_pointer_cast<PType>(desc); }
+};
 
-        internal_program_node_base(program_impl& prog);
+struct internal_program_node_base : public program_node {
+    friend struct cldnn::program_impl;
 
-        const primitive_id& id() const override { return internal_id; }
+    explicit internal_program_node_base(program_impl& prog);
 
-        void set_implementation(std::unique_ptr<primitive_impl>&& impl);
+    const primitive_id& id() const override { return internal_id; }
 
-    private:
-        primitive_id internal_id;
+    void set_implementation(std::unique_ptr<primitive_impl>&& impl);
 
-        static primitive_id get_next_internal_id();
-    };
+private:
+    primitive_id internal_id;
 
-    template <class PType>
-    struct internal_typed_program_node_base : public internal_program_node_base
-    {
-        static_assert(meta::is_internal_primitive<PType>::value, "PType should name a non-const, non-volatile type derived from cldnn::internal_primitive");
+    static primitive_id get_next_internal_id();
+};
 
-    public:
-        using internal_program_node_base::internal_program_node_base;
+template <class PType>
+struct internal_typed_program_node_base : public internal_program_node_base {
+    static_assert(meta::is_internal_primitive<PType>::value,
+                  "PType should name a non-const, non-volatile type derived from cldnn::internal_primitive");
 
-        primitive_type_id type() const override { return PType::type_id(); }
+public:
+    using internal_program_node_base::internal_program_node_base;
 
-        template <class... Guard>
-        [[noreturn]]
-        void get_primitive(Guard&&...)
-        {
-            static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
-        }
+    primitive_type_id type() const override { return PType::type_id(); }
 
+    template <class... Guard>
+    [[noreturn]] void get_primitive(Guard&&...) {
+        static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
+    }
 
-    protected:
-        template <class... Guard>
-        [[noreturn]]
-        void typed_desc(Guard&&...)
-        {
-            static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
-        }
-    };
-}
+protected:
+    template <class... Guard>
+    [[noreturn]] void typed_desc(Guard&&...) {
+        static_assert(meta::always_false<meta::pack<Guard...>>::value, "Trying to get primitive from internal node");
+    }
+};
+}  // namespace details
 
 /*
 Template class used to indicate that usage context requires 'program_node' to wrap primitive
@@ -357,7 +364,9 @@ This class shadows 'get_primitive' method from base class which now returns poin
 type.
 */
 template <class PType>
-using typed_program_node_base = typename std::conditional<meta::is_api_primitive<PType>::value, details::api_typed_program_node_base<PType>, details::internal_typed_program_node_base<PType>>::type;
+using typed_program_node_base = typename std::conditional<meta::is_api_primitive<PType>::value,
+                                                          details::api_typed_program_node_base<PType>,
+                                                          details::internal_typed_program_node_base<PType>>::type;
 
 /*
     Actual template class used in context which requires 'program_node' to wrap
@@ -367,11 +376,10 @@ using typed_program_node_base = typename std::conditional<meta::is_api_primitive
     It's not required to specialize this class for new primitives types.
 */
 template <class PType>
-struct typed_program_node : public typed_program_node_base<PType>
-{
+struct typed_program_node : public typed_program_node_base<PType> {
     using typed_program_node_base<PType>::typed_program_node_base;
 
     program_node& input() const { return program_node::get_dependency(0); }
 };
 
-}
+}  // namespace cldnn

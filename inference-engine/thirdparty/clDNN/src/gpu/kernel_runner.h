@@ -21,23 +21,23 @@
 #include "kernel_selector_common.h"
 #include "kernel_runner_interface.h"
 #include "kernel.h"
+#include <vector>
 
-namespace cldnn { namespace gpu {
+namespace cldnn {
+namespace gpu {
 
-class kernel_runner : public kernel_selector::KernelRunnerInterface
-{
+class kernel_runner : public kernel_selector::KernelRunnerInterface {
 public:
-
-    kernel_runner(engine_impl& engine_ref, bool weights_and_bias_exist = false);
+    explicit kernel_runner(engine_impl& engine_ref, bool weights_and_bias_exist = false);
 
     std::vector<uint64_t> run_kernels(const kernel_selector::KernelsData& kernelsData) override;
 
 private:
-
     const int compilation_batch_size = 50;
     const int runs_per_kernel = 3;
 
-    void prepare_kernel_args(const kernel_selector::KernelsData& kernels_data, gpu::kernel::kernel_arguments_data& args);
+    void prepare_kernel_args(const kernel_selector::KernelsData& kernels_data,
+                             gpu::kernel::kernel_arguments_data& args);
 
     engine_impl::ptr engine;
     bool weights_and_bias_exist;
@@ -48,4 +48,5 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
-}}
+}  // namespace gpu
+}  // namespace cldnn

@@ -16,15 +16,15 @@
 
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-from extensions.ops.quantize import QuantizeOp
+from extensions.ops.fakequantize import FakeQuantize
 
 
-class QuantizeFrontExtractor(FrontExtractorOp):
-    op = 'Quantize'
+class FakeQuantizeFrontExtractor(FrontExtractorOp):
+    op = 'FakeQuantize'
     enabled = True
 
     @staticmethod
     def extract(node):
         levels = onnx_attr(node, 'levels', 'i')
-        QuantizeOp.update_node_stat(node, {'levels' : levels})
-        return QuantizeFrontExtractor.enabled
+        FakeQuantize.update_node_stat(node, {'levels': levels})
+        return FakeQuantizeFrontExtractor.enabled

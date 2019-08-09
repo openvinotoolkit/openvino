@@ -34,108 +34,65 @@ class TestMetric:
         self.module = 'accuracy_checker.metrics.metric_evaluator'
 
     def test_missed_metrics_raises_config_error_exception(self):
-        config = {'annotation': 'custom'}
-
         with pytest.raises(ConfigError):
-            MetricsExecutor(config, None)
-
-    def test_missed_metrics_raises_config_error_exception_with_custom_name(self):
-        config = {'name': 'some_name', 'annotation': 'custom'}
-
-        with pytest.raises(ConfigError):
-            MetricsExecutor(config, None)
-
-    def test_empty_metrics_raises_config_error_exception(self):
-        config = {'annotation': 'custom', 'metrics': []}
-
-        with pytest.raises(ConfigError):
-            MetricsExecutor(config, None)
+            MetricsExecutor([], None)
 
     def test_metrics_with_empty_entry_raises_config_error_exception(self):
-        config = {'annotation': 'custom', 'metrics': [{}]}
-
         with pytest.raises(ConfigError):
-            MetricsExecutor(config, None)
+            MetricsExecutor([{}], None)
 
     def test_missed_metric_type_raises_config_error_exception(self):
-        config = {'annotation': 'custom', 'metrics': [{'undefined': ''}]}
-
         with pytest.raises(ConfigError):
-            MetricsExecutor(config, None)
+            MetricsExecutor([{'undefined': ''}], None)
 
     def test_undefined_metric_type_raises_config_error_exception(self):
-        config = {'annotation': 'custom', 'metrics': [{'type': ''}]}
-
         with pytest.raises(ConfigError):
-            MetricsExecutor(config, None)
+            MetricsExecutor([{'type': ''}], None)
 
     def test_accuracy_arguments(self):
-        config = {'annotation': 'custom', 'metrics': [{'type': 'accuracy', 'top_k': 1}]}
-
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1}], None)
         assert len(dispatcher.metrics) == 1
-        _, accuracy_metric, _, _, _ = dispatcher.metrics[0]
+        _, _, accuracy_metric,  _, _, _ = dispatcher.metrics[0]
         assert isinstance(accuracy_metric, ClassificationAccuracy)
         assert accuracy_metric.top_k == 1
 
     def test_accuracy_with_several_annotation_source_raises_config_error_exception(self):
-        config = {
-            'annotation': 'custom',
-            'metrics': [{'type': 'accuracy', 'top_k': 1, 'annotation_source': 'annotation1, annotation2'}]
-        }
         with pytest.raises(ConfigError):
-            MetricsExecutor(config, None)
+            MetricsExecutor([{'type': 'accuracy', 'top_k': 1, 'annotation_source': 'annotation1, annotation2'}], None)
 
     def test_accuracy_with_several_prediction_source_raises_value_error_exception(self):
-        config = {
-            'annotation': 'custom',
-            'metrics': [{'type': 'accuracy', 'top_k': 1, 'prediction_source': 'prediction1, prediction2'}]
-        }
         with pytest.raises(ConfigError):
-            MetricsExecutor(config, None)
+            MetricsExecutor([{'type': 'accuracy', 'top_k': 1, 'prediction_source': 'prediction1, prediction2'}], None)
 
     def test_accuracy_on_container_with_wrong_annotation_source_name_raise_config_error_exception(self):
         annotations = [ContainerAnnotation({'annotation': ClassificationAnnotation('identifier', 3)})]
         predictions = [ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0])]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 1, 'annotation_source': 'a'}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1, 'annotation_source': 'a'}], None)
         with pytest.raises(ConfigError):
             dispatcher.update_metrics_on_batch(annotations, predictions)
 
     def test_accuracy_with_wrong_annotation_type_raise_config_error_exception(self):
         annotations = [DetectionAnnotation('identifier', 3)]
         predictions = [ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0])]
-        config = {
-            'annotation': 'mocked',
-            'metrics': [{'type': 'accuracy', 'top_k': 1}]
-        }
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1}], None)
         with pytest.raises(ConfigError):
             dispatcher.update_metrics_on_batch(annotations, predictions)
 
     def test_accuracy_with_unsupported_annotations_in_container_raise_config_error_exception(self):
         annotations = [ContainerAnnotation({'annotation': DetectionAnnotation('identifier', 3)})]
         predictions = [ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0])]
-        config = {
-            'annotation': 'mocked',
-            'metrics': [{'type': 'accuracy', 'top_k': 1}]
-        }
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1}], None)
         with pytest.raises(ConfigError):
             dispatcher.update_metrics_on_batch(annotations, predictions)
 
     def test_accuracy_with_unsupported_annotation_type_as_annotation_source_for_container_raises_config_error(self):
         annotations = [ContainerAnnotation({'annotation': DetectionAnnotation('identifier', 3)})]
         predictions = [ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0])]
-        config = {
-            'annotation': 'mocked',
-            'metrics': [{'type': 'accuracy', 'top_k': 1, 'annotation_source': 'annotation'}]
-        }
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1, 'annotation_source': 'annotation'}], None)
         with pytest.raises(ConfigError):
             dispatcher.update_metrics_on_batch(annotations, predictions)
 
@@ -145,39 +102,32 @@ class TestMetric:
             'annotation2': ClassificationAnnotation('identifier', 3)
         })]
         predictions = [ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0])]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 1}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1}], None)
         with pytest.raises(ConfigError):
             dispatcher.update_metrics_on_batch(annotations, predictions)
 
     def test_accuracy_with_wrong_prediction_type_raise_config_error_exception(self):
         annotations = [ClassificationAnnotation('identifier', 3)]
         predictions = [DetectionPrediction('identifier', [1.0, 1.0, 1.0, 4.0])]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 1}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1}], None)
         with pytest.raises(ConfigError):
             dispatcher.update_metrics_on_batch(annotations, predictions)
 
     def test_accuracy_with_unsupported_prediction_in_container_raise_config_error_exception(self):
         annotations = [ClassificationAnnotation('identifier', 3)]
         predictions = [ContainerPrediction({'prediction': DetectionPrediction('identifier', [1.0, 1.0, 1.0, 4.0])})]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 1}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1}], None)
         with pytest.raises(ConfigError):
             dispatcher.update_metrics_on_batch(annotations, predictions)
 
     def test_accuracy_with_unsupported_prediction_type_as_prediction_source_for_container_raises_config_error(self):
         annotations = [ClassificationAnnotation('identifier', 3)]
         predictions = [ContainerPrediction({'prediction': DetectionPrediction('identifier', [1.0, 1.0, 1.0, 4.0])})]
-        config = {
-            'annotation': 'mocked',
-            'metrics': [{'type': 'accuracy', 'top_k': 1, 'prediction_source': 'prediction'}]
-        }
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1, 'prediction_source': 'prediction'}], None)
         with pytest.raises(ConfigError):
             dispatcher.update_metrics_on_batch(annotations, predictions)
 
@@ -187,18 +137,16 @@ class TestMetric:
             'prediction1': ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0]),
             'prediction2': ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0])
         })]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 1}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1}], None)
         with pytest.raises(ConfigError):
             dispatcher.update_metrics_on_batch(annotations, predictions)
 
     def test_complete_accuracy(self):
         annotations = [ClassificationAnnotation('identifier', 3)]
         predictions = [ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0])]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 1}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1}], None)
         dispatcher.update_metrics_on_batch(annotations, predictions)
 
         for _, evaluation_result in dispatcher.iterate_metrics(annotations, predictions):
@@ -210,9 +158,8 @@ class TestMetric:
     def test_complete_accuracy_with_container_default_sources(self):
         annotations = [ContainerAnnotation({'a': ClassificationAnnotation('identifier', 3)})]
         predictions = [ContainerPrediction({'p': ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0])})]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 1}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1}], None)
         dispatcher.update_metrics_on_batch(annotations, predictions)
 
         for _, evaluation_result in dispatcher.iterate_metrics(annotations, predictions):
@@ -224,10 +171,7 @@ class TestMetric:
     def test_complete_accuracy_with_container_sources(self):
         annotations = [ContainerAnnotation({'a': ClassificationAnnotation('identifier', 3)})]
         predictions = [ContainerPrediction({'p': ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0])})]
-        config = {
-            'annotation': 'mocked',
-            'metrics': [{'type': 'accuracy', 'top_k': 1, 'annotation_source': 'a', 'prediction_source': 'p'}]
-        }
+        config = [{'type': 'accuracy', 'top_k': 1, 'annotation_source': 'a', 'prediction_source': 'p'}]
 
         dispatcher = MetricsExecutor(config, None)
         dispatcher.update_metrics_on_batch(annotations, predictions)
@@ -241,9 +185,8 @@ class TestMetric:
     def test_zero_accuracy(self):
         annotation = [ClassificationAnnotation('identifier', 2)]
         prediction = [ClassificationPrediction('identifier', [1.0, 1.0, 1.0, 4.0])]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 1}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 1}], None)
 
         for _, evaluation_result in dispatcher.iterate_metrics([annotation], [prediction]):
             assert evaluation_result.name == 'accuracy'
@@ -254,9 +197,8 @@ class TestMetric:
     def test_complete_accuracy_top_3(self):
         annotations = [ClassificationAnnotation('identifier', 3)]
         predictions = [ClassificationPrediction('identifier', [1.0, 3.0, 4.0, 2.0])]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 3}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 3}], None)
         dispatcher.update_metrics_on_batch(annotations, predictions)
 
         for _, evaluation_result in dispatcher.iterate_metrics(annotations, predictions):
@@ -268,9 +210,8 @@ class TestMetric:
     def test_zero_accuracy_top_3(self):
         annotations = [ClassificationAnnotation('identifier', 3)]
         predictions = [ClassificationPrediction('identifier', [5.0, 3.0, 4.0, 1.0])]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 3}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 3}], None)
 
         for _, evaluation_result in dispatcher.iterate_metrics(annotations, predictions):
             assert evaluation_result.name == 'accuracy'
@@ -281,9 +222,8 @@ class TestMetric:
     def test_reference_is_10_by_config(self):
         annotations = [ClassificationAnnotation('identifier', 3)]
         predictions = [ClassificationPrediction('identifier', [5.0, 3.0, 4.0, 1.0])]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 3, 'reference': 10}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 3, 'reference': 10}], None)
 
         for _, evaluation_result in dispatcher.iterate_metrics(annotations, predictions):
             assert evaluation_result.name == 'accuracy'
@@ -294,9 +234,8 @@ class TestMetric:
     def test_threshold_is_10_by_config(self):
         annotations = [ClassificationAnnotation('identifier', 3)]
         predictions = [ClassificationPrediction('identifier', [5.0, 3.0, 4.0, 1.0])]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy', 'top_k': 3, 'threshold': 10}]}
 
-        dispatcher = MetricsExecutor(config, None)
+        dispatcher = MetricsExecutor([{'type': 'accuracy', 'top_k': 3, 'threshold': 10}], None)
 
         for _, evaluation_result in dispatcher.iterate_metrics([annotations], [predictions]):
             assert evaluation_result.name == 'accuracy'
@@ -307,9 +246,8 @@ class TestMetric:
     def test_classification_per_class_accuracy_fully_zero_prediction(self):
         annotation = ClassificationAnnotation('identifier', 0)
         prediction = ClassificationPrediction('identifier', [1.0, 2.0])
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy_per_class', 'top_k': 1}]}
         dataset = DummyDataset(label_map={0: '0', 1: '1'})
-        dispatcher = MetricsExecutor(config, dataset)
+        dispatcher = MetricsExecutor([{'type': 'accuracy_per_class', 'top_k': 1}], dataset)
         dispatcher.update_metrics_on_batch([annotation], [prediction])
         for _, evaluation_result in dispatcher.iterate_metrics([annotation], [prediction]):
             assert evaluation_result.name == 'accuracy_per_class'
@@ -322,9 +260,8 @@ class TestMetric:
     def test_classification_per_class_accuracy_partially_zero_prediction(self):
         annotation = [ClassificationAnnotation('identifier', 1)]
         prediction = [ClassificationPrediction('identifier', [1.0, 2.0])]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy_per_class', 'top_k': 1}]}
         dataset = DummyDataset(label_map={0: '0', 1: '1'})
-        dispatcher = MetricsExecutor(config, dataset)
+        dispatcher = MetricsExecutor([{'type': 'accuracy_per_class', 'top_k': 1}], dataset)
 
         dispatcher.update_metrics_on_batch(annotation, prediction)
 
@@ -342,9 +279,8 @@ class TestMetric:
             ClassificationPrediction('identifier_1', [1.0, 2.0]),
             ClassificationPrediction('identifier_2', [2.0, 1.0])
         ]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy_per_class', 'top_k': 1}]}
         dataset = DummyDataset(label_map={0: '0', 1: '1'})
-        dispatcher = MetricsExecutor(config, dataset)
+        dispatcher = MetricsExecutor([{'type': 'accuracy_per_class', 'top_k': 1}], dataset)
 
         dispatcher.update_metrics_on_batch(annotation, prediction)
 
@@ -367,9 +303,8 @@ class TestMetric:
             ClassificationPrediction('identifier_2', [2.0, 1.0]),
             ClassificationPrediction('identifier_3', [1.0, 5.0])
         ]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy_per_class', 'top_k': 1}]}
         dataset = DummyDataset(label_map={0: '0', 1: '1'})
-        dispatcher = MetricsExecutor(config, dataset)
+        dispatcher = MetricsExecutor([{'type': 'accuracy_per_class', 'top_k': 1}], dataset)
 
         dispatcher.update_metrics_on_batch(annotation, prediction)
 
@@ -387,9 +322,8 @@ class TestMetric:
             ClassificationPrediction('identifier_1', [1.0, 2.0, 3.0, 4.0]),
             ClassificationPrediction('identifier_2', [2.0, 1.0, 3.0, 4.0])
         ]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy_per_class', 'top_k': 3}]}
         dataset = DummyDataset(label_map={0: '0', 1: '1', 2: '2', 3: '3'})
-        dispatcher = MetricsExecutor(config, dataset)
+        dispatcher = MetricsExecutor([{'type': 'accuracy_per_class', 'top_k': 3}], dataset)
 
         dispatcher.update_metrics_on_batch(annotation, prediction)
 
@@ -409,9 +343,8 @@ class TestMetric:
             ClassificationPrediction('identifier_1', [1.0, 2.0, 3.0, 4.0]),
             ClassificationPrediction('identifier_2', [2.0, 1.0, 3.0, 4.0])
         ]
-        config = {'annotation': 'mocked', 'metrics': [{'type': 'accuracy_per_class', 'top_k': 3}]}
         dataset = DummyDataset(label_map={0: '0', 1: '1', 2: '2', 3: '3'})
-        dispatcher = MetricsExecutor(config, dataset)
+        dispatcher = MetricsExecutor([{'type': 'accuracy_per_class', 'top_k': 3}], dataset)
 
         dispatcher.update_metrics_on_batch(annotation, prediction)
 

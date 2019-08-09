@@ -139,7 +139,7 @@ KERNEL(convolution_MMAD_blocks)(
                 if(x + bc < OUTPUT_SIZE_X)
                 {
                     const uint dst_index = GET_DATA_INDEX(OUTPUT, b, f, y+br, x+bc) + out_split_offset;
-                    output[dst_index] = ACTIVATION(convert_char(out[br * OUTPUT_BLOCK_WIDTH + bc]), NL_M, NL_N);
+                    output[dst_index] = ACTIVATION(convert_char(out[br * OUTPUT_BLOCK_WIDTH + bc]), ACTIVATION_PARAMS);
                 }
             }
         }

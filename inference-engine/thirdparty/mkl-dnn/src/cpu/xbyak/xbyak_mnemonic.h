@@ -2014,4 +2014,10 @@ void kmovq(const Opmask& k, const Reg64& r) { opVex(k, 0, r, T_L0 | T_0F | T_F2 
 void kmovq(const Reg64& r, const Opmask& k) { opVex(r, 0, k, T_L0 | T_0F | T_F2 | T_W1, 0x93); }
 void vpbroadcastq(const Xmm& x, const Reg64& r) { opVex(x, 0, r, T_66 | T_0F38 | T_EW1 | T_YMM | T_MUST_EVEX, 0x7C); }
 #endif
+
+/* CPX BFloat16 support */
+void vdpbf16ps(const Xmm& x1, const Xmm& x2, const Operand& op) { opAVX_X_X_XM(x1, x2, op, T_F3 | T_0F38 | T_W1 | T_YMM | T_MUST_EVEX | T_B32, 0x52); }
+void vcvtne2ps2bf16(const Xmm& x1, const Xmm& x2, const Operand& op) { opAVX_X_X_XM  (x1, x2, op, T_F2 | T_0F38 | T_W0 | T_EW0 | T_YMM | T_MUST_EVEX | T_B32, 0x72); }
+void vcvtneps2bf16(const Xmm& x, const Operand& op) { opCvt2(x, op, T_F3 | T_0F38 | T_W0 |  T_EW0 | T_YMM | T_MUST_EVEX | T_B32,  0x72); }
+
 #endif

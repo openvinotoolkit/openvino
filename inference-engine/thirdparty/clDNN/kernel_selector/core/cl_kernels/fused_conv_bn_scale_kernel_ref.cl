@@ -176,15 +176,15 @@ KERNEL(convolution)(
             UNIT_TYPE out_val = inv_variance * (conv_output[out_idx] - mean);
             bn_output[out_idx] = out_val;
 #ifdef SCALE_BIAS_TERM
-            output[out_idx] = ACTIVATION(out_val * scale_in[f] + scale_bias[f], NL_M, NL_N);  
+            output[out_idx] = ACTIVATION(out_val * scale_in[f] + scale_bias[f], ACTIVATION_PARAMS);
 #else
-            output[out_idx] = ACTIVATION(out_val * scale_in[f], NL_M, NL_N);  
+            output[out_idx] = ACTIVATION(out_val * scale_in[f], ACTIVATION_PARAMS);
 #endif
 #else
 #ifdef SCALE_BIAS_TERM
-            output[out_idx] = ACTIVATION(inv_variance * (output[out_idx] - mean) * scale_in[f] + scale_bias[f], NL_M, NL_N);  
+            output[out_idx] = ACTIVATION(inv_variance * (output[out_idx] - mean) * scale_in[f] + scale_bias[f], ACTIVATION_PARAMS);
 #else
-            output[out_idx] = ACTIVATION(inv_variance * (output[out_idx] - mean) * scale_in[f], NL_M, NL_N);
+            output[out_idx] = ACTIVATION(inv_variance * (output[out_idx] - mean) * scale_in[f], ACTIVATION_PARAMS);
 #endif
 #endif
             out_idx += OUTPUT_X_PITCH;

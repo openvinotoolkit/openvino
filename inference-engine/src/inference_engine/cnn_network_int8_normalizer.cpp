@@ -47,7 +47,7 @@ CNNStatisticHelper::CNNStatisticHelper(CNNNetwork &network, const std::map<std::
 bool CNNStatisticHelper::canLayerBeQuantized(CNNLayer::Ptr layer) const {
     // verification of existing statistic for all inputs
     for (const auto i : layer->insData) {
-        if (internalNodesStats_.find(i.lock()->creatorLayer.lock()->name) == internalNodesStats_.end()) {
+        if (internalNodesStats_.find(i.lock()->getCreatorLayer().lock()->name) == internalNodesStats_.end()) {
             return false;
         }
     }
@@ -76,7 +76,7 @@ bool CNNStatisticHelper::hasNegativeOutput(const std::string &layerName, int out
 }
 
 InferenceEngine::Blob::Ptr CNNStatisticHelper::getInputScale(CNNLayer::Ptr layer) const {
-    auto previousLayer = layer->insData[0].lock()->creatorLayer.lock();
+    auto previousLayer = layer->insData[0].lock()->getCreatorLayer().lock();
     std::string inputLayerName = previousLayer->name;
 
     // for case when we have the only average pooling before, we need to take this
@@ -84,7 +84,7 @@ InferenceEngine::Blob::Ptr CNNStatisticHelper::getInputScale(CNNLayer::Ptr layer
     // and to stay in int8 as much as we can
     if (previousLayer->type == "Pooling" && (previousLayer->precision == Precision::I8 || previousLayer->precision == Precision::U8)) {
         // take input name to the pooling
-        inputLayerName = previousLayer->insData[0].lock()->creatorLayer.lock()->name;
+        inputLayerName = previousLayer->insData[0].lock()->getCreatorLayer().lock()->name;
     }
     size_t inputChannels = layer->insData[0].lock()->getTensorDesc().getDims()[1];
     if (getStatistic(previousLayer)->_minOutputs.size() != inputChannels
@@ -92,8 +92,22 @@ InferenceEngine::Blob::Ptr CNNStatisticHelper::getInputScale(CNNLayer::Ptr layer
         THROW_IE_EXCEPTION << "min and max sizes should be equal to input channels count for " << previousLayer->name;
     }
 
-    return calculateScaleFactor(inputChannels, getStatistic(previousLayer),
-                                hasNegativeOutput(previousLayer->name) ? maxSign_ : maxUnsign_);
+    // current normalization algorithm can have nodes with fp32 edges. it can happen only in places
+    // of initial quantization of int8 chains. Currently adding scaleshift adds certain I8/U8 precision
+    // but calcualtion of scales happens before adding of scale shifts.
+    // for fixing problem with cases of not determined yet presision and for following of
+    // quantizatoin scheme defined by normalizer, we are adding here verification of negative output
+    // in some cases and then verify exact precision of I8/U8 on node for covering of fully determined cases
+    int maxValue = hasNegativeOutput(previousLayer->name) ? maxSign_ : maxUnsign_;
+    if (previousLayer->outData[0]->getPrecision() == Precision::U8) {
+        maxValue = maxUnsign_;
+    } else if (previousLayer->outData[0]->getPrecision() == Precision::I8) {
+        maxValue = maxSign_;
+    }
+
+
+
+    return calculateScaleFactor(inputChannels, getStatistic(previousLayer), maxValue);
 }
 
 InferenceEngine::Blob::Ptr CNNStatisticHelper::getOutputScale(CNNLayer::Ptr layer) const {
@@ -102,6 +116,12 @@ InferenceEngine::Blob::Ptr CNNStatisticHelper::getOutputScale(CNNLayer::Ptr laye
     if (layer->outData.size() != 1) {
         THROW_IE_EXCEPTION << "Trying to get scales after layer having multiple output ports";
     }
+
+    auto it = internalNodesStats_.find(layer->name);
+    if (it == internalNodesStats_.end()) {
+        return std::shared_ptr<Blob>();
+    }
+
     if (getStatistic(layer)->_minOutputs.size() != outputChannels
         || getStatistic(layer)->_maxOutputs.size() != outputChannels) {
         THROW_IE_EXCEPTION << "min and max sizes should be equal to output channels count for " << layer->name;
@@ -115,8 +135,10 @@ int CNNStatisticHelper::getMaxSignValue() const {
     return maxSign_;
 }
 
-InferenceEngine::Blob::Ptr CNNStatisticHelper::calculateScaleFactor(size_t channels ,
-    NetworkNodeStatsPtr stats, int maxInt) const {
+InferenceEngine::Blob::Ptr CNNStatisticHelper::calculateScaleFactor(
+            size_t channels,
+            NetworkNodeStatsPtr stats,
+            int maxInt) const {
     if (stats->_minOutputs.size() != channels || stats->_maxOutputs.size() != channels) {
         THROW_IE_EXCEPTION << "min and max sizes should be equal to channels count";
     }
@@ -128,10 +150,9 @@ InferenceEngine::Blob::Ptr CNNStatisticHelper::calculateScaleFactor(size_t chann
     float* iScaleMemory = static_cast<float*>(iScale->buffer());
 
     for (int c = 0; c < channels; c++) {
-        float maxc = 0;
-            // maxc = fmax(maxc, fabs(stats[k]->_minOutputs[c]));        // TODO Check if we should take minimums into account
-            maxc = fmax(maxc, fabs(stats->_maxOutputs[c]));
-            maxc = fmax(maxc, fabs(stats->_minOutputs[c]));
+        // maxc = fmax(maxc, fabs(stats[k]->_minOutputs[c]));        // TODO Check if we should take minimums into account
+        float maxc = fabs(stats->_maxOutputs[c]);
+        maxc = fmax(maxc, fabs(stats->_minOutputs[c]));
 
         iScaleMemory[c] = maxc / static_cast<float>(maxInt);
 
@@ -153,17 +174,17 @@ NetworkNodeStatsPtr CNNStatisticHelper::getStatistic(CNNLayer::Ptr layer) const 
 }
 
 CNNLayer::Ptr CNNStatisticHelper::getLatestInFuse(CNNLayer::Ptr layer) const {
-    if (layer->outData[0]->inputTo.size() == 1 &&
-        (CaselessEq<std::string>()(layer->outData[0]->inputTo.begin()->second->type, "relu") ||
-         CNNNetworkInt8Normalizer::isReLULikeClamp(layer->outData[0]->inputTo.begin()->second)))  {
-        return layer->outData[0]->inputTo.begin()->second;
+    if (layer->outData[0]->getInputTo().size() == 1 &&
+        (CaselessEq<std::string>()(layer->outData[0]->getInputTo().begin()->second->type, "relu") ||
+         CNNNetworkInt8Normalizer::isReLULikeClamp(layer->outData[0]->getInputTo().begin()->second)))  {
+        return layer->outData[0]->getInputTo().begin()->second;
     }
     // Conv-Sum-ReLU fuse
     // We need to return original layer if it will be used as a sum parame and ReLU if
     // iterating over outputs of pointed layer and look for the only eltwise
     CNNLayer::Ptr eltwise = nullptr;
     if (layer->outData.size() == 1) {
-        for (auto it : layer->outData[0]->inputTo) {
+        for (auto it : layer->outData[0]->getInputTo()) {
             if (CaselessEq<std::string>()(it.second->type, "eltwise")) {
                 if (eltwise) {
                     THROW_IE_EXCEPTION << "Pattern when one layer pass data to several eltwise layers are not supported in int8 quantization";
@@ -179,18 +200,18 @@ CNNLayer::Ptr CNNStatisticHelper::getLatestInFuse(CNNLayer::Ptr layer) const {
             return layer;
         } else {
             // look to the ports of eltwise
-            if (eltwise->insData[1].lock()->creatorLayer.lock() == layer &&
-                CaselessEq<std::string>()(eltwise->insData[0].lock()->creatorLayer.lock()->type, "convolution") &&
-                eltwise->insData[0].lock()->inputTo.size() == 1) {
+            if (eltwise->insData[1].lock()->getCreatorLayer().lock() == layer &&
+                CaselessEq<std::string>()(eltwise->insData[0].lock()->getCreatorLayer().lock()->type, "convolution") &&
+                eltwise->insData[0].lock()->getInputTo().size() == 1) {
                 // this is a case when two convolutions come to eltwise, the second one will be selected for fuse,
                 // first will be used as sum operator
                 return layer;
             }
             // given layer is a convolution and will be used for fuse, but we need to verify if there is ReLU after eltwise
-            if (eltwise->outData[0]->inputTo.size() == 1 &&
-                (CaselessEq<std::string>()(eltwise->outData[0]->inputTo.begin()->second->type, "relu") ||
-                 CNNNetworkInt8Normalizer::isReLULikeClamp(eltwise->outData[0]->inputTo.begin()->second))) {
-                return eltwise->outData[0]->inputTo.begin()->second;
+            if (eltwise->outData[0]->getInputTo().size() == 1 &&
+                (CaselessEq<std::string>()(eltwise->outData[0]->getInputTo().begin()->second->type, "relu") ||
+                 CNNNetworkInt8Normalizer::isReLULikeClamp(eltwise->outData[0]->getInputTo().begin()->second))) {
+                return eltwise->outData[0]->getInputTo().begin()->second;
             }
             return eltwise;
         }
@@ -218,7 +239,7 @@ void CNNStatisticHelper::NormalizeStatistic() {
         // go over all inputs and verify if statistic exists for all of inputs
         bool allInputsHaveStatistics = true;
         for (auto i : l->insData) {
-            if (newMap.find(i.lock()->creatorLayer.lock()->name) == newMap.end()) {
+            if (newMap.find(i.lock()->getCreatorLayer().lock()->name) == newMap.end()) {
                 allInputsHaveStatistics = false;
                 break;
             }
@@ -226,9 +247,10 @@ void CNNStatisticHelper::NormalizeStatistic() {
         // if we do not have statistic - verify who is consumer of this layer
         if (!allInputsHaveStatistics) {
             if (l->outData.size() == 1) {
-                for (auto it : l->outData[0]->inputTo) {
+                for (auto it : l->outData[0]->getInputTo()) {
                     if (CaselessEq<std::string>()(it.second->type, "scaleshift") ||
-                        CaselessEq<std::string>()(it.second->type, "convolution")) {
+                        CaselessEq<std::string>()(it.second->type, "convolution") ||
+                        CaselessEq<std::string>()(it.second->type, "fullyconnected")) {
                         isStarterLayer = true;
                         break;
                     }
@@ -238,7 +260,8 @@ void CNNStatisticHelper::NormalizeStatistic() {
             isStarterLayer = true;
         }
         if (CaselessEq<std::string>()(l->type, "scaleshift") ||
-            CaselessEq<std::string>()(l->type, "convolution")) {
+            CaselessEq<std::string>()(l->type, "convolution") ||
+            CaselessEq<std::string>()(l->type, "fullyconnected")) {
             isStarterLayer = true;
         }
 
@@ -262,7 +285,7 @@ void CNNStatisticHelper::NormalizeStatistic() {
             && allInputsHaveStatistics) {
             size_t concatLayerIdx = 0;
             for (int k = 0; k < l->insData.size(); k++) {
-                auto prevKLayer = l->insData[k].lock()->creatorLayer.lock();
+                auto prevKLayer = l->insData[k].lock()->getCreatorLayer().lock();
                 // looking for the statistic for prevKLayer
                 auto kLayerStat = newMap.find(prevKLayer->name);
                 if (kLayerStat != newMap.end()) {
@@ -297,7 +320,7 @@ void CNNStatisticHelper::NormalizeStatistic() {
             // to understand the granularity of the scaling
             // layer concat is a layer which produce statistics and waterfall it down
             std::vector<CNNLayer::Ptr> toAnalyze;
-            for (auto it : l->outData[0]->inputTo) {
+            for (auto it : l->outData[0]->getInputTo()) {
                 toAnalyze.push_back(it.second);
             }
 
@@ -312,7 +335,7 @@ void CNNStatisticHelper::NormalizeStatistic() {
                     CNNNetworkInt8Normalizer::isReLULikeClamp(tl) ||
                     CaselessEq<std::string>()(tl->type, "concat")) {
                     if (tl->outData.size() == 1) {
-                        for (auto it : tl->outData[0]->inputTo) {
+                        for (auto it : tl->outData[0]->getInputTo()) {
                             toAnalyze.push_back(it.second);
                         }
                     }
@@ -380,7 +403,7 @@ void CNNStatisticHelper::NormalizeStatistic() {
                 toAnalyze.pop_back();
                 newMap[tl->name] = currentStat;
                 if (tl->outData.size() == 1) {
-                    for (auto it : tl->outData[0]->inputTo) {
+                    for (auto it : tl->outData[0]->getInputTo()) {
                         if (CaselessEq<std::string>()(it.second->type, "pooling") ||
                                 CaselessEq<std::string>()(it.second->type, "relu") ||
                                 CNNNetworkInt8Normalizer::isReLULikeClamp(it.second)) {
@@ -405,7 +428,7 @@ void CNNNetworkInt8Normalizer::AddLayerToCNNNetworkBeforeLayer(CNNLayer::Ptr new
         DataPtr newEdge(edge2);
         newEdge->getInputTo().clear();
         newEdge->getInputTo()[successor->name] = successor;
-        newEdge->name = newLayer->name;
+        newEdge->setName(newLayer->name);
         newEdge->getCreatorLayer() = newLayer;
         successor->insData[port] = newEdge;
         newLayer->outData.push_back(newEdge);
@@ -418,16 +441,49 @@ void CNNNetworkInt8Normalizer::AddLayerToCNNNetworkBeforeLayer(CNNLayer::Ptr new
     }
 }
 
+CNNLayer::Ptr CNNNetworkInt8Normalizer::addU8ToI8Conversion(DataPtr data, CNNLayer::Ptr successor, CNNStatisticHelper &statHelper) {
+    if (data->getPrecision() == Precision::U8 || data->getPrecision() == Precision::I8) {
+        size_t c = static_cast<size_t>(data->getDims()[1]);
+
+        std::vector<float> ssWValues;
+        std::vector<float> ssSValues;
+        for (auto i = 0; i < c; i++) {
+            ssWValues.push_back(1.0f);
+            ssSValues.push_back(0.0f);
+        }
+        std::string layerName = data->getCreatorLayer().lock()->name + "_Eltwise_ScaleShift_U8I8_" + successor->name;
+        CNNLayer::Ptr newLayer = createDWConvolutionForScale(layerName, c, ssWValues.data(), ssSValues.data());
+        newLayer->precision = Precision::I8;
+
+        for (size_t i = 0; i < successor->insData.size(); i++) {
+            if (successor->insData[i].lock() == data) {
+                AddLayerToCNNNetworkBeforeLayer(newLayer, successor, i);
+
+                // update statistic to pass quantization smoothly
+                std::string inputLayerName = newLayer->insData[0].lock()->getCreatorLayer().lock()->name;
+                statHelper.copyStatistics(inputLayerName, layerName);
+                if (data->getPrecision() == Precision::U8) {
+                    newLayer->outData[0]->setPrecision(Precision::I8);
+                } else {
+                    newLayer->outData[0]->setPrecision(Precision::U8);
+                }
+            }
+        }
+        return newLayer;
+    }
+    return nullptr;
+}
+
 void CNNNetworkInt8Normalizer::AddLayerToCNNNetworkAfterData(DataPtr pData, CNNLayer::Ptr layer, const std::string& nextLayerName) {
     // verify if data exists
-    if (pData && layer && pData->creatorLayer.lock() && pData->inputTo.find(nextLayerName) != pData->inputTo.end()) {
-        CNNLayerPtr nextLayer = pData->inputTo[nextLayerName];
+    if (pData && layer && pData->getCreatorLayer().lock() && pData->getInputTo().find(nextLayerName) != pData->getInputTo().end()) {
+        CNNLayerPtr nextLayer = pData->getInputTo()[nextLayerName];
 
         DataPtr newEdgeAfterLayer(new Data(*pData.get()));
-        newEdgeAfterLayer->name = layer->name;
-        newEdgeAfterLayer->creatorLayer = layer;
-        newEdgeAfterLayer->inputTo.clear();
-        newEdgeAfterLayer->inputTo[nextLayerName] = nextLayer;
+        newEdgeAfterLayer->setName(layer->name);
+        newEdgeAfterLayer->getCreatorLayer() = layer;
+        newEdgeAfterLayer->getInputTo().clear();
+        newEdgeAfterLayer->getInputTo()[nextLayerName] = nextLayer;
         newEdgeAfterLayer->setPrecision(Precision::FP32);
 
         pData->getInputTo().erase(nextLayerName);
@@ -487,7 +543,7 @@ void CNNNetworkInt8Normalizer::AddScaleShiftBetween(CNNNetwork& net, const CNNLa
     // Searching the connection between the layers
     int l1_out_i = 0;
     for (; l1_out_i < layer1->outData.size(); l1_out_i++) {
-        if (layer1->outData[l1_out_i]->inputTo.find(layer2->name) != layer1->outData[l1_out_i]->inputTo.end()) {
+        if (layer1->outData[l1_out_i]->getInputTo().find(layer2->name) != layer1->outData[l1_out_i]->getInputTo().end()) {
             break;
         }
     }
@@ -497,7 +553,7 @@ void CNNNetworkInt8Normalizer::AddScaleShiftBetween(CNNNetwork& net, const CNNLa
 
     int l2_in_i = 0;
     for (; l2_in_i < layer2->insData.size(); l2_in_i++) {
-        if (layer2->insData[l2_in_i].lock()->creatorLayer.lock() == layer1) {
+        if (layer2->insData[l2_in_i].lock()->getCreatorLayer().lock() == layer1) {
             break;
         }
     }
@@ -563,7 +619,7 @@ void CNNNetworkInt8Normalizer::AddScaleShifts(CNNNetwork& net, CNNStatisticHelpe
 
     for (auto iter : sortedLayers) {
         for (int l1_out_i = 0; l1_out_i < iter->outData.size(); l1_out_i++) {
-            for (auto nextIter : iter->outData[l1_out_i]->inputTo) {
+            for (auto nextIter : iter->outData[l1_out_i]->getInputTo()) {
                 CNNLayer::Ptr next = nextIter.second;
 
                 // Checking for an INT8 convolution or fully connected with FP32 output
@@ -597,13 +653,13 @@ void CNNNetworkInt8Normalizer::ClampsToReLU(CNNNetwork& net, CNNStatisticHelper&
             LayerParams ssCnnLayerParams{ layerName, "ReLU", iter->precision };
             CNNLayerPtr ssCnnLayer(new ReLULayer(ssCnnLayerParams));
 
-            auto previousLayer = iter->insData[0].lock()->creatorLayer.lock();
+            auto previousLayer = iter->insData[0].lock()->getCreatorLayer().lock();
             ssCnnLayer->insData.push_back(iter->insData[0]);
-            ssCnnLayer->insData[0].lock()->inputTo.erase(iter->name);
-            ssCnnLayer->insData[0].lock()->inputTo[iter->name] = ssCnnLayer;
+            ssCnnLayer->insData[0].lock()->getInputTo().erase(iter->name);
+            ssCnnLayer->insData[0].lock()->getInputTo()[iter->name] = ssCnnLayer;
 
             ssCnnLayer->outData.push_back(iter->outData[0]);
-            ssCnnLayer->outData[0]->creatorLayer = ssCnnLayer;
+            ssCnnLayer->outData[0]->getCreatorLayer() = ssCnnLayer;
 
             iter->insData.clear();
             iter->outData.clear();
@@ -759,15 +815,15 @@ void CNNNetworkInt8Normalizer::replaceScaleShiftByDWConvolution(CNNNetwork &net)
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(net);
     for (auto layer : sortedLayers) {
         if (CaselessEq<std::string>()(layer->type, "scaleshift")
-            && layer->insData[0].lock()->creatorLayer.lock()
-            && !CaselessEq<std::string>()(layer->insData[0].lock()->creatorLayer.lock()->type, "input")
-            && layer->outData[0]->inputTo.size() > 0) {
+            && layer->insData[0].lock()->getCreatorLayer().lock()
+            && !CaselessEq<std::string>()(layer->insData[0].lock()->getCreatorLayer().lock()->type, "input")
+            && layer->outData[0]->getInputTo().size() > 0) {
             const auto dims = layer->insData[0].lock()->getTensorDesc().getDims();
             // only four or five dimensions Convolution layers are supported
             if ((dims.size() == 4) || (dims.size() == 5)) {
                 // verification if this layer does not pass data to PriorBox, if it passes, we do not substitute
                 bool notToPriorBox = true;
-                for (auto o : layer->outData[0]->inputTo) {
+                for (auto o : layer->outData[0]->getInputTo()) {
                     if (CaselessEq<std::string>()(o.second->type, "priorbox") ||
                         CaselessEq<std::string>()(o.second->type, "priorboxclustered")) {
                         notToPriorBox = false;
@@ -780,24 +836,24 @@ void CNNNetworkInt8Normalizer::replaceScaleShiftByDWConvolution(CNNNetwork &net)
                     CNNLayer::Ptr newLayer = createDWConvolutionForScale(layer->name, layer->outData[0]->getTensorDesc().getDims()[1], ssWValues, ssSValues);
 
                     newLayer->outData = layer->outData;
-                    newLayer->outData[0]->creatorLayer = newLayer;
+                    newLayer->outData[0]->getCreatorLayer() = newLayer;
                     newLayer->insData = layer->insData;
-                    newLayer->insData[0].lock()->inputTo.erase(layer->name);
-                    newLayer->insData[0].lock()->inputTo[newLayer->name] = newLayer;
+                    newLayer->insData[0].lock()->getInputTo().erase(layer->name);
+                    newLayer->insData[0].lock()->getInputTo()[newLayer->name] = newLayer;
                 }
             }
         }
     }
 }
 
-void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr convolution,
+void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr target_layer,
                                                     CNNStatisticHelper& statHelper) {
-    size_t inputChannels = convolution->insData[0].lock()->getTensorDesc().getDims()[1];
-    size_t outputChannels = convolution->outData[0]->getTensorDesc().getDims()[1];
+    size_t inputChannels = target_layer->insData[0].lock()->getTensorDesc().getDims()[1];
+    size_t outputChannels = target_layer->outData[0]->getTensorDesc().getDims()[1];
 
-    auto iScale = statHelper.getInputScale(convolution);
+    auto iScale = statHelper.getInputScale(target_layer);
 
-    convolution->blobs["i-scale"] = iScale;
+    target_layer->blobs["i-scale"] = iScale;
 
     Blob::Ptr weights = nullptr;
     Blob::Ptr biases = nullptr;
@@ -805,24 +861,26 @@ void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr
     Blob::Ptr int8weights = nullptr;
     Blob::Ptr int32biases = nullptr;
 
-    if (convolution->blobs.find("weights")!= convolution->blobs.end()) {
-        weights = convolution->blobs["weights"];
+    if (target_layer->blobs.find("weights") != target_layer->blobs.end()) {
+        weights = target_layer->blobs["weights"];
 
         // Creating int8 weights blob
-        std::shared_ptr<Data> int8WeightsData = std::shared_ptr<Data>(new Data("weights", weights->dims(), Precision::I8, weights->layout()));
+        std::shared_ptr<Data> int8WeightsData = std::shared_ptr<Data>(new Data("weights",
+            TensorDesc(Precision::I8, weights->getTensorDesc().getDims(), weights->getTensorDesc().getLayout())));
         int8weights = CreateBlobFromData(int8WeightsData);
         int8weights->allocate();
-        convolution->blobs["weights"] = int8weights;
+        target_layer->blobs["weights"] = int8weights;
     }
 
-    if (convolution->blobs.find("biases")!= convolution->blobs.end()) {
-        biases = convolution->blobs["biases"];
+    if (target_layer->blobs.find("biases") != target_layer->blobs.end()) {
+        biases = target_layer->blobs["biases"];
 
         // Creating int8 biases blob
-        std::shared_ptr<Data> int32BiasesData = std::shared_ptr<Data>(new Data("biases", biases->dims(), Precision::I32, biases->layout()));
+        std::shared_ptr<Data> int32BiasesData = std::shared_ptr<Data>(new Data("biases",
+            TensorDesc(Precision::I32, biases->getTensorDesc().getDims(), biases->getTensorDesc().getLayout())));
         int32biases = CreateBlobFromData(int32BiasesData);
         int32biases->allocate();
-        convolution->blobs["biases"] = int32biases;
+        target_layer->blobs["biases"] = int32biases;
     }
 
     std::vector<float> weightScalers;
@@ -832,11 +890,11 @@ void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr
     if (weights) {
         const float *weight = static_cast<const float *>(weights->buffer());
 
-        WeightableLayer *pConv = dynamic_cast<WeightableLayer *>(convolution.get());
-        ConvolutionLayer *pConv1 = dynamic_cast<ConvolutionLayer *>(convolution.get());
+        WeightableLayer *pConv = dynamic_cast<WeightableLayer *>(target_layer.get());
+        ConvolutionLayer *pConv1 = dynamic_cast<ConvolutionLayer *>(target_layer.get());
 
         if (pConv1 != nullptr && pConv1->_group == 0) {
-            THROW_IE_EXCEPTION << "Convolution '" << convolution->name << "'has wrong groups number == 0";
+            THROW_IE_EXCEPTION << "Convolution '" << target_layer->name << "'has wrong groups number == 0";
         }
         int group = 1;
         if (pConv1 != nullptr && pConv1->_group != 1) {
@@ -848,7 +906,7 @@ void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr
 
         size_t W_CO = outputChannels / group,
         W_CI = inputChannels / group,
-        W_HW = weights->size()/ W_CI / W_CO / group;
+        W_HW = weights->size() / W_CI / W_CO / group;
 
         {
             float *iScaleMemory = static_cast<float *>(iScale->buffer());
@@ -863,7 +921,9 @@ void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr
                 }
             }
         }
-        size_t outChannelSize = weights->dims()[0] / W_CO / group;
+        if (newWeights.empty())
+            THROW_IE_EXCEPTION << "Could not quantize layer '" << target_layer->name << "'. Invalid layer parameters.";
+        size_t outChannelSize = weights->getTensorDesc().getDims().back() / W_CO / group;
 
         // Calculating weights normalization scale factor (w-scale)
         float *weight_convolution;
@@ -885,13 +945,17 @@ void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr
         for (size_t i = 0; i < outputChannels; i++) {
             wScaleMemory[i] = 1.0 / weightScalers[i];
         }
-        convolution->blobs["w-scale"] = wScale;
+        target_layer->blobs["w-scale"] = wScale;
 
-        auto oScale = statHelper.getOutputScale(statHelper.getLatestInFuse(convolution));
-        convolution->blobs["o-scale"] = oScale;
+        auto oScale = statHelper.getOutputScale(statHelper.getLatestInFuse(target_layer));
+        if (oScale) {
+            // there might not be o-scale if we do not have statistic after convolution that means
+            // returning to float precision after convolution
+            target_layer->blobs["o-scale"] = oScale;
 
-        // debug scales. Need to compare with actual values in FP32 scoring
-        convolution->blobs["ext-scale"] = convolution->blobs["o-scale"];
+            // debug scales. Need to compare with actual values in FP32 scoring
+            target_layer->blobs["ext-scale"] = target_layer->blobs["o-scale"];
+        }
 
         // Normalizing the weights
         ScaleDataToInt(&newWeights[0], weights->size(), int8weights, weightScalers);
@@ -911,7 +975,7 @@ bool CNNNetworkInt8Normalizer::layerProducesFloat(const CNNLayer::Ptr layer) {
     }
 
     bool consumersFP32 = true;
-    for (const auto dOut : layer->outData[0]->inputTo) {
+    for (const auto dOut : layer->outData[0]->getInputTo()) {
         if (dOut.second->precision != Precision::FP32) {
             consumersFP32 = false;
         }
@@ -944,9 +1008,9 @@ void CNNNetworkInt8Normalizer::returnTailToFP32(const CNNLayer::Ptr layer) {
             layerA->outData.size() == 1) {
             layerA->outData[0]->setPrecision(Precision::FP32);
             if (CaselessEq<std::string>()(layerA->type, "relu")
-                && isNextFusionAllowed(layerA->insData[0].lock()->creatorLayer.lock())) {
+                && canLayerBeI8(layerA->insData[0].lock()->getCreatorLayer().lock())) {
                 layerA->precision = Precision::FP32;
-                layerA->insData[0].lock()->creatorLayer.lock()->outData[0]->setPrecision(Precision::FP32);
+                layerA->insData[0].lock()->getCreatorLayer().lock()->outData[0]->setPrecision(Precision::FP32);
             }
         }
 
@@ -957,13 +1021,13 @@ void CNNNetworkInt8Normalizer::returnTailToFP32(const CNNLayer::Ptr layer) {
             // for all parents, if they produce data to only FP32 layers
             for (auto i : layerA->insData) {
                 DataPtr d = i.lock();
-                if (d->creatorLayer.lock()->precision != Precision::FP32
+                if (d->getCreatorLayer().lock()->precision != Precision::FP32
                     && (CaselessEq<std::string>()(layerA->type, "pooling")
                         || CaselessEq<std::string>()(layerA->type, "relu")
                         || isReLULikeClamp(layerA)
                         || CaselessEq<std::string>()(layerA->type, "concat"))) {
-                    if (layerProducesFloat(d->creatorLayer.lock())) {
-                        layersToReturn.insert(d->creatorLayer.lock());
+                    if (layerProducesFloat(d->getCreatorLayer().lock())) {
+                        layersToReturn.insert(d->getCreatorLayer().lock());
                     }
                 }
             }
@@ -971,29 +1035,54 @@ void CNNNetworkInt8Normalizer::returnTailToFP32(const CNNLayer::Ptr layer) {
     }
 }
 
-bool CNNNetworkInt8Normalizer::isNextFusionAllowed(const CNNLayer::Ptr& layer) {
+bool CNNNetworkInt8Normalizer::canLayerBeI8(const CNNLayer::Ptr& layer) {
     // fusion can happen only if initial layer supplies data to only one layer
     // if it sends to several layers - it is safe to execute initial layer in any precision
-    if (layer->outData[0]->inputTo.size() == 1) {
-        std::string aType = layer->outData[0]->inputTo.begin()->second->type;
+    if (layer->outData[0]->getInputTo().size() == 1) {
+        std::string aType = layer->outData[0]->getInputTo().begin()->second->type;
         if (CaselessEq<std::string>()(aType, "relu")) {
-            ReLULayer *rL = dynamic_cast<ReLULayer *>(layer->outData[0]->inputTo.begin()->second.get());
-            if (rL == nullptr) {
-                THROW_IE_EXCEPTION << "Layer " << layer->outData[0]->inputTo.begin()->second->name
-                                   << " is not instance of ReLULayer class";
-            }
-            if (rL->negative_slope != 0.f) {
-                return false;
-            }
+            return true;
         } else if (CaselessEq<std::string>()(aType, "clamp")) {
-            if (!isReLULikeClamp(layer->outData[0]->inputTo.begin()->second)) {
+            if (!isReLULikeClamp(layer->outData[0]->getInputTo().begin()->second)) {
                 return false;
             }
         } else {
             static const InferenceEngine::details::caseless_set<std::string> nonSuportedActivations =
             {"elu", "clamp", "tanh", "logistic", "square", "abs",
             "sqrt", "linear", "bounded_elu", "sort_relu", "relu6"};
-            return !(nonSuportedActivations.find(aType) != nonSuportedActivations.end());
+            return nonSuportedActivations.find(aType) == nonSuportedActivations.end();
+        }
+    }
+    return true;
+}
+
+bool CNNNetworkInt8Normalizer::isNextFusionAllowed(const CNNLayer::Ptr& layer) {
+    // fusion can happen only if initial layer supplies data to only one layer
+    // if it sends to several layers - it is safe to execute initial layer in any precision
+    if (layer->outData[0]->getInputTo().size() == 1) {
+        std::string aType = layer->outData[0]->getInputTo().begin()->second->type;
+        if (CaselessEq<std::string>()(aType, "relu")) {
+            ReLULayer *rL = dynamic_cast<ReLULayer *>(layer->outData[0]->getInputTo().begin()->second.get());
+            if (rL == nullptr) {
+                THROW_IE_EXCEPTION << "Layer " << layer->outData[0]->getInputTo().begin()->second->name
+                                   << " is not instance of ReLULayer class";
+            }
+            if (rL->negative_slope != 0.f) {
+                return false;
+            }
+        } else if (CaselessEq<std::string>()(aType, "clamp")) {
+            if (!isReLULikeClamp(layer->outData[0]->getInputTo().begin()->second)) {
+                return false;
+            }
+        } else {
+            static const InferenceEngine::details::caseless_set<std::string> nonSuportedActivations =
+            {"elu", "clamp", "tanh", "logistic", "square", "abs",
+            "sqrt", "linear", "bounded_elu", "sort_relu", "relu6"};
+            return nonSuportedActivations.find(aType) == nonSuportedActivations.end();
+        }
+    } else {
+        if (CaselessEq<std::string>()(layer->type, "eltwise")) {
+            return false;
         }
     }
     return true;
@@ -1015,7 +1104,8 @@ void CNNNetworkInt8Normalizer::DefinesExecutionPrecision(CNNNetwork &net, CNNSta
 
     // Converting layers to Int8. Calculating the multipliers if needed
     for (auto iter : sortedLayers) {
-        if (iter->params.find("quantization_level") != iter->params.end() && iter->params["quantization_level"] == "FP32") {
+        if (iter->params.find("quantization_level") != iter->params.end() && (iter->params["quantization_level"] == "FP32"
+                                                                           || iter->params["quantization_level"] == "FP16")) {
             continue;
         }
 
@@ -1031,7 +1121,7 @@ void CNNNetworkInt8Normalizer::DefinesExecutionPrecision(CNNNetwork &net, CNNSta
 
         if (CaselessEq<std::string>()(iter->type, "convolution") ||
             CaselessEq<std::string>()(iter->type, "fullyconnected")) {
-            if (isNextFusionAllowed(iter)) {
+            if (canLayerBeI8(iter)) {
                 iter->precision = Precision::I8;
                 // we will override I8 to U8 during analysing of Conv-ReLU and Conv-Sum-ReLU fusions
                 iter->outData[0]->setPrecision(Precision::I8);
@@ -1041,26 +1131,32 @@ void CNNNetworkInt8Normalizer::DefinesExecutionPrecision(CNNNetwork &net, CNNSta
             // casting to ReLU
             ReLULayer *rL = dynamic_cast<ReLULayer *>(iter.get());
             DataPtr outData = iter->outData.size() ? iter->outData[0] : nullptr;
-            if (iter->insData[0].lock()->creatorLayer.lock()->precision != Precision::FP32
-                && outData->getPrecision() == Precision::FP32) {
+            auto inputData = iter->insData[0].lock();
+            if (inputData &&
+                    inputData->getCreatorLayer().lock()->precision != Precision::FP32
+                    && outData->getPrecision() == Precision::FP32) {
                 iter->precision = Precision::I8;
                 if (rL != nullptr && rL->negative_slope != 0.0f) {
                     outData->setPrecision(Precision::I8);
                 } else {
                     outData->setPrecision(Precision::U8);
                     // if convolution is a predecessor, change its data to U8 also
-                    CNNLayer::Ptr prevLayer = iter->insData[0].lock()->creatorLayer.lock();
+                    CNNLayer::Ptr prevLayer = inputData->getCreatorLayer().lock();
                     if (prevLayer && (CaselessEq<std::string>()(prevLayer->type, "convolution") ||
-                                      CaselessEq<std::string>()(prevLayer->type, "fullyconnected"))) {
-                        iter->insData[0].lock()->setPrecision(Precision::U8);
+                            CaselessEq<std::string>()(prevLayer->type, "fullyconnected") ||
+                            CaselessEq<std::string>()(prevLayer->type, "eltwise"))) {
+                        if (!isNextFusionAllowed(prevLayer) && inputData->getPrecision() == Precision::I8) {
+                            outData->setPrecision(Precision::I8);
+                        } else {
+                            inputData->setPrecision(Precision::U8);
+                        }
                     }
                     // if there is a patter A0 -> Eltwise -> ReLU and Convolution -> Eltwise -> ReLU,
                     // need to mark data after conv as U8
                     if (prevLayer && CaselessEq<std::string>()(prevLayer->type, "eltwise")) {
-                        iter->insData[0].lock()->setPrecision(Precision::U8);
                         // decising which input will be used for fusion conv-sum-relu
-                        CNNLayer::Ptr input1 = prevLayer->insData[0].lock()->creatorLayer.lock();
-                        CNNLayer::Ptr input2 = prevLayer->insData[1].lock()->creatorLayer.lock();
+                        CNNLayer::Ptr input1 = prevLayer->insData[0].lock()->getCreatorLayer().lock();
+                        CNNLayer::Ptr input2 = prevLayer->insData[1].lock()->getCreatorLayer().lock();
                         CNNLayer::Ptr convLayer = nullptr;
                         CNNLayer::Ptr sumLayer = nullptr;
 
@@ -1084,7 +1180,7 @@ void CNNNetworkInt8Normalizer::DefinesExecutionPrecision(CNNNetwork &net, CNNSta
 
             if (pool->_type == PoolingLayer::MAX ||
                 (pool->_type == PoolingLayer::AVG && pool->outData.size() == 1)) {
-                auto prevLayer = iter->insData[0].lock()->creatorLayer.lock();
+                auto prevLayer = iter->insData[0].lock()->getCreatorLayer().lock();
                 if (prevLayer && (prevLayer->precision == Precision::I8 || prevLayer->precision == Precision::U8)) {
                     iter->precision = Precision::I8;
                     iter->outData[0]->setPrecision(
@@ -1124,14 +1220,14 @@ void CNNNetworkInt8Normalizer::DefinesExecutionPrecision(CNNNetwork &net, CNNSta
                     } else {
                         // Is it a case of input, i.e. passing I16 to concat?
                         // TODO(amalyshe) to handle inputs as a separate usecase
-                        THROW_IE_EXCEPTION << "I8 normalizer: input data has unknown precision on the edge for concat: " << data->name;
+                        THROW_IE_EXCEPTION << "I8 normalizer: input data has unknown precision on the edge for concat: " << data->getName();
                     }
                 }
 
                 if (inputFP32) {
                     for (auto i : iter->insData) {
-                        if (i.lock()->creatorLayer.lock()->precision != Precision::FP32) {
-                            returnTailToFP32(i.lock()->creatorLayer.lock());
+                        if (i.lock()->getCreatorLayer().lock()->precision != Precision::FP32) {
+                            returnTailToFP32(i.lock()->getCreatorLayer().lock());
                         }
                     }
                 } else {
@@ -1148,21 +1244,17 @@ void CNNNetworkInt8Normalizer::DefinesExecutionPrecision(CNNNetwork &net, CNNSta
                         for (size_t d = 0; d < iter->insData.size(); d++) {
                             auto data = iter->insData[d].lock();
                             if (data->getPrecision() == Precision::U8) {
-                                size_t c = static_cast<size_t>(data->getDims()[1]);
+                                const size_t c = static_cast<size_t>(data->getDims()[1]);
+                                std::vector<float> ssWValues(c, 1.0f);
+                                std::vector<float> ssSValues(c, 0.0f);
 
-                                std::vector<float> ssWValues;
-                                std::vector<float> ssSValues;
-                                for (auto i = 0; i < c; i++) {
-                                    ssWValues.push_back(1.0f);
-                                    ssSValues.push_back(0.0f);
-                                }
-                                std::string layerName = data->creatorLayer.lock()->name + "_ScaleShift_U8I8_" + iter->name;
+                                std::string layerName = data->getCreatorLayer().lock()->name + "_Concat_ScaleShift_U8I8_" + iter->name;
                                 CNNLayer::Ptr newLayer = createDWConvolutionForScale(layerName, c, ssWValues.data(), ssSValues.data());
                                 newLayer->precision = Precision::I8;
                                 AddLayerToCNNNetworkBeforeLayer(newLayer, iter, d);
 
                                 // update statistic to pass quantization smoothly
-                                std::string inputLayerName = newLayer->insData[0].lock()->creatorLayer.lock()->name;
+                                std::string inputLayerName = newLayer->insData[0].lock()->getCreatorLayer().lock()->name;
                                 statHelper.copyStatistics(inputLayerName, layerName);
                                 newLayer->outData[0]->setPrecision(Precision::I8);
                             }
@@ -1179,10 +1271,10 @@ void CNNNetworkInt8Normalizer::DefinesExecutionPrecision(CNNNetwork &net, CNNSta
         } else if (CaselessEq<std::string>()(iter->type, "eltwise")) {
             // we decide which of the layers will be in int-8 mode and initialize special scale which will be used
             // later in "conv-sum-relu" fuse. i8 execution of eltwise always assume this fusion
-            if (isNextFusionAllowed(iter)) {
+            if (canLayerBeI8(iter)) {
                 if (iter->insData.size() == 2) {
-                    CNNLayer::Ptr input1 = iter->insData[0].lock()->creatorLayer.lock();
-                    CNNLayer::Ptr input2 = iter->insData[1].lock()->creatorLayer.lock();
+                    CNNLayer::Ptr input1 = iter->insData[0].lock()->getCreatorLayer().lock();
+                    CNNLayer::Ptr input2 = iter->insData[1].lock()->getCreatorLayer().lock();
                     if ((CaselessEq<std::string>()(input1->type, "convolution")
                          || CaselessEq<std::string>()(input2->type, "convolution")) &&
                         !CaselessEq<std::string>()(input1->type, "concat") &&
@@ -1202,28 +1294,66 @@ void CNNNetworkInt8Normalizer::DefinesExecutionPrecision(CNNNetwork &net, CNNSta
                             convLayer = input1;
                         }
 
-                        // mark eltwise as a I8 executable, mark out data as I8
-                        iter->precision = Precision::I8;
-                        iter->outData[0]->setPrecision(Precision::I8);
-                        // calculate the only scale
-                        Blob::Ptr sumLayerScales = statHelper.getOutputScale(statHelper.getLatestInFuse(sumLayer));
-                        Blob::Ptr convLayerScales = statHelper.getOutputScale(statHelper.getLatestInFuse(convLayer));
-                        float *sumScale = sumLayerScales->buffer().as<float *>();
-                        float *convScale = convLayerScales->buffer().as<float *>();
-                        for (size_t i = 0; i < sumLayerScales->size(); i++) {
-                            sumScale[i] /= convScale[i];
+                        // if we find supported activation, mark it's output as I8 or U8 depending on statistics
+                        if (iter->outData.size() == 1
+                            && iter->outData[0]->getInputTo().size() == 1
+                            && (CaselessEq<std::string>()(iter->outData[0]->getInputTo().begin()->second->type, "ReLU") ||
+                            CNNNetworkInt8Normalizer::isReLULikeClamp(iter->outData[0]->getInputTo().begin()->second))) {
+                            auto activation = iter->outData[0]->getInputTo().begin()->second;
+                            activation->precision = Precision::I8;
+                            if (!statHelper.hasNegativeOutput(statHelper.getLatestInFuse(convLayer)->name)) {
+                                activation->outData[0]->setPrecision(Precision::U8);
+                                iter->outData[0]->setPrecision(Precision::U8);
+                            } else {
+                                activation->outData[0]->setPrecision(Precision::I8);
+                                iter->outData[0]->setPrecision(Precision::I8);
+                            }
+                        } else {
+                            iter->outData[0]->setPrecision(Precision::I8);
                         }
 
-                        iter->blobs["eltwise-sum-scale"] = sumLayerScales;
+                        if (convLayer->outData[0]->getTensorDesc().getPrecision() == Precision::I8) {
+                            // verify precision on input edges before and after eltwise fusion
+                            // if we have i8/u8 missmatch between sum layer input and conv-sum-activation output,
+                            // then in this case we have to add requantization to i8 on sum input edge
+                            auto latestInFuse = statHelper.getLatestInFuse(convLayer);
+                            if (latestInFuse->outData[0]->getTensorDesc().getPrecision() == Precision::I8) {
+                                if (input1 == sumLayer &&
+                                    iter->insData[0].lock()->getTensorDesc().getPrecision() == Precision::U8) {
+                                    sumLayer = addU8ToI8Conversion(iter->insData[0].lock(), iter, statHelper);
+                                } else if (input2 == sumLayer &&
+                                    iter->insData[1].lock()->getTensorDesc().getPrecision() == Precision::U8) {
+                                    sumLayer = addU8ToI8Conversion(iter->insData[0].lock(), iter, statHelper);
+                                }
+                                if (!sumLayer) {
+                                    THROW_IE_EXCEPTION << "I8 normalizer had to add U8->I8 conversion before " << iter->name
+                                        << " but failed to do this";
+                                }
+                            }
+
+                            // mark eltwise as a I8 executable, mark out data as I8
+                            iter->precision = Precision::I8;
+                            convLayer->outData[0]->setPrecision(sumLayer->outData[0]->getPrecision());
+                            // calculate the only scale
+                            Blob::Ptr sumLayerScales = statHelper.getOutputScale(statHelper.getLatestInFuse(sumLayer));
+                            Blob::Ptr convLayerScales = statHelper.getOutputScale(statHelper.getLatestInFuse(convLayer));
+                            float *sumScale = sumLayerScales->buffer().as<float *>();
+                            float *convScale = convLayerScales->buffer().as<float *>();
+                            for (size_t i = 0; i < sumLayerScales->size(); i++) {
+                                sumScale[i] /= convScale[i];
+                            }
+
+                            iter->blobs["eltwise-sum-scale"] = sumLayerScales;
+                        }
                     }
                 }
             } else {
                 // if there are convolutions are inputs to this eltwise, we forcedly move them to FP32
                 for (auto i : iter->insData) {
-                    auto type = i.lock()->creatorLayer.lock()->type;
+                    auto type = i.lock()->getCreatorLayer().lock()->type;
                     if (CaselessEq<std::string>()(type, "convolution") ||
                         CaselessEq<std::string>()(type, "fullyconnected")) {
-                        i.lock()->creatorLayer.lock()->precision = Precision::FP32;
+                        i.lock()->getCreatorLayer().lock()->precision = Precision::FP32;
                         i.lock()->setPrecision(Precision::FP32);
                     }
                 }
@@ -1251,9 +1381,9 @@ void CNNNetworkInt8Normalizer::DefinesExecutionPrecision(CNNNetwork &net, CNNSta
         // need to extend to cases when it provides data to many layers
         if (iter->precision == Precision::I8
             && iter->outData.size() == 1) {
-            if ((iter->outData[0]->inputTo.size() == 1
-                && iter->outData[0]->inputTo.begin()->second->precision == Precision::FP32)
-                || iter->outData[0]->inputTo.size() == 0) {
+            if ((iter->outData[0]->getInputTo().size() == 1
+                && iter->outData[0]->getInputTo().begin()->second->precision == Precision::FP32)
+                || iter->outData[0]->getInputTo().size() == 0) {
                 returnTailToFP32(iter);
             }
         }
@@ -1269,7 +1399,7 @@ void CNNNetworkInt8Normalizer::PropagateScaleFactors(CNNNetwork& net, const CNNS
             // Checking if all inputs are INT8
             bool all_inputs_are_int8 = true;
             for (int k = 0; k < iter->insData.size(); k++) {
-                auto prevKLayer = iter->insData[k].lock()->creatorLayer.lock();
+                auto prevKLayer = iter->insData[k].lock()->getCreatorLayer().lock();
                 if ((prevKLayer->precision != Precision::I8 && prevKLayer->precision != Precision::U8) ||
                     prevKLayer->blobs.find("i-concat-scale") == prevKLayer->blobs.end()) {
                     all_inputs_are_int8 = false;
@@ -1280,7 +1410,7 @@ void CNNNetworkInt8Normalizer::PropagateScaleFactors(CNNNetwork& net, const CNNS
             if (all_inputs_are_int8) {
                 // Merging o-scales of the inputs to make one for the Concat
                 // Creating the o-scale for the Concat by concatenating the input concats
-                size_t outputChannels = iter->outData[0]->dims[2];
+                size_t outputChannels = iter->outData[0]->getTensorDesc().getDims()[1];
 
                 std::shared_ptr<Data> oScaleData = std::shared_ptr<Data>(new Data("o-scale", { outputChannels }, Precision::FP32, Layout::C));
                 auto oScale = CreateBlobFromData(oScaleData);
@@ -1289,7 +1419,7 @@ void CNNNetworkInt8Normalizer::PropagateScaleFactors(CNNNetwork& net, const CNNS
                 float* oScaleMemory = static_cast<float*>(oScale->buffer());
                 int cc = 0;
                 for (int in = 0; in < iter->insData.size(); in++) {
-                    auto prevOScale = iter->insData[in].lock()->creatorLayer.lock()->blobs["i-concat-scale"];
+                    auto prevOScale = iter->insData[in].lock()->getCreatorLayer().lock()->blobs["i-concat-scale"];
                     float* prevOScaleMemory = static_cast<float*>(prevOScale->buffer());
 
                     for (int c = 0; c < prevOScale->size(); c++) {
@@ -1311,7 +1441,7 @@ void CNNNetworkInt8Normalizer::PropagateScaleFactors(CNNNetwork& net, const CNNS
                 THROW_IE_EXCEPTION << "normalization algorithm for int8 found layer having o-scale and multiple ports";
             }
             if (iter->outData.size() == 1) {
-                for (auto l : iter->outData[0]->inputTo) {
+                for (auto l : iter->outData[0]->getInputTo()) {
                     if (l.second->precision == Precision::I8 || l.second->precision == Precision::U8) {
                         if (CaselessEq<std::string>()(l.second->type, "Pooling") ||
                             CaselessEq<std::string>()(l.second->type, "ReLU") ||
@@ -1334,7 +1464,7 @@ void CNNNetworkInt8Normalizer::PropagateScaleFactors(CNNNetwork& net, const CNNS
                             // If resample has concat as input layer it should inherit it's
                             // output scale
                             if (l.second->insData.size() == 1) {
-                                CNNLayerPtr creator = l.second->insData[0].lock()->creatorLayer.lock();
+                                CNNLayerPtr creator = l.second->insData[0].lock()->getCreatorLayer().lock();
                                 if (CaselessEq<std::string>()(creator->type, "Concat")) {
                                     l.second->blobs["o-scale"] = creator->blobs["o-scale"];
                                     l.second->blobs["i-concat-scale"] = l.second->blobs["o-scale"];
@@ -1369,7 +1499,7 @@ void CNNNetworkInt8Normalizer::PropagateScaleFactors(CNNNetwork& net, const CNNS
                     }
                 }
 
-                if (iter->outData[0]->inputTo.empty()) {
+                if (iter->outData[0]->getInputTo().empty()) {
                     fp32Consumers++;
                 }
 
@@ -1400,7 +1530,7 @@ void CNNNetworkInt8Normalizer::PropagateScaleFactors(CNNNetwork& net, const CNNS
                 canOptimize = false;
             }
             for (auto o : iter->outData) {
-                for (auto ol : o->inputTo) {
+                for (auto ol : o->getInputTo()) {
                     if (ol.second->precision == Precision::I8) {
                         canOptimize = false;
                     }
@@ -1416,10 +1546,10 @@ void CNNNetworkInt8Normalizer::PropagateScaleFactors(CNNNetwork& net, const CNNS
                    && curLayer->blobs.find("oi-scale") == curLayer->blobs.end()
                    && eliminateOScale) {
                 if (curLayer->insData.size() == 1
-                    && curLayer->insData[0].lock()->creatorLayer.lock()
-                    && curLayer->insData[0].lock()->creatorLayer.lock()->outData.size() == 1
-                    && curLayer->insData[0].lock()->inputTo.size() == 1) {
-                    curLayer = curLayer->insData[0].lock()->creatorLayer.lock();
+                    && curLayer->insData[0].lock()->getCreatorLayer().lock()
+                    && curLayer->insData[0].lock()->getCreatorLayer().lock()->outData.size() == 1
+                    && curLayer->insData[0].lock()->getInputTo().size() == 1) {
+                    curLayer = curLayer->insData[0].lock()->getCreatorLayer().lock();
                     if (!CaselessEq<std::string>()(curLayer->type, "Pooling")
                         && !CaselessEq<std::string>()(curLayer->type, "ReLU")
                         && !isReLULikeClamp(curLayer)
@@ -1445,7 +1575,7 @@ void CNNNetworkInt8Normalizer::PropagateScaleFactors(CNNNetwork& net, const CNNS
                     if (iLayer->type == "Pooling") {
                         iLayer->precision = Precision::FP32;
                     }
-                    iLayer = iLayer->insData[0].lock()->creatorLayer.lock();
+                    iLayer = iLayer->insData[0].lock()->getCreatorLayer().lock();
                 }
             }
         }
@@ -1489,7 +1619,9 @@ void precisionColoring(const CNNLayerPtr layer,
 }
 
 void CNNNetworkInt8Normalizer::NormalizeNetwork(ICNNNetwork& network, ICNNNetworkStats& netStats) {
+    IE_SUPPRESS_DEPRECATED_START
     CNNNetwork cnnn(&network);
+    IE_SUPPRESS_DEPRECATED_END
 
     int maxSign = 0x7F;
     int maxUnsign = 0xFF;

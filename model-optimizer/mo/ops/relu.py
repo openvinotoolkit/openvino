@@ -14,23 +14,3 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Graph
-from mo.ops.op import Op
-
-
-class ReLU(Op):
-    op = 'ReLU'
-    enabled = True
-
-    def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
-            'infer': copy_shape_infer,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-        }, attrs)
-
-    def supported_attrs(self):
-        return ['negative_slope']

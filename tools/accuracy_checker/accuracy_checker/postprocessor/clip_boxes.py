@@ -19,29 +19,24 @@ from ..representation import DetectionPrediction, DetectionAnnotation
 from .postprocessor import PostprocessorWithSpecificTargets, PostprocessorWithTargetsConfigValidator
 
 
+class ClipConfigValidator(PostprocessorWithTargetsConfigValidator):
+    dst_width = NumberField(floats=False, optional=True, min_value=1)
+    dst_height = NumberField(floats=False, optional=True, min_value=1)
+    size = NumberField(floats=False, optional=True, min_value=1)
+    boxes_normalized = BoolField(optional=True)
+
+
 class ClipBoxes(PostprocessorWithSpecificTargets):
     __provider__ = 'clip_boxes'
 
     annotation_types = (DetectionAnnotation, )
     prediction_types = (DetectionPrediction, )
-
-    def validate_config(self):
-        class _ClipConfigValidator(PostprocessorWithTargetsConfigValidator):
-            dst_width = NumberField(floats=False, optional=True, min_value=1)
-            dst_height = NumberField(floats=False, optional=True, min_value=1)
-            size = NumberField(floats=False, optional=True, min_value=1)
-            boxes_normalized = BoolField(optional=True)
-
-        clip_config_validator = _ClipConfigValidator(
-            self.__provider__, on_extra_argument=_ClipConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        clip_config_validator.validate(self.config)
+    _config_validator_type = ClipConfigValidator
 
     def configure(self):
         size = self.config.get('size')
         self.dst_height = size or self.config.get('dst_height')
         self.dst_width = size or self.config.get('dst_width')
-
         self.boxes_normalized = self.config.get('boxes_normalized', False)
 
     def process_image(self, annotation, prediction):

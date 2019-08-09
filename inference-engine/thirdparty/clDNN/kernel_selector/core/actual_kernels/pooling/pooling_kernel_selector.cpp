@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #include "pooling_kernel_selector.h"
 #include "pooling_kernel_gpu_ref.h"
@@ -24,24 +23,28 @@
 #include "pooling_kernel_gpu_int8_ref.h"
 #include "pooling_kernel_gpu_fs_bs_yx_bsv4_fsv32.h"
 #include "pooling_kernel_gpu_b_fs_yx_fsv4.h"
+#include "pooling_kernel_gpu_fs_bs_yx_bsv4_fsv32_simd32.h"
+#include "pooling_kernel_gpu_fs_b_yx_fsv32.h"
+#include "pooling_kernel_gpu_blocked.h"
 
 namespace kernel_selector {
 
-    pooling_kernel_selector::pooling_kernel_selector()
-    {
-        Attach<PoolingKernelGPURef>();
-        //Attach<PoolingKernelGPUAverageOpt>(); TODO: fix the kernel as it reads out of bounds now
-        Attach<PoolingKernelGPUByxfOpt>();
-        Attach<PoolingKernelGPUBfyxBlockOpt>();
-        Attach<PoolingKernelGPUByxfPaddingOpt>();
-        Attach<PoolingKernelGPUInt8Ref>();
-        Attach<PoolingKerneGPU_byxf_af32>();
-        Attach<PoolingKerneGPU_fs_bs_yx_bsv4_fsv32>();
-        Attach<PoolingKerneGPU_b_fs_yx_fsv4>();
-    }
-
-    KernelsData pooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::POOLING);
-    }
+pooling_kernel_selector::pooling_kernel_selector() {
+    Attach<PoolingKernelGPURef>();
+    // Attach<PoolingKernelGPUAverageOpt>(); TODO: fix the kernel as it reads out of bounds now
+    Attach<PoolingKernelGPUByxfOpt>();
+    Attach<PoolingKernelGPUBfyxBlockOpt>();
+    Attach<PoolingKernelGPUByxfPaddingOpt>();
+    Attach<PoolingKernelGPUInt8Ref>();
+    Attach<PoolingKerneGPU_byxf_af32>();
+    Attach<PoolingKerneGPU_fs_bs_yx_bsv4_fsv32>();
+    Attach<PoolingKerneGPU_b_fs_yx_fsv4>();
+    Attach<PoolingKerneGPU_fs_bs_yx_bsv4_fsv32_simd32>();
+    Attach<PoolingKerneGPU_fs_b_yx_fsv32>();
+    Attach<PoolingKernelBlocked>();
 }
+
+KernelsData pooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::POOLING);
+}
+}  // namespace kernel_selector

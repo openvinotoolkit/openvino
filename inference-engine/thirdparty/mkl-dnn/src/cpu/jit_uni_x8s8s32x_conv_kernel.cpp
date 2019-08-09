@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include <common/memory_tracking.hpp>
+#include <common/primitive_attr.hpp>
 #include "c_types_map.hpp"
 #include "nstl.hpp"
 #include "type_helpers.hpp"
@@ -74,7 +75,7 @@ void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::cvt2ps(data_type_t type_in, Vmm vmm_
 }
 
 template <cpu_isa_t isa>
-void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::store_dst(const Xbyak::Address &op, Vmm vmm_dst, bool scalar_store) {
+void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::store_dst(const Xbyak::Address &op, Vmm vmm_dst, bool scalar_store, bool need_pack) {
     Ymm ymm_dst = Ymm(vmm_dst.getIdx());
     Xmm xmm_dst = Xmm(vmm_dst.getIdx());
 
@@ -89,12 +90,14 @@ void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::store_dst(const Xbyak::Address &op, 
             }
             break;
         case data_type::s8:
-            uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
+            if (need_pack)
+                uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
 
-            if (isa != sse42 && !scalar_store)
+            if (isa != sse42 && !scalar_store && need_pack)
                 vpermq(ymm_dst, ymm_dst, 0x08);
 
-            uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
+            if (need_pack)
+                uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
 
             if (scalar_store) {
                 movq(reg_tmp_64, xmm_dst);
@@ -107,12 +110,14 @@ void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::store_dst(const Xbyak::Address &op, 
             }
             break;
         case data_type::u8:
-            uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
+            if (need_pack)
+                uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
 
-            if (isa != sse42 && !scalar_store)
+            if (isa != sse42 && !scalar_store && need_pack)
                 vpermq(ymm_dst, ymm_dst, 0x08);
 
-            uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
+            if (need_pack)
+                uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
 
             if (scalar_store) {
                 movq(reg_tmp_64, xmm_dst);
@@ -456,7 +461,7 @@ void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::width_blk_step(int ur_w, int pad_l, 
 
                 if (is_scalar_store) {
                     for (int oc = 0; oc < tail_size; oc++) {
-                        store_dst(ptr[reg_output + (o_off + oc) * jcp.typesize_out], vmm_dst, true);
+                        store_dst(ptr[reg_output + (o_off + oc) * jcp.typesize_out], vmm_dst, true, oc == 0);
 
                         if (isa == avx2) {
                             Ymm ymm_dst = Ymm(vmm_dst.getIdx());
@@ -685,26 +690,24 @@ bool jit_uni_x8s8s32x_conv_fwd_kernel<isa>::post_ops_ok(
         jit_conv_conf_t &jcp, const primitive_attr_t &attr) {
     const auto &p = attr.post_ops_;
 
-    auto is_eltwise = [&](int idx) { return p.entry_[idx].is_eltwise(); };
-    auto is_depthwise = [&](int idx) { return p.entry_[idx].is_depthwise(); };
-    auto is_sum = [&](int idx) { return p.entry_[idx].is_sum(false); };
-    auto is_dw_conv = [&](int idx) { return p.entry_[idx].is_dw_conv(); };
-    auto is_simple = [&](int idx) { return is_eltwise(idx) || is_depthwise(idx); };
+    int dw_conv_idx = p.find(primitive_kind::convolution);
+    bool with_dw_conv = dw_conv_idx != -1;
 
-    switch (p.len_) {
-        case 0: return true;
-        case 1: return is_simple(0) || is_sum(0) || is_dw_conv(0);
-        case 2: return (is_sum(0) && is_simple(1)) || (is_simple(0) && is_sum(1)) ||
-                       (is_dw_conv(0) && is_simple(1)) || (is_simple(0) && is_dw_conv(1)) ||
-                       (is_simple(0) && is_simple(1));
-        case 3: return (is_simple(0) && is_sum(1) && is_simple(2)) ||
-                       (is_simple(0) && is_dw_conv(1) && is_simple(2)) ||
-                       (is_dw_conv(0) && is_simple(1) && is_simple(2));
-        case 4: return (is_simple(0) && is_dw_conv(1) && is_simple(2) && is_simple(3));
-        default: return false;
-    }
+    auto all_post_ops_supported = [&]() {
+        bool ok = true;
 
-    return false;
+        int end_idx = with_dw_conv ? dw_conv_idx : p.len_;
+        for (int i = 0; i < end_idx; i++) {
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise);
+        }
+        return ok;
+    };
+    auto contain = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind, 0, dw_conv_idx) != -1; };
+    auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind, 0, dw_conv_idx); };
+
+    return all_post_ops_supported() &&
+           count(primitive_kind::sum) <= 1 &&
+           IMPLICATION(with_dw_conv, !contain(primitive_kind::sum));
 }
 
 template <cpu_isa_t isa>
@@ -767,6 +770,10 @@ status_t jit_uni_x8s8s32x_conv_fwd_kernel<isa>::init_conf(jit_conv_conf_t &jcp,
             return status::unimplemented;
     }
 
+    jcp.src_dt = cd.src_desc.data_type;
+    jcp.bia_dt = jcp.with_bias ? cd.bias_desc.data_type : data_type::undef;
+    jcp.dst_dt = cd.dst_desc.data_type;
+
     if (!post_ops_ok(jcp, attr))
         return status::unimplemented;
 
@@ -779,6 +786,9 @@ status_t jit_uni_x8s8s32x_conv_fwd_kernel<isa>::init_conf(jit_conv_conf_t &jcp,
         jcp.dw_conv_ow = jcp.ow;
         jcp.oh = p.entry_[dw_conv_ind].dw_conv.in_h;
         jcp.ow = p.entry_[dw_conv_ind].dw_conv.in_w;
+
+        jcp.dw_conv_dst_dt = jcp.dst_dt;
+        jcp.dst_dt = p.entry_[dw_conv_ind].dw_conv.in_dt;
     }
 
     auto desired_act_fmt = nhwc;
@@ -806,10 +816,6 @@ status_t jit_uni_x8s8s32x_conv_fwd_kernel<isa>::init_conf(jit_conv_conf_t &jcp,
         if (bias_d.format() != x)
             return status::unimplemented;
     }
-
-    jcp.src_dt = cd.src_desc.data_type;
-    jcp.bia_dt = jcp.with_bias ? cd.bias_desc.data_type : data_type::undef;
-    jcp.dst_dt = cd.dst_desc.data_type;
 
     jcp.typesize_in = types::data_type_size(src_d.data_type());
     jcp.typesize_out = types::data_type_size(dst_d.data_type());

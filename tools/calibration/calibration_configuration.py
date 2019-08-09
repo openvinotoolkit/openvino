@@ -25,7 +25,11 @@ class CalibrationConfiguration:
         ignore_layer_names: list,
         ignore_layer_names_path: str,
         benchmark_iterations_count: int,
-        progress: str):
+        progress: str,
+        threshold_step: float,
+        threshold_boundary: float,
+        simplified_mode: bool = False
+    ):
 
         self._config = config
         self._precision = precision.upper()
@@ -45,6 +49,9 @@ class CalibrationConfiguration:
         self._ignore_layer_names_path = ignore_layer_names_path
         self._benchmark_iterations_count = benchmark_iterations_count
         self._progress = progress
+        self._threshold_step = threshold_step
+        self._threshold_boundary = threshold_boundary
+        self._simplified_mode = simplified_mode
 
     def __enter__(self):
         return self
@@ -129,6 +136,17 @@ class CalibrationConfiguration:
     def progress(self) -> str:
         return self._progress
 
+    @property
+    def threshold_step(self) -> float:
+        return self._threshold_step
+
+    @property
+    def threshold_boundary(self) -> float:
+        return self._threshold_boundary
+
+    @property
+    def simplified_mode(self) -> bool:
+        return self._simplified_mode
 
 class CalibrationConfigurationHelper:
     @staticmethod

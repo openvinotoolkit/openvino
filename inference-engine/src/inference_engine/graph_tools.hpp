@@ -15,6 +15,7 @@
 #include <memory>
 #include <functional>
 #include <utility>
+#include <map>
 #include "layer_transform.hpp"
 
 
@@ -26,6 +27,95 @@ namespace InferenceEngine {
 namespace details {
 
 /**
+ * @brief Iterate over all layers followed by certain CNNLayer layer, and suitable to use ranged loops for output layers
+ */
+class OutLayersIterator {
+    std::vector<DataPtr>::iterator dataCntIteratorCurrent;
+    std::vector<DataPtr>::iterator dataCntIteratorEnd;
+
+    using OutdataIterator = std::map<std::string, CNNLayerPtr>::iterator;
+    bool pointingToEnd = true;
+    OutdataIterator currentIterator;
+
+ public:
+    OutLayersIterator() = default;
+
+    static OutLayersIterator make_begin(std::vector<DataPtr> &origin) {
+        if (origin.empty()) {
+            return {};
+        }
+        OutLayersIterator it;
+
+        it.dataCntIteratorCurrent = origin.begin();
+        it.dataCntIteratorEnd = origin.end();
+        it.moveToNextNonEmptyData();
+
+        return it;
+    }
+
+    bool operator == (const OutLayersIterator &it) const {
+        if (pointingToEnd || it.pointingToEnd) {
+            return pointingToEnd && it.pointingToEnd;
+        }
+        return it.dataCntIteratorCurrent == dataCntIteratorCurrent && it.currentIterator == currentIterator;
+    }
+
+    bool operator != (const OutLayersIterator &it) const {
+        return !this->operator==(it);
+    }
+
+    void operator ++() {
+        if (dataCntIteratorCurrent == dataCntIteratorEnd) {
+            return;
+        }
+
+        if (pointingToEnd) {
+            return;
+        }
+        currentIterator++;
+        if (currentIterator != dataCntIteratorCurrent->get()->getInputTo().end()) {
+            return;
+        }
+
+        dataCntIteratorCurrent++;
+        moveToNextNonEmptyData();
+    }
+
+    CNNLayerPtr operator * () const {
+        return currentIterator->second;
+    }
+
+ protected:
+    void moveToNextNonEmptyData() {
+        pointingToEnd = true;
+        for (; dataCntIteratorCurrent != dataCntIteratorEnd; dataCntIteratorCurrent++) {
+            if (!dataCntIteratorCurrent->get()->getInputTo().empty()) {
+                currentIterator = dataCntIteratorCurrent->get()->getInputTo().begin();
+                pointingToEnd = false;
+                break;
+            }
+        }
+    }
+};
+
+class OutInfoWrapper {
+    CNNLayer* origin = nullptr;
+ public:
+    explicit OutInfoWrapper(CNNLayer* origin) : origin(origin) {}
+    OutLayersIterator begin() const {
+        return OutLayersIterator::make_begin(origin->outData);
+    }
+
+    OutLayersIterator end() const  {
+        return {};
+    }
+};
+
+inline OutInfoWrapper default_order(CNNLayer * layer) {
+    return OutInfoWrapper(layer);
+}
+
+/**
  * @brief implementation of DFS with visiting checking to avoid multientry
  * @param visited - set to store visited layers
  * @param layer - current layer to start DFS from
@@ -33,34 +123,34 @@ namespace details {
  * @param visitBefore - indicates when callback is happened before all child nodes or after
  * @return false if cycle detected
  */
-template<class T>
+template<class T, class Ordering = std::function<OutInfoWrapper(CNNLayer*)>>
 inline bool DFS(std::unordered_map<CNNLayer *, bool> &visited,
                 const InferenceEngine::CNNLayerPtr &layer,
                 const T &visit,
-                bool visitBefore) {
+                bool visitBefore,
+                const Ordering & order = &default_order) {
     if (layer == nullptr) {
         return true;
     }
 
     if (visitBefore) visit(layer);
     visited[layer.get()] = false;
-    for (auto &od : layer->outData) {
-        for (auto nl : od->getInputTo()) {
-            auto i = visited.find(nl.second.get());
-            if (i != visited.end()) {
-                /**
-                 * cycle detected we entered still not completed node
-                 */
-                if (!i->second) {
-                    return false;
-                }
-                continue;
-            }
-            if (!DFS(visited, nl.second, visit, visitBefore)) {
+    for (auto outLayerPtr : order(layer.get())) {
+        auto i = visited.find(outLayerPtr.get());
+        if (i != visited.end()) {
+            /**
+             * cycle detected we entered still not completed node
+             */
+            if (!i->second) {
                 return false;
             }
+            continue;
+        }
+        if (!DFS(visited, outLayerPtr, visit, visitBefore, order)) {
+            return false;
         }
     }
+
     if (!visitBefore) visit(layer);
     visited[layer.get()] = true;
     return true;
@@ -76,9 +166,9 @@ inline bool DFS(std::unordered_map<CNNLayer *, bool> &visited,
  */
 template<class T>
 inline void UnorderedDFS(std::unordered_set<CNNLayer *> &visited,
-                const InferenceEngine::CNNLayerPtr &layer,
-                const T &visit,
-                bool visitBefore) {
+                         const InferenceEngine::CNNLayerPtr &layer,
+                         const T &visit,
+                         bool visitBefore) {
     std::queue<InferenceEngine::CNNLayerPtr> layers;
     auto cycleDFS = [&]() {
         if (layers.empty())
@@ -165,14 +255,17 @@ inline void BFS(InferenceEngine::CNNLayerPtr layer, const T &visit, int maxDepth
  * @param visit - callback to be called upon visiting
  * @param visitBefore - indicates when callback is happened before all child nodes or after
  */
-template<class T>
-inline bool CNNNetDFS(const InferenceEngine::CNNLayerPtr &layer, const T &visit, bool visitBefore = true) {
+template<class T, class Ordering = std::function<details::OutInfoWrapper(CNNLayer*)>>
+inline bool CNNNetDFS(const InferenceEngine::CNNLayerPtr &layer,
+                      const T &visit,
+                      bool visitBefore = true,
+                      const Ordering & order = &details::default_order) {
     if (layer == nullptr) {
         return true;
     }
 
     std::unordered_map < CNNLayer *, bool> visited;
-    return details::DFS(visited, layer, visit, visitBefore);
+    return details::DFS(visited, layer, visit, visitBefore, order);
 }
 /**
  * DFS algorithm with multiple starting data
@@ -184,7 +277,7 @@ template<class T>
 inline bool CNNNetForestDFS(const std::vector<DataPtr> &heads, const T &visit, bool bVisitBefore) {
     std::unordered_map< CNNLayer *, bool> visited;
     for (const auto &in : heads) {
-        for (const auto &to : in->inputTo) {
+        for (const auto &to : in->getInputTo()) {
             if (visited.find(to.second.get()) != visited.end()) continue;
             if (!details::DFS(visited, to.second, visit, bVisitBefore)) {
                 return false;
@@ -209,6 +302,27 @@ inline bool CNNNetForestDFS(const Forest &heads, const T &visit, bool bVisitBefo
     std::unordered_map< CNNLayer *, bool> visited;
     for (auto & layer : heads) {
         if (!details::DFS(visited, layer, visit, bVisitBefore)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * DFS algorithm with multiple starting nodes
+ * @param layer - starting layer
+ * @param visit - callback to be called upon visiting
+ * @param visitBefore - indicates when callback is happened before all child nodes or after
+ */
+template<class Ordering, class Forest, class T>
+inline bool CNNNetForestDFS(const Forest &heads, const T &visit, bool bVisitBefore, const Ordering &order) {
+    if (heads.empty()) {
+        return true;
+    }
+
+    std::unordered_map< CNNLayer *, bool> visited;
+    for (auto & layer : heads) {
+        if (!details::DFS(visited, layer, visit, bVisitBefore, order)) {
             return false;
         }
     }
@@ -278,12 +392,12 @@ inline bool  CNNNetHasPrevLayer(const InferenceEngine::CNNLayer* layer, int idx 
  * @param layer
  */
 inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayer(const InferenceEngine::CNNLayerPtr & layer, int idx = 0) {
-        if (CNNNetHasPrevLayer(layer.get(), idx)) {
-            auto prevData = layer->insData[idx].lock();
-            return prevData->getCreatorLayer().lock();
-        } else {
-            THROW_IE_EXCEPTION << "Layer " << layer->name << " has no previous layer";
-        }
+    if (CNNNetHasPrevLayer(layer.get(), idx)) {
+        auto prevData = layer->insData[idx].lock();
+        return prevData->getCreatorLayer().lock();
+    } else {
+        THROW_IE_EXCEPTION << "Layer " << layer->name << " has no previous layer";
+    }
 }
 
 /**
@@ -331,8 +445,8 @@ inline void CNNNetSwapLayers(InferenceEngine::CNNLayerPtr lhs,
         THROW_IE_EXCEPTION << "Unsupported layer for swap operation : " << rhs->name;
     }
 
-    auto &rhs_outputs = rhs->outData.front()->inputTo;
-    auto &lhs_outputs = lhs->outData.front()->inputTo;
+    auto &rhs_outputs = rhs->outData.front()->getInputTo();
+    auto &lhs_outputs = lhs->outData.front()->getInputTo();
 
     // fixing input layers edges
     for (int i = 0; true; i++) {
@@ -365,13 +479,13 @@ inline void CNNNetSwapLayers(InferenceEngine::CNNLayerPtr lhs,
 
         bool hasHrsConnection = false;
         for (auto &ins_for_lhs_next : next_lhs.second->insData) {
-            if (ins_for_lhs_next.lock()->creatorLayer.lock() != rhs ) continue;
+            if (ins_for_lhs_next.lock()->getCreatorLayer().lock() != rhs ) continue;
             hasHrsConnection = true;
             break;
         }
         if (!hasHrsConnection) {
             for (auto &ins_for_lhs_next : next_lhs.second->insData) {
-                if (ins_for_lhs_next.lock()->creatorLayer.lock() != lhs) continue;
+                if (ins_for_lhs_next.lock()->getCreatorLayer().lock() != lhs) continue;
                 ins_for_lhs_next = rhs->outData.front();
             }
         }
@@ -382,13 +496,13 @@ inline void CNNNetSwapLayers(InferenceEngine::CNNLayerPtr lhs,
 
         bool hasLHSConnection = false;
         for (auto &ins_for_rhs_next : next_rhs.second->insData) {
-            if (ins_for_rhs_next.lock()->creatorLayer.lock() != lhs) continue;
+            if (ins_for_rhs_next.lock()->getCreatorLayer().lock() != lhs) continue;
             hasLHSConnection = true;
             break;
         }
         if (!hasLHSConnection) {
             for (auto &ins_for_rhs_next : next_rhs.second->insData) {
-                if (ins_for_rhs_next.lock()->creatorLayer.lock() != rhs) continue;
+                if (ins_for_rhs_next.lock()->getCreatorLayer().lock() != rhs) continue;
                 ins_for_rhs_next = lhs->outData.front();
             }
         }
@@ -417,7 +531,7 @@ inline void CNNNetSwapLayers(InferenceEngine::CNNLayerPtr lhs,
         bool bHadInterConnect = false;
         details::erase_if(lhs_outputs, [&bHadInterConnect, &rhs](inputTo_element & element) {
             bHadInterConnect |= element.second == rhs;
-           return element.second == rhs;
+            return element.second == rhs;
         });
 
         // 3. move all output references from lhs to rhs
@@ -441,16 +555,16 @@ inline void CNNNetSwapLayers(InferenceEngine::CNNLayerPtr lhs,
         // 1. removing interconnects lhs->rhs
         bool interConnectBackL2R = false;
         details::erase_if(lhs->insData, [&interConnectBackL2R, &rhs](DataWeakPtr weakData) {
-            interConnectBackL2R |= weakData.lock()->creatorLayer.lock() == rhs;
-            return weakData.lock()->creatorLayer.lock() == rhs;
+            interConnectBackL2R |= weakData.lock()->getCreatorLayer().lock() == rhs;
+            return weakData.lock()->getCreatorLayer().lock() == rhs;
         });
 
         // 2. removing interconnects rhs->lhs
         auto interConnectBackR2L = false;
         if (!interConnectBackL2R) {
             details::erase_if(rhs->insData, [&interConnectBackR2L, &lhs](DataWeakPtr weakData) {
-                interConnectBackR2L |= weakData.lock()->creatorLayer.lock() == lhs;
-                return weakData.lock()->creatorLayer.lock() == lhs;
+                interConnectBackR2L |= weakData.lock()->getCreatorLayer().lock() == lhs;
+                return weakData.lock()->getCreatorLayer().lock() == lhs;
             });
         }
 
@@ -478,9 +592,9 @@ inline void CNNNetSwapLayers(InferenceEngine::CNNLayerPtr lhs,
 
 class LayerNameLess {
  public:
-     bool operator()(const CNNLayerPtr& lhs, const CNNLayerPtr& rhs) const {
-         return std::less<std::string>()(lhs->name, rhs->name);
-     }
+    bool operator()(const CNNLayerPtr& lhs, const CNNLayerPtr& rhs) const {
+        return std::less<std::string>()(lhs->name, rhs->name);
+    }
 };
 
 using CNNLayerSet = std::set<CNNLayerPtr, LayerNameLess>;
@@ -516,7 +630,7 @@ inline CNNLayerSet CNNNetGetAllInputLayers(const ICNNNetwork &network) {
 }
 
 /**
- * @brief returns all layers that are input or memory , searc started from arbitrary location in network
+ * @brief returns all layers that are input or memory , search started from arbitrary location in network
  * @param start layer
  * @return set of input layers
  */
@@ -542,7 +656,7 @@ inline CNNLayerSet CNNNetGetAllInputLayers(CNNLayer* layer) {
 inline DataPtr copyData(DataPtr input, std::unordered_map<CNNLayer*, CNNLayerPtr> &layersRemap) {
     auto newData = std::make_shared<Data>(*(input.get()));
     if (!input->getCreatorLayer().lock()) {
-        THROW_IE_EXCEPTION << "Data " << input->name << " has no creator layer";
+        THROW_IE_EXCEPTION << "Data " << input->getName() << " has no creator layer";
     }
     newData->getCreatorLayer() = layersRemap[input->getCreatorLayer().lock().get()];
     for (auto && input : newData->getInputTo()) {
@@ -553,6 +667,29 @@ inline DataPtr copyData(DataPtr input, std::unordered_map<CNNLayer*, CNNLayerPtr
 
 using CNNNetPtr = std::shared_ptr<ICNNNetwork>;
 using CNNNetCPtr = std::shared_ptr<const ICNNNetwork>;
+
+// compares data, for copied network and in old network
+inline bool areEqualDatas(DataPtr source, DataPtr target) {
+    if (source.get() == target.get()) {
+        return true;
+    }
+
+    // dims comparison -
+    // actual dims value might be incorrect dueto syntetic case
+    // , when getbatch() size returns value not reflect in actual data
+
+    if (source->getTensorDesc().getDims().size() != target->getTensorDesc().getDims().size()) {
+        return false;
+    }
+
+    // name comparison
+    if (source->getName() != target->getName()) {
+        return false;
+    }
+
+    // inputTO layers are identical by design
+    return true;
+}
 
 /**
  * @brief deep copy of the entire network, structure using custom copier for layers
@@ -565,7 +702,9 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork &input, const Copier &cp) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
     // setting base args
+    IE_SUPPRESS_DEPRECATED_START
     net->setTargetDevice(input.getTargetDevice());
+    IE_SUPPRESS_DEPRECATED_END
     net->setPrecision(input.getPrecision());
 
     char name[1024];
@@ -593,7 +732,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork &input, const Copier &cp) {
         int dataIdx = -1;
         auto sourceLayer = sourceData->getCreatorLayer().lock();
         if (!sourceLayer) {
-            THROW_IE_EXCEPTION << "Data " << sourceData->name << " has no creator layer";
+            THROW_IE_EXCEPTION << "Data " << sourceData->getName() << " has no creator layer";
         }
         for (int j = 0; j < sourceLayer->outData.size(); j++) {
             if (sourceData.get() == sourceLayer->outData[j].get()) {
@@ -615,12 +754,12 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork &input, const Copier &cp) {
         // actual dims value might be incorrect dueto syntetic case
         // , when getbatch() size returns value not reflect in actual data
 
-        if (source->dims.size() != target->dims.size()) {
+        if (source->getTensorDesc().getDims().size() != target->getTensorDesc().getDims().size()) {
             return false;
         }
 
         // name comparison
-        if (source->name != target->name) {
+        if (source->getName() != target->getName()) {
             return false;
         }
 
@@ -630,7 +769,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork &input, const Copier &cp) {
     // internal utility to locate input data idx in layer
     auto findInsDataIdx = [&](DataPtr sourceData, CNNLayerPtr layer) {
         int dataIdx = -1;
-        auto sourceLayerMap = sourceData->inputTo;
+        auto sourceLayerMap = sourceData->getInputTo();
         for (auto & layersMapping : sourceLayerMap) {
             if (layersMapping.second.get() != layer.get()) {
                 continue;
@@ -656,7 +795,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork &input, const Copier &cp) {
             newLayer->outData[i]->getCreatorLayer() = CNNLayerWeakPtr(newLayer);
 
             // transfer data info for getData routine
-            net->getData(newLayer->outData[i]->name) = newLayer->outData[i];
+            net->getData(newLayer->outData[i]->getName()) = newLayer->outData[i];
 
             for (auto inputTo = std::begin(newLayer->outData[i]->getInputTo());
                  inputTo != std::end(newLayer->outData[i]->getInputTo());
@@ -670,7 +809,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork &input, const Copier &cp) {
             auto sourceData = current->insData[i].lock();
             auto sourceLayer = sourceData->getCreatorLayer().lock();
             if (!sourceLayer) {
-                THROW_IE_EXCEPTION << "Data " << sourceData->name << " has no creator layer";
+                THROW_IE_EXCEPTION << "Data " << sourceData->getName() << " has no creator layer";
             }
             // find insData Entry in outData of sourceLayer
             newLayer->insData[i] = oldToNewLayers[sourceLayer.get()]->outData[findOutDataIdx(sourceData)];
@@ -682,7 +821,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork &input, const Copier &cp) {
     input.getInputsInfo(inputsInfo);
     std::set<DataPtr> insDatas;
     for (auto &&info : inputsInfo) {
-        for (auto secondLayer : info.second->getInputData()->inputTo) {
+        for (auto secondLayer : info.second->getInputData()->getInputTo()) {
             auto secondLayerNew = oldToNewLayers[secondLayer.second.get()];
             InputInfo::Ptr infoNew = std::make_shared<InputInfo>();
             infoNew->setInputData(secondLayerNew->insData[findInsDataIdx(info.second->getInputData(), secondLayer.second)].lock());
@@ -726,73 +865,129 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork &input) {
  * @param after, insertion happened after this layer, if after is nullptr, insertion happened after all inputLayers for before layer
  * @param before, insertion happened before layer, if before is nullptr, insertion happened before all outputLayers of after layer
  * @param layerToInsert inserted layer
- * @param outDataIndex optional parameter. You can reduce or improve layer search in some use cases by specifying index data
+ * @param outDataIndex index data to be used to insert layer after it. Cannot be used to specify allOutputDatas
  */
-inline void CNNNetworkInsertLayer(CNNLayerPtr after, CNNLayerPtr before, CNNLayerPtr layerToInsert, size_t outDataIndex = 0) {
+INFERENCE_ENGINE_API(size_t) invalid_data_idx;
+
+inline void CNNNetworkInsertLayer(CNNLayerPtr after,
+                                  CNNLayerPtr before,
+                                  CNNLayerPtr layerToInsert,
+                                  size_t outDataIndex = invalid_data_idx) {
     if (after == nullptr && before == nullptr) {
         THROW_IE_EXCEPTION << "Cannot Insert Layer: before or after layers should be valid layer pointers";
     }
 
+    // internal utility to locate input data idx in layer
+    auto findInsDataIdxes = [&](DataPtr sourceData, CNNLayerPtr layer) {
+        std::vector<int> dataIdxes;
+        auto outLayers = sourceData->getInputTo();
+        for (auto & outLayer : outLayers) {
+            if (outLayer.second.get() != layer.get()) {
+                continue;
+            }
+            for (int j = 0; j < layer->insData.size(); j++) {
+                if (areEqualDatas(layer->insData[j].lock(), sourceData)) {
+                    dataIdxes.push_back(j);
+                }
+            }
+        }
+        IE_ASSERT(!dataIdxes.empty());
+        return dataIdxes;
+    };
+
     bool bLocated = false;
+    bool hasOutputIndex = outDataIndex != invalid_data_idx;
     if (after != nullptr) {
-        // TODO: only one output data supported
         for (auto && data : after->outData) {
-            if (outDataIndex) {
+            if (hasOutputIndex && outDataIndex) {
                 --outDataIndex;
                 continue;
             }
-            for (auto && input : data->inputTo) {
-                if (before != nullptr && input.second.get() != before.get())
+            auto inputTo = data->getInputTo();
+            for (auto inputIt = inputTo.begin(); inputIt != inputTo.end(); ++inputIt) {
+                auto input = inputIt->second;
+                if (before != nullptr && input.get() != before.get())
                     continue;
 
                 // located data
-                bool bLocatedBackward = false;
-                for (auto &&backward : input.second->insData) {
-                    if (backward.lock()->getCreatorLayer().lock().get() == after.get()) {
-                        backward = layerToInsert->outData.front();
-                        bLocatedBackward = true;
-                        break;
-                    }
-                }
-                if (!bLocatedBackward) {
-                    THROW_IE_EXCEPTION << "Layer before has no back connection to after : " << after->name << " vs "
-                                       << input.second->name;
+
+
+                bool bLocatedBackward = true;
+
+                for (auto x : findInsDataIdxes(data, input)) {
+                    input->insData[x] = layerToInsert->outData.front();
                 }
 
-                layerToInsert->outData.front()->inputTo[input.first] = input.second;
+                if (!bLocatedBackward) {
+                    THROW_IE_EXCEPTION << "Layer before has no back connection to after : " << after->name << " vs "
+                                       << input->name;
+                }
+
+                layerToInsert->outData.front()->getInputTo()[inputIt->first] = input;
 
                 bLocated = true;
 
+                // erasing only one particular connection
+                data->getInputTo().erase(inputIt->first);
                 if (before != nullptr) {
-                    // erasing only one particular connection
-                    data->inputTo.erase(input.first);
                     break;
                 }
+            }
+            if (data->getInputTo().empty()) {
+                bLocated = true;
             }
             if (bLocated) {
                 // erasing all connection
                 if (before == nullptr) {
-                    data->inputTo.clear();
+                    data->getInputTo().clear();
                 }
 
-                data->inputTo[layerToInsert->outData.front()->name]  = layerToInsert;
+                data->getInputTo()[layerToInsert->outData.front()->getName()]  = layerToInsert;
                 layerToInsert->insData.push_back(data);
-
-                if (before != nullptr) {
-                    break;
-                }
             }
+            break;
         }
 
+        // if given outputDataIndex is not correct, lets find index that matches *before* layer
         if (!bLocated) {
             if (before != nullptr) {
-                THROW_IE_EXCEPTION << "Layers are not adjacent: " << after->name << " vs " << before->name;
+                IE_ASSERT(before->insData.size() == 1);
+                auto prevLayer = after;
+                for (auto idx = prevLayer->outData.begin(); idx != prevLayer->outData.end(); idx++) {
+                    auto &outputports = (*idx)->getInputTo();
+                    for (auto ll = outputports.begin(); ll != outputports.end(); ll++) {
+                        if (ll->second.get() == before.get()) {
+                            // looks we found where need to remove
+                            outputports.erase(ll);
+                            before->insData.clear();
+                            before->insData.push_back(layerToInsert->outData.front());
+                            layerToInsert->outData.front()->getInputTo()[before->name] = before;
+
+                            bLocated = true;
+                            break;
+                        }
+                    }
+                    if (bLocated) {
+                        break;
+                    }
+                }
+                // now we have a before layer without inputs
             }
-            // inserting into node that doesnt have childs
-            IE_ASSERT(!after->outData.empty());
-            after->outData.front()->inputTo[layerToInsert->name] = layerToInsert;
-            layerToInsert->insData.push_back(after->outData.front());
+            if (bLocated) {
+                // inserting into node that doesnt have child
+                IE_ASSERT(!after->outData.empty());
+                for (auto &&next : after->outData) {
+                    if (!next->getInputTo().empty()) continue;
+                    next->getInputTo()[layerToInsert->name] = layerToInsert;
+                    layerToInsert->insData.push_back(after->outData.front());
+                }
+            }
         }
+    }
+    if (!bLocated) {
+        THROW_IE_EXCEPTION << "Cannot insert layer between: " <<
+                           ((after == nullptr) ? std::string("nullptr") : after->name) << " and " <<
+                           ((before == nullptr) ? std::string("nullptr") : before->name);
     }
 }
 
@@ -818,7 +1013,7 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer) {
     auto osp = layer->outData.front();
     if (isp->getDims() != osp->getDims()) {
         THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" its input layer("
-            << isp->getName() << ") and output(" << osp->getName() << ") have incompatible dimensions";
+                           << isp->getName() << ") and output(" << osp->getName() << ") have incompatible dimensions";
     }
 
     // remove isp->layer connection
@@ -835,12 +1030,12 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer) {
             auto insData = i->lock();
             if (!insData) {
                 THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<", its output layer(" <<
-                    outData.first << " has invalid input configuration";
+                                   outData.first << " has invalid input configuration";
             }
             auto creator = insData->getCreatorLayer().lock();
             if (!creator) {
                 THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<", its output layer(" <<
-                    outData.first << " has invalid input configuration";
+                                   outData.first << " has invalid input configuration";
             }
 
             // found layer that need to be removed
@@ -872,7 +1067,34 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer) {
  * @param newLayer - new layer instead of layer; it must have same name like a layer for replace
  */
 void CNNNetSubstituteLayer(InferenceEngine::ICNNNetwork &network,
-    const InferenceEngine::CNNLayerPtr &layer,
-    const InferenceEngine::CNNLayerPtr &newLayer);
+                           const InferenceEngine::CNNLayerPtr &layer,
+                           const InferenceEngine::CNNLayerPtr &newLayer);
+
+/**
+ * @brief Sorts CNNNetork graph in topological order, while uses custom ordering when walking among child nodes
+ * @param network - input CNNNetwork
+ * @param ordering - callback that returns output layers for given CNNLayer pointer, see default_order function
+ * @return sorted CNNNetwork layers
+ */
+template <class LayerOrdering>
+std::vector<CNNLayerPtr> CNNNetSortTopologicallyEx(const ICNNNetwork & network, LayerOrdering ordering) {
+    std::vector<CNNLayerPtr> stackOfVisited;
+    bool res = CNNNetForestDFS(
+        CNNNetGetAllInputLayers(network),
+        [&](CNNLayerPtr  current) {
+            stackOfVisited.push_back(current);
+        },
+        false,
+        ordering);
+
+    if (!res) {
+        THROW_IE_EXCEPTION << "Sorting not possible, due to existed loop.";
+    }
+
+    std::reverse(std::begin(stackOfVisited), std::end(stackOfVisited));
+
+    return stackOfVisited;
+}
+
 
 }  // namespace InferenceEngine

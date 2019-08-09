@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,53 +27,64 @@
 
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
+#include <vector>
+#include <memory>
+#include <utility>
 
 using namespace cldnn;
 
 namespace {
-    bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim, layout const& input_layout, layout const& weights_layout, bool output_size_handling_enabled)
-    {
-        //cases when NOT to use winograd
-        if (input_layout.size.feature[0] % 64 != 0       //current algorithm is effective for ifm to be multiply of 64
-            || weights_layout.size.spatial[0] != 3          //weights have to be 3x3 by definiton
-            || weights_layout.size.spatial[1] != 3          //weights have to be 3x3 by definition
-            || weights_layout.size.batch[0] % 64 != 0       //current algorithm is effective for ofm to be multiply of 64
-            || prim->stride != tensor{ 1 }                  //stride has to be 1x1 by definition
-            || prim->dilation != tensor{ 1 }                //no support for dilation
-            || prim->split() != 1                           //no support for splitted convolutions
-            || (output_size_handling_enabled && prim->with_output_size) //no support for convolutions with user-specified output size
-            || (input_layout.count() > 3000000)             //limit max input size as winograd consumes more memory
-            || (input_layout.count() < 50000)               //limit min input size as winograd is not effective for small input
-            || (input_layout.size.spatial[0] < 8 && input_layout.size.spatial[1] < 8)) //disable winograd for small spatials as perf is poor
-        {
-            return false;
-        }
-
-        return true;
+bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
+                                layout const& input_layout,
+                                layout const& weights_layout,
+                                bool output_size_handling_enabled) {
+    // cases when NOT to use winograd
+    if (input_layout.data_type != data_types::f16
+        || input_layout.size.feature[0] % 64 != 0  // current algorithm is effective for ifm to be multiply of 64
+        || weights_layout.size.spatial[0] != 3     // weights have to be 3x3 by definiton
+        || weights_layout.size.spatial[1] != 3     // weights have to be 3x3 by definition
+        || weights_layout.size.batch[0] % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
+        || prim->stride != tensor {1}               // stride has to be 1x1 by definition
+        || prim->dilation != tensor {1}             // no support for dilation
+        || prim->split() != 1                      // no support for splitted convolutions
+        || (output_size_handling_enabled &&
+            prim->with_output_size)                // no support for convolutions with user-specified output size
+        || (input_layout.count() > 3000000)        // limit max input size as winograd consumes more memory
+        || (input_layout.count() < 50000)          // limit min input size as winograd is not effective for small input
+        || (input_layout.size.spatial[0] < 8 &&
+            input_layout.size.spatial[1] < 8)) {   // disable winograd for small spatials as perf is poor
+        return false;
     }
+    return true;
 }
+}  // namespace
 
 layout_optimizer::layout_optimizer(bool output_size_handling_enabled)
-    : _optimization_attributes()
-    , _output_size_handling_enabled(output_size_handling_enabled)
-{
-}
+    : _optimization_attributes(), _output_size_handling_enabled(output_size_handling_enabled) {}
 
-bool layout_optimizer::convolution_bfyx_opt(layout const& output_layout, const layout& weights_layout, std::shared_ptr<const convolution> conv)
-{
-    //A set of rules that define when bfyx mem format has better performance than yxfb
-    if (output_layout.size.batch[0] == 16 || output_layout.size.batch[0] % 16 != 0 || 
+bool layout_optimizer::convolution_bfyx_opt(layout const& output_layout,
+                                            const layout& weights_layout,
+                                            std::shared_ptr<const convolution> conv) {
+    // A set of rules that define when bfyx mem format has better performance than yxfb
+    if (output_layout.size.batch[0] == 16 || output_layout.size.batch[0] % 16 != 0 ||
         output_layout.data_type != data_types::f16 || weights_layout.size.batch[0] % 16 != 0 ||
         !((weights_layout.size.spatial[0] == 1 && weights_layout.size.spatial[1] == 1) ||
-        (weights_layout.size.spatial[0] >= 5 && weights_layout.size.spatial[1] >= 5) ||
-            (conv->stride.spatial[0] > 1 && conv->stride.spatial[1] > 1) ||
-            (weights_layout.size.feature[0] <= 32 && output_layout.size.spatial[0] < 224 && output_layout.size.spatial[1] < 224) ||
-            (weights_layout.size.feature[0] <= 64 && output_layout.size.spatial[0] < 112 && output_layout.size.spatial[1] < 112) ||
-            (weights_layout.size.feature[0] <= 128 && output_layout.size.spatial[0] < 56 && output_layout.size.spatial[1] < 56) ||
-            (weights_layout.size.feature[0] <= 256 && output_layout.size.spatial[0] < 28 && output_layout.size.spatial[1] < 28) ||
-            (weights_layout.size.feature[0] <= 512 && output_layout.size.spatial[0] < 14 && output_layout.size.spatial[1] < 14) ||
-            (weights_layout.size.feature[0] <= 1024 && output_layout.size.spatial[0] <= 7 && output_layout.size.spatial[1] <= 7)) ||
-        //WA for AgeGender, which has one convolution that is better on yxfb, but due to additonal reorder overall performance is worse than bfyx
+          (weights_layout.size.spatial[0] >= 5 && weights_layout.size.spatial[1] >= 5) ||
+          (conv->stride.spatial[0] > 1 && conv->stride.spatial[1] > 1) ||
+          (weights_layout.size.feature[0] <= 32 && output_layout.size.spatial[0] < 224 &&
+           output_layout.size.spatial[1] < 224) ||
+          (weights_layout.size.feature[0] <= 64 && output_layout.size.spatial[0] < 112 &&
+           output_layout.size.spatial[1] < 112) ||
+          (weights_layout.size.feature[0] <= 128 && output_layout.size.spatial[0] < 56 &&
+           output_layout.size.spatial[1] < 56) ||
+          (weights_layout.size.feature[0] <= 256 && output_layout.size.spatial[0] < 28 &&
+           output_layout.size.spatial[1] < 28) ||
+          (weights_layout.size.feature[0] <= 512 && output_layout.size.spatial[0] < 14 &&
+           output_layout.size.spatial[1] < 14) ||
+          (weights_layout.size.feature[0] <= 1024 && output_layout.size.spatial[0] <= 7 &&
+           output_layout.size.spatial[1] <= 7)) ||
+        // WA for AgeGender, which has one convolution that is better on yxfb, but due to additonal reorder overall
+        // performance is worse than bfyx
         (output_layout.size.spatial[0] == 82 && output_layout.size.spatial[1] == 82) ||
         (_optimization_attributes.splitted_convolution && output_layout.size.batch[0] == 16) ||
         (!_optimization_attributes.splitted_convolution && output_layout.size.batch[0] >= 128) ||
@@ -83,48 +94,65 @@ bool layout_optimizer::convolution_bfyx_opt(layout const& output_layout, const l
     return false;
 }
 
-bool layout_optimizer::convolution_byxf_opt(layout const& output_layout, const layout& weights_layout, std::shared_ptr<const convolution> conv)
-{
-    //A set of rules that define when byxf mem format has better performance
-    if ((output_layout.data_type == data_types::f16 &&
-        weights_layout.size.spatial[0] == 1 && weights_layout.size.spatial[1] == 1 &&
-        output_layout.size.feature[0] % 64 == 0 && weights_layout.size.batch[0] % 64 == 0 &&
-        conv->stride.spatial[0] == 1 && conv->stride.spatial[1] == 1 &&
-        conv->input_offset.spatial[0] == 0 && conv->input_offset.spatial[1] == 0) ||
-        //Winograd
+bool layout_optimizer::convolution_byxf_opt(layout const& output_layout,
+                                            const layout& weights_layout,
+                                            std::shared_ptr<const convolution> conv) {
+    // A set of rules that define when byxf mem format has better performance
+    if ((output_layout.data_type == data_types::f16 && weights_layout.size.spatial[0] == 1 &&
+         weights_layout.size.spatial[1] == 1 && output_layout.size.feature[0] % 64 == 0 &&
+         weights_layout.size.batch[0] % 64 == 0 && conv->stride.spatial[0] == 1 && conv->stride.spatial[1] == 1 &&
+         conv->input_offset.spatial[0] == 0 && conv->input_offset.spatial[1] == 0) ||
+        // Winograd
         should_use_winograd_2x3_s1(conv, output_layout, weights_layout, _output_size_handling_enabled))
         return true;
 
     return false;
 }
 
-bool layout_optimizer::users_for_convolution_byxf_opt(program_node const& node, uint32_t depth)
-{
-    //This function checks if byxf optimization can be applied to the required depth of node's users.
-    //Setting depth to 1 will check only node's users, depth = 2 are user's users etc.
+bool layout_optimizer::convolution_bfyx_f16_opt(layout const& input_layout,
+                                                const layout& weights_layout,
+                                                std::shared_ptr<const convolution> conv) {
+    // A set of rules that define when bfyx_f16 mem format can be used
+    if ((input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32)  &&
+        input_layout.size.batch[0] == 1 &&
+        ((input_layout.size.feature[0] >= 16 && weights_layout.size.batch[0] >= 16) ||
+         (input_layout.size.feature[0] == 3  && weights_layout.size.batch[0] >= 16)) &&
+        ((conv->groups == 1 && conv->split() == 1) ||  // any conv with signle group
+        ((conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]) ||
+          conv->split() == static_cast<int32_t>(input_layout.size.feature[0])) &&  // or depthwise 3x3 conv with stride 1 or 2
+          weights_layout.size.spatial[0] == 3 &&
+          weights_layout.size.spatial[1] == 3 &&
+          (conv->stride.spatial[0] == 1 || conv->stride.spatial[0] == 2) &&
+          (conv->stride.spatial[1] == 1 || conv->stride.spatial[1] == 2) &&
+          (conv->stride.spatial[0] == conv->stride.spatial[1]) &&
+          (conv->dilation == tensor{1}))))
+        return true;
+    return false;
+}
+
+bool layout_optimizer::users_for_convolution_byxf_opt(program_node const& node, uint32_t depth) {
+    // This function checks if byxf optimization can be applied to the required depth of node's users.
+    // Setting depth to 1 will check only node's users, depth = 2 are user's users etc.
     if (depth == 0)
         return true;
 
     bool use_byxf = false;
-    for (auto& user : node.get_users())
-    {
-        //primitives that support transitions byxf->other format and other format->byxf are valid for byxf opt
-        if (user->type() == cldnn::eltwise::type_id() || user->type() == cldnn::pooling::type_id())
+    for (auto& user : node.get_users()) {
+        // primitives that support transitions byxf->other format and other format->byxf are valid for byxf opt
+        if (user->type() == cldnn::eltwise::type_id() || user->type() == cldnn::pooling::type_id()) {
             use_byxf = users_for_convolution_byxf_opt(*user, depth - 1);
-        //convolution that is capable to use byxf and is performant is also valid for byxf opt
-        else if (user->type() == cldnn::convolution::type_id())
-        {
+        // convolution that is capable to use byxf and is performant is also valid for byxf opt
+        } else if (user->type() == cldnn::convolution::type_id()) {
             auto conv_prim = user->as<convolution>().get_primitive();
-            if (convolution_byxf_opt(user->calc_output_layout(), user->get_dependency(1).get_output_layout(), conv_prim))
+            if (convolution_byxf_opt(user->calc_output_layout(),
+                                     user->get_dependency(1).get_output_layout(),
+                                     conv_prim)) {
                 use_byxf = users_for_convolution_byxf_opt(*user, depth - 1);
-            else
-            {
+            } else {
                 use_byxf = false;
                 break;
             }
-        }
-        else
-        {
+        } else {
             use_byxf = false;
             break;
         }
@@ -132,35 +160,35 @@ bool layout_optimizer::users_for_convolution_byxf_opt(program_node const& node, 
     return use_byxf;
 }
 
-bool layout_optimizer::deps_depth_in_same_format(program_node const& node, const cldnn::format format, uint32_t depth)
-{
-    //This function checks if requested format is the same for node's users in the required depth.
-    //Setting depth to 1 will check only node's dependencies, depth = 2 are dep's dependencies etc.
+bool layout_optimizer::deps_depth_in_same_format(program_node const& node, const cldnn::format format, uint32_t depth) {
+    // This function checks if requested format is the same for node's users in the required depth.
+    // Setting depth to 1 will check only node's dependencies, depth = 2 are dep's dependencies etc.
     if (depth == 0)
         return true;
 
     bool same_format = false;
-    for (auto& dep : node.get_dependencies())
-    {
-        //skip data and generic_layers
+    for (auto& dep : node.get_dependencies()) {
+        // skip data and generic_layers
         if (dep->type() == cldnn::data::type_id() || dep->type() == cldnn::generic_layer::type_id())
             continue;
 
-        //if dependency is of type reorder and format is different then skip it and move to its dependency
-        //further in graph such reorders could be optimized out
-        if(dep->type() == cldnn::reorder::type_id() && dep->get_dependencies().size() == 1 && dep->get_output_layout().format != format)
+        // if dependency is of type reorder and format is different then skip it and move to its dependency
+        // further in graph such reorders could be optimized out
+        if (dep->type() == cldnn::reorder::type_id() && dep->get_dependencies().size() == 1 &&
+            dep->get_output_layout().format != format) {
             same_format = deps_depth_in_same_format(dep->get_dependency(0), format, depth);
-        else if (dep->get_output_layout().format == format)
-            //if dependency is of type reorder and format is the same, check if its users are primitives with support for different input and output formats
-            //if that is true then graph optimizer will optimize such reorder and layout for its dependency will be changed
+        } else if (dep->get_output_layout().format == format) {
+            // if dependency is of type reorder and format is the same, check if its users are primitives with support
+            // for different input and output formats if that is true then graph optimizer will optimize such reorder and
+            // layout for its dependency will be changed
             if (dep->type() == cldnn::reorder::type_id() &&
-                (dep->get_dependency(0).type() == cldnn::eltwise::type_id() || dep->get_dependency(0).type() == cldnn::pooling::type_id()) &&
+                (dep->get_dependency(0).type() == cldnn::eltwise::type_id() ||
+                 dep->get_dependency(0).type() == cldnn::pooling::type_id()) &&
                 dep->get_dependencies().size() == 1)
                 same_format = deps_depth_in_same_format(dep->get_dependency(0), format, depth - 1);
             else
                 same_format = deps_depth_in_same_format(*dep, format, depth - 1);
-        else
-        {
+        } else {
             same_format = false;
             break;
         }
@@ -168,57 +196,73 @@ bool layout_optimizer::deps_depth_in_same_format(program_node const& node, const
     return same_format;
 }
 
-layout layout_optimizer::get_expected_layout(layout const& current_layout, data_type type, convolution_node const& node, layout const& output_or_weights_layout)
-{
+layout layout_optimizer::get_expected_layout(layout const& current_layout,
+                                             data_type type,
+                                             convolution_node const& node,
+                                             layout const& output_or_weights_layout) {
     auto prim = node.get_primitive();
     auto expected_tensor = current_layout.size;
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
+    bool dw_prev_check = false;
+    if (node.get_dependency(0).is_type<convolution>()) {
+        convolution_node* conv_node = &node.get_dependency(0).as<convolution>();
+        if (conv_node->get_groups() > 1) dw_prev_check = true;
+    }
 
-    if (type == data_type::weights || type == data_type::bias)
-    {
+    if (type == data_type::weights || type == data_type::bias) {
         expected_data_type = output_or_weights_layout.data_type;
     }
 
-    switch (type)
-    {
-    case data_type::bias: //convolution bias
-        expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
-        expected_format = cldnn::format::bfyx;
-        break;
+    switch (type) {
+        case data_type::bias:  // convolution bias
+            expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
+            expected_format = cldnn::format::bfyx;
+            break;
 
-    case data_type::input: //convolution input
-
-        if (current_layout.data_type == data_types::f16 &&
-            layout_optimizer::convolution_byxf_opt(current_layout, output_or_weights_layout, prim) &&
-            (users_for_convolution_byxf_opt(node, 2) || deps_depth_in_same_format(node, cldnn::format::byxf, 2)) &&
-            //TODO: remove this condition when yxfb optimizations will be disabled
-            current_layout.format != cldnn::format::yxfb &&
-            current_layout.size.batch[0] == 1 &&
-            prim->dilation == tensor{ 1 } &&
-            !node.get_transposed())
-        {
-            expected_tensor = current_layout.size;
-            expected_format = cldnn::format::byxf;
-        }
-        // IMAD case
-        else if (current_layout.format == format::b_fs_yx_fsv4 ||
-                 current_layout.format == format::os_is_yx_osv16_isv4)
-        {
-            // Nothing to do, just go out from here.
-        }
-        // MMAD case
-        else if (current_layout.data_type == data_types::i8)
-        {
-            expected_tensor = current_layout.size;
-            expected_format = current_layout.format;//cldnn::format::byxf_af32;
-        }
-        else if (layout_optimizer::convolution_bfyx_opt(current_layout, output_or_weights_layout, prim)
-            || (_output_size_handling_enabled && prim->with_output_size) ||
-            node.get_transposed())
-        {
-            // commented out due to performance reasons, maybe enable in future
-            /*if (current_layout.data_type == data_types::f32 &&
+        case data_type::input:  // convolution input
+            if (current_layout.format == format::bfzyx) {
+                expected_tensor = current_layout.size;
+                expected_format = cldnn::format::bfzyx;
+            } else if (_optimization_attributes.bfyx_f16_network &&
+                       convolution_bfyx_f16_opt(current_layout, output_or_weights_layout, prim)) {
+                expected_tensor = current_layout.size;
+                expected_format = cldnn::format::bfyx_f16;
+            } else if (current_layout.data_type == data_types::f16 &&
+                       layout_optimizer::convolution_byxf_opt(current_layout, output_or_weights_layout, prim) &&
+                       (users_for_convolution_byxf_opt(node, 2) ||
+                        deps_depth_in_same_format(node, cldnn::format::byxf, 2)) &&
+                       // todo: remove this condition when yxfb optimizations will be disabled
+                       current_layout.format != cldnn::format::yxfb && current_layout.size.batch[0] == 1 &&
+                       prim->dilation == tensor {1} && !node.get_transposed() &&
+                       !dw_prev_check && node.get_groups() == 1) {
+                expected_tensor = current_layout.size;
+                expected_format = cldnn::format::byxf;
+            } else if ((current_layout.data_type == data_types::f16 && current_layout.format == format::fs_b_yx_fsv32) ||
+                     (current_layout.data_type == data_types::f16 && prim->split() == 1 && prim->groups == 1 &&
+                      current_layout.size.feature[0] % 32 == 0 && current_layout.size.batch[0] != 1 &&
+                      current_layout.size.batch[0] <= 16 && _optimization_attributes.splitted_convolution == 0 &&
+                      _optimization_attributes.group_convolution == 0 &&
+                      _optimization_attributes.deformable_convolution == 0 &&
+                      _optimization_attributes.only_fsv32_layers == 1)) {
+                // fp16 32 features things
+                if (output_or_weights_layout.size.feature[0] == 3 ||  // use bfyx -> fs_byx_fsv32 convolution
+                    prim->split() != 1 ||
+                    current_layout.size.batch[0] == 1)  // escape to bfyx format for unsupported node
+                    expected_format = format::bfyx;
+                else
+                    expected_format = format::fs_b_yx_fsv32;
+            } else if (current_layout.format == format::b_fs_yx_fsv4 ||
+                     current_layout.format == format::os_is_yx_osv16_isv4) {
+                // imad case
+                // nothing to do, just go out from here.
+            } else if (current_layout.data_type == data_types::i8) {  // mmad case
+                expected_tensor = current_layout.size;
+                expected_format = current_layout.format;  // cldnn::format::byxf_af32;
+            } else if (layout_optimizer::convolution_bfyx_opt(current_layout, output_or_weights_layout, prim) ||
+                       (_output_size_handling_enabled && prim->with_output_size) || node.get_transposed()) {
+                // commented out due to performance reasons, maybe enable in future
+                /*if (current_layout.data_type == data_types::f32 &&
                 current_layout.size.batch[0] % 16 == 0 &&
                 current_layout.format == format::bfyx &&
                 output_or_weights_layout.size.spatial[0] == 1 && output_or_weights_layout.size.spatial[1] == 1 &&
@@ -226,114 +270,119 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout, data_
                 prim->input_offset.spatial[0] == 0 && prim->input_offset.spatial[1] == 0 &&
                 !node.get_transposed())
             {
-                if (!((current_layout.size.feature[0] % 8) == 0 && (current_layout.size.spatial[0] * current_layout.size.spatial[1]) == 16 &&
-                    current_layout.data_padding == padding{ { 0,0,0,0 }, 0 }))
+                if (!((current_layout.size.feature[0] % 8) == 0 && (current_layout.size.spatial[0] *
+            current_layout.size.spatial[1]) == 16 && current_layout.data_padding == padding{ { 0,0,0,0 }, 0 }))
                 {
                     expected_tensor = current_layout.size.transform(cldnn::format::bf8_xy16, 1);
                     expected_format = cldnn::format::bf8_xy16;
                 }
             }
             else*/
-            {
+                {
+                    expected_tensor = current_layout.size;
+                    expected_format = cldnn::format::bfyx;
+                }
+
+            } else {
                 expected_tensor = current_layout.size;
-                expected_format = cldnn::format::bfyx;
+                expected_format = cldnn::format::yxfb;
             }
-        }
-        else
-        {
-            expected_tensor = current_layout.size;
-            expected_format = cldnn::format::yxfb;
-        }
 
-        break;
+            break;
 
-    default:
-        throw std::runtime_error("Unsupported data type in layout_optimizer::get_expected_layout for convolution primitive");
+        default:
+            throw std::runtime_error(
+                "Unsupported data type in layout_optimizer::get_expected_layout for convolution primitive");
     }
 
     return layout(expected_data_type, expected_format, expected_tensor);
 }
 
-layout layout_optimizer::get_expected_layout(layout const& current_layout, data_type type, fully_connected_node const& node, layout const& output_or_weights_layout)
-{
+layout layout_optimizer::get_expected_layout(layout const& current_layout,
+                                             data_type type,
+                                             fully_connected_node const& node,
+                                             layout const& output_or_weights_layout) {
     auto prim = node.get_primitive();
     auto expected_tensor = current_layout.size;
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
 
-    if (type == data_type::weights || type == data_type::bias)
-    {
+    if (type == data_type::weights || type == data_type::bias) {
         expected_data_type = output_or_weights_layout.data_type;
     }
 
-    switch (type)
-    {
-    case data_type::bias: //fc bias
-        expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
-        expected_format = cldnn::format::bfyx;
-        break;
+    switch (type) {
+        case data_type::bias:  // fc bias
+            expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
+            expected_format = cldnn::format::bfyx;
+            break;
 
-    default:
-        throw std::runtime_error("Unsupported data type in layout_optimizer::get_expected_layout for fully-connected primitive");
+        default:
+            throw std::runtime_error(
+                "Unsupported data type in layout_optimizer::get_expected_layout for fully-connected primitive");
     }
 
     return layout(expected_data_type, expected_format, expected_tensor);
 }
 
-layout layout_optimizer::get_expected_layout(layout const& current_layout, data_type type, lstm_gemm_node const& node, layout const& output_or_weights_layout)
-{
+layout layout_optimizer::get_expected_layout(layout const& current_layout,
+                                             data_type type,
+                                             lstm_gemm_node const& node,
+                                             layout const& output_or_weights_layout) {
     auto prim = node.get_primitive();
     auto expected_tensor = current_layout.size;
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
 
-    if (type == data_type::weights || type == data_type::bias)
-    {
+    if (type == data_type::weights || type == data_type::bias) {
         expected_data_type = output_or_weights_layout.data_type;
     }
 
-    switch (type)
-    {
-    case data_type::bias:
-        expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
-        expected_format = cldnn::format::bfyx;
-        break;
+    switch (type) {
+        case data_type::bias:
+            expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
+            expected_format = cldnn::format::bfyx;
+            break;
 
-    default:
-        throw std::runtime_error("Unsupported data type in layout_optimizer::get_expected_layout for fully-connected primitive");
+        default:
+            throw std::runtime_error(
+                "Unsupported data type in layout_optimizer::get_expected_layout for fully-connected primitive");
     }
 
     return layout(expected_data_type, expected_format, expected_tensor);
 }
 
-layout layout_optimizer::get_expected_layout(layout const& current_layout, data_type type, deconvolution_node const& node, layout const& output_or_weights_layout)
-{
+layout layout_optimizer::get_expected_layout(layout const& current_layout,
+                                             data_type type,
+                                             deconvolution_node const& node,
+                                             layout const& output_or_weights_layout) {
     auto prim = node.get_primitive();
     auto expected_tensor = current_layout.size;
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
 
-    if (type == data_type::weights || type == data_type::bias)
-    {
+    if (type == data_type::weights || type == data_type::bias) {
         expected_data_type = output_or_weights_layout.data_type;
     }
 
-    switch (type)
-    {
-    case data_type::bias: //convolution bias
-        expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
-        expected_format = cldnn::format::bfyx;
-        break;
+    switch (type) {
+        case data_type::bias:  // convolution bias
+            expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
+            expected_format = cldnn::format::bfyx;
+            break;
 
-    default:
-        throw std::runtime_error("Unsupported data type in layout_optimizer::get_expected_layout for deconvolution primitive");
+        default:
+            throw std::runtime_error(
+                "Unsupported data type in layout_optimizer::get_expected_layout for deconvolution primitive");
     }
 
     return layout(expected_data_type, expected_format, expected_tensor);
 }
 
-layout layout_optimizer::get_expected_layout(layout const& current_layout, data_type type, detection_output_node const& node, layout const& output_or_weights_layout)
-{
+layout layout_optimizer::get_expected_layout(layout const& current_layout,
+                                             data_type type,
+                                             detection_output_node const& node,
+                                             layout const& output_or_weights_layout) {
     auto prim = node.get_primitive();
     auto expected_tensor = current_layout.size;
     auto expected_data_type = data_types::f32;
@@ -345,38 +394,71 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout, data_
     return layout(expected_data_type, expected_format, expected_tensor);
 }
 
-layout layout_optimizer::get_expected_layout(layout const& current_layout, data_type type, embed_node const& node, layout const& output_or_weights_layout)
-{
+layout layout_optimizer::get_expected_layout(layout const& current_layout,
+                                             data_type type,
+                                             embed_node const& node,
+                                             layout const& output_or_weights_layout) {
     auto prim = node.get_primitive();
     auto expected_tensor = current_layout.size;
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
 
-    if (type == data_type::weights || type == data_type::bias)
-    {
+    if (type == data_type::weights || type == data_type::bias) {
         expected_data_type = output_or_weights_layout.data_type;
     }
 
-    switch (type)
-    {
-    case data_type::bias:
-        expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
-        expected_format = cldnn::format::bfyx;
-        break;
+    switch (type) {
+        case data_type::bias:
+            expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
+            expected_format = cldnn::format::bfyx;
+            break;
 
-    default:
-        throw std::runtime_error("Unsupported data type in layout_optimizer::get_expected_layout for embed primitive");
+        default:
+            throw std::runtime_error(
+                "Unsupported data type in layout_optimizer::get_expected_layout for embed primitive");
     }
 
     return layout(expected_data_type, expected_format, expected_tensor);
 }
 
-std::pair<std::shared_ptr<cldnn::reorder>, bool>
-layout_optimizer::create_reorder_if_needed(const layout& current_layout, const cldnn::primitive_id& memid, layout const& expected_layout)
-{
-    if (current_layout != expected_layout)
-    {
-        cache_key ckey{ memid, expected_layout };
+layout layout_optimizer::get_expected_layout(layout const& current_layout,
+                                             data_type type,
+                                             binary_convolution_node const& node,
+                                             layout const& output_or_weights_layout) {
+    auto prim = node.get_primitive();
+    auto expected_tensor = current_layout.size;
+    auto expected_data_type = data_types::bin;
+    auto expected_format = current_layout.format;
+
+    if (type == data_type::weights || type == data_type::bias) {
+        expected_data_type = output_or_weights_layout.data_type;
+    }
+
+    switch (type) {
+        case data_type::bias:  // convolution bias
+            expected_tensor = cldnn::tensor(1, 1, static_cast<tensor::value_type>(current_layout.count()), 1);
+            expected_format = cldnn::format::bfyx;
+            break;
+
+        case data_type::input:  // convolution input
+            expected_tensor = current_layout.size;
+            expected_format = cldnn::format::b_fs_yx_32fp;
+            break;
+
+        default:
+            throw std::runtime_error(
+                "Unsupported data type in layout_optimizer::get_expected_layout for binary_convolution primitive");
+    }
+
+    return layout(expected_data_type, expected_format, expected_tensor);
+}
+
+std::pair<std::shared_ptr<cldnn::reorder>, bool> layout_optimizer::create_reorder_if_needed(
+    const layout& current_layout,
+    const cldnn::primitive_id& memid,
+    layout const& expected_layout) {
+    if (current_layout != expected_layout) {
+        cache_key ckey{memid, expected_layout};
         auto itr = _cached_reorders.find(ckey);
         if (itr != _cached_reorders.end())
             return std::make_pair(itr->second, true);
@@ -393,17 +475,18 @@ layout_optimizer::create_reorder_if_needed(const layout& current_layout, const c
     return std::make_pair(nullptr, true);
 }
 
-std::pair<std::shared_ptr<cldnn::generic_layer>, bool>
-layout_optimizer::create_reorder_from_given_source(const cldnn::primitive_id& memid, layout const& expected_layout, const kernel_selector::weights_reorder_params& reorder_params)
-{
-    cache_key ckey{ memid, expected_layout };
+std::pair<std::shared_ptr<cldnn::generic_layer>, bool> layout_optimizer::create_reorder_from_given_source(
+    const cldnn::primitive_id& memid,
+    layout const& expected_layout,
+    const kernel_selector::weights_reorder_params& reorder_params) {
+    cache_key ckey{memid, expected_layout};
     auto itr = _cached_generic_layers.find(ckey);
     if (itr != _cached_generic_layers.end())
         return std::make_pair(itr->second, true);
 
     auto count = _cached_generic_layers.size();
     std::stringstream ss;
-    ss << "generic_layer_" << count << "_" << memid;
+    ss << memid << "_generic_layer_" << count;
 
     auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), memid, expected_layout, reorder_params);
     _cached_generic_layers[ckey] = reorder;
@@ -411,47 +494,47 @@ layout_optimizer::create_reorder_from_given_source(const cldnn::primitive_id& me
 }
 
 std::vector<std::pair<std::shared_ptr<primitive>, bool>> layout_optimizer::get_generic_layer(
-    const kernel_selector::weights_reorder_params & reorder_params,
+    const kernel_selector::weights_reorder_params& reorder_params,
     primitive_id input_id,
-    const layout & old_layout,
-    data_type type)
-{
-
+    const layout& old_layout,
+    data_type type) {
     if (reorder_params.engine == kernel_selector::weights_reorder_params::Engine::NONE || type != data_type::weights)
-        return{};
+        return {};
 
     std::vector<std::pair<std::shared_ptr<primitive>, bool>> ret;
 
     if (reorder_params.engine == kernel_selector::weights_reorder_params::Engine::CPU &&
-        reorder_params.cpuKernel != nullptr)
-    {
+        reorder_params.cpuKernel != nullptr) {
         const auto intermediate_format = from_weights_layout(reorder_params.cpuKernel->GetExpectedInputLayout());
         const auto intermediate_type = from_weights_type(reorder_params.cpuKernel->GetExpectedInputType());
-        if (intermediate_format != old_layout.format ||
-            intermediate_type != old_layout.data_type)
-        {
-            const layout intermediate_layout = { intermediate_type, intermediate_format, old_layout.size.transform(intermediate_format, 1) };
+        if (intermediate_format != old_layout.format || intermediate_type != old_layout.data_type) {
+            const layout intermediate_layout = {intermediate_type,
+                                                intermediate_format,
+                                                old_layout.size.transform(intermediate_format, 1)};
 
             auto reorder = create_reorder_if_needed(old_layout, input_id, intermediate_layout);
-            if (reorder.first)
-            {
+            if (reorder.first) {
                 ret.push_back(reorder);
                 input_id = reorder.first->id;
             }
         }
     }
 
-    auto new_dtype = from_weights_type(reorder_params.dtype);
-    const auto bpp = data_type_traits::size_of(new_dtype);
-    tensor expected_size = { 1,1,1,(tensor::value_type)(reorder_params.newBufferSize / bpp) };
+    // TODO: Add conversion of WeightsTensor to cldnn::tensor to have not flattened shape
+    // layout expected_layout = from_weights_tensor(reorder_params.dest);
 
-    if (reorder_params.toImageType)
+    auto new_dtype = from_weights_type(reorder_params.dest.GetDType());
+    const auto bpp = data_type_traits::size_of(new_dtype);
+    tensor expected_size = {1, 1, 1, (tensor::value_type)(reorder_params.dest.PhysicalSizeInBytes() / bpp)};
+
+    bool toImageType = IsImageType(reorder_params.dest.GetLayout());
+    if (toImageType)
         expected_size = old_layout.size;
 
-    layout expected_layout = {
-        new_dtype, reorder_params.toImageType ? from_weights_layout(reorder_params.destLayout) : format::bfyx, // simple linear format (flatten to x channel)
-        expected_size
-    };
+    layout expected_layout = {new_dtype,
+                              toImageType ? from_weights_layout(reorder_params.dest.GetLayout())
+                                          : format::bfyx,  // simple linear format (flatten to x channel)
+                              expected_size};
 
     auto reorder = create_reorder_from_given_source(input_id, expected_layout, reorder_params);
     if (reorder.first)
@@ -460,17 +543,43 @@ std::vector<std::pair<std::shared_ptr<primitive>, bool>> layout_optimizer::get_g
     return ret;
 }
 
-void layout_optimizer::set_optimization_attribute(optimization_attributes_type attribute, int32_t val)
-{
-    switch (attribute)
-    {
-    case optimization_attributes_type::splitted_convolution:
-        _optimization_attributes.splitted_convolution = val;
-        break;
-    case optimization_attributes_type::bfyx_only_layer:
-        _optimization_attributes.bfyx_only_layer = val;
-        break;
-    default:
-        throw std::out_of_range("unsupported layout optimization attribute");
+void layout_optimizer::set_optimization_attribute(optimization_attributes_type attribute, int32_t val) {
+    switch (attribute) {
+        case optimization_attributes_type::splitted_convolution:
+            _optimization_attributes.splitted_convolution = val;
+            break;
+        case optimization_attributes_type::group_convolution:
+            _optimization_attributes.group_convolution = val;
+            break;
+        case optimization_attributes_type::deformable_convolution:
+            _optimization_attributes.deformable_convolution = val;
+            break;
+        case optimization_attributes_type::bfyx_only_layer:
+            _optimization_attributes.bfyx_only_layer = val;
+            break;
+        case optimization_attributes_type::only_fsv32_layers:
+            _optimization_attributes.only_fsv32_layers = val;
+            break;
+        case optimization_attributes_type::bfyx_f16_network:
+            _optimization_attributes.bfyx_f16_network = val;
+            break;
+        default:
+            throw std::out_of_range("unsupported layout optimization attribute");
+    }
+}
+
+bool layout_optimizer::is_format_optimized(const convolution_node& node, const format& format) {
+    auto input_layout = node.input().get_output_layout();
+    auto weights_layout = node.weights().get_output_layout();
+    auto prim = node.get_primitive();
+
+    switch (format) {
+        case format::bfyx_f16:
+            return convolution_bfyx_f16_opt(input_layout, weights_layout, prim) &&
+                   // Work-around for inability to use bfyx_f16 and winograd together
+                   !should_use_winograd_2x3_s1(prim, input_layout, weights_layout, _output_size_handling_enabled);
+        default:
+            throw std::invalid_argument(
+                "[Layout optimizer] Other formats in is_format_optimized(...) method are not implemented!");
     }
 }

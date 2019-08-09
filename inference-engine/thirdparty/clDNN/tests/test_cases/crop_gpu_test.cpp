@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,16 +28,21 @@ using namespace cldnn;
 using namespace tests;
 
 template<typename T>
-std::vector<T> generate_random_input(size_t b, size_t f, size_t y, size_t x, int min, int max) {
+std::vector<T> generate_random_input(size_t b, size_t f, size_t z, size_t y, size_t x, int min, int max) {
     static std::default_random_engine generator(random_seed);
     int k = 8; // 1/k is the resolution of the floating point numbers
     std::uniform_int_distribution<int> distribution(k * min, k * max);
-    std::vector<T> v(b*f*x*y);
-    for (size_t i = 0; i < b*f*x*y; ++i) {
+    std::vector<T> v(b*f*x*y*z);
+    for (size_t i = 0; i < b*f*x*y*z; ++i) {
         v[i] = (T)distribution(generator);
         v[i] /= k;
     }
     return v;
+}
+
+template<typename T>
+std::vector<T> generate_random_input(size_t b, size_t f, size_t y, size_t x, int min, int max) {
+    return generate_random_input<T>(b, f, 1, y, x, -min, max);
 }
 
 TEST(crop_gpu, basic_in2x3x2x2_crop_all) {
@@ -692,3 +697,53 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
         EXPECT_EQ(output_ptr_2[i], out2[i]);
 }
 
+TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
+    //  Reference  : 3x1x2x2x1
+    //  Input      : 6x2x4x3x2
+    //  Output     : 3x1x2x2x1
+
+    const auto& engine = get_test_engine();
+
+    auto batch_num = 6;
+    auto feature_num = 2;
+    auto x_size = 4;
+    auto y_size = 3;
+    auto z_size = 2;
+
+    auto crop_batch_num = batch_num - 3;
+    auto crop_feature_num = feature_num - 1;
+    auto crop_x_size = x_size - 2;
+    auto crop_y_size = y_size - 1;
+    auto crop_z_size = z_size - 1;
+
+    auto input = memory::allocate(engine, { data_types::f32,format::bfzyx,{ batch_num, feature_num, x_size, y_size, z_size } });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size, crop_z_size }, { 0, 0, 0, 0, 0 }));
+
+    std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
+    set_values(input, input_vec);
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("crop").get_memory();
+    auto output_ptr = output.pointer<float>();
+    for (int b = 0; b < crop_batch_num; ++b) { //B
+        for (int f = 0; f < crop_feature_num; ++f) { //F
+            for (int z = 0; z < crop_z_size; ++z) { //Z
+                for (int y = 0; y < crop_y_size; ++y) { //Y
+                    for (int x = 0; x < crop_x_size; ++x) { //X
+                        int linear_id = x + x_size * (y + y_size * (z + z_size * (f + feature_num * b)));
+                        int output_linear_id = x + crop_x_size * (y + crop_y_size * (z + crop_z_size * (f + crop_feature_num * b)));
+                        EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    }
+                }
+            }
+        }
+    }
+}

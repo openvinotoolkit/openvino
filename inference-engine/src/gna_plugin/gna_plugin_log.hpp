@@ -7,7 +7,7 @@
 #include <details/ie_exception.hpp>
 
 // #define GNA_DEBUG
-#ifdef GNA_DEBUG
+#ifdef  GNA_DEBUG
 /**
  * @brief used for creating graphviz charts, and layers dump
  */

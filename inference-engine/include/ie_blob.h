@@ -16,6 +16,7 @@
 #include <utility>
 #include <functional>
 #include <map>
+#include <type_traits>
 
 #include "ie_common.h"
 #include "details/ie_exception.hpp"
@@ -28,7 +29,8 @@
 
 namespace InferenceEngine {
 /**
- * @brief This class implements a container object that represents a tensor in memory (host and remote/accelerated)
+ * @brief This class represents a universal container in the Inference Engine
+ * @note Each Blob implementation must be derived from this Blob class directly or indirectly
  */
 class Blob {
 public:
@@ -43,25 +45,28 @@ public:
     using CPtr = std::shared_ptr<const Blob>;
 
     /**
-     * @deprecated Please use TensorDesc to get the precision
+     * @deprecated Use Blob::getTensorDesc and InferenceEngine::TensorDesc::getPrecision to get the precision
      * @brief Returns the tensor precision of the current Blob object
      */
+    INFERENCE_ENGINE_DEPRECATED
     Precision type() const noexcept {
         return tensorDesc.getPrecision();
     }
 
     /**
-     * @deprecated Please use TensorDesc to get the precision
+     * @deprecated Use Blob::getTensorDesc and InferenceEngine::TensorDesc::getPrecision to get the precision
      * @brief Returns the tensor precision of the current Blob object
      */
+    INFERENCE_ENGINE_DEPRECATED
     Precision precision() const noexcept {
         return tensorDesc.getPrecision();
     }
 
     /**
-     * @deprecated Please use TensorDesc to get the current layout
+     * @deprecated Use Blob::getTensorDesc and InferenceEngine::TensorDesc::getLayout to get the current layout
      * @brief Returns the tensor layout of the current Blob object
      */
+    INFERENCE_ENGINE_DEPRECATED
     Layout layout() const noexcept {
         return tensorDesc.getLayout();
     }
@@ -79,52 +84,111 @@ public:
     virtual ~Blob()  = default;
 
     /**
+     * @brief Checks if the Blob object can be cast to the type T*
+     * @tparam T Type to be checked. Must represent a class derived from the Blob
+     * @return true if this object can be dynamically cast to the type T*. Otherwise, false
+     */
+    template<typename T,
+             typename std::enable_if<
+                !std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+             typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
+    bool is() noexcept {
+        return dynamic_cast<T*>(this) != nullptr;
+    }
+
+    /**
+     * @brief Checks if the Blob object can be cast to the type const T*
+     * @tparam T Type to be checked. Must represent a class derived from the Blob
+     * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
+     */
+    template<typename T,
+             typename std::enable_if<
+                !std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+             typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
+    bool is() const noexcept {
+        return dynamic_cast<const T*>(this) != nullptr;
+    }
+
+    /**
+     * @brief Casts this Blob object to the type T*. Use InferenceEngine::as() to operate with
+     * shared Blob objects instead of raw pointers
+     * @tparam T Type to cast to. Must represent a class derived from the Blob
+     * @return Raw pointer to the object of the type T or nullptr on error
+     */
+    template<typename T,
+             typename std::enable_if<
+                !std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+             typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
+    T* as() noexcept {
+        return dynamic_cast<T*>(this);
+    }
+
+    /**
+     * @brief Casts this Blob object to the type const T*. Use InferenceEngine::as() to operate with
+     * shared Blob objects instead of raw pointers
+     * @tparam T Type to cast to. Must represent a class derived from the Blob
+     * @return Raw pointer to the object of the type const T or nullptr on error
+     */
+    template<typename T,
+             typename std::enable_if<
+                !std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+             typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
+    const T* as() const noexcept {
+        return dynamic_cast<const T*>(this);
+    }
+
+    /**
      * @brief Constructor. Creates an empty Blob object with the specified precision.
      * @param tensorDesc Defines the layout and dims of the blob
      */
     explicit Blob(const TensorDesc &tensorDesc): tensorDesc(tensorDesc) {}
 
     /**
-     * @deprecated Please use TensorDesc for Blob initialization
+     * @deprecated Use Blob::Blob(const TensorDesc &).
      * @brief Constructor. Creates an empty Blob object with the specified precision.
      * @param p Precision type
      */
-    explicit Blob(Precision p) : Blob(p, NCHW) {}
+    INFERENCE_ENGINE_DEPRECATED
+    explicit Blob(Precision p) : Blob(TensorDesc(p, NCHW)) {}
 
     /**
-     * @deprecated Please use TensorDesc for Blob initialization
+     * @deprecated Use Blob::Blob(const TensorDesc &).
      * @brief The constructor creates an empty Blob object with the specified precision and layout.
      * @param p Precision type
      * @param l Layout
      */
-    Blob(Precision p, Layout l) : tensorDesc(p, l) {}
+    INFERENCE_ENGINE_DEPRECATED
+    Blob(Precision p, Layout l) : Blob(TensorDesc(p, l)) {}
 
     /**
-     * @deprecated Please use TensorDesc for Blob initialization
+     * @deprecated Use Blob::Blob(const TensorDesc &).
      * @brief The constructor creates an empty Blob object with the specified precision and dimensions.
      * @param p Tensor precision type
      * @param dims Tensor dimensions vector
      */
+    INFERENCE_ENGINE_DEPRECATED
     Blob(Precision p, const SizeVector &dims)
-            : Blob(p, TensorDesc::getLayoutByDims(dims), dims) {}
+            : Blob({ p, SizeVector(dims.rbegin(), dims.rend()), TensorDesc::getLayoutByDims(dims) }) {}
 
     /**
-     * @deprecated Please use TensorDesc for Blob initialization
+     * @deprecated Use Blob::Blob(const TensorDesc &).
      * @brief The constructor creates an empty Blob object with the specified precision, layout and dimensions.
      * @param p tensor precision type
      * @param l tensor layout
      * @param dims Tensor dimensions vector with reversed order
      */
+    INFERENCE_ENGINE_DEPRECATED
     Blob(Precision p, Layout l, const SizeVector &dims)
-            : tensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), l) {}
+            : Blob(TensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), l)) {}
 
     /**
-     * @deprecated It works with reversed dimensions. Please create a new blob if you want to change a size.
+     * @deprecated The method works with reversed dimensions. Create a new blob if you want to change a size.
      * @brief Changes Tensor size to the specified dimensions. If it was allocated, the previous data is deallocated and lost.
      * @param dims New dimensions to set
      * @param layout New layout to set
      * @return Total number of elements (a product of all the dimensions)
      */
+    INFERENCE_ENGINE_DEPRECATED
     size_t Resize(const SizeVector &dims, Layout layout = Layout::ANY) noexcept {
         try {
             bool bret = deallocate();
@@ -144,12 +208,13 @@ public:
     }
 
     /**
-     * @deprecated It works with reversed dimensions. Please use TensorDescriptor.reshape().
+     * @deprecated The method works with reversed dimensions. Use Blob::getTensorDesc and InferenceEngine::TensorDesc::reshape.
      * @brief Changes tensor size to the specified dimensions without changing memory. The total size remains unchanged as well as the memory layout.
      * @param dims New dimensions to set
      * @param layout New layout to set
      * @return The total number of elements (a product of all the dims)
      */
+    INFERENCE_ENGINE_DEPRECATED
     size_t Reshape(const SizeVector &dims, Layout layout = Layout::ANY) noexcept {
         try {
             if (product(tensorDesc.getDims()) != product(dims)) {
@@ -168,9 +233,10 @@ public:
     }
 
     /**
-     * @deprecated Please use TensorDesc for working with dimensions.
+     * @deprecated Use Blob::getTensorDesc and InferenceEngine::TensorDesc::getDims.
      * @brief Returns the tensor dimensions vector with reversed order.
      */
+    INFERENCE_ENGINE_DEPRECATED
     const SizeVector dims() const noexcept {
         return SizeVector(tensorDesc.getDims().rbegin(), tensorDesc.getDims().rend());
     }
@@ -178,22 +244,33 @@ public:
     /**
      * @brief Returns the tensor description
      */
-    const TensorDesc &getTensorDesc() const noexcept {
+    virtual const TensorDesc &getTensorDesc() const noexcept {
         return tensorDesc;
     }
 
     /**
-     * @brief Returns the total number of elements (a product of all the dims)
+     * @brief Returns the tensor description
      */
-    size_t size() const noexcept {
+    virtual TensorDesc &getTensorDesc() noexcept {
+        return tensorDesc;
+    }
+
+    /**
+     * @brief By default, returns the total number of elements (a product of all the dims or 1 for scalar)
+     *
+     * Return value and its interpretation heavily depend on the blob type
+     */
+    virtual size_t size() const noexcept {
+        if (tensorDesc.getLayout() == Layout::SCALAR)
+            return 1;
         return product(tensorDesc.getDims());
     }
 
     /**
      * @brief Returns the size of the current Blob in bytes.
      */
-    size_t byteSize() const noexcept {
-        return product(tensorDesc.getDims()) * element_size();
+    virtual size_t byteSize() const noexcept {
+        return size() * element_size();
     }
 
     /**
@@ -246,16 +323,150 @@ protected:
     }
 
     /**
+     * @brief Gets an allocator for allocator-based blobs
+     * @return The allocator for allocator-based blobs or nullptr if there is none
+     */
+    virtual const std::shared_ptr<IAllocator> &getAllocator() const noexcept  = 0;
+
+    /**
+     * @brief Gets a handle to allocated memory
+     * @return The handle to allocated memory for allocator-based blobs or nullptr if there is none
+     */
+    virtual void *getHandle() const noexcept  = 0;
+
+    template<typename> friend
+    class TBlobProxy;
+};
+
+/**
+ * @brief Helper cast function to work with shared Blob objects
+ * @return shared_ptr to the type T. Returned shared_ptr shares ownership of the object with the
+ *         input Blob::Ptr
+ */
+template<typename T,
+         typename std::enable_if<
+            !std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+         typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
+std::shared_ptr<T> as(const Blob::Ptr& blob) noexcept {
+    return std::dynamic_pointer_cast<T>(blob);
+}
+
+/**
+ * @brief Helper cast function to work with shared Blob objects
+ * @return shared_ptr to the type const T. Returned shared_ptr shares ownership of the object with
+ *         the input Blob::Ptr
+ */
+template<typename T,
+         typename std::enable_if<
+            !std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+         typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
+std::shared_ptr<const T> as(const Blob::CPtr& blob) noexcept {
+    return std::dynamic_pointer_cast<const T>(blob);
+}
+
+/**
+ * @brief This class implements a container object that represents a tensor in memory (host and
+ * remote/accelerated)
+ * @note Any Blob implementation that represents a concept of a tensor in memory (for example,
+ * TBlob) must be a subclass of MemoryBlob instead of Blob
+ */
+class MemoryBlob : public Blob {
+public:
+    /**
+     * @brief A smart pointer to the MemoryBlob object
+     */
+    using Ptr = std::shared_ptr<MemoryBlob>;
+
+    /**
+     * @brief A smart pointer to the const MemoryBlob object
+     */
+    using CPtr = std::shared_ptr<const MemoryBlob>;
+
+    /**
+     * @brief MemoryBlob virtual destructor
+     */
+    virtual ~MemoryBlob()  = default;
+
+    /**
+     * @brief Constructor. Creates an empty MemoryBlob object with the specified precision.
+     * @param tensorDesc Defines the layout and dims of the blob
+     */
+    explicit MemoryBlob(const TensorDesc& tensorDesc): Blob(tensorDesc) {}
+
+    /**
+     * @brief Returns the tensor description
+     */
+    const TensorDesc &getTensorDesc() const noexcept override {
+        return tensorDesc;
+    }
+
+    /**
+     * @brief Returns the tensor description
+     */
+    TensorDesc &getTensorDesc() noexcept override {
+        return tensorDesc;
+    }
+
+    /**
+     * @brief Returns the total number of elements, which is a product of all the dimensions
+     */
+    size_t size() const noexcept override {
+        if (tensorDesc.getLayout() == Layout::SCALAR)
+            return 1;
+        return product(tensorDesc.getDims());
+    }
+
+    /**
+     * @brief Returns the size of the current Blob in bytes
+     */
+    size_t byteSize() const noexcept override {
+        return size() * element_size();
+    }
+
+    /**
+     * @brief Returns the number of bytes per element. The overall MemoryBlob capacity is size() * element_size().
+     * Abstract method.
+     */
+    size_t element_size() const noexcept override = 0;
+
+    /**
+     * @brief Allocates memory to store the data.
+     * Abstract method.
+     */
+    void allocate() noexcept override = 0;
+
+    /**
+     * @brief Releases previously allocated data.
+     * Abstract method.
+     */
+    bool deallocate() noexcept override = 0;
+
+    /**
+     * @brief Gets access to the allocated memory.
+     * Abstract method.
+     * @return A LockedMemory object
+     */
+    LockedMemory<void> buffer() noexcept override = 0;
+
+    /**
+     * @brief Gets read-only access to the allocated memory.
+     * Abstract method.
+     * @return A LockedMemory object
+     */
+    LockedMemory<const void> cbuffer() const noexcept override = 0;
+
+protected:
+    /**
     * @brief Gets the allocator for allocator-based blobs.
     * @return The allocator for allocator-based blobs or if there is none then a nullptr.
     */
-    virtual const std::shared_ptr<IAllocator> &getAllocator() const noexcept  = 0;
+    const std::shared_ptr<IAllocator> &getAllocator() const noexcept override  = 0;
 
     /**
     * @brief Gets the handle to allocated memory.
     * @return The handle to allocated memory for allocator-based blobs or if there is none then a nullptr.
     */
-    virtual void *getHandle() const noexcept  = 0;
+    void *getHandle() const noexcept override = 0;
 
     template<typename> friend
     class TBlobProxy;
@@ -271,7 +482,7 @@ using BlobMap = std::map<std::string, Blob::Ptr>;
  */
 template<typename T,
         typename = std::enable_if<std::is_pod<T>::value>>
-class TBlob : public Blob {
+class TBlob : public MemoryBlob {
     template<typename, typename> friend
     class TBlob;
 
@@ -284,10 +495,10 @@ public:
 
     /**
      * @brief Creates a TBlob object with the specified dimensions and layout but does not allocate the memory.
-     * Please use the allocate() method to allocate memory.
+     * Use the allocate() method to allocate memory.
      * @param tensorDesc Tensor description
      */
-    explicit TBlob(const TensorDesc& tensorDesc): Blob(tensorDesc) {}
+    explicit TBlob(const TensorDesc& tensorDesc): MemoryBlob(tensorDesc) {}
 
     /**
      * @brief The constructor creates a TBlob object with the specified dimensions and layout
@@ -297,7 +508,7 @@ public:
      * @param data_size Length of the pre-allocated array. If not set, size is assumed equal
      * to the dot product of dims.
      */
-    TBlob(const TensorDesc& tensorDesc, T* ptr, size_t data_size = 0): Blob(tensorDesc) {
+    TBlob(const TensorDesc& tensorDesc, T* ptr, size_t data_size = 0): MemoryBlob(tensorDesc) {
         if (data_size == 0) {
             data_size = size();
         }
@@ -319,27 +530,33 @@ public:
      * @param alloc Allocator to be used
      */
     TBlob(const TensorDesc& tensorDesc, const std::shared_ptr<IAllocator>& alloc)
-            : Blob(tensorDesc), _allocator(alloc) {
+            : MemoryBlob(tensorDesc), _allocator(alloc) {
     }
 
     /**
-     * @deprecated Please use TensorDesc for Blob initialization.
+     * @deprecated Use TBlob::TBlob(const TensorDesc&).
+     * @brief Creates a TBlob object with the specified precision and type, but does not allocate the memory.
+     * Use the allocate() method to allocate memory.
+     * @param p Precision
+     * @param l Layout
      */
-    explicit TBlob(Precision p, Layout l) : Blob(p, l) {}
+    INFERENCE_ENGINE_DEPRECATED
+    explicit TBlob(Precision p, Layout l) : MemoryBlob(TensorDesc(p, l)) {}
 
     /**
-     * @deprecated Please use TensorDesc for Blob initialization.
-     * @brief Creates a TBlob object with the specified dimensions but does not allocate the memory. Please use the allocate() method to allocate memory.
+     * @deprecated Use TBlob::TBlob(const TensorDesc&).
+     * @brief Creates a TBlob object with the specified dimensions but does not allocate the memory. Use the allocate() method to allocate memory.
      * @param p Precision
      * @param l Layout
      * @param dims Tensor dimensions
      */
+    INFERENCE_ENGINE_DEPRECATED
     TBlob(Precision p, Layout l, const SizeVector& dims)
-       : Blob(p, l, dims) {
+       : MemoryBlob(TensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), l)) {
     }
 
     /**
-     * @deprecated Please use TensorDesc for Blob initialization.
+     * @deprecated Use TBlob::TBlob(const TensorDesc&).
      * @brief The constructor creates a TBlob object with the specified dimensions on the pre-allocated memory. Therefore, the allocate() call is not required.
      * @details The TBlob object doesn't own memory that is pointed to by the ptr. Therefore, it doesn't free the memory after the TBlob object is destroyed.
      * Also certain operations might fail:
@@ -350,7 +567,9 @@ public:
      * @param ptr Pointer to the pre-allocated memory
      * @param data_size Length of the pre-allocated array. If not set, size is assumed equal to dot product of dims.
      */
-    TBlob(Precision p, Layout l, const SizeVector& dims, T* ptr, size_t data_size = 0) : Blob(p, l, dims) {
+    INFERENCE_ENGINE_DEPRECATED
+    TBlob(Precision p, Layout l, const SizeVector& dims, T* ptr, size_t data_size = 0) :
+        MemoryBlob(TensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), l)) {
         if (data_size == 0) {
             data_size = size();
         }
@@ -363,22 +582,23 @@ public:
     }
 
     /**
-     * @deprecated Please use TensorDesc for Blob initialization.
+     * @deprecated Use TBlob::TBlob(const TensorDesc&).
      * @brief Constructor. Creates a TBlob object with the specified precision, layout, dimensions and custom memory allocator.
      * @param p Precision
      * @param l Layout
      * @param dims Tensor dimensions
      * @param alloc Allocator to be used
      */
+    INFERENCE_ENGINE_DEPRECATED
     TBlob(Precision p, Layout l, const SizeVector &dims, std::shared_ptr<IAllocator> alloc)
-            : Blob(p, l, dims), _allocator(alloc) {
+            : MemoryBlob(TensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), l)), _allocator(alloc) {
     }
 
     /**
      * @brief The copy constructor data is reallocated and copied from the source to the target blob.
      * @param blob Source blob
      */
-    TBlob(const TBlob<T> &blob) : Blob(blob.getTensorDesc()) {
+    TBlob(const TBlob<T> &blob) : MemoryBlob(blob.getTensorDesc()) {
         copyFrom(blob);
     }
 
@@ -386,7 +606,7 @@ public:
      * @brief A move constructor.
      * @param blob rvalue to make a move from
      */
-    TBlob(TBlob<T> &&blob) : Blob(blob.getTensorDesc()) {
+    TBlob(TBlob<T> &&blob) : MemoryBlob(blob.getTensorDesc()) {
         moveFrom(blob);
     }
 
@@ -432,10 +652,11 @@ public:
     }
 
     /**
-      * @deprecated Deprecated to avoid memcpy() calls.
+      * @deprecated Deprecated to avoid memcpy() calls. Use TBlob::buffer to get raw pointer and set data
       * @brief Copies data from the given vector to the blob.
       * @param that Vector of values to copy to the blob
       */
+    INFERENCE_ENGINE_DEPRECATED
     void set(const std::vector<T> &that)  {
         if (tensorDesc.getDims().size() != 0 && that.size() != product(tensorDesc.getDims()))
             THROW_IE_EXCEPTION << "Size mismatch between dims and vector";
@@ -447,7 +668,7 @@ public:
             allocate();
         }
         auto memptr = data();
-        memcpy(memptr, that.data(), product(tensorDesc.getDims()) * sizeof(T));
+        memcpy(memptr, that.data(), byteSize());
     }
 
     /**
@@ -457,7 +678,7 @@ public:
         if (_handle != nullptr) {
             getAllocator()->free(_handle);
         }
-        _handle = getAllocator()->alloc(TBlob<T>::product(tensorDesc.getDims()) * sizeof(T));
+        _handle = getAllocator()->alloc(byteSize());
     }
 
     /**
@@ -539,7 +760,7 @@ protected:
         tensorDesc = blob.tensorDesc;
         this->allocate();
         auto memptr = data();
-        memcpy(memptr, blob.readOnly(), product(tensorDesc.getDims()) * sizeof(T));
+        memcpy(memptr, blob.readOnly(), byteSize());
     }
 
     /**
@@ -598,7 +819,7 @@ protected:
 };
 
 /**
- * @deprecated Use TensorDesc to create Blob::Ptr.
+ * @deprecated Use InferenceEngine::make_shared_blob(const TensorDesc&)
  * @brief Creates a blob with given precision and dimensions.
  * @tparam Type Type of the shared pointer to be created
  * @param p Given precision
@@ -606,15 +827,16 @@ protected:
  * @return A shared pointer to the created blob
  */
 template<class Type>
+INFERENCE_ENGINE_DEPRECATED
 inline typename TBlob<Type>::Ptr make_shared_blob(Precision p, Layout l, const SizeVector &dims) {
     if (!p.hasStorageType<Type>())
         THROW_IE_EXCEPTION << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
-    return std::make_shared<TBlob<Type>>(p, l, dims);
+    return std::make_shared<TBlob<Type>>(TensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), l));
 }
 
 /**
- * @deprecated Use TensorDesc to create Blob::Ptr
+ * @deprecated Use the make_shared_blob signature which accepts TensorDesc
  * @brief Creates a blob with the NCHW layout, given precision, and given dimensions.
  * @tparam Type Type of the shared pointer to be created
  * @param p Given precision
@@ -622,15 +844,16 @@ inline typename TBlob<Type>::Ptr make_shared_blob(Precision p, Layout l, const S
  * @return A shared pointer to the created blob
  */
 template<class Type>
+INFERENCE_ENGINE_DEPRECATED
 inline typename TBlob<Type>::Ptr make_shared_blob(Precision p, const SizeVector &dims) {
     if (!p.hasStorageType<Type>())
         THROW_IE_EXCEPTION << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
-    return make_shared_blob<Type>(p, TensorDesc::getLayoutByDims(dims), dims);
+    return make_shared_blob<Type>(TensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), TensorDesc::getLayoutByDims(dims)));
 }
 
 /**
- * @deprecated Use TensorDesc to create Blob::Ptr
+ * @deprecated Use the make_shared_blob signature which accepts TensorDesc
  * @brief Creates a blob with the given precision.
  * @tparam Type Type of the shared pointer to be created
  * @param p Given precision
@@ -638,15 +861,16 @@ inline typename TBlob<Type>::Ptr make_shared_blob(Precision p, const SizeVector 
  * @return A shared pointer to the blob created
  */
 template<typename Type, class TArg>
+INFERENCE_ENGINE_DEPRECATED
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(Precision p, Layout l, const TArg &arg) {
     if (!p.hasStorageType<Type>())
         THROW_IE_EXCEPTION << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
-    return std::make_shared<InferenceEngine::TBlob<Type>>(p, l, arg);
+    return std::make_shared<InferenceEngine::TBlob<Type>>(TensorDesc(p, SizeVector(arg.rbegin(), arg.rend()), l));
 }
 
 /**
- * @deprecated Use TensorDesc in order to create Blob::Ptr
+ * @deprecated Use the make_shared_blob signature which accepts TensorDesc
  * @brief Creates a blob with the NCHW layout and given tensor precision.
  * @tparam Type Type of the shared pointer to be created
  * @param p Given precision
@@ -654,11 +878,12 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(Precision p, 
  * @return A shared pointer to the blob created
  */
 template<typename Type, class TArg>
+INFERENCE_ENGINE_DEPRECATED
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(Precision p, const TArg &arg) {
     if (!p.hasStorageType<Type>())
         THROW_IE_EXCEPTION << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
-    return make_shared_blob<Type, TArg>(p, TensorDesc::getLayoutByDims(arg), arg);
+    return make_shared_blob<Type>(TensorDesc(p, SizeVector(arg.rbegin(), arg.rend()), TensorDesc::getLayoutByDims(arg)));
 }
 
 /**
@@ -707,7 +932,7 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorD
 }
 
 /**
- * @deprecated Use TensorDesc in order to create Blob::Ptr.
+ * @deprecated Use InferenceEngine::make_shared_blob(const TensorDesc&)
  * @brief Gets a shared pointer for the new TBlob instance.
  * The created instance is based on move semantics from the given TBlob instance.
  * @tparam TypeTo Type of the shared pointer to be created
@@ -715,6 +940,7 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorD
  * @return A shared pointer to the newly created blob of the given type
  */
 template<typename TypeTo>
+INFERENCE_ENGINE_DEPRECATED
 inline typename InferenceEngine::TBlob<TypeTo>::Ptr make_shared_blob(TBlob<TypeTo> &&arg) {
     return std::make_shared<InferenceEngine::TBlob<TypeTo>>(std::move(arg));
 }
@@ -731,22 +957,23 @@ inline typename InferenceEngine::TBlob<TypeTo>::Ptr make_shared_blob(const TBlob
 }
 
 /**
- * @deprecated Use TensorDesc in order to create Blob::Ptr.
+ * @deprecated Use InferenceEngine::make_shared_blob(const TensorDesc&)
  * @brief Creates a blob with the given precision.
  * @tparam TypeTo Type of the shared pointer to be created
  * @param p Given precision
  * @return A shared pointer to the blob created
  */
 template<typename TypeTo>
+INFERENCE_ENGINE_DEPRECATED
 inline typename InferenceEngine::TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l = NCHW) {
     if (!p.hasStorageType<TypeTo>())
         THROW_IE_EXCEPTION << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
-    return std::make_shared<TBlob<TypeTo>>(p, l);
+    return std::make_shared<TBlob<TypeTo>>(TensorDesc(p, l));
 }
 
 /**
- * @deprecated Use TensorDesc in order to create Blob::Ptr.
+ * @deprecated Use InferenceEngine::make_shared_blob(const TensorDesc&)
  * @brief Creates a blob with the given precision, layout and dimensions from the vector of values.
  * @tparam TypeTo Type of the shared pointer to be created
  * @param p Given precision
@@ -756,17 +983,18 @@ inline typename InferenceEngine::TBlob<TypeTo>::Ptr make_shared_blob(Precision p
  * @return A shared pointer to the blob created
  */
 template<typename TypeTo>
+INFERENCE_ENGINE_DEPRECATED
 inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, SizeVector dims, const std::vector<TypeTo> &arg) {
     if (!p.hasStorageType<TypeTo>())
         THROW_IE_EXCEPTION << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
-    auto blob = std::make_shared<TBlob<TypeTo>>(p, l, dims);
+    auto blob = std::make_shared<TBlob<TypeTo>>(TensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), l));
     blob->set(arg);
     return blob;
 }
 
 /**
- * @deprecated Use TensorDesc in order to create Blob::Ptr.
+ * @deprecated Use InferenceEngine::make_shared_blob(const TensorDesc&)
  * @brief Creates a blob with the given precision from the vector of values.
  * @tparam TypeTo Type of the shared pointer to be created
  * @param p Given precision
@@ -775,17 +1003,18 @@ inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, SizeV
  * @return A shared pointer to the blob created
  */
 template<typename TypeTo>
+INFERENCE_ENGINE_DEPRECATED
 inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, const std::vector<TypeTo> &arg) {
     if (!p.hasStorageType<TypeTo>())
         THROW_IE_EXCEPTION << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
-    auto blob = std::make_shared<TBlob<TypeTo>>(p, l);
+    auto blob = std::make_shared<TBlob<TypeTo>>(TensorDesc(p, l));
     blob->set(arg);
     return blob;
 }
 
 /**
- * @deprecated Use TensorDesc in order to create Blob::Ptr.
+ * @deprecated Use InferenceEngine::make_shared_blob(const TensorDesc&)
  * @brief Creates a blob with the NCHW layout and the given precision from the vector of values.
  * @tparam TypeTo Type of the shared pointer to be created
  * @param p Given precision
@@ -793,15 +1022,16 @@ inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, const
  * @return A shared pointer to the blob created
  */
 template<typename TypeTo>
+INFERENCE_ENGINE_DEPRECATED
 inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, const std::vector<TypeTo> &arg) {
     if (!p.hasStorageType<TypeTo>())
         THROW_IE_EXCEPTION << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
-    return make_shared_blob<TypeTo>(p, TensorDesc::getLayoutByDims(arg), arg);
+    return make_shared_blob<TypeTo>(TensorDesc(p, SizeVector(arg.rbegin(), arg.rend()), TensorDesc::getLayoutByDims(arg)));
 }
 
 /**
- * @deprecated Use TensorDesc in order to create Blob::Ptr.
+ * @deprecated Use InferenceEngine::make_shared_blob(const TensorDesc&)
  * @brief Creates a blob with the given precision from the pointer to the pre-allocated memory.
  * @param p Given precision
  * @param l Layout
@@ -811,16 +1041,17 @@ inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, const std::vect
  * @return A shared pointer to the blob created
  */
 template <typename TypeTo>
+INFERENCE_ENGINE_DEPRECATED
 inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, const SizeVector &dims, TypeTo * ptr, size_t size = 0) {
     if (!p.hasStorageType<TypeTo>())
         THROW_IE_EXCEPTION << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
-    auto blob = std::make_shared<TBlob<TypeTo>>(p, l, dims, ptr, size);
+    auto blob = std::make_shared<TBlob<TypeTo>>(TensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), l), ptr, size);
     return blob;
 }
 
 /**
- * @deprecated Use TensorDesc in order to create Blob::Ptr.
+ * @deprecated Use InferenceEngine::make_shared_blob(const TensorDesc&)
  * @brief Creates a blob with the NCHW layout and the given precision from the pointer to the pre-allocated memory
  * @param p Given precision
  * @param dims Given dimensions
@@ -829,11 +1060,23 @@ inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, Layout l, const
  * @return A shared pointer to the blob created
  */
 template <typename TypeTo>
+INFERENCE_ENGINE_DEPRECATED
 inline typename TBlob<TypeTo>::Ptr make_shared_blob(Precision p, const SizeVector &dims, TypeTo * ptr, size_t size = 0) {
     if (!p.hasStorageType<TypeTo>())
         THROW_IE_EXCEPTION << "Cannot make shared blob! "
                            << "The blob type cannot be used to store objects of current precision";
-    return make_shared_blob<TypeTo>(p, TensorDesc::getLayoutByDims(dims), dims, ptr, size);
+    return make_shared_blob<TypeTo>(TensorDesc(p, SizeVector(dims.rbegin(), dims.rend()), TensorDesc::getLayoutByDims(dims)), ptr, size);
+}
+
+/**
+ * @brief Creates a Blob object of the specified type
+ * @param args Constructor arguments for the Blob object
+ * @return A shared pointer to the newly created Blob object
+ */
+template<typename T, typename ...Args,
+         typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
+std::shared_ptr<T> make_shared_blob(Args&& ...args) {
+    return std::make_shared<T>(std::forward<Args>(args)...);
 }
 
 /**

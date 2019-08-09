@@ -18,18 +18,16 @@
 
 #include "kernel_selector.h"
 
-namespace kernel_selector
-{
-    class gemm_kernel_selector : public kernel_selector_base
-    {
-    public:
-        static gemm_kernel_selector &Instance() {
-            static gemm_kernel_selector instance;
-            return instance;
-        }
+namespace kernel_selector {
+class gemm_kernel_selector : public kernel_selector_base {
+public:
+    static gemm_kernel_selector& Instance() {
+        static gemm_kernel_selector instance;
+        return instance;
+    }
 
-        gemm_kernel_selector();
+    gemm_kernel_selector();
 
-        KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-    };
-}
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+};
+}  // namespace kernel_selector

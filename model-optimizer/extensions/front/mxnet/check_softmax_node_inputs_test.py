@@ -24,8 +24,8 @@ from mo.graph.graph import Node
 class TestCheckSoftmaxNodeInputs(unittest.TestCase):
     def test_remove_softmax_output_input(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
-             'node_2': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+             'node_2': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'softmax': {'type': 'SoftmaxOutput', 'value': None, 'kind': 'op', 'op': 'SoftmaxOutput'},
              },
             [('node_1', 'softmax'),
@@ -44,7 +44,7 @@ class TestCheckSoftmaxNodeInputs(unittest.TestCase):
 
     def test_remove_softmax_activation_input(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'softmax': {'type': 'SoftmaxActivation', 'value': None, 'kind': 'op', 'op': 'SoftmaxActivation'},
              },
             [('node_1', 'softmax')])

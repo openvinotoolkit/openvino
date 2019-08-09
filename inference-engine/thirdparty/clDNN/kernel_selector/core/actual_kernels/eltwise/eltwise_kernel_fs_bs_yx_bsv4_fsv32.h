@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +11,22 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #pragma once
 
 #include "eltwise_kernel_base.h"
 
-namespace kernel_selector
-{
-    class EltwiseKernel_fs_bs_yx_bsv4_fsv32 : public EltwiseKernelBase
-    {
-    public:
-        EltwiseKernel_fs_bs_yx_bsv4_fsv32() : EltwiseKernelBase("eltwise_fs_bs_yx_bsv4_fsv32") {}
-        virtual ~EltwiseKernel_fs_bs_yx_bsv4_fsv32() {}
+namespace kernel_selector {
+class EltwiseKernel_fs_bs_yx_bsv4_fsv32 : public EltwiseKernelBase {
+public:
+    EltwiseKernel_fs_bs_yx_bsv4_fsv32() : EltwiseKernelBase("eltwise_fs_bs_yx_bsv4_fsv32") {}
+    virtual ~EltwiseKernel_fs_bs_yx_bsv4_fsv32() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        JitConstants GetJitConstants(const eltwise_params& params) const override;
-        virtual DispatchData SetDefault(const eltwise_params& params) const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    JitConstants GetJitConstants(const eltwise_params& params) const override;
+    DispatchData SetDefault(const eltwise_params& params) const override;
+};
+}  // namespace kernel_selector

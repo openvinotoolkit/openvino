@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,52 +11,48 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
 #include "training_kernel_base.h"
 #include "kernel_selector_params.h"
 
-namespace kernel_selector 
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // fully_connected_grad_weights_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct fully_connected_grad_weights_params : public training_params
-    {
-        fully_connected_grad_weights_params() : training_params(KernelType::FULLY_CONNECTED_GRAD_WEIGHTS) {}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// fully_connected_grad_weights_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct fully_connected_grad_weights_params : public training_params {
+    fully_connected_grad_weights_params() : training_params(KernelType::FULLY_CONNECTED_GRAD_WEIGHTS) {}
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            ParamsKey k = training_params::GetParamsKey();
+    virtual ParamsKey GetParamsKey() const {
+        ParamsKey k = training_params::GetParamsKey();
 
-            return k;
-        }
-    };
+        return k;
+    }
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // fully_connected_grad_weights_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct fully_connected_grad_weights_optional_params : training_optional_params
-    {
-        fully_connected_grad_weights_optional_params() : training_optional_params(KernelType::FULLY_CONNECTED_GRAD_WEIGHTS) {}
-    };
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// fully_connected_grad_weights_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct fully_connected_grad_weights_optional_params : training_optional_params {
+    fully_connected_grad_weights_optional_params()
+        : training_optional_params(KernelType::FULLY_CONNECTED_GRAD_WEIGHTS) {}
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // FullyConnectedGradWeightsKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class FullyConnectedGradWeightsKernelBase : public training_kernel_base
-    {
-    public:
-        using training_kernel_base::training_kernel_base;
-        virtual ~FullyConnectedGradWeightsKernelBase() {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FullyConnectedGradWeightsKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class FullyConnectedGradWeightsKernelBase : public training_kernel_base {
+public:
+    using training_kernel_base::training_kernel_base;
+    virtual ~FullyConnectedGradWeightsKernelBase() {}
 
-        using DispatchData = CommonDispatchData;
-    
-    protected:
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const;
-        virtual JitConstants GetJitConstants(const fully_connected_grad_weights_params& params) const;
-        virtual DispatchData SetDefault(const fully_connected_grad_weights_params& params) const;
-    };
-}
+    using DispatchData = CommonDispatchData;
+
+protected:
+    virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const;
+    virtual JitConstants GetJitConstants(const fully_connected_grad_weights_params& params) const;
+    virtual DispatchData SetDefault(const fully_connected_grad_weights_params& params) const;
+};
+}  // namespace kernel_selector

@@ -30,7 +30,7 @@ public:
     using CPtr = std::shared_ptr<const InputInfo>;
 
     /**
-     * @deprecated it will be removed from public API. Please use getPrecision()
+     * @deprecated Use InputInfo::getPrecision
      * @brief Gets a precision of the input data provided by user
      *
      * By default it matches the layers precision, but there are exceptions of this rule
@@ -40,21 +40,23 @@ public:
      * @details By default it matches the layers precision, but there are exceptions of this rule.
      * For Q78 precision networks the input is expected in I16 by default.
      * For FP16 precision networks the input is expected in FP32 by default.
-     * The default input precision might be changed preferred one using setInputPrecision()
+     * The default input precision might be changed preferred one using InputInfo::setPrecision
      * function.
      * For example, for a Q78 precision network you can pass FP32 input data
      * @return The precision used for input blob creation
      */
+    INFERENCE_ENGINE_DEPRECATED
     Precision getInputPrecision() const {
         return getPrecision();
     }
 
     /**
-     * @deprecated it will be removed from public API. Please use setPrecision()
+     * @deprecated Use InputInfo::setPrecision
      * @brief Changes the precision of the input data provided by the user.
      * This function should be called before loading the network to the plugin
      * @param p A new precision of the input data to set
      */
+    INFERENCE_ENGINE_DEPRECATED
     void setInputPrecision(Precision p) {
         setPrecision(p);
     }
@@ -69,7 +71,7 @@ public:
      * @details By default it matches the layers precision, but there are exceptions of this rule.
      * For Q78 precision networks the input is expected in I16 by default.
      * For FP16 precision networks the input is expected in FP32 by default.
-     * The default input precision might be changed preferred one using setInputPrecision()
+     * The default input precision might be changed preferred one using InputInfo::setPrecision()
      * function.
      * For example, for a Q78 precision network you can pass FP32 input data
      * @return The precision used for input blob creation
@@ -139,7 +141,7 @@ public:
     /**
      * @brief Initializes the pointer to the input data that stores the main input parameters like dims, etc.
      * This method initializes the precision with the information from the inputPtr if it was not set
-     * explicitly through setInputPrecision(). If setInputPrecision() was called, this method does not overwrite the precision.
+     * explicitly through InputInfo::setPrecision. If InputInfo::setPrecision is called, this method does not overwrite the precision.
      * @param inputPtr Pointer to the input data to set
      */
     void setInputData(DataPtr inputPtr) {
@@ -147,13 +149,16 @@ public:
     }
 
     /**
-     * @deprecated Please use getTensorDesc for working with layouts and dimensions
+     * @deprecated Please use InputInfo::getTensorDesc for working with layouts and dimensions
      * @brief Gets dimensions/shape of the input data with reversed order
      * @return A SizeVector object that contains dimensions of the input data. If the data is not set, the method returns an empty SizeVector object.
      */
+    INFERENCE_ENGINE_DEPRECATED
     SizeVector getDims() const {
         if (_inputData) {
-            return _inputData->dims;
+            auto dims = _inputData->getTensorDesc().getDims();
+            std::reverse(dims.begin(), dims.end());
+            return dims;
         } else {
             return SizeVector();
         }

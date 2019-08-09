@@ -26,19 +26,22 @@ This will produce the following output (the line break was added to fit into
 the page width):
 
 ```
-    mkldnn_verbose,exec,reorder,simple:any,undef,in:f32_nchw out:f32_nChw8c,num:1,2x16x7x7,0.484863
-    mkldnn_verbose,exec,reorder,simple:any,undef,in:f32_goihw out:f32_gOIhw8i8o,num:1,1x16x16x5x5,0.494141
-    mkldnn_verbose,exec,reorder,simple:any,undef,in:f32_nchw out:f32_nChw8c,num:1,2x16x7x7,0.478027
-    mkldnn_verbose,exec,reorder,simple:any,undef,in:f32_x out:f32_x,num:1,16,0.219971
-    mkldnn_verbose,exec,convolution,jit:avx2,forward_inference,fsrc:nChw8c fwei:gOIhw8i8o fbia:x \
-        fdst:nChw8c,alg:convolution_direct,mb2_g1ic16oc16_ih7oh7kh5sh1dh0ph2_iw7ow7kw5sw1dw0pw2,0.0170898
-    mkldnn_verbose,exec,reorder,simple:any,undef,in:f32_nChw8c out:f32_nchw,num:1,2x16x7x7,0.488037
-    mkldnn_verbose,exec,reorder,simple:any,undef,in:f32_nChw8c out:f32_nchw,num:1,2x16x7x7,0.00512695
+    mkldnn_verbose,info,Intel(R) MKL-DNN v0.18.0 (Git Hash 4cfed5bf82f1339d7c8c7f622fda02dc00ec8ad8), \
+        Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
+    mkldnn_verbose,exec,reorder,jit:uni,undef,in:f32_nchw out:f32_nChw8c,num:1,2x16x7x7,0.529053
+    mkldnn_verbose,exec,reorder,jit:uni,undef,in:f32_oihw out:f32_OIhw8i8o,num:1,16x16x5x5,0.98999
+    mkldnn_verbose,exec,reorder,jit:uni,undef,in:f32_nchw out:f32_nChw8c,num:1,2x16x7x7,0.453125
+    mkldnn_verbose,exec,reorder,simple:any,undef,in:f32_x out:f32_x,num:1,16,0.388916
+    mkldnn_verbose,exec,convolution,jit:avx2,forward_training,fsrc:nChw8c fwei:OIhw8i8o fbia:x \
+        fdst:nChw8c,alg:convolution_direct,mb2_ic16oc16_ih7oh7kh5sh1dh0ph2_iw7ow7kw5sw1dw0pw2,0.0241699
+    mkldnn_verbose,exec,reorder,jit:uni,undef,in:f32_nChw8c out:f32_nchw,num:1,2x16x7x7,0.469971
     0:PASSED __REPRO: ic16ih7oc16oh7kh5ph2nwip
     tests:1 passed:1 skipped:0 mistrusted:0 unimplemented:0 failed:0
 ```
 
-Each line with verbose information is formatted as a comma-separated list
+The first line of verbose information contains the build version and git hash,
+if available, as well as the supported instruction set architechture. Each
+subsequent line of verbose information is formatted as a comma-separated list
 containing:
 - `mkldnn_verbose`
 - `stage`, e.g. `create` or `exec`

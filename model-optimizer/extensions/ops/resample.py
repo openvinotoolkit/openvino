@@ -23,6 +23,7 @@ from mo.ops.op import Op
 
 
 class ResampleOp(Op):
+    enabled = False
     op = 'Resample'
 
     def __init__(self, graph: Graph, attrs: dict):
@@ -32,7 +33,7 @@ class ResampleOp(Op):
             'factor': None,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': ResampleOp.resample_infer
+            'infer': None
         }
         super().__init__(graph, mandatory_props, attrs)
 

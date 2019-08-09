@@ -16,14 +16,18 @@ file(GLOB
         graph_tools/*.cpp
         inference_engine_tests/*.cpp
         inference_engine_tests/cpp_interfaces/*.cpp
+        inference_engine_tests/normalization/*.cpp
         mem_solver/*.cpp
         cnn_network/*.cpp
         builders/*.cpp
         transformations/*.cpp
-        shape_infer/*.cpp
+        ie_class/*.cpp
+        # TODO: apeskov: Please fix issue CVS
+        # shape_infer/*.cpp
         shape_infer/built-in/*.cpp
         topology_verification_tests/*.cpp
         stress_tests/*.cpp
+        cpp_api/*.cpp
         )
 
 if (ENABLE_GNA)
@@ -47,6 +51,7 @@ if (ENABLE_MKL_DNN)
     file(GLOB
             MKLDNN_TESTS
             engines/mkldnn/*.cpp
+            engines/mkldnn/normalizer/*.cpp
             engines/mkldnn/graph/layers/extensions/*.cpp
             engines/mkldnn/graph/layers/internal/*.cpp
             engines/mkldnn/graph/structure/*.cpp
@@ -61,26 +66,6 @@ if (ENABLE_MKL_DNN)
 
     source_group("mkldnn" FILES ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE})
 endif ()
-
-if (ENABLE_VPU)
-    # Disable MVNC Unit tests for PCIE
-    if (NOT ENABLE_MYX_PCIE)
-        file(GLOB VPU_MVNC_TESTS engines/vpu/mvnc/*cpp)
-    endif()
-    file(GLOB
-            VPU_TESTS
-            engines/vpu/*cpp
-            )
-    include_directories(
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/XLink/shared
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/watchdog
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/WinPthread
-    )
-
-    list(APPEND TEST_SRC ${VPU_TESTS})
-    source_group("vpu" FILES ${VPU_TESTS})
-endif()
 
 file(GLOB
         TEST_INCLUDE
@@ -97,9 +82,9 @@ set_ie_threading_interface_for(${TARGET_NAME})
 target_include_directories(${TARGET_NAME} PRIVATE
         ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin
         ${IE_MAIN_SOURCE_DIR}/src/gna_plugin
-        ${IE_MAIN_SOURCE_DIR}/src/inference_engine
         ${IE_MAIN_SOURCE_DIR}/src/extension
         ${IE_MAIN_SOURCE_DIR}/src/extension/common
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/ngraph/src
         "${CMAKE_CURRENT_SOURCE_DIR}/mocks")
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
@@ -108,15 +93,12 @@ set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-inconsistent-missing-override >)
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-inconsistent-missing-override >)
 
-if (ENABLE_VPU)
-    target_link_libraries(${TARGET_NAME} PRIVATE mvnc vpu_graph_transformer_test_static)
-endif ()
-
 target_link_libraries(${TARGET_NAME} PRIVATE
     gtest
+    gflags
     gtest_main
     gmock
-    gflags
+    ngraph
     inference_engine_s
     helpers
     ${CMAKE_DL_LIBS}
@@ -134,6 +116,3 @@ add_test(NAME ${TARGET_NAME}
         COMMAND ${TARGET_NAME})
 
 add_dependencies(${TARGET_NAME} mock_engine)
-
-# GAPI unit tests
-add_subdirectory(opencv_test_gapi)

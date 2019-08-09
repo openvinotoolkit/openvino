@@ -23,8 +23,9 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng)
-        : MKLDNNNode(layer, eng) {
+MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer,
+                                                         const mkldnn::engine& eng, int socket)
+        : MKLDNNNode(layer, eng, socket) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });
@@ -117,6 +118,7 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
             for (int i = 0; i < convLayer->_stride.size(); i++) {
                 dw_conv_strides.push_back(convLayer->_stride[i]);
             }
+            dw_conv_in_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(convLayer->outData[0]->getPrecision());
         }
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
@@ -284,6 +286,7 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
                                                                          memory::data_type::f32));
                 ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
                                    dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                                   mkldnn::memory::convert_to_c(dw_conv_in_dt),
                                    (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
                                    (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
 
@@ -291,6 +294,7 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
             } else {
                 ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
                                    dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                                   mkldnn::memory::convert_to_c(dw_conv_in_dt),
                                    nullptr,
                                    nullptr);
             }
@@ -332,6 +336,7 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
                     config.inConfs.push_back(dataConfig);
                 }
 
+                std::vector<memory::format> outFormats;
                 for (size_t i = 0; i < desc.outputNumbers(); i++) {
                     InferenceEngine::DataConfig dataConfig;
                     if (withSum) {
@@ -343,6 +348,7 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
                     if (!isGrouped)
                         dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
                     config.outConfs.push_back(dataConfig);
+                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
 
                     if (withSum) {
                         dataConfig.inPlace = -1;
@@ -351,7 +357,7 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
                 }
                 impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 
-                supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+                supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
             } while (itpd.next());
         } catch (std::exception& e) {
             // it throw exception in case of no implementation found

@@ -15,6 +15,7 @@
 """
 
 import argparse
+import logging as log
 import os
 import re
 import sys
@@ -27,6 +28,18 @@ from mo.front.extractor import split_node_in_port
 from mo.utils import import_extensions
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
+
+
+class DeprecatedStoreTrue(argparse.Action):
+    def __init__(self, nargs=0, **kw):
+        super().__init__(nargs=nargs, **kw)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+        if 'fusing' in option_string:
+            dep_msg += 'Please use --finegrain_fusing cli option instead'
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(namespace, self.dest, True)
 
 
 class CanonicalizePathAction(argparse.Action):
@@ -174,7 +187,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'undefined dimensions (? or -1) and should fit the dimensions defined in the input '
                                    'operation of the graph. If there are multiple inputs in the model, --input_shape '
                                    'should contain definition of shape for each input separated by a comma, for '
-                                   'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes.')
+                                   'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes. '
+                                   'Alternatively, you can specify shapes with the --input option.')
     common_group.add_argument('--scale', '-s',
                               type=float,
                               help='All input values coming from original network inputs will be ' +
@@ -196,9 +210,13 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                        'DEBUG', 'NOTSET'],
                               default='ERROR')
     common_group.add_argument('--input',
-                              help='The name of the input operation of the given model. ' +
-                                   'Usually this is a name of the ' +
-                                   'input placeholder of the model.')
+                              help='Comma-separated list of input nodes names with shapes ' +
+                                   'and values for freezing. '+
+                                   'For example, use the following format to set input port <port1> ' +
+                                   'of the node <node_name1> with the shape <shape1> as an input node and ' +
+                                   'freeze output port <port2> of the node <node_name2> with the value <value2> ' +
+                                   'and the shape <shape2>: ' +
+                                   'port1:node_name1[shape1], node_name2:port2[shape2]->value2.')
     common_group.add_argument('--output',
                               help='The name of the output operation of the model. ' +
                                    'For TensorFlow*, do not add :0 to this name.')
@@ -227,7 +245,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default='float')
     common_group.add_argument('--disable_fusing',
                               help='Turn off fusing of linear operations to Convolution',
-                              action='store_true')
+                              action=DeprecatedStoreTrue)
     common_group.add_argument('--disable_resnet_optimization',
                               help='Turn off resnet optimization',
                               action='store_true')
@@ -236,7 +254,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Example: --finegrain_fusing Convolution1,.*Scale.*')
     common_group.add_argument('--disable_gfusing',
                               help='Turn off fusing of grouped convolutions',
-                              action='store_true')
+                              action=DeprecatedStoreTrue)
     common_group.add_argument('--enable_concat_optimization',
                               help='Turn on concat optimization',
                               action='store_true')
@@ -265,8 +283,11 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'By default, log level is already ERROR. ',
                               action='store_true',
                               default=False)
-    common_group.add_argument('--freeze_placeholder_with_value', help='Replaces input layer with constant node with '
-                                                                      'provided value, e.g.: "node_name->True"',
+    common_group.add_argument('--freeze_placeholder_with_value',
+                              help='Replaces input layer with constant node with '
+                                   'provided value, for example: "node_name->True". '
+                                   'It will be DEPRECATED in future releases. '
+                                   'Use --input option to specify a value for freezing.',
                               default=None)
     common_group.add_argument('--generate_deprecated_IR_V2',
                               help='Force to generate legacy/deprecated IR V2 to work with previous versions of the'
@@ -275,7 +296,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    ' Engine) and provided as a partially-validated backup option for specific'
                                    ' deployment scenarios. Use it at your own discretion. By default, without this'
                                    ' option, the Model Optimizer generates IR V3.',
-                              action='store_true')
+                              action=DeprecatedStoreTrue)
     common_group.add_argument('--keep_shape_ops',
                               help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
                                    'This feature makes model reshapable in Inference Engine',
@@ -307,6 +328,7 @@ def get_common_cli_options(model_name):
 def get_caffe_cli_options():
     d = {
         'input_proto': ['- Path to the Input prototxt', lambda x: x],
+        'caffe_parser_path': ['- Path to Python Caffe* parser generated from caffe.proto', lambda x: x],
         'mean_file': ['- Path to a mean file', lambda x: x if x else 'Not specified'],
         'mean_file_offsets': ['- Offsets for a mean file', lambda x: x if x else 'Not specified'],
         'k': '- Path to CustomLayersMapping.xml',
@@ -378,6 +400,11 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                              help='Deploy-ready prototxt file that contains a topology structure ' +
                                   'and layer attributes',
                              type=str,
+                             action=CanonicalizePathCheckExistenceAction)
+    caffe_group.add_argument('--caffe_parser_path',
+                             help='Path to Python Caffe* parser generated from caffe.proto',
+                             type=str,
+                             default=os.path.join(os.path.dirname(sys.argv[0]), 'mo', 'front', 'caffe', 'proto'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('-k',
                              help='Path to CustomLayersMapping.xml to register custom layers',
@@ -507,6 +534,11 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
     mx_group.add_argument("--legacy_mxnet_model",
                           action='store_true',
                           help="Enable MXNet loader to make a model compatible with the latest MXNet version. Use only if your model was trained with MXNet version lower than 1.0.0")
+    mx_group.add_argument("--enable_ssd_gluoncv",
+                          action='store_true',
+                          help="Enable pattern matchers replacers for converting gluoncv ssd topologies.",
+                          default=False)
+
     return parser
 
 
@@ -578,15 +610,129 @@ def get_all_cli_parser():
     return parser
 
 
-def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
+def append_exp_keys_to_namespace(argv: argparse.Namespace):
+    setattr(argv, 'generate_experimental_IR_V10', False)
+    setattr(argv, 'keep_quantize_ops_in_IR', False)
+    setattr(argv, 'blobs_as_inputs', False)
+
+
+def parse_input_value(input_value: str):
     """
-    Parses input layers names and input shapes from the cli and returns the parsed object
+    Parses a value of the --input command line parameter and gets a node name, shape and value.
+    The node name includes a port if it is specified.
+    Shape and value is equal to None if they are not specified.
+    Parameters
+    ----------
+    input_value
+        string with a specified node name, shape and value.
+        E.g. 'node_name:0[4]->[1.0 2.0 3.0 4.0]'
+
+    Returns
+    -------
+        Node name, shape and value
+        E.g. 'node_name:0', '4', [1.0 2.0 3.0 4.0]
+    """
+    input_value = input_value.split('->')
+    node_name_with_shape = input_value[0]
+
+    # parse a node name
+    node_name = node_name_with_shape.split('[')[0]
+
+    # parse shape
+    shape = re.findall(r'[(\[]([0-9  -]+)[)\]]', node_name_with_shape)
+    if len(shape) == 0:
+        shape = None
+    elif len(shape) == 1:
+        shape = np.fromstring(shape[0], dtype=np.int64, sep=' ')
+    else:
+        raise Error("Wrong syntax to specify shape. Use --input "
+                    "\"node_name[shape]->value\"")
+
+    # parse value, compute shape and check it
+    value = None
+    if len(input_value) == 2:
+        value = input_value[1]
+        # check format of value
+        if value[0] == '[' and value[-1] != ']' or value[0] != '[' and value[-1] == ']':
+            raise Error("Wrong syntax to specify value. Use --input "
+                        "\"node_name[shape]->value\"")
+        # TODO: support multidimensional value: check format, compute value shape
+        # and check that value shape is equal to shape
+        if '[' in value.strip(' '):
+            value = value.replace('[', '').replace(']', '').split(' ')
+        value_size = len(value)
+        if shape is not None and np.prod(shape) != value_size:
+            raise Error("Wrong syntax to specify value.")
+    elif len(input_value) > 2:
+        raise Error("Wrong syntax to specify value. Use --input "
+                    "\"node_name[shape]->value\"")
+
+    return node_name, shape, value
+
+
+def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_value: str):
+    """
+    Parses values for placeholder freezing and input node names
 
     Parameters
     ----------
     argv_input
         string with a list of input layers: either an empty string, or strings separated with comma.
-        E.g. 'inp1,inp2'
+        'node_name1[shape1]->value1,node_name2[shape2]->value2,...'
+    argv_freeze_placeholder_with_value
+        string with a list of input shapes: either an empty string, or tuples separated with comma.
+        'placeholder_name1->value1, placeholder_name2->value2,...'
+
+    Returns
+    -------
+        parsed placeholders with values for freezing
+        input nodes cleaned from shape info
+
+    """
+    placeholder_values = {}
+    input_node_names = None
+
+    if argv_freeze_placeholder_with_value is not None:
+        for plh_with_value in argv_freeze_placeholder_with_value.split(','):
+            plh_with_value = plh_with_value.split('->')
+            if len(plh_with_value) != 2:
+                raise Error("Wrong replacement syntax. Use --freeze_placeholder_with_value "
+                            "\"node1_name->value1,node2_name->value2\"")
+            node_name = plh_with_value[0]
+            value = plh_with_value[1]
+            if node_name in placeholder_values and placeholder_values[node_name] != value:
+                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
+                            ".".format(node_name, placeholder_values[node_name], value))
+            if '[' in value.strip(' '):
+                value = value.replace('[', '').replace(']', '').split(' ')
+            placeholder_values[node_name] = value
+
+    if argv_input is not None:
+        input_node_names = ''
+        # walkthrough all input values and save values for freezing
+        for input_value in argv_input.split(','):
+            node_name, _, value = parse_input_value(input_value)
+            input_node_names = input_node_names + ',' + node_name  if input_node_names != '' else node_name
+            if value is None: # no value is specified for freezing
+                continue
+            if node_name in placeholder_values and placeholder_values[node_name] != value:
+                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
+                            ".".format(node_name, placeholder_values[node_name], value))
+            placeholder_values[node_name] = value
+
+    return placeholder_values, input_node_names
+
+
+def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
+    """
+    Parses input layers names and input shapes from the cli and returns the parsed object.
+    All shapes are specified only through one command line option either --input or --input_shape.
+
+    Parameters
+    ----------
+    argv_input
+        string with a list of input layers: either an empty string, or strings separated with comma.
+        E.g. 'inp1,inp2', 'node_name1[shape1]->value1,node_name2[shape2]->value2'
     argv_input_shape
         string with a list of input shapes: either an empty string, or tuples separated with comma.
         E.g. '(1,2),(3,4)'.
@@ -604,6 +750,26 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     if argv_input_shape and argv_batch:
         raise Error("Both --input_shape and --batch were provided. Please provide only one of them. " +
                     refer_to_faq_msg(56))
+
+    # attempt to extract shapes from --input parameters
+    placeholder_shapes = dict()
+    are_shapes_specified_through_input = False
+    if argv_input:
+        for input_value in argv_input.split(','):
+            node_name, shape, _ = parse_input_value(input_value)
+            placeholder_shapes[node_name] = shape
+            if shape is not None:
+                are_shapes_specified_through_input = True
+
+    if argv_input_shape and are_shapes_specified_through_input:
+        raise Error("Shapes are specified using both --input and --input_shape command-line parameters, but only one parameter is allowed.")
+
+    if argv_batch and are_shapes_specified_through_input:
+        raise Error("Shapes are specified using both --input and --batch command-line parameters, but only one parameter is allowed.")
+
+    if are_shapes_specified_through_input:
+        return placeholder_shapes
+
     shapes = list()
     inputs = list()
     placeholder_shapes = None
@@ -633,6 +799,8 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
 
     # check if number of shapes does not match number of passed inputs
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
+        # clean inputs from values for freezing
+        inputs = list(map(lambda x: x.split('->')[0], inputs))
         placeholder_shapes = dict(zip_longest(inputs,
                                               map(lambda x: np.fromstring(x, dtype=np.int64,
                                                                           sep=',') if x else None, shapes)))

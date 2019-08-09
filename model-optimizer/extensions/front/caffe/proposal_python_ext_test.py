@@ -37,13 +37,10 @@ class TestProposalPythonExt(unittest.TestCase):
     def test_proposal_no_pb_no_ml(self):
         self.assertRaises(AttributeError, ProposalPythonFrontExtractor.extract, None)
 
-    @patch('mo.front.caffe.extractors.utils.merge_attrs')
-    def test_proposal_ext_ideal_numbers(self, merge_attrs):
+    def test_proposal_ext_ideal_numbers(self):
         params = {
             'param_str': "'feat_stride': 16"
         }
-        merge_attrs.return_value = params
-
         fake_pl = FakeProposalPythonProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
 
@@ -65,13 +62,10 @@ class TestProposalPythonExt(unittest.TestCase):
         for key in exp_res.keys():
             self.assertEqual(fake_node[key], exp_res[key])
 
-    @patch('mo.front.caffe.extractors.utils.merge_attrs')
-    def test_proposal_ext_scales(self, merge_attrs):
+    def test_proposal_ext_scales(self):
         params = {
             'param_str': "'feat_stride': 16, 'scales': [1,2,3], 'ratios':[5, 6,7]"
         }
-        merge_attrs.return_value = params
-
         fake_pl = FakeProposalPythonProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
 
@@ -93,13 +87,10 @@ class TestProposalPythonExt(unittest.TestCase):
         for key in exp_res.keys():
             self.assertEqual(fake_node[key], exp_res[key])
 
-    @patch('mo.front.caffe.extractors.utils.merge_attrs')
-    def test_proposal_ext_scale(self, merge_attrs):
+    def test_proposal_ext_scale(self):
         params = {
             'param_str': "'feat_stride': 16, 'scale': [1,2,3], 'ratio':[5, 6,7]"
         }
-        merge_attrs.return_value = params
-
         fake_pl = FakeProposalPythonProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
 

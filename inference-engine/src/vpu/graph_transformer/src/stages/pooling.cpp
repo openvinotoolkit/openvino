@@ -49,11 +49,31 @@ void FrontEnd::parsePooling(
     int kernelStrideX = poolLayer->_stride_x;
     int kernelStrideY = poolLayer->_stride_y;
 
-    auto paddings = getPaddings(*poolLayer);
-    int padLeft = paddings.begin.exist(ie::X_AXIS) ? paddings.begin[ie::X_AXIS] : 0;
-    int padRight = paddings.end.exist(ie::X_AXIS) ? paddings.end[ie::X_AXIS] : padLeft;
-    int padTop = paddings.begin.exist(ie::Y_AXIS) ? paddings.begin[ie::Y_AXIS] : 0;
-    int padBottom = paddings.end.exist(ie::Y_AXIS) ? paddings.end[ie::Y_AXIS] : padTop;
+    auto paddings  = getPaddings(*poolLayer);
+    int  padLeft   = paddings.begin.exist(ie::X_AXIS) ? paddings.begin[ie::X_AXIS] : 0;
+    int  padRight  = paddings.end.exist(ie::X_AXIS)   ? paddings.end[ie::X_AXIS]   : padLeft;
+    int  padTop    = paddings.begin.exist(ie::Y_AXIS) ? paddings.begin[ie::Y_AXIS] : 0;
+    int  padBottom = paddings.end.exist(ie::Y_AXIS)   ? paddings.end[ie::Y_AXIS]   : padTop;
+
+    // for old IR's IE doesn't return valid padding. Fix paddings
+    {
+        int iw = input->desc().dim(Dim::W);
+        int ih = input->desc().dim(Dim::H);
+
+        int ow = output->desc().dim(Dim::W);
+        int oh = output->desc().dim(Dim::H);
+
+        int expectedIW = (ow - 1)*kernelStrideX + kernelSizeX;
+        int expectedOW = (oh - 1)*kernelStrideY + kernelSizeY;
+
+        if (expectedIW > iw + padLeft + padRight) {
+            padRight  = expectedIW - (iw + padLeft);
+        }
+
+        if (expectedOW > ih + padTop + padBottom) {
+            padBottom = expectedOW - (ih + padTop);
+        }
+    }
 
     auto poolType = poolLayer->_type;
 
@@ -94,11 +114,11 @@ void FrontEnd::parsePooling(
         int tempX = iw + (padLeft + padRight) - kernelSizeX;
         int tempY = ih + (padBottom + padTop) - kernelSizeY;
 
-        int outWidthWithOutCeil = (tempX + kernelStrideX) / kernelStrideX;
-        int outHeightWithOutCeil = (tempY + kernelStrideX) / kernelStrideX;
+        int outWidthWithOutCeil  = (tempX + kernelStrideX) / kernelStrideX;
+        int outHeightWithOutCeil = (tempY + kernelStrideY) / kernelStrideY;
 
-        int outWidthWithCeil =  static_cast<int>(std::ceil(static_cast<double>(tempX) / kernelStrideX + 1));
-        int outHeightWithCeil = static_cast<int>(std::ceil(static_cast<double>(tempY) / kernelStrideX + 1));
+        int outWidthWithCeil  = static_cast<int>(std::ceil(static_cast<double>(tempX) / kernelStrideX + 1));
+        int outHeightWithCeil = static_cast<int>(std::ceil(static_cast<double>(tempY) / kernelStrideY + 1));
 
         if ((ow != outWidthWithCeil) && (ow != outWidthWithOutCeil)) {
             tryHW = false;
@@ -152,7 +172,20 @@ void FrontEnd::parsePooling(
         }
     }
 
+    // FIX #16406, #18639 AVG pooling result is always 0 in case of 1x1 kernel
+    if (kernelSizeX == 1 && kernelSizeY == 1 && poolType == ie::PoolingLayer::PoolType::AVG) {
+        tryHW = false;
+    }
 
+    // FIX #18761 - WA disble HW pooling for below case
+    // ToDo: evaluate exact problem, more cases and proper fix
+    if (kernelSizeX == 2 && kernelSizeY == 2 &&
+        kernelStrideX == 1 && kernelStrideY == 1 &&
+        (output->desc().dim(Dim::W) & 1) == 0 &&
+        (output->desc().dim(Dim::H) & 1) == 0 &&
+        poolLayer->_auto_pad == "same_upper") {
+        tryHW = false;
+    }
     if (env.netConfig.hwDisabled(layer->name)) {
         tryHW = false;
     }

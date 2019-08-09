@@ -45,7 +45,6 @@ def caffe_inner_product(node):
 
     mark_input_bins(node)
     assign_dims_to_weights(node.in_node(1), None, 1, 0, 2)
-    PermuteAttrs.set_permutation(node.in_node(1), node, None)
 
 
 def onnx_matmul_infer(node):

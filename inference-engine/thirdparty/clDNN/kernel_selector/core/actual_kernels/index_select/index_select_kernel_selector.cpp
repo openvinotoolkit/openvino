@@ -12,19 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "index_select_kernel_selector.h"
 #include "index_select_kernel_ref.h"
 
-namespace kernel_selector 
-{
-    index_select_kernel_selector::index_select_kernel_selector()
-    {
-        Attach<IndexSelectKernelRef>();
-    }
+namespace kernel_selector {
+index_select_kernel_selector::index_select_kernel_selector() { Attach<IndexSelectKernelRef>(); }
 
-    KernelsData index_select_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::INDEX_SELECT);
-    }
+KernelsData index_select_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::INDEX_SELECT);
 }
+}  // namespace kernel_selector

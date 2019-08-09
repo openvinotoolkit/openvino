@@ -742,8 +742,8 @@ void lstm_gpu_output_test(const cldnn_lstm_output& output_selection, int directi
         int32_t concatenation_len = emit_last_hidden ? 2 : sequence_len + 1;
         tensor hidden_tensor {batch_size, concatenation_len - 1, hidden_size, directions};
         tensor cell_tensor {batch_size, 1, hidden_size, directions};
-        topology.add(crop(emit_last_hidden ? "crop:last_hidden" : "crop:sequence", "lstm", hidden_tensor, tensor {0, 0, 0, 0}));
-        topology.add(crop("crop:last_cell", "lstm", cell_tensor, tensor {0, concatenation_len - 1, 0, 0}));
+        topology.add(crop(emit_last_hidden ? "crop:last_hidden" : "crop:sequence", "lstm", hidden_tensor, tensor{0, 0, 0, 0}));
+        topology.add(crop("crop:last_cell", "lstm", cell_tensor, tensor{0, concatenation_len - 1, 0, 0}));
     }
 
     network network(engine, topology);
@@ -906,8 +906,8 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
         int32_t concatenation_len = emit_last_hidden ? 2 : sequence_len + 1;
         tensor hidden_tensor {batch_size, concatenation_len - 1, hidden_size, directions};
         tensor cell_tensor {batch_size, 1, hidden_size, directions};
-        topology.add(crop(emit_last_hidden ? "crop:last_hidden" : "crop:sequence", "lstm", hidden_tensor, tensor {0, 0, 0, 0}));
-        topology.add(crop("crop:last_cell", "lstm", cell_tensor, tensor {0, concatenation_len - 1, 0, 0}));
+        topology.add(crop(emit_last_hidden ? "crop:last_hidden" : "crop:sequence", "lstm", hidden_tensor, tensor{0, 0, 0, 0}));
+        topology.add(crop("crop:last_cell", "lstm", cell_tensor, tensor{0, concatenation_len - 1, 0, 0}));
     }
 
     network network(engine, topology);

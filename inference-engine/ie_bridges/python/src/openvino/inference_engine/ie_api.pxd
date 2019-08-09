@@ -25,8 +25,9 @@ cdef class InferRequest:
     cpdef async_infer(self, inputs = ?)
     cpdef wait(self, timeout = ?)
     cpdef get_perf_counts(self)
+    cdef void user_callback(self, int status) with gil
     cdef public:
-        _inputs_list, _outputs_list
+        _inputs_list, _outputs_list, _py_callback, _py_data, _py_callback_used, _py_callback_called
 
 cdef class IENetwork:
     cdef C.IENetwork impl
@@ -34,8 +35,9 @@ cdef class IENetwork:
 cdef class ExecutableNetwork:
     cdef unique_ptr[C.IEExecNetwork] impl
     cdef C.IEPlugin plugin_impl
+    cdef C.IECore ie_core_impl
     cdef public:
-        _requests, inputs, outputs
+        _requests, _infer_requests, inputs, outputs
 
 cdef class IEPlugin:
     cdef C.IEPlugin impl
@@ -56,3 +58,7 @@ cdef class OutputInfo:
 
 cdef class LayersStatsMap(dict):
     cdef C.IENetwork net_impl
+
+cdef class IECore:
+    cdef C.IECore impl
+    cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config = ?, int num_requests = ?)

@@ -15,44 +15,83 @@
 """
 import numpy as np
 
+from extensions.back.ForceStrictPrecision import ForceStrictPrecision
+from extensions.back.OptimizeTransposeReshapeSequence import OptimizeTransposeReshapeSequence
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph, Node
 from mo.middle.pattern_match import for_each_sub_graph_recursively
+from mo.ops.reshape import Reshape
 
 
 class ReshapeMutation(BackReplacementPattern):
     enabled = True
     force_clean_up = True
+    run_not_recursively = True
+
+    def run_before(self):
+        return [ForceStrictPrecision]
 
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('reshape', {'kind': 'op', 'type': 'Reshape'})],
+            nodes=[('reshape', {'kind': 'op'})],
             edges=[],
         )
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         reshape = match['reshape']
-        if hasattr(reshape, 'dim') and reshape.dim is not None:
-            reshape_inputs = reshape.in_nodes()
-            value = np.array(reshape.dim)
-            shape = np.array(value.shape)
-            del reshape.graph.node[reshape.id]['dim']
-
-            if 1 in reshape_inputs:
-                reshape_inputs[1].value = value
-                reshape_inputs[1].shape = shape
+        # TODO: WA for Caffe Alibaba model
+        if reshape.has_and_set('reinterp_shape') or reshape.soft_get('type') == 'Reshape':
+            if graph.graph['cmd_params'].generate_experimental_IR_V10:
+                reshape['force_precision_in_ports'] = {1: 'int64'}
             else:
-                const_id = graph.unique_id(reshape.id + '/DimData')
-                graph.add_node(const_id,
-                               **{'kind': 'data', 'value': value, 'shape': shape, 'name': reshape.id + '/DimData'})
-                graph.add_edge(const_id, reshape.id, **{'in': 1})
+                reshape['force_precision_in_ports'] = {1: 'int32'}
+
+
+class FlattenMutation(BackReplacementPattern):
+    enabled = True
+    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
+    force_clean_up = True
+    run_not_recursively = True
+
+    def run_before(self):
+        return [ForceStrictPrecision]
+
+    def run_after(self):
+        return [OptimizeTransposeReshapeSequence]
+
+    @staticmethod
+    def pattern():
+        return dict(
+            nodes=[('reshape', {'kind': 'op', 'type': 'Flatten'})],
+            edges=[],
+        )
+
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
+        flatten = match['reshape']
+        out_shape = flatten.out_port(0).data.get_shape()
+
+        const_id = graph.unique_id(flatten.id + '/DimData')
+        graph.add_node(const_id, **{'kind': 'data', 'value': out_shape, 'shape': np.array(out_shape.shape),
+                                    'name': flatten.id + '/DimData'})
+        flatten.add_input_port(1, skip_if_exist=True)
+        graph.add_edge(const_id, flatten.id, **{'in': 1})
+        flatten['force_precision_in_ports'] = {1: 'int64'}
+
+        # TODO workaround for nGraph only!!!
+        flatten.in_node(1)['value'] = flatten.out_node(0)['shape']
+
+        Reshape.update_node_stat(flatten)
+
+        flatten['force_precision_in_ports'] = {1: 'int64'}
 
 
 class DisableReshapeMutationInTensorIterator(BackReplacementPattern):
     enabled = True
     force_clean_up = True
+    run_not_recursively = True
 
     def run_after(self):
         return [ReshapeMutation]
@@ -75,11 +114,9 @@ class DisableReshapeMutationInTensorIterator(BackReplacementPattern):
         for reshape in reshapes:
             in_nodes = reshape.in_nodes()
 
-            if len(in_nodes) == 1:
-                continue
-            assert len(in_nodes) == 2, "Reshape operation should have 2 inputs or 1 input and `dim` attribute"
+            assert len(in_nodes) == 2
+            reshape['dim'] = reshape.in_port(1).data.get_value()
 
-            reshape['dim'] = reshape.in_port(1).get_connection().data.get_value()
             reshape.in_port(1).disconnect()
 
             params = [('dim', lambda node: ','.join(map(str, node['dim'])))]

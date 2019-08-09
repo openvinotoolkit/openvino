@@ -94,9 +94,6 @@ def apply_pattern(graph: Graph, nodes: list, edges: list, action: callable, node
         if still_valid:
             action(graph, match)
 
-    # Find all sub-graphs and apply_pattern recursively
-    for_each_sub_graph(graph, lambda graph: apply_pattern(graph, nodes, edges, action, node_attrs, edge_attrs))
-
 
 def check_node_usages_out_of_match(match: dict, node_name_in_match_group: str):
     """

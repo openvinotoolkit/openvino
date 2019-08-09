@@ -18,7 +18,7 @@ using namespace mkldnn;
 struct depthwise_test_params {
     mkldnn::algorithm alg;
 
-    // Formats: NCHW, NCDHW
+    // Formats: NC, NCHW, NCDHW
     vector<size_t> dims;
 
     bool isBroadcast;
@@ -34,13 +34,13 @@ struct depthwise_test_params {
 template <typename data_t>
 void ref_depthwise(const InferenceEngine::TBlob<data_t> &src, const data_t *weights, const size_t weightsSize,
                    InferenceEngine::TBlob<data_t> &dst, depthwise_test_params prm) {
-    auto dims_size = src.dims().size();
+    auto dims_size = src.getTensorDesc().getDims().size();
 
-    size_t IW = src.dims()[dims_size - 1];
-    size_t IH = src.dims()[dims_size - 2];
-    size_t ID = dims_size == 5 ? src.dims()[2] : 1u;
-    size_t IC = src.dims()[1];
-    size_t MB = src.dims()[0];
+    size_t MB = src.getTensorDesc().getDims()[0];
+    size_t IC = src.getTensorDesc().getDims()[1];
+    size_t ID = dims_size == 5 ? src.getTensorDesc().getDims()[2] : 1u;
+    size_t IH = dims_size == 2 ? 1 : src.getTensorDesc().getDims()[dims_size - 2];
+    size_t IW = dims_size == 2 ? 1 : src.getTensorDesc().getDims()[dims_size - 1];
 
     const data_t *src_data = src.readOnly();
     const data_t *weights_data = weights;
@@ -49,14 +49,14 @@ void ref_depthwise(const InferenceEngine::TBlob<data_t> &src, const data_t *weig
     data_t *dst_data = dst.data();
 
     size_t c1 = IH * IW;
-    size_t c2 = IC * c1;
-    size_t c3 = ID * c2;
+    size_t c2 = ID * c1;
+    size_t c3 = IC * c2;
     for (int mb = 0; mb < MB; mb++) {
         size_t m1 = mb * c3;
         for (int c = 0; c < IC; c++) {
-            size_t m2 = m1 + c * c1;
+            size_t m2 = m1 + c * c2;
             for (int d = 0; d < ID; d++) {
-                size_t m3 = m2 + d * c2;
+                size_t m3 = m2 + d * c1;
                 for (int h = 0; h < IH; h++) {
                     size_t m4 = m3 + h * IW;
                     for (int w = 0; w < IW; w++) {
@@ -78,50 +78,7 @@ void ref_depthwise(const InferenceEngine::TBlob<data_t> &src, const data_t *weig
 
 class MKLDNNGraphDepthwiseTests: public TestsCommon,
                                      public WithParamInterface<depthwise_test_params> {
-    std::string model_t_4D = R"V0G0N(
-<Net Name="Lrn_Only" version="2" precision="FP32" batch="1">
-    <layers>
-        <layer name="in1" type="Input" precision="FP32" id="0">
-            <output>
-                <port id="0">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="depthwise" id="1" type="_LT_" precision="FP32">
-            <data _P_NAME_="_P_VAL_"  PrimitivesPriority="_IMPLS_"/>
-            <weights offset="0" size="_S1_" />
-            <biases offset="_S1_" size="_S2_" />
-
-            <input>
-                <port id="1">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
-                </port>
-            </output>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-    </edges>
-</Net>
-)V0G0N";
-
-
-    std::string model_t_5D = R"V0G0N(
+    std::string model_t = R"V0G0N(
 <Net Name="Lrn_Only" version="2" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
@@ -168,23 +125,27 @@ class MKLDNNGraphDepthwiseTests: public TestsCommon,
 
 protected:
     std::string getModel(depthwise_test_params p) {
-        std::string model;
+        std::string model = model_t;
         auto dims_size = p.dims.size();
+
         if (dims_size == 4) {
-            model = model_t_4D;
-        } else if (dims_size == 5) {
-            model = model_t_5D;
+            REMOVE_LINE(model, "<dim>_ID_</dim>");
+        } else if (dims_size == 2) {
+            REMOVE_LINE(model, "<dim>_ID_</dim>");
+            REMOVE_LINE(model, "<dim>_IH_</dim>");
+            REMOVE_LINE(model, "<dim>_IW_</dim>");
         }
 
-        REPLACE_WITH_NUM(model, "_IW_", p.dims[dims_size - 1]);
-        REPLACE_WITH_NUM(model, "_IC_", p.dims[1]);
         REPLACE_WITH_NUM(model, "_IN_", p.dims[0]);
+        REPLACE_WITH_NUM(model, "_IC_", p.dims[1]);
 
-        switch (dims_size) {
-            case 5:
-                REPLACE_WITH_NUM(model, "_ID_", p.dims[dims_size - 3]);
-            case 4:
-                REPLACE_WITH_NUM(model, "_IH_", p.dims[dims_size - 2]);
+        if (dims_size > 2) {
+            REPLACE_WITH_NUM(model, "_IW_", p.dims[dims_size - 1]);
+            REPLACE_WITH_NUM(model, "_IH_", p.dims[dims_size - 2]);
+        }
+
+        if (dims_size > 4) {
+            REPLACE_WITH_NUM(model, "_ID_", p.dims[dims_size - 3]);
         }
 
         if (p.alg == depthwise_scale_shift) {
@@ -225,7 +186,8 @@ protected:
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
             size_t weightSize = 2 * p.dims[1] * sizeof(float);
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {weightSize});
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
+                {weightSize}, InferenceEngine::C });
             weights->allocate();
             fill_data( weights->data().as<float*>(), weights->size() / sizeof(float));
 
@@ -251,15 +213,12 @@ protected:
             InferenceEngine::SizeVector dims_src = p.dims;
             InferenceEngine::Layout layout = InferenceEngine::ANY;
             switch (p.dims.size()) {
-                case 4:
-                    layout = InferenceEngine::NCHW;
-                    break;
-                case 5:
-                    layout = InferenceEngine::NCDHW;
-                    break;
+                case 2: layout = InferenceEngine::NC; break;
+                case 4: layout = InferenceEngine::NCHW; break;
+                case 5: layout = InferenceEngine::NCDHW; break;
             }
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, layout});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -301,40 +260,59 @@ TEST_P(MKLDNNGraphDepthwiseTests, TestsDepthwise) {}
 INSTANTIATE_TEST_CASE_P(
         TestsDepthwise, MKLDNNGraphDepthwiseTests,
         ::testing::Values(
+                // 2D
+                depthwise_test_params{depthwise_scale_shift, {128, 32}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_scale_shift, {4, 3}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_scale_shift, {1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_scale_shift, {37, 35}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_prelu, {128, 32}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_prelu, {4, 3}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_prelu, {1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_prelu, {37, 35}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_scale_shift, {128, 32}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_scale_shift, {4, 3}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_scale_shift, {1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_prelu, {128, 32}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_prelu, {4, 3}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_prelu, {1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                // 4D
                 depthwise_test_params{depthwise_scale_shift, {1, 32, 128, 256}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_scale_shift, {4, 3, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_scale_shift, {1, 1, 1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-                depthwise_test_params{depthwise_scale_shift, {1, 4, 5, 5}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_scale_shift, {4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_scale_shift, {1, 32, 128, 256}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_prelu, {1, 32, 128, 256}, false,3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_prelu, {4, 3, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_prelu, {1, 1, 1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-                depthwise_test_params{depthwise_prelu, {1, 4, 5, 5}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_prelu, {4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_prelu, {1, 32, 128, 256}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_scale_shift, {1, 32, 128, 256}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_scale_shift, {4, 3, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_scale_shift, {1, 1, 1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                depthwise_test_params{depthwise_scale_shift, {1, 4, 5, 5}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_scale_shift, {4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_scale_shift, {1, 32, 128, 256}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_prelu, {1, 32, 128, 256}, false,3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_prelu, {4, 3, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_prelu, {1, 1, 1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                depthwise_test_params{depthwise_prelu, {1, 4, 5, 5}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_prelu, {4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_prelu, {1, 32, 128, 256}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 // 5D
-                // mkl-dnn does not support 5D depthwise on jit yet
-//                depthwise_test_params{depthwise_scale_shift, {1, 32, 16, 128, 256}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-//                depthwise_test_params{depthwise_scale_shift, {4, 3, 16, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-//                depthwise_test_params{depthwise_scale_shift, {1, 1, 1, 1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-//                depthwise_test_params{depthwise_scale_shift, {4, 4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
-//                depthwise_test_params{depthwise_scale_shift, {1, 32, 16, 128, 256}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-//                depthwise_test_params{depthwise_scale_shift, {4, 3, 16, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_scale_shift, {1, 32, 16, 128, 256}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_scale_shift, {4, 3, 16, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_scale_shift, {1, 1, 1, 1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_scale_shift, {4, 4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_scale_shift, {1, 32, 16, 128, 256}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_scale_shift, {4, 3, 16, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_prelu, {1, 32, 16, 128, 256}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_prelu, {4, 3, 16, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_prelu, {1, 1, 1, 1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_prelu, {4, 4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
+                depthwise_test_params{depthwise_prelu, {1, 32, 16, 128, 256}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_prelu, {4, 3, 16, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_scale_shift, {1, 1, 1, 1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                depthwise_test_params{depthwise_scale_shift, {4, 4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}
+                depthwise_test_params{depthwise_scale_shift, {4, 4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_prelu, {1, 1, 1, 1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_prelu, {4, 4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}
         ));
 
 class MKLDNNGraphDynBatchDepthwiseTests: public MKLDNNGraphDepthwiseTests {
@@ -352,7 +330,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {p.dims[1] * 4 * sizeof(float)});
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
+                {p.dims[1] * 4 * sizeof(float)}, InferenceEngine::C });
             weights->allocate();
             fill_data( weights->data().as<float*>(), weights->size() / sizeof(float));
             float * data = weights->buffer();
@@ -385,7 +364,7 @@ protected:
                     layout = InferenceEngine::NCDHW;
                     break;
             }
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, layout, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, layout});
             InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
             if (srcPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";

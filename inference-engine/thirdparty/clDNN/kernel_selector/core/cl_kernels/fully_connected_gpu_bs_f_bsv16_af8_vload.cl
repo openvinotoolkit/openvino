@@ -83,7 +83,7 @@ KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv16_vload)(
     blockC00 += bias[neuronIdx];
 #endif // #if BIAS_TERM
 
-    blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
+    blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
 
     vstore16(blockC00, out_id, output);
 

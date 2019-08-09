@@ -215,7 +215,7 @@ calculated from a set of precomputed values as previously mentioned.
     std::vector<float> conv_scales(384);
     const int scales_half = 384 / 2;
     std::fill(conv_scales.begin(), conv_scales.begin() + scales_half, 0.3);
-    std::fill(conv_scales.begin() + scales_half + 1, conv_scales.end(), 0.8);
+    std::fill(conv_scales.begin() + scales_half, conv_scales.end(), 0.8);
 ~~~
  The *source, weights, bias* and *destination* datasets use the single-scale format
  with mask set to ‘0’, while the *output* from the convolution (conv_scales)

@@ -9,6 +9,7 @@
 #include <map>
 #include <algorithm>
 #include <utility>
+#include <chrono>
 
 #include <mvnc.h>
 #include <ie_common.h>
@@ -35,44 +36,35 @@ using namespace vpu;
 static std::mutex device_mutex;
 
 MyriadExecutor::MyriadExecutor(bool forceReset, const LogLevel& vpuLogLevel, const Logger::Ptr& log) : _log(log) {
-    int ncLogLevel;
-    switch (vpuLogLevel) {
-        case LogLevel::Warning:
-            ncLogLevel = 2;
-            break;
-        case LogLevel::Info:
-            ncLogLevel = 1;
-            break;
-        case LogLevel::Debug:
-            ncLogLevel = 0;
-            break;
-        default:
-            ncLogLevel = 3;
-            break;
-    }
-
-    int reset_all = forceReset;
-    char * tmp = std::getenv("VPU_FORCE_RESET");
-    if (tmp) {
-        std::string env = tmp;
-        if (env == "0")
-            reset_all = 0;
-        else if (env == "1")
-            reset_all = 1;
-    }
-
-    auto status = ncGlobalSetOption(NC_RW_RESET_ALL, &reset_all, sizeof(reset_all));
+    _mvnc = std::make_shared<Mvnc>();
+    int ncResetAll = forceReset;
+    auto status = ncGlobalSetOption(NC_RW_RESET_ALL, &ncResetAll, sizeof(ncResetAll));
     if (status != NC_OK) {
-        _log->warning("failed to set RESET_ALL flag: %d with error: %s\n",
-                    ncLogLevel,
-                    ncStatusToStr(nullptr, status));
+        _log->warning(
+            "Failed to set NC_RW_RESET_ALL flag to %d: %s\n",
+            ncResetAll, ncStatusToStr(nullptr, status));
     }
 
+    int ncLogLevel = NC_LOG_FATAL;
+    switch (vpuLogLevel) {
+    case LogLevel::Warning:
+        ncLogLevel = NC_LOG_WARN;
+        break;
+    case LogLevel::Info:
+        ncLogLevel = NC_LOG_INFO;
+        break;
+    case LogLevel::Debug:
+        ncLogLevel = NC_LOG_DEBUG;
+        break;
+    default:
+        ncLogLevel = NC_LOG_ERROR;
+        break;
+    }
     status = ncGlobalSetOption(NC_RW_LOG_LEVEL, &ncLogLevel, sizeof(ncLogLevel));
     if (status != NC_OK) {
-        _log->warning("failed to set log level: %d with error: %s\n",
-                    ncLogLevel,
-                    ncStatusToStr(nullptr, status));
+        _log->warning(
+            "Failed to set NC_RW_LOG_LEVEL flag to %d: %s\n",
+            ncLogLevel, ncStatusToStr(nullptr, status));
     }
 }
 
@@ -80,12 +72,14 @@ MyriadExecutor::MyriadExecutor(bool forceReset, const LogLevel& vpuLogLevel, con
  * @brief Boot available device
  */
 ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
+                                          const std::string& configDevName,
                                           const ncDevicePlatform_t &configPlatform,
+                                          const ncDeviceProtocol_t &configProtocol,
                                           int watchdogInterval) {
 // #-17972, #-16790
-#if defined(USE_PCIE) || defined(NO_BOOT)
+#if defined(NO_BOOT)
     if (!devicePool.empty()) {
-        _log->info("PCIe and NO_BOOT support only one device");
+        _log->info("NO_BOOT support only one device");
         return NC_DEVICE_NOT_FOUND;
     }
 #endif
@@ -108,8 +102,33 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
     }
 #endif
 
+    ncDeviceDescr_t in_deviceDesc = {};
+    in_deviceDesc.platform = configPlatform;
+    in_deviceDesc.protocol = configProtocol;
+
+    if (!configDevName.empty()) {
+        auto availableDevicesDesc = _mvnc->AvailableDevicesDesc();
+        auto it = std::find_if(availableDevicesDesc.begin(), availableDevicesDesc.end(),
+                               [&](const ncDeviceDescr_t& deviceDesc) {
+                                   return strncmp(deviceDesc.name, configDevName.c_str(), NC_MAX_NAME_SIZE) == 0;
+                               });
+
+        if (it == availableDevicesDesc.end()) {
+            THROW_IE_EXCEPTION << "Myriad device: " << configDevName << " not found.";
+        } else {
+            ncDeviceDescr_t deviceDesc = *it;
+            if (configPlatform != NC_ANY_PLATFORM &&
+                configPlatform != deviceDesc.platform) {
+                THROW_IE_EXCEPTION << "Input value of device name and platform are contradict each other. Device name: " << configDevName
+                                   << "Platform: " << configPlatform;
+            }
+        }
+
+        configDevName.copy(in_deviceDesc.name, NC_MAX_NAME_SIZE - 1);
+    }
+
     // Open new device with specific path to FW folder
-    statusOpen = ncDeviceOpen(&device._deviceHandle, configPlatform, watchdogInterval, dirName);
+    statusOpen = ncDeviceOpen(&device._deviceHandle, in_deviceDesc, watchdogInterval, dirName);
 
 #if !defined(_WIN32)
     if (info.dli_fname != nullptr) {
@@ -124,26 +143,51 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
 
     unsigned int dataLength;
 
-    // Get device platform
-    ncStatus_t status = ncDeviceGetOption(device._deviceHandle, NC_RO_DEVICE_PLATFORM,
-                               reinterpret_cast<void*>(&device._platform), &dataLength);
+    ncStatus_t status;
+
+    // Get device protocol
+    status = ncDeviceGetOption(device._deviceHandle, NC_RO_DEVICE_PLATFORM,
+                                          reinterpret_cast<void*>(&device._platform), &dataLength);
     if (status != NC_OK || dataLength != sizeof(device._platform)) {
         _log->warning("Failed to get device platform");
         ncDeviceClose(&device._deviceHandle);
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
     }
 
+    //  Get device platform
+    status = ncDeviceGetOption(device._deviceHandle, NC_RO_DEVICE_PROTOCOL,
+                               reinterpret_cast<void*>(&device._protocol), &dataLength);
+    if (status != NC_OK || dataLength != sizeof(device._protocol)) {
+        _log->warning("Failed to get device protocol");
+        ncDeviceClose(&device._deviceHandle);
+        return status != NC_OK ? status : NC_ERROR;     // for dataLength error
+    }
+
+
     // Get device max executors
     status = ncDeviceGetOption(device._deviceHandle, NC_RO_DEVICE_MAX_GRAPH_NUM,
-                               reinterpret_cast<void*>(&device._maxExecutors), &dataLength);
-    if (status != NC_OK || dataLength != sizeof(device._maxExecutors)) {
+                               reinterpret_cast<void*>(&device._maxGraphNum), &dataLength);
+    if (status != NC_OK || dataLength != sizeof(device._maxGraphNum)) {
         _log->warning("Failed to get maximum supported number of graphs");
         ncDeviceClose(&device._deviceHandle);
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
     }
 
+    // Get device name
+    char deviceName[NC_MAX_NAME_SIZE];
+    dataLength = NC_MAX_NAME_SIZE;
+    status = ncDeviceGetOption(device._deviceHandle, NC_RO_DEVICE_NAME,
+                               reinterpret_cast<void*>(&deviceName), &dataLength);
+    if (status != NC_OK || dataLength > NC_MAX_NAME_SIZE) {
+        _log->warning("Failed to get name of booted device");
+        ncDeviceClose(&device._deviceHandle);
+        return status != NC_OK ? status : NC_ERROR;     // for dataLength error
+    } else {
+        device._name = deviceName;
+    }
+
     /* TODO: what should we do if we do not know maximum available graphs? What if we got number <= 0? */
-    device._executors = 1;
+    device._graphNum = 1;
     device._deviceIdx = lastDeviceIdx + 1;
     devicePool.push_back(std::make_shared<DeviceDesc>(device));
     return NC_OK;
@@ -155,48 +199,69 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr> &devicePool,
 
     auto firstBootedButEmptyDevice = std::find_if(devicePool.begin(), devicePool.end(),
         [&config](const DevicePtr &device) {
-            bool isFromConfig = config->platform == UNKNOWN_PLATFORM ? true : device->_platform == config->platform;
-            return device->isBooted() && device->isEmpty() && isFromConfig;
+            return device->isBooted() && device->isEmpty()
+                   && device->isSuitableForConfig(config);
         });
 
     if (firstBootedButEmptyDevice != devicePool.end()) {
         auto &device = *firstBootedButEmptyDevice;
-        device->_executors = 1;
+        device->_graphNum = 1;
         return device;
     }
 
-    ncStatus_t booted = bootNextDevice(devicePool, config->platform, config->watchdogInterval);
+    if (config->deviceName.length()) {
+        auto firstBootedBySpecificName = std::find_if(devicePool.begin(), devicePool.end(),
+            [&](const DevicePtr& device) {
+                return device->isBooted() && device->isSuitableForConfig(config);
+        });
 
-    // TODO Is any tests for this case?
+        if (firstBootedBySpecificName != devicePool.end()) {
+            DevicePtr device = *firstBootedBySpecificName;
+            if (device->isNotFull()) {
+                device->_graphNum++;
+                return device;
+            } else {
+                THROW_IE_EXCEPTION << "Maximum number of networks reached for device: " << config->deviceName;
+            }
+        }
+    }
+
+    ncStatus_t booted = bootNextDevice(devicePool, config->deviceName,
+        config->platform, config->protocol, config->watchdogInterval.count());
+
+    // TODO Is any tests for this case? #-19309
     // In case, then there is no another not booted device, use already booted with minimum number of executors
     if (booted != NC_OK) {
         std::vector<DevicePtr> availableDevices;
+
         // Get all suitable devices
         std::copy_if(devicePool.begin(), devicePool.end(), std::back_inserter(availableDevices),
             [&config](const DevicePtr &device) {
-                bool isFromConfig = config->platform == UNKNOWN_PLATFORM ? true : device->_platform == config->platform;
-                return !device->isEmpty() && device->isAvailable() && isFromConfig;
+                return device->isBooted() && device->isNotFull()
+                       && device->isSuitableForConfig(config);
             });
 
         // Return mock device. If try infer with it, exception will be thrown
-        if (availableDevices.empty() && config->platform != UNKNOWN_PLATFORM) {
+        if (availableDevices.empty() && config->platform != NC_ANY_PLATFORM) {
             DeviceDesc device;
             device._platform = config->platform;
+            device._protocol = config->protocol;
             return std::make_shared<DeviceDesc>(device);
         } else if (availableDevices.empty()) {
-            THROW_IE_EXCEPTION << "Can not init USB device: " << ncStatusToStr(nullptr, booted);
+            THROW_IE_EXCEPTION << "Can not init Myriad device: " << ncStatusToStr(nullptr, booted);
         }
 
         auto deviceWithMinExecutors = std::min_element(availableDevices.begin(), availableDevices.end(),
-            [](const DevicePtr &lhs, const DevicePtr &rhs) { return lhs->_executors < rhs->_executors; });
+            [](const DevicePtr &lhs, const DevicePtr &rhs) { return lhs->_graphNum < rhs->_graphNum; });
 
         auto &device = *deviceWithMinExecutors;
-        device->_executors++;
+        device->_graphNum++;
         return device;
     }
 
-    _log->info("Device #%d %s allocated", devicePool.size() - 1,
-        devicePool.back()->_platform == MYRIAD_X ? "MYRIAD-X" : "MYRIAD-2");
+    _log->info("Device #%d %s (%s protocol) allocated", devicePool.size() - 1,
+        devicePool.back()->_platform == NC_MYRIAD_X ? "MYRIAD-X" : "MYRIAD-2",
+        devicePool.back()->_protocol == NC_USB? "USB" : "PCIe");
 
     return devicePool.back();
 }
@@ -221,8 +286,9 @@ void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool) {
 void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                                    const std::vector<char> &graphFileContent,
                                    const std::pair<const char*, size_t> &graphHeaderDesc,
-                                   size_t numStages, const char* networkName) {
+                                   size_t numStages, const char* networkName, int executors) {
     _numStages = numStages;
+    graphDesc._name = networkName;
     if (device->_deviceHandle == nullptr) {
         THROW_IE_EXCEPTION << "Failed to allocate graph: MYRIAD device is not opened.";
     }
@@ -234,7 +300,6 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
         THROW_IE_EXCEPTION << "Failed to init graph: " << ncStatusToStr(nullptr, status);
     }
 
-    int executors = device->_platform == MYRIAD_X ? 2 : 1;
     status = ncGraphSetOption(graphDesc._graphHandle, NC_RW_GRAPH_EXECUTORS_NUM, &executors, sizeof(executors));
     if (status != NC_OK) {
         THROW_IE_EXCEPTION << "Failed to set graph executors: " << ncStatusToStr(nullptr, status);
@@ -283,7 +348,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
         THROW_IE_EXCEPTION << "Failed to get output description: " << ncStatusToStr(graphDesc._graphHandle, status);
     }
 
-    unsigned int fifo_elements = 4;
+    unsigned int fifo_elements = (device->_platform == NC_MYRIAD_2 && executors == 1) ? 4 : 2 * executors;
 
     status = ncFifoCreate("input", NC_FIFO_HOST_WO, &graphDesc._inputFifoHandle);
     if (status != NC_OK) {
@@ -366,7 +431,7 @@ void MyriadExecutor::deallocateGraph(DevicePtr &device, GraphDesc &graphDesc) {
         graphDesc._graphHandle = nullptr;
     }
     if (device->_deviceHandle != nullptr) {
-        device->_executors -= 1;
+        device->_graphNum -= 1;
     }
 }
 
@@ -406,6 +471,23 @@ std::string MyriadExecutor::ncStatusToStr(ncGraphHandle_t *graphHandle, ncStatus
 
 void MyriadExecutor::printThrottlingStatus() {
 // TODO: enable when needed
+}
+
+float MyriadExecutor::GetThermal(const DevicePtr device) {
+    unsigned int thermal_stats_len = NC_THERMAL_BUFFER_SIZE;
+    static_assert(NC_THERMAL_BUFFER_SIZE % sizeof(float) == 0,
+                  "NC_THERMAL_BUFFER_SIZE is not divisible by sizeof(float)");
+    float thermal_stats[NC_THERMAL_BUFFER_SIZE / sizeof(float)];
+    ncStatus_t status = ncDeviceGetOption(device->_deviceHandle,
+                                          NC_RO_DEVICE_THERMAL_STATS,
+                                          reinterpret_cast<void *>(&thermal_stats),
+                                          &thermal_stats_len);
+
+    if (status != NC_OK) {
+        THROW_IE_EXCEPTION << "Failed to get thermal stats: " << ncStatusToStr(nullptr, status);
+    } else {
+        return thermal_stats[0];
+    }
 }
 
 std::vector<float> MyriadExecutor::getPerfTimeInfo(ncGraphHandle_t *graphHandle) {

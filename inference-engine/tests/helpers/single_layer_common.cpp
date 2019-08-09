@@ -17,14 +17,19 @@ void get_common_dims(const Blob &blob,
                      int32_t &dimx,
                      int32_t &dimy,
                      int32_t &dimz) {
-    if (blob.dims().size() == 2) {
+    SizeVector dims = blob.getTensorDesc().getDims();
+    if (dims.size() == 2) {
         dimz = 1;
-        dimy = blob.dims()[1];
-        dimx = blob.dims()[0];
-    } else if (blob.dims().size() == 3 || (blob.dims().size() == 4 && blob.dims()[3] == 1)) {
-        dimx = blob.dims()[0];
-        dimy = blob.dims()[1];
-        dimz = blob.dims()[2];
+        dimy = dims[0];
+        dimx = dims[1];
+    } else if (dims.size() == 3) {
+        dimx = dims[2];
+        dimy = dims[1];
+        dimz = dims[0];
+    } else if (dims.size() == 4 && dims[0] == 1) {
+        dimx = dims[3];
+        dimy = dims[2];
+        dimz = dims[1];
     }
 }
 
@@ -33,34 +38,36 @@ void get_common_dims(const Blob &blob,
                      int32_t &dimy,
                      int32_t &dimz,
                      int32_t &dimn) {
+    SizeVector dims = blob.getTensorDesc().getDims();
     dimn = 1;
-    if (blob.dims().size() == 2) {
+    if (dims.size() == 2) {
         dimz = 1;
-        dimy = blob.dims()[1];
-        dimx = blob.dims()[0];
-    } else if (blob.dims().size() == 3 || (blob.dims().size() == 4 && blob.dims()[3] == 1)) {
-        dimx = blob.dims()[0];
-        dimy = blob.dims()[1];
-        dimz = blob.dims()[2];
-    } else {
-        if (blob.dims().size() == 4 && blob.dims()[3] != 1) {
-            dimx = blob.dims()[0];
-            dimy = blob.dims()[1];
-            dimz = blob.dims()[2];
-            dimn = blob.dims()[3];
+        dimy = dims[0];
+        dimx = dims[1];
+    } else if (dims.size() == 3) {
+        dimx = dims[2];
+        dimy = dims[1];
+        dimz = dims[0];
+    } else if (dims.size() == 4) {
+        dimx = dims[3];
+        dimy = dims[2];
+        dimz = dims[1];
+
+        if (dims[0] != 1) {
+            dimn = dims[0];
         }
     }
 }
 
 void GenRandomDataCommon(Blob::Ptr blob) {
-    if (blob->precision() == Precision::U8) {
+    if (blob->getTensorDesc().getPrecision() == Precision::U8) {
         auto * blobRawDataU8 = blob->buffer().as<uint8_t*>();
         size_t count = blob->size();
         for (size_t i = 0; i < count; i++) {
             auto val = static_cast<uint8_t>(rand() % 256);
             blobRawDataU8[i] = val;
         }
-    } else if (blob->precision() == Precision::FP16) {
+    } else if (blob->getTensorDesc().getPrecision() == Precision::FP16) {
         float scale = 2.0f / RAND_MAX;
         /* fill by random data in the range (-1, 1)*/
         auto * blobRawDataFp16 = blob->buffer().as<ie_fp16 *>();
@@ -70,7 +77,7 @@ void GenRandomDataCommon(Blob::Ptr blob) {
             val = val * scale - 1.0f;
             blobRawDataFp16[indx] = PrecisionUtils::f32tof16(val);
         }
-    } else if (blob->precision() == Precision::FP32) {
+    } else if (blob->getTensorDesc().getPrecision() == Precision::FP32) {
         float scale = 2.0f / RAND_MAX;
         /* fill by random data in the range (-1, 1)*/
         auto * blobRawDataFp16 = blob->buffer().as<float*>();
@@ -83,7 +90,7 @@ void GenRandomDataCommon(Blob::Ptr blob) {
     }
 }
 
-BufferWrapper::BufferWrapper(const Blob::Ptr& blob) : BufferWrapper(blob, blob->precision()) {}
+BufferWrapper::BufferWrapper(const Blob::Ptr& blob) : BufferWrapper(blob, blob->getTensorDesc().getPrecision()) {}
 
 BufferWrapper::BufferWrapper(const Blob::Ptr& blob, Precision _precision) : precision(_precision) {
     if (precision == Precision::FP16) {
@@ -112,8 +119,8 @@ void CompareCommon(const Blob::Ptr& actual, const Blob::Ptr& expected, float tol
     ASSERT_NE(actual, nullptr);
     ASSERT_NE(expected, nullptr);
 
-    Layout res_layout = actual->layout();
-    Layout ref_layout = expected->layout();
+    Layout res_layout = actual->getTensorDesc().getLayout();
+    Layout ref_layout = expected->getTensorDesc().getLayout();
     SizeVector res_dims = actual->getTensorDesc().getDims();
 
     BufferWrapper res_ptr(actual);

@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <set>
+#include <vector>
 
 #include <vpu/compile_env.hpp>
 
@@ -20,8 +21,8 @@ protected:
         return std::make_shared<ConvertStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
@@ -29,38 +30,32 @@ protected:
         auto input = _inputEdges[0]->input();
         auto output = _outputEdges[0]->output();
 
-        auto inputScale = inputScales.at(input);
-
-        DataMap<float> out;
+        auto inputScale = inputScales[0];
 
         if (_type == StageType::Convert_f16f32) {
             IE_ASSERT(output->usage() == DataUsage::Output);
             IE_ASSERT(step == ScalePropagationStep::Propagate);
 
-            out[input] = 1.0f;
-            out[output] = 1.0f;
+            _scaleInfo.setInput(_inputEdges[0], 1.0f);
+            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
         } else {
             IE_ASSERT(input->usage() == DataUsage::Input);
 
-            out[output] = inputScale;
+            _scaleInfo.setOutput(_outputEdges[0], inputScale);
 
             if (step == ScalePropagationStep::ScaleInput) {
                 attrs().get<float>("scale") *= inputScale;
                 attrs().get<float>("bias") *= inputScale;
             }
         }
-
-        return out;
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
         auto output = _outputEdges[0]->output();
-
-        DataMap<DimsOrder> out;
 
         if (_type == StageType::Convert_f16f32) {
             IE_ASSERT(output->usage() == DataUsage::Output);
@@ -70,7 +65,7 @@ protected:
             // HCW is not supported
             IE_ASSERT(outDimsOrder.dimInd(Dim::C) != 1);
 
-            out[input] = outDimsOrder;
+            _orderInfo.setInput(_inputEdges[0], outDimsOrder);
         } else {
             IE_ASSERT(input->usage() == DataUsage::Input);
 
@@ -79,13 +74,11 @@ protected:
             // HCW is not supported
             IE_ASSERT(inDimsOrder.dimInd(Dim::C) != 1);
 
-            out[output] = inDimsOrder;
+            _orderInfo.setOutput(_outputEdges[0], inDimsOrder);
         }
-
-        return out;
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
@@ -101,29 +94,24 @@ protected:
             reqs.add(inDimsOrder.dimInd(Dim::N), DimStride::Compact);
         }
 
-        DataMap<StridesRequirement> out;
-
         if (_type == StageType::Convert_f16f32) {
             IE_ASSERT(output->usage() == DataUsage::Output);
 
-            out[input] = reqs;
-            out[output] = StridesRequirement::compact();
+            _stridesInfo.setInput(_inputEdges[0], reqs);
+            _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
         } else {
             IE_ASSERT(input->usage() == DataUsage::Input);
 
-            out[input] = StridesRequirement::compact();
-            out[output] = reqs;
+            _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
+            _stridesInfo.setOutput(_outputEdges[0], reqs);
         }
-
-        return out;
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl() const override {
         // Convert will support batch by merging it with previous dimension.
-        return DataMap<BatchSupport>();
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {

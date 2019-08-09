@@ -12,6 +12,7 @@ enum impl_desc_type {
     unknown = 0x00000000,
     undef,
     // Optimization approach
+    simple = 1<<6,
     ref    = 1<<7,
     jit    = 1<<8,
     gemm   = 1<<9,
@@ -22,13 +23,14 @@ enum impl_desc_type {
     avx512 = 1<<13,
     blas   = 1<<14,
     any    = 1<<15,
+    uni    = 1<<16,
     // Other specificator
-    _1x1    = 1<<16,
-    _dw     = 1<<17,
+    _1x1    = 1<<17,
+    _dw     = 1<<18,
     // Other info
-    reorder = 1<<18,
+    reorder = 1<<19,
     // winograd
-    winograd = 1<<19,
+    winograd = 1<<20,
     // real types
     ref_any             = ref  | any,
 
@@ -44,19 +46,19 @@ enum impl_desc_type {
     jit_avx2            = jit  | avx2,
     jit_avx             = jit  | avx,
     jit_sse42           = jit  | sse42,
-    jit_uni             = jit  | any,
+    jit_uni             = jit  | uni,
 
     jit_avx512_1x1      = jit  | avx512 | _1x1,
     jit_avx2_1x1        = jit  | avx2   | _1x1,
     jit_avx_1x1         = jit  | avx    | _1x1,
     jit_sse42_1x1       = jit  | sse42  | _1x1,
-    jit_uni_1x1         = jit  | any    | _1x1,
+    jit_uni_1x1         = jit  | uni    | _1x1,
 
     jit_avx512_dw       = jit  | avx512 | _dw,
     jit_avx2_dw         = jit  | avx2   | _dw,
     jit_avx_dw          = jit  | avx    | _dw,
     jit_sse42_dw        = jit  | sse42  | _dw,
-    jit_uni_dw          = jit  | any    | _dw,
+    jit_uni_dw          = jit  | uni    | _dw,
 };
 
 impl_desc_type parse_impl_name(std::string impl_desc_name);

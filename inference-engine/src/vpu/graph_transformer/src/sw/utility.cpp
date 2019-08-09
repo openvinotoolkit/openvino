@@ -8,6 +8,7 @@
 #include <unordered_set>
 
 #include <vpu/model/model.hpp>
+#include <vpu/utils/profiling.hpp>
 
 namespace vpu {
 

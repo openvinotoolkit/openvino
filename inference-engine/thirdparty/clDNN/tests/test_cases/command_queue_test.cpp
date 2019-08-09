@@ -68,7 +68,7 @@ void exexute_network(cldnn::engine engine)
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(arg_max_min("arg_max", "input", arg_max_min::max));
+    topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max));
 
     vector<float> input_vec = {
         //y0x0 y0x1 y1x0 y1x1

@@ -24,5 +24,11 @@ add_subdirectory(libs/gtest)
 #####################################################################################################
 enable_testing()
 
+
 add_subdirectory(helpers)
-add_subdirectory(unit)
+
+disable_deprecated_warnings()
+
+if(ENABLE_TESTS)
+  add_subdirectory(unit)
+endif()

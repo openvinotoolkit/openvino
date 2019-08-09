@@ -48,12 +48,7 @@ class TextDetectionMetric(PerImageEvaluationMetric):
 
     annotation_types = (TextDetectionAnnotation, )
     prediction_types = (TextDetectionPrediction, )
-
-    def validate_config(self):
-        text_detection_metric_config = TextDetectionMetricConfig(
-            'TextDetectionMetric_config', TextDetectionMetricConfig.ERROR_ON_EXTRA_ARGUMENT
-        )
-        text_detection_metric_config.validate(self.config)
+    _config_validator_type = TextDetectionMetricConfig
 
     def configure(self):
         self.iou_constrain = self.config.get('iou_constrain', 0.5)

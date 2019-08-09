@@ -18,7 +18,9 @@ import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
+from mo.ops.const import Const
 from mo.ops.op import Op
 
 
@@ -59,7 +61,6 @@ class FlattenONNX(Op):
         axis = node.axis
         shape = node.in_node(0).shape
         dim = [np.prod(shape[0:axis]), np.prod(shape[axis:])]
-        node['dim'] = np.array(dim)
-        node.out_node().shape = np.array(dim)
+        node.out_node().shape = int64_array(dim)
         if node.in_node(0).has_valid('value'):
             node.out_node().value = np.reshape(node.in_node(0).value, dim)

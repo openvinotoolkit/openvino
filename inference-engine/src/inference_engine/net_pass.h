@@ -20,6 +20,26 @@ namespace NetPass {
  * @return true if all Tensor iterator was converted
  */
 INFERENCE_ENGINE_API_CPP(bool) CombineRNNSeq(ICNNNetwork &net);
+INFERENCE_ENGINE_API_CPP(bool) CombineRNNSeq(TensorIterator::Body &net);
+
+/**
+ * Returns a vector of the topologically sorted layers from
+ * the passed TI layer body.
+ *
+ * @param body TI body
+ * @return vector of layer objects
+ */
+INFERENCE_ENGINE_API_CPP(std::vector<CNNLayerPtr>) TIBodySortTopologically(const TensorIterator::Body &body);
+
+/**
+ * Returns a vector of the topologically sorted layers from
+ * the passed TI layer body.
+ *
+ * @param body TI body
+ * @return vector of layer objects
+ */
+INFERENCE_ENGINE_API_CPP(TensorIterator::Body) CopyTIBody(const TensorIterator::Body &body,
+                                                          std::string suffix = "");
 
 /**
  * Unroll all present Tensor Iterators
@@ -40,6 +60,10 @@ INFERENCE_ENGINE_API_CPP(bool) UnrollTI(ICNNNetwork &net);
  */
 INFERENCE_ENGINE_API_CPP(bool) UnrollRNN_if(ICNNNetwork &net,
         std::function<bool(const RNNCellBase&)> pred);
+
+INFERENCE_ENGINE_API_CPP(bool) UnrollRNN_if(TensorIterator::Body &net,
+        std::function<bool(const RNNCellBase&)> pred);
+
 
 }  // namespace NetPass
 }  // namespace InferenceEngine

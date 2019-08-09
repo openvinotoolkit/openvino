@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +11,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
 #include "kernel_selector.h"
- 
-namespace kernel_selector 
-{
-    class fused_conv_bn_scale_kernel_selector : public kernel_selector_base
-    {
-    public:
-        static fused_conv_bn_scale_kernel_selector &Instance() {
-            static fused_conv_bn_scale_kernel_selector instance_;
-            return instance_;
-        }
 
-        fused_conv_bn_scale_kernel_selector();
+namespace kernel_selector {
+class fused_conv_bn_scale_kernel_selector : public kernel_selector_base {
+public:
+    static fused_conv_bn_scale_kernel_selector& Instance() {
+        static fused_conv_bn_scale_kernel_selector instance_;
+        return instance_;
+    }
 
-        virtual ~fused_conv_bn_scale_kernel_selector() {}
+    fused_conv_bn_scale_kernel_selector();
 
-        KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-    };
-}
+    virtual ~fused_conv_bn_scale_kernel_selector() {}
+
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+};
+}  // namespace kernel_selector

@@ -63,9 +63,11 @@ class SegmentationAnnotation(SegmentationRepresentation):
         self._mask = value
 
     def _load_mask(self):
-        loader = BaseReader.provide(self.LOADERS.get(self._mask_loader))
         if self._mask is None:
-            mask = loader(self._mask_path, self.metadata['data_source'])
+            loader = BaseReader.provide(self.LOADERS.get(self._mask_loader), self.metadata['data_source'])
+            if self._mask_loader == GTMaskLoader.PILLOW:
+                loader.convert_to_rgb = False
+            mask = loader.read(self._mask_path)
             return mask.astype(np.uint8)
 
         return self._mask
@@ -86,6 +88,7 @@ class SegmentationPrediction(SegmentationRepresentation):
 class BrainTumorSegmentationAnnotation(SegmentationAnnotation):
     def __init__(self, identifier, path_to_mask):
         super().__init__(identifier, path_to_mask, GTMaskLoader.NIFTI)
+
 
 class BrainTumorSegmentationPrediction(SegmentationPrediction):
     pass

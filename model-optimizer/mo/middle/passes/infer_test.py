@@ -31,12 +31,12 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_3_data': {'value': None, 'kind': 'data', 'data_type': None},
                     # Placeholders
-                    'placeholder_1': {'shape': None, 'type': 'Input', 'kind': 'op', 'op': 'Placeholder'},
+                    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-                    'placeholder_2': {'shape': None, 'type': 'Input', 'kind': 'op', 'op': 'Placeholder'},
-                    'pl_1': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+                    'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+                    'pl_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'pl_1_data': {'value': None, 'kind': 'data', 'data_type': None},
-                    'pl_2': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+                    'pl_2': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'pl_2_data': {'value': None, 'kind': 'data', 'data_type': None},
                     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
                     # ScaleShift layer
@@ -48,7 +48,7 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'mul_1': {'type': None, 'kind': 'op', 'op': 'Mul'},
                     'mul_1_w': {'value': None, 'shape': None, 'kind': 'data'},
                     'mul_1_data': {'value': None, 'shape': None, 'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput', 'infer': lambda x: None}
+                    'op_output': { 'kind': 'op', 'op': 'Result', 'infer': lambda x: None}
                     }
 
 
@@ -62,7 +62,7 @@ class TestInferPass(unittest.TestCase):
                              ('node_2', 'op_output')
                              ],
                             {'node_2': {'shape': None},
-                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Placeholder'}
+                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Parameter'}
                              },
                             nodes_with_edges_only=True)
 
@@ -80,8 +80,8 @@ class TestInferPass(unittest.TestCase):
                             [('node_1', 'node_2'),
                              ('node_2', 'op_output')
                              ],
-                            {'node_2': {'shape': None, 'op': 'Placeholder'},
-                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Placeholder'}
+                            {'node_2': {'shape': None, 'op': 'Parameter'},
+                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Parameter'}
                              },
                             nodes_with_edges_only=True)
         out = override_placeholder_shapes(graph, None)
@@ -99,7 +99,7 @@ class TestInferPass(unittest.TestCase):
                              ('node_2', 'op_output')
                              ],
                             {'node_2': {'shape': None},
-                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Placeholder'}
+                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Parameter'}
                              },
                             nodes_with_edges_only=True)
 
@@ -114,8 +114,8 @@ class TestInferPass(unittest.TestCase):
                             [('node_1', 'node_2'),
                              ('node_2', 'op_output')
                              ],
-                            {'node_2': {'shape': None, 'op': 'Placeholder'},
-                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Placeholder'}
+                            {'node_2': {'shape': None, 'op': 'Parameter'},
+                             'node_1': {'shape': np.array([1, 3, 227, 227]), 'op': 'Parameter'}
                              },
                             nodes_with_edges_only=True)
 
@@ -131,10 +131,10 @@ class TestInferPass(unittest.TestCase):
         self.assertTrue(np.array_equal(placeholder_shape, res_shape2))
 
     nodes = {
-        'placeholder_1': {'name': 'placeholder_1', 'shape': [1, 2, 3, 4], 'type': 'Placeholder', 'value': None,
-                          'kind': 'op', 'op': 'Placeholder'},
-        'placeholder_2': {'name': 'placeholder_2', 'shape': [5, 6, 7, 8], 'type': 'Placeholder', 'value': None,
-                          'kind': 'op', 'op': 'Placeholder'},
+        'placeholder_1': {'name': 'placeholder_1', 'shape': [1, 2, 3, 4], 'type': 'Parameter', 'value': None,
+                          'kind': 'op', 'op': 'Parameter'},
+        'placeholder_2': {'name': 'placeholder_2', 'shape': [5, 6, 7, 8], 'type': 'Parameter', 'value': None,
+                          'kind': 'op', 'op': 'Parameter'},
         '1': {'name': 'node_1', 'type': 'Identity', 'value': None, 'kind': 'op'},
         '2': {'name': 'node_2', 'type': 'Identity', 'value': None, 'kind': 'op'},
         '3': {'name': 'concat', 'type': 'Identity', 'value': None, 'kind': 'op'},

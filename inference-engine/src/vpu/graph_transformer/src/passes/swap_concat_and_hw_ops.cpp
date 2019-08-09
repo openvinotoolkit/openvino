@@ -100,7 +100,7 @@ void PassImpl::run(const Model::Ptr& model) {
         // Swap next stages and concat
         //
 
-        auto lastInputs = toVector(concatStage->inputs(), concatStage->numInputs());
+        auto lastInputs = toSmallVector(concatStage->inputs(), concatStage->numInputs());
         auto lastOutput = concatOutput;
 
         for (const auto& nextStage : nextStages) {

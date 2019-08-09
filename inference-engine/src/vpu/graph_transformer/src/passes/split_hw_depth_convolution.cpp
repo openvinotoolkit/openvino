@@ -43,7 +43,10 @@ std::tuple<Data, Data> createWeigthsAndBiasesForDepthConv(
 
         size_t newWeightsSize = kernelSizeX * kernelSizeY * tileSize * tileSize;
 
-        auto newWeightsBlob = ie::make_shared_blob<fp16_t>(ie::Precision::FP16, ie::Layout::C, {newWeightsSize});
+        auto newWeightsBlob = ie::make_shared_blob<fp16_t>(ie::TensorDesc(
+            ie::Precision::FP16,
+            {newWeightsSize},
+            ie::Layout::C));
         newWeightsBlob->allocate();
 
         auto inPtr = origWeightsVals + kernelSizeX * kernelSizeY * tileOffset;
@@ -72,7 +75,10 @@ std::tuple<Data, Data> createWeigthsAndBiasesForDepthConv(
         auto origBiasesVals = content->get<fp16_t>();
         IE_ASSERT(origBiasesVals != nullptr);
 
-        auto newBiasesBlob = ie::make_shared_blob<fp16_t>(ie::Precision::FP16, ie::Layout::C, {static_cast<size_t>(tileSize)});
+        auto newBiasesBlob = ie::make_shared_blob<fp16_t>(ie::TensorDesc(
+            ie::Precision::FP16,
+            {static_cast<size_t>(tileSize)},
+            ie::Layout::C));
         newBiasesBlob->allocate();
 
         auto inPtr = origBiasesVals + tileOffset;

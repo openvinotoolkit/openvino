@@ -14,9 +14,8 @@
  limitations under the License.
 """
 
-from extensions.middle.FusePermutesSequence import FusePermutesSequence
 from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
-from extensions.middle.permute_tensor_iterator import PermuteTensorIteratorLSTM
+from extensions.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
 from mo.graph.graph import Graph
 from mo.middle.passes.eliminate import remove_op_node_with_data_node
 from mo.middle.replacement import MiddleReplacementPattern
@@ -34,9 +33,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
     def run_after(self):
         return [
             ONNXRNNSequenceNormalize,
-
-            FusePermutesSequence,
-            PermuteTensorIteratorLSTM,
+            TransposeTensorIteratorLSTM,
         ]
 
     def run_before(self):
@@ -46,16 +43,16 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('input'),
+                ('input',  dict(kind='data')),
                 ('direct_reverse', dict(op='ReverseSequence')),
-                ('input_reversed'),
-                ('init_hidden'),
+                ('input_reversed', dict(kind='data')),
+                ('init_hidden', dict(kind='data')),
 
                 ('ti', dict(kind='op', op='TensorIterator')),
 
-                ('output_reversed'),
+                ('output_reversed', dict(kind='data')),
                 ('inverse_reverse', dict(op='ReverseSequence')),
-                ('output'),
+                ('output', dict(kind='data')),
             ],
             edges=[
                 ('input', 'direct_reverse', {'in': 0}),

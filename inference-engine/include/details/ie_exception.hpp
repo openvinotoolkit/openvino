@@ -35,11 +35,11 @@
 class NullStream {
  public :
     template <class T>
-    NullStream & operator << (const T &obj) noexcept {
+    NullStream & operator << (const T &) noexcept {
         return *this;
     }
 
-    NullStream &  operator<< (std::ostream & (*manip)(std::ostream &)) noexcept {
+    NullStream &  operator<< (std::ostream & (*)(std::ostream &)) noexcept {
         return *this;
     }
 };

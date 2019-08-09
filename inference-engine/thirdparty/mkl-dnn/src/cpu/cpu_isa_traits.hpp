@@ -48,6 +48,7 @@ typedef enum {
     avx512_core_vnni,
     avx512_mic,
     avx512_mic_4ops,
+    avx512_core_bf16,
 } cpu_isa_t;
 
 template <cpu_isa_t> struct cpu_isa_traits {}; /* ::vlen -> 32 (for avx2) */
@@ -80,6 +81,9 @@ template <> struct cpu_isa_traits<avx512_mic>:
     public cpu_isa_traits<avx512_common> {};
 
 template <> struct cpu_isa_traits<avx512_mic_4ops>:
+    public cpu_isa_traits<avx512_common> {};
+
+template <> struct cpu_isa_traits<avx512_core_bf16>:
     public cpu_isa_traits<avx512_common> {};
 
 namespace {
@@ -121,6 +125,10 @@ static inline bool mayiuse(const cpu_isa_t cpu_isa) {
             && mayiuse(avx512_mic)
             && cpu.has(Cpu::tAVX512_4FMAPS)
             && cpu.has(Cpu::tAVX512_4VNNIW);
+    case avx512_core_bf16:
+        return true
+            && mayiuse(avx512_core_vnni)
+            && cpu.has(Cpu::tAVX512_BF);
     case isa_any:
         return true;
     }
@@ -138,7 +146,8 @@ static inline bool mayiuse(const cpu_isa_t cpu_isa) {
     (isa == avx512_core ? prefix STRINGIFY(avx512_core) : \
     (isa == avx512_mic ? prefix STRINGIFY(avx512_mic) : \
     (isa == avx512_mic_4ops ? prefix STRINGIFY(avx512_mic_4ops) : \
-    prefix suffix_if_any)))))))
+    (isa == avx512_core_bf16 ? prefix STRINGIFY(avx512_core_bf16) : \
+    prefix suffix_if_any))))))))
 
 }
 }

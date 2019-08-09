@@ -24,6 +24,20 @@
 
 namespace reorder {
 
+alg_t str2alg(const char *str) {
+    if (!strcasecmp("bootstrap", str))
+        return ALG_BOOT;
+    return ALG_REF;
+}
+
+const char *alg2str(alg_t alg) {
+    switch (alg) {
+    case ALG_REF: return "";
+    case ALG_BOOT: return "bootstrap";
+    default: assert(!"Invalid algorithm"); return "";
+    }
+}
+
 dims_t str2dims(const char *str) {
     dims_t dims;
     do {
@@ -48,6 +62,17 @@ void prb2str(const prb_t *p, const res_t *res, char *buffer) {
     char dims_buf[max_dims_len] = {0};
     dims2str(p->reorder.dims, dims_buf);
 
+    constexpr int max_alg_len = 20;
+    char alg_buf[max_alg_len] = {0};
+    const char *algstr = alg2str(p->alg);
+    if (algstr && *algstr) {
+        int len = snprintf(alg_buf, max_alg_len, "--alg=\"");
+        SAFE_V(len >= 0 ? OK : FAIL);
+        snprintf(alg_buf + len, max_alg_len - len, "%s", algstr);
+        len = (int)strnlen(alg_buf, max_alg_len);
+        snprintf(alg_buf + len, max_alg_len - len, "\" ");
+    }
+
     char attr_buf[max_attr_len] = {0};
     bool is_attr_def = p->attr.is_def();
     if (!is_attr_def) {
@@ -59,10 +84,10 @@ void prb2str(const prb_t *p, const res_t *res, char *buffer) {
     }
 
     int rem_len = max_prb_len;
-    DPRINT("--idt=%s --odt=%s --ifmt=%s --ofmt=%s %s%s",
+    DPRINT("--idt=%s --odt=%s --ifmt=%s --ofmt=%s %s%s%s",
             dt2str(cfg2dt(p->conf_in)), dt2str(cfg2dt(p->conf_out)),
             fmt2str(p->reorder.fmt_in), fmt2str(p->reorder.fmt_out),
-            attr_buf, dims_buf);
+            alg_buf, attr_buf, dims_buf);
 }
 
 }

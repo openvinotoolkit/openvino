@@ -118,6 +118,8 @@ void perf_report(const prb_t *p, const res_t *r, const char *pstr) {
             DPRINT("%s", cfg2str(p->cfg));
         else if (c == 't')
             DPRINT("%g", t.ms(mode) / unit);
+        else if (c == 'O')
+            DPRINT("%g", ops / unit);
         else if (c == 'p')
             DPRINT("%g", ops / t.ms(mode) / unit * 1e3);
         else

@@ -69,7 +69,6 @@ void ParsedConfig::checkInvalidValues(const std::map<std::string, std::string> &
         { CONFIG_KEY(PERF_COUNT),                 { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),   { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
-        { VPU_CONFIG_KEY(FORCE_RESET),            { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(HW_ADAPTIVE_MODE),       { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(ALLOW_FP32_MODELS),      { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(HW_INJECT_STAGES),       { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
@@ -77,10 +76,12 @@ void ParsedConfig::checkInvalidValues(const std::map<std::string, std::string> &
         { VPU_CONFIG_KEY(PERF_REPORT_MODE),
             { VPU_CONFIG_VALUE(PER_LAYER), VPU_CONFIG_VALUE(PER_STAGE) }},
         { VPU_CONFIG_KEY(IGNORE_IR_STATISTIC),    { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
+        { VPU_CONFIG_KEY(HW_DILATION),            { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
     };
 
     checkSupportedValues(supported_values, config);
 
+IE_SUPPRESS_DEPRECATED_START
     auto config_norm = config.find(VPU_CONFIG_KEY(INPUT_NORM));
     if (config_norm != config.end()) {
         std::map<std::string, float> configFloat = {{VPU_CONFIG_KEY(INPUT_NORM), std::stof(config_norm->second)}};
@@ -94,6 +95,7 @@ void ParsedConfig::checkInvalidValues(const std::map<std::string, std::string> &
         };
         check_input(configFloat, unsupported_values, doesNotContain);
     }
+IE_SUPPRESS_DEPRECATED_END
 
     auto number_of_shaves = config.find(VPU_CONFIG_KEY(NUMBER_OF_SHAVES));
     auto number_of_CMX = config.find(VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES));
@@ -117,11 +119,11 @@ void ParsedConfig::checkInvalidValues(const std::map<std::string, std::string> &
     }
 
     if ((number_of_shaves != config.end()) && (number_of_CMX == config.end())) {
-        THROW_IE_EXCEPTION << "You should set both option for resourse management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
+        THROW_IE_EXCEPTION << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
     }
 
     if ((number_of_shaves == config.end()) && (number_of_CMX != config.end())) {
-        THROW_IE_EXCEPTION << "You should set both option for resourse management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
+        THROW_IE_EXCEPTION << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
     }
 }
 
@@ -145,6 +147,7 @@ void ParsedConfig::checkOptionsAccordingToMode(const std::map<std::string, std::
 }
 
 std::unordered_set<std::string> ParsedConfig::getCompileOptions() const {
+IE_SUPPRESS_DEPRECATED_START
     return {
         VPU_CONFIG_KEY(COMPUTE_LAYOUT),
         VPU_CONFIG_KEY(NETWORK_CONFIG),
@@ -153,8 +156,6 @@ std::unordered_set<std::string> ParsedConfig::getCompileOptions() const {
         VPU_CONFIG_KEY(COPY_OPTIMIZATION),
         VPU_CONFIG_KEY(PACK_DATA_IN_CMX),
         VPU_CONFIG_KEY(DETECT_NETWORK_BATCH),
-        VPU_CONFIG_KEY(INPUT_NORM),
-        VPU_CONFIG_KEY(INPUT_BIAS),
         VPU_CONFIG_KEY(IGNORE_UNKNOWN_LAYERS),
         VPU_CONFIG_KEY(NONE_LAYERS),
         VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
@@ -166,7 +167,12 @@ std::unordered_set<std::string> ParsedConfig::getCompileOptions() const {
         VPU_CONFIG_KEY(HW_INJECT_STAGES),
         VPU_CONFIG_KEY(HW_POOL_CONV_MERGE),
         VPU_CONFIG_KEY(IGNORE_IR_STATISTIC),
+        VPU_CONFIG_KEY(HW_DILATION),
+
+        VPU_CONFIG_KEY(INPUT_NORM),
+        VPU_CONFIG_KEY(INPUT_BIAS),
     };
+IE_SUPPRESS_DEPRECATED_END
 }
 
 std::unordered_set<std::string> ParsedConfig::getRuntimeOptions() const {
@@ -177,7 +183,6 @@ std::unordered_set<std::string> ParsedConfig::getRuntimeOptions() const {
         CONFIG_KEY(PERF_COUNT),
         VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
         CONFIG_KEY(CONFIG_FILE),
-        VPU_CONFIG_KEY(FORCE_RESET),
         VPU_CONFIG_KEY(PERF_REPORT_MODE),
     };
 }
@@ -194,32 +199,7 @@ std::unordered_set<std::string> ParsedConfig::getKnownOptions() const {
 }
 
 std::map<std::string, std::string> ParsedConfig::getDefaultConfig() const {
-    return {{VPU_CONFIG_KEY(COMPUTE_LAYOUT),            VPU_CONFIG_VALUE(AUTO)},
-            {VPU_CONFIG_KEY(HW_ADAPTIVE_MODE),          CONFIG_VALUE(YES)},
-            {VPU_CONFIG_KEY(ALLOW_FP32_MODELS),         CONFIG_VALUE(NO)},
-            {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),      CONFIG_VALUE(NO)},
-     //     {VPU_CONFIG_KEY(COPY_OPTIMIZATION),         CONFIG_VALUE(YES)},
-     //     {VPU_CONFIG_KEY(PACK_DATA_IN_CMX),         CONFIG_VALUE(YES)},
-            {CONFIG_KEY(LOG_LEVEL),                     CONFIG_VALUE(LOG_NONE)},
-            {VPU_CONFIG_KEY(LOG_LEVEL),                 CONFIG_VALUE(LOG_NONE)},
-            {VPU_CONFIG_KEY(DETECT_NETWORK_BATCH),      CONFIG_VALUE(YES)},
-     //     {VPU_CONFIG_KEY(HW_INJECT_STAGES),          CONFIG_VALUE(YES)},
-            {VPU_CONFIG_KEY(HW_POOL_CONV_MERGE),        CONFIG_VALUE(YES)},
-            // myriad plugin ignore this key, it measures performance always,
-            // added just to pass behavior tests
-            {CONFIG_KEY(PERF_COUNT),                    CONFIG_VALUE(NO)},
-            {VPU_CONFIG_KEY(INPUT_NORM),                "1.0"},
-            {VPU_CONFIG_KEY(INPUT_BIAS),                "0.0"},
-            {VPU_CONFIG_KEY(IGNORE_UNKNOWN_LAYERS),     CONFIG_VALUE(NO)},
-            {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),    CONFIG_VALUE(YES)},
-            {VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO)},
-            // Either, or for customLayers xml
-            // TODO: this option is useless in the case of the HDDL plugin
-            {VPU_CONFIG_KEY(FORCE_RESET),               CONFIG_VALUE(YES)},
-            // TODO: switch to PER_LAYER?
-            {VPU_CONFIG_KEY(PERF_REPORT_MODE),          VPU_CONFIG_VALUE(PER_STAGE)},
-            {VPU_CONFIG_KEY(IGNORE_IR_STATISTIC),       CONFIG_VALUE(NO)},
-    };
+    return {};
 }
 
 void ParsedConfig::configure(const std::map<std::string, std::string> &config) {
@@ -238,7 +218,7 @@ void ParsedConfig::configure(const std::map<std::string, std::string> &config) {
 
     setOption(compileConfig.detectBatch,         switches, config, VPU_CONFIG_KEY(DETECT_NETWORK_BATCH));
     setOption(compileConfig.copyOptimization,    switches, config, VPU_CONFIG_KEY(COPY_OPTIMIZATION));
-    setOption(compileConfig.packDataInCmx,    switches, config, VPU_CONFIG_KEY(PACK_DATA_IN_CMX));
+    setOption(compileConfig.packDataInCmx,       switches, config, VPU_CONFIG_KEY(PACK_DATA_IN_CMX));
     setOption(compileConfig.ignoreUnknownLayers, switches, config, VPU_CONFIG_KEY(IGNORE_UNKNOWN_LAYERS));
     setOption(compileConfig.hwOptimization,      switches, config, VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
     setOption(compileConfig.hwAdaptiveMode,      switches, config, VPU_CONFIG_KEY(HW_ADAPTIVE_MODE));
@@ -246,6 +226,7 @@ void ParsedConfig::configure(const std::map<std::string, std::string> &config) {
     setOption(compileConfig.injectSwOps,         switches, config, VPU_CONFIG_KEY(HW_INJECT_STAGES));
     setOption(compileConfig.mergeHwPoolToConv,   switches, config, VPU_CONFIG_KEY(HW_POOL_CONV_MERGE));
     setOption(compileConfig.ignoreIRStatistic,   switches, config, VPU_CONFIG_KEY(IGNORE_IR_STATISTIC));
+    setOption(compileConfig.hwDilation,          switches, config, VPU_CONFIG_KEY(HW_DILATION));
 
     setOption(compileConfig.noneLayers,    config, VPU_CONFIG_KEY(NONE_LAYERS));
     setOption(compileConfig.hwWhiteList,   config, VPU_CONFIG_KEY(HW_WHITE_LIST));
@@ -258,12 +239,6 @@ void ParsedConfig::configure(const std::map<std::string, std::string> &config) {
         setOption(compileConfig.customLayers, config, CONFIG_KEY(CONFIG_FILE));
     }
 
-    setOption(compileConfig.inputScale, config, VPU_CONFIG_KEY(INPUT_NORM),
-              [](const std::string &src) { return 1.f / std::stof(src); });
-
-    setOption(compileConfig.inputBias, config, VPU_CONFIG_KEY(INPUT_BIAS),
-              [](const std::string &src) { return std::stof(src); });
-
     setOption(compileConfig.numSHAVEs, config, VPU_CONFIG_KEY(NUMBER_OF_SHAVES),
               [](const std::string &src) { return std::stoi(src); });
 
@@ -273,7 +248,6 @@ void ParsedConfig::configure(const std::map<std::string, std::string> &config) {
     setOption(exclusiveAsyncRequests, switches, config, CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
     setOption(printReceiveTensorTime, switches, config, VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
     setOption(perfCount,              switches, config, CONFIG_KEY(PERF_COUNT));
-    setOption(forceReset,             switches, config, VPU_CONFIG_KEY(FORCE_RESET));
 
     static const std::unordered_map<std::string, LogLevel> logLevels = {
         { CONFIG_VALUE(LOG_NONE), LogLevel::None },
@@ -282,8 +256,8 @@ void ParsedConfig::configure(const std::map<std::string, std::string> &config) {
         { CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug }
     };
 
-    setOption(logLevel,    logLevels, config, CONFIG_KEY(LOG_LEVEL));
-    setOption(vpuLogLevel, logLevels, config, VPU_CONFIG_KEY(LOG_LEVEL));
+    setOption(hostLogLevel,   logLevels, config, CONFIG_KEY(LOG_LEVEL));
+    setOption(deviceLogLevel, logLevels, config, VPU_CONFIG_KEY(LOG_LEVEL));
 
     static const std::unordered_map<std::string, PerfReport> perfReports {
         { VPU_CONFIG_VALUE(PER_LAYER), PerfReport::PerLayer },
@@ -291,6 +265,20 @@ void ParsedConfig::configure(const std::map<std::string, std::string> &config) {
     };
 
     setOption(perfReport, perfReports, config, VPU_CONFIG_KEY(PERF_REPORT_MODE));
+
+IE_SUPPRESS_DEPRECATED_START
+    setOption(compileConfig.inputScale, config, VPU_CONFIG_KEY(INPUT_NORM),
+              [](const std::string &src) { return 1.f / std::stof(src); });
+
+    setOption(compileConfig.inputBias, config, VPU_CONFIG_KEY(INPUT_BIAS),
+              [](const std::string &src) { return std::stof(src); });
+IE_SUPPRESS_DEPRECATED_END
+
+#ifndef NDEBUG
+    if (auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
+        hostLogLevel = logLevels.at(envVar);
+    }
+#endif
 }
 
 }  // namespace vpu

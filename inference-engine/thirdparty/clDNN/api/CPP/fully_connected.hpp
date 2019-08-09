@@ -18,9 +18,9 @@
 #pragma once
 #include "../C/fully_connected.h"
 #include "primitive.hpp"
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -30,7 +30,7 @@ namespace cldnn
 
 /// @brief Performs forward fully connected layer (inner product).
 /// Also supports built-in Relu @CLDNN_PRIMITIVE_DESC{activation} available by setting it in arguments.
-/// @notes 
+/// @notes
 /// - Equation: Input[F x Y x F] x Output(X) == Weights(B x F x X x F) has to be fulfilled
 /// - Bias has to be linear data [1,1,1,X], where X is equal to number of outputs.
 
@@ -50,8 +50,7 @@ namespace cldnn
 ///        <tr>                            <td >yxfb                   <td>bfyx
 /// </table>
 
-struct fully_connected : public primitive_base<fully_connected, CLDNN_PRIMITIVE_DESC(fully_connected)>
-{
+struct fully_connected : public primitive_base<fully_connected, CLDNN_PRIMITIVE_DESC(fully_connected)> {
     CLDNN_DECLARE_PRIMITIVE(fully_connected)
 
     /// @brief Constructs fully connected layer.
@@ -61,26 +60,22 @@ struct fully_connected : public primitive_base<fully_connected, CLDNN_PRIMITIVE_
     /// @param bias Primitive id containing bias data. Provide empty string if using Relu without bias.
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
-    fully_connected(
-        const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& weights,
-        const primitive_id& bias = "",
-        bool with_activation = false,
-        float activation_slp = 0.0f,
-        const padding& output_padding = padding()
-        )
-        : primitive_base(id, {input}, output_padding)
-        , weights(weights)
-        , bias(bias)
-        , weights_quantization_factors("")
-        , output_calibration_factors("")
-        , input_quantization_factor(1.0f)
-        , output_quantization_factor(1.0f)
-        , with_activation(with_activation)
-        , activation_negative_slope(activation_slp)
-    {
-    }
+    fully_connected(const primitive_id& id,
+                    const primitive_id& input,
+                    const primitive_id& weights,
+                    const primitive_id& bias = "",
+                    bool with_activation = false,
+                    float activation_slp = 0.0f,
+                    const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          weights(weights),
+          bias(bias),
+          weights_quantization_factors(""),
+          output_calibration_factors(""),
+          input_quantization_factor(1.0f),
+          output_quantization_factor(1.0f),
+          with_activation(with_activation),
+          activation_negative_slope(activation_slp) {}
 
     /// @brief Constructs fully connected layer.
     /// @param id This primitive id.
@@ -92,29 +87,25 @@ struct fully_connected : public primitive_base<fully_connected, CLDNN_PRIMITIVE_
     /// @param o_quantization_factor Output quantization factor
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
-    fully_connected(
-        const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& weights,
-        const primitive_id& bias,
-        const primitive_id& w_quantization_factor,
-        const float i_quantization_factor,
-        const float o_quantization_factor,
-        bool with_activation = false,
-        float activation_slp = 0.0f,
-        const padding& output_padding = padding()
-        )
-        : primitive_base(id, { input }, output_padding)
-        , weights(weights)
-        , bias(bias)
-        , weights_quantization_factors(w_quantization_factor)
-        , output_calibration_factors("")
-        , input_quantization_factor(i_quantization_factor)
-        , output_quantization_factor(o_quantization_factor)
-        , with_activation(with_activation)
-        , activation_negative_slope(activation_slp)
-    {
-    }
+    fully_connected(const primitive_id& id,
+                    const primitive_id& input,
+                    const primitive_id& weights,
+                    const primitive_id& bias,
+                    const primitive_id& w_quantization_factor,
+                    const float i_quantization_factor,
+                    const float o_quantization_factor,
+                    bool with_activation = false,
+                    float activation_slp = 0.0f,
+                    const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          weights(weights),
+          bias(bias),
+          weights_quantization_factors(w_quantization_factor),
+          output_calibration_factors(""),
+          input_quantization_factor(i_quantization_factor),
+          output_quantization_factor(o_quantization_factor),
+          with_activation(with_activation),
+          activation_negative_slope(activation_slp) {}
 
     /// @brief Constructs fully connected layer.
     /// @param id This primitive id.
@@ -126,43 +117,37 @@ struct fully_connected : public primitive_base<fully_connected, CLDNN_PRIMITIVE_
     /// @param i_quantization_factor Input quantization factor
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
-    fully_connected(
-        const primitive_id& id,
-        const primitive_id& input,
-        const primitive_id& weights,
-        const primitive_id& bias,
-        const primitive_id& w_quantization_factor,
-        const primitive_id& output_calibration_factors,
-        const float i_quantization_factor,
-        bool with_activation = false,
-        float activation_slp = 0.0f,
-        const padding& output_padding = padding()
-    )
-        : primitive_base(id, { input }, output_padding)
-        , weights(weights)
-        , bias(bias)
-        , weights_quantization_factors(w_quantization_factor)
-        , output_calibration_factors(output_calibration_factors)
-        , input_quantization_factor(i_quantization_factor)
-        , output_quantization_factor(1.0f)
-        , with_activation(with_activation)
-        , activation_negative_slope(activation_slp)
-    {
-    }
+    fully_connected(const primitive_id& id,
+                    const primitive_id& input,
+                    const primitive_id& weights,
+                    const primitive_id& bias,
+                    const primitive_id& w_quantization_factor,
+                    const primitive_id& output_calibration_factors,
+                    const float i_quantization_factor,
+                    bool with_activation = false,
+                    float activation_slp = 0.0f,
+                    const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          weights(weights),
+          bias(bias),
+          weights_quantization_factors(w_quantization_factor),
+          output_calibration_factors(output_calibration_factors),
+          input_quantization_factor(i_quantization_factor),
+          output_quantization_factor(1.0f),
+          with_activation(with_activation),
+          activation_negative_slope(activation_slp) {}
 
     /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{fully_connected}
     fully_connected(const dto* dto)
-        :primitive_base(dto)
-        , weights(dto->weights)
-        , bias(dto->bias)
-        , weights_quantization_factors(dto->weights_quantization_factors)
-        , output_calibration_factors(dto->output_calibration_factors)
-        , input_quantization_factor(dto->input_quantization_factor)
-        , output_quantization_factor(dto->output_quantization_factor)
-        , with_activation(dto->with_activation != 0)
-        , activation_negative_slope(dto->activation_negative_slope)
-    {
-    }
+        : primitive_base(dto),
+          weights(dto->weights),
+          bias(dto->bias),
+          weights_quantization_factors(dto->weights_quantization_factors),
+          output_calibration_factors(dto->output_calibration_factors),
+          input_quantization_factor(dto->input_quantization_factor),
+          output_quantization_factor(dto->output_quantization_factor),
+          with_activation(dto->with_activation != 0),
+          activation_negative_slope(dto->activation_negative_slope) {}
 
     /// @brief Primitive id containing weights data.
     primitive_id weights;
@@ -182,8 +167,7 @@ struct fully_connected : public primitive_base<fully_connected, CLDNN_PRIMITIVE_
     float activation_negative_slope;
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override 
-    {
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.push_back(weights);
 
@@ -199,8 +183,7 @@ protected:
         return ret;
     }
 
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.weights = weights.c_str();
         dto.bias = bias.c_str();
         dto.weights_quantization_factors = weights_quantization_factors.c_str();
@@ -214,4 +197,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 */
 
 #include "convolution_kernel_selector.h"
-#include "convolution_kernel_bfyx_ref.h"
+#include "convolution_kernel_ref.h"
 #include "convolution_kernel_bfyx_1x1_opt.h"
 #include "convolution_kernel_bfyx_gemm_like.h"
 #include "convolution_kernel_bfyx_direct_10_12_16.h"
@@ -27,15 +27,15 @@
 #include "convolution_kernel_yxfb_yxio_b1_block.h"
 #include "convolution_kernel_yxfb_yxio_b1_block_multiple_x.h"
 #include "convolution_kernel_tutorial.h"
-//#include "convolution_kernel_bfyx_3x3_dw_opt.h"
+// #include "convolution_kernel_bfyx_3x3_dw_opt.h"
 #include "convolution_kernel_winograd_2x3_s1.h"
 #include "convolution_kernel_bfyx_1x1.h"
 #include "convolution_kernel_bfyx_1x1_gemm_buf.h"
 #include "convolution_kernel_winograd_2x3_s1_fused.h"
 #include "convolution_kernel_winograd_6x3_s1_fused.h"
-#include "convolution_kernel_MMAD.h"
-#include "convolution_kernel_MMAD_blocks.h"
-#include "convolution_kernel_1x1_gemm_MMAD.h"
+#include "convolution_kernel_mmad.h"
+#include "convolution_kernel_mmad_blocks.h"
+#include "convolution_kernel_1x1_gemm_mmad.h"
 #include "convolution_kernel_byxf_af32_depthwise.h"
 #include "convolution_kernel_mmad_batched.h"
 #include "convolution_kernel_bfyx_depthwise_weights_lwg.h"
@@ -51,52 +51,88 @@
 #include "convolution_kernel_imad_3x3.h"
 #include "convolution_kernel_imad_1x1.h"
 #include "convolution_kernel_imad_7x7.h"
+#include "convolution_kernel_bfzyx_ref.h"
+#include "convolution_kernel_fs_byx_fsv32.h"
+#include "convolution_kernel_fs_byx_fsv32_1x1.h"
+#include "convolution_kernel_bfyx_to_fs_byx_fsv32.h"
+#include "convolution_kernel_bfyx_f16_depthwise.h"
+#include "convolution_kernel_bfyx_f16_1x1.h"
+#include "convolution_kernel_bfyx_f16.h"
+#include "convolution_kernel_bfyx_to_bfyx_f16.h"
+#include "deformable_convolution_kernel_bfyx_ref.h"
+#include "deformable_convolution_kernel_bfyx_conv.h"
+#include "deformable_convolution_kernel_bfyx_interp.h"
 
-namespace kernel_selector 
-{
-    convolution_kernel_selector::convolution_kernel_selector()
-    {
-        Attach<ConvolutionKernel_bfyx_Ref>();
-        Attach<convolution_kernel_bfyx_1x1_opt>();
-        Attach<ConvolutionKernel_bfyx_GEMMLike>();
-        Attach<ConvolutionKernel_bfyx_Direct_10_10_12>();
-        Attach<ConvolutionKernel_bfyx_os_iyx_osv16>();
-        // commented out to not get in our way, will enable in future after autotuning
-//        Attach<ConvolutionKernel_bfyx_os_iyx_osv16_2_sg>();
-        Attach<ConvolutionKernel_yxfb_Ref>();
-        Attach<ConvolutionKernel_yxfb_yxio_b16>();
-        Attach<ConvolutionKernel_yxfb_yxio_b8>();
-        //Attach<ConvolutionKernel_yxfb_yxio_b1_block>(); // TODO: need to finish integration
-        Attach<ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x>();
-        //Attach<ConvolutionKernel_bfyx_3x3_dw_opt>();
-        Attach<ConvolutionKernel_Winograd_2x3_s1>();
-        Attach<ConvolutionKernel_Winograd_2x3_s1_fused>();
-        Attach<ConvolutionKernel_Winograd_6x3_s1_fused>();
-        Attach<ConvolutionKernel_bfyx_1x1>();
-        Attach<ConvolutionKernel_bfyx_1x1_gemm_buf>();
-        Attach<ConvolutionKernel_MMAD>();
-        Attach<ConvolutionKernel_MMAD_blocks>();
-        Attach<ConvolutionKernel_1x1_gemm_MMAD>();
-        Attach<ConvolutionKernel_byxf_af32_depthiwise>();
-        Attach<ConvolutionKernel_mmad_batched>();
-        Attach<ConvolutionKernel_bfyx_depthwise_weights_lwg>();
-        Attach<ConvolutionKernel_mmad_slm_2x14_rep4>();
-        Attach<ConvolutionKernel_mmad_slm_7x7_rep4>();
-        Attach<ConvolutionKernel_mmad_32x32sg_128x128wg_slm_int8>();
-        Attach<ConvolutionKernel_mmad_32x32sg_224x128wg_slm_int8>();
-        Attach<ConvolutionKernel_byxf_fs_bs_yx_bsv4_fsv32>();
-        Attach<ConvolutionKernel_byx8_f4__fs_bs_yx_bsv4_fsv32>();
-        Attach<ConvolutionKernel_mmad_batched_block>();
-        Attach<ConvolutionKernel_mmad_batched_block_1x1>();
-//        Attach<ConvolutionKernel_mmad_32x32sg_slm_int8>();
-        //Attach<ConvolutionKernel_Tutorial>(); //In order to use this implementation for tutorial purposes please uncomment this line
-        Attach<ConvolutionKernel_imad_3x3>();
-        Attach<ConvolutionKernel_imad_1x1>();
-        Attach<ConvolutionKernel_imad_7x7>();
-    }
-
-    KernelsData convolution_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetAutoTuneBestKernel(params, options, KernelType::CONVOLUTION);
-    }
+namespace kernel_selector {
+convolution_kernel_selector::convolution_kernel_selector() {
+    Attach<ConvolutionKernel_Ref>();
+    Attach<convolution_kernel_bfyx_1x1_opt>();
+    Attach<ConvolutionKernel_bfyx_GEMMLike>();
+    Attach<ConvolutionKernel_bfyx_Direct_10_10_12>();
+    Attach<ConvolutionKernel_bfyx_os_iyx_osv16>();
+    // commented out to not get in our way, will enable in future after autotuning
+    //        Attach<ConvolutionKernel_bfyx_os_iyx_osv16_2_sg>();
+    Attach<ConvolutionKernel_yxfb_Ref>();
+    Attach<ConvolutionKernel_yxfb_yxio_b16>();
+    Attach<ConvolutionKernel_yxfb_yxio_b8>();
+    // Attach<ConvolutionKernel_yxfb_yxio_b1_block>(); // TODO: need to finish integration
+    Attach<ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x>();
+    // Attach<ConvolutionKernel_bfyx_3x3_dw_opt>();
+    Attach<ConvolutionKernel_Winograd_2x3_s1>();
+    Attach<ConvolutionKernel_Winograd_2x3_s1_fused>();
+    Attach<ConvolutionKernel_Winograd_6x3_s1_fused>();
+    Attach<ConvolutionKernel_bfyx_1x1>();
+    Attach<ConvolutionKernel_bfyx_1x1_gemm_buf>();
+    Attach<ConvolutionKernel_MMAD>();
+    Attach<ConvolutionKernel_MMAD_blocks>();
+    Attach<ConvolutionKernel_1x1_gemm_MMAD>();
+    Attach<ConvolutionKernel_byxf_af32_depthiwise>();
+    Attach<ConvolutionKernel_mmad_batched>();
+    Attach<ConvolutionKernel_bfyx_depthwise_weights_lwg>();
+    Attach<ConvolutionKernel_mmad_slm_2x14_rep4>();
+    Attach<ConvolutionKernel_mmad_slm_7x7_rep4>();
+    Attach<ConvolutionKernel_mmad_32x32sg_128x128wg_slm_int8>();
+    Attach<ConvolutionKernel_mmad_32x32sg_224x128wg_slm_int8>();
+    Attach<ConvolutionKernel_byxf_fs_bs_yx_bsv4_fsv32>();
+    Attach<ConvolutionKernel_byx8_f4__fs_bs_yx_bsv4_fsv32>();
+    Attach<ConvolutionKernel_mmad_batched_block>();
+    Attach<ConvolutionKernel_mmad_batched_block_1x1>();
+    //        Attach<ConvolutionKernel_mmad_32x32sg_slm_int8>();
+    // Attach<ConvolutionKernel_Tutorial>(); //In order to use this implementation for tutorial purposes please
+    // uncomment this line
+    Attach<ConvolutionKernel_imad_3x3>();
+    Attach<ConvolutionKernel_imad_1x1>();
+    Attach<ConvolutionKernel_imad_7x7>();
+    Attach<ConvolutionKernel_bfzyx_Ref>();
+    Attach<ConvolutionKernel_fs_byx_fsv32>();
+    Attach<ConvolutionKernel_fs_byx_fsv32_1x1>();
+    Attach<ConvolutionKernel_bfyx_to_fs_byx_fsv32>();
+    Attach<ConvolutionKernel_bfyx_f16_depthwise>();
+    Attach<ConvolutionKernel_bfyx_f16_1x1>();
+    Attach<ConvolutionKernel_bfyx_f16>();
+    Attach<ConvolutionKernel_bfyx_to_bfyx_f16>();
+    Attach<DeformableConvolutionKernel_bfyx_Ref>();
 }
+
+KernelsData convolution_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetAutoTuneBestKernel(params, options, KernelType::CONVOLUTION);
+}
+
+deformable_conv_kernel_selector::deformable_conv_kernel_selector() {
+    Attach<DeformableConvolutionKernel_bfyx_conv>();
+}
+
+KernelsData deformable_conv_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetAutoTuneBestKernel(params, options, KernelType::CONVOLUTION);
+}
+
+deformable_interp_kernel_selector::deformable_interp_kernel_selector() {
+    Attach<DeformableConvolutionKernel_bfyx_interp>();
+}
+
+KernelsData deformable_interp_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetAutoTuneBestKernel(params, options, KernelType::CONVOLUTION);
+}
+
+
+}  // namespace kernel_selector

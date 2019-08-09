@@ -18,14 +18,13 @@
 #pragma once
 #include "api/CPP/region_yolo.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 using region_yolo_node = typed_program_node<region_yolo>;
 
 template <>
-class typed_primitive_inst<region_yolo> : public typed_primitive_inst_base<region_yolo>
-{
+class typed_primitive_inst<region_yolo> : public typed_primitive_inst_base<region_yolo> {
     using parent = typed_primitive_inst_base<region_yolo>;
 
 public:
@@ -38,4 +37,4 @@ public:
 
 using region_yolo_inst = typed_primitive_inst<region_yolo>;
 
-}
+}  // namespace cldnn

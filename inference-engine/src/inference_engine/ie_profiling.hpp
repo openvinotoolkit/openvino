@@ -20,7 +20,7 @@
 #include <mutex>
 #include <cfloat>
 
-#if ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT
 #include <ittnotify.h>
 #endif
 
@@ -114,7 +114,7 @@ typename Annotate< Static, Block, Local >::Static_ Annotate< Static, Block, Loca
     IE_ANNOTATE_MAKE_SCOPE_TYPE(lib_name, static_type, block_type, make_static_args_tuple)                          \
     IE_ANNOTATE_VARIABLE_NAME(lib_name){IE_ANNOTATE_UNPACK(make_block_args_tuple)};
 
-#if ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT
 struct IttTaskHandles {
     __itt_domain*        const domain;
     __itt_string_handle* const handle;
@@ -214,7 +214,7 @@ inline static void annotateEnd(TimeResultsMap& m, TimeSampler& t) {
 struct ProfilingTask {
     std::string name;
 
-#if ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT
     __itt_domain*        domain;
     __itt_string_handle* handle;
 #endif
@@ -224,7 +224,7 @@ struct ProfilingTask {
 
     inline explicit ProfilingTask(const std::string& task_name)
     : name(task_name)
-#if ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT
     , domain(__itt_domain_create("InferenceEngine"))
     , handle(__itt_string_handle_create(task_name.c_str()))
 #endif
@@ -238,18 +238,18 @@ struct IttProfilingTask {
 };
 
 inline static void annotateBegin(IttStatic&, IttProfilingTask& t) {
-#if ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT
     __itt_task_begin(t.t.domain, __itt_null, __itt_null, t.t.handle);
 #endif
 }
 
 inline static void annotateEnd(IttStatic&, IttProfilingTask& t) {
-#if ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT
     __itt_task_end(t.t.domain);
 #endif
 }
 
-#if ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT
     #define IE_ITT_TASK_SCOPE(profilingTask)            \
         IE_ANNOTATE_MAKE_SCOPE(                         \
             InferenceEngineIttScopeTask,                \
@@ -264,7 +264,7 @@ inline static void annotateEnd(IttStatic&, IttProfilingTask& t) {
 #define IE_PROFILING_AUTO_SCOPE_TASK(PROFILING_TASK) IE_ITT_TASK_SCOPE(PROFILING_TASK); IE_TIMER_SCOPE(PROFILING_TASK.name)
 
 inline static void anotateSetThreadName(const char* name) {
-    #if ENABLE_PROFILING_ITT
+    #ifdef ENABLE_PROFILING_ITT
     __itt_thread_set_name(name);
     #endif
     // to suppress "unused" warning

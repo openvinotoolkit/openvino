@@ -1,5 +1,4 @@
 # Copyright (C) 2018-2019 Intel Corporation
-#
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -105,6 +104,8 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
   if (NOT DEFINED FOLDER)
     set (FOLDER FALSE)
   endif()
+
+
 
   #for each dependency type have to do separate things
   if (ARCHIVE_WIN OR ARCHIVE_LIN OR ARCHIVE_MAC OR ARCHIVE OR ARCHIVE_UNIFIED)

@@ -24,11 +24,13 @@ class InferenceResult:
                  result: InferRawResults,
                  metrics: CalibrationMetrics,
                  aggregated_statistics: AggregatedStatistics,
-                 performance_counters: dict):
+                 performance_counters: dict,
+                 layers_accuracy_drop = None):
         self._result = result
         self._metrics = metrics
         self._aggregated_statistics = aggregated_statistics
         self._performance_counters = performance_counters
+        self._layers_accuracy_drop = layers_accuracy_drop
 
     def __enter__(self):
         return self
@@ -56,6 +58,10 @@ class InferenceResult:
     @property
     def performance_counters(self) -> dict:
         return self._performance_counters
+
+    @property
+    def layers_accuracy_drop(self) -> dict:
+        return self._layers_accuracy_drop
 
     def get_class_ids(self, output_layer_name: str) -> list:
         '''

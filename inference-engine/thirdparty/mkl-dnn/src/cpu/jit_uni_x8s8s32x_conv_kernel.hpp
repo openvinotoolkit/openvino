@@ -120,7 +120,7 @@ private:
     inline Vmm get_acc_reg(int idx) { return Vmm(idx + 1); }
 
     inline void cvt2ps(data_type_t type_in, Vmm ymm_in, const Xbyak::Operand &op, bool scalar_load);
-    inline void store_dst(const Xbyak::Address &op, Vmm vmm_dst, bool scalar_store);
+    inline void store_dst(const Xbyak::Address &op, Vmm vmm_dst, bool scalar_store, bool need_pack = true);
 
     inline void apply_filter(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step,
                              int tail_size, bool h_padded);

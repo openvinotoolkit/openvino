@@ -16,7 +16,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNGemmNode::MKLDNNGemmNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {}
+MKLDNNGemmNode::MKLDNNGemmNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
+        MKLDNNNode(layer, eng, socket) {}
 
 void MKLDNNGemmNode::getSupportedDescriptors() {
     auto* gemmLayer = dynamic_cast<GemmLayer*>(getCnnLayer().get());
@@ -51,10 +52,14 @@ void MKLDNNGemmNode::getSupportedDescriptors() {
     int nDims = inDims0.ndims();
     xAxis = nDims - 1;
     yAxis = nDims - 2;
+    auto xAxis0 = transposeA ? yAxis : xAxis;
+    auto yAxis0 = transposeA ? xAxis : yAxis;
+    auto xAxis1 = transposeB ? yAxis : xAxis;
+    auto yAxis1 = transposeB ? xAxis : yAxis;
 
     // The check inDims0[xAxis] != inDims1[yAxis] is correct due to layer semantic
     // coverity[copy_paste_error]
-    if (inDims0[xAxis] != inDims1[yAxis] || inDims0[yAxis] != outDims[yAxis] || inDims1[xAxis] != outDims[xAxis])
+    if (inDims0[xAxis0] != inDims1[yAxis1] || inDims0[yAxis0] != outDims[yAxis] || inDims1[xAxis1] != outDims[xAxis])
         THROW_IE_EXCEPTION << "Spatial input and output dimensions are incorrect for layer " << getName();
 
     isThreeInputs = getParentEdges().size() == 3;
@@ -132,7 +137,7 @@ void MKLDNNGemmNode::initSupportedPrimitiveDescriptors() {
             dataConfig.constant = false;
             dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
             config.outConfs.push_back(dataConfig);
-        return {config, impl_desc_type::gemm_any};
+        return {config, impl_desc_type::gemm_any, fmt};
     };
 
     supportedPrimitiveDescriptors.push_back(same(memory::any));
@@ -172,9 +177,9 @@ void MKLDNNGemmNode::execute(mkldnn::stream strm) {
 
     int MB1 = outDims.ndims() == 4 ? batchToProcess() : 1;
     int MB2 = outDims.ndims() == 3 ? batchToProcess() : outDims.ndims() > 3 ? outDims[outDims.ndims() - 3] : 1;
-    int M = inDims0[yAxis];
-    int N = inDims1[xAxis];
-    int K = inDims0[xAxis];
+    int M = outDims[yAxis];
+    int N = outDims[xAxis];
+    int K = transposeA ? inDims0[yAxis] : inDims0[xAxis];
 
     const char transa = transposeA ? 'T' : 'N';
     const char transb = transposeB ? 'T' : 'N';

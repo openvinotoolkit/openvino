@@ -59,8 +59,10 @@ bool pin_current_thread_by_mask(int ncores, const cpu_set_t* proc_mask);
 /* Pin thread to a spare core in the round-robin scheme, while respecting the given process mask.
  * The function can also handle the hyper-threading (by populating the physical cores first) */
 bool pin_thread_to_vacant_core(int thr_idx, int hyperthreads, int ncores, const cpu_set_t* proc_mask);
+/* Pin current thread to the socket (the func generates the mask and calls pin_current_thread_by_mask). */
+bool pin_current_thread_to_socket(int socket);
 
-#if IE_THREAD == IE_THREAD_TBB
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 /* Simple observer that handles pinning threads to the cores, it serves as a callback for threads entering the arena. */
 class pinning_observer: public tbb::task_scheduler_observer {
     cpu_set_t *mask;
@@ -89,7 +91,7 @@ public:
         pin_current_thread_by_mask(ncpus, mask);
     }
 
-    ~pinning_observer() {
+    virtual ~pinning_observer() {
         if (mask)
             CPU_FREE(mask);
     }
@@ -109,7 +111,7 @@ public:
 protected:
     std::unique_ptr<tbb::task_scheduler_observer>&  p;
 };
-#endif  // IE_THREAD == IE_THREAD_TBB
+#endif  // IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
 
 /* Class wrapping multiple worker threads that monitors the same queue with Infer Requests. */
 class MultiWorkerTaskExecutor : public ITaskExecutor {

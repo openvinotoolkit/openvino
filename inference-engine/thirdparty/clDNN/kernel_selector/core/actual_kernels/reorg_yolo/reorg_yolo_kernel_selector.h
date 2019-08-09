@@ -17,21 +17,19 @@
 #pragma once
 
 #include "kernel_selector.h"
- 
-namespace kernel_selector 
-{
-    class reorg_yolo_kernel_selector : public kernel_selector_base
-    {
-    public:
-        static reorg_yolo_kernel_selector &Instance() {
-            static reorg_yolo_kernel_selector instance_;
-            return instance_;
-        }
 
-        reorg_yolo_kernel_selector();
+namespace kernel_selector {
+class reorg_yolo_kernel_selector : public kernel_selector_base {
+public:
+    static reorg_yolo_kernel_selector& Instance() {
+        static reorg_yolo_kernel_selector instance_;
+        return instance_;
+    }
 
-        virtual ~reorg_yolo_kernel_selector() {}
+    reorg_yolo_kernel_selector();
 
-        virtual KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-    };
-}
+    virtual ~reorg_yolo_kernel_selector() {}
+
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+};
+}  // namespace kernel_selector

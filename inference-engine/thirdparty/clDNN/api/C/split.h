@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef SPLIT_H
-#define SPLIT_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -35,7 +33,7 @@ extern "C" {
 /// @n User cannot use split primitive directly.
 /// @n It is needed to refer to the output ids with the name "<split_prim_id>:<split_output_id>".
 /// @n
-/// @n\b Assumptions 
+/// @n\b Assumptions
 /// @n - offsets1 < offsets2 < offsets3 < ...
 /// @n - size[n] = offsets[n+1] - offsets[n];
 /// @n - last element: size[n] = split_input.size - offsets[n];
@@ -67,5 +65,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(split);
 /// @}
 /// @}
 /// @}
-#endif /* SPLIT_H */
 

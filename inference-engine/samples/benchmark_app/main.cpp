@@ -12,9 +12,8 @@
 
 #include <inference_engine.hpp>
 #include <ext_list.hpp>
-#include <format_reader_ptr.h>
-
 #include <vpu/vpu_plugin_config.hpp>
+#include <cldnn/cldnn_config.hpp>
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
@@ -23,47 +22,42 @@
 #include "infer_request_wrap.hpp"
 #include "progress_bar.hpp"
 #include "statistics_report.hpp"
+#include "inputs_filling.hpp"
+#include "utils.hpp"
 
 using namespace InferenceEngine;
 
-long long getDurationInNanoseconds(const std::string& device);
-
-void fillBlobWithImage(
-    Blob::Ptr& inputBlob,
-    const std::vector<std::string>& filePaths,
-    const size_t& batchSize,
-    const InferenceEngine::InputInfo& info);
-
 static const size_t progressBarDefaultTotalCount = 1000;
 
+uint64_t getDurationInMilliseconds(uint32_t duration) {
+    return duration * 1000LL;
+}
+
+uint64_t getDurationInNanoseconds(uint32_t duration) {
+    return duration * 1000000000LL;
+}
+
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
-    // ---------------------------Parsing and validation of input args--------------------------------------
+    // ---------------------------Parsing and validating input arguments--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
-    if (FLAGS_h) {
+    if (FLAGS_help || FLAGS_h) {
         showUsage();
+        showAvailableDevices();
         return false;
     }
 
     if (FLAGS_m.empty()) {
-        throw std::logic_error("Model required is not set. Please use -h.");
-    }
-
-    if (FLAGS_api.empty()) {
-        throw std::logic_error("API not selected. Please use -h.");
+        throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
-        throw std::logic_error("Incorrect API. Please use -h.");
-    }
-
-    if (FLAGS_i.empty()) {
-        throw std::logic_error("Input is not set. Please use -h.");
+        throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
 
     if (!FLAGS_report_type.empty() &&
-         FLAGS_report_type != noCntReport && FLAGS_report_type != medianCntReport && FLAGS_report_type != detailedCntReport) {
-        std::string err = "only " + std::string(noCntReport) + "/" + std::string(medianCntReport) + "/" + std::string(detailedCntReport) +
+         FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport && FLAGS_report_type != detailedCntReport) {
+        std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" + std::string(detailedCntReport) +
                 " report types are supported (invalid -report_type option value)";
         throw std::logic_error(err);
     }
@@ -71,378 +65,363 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     return true;
 }
 
+static void next_step(const std::string additional_info = "") {
+    static size_t step_id = 0;
+    static const std::map<size_t, std::string> step_names = {
+      { 1, "Parsing and validating input arguments" },
+      { 2, "Loading Inference Engine" },
+      { 3, "Reading the Intermediate Representation network" },
+      { 4, "Resizing network to match image sizes and given batch" },
+      { 5, "Configuring input of the model" },
+      { 6, "Setting device configuration" },
+      { 7, "Loading the model to the device" },
+      { 8, "Setting optimal runtime parameters" },
+      { 9, "Creating infer requests and filling input blobs with images" },
+      { 10, "Measuring performance" },
+      { 11, "Dumping statistics report" }
+    };
+
+    step_id++;
+    if (step_names.count(step_id) == 0)
+        THROW_IE_EXCEPTION << "Step ID " << step_id << " is out of total steps number " << step_names.size();
+
+    std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
+              << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
+}
+
 /**
-* @brief The entry point the benchmark application
+* @brief The entry point of the benchmark application
 */
 int main(int argc, char *argv[]) {
     try {
-        slog::info << "InferenceEngine: " << InferenceEngine::GetInferenceEngineVersion() << slog::endl;
-
-        // ------------------------------ Parsing and validation of input args ---------------------------------
-        std::cout << std::endl << "[Step 1/8] Parsing and validation of input args" << std::endl;
-        ProgressBar progressBar(1, FLAGS_stream_output);
+        // ----------------- 1. Parsing and validating input arguments -------------------------------------------------
+        next_step();
 
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
         }
 
         /** This vector stores paths to the processed images **/
-        std::vector<std::string> inputImages;
-        parseInputFilesArguments(inputImages);
-        if (inputImages.size() == 0ULL) {
-            throw std::logic_error("no images found");
-        }
-        progressBar.addProgress(1);
-        progressBar.finish();
+        std::vector<std::string> inputFiles;
+        parseInputFilesArguments(inputFiles);
 
-        // --------------------------- 1. Load Plugin for inference engine -------------------------------------
+        // ----------------- 2. Loading the Inference Engine -----------------------------------------------------------
+        next_step();
 
-        std::cout << "[Step 2/8] Loading plugin" << std::endl;
-        progressBar.newBar(1);
+        // Get optimal runtime parameters for device
+        std::string device_name = FLAGS_d;
 
-        InferencePlugin plugin = PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
+        Core ie;
 
         if (FLAGS_d.find("CPU") != std::string::npos) {
-            // Loading default CPU etensions
-            plugin.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>());
+            // Loading default CPU extensions
+            ie.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>(), "CPU");
 
             if (!FLAGS_l.empty()) {
                 // CPU (MKLDNN) extensions is loaded as a shared library and passed as a pointer to base extension
                 const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
-                plugin.AddExtension(extension_ptr);
+                ie.AddExtension(extension_ptr, "CPU");
                 slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
             }
         }
 
         if ((FLAGS_d.find("GPU") != std::string::npos) && !FLAGS_c.empty()) {
             // Load clDNN Extensions
-            plugin.SetConfig({ {CONFIG_KEY(CONFIG_FILE), FLAGS_c} });
+            ie.SetConfig({ {CONFIG_KEY(CONFIG_FILE), FLAGS_c} });
             slog::info << "GPU extensions is loaded " << FLAGS_c << slog::endl;
         }
 
-        InferenceEngine::ResponseDesc resp;
-        if (FLAGS_d == "MYRIAD") {
-            plugin.SetConfig({ {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}, {VPU_CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)} });
-        }
+        slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
+        slog::info << "Device info: " << slog::endl;
+        std::cout << ie.GetVersions(device_name) << std::endl;
 
-        const Version *pluginVersion = plugin.GetVersion();
-        slog::info << pluginVersion << slog::endl;
-
-        progressBar.addProgress(1);
-        progressBar.finish();
-
-        // --------------------------- 2. Read IR Generated by ModelOptimizer (.xml and .bin files) ------------
-
-        std::cout << "[Step 3/8] Read IR network" << std::endl;
-        progressBar.newBar(1);
+        // ----------------- 3. Reading the Intermediate Representation network ----------------------------------------
+        next_step();
 
         slog::info << "Loading network files" << slog::endl;
 
-        InferenceEngine::CNNNetReader netBuilder;
+        CNNNetReader netBuilder;
         netBuilder.ReadNetwork(FLAGS_m);
         const std::string binFileName = fileNameNoExt(FLAGS_m) + ".bin";
         netBuilder.ReadWeights(binFileName);
 
-        InferenceEngine::CNNNetwork cnnNetwork = netBuilder.getNetwork();
-        const InferenceEngine::InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
+        CNNNetwork cnnNetwork = netBuilder.getNetwork();
+        const InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
         if (inputInfo.empty()) {
             throw std::logic_error("no inputs info is provided");
         }
 
-        if (inputInfo.size() != 1) {
-            throw std::logic_error("only networks with one input are supported");
-        }
-
-        // --------------------------- 3. Resize network to match image sizes and given batch----------------------
+        // ----------------- 4. Resizing network to match image sizes and given batch ----------------------------------
+        next_step();
 
         if (FLAGS_b != 0) {
-            // We support models having only one input layers
             ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
-            const ICNNNetwork::InputShapes::iterator& it = shapes.begin();
-            if (it->second.size() != 4) {
-                throw std::logic_error("Unsupported model for batch size changing in automatic mode");
+            bool reshape = false;
+            for (const InputsDataMap::value_type& item : inputInfo) {
+                auto layout = item.second->getTensorDesc().getLayout();
+
+                int batchIndex = -1;
+                if ((layout == Layout::NCHW) || (layout == Layout::NCDHW) ||
+                    (layout == Layout::NHWC) || (layout == Layout::NDHWC) ||
+                    (layout == Layout::NC)) {
+                    batchIndex = 0;
+                } else if (layout == CN) {
+                    batchIndex = 1;
+                }
+                if ((batchIndex != -1) && (shapes[item.first][batchIndex] != FLAGS_b)) {
+                    shapes[item.first][batchIndex] = FLAGS_b;
+                    reshape = true;
+                }
             }
-            it->second[0] = FLAGS_b;
-            slog::info << "Resizing network to batch = " << FLAGS_b << slog::endl;
-            cnnNetwork.reshape(shapes);
+            if (reshape) {
+                slog::info << "Resizing network to batch = " << FLAGS_b << slog::endl;
+                cnnNetwork.reshape(shapes);
+            }
         }
 
         const size_t batchSize = cnnNetwork.getBatchSize();
-        const Precision precision = inputInfo.begin()->second->getPrecision();
         slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize <<
-            ", precision: " << precision << slog::endl;
+            ", precision: " << cnnNetwork.getPrecision() << slog::endl;
 
-        progressBar.addProgress(1);
-        progressBar.finish();
+        // ----------------- 5. Configuring input ----------------------------------------------------------------------
+        next_step();
 
-        // --------------------------- 4. Configure input & output ---------------------------------------------
-
-        std::cout << "[Step 4/8] Configure input & output of the model" << std::endl;
-        progressBar.newBar(1);
-
-        const InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::U8;
         for (auto& item : inputInfo) {
-            /** Set the precision of input data provided by the user, should be called before load of the network to the plugin **/
-            item.second->setInputPrecision(inputPrecision);
-        }
-
-        const size_t imagesCount = inputImages.size();
-        if (batchSize > imagesCount) {
-            slog::warn << "Network batch size " << batchSize << " is greater than images count " << imagesCount <<
-                ", some input files will be duplicated" << slog::endl;
-        } else if (batchSize < imagesCount) {
-            slog::warn << "Network batch size " << batchSize << " is less then images count " << imagesCount <<
-                ", some input files will be ignored" << slog::endl;
-        }
-
-        // ------------------------------ Prepare output blobs -------------------------------------------------
-        slog::info << "Preparing output blobs" << slog::endl;
-        InferenceEngine::OutputsDataMap outputInfo(cnnNetwork.getOutputsInfo());
-        InferenceEngine::BlobMap outputBlobs;
-        for (auto& item : outputInfo) {
-            const InferenceEngine::DataPtr outData = item.second;
-            if (!outData) {
-                throw std::logic_error("output data pointer is not valid");
-            }
-            InferenceEngine::SizeVector outputDims = outData->dims;
-            const InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
-
-            /** Set the precision of output data provided by the user, should be called before load of the network to the plugin **/
-            outData->setPrecision(outputPrecision);
-            InferenceEngine::TBlob<float>::Ptr output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
-            output->allocate();
-            outputBlobs[item.first] = output;
-        }
-
-        progressBar.addProgress(1);
-        progressBar.finish();
-
-        // --------------------------- 5. Loading model to the plugin ------------------------------------------
-
-        std::cout << "[Step 5/8] Loading model to the plugin " << std::endl;
-        progressBar.newBar(1);
-
-        std::map<std::string, std::string> networkConfig;
-        if (FLAGS_d.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
-            // limit threading for CPU portion of inference
-            if (FLAGS_nthreads != 0)
-                networkConfig[PluginConfigParams::KEY_CPU_THREADS_NUM] = std::to_string(FLAGS_nthreads);
-            // pin threads for CPU portion of inference
-            networkConfig[PluginConfigParams::KEY_CPU_BIND_THREAD] = FLAGS_pin;
-            // for pure CPU execution, more throughput-oriented execution via streams
-            if (FLAGS_api == "async" && FLAGS_d == "CPU")
-                networkConfig[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(FLAGS_nireq);
-        }
-
-        if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == medianCntReport) {
-            networkConfig[PluginConfigParams::KEY_PERF_COUNT] = PluginConfigParams::YES;
-        }
-
-        InferenceEngine::ExecutableNetwork exeNetwork = plugin.LoadNetwork(cnnNetwork, networkConfig);
-
-        progressBar.addProgress(1);
-        progressBar.finish();
-
-        // --------------------------- 6. Create infer requests and fill input blobs ---------------------------
-
-        std::cout << "[Step 6/8] Create infer requests and fill input blobs with images" << std::endl;
-        progressBar.newBar(1);
-
-        std::vector<InferReqWrap::Ptr> inferRequests;
-        auto numOfReq = (FLAGS_api == "async") ? FLAGS_nireq : 1;
-        inferRequests.reserve(numOfReq);
-
-        for (size_t i = 0; i < numOfReq; i++) {
-            inferRequests.push_back(std::make_shared<InferReqWrap>(exeNetwork));
-            slog::info << "Infer Request " << i << " created" << slog::endl;
-
-            for (const InputsDataMap::value_type& item : inputInfo) {
-                Blob::Ptr inputBlob = inferRequests[i]->getBlob(item.first);
-                fillBlobWithImage(inputBlob, inputImages, batchSize, *item.second);
+            if (isImage(item.second)) {
+                /** Set the precision of input data provided by the user, should be called before load of the network to the device **/
+                item.second->setPrecision(Precision::U8);
             }
         }
 
-        progressBar.addProgress(1);
-        progressBar.finish();
+        // ----------------- 6. Setting device configuration -----------------------------------------------------------
+        next_step();
 
-        // --------------------------- 7. Performance measurements stuff ------------------------------------------
+        bool perf_counts = (FLAGS_report_type == detailedCntReport ||
+                            FLAGS_report_type == averageCntReport ||
+                            FLAGS_pc);
 
-        long long durationInNanoseconds;
-        if (FLAGS_niter != 0) {
-            durationInNanoseconds = 0LL;
-        } else {
-            durationInNanoseconds = getDurationInNanoseconds(FLAGS_d);
+        auto devices = parseDevices(device_name);
+        std::map<std::string, uint32_t> device_nstreams = parseValuePerDevice(devices, FLAGS_nstreams);
+        for (auto& device : devices) {
+            if (device == "CPU") {  // CPU supports few special performance-oriented keys
+                // limit threading for CPU portion of inference
+                if (FLAGS_nthreads != 0)
+                    ie.SetConfig({{ CONFIG_KEY(CPU_THREADS_NUM), std::to_string(FLAGS_nthreads) }}, device);
+
+                // pin threads for CPU portion of inference
+                ie.SetConfig({{ CONFIG_KEY(CPU_BIND_THREAD), FLAGS_pin }}, device);
+
+                // for CPU execution, more throughput-oriented execution via streams
+                if (FLAGS_api == "async")
+                    ie.SetConfig({{ CONFIG_KEY(CPU_THROUGHPUT_STREAMS),
+                                    (device_nstreams.count(device) > 0 ? std::to_string(device_nstreams.at(device)) :
+                                                                         "CPU_THROUGHPUT_AUTO") }}, device);
+                device_nstreams[device] = std::stoi(ie.GetConfig(device, CONFIG_KEY(CPU_THROUGHPUT_STREAMS)).as<std::string>());
+            } else if (device == ("GPU")) {
+                if (FLAGS_api == "async")
+                    ie.SetConfig({{ CONFIG_KEY(GPU_THROUGHPUT_STREAMS),
+                                    (device_nstreams.count(device) > 0 ? std::to_string(device_nstreams.at(device)) :
+                                                                         "GPU_THROUGHPUT_AUTO") }}, device);
+                device_nstreams[device] = std::stoi(ie.GetConfig(device, CONFIG_KEY(GPU_THROUGHPUT_STREAMS)).as<std::string>());
+            } else if (device == "MYRIAD") {
+                ie.SetConfig({{ CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_NONE) },
+                              { VPU_CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_WARNING) }}, device);
+            }
         }
 
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> emptyStat = {};
-        StatisticsReport::Config config = {
-            FLAGS_d,
-            FLAGS_api,
-            batchSize,
-            FLAGS_nireq,
-            FLAGS_niter,
-            FLAGS_nthreads,
-            FLAGS_pin,
-            FLAGS_report_type,
-            FLAGS_report_folder
-        };
-        StatisticsReport statistics(config);
-        double fps;
-        double totalDuration;
+        // ----------------- 7. Loading the model to the device --------------------------------------------------------
+        next_step();
 
+        std::map<std::string, std::string> config = {{ CONFIG_KEY(PERF_COUNT), perf_counts ? CONFIG_VALUE(YES) :
+                                                                                             CONFIG_VALUE(NO) }};
+        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device_name, config);
+
+        // ----------------- 8. Setting optimal runtime parameters -----------------------------------------------------
+        next_step();
+
+        // Number of requests
+        uint32_t nireq = FLAGS_nireq;
+        if (nireq == 0) {
+            std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
+            try {
+                nireq = exeNetwork.GetMetric(key).as<unsigned int>();
+            } catch (const details::InferenceEngineException& ex) {
+                THROW_IE_EXCEPTION
+                        << "Every device used with the benchmark_app should "
+                        << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
+                        << "Failed to query the metric for the " << device_name << " with error:" << ex.what();
+            }
+        }
+
+        // Iteration limit
+        uint32_t niter = FLAGS_niter;
+        if ((niter > 0) && (FLAGS_api == "async")) {
+            niter = ((niter + nireq - 1)/nireq)*nireq;
+            if (FLAGS_niter != niter) {
+                slog::warn << "Number of iterations was aligned by request number from "
+                           << FLAGS_niter << " to " << niter << " using number of requests " << nireq << slog::endl;
+            }
+        }
+
+        // Time limit
+        uint32_t duration_seconds = 0;
+        if (FLAGS_t != 0) {
+            // time limit
+            duration_seconds = FLAGS_t;
+        } else if (FLAGS_niter == 0) {
+            // default time limit
+            duration_seconds = deviceDefaultDeviceDurationInSeconds(device_name);
+        }
+        uint64_t duration_nanoseconds = getDurationInNanoseconds(duration_seconds);
+
+        // ----------------- 9. Creating infer requests and filling input blobs ----------------------------------------
+        next_step();
+
+        InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
+
+        fillBlobs(inputFiles, batchSize, inputInfo, inferRequestsQueue.requests);
+
+        // ----------------- 10. Measuring performance ------------------------------------------------------------------
         size_t progressCnt = 0;
-        size_t progressBarTotalCount;
+        size_t progressBarTotalCount = progressBarDefaultTotalCount;
         size_t iteration = 0;
 
-        if (FLAGS_api == "sync") {
-            InferReqWrap::Ptr inferRequest = inferRequests[0];
-
-            std::cout << "[Step 7/8] ";
-            if (FLAGS_niter != 0) {
-                std::cout << "Start inference synchronously (" << FLAGS_niter << " sync inference executions)" << std::endl;
-                progressBarTotalCount = FLAGS_niter;
-            } else {
-                std::cout << "Start inference synchronously (" << durationInNanoseconds * 0.000001 << " ms duration)" << std::endl;
-                progressBarTotalCount = progressBarDefaultTotalCount;
+        std::stringstream ss;
+        ss << "Start inference " << FLAGS_api << "ronously";
+        if (FLAGS_api == "async") {
+            if (!ss.str().empty()) {
+                ss << ", ";
             }
-
-            // warming up - out of scope
-            inferRequest->infer();
-
-            const auto startTime = Time::now();
-            auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
-
-            /** Start inference & calculate performance **/
-            progressBar.newBar(progressBarTotalCount);
-            while ((iteration < FLAGS_niter) ||
-                   ((FLAGS_niter == 0) && (execTime < durationInNanoseconds))) {
-                inferRequest->infer();
-                statistics.add((FLAGS_report_type == detailedCntReport || FLAGS_report_type == medianCntReport) ?
-                               inferRequest->getPerformanceCounts() : emptyStat,
-                               inferRequest->getExecTime());
-
-                iteration++;
-
-                if (FLAGS_niter > 0) {
-                    progressBar.addProgress(1);
-                } else {
-                    execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
-                    // calculate how many progress intervals are covered by current iteration.
-                    // depends on the current iteration time and time of each progress interval.
-                    // Previously covered progress intervals must be skipped.
-                    auto progressIntervalTime = durationInNanoseconds / progressBarTotalCount;
-                    size_t newProgress = execTime / progressIntervalTime - progressCnt;
-                    progressBar.addProgress(newProgress);
-                    progressCnt += newProgress;
+            ss << nireq << " inference requests";
+            std::stringstream device_ss;
+            for (auto& nstreams : device_nstreams) {
+                if (!device_ss.str().empty()) {
+                    device_ss << ", ";
                 }
+                device_ss << nstreams.second << " streams for " << nstreams.first;
             }
-            fps = batchSize * 1000.0 / statistics.getMedianLatency();
-            totalDuration = std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
-            progressBar.finish();
-        } else {
-            std::cout << "[Step 7/8] ";
-            if (FLAGS_niter != 0) {
-                std::cout << "Start inference asynchronously (" << FLAGS_niter <<
-                    " async inference executions, " << FLAGS_nireq <<
-                    " inference requests in parallel)" << std::endl;
-                progressBarTotalCount = FLAGS_niter + FLAGS_nireq - 1;
-            } else {
-                std::cout << std::endl << "Start inference asynchronously (" << durationInNanoseconds * 0.000001 <<
-                    " ms duration, " << FLAGS_nireq <<
-                    " inference requests in parallel)" << std::endl;
-                progressBarTotalCount = 1000;
+            if (!device_ss.str().empty()) {
+                ss << " using " << device_ss.str();
             }
-
-
-            size_t currentInference = 0ULL;
-            bool requiredInferenceRequestsWereExecuted = false;
-            long long previousInference = 1LL - FLAGS_nireq;
-
-            // warming up - out of scope
-            inferRequests[0]->startAsync();
-            inferRequests[0]->wait();
-
-            const auto startTime = Time::now();
-            auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
-
-            /** Start inference & calculate performance **/
-            /** to use FLAGS_niter + FLAGS_nireq - 1 to guarantee that last infer requests are executed in the same conditions **/
-            progressBar.newBar(progressBarTotalCount);
-            while ((!requiredInferenceRequestsWereExecuted) ||
-                (iteration < FLAGS_niter + FLAGS_nireq - 1) ||
-                ((FLAGS_niter == 0LL) && (execTime < durationInNanoseconds))) {
-                // start new inference
-                inferRequests[currentInference]->startAsync();
-
-                // wait the latest inference execution if exists
-                if (previousInference >= 0) {
-                    inferRequests[previousInference]->wait();
-                    // update statistics with PM counters only in case of detailed or median reports
-                    statistics.add((FLAGS_report_type == detailedCntReport || FLAGS_report_type == medianCntReport) ?
-                                   inferRequests[previousInference]->getPerformanceCounts() : emptyStat,
-                                   inferRequests[previousInference]->getExecTime());
-                }
-
-                currentInference++;
-                if (currentInference >= FLAGS_nireq) {
-                    currentInference = 0;
-                    requiredInferenceRequestsWereExecuted = true;
-                }
-
-                previousInference++;
-                if (previousInference >= FLAGS_nireq) {
-                    previousInference = 0;
-                }
-
-                iteration++;
-
-                if (FLAGS_niter > 0) {
-                    progressBar.addProgress(1);
-                } else {
-                    execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
-                    // calculate how many progress intervals are covered by current iteration.
-                    // depends on the current iteration time and time of each progress interval.
-                    // Previously covered progress intervals must be skipped.
-                    auto progressIntervalTime = durationInNanoseconds / progressBarTotalCount;
-                    size_t newProgress = execTime / progressIntervalTime - progressCnt;
-                    progressBar.addProgress(newProgress);
-                    progressCnt += newProgress;
-                }
+        }
+        ss << ", limits: ";
+        if (duration_seconds > 0) {
+            ss << getDurationInMilliseconds(duration_seconds) << " ms duration";
+        }
+        if (niter != 0) {
+            if (duration_seconds == 0) {
+                progressBarTotalCount = niter;
             }
-
-            // wait the latest inference executions
-            for (size_t notCompletedIndex = 0ULL; notCompletedIndex < (FLAGS_nireq - 1); ++notCompletedIndex) {
-                if (previousInference >= 0) {
-                    inferRequests[previousInference]->wait();
-                    // update statistics with PM counters only in case of detailed or median reports
-                    statistics.add((FLAGS_report_type == detailedCntReport || FLAGS_report_type == medianCntReport) ?
-                                   inferRequests[previousInference]->getPerformanceCounts() : emptyStat,
-                                   inferRequests[previousInference]->getExecTime());
-                }
-
-                previousInference++;
-                if (previousInference >= FLAGS_nireq) {
-                    previousInference = 0LL;
-                }
+            if (duration_seconds > 0) {
+                ss << ", ";
             }
-            totalDuration = std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
-            fps = batchSize * 1000.0 * iteration / totalDuration;
-            progressBar.finish();
+            ss << niter << " iterations";
+        }
+        next_step(ss.str());
+
+        // warming up - out of scope
+        auto inferRequest = inferRequestsQueue.getIdleRequest();
+        if (!inferRequest) {
+            THROW_IE_EXCEPTION << "No idle Infer Requests!";
         }
 
-        std::cout << "[Step 8/8] Dump statistics report" << std::endl;
-        progressBar.newBar(1);
+        if (FLAGS_api == "sync") {
+            inferRequest->infer();
+        } else {
+            inferRequest->startAsync();
+        }
+        inferRequestsQueue.waitAll();
+        inferRequestsQueue.resetTimes();
+
+        const auto startTime = Time::now();
+        auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
+
+        /** Start inference & calculate performance **/
+        /** to align number if iterations to guarantee that last infer requests are executed in the same conditions **/
+        ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
+
+        while ((niter != 0LL && iteration < niter) ||
+               (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
+               (FLAGS_api == "async" && iteration % nireq != 0)) {
+            inferRequest = inferRequestsQueue.getIdleRequest();
+            if (!inferRequest) {
+                THROW_IE_EXCEPTION << "No idle Infer Requests!";
+            }
+
+            if (FLAGS_api == "sync") {
+                inferRequest->infer();
+            } else {
+                inferRequest->startAsync();
+            }
+            iteration++;
+
+            execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
+
+            if (niter > 0) {
+                progressBar.addProgress(1);
+            } else {
+                // calculate how many progress intervals are covered by current iteration.
+                // depends on the current iteration time and time of each progress interval.
+                // Previously covered progress intervals must be skipped.
+                auto progressIntervalTime = duration_nanoseconds / progressBarTotalCount;
+                size_t newProgress = execTime / progressIntervalTime - progressCnt;
+                progressBar.addProgress(newProgress);
+                progressCnt += newProgress;
+            }
+        }
+
+        // wait the latest inference executions
+        inferRequestsQueue.waitAll();
+
+        StatisticsReport statistics({ FLAGS_d,
+                                      FLAGS_api,
+                                      batchSize,
+                                      nireq,
+                                      niter,
+                                      getDurationInMilliseconds(duration_seconds),
+                                      FLAGS_nthreads,
+                                      device_nstreams,
+                                      FLAGS_pin,
+                                      FLAGS_report_type,
+                                      FLAGS_report_folder
+                                    });
+        if (perf_counts) {
+            for (auto& request : inferRequestsQueue.requests) {
+                statistics.addPerfCounts(request->getPerformanceCounts());
+            }
+        }
+        statistics.addLatencies(inferRequestsQueue.getLatencies());
+
+        double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
+        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / statistics.getMedianLatency() :
+                                             batchSize * 1000.0 * iteration / totalDuration;
+        progressBar.finish();
+
+        // ----------------- 11. Dumping statistics report -------------------------------------------------------------
+        next_step();
+
         statistics.dump(fps, iteration, totalDuration);
 
         if (!FLAGS_exec_graph_path.empty()) {
-            CNNNetwork execGraphInfo = exeNetwork.GetExecGraphInfo();
-            execGraphInfo.serialize(FLAGS_exec_graph_path);
-            slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
+            try {
+                CNNNetwork execGraphInfo = exeNetwork.GetExecGraphInfo();
+                execGraphInfo.serialize(FLAGS_exec_graph_path);
+                slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
+            } catch (const std::exception & ex) {
+                slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
+            }
         }
-        progressBar.addProgress(1);
-        progressBar.finish();
 
-        std::cout << "Latency: " << statistics.getMedianLatency() << " ms" << std::endl;
+        if (FLAGS_pc) {
+            for (size_t ireq = 0; ireq < nireq; ireq++) {
+                slog::info << "Pefrormance counts for " << ireq << "-th infer request:" << slog::endl;
+                printPerformanceCounts(inferRequestsQueue.requests[ireq]->getPerformanceCounts(), std::cout, getFullDeviceName(ie, FLAGS_d), false);
+            }
+        }
+
+        std::cout << "Count:      " << iteration << " iterations" << std::endl;
+        std::cout << "Duration:   " << totalDuration << " ms" << std::endl;
+        std::cout << "Latency:    " << statistics.getMedianLatency() << " ms" << std::endl;
         std::cout << "Throughput: " << fps << " FPS" << std::endl;
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
@@ -450,92 +429,4 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
-}
-
-long long getDurationInNanoseconds(const std::string& device) {
-    static const std::vector<std::pair<std::string, long long>> deviceDurationsInSeconds{
-            { "CPU", 60LL },
-            { "GPU", 60LL },
-            { "VPU", 60LL },
-            { "MYRIAD", 60LL },
-            { "HDDL", 60LL },
-            { "FPGA", 120LL },
-            { "UNKNOWN", 120LL }
-    };
-
-    auto duration = 0LL;
-    for (const auto& deviceDurationInSeconds : deviceDurationsInSeconds) {
-        if (device.find(deviceDurationInSeconds.first) != std::string::npos) {
-            duration = std::max(duration, deviceDurationInSeconds.second);
-        }
-    }
-
-    if (duration == 0LL) {
-        const auto unknownDeviceIt = find_if(
-            deviceDurationsInSeconds.begin(),
-            deviceDurationsInSeconds.end(),
-            [](std::pair<std::string, long long> deviceDuration) { return deviceDuration.first == "UNKNOWN"; });
-
-        if (unknownDeviceIt == deviceDurationsInSeconds.end()) {
-            throw std::logic_error("UNKNOWN device was not found in device duration list");
-        }
-        duration = unknownDeviceIt->second;
-        slog::warn << "Default duration " << duration << " seconds for unknown device '" << device << "' is used" << slog::endl;
-    }
-
-    return duration * 1000000000LL;
-}
-
-void fillBlobWithImage(
-    Blob::Ptr& inputBlob,
-    const std::vector<std::string>& filePaths,
-    const size_t& batchSize,
-    const InferenceEngine::InputInfo& info) {
-
-    auto inputBlobData = inputBlob->buffer().as<uint8_t*>();
-    const SizeVector& inputBlobDims = inputBlob->dims();
-
-    slog::info << "Network Input dimensions (" << info.getTensorDesc().getLayout() << "): ";
-    for (const auto& i : info.getTensorDesc().getDims()) {
-        slog::info << i << " ";
-    }
-    slog::info << slog::endl;
-
-    /** Collect images data ptrs **/
-    std::vector<std::shared_ptr<uint8_t>> vreader;
-    vreader.reserve(batchSize);
-
-    for (size_t i = 0ULL, inputIndex = 0ULL; i < batchSize; i++, inputIndex++) {
-        if (inputIndex >= filePaths.size()) {
-            inputIndex = 0ULL;
-        }
-
-        slog::info << "Prepare image " << filePaths[inputIndex] << slog::endl;
-        FormatReader::ReaderPtr reader(filePaths[inputIndex].c_str());
-        if (reader.get() == nullptr) {
-            slog::warn << "Image " << filePaths[inputIndex] << " cannot be read!" << slog::endl << slog::endl;
-            continue;
-        }
-
-        /** Getting image data **/
-        std::shared_ptr<uint8_t> imageData(reader->getData(info.getDims()[0], info.getDims()[1]));
-        if (imageData) {
-            vreader.push_back(imageData);
-        }
-    }
-
-    /** Fill input tensor with images. First b channel, then g and r channels **/
-    const size_t numChannels = inputBlobDims[2];
-    const size_t imageSize = inputBlobDims[1] * inputBlobDims[0];
-    /** Iterate over all input images **/
-    for (size_t imageId = 0; imageId < vreader.size(); ++imageId) {
-        /** Iterate over all pixel in image (b,g,r) **/
-        for (size_t pid = 0; pid < imageSize; pid++) {
-            /** Iterate over all channels **/
-            for (size_t ch = 0; ch < numChannels; ++ch) {
-                /**          [images stride + channels stride + pixel id ] all in bytes            **/
-                inputBlobData[imageId * imageSize * numChannels + ch * imageSize + pid] = vreader.at(imageId).get()[pid*numChannels + ch];
-            }
-        }
-    }
 }

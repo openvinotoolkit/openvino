@@ -16,31 +16,29 @@
 
 #include "scale_grad_weights_kernel_ref.h"
 
-namespace kernel_selector
-{
+namespace kernel_selector {
 
-    ParamsKey ScaleGradWeightsKernelRef::GetSupportedKey() const
-    {
-        ParamsKey k;
-        k.EnableInputDataType(Datatype::F16);
-        k.EnableInputDataType(Datatype::F32);
-        k.EnableInputWeightsType(WeightsType::F32);
-        k.EnableOutputDataType(Datatype::F16);
-        k.EnableOutputDataType(Datatype::F32);
-        k.EnableInputLayout(DataLayout::yxfb);
-        k.EnableInputLayout(DataLayout::bfyx);
-        k.EnableInputLayout(DataLayout::byxf);
-        k.EnableOutputLayout(DataLayout::yxfb);
-        k.EnableOutputLayout(DataLayout::bfyx);
-        k.EnableOutputLayout(DataLayout::byxf);
-        k.EnableTensorOffset();
-        k.EnableTensorPitches();
-        k.EnableBiasPerFeature();
-        k.EnableNonBiasTerm();
-        k.EnableGradient();
-        k.EnableBatching();
-        k.DisableTuning();
-        k.EnableMomentum();
-        return k;
-    }
+ParamsKey ScaleGradWeightsKernelRef::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableInputLayout(DataLayout::yxfb);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::byxf);
+    k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBiasPerFeature();
+    k.EnableNonBiasTerm();
+    k.EnableGradient();
+    k.EnableBatching();
+    k.DisableTuning();
+    k.EnableMomentum();
+    return k;
 }
+}  // namespace kernel_selector

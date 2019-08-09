@@ -17,12 +17,7 @@ using namespace std;
 using namespace mkldnn;
 
 struct resample_test_params {
-    struct {
-        size_t n;
-        size_t c;
-        size_t h;
-        size_t w;
-    } in;
+    std::vector<size_t> in_dims;
 
     float factor;
     int antialias;
@@ -47,31 +42,42 @@ void ref_resample(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TB
     const data_t *src_data = src.readOnly();
     data_t *dst_data = dst.data();
 
-    size_t N = prm.in.n;
-    size_t C = prm.in.c;
-    size_t IH = prm.in.h;
-    size_t IW = prm.in.w;
-    size_t OH = prm.in.h / prm.factor;
-    size_t OW = prm.in.w / prm.factor;
+    size_t ndims = prm.in_dims.size();
+    if (ndims == 5)
+        ASSERT_TRUE(prm.type == "caffe.ResampleParameter.NEAREST");
+
+    size_t N = prm.in_dims[0];
+    size_t C = prm.in_dims[1];
+    size_t ID = ndims == 5 ? prm.in_dims[ndims - 3] : 1;
+    size_t IH = prm.in_dims[ndims - 2];
+    size_t IW = prm.in_dims[ndims - 1];
+    size_t OD = ndims == 5 ? ID / prm.factor : 1;
+    size_t OH = IH / prm.factor;
+    size_t OW = IW / prm.factor;
 
     float fx = static_cast<float>(IW) / static_cast<float>(OW);
     float fy = static_cast<float>(IH) / static_cast<float>(OH);
+    float fz = static_cast<float>(ID) / static_cast<float>(OD);
 
     if (prm.type == "caffe.ResampleParameter.NEAREST") {
         for (size_t b = 0; b < N; b++) {
             for (size_t c = 0; c < C; c++) {
-                const float *in_ptr = src_data + IW * IH * C * b + IW * IH * c;
-                float *out_ptr = dst_data + OW * OH * C * b + OW * OH * c;
+                const float *in_ptr = src_data + IW * IH * ID * C * b + IW * IH * ID * c;
+                float *out_ptr = dst_data + OW * OH * OD * C * b + OW * OH * OD * c;
 
-                for (size_t oy = 0; oy < OH; oy++) {
-                    for (size_t ox = 0; ox < OW; ox++) {
-                        float ix = ox * fx + fy / 2.0f - 0.5f;
-                        float iy = oy * fy + fx / 2.0f - 0.5f;
+                for (size_t oz = 0; oz < OD; oz++) {
+                    for (size_t oy = 0; oy < OH; oy++) {
+                        for (size_t ox = 0; ox < OW; ox++) {
+                            float ix = ox * fx + fx / 2.0f - 0.5f;
+                            float iy = oy * fy + fy / 2.0f - 0.5f;
+                            float iz = oz * fz + fz / 2.0f - 0.5f;
 
-                        size_t ix_r = static_cast<size_t>(round(ix));
-                        size_t iy_r = static_cast<size_t>(round(iy));
+                            size_t ix_r = static_cast<size_t>(round(ix));
+                            size_t iy_r = static_cast<size_t>(round(iy));
+                            size_t iz_r = static_cast<size_t>(round(iz));
 
-                        out_ptr[oy * OW + ox] = in_ptr[iy_r * IW + ix_r];
+                            out_ptr[oz * OH * OW + oy * OW + ox] = in_ptr[iz_r * IH * IW + iy_r * IW + ix_r];
+                        }
                     }
                 }
             }
@@ -88,8 +94,8 @@ void ref_resample(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TB
 
                 for (size_t oy = 0; oy < OH; oy++) {
                     for (size_t ox = 0; ox < OW; ox++) {
-                        float ix = ox * fx + fy / 2.0f - 0.5f;
-                        float iy = oy * fy + fx / 2.0f - 0.5f;
+                        float ix = ox * fx + fx / 2.0f - 0.5f;
+                        float iy = oy * fy + fy / 2.0f - 0.5f;
 
                         int ix_r = static_cast<int>(round(ix));
                         int iy_r = static_cast<int>(round(iy));
@@ -137,6 +143,7 @@ class MKLDNNCPUExtResampleTests: public TestsCommon, public WithParamInterface<r
                 <port id="0">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
@@ -147,6 +154,7 @@ class MKLDNNCPUExtResampleTests: public TestsCommon, public WithParamInterface<r
                 <port id="1">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
@@ -155,6 +163,7 @@ class MKLDNNCPUExtResampleTests: public TestsCommon, public WithParamInterface<r
                 <port id="2">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
@@ -166,6 +175,7 @@ class MKLDNNCPUExtResampleTests: public TestsCommon, public WithParamInterface<r
                 <port id="3">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_ID_</dim>
                     <dim>_IH_</dim>
                     <dim>_IW_</dim>
                 </port>
@@ -174,6 +184,7 @@ class MKLDNNCPUExtResampleTests: public TestsCommon, public WithParamInterface<r
                 <port id="4">
                     <dim>_IN_</dim>
                     <dim>_IC_</dim>
+                    <dim>_OD_</dim>
                     <dim>_OH_</dim>
                     <dim>_OW_</dim>
                 </port>
@@ -189,18 +200,29 @@ class MKLDNNCPUExtResampleTests: public TestsCommon, public WithParamInterface<r
 
     std::string getModel(resample_test_params p) {
         std::string model = model_t;
+
+        auto dims_size = p.in_dims.size();
+        if (dims_size == 4) {
+            REMOVE_LINE(model, "<dim>_ID_</dim>");
+            REMOVE_LINE(model, "<dim>_OD_</dim>");
+        }
+
         if (p.isBlockedFormat)
             REPLACE_WITH_STR(model, "_FL_", "FakeLayerBLK");
         else
             REPLACE_WITH_STR(model, "_FL_", "FakeLayerPLN");
 
-        REPLACE_WITH_NUM(model, "_IW_", p.in.w);
-        REPLACE_WITH_NUM(model, "_IH_", p.in.h);
-        REPLACE_WITH_NUM(model, "_IC_", p.in.c);
-        REPLACE_WITH_NUM(model, "_IN_", p.in.n);
+        REPLACE_WITH_NUM(model, "_IN_", p.in_dims[0]);
+        REPLACE_WITH_NUM(model, "_IC_", p.in_dims[1]);
+        if (dims_size == 5)
+            REPLACE_WITH_NUM(model, "_ID_", p.in_dims[dims_size - 3]);
+        REPLACE_WITH_NUM(model, "_IH_", p.in_dims[dims_size - 2]);
+        REPLACE_WITH_NUM(model, "_IW_", p.in_dims[dims_size - 1]);
 
-        REPLACE_WITH_NUM(model, "_OW_", (int)(p.in.w / p.factor));
-        REPLACE_WITH_NUM(model, "_OH_", (int)(p.in.h / p.factor));
+        if (dims_size == 5)
+            REPLACE_WITH_NUM(model, "_OD_", (int)(p.in_dims[dims_size - 3] / p.factor));
+        REPLACE_WITH_NUM(model, "_OH_", (int)(p.in_dims[dims_size - 2] / p.factor));
+        REPLACE_WITH_NUM(model, "_OW_", (int)(p.in_dims[dims_size - 1] / p.factor));
 
         REPLACE_WITH_NUM(model, "_AN_", p.antialias);
         REPLACE_WITH_NUM(model, "_F_", p.factor);
@@ -250,9 +272,15 @@ protected:
             else
                 ASSERT_EQ(4, nodes.size());
 
-            InferenceEngine::SizeVector dims_src = {p.in.w, p.in.h, p.in.c, p.in.n};
+            InferenceEngine::SizeVector dims_src = p.in_dims;
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NHWC, dims_src);
+            InferenceEngine::Layout layout = InferenceEngine::ANY;
+            switch (p.in_dims.size()) {
+                case 4: layout = InferenceEngine::NCHW; break;
+                case 5: layout = InferenceEngine::NCDHW; break;
+            }
+
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, layout});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -309,4 +337,16 @@ INSTANTIATE_TEST_CASE_P(
                 resample_test_params{{2, 3, 10, 20}, 0.25f, 1, "caffe.ResampleParameter.LINEAR", 1, false, MKLDNNPlugin::impl_desc_type::unknown },
                 resample_test_params{{2, 3, 10, 20}, 4.f, 0, "caffe.ResampleParameter.NEAREST", 2, false, MKLDNNPlugin::impl_desc_type::unknown },
                 resample_test_params{{2, 3, 10, 20}, 4.f, 0, "caffe.ResampleParameter.NEAREST", 2, true, MKLDNNPlugin::impl_desc_type::unknown },
-                resample_test_params{{2, 3, 10, 20}, 4.f, 1, "caffe.ResampleParameter.LINEAR", 1, false, MKLDNNPlugin::impl_desc_type::unknown }));
+                resample_test_params{{2, 3, 10, 20}, 4.f, 1, "caffe.ResampleParameter.LINEAR", 1, false, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 64, 20, 15, 25}, 1.f, 0, "caffe.ResampleParameter.NEAREST", 2, false, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 64, 20, 15, 25}, 1.f, 0, "caffe.ResampleParameter.NEAREST", 2, true, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 64, 15, 10, 20}, 0.25f, 0, "caffe.ResampleParameter.NEAREST", 2, false, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 64, 15, 10, 20}, 0.25f, 0, "caffe.ResampleParameter.NEAREST", 2, true, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 64, 15, 10, 20}, 4.f, 0, "caffe.ResampleParameter.NEAREST", 2, false, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 64, 15, 10, 20}, 4.f, 0, "caffe.ResampleParameter.NEAREST", 2, true, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 3, 20, 15, 25}, 1.f, 0, "caffe.ResampleParameter.NEAREST", 2, false, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 3, 20, 15, 25}, 1.f, 0, "caffe.ResampleParameter.NEAREST", 2, true, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 3, 15, 10, 20}, 0.25f, 0, "caffe.ResampleParameter.NEAREST", 2, false, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 3, 15, 10, 20}, 0.25f, 0, "caffe.ResampleParameter.NEAREST", 2, true, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 3, 15, 10, 20}, 4.f, 0, "caffe.ResampleParameter.NEAREST", 2, false, MKLDNNPlugin::impl_desc_type::unknown },
+                resample_test_params{{2, 3, 15, 10, 20}, 4.f, 0, "caffe.ResampleParameter.NEAREST", 2, true, MKLDNNPlugin::impl_desc_type::unknown }));

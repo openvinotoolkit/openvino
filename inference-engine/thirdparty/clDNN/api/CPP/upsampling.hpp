@@ -19,8 +19,7 @@
 #include "../C/upsampling.h"
 #include "primitive.hpp"
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -29,8 +28,7 @@ namespace cldnn
 /// @{
 
 /// @brief Sample mode for the @ref upsampling layer.
-enum class upsampling_sample_type : int32_t
-{
+enum class upsampling_sample_type : int32_t {
     /// @brief upsampling nearest neighbor.
     nearest = cldnn_upsampling_nearest,
     /// @brief upsampling bilinear.
@@ -39,8 +37,7 @@ enum class upsampling_sample_type : int32_t
 
 /// @brief Performs nearest neighbor/bilinear upsampling
 /// Also supports built-in Relu @ref activation available by setting it in arguments.
-struct upsampling : public primitive_base<upsampling, CLDNN_PRIMITIVE_DESC(upsampling)>
-{
+struct upsampling : public primitive_base<upsampling, CLDNN_PRIMITIVE_DESC(upsampling)> {
     CLDNN_DECLARE_PRIMITIVE(upsampling)
 
     /// @brief Constructs upsampling primitive.
@@ -51,38 +48,32 @@ struct upsampling : public primitive_base<upsampling, CLDNN_PRIMITIVE_DESC(upsam
     /// @param sample_type Upsampling method (nearest neighbor/bilinear).
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
-    upsampling(
-        const primitive_id& id,
-        const primitive_id& input,
-        uint32_t scale,
-        uint32_t num_filter,
-        upsampling_sample_type sample_type,
-        bool with_activation = false,
-        float activation_slp = 0.0f,
-        const padding& output_padding = padding()
-    )
-        :primitive_base(id, { input }, output_padding)
-        , scale(scale)
-        , num_filter(num_filter)
-        , sample_type(sample_type)
-        , with_activation(with_activation)
-        , activation_negative_slope(activation_slp)
-    {
-    }
+    upsampling(const primitive_id& id,
+               const primitive_id& input,
+               float scale,
+               uint32_t num_filter,
+               upsampling_sample_type sample_type,
+               bool with_activation = false,
+               float activation_slp = 0.0f,
+               const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          scale(scale),
+          num_filter(num_filter),
+          sample_type(sample_type),
+          with_activation(with_activation),
+          activation_negative_slope(activation_slp) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{upsampling}
     upsampling(const dto* dto)
-        :primitive_base(dto)
-        , scale(dto->scale)
-        , num_filter(dto->num_filter)
-        , sample_type(static_cast<upsampling_sample_type>(dto->sample_type))
-        , with_activation(dto->with_activation != 0)
-        , activation_negative_slope(dto->activation_negative_slope)
-    {
-    }
+        : primitive_base(dto),
+          scale(dto->scale),
+          num_filter(dto->num_filter),
+          sample_type(static_cast<upsampling_sample_type>(dto->sample_type)),
+          with_activation(dto->with_activation != 0),
+          activation_negative_slope(dto->activation_negative_slope) {}
 
     /// @param scale Upsampling scale.
-    uint32_t scale;
+    float scale;
     /// @param num_filter Input filter. Only used by bilinear sample_type.
     uint32_t num_filter;
     /// @param sample_type Upsampling method (nearest neighbor/bilinear).
@@ -93,8 +84,7 @@ struct upsampling : public primitive_base<upsampling, CLDNN_PRIMITIVE_DESC(upsam
     float activation_negative_slope;
 
 protected:
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.scale = scale;
         dto.num_filter = num_filter;
         dto.sample_type = static_cast<cldnn_upsampling_sample_type>(sample_type);
@@ -105,4 +95,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

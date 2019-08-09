@@ -131,7 +131,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #if defined AVG_POOLING
             out[i] /= (UNIT_TYPE)(POOL_SIZE_Y * POOL_SIZE_X);
 #endif
-            output[output_pos] = ACTIVATION(out[i], NL_M ,NL_N);
+            output[output_pos] = ACTIVATION(out[i], ACTIVATION_PARAMS);
             output_pos += OUTPUT_Y_PITCH;
 
 #if MAX_WITH_ARGMAX_POOLING

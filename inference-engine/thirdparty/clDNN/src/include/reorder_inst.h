@@ -18,17 +18,19 @@
 #pragma once
 #include "api/CPP/reorder.hpp"
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<reorder> : public typed_program_node_base<reorder>
-{
+struct typed_program_node<reorder> : public typed_program_node_base<reorder> {
     using parent = typed_program_node_base<reorder>;
 
 public:
-    using parent::parent;
+    typed_program_node(const std::shared_ptr<reorder> prim, program_impl& prog) : parent(prim, prog) {
+        support_padding_all(true);
+    }
 
     program_node& input() const { return get_dependency(0); }
     program_node& mean() const { return get_dependency(1); }
@@ -43,14 +45,13 @@ public:
 
 private:
     bool req_reinterpr = false;
-    tensor input_offset = tensor{ 0 }; //used by reorder to winograd domain
+    tensor input_offset = tensor{0};  // used by reorder to winograd domain
 };
 
 using reorder_node = typed_program_node<reorder>;
 
 template <>
-class typed_primitive_inst<reorder> : public typed_primitive_inst_base<reorder>
-{
+class typed_primitive_inst<reorder> : public typed_primitive_inst_base<reorder> {
     using parent = typed_primitive_inst_base<reorder>;
 
 public:
@@ -71,4 +72,4 @@ private:
 
 using reorder_inst = typed_primitive_inst<reorder>;
 
-}
+}  // namespace cldnn

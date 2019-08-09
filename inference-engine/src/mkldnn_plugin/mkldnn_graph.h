@@ -26,13 +26,14 @@ namespace MKLDNNPlugin {
 class MKLDNNGraph {
 public:
     typedef std::shared_ptr<MKLDNNGraph> Ptr;
+    int socket;
 
     enum Status {
         NotReady = 0,
         Ready = 1,
     };
 
-    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)) {}
+    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)), socket(0) {}
 
     Status GetStatus() {
         return status;
@@ -49,7 +50,10 @@ public:
     void getInputBlobs(InferenceEngine::BlobMap &in_map);
     void getOutputBlobs(InferenceEngine::BlobMap &out_map);
 
-    void CreateGraph(const InferenceEngine::ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    template<typename NET>
+    void CreateGraph(const NET &network,
+                     const MKLDNNExtensionManager::Ptr& extMgr,
+                     int socket = 0);
 
     bool hasMeanImageFor(const std::string& name) {
         return _meanImages.find(name) != _meanImages.end();
@@ -85,13 +89,13 @@ public:
     void CreateArena(int threads_per_stream) {
         #if IE_THREAD == IE_THREAD_OMP
         omp_set_num_threads(threads_per_stream);
-        #elif IE_THREAD == IE_THREAD_TBB
+        #elif(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         ptrArena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena(threads_per_stream));
         #endif
     }
 
     void CreateObserver(int _stream_id, int _threads_per_stream, int _pinning_step = 1) {
-        #if IE_THREAD == IE_THREAD_TBB
+        #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         ptrObserver
                 = std::unique_ptr<tbb::task_scheduler_observer>(
                 new pinning_observer(*ptrArena.get(), _stream_id, _threads_per_stream, _pinning_step));
@@ -113,6 +117,11 @@ public:
 
     InferenceEngine::ICNNNetwork::Ptr dump() const;
 
+    template<typename NET>
+    static void ApplyUnrollPasses(NET &net);
+
+    void ResetInferCount() { infer_count = 0; }
+
 protected:
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
     void SortTopologically();
@@ -130,6 +139,12 @@ protected:
     Status status;
     Config config;
 
+    // For dumping purposes. -1 - no counting, all other positive
+    // values mean increment it within each Infer() call
+    int infer_count = -1;
+
+    bool reuse_io_tensors = true;
+
     MKLDNNMemoryPtr memWorkspace;
 
     std::map<std::string, MKLDNNNodePtr> inputNodes;
@@ -138,14 +153,16 @@ protected:
     std::vector<MKLDNNEdgePtr> graphEdges;
 
     std::map<std::string, MeanImage> _meanImages;
+    std::string _name;
 
-    #if IE_THREAD == IE_THREAD_TBB
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     std::unique_ptr<tbb::task_arena> ptrArena;
     std::unique_ptr<tbb::task_scheduler_observer> ptrObserver;
     #endif
     mkldnn::engine eng;
 
     void Replicate(const ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
     void InitEdges();
@@ -188,6 +205,10 @@ public:
     }
 
     void setProperty(const std::map<std::string, std::string> &properties);
+
+    void GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const override;
+
+    void GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const override;
 
     void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
 

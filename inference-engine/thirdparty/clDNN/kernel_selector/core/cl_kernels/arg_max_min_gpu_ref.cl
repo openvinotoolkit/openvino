@@ -20,14 +20,14 @@
 
 #ifdef MAX_OUT
     #define COMPARE_SIGN <
-    #define UNIT_FILL_VAL UNIT_VAL_MIN
+    #define INPUT0_FILL_VAL INPUT0_VAL_MIN
 #else
     #define COMPARE_SIGN >
-    #define UNIT_FILL_VAL UNIT_VAL_MAX    
+    #define INPUT0_FILL_VAL INPUT0_VAL_MAX    
 #endif
 
 __attribute__((reqd_work_group_size(LOCAL_SIZE, 1, 1)))
-KERNEL(arg_max_gpu_top_k)(const __global UNIT_TYPE* input, __global float* output)
+KERNEL(arg_max_gpu_top_k)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
 #include "include/arg_max_min_common.cl"
     uint results[TOP_K];
@@ -55,7 +55,7 @@ KERNEL(arg_max_gpu_top_k)(const __global UNIT_TYPE* input, __global float* outpu
         accumulator.value = input[global_index];
         for (int j = 0; j < i; j++){
             if (accumulator.index % size == results[j])
-                accumulator.value = UNIT_FILL_VAL;
+                accumulator.value = INPUT0_FILL_VAL;
         }
         global_index += GLOBAL_SIZE;
 #ifdef INPUT0_LAYOUT_BFYX
@@ -69,7 +69,7 @@ KERNEL(arg_max_gpu_top_k)(const __global UNIT_TYPE* input, __global float* outpu
             element.index = global_index;
             for (int j = 0; j < i; j++){
                 if (element.index % size == results[j])
-                    element.value = UNIT_FILL_VAL;
+                    element.value = INPUT0_FILL_VAL;
             }
             if(accumulator.value COMPARE_SIGN element.value)
             {
@@ -87,12 +87,12 @@ KERNEL(arg_max_gpu_top_k)(const __global UNIT_TYPE* input, __global float* outpu
         if (local_index < size)
             scratch[local_index] = accumulator;
         else
-            scratch[local_index].value = UNIT_FILL_VAL;
+            scratch[local_index].value = INPUT0_FILL_VAL;
 #else
         if (local_index < fyx_size)
             scratch[local_index] = accumulator;
         else
-            scratch[local_index].value = UNIT_FILL_VAL;
+            scratch[local_index].value = INPUT0_FILL_VAL;
 #endif
         
 
@@ -133,4 +133,4 @@ KERNEL(arg_max_gpu_top_k)(const __global UNIT_TYPE* input, __global float* outpu
 }
 
 #undef COMPARE_SIGN
-#undef UNIT_FILL_VAL
+#undef INPUT0_FILL_VAL

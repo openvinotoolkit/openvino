@@ -48,7 +48,7 @@ struct deconv_test_params {
 template <typename data_t>
 void ref_deconv(const InferenceEngine::TBlob<data_t> &src, const InferenceEngine::Blob::Ptr &weights, const InferenceEngine::Blob::Ptr &bias,
                 InferenceEngine::TBlob<data_t> &dst, deconv_test_params prm) {
-    auto dims_size = src.dims().size();
+    auto dims_size = src.getTensorDesc().getDims().size();
 
     size_t G  = prm.grp_c;
     size_t KW = prm.kernel[X_AXIS];
@@ -63,11 +63,11 @@ void ref_deconv(const InferenceEngine::TBlob<data_t> &src, const InferenceEngine
     size_t SH = prm.strides[Y_AXIS];
     size_t SD = prm.strides.size() > Z_AXIS ? prm.strides[Z_AXIS] : 1u;
 
-    size_t IW = src.dims()[dims_size - 1];
-    size_t IH = src.dims()[dims_size - 2];
-    size_t ID = dims_size == 5 ? src.dims()[dims_size - 3] : 1u;
-    size_t IC = src.dims()[1];
-    size_t MB = src.dims()[0];
+    size_t IW = src.getTensorDesc().getDims()[dims_size - 1];
+    size_t IH = src.getTensorDesc().getDims()[dims_size - 2];
+    size_t ID = dims_size == 5 ? src.getTensorDesc().getDims()[dims_size - 3] : 1u;
+    size_t IC = src.getTensorDesc().getDims()[1];
+    size_t MB = src.getTensorDesc().getDims()[0];
 
     size_t OC = prm.out_c;
 
@@ -271,12 +271,12 @@ protected:
             InferenceEngine::SizeVector dims_weights = { blob_size };
 
             std::vector<InferenceEngine::Blob::Ptr> blob_to_model;
-            InferenceEngine::Blob::Ptr weights = InferenceEngine::make_shared_blob<float>(InferenceEngine::Precision::FP32, InferenceEngine::C, dims_weights);
+            InferenceEngine::Blob::Ptr weights = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, dims_weights, InferenceEngine::C });
             weights->allocate();
             fill_data(weights->buffer().as<float*>(), weights->size());
             blob_to_model.push_back(weights);
 
-            InferenceEngine::Blob::Ptr bias = InferenceEngine::make_shared_blob<float>(InferenceEngine::Precision::FP32, InferenceEngine::C, {p.out_c});
+            InferenceEngine::Blob::Ptr bias = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, {p.out_c}, InferenceEngine::C });
             bias->allocate();
             fill_data(bias->buffer().as<float*>(), bias->size());
             blob_to_model.push_back(bias);
@@ -285,7 +285,7 @@ protected:
             for (InferenceEngine::Blob::Ptr blb : blob_to_model) total_size_in_bytes += blb->byteSize();
 
             InferenceEngine::TBlob<uint8_t>::Ptr model_blob =
-                    InferenceEngine::make_shared_blob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {total_size_in_bytes});
+                    InferenceEngine::make_shared_blob<uint8_t>({ InferenceEngine::Precision::U8, {total_size_in_bytes}, InferenceEngine::C });
             model_blob->allocate();
             uint8_t* model_blob_ptr = model_blob->buffer().as<uint8_t*>();
             for (InferenceEngine::Blob::Ptr blb : blob_to_model) {
@@ -314,8 +314,8 @@ protected:
 
             InferenceEngine::SizeVector dims_src = p.dims;
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
-                    InferenceEngine::Precision::FP32, InferenceEngine::TensorDesc::getLayoutByDims(p.dims), dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(
+                    {InferenceEngine::Precision::FP32, dims_src, InferenceEngine::TensorDesc::getLayoutByDims(p.dims)});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -383,20 +383,20 @@ INSTANTIATE_TEST_CASE_P(
                 deconv_test_params{{1, 3, 3, 3}, {4, 3}, {2, 2}, {0, 0}, {0, 0}, 2, 1, true, "", 2, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
                 deconv_test_params{{4, 17, 3, 3}, {4, 3}, {2, 2}, {0, 0}, {0, 0}, 2, 1, true, "", 2, {MKLDNNPlugin::impl_desc_type::gemm, MKLDNNPlugin::impl_desc_type::jit} },
                 deconv_test_params{{2, 8, 5, 5}, {4, 4}, {2, 2}, {1, 1}, {0, 0}, 8, 2, true, "", 3, {MKLDNNPlugin::impl_desc_type::gemm}},
-                deconv_test_params{{1, 6, 6, 5}, {3, 1}, {1, 1}, {1, 0}, {1, 0}, 9, 3, true, "", 2,
-                    {MKLDNNPlugin::impl_desc_type::gemm_blas}},
+                deconv_test_params{{1, 6, 6, 5}, {3, 1}, {1, 1}, {1, 0}, {1, 0}, 9, 3, true, "", 2, {MKLDNNPlugin::impl_desc_type::gemm_blas}},
                 deconv_test_params{{1, 64, 12, 12, 2}, {2, 2, 2}, {2, 2, 2}, {0, 0, 0}, {1, 0, 0}, 32, 1, true, "", 4,
-                    {MKLDNNPlugin::impl_desc_type::gemm_blas}},
+                    {MKLDNNPlugin::impl_desc_type::gemm_blas, MKLDNNPlugin::impl_desc_type::jit_avx512 }},
                 deconv_test_params{{1, 32, 12, 12, 2}, {2, 2, 2}, {2, 2, 2}, {0, 0, 0}, {1, 0, 0}, 16, 1, true, "", 4, 
-                    {MKLDNNPlugin::impl_desc_type::gemm_blas} },
+                    {MKLDNNPlugin::impl_desc_type::gemm_blas, MKLDNNPlugin::impl_desc_type::jit_avx512 } },
                 deconv_test_params{{1, 25, 1, 1, 1}, {4, 4, 4}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 64, 1, true, "valid", 3,
                     {MKLDNNPlugin::impl_desc_type::jit} },
                 deconv_test_params{{1, 32, 16, 16, 16}, {4, 4, 4}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, 1, 1, true, "same_upper", 3,
-                    {MKLDNNPlugin::impl_desc_type::gemm_blas} },
+                    {MKLDNNPlugin::impl_desc_type::gemm_blas, MKLDNNPlugin::impl_desc_type::jit_avx512 } },
                 deconv_test_params{{1, 64, 12, 12, 2}, {2, 2, 2}, {2, 2, 2}, {0, 0, 0}, {1, 0, 0}, 32, 1, true, "same_upper", 3,
-                    {MKLDNNPlugin::impl_desc_type::gemm_blas} },
+                    {MKLDNNPlugin::impl_desc_type::gemm_blas, MKLDNNPlugin::impl_desc_type::jit_avx512 } },
                 deconv_test_params{{1, 50, 1, 1, 1}, {4, 4, 4}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 128, 1, true, "", 3,
-                    {MKLDNNPlugin::impl_desc_type::gemm_blas}, {MKLDNNPlugin::impl_desc_type::gemm_blas}},
+                    {MKLDNNPlugin::impl_desc_type::gemm_blas, MKLDNNPlugin::impl_desc_type::jit_avx512 },
+                    {MKLDNNPlugin::impl_desc_type::gemm_blas, MKLDNNPlugin::impl_desc_type::jit_avx512 }},
 #endif
                 deconv_test_params{{2, 24, 5, 5}, {4, 4}, {2, 2}, {1, 1}, {0, 0}, 24, 3, true, "", 4, {MKLDNNPlugin::impl_desc_type::jit}},
                 deconv_test_params{{2, 24, 5, 5}, {4, 4}, {2, 2}, {1, 1}, {0, 0}, 24, 1, true, "", 3, {MKLDNNPlugin::impl_desc_type::jit}},
@@ -433,12 +433,12 @@ protected:
             InferenceEngine::SizeVector dims_weights = {blob_size * p.out_c * (p.dims[1] / p.grp_c)};
 
             std::vector<InferenceEngine::Blob::Ptr> blob_to_model;
-            InferenceEngine::Blob::Ptr weights = InferenceEngine::make_shared_blob<float>(InferenceEngine::Precision::FP32, InferenceEngine::C, dims_weights);
+            InferenceEngine::Blob::Ptr weights = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, dims_weights, InferenceEngine::C });
             weights->allocate();
             fill_data(weights->buffer().as<float*>(), weights->size());
             blob_to_model.push_back(weights);
 
-            InferenceEngine::Blob::Ptr bias = InferenceEngine::make_shared_blob<float>(InferenceEngine::Precision::FP32, InferenceEngine::C, {p.out_c});
+            InferenceEngine::Blob::Ptr bias = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, {p.out_c}, InferenceEngine::C });
             bias->allocate();
             fill_data(bias->buffer().as<float*>(), bias->size());
             blob_to_model.push_back(bias);
@@ -447,7 +447,7 @@ protected:
             for (InferenceEngine::Blob::Ptr blb : blob_to_model) total_size_in_bytes += blb->byteSize();
 
             InferenceEngine::TBlob<uint8_t>::Ptr model_blob =
-                    InferenceEngine::make_shared_blob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {total_size_in_bytes});
+                    InferenceEngine::make_shared_blob<uint8_t>({ InferenceEngine::Precision::U8, {total_size_in_bytes}, InferenceEngine::C });
             model_blob->allocate();
             uint8_t* model_blob_ptr = model_blob->buffer().as<uint8_t*>();
             for (InferenceEngine::Blob::Ptr blb : blob_to_model) {
@@ -468,8 +468,8 @@ protected:
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
             graph.CreateGraph(net_reader.getNetwork());
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(
-                    InferenceEngine::Precision::FP32, InferenceEngine::TensorDesc::getLayoutByDims(p.dims), p.dims);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(
+                    {InferenceEngine::Precision::FP32, p.dims, InferenceEngine::TensorDesc::getLayoutByDims(p.dims)});
             InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
             if (srcPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";

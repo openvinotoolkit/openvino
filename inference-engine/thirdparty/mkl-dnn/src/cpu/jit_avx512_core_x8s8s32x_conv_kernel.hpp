@@ -118,9 +118,10 @@ private:
        groups are always blocked by 16(padded if needed),
        hence use only Zmm registers */
     const Xbyak::Zmm zmm_wei = Xbyak::Zmm(31);
+    Xbyak::Zmm zmm_tmp;
     Xbyak::Zmm zmm_src;
+    Xbyak::Zmm zmm_shifted_zero;
     Xbyak::Zmm zmm_permute;
-    Xbyak::Zmm zmm_zero_blend; // used only for fast depthwise
 
     Vmm vmm_out(int i_ur, int i_oc) {
         int idx = i_ur + i_oc * jcp.ur_w;
@@ -138,6 +139,11 @@ private:
         int idx = i_ic + nb_x_blocking * jcp.ur_w;
         assert(idx < 31);
         return Vmm(idx);
+    }
+    Xbyak::Zmm zmm_inp(int i_ic, int nb_x_blocking) {
+        int idx = i_ic + nb_x_blocking * jcp.ur_w;
+        assert(idx < 31);
+        return Xbyak::Zmm(idx);
     }
     Vmm vmm_bias_alpha() {
         int nb_c_block = jcp.is_depthwise ? jcp.nb_ch_blocking : jcp.nb_oc_blocking;

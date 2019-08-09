@@ -19,26 +19,24 @@
 #include "primitive_type_base.h"
 #include <sstream>
 #include "json_object.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
-primitive_type_id custom_gpu_primitive_type_id()
-{
+primitive_type_id custom_gpu_primitive_type_id() {
     static primitive_type_base<custom_gpu_primitive> instance;
     return &instance;
 }
 
-std::string custom_gpu_primitive_inst::to_string(custom_gpu_primitive_node const& node)
-{
-    auto desc      = node.get_primitive();
+std::string custom_gpu_primitive_inst::to_string(custom_gpu_primitive_node const& node) {
+    auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
-    
+
     std::stringstream primitive_description;
 
     json_composite custom_gpu_prim_info;
-    custom_gpu_prim_info.add("entry point",   desc->kernel_entry_point);
-    custom_gpu_prim_info.add("kernels code",  desc->kernels_code.ref());
+    custom_gpu_prim_info.add("entry point", desc->kernel_entry_point);
+    custom_gpu_prim_info.add("kernels code", desc->kernels_code.ref());
     custom_gpu_prim_info.add("build options", desc->build_options);
     custom_gpu_prim_info.add("gws", desc->gws);
     custom_gpu_prim_info.add("lws", desc->lws);
@@ -50,7 +48,5 @@ std::string custom_gpu_primitive_inst::to_string(custom_gpu_primitive_node const
 }
 
 custom_gpu_primitive_inst::typed_primitive_inst(network_impl& network, custom_gpu_primitive_node const& node)
-    : parent(network, node)
-{
-}
-}
+    : parent(network, node) {}
+}  // namespace cldnn

@@ -19,20 +19,15 @@ import numpy as np
 
 def compare_nrmsd(actual_data, expected_data):
     if actual_data.size != expected_data.size:
-        raise ValueError("actual data size {} is not equal expected data size {}".format(actual_data.size, expected_data.size))
-
-    sum = 0.0
-    index = 0
-    for expected_item in np.nditer(expected_data):
-        actual_item = actual_data.item(index)
-        sum += pow(expected_item - actual_item, 2)
-        index += 1
-
-    sum = sum / expected_data.size
-    sum = pow(sum, 0.5)
+        raise ValueError(
+            "actual data size {} is not equal expected data size {}".format(actual_data.size, expected_data.size))
+    if actual_data.size == 0:
+        raise ValueError("actual data size should be positive")
     
     if expected_data.max() - expected_data.min() == 0:
         return 1.0
-        
+    sum = np.sum(np.power(expected_data - actual_data, 2))
+    sum = sum / expected_data.size
+    sum = np.sqrt(sum)
     sum = sum / (expected_data.max() - expected_data.min())
     return sum

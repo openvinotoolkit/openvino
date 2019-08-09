@@ -15,6 +15,9 @@ Blob::Ptr Blob::CreateFromData(const DataPtr &data) {
     return CreateBlobFromData(data);
 }
 
+
+IE_SUPPRESS_DEPRECATED_START
+
 Data::Data(const std::string &name, Precision _precision, Layout layout): precision(_precision), layout(layout),
                                                                           name(name), userObject({0}),
                                                                           tensorDesc(_precision, layout) {}
@@ -33,8 +36,33 @@ Data::Data(const std::string &name, const TensorDesc &desc): tensorDesc(desc), p
     std::reverse(dims.begin(), dims.end());
 }
 
-const SizeVector& Data::getDims() const {
-    return tensorDesc.getDims();
+Data::Data(const Data & data) :
+    precision(data.precision),
+    layout(data.layout),
+    dims(data.dims),
+    creatorLayer(data.creatorLayer),
+    name(data.name),
+    inputTo(data.inputTo),
+    userObject(data.userObject),
+    tensorDesc(data.tensorDesc) {
+}
+
+Data::~Data() {
+}
+
+Data & Data::operator = (const Data & data) {
+    if (this != &data) {
+        precision = data.precision;
+        layout = data.layout;
+        dims = data.dims;
+        creatorLayer = data.creatorLayer;
+        name = data.name;
+        inputTo = data.inputTo;
+        userObject = data.userObject;
+        tensorDesc = data.tensorDesc;
+    }
+
+    return *this;
 }
 
 const Precision& Data::getPrecision() const {
@@ -100,6 +128,10 @@ const std::string &Data::getName() const {
     return name;
 }
 
+void Data::setName(const std::string& newName) {
+    name = newName;
+}
+
 std::map<std::string, CNNLayerPtr> &Data::getInputTo() {
     return inputTo;
 }
@@ -117,4 +149,10 @@ Layout Data::getLayout() const {
 void Data::setPrecision(const Precision & precision) {
     this->precision = precision;
     tensorDesc.setPrecision(precision);
+}
+
+IE_SUPPRESS_DEPRECATED_END
+
+const SizeVector& Data::getDims() const {
+    return tensorDesc.getDims();
 }

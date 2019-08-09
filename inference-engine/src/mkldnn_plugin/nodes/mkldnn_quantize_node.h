@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNQuantizeNode : public MKLDNNNode {
 public:
-    MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng);
+    MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNQuantizeNode() override = default;
 
     void initSupportedPrimitiveDescriptors() override;

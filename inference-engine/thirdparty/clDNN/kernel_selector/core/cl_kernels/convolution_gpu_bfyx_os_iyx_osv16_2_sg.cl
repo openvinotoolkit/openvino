@@ -229,7 +229,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16_2_sg)(
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
             out[r * OUTPUT_BLOCK_WIDTH + c] += slm_vals[get_sub_group_local_id() + SIMD_SIZE * (c + OUTPUT_BLOCK_WIDTH * r)];
-            out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION(out[r * OUTPUT_BLOCK_WIDTH + c], NL_M, NL_N);
+            out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION(out[r * OUTPUT_BLOCK_WIDTH + c], ACTIVATION_PARAMS);
         }
     }
 

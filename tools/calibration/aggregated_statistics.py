@@ -61,7 +61,8 @@ class AggregatedStatistics:
         # TODO: can be refactored: we are itterating by all layers (to cover input layers output) to collect statistics
         # for inference_result in inference_results:
         for out_layer_name in layer_names:
-            if self._ignore_layer_names and out_layer_name in self._ignore_layer_names:
+            if self._ignore_layer_names and out_layer_name in self._ignore_layer_names or \
+                    out_layer_name in network.outputs and network.outputs[out_layer_name].layout.lower() == 'blocked':
                 continue
 
             if out_layer_name in network.inputs:
@@ -132,6 +133,9 @@ class AggregatedStatistics:
             # define number of elements to throw out
             element_to_take = int(len(max_values) * threshold / 100) if threshold else len(max_values)
             elements_to_throw = len(max_values) - element_to_take if threshold else 0
+
+            element_to_take = len(max_values) if element_to_take > len(max_values) else element_to_take
+            elements_to_throw = (len(min_values) - 1) if elements_to_throw >= len(min_values) else elements_to_throw
 
             max_values.sort()
             min_values.sort()

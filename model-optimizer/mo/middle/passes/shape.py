@@ -18,165 +18,46 @@ import logging as log
 
 import numpy as np
 
+from extensions.back.InsertLayoutPropagationTransposes import is_input_data_in_correct_layout, \
+    is_output_data_in_correct_layout
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import update_attrs
 from mo.graph.graph import Node, Graph
-from mo.middle.passes.eliminate import remove_op_node_with_data_node, merge_data_nodes, graph_clean_up_tf
-from mo.middle.passes.fusing.helpers import get_next_operation
-from mo.middle.pattern_match import apply_pattern
-from mo.ops.op import PermuteAttrs, Op
-from mo.ops.permute import Permute
+from mo.ops.op import PermuteAttrs
 from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
-
-
-def reshape_squeeze_transform(graph: Graph, match: dict):
-    reshape = match['reshape']
-    output = match['output']
-    if output.shape is None:
-        return  # cannot really do anything if shape is dynamic
-    reshape['shape'] = output.shape
-    reshape.op = 'Reshape'
-    reshape['type'] = 'Reshape'
-    if not reshape.has_valid('dim'):
-        # do not override value 'dim' if it is set. It may contain specific values like -1 and 0
-        reshape['dim'] = reshape.shape.copy()
-    update_attrs(reshape, 'shape_attrs', 'dim')
-
-
-def convert_squeeze(graph: Graph):
-    apply_pattern(
-        graph,
-        nodes=[
-            ('reshape', dict(kind='op', op='Squeeze')),
-            ('output', dict(kind='data'))],
-        edges=[('reshape', 'output')],
-        action=reshape_squeeze_transform
-    )
-
-
-def convert_reshape(graph: Graph):
-    apply_pattern(
-        graph,
-        nodes=[
-            ('shape', dict(kind='data')),
-            ('reshape', dict(kind='op', op='Reshape')),
-            ('output', dict(kind='data'))],
-        edges=[('shape', 'reshape', {'in': 1}), ('reshape', 'output')],
-        action=reshape_squeeze_transform
-    )
-
-
-def can_repack_fully_connected_weights_nhwc_to_nchw(fc_node: Node):
-    """
-    Checks that it is possible to repack weights of the FullyConnected layer if the Reshape layer is the input of the
-    FullyConnected and satisfies several conditions.
-    :param fc_node: the FullyConnected node to check
-    :return: the result of the check
-    """
-    if len(fc_node.in_node(0).in_nodes()) != 1:
-        return False
-
-    reshape_node = fc_node.in_node(0).in_node(0)
-    if not reshape_node.has_valid('type') or reshape_node.type != 'Reshape':
-        return False
-
-    if not reshape_node.in_node(0).has_valid('shape') or not reshape_node.out_node().has_valid('shape'):
-        return False
-
-    orig_shape = reshape_node.in_node(0).shape
-    new_shape = reshape_node.out_node().shape
-
-    # TODO a bit conservative condition; relax it checking specific dimensions that are involved in
-    # NHWC to NCWH translation
-    if len(orig_shape) == len(new_shape) and all(orig_shape == new_shape):
-        return False
-
-    # TODO here is a couple of limitations that makes this pass simpler; consider to relax them
-    if len(orig_shape) == 4 and len(new_shape) == 2 and orig_shape[0] == new_shape[0]:
-        # that means orig_shape is in NCHW and new_shape is in NC
-        # and we need to map CHW part to C after HWC to CHW transform
-        # Assuming that FullyConnected weights haven't been converted from IO to OI yet.
-        # So format is IO.
-        return True
-    else:
-        log.warning("Cannot do the complete NHWC to NCHW translation for FullyConnected weights. "
-                    "The final model can be broken.")
-        return False
-
-
-def repack_fully_connected_weights_nhwc_to_nchw(graph: Graph):
-    """
-    Repack weights of FullyConnected layer as a part of nhwc_to_nchw translation if Reshape of
-    that involves dimensions that we are repacking appears right before FullyConnected layer.
-    """
-    for node_id in graph.get_nodes_with_attributes(type='FullyConnected'):
-        fc_node = Node(graph, node_id)
-
-        if not can_repack_fully_connected_weights_nhwc_to_nchw(fc_node):
-            continue
-
-        reshape_node = fc_node.in_node(0).in_node(0)
-
-        orig_shape = reshape_node.in_node(0).shape
-        new_shape = reshape_node.out_node().shape
-
-        # OK, here we are; need to repack fc_node.in_node(1) to maintain it compatible with original input order
-
-        assert all(orig_shape != -1), 'Input shape for {} can not be negative.'.format(fc_node.id)
-        assert all(new_shape != -1), 'Output shape for {} can not be negative.'.format(fc_node.id)
-        assert orig_shape[1] * orig_shape[2] * orig_shape[3] == new_shape[1], \
-            'Input shape does not correspond to output shape for layer {}.'.format(fc_node.id)
-        assert fc_node.in_node(1).has_valid('value'), 'Node {} does not have value.'.format(fc_node.id)
-
-        weights = fc_node.in_node(1)
-
-        log.debug("orig_shape = {}".format(orig_shape))
-        log.debug("new_shape = {}".format(new_shape))
-        log.debug("weights.shape = {}".format(weights.shape))
-        log.debug("weights.shape[1] = {}, new_shape[1] = {}".format(weights.shape[1], new_shape[1]))
-
-        assert weights.shape[0] == new_shape[1], \
-            'First dim of weights does not correspond to output shape of {}'.format(fc_node.id)
-        # interpret I dimension of the weights as packed HWC
-        # orig shape is already converted to NCHW, so provide transposed order for I repacking
-        tmp_shape = (orig_shape[2], orig_shape[3], orig_shape[1], weights.shape[1])
-        weights.value = np.transpose(weights.value.reshape(tmp_shape), (2, 0, 1, 3)).reshape(weights.shape)
 
 
 def apply_nhwc_to_nchw_permutation(graph: Graph):
     # Add NHWC to NCHW permutation for all data nodes (only for nodes without permutation)
     if graph.graph['layout'] == 'NCHW':
         return
-    for node in graph.nodes():
-        node = Node(graph, node)
-        if node.kind == 'data':
-            if node.has_and_set('nchw_layout'):
-                continue
 
-            # Get NHWC to NCHW permutation for N dims, where N = len(node.shape)
-            permutation = PermuteAttrs().get_nhwc_to_nchw_permutation(len(node.shape))
+    for node in graph.get_data_nodes():
+        if node.has_and_set('nchw_layout'):
+            continue
 
-            # Check that data node already has permutation
-            skip_permutation = False
-            for in_node in node.in_nodes():
-                edge_attrs = node.graph.get_edge_data(in_node.id, node.id)[0]
-                if 'permutation' in edge_attrs:
-                    skip_permutation = True
-            for out_node in node.out_nodes():
-                edge_attrs = node.graph.get_edge_data(node.id, out_node.id)[0]
-                if 'permutation' in edge_attrs:
-                    skip_permutation = True
+        # Get NHWC to NCHW permutation for N dims, where N = len(node.shape)
+        permutation = PermuteAttrs().get_nhwc_to_nchw_permutation(len(node.shape))
 
-            if skip_permutation:
-                continue
+        # Check that data node already has permutation
+        skip_permutation = False
+        for in_node in node.in_nodes():
+            edge_attrs = node.graph.get_edge_data(in_node.id, node.id)[0]
+            if 'permutation' in edge_attrs:
+                skip_permutation = True
+        for out_node in node.out_nodes():
+            edge_attrs = node.graph.get_edge_data(node.id, out_node.id)[0]
+            if 'permutation' in edge_attrs:
+                skip_permutation = True
 
-            # Set permutation to all in/out edges
-            for in_node in node.in_nodes():
-                PermuteAttrs.set_permutation(in_node, node, permutation)
+        if skip_permutation:
+            continue
 
-            for out_node in node.out_nodes():
-                PermuteAttrs.set_permutation(node, out_node, permutation)
+        # Set permutation to all in/out edges
+        for in_node in node.in_nodes():
+            PermuteAttrs.set_permutation(in_node, node, permutation)
+
+        for out_node in node.out_nodes():
+            PermuteAttrs.set_permutation(node, out_node, permutation)
 
 
 def merge_nodes_permutations(graph: Graph):
@@ -208,49 +89,65 @@ def merge_nodes_permutations(graph: Graph):
             if p is not None:
                 final_permutations.append(p.perm)
             else:
-                final_permutations.append(np.arange(node.shape.size))
+                final_permutations.append(int64_array(np.arange(node.shape.size)))
 
         if len(final_permutations) == 0:
             continue
 
         if not all([np.array_equal(final_permutations[0], perm) for perm in final_permutations]):
-            raise Error(
-                'Permutations requested for {} data node are not equal! List of permutations: {}'.format(node.name,
-                                                                                                         [p.perm for
-                                                                                                          p in
-                                                                                                          permutations]))
+            raise Error('Permutations requested for {} data node are not equal! List of permutations: {}'
+                        ''.format(node.name, [p.perm for p in permutations]))
 
         assert not node.has_valid('permutation') or np.array_equal(node.permutation, permutations[0])
         node['permutation'] = permutations[0]
-        if node.permutation is not None and node.permutation.perm.size == 0:
-            node.permutation = None
 
 
 def permute_data_nodes_attrs(graph: Graph):
     # Iterate over all data nodes and apply permutation if exists
-    for node in graph.nodes():
-        node = Node(graph, node)
-        if node.kind != 'data' or not node.has_valid('permutation'):
+    for node in graph.get_data_nodes():
+        if not node.has_valid('permutation'):
             continue
 
+        if len(node.in_nodes()) != 0:  # there are data nodes without input operation node inside the tensor iterator
+            edge_attrs = graph.get_edge_data(node.in_node(0).id, node.id)[0]
+            if is_output_data_in_correct_layout(node.in_node(0), edge_attrs['out']):
+                log.debug('Do not permute data node attrs for node "{}" output port "{}"'.format(node.in_node(0).id,
+                                                                                                 edge_attrs['out']))
+                continue
+
         # Apply permutation for shape and value if exists
+        if len(node.permutation.perm) == 0:
+            continue
         node.shape = np.array(node.shape)[node.permutation.perm]
         if node.has_valid('value'):
-            if len(node.value.shape) != len(node.permutation.perm):
-                log.warning('Node {} has shape {} and permutation {} that is not satisfied'.format(node.name, node.value.shape, node.permutation.perm))
-                continue
-            #print(node.name, node.value.shape, node.shape, node.permutation)
+            assert len(node.value.shape) == len(node.permutation.perm), \
+                'Node {} has shape {} and permutation {} that does not match. Their lengths should be equal' \
+                ''.format(node.name, node.value.shape, node.permutation.perm)
             node.value = np.array(node.value.transpose(node.permutation.perm))
 
 
 def permute_op_nodes_attrs(graph: Graph):
-    for node in graph.nodes():
-        node = Node(graph, node)
-        if node.kind == 'op' and node.has_valid('permute_attrs'):
+    for node in graph.get_op_nodes():
+        if node.has_valid('permute_attrs') and not node.has_and_set('nchw_layout'):
             try:
                 node.permute_attrs.permute_attrs(node)
             except Exception as e:
                 raise Error('Can\'t permute attrs for node {}. Error message: {}'.format(node.id, e))
+
+
+def permute_input_data(graph: Graph):
+    if graph.graph['layout'] != 'NHWC':
+        return
+    for node in graph.get_op_nodes():
+        input_permutations = [(in_port, edge_attrs['input_permutation']) for in_port, edge_attrs in
+                              node.in_edges().items() if 'input_permutation' in edge_attrs]
+        for in_port, input_perm in input_permutations:
+            permutation, port_info = input_perm
+            direction, port = port_info.split(':')
+            port = int(port)
+            port_to_check = node.in_port(port) if direction == 'input' else node.out_port(port)
+            if not is_input_data_in_correct_layout(node, in_port) and len(port_to_check.data.get_shape()) >= 4:
+                permutation(node, port_info, in_port)
 
 
 def reverse_input_channels(graph: Graph):
@@ -262,7 +159,7 @@ def reverse_input_channels(graph: Graph):
     candidates = set()
     for node in graph.nodes():
         node = Node(graph, node)
-        if node.has_valid('type') and node.type == 'Input' and len(node.out_nodes()) == 1 and node.out_node(
+        if node.has_valid('type') and node.type == 'Parameter' and len(node.out_nodes()) == 1 and node.out_node(
                 0).shape.size == 4:
             candidates.add(node)
     log.debug('reverse_input_channels found candidates: {}'.format([c.node for c in candidates]))
@@ -309,7 +206,7 @@ def reverse_input_channels(graph: Graph):
         if conv.op == 'DepthwiseConv2dNative':
             log.debug('out nodes: {}'.format(conv.out_node()))
             bottoms = conv.out_node().out_nodes()
-            if len(bottoms) == 1 and bottoms[0].op == 'FakeQuantWithMinMaxVars':
+            if len(bottoms) == 1 and bottoms[0].op == 'FakeQuantize':
                 bottoms = bottoms[0].out_node().out_nodes()
             log.debug('bottoms: {}'.format(bottoms))
             log.debug('assumed conv: name = {}, op = {}'.format(bottoms[0].name, bottoms[0].op))
@@ -354,108 +251,3 @@ def reverse_input_channels(graph: Graph):
         log.debug('Shape was (shape){}, (value.shape){}'.format(conv.in_node(1).shape, conv.in_node(1).value.shape))
         log.debug('Flipped dim: {}'.format(conv.in_node(1).input_channel_dim))
 
-
-def conv_flatten_concat_action(graph: Graph, match: dict):
-    assert graph.graph['layout'] == 'NHWC'
-    reshape_node = match['reshape']
-    reshape_data_node = match['reshape_data']
-    conv_name = match['conv'].name
-    conv_data_node = match['conv_data']
-    # the pattern should be applied only in case when the reshape operation changes number of dimensions
-    if len(reshape_data_node.shape) == len(conv_data_node.shape) or reshape_node.has_and_set('nchw_layout'):
-        return
-
-    if len(reshape_data_node.out_nodes()) == 1 and reshape_data_node.out_node().has_valid('type') and \
-        reshape_data_node.out_node().type == 'FullyConnected' and \
-            can_repack_fully_connected_weights_nhwc_to_nchw(reshape_data_node.out_node()):
-        log.info('There is a FullyConnected layer after the node "{}" which weights will be repacked. So there is no '
-                 'need to insert Permute'.format(reshape_node.soft_get('name')))
-        return
-    graph.remove_edge(conv_data_node.id, reshape_node.id)
-
-    permutation_order = PermuteAttrs.get_nchw_to_nhwc_permutation(len(conv_data_node.shape)).perm
-    new_permute_op = Permute(graph, {'order': permutation_order})
-    permute_data_node = new_permute_op.create_node_with_data([conv_data_node], dict(name=conv_name + '/Permute_'))
-    graph.create_edge(permute_data_node, reshape_node)
-    # Disable permutation for Reshape and Concat layers attributes
-    PermuteAttrs.set_permutation(reshape_node, reshape_data_node, None)
-    reshape_node['nchw_layout'] = True
-
-
-def conv_flatten_concat(graph: Graph):
-    apply_pattern(
-        graph,
-        nodes=[
-            ('conv', dict(kind='op', type='Convolution')),
-            ('conv_data', dict(kind='data')),
-            ('reshape', dict(kind='op', type='Reshape')),
-            ('reshape_data', dict(kind='data')),
-        ],
-        edges=[
-            ('conv', 'conv_data'),
-            ('conv_data', 'reshape'),
-            ('reshape', 'reshape_data'),
-        ],
-        action=conv_flatten_concat_action
-    )
-
-    apply_pattern(
-        graph,
-        nodes=[
-            ('real_conv', dict(kind='op', type='Convolution')),
-            ('real_conv_data', dict(kind='data')),
-            ('conv', dict(kind='op', type='ReLU')),
-            ('conv_data', dict(kind='data')),
-            ('reshape', dict(kind='op', type='Reshape')),
-            ('reshape_data', dict(kind='data')),
-        ],
-        edges=[
-            ('real_conv', 'real_conv_data'),
-            ('real_conv_data', 'conv'),
-            ('conv', 'conv_data'),
-            ('conv_data', 'reshape'),
-            ('reshape', 'reshape_data'),
-        ],
-        action=conv_flatten_concat_action
-    )
-
-
-def fuse_sequence_of_reshapes(graph: Graph):
-    for node in list(graph.nodes()):
-        if not graph.has_node(node):
-            # data node can be already removed
-            continue
-        node = Node(graph, node)
-        if (
-                node.has_valid('type') and node.type == 'Reshape' and
-                len(node.out_nodes()) == 1 and node.out_node().has_valid('kind') and node.out_node().kind == 'data' and
-                len(node.out_node().out_nodes()) == 1):
-
-            log.debug('First phase for Reshape: {}'.format(node.name))
-
-            next_op = node.out_node().out_node()
-            log.debug('second node: {}'.format(next_op.graph.node[next_op.id]))
-            if next_op.has_valid('type') and next_op.type == 'Reshape':
-                # Detected Reshape1 --> data --> Reshape2 pattern without side edges
-                # Remove Reshape1
-                log.debug('Second phase for Reshape: {}'.format(node.name))
-                remove_op_node_with_data_node(graph, node)
-
-    reshape_nodes = graph.get_op_nodes(op='Reshape')
-    for reshape_node in reshape_nodes:
-        in_ports = [port for port in reshape_node.in_ports().values() if not port.disconnected()]
-        assert len(in_ports) in [1, 2], "`Reshape` node must have 2 inputs or 1 input with `dim`"
-        if len(in_ports) == 2:
-            previous_dim_op = reshape_node.in_port(1).get_source().node.op
-            if previous_dim_op != 'Const':
-                continue
-            dim = reshape_node.in_port(1).get_connection().data.get_value()
-        else:
-            assert reshape_node.has_valid('dim'), "`Reshape` node with 1 input must have `dim` attribute"
-            dim = reshape_node.dim
-
-        in_shape = reshape_node.in_port(0).get_connection().data.get_shape()
-
-        if np.array_equal(dim, in_shape) and len(reshape_node.out_nodes()):
-            log.debug("Useless reshape with dim {} was deleted: {}".format(str(dim), reshape_node.name))
-            reshape_node.out_port(0).get_connection().set_source(reshape_node.in_port(0).get_source())

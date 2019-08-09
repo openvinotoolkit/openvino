@@ -40,7 +40,7 @@ bool memory_desc_sanity_check(int ndims,const dims_t dims,
     bool ok = true
         && dims != nullptr
         && 0 < ndims && ndims <= TENSOR_MAX_DIMS
-        && one_of(data_type, f32, s32, s16, s8, u8, bin)
+        && one_of(data_type, f32, s32, s16, bf16, s8, u8, bin)
         && format != memory_format::undef;
     if (!ok) return false;
     for (int d = 0; d < ndims; ++d)

@@ -53,6 +53,7 @@ DECLARE_GNA_CONFIG_VALUE(AUTO);
 DECLARE_GNA_CONFIG_VALUE(HW);
 DECLARE_GNA_CONFIG_VALUE(SW);
 DECLARE_GNA_CONFIG_VALUE(SW_EXACT);
+DECLARE_GNA_CONFIG_VALUE(SW_FP32);
 
 /**
 * @brief if enabled produced minimum memory footprint for loaded network in GNA memory, default value is YES

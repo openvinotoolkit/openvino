@@ -166,7 +166,7 @@ rnn_grid_execution_sig(
             if ((aprop == prop_kind::forward) && rnn.merge_gemm_layer) {
                 (this->*gemm_layer_func)('N', 'N', rnn.n_gates * rnn.dic,
                         rnn.mb * rnn.n_iter, rnn.slc, 1.0,
-                        weights_input(lay, dir, 0), rnn.weights_iter_ld,
+                        weights_input(lay, dir, 0), rnn.weights_layer_ld,
                         &(ws_states(lay, dir, 1, 0)), rnn.states_ws_ld, 0.0,
                         &(ws_gates(lay, dir, 0, 0)), rnn.gates_ws_ld);
             }
@@ -696,7 +696,7 @@ void _ref_rnn_common_t<aprop, src_type, weights_type>::execute_() const {
     float *ws_c_states = (float *)(base_ptr + ws_c_states_offset_);
     float *ws_diff_states = (float *)(base_ptr + ws_diff_states_offset_);
     float *ws_grid = (float *)(base_ptr + ws_grid_comp_offset_);
-    float *ws_cell = (float *)(base_ptr + ws_cell_comp_offset_);
+    acc_data_t *ws_cell = (acc_data_t *)(base_ptr + ws_cell_comp_offset_);
 
     auto diff_src_layer = rnn.is_fwd ?
             nullptr :
@@ -787,15 +787,6 @@ template<> rnn_cell_execution_sig(ref_rnn_bwd_f32_t::cell_execution_gru);
 template<> rnn_cell_execution_sig(ref_rnn_fwd_f32_t::cell_execution_gru_lbr);
 template<> rnn_cell_execution_sig(ref_rnn_fwd_u8s8_t::cell_execution_gru_lbr);
 template<> rnn_cell_execution_sig(ref_rnn_bwd_f32_t::cell_execution_gru_lbr);
-template<> rnn_elemwise_sig(ref_rnn_fwd_f32_t::rnn_elemwise);
-template<> rnn_elemwise_sig(ref_rnn_fwd_u8s8_t::rnn_elemwise);
-template<> rnn_elemwise_sig(ref_rnn_bwd_f32_t::rnn_elemwise);
-template<> rnn_elemwise_sig(ref_rnn_fwd_f32_t::lstm_elemwise);
-template<> rnn_elemwise_sig(ref_rnn_fwd_u8s8_t::lstm_elemwise);
-template<> rnn_elemwise_sig(ref_rnn_bwd_f32_t::lstm_elemwise);
-template<> rnn_elemwise_sig(ref_rnn_fwd_f32_t::gru_lbr_elemwise);
-template<> rnn_elemwise_sig(ref_rnn_fwd_u8s8_t::gru_lbr_elemwise);
-template<> rnn_elemwise_sig(ref_rnn_bwd_f32_t::gru_lbr_elemwise);
 
 template struct _ref_rnn_common_t<prop_kind::forward, data_type::f32, data_type::f32>;
 template struct _ref_rnn_common_t<prop_kind::forward, data_type::u8, data_type::s8>;

@@ -41,9 +41,8 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
     enabled = True
 
     def run_before(self):
-        from extensions.middle.FusePermutesSequence import FusePermutesSequence
         from extensions.middle.LSTMRNNSequenceToTensorIterator import LSTMToTensorIterator
-        return [FusePermutesSequence, LSTMToTensorIterator]
+        return [LSTMToTensorIterator]
 
     def run_after(self):
         from extensions.middle.pass_separator import MiddleStart
@@ -204,6 +203,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
         graph.remove_edge(match['BlockLSTM'].id, match['concatenated_cell_states_data'].id)
         graph.remove_edge(match['gather_1'].id, match['gather_1_data'].id)
 
+        match['BlockLSTM'].add_output_port(attrs['out'])
         graph.add_edge(match['BlockLSTM'].id, match['gather_1_data'].id, **attrs)
 
         """

@@ -20,35 +20,32 @@ import logging as log
 import tensorflow as tf
 
 from extensions.back.CreateConstNodes import CreateConstNodesReplacement
-from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
+from extensions.back.FuseReshapesSequence import FuseReshapesSequence
+from extensions.back.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose
+from extensions.back.RemoveRedundantReshapes import RemoveRedundantReshapes
 from extensions.middle.ConcatOptimization import ConcatOptimization
-
-try:
-    import tensorflow.contrib
-except:
-    pass  # we try to import contrib for loading models that use contrib operations
-
+from extensions.middle.EltwiseChecker import EltwiseChecker
 from extensions.middle.EltwiseInputNormalization import EltwiseInputNormalize
-from mo.middle.passes.eliminate import remove_const_ops
+from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
 from mo.front.extractor import restore_edges, extract_node_attrs, remove_output_ops, remove_control_dependency_inputs
 from mo.front.tf.extractor import get_tf_edges, tf_op_extractor, tf_op_extractors
 from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.middle.passes.conv import convert_add_or_mul_to_scaleshift, convert_matmul_to_fully_connected, \
-    convert_muladd_to_scaleshift_or_power, fuse_pad, transpose_fully_connected_weights
+    convert_muladd_to_scaleshift, fuse_pad
 from mo.middle.passes.eliminate import graph_clean_up_tf
+from mo.middle.passes.eliminate import remove_const_ops
 from mo.middle.passes.fusing.decomposition import convert_batch_norm, convert_scale_shift_to_mul_add
 from mo.middle.passes.fusing.fuse_grouped_conv import grouped_convolutions_fusing
 from mo.middle.passes.fusing.fuse_linear_ops import fuse_linear_ops
 from mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
 from mo.middle.passes.fusing.mark_unfused_nodes import mark_unfused_nodes
-from mo.middle.passes.infer import convert_mul_add_to_power, update_fully_connected_shapes
+from mo.middle.passes.infer import update_fully_connected_shapes
 from mo.middle.passes.leaky_relu import convert_mul_eltwise_to_leaky_relu
 from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
-from mo.middle.passes.shape import convert_squeeze, convert_reshape, reverse_input_channels, \
-    conv_flatten_concat, fuse_sequence_of_reshapes, repack_fully_connected_weights_nhwc_to_nchw, \
-    apply_nhwc_to_nchw_permutation, permute_data_nodes_attrs, permute_op_nodes_attrs, merge_nodes_permutations
+from mo.middle.passes.shape import reverse_input_channels, apply_nhwc_to_nchw_permutation, \
+    permute_data_nodes_attrs, permute_op_nodes_attrs, merge_nodes_permutations, permute_input_data
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir
 from mo.utils import class_registration, tensorboard
@@ -56,9 +53,13 @@ from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
+try:
+    import tensorflow.contrib
+except:
+    pass  # we try to import contrib for loading models that use contrib operations
 
-def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str, output_dir: str,
-          is_binary: bool):
+
+def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str, output_dir: str, is_binary: bool):
     """
     Convert TF GraphDef object to NetworkX representation.
     The resulting graph is still TF-specific and needs normalization passes to be applied.
@@ -104,7 +105,12 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
         graph.graph['layout'] = 'NCHW' if argv.disable_nhwc_to_nchw else 'NHWC'
         graph.graph['cmd_params'] = argv
         graph.graph['fw'] = 'tf'
-        graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 5
+
+        if graph.graph['cmd_params'].generate_experimental_IR_V10:
+            version = 10
+        else:
+            version = 6
+        graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else version
 
         graph.graph['variables_values'] = variables_values
         del variables_values
@@ -130,7 +136,7 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
     fuse_pad(graph)
     graph_clean_up_tf(graph)
 
-    convert_matmul_to_fully_connected(graph)
+    for_graph_and_each_sub_graph_recursively(graph, convert_matmul_to_fully_connected)
 
     # Mark nodes with attr 'can_be_fused': False to disable fusing for specified nodes
     for_graph_and_each_sub_graph_recursively(graph, lambda graph: mark_unfused_nodes(graph, argv.finegrain_fusing))
@@ -154,17 +160,16 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
         for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
     if not argv.disable_gfusing:
-        grouped_convolutions_fusing(graph)
+        for_graph_and_each_sub_graph_recursively(graph, grouped_convolutions_fusing)
         graph_clean_up_tf(graph)
         if not argv.disable_fusing:
             fuse_linear_ops(graph)
             graph_clean_up_tf(graph)
 
-    # Converting Mul->Add to ScaleShift node
-    for_graph_and_each_sub_graph_recursively(graph, convert_muladd_to_scaleshift_or_power)
-    for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
+    for_graph_and_each_sub_graph_recursively(graph, EltwiseChecker().find_and_replace_pattern)
 
-    for_graph_and_each_sub_graph_recursively(graph, convert_mul_add_to_power)
+    # Converting Mul->Add to ScaleShift node
+    for_graph_and_each_sub_graph_recursively(graph, convert_muladd_to_scaleshift)
 
     # Need to eliminate dead nodes before doing update_fully_connected_shapes
     # because update_fully_connected_shapes does partial inference and dead
@@ -179,9 +184,6 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
     for_graph_and_each_sub_graph_recursively(graph, fuse_pad)
     for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
-    for_graph_and_each_sub_graph_recursively(graph, convert_reshape)
-    for_graph_and_each_sub_graph_recursively(graph, convert_squeeze)
-
     for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
     for_graph_and_each_sub_graph_recursively(graph, convert_add_or_mul_to_scaleshift)  # scale = 1
@@ -191,18 +193,18 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
         reverse_input_channels(graph)
 
     if argv.move_to_preprocess:
-        move_scaleshift_to_preprocess(graph)
+        for_graph_and_each_sub_graph_recursively(graph, move_scaleshift_to_preprocess)
         graph_clean_up_tf(graph)
 
-    fuse_sequence_of_reshapes(graph)
+    FuseReshapesSequence().find_and_replace_pattern(graph)
+    RemoveRedundantReshapes().find_and_replace_pattern(graph)
 
-    pattern = EltwiseInputNormalize()
-    pattern.find_and_replace_pattern(graph)
-
-    conv_flatten_concat(graph)
+    EltwiseInputNormalize().find_and_replace_pattern(graph)
 
     if argv.enable_concat_optimization:
         ConcatOptimization().find_and_replace_pattern(graph)
+
+    for_graph_and_each_sub_graph_recursively(graph, InsertLayoutPropagationTranspose().find_and_replace_pattern)
 
     LayoutChangeForConstantShapePaths().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
@@ -211,16 +213,16 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
     for_graph_and_each_sub_graph_recursively(graph, merge_nodes_permutations)
     for_graph_and_each_sub_graph_recursively(graph, permute_data_nodes_attrs)
     for_graph_and_each_sub_graph_recursively(graph, permute_op_nodes_attrs)
-
-    for_graph_and_each_sub_graph_recursively(graph, repack_fully_connected_weights_nhwc_to_nchw)
-    for_graph_and_each_sub_graph_recursively(graph, transpose_fully_connected_weights)
+    for_graph_and_each_sub_graph_recursively(graph, permute_input_data)
 
     for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
+    graph.graph['layout'] = 'NCHW'
     class_registration.apply_replacements(graph, class_registration.ClassType.BACK_REPLACER)
+    for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
     for_graph_and_each_sub_graph_recursively(graph, remove_const_ops)
-    CreateConstNodesReplacement().find_and_replace_pattern(graph)
+    for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
     for_graph_and_each_sub_graph_recursively(graph, remove_output_ops)
 

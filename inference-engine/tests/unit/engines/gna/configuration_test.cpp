@@ -25,8 +25,8 @@ class GNAConfigTest : public GNATest {
 
 TEST_F(GNAConfigTest, reportAnErrorIfConfigNotFound) {
 
-    Config c ({{TargetDevice :: eGNA, Precision::I16},
-               {TargetDevice :: eCPU, Precision::FP32}});
+    Config c ({{TargetDevice :: eGNA, {Precision::I16}},
+               {TargetDevice :: eCPU, {Precision::FP32}}});
 
     EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::FP32));
     EXPECT_CALL(net, getTargetDevice()).WillRepeatedly(Return(TargetDevice::eGNA));
@@ -36,8 +36,8 @@ TEST_F(GNAConfigTest, reportAnErrorIfConfigNotFound) {
 
 TEST_F(GNAConfigTest, canFindConfiguration) {
 
-    Config c ({{TargetDevice :: eGNA, Precision::I16},
-               {TargetDevice :: eCPU, Precision::FP32}});
+    Config c ({{TargetDevice :: eGNA, {Precision::I16}},
+               {TargetDevice :: eCPU, {Precision::FP32}}});
 
     EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::FP32));
     EXPECT_CALL(net, getTargetDevice()).WillRepeatedly(Return(TargetDevice::eCPU));
@@ -45,13 +45,14 @@ TEST_F(GNAConfigTest, canFindConfiguration) {
     auto match = c.find_configuration(net);
 
     EXPECT_EQ(match.device, TargetDevice::eCPU);
-    EXPECT_EQ(match.networkPrec, Precision::FP32);
+    auto matchNetPrec = std::find(match.networkPrec.begin(), match.networkPrec.end(), Precision::FP32) != match.networkPrec.end();
+    EXPECT_EQ(matchNetPrec, true);
 }
 
 TEST_F(GNAConfigTest, canPassTroughNetworkAfterFindConfiguration) {
 
-    Config c ({{TargetDevice :: eGNA, Precision::I16},
-               {TargetDevice :: eCPU, Precision::FP32}});
+    Config c ({{TargetDevice :: eGNA, {Precision::I16}},
+               {TargetDevice :: eCPU, {Precision::FP32}}});
 
     EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::FP32));
     EXPECT_CALL(net, getTargetDevice()).WillRepeatedly(Return(TargetDevice::eCPU));
@@ -66,8 +67,8 @@ TEST_F(GNAConfigTest, canPassTroughNetworkAfterFindConfiguration) {
 
 TEST_F(GNAConfigTest, canNotMatchWithDefaultDevice) {
 
-    Config c ({{TargetDevice :: eGNA, Precision::I16},
-               {TargetDevice :: eCPU, Precision::FP32}});
+    Config c ({{TargetDevice :: eGNA, {Precision::I16}},
+               {TargetDevice :: eCPU, {Precision::FP32}}});
 
     c.setDefaultDevice(TargetDevice::eGNA);
 
@@ -79,8 +80,8 @@ TEST_F(GNAConfigTest, canNotMatchWithDefaultDevice) {
 
 TEST_F(GNAConfigTest, canMatchWithDefaultDevice) {
 
-    Config c ({{TargetDevice :: eGNA, Precision::I16},
-               {TargetDevice :: eCPU, Precision::FP32}});
+    Config c ({{TargetDevice :: eGNA, {Precision::I16}},
+               {TargetDevice :: eCPU, {Precision::FP32}}});
 
     c.setDefaultDevice(TargetDevice::eGNA);
 
@@ -98,6 +99,7 @@ TEST_F(GNAConfigTest, canMatchWith1AsyncThread) {
         .onInferModel(GNATestIRs::Fc2DOutputModel())
         .inNotCompactMode()
         .withAcceleratorThreadsNumber("1")
+        .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1)
         .gna().propagate_forward().called_without().pwl_inserted_into_nnet();
 }
 
@@ -105,6 +107,7 @@ TEST_F(GNAConfigTest, canMatchWith4AsyncThreads) {
     assert_that()
         .onInferModel(GNATestIRs::Fc2DOutputModel())
         .inNotCompactMode()
+        .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1)
         .withAcceleratorThreadsNumber("4")
         .gna().propagate_forward().called_without().pwl_inserted_into_nnet();
 }
@@ -114,6 +117,7 @@ TEST_F(GNAConfigTest, canNOTMatchWith0AsyncThreads) {
         .onInferModel(GNATestIRs::Fc2DOutputModel())
         .inNotCompactMode()
         .withAcceleratorThreadsNumber("0")
+        .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1)
         .gna().propagate_forward().called_without().pwl_inserted_into_nnet()
         .throws();
 }
@@ -122,6 +126,7 @@ TEST_F(GNAConfigTest, canNOTMatchWith128AsyncThreads) {
     assert_that()
         .onInferModel(GNATestIRs::Fc2DOutputModel())
         .inNotCompactMode()
+        .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .withAcceleratorThreadsNumber("128")
         .gna().propagate_forward().called_without().pwl_inserted_into_nnet()
         .throws();
@@ -131,12 +136,13 @@ TEST_F(GNAConfigTest, canMatchWithSingleMultipleOMPThreads) {
     assert_that()
         .onInferModel(GNATestIRs::Fc2DOutputModel())
         .inNotCompactMode()
+        .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .enable_omp_multithreading()
         .gna().propagate_forward().called_without().pwl_inserted_into_nnet();
 }
 
 TEST_F(GNAConfigTest, failToCreatePluginWithDifferentInputScaleFactors) {
     assert_that().creating().gna_plugin()
-        .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR))+"_1", 1000)
-        .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR))+"_2", 2000).throws();
+        .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR))+"_0", 1000)
+        .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR))+"_1", 2000);
 }

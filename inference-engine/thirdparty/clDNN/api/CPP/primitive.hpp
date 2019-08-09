@@ -25,9 +25,10 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <memory>
+#include <utility>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 
@@ -42,35 +43,35 @@ using primitive_id_ref = cldnn_primitive_id;
 using primitive_id = std::string;
 
 /// @brief Dynamic cast to specified primitive description type.
-template<class PType>
-typename PType::dto* as_dto(CLDNN_PRIMITIVE_DESC(primitive)* dto)
-{
-    if (dto->type != PType::type_id()) throw std::invalid_argument("type");
+template <class PType>
+typename PType::dto* as_dto(CLDNN_PRIMITIVE_DESC(primitive) * dto) {
+    if (dto->type != PType::type_id())
+        throw std::invalid_argument("type");
     return reinterpret_cast<typename PType::dto*>(dto);
 }
 
 /// @brief Dynamic cast to specified primitive description type.
-template<class PType>
-const typename PType::dto* as_dto(const CLDNN_PRIMITIVE_DESC(primitive)* dto)
-{
-    if (dto->type != PType::type_id()) throw std::invalid_argument("type");
+template <class PType>
+const typename PType::dto* as_dto(const CLDNN_PRIMITIVE_DESC(primitive) * dto) {
+    if (dto->type != PType::type_id())
+        throw std::invalid_argument("type");
     return reinterpret_cast<const typename PType::dto*>(dto);
 }
 
+struct primitive_info;
+
 /// @brief Base class of network primitive description.
-struct primitive
-{
+struct primitive {
     /// @brief Initialize fields common for all primitives.
-    struct fixed_size_vector_ref
-    {
+    struct fixed_size_vector_ref {
     private:
         std::vector<primitive_id>& vref;
 
     public:
-        fixed_size_vector_ref(std::vector<primitive_id>& ref) : vref(ref)
-        {}
+        explicit fixed_size_vector_ref(std::vector<primitive_id>& ref) : vref(ref) {}
 
         auto size() const -> decltype(vref.size()) { return vref.size(); }
+        auto empty() const -> decltype(vref.empty()) { return vref.empty(); }
         auto begin() const -> decltype(vref.begin()) { return vref.begin(); }
         auto end() const -> decltype(vref.end()) { return vref.end(); }
         auto cbegin() const -> decltype(vref.cbegin()) { return vref.cbegin(); }
@@ -87,66 +88,59 @@ struct primitive
 
         const std::vector<primitive_id>& ref() const { return vref; }
     };
+
 public:
-    primitive(
-        const primitive_type_id& type,
-        const primitive_id& id,
-        const std::vector<primitive_id>& input,
-        const padding& output_padding = padding(),
-        const optional_data_type output_data_type = optional_data_type()
-    )
-        : type(type)
-        , id(id)
-        , input(_input.cpp_ids)
-        , output_padding(output_padding)
-        , output_data_type(output_data_type)
-        , _input(input)
-    {}
+    primitive(const primitive_type_id& type,
+              const primitive_id& id,
+              const std::vector<primitive_id>& input,
+              const padding& output_padding = padding(),
+              const optional_data_type output_data_type = optional_data_type())
+        : type(type),
+          id(id),
+          input(_input.cpp_ids),
+          output_padding(output_padding),
+          output_data_type(output_data_type),
+          _input(input) {}
 
     /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{primitive}
-    primitive(const CLDNN_PRIMITIVE_DESC(primitive) * dto)
-        : type(dto->type)
-        , id(dto->id)
-        , input(_input.cpp_ids)
-        , output_padding(dto->output_padding)
-        , output_data_type(dto->output_data_type.enabled
-                               ? optional_data_type{static_cast<data_types>(
-                                     dto->output_data_type.data_type)}
-                               : optional_data_type{})
-        , _input(dto->input)
-    {
-    }
+    explicit primitive(const CLDNN_PRIMITIVE_DESC(primitive) * dto)
+        : type(dto->type),
+          id(dto->id),
+          input(_input.cpp_ids),
+          output_padding(dto->output_padding),
+          output_data_type(dto->output_data_type.enabled
+                               ? optional_data_type{static_cast<data_types>(dto->output_data_type.data_type)}
+                               : optional_data_type{}),
+          _input(dto->input) {}
 
     virtual ~primitive() = default;
 
     /// @brief Requested output padding.
     /// @brief Requested output padding.
     /// @brief Returns pointer to a C API primitive descriptor casted to @CLDNN_PRIMITIVE_DESC{primitive}.
-    virtual const CLDNN_PRIMITIVE_DESC(primitive)* get_dto() const = 0;
+    virtual const CLDNN_PRIMITIVE_DESC(primitive) * get_dto() const = 0;
 
     /// @brief Returns references to all primitive ids on which this primitive depends - inputs, weights, biases, etc.
-    std::vector<std::reference_wrapper<primitive_id>> dependencies()
-    {
+    std::vector<std::reference_wrapper<primitive_id>> dependencies() {
         std::vector<std::reference_wrapper<primitive_id>> result;
         auto&& deps = get_dependencies();
-        
+
         result.reserve(_input.size() + deps.size());
-        for (auto& pid : _input.cpp_ids)
-            result.push_back(std::ref(pid));
-        for (auto& pid : deps)
-            result.push_back(std::ref(const_cast<primitive_id&>(pid.get())));
+        for (auto& pid : _input.cpp_ids) result.push_back(std::ref(pid));
+        for (auto& pid : deps) result.push_back(std::ref(const_cast<primitive_id&>(pid.get())));
 
         return result;
     }
 
     /// @brief Returns copy of all primitive ids on which this primitive depends - inputs, weights, biases, etc.
-    std::vector<primitive_id> dependencies() const
-    {
+    std::vector<primitive_id> dependencies() const {
         auto result = input.ref();
         auto deps = get_dependencies();
         result.insert(result.end(), deps.begin(), deps.end());
         return result;
     }
+
+    virtual primitive_id type_string() const = 0;
 
     /// @brief Implicit conversion to primiitive id.
     operator primitive_id() const { return id; }
@@ -167,32 +161,25 @@ public:
     optional_data_type output_data_type;
 
 protected:
-    struct primitive_id_arr
-    {
-        primitive_id_arr(std::vector<primitive_id> const& vec) : cpp_ids(vec)
-        {}
+    struct primitive_id_arr {
+        explicit primitive_id_arr(std::vector<primitive_id> const& vec) : cpp_ids(vec) {}
 
-        primitive_id_arr(std::vector<primitive_id>&& vec) : cpp_ids(std::move(vec))
-        {}
+        explicit primitive_id_arr(std::vector<primitive_id>&& vec) : cpp_ids(std::move(vec)) {}
 
-        //create from C API id array
-        primitive_id_arr(cldnn_primitive_id_arr c_id_arr)
-        {
+        // create from C API id array
+        explicit primitive_id_arr(cldnn_primitive_id_arr c_id_arr) {
             cpp_ids.resize(c_id_arr.size);
-            for (size_t i = 0; i < c_id_arr.size; ++i)
-                cpp_ids[i] = c_id_arr.data[i];
+            for (size_t i = 0; i < c_id_arr.size; ++i) cpp_ids[i] = c_id_arr.data[i];
         }
 
         std::vector<primitive_id> cpp_ids;
         mutable std::vector<cldnn_primitive_id> c_ids;
-        //get C API id array
-        auto ref() const -> decltype(cldnn_primitive_id_arr{c_ids.data(), c_ids.size()})
-        {
+        // get C API id array
+        auto ref() const -> decltype(cldnn_primitive_id_arr{c_ids.data(), c_ids.size()}) {
             c_ids.resize(cpp_ids.size());
-            for (size_t i = 0; i < cpp_ids.size(); ++i)
-                c_ids[i] = cpp_ids[i].c_str();
+            for (size_t i = 0; i < cpp_ids.size(); ++i) c_ids[i] = cpp_ids[i].c_str();
 
-            return cldnn_primitive_id_arr{ c_ids.data(), c_ids.size() };
+            return cldnn_primitive_id_arr{c_ids.data(), c_ids.size()};
         }
 
         size_t size() const { return cpp_ids.size(); }
@@ -200,44 +187,39 @@ protected:
 
     primitive_id_arr _input;
 
-    virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return{}; }
+    virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
+
+    friend primitive_info;
 };
 
 /// @brief base class for all primitives implementations.
-template<class PType, class DTO>
-class primitive_base : public primitive
-{
+template <class PType, class DTO>
+class primitive_base : public primitive {
 public:
     /// @brief Returns pointer to a C API primitive descriptor casted to @CLDNN_PRIMITIVE_DESC{primitive}.
-    const CLDNN_PRIMITIVE_DESC(primitive)* get_dto() const override
-    {
-        //update common dto fields
+    const CLDNN_PRIMITIVE_DESC(primitive) * get_dto() const override {
+        // update common dto fields
         _dto.id = id.c_str();
         _dto.type = type;
         _dto.input = _input.ref();
         _dto.output_padding = output_padding;
-        _dto.output_data_type.enabled = (bool)output_data_type;
-        _dto.output_data_type.data_type =
-            static_cast<cldnn_data_type>(*output_data_type);
+        _dto.output_data_type.enabled = static_cast<bool>(output_data_type);
+        _dto.output_data_type.data_type = static_cast<cldnn_data_type>(*output_data_type);
 
-        //call abstract method to update primitive-specific fields
+        // call abstract method to update primitive-specific fields
         update_dto(_dto);
         return reinterpret_cast<const CLDNN_PRIMITIVE_DESC(primitive)*>(&_dto);
     }
 
 protected:
-    explicit primitive_base(
-        const primitive_id& id,
-        const std::vector<primitive_id>& input,
-        const padding& output_padding = padding(),
-        optional_data_type output_data_type = optional_data_type())
-        : primitive(PType::type_id(), id, input, output_padding, output_data_type)
-    {}
+    explicit primitive_base(const primitive_id& id,
+                            const std::vector<primitive_id>& input,
+                            const padding& output_padding = padding(),
+                            optional_data_type output_data_type = optional_data_type())
+        : primitive(PType::type_id(), id, input, output_padding, output_data_type) {}
 
-    primitive_base(const DTO* dto)
-        : primitive(reinterpret_cast<const CLDNN_PRIMITIVE_DESC(primitive)*>(dto))
-    {
-        if (dto->type != PType::type_id()) 
+    explicit primitive_base(const DTO* dto) : primitive(reinterpret_cast<const CLDNN_PRIMITIVE_DESC(primitive) *>(dto)) {
+        if (dto->type != PType::type_id())
             throw std::invalid_argument("DTO type mismatch");
     }
 
@@ -247,16 +229,86 @@ private:
     virtual void update_dto(DTO& dto) const = 0;
 };
 
-#define CLDNN_DEFINE_TYPE_ID(PType) static primitive_type_id type_id()\
-    {\
-        return check_status<primitive_type_id>( #PType " type id failed", [](status_t* status)\
-        {\
-            return cldnn_##PType##_type_id(status);\
-        });\
+struct primitive_info {
+    primitive_info(const primitive_id& original_id,
+                   const std::string& type_id,
+                   const std::vector<primitive_id>& dependencies,
+                   const std::vector<primitive_id>& users,
+                   const std::vector<primitive_id>& fused_ids,
+                   const layout& output_layout,
+                   const std::string& layout_str,
+                   const std::string& kernel_id,
+                   bool is_cpu,
+                   int exec_id)
+        : original_id(original_id),
+          type_id(type_id),
+          c_dependencies(dependencies),
+          c_users(users),
+          c_fused_ids(fused_ids),
+          output_layout(output_layout),
+          layout_str(layout_str),
+          kernel_id(kernel_id),
+          is_cpu(is_cpu),
+          exec_id(exec_id) {}
+
+    explicit primitive_info(const cldnn_primitive_info* c_info)
+        : original_id(c_info->original_id),
+          type_id(c_info->type_id),
+          c_dependencies(c_info->dependencies),
+          c_users(c_info->users),
+          c_fused_ids(c_info->fused_ids),
+          output_layout(c_info->output_layout),
+          layout_str(c_info->layout_str),
+          kernel_id(c_info->kernel_id),
+          is_cpu(c_info->is_cpu != 0),
+          exec_id(c_info->exec_id) {}
+
+    primitive_id original_id;
+    std::string type_id;
+    primitive::primitive_id_arr c_dependencies;
+    primitive::primitive_id_arr c_users;
+    primitive::primitive_id_arr c_fused_ids;
+    layout output_layout;
+    std::string layout_str;
+    std::string kernel_id;
+    bool is_cpu;
+    int exec_id;
+
+    const cldnn_primitive_info* get_dto() const {
+        dto.original_id = original_id.c_str();
+        dto.type_id = type_id.c_str();
+        dto.dependencies = c_dependencies.ref();
+        dto.users = c_users.ref();
+        dto.fused_ids = c_fused_ids.ref();
+        dto.output_layout = output_layout;
+        dto.layout_str = layout_str.c_str();
+        dto.kernel_id = kernel_id.c_str();
+        dto.is_cpu = is_cpu;
+        dto.exec_id = exec_id;
+
+        return &dto;
     }
 
-#define CLDNN_DECLARE_PRIMITIVE(PType) typedef CLDNN_PRIMITIVE_DESC(PType) dto;\
-    CLDNN_DEFINE_TYPE_ID(PType)
+    mutable cldnn_primitive_info dto;
+};
+
+#define CLDNN_DEFINE_TYPE_ID(PType)                                                                               \
+    static primitive_type_id type_id() {                                                                          \
+        return check_status<primitive_type_id>(#PType " type id failed",                                          \
+                                               [](status_t* status) { return cldnn_##PType##_type_id(status); }); \
+    }
+
+#define CLDNN_DEFINE_TYPE_STRING(PType)                 \
+    primitive_id type_string() const override {         \
+        static constexpr const char* type_str = #PType; \
+        return std::string(type_str);                   \
+    }
+
+#define CLDNN_DECLARE_PRIMITIVE(PType)       \
+    typedef CLDNN_PRIMITIVE_DESC(PType) dto; \
+    CLDNN_DEFINE_TYPE_ID(PType)              \
+    CLDNN_DEFINE_TYPE_STRING(PType)
+
 /// @}
 /// @}
-}
+}  // namespace cldnn

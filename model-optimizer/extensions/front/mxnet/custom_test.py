@@ -37,7 +37,7 @@ class TestCustomFrontExtractorOp(unittest.TestCase):
 
     def test_extract_custom_layer(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'node_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
              'node_custom': {'type': 'Custom', 'value': None, 'kind': 'op', 'op': 'Custom', },
              'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},

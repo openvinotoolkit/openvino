@@ -21,260 +21,249 @@
 #include <unordered_map>
 #include <memory>
 #include <array>
+#include <iostream>
 
 #include <vpu/utils/numeric.hpp>
 #include <vpu/utils/handle.hpp>
+#include <vpu/utils/extra.hpp>
 
 namespace vpu {
 
 //
-// Small containers
+// SmallBufAllocator
 //
 
-namespace impl {
+template <typename T>
+struct SmallBufElemMemory {
+    static constexpr const size_t ElemSize = sizeof(T);
 
-class IntBufferBase {
-public:
-    virtual ~IntBufferBase() = default;
+#ifdef _WIN32
+    static constexpr const size_t ExtraSize = 16;
+#else
+    static constexpr const size_t ExtraSize = 0;
+#endif
 
-    virtual void* getData() const = 0;
-    virtual int* getAvailable() const = 0;
+    static constexpr const size_t Align = alignof(T);
+
+    typename std::aligned_storage<ElemSize + ExtraSize, Align>::type mem;
 };
 
-template <typename T, size_t ExpandBytes, int Capacity>
+template <typename T, int _Capacity>
+struct SmallBufHolder {
+    using ElemMemory = SmallBufElemMemory<T>;
+
+    static constexpr const size_t ElemSize = sizeof(ElemMemory);
+    static constexpr const int Capacity = _Capacity;
+
+    std::array<ElemMemory, Capacity> buf = {};
+    bool bufLocked = false;
+};
+
+template <typename T, class BufHolder, class BaseAllocator = std::allocator<T>>
 class SmallBufAllocator {
-    static_assert(Capacity > 0, "Capacity > 0");
+    using ElemMemory = typename BufHolder::ElemMemory;
+
+    static constexpr const size_t ElemSize = BufHolder::ElemSize;
+    static constexpr const int Capacity = BufHolder::Capacity;
+
+    static_assert(sizeof(T) <= ElemSize, "sizeof(T) <= ElemSize");
 
 public:
-    struct ExpandedData final {
-        static constexpr const size_t FINAL_BYTE_SIZE = alignVal<alignof(size_t)>(sizeof(T) + ExpandBytes);
+    using value_type = typename std::allocator_traits<BaseAllocator>::value_type;
 
-        std::array<uint8_t, FINAL_BYTE_SIZE> data = {};
+    using pointer = typename std::allocator_traits<BaseAllocator>::pointer;
+    using const_pointer = typename std::allocator_traits<BaseAllocator>::const_pointer;
+    using void_pointer = typename std::allocator_traits<BaseAllocator>::void_pointer;
+    using const_void_pointer = typename std::allocator_traits<BaseAllocator>::const_void_pointer;
 
-        ExpandedData() = default;
-
-        ExpandedData(const ExpandedData&) = delete;
-        ExpandedData& operator=(const ExpandedData&) = delete;
-
-        ExpandedData(ExpandedData&&) = delete;
-        ExpandedData& operator=(ExpandedData&&) = delete;
-    };
-
-    class IntBuffer final : public IntBufferBase {
-    public:
-        IntBuffer() {
-            clear();
-        }
-
-        IntBuffer(const IntBuffer&) = delete;
-        IntBuffer& operator=(const IntBuffer&) = delete;
-
-        IntBuffer(IntBuffer&&) = delete;
-        IntBuffer& operator=(IntBuffer&&) = delete;
-
-        void clear() {
-            for (int i = 0; i < Capacity; ++i) {
-                _available[i] = Capacity - i;
-            }
-            _available[Capacity] = 0;
-        }
-
-        void* getData() const override {
-            return _data.data();
-        }
-        int* getAvailable() const override {
-            return _available.data();
-        }
-
-    private:
-        mutable std::array<ExpandedData, Capacity> _data = {};
-        mutable std::array<int, Capacity + 1> _available = {};
-    };
-
-public:
-    using value_type = T;
-
-    using pointer = T*;
-    using const_pointer = const T*;
-    using reference = T&;
-    using const_reference = const T&;
-
-    using size_type = std::size_t;
-    using difference_type = std::ptrdiff_t;
+    using size_type = typename std::allocator_traits<BaseAllocator>::size_type;
+    using difference_type = typename std::allocator_traits<BaseAllocator>::difference_type;
 
     using propagate_on_container_copy_assignment = std::false_type;
     using propagate_on_container_move_assignment = std::false_type;
     using propagate_on_container_swap = std::false_type;
 
     template <typename T2> struct rebind {
-        static_assert(sizeof(ExpandedData) >= sizeof(T2), "sizeof(ExpandedData) >= sizeof(T2)");
-
-        typedef SmallBufAllocator<T2, sizeof(ExpandedData) - sizeof(T2), Capacity> other;
+        typedef SmallBufAllocator<
+            T2, BufHolder,
+            typename std::allocator_traits<BaseAllocator>::template rebind_alloc<T2>
+        > other;
     };
 
-    SmallBufAllocator() noexcept = delete;
-
-    SmallBufAllocator(const SmallBufAllocator&) noexcept = default;
-    SmallBufAllocator& operator=(const SmallBufAllocator&) noexcept = default;
-
-    SmallBufAllocator(SmallBufAllocator&& other) noexcept : _intBuf(other._intBuf) {
-        other._intBuf = nullptr;
+    inline SmallBufAllocator() = default;
+    inline explicit SmallBufAllocator(const BaseAllocator& baseAllocator) :
+            _baseAllocator(baseAllocator) {
     }
-    SmallBufAllocator& operator=(SmallBufAllocator&& other) noexcept {
+
+    inline explicit SmallBufAllocator(BufHolder& h) :
+            _buf(h.buf.data()), _bufLocked(&h.bufLocked) {
+        *_bufLocked = false;
+    }
+    inline SmallBufAllocator(BufHolder& h, const BaseAllocator& baseAllocator) :
+            _baseAllocator(baseAllocator),
+            _buf(h.buf.data()), _bufLocked(&h.bufLocked) {
+        *_bufLocked = false;
+    }
+
+    inline SmallBufAllocator(const SmallBufAllocator& other) :
+            _baseAllocator(other._baseAllocator),
+            _buf(other._buf), _bufLocked(other._bufLocked) {
+    }
+    inline SmallBufAllocator& operator=(const SmallBufAllocator& other) {
         if (&other != this) {
-            _intBuf = other._intBuf;
-            other._intBuf = nullptr;
+#ifndef NDEBUG
+            if (_buf != nullptr && _bufLocked != nullptr) {
+                assert(!*_bufLocked);
+            }
+#endif
+
+            _baseAllocator = other._baseAllocator;
+            _buf = other._buf;
+            _bufLocked = other._bufLocked;
         }
+
         return *this;
     }
 
-    explicit SmallBufAllocator(IntBuffer& intBuf) noexcept : _intBuf(&intBuf) {}
+    template <typename T2, typename BufHolder2, class BaseAllocator2>
+    inline SmallBufAllocator(const SmallBufAllocator<T2, BufHolder2, BaseAllocator2>& other) :
+            _baseAllocator(other._baseAllocator),
+            _buf(other._buf), _bufLocked(other._bufLocked) {
+        static_assert(
+            sizeof(T) <= SmallBufAllocator<T2, BufHolder2, BaseAllocator2>::ElemSize,
+            "sizeof(T) <= SmallBufAllocator<T2, BufHolder2, BaseAllocator2>::ElemSize");
+    }
+    template <typename T2, typename BufHolder2, class BaseAllocator2>
+    inline SmallBufAllocator& operator=(const SmallBufAllocator<T2, BufHolder2, BaseAllocator2>& other) {
+        static_assert(
+            sizeof(T) <= SmallBufAllocator<T2, BufHolder2, BaseAllocator2>::ElemSize,
+            "sizeof(T) <= SmallBufAllocator<T2, BufHolder2, BaseAllocator2>::ElemSize");
 
-    template <typename T2, size_t ExpandBytes2, int Capacity2>
-    SmallBufAllocator(const SmallBufAllocator<T2, ExpandBytes2, Capacity2>& other) noexcept : _intBuf(other._intBuf) {
-        static_assert(sizeof(ExpandedData) == sizeof(typename SmallBufAllocator<T2, ExpandBytes2, Capacity2>::ExpandedData),
-                      "sizeof(ExpandedData) == sizeof(typename SmallBufAllocator<T2, ExpandBytes2, Capacity2>::ExpandedData)");
-        static_assert(Capacity <= Capacity2, "Capacity <= Capacity2");
+        if (&other != this) {
+#ifndef NDEBUG
+            if (_buf != nullptr && _bufLocked != nullptr) {
+                assert(!*_bufLocked);
+            }
+#endif
+
+            _baseAllocator = other._baseAllocator;
+            _buf = other._buf;
+            _bufLocked = other._bufLocked;
+        }
+
+        return *this;
     }
 
-    T* allocate(std::size_t n) {
-        assert(_intBuf != nullptr);
-
-        auto data = static_cast<ExpandedData*>(_intBuf->getData());
-        auto available = _intBuf->getAvailable();
-
-        if (n <= Capacity) {
-            int pos = -1;
-            int minAvailable = std::numeric_limits<int>::max();
-            for (int i = 0; i < Capacity; ++i) {
-                if (available[i] >= static_cast<int>(n) && available[i] < minAvailable) {
-                    pos = i;
-                    minAvailable = available[i];
-                }
-            }
-
-            if (pos >= 0) {
-                for (int i = pos - 1; (i >= 0) && available[i] > 0; --i) {
-                    assert(available[i] > available[pos]);
-                    available[i] -= available[pos];
-                }
-
-                std::fill_n(available + pos, n, 0);
-
-                return reinterpret_cast<T*>(data + pos);
+    inline pointer allocate(size_type n, const_void_pointer hint = const_void_pointer()) {
+        if (n <= Capacity && _buf != nullptr && _bufLocked != nullptr) {
+            if (!*_bufLocked) {
+                *_bufLocked = true;
+                return static_cast<pointer>(_buf);
             }
         }
 
-        return static_cast<T*>(::operator new (n * sizeof(T)));
+        return _baseAllocator.allocate(n, hint);
     }
 
-    void deallocate(T* ptr, std::size_t n) noexcept {
-        assert(_intBuf != nullptr);
-
-        auto data = static_cast<ExpandedData*>(_intBuf->getData());
-        auto available = _intBuf->getAvailable();
-
-        auto tempPtr = reinterpret_cast<ExpandedData*>(ptr);
-
-        if (tempPtr < data || tempPtr >= data + Capacity) {
-            ::operator delete(tempPtr);
-        } else {
-            auto pos = static_cast<int>(tempPtr - data);
-
-            for (int i = static_cast<int>(static_cast<std::size_t>(pos) + n - 1); i >= pos; --i) {
-                assert(available[i] == 0);
-                available[i] = available[i + 1] + 1;
-            }
-            for (int i = pos; (i >= 0) && available[i] > 0; --i) {
-                available[i] += available[i + 1];
+    inline void deallocate(pointer ptr, size_type n) {
+        if (_buf != nullptr && _bufLocked != nullptr) {
+            if (ptr == static_cast<pointer>(_buf)) {
+                assert(*_bufLocked);
+                *_bufLocked = false;
+                return;
             }
         }
-    }
 
-    T* allocate(std::size_t n, const void*) noexcept {
-        return allocate(n);
+        _baseAllocator.deallocate(ptr, n);
     }
 
     template <class U, class ...Args>
-    void construct(U* p, Args&& ...args) {
-        ::new(p) U(std::forward<Args>(args)...);
+    inline void construct(U* ptr, Args&& ...args) {
+        _baseAllocator.construct(ptr, std::forward<Args>(args)...);
     }
 
     template <class U>
-    void destroy(U* p) noexcept {
-        p->~U();
+    inline void destroy(U* ptr) {
+        _baseAllocator.destroy(ptr);
     }
 
-    std::size_t max_size() const noexcept {
-        return std::numeric_limits<std::size_t>::max() / sizeof(T);
-    }
-
-    const IntBufferBase* intBuf() const { return _intBuf; }
+    inline void* getBuf() const { return _buf; }
+    inline const BaseAllocator& getBaseAllocator() const { return _baseAllocator; }
 
 private:
-    template <typename T2, size_t ExpandBytes2, int Capacity2>
-    friend class SmallBufAllocator;
+    BaseAllocator _baseAllocator;
 
-    const IntBufferBase* _intBuf = nullptr;
+    void* _buf = nullptr;
+    bool* _bufLocked = nullptr;
+
+    template <typename T2, typename BufHolder2, class BaseAllocator2>
+    friend class SmallBufAllocator;
 };
 
-template <typename T1, size_t ExpandBytes1, int Capacity1, typename T2, size_t ExpandBytes2, int Capacity2>
-bool operator==(const SmallBufAllocator<T1, ExpandBytes1, Capacity1>& a1, const SmallBufAllocator<T2, ExpandBytes2, Capacity2>& a2) noexcept {
-    return a1.intBuf() == a2.intBuf();
+template <
+    typename T1, typename BufHolder1, class BaseAllocator1,
+    typename T2, typename BufHolder2, class BaseAllocator2
+>
+inline bool operator==(
+        const SmallBufAllocator<T1, BufHolder1, BaseAllocator1>& a1,
+        const SmallBufAllocator<T2, BufHolder2, BaseAllocator2>& a2) {
+    return a1.getBuf() == a2.getBuf() && a1.getBaseAllocator() == a2.getBaseAllocator();
 }
-template <typename T1, size_t ExpandBytes1, int Capacity1, typename T2, size_t ExpandBytes2, int Capacity2>
-bool operator!=(const SmallBufAllocator<T1, ExpandBytes1, Capacity1>& a1, const SmallBufAllocator<T2, ExpandBytes2, Capacity2>& a2) noexcept {
-    return a1.intBuf() != a2.intBuf();
+template <
+    typename T1, typename BufHolder1, class BaseAllocator1,
+    typename T2, typename BufHolder2, class BaseAllocator2
+>
+inline bool operator!=(
+        const SmallBufAllocator<T1, BufHolder1, BaseAllocator1>& a1,
+        const SmallBufAllocator<T2, BufHolder2, BaseAllocator2>& a2) {
+    return a1.getBuf() != a2.getBuf() || a1.getBaseAllocator() != a2.getBaseAllocator();
 }
 
-}  // namespace impl
+//
+// SmallVector
+//
 
-template <typename T, int Capacity>
+template <typename T, int Capacity = 8, class BaseAllocator = std::allocator<T>>
 class SmallVector {
-#if defined(_WIN32)
-    static constexpr const size_t ExpandBytes = 8;
-#else
-    static constexpr const size_t ExpandBytes = 0;
-#endif
-
-    using Alloc = impl::SmallBufAllocator<T, ExpandBytes, Capacity>;
+    using BufHolder = SmallBufHolder<T, Capacity>;
+    using Alloc = SmallBufAllocator<T, BufHolder, BaseAllocator>;
     using BaseCont = std::vector<T, Alloc>;
 
 public:
     using value_type = typename BaseCont::value_type;
 
+    using size_type = typename BaseCont::size_type;
+
     using iterator = typename BaseCont::iterator;
     using const_iterator = typename BaseCont::const_iterator;
 
-    SmallVector() : _base(Alloc(_intBuf)) {
+    inline SmallVector() : _allocator(_bufs), _base(_allocator) {
         _base.reserve(Capacity);
     }
 
-    ~SmallVector() = default;
+    inline ~SmallVector() = default;
 
-    explicit SmallVector(std::size_t count) : _base(count, Alloc(_intBuf)) {}
-    SmallVector(std::size_t count, const T& value) : _base(count, value, Alloc(_intBuf)) {}
-    SmallVector(std::initializer_list<T> init) : _base(init, Alloc(_intBuf)) {}
+    inline explicit SmallVector(size_type count) : _allocator(_bufs), _base(count, _allocator) {}
+    inline SmallVector(size_type count, const T& value) : _allocator(_bufs), _base(count, value, _allocator) {}
+    inline SmallVector(std::initializer_list<T> init) : _allocator(_bufs), _base(init, _allocator) {}
 
     template <class InputIt>
-    SmallVector(InputIt first, InputIt last) : _base(first, last, Alloc(_intBuf)) {}
+    inline SmallVector(InputIt first, InputIt last) : _allocator(_bufs), _base(first, last, _allocator) {}
 
-    SmallVector(const SmallVector& other) :
-            _base(other._base, Alloc(_intBuf)) {
-    }
-    SmallVector& operator=(const SmallVector& other) {
+    inline SmallVector(const SmallVector& other) : _allocator(_bufs), _base(other._base, _allocator) {}
+    inline SmallVector& operator=(const SmallVector& other) {
         if (&other != this) {
             _base = other._base;
         }
         return *this;
     }
 
-    template <typename T2, int Capacity2>
-    SmallVector(const SmallVector<T2, Capacity2>& other) :  // NOLINT
-            _base(other._base.begin(), other._base.end(), Alloc(_intBuf)) {
+    template <typename T2, int Capacity2, class BaseAllocator2>
+    inline SmallVector(const SmallVector<T2, Capacity2, BaseAllocator2>& other) :  // NOLINT
+            _allocator(_bufs), _base(other._base.begin(), other._base.end(), _allocator) {
     }
-    template <typename T2, int Capacity2>
-    SmallVector& operator=(const SmallVector<T2, Capacity2>& other) {
+    template <typename T2, int Capacity2, class BaseAllocator2>
+    inline SmallVector& operator=(const SmallVector<T2, Capacity2, BaseAllocator2>& other) {
         if (&other != this) {
             _base.assign(other._base.begin(), other._base.end());
         }
@@ -282,91 +271,92 @@ public:
     }
 
     template <class Alloc2>
-    SmallVector(const std::vector<T, Alloc2>& other) :  // NOLINT
-            _base(other.begin(), other.end(), Alloc(_intBuf)) {
+    inline SmallVector(const std::vector<T, Alloc2>& other) :  // NOLINT
+            _allocator(_bufs), _base(other.begin(), other.end(), _allocator) {
     }
     template <class Alloc2>
-    SmallVector& operator=(const std::vector<T, Alloc2>& other) {
+    inline SmallVector& operator=(const std::vector<T, Alloc2>& other) {
         if (&other != this) {
             _base.assign(other.begin(), other.end());
         }
         return *this;
     }
 
-    operator const BaseCont&() {
+    inline operator const BaseCont&() {
         return _base;
     }
     template <class Alloc2>
-    operator std::vector<T, Alloc2>() {
+    inline operator std::vector<T, Alloc2>() {
         return std::vector<T, Alloc2>(_base.begin(), _base.end());
     }
 
-    T& operator[](std::size_t pos) { return _base[pos]; }
-    const T& operator[](std::size_t pos) const { return _base[pos]; }
+    inline T& operator[](size_type pos) { return _base[pos]; }
+    inline const T& operator[](size_type pos) const { return _base[pos]; }
 
-    T& at(std::size_t pos) { return _base.at(pos); }
-    const T& at(std::size_t pos) const { return _base.at(pos); }
+    inline T& at(size_type pos) { return _base.at(pos); }
+    inline const T& at(size_type pos) const { return _base.at(pos); }
 
-    T& front() { return _base.front(); }
-    const T& front() const { return _base.front(); }
-    T& back() { return _base.back(); }
-    const T& back() const { return _base.back(); }
+    inline T& front() { return _base.front(); }
+    inline const T& front() const { return _base.front(); }
+    inline T& back() { return _base.back(); }
+    inline const T& back() const { return _base.back(); }
 
-    T* data() noexcept { return _base.data(); }
-    const T* data() const noexcept { return _base.data(); }
+    inline T* data() noexcept { return _base.data(); }
+    inline const T* data() const noexcept { return _base.data(); }
 
-    iterator begin() noexcept { return _base.begin(); }
-    iterator end() noexcept { return _base.end(); }
-    const_iterator begin() const noexcept { return _base.begin(); }
-    const_iterator end() const noexcept { return _base.end(); }
-    const_iterator cbegin() const noexcept { return _base.cbegin(); }
-    const_iterator cend() const noexcept { return _base.cend(); }
+    inline iterator begin() noexcept { return _base.begin(); }
+    inline iterator end() noexcept { return _base.end(); }
+    inline const_iterator begin() const noexcept { return _base.begin(); }
+    inline const_iterator end() const noexcept { return _base.end(); }
+    inline const_iterator cbegin() const noexcept { return _base.cbegin(); }
+    inline const_iterator cend() const noexcept { return _base.cend(); }
 
-    bool empty() const noexcept { return _base.empty(); }
-    std::size_t size() const noexcept { return _base.size(); }
+    inline bool empty() const noexcept { return _base.empty(); }
+    inline size_type size() const noexcept { return _base.size(); }
 
-    void reserve(std::size_t cap) { _base.reserve(cap); }
+    inline void reserve(size_type cap) { _base.reserve(cap); }
 
-    void clear() noexcept { _base.clear(); }
+    inline void clear() noexcept { _base.clear(); }
 
-    void resize(std::size_t count) { _base.resize(count); }
-    void resize(std::size_t count, const T& value) { _base.resize(count, value); }
+    inline void resize(size_type count) { _base.resize(count); }
+    inline void resize(size_type count, const T& value) { _base.resize(count, value); }
 
-    void push_back(const T& value) { _base.push_back(value); }
-    void push_back(T&& value) { _base.push_back(value); }
+    inline void push_back(const T& value) { _base.push_back(value); }
+    inline void push_back(T&& value) { _base.push_back(value); }
 
     template <class... Args>
-    void emplace_back(Args&&... args) { _base.emplace_back(std::forward<Args>(args)...); }
+    inline void emplace_back(Args&&... args) { _base.emplace_back(std::forward<Args>(args)...); }
 
-    void insert(iterator pos, const T& value) { _base.insert(pos, value); }
-    void insert(iterator pos, T&& value) { _base.insert(pos, value); }
-    void insert(iterator pos, std::size_t count, const T& value) { _base.insert(pos, count, value); }
+    inline void insert(iterator pos, const T& value) { _base.insert(pos, value); }
+    inline void insert(iterator pos, T&& value) { _base.insert(pos, value); }
+    inline void insert(iterator pos, size_type count, const T& value) { _base.insert(pos, count, value); }
     template <class InputIt>
-    void insert(iterator pos, InputIt first, InputIt last) { _base.insert(pos, first, last); }
-    void insert(iterator pos, std::initializer_list<T> ilist) { _base.insert(pos, ilist); }
+    inline void insert(iterator pos, InputIt first, InputIt last) { _base.insert(pos, first, last); }
+    inline void insert(iterator pos, std::initializer_list<T> ilist) { _base.insert(pos, ilist); }
 
     template <class... Args>
-    iterator emplace(iterator pos, Args&&... args) { return _base.emplace(pos, std::forward<Args>(args)...); }
+    inline iterator emplace(iterator pos, Args&&... args) { return _base.emplace(pos, std::forward<Args>(args)...); }
 
-    void pop_back() { _base.pop_back(); }
+    inline void pop_back() { _base.pop_back(); }
 
-    iterator erase(iterator pos) { return _base.erase(pos); }
-    iterator erase(iterator first, iterator last) { return _base.erase(first, last); }
+    inline iterator erase(iterator pos) { return _base.erase(pos); }
+    inline iterator erase(iterator first, iterator last) { return _base.erase(first, last); }
 
-    void swap(SmallVector& other) { std::swap(*this, other); }
+    inline void swap(SmallVector& other) { std::swap(*this, other); }
 
-    bool operator==(const SmallVector& other) const { return _base == other._base; }
-    bool operator!=(const SmallVector& other) const { return _base != other._base; }
-    bool operator<(const SmallVector& other) const { return _base < other._base; }
-    bool operator<=(const SmallVector& other) const { return _base <= other._base; }
-    bool operator>(const SmallVector& other) const { return _base > other._base; }
-    bool operator>=(const SmallVector& other) const { return _base >= other._base; }
+    inline bool operator==(const SmallVector& other) const { return _base == other._base; }
+    inline bool operator!=(const SmallVector& other) const { return _base != other._base; }
+    inline bool operator<(const SmallVector& other) const { return _base < other._base; }
+    inline bool operator<=(const SmallVector& other) const { return _base <= other._base; }
+    inline bool operator>(const SmallVector& other) const { return _base > other._base; }
+    inline bool operator>=(const SmallVector& other) const { return _base >= other._base; }
 
 private:
-    template <typename T2, int Capacity2>
+    template <typename T2, int Capacity2, class BaseAllocator2>
     friend class SmallVector;
 
-    typename Alloc::IntBuffer _intBuf;
+    BufHolder _bufs;
+    Alloc _allocator;
     BaseCont _base;
 };
 

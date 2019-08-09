@@ -16,101 +16,114 @@
 
 import logging as log
 
-import networkx as nx
 import numpy as np
 
-from mo.graph.graph import Node, Graph
-from mo.middle.passes.eliminate import merge_data_nodes
+from mo.front.tf.graph_utils import create_op_node_with_second_input
+from mo.graph.graph import Graph
+from mo.graph.port import Port
 from mo.middle.pattern_match import apply_pattern
-from mo.ops.lin_op import Mul, Add
+from mo.ops.const import Const
+from extensions.ops.elementwise import Mul, Add
 from mo.ops.op import Op
 from mo.ops.reshape import Reshape
+
+
+def expand_node_shape(port: Port, broadcast_dims_cnt):
+    value = np.array(port.data.get_value())
+    for idx in range(broadcast_dims_cnt):
+        value = np.expand_dims(value, axis=-1)
+    port.data.set_value(value)
 
 
 def convert_batch_norm(graph: Graph):
     """
     This function finds FusedBatchNorm layer (or BatchNorm for MXNet) and replaces with Mul->Add->Mul->Add sequence.
     """
-    for n in list(graph.nodes()):
-        node = Node(graph, n)
-        if node.has_valid('op') and (
-                node.op == 'FusedBatchNorm' or node.op == 'BatchNorm' or node.op == 'BatchNormalization'):
-            toutput = node.out_node()
-            tinput = node.in_node(0)
+    nodes = graph.get_op_nodes()
+    for node in nodes:
+        if node.has_valid('op') and (node.op in ['FusedBatchNorm', 'BatchNorm', 'BatchNormalization']):
 
-            if any([node.in_node(i).value is None for i in range(1, len(node.in_nodes()))]):
+            if any([node.in_port(i).data.get_value() is None for i in range(1, len(node.in_ports()))]):
                 log.warning('Cannot translate FusedBatchNorm {} node with non-constant weights'.format(
                     node.name if node.has_valid('name') else '<UNKNOWN>'))
                 continue
 
-            const = node.in_node(1)
-            beta = node.in_node(2)
-            mean = node.in_node(3)
-            variance = node.in_node(4)
+            const = node.in_port(1).get_source()
+            node.in_port(1).disconnect()
+
+            beta = node.in_port(2).get_source()
+            node.in_port(2).disconnect()
+
+            mean = node.in_port(3).get_source()
+            node.in_port(3).disconnect()
+
+            variance = node.in_port(4).get_source()
+            node.in_port(4).disconnect()
+
             eps = node.eps
 
             if node.has_valid('fix_gamma') and node.fix_gamma:
-                const.value.fill(1.)
+                const.data.get_value().fill(1.)
 
             can_be_fused = False if not node.soft_get('can_be_fused') else True
 
-            # Remove edges from FusedBN node
-            graph.remove_edge(tinput.id, node.id)
-            graph.remove_edge(beta.id, node.id)
-            graph.remove_edge(const.id, node.id)
-            graph.remove_edge(mean.id, node.id)
-            graph.remove_edge(variance.id, node.id)
-            graph.remove_edge(node.id, toutput.id)
-
-            scale = 1. / np.sqrt(variance.value + eps)
-            shift = (mean.value * (-1)) * scale
+            scale = 1. / np.sqrt(variance.data.get_value() + eps)
+            shift = (mean.data.get_value() * (-1)) * scale
 
             # Expand dims for current layout
-            broadcast_dims_cnt = len(tinput.shape) - 2 if graph.graph['layout'] == 'NCHW' else 0
+            broadcast_dims_cnt = len(node.in_port(0).data.get_shape()) - 2 if graph.graph['layout'] == 'NCHW' else 0
+
             # Update values and shapes with new shape
-            Op.expand_node_shape(const, broadcast_dims_cnt)
-            Op.expand_node_shape(beta, broadcast_dims_cnt)
+            expand_node_shape(const, broadcast_dims_cnt)
+            expand_node_shape(beta, broadcast_dims_cnt)
 
             for idx in range(broadcast_dims_cnt):
                 scale = np.expand_dims(scale, axis=-1)
                 shift = np.expand_dims(shift, axis=-1)
 
-            _fused_batch_norm_decomposition(graph, tinput, toutput, const, beta, scale, shift, can_be_fused)
+            _fused_batch_norm_decomposition(graph, node.in_port(0), node.out_port(0), const, beta, scale, shift, can_be_fused)
 
 
-def _fused_batch_norm_decomposition(graph: Graph, tinput: Node, toutput: Node, gamma: Node, beta: Node,
+def _fused_batch_norm_decomposition(graph: Graph, tinput: Port, toutput: Port, gamma: Port, beta: Port,
                                     mean: np.ndarray, variance: np.ndarray, can_be_fused=True):
     """
     This is common function for TF, Caffe and MXNet
-    It creates Mul->Add->Mul->Add subgraph
+    It creates Mul->Add->Mul->Add sub graph
     """
-    shape = tinput.shape
+    shape = tinput.data.get_shape()
 
     # Create first Mul & Add operations
-    mul1_node = Mul(graph, dict(name="Mul1_", can_be_fused=can_be_fused))
-    add1_node = Add(graph, dict(name="Add1_", can_be_fused=can_be_fused))
+    mul1_node = Mul(graph, dict(name="Mul1_", can_be_fused=can_be_fused)).create_node()
+    add1_node = Add(graph, dict(name="Add1_", can_be_fused=can_be_fused)).create_node()
 
-    mul1_data = Op.create_input_data_node(graph, "data_mul_", np.array(mean))
-    add1_data = Op.create_input_data_node(graph, "data_add_", np.array(variance))
+    const_mul1_node = Const(graph, dict(name="data_mul_", value=np.array(mean))).create_node()
+    const_add1_node = Const(graph, dict(name="data_add_", value=np.array(variance))).create_node()
 
     # Broadcast const from scalar
     # We can broadcast only when const.value is scalar
-    if gamma.shape[0] != gamma.value.shape[0]:
-        gamma.value.resize(gamma.shape)
-        gamma.value.fill(gamma.value[0])
+    if gamma.data.get_shape()[0] != gamma.data.get_value().shape[0]:
+        value = gamma.data.get_value()
+        value.resize(gamma.data.get_shape()).fill(value[0])
+        gamma.data.set_value(value)
 
     # Create second Mul & Add
-    mul2_node = Mul(graph, dict(name="Mul2_", can_be_fused=can_be_fused))
-    add2_node = Add(graph, dict(name="Add2_", can_be_fused=can_be_fused))
+    mul2_node = Mul(graph, dict(name="Mul2_", can_be_fused=can_be_fused)).create_node()
+    add2_node = Add(graph, dict(name="Add2_", can_be_fused=can_be_fused)).create_node()
 
-    add2_node.create_node_with_data(
-        inputs=[mul2_node.create_node_with_data(
-            inputs=[add1_node.create_node_with_data(
-                inputs=[mul1_node.create_node_with_data(inputs=[tinput, mul1_data]),
-                        add1_data]),
-                gamma]),
-            beta],
-        data_nodes=toutput)
+    # Connect edges Mul1->Add1->Mul2->Add2
+    tinput.get_connection().set_destination(mul1_node.in_port(0))
+    mul1_node.in_port(1).get_connection().set_source(const_mul1_node.out_port(0))
+
+    add1_node.in_port(0).get_connection().set_source(mul1_node.out_port(0))
+    add1_node.in_port(1).get_connection().set_source(const_add1_node.out_port(0))
+
+    mul2_node.in_port(0).get_connection().set_source(add1_node.out_port(0))
+    gamma.get_connection().set_destination(mul2_node.in_port(1))
+
+    add2_node.in_port(0).get_connection().set_source(mul2_node.out_port(0))
+    beta.get_connection().set_destination(add2_node.in_port(1))
+
+    toutput.get_connection().set_source(add2_node.out_port(0))
 
 
 def convert_scale_shift_to_mul_add(graph: Graph):
@@ -161,7 +174,8 @@ def convert_scale_shift_to_mul_add(graph: Graph):
                 reshape_dims[i] = data_shape[i - node.axis]
             for i in range(node.axis + len(data_shape), len(input_shape)):
                 reshape_dims[i] = 1
-            reshape = Reshape(graph, dict(name=port.node.name + "/Broadcast_", dim=reshape_dims)).create_node()
+            reshape = create_op_node_with_second_input(graph, Reshape, reshape_dims,
+                                                       dict(name=port.node.name + "/Broadcast_"))
             port.get_connection().set_destination(reshape.in_port(0))
             reshape.out_port(0).connect(port)
 

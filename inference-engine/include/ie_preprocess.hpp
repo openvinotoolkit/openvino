@@ -61,10 +61,13 @@ class PreProcessInfo {
     // Resize Algorithm to be applied for input before inference if needed.
     ResizeAlgorithm _resizeAlg = NO_RESIZE;
 
+    // Color format to be used in on-demand color conversions applied to input before inference
+    ColorFormat _colorFormat = ColorFormat::RAW;
+
 public:
     /**
-     * @brief Overloaded [] operator to safely get the channel by an index. 
-     * Throws an exception if channels are empty.
+     * @brief Overloaded [] operator to safely get the channel by an index
+     * Throws an exception if channels are empty
      * @param index Index of the channel to get
      * @return The pre-process channel instance
      */
@@ -122,13 +125,13 @@ public:
     void setMeanImage(const Blob::Ptr &meanImage) {
         if (meanImage.get() == nullptr) {
             THROW_IE_EXCEPTION << "Failed to set invalid mean image: nullptr";
-        } else if (meanImage.get()->dims().size() != 3) {
+        } else if (meanImage.get()->getTensorDesc().getLayout() != Layout::CHW) {
+            THROW_IE_EXCEPTION << "Mean image layout should be CHW";
+        } else if (meanImage.get()->getTensorDesc().getDims().size() != 3) {
             THROW_IE_EXCEPTION << "Failed to set invalid mean image: number of dimensions != 3";
-        } else if (meanImage.get()->dims()[2] != getNumberOfChannels()) {
+        } else if (meanImage.get()->getTensorDesc().getDims()[0] != getNumberOfChannels()) {
             THROW_IE_EXCEPTION << "Failed to set invalid mean image: number of channels != "
                                << getNumberOfChannels();
-        } else if (meanImage.get()->layout() != Layout::CHW) {
-            THROW_IE_EXCEPTION << "Mean image layout should be CHW";
         }
         _variant = MEAN_IMAGE;
     }
@@ -142,7 +145,7 @@ public:
     void setMeanImageForChannel(const Blob::Ptr &meanImage, const size_t channel) {
         if (meanImage.get() == nullptr) {
             THROW_IE_EXCEPTION << "Failed to set invalid mean image for channel: nullptr";
-        } else if (meanImage.get()->dims().size() != 2) {
+        } else if (meanImage.get()->getTensorDesc().getDims().size() != 2) {
             THROW_IE_EXCEPTION << "Failed to set invalid mean image for channel: number of dimensions != 2";
         } else if (channel >= _channelsInfo.size()) {
             THROW_IE_EXCEPTION << "Channel " << channel << " exceed number of PreProcess channels: "
@@ -182,6 +185,27 @@ public:
      */
     ResizeAlgorithm getResizeAlgorithm() const {
         return _resizeAlg;
+    }
+
+    /**
+     * @brief Changes the color format of the input data provided by the user
+     * This function should be called before loading the network to the plugin
+     * Setting color format different from ColorFormat::RAW enables automatic color conversion
+     * (as a part of built-in preprocessing routine)
+     * @param fmt A new color format associated with the input
+     */
+    void setColorFormat(ColorFormat fmt) {
+        _colorFormat = fmt;
+    }
+
+    /**
+     * @brief Gets a color format associated with the input
+     * @details By default, the color format is ColorFormat::RAW meaning
+     *          there is no particular color format assigned to the input
+     * @return Color format.
+     */
+    ColorFormat getColorFormat() const {
+        return _colorFormat;
     }
 };
 }  // namespace InferenceEngine

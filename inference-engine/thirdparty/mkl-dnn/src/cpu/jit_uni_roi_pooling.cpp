@@ -179,7 +179,7 @@ void jit_uni_roi_pooling_fwd_t<isa>::execute_forward() const {
         }
     };
 
-    parallel(0, ker);
+    parallel(0, (size_t)work_amount, ker);
 }
 
 template struct jit_uni_roi_pooling_fwd_t<sse42>;

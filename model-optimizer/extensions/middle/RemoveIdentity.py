@@ -23,8 +23,8 @@ class RemoveIdentity(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.InputCut import MiddleInputCut
-        return [MiddleInputCut]
+        from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
+        return [AddMeanScaleValues]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleStart
@@ -44,8 +44,8 @@ class RemoveDropout(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.pass_separator import PreMiddleStart
-        return [PreMiddleStart]
+        from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
+        return [AddMeanScaleValues]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleStart
@@ -66,8 +66,8 @@ class RemoveNodesWithZeroPhase(MiddleReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        from extensions.middle.pass_separator import PreMiddleStart
-        return [PreMiddleStart]
+        from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
+        return [AddMeanScaleValues]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleStart

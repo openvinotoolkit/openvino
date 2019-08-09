@@ -29,7 +29,7 @@ class StandaloneConstEraser(FrontReplacementSubgraph):
     def pattern():
         return dict(
             nodes=[('const', dict(kind='op', op='Const')),
-                   ('output', dict(kind='op', op='OpOutput'))
+                   ('output', dict(kind='op', op='Result'))
                    ],
             edges=[('const', 'output')]
         )

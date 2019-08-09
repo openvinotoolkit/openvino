@@ -15,14 +15,15 @@
 """
 import numpy as np
 
+from extensions.ops.activation_ops import Tanh, Sigmoid
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
-from mo.ops.activation import Activation
 from mo.ops.clamp import Clamp
-from mo.ops.eltwise import Eltwise
 from mo.ops.inner_product import InnerProduct
+from extensions.ops.elementwise import Add, Mul
 from mo.ops.memory import Memory
+from mo.ops.result import Result
 from mo.ops.scale_shift import ScaleShiftOp
 from mo.ops.split import Split
 
@@ -46,21 +47,26 @@ unique_id.names = []
 
 class ReplaceLSTMNodePattern(FrontReplacementOp):
     op = "LSTMCell"
-    enabled = True
+    enabled = False
 
     # we need to rewrite this transform to fit unified pipeline (it should be a part of traditional FRONT phase)
-    def run_before(self):
-        from extensions.front.output_cut import OutputCut
-        return [OutputCut]
-
     def run_after(self):
-        return []
+        from extensions.front.restore_ports import RestorePorts
+        return [RestorePorts]
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('op', dict(op=self.__class__.op, format='kaldi'))],
+            edges=[]
+        )
 
     def replace_op(self, graph: Graph, node: Node):
         input_node = node.in_node()
 
         memory_pair_input = unique_id('id')
         memory_pair_output = unique_id('id')
+
 
         # Input -> FullyConnected
         fc_layer_after_input_attrs = {'name': 'input_fullyconnected',
@@ -92,10 +98,8 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         # Memory -> FullyConnected  \
         #                           *Eltwise(sum)
         # Input -> FullyConnected   /
-        join_input_prev_state_sum = Eltwise(graph, {'name': 'join_input_eltwise',
-                                                    'operation': 'sum'
-                                                    }).create_node([fc_layer_from_prev_state,
-                                                                    fc_layer_after_input])
+        join_input_prev_state_sum = Add(graph, {'name': 'join_input_eltwise',
+                                                }).create_node([fc_layer_from_prev_state, fc_layer_after_input])
 
         # *Eltwise(sum) -> Split
         # it is split into 4 nodes: Act, Eltw*3
@@ -119,6 +123,7 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
                                          'shape': np.array([node.input_gate_weights.shape[0]], dtype=np.int64)
                                          }).create_node()
 
+
         # *Memory(state) -> *ScaleShift(input)
         state_input_scaleshift_attrs = {'name': 'input_scaleshift',
                                         'bias_term': False
@@ -136,59 +141,46 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         # Split                                 \
         #                                       (2)Eltwise(sum)
         # Memory(state) -> *ScaleShift(input)  /
-        join_prev_lstm_input_joined_input_sum = Eltwise(graph, {'name': 'join_prev_lstm_input_joined_input_eltwise',
-                                                                'operation': 'sum'
-                                                                }).create_node([(split_joined_input, 1),
-                                                                                state_input_scaleshift
-                                                                                ])
+        join_prev_lstm_input_joined_input_sum = Add(graph, {'name': 'join_prev_lstm_input_joined_input_eltwise',
+                                                            }).create_node([(split_joined_input, 1),
+                                                                            state_input_scaleshift
+                                                                            ])
         # Split                                 \
         #                                       (3)Eltwise(sum)
         # Memory(state) -> *ScaleShift(forget)  /
-        join_prev_lstm_input_joined_forget_sum = Eltwise(graph, {'name': 'join_prev_lstm_input_joined_forget_sum',
-                                                                 'operation': 'sum'
-                                                                 }).create_node([(split_joined_input, 2),
-                                                                                 state_forget_scaleshift
-                                                                                 ])
+        join_prev_lstm_input_joined_forget_sum = Add(graph, {'name': 'join_prev_lstm_input_joined_forget_sum',
+                                                             }).create_node([(split_joined_input, 2),
+                                                                             state_forget_scaleshift
+                                                                             ])
 
         # Split -> Tanh
-        remember_tahn = Activation(graph, {'name': 'remember_tahnv',
-                                           'operation': 'tanh'
-                                           }).create_node([(split_joined_input, 0)])
+        remember_tahn = Tanh(graph, {'name': 'remember_tahnv'}).create_node([(split_joined_input, 0)])
 
         # Split -> (2)Eltwise(sum) -> *Sigmoid
-        remember_sigmoid = Activation(graph, {'name': 'remember_sigmoid',
-                                              'operation': 'sigmoid'
-                                              }).create_node(
-            [join_prev_lstm_input_joined_input_sum])
+        remember_sigmoid = Sigmoid(graph, {'name': 'remember_sigmoid'
+                                           }).create_node([join_prev_lstm_input_joined_input_sum])
 
         # Split -> (3)Eltwise(sum) -> **Sigmoid
-        forget_sigmoid = Activation(graph, {'name': 'forget_sigmoid',
-                                            'operation': 'sigmoid'
-                                            }).create_node(
-            [join_prev_lstm_input_joined_forget_sum])
+        forget_sigmoid = Sigmoid(graph, {'name': 'forget_sigmoid'
+                                         }).create_node([join_prev_lstm_input_joined_forget_sum])
 
         # *Memory(state)                        \
         #                                       (6)Eltwise(mul)
         # Split -> (3)Eltwise(sum) -> **Sigmoid /
-        join_forget_prev_state_mul = Eltwise(graph, {'name': 'join_forget_prev_state_mul',
-                                                     'operation': 'mul'
-                                                     }).create_node(
-            [forget_sigmoid, prev_lstm_state])
+        join_forget_prev_state_mul = Mul(graph, {'name': 'join_forget_prev_state_mul',
+                                                 }).create_node([forget_sigmoid, prev_lstm_state])
 
         # Split -> Tahn                         \
         #                                       (5)Eltwise(mul)
         # Split -> (2)Eltwise(sum) -> *Sigmoid   /
-        join_remember_candidates_mul = Eltwise(graph, {'name': 'join_remember_candidates_mul',
-                                                       'operation': 'mul'
-                                                       }).create_node(
-            [remember_tahn, remember_sigmoid])
+        join_remember_candidates_mul = Mul(graph, {'name': 'join_remember_candidates_mul',
+                                                   }).create_node([remember_tahn, remember_sigmoid])
 
         # (5)Eltwise(mul)  \
         #               (7)Eltwise(sum)
         # (6)Eltwise(mul)   /
-        join_forget_remember_sum = Eltwise(graph, {'name': 'join_forget_remember_sum',
-                                                   'operation': 'sum'
-                                                   }).create_node(
+        join_forget_remember_sum = Add(graph, {'name': 'join_forget_remember_sum',
+                                               }).create_node(
             [join_forget_prev_state_mul, join_remember_candidates_mul])
 
         # (7)Eltwise(sum) -> Clamp
@@ -199,17 +191,16 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
             [join_forget_remember_sum])
         #
         # Clamp -> (2)Memory(state)
-        Memory(graph, {'name': 'next_lstm_state',
+        next_lstm_state = Memory(graph, {'name': 'next_lstm_state',
                        'id': memory_pair_output,
                        'index': 0,
                        'size': 2,
                        'shape': np.array([node.input_gate_weights.shape[0]], dtype=np.int64)
                        }).create_node([join_forget_clamp])
+        Result(graph, {'name': 'next_lstm_state_out'}).create_node([next_lstm_state])
 
         # Clamp -> (2)Tahn
-        state_filtered_tahn = Activation(graph, {'name': 'state_filtered_tahn',
-                                                 'operation': 'tanh'
-                                                 }).create_node([join_forget_clamp])
+        state_filtered_tahn = Tanh(graph, {'name': 'state_filtered_tahn'}).create_node([join_forget_clamp])
 
         # Clamp -> (2)ScaleShift
         clamp_scaleshift_attrs = {'name': 'clamp_scaleshift',
@@ -220,22 +211,16 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         # Split                 \
         #                       (4)Eltwise(sum)
         # Clamp -> (2)ScaleShift /
-        join_next_lstm_input_joined_input_sum = Eltwise(graph, {'name': 'join_next_lstm_input_joined_input_sum',
-                                                                'operation': 'sum'
-                                                                }).create_node([(split_joined_input, 3), clamp_scaleshift])
+        join_next_lstm_input_joined_input_sum = Add(graph, {'name': 'join_next_lstm_input_joined_input_sum',
+                                                            }).create_node([(split_joined_input, 3), clamp_scaleshift])
 
         # (4)Eltwise(sum) -> (3)Sigmoid
-        output_sigmoid = Activation(graph, {'name': 'output_sigmoid',
-                                            'operation': 'sigmoid'
-                                            }).create_node(
-            [join_next_lstm_input_joined_input_sum])
+        output_sigmoid = Sigmoid(graph, {'name': 'output_sigmoid'}).create_node([join_next_lstm_input_joined_input_sum])
 
         # (4)Eltwise(sum) -> (3)Sigmoid         \
         #                                       (5)Eltwise(mul)
         # Clamp -> (2)Tahn                      /
-        joined_output_mul = Eltwise(graph, {'name': 'joined_output_mul',
-                                            'operation': 'mul'
-                                            }).create_node([state_filtered_tahn, output_sigmoid])
+        joined_output_mul = Mul(graph, {'name': 'joined_output_mul'}).create_node([state_filtered_tahn, output_sigmoid])
 
         # (5)Eltwise(mul) -> (3)FullyConnected
         fc_output_attrs = {'name': 'FullyConnected',
@@ -247,11 +232,12 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         #                   / (2)Memory(output)
         # (3)FullyConnected
         #                   \ Output (any next node) (edge created automatically after replacement)
-        Memory(graph, {'name': 'next_lstm_output',
+        next_lstm_output = Memory(graph, {'name': 'next_lstm_output',
                        'id': memory_pair_input,
                        'index': 0,
                        'size': 2,
                        'shape': np.array([node.gifo_r_weights_shape[1]], dtype=np.int64)
                        }).create_node([fc_output])
+        Result(graph, {'name': 'next_lstm_output_out'}).create_node([next_lstm_output])
 
         return [fc_output.id]

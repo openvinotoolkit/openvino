@@ -16,17 +16,12 @@
 
 #include "broadcast_kernel_base.h"
 
+namespace kernel_selector {
+class BroadcastKernelRef : public BroadcastKernelBase {
+public:
+    BroadcastKernelRef() : BroadcastKernelBase("broadcast_gpu_ref") {}
 
-namespace kernel_selector
-{
-    class BroadcastKernelRef : public BroadcastKernelBase
-    {
-    public:
-        BroadcastKernelRef() : BroadcastKernelBase("broadcast_gpu_ref") {}
-
-        KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

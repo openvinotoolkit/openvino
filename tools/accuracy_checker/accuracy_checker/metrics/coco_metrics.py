@@ -35,7 +35,7 @@ COCO_THRESHOLDS = {
 }
 
 
-class MSCOCOAveragePresicionMetricConfig(BaseMetricConfig):
+class MSCOCOMetricConfig(BaseMetricConfig):
     max_detections = NumberField(optional=True)
     threshold = BaseField(optional=True)
 
@@ -43,12 +43,7 @@ class MSCOCOAveragePresicionMetricConfig(BaseMetricConfig):
 class MSCOCOBaseMetric(PerImageEvaluationMetric):
     annotation_types = (PoseEstimationAnnotation, DetectionAnnotation)
     prediction_types = (PoseEstimationPrediction, DetectionPrediction)
-
-    def validate_config(self):
-        coco_config_validator = MSCOCOAveragePresicionMetricConfig(
-            'coco_metric', on_extra_argument=MSCOCOAveragePresicionMetricConfig.ERROR_ON_EXTRA_ARGUMENT
-        )
-        coco_config_validator.validate(self.config)
+    _config_validator_type = MSCOCOMetricConfig
 
     def configure(self):
         self.max_detections = self.config.get('max_detections', 20)

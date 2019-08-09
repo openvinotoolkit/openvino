@@ -40,7 +40,7 @@ class ConditionChecks(MiddleReplacementPattern):
                 ('condition', dict(kind='op', op='TensorIteratorCondition')),
                 ('Strided_slice', dict(kind='op', op='StridedSlice')),
                 ('Strided_slice_data', dict(kind='data')),
-                ('shape', dict(kind='op', op='Shape')),
+                ('shape', dict(kind='op', op='ShapeOf')),
                 ('shape_data', dict(kind='data')),
 
                 ('minimum', dict(kind='op', op='Minimum')),
@@ -72,8 +72,6 @@ class ConditionChecks(MiddleReplacementPattern):
         assert np.all(params[2].in_node().value == 1)
         assert np.all(params[3].in_node().value == 1)
 
-        # Check Maximum/Minimum params
-
         # Check for comparing SS and seq_length source (it should be one tensor)
         # SIMPLE CHECK
         assert match['Strided_slice_data'].value is not None
@@ -88,13 +86,10 @@ class ConditionChecks(MiddleReplacementPattern):
             assert match['Strided_slice_data'].value == match['minimum_data'].value, \
                 'Values do not match: {} and {}'.format(match['Strided_slice_data'].value, match['minimum_data'].value)
 
-        # SMART CHECK
-        # TODO: add here some smart check for tensors equality
-
         # Check that bound for Condition and Inputs/Outputs sizes match
         condition_time = match['condition'].out_node(0)
         inputs_and_outputs = condition_time.out_nodes()
-        type_list = ['TensorIteratorInput', 'TensorIteratorOutput']
+        type_list = ['TensorIteratorInput']
 
         for ta in inputs_and_outputs:
             if ta.has_valid('kind') and ta['kind'] == 'op' and ta['op'] in type_list:

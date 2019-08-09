@@ -22,7 +22,7 @@ from mo.middle.passes.fusing.mark_unfused_nodes import mark_unfused_nodes
 from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
-    'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # ScaleShift layer
     'scaleshift_1': {'type': 'ScaleShift', 'kind': 'op', 'op': 'ScaleShift'},
@@ -56,16 +56,16 @@ nodes_attributes = {
     'conv_2_b': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     # FullyConnected
-    'fc_1': {'type': 'FullyConnected', 'kind': 'op', 'op': 'InnerProduct', 'layout': 'NHWC'},
+    'fc_1': {'type': 'MatMul', 'kind': 'op', 'op': 'InnerProduct', 'layout': 'NHWC'},
     'fc_1_w': {'value': None, 'shape': None, 'kind': 'data'},
     'fc_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'fc_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Placeholders
-    'placeholder_2': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'placeholder_3': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_3': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+    'op_output': { 'kind': 'op', 'op': 'Result'}
 }
 
 

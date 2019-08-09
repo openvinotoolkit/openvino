@@ -10,17 +10,13 @@ namespace vpu {
 
 class PostOpStage : public StageNode {
 protected:
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
-            ScalePropagationStep step) override;
+    void propagateDataOrderImpl() const override;
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override;
-
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override;
+    void getDataStridesRequirementsImpl() const override;
 
     void finalizeDataLayoutImpl() override;
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override;
+    void getBatchSupportInfoImpl() const override;
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override;
 

@@ -34,8 +34,8 @@ if(BENCHDNN_USE_RDPMC)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    append_if(WIN32 CMAKE_CXX_FLAGS "-Qprec-div")
-    append_if(UNIX  CMAKE_CXX_FLAGS "-prec-div -fp-model precise")
+    append_if(WIN32 CMAKE_CXX_FLAGS "-Qprec-div -Qprec-sqrt")
+    append_if(UNIX  CMAKE_CXX_FLAGS "-prec-div -prec-sqrt -fp-model precise")
 endif()
 
 if(UNIX AND NOT APPLE)
@@ -60,10 +60,16 @@ endfunction()
 
 register_benchdnn_test(test_conv "benchdnn -v1 --conv --batch=inputs/test_conv_all")
 register_benchdnn_test(test_benchdnn_conv "benchdnn -v1 --conv --batch=inputs/test_conv_all")
+register_benchdnn_test(test_benchdnn_conv_bf16 "benchdnn -v1 --conv
+        --batch=inputs/test_conv_bfloat16
+        --batch=inputs/test_conv_dw_bfloat16"
+    )
 register_benchdnn_test(test_benchdnn_deconv "benchdnn -v1 --deconv --batch=inputs/deconv/test_deconv_all")
+register_benchdnn_test(test_benchdnn_deconv_bf16 "benchdnn -v1 --deconv --batch=inputs/deconv/test_deconv_bfloat16")
 register_benchdnn_test(test_benchdnn_rnn "benchdnn -v1 --rnn --batch=inputs/rnn/test_rnn_small")
 register_benchdnn_test(test_benchdnn_reorder "benchdnn --reorder --batch=inputs/reorder/test_default")
-register_benchdnn_test(test_benchdnn_bnorm "benchdnn --bnorm  --batch=inputs/bnorm/test_bnorm_topo")
+register_benchdnn_test(test_benchdnn_bnorm "benchdnn --bnorm  --batch=inputs/bnorm/test_bnorm_all")
+register_benchdnn_test(test_benchdnn_bnorm_bf16 "benchdnn --bnorm  --batch=inputs/bnorm/test_bnorm_bfloat16")
 register_benchdnn_test(test_benchdnn_ip "benchdnn --ip --batch=inputs/ip/test_ip_all")
 register_benchdnn_test(test_benchdnn_regression
     "benchdnn --conv --batch=inputs/test_conv_regression"
@@ -72,3 +78,9 @@ register_benchdnn_test(test_benchdnn_regression
 register_benchdnn_test(test_benchdnn_regression_large
     "benchdnn --bnorm --batch=inputs/bnorm/test_bnorm_regressions_large"
     )
+
+if(MKLDNN_INSTALL_MODE STREQUAL "BUNDLE")
+    install(TARGETS benchdnn RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    install(FILES README.md DESTINATION ${CMAKE_INSTALL_DATADIR}/benchdnn)
+    install(DIRECTORY inputs DESTINATION ${CMAKE_INSTALL_DATADIR}/benchdnn)
+endif()

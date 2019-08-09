@@ -14,21 +14,31 @@
  limitations under the License.
 """
 
+import importlib
 import logging as log
 import mmap
 import os
+import sys
 
 import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
-from mo.front.caffe.proto import caffe_pb2
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 
 
-def parse_mean(file_path: str, in_shape: np.ndarray, mean_file_offsets: [tuple, None]):
+def import_caffe_pb2(caffe_parser_path: str):
+    # import caffe_pb2
+    sys.path.insert(0, caffe_parser_path)
+    caffe_pb2 = importlib.import_module("caffe_pb2")
+    sys.path.pop(0)
+
+    return caffe_pb2
+
+
+def parse_mean(file_path: str, in_shape: np.ndarray, mean_file_offsets: [tuple, None], caffe_pb2):
     blob = caffe_pb2.BlobProto()
     with open(file_path, 'rb') as file:
         data = file.read()
@@ -80,7 +90,7 @@ def parse_mean(file_path: str, in_shape: np.ndarray, mean_file_offsets: [tuple, 
             str(err)) from err
 
 
-def load_caffe_proto_model(proto_path: str, model_path: [str, None] = None):
+def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] = None):
     # 1. python protobuf is used
     if api_implementation._implementation_type == 'python':
         message = 'Please expect that Model Optimizer conversion might be slow. ' \
@@ -281,7 +291,7 @@ def caffe_pb_to_nx(proto, model):
                 input_names.append(layer.name)
 
         layer.name = graph.unique_id(layer.name)
-        graph.add_node(layer.name, pb=layer, model_pb=model_layer, kind='op')
+        graph.add_node(layer.name, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):

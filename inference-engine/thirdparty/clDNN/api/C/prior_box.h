@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef PRIOR_BOX_H
-#define PRIOR_BOX_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -32,9 +30,9 @@ extern "C" {
 
 /// @brief Generates a set of default bounding boxes with different sizes and aspect ratios.
 /// @details The prior-boxes are shared across all the images in a batch (since they have the same width and height).
-/// First feature stores the mean of each prior coordinate. 
+/// First feature stores the mean of each prior coordinate.
 /// Second feature stores the variance of each prior coordinate.
-CLDNN_BEGIN_PRIMITIVE_DESC(prior_box) 
+CLDNN_BEGIN_PRIMITIVE_DESC(prior_box)
 /// @brief Image width and height.
 cldnn_tensor img_size;
 /// @brief Minimum box sizes in pixels.
@@ -68,5 +66,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(prior_box);
 /// @}
 /// @}
 /// @}
-#endif /* PRIOR_BOX_H */
 

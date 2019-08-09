@@ -18,9 +18,9 @@
 #pragma once
 #include "../C/fully_connected_grad_input.h"
 #include "primitive.hpp"
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -30,8 +30,7 @@ namespace cldnn
 
 /// @brief Performs backward fully connected layer (inner product) for input.
 
-struct fully_connected_grad_input : public primitive_base<fully_connected_grad_input, CLDNN_PRIMITIVE_DESC(fully_connected_grad_input)>
-{
+struct fully_connected_grad_input : public primitive_base<fully_connected_grad_input, CLDNN_PRIMITIVE_DESC(fully_connected_grad_input)> {
     CLDNN_DECLARE_PRIMITIVE(fully_connected_grad_input)
 
     /// @brief Constructs fully connected layer grad for input.
@@ -44,35 +43,28 @@ struct fully_connected_grad_input : public primitive_base<fully_connected_grad_i
         const primitive_id& input_grad,
         const primitive_id& input,
         const primitive_id& weights,
-        const padding& output_padding = padding()
-        )
-        : primitive_base(id, { input_grad, input }, output_padding)
-        , weights(weights)
-    {
+        const padding& output_padding = padding())
+        : primitive_base(id, {input_grad, input}, output_padding), weights(weights) {
     }
 
     /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{fully_connected_grad_input}
     fully_connected_grad_input(const dto* dto)
-        :primitive_base(dto)
-        , weights(dto->weights)
-    {
+        : primitive_base(dto), weights(dto->weights) {
     }
 
     /// @brief Primitive id containing weights data.
     primitive_id weights;
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override 
-    {
-        return{ weights };
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
+        return {weights};
     }
 
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.weights = weights.c_str();
     }
 };
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

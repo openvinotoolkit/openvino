@@ -40,7 +40,7 @@ class TestInnerProduct(unittest.TestCase):
         res = inner_product_ext(FakeProtoLayer(FakeMultiParam(params)),
                                 FakeModelLayer(blobs))
         exp_res = {
-            'type': 'FullyConnected',
+            'type': 'MatMul',
             'out-size': 10,
             'infer': caffe_inner_product,
             'weights': mean_blob,

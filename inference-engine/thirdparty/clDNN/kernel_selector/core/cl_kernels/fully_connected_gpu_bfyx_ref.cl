@@ -75,8 +75,8 @@ KERNEL(fc)(
 #endif
 
 #if QUANTIZATION_TERM
-    output[output_idx] = ACTIVATION(convert_char(dotProd), NL_M, NL_N);
+    output[output_idx] = ACTIVATION(TO_OUTPUT_TYPE_SAT(dotProd), ACTIVATION_PARAMS);
 #else
-    output[output_idx] = ACTIVATION((UNIT_TYPE)dotProd, NL_M, NL_N);
+    output[output_idx] = ACTIVATION((UNIT_TYPE)dotProd, ACTIVATION_PARAMS);
 #endif
 }

@@ -35,16 +35,16 @@ public:
             _num_classes = layer->GetParamAsInt("num_classes");
             _background_label_id = layer->GetParamAsInt("background_label_id", 0);
             _top_k = layer->GetParamAsInt("top_k", -1);
-            _variance_encoded_in_target = layer->GetParamsAsBool("variance_encoded_in_target", false);
+            _variance_encoded_in_target = layer->GetParamAsBool("variance_encoded_in_target", false);
             _keep_top_k = layer->GetParamAsInt("keep_top_k", -1);
             _nms_threshold = layer->GetParamAsFloat("nms_threshold");
             _confidence_threshold = layer->GetParamAsFloat("confidence_threshold", -FLT_MAX);
-            _share_location = layer->GetParamsAsBool("share_location", true);
-            _clip_before_nms = layer->GetParamsAsBool("clip_before_nms", false) ||
-                               layer->GetParamsAsBool("clip", false);  // for backward compatibility
-            _clip_after_nms = layer->GetParamsAsBool("clip_after_nms", false);
-            _decrease_label_id = layer->GetParamsAsBool("decrease_label_id", false);
-            _normalized = layer->GetParamsAsBool("normalized", true);
+            _share_location = layer->GetParamAsBool("share_location", true);
+            _clip_before_nms = layer->GetParamAsBool("clip_before_nms", false) ||
+                               layer->GetParamAsBool("clip", false);  // for backward compatibility
+            _clip_after_nms = layer->GetParamAsBool("clip_after_nms", false);
+            _decrease_label_id = layer->GetParamAsBool("decrease_label_id", false);
+            _normalized = layer->GetParamAsBool("normalized", true);
             _image_height = layer->GetParamAsInt("input_height", 1);
             _image_width = layer->GetParamAsInt("input_width", 1);
             _prior_size = _normalized ? 4 : 5;
@@ -63,7 +63,7 @@ public:
                                    << _num_priors * _num_loc_classes * 4 << " vs "
                                    << layer->insData[idx_location].lock()->getDims()[1] << ")";
 
-            if (_num_priors * _num_classes != static_cast<int>(layer->insData[idx_confidence].lock()->dims[0]))
+            if (_num_priors * _num_classes != static_cast<int>(layer->insData[idx_confidence].lock()->getTensorDesc().getDims().back()))
                 THROW_IE_EXCEPTION << "Number of priors must match number of confidence predictions.";
 
             if (_decrease_label_id && _background_label_id != 0)
@@ -95,7 +95,7 @@ public:
             _detections_count = InferenceEngine::make_shared_blob<int>({Precision::I32, detections_size, C});
             _detections_count->allocate();
 
-            InferenceEngine::SizeVector conf_size = layer->insData[idx_confidence].lock()->dims;
+            const InferenceEngine::SizeVector &conf_size = layer->insData[idx_confidence].lock()->getTensorDesc().getDims();
             _reordered_conf = InferenceEngine::make_shared_blob<float>({Precision::FP32, conf_size, ANY});
             _reordered_conf->allocate();
 

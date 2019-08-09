@@ -18,12 +18,11 @@
 #pragma once
 #include "api/CPP/strided_slice.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace  cldnn
-{
+namespace cldnn {
 template <>
-struct typed_program_node<strided_slice> : public typed_program_node_base<strided_slice>
-{
+struct typed_program_node<strided_slice> : public typed_program_node_base<strided_slice> {
     using parent = typed_program_node_base<strided_slice>;
 
 public:
@@ -35,8 +34,7 @@ public:
 using strided_slice_node = typed_program_node<strided_slice>;
 
 template <>
-class typed_primitive_inst<strided_slice> : public typed_primitive_inst_base<strided_slice>
-{
+class typed_primitive_inst<strided_slice> : public typed_primitive_inst_base<strided_slice> {
     using parent = typed_primitive_inst_base<strided_slice>;
 
 public:
@@ -48,4 +46,4 @@ public:
 };
 
 using strided_slice_inst = typed_primitive_inst<strided_slice>;
-}
+}  // namespace cldnn

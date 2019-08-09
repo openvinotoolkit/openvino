@@ -24,6 +24,7 @@
 #include "cpu_engine.hpp"
 #include "type_helpers.hpp"
 #include "utils.hpp"
+#include "cpu_isa_traits.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -81,7 +82,8 @@ struct ref_eltwise_fwd_t: public cpu_primitive_t {
                         forward_inference)
                 && everyone_is(data_type, desc()->data_desc.data_type)
                 && IMPLICATION(use_generic, one_of(src_d.ndims(), 4, 5))
-                && attr()->has_default_values();
+                && attr()->has_default_values()
+                && IMPLICATION(data_type == data_type::bf16, mayiuse(avx512_core));
             if (!ok) return status::unimplemented;
 
             return status::success;
@@ -92,7 +94,11 @@ struct ref_eltwise_fwd_t: public cpu_primitive_t {
 
     ref_eltwise_fwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(apd, inputs, outputs) {}
+        : cpu_primitive_t(apd, inputs, outputs) {
+    }
+
+    ~ref_eltwise_fwd_t() {}
+
     typedef typename prec_traits<data_type>::type data_t;
 
     virtual void execute(event_t *e) const {
@@ -129,7 +135,9 @@ struct ref_eltwise_bwd_t: public cpu_primitive_t {
             bool ok = true && desc()->prop_kind == backward_data
                     && everyone_is(data_type, desc()->data_desc.data_type,
                             desc()->diff_data_desc.data_type)
-                    && attr()->has_default_values();
+                    && attr()->has_default_values()
+                    && IMPLICATION(data_type == data_type::bf16,
+                            mayiuse(avx512_core));
             if (!ok) return status::unimplemented;
 
             auto diff_dst_d = memory_desc_wrapper(diff_dst_pd());
@@ -157,6 +165,9 @@ struct ref_eltwise_bwd_t: public cpu_primitive_t {
     ref_eltwise_bwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
         : cpu_primitive_t(apd, inputs, outputs) {}
+
+    ~ref_eltwise_bwd_t() {}
+
     typedef typename prec_traits<data_type>::type data_t;
 
     virtual void execute(event_t *e) const {

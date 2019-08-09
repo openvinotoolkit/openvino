@@ -17,17 +17,18 @@
 #include <vpu/utils/handle.hpp>
 #include <vpu/utils/attributes_map.hpp>
 #include <vpu/utils/range.hpp>
+#include <vpu/utils/containers.hpp>
 
 namespace vpu {
 
 //
-// Utility macros
+// VPU_DEFINE_MODEL_TYPES
 //
 
 #define VPU_DEFINE_MODEL_TYPES(type, postfix)                                                       \
     using type = Handle<VPU_COMBINE(type, postfix)>;                                                \
     \
-    using VPU_COMBINE(type, Vector) = std::vector<type>;                                            \
+    using VPU_COMBINE(type, Vector) = SmallVector<type>;                                            \
     \
     using VPU_COMBINE(type, List) = IntrusivePtrList<VPU_COMBINE(type, postfix)>;                   \
     \

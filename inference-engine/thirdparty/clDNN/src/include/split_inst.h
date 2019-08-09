@@ -18,13 +18,12 @@
 #pragma once
 #include "api/CPP/split.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-class typed_program_node<split> : public typed_program_node_base<split>
-{
+class typed_program_node<split> : public typed_program_node_base<split> {
     using parent = typed_program_node_base<split>;
 
 public:
@@ -36,8 +35,7 @@ public:
 using split_node = typed_program_node<split>;
 
 template <>
-class typed_primitive_inst<split> : public typed_primitive_inst_base<split>
-{
+class typed_primitive_inst<split> : public typed_primitive_inst_base<split> {
     using parent = typed_primitive_inst_base<split>;
 
 public:
@@ -47,4 +45,4 @@ public:
 };
 
 using split_inst = typed_primitive_inst<split>;
-}
+}  // namespace cldnn

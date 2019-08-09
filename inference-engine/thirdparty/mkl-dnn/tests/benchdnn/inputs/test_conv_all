@@ -14,6 +14,10 @@
 # depthwise
 --batch=test_conv_depthwise
 
+# bf16
+--reset --batch=test_conv_bfloat16
+--reset --batch=test_conv_dw_bfloat16
+
 # i8 (skx)
 --reset --dir=FWD_B --mb=2
 --skip-impl="ref:gemm"      # ! test jit version only

@@ -14,15 +14,23 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "common.hpp"
+#ifndef GEMV_HPP
+#define GEMV_HPP
+
+#include <cstdint>
+
+#include "../gemm_info.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-int gemm_s8u8s32_jump_to_gemv_s8u8s32(blas_t *arg);
-int gemv_threading_driver(blas_t *arg);
+template <typename T>
+int gemm_s8u8s32_jump_to_gemv_s8u8s32(T *arg);
+int gemv_threading_driver(gemm_info_t<int8_t, uint8_t, int32_t> *arg);
 
 }
 }
 }
+
+#endif // GEMV_HPP

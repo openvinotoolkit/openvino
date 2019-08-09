@@ -14,11 +14,9 @@
  limitations under the License.
 """
 
-import networkx as nx
-
-from mo.graph.graph import Graph
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.mxnet.extractors.utils import get_json_layer_attrs
+from mo.graph.graph import Graph
 
 
 class SsdPatternRemoveReshape(FrontReplacementSubgraph):
@@ -49,7 +47,9 @@ class SsdPatternRemoveReshape(FrontReplacementSubgraph):
          match : dict
            Patterns which were found in graph structure.
         """
-        graph.erase_node(match['reshape'])
+        reshape_node = match['reshape']
+        reshape_node.out_port(0).get_connection().set_source(reshape_node.in_port(0).get_connection().get_source())
+        graph.remove_node(reshape_node.id)
 
         # concat should be performed for the third axis
         concat_node = match['concat']

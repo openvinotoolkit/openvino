@@ -23,6 +23,7 @@ from extensions.front.tf.nearest_neighbor_upsampling import NearestNeighborUpsam
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
+from mo.ops.const import Const
 
 
 def is_value_is_constant(val: np.ndarray, const: [int, float]):
@@ -49,7 +50,7 @@ class FlattenToReshapeableReshape(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('shape', dict(op='Shape')),
+                ('shape', dict(op='ShapeOf')),
                 ('strided_slice', dict(op='StridedSlice')),
                 ('pack', dict(op='Pack')),
                 ('const', dict(op='Const')),
@@ -86,6 +87,8 @@ class FlattenToReshapeableReshape(FrontReplacementSubgraph):
                           '"{}".'.format(ind, strided_slice_node.soft_get('value')))
                 return
 
-        graph.remove_edge(pack_node.id, reshape_node.id)
-        reshape_node['dim'] = int64_array([0, -1])
+        reshape_node.in_port(1).disconnect()
+        reshape_const_node = Const(graph, {'value': int64_array([0, -1])}).create_node()
+        reshape_node.in_port(1).connect(reshape_const_node.out_port(0))
         log.debug('The node "{}" is actually a Flatten node'.format(reshape_node.soft_get('name')))
+

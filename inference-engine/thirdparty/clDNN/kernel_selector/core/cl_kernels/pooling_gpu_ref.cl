@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
 #endif
 
 
-inline UNIT_TYPE FUNC(apply_pooling)(UNIT_TYPE tmp, UNIT_TYPE in)
+inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
 #if MAX_POOLING || MAX_WITH_ARGMAX_POOLING
     return max(tmp, in);
@@ -39,9 +39,15 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #endif
 )
 {
-#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF
+#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_BFZYX
     const uint x    = (uint)get_global_id(0);
+#if  INPUT0_SIZE_Z == 1
     const uint y    = (uint)get_global_id(1);
+    const uint z = 0;
+#else
+    const uint y = get_global_id(1) % OUTPUT_SIZE_Y;
+    const uint z = get_global_id(1) / OUTPUT_SIZE_Y;
+#endif
     const uint bf   = (uint)get_global_id(2);
     const uint f    = bf % INPUT0_FEATURE_NUM;
     const uint b    = bf / INPUT0_FEATURE_NUM;
@@ -53,6 +59,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #elif OUTPUT_LAYOUT_YXFB
     const uint x    = (uint)get_global_id(1);
     const uint y    = (uint)get_global_id(2);
+    const uint z    = 0;
     const uint bf   = (uint)get_global_id(0);
     const uint f    = bf / INPUT0_BATCH_NUM;
     const uint b    = bf % INPUT0_BATCH_NUM;
@@ -60,16 +67,21 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
+    const int offset_z = (int)z*STRIDE_SIZE_Z - PADDING_SIZE_Z;
     
-    UNIT_TYPE result = UNIT_INIT_VAL;
+    ACCUMULATOR_TYPE result = UNIT_INIT_VAL;
     
 #if MAX_WITH_ARGMAX_POOLING
     uint arg_max_idx = 0;
 #endif
 
 #ifdef CHECK_BOUNDRY
-    if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
-        offset_y + POOL_SIZE_Y < 0 || offset_y >= INPUT0_SIZE_Y)
+    bool out_of_boundry = offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
+        offset_y + POOL_SIZE_Y < 0 || offset_y >= INPUT0_SIZE_Y;
+    #if  INPUT0_SIZE_Z != 1
+        out_of_boundry = out_of_boundry || offset_z + POOL_SIZE_Z < 0 || offset_z >= INPUT0_SIZE_Z;
+    #endif
+    if (out_of_boundry)
     {
         return;
     }
@@ -79,6 +91,14 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #endif
 
     const uint batch_and_feature_offset = GET_DATA_INDEX(INPUT0, b, f, 0, 0);
+#if  INPUT0_SIZE_Z != 1  // 3D
+    for(uint k = 0; k < POOL_SIZE_Z; k++)
+    {
+        int input_offset_z = offset_z + k;
+        bool zero_z = input_offset_z >= INPUT0_SIZE_Z || input_offset_z < 0;
+        if(!zero_z)
+        {
+#endif
     for(uint j = 0; j < POOL_SIZE_Y; j++)
     {
         int input_offset_y = offset_y + j;
@@ -91,12 +111,21 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
                 bool zero = input_offset_x >= INPUT0_SIZE_X || input_offset_x < 0;
                 if(!zero)
                 {
+#if  INPUT0_SIZE_Z == 1
                     const uint input_idx = batch_and_feature_offset + input_offset_y*INPUT0_Y_PITCH + input_offset_x*INPUT0_X_PITCH;
+#else
+                    const uint input_idx = batch_and_feature_offset + input_offset_z*INPUT0_Z_PITCH + input_offset_y*INPUT0_Y_PITCH + input_offset_x*INPUT0_X_PITCH;
+#endif
 
 #if MAX_WITH_ARGMAX_POOLING
                     if(input[input_idx] > result)
                     {
+#if  INPUT0_SIZE_Z == 1
                         const uint input_idx_bfyx_no_padding = input_offset_x + INPUT0_SIZE_X * (input_offset_y + INPUT0_SIZE_Y * (f + INPUT0_FEATURE_NUM * b));
+#else
+                        const uint input_idx_bfyx_no_padding = input_offset_x + INPUT0_SIZE_X * (input_offset_y + INPUT0_SIZE_Y *
+                                                               (input_offset_z + INPUT0_SIZE_Z * (f + INPUT0_FEATURE_NUM * b));
+#endif
                         arg_max_idx = input_idx_bfyx_no_padding;
                     }
 #endif
@@ -109,18 +138,41 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
             }
         }
     }
+#if  INPUT0_SIZE_Z != 1 // 3D
+        }
+    }
+#endif
 #ifdef DYNAMIC_WITH_PADDING_KERNEL_DIVIDER
+#if  INPUT0_SIZE_Z != 1
+    const int dend = min(offset_z + POOL_SIZE_Z, INPUT0_SIZE_Z + PADDING_SIZE_Z);
+#endif
     const int hend = min(offset_y + POOL_SIZE_Y, INPUT0_SIZE_Y + PADDING_SIZE_Y);
     const int wend = min(offset_x + POOL_SIZE_X, INPUT0_SIZE_X + PADDING_SIZE_X);
+#if  INPUT0_SIZE_Z == 1
     const uint num_elementes = (hend - offset_y) * (wend - offset_x);
+#else
+    const uint num_elementes = (dend - offset_z) * (hend - offset_y) * (wend - offset_x);
+#endif
 #endif
 #else
+#if  INPUT0_SIZE_Z != 1  // 3D
+    uint input_idx = GET_DATA_INDEX_5D(INPUT0, b, f, offset_z, offset_y, offset_x);
+#else
     uint input_idx = GET_DATA_INDEX(INPUT0, b, f, offset_y, offset_x);
-
-#if MAX_WITH_ARGMAX_POOLING
-    uint input_idx_bfyx_no_padding = offset_x + INPUT0_SIZE_X * (offset_y + INPUT0_SIZE_Y * (f + INPUT0_FEATURE_NUM * b));
 #endif
 
+#if MAX_WITH_ARGMAX_POOLING
+#if  INPUT0_SIZE_Z == 1
+    uint input_idx_bfyx_no_padding = offset_x + INPUT0_SIZE_X * (offset_y + INPUT0_SIZE_Y * (f + INPUT0_FEATURE_NUM * b));
+#else
+    uint input_idx_bfyx_no_padding = offset_x + INPUT0_SIZE_X * (offset_y + INPUT0_SIZE_Y * (offset_z + INPUT0_SIZE_Z *(f + INPUT0_FEATURE_NUM * b)));
+#endif
+#endif
+
+#if  INPUT0_SIZE_Z != 1  // 3D
+    for(uint k = 0; k < POOL_SIZE_Z; k++)
+    {
+#endif
     for(uint j = 0; j < POOL_SIZE_Y; j++)
     {
         for(uint i = 0; i < POOL_SIZE_X; i++)
@@ -142,26 +194,33 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
         input_idx_bfyx_no_padding += (INPUT0_SIZE_X - POOL_SIZE_X);
 #endif
     }
+#if  INPUT0_SIZE_Z != 1  // 3D
+        input_idx += (INPUT0_Z_PITCH - POOL_SIZE_Y*INPUT0_Y_PITCH);
+#if MAX_WITH_ARGMAX_POOLING
+        input_idx_bfyx_no_padding += (INPUT0_SIZE_Y - POOL_SIZE_Y);
+#endif
+    }
+#endif
     
 #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-    const uint num_elementes = POOL_SIZE_X*POOL_SIZE_Y;
+    const uint num_elementes = POOL_SIZE_X*POOL_SIZE_Y*POOL_SIZE_Z;
 #endif
 #endif
 
 #if defined AVG_POOLING
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-        result /= (UNIT_TYPE)max(num_elementes, (uint)1);
+        result /= (ACCUMULATOR_TYPE)max(num_elementes, (uint)1);
     #else
-        result /= (UNIT_TYPE)(POOL_SIZE_Y * POOL_SIZE_X);
+        result /= (ACCUMULATOR_TYPE)(POOL_SIZE_Z * POOL_SIZE_Y * POOL_SIZE_X);
     #endif
 #endif
 
-    const uint output_pos = GET_DATA_INDEX(OUTPUT, b, f, y, x);
-    output[output_pos] = ACTIVATION(result, NL_M ,NL_N);
+    const uint output_pos = GET_DATA_INDEX_5D(OUTPUT, b, f, z, y, x);
+    output[output_pos] = ACTIVATION(TO_UNIT_TYPE(result), ACTIVATION_PARAMS);
 
 #if MAX_WITH_ARGMAX_POOLING
     //INPUT1 macro stands for Argmax
-    const uint arg_max_pos = GET_DATA_INDEX(INPUT1, b, f, y, x);
+    const uint arg_max_pos = GET_DATA_INDEX_5D(INPUT1, b, f, z, y, x);
     arg_max[arg_max_pos] = convert_float(arg_max_idx);
 #endif
 

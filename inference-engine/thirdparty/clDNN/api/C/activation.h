@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef ACTIVATION_H
-#define ACTIVATION_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -62,4 +60,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(activation);
 /// @}
 /// @}
 /// @}
-#endif /* ACTIVATION_H */
+

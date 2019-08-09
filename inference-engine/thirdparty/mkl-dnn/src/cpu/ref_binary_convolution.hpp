@@ -61,33 +61,27 @@ struct _ref_binary_convolution_fwd_t: public cpu_primitive_t {
         }
 
         virtual bool is_supported_post_ops() const {
-            bool ok = true;
-            auto const &po = this->attr()->post_ops_;
+            const auto &p = this->attr()->post_ops_;
 
-            auto is_eltwise = [&](int idx) { return po.entry_[idx].is_eltwise(); };
-            auto is_depthwise = [&](int idx) { return po.entry_[idx].is_depthwise(); };
-            auto is_sum = [&](int idx) { return po.entry_[idx].is_sum(); };
-            auto is_simple = [&](int idx) { return (is_eltwise(idx) || is_depthwise(idx)); };
-            auto is_binarization = [&](int idx) { return po.entry_[idx].is_binarization(); };
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
 
-            switch (po.len_) {
-            case 0: // no post_ops
-                break;
-            case 1:
-                ok = ok && (is_simple(0) || is_sum(0) || is_binarization(0));
-                break;
-            case 2:
-                ok = ok && ((is_sum(0) && is_simple(1)) || (is_simple(0) && is_simple(1)) ||
-                            (is_simple(0) && is_binarization(1)));
-                break;
-            case 3:
-                ok = ok && ((is_sum(0) && is_simple(1) && is_simple(2)) ||
-                            (is_simple(0) && is_simple(1) && is_binarization(2)));
-                break;
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise,
+                                                               primitive_kind::binarization);
+                }
+                return ok;
+            };
+            auto contain = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind) != -1; };
+            auto position = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind); };
+            auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind); };
 
-            default: ok = false;
-            }
-            return ok;
+            return all_post_ops_supported() &&
+                   count(primitive_kind::sum) <= 1 &&
+                   count(primitive_kind::binarization) <= 1 &&
+                   IMPLICATION(contain(primitive_kind::sum), position(primitive_kind::sum) == 0) &&
+                   IMPLICATION(contain(primitive_kind::binarization), position(primitive_kind::binarization) == p.len_-1 &&
+                                                                      !contain(primitive_kind::sum));
         }
     };
 

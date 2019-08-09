@@ -37,11 +37,12 @@ class TestLRN(unittest.TestCase):
         res = lrn_ext(FakeProtoLayer(FakeMultiParam(params)), None)
         exp_res = {
             'op': 'LRN',
-            'type': 'Norm',
+            'type': 'LRN',
             'alpha': 10,
             'beta': 15,
             'local_size': 20,
             'region': 'across',
+            'bias': 1,
             'infer': copy_shape_infer
         }
         self.assertEqual(res, exp_res)
@@ -56,11 +57,12 @@ class TestLRN(unittest.TestCase):
         res = lrn_ext(FakeProtoLayer(FakeMultiParam(params)), None)
         exp_res = {
             'op': 'LRN',
-            'type': 'Norm',
+            'type': 'LRN',
             'alpha': 10,
             'beta': 15,
             'local_size': 20,
             'region': 'same',
+            'bias': 1,
             'infer': copy_shape_infer
         }
         self.assertEqual(res, exp_res)

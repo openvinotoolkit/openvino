@@ -13,10 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from extensions.ops.interpolate import Interpolate
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
-from extensions.ops.resample import ResampleOp
+from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
 
 class UpSamplingFrontExtractor(FrontExtractorOp):
@@ -28,11 +28,10 @@ class UpSamplingFrontExtractor(FrontExtractorOp):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
 
         node_attrs = {
-            'type': 'Resample',
             'factor': attrs.int("scale", 1),
-            'resample_type': 'caffe.ResampleParameter.NEAREST',
-            'antialias': 0
+            'mode': 'nearest',
+            'antialias': 0,
+            'axes': int64_array([2, 3]),
         }
-        # update the attributes of the node
-        ResampleOp.update_node_stat(node, node_attrs)
+        Interpolate.update_node_stat(node, node_attrs)
         return __class__.enabled

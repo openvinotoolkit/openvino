@@ -19,6 +19,7 @@ import unittest
 import numpy as np
 from generator import generator
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.ops.unsqueeze import Unsqueeze
 from mo.utils.unittest.graph import build_graph, compare_graphs
@@ -35,7 +36,13 @@ class TestUnsqueezeOp(unittest.TestCase):
         'unsq': {
             'op': 'Unsqueeze',
             'kind': 'op',
-            'unsqueeze_dims': None,
+        },
+        'unsq_dims_const': {
+            'op': 'Const',
+            'kind': 'op',
+        },
+        'unsq_dims': {
+            'kind': 'data',
         },
         'data_2': {
             'kind': 'data',
@@ -45,19 +52,55 @@ class TestUnsqueezeOp(unittest.TestCase):
     }
 
     def test_unsqueeze_infer(self):
+        unsq_dims = np.array([0, 4])
         graph = build_graph(self.nodes_attributes,
                             [('data_1', 'unsq'),
+                             ('unsq_dims_const', 'unsq_dims'),
+                             ('unsq_dims', 'unsq'),
                              ('unsq', 'data_2')],
                             {'data_1': {'shape': np.array([1, 3, 64, 64])},
-                             'unsq': {'unsqueeze_dims': np.array([0, 4])}
+                             'unsq_dims': {'value': unsq_dims, 'shape': unsq_dims.shape},
+                             'unsq_dims_const': {'value': unsq_dims, 'shape': unsq_dims.shape},
                              })
 
         graph_ref = build_graph(self.nodes_attributes,
                                 [('data_1', 'unsq'),
+                                 ('unsq_dims_const', 'unsq_dims'),
+                                 ('unsq_dims', 'unsq'),
                                  ('unsq', 'data_2')],
                                 {'data_1': {'shape': np.array([1, 3, 64, 64])},
-                                 'unsq': {'unsqueeze_dims': np.array([0, 4])},
-                                 'data_2': {'shape': np.array([1, 1, 3, 64, 1, 64])}
+                                 'unsq_dims': {'value': unsq_dims, 'shape': unsq_dims.shape},
+                                 'unsq_dims_const': {'value': unsq_dims, 'shape': unsq_dims.shape},
+                                 'data_2': {'shape': np.array([1, 1, 3, 64, 1, 64])},
+                                 })
+
+        unsqueeze_node = Node(graph, 'unsq')
+        Unsqueeze.infer(unsqueeze_node)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'data_2')
+        self.assertTrue(flag, resp)
+
+    def test_unsqueeze_infer_negative_indices(self):
+        unsq_dims = np.array([-1])
+        graph = build_graph(self.nodes_attributes,
+                            [('data_1', 'unsq'),
+                             ('unsq_dims_const', 'unsq_dims'),
+                             ('unsq_dims', 'unsq'),
+                             ('unsq', 'data_2')],
+                            {'data_1': {'shape': np.array([2, 3, 64, 64])},
+                             'unsq_dims': {'value': unsq_dims, 'shape': unsq_dims.shape},
+                             'unsq_dims_const': {'value': unsq_dims, 'shape': unsq_dims.shape},
+                             })
+
+        graph_ref = build_graph(self.nodes_attributes,
+                                [('data_1', 'unsq'),
+                                 ('unsq_dims_const', 'unsq_dims'),
+                                 ('unsq_dims', 'unsq'),
+                                 ('unsq', 'data_2')],
+                                {'data_1': {'shape': np.array([2, 3, 64, 64])},
+                                 'unsq_dims': {'value': int64_array([4]), 'shape': unsq_dims.shape},
+                                 'unsq_dims_const': {'value': int64_array([4]), 'shape': unsq_dims.shape},
+                                 'data_2': {'shape': np.array([2, 3, 64, 64, 1])},
                                  })
 
         unsqueeze_node = Node(graph, 'unsq')

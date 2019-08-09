@@ -36,10 +36,10 @@
 #else
 
 #define QUANTIZATION \
-    slm_write0.s0 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s0) * quant_f * I_QF + bias_f) * calib_f)), NL_M, NL_N));\
-    slm_write0.s1 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s1) * quant_f * I_QF + bias_f) * calib_f)), NL_M, NL_N));\
-    slm_write0.s2 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s2) * quant_f * I_QF + bias_f) * calib_f)), NL_M, NL_N));\
-    slm_write0.s3 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s3) * quant_f * I_QF + bias_f) * calib_f)), NL_M, NL_N));
+    slm_write0.s0 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s0) * quant_f * I_QF + bias_f) * calib_f)), ACTIVATION_PARAMS));\
+    slm_write0.s1 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s1) * quant_f * I_QF + bias_f) * calib_f)), ACTIVATION_PARAMS));\
+    slm_write0.s2 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s2) * quant_f * I_QF + bias_f) * calib_f)), ACTIVATION_PARAMS));\
+    slm_write0.s3 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s3) * quant_f * I_QF + bias_f) * calib_f)), ACTIVATION_PARAMS));
 
 #endif
 
@@ -834,10 +834,7 @@ __global int8* weights,
 					
 					/*TODO - Activation & Quantization  code goes here -  presently applying ReLU and  taking lower 8-bits */
 
-                    slm_write0.s0 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s0) * quant_f * I_QF + bias_f) * calib_f)), NL_M, NL_N));
-                    slm_write0.s1 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s1) * quant_f * I_QF + bias_f) * calib_f)), NL_M, NL_N));
-                    slm_write0.s2 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s2) * quant_f * I_QF + bias_f) * calib_f)), NL_M, NL_N));
-                    slm_write0.s3 = as_uchar(ACTIVATION(convert_char(round(((float)(outvec.s3) * quant_f * I_QF + bias_f) * calib_f)), NL_M, NL_N));
+                    QUANTIZATION;
 					
 					out_slm_2[ slm_addr ]   = slm_write0;
 

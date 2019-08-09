@@ -16,6 +16,7 @@ if(NOT WIN32)
 endif()
 
 file(GLOB_RECURSE SOURCES *.c *.h)
+file(GLOB_RECURSE SHARED "../shared/*")
 
 # FIXME: WIN_PTHREAD also should be built as a library
 if(WIN32)
@@ -24,7 +25,7 @@ if(WIN32)
     list(APPEND SOURCES ${USB_WIN_SOURCES} ${WIN_PTHREAD_SOURCES})
 endif()
 
-add_library(${TARGET_NAME} STATIC ${SOURCES})
+add_library(${TARGET_NAME} STATIC ${SOURCES} ${SHARED})
 
 if(WIN32)
     target_include_directories(${TARGET_NAME}
@@ -57,11 +58,7 @@ target_compile_definitions(${TARGET_NAME}
             _CRT_SECURE_NO_WARNINGS
         )
 
-if (ENABLE_MYX_PCIE)
-    target_compile_definitions(${TARGET_NAME}
-        PRIVATE
-            USE_PCIE)
-elseif (ENABLE_MYRIAD_NO_BOOT)
+if (ENABLE_MYRIAD_NO_BOOT)
     target_compile_definitions(${TARGET_NAME}
         PRIVATE
             NO_BOOT
@@ -72,3 +69,7 @@ else()
             USE_USB_VSC)
 endif()
 
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()

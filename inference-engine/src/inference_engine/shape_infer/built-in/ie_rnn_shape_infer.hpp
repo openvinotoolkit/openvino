@@ -33,12 +33,13 @@ public:
         validate(&rnn, inBlobs, params, blobs);
 
         int state_size = rnn.hidden_size;
+        int ns = rnn.cellType == RNNCellBase::LSTM ? 2 : 1;
 
         auto data_dims = inShapes[0];
         data_dims[2] = static_cast<size_t>(state_size);
         outShapes.push_back(data_dims);
 
-        for (int i = 1; i < inShapes.size(); i++) {
+        for (int i = 1; i < 1 + ns; i++) {
             outShapes.push_back(inShapes[i]);
         }
     }

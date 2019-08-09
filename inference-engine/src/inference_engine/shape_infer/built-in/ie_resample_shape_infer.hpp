@@ -42,10 +42,10 @@ public:
                 THROW_IE_EXCEPTION << "Second input must have allocated data";
             }
         } else {
-            auto scale = static_cast<size_t>(cnnLayer.GetParamAsInt("factor"));
+            auto scale = cnnLayer.GetParamAsFloat("factor");
             outShape = {inShapes[0][0], inShapes[0][1]};
             for (int i = 2; i < inShapes[0].size(); i++)
-                outShape.push_back(inShapes[0][i] * scale);
+                outShape.push_back(static_cast<size_t>(std::ceil(inShapes[0][i] * scale)));
         }
         outShapes.push_back(outShape);
     }

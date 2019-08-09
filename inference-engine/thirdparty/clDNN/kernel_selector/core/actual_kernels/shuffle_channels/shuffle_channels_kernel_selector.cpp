@@ -19,13 +19,10 @@
 
 namespace kernel_selector {
 
-    shuffle_channels_kernel_selector::shuffle_channels_kernel_selector()
-    {
-        Attach<ShuffleChannelsKernelRef>();
-    }
+shuffle_channels_kernel_selector::shuffle_channels_kernel_selector() { Attach<ShuffleChannelsKernelRef>(); }
 
-    KernelsData shuffle_channels_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::SHUFFLE_CHANNELS);
-    }
+KernelsData shuffle_channels_kernel_selector::GetBestKernels(const Params& params,
+                                                             const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::SHUFFLE_CHANNELS);
 }
+}  // namespace kernel_selector

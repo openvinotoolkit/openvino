@@ -169,16 +169,17 @@ protected:
         auto dst_layer_tgt = memory({dst_layer_md_tgt, eng});
         auto dst_iter_tgt = memory({dst_iter_md_tgt, eng});
 
+        // Assumption: b is a plain layout
         auto init_tensor = [&](memory a, memory b) {
-            auto a_ptr = static_cast<float *>(a.get_data_handle());
+            auto b_ptr = static_cast<float *>(b.get_data_handle());
             auto desc = a.get_primitive_desc().desc();
-            auto a_dims = desc.data.dims;
-            auto a_ndims = desc.data.ndims;
-            auto n_elems = std::accumulate(a_dims, a_dims + a_ndims, size_t(1),
+            auto b_dims = desc.data.dims;
+            auto b_ndims = desc.data.ndims;
+            auto n_elems = std::accumulate(b_dims, b_dims + b_ndims, size_t(1),
                     std::multiplies<float>());
             for(size_t i = 0; i < n_elems; i++)
-                a_ptr[map_index(desc, i, false)] = i;
-            stream(stream::kind::eager).submit({reorder(a, b)}).wait();
+                b_ptr[i] = i;
+            stream(stream::kind::eager).submit({reorder(b, a)}).wait();
         };
 
         init_tensor(weights_layer_ref, weights_layer_tgt);

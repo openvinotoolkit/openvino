@@ -47,11 +47,6 @@ class TestEmitter(unittest.TestCase):
         with self.assertRaises(Error):
             xml_shape(np.array([2, 10, 50, -50], dtype=np.int64), net)
 
-    def test_xml_shape_zero_values(self):
-        net = Element('net')
-        with self.assertRaises(Error):
-            xml_shape(np.array([2, 0, 50, 50], dtype=np.int64), net)
-
 
 class TestSoftGet(unittest.TestCase):
 

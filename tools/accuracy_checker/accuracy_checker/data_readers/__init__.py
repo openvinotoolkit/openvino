@@ -23,18 +23,26 @@ from .data_reader import (
     OpenCVImageReader,
     PillowImageReader,
     ScipyImageReader,
-    NiftiImageReader
+    NiftiImageReader,
 
+    DataRepresentation,
+    ClipIdentifier,
+    create_reader
 )
 
 __all__ = [
     'BaseReader',
     'DataReaderField',
+    'DataRepresentation',
     'ReaderCombiner',
     'JSONReaderConfig',
     'OpenCVFrameReader',
     'OpenCVImageReader',
     'PillowImageReader',
     'ScipyImageReader',
-    'NiftiImageReader'
+    'NiftiImageReader',
+
+    'DataRepresentation',
+    'ClipIdentifier',
+    'create_reader'
 ]

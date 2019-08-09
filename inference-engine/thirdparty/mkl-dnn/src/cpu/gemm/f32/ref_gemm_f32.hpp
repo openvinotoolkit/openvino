@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2018-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -33,4 +33,4 @@ mkldnn_status_t ref_gemm(const char *transa, const char *transb, const int *M,
 }
 }
 
-#endif
+#endif // REF_GEMM_F32_HPP

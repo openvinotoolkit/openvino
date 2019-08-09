@@ -121,28 +121,40 @@ public:
     virtual StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept = 0;
 
     /**
+     * @deprecated Deprecated since TargetDevice is deprecated. Specify target device in InferenceEngine::Core directly.
      * @brief Sets a desirable device to perform all work on.
      * Some plug-ins might not support some target devices and may abort execution with an appropriate error message.
      * @param device Device to set as a target
      */
+    #ifndef _WIN32
+    INFERENCE_ENGINE_DEPRECATED
+    #endif
     virtual void setTargetDevice(TargetDevice device) noexcept = 0;
 
     /**
+     * @deprecated Deprecated since TargetDevice is deprecated
      * @brief Gets the target device.
      * If setTargetDevice() was not called before, returns eDefault
      * @return A TargetDevice instance
      */
+    #ifndef _WIN32
+    INFERENCE_ENGINE_DEPRECATED
+    #endif
     virtual TargetDevice getTargetDevice() const noexcept = 0;
 
     /**
-     * @deprecated use setBatchSize with ResponseDesc to get error message
+     * @deprecated Use ICNNNetwork::setBatchSize(size_t, ResponseDesc*)
      * @brief Changes the inference batch size
      */
-    virtual StatusCode setBatchSize(const size_t size) noexcept = 0;
+    INFERENCE_ENGINE_DEPRECATED
+    virtual StatusCode setBatchSize(const size_t size) noexcept {
+        ResponseDesc resp;
+        return setBatchSize(size, &resp);
+    }
 
     /**
      * @brief Changes the inference batch size.
-     * @note There are several limitations and it's not recommended to use it. Set batch to the input shape and call @reshape.
+     * @note There are several limitations and it's not recommended to use it. Set batch to the input shape and call ICNNNetwork::reshape.
      * @param size Size of batch to set
      * @return Status code of the operation
      * @note: Current implementation of the function sets batch size to the first dimension of all layers in the networks.

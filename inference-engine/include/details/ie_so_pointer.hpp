@@ -74,6 +74,7 @@ class SOCreatorTrait {};
 */
 template <class T, class Loader = SharedObjectLoader>
 class SOPointer {
+IE_SUPPRESS_DEPRECATED_START
     template <class U, class W> friend class SOPointer;
 public:
     /**
@@ -92,6 +93,18 @@ public:
     }
 
     /**
+    * @brief Constructs an object with existing reference
+    * @param _pointedObj_ Existing reference to wrap
+    */
+    explicit SOPointer(T * _pointedObj_)
+        : _so_loader()
+        , _pointedObj(_pointedObj_) {
+        if (_pointedObj == nullptr) {
+            THROW_IE_EXCEPTION << "Cannot create SOPointer<T, Loader> from nullptr";
+        }
+    }
+
+    /**
     * @brief The copy-like constructor, can create So Pointer that dereferenced into child type if T is derived of U
     * @param that copied SOPointer object
     */
@@ -99,6 +112,9 @@ public:
     SOPointer(const SOPointer<U, W> & that) :
         _so_loader(std::dynamic_pointer_cast<Loader>(that._so_loader)),
         _pointedObj(std::dynamic_pointer_cast<T>(that._pointedObj)) {
+        if (_pointedObj == nullptr) {
+            THROW_IE_EXCEPTION << "Cannot create object from SOPointer<U, W> reference";
+        }
     }
 
     /**
@@ -149,6 +165,7 @@ protected:
      * @brief Gets a smart pointer to the custom object
      */
     std::shared_ptr<T> _pointedObj;
+IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace details

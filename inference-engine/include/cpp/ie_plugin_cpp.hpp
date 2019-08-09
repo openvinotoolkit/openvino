@@ -51,11 +51,14 @@ public:
     }
 
     /**
-     * @brief Wraps original method
-     * IInferencePlugin::LoadNetwork
+     * @deprecated Use InferencePlugin::LoadNetwork(ICNNNetwork &, const std::map<std::string, std::string> &)
+     * @brief Wraps original method IInferencePlugin::LoadNetwork(ICNNNetwork &, ResponseDesc *)
      */
+    INFERENCE_ENGINE_DEPRECATED
     void LoadNetwork(ICNNNetwork &network) {
+        IE_SUPPRESS_DEPRECATED_START
         CALL_STATUS_FNC(LoadNetwork, network);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**
@@ -65,7 +68,7 @@ public:
     ExecutableNetwork LoadNetwork(ICNNNetwork &network, const std::map<std::string, std::string> &config) {
         IExecutableNetwork::Ptr ret;
         CALL_STATUS_FNC(LoadNetwork, ret, network, config);
-        return ExecutableNetwork(ret);
+        return ExecutableNetwork(ret, actual);
     }
 
     /**
@@ -76,25 +79,30 @@ public:
         IExecutableNetwork::Ptr ret;
         CALL_STATUS_FNC(LoadNetwork, ret, network, config);
         if (ret.get() == nullptr) THROW_IE_EXCEPTION << "Internal error: pointer to executable network is null";
-        return ExecutableNetwork(ret);
+        return ExecutableNetwork(ret, actual);
     }
 
     /**
-     * @deprecated Loads IExecutableNetwork to create IInferRequest.
-     * @brief Wraps original method
-     * IInferencePlugin::Infer(const BlobMap&, BlobMap&, ResponseDesc *resp)
+     * @deprecated Use IExecutableNetwork to create IInferRequest.
+     * @brief Wraps original method IInferencePlugin::Infer(const BlobMap&, BlobMap&, ResponseDesc *)
      */
+    INFERENCE_ENGINE_DEPRECATED
     void Infer(const BlobMap &input, BlobMap &result) {
+        IE_SUPPRESS_DEPRECATED_START
         CALL_STATUS_FNC(Infer, input, result);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**
-     * @brief Wraps original method
-     * IInferencePlugin::GetPerformanceCounts
+     * @deprecated Use IInferRequest to get performance counters
+     * @brief Wraps original method IInferencePlugin::GetPerformanceCounts
      */
+    INFERENCE_ENGINE_DEPRECATED
     std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const {
         std::map<std::string, InferenceEngineProfileInfo> perfMap;
+        IE_SUPPRESS_DEPRECATED_START
         CALL_STATUS_FNC(GetPerformanceCounts, perfMap);
+        IE_SUPPRESS_DEPRECATED_END
         return perfMap;
     }
 
@@ -118,25 +126,25 @@ public:
      * @brief Wraps original method
      * IInferencePlugin::ImportNetwork
     */
-    ExecutableNetwork  ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) {
+    ExecutableNetwork ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) {
         IExecutableNetwork::Ptr ret;
         CALL_STATUS_FNC(ImportNetwork, ret, modelFileName, config);
-        return ExecutableNetwork(ret);
+        return ExecutableNetwork(ret, actual);
     }
 
     /**
-     * @depricated Use the version with config parameter
+     * @deprecated Use InferencePlugin::QueryNetwork(const ICNNNetwork &, const std::map<std::string, std::string> &, QueryNetworkResult &) const
      * @brief Wraps original method
-     * IInferencePlugin::QueryNetwork
+     * IInferencePlugin::QueryNetwork(const ICNNNetwork&, QueryNetworkResult& ) const
      */
+    INFERENCE_ENGINE_DEPRECATED
     void QueryNetwork(const ICNNNetwork &network, QueryNetworkResult &res) const {
-        actual->QueryNetwork(network, res);
-        if (res.rc != OK) THROW_IE_EXCEPTION << res.resp.msg;
+        QueryNetwork(network, { }, res);
     }
 
     /**
      * @brief Wraps original method
-     * IInferencePlugin::QueryNetwork
+     * IInferencePlugin::QueryNetwork(const ICNNNetwork&, const std::map<std::string, std::string> &, QueryNetworkResult&) const
      */
     void QueryNetwork(const ICNNNetwork &network, const std::map<std::string, std::string> &config, QueryNetworkResult &res) const {
         actual->QueryNetwork(network, config, res);
@@ -144,6 +152,7 @@ public:
     }
 
     /**
+     * @brief Converts InferenceEngine to InferenceEnginePluginPtr pointer
      * @brief Returns wrapped object
      */
     operator InferenceEngine::InferenceEnginePluginPtr() {
@@ -151,11 +160,15 @@ public:
     }
 
     /**
-    * @return wrapped Hetero object if underlined object is HeteroPlugin instance, nullptr otherwise
-    */
+     * @deprecated Deprecated since HeteroPluginPtr is deprecated
+     * @brief Converts InferenceEngine to HeteroPluginPtr pointer
+     * @return wrapped Hetero object if underlined object is HeteroPlugin instance, nullptr otherwise
+     */
+    IE_SUPPRESS_DEPRECATED_START
     operator InferenceEngine::HeteroPluginPtr() {
         return actual;
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Shared pointer on InferencePlugin object

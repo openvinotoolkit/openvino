@@ -13,7 +13,8 @@
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 
-MKLDNNReorderNode::MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {
+MKLDNNReorderNode::MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
+        MKLDNNNode(layer, eng, socket) {
 }
 
 void MKLDNNReorderNode::getSupportedDescriptors() {
@@ -57,7 +58,7 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format::any);
     }
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder, MKLDNNMemory::Convert(config.outConfs[0].desc.getLayout()));
 }
 
 void MKLDNNReorderNode::createPrimitive() {
@@ -68,7 +69,7 @@ void MKLDNNReorderNode::createPrimitive() {
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
         THROW_IE_EXCEPTION << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor does not set.";
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 
     createReorderPrimitive(srcMemPtr->GetDescriptor(), srcMemPtr->GetPrimitive().get_data_handle(),
             dstMemPtr->GetDescriptor(), dstMemPtr->GetPrimitive().get_data_handle());
@@ -103,6 +104,11 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
     try {
         // No autoblocking. Reorder can be applied as is
         reorder::primitive_desc pd = reorder::primitive_desc(src_blocked->GetPrimitiveDescriptor(), dst_blocked->GetPrimitiveDescriptor(), attr);
+
+        const char *info;
+        mkldnn_primitive_desc_query(pd.get(), mkldnn::convert_to_c(impl_info_str), 0, &info);
+        supportedPrimitiveDescriptors[0].setImplementationType(parse_impl_name(std::string(info)));
+        supportedPrimitiveDescriptors[0].setOutputLayouts(static_cast<memory::format>(dstDesc.data.format));
 
         prim.reset(new mkldnn::reorder(pd, src_blocked->GetPrimitive(), dst_blocked->GetPrimitive()));
     } catch (...) {}

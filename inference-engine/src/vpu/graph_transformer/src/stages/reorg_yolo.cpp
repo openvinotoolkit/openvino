@@ -19,80 +19,53 @@ private:
         return std::make_shared<ReorgYoloStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
         if (step == ScalePropagationStep::Propagate) {
-            out[output] = inputScales.at(input);
+            _scaleInfo.setOutput(_outputEdges[0], inputScales[0]);
         } else {
             // ReorgYolo can only propagate scaling.
-
-            out[input] = 1.0f;
-            out[output] = 1.0f;
+            _scaleInfo.setInput(_inputEdges[0], 1.0f);
+            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
         }
-
-        return out;
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
 
-        auto inOrder = input->desc().dimsOrder();
-
-        DataMap<DimsOrder> out;
-
-        out[output] = inOrder;
-
-        return out;
+        _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
 
         auto inOrder = input->desc().dimsOrder();
-
-        DataMap<StridesRequirement> out;
 
         if (inOrder.dimInd(Dim::C) == 0) {
-            out[input] = StridesRequirement::compact();
-            out[output] = StridesRequirement::compact();
+            _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
+            _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
         }
-
-        return out;
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
-
-        return out;
+        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
 
     void finalCheckImpl() const override {

@@ -87,6 +87,18 @@ public:
         return _impl;
     }
 
+    StatusCode SetConfig(const std::map<std::string, Parameter> &config, ResponseDesc *resp) noexcept override {
+        TO_STATUS(_impl->SetConfig(config, resp));
+    }
+
+    StatusCode GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const noexcept override {
+        TO_STATUS(_impl->GetConfig(name, result, resp));
+    }
+
+    StatusCode GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const noexcept override {
+        TO_STATUS(_impl->GetMetric(name, result, resp));
+    }
+
 private:
     ~ExecutableNetworkBase() = default;
 };

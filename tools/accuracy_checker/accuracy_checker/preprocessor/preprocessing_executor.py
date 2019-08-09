@@ -38,6 +38,11 @@ class PreprocessingExecutor:
 
             self.processors.append(preprocessor)
 
+    def __call__(self, context, *args, **kwargs):
+        batch_data = context.data_batch
+        batch_annotation = context.annotation_batch
+        context.data_batch = self.process(batch_data, batch_annotation)
+
     def process(self, images, batch_annotation=None):
         for i, _ in enumerate(images):
             for processor in self.processors:

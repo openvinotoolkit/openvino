@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GCOMPUTATION_HPP
@@ -123,7 +123,7 @@ public:
      *
      * This may be useful since all temporary objects (cv::GMats) and
      * namespaces can be localized to scope of lambda, without
-     * contaminating the parent scope with probably unecessary objects
+     * contaminating the parent scope with probably unnecessary objects
      * and information.
      *
      * @param gen generator function which returns a cv::GComputation,

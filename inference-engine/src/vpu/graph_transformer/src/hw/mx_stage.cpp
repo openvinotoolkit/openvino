@@ -5,6 +5,7 @@
 #include <vpu/hw/mx_stage.hpp>
 
 #include <memory>
+#include <vector>
 
 #include <vpu/model/edges.hpp>
 #include <vpu/hw/utility.hpp>
@@ -15,7 +16,7 @@ StagePtr MyriadXHwStage::cloneImpl() const {
     return std::make_shared<MyriadXHwStage>(*this);
 }
 
-DataMap<float> MyriadXHwStage::propagateScaleFactorsImpl(const DataMap<float>&, ScalePropagationStep) {
+void MyriadXHwStage::propagateScaleFactorsImpl(const SmallVector<float>&, ScalePropagationStep) {
     VPU_THROW_EXCEPTION << "Must never be called";
 }
 
@@ -43,7 +44,7 @@ StridesRequirement getHwStridesRequirement(const Stage& stage, const DataDesc& d
 
 }  // namespace
 
-DataMap<DimsOrder> MyriadXHwStage::propagateDataOrderImpl() const {
+void MyriadXHwStage::propagateDataOrderImpl() const {
     IE_ASSERT(_inputEdges.size() >= 4);
     IE_ASSERT(_outputEdges.size() >= 1);
 
@@ -60,26 +61,22 @@ DataMap<DimsOrder> MyriadXHwStage::propagateDataOrderImpl() const {
     auto input = _inputEdges[0]->input();
     auto output = _outputEdges[0]->output();
 
-    DataMap<DimsOrder> out;
-
     // TODO: support HCW
 
     if (input->desc().numDims() >= 3) {
-        out[input] = input->desc().dimsOrder().createMovedDim(Dim::C, 2);
+        _orderInfo.setInput(_inputEdges[0], input->desc().dimsOrder().createMovedDim(Dim::C, 2));
     } else {
         IE_ASSERT(input->desc().dimsOrder() == DimsOrder::NC);
     }
 
     if (output->desc().numDims() >= 3) {
-        out[output] = output->desc().dimsOrder().createMovedDim(Dim::C, 2);
+        _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, 2));
     } else {
         IE_ASSERT(output->desc().dimsOrder() == DimsOrder::NC);
     }
-
-    return out;
 }
 
-DataMap<StridesRequirement> MyriadXHwStage::getDataStridesRequirementsImpl() const {
+void MyriadXHwStage::getDataStridesRequirementsImpl() const {
     IE_ASSERT(_inputEdges.size() >= 4);
     IE_ASSERT(_outputEdges.size() >= 1);
 
@@ -96,39 +93,21 @@ DataMap<StridesRequirement> MyriadXHwStage::getDataStridesRequirementsImpl() con
     auto input = _inputEdges[0]->input();
     auto output = _outputEdges[0]->output();
 
-    DataMap<StridesRequirement> out;
-
-    out[input] = getHwStridesRequirement(handle_from_this(), input->desc());
-    out[output] = getHwStridesRequirement(handle_from_this(), output->desc());
-
-    return out;
+    _stridesInfo.setInput(_inputEdges[0], getHwStridesRequirement(handle_from_this(), input->desc()));
+    _stridesInfo.setOutput(_outputEdges[0], getHwStridesRequirement(handle_from_this(), output->desc()));
 }
 
 void MyriadXHwStage::finalizeDataLayoutImpl() {
 }
 
-DataMap<BatchSupport> MyriadXHwStage::getBatchSupportInfoImpl() const {
-    DataMap<BatchSupport> out;
-
+void MyriadXHwStage::getBatchSupportInfoImpl() const {
     if (attrs().get<HwOpType>("hwOpType") != HwOpType::POOL) {
         IE_ASSERT(_inputEdges.size() >= 4);
         IE_ASSERT(_outputEdges.size() >= 1);
 
-        auto input = _inputEdges[0]->input();
-        auto weights = _inputEdges[1]->input();
-        auto biases = _inputEdges[2]->input();
-        auto scales = _inputEdges[3]->input();
-        auto output = _outputEdges[0]->output();
-
-        IE_ASSERT(weights->usage() == DataUsage::Const);
-        IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
-        IE_ASSERT(scales->usage() == DataUsage::Const || scales->usage() == DataUsage::Fake);
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
+        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
-
-    return out;
 }
 
 void MyriadXHwStage::finalCheckImpl() const {

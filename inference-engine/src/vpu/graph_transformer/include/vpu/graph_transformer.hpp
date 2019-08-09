@@ -88,14 +88,14 @@ struct CompilationConfig final {
 
     bool mergeHwPoolToConv = true;
 
-    int numberOfNodesInOneSubGraph = 1;
-
     //
     // Deprecated flags
     //
 
     float inputScale = 1.0f;
     float inputBias = 0.0f;
+
+    bool hwDilation = false;
 };
 
 
@@ -130,6 +130,9 @@ struct CompiledGraph final {
 
     int inputBufSize = 0;
     int outputBufSize = 0;
+
+    std::uint32_t numShaves = 0;
+    std::uint32_t numSlices = 0;
 };
 
 //
@@ -161,7 +164,7 @@ std::set<std::string> getSupportedLayers(
 //
 
 const uint32_t BLOB_MAGIC_NUMBER  = 9709;
-const uint32_t BLOB_VERSION_MAJOR = 4;
+const uint32_t BLOB_VERSION_MAJOR = 5;
 const uint32_t BLOB_VERSION_MINOR = 0;
 
 }  // namespace vpu

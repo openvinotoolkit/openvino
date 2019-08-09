@@ -43,6 +43,18 @@ class BaseDetectionMetricConfig(BaseMetricConfig):
     use_filtered_tp = BoolField(optional=True)
 
 
+class MAPConfigValidator(BaseDetectionMetricConfig):
+    integral = StringField(choices=[e.value for e in APIntegralType], optional=True)
+
+
+class MRConfigValidator(BaseDetectionMetricConfig):
+    fppi_level = NumberField(min_value=0, max_value=1)
+
+
+class DAConfigValidator(BaseDetectionMetricConfig):
+    use_normalization = BoolField(optional=True)
+
+
 class BaseDetectionMetricMixin:
     def configure(self):
         self.overlap_threshold = self.config.get('overlap_threshold', 0.5)
@@ -107,14 +119,7 @@ class DetectionMAP(BaseDetectionMetricMixin, FullDatasetEvaluationMetric):
     annotation_types = (DetectionAnnotation, )
     prediction_types = (DetectionPrediction, )
 
-    def validate_config(self):
-        class _MAPConfigValidator(BaseDetectionMetricConfig):
-            integral = StringField(choices=[e.value for e in APIntegralType], optional=True)
-
-        map_config_validator = _MAPConfigValidator(
-            self.__provider__, on_extra_argument=_MAPConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        map_config_validator.validate(self.config)
+    _config_validator_type = MAPConfigValidator
 
     def configure(self):
         super().configure()
@@ -152,14 +157,7 @@ class MissRate(BaseDetectionMetricMixin, FullDatasetEvaluationMetric):
     annotation_types = (DetectionAnnotation, )
     prediction_types = (DetectionPrediction, )
 
-    def validate_config(self):
-        class _MRConfigValidator(BaseDetectionMetricConfig):
-            fppi_level = NumberField(min_value=0, max_value=1)
-
-        nms_config_validator = _MRConfigValidator(
-            self.__provider__, on_extra_argument=_MRConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        nms_config_validator.validate(self.config)
+    _config_validator_type = MRConfigValidator
 
     def configure(self):
         super().configure()
@@ -192,11 +190,7 @@ class Recall(BaseDetectionMetricMixin, FullDatasetEvaluationMetric):
     annotation_types = (DetectionAnnotation, )
     prediction_types = (DetectionPrediction, )
 
-    def validate_config(self):
-        recall_config_validator = BaseDetectionMetricConfig(
-            self.__provider__, on_extra_argument=BaseDetectionMetricConfig.ERROR_ON_EXTRA_ARGUMENT
-        )
-        recall_config_validator.validate(self.config)
+    _config_validator_type = BaseDetectionMetricConfig
 
     def evaluate(self, annotations, predictions):
         valid_labels = get_valid_labels(self.labels, self.dataset.metadata.get('background_label'))
@@ -224,15 +218,7 @@ class DetectionAccuracyMetric(BaseDetectionMetricMixin, FullDatasetEvaluationMet
 
     annotation_types = (DetectionAnnotation, )
     prediction_types = (DetectionPrediction, )
-
-    def validate_config(self):
-        class _DAConfigValidator(BaseDetectionMetricConfig):
-            use_normalization = BoolField(optional=True)
-
-        da_config_validator = _DAConfigValidator(
-            self.__provider__, on_extra_argument=_DAConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        da_config_validator.validate(self.config)
+    _config_validator_type = DAConfigValidator
 
     def configure(self):
         super().configure()

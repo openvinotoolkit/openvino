@@ -24,7 +24,6 @@ import numpy as np
 from mo.front.extractor import add_attrs_props
 from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Node, Graph
-from mo.graph.port import Port
 from mo.utils import class_registration
 from mo.utils.error import Error
 
@@ -75,6 +74,8 @@ class Op(object):
         """
         backend_attrs_mapping = {
             None: self.backend_attrs,
+            10: self.backend_attrs,
+            6: self.backend_attrs,
             5: self.backend_attrs,
             4: self.backend_attrs,
             3: self.backend_attrs,
@@ -148,6 +149,8 @@ class Op(object):
                 else {'in': i, 'in_attrs': ['in', 'permutation']}
             if edge_attrs is not None:
                 edge_attr.update(edge_attrs)
+            new_node.add_input_port(i, skip_if_exist=True)
+            new_node.add_output_port(inp[1], skip_if_exist=True)
             self.graph.add_edge(inp[0].id, new_node.id, **edge_attr)
         return new_node
 
@@ -203,6 +206,9 @@ class Op(object):
                 log.debug('Start running infer function for individual op node with attributes: {}'
                           ''.format(str(new_op_node)))
             new_op_node.infer(new_op_node)
+            if new_op_node.has('nchw_layout'):
+                for out_node in new_op_node.out_nodes().values():
+                    out_node['nchw_layout'] = new_op_node.nchw_layout
             assert all(old_value is None for old_value in old_data_value) or all(
                 [np.array_equal(old_data_value[id], data_node.value) for id, data_node in enumerate(data_nodes)])
             assert all(old_shape is None for old_shape in old_data_shape) or all(
@@ -220,7 +226,8 @@ class Op(object):
     @staticmethod
     def create_data_node(graph: Graph, op_node: Node, attrs: dict = None, edge_attrs: dict = None, out_port=0):
         assert op_node is not None and op_node.kind == 'op'
-        assert len(op_node.out_nodes()) == 0
+        assert out_port not in op_node.out_nodes()
+
         if attrs is None:
             attrs = {}
 
@@ -273,6 +280,7 @@ class Op(object):
         defaul_attrs.update(attrs)
         graph.add_node(data_node, **add_attrs_props(defaul_attrs))
         data_node = Node(graph, data_node)
+        op_node.add_input_port(edge_attrs['in'], skip_if_exist=True)
         graph.add_edges_from([(data_node.id, op_node.id, edge_attrs)])
         return data_node
 
@@ -289,6 +297,7 @@ class Op(object):
         self.substitute_ie_attrs(new_attrs)
         for k, v in new_attrs.items():
             node[k] = v
+        node.update_node()
 
     @classmethod
     def update_node_stat(cls, node: Node, attrs: dict = None):
@@ -351,7 +360,7 @@ class PermuteAttrs:
             'slices': common_permutation,
             'shrink_axis_mask': common_permutation,
             'new_axis_mask': common_permutation,
-
+            'axes': common_permutation_inv,
             'axis': common_permutation_inv,
             'batch_dims': common_permutation_inv,
             'channel_dims': common_permutation_inv,
@@ -411,10 +420,10 @@ class PermuteAttrs:
         node['permute_attrs'].update_attrs(attrs)
 
     @staticmethod
-    def set_permutation(node1, node2, permutation):
+    def set_permutation(node1, node2, permutation, override=False):
         # This function creates permutation on edge between node1->node2
         edge_attrs = node1.graph.get_edge_data(node1.id, node2.id)[0]
-        if 'permutation' not in edge_attrs:
+        if 'permutation' not in edge_attrs or override:
             nx.set_edge_attributes(G=node1.graph,
                                    values={(node1.id, node2.id, 0): permutation},
                                    name='permutation')
@@ -422,7 +431,7 @@ class PermuteAttrs:
             # If permutation exists we check that given and already set permutations are equal
             if (edge_attrs['permutation'] is None and permutation is not None) or \
                 not np.array_equal(edge_attrs['permutation'], permutation):
-                raise Error('Permutation already exists in edge between {} and {}'.format(node1.name, node2.name))
+                raise Error('Permutation already exists in edge between {} and {}'.format(node1.id, node2.id))
 
     @staticmethod
     def get_inverse_permutation(perm):

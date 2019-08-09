@@ -24,9 +24,9 @@ from mo.middle.passes.fusing.decomposition import convert_scale_shift_to_mul_add
 from mo.utils.unittest.graph import build_graph, compare_graphs
 
 nodes_attributes = {
-    'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'placeholder_2': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # ScaleShift layer
     'scaleshift_1': {'type': 'ScaleShift', 'kind': 'op', 'op': 'ScaleShift', 'axis': 0},
@@ -56,17 +56,23 @@ nodes_attributes = {
     # Reshape
     'placeholder_2/Reshape_': {'type': 'Reshape', 'kind': 'op', 'op': 'Reshape'},
     'placeholder_2/Reshape_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'placeholder_2/Reshape_const': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': None},
+    'placeholder_2/Reshape_const_data': {'kind': 'data', 'value': None, 'shape': None},
     # BatchNorm operation
     'bn_op': {'type': None, 'kind': 'op', 'op': 'BatchNorm', 'can_be_fused': True},
+    'const_bn_const': {'value': None, 'shape': None, 'kind': 'op'},
     'bn_const': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_bn_beta': {'value': None, 'shape': None, 'kind': 'op'},
     'bn_beta': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_bn_mean': {'value': None, 'shape': None, 'kind': 'op'},
     'bn_mean': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_bn_var': {'value': None, 'shape': None, 'kind': 'op'},
     'bn_var': {'value': None, 'shape': None, 'kind': 'data'},
     'bn_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Concat1 operation
     'concat': {'type': 'Concat', 'kind': 'op', 'op': 'Concat'},
     'concat_data': {'value': None, 'shape': None, 'kind': 'data'},
-    'op_output': {'kind': 'op', 'op': 'OpOutput'}
+    'op_output': {'kind': 'op', 'op': 'Result'}
 }
 
 
@@ -126,6 +132,8 @@ class ScaleShiftToMulAdd(unittest.TestCase):
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_2', 'placeholder_2_data'),
                                  ('placeholder_2_data', 'placeholder_2/Reshape_'),
+                                 ('placeholder_2/Reshape_const', 'placeholder_2/Reshape_const_data'),
+                                 ('placeholder_2/Reshape_const_data', 'placeholder_2/Reshape_'),
                                  ('placeholder_2/Reshape_', 'placeholder_2/Reshape_data'),
                                  ('placeholder_1_data', 'mul_1'),
                                  ('placeholder_2/Reshape_data', 'mul_1'),
@@ -134,7 +142,8 @@ class ScaleShiftToMulAdd(unittest.TestCase):
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([1, 227])},
-                                 'placeholder_2/Reshape_': {'dim': np.array([1, 227, 1, 1])},
+                                 'placeholder_2/Reshape_const': {'value': np.array([1, 227, 1, 1]), 'shape': [4]},
+                                 'placeholder_2/Reshape_const_data': {'value': np.array([1, 227, 1, 1]), 'shape': [4]},
                                  'placeholder_2/Reshape_data': {'shape': np.array([1, 227, 1, 1])},
                                  'mul_1': {'can_be_fused': True},
                                  'scaleshift_1_data': {}
@@ -166,6 +175,8 @@ class ScaleShiftToMulAdd(unittest.TestCase):
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_2', 'placeholder_2_data'),
                                  ('placeholder_2_data', 'placeholder_2/Reshape_'),
+                                 ('placeholder_2/Reshape_const', 'placeholder_2/Reshape_const_data'),
+                                 ('placeholder_2/Reshape_const_data', 'placeholder_2/Reshape_'),
                                  ('placeholder_2/Reshape_', 'placeholder_2/Reshape_data'),
                                  ('placeholder_1_data', 'mul_1'),
                                  ('placeholder_2/Reshape_data', 'mul_1'),
@@ -174,7 +185,8 @@ class ScaleShiftToMulAdd(unittest.TestCase):
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2_data': {'shape': np.array([227])},
-                                 'placeholder_2/Reshape_': {'dim': np.array([1, 227, 1, 1])},
+                                 'placeholder_2/Reshape_const': {'value': np.array([1, 227, 1, 1]), 'shape': [4]},
+                                 'placeholder_2/Reshape_const_data': {'value': np.array([1, 227, 1, 1]), 'shape': [4]},
                                  'placeholder_2/Reshape_data': {'shape': np.array([1, 227, 1, 1])},
                                  'mul_1': {'can_be_fused': True},
                                  'scaleshift_1_data': {}
@@ -353,6 +365,10 @@ class BatchNormDecomposition(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'bn_op'),
+                             ('const_bn_const', 'bn_const'),
+                             ('const_bn_beta', 'bn_beta'),
+                             ('const_bn_mean', 'bn_mean'),
+                             ('const_bn_var', 'bn_var'),
                              ('bn_const', 'bn_op'),
                              ('bn_beta', 'bn_op'),
                              ('bn_mean', 'bn_op'),
@@ -370,7 +386,7 @@ class BatchNormDecomposition(unittest.TestCase):
                              'bn_var': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                              'bn_data': {'shape': np.array([1, 227, 227, 3])},
                              'concat_data': {}
-                             })
+                             }, nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
@@ -413,7 +429,7 @@ class BatchNormDecomposition(unittest.TestCase):
                                  'add_1': {'can_be_fused': True},
                                  'add_2': {'can_be_fused': True},
                                  'concat_data': {}
-                                 })
+                                 }, nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
         convert_batch_norm(graph)
@@ -427,6 +443,10 @@ class BatchNormDecomposition(unittest.TestCase):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
                              ('placeholder_1_data', 'bn_op'),
+                             ('const_bn_const', 'bn_const'),
+                             ('const_bn_beta', 'bn_beta'),
+                             ('const_bn_mean', 'bn_mean'),
+                             ('const_bn_var', 'bn_var'),
                              ('bn_const', 'bn_op'),
                              ('bn_beta', 'bn_op'),
                              ('bn_mean', 'bn_op'),

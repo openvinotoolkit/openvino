@@ -84,7 +84,7 @@ void printTo(DotLabel& lbl, const ie::Blob::Ptr& ieBlob) {
         auto contentPtr = ieBlob->cbuffer().as<const uint8_t*>();
         auto count = ieBlob->size();
 
-        std::vector<uint8_t> temp(
+        SmallVector<uint8_t, 8> temp(
             contentPtr,
             contentPtr + std::min<int>(count, 8));
 
@@ -93,7 +93,7 @@ void printTo(DotLabel& lbl, const ie::Blob::Ptr& ieBlob) {
         auto contentPtr = ieBlob->cbuffer().as<const fp16_t*>();
         auto count = ieBlob->size();
 
-        std::vector<float> temp(std::min<int>(count, 8));
+        SmallVector<float, 8> temp(std::min<int>(count, 8));
         ie::PrecisionUtils::f16tof32Arrays(temp.data(), contentPtr, temp.size());
 
         lbl.appendPair("content", temp);

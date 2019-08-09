@@ -554,24 +554,20 @@ void jit_avx512_core_x8s8s32x_1x1_conv_kernel::generate()
 
 bool jit_avx512_core_x8s8s32x_1x1_conv_kernel::post_ops_ok(
         jit_1x1_conv_conf_t &jcp, const primitive_attr_t &attr) {
-    using namespace primitive_kind;
     const auto &p = attr.post_ops_;
 
-    auto is_eltwise = [&](int idx) { return p.entry_[idx].is_eltwise(); };
-    auto is_depthwise = [&](int idx) { return p.entry_[idx].is_depthwise(); };
-    auto is_sum = [&](int idx) { return p.entry_[idx].is_sum(false); };
-    auto is_simple = [&](int idx) { return is_eltwise(idx) || is_depthwise(idx); };
+    auto all_post_ops_supported = [&]() {
+        bool ok = true;
 
-    switch (p.len_) {
-        case 0: return true;
-        case 1: return is_simple(0) || is_sum(0);
-        case 2: return (is_sum(0) && is_simple(1)) || (is_simple(0) && is_sum(1)) ||
-                       (is_simple(0) && is_simple(1));
-        case 3: return (is_simple(0) && is_sum(1) && is_simple(2));
-        default: return false;
-    }
+        for (int i = 0; i < p.len_; i++) {
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise);
+        }
+        return ok;
+    };
+    auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind); };
 
-    return false;
+    return all_post_ops_supported() &&
+           count(primitive_kind::sum) <= 1;
 }
 
 status_t jit_avx512_core_x8s8s32x_1x1_conv_kernel::init_conf(
@@ -680,6 +676,8 @@ status_t jit_avx512_core_x8s8s32x_1x1_conv_kernel::init_conf(
 
     if (jcp.mb == 1 && jcp.ic > 128
         && (jcp.oh <= size_treshold && jcp.ow <= size_treshold)) {
+        if (jcp.os <= SMALL_SPATIAL && jcp.oc * jcp.ic < L2_size)
+            max_regs = min_regs; // mobilenet_v2 performance improvement
         jcp.ur = nstl::min(max_regs, jcp.os);
     } else {
         const int spatial = jcp.oh;
@@ -813,6 +811,16 @@ status_t jit_avx512_core_x8s8s32x_1x1_conv_kernel::init_conf(
     jcp.nb_bcast = div_up(jcp.bcast_dim, jcp.bcast_block);
     jcp.nb_load = div_up(jcp.load_dim, jcp.load_block);
     jcp.nb_reduce = div_up(jcp.reduce_dim, jcp.reduce_block);
+
+    // miniumum size of load dim chunk for work distribution within threads
+    jcp.nb_load_chunk = 1;
+    // peformance improvements for googlenet_v3, mb=1;
+    // TODO: generalize this condition and rewrite it in appropriate manner
+    if (jcp.mb == 1 && jcp.nb_load % 4 == 0 && jcp.ic / jcp.oc >= 4
+            && jcp.ic * jcp.oc <= L2_size) {
+        jcp.nb_load_chunk = 4;
+        jcp.load_grp_count = nstl::max(jcp.nb_load / 4, jcp.load_grp_count);
+    }
 
     const auto &oscales = attr.output_scales_;
     jcp.is_oc_scale = oscales.mask_ == 1 << 1;

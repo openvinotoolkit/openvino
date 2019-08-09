@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_CORE_TESTS_HPP
@@ -148,6 +148,7 @@ struct LUTTest           : public TestParams<std::tuple<int, int, cv::Size,bool,
 struct ConvertToTest     : public TestParams<std::tuple<int, int, cv::Size, cv::GCompileArgs>> {};
 struct PhaseTest         : public TestParams<std::tuple<int, cv::Size, bool, cv::GCompileArgs>> {};
 struct SqrtTest          : public TestParams<std::tuple<int, cv::Size, cv::GCompileArgs>> {};
+struct NormalizeTest : public TestParams<std::tuple<compare_f,MatType,cv::Size,double,double,int,MatType,bool,cv::GCompileArgs>> {};
 } // opencv_test
 
 #endif //OPENCV_GAPI_CORE_TESTS_HPP

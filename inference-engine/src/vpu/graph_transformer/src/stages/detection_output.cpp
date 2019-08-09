@@ -95,65 +95,25 @@ private:
         return std::make_shared<DetectionOutputStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
+    void propagateDataOrderImpl() const override {
+    }
+
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 3 || _inputEdges.size() == 5);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto loc = _inputEdges[0]->input();
-        auto conf = _inputEdges[1]->input();
-        auto priors = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
-        out[loc] = 1.0f;
-        out[conf] = 1.0f;
-        out[priors] = 1.0f;
-        out[output] = 1.0f;
-
-        if (_inputEdges.size() == 5) {
-            out[_inputEdges[3]->input()] = 1.0f;
-            out[_inputEdges[4]->input()] = 1.0f;
+        for (const auto& inEdge : _inputEdges) {
+            _stridesInfo.setInput(inEdge, StridesRequirement::compact());
         }
-
-        return out;
-    }
-
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
-        return DataMap<DimsOrder>();
-    }
-
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 3 || _inputEdges.size() == 5);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto loc = _inputEdges[0]->input();
-        auto conf = _inputEdges[1]->input();
-        auto priors = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<StridesRequirement> out;
-
-        out[loc] = StridesRequirement::compact();
-        out[conf] = StridesRequirement::compact();
-        out[priors] = StridesRequirement::compact();
-        out[output] = StridesRequirement::compact();
-
-        if (_inputEdges.size() == 5) {
-            out[_inputEdges[3]->input()] = StridesRequirement::compact();
-            out[_inputEdges[4]->input()] = StridesRequirement::compact();
+        for (const auto& outEdge : _outputEdges) {
+            _stridesInfo.setOutput(outEdge, StridesRequirement::compact());
         }
-
-        return out;
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     void finalCheckImpl() const override {

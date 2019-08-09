@@ -19,31 +19,24 @@ private:
         return std::make_shared<NoneStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>&,
             ScalePropagationStep) override {
-        DataMap<float> out;
-
         for (const auto& outEdge : _outputEdges) {
-            out[outEdge->output()] = 1.0f;
+            _scaleInfo.setOutput(outEdge, 1.0f);
         }
-
-        return out;
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
-        return DataMap<DimsOrder>();
+    void propagateDataOrderImpl() const override {
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+    void getDataStridesRequirementsImpl() const override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {

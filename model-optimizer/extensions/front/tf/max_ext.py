@@ -13,9 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.ops.ReduceOps import ReduceMax
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.reduce import Reduce
+from mo.graph.graph import Node
 
 
 class MaxFrontExtractor(FrontExtractorOp):
@@ -23,10 +23,6 @@ class MaxFrontExtractor(FrontExtractorOp):
     enabled = True
 
     @staticmethod
-    def extract(node):
-        data = {
-            'reduce_type': 'max',
-            'keep_dims': node.pb.attr['keep_dims'].b
-        }
-        Reduce.update_node_stat(node, data)
+    def extract(node: Node):
+        ReduceMax.update_node_stat(node, {'keep_dims': node.pb.attr['keep_dims'].b})
         return __class__.enabled

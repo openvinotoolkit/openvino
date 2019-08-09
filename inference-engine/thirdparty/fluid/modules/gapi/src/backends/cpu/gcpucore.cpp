@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -525,6 +525,15 @@ GAPI_OCV_KERNEL(GCPUSqrt, cv::gapi::core::GSqrt)
     }
 };
 
+GAPI_OCV_KERNEL(GCPUNormalize, cv::gapi::core::GNormalize)
+{
+    static void run(const cv::Mat& src, double a, double b,
+                    int norm_type, int ddepth, cv::Mat& out)
+    {
+        cv::normalize(src, out, a, b, norm_type, ddepth);
+    }
+};
+
 cv::gapi::GKernelPackage cv::gapi::core::cpu::kernels()
 {
     static auto pkg = cv::gapi::kernels
@@ -590,6 +599,7 @@ cv::gapi::GKernelPackage cv::gapi::core::cpu::kernels()
          , GCPULUT
          , GCPUConvertTo
          , GCPUSqrt
+         , GCPUNormalize
          >();
     return pkg;
 }

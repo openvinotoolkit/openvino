@@ -28,7 +28,7 @@ nodes_attributes = {'conv_input': {'value': None, 'kind': 'data'},
                     'conv_node': {'type': 'Convolution', 'kind': 'op'},
                     'conv_weights': {'value': FakeValue(None), 'kind': 'data'},
                     'conv_output': {'value': None, 'kind': 'data'},
-                    'output_op': { 'kind': 'op', 'op': 'OpOutput'}
+                    'op_output': {'kind': 'op', 'op': 'Result'}
                     }
 
 

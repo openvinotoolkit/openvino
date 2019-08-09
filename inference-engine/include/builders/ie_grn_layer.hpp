@@ -12,7 +12,7 @@ namespace InferenceEngine {
 namespace Builder {
 
 /**
- * @brief The class represents a builder for ArgMax layer
+ * @brief The class represents a builder for GRN layer
  */
 class INFERENCE_ENGINE_API_CLASS(GRNLayer): public LayerDecorator {
 public:

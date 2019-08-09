@@ -26,17 +26,17 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'concat': {'type': 'Concat', 'value': None, 'kind': 'op'},
                     'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     # Placeholders
-                    'placeholder_1': {'value': None, 'shape': None, 'type': 'Input', 'kind': 'op', 'op': 'Placeholder'},
+                    'placeholder_1': {'value': None, 'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-                    'placeholder_2': {'value': None, 'shape': None, 'type': 'Input', 'kind': 'op', 'op': 'Placeholder'},
+                    'placeholder_2': {'value': None, 'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
                     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
                     # ScaleShift layer
                     'scaleshift_1': {'type': 'ScaleShift', 'value': None, 'kind': 'op', 'op': 'ScaleShift'},
                     'scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'data'},
                     'scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'data'},
                     'scaleshift_1_data': {'value': None, 'shape': None, 'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
-                    'op_output_1': { 'kind': 'op', 'op': 'OpOutput'}
+                    'op_output': { 'kind': 'op', 'op': 'Result'},
+                    'op_output_1': { 'kind': 'op', 'op': 'Result'}
 
                     }
 

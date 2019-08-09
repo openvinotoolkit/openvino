@@ -65,7 +65,7 @@ TEST(gemm_gpu, basic_bfyx_t1) {
         input_layout("input2", input2.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2",true,false)
+        gemm("output", { "input", "input2" }, true, false)
     );
 
     network network(engine, topology);
@@ -112,7 +112,7 @@ TEST(gemm_gpu, basic_bfyx_t2) {
         input_layout("input2", input2.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2", false, true)
+        gemm("output", { "input", "input2" }, false, true)
     );
 
     network network(engine, topology);
@@ -169,7 +169,7 @@ TEST(gemm_gpu, basic_bfyx_t1t2) {
         input_layout("input2", input2.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2", true, true)
+        gemm("output", { "input", "input2" }, true, true)
     );
 
     network network(engine, topology);
@@ -232,7 +232,7 @@ TEST(gemm_gpu, basic_input3) {
         input_layout("input3", input3.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2", "input3",  false, false, alpha, beta)
+        gemm("output", { "input", "input2", "input3" },  false, false, alpha, beta)
     );
 
     network network(engine, topology);
@@ -300,7 +300,7 @@ TEST(gemm_gpu, basic_input3_t1t2) {
         input_layout("input3", input3.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2", "input3", true, true, alpha, beta)
+        gemm("output", { "input", "input2", "input3" }, true, true, alpha, beta)
     );
 
     network network(engine, topology);
@@ -368,7 +368,7 @@ TEST(gemm_gpu, basic_input3_1) {
         input_layout("input3", input3.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2", "input3", false, false, alpha, beta)
+        gemm("output", { "input", "input2", "input3" }, false, false, alpha, beta)
 
     );
 
@@ -439,7 +439,7 @@ TEST(gemm_gpu, basic_input3_t2) {
         input_layout("input3", input3.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2", "input3", false, true, alpha, beta)
+        gemm("output", { "input", "input2", "input3" }, false, true, alpha, beta)
     );
 
     network network(engine, topology);
@@ -508,7 +508,7 @@ TEST(gemm_gpu, basic_input3_t1) {
         input_layout("input3", input3.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2", "input3", true, false, alpha, beta)
+        gemm("output", { "input", "input2", "input3" }, true, false, alpha, beta)
     );
 
     network network(engine, topology);
@@ -567,7 +567,7 @@ TEST(gemm_gpu, basic_bfyx) {
         input_layout("input2", input2.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2")
+        gemm("output", { "input", "input2" })
     );
 
     network network(engine, topology);
@@ -3170,7 +3170,7 @@ TEST(gemm_gpu, basic3_bfyx) {
         input_layout("input2", input2.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2")
+        gemm("output", { "input", "input2" })
     );
 
     network network(engine, topology);
@@ -3232,7 +3232,7 @@ TEST(gemm_gpu, basic_smarcink2) {
         input_layout("input2", input2.get_layout())
     );
     topology.add(
-        gemm("output", "input", "input2")
+        gemm("output", { "input", "input2" })
     );
 
     network network(engine, topology);

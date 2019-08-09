@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef MUTABLE_DATA_H
-#define MUTABLE_DATA_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -31,8 +29,7 @@ extern "C" {
 #endif
 
 /// @brief Enum type to specify function for weights filling.
-typedef enum
-{
+typedef enum {
     zero,
     one,
     xavier
@@ -60,5 +57,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(mutable_data);
 /// @}
 /// @}
 /// @}
-#endif /* MUTABLE_DATA_H */
 

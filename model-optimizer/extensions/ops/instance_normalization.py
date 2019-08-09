@@ -25,7 +25,7 @@ class InstanceNormalization(Op):
 
         y = scale * (x - mean) / sqrt(variance + epsilon) + B
 
-        where x is input(0), scale is input(1) and B is input(3)
+        where x is input(0), scale is input(1) and B is input(2)
     '''
     op = 'InstanceNormalization'
     enabled = True

@@ -16,10 +16,12 @@
 
 import numpy as np
 
+from extensions.ops.transpose import Transpose
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.op import Op
-from mo.ops.permute import Permute
 from mo.ops.reshape import Reshape
 
 
@@ -129,6 +131,9 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         R = np.take(R, gate_reorder, axis=2)
         B = np.take(B, gate_reorder, axis=3)
 
+        # Add ports to rnn_layer
+        rnn_layer.add_sequence_of_ports(type='in', rng=range(7))
+
         for blob, port in [(W, 1), (R, 2), (B, 3)]:
             Op.create_and_connect_input_data_node(
                 graph,
@@ -205,15 +210,17 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         graph.remove_edge(lstm.id, old_data_node.id)
         graph.add_edge(lstm.id, new_data.id, key=0, out=0)
 
-        # Add Permute
-        permute_order = np.array([0, 2, 1, 3], dtype=np.int64)
-        permute = Permute(graph, dict(order=permute_order))
-        permute_data = permute.create_node_with_data([new_data], dict(name=lstm.name + '/Permute_mxnet/'))
+        # Add Transpose
+        permute_order = Const(graph, dict(value=int64_array([0, 2, 1, 3]))).create_node_with_data()
+        permute_data = Transpose(graph, dict(name=lstm.name + '/Transpose_mxnet/')
+                                 ).create_node_with_data([new_data, permute_order])
 
         # Add Reshape
-        reshape = Reshape(graph, dict(dim=mxnet_shape))
-        reshape.create_node_with_data([permute_data], dict(name=lstm.name + '/Reshape_mxnet/'),
-                                      data_nodes=[old_data_node])
+        reshape = Reshape(graph, dict(name=lstm.name + '/Reshape_mxnet/'))
+        reshape_dim_data = Const(graph, {'name': lstm.name + '/Reshape_mxnet_dim',
+                                         'value': mxnet_shape}).create_node_with_data()
+
+        reshape.create_node_with_data([permute_data, reshape_dim_data], dict(), data_nodes=[old_data_node])
 
     @staticmethod
     def check_input_ports(graph: Graph, match: dict):

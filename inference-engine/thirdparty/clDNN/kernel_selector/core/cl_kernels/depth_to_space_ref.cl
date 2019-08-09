@@ -32,5 +32,5 @@ KERNEL(depth_to_space_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* 
     const uint output_index = OUTPUT_OFFSET + (batch * OUTPUT_BATCH_PITCH) + (feature * OUTPUT_FEATURE_PITCH) + (y * OUTPUT_Y_PITCH) + x;
     const uint input_feature = feature + offset_feature;
     const uint input_index = INPUT0_OFFSET + (batch * INPUT0_BATCH_PITCH) + (input_feature * INPUT0_FEATURE_PITCH) + (input_y * INPUT0_Y_PITCH) + input_x;
-    output[output_index] = input[input_index];
+    output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
 }

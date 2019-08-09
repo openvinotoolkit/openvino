@@ -43,7 +43,7 @@ namespace instrumentation {
 
     struct logger
     {
-        static void log_memory_to_file(const cldnn::memory&, std::string prefix = "", bool single_batch = false, cldnn::tensor::value_type batch_id = 0, bool single_feature = false, cldnn::tensor::value_type feature_id = 0);
+        static void log_memory_to_file(const cldnn::memory&, std::string prefix = "", bool single_batch = false, cldnn::tensor::value_type batch_id = 0, cldnn::tensor::value_type feature_id = 0);
         static void log_weights_to_file(const cldnn::memory&, std::string prefix = "");
     private:
         static const std::string dump_dir;

@@ -48,7 +48,6 @@ class TensorArrayScatter(Op):
 
         # Assign element_shape anyway, because the original element_shape can contain -1
         ta_node['element_shape'] = value.shape[1:]
-        #TODO: add smart check that indices and value.shape[0] is compatible
 
         output_shape = flow_in.shape
         output_value = flow_in.value

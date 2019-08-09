@@ -5,7 +5,6 @@
 #pragma once
 
 #include <details/ie_exception.hpp>
-#include <ie_profiling.hpp>
 
 namespace vpu {
 
@@ -38,11 +37,5 @@ namespace vpu {
 #elif defined(__GNUC__)
 #   define VPU_PACKED(body) struct __attribute__((packed)) body
 #endif
-
-//
-// Profiling
-//
-
-#define VPU_PROFILE(NAME) IE_PROFILING_AUTO_SCOPE(VPU_ ## NAME)
 
 }  // namespace vpu

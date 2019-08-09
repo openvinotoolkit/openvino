@@ -96,9 +96,6 @@ public:
 
     StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
 
-    // deprecated, as there is no ResponseDesc to put error message
-    StatusCode setBatchSize(const size_t size) noexcept override;
-
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
 
@@ -107,6 +104,7 @@ public:
 
     size_t getBatchSize() const noexcept override;
 
+    IE_SUPPRESS_DEPRECATED_START
     void setTargetDevice(TargetDevice device) noexcept override {
         _targetDevice = device;
     }
@@ -114,6 +112,7 @@ public:
     TargetDevice getTargetDevice() const noexcept override {
         return _targetDevice;
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 

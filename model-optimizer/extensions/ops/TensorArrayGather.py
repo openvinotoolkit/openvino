@@ -53,6 +53,8 @@ class TensorArrayGather(Op):
         assert ta_node.has_valid('size')
         size = ta_node['size']
 
+        assert size > 0
+
         output_shape = [size] + [data_shape[i] for i in range(len(data_shape))]
         output_value = None
 

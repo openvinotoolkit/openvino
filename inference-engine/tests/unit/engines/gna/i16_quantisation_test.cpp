@@ -58,9 +58,9 @@ TEST_F(I16QuantisationTest, canQuantizeFCLayer){
 
     auto fc = std::make_shared<FullyConnectedLayer>(LayerParams{"name", "type", Precision::FP32});
     fc->_out_num = 9;
-    fc->_weights = setWeights(make_shared_blob<float>(Precision::FP32, {1, 1}));
+    fc->_weights = setWeights(make_shared_blob<float>({ Precision::FP32, {1, 1}, Layout::NC }));
     fillWeights(fc->_weights);
-    fc->_biases  = make_shared_blob<float>(Precision::FP32, Layout::NC, {1, 1});
+    fc->_biases  = make_shared_blob<float>({ Precision::FP32, {1, 1}, Layout::NC });
     fc->_biases->allocate();
     fillWeights(fc->_biases);
 
@@ -88,7 +88,7 @@ TEST_F(I16QuantisationTest, outputAffinePrecisionIs32Bits){
     CNNNetReader net_reader;
     ASSERT_NO_THROW(net_reader.ReadNetwork(Fc2DOutputModel().data(), Fc2DOutputModel().length()));
 
-    auto weights = make_shared_blob<uint8_t>(Precision::U8, C, {440});
+    auto weights = make_shared_blob<uint8_t>({ Precision::U8, {440}, C });
     weights->allocate();
     fillWeights(weights);
     net_reader.SetWeights(weights);
@@ -96,9 +96,9 @@ TEST_F(I16QuantisationTest, outputAffinePrecisionIs32Bits){
     auto newNet = q.quantize(net_reader.getNetwork(), 1000);
     InputsDataMap inputs;
     newNet->getInputsInfo(inputs);
-    auto affineDataPtr = inputs.begin()->second->getInputData()->inputTo.begin()->second->outData.front();
+    auto affineDataPtr = inputs.begin()->second->getInputData()->getInputTo().begin()->second->outData.front();
 
-    ASSERT_EQ(affineDataPtr->precision, Precision::I32);
+    ASSERT_EQ(affineDataPtr->getTensorDesc().getPrecision(), Precision::I32);
 }
 
 
@@ -108,7 +108,7 @@ TEST_F(I16QuantisationTest, canQuantizeLstmLikeTopology) {
     CNNNetReader net_reader;
     ASSERT_NO_THROW(net_reader.ReadNetwork(affineToMemoryModel().data(), affineToMemoryModel().length()));
 
-    auto weights = setWeights(make_shared_blob<uint8_t >(Precision::U8, C, {440}));
+    auto weights = setWeights(make_shared_blob<uint8_t >({ Precision::U8, {440}, C }));
     //std::fill_n(weights->buffer().as<float*>(), weights->byteSize()/sizeof(float), 0);
     net_reader.SetWeights(weights);
 
@@ -122,7 +122,7 @@ TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
     CNNNetReader net_reader;
     ASSERT_NO_THROW(net_reader.ReadNetwork(Fc2DOutputModel().data(), Fc2DOutputModel().length()));
 
-    auto weights = make_shared_blob<uint8_t >(Precision::U8, C, {440});
+    auto weights = make_shared_blob<uint8_t >({ Precision::U8, {440}, C });
     weights->allocate();
     fillWeights(weights, {100});
     net_reader.SetWeights(weights);
@@ -130,7 +130,7 @@ TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
     auto newNet = q.quantize(net_reader.getNetwork(), 1000);
     InputsDataMap inputs;
     newNet->getInputsInfo(inputs);
-    auto affineLayerPtr = inputs.begin()->second->getInputData()->inputTo.begin()->second;
+    auto affineLayerPtr = inputs.begin()->second->getInputData()->getInputTo().begin()->second;
 
     auto quantParams = getInjectedData<QuantizedLayerParams>(affineLayerPtr);
 
@@ -142,14 +142,14 @@ TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
 TEST_F(I16QuantisationTest, OnlyAffine_NoActivationInsertion) {
     assert_that()
         .onInferModel(Fc2DOutputModel())
-        .inNotCompactMode()
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_without().pwl_inserted_into_nnet();
 }
 
 TEST_F(I16QuantisationTest, OnlyAffine_NoActivationInsertion_ProfilingEnabled) {
     assert_that()
         .onInferModel(Fc2DOutputModel())
-        .inNotCompactMode()
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_without().pwl_inserted_into_nnet().profiling_counters();
 }
 
@@ -170,53 +170,58 @@ TEST_F(I16QuantisationTest, OnlyAffineWithInfScaleFactorFails) {
 TEST_F(I16QuantisationTest, AffineToMemoryWillResultInActivationInsertion) {
     assert_that()
         .onInferModel(affineToMemoryModel())
-        .inNotCompactMode()
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().pwl_inserted_into_nnet();
 }
 
 TEST_F(I16QuantisationTest, EltwiseToMemoryWithNoOutputActivationInsertion) {
-    assert_that().onInferModel(eltwiseToMemoryModelNoOutput(), [](CNNNetwork & net){
+    assert_that().inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+    .onInferModel(eltwiseToMemoryModelNoOutput(), [](CNNNetwork & net){
             net.addOutput("Eltwise_8");
-        }).inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet();
+        }).gna().propagate_forward().called_with().pwl_inserted_into_nnet();
 }
 
 TEST_F(I16QuantisationTest, EltwiseToMemory_ActivationInsertion) {
-    assert_that().onInferModel(eltwiseToMemoryModel())
+    assert_that().onInferModel(eltwiseToMemoryModel()).withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet();
 }
 
 
 TEST_F(I16QuantisationTest, SplitFollowedByActivation_DummyDiagonalAffineInsertion) {
     assert_that().onInferModel(activationAfterSplitModel())
-        .inNotCompactMode().gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
 }
 
 TEST_F(I16QuantisationTest, DISABLED_SliceFollowedBy2FCsAnd2Eltwises_AlignedFilterInsertion) {
     assert_that().onInferModel(twoFCWithPaddingAfterSliceModel())
-        .inNotCompactMode().gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
 }
 
 // ToDo requires implementation of aligning filter for concat inputs and improvement of
 // qunatization/scaling algorithm for concat
 TEST_F(I16QuantisationTest, DISABLED_DoubleConcatPropageteForwardWithSuccess_AlignedFilterInsertion) {
-    assert_that().onInferModel(doubleConcatModel())
+    assert_that().onInferModel(doubleConcatModel()).withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .inNotCompactMode().gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
 }
 
 TEST_F(I16QuantisationTest, EltwiseSumm_onlyOneIdentityInsertion) {
-    assert_that().onInferModel(eltwiseSummModel())
+    assert_that().onInferModel(eltwiseSummModel()).withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
 }
 
 
 TEST_F(I16QuantisationTest, canDetectLeakyRelu) {
     assert_that().onInferModel(TFLeakyReluModel())
-        .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet();
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().pwl_inserted_into_nnet();
 }
 
 TEST_F(I16QuantisationTest, MaxPool_followedAfterActivation) {
     assert_that().onInferModel(maxpoolAfterRelu())
-        .inNotCompactMode().gna().propagate_forward().called_with()
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with()
         .convolution_inserted_into_nnet()
         .And()
         .pwl_inserted_into_nnet()
@@ -226,48 +231,58 @@ TEST_F(I16QuantisationTest, MaxPool_followedAfterActivation) {
 
 TEST_F(I16QuantisationTest, EltwiseMull_willInsertTwoIdentities) {
     assert_that().onInferModel(eltwiseMulModel())
-        .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().twice();
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().pwl_inserted_into_nnet().twice();
 }
 
 TEST_F(I16QuantisationTest, multiple_inputs_supported) {
+    std::string configKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_");
     assert_that().onInferModel(two_inputs_to_affine())
-        .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
+        .inNotCompactMode().withGNAConfig(configKey + std::to_string(0), 1.0f)
+        .withGNAConfig(configKey + std::to_string(1), 2.0f).gna().propagate_forward()
+        .called_with().pwl_inserted_into_nnet().once();
 }
 TEST_F(I16QuantisationTest, multiple_inputs_can_handle_individual_scale_factors) {
     std::vector<float> input_data  = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<float> input2_data = {2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0};
     std::vector<float> result      = {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
 
+    std::string configKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_");
+
     assert_that().onInferModel(two_inputs_to_affine())
         .inNotCompactMode().gna().propagate_forward()
-        .called_with().inputScale("input_1", 2).And()
-        .inputScale("input_2", 2).returns().result().filledWith(16384).that().equal_to(result);
+        .called_with().withGNAConfig(configKey + std::to_string(0), 2.0f).And()
+        .withGNAConfig(configKey + std::to_string(1), 2.0f).returns().result().filledWith(16384).that().equal_to(result);
 }
 
 TEST_F(I16QuantisationTest, DISABLED_multiple_inputs_into_concat_supported) {
     assert_that().onInferModel(two_inputs_to_concat())
-        .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
 }
 
 TEST_F(I16QuantisationTest, ScaleShift_Affine_WillResultInIdentityInsertion) {
     assert_that().onInferModel(scaleShiftAffineModel())
-        .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
 }
 
 TEST_F(I16QuantisationTest, ClampFollowedByTanh_ResultInDiagonalInsertion) {
     assert_that().onInferModel(clampFollowedByTanhModel())
-        .inNotCompactMode().gna().propagate_forward().called_with().diagonal_inserted_into_nnet().twice();
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().diagonal_inserted_into_nnet().twice();
 }
 
 TEST_F(I16QuantisationTest, EltwiseWithMemoryAndActivationInput_ResultInDiagonalInsertion) {
     assert_that().onInferModel(eltwiseWithMemoryAndActivationInputModel())
-        .inNotCompactMode().gna().propagate_forward().called_with().diagonal_inserted_into_nnet().once();
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().diagonal_inserted_into_nnet().once();
 }
 
 TEST_F(I16QuantisationTest, AffineWith2AffineOutputs_ResultInOnlyOneIdentityInsertion) {
     // one Identity activation from first FC, and one Identity activation for eltwise
     assert_that().onInferModel(AffineWith2AffineOutputsModel())
-        .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().twice();
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().pwl_inserted_into_nnet().twice();
 }
 
 TEST_F(I16QuantisationTest, ScaleShiftWithBroadcast_ResultInDiagonalInsertion) {
@@ -282,7 +297,8 @@ TEST_F(I16QuantisationTest, ScaleShiftWithBroadcast_ResultInDiagonalInsertion) {
         2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384,
     };
 
-    assert_that().onInferModel(ScaleShift3DModel()).withWeigthsPattern({1.0f,2.0f,3.0f,4.0f,5.0f,6.0f,7.0f,8.0f})
+    assert_that().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).onInferModel(ScaleShift3DModel())
+        .withWeigthsPattern({1.0f,2.0f,3.0f,4.0f,5.0f,6.0f,7.0f,8.0f})
         .inNotCompactMode().gna().propagate_forward().called_with().called_with().affine_weights_eq(affineWeights);
 }
 
@@ -318,4 +334,80 @@ TEST_F(I16QuantisationTest, DISABLED_noPermutationOfWeightsBetweenConvAndAffineI
 
     assert_that().onInferModel(affineAfterConvNoPermute()).withWeigthsPattern(weigthsPattern)
         .inNotCompactMode().gna().propagate_forward().called_with().affine_weights_transposed(affineWeights, {128, 61});
+}
+
+TEST_F(I16QuantisationTest, fp16tofp32_on_fullyConnected_model) {
+    ModelQuantizer<QuantI16> q;
+
+    CNNNetReader net_reader;
+    ASSERT_NO_THROW(net_reader.ReadNetwork(FCOnlyModelFP16().data(), FCOnlyModelFP16().length()));
+
+    auto weights = make_shared_blob<uint8_t>({ Precision::U8, {220}, Layout::C });
+    weights->allocate();
+    fillWeights(weights);
+    net_reader.SetWeights(weights);
+
+    q.quantize(net_reader.getNetwork(), 1000);
+}
+
+
+TEST_F(I16QuantisationTest, MultipleActivationsAfterAffineWithIdentityActivation_MultipleDiagonalLayersWithActivaitons) {
+    // identiy came from automatic insertion due to
+    assert_that().onInferModel(AffineWithReluSigmoidAndIdentity())
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActSigmoid, kActRelu, kActIdentity, kActIdentity});
+}
+
+TEST_F(I16QuantisationTest, MultipleActivationsAfterAffine_ResultInMultipleDiagonalLayersWithActivaitons) {
+    // extra identity inserted for affine
+    assert_that().onInferModel(AffineWithReluSigmoid())
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActRelu, kActSigmoid});
+}
+
+// TODO: build a regression test on top of it using real quantisation accuracy checking
+TEST_F(I16QuantisationTest, ConcatWithConstInputPropagatedForward) {
+    assert_that().onInferModel(concatModelWithConstLayer())
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActIdentity});
+}
+
+TEST_F(I16QuantisationTest, LSTMCell_quantize) {
+    ModelQuantizer<QuantI16> q;
+
+    CNNNetReader net_reader;
+    ASSERT_NO_THROW(net_reader.ReadNetwork(LSTMCellOnlyModel().data(), LSTMCellOnlyModel().length()));
+
+    auto weights = make_shared_blob<uint8_t>({ Precision::U8, {33664}, C });
+    weights->allocate();
+    fillWeights(weights);
+    net_reader.SetWeights(weights);
+
+    ASSERT_NO_THROW(q.quantize(net_reader.getNetwork(), 1000));
+}
+
+TEST_F(I16QuantisationTest, LSTMCell_unaligned_quantize) {
+    ModelQuantizer<QuantI16> q;
+
+    CNNNetReader net_reader;
+    ASSERT_NO_THROW(net_reader.ReadNetwork(LSTMCellOnlyModelUnaligned().data(), LSTMCellOnlyModelUnaligned().length()));
+
+    auto weights = make_shared_blob<uint8_t>({ Precision::U8, {3480}, C });
+    weights->allocate();
+    fillWeights(weights);
+    net_reader.SetWeights(weights);
+
+    ASSERT_NO_THROW(q.quantize(net_reader.getNetwork(), 1000));
+}
+
+TEST_F(I16QuantisationTest, EltwisetWithConstInputPropagatedForward) {
+    assert_that().onInferModel(eltwiseSumModelWithConstLayer())
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
+}
+
+TEST_F(I16QuantisationTest, PowerWithScaleFactorPropagateForward) {
+    assert_that().onInferModel(PowerWithScaleFactor1())
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActIdentity}).And().diagonal_inserted_into_nnet();
 }

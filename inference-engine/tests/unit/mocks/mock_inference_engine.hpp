@@ -38,5 +38,7 @@ public:
                                InferenceEngine::ResponseDesc * resp));
     MOCK_QUALIFIED_METHOD2(SetConfig, noexcept, InferenceEngine::StatusCode(const std::map<std::string, std::string> &,
                                                                             InferenceEngine::ResponseDesc *resp));
+
+    MOCK_QUALIFIED_METHOD1(GetName, const noexcept, void(std::string&));
 };
 

@@ -115,13 +115,15 @@ void rnn_utils::init_conf(rnn_conf_t &rnn, const rnn_desc_t &rd,
     rnn.copy_bias = rnn.dt_conf != all_f32;
 
 #if USE_MKL_PACKED_GEMM
+    // auto N = rnn.merge_gemm_layer ? rnn.mb * rnn.n_iter : rnn.mb;
     rnn.use_layer_packed_gemm
-            = (weights_layer_d.format() == any && rnn.slc > 760 && rnn.dic > 760
-                      && is_inference)
-            || is_int8; // packed gemm is the only supported option for int8
-    rnn.use_iter_packed_gemm = (weights_iter_d.format() == any && rnn.sic > 760
-                                       && rnn.dic > 760 && is_inference)
-            || is_int8;
+        = (utils::one_of(weights_layer_d.format(), any, rnn_packed)
+           && is_inference && rnn.n_iter == 1)
+        || is_int8;
+    rnn.use_iter_packed_gemm
+        = (utils::one_of(weights_iter_d.format(), any, rnn_packed)
+           && is_inference && rnn.mb >= 16)
+        || is_int8;
 #else
     rnn.use_layer_packed_gemm = false;
     rnn.use_iter_packed_gemm = false;

@@ -44,7 +44,7 @@ public:
  * @param wrongName - wrong data name, which displayed between x and y
  */
     void CONNECT_WITH_DATA_NAME(int x, int y, int name) {
-        datas[x].front()->name = std::to_string(name);
+        datas[x].front()->setName(std::to_string(name));
         datas[x].front()->getInputTo()[std::to_string(y)] = layers[y];
         layers[y]->insData.push_back(datas[x].front());
         lhsLayers.insert(layers[x]);

@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef ELTWISE_H
-#define ELTWISE_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -31,8 +28,7 @@ extern "C" {
 #endif
 
 /// @brief Select mode for eltwise layer ( @CLDNN_PRIMITIVE_DESC{eltwise} ​).
-typedef enum /*:int32_t*/
-{
+typedef enum /*:int32_t*/ {
     /// @brief Eltwise sum.
     cldnn_eltwise_sum,
     /// @brief Eltwise subtract.
@@ -68,7 +64,9 @@ typedef enum /*:int32_t*/
     /// @brief Eltwise xor.
     cldnn_eltwise_xor,
     /// @brief Eltwise squared diff.
-    cldnn_eltwise_squared_diff
+    cldnn_eltwise_squared_diff,
+    /// @brief Eltwise floormod.
+    cldnn_eltwise_floor_mod
 } cldnn_eltwise_mode;
 
 /// @brief Performs elementwise operations (sum, subtract, max or product) on two input primitives
@@ -83,6 +81,10 @@ CLDNN_BEGIN_PRIMITIVE_DESC(eltwise)
 cldnn_primitive_id output_calibration_factors;
 /// @brief Output quantization factor
 float output_quantization_factor;
+/// @brief List of primitive ids containing input quantization factors per feature map, one primitive id for each input.
+cldnn_primitive_id_arr input_calibration_factors;
+/// @brief List of quantization factors per input.
+cldnn_float_arr input_quantization_factors;
 /// @brief Eltwise mode. See #cldnn_eltwise_mode.
 int32_t mode; /*cldnn_eltwise_mode*/
 /// @brief Blob-wise coefficient for SUM operation
@@ -105,5 +107,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(eltwise);
 /// @}
 /// @}
 /// @}
-#endif /* ELTWISE_H */
 

@@ -273,7 +273,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {72});
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
+                {72}, InferenceEngine::C });
             weights->allocate();
             float * data = weights->buffer();
 
@@ -281,7 +282,7 @@ protected:
 
             InferenceEngine::SizeVector dims_src1 = {1, 3, 2, 2};
             InferenceEngine::SizeVector dims_src2 = {1, 3, 1, 2};
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, InferenceEngine::NCHW});
             src1->allocate();
             float *srcData = src1->buffer();
             for (size_t i = 0; i < 12; i++, data++, srcData++) {
@@ -289,7 +290,7 @@ protected:
                 *srcData = 1;
             }
 
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, InferenceEngine::NCHW});
             src2->allocate();
             srcData = src2->buffer();
             for (size_t i = 0; i < 6; i++, data++, srcData++) {
@@ -329,9 +330,9 @@ protected:
             size_t dst_size = output->size();
 
             int len1 = 1, len2 = 1, cycles;
-            for (int dim = 2; dim < output->dims().size(); dim++) {
-                len1 *= src1->dims()[dim];
-                len2 *= src2->dims()[dim];
+            for (int dim = 2; dim < output->getTensorDesc().getDims().size(); dim++) {
+                len1 *= src1->getTensorDesc().getDims()[dim];
+                len2 *= src2->getTensorDesc().getDims()[dim];
             }
             cycles = 2;
 

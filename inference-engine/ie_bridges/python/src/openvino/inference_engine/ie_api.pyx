@@ -7,12 +7,16 @@ from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libcpp.map cimport map
 from libcpp.memory cimport unique_ptr
-from libc.stdint cimport int64_t
+from libc.stdlib cimport malloc, free
+from libc.stdint cimport int64_t, uint8_t
+from libc.string cimport memcpy, strcpy
 import os
 import numpy as np
 from copy import deepcopy
 import warnings
+from collections import OrderedDict, namedtuple
 from collections import OrderedDict
+import threading
 
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[C.IEExecNetwork] move(unique_ptr[C.IEExecNetwork])
@@ -31,12 +35,102 @@ cdef dict_to_c_map(py_dict):
         c_map[k.encode()] = v.encode()
     return c_map
 
-supported_precisions = ["FP32", "FP16", "Q78", "I32", "I16", "I8", "U32", "U16"]
+cdef c_map_to_dict(map[string, string] c_map):
+    py_dict = {}
+    for v in c_map:
+        py_dict[v.first.decode()] = v.second.decode()
+    return py_dict
+
+supported_precisions = ["FP32", "FP16", "Q78", "I32", "I16", "I8", "U32", "U16", "U8"]
+
 supported_layouts = ["NCHW", "NHWC", "OIHW", "C", "CHW", "HW", "NC", "CN", "BLOCKED", "NCDHW"]
 known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO', 'HDDL']
 
+ctypedef enum StatusCode:
+    OK = 0
+    GENERAL_ERROR = -1
+    NOT_IMPLEMENTED = -2
+    NETWORK_NOT_LOADED = -3
+    PARAMETER_MISMATCH = -4
+    NOT_FOUND = -5
+    OUT_OF_BOUNDS = -6
+    UNEXPECTED = -7
+    REQUEST_BUSY = -8
+    RESULT_NOT_READY = -9
+    NOT_ALLOCATED = -10
+    INFER_NOT_STARTED = -11
+    NETWORK_NOT_READ = -12
+
 def get_version():
     return C.get_version().decode()
+
+cdef  class IECore:
+    def __cinit__(self, xml_config_file: str = ""):
+        self.impl = C.IECore(xml_config_file.encode())
+
+    def get_versions(self, device_name: str):
+        cdef  map[string, C.Version] versions_
+        versions_ = self.impl.getVersions(device_name.encode())
+        versions = {}
+        for v in versions_:
+            device = v.first.decode()
+            ver = v.second
+            versions[device] = namedtuple("Versions", ["major", "minor", "build_number", "description"])
+            versions[device].build_number = ver.buildNumber.decode()
+            versions[device].description = ver.description.decode()
+            versions[device].minor = ver.apiVersion.minor
+            versions[device].major = ver.apiVersion.major
+        return versions
+
+    cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config=None, int num_requests=1):
+        cdef ExecutableNetwork exec_net = ExecutableNetwork()
+        cdef map[string, string] c_config
+
+        if config:
+            c_config = dict_to_c_map(config)
+        exec_net.ie_core_impl = self.impl
+        exec_net.impl = move(self.impl.loadNetwork(network.impl, device_name.encode(), c_config, num_requests))
+        exec_net.inputs = network.inputs.keys()
+        exec_net.outputs = list(network.outputs.keys())
+        return exec_net
+
+    def query_network(self, IENetwork network, str device_name, config=None):
+        cdef map[string, string] c_config
+        if config:
+            c_config = dict_to_c_map(config)
+        res = self.impl.queryNetwork(network.impl, device_name.encode(), c_config)
+        return c_map_to_dict(res)
+
+    def set_config(self, config: dict, device_name: str):
+        cdef map[string, string] c_config = dict_to_c_map(config)
+        self.impl.setConfig(c_config, device_name.encode())
+
+    def register_plugin(self, plugin_name: str, device_name: str = ""):
+        self.impl.registerPlugin(plugin_name.encode(), device_name.encode())
+
+    def register_plugins(self, xml_config_file: str):
+        self.impl.registerPlugins(xml_config_file.encode())
+
+    def unregister_plugin(self, device_name: str):
+        self.impl.unregisterPlugin(device_name.encode())
+
+    def add_extension(self, extension_path: str, device_name: str):
+        self.impl.addExtension(extension_path.encode(), device_name.encode())
+
+    def get_metric(self, device_name: str, metric_name: str):
+        return self.impl.getMetric(device_name.encode(), metric_name.encode())
+
+    def get_config(self, device_name: str, config_name: str):
+        return self.impl.getConfig(device_name.encode(), config_name.encode())
+
+
+    @property
+    def available_devices(self):
+        cdef vector[string] c_devices = self.impl.getAvailableDevices()
+        return [d.decode() for d in c_devices]
+
+    # TODO: Add import network functionality
+    # TODO: Extend API for query config and attributes when it will be merged in C++ API
 
 cdef class IENetLayer:
     @property
@@ -137,6 +231,7 @@ cdef class OutputInfo:
 
 cdef class ExecutableNetwork:
     def __init__(self):
+        self._infer_requests = []
         self._requests = []
         self.inputs = []
         self.outputs = []
@@ -155,19 +250,53 @@ cdef class ExecutableNetwork:
 
     @property
     def requests(self):
-        requests = []
-        for i in range(deref(self.impl).infer_requests.size()):
-            infer_request = InferRequest()
-            infer_request.impl = &(deref(self.impl).infer_requests[i])
-            infer_request._inputs_list = self.inputs
-            infer_request._outputs_list = self.outputs
-            requests.append(infer_request)
-        return requests
+        if (len(self._infer_requests) == 0):
+            for i in range(deref(self.impl).infer_requests.size()):
+                infer_request = InferRequest()
+                infer_request.impl = &(deref(self.impl).infer_requests[i])
+                self._infer_requests.append(infer_request)
+
+        if (len(self._infer_requests) != deref(self.impl).infer_requests.size()):
+            raise Exception("Mismatch of infer requests number!")
+
+        for i in range(len(self._infer_requests)):
+            self._infer_requests[i]._inputs_list = self.inputs
+            self._infer_requests[i]._outputs_list = self.outputs
+
+        return self._infer_requests
+
+    def get_exec_graph_info(self):
+        ie_network = IENetwork()
+        ie_network.impl = deref(self.impl).GetExecGraphInfo()
+        return ie_network
+
+    def get_metric(self, metric_name: str):
+        return deref(self.impl).getMetric(metric_name.encode())
+
+    def get_config(self, config_name: str):
+        return deref(self.impl).getConfig(config_name.encode())
+
+ctypedef extern void (*cb_type)(void*, int) with gil
 
 cdef class InferRequest:
     def __init__(self):
         self._inputs_list = []
         self._outputs_list = []
+        self._py_callback = lambda *args, **kwargs: None
+        self._py_callback_used = False
+        self._py_callback_called = threading.Event()
+        self._py_data = None
+
+    cdef void user_callback(self, int status) with gil:
+        if self._py_callback:
+            self._py_callback(status, self._py_data)
+            self._py_callback_called.set()
+
+    def set_completion_callback(self, py_callback, py_data = None):
+        self._py_callback = py_callback
+        self._py_data = py_data
+        self._py_callback_used = True
+        deref(self.impl).setCyCallback(<cb_type>self.user_callback, <void *>self)
 
     cpdef BlobBuffer _get_blob_buffer(self, const string & blob_name):
         cdef BlobBuffer buffer = BlobBuffer()
@@ -185,13 +314,19 @@ cdef class InferRequest:
     cpdef async_infer(self, inputs=None):
         if inputs is not None:
             self._fill_inputs(inputs)
-
+        self._py_callback_called.clear()
         deref(self.impl).infer_async()
 
     cpdef wait(self, timeout=None):
-        if timeout is None:
-            timeout = -1
-        return deref(self.impl).wait(<int64_t> timeout)
+        if self._py_callback_used:
+            while not self._py_callback_called.is_set():
+                if not self._py_callback_called.wait(timeout):
+                    return StatusCode.REQUEST_BUSY
+            return StatusCode.OK
+        else:
+            if timeout is None:
+                timeout = -1
+            return deref(self.impl).wait(<int64_t> timeout)
 
     cpdef get_perf_counts(self):
         cdef map[string, C.ProfileInfo] c_profile = deref(self.impl).getPerformanceCounts()
@@ -258,19 +393,30 @@ cdef class LayersStatsMap(dict):
         self.net_impl.setStats(c_stats_map)
 
 cdef class IENetwork:
-    def __cinit__(self, model: str="", weights: str=""):
+    def __cinit__(self, model: [str, bytes] ="", weights: [str, bytes] ="", init_from_buffer: bool=False,
+                  ngraph_compatibility: bool = False):
+        cdef char* xml_buffer = <char*>malloc(len(model))
+        cdef uint8_t* bin_buffer = <uint8_t *>malloc(len(weights))
         cdef string model_
         cdef string weights_
-        if model and weights:
-            if not os.path.isfile(model):
-                raise Exception("Path to the model {} doesn't exists or it's a directory".format(model))
-            if not os.path.isfile(weights):
-                raise Exception("Path to the weights {} doesn't exists or it's a directory".format(weights))
-            model_ = model.encode()
-            weights_ = weights.encode()
-            self.impl = C.IENetwork(model_, weights_)
-        else:
+        if init_from_buffer:
+            strcpy(xml_buffer, model)
+            memcpy(bin_buffer, <uint8_t *>weights, len(weights))
             self.impl = C.IENetwork()
+            self.impl.load_from_buffer(xml_buffer, len(model), bin_buffer, len(weights))
+        else:
+            if model and weights:
+                if not os.path.isfile(model):
+                    raise Exception("Path to the model {} doesn't exists or it's a directory".format(model))
+                if not os.path.isfile(weights):
+                    raise Exception("Path to the weights {} doesn't exists or it's a directory".format(weights))
+                model_ = model.encode()
+                weights_ = weights.encode()
+                self.impl = C.IENetwork(model_, weights_, ngraph_compatibility)
+            else:
+                self.impl = C.IENetwork()
+        free(xml_buffer)
+
     @property
     def name(self):
         name = bytes(self.impl.name)
@@ -301,6 +447,10 @@ cdef class IENetwork:
     @property
     def batch_size(self):
         return self.impl.batch_size
+
+    @property
+    def precision(self):
+        return self.impl.precision.decode()
 
     @batch_size.setter
     def batch_size(self, batch: int):
@@ -343,20 +493,26 @@ cdef class IENetwork:
         cdef IENetwork net = IENetwork(model, weights)
         return net
 
-    # TODO: Use enum with precision type instead of srting parameter when python2 support will not be required.
+        # TODO: Use enum with precision type instead of srting parameter when python2 support will not be required.
     def add_outputs(self, outputs, precision="FP32"):
         if precision.upper() not in supported_precisions:
             raise AttributeError(
                 "Unsupported precision {}! List of supported precisions: {}".format(precision, supported_precisions))
         if not isinstance(outputs, list):
             outputs = [outputs]
-        cdef vector[string] _outputs
-        for l in outputs:
-            _outputs.push_back(l.encode())
-        self.impl.addOutputs(_outputs, precision.upper().encode())
+        for i, l in enumerate(outputs):
+            if isinstance(l, str):
+                self.impl.addOutput(l.encode(), 0, precision.upper().encode())
+            elif isinstance(l, tuple) and len(l) == 2:
+                self.impl.addOutput(l[0].encode(), l[1], precision.upper().encode())
+            else:
+                raise TypeError("Incorrect type {type} for layer to add at index {ind}. "
+                                "Expected string with layer name or tuple with two elements: layer name as "
+                                "first element and port id as second".format(type=type(l), ind=i))
 
-    def serialize(self, path_to_xml, path_to_bin):
+    def serialize(self, path_to_xml, path_to_bin: str = ""):
         self.impl.serialize(path_to_xml.encode(), path_to_bin.encode())
+
     def reshape(self, input_shapes: dict):
         cdef map[string, vector[size_t]] c_input_shapes;
         cdef vector[size_t] c_shape
@@ -364,7 +520,7 @@ cdef class IENetwork:
         for input, shape in input_shapes.items():
             c_shape = []
             if input not in net_inputs:
-                raise AttributeError("Specified {} layer not in network inputs {}! ".format(input, net_inputs))
+                raise AttributeError("Specified '{}' layer not in network inputs '{}'! ".format(input, net_inputs))
             for v in shape:
                 c_shape.push_back(v)
             c_input_shapes[input.encode()] = c_shape
@@ -393,12 +549,11 @@ cdef class IEPlugin:
         self.impl = C.IEPlugin(device_, dirs_)
 
     cpdef ExecutableNetwork load(self, IENetwork network, int num_requests=1, config=None):
-        if num_requests <= 0:
-            raise ValueError(
-                "Incorrect number of requests specified: {}. Expected positive integer number.".format(num_requests))
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
-
+        if num_requests < 0:
+            raise ValueError("Incorrect number of requests specified: {}. Expected positive integer number "
+                               "or zero for auto detection".format(num_requests))
         if config:
             for k, v in config.items():
                 c_config[to_std_string(k)] = to_std_string(v)
@@ -438,6 +593,7 @@ cdef class IEPlugin:
             c_config[to_std_string(k)] = to_std_string(v)
         self.impl.setConfig(c_config)
 
+    # TODO: Add export compiled network functionality
 
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""

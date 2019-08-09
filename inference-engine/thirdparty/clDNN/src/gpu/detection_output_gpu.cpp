@@ -27,16 +27,16 @@
 #endif
 #endif
 
-namespace cldnn { namespace gpu {
+namespace cldnn {
+namespace gpu {
 
-struct detection_output_gpu : typed_primitive_gpu_impl<detection_output>
-{
+struct detection_output_gpu : typed_primitive_gpu_impl<detection_output> {
     using parent = typed_primitive_gpu_impl<detection_output>;
     using parent::parent;
 
 private:
-    static void setDetectOutSpecificParams(kernel_selector::detection_output_params::DedicatedParams& detectOutParams, const detection_output_node& arg)
-    {
+    static void setDetectOutSpecificParams(kernel_selector::detection_output_params::DedicatedParams& detectOutParams,
+                                           const detection_output_node& arg) {
         auto primitive = arg.get_primitive();
         detectOutParams.keep_top_k = primitive->keep_top_k;
         detectOutParams.num_classes = primitive->num_classes;
@@ -59,25 +59,25 @@ private:
         detectOutParams.conf_padding_y = arg.confidence().get_output_layout().data_padding.lower_size().spatial[1];
     }
 
-
 public:
-
-    static primitive_impl* create(const detection_output_node& arg)
-    {
-        if (!arg.get_program().get_options().get<build_option_type::detection_output_gpu>()->enabled())
-        {
+    static primitive_impl* create(const detection_output_node& arg) {
+        if (!arg.get_program().get_options().get<build_option_type::detection_output_gpu>()->enabled()) {
             return runDetectOutCpu(arg);
         }
 
         auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(arg);
-        auto detect_out_optional_params = get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
+        auto detect_out_optional_params =
+            get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
 
         setDetectOutSpecificParams(detect_out_params.detectOutParams, arg);
 
         auto& kernel_selector = kernel_selector::detection_output_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(detect_out_params, detect_out_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
+        CLDNN_ERROR_BOOL(arg.id(),
+                         "Best_kernel.empty()",
+                         best_kernels.empty(),
+                         "Cannot find a proper kernel with this arguments");
 
         auto detect_out = new detection_output_gpu(arg, best_kernels[0]);
 
@@ -85,33 +85,29 @@ public:
     }
 };
 
-primitive_impl* runDetectOutGpu(const detection_output_node& arg, kernel_selector::KernelData kernel)
-{
+primitive_impl* runDetectOutGpu(const detection_output_node& arg, kernel_selector::KernelData kernel) {
     return new detection_output_gpu(arg, kernel);
 }
 
 /************************ Detection Output keep_top_k part ************************/
 
-struct detection_output_sort_gpu : typed_primitive_gpu_impl<detection_output_sort>
-{
+struct detection_output_sort_gpu : typed_primitive_gpu_impl<detection_output_sort> {
     using parent = typed_primitive_gpu_impl<detection_output_sort>;
     using parent::parent;
 
 private:
-    static void setDetectOutSpecificParams(kernel_selector::detection_output_params::DedicatedParams& detectOutParams, const detection_output_sort_node& arg)
-    {
-        if (arg.get_dependency(0).is_type<detection_output>())
-        {
+    static void setDetectOutSpecificParams(kernel_selector::detection_output_params::DedicatedParams& detectOutParams,
+                                           const detection_output_sort_node& arg) {
+        if (arg.get_dependency(0).is_type<detection_output>()) {
             auto primitive = arg.get_dependency(0).as<detection_output>().get_primitive();
             detectOutParams.keep_top_k = primitive->keep_top_k;
             detectOutParams.num_classes = primitive->num_classes;
-            detectOutParams.num_images = arg.get_dependency(0).as<detection_output>().location().get_output_layout().size.batch[0];
+            detectOutParams.num_images =
+                arg.get_dependency(0).as<detection_output>().location().get_output_layout().size.batch[0];
             detectOutParams.top_k = primitive->top_k;
             detectOutParams.share_location = primitive->share_location;
             detectOutParams.background_label_id = primitive->background_label_id;
-        }
-        else
-        {
+        } else {
             auto primitive = arg.get_primitive();
             detectOutParams.keep_top_k = primitive->keep_top_k;
             detectOutParams.num_classes = primitive->num_classes;
@@ -123,17 +119,20 @@ private:
     }
 
 public:
-    static primitive_impl* create(const detection_output_sort_node& arg)
-    {
+    static primitive_impl* create(const detection_output_sort_node& arg) {
         auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(arg);
-        auto detect_out_optional_params = get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
+        auto detect_out_optional_params =
+            get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
 
         setDetectOutSpecificParams(detect_out_params.detectOutParams, arg);
 
         auto& kernel_selector = kernel_selector::detection_output_sort_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(detect_out_params, detect_out_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
+        CLDNN_ERROR_BOOL(arg.id(),
+                         "Best_kernel.empty()",
+                         best_kernels.empty(),
+                         "Cannot find a proper kernel with this arguments");
 
         auto detect_out = new detection_output_sort_gpu(arg, best_kernels[0]);
 
@@ -141,22 +140,28 @@ public:
     }
 };
 
-primitive_impl* runDetectOutSortGpu(const detection_output_sort_node& arg, kernel_selector::KernelData kernel)
-{
+primitive_impl* runDetectOutSortGpu(const detection_output_sort_node& arg, kernel_selector::KernelData kernel) {
     return new detection_output_sort_gpu(arg, kernel);
 }
 
 namespace {
-    struct attach {
-        attach() {
-            implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), detection_output_gpu::create);
-            implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), detection_output_gpu::create);
-            implementation_map<detection_output_sort>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), detection_output_sort_gpu::create);
-            implementation_map<detection_output_sort>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), detection_output_sort_gpu::create);
-        }
-        ~attach() {}
-    };
-    attach attach_impl;
-}
+struct attach {
+    attach() {
+        implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                                  detection_output_gpu::create);
+        implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                                  detection_output_gpu::create);
+        implementation_map<detection_output_sort>::add(
+            std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+            detection_output_sort_gpu::create);
+        implementation_map<detection_output_sort>::add(
+            std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+            detection_output_sort_gpu::create);
+    }
+    ~attach() {}
+};
+attach attach_impl;
+}  // namespace
 
-}}
+}  // namespace gpu
+}  // namespace cldnn

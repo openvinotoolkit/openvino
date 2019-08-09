@@ -16,33 +16,25 @@
 
 #include "weight_bias_params.h"
 
-namespace kernel_selector
-{
-    ParamsKey weight_bias_params::GetParamsKey() const
-    {
-        ParamsKey k = base_params::GetParamsKey();
+namespace kernel_selector {
+ParamsKey weight_bias_params::GetParamsKey() const {
+    ParamsKey k = base_params::GetParamsKey();
 
-        k.EnableInputWeightsType(weights.GetDType());
+    k.EnableInputWeightsType(weights.GetDType());
 
-        // not needed - can be changed by reorder params
-        //k.EnableWeightsLayout(weights.layout);
+    // not needed - can be changed by reorder params
+    // k.EnableWeightsLayout(weights.layout);
 
-        assert(bias.size() <= 1);
+    assert(bias.size() <= 1);
 
-        if (bias.empty())
-        {
-            k.EnableNonBiasTerm();
-        }
-        else if (bias[0].GetLayout() == DataLayout::bf ||
-            bias[0].GetLayout() == DataLayout::fb)
-        {
-            k.EnableBiasPerFeature();
-        }
-        else if (bias[0].GetLayout() == output.GetLayout())
-        {
-            k.EnableBiasPerOutput();
-        }
-
-        return k;
+    if (bias.empty()) {
+        k.EnableNonBiasTerm();
+    } else if (bias[0].GetLayout() == DataLayout::bf || bias[0].GetLayout() == DataLayout::fb) {
+        k.EnableBiasPerFeature();
+    } else if (bias[0].GetLayout() == output.GetLayout()) {
+        k.EnableBiasPerOutput();
     }
+
+    return k;
 }
+}  // namespace kernel_selector

@@ -20,16 +20,13 @@
 
 namespace kernel_selector {
 
-    class ConvolutionGradWeightsKernel7x7 : public ConvolutionGradWeightsKernelBase
-    {
-    public:
-        ConvolutionGradWeightsKernel7x7() : ConvolutionGradWeightsKernelBase("convolution_grad_weights_7x7") {}
-        virtual ~ConvolutionGradWeightsKernel7x7() {}
+class ConvolutionGradWeightsKernel7x7 : public ConvolutionGradWeightsKernelBase {
+public:
+    ConvolutionGradWeightsKernel7x7() : ConvolutionGradWeightsKernelBase("convolution_grad_weights_7x7") {}
+    virtual ~ConvolutionGradWeightsKernel7x7() {}
 
-        virtual DispatchData SetDefault(const convolution_grad_weights_params& params) const override;
-        virtual bool Validate(const Params& p, const optional_params& o) const override;
-
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    DispatchData SetDefault(const convolution_grad_weights_params& params) const override;
+    bool Validate(const Params& p, const optional_params& o) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

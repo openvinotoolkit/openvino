@@ -121,7 +121,7 @@ int reorder(const prb_t *p, dnn_mem_t &dst, const dnn_mem_t &src,
 //    const float dst_conf_min = c_dst.min;
 //    const float dst_conf_max = dst_conf_min + c_dst.range - 1;
 
-    auto dst_width = dst.sizeof_dt() * 8;
+    auto dst_width = dst_dt == mkldnn_bf16 ? 32 : dst.sizeof_dt() * 8;
 
     const float dst_dt_min = dst_dt == mkldnn_u8
         ? 0.f : -(float)(1l << (dst_width - 1));
@@ -145,7 +145,7 @@ int reorder(const prb_t *p, dnn_mem_t &dst, const dnn_mem_t &src,
         float dst_ = saturate(src_ * scale, dst_min, dst_max);
 
         /* parse round mode and round value*/
-        if (dst_dt != mkldnn_f32) {
+        if (dst_dt != mkldnn_f32 && dst_dt != mkldnn_bf16) {
             switch (p->attr.irmode) {
                 case attr_t::NEAREST: dst_ = rint(dst_); break;
                 case attr_t::DOWN: dst_ = floorf(dst_); break;
@@ -171,6 +171,7 @@ int compare(const prb_t *p, dnn_mem_t &mem_expected, dnn_mem_t &mem_computed,
     /* TODO: range support */
     const auto dt = mem_expected.dt();
     const size_t width = mem_expected.sizeof_dt()*8;
+    const bool is_bf16 = mem_computed.dt() == mkldnn_bf16;
 
     const float dt_min = dt == mkldnn_u8
         ? 0.f : -(float)(1l << (width - 1));
@@ -182,7 +183,9 @@ int compare(const prb_t *p, dnn_mem_t &mem_expected, dnn_mem_t &mem_computed,
     for (size_t i = 0; i < nelems; ++i) {
         const float expected = mem_expected.get_elem(i);
         const float computed = mem_computed.get_elem(i);
-        const float diff = fabsf(computed - expected);
+        const float diff = is_bf16
+                ? fabsf(computed - expected) / MAX2(FLT_MIN, fabsf(expected))
+                : fabsf(computed - expected);
 
         if (expected == dt_max) inf_p++;
         else if (expected == dt_min) inf_n++;
@@ -190,7 +193,10 @@ int compare(const prb_t *p, dnn_mem_t &mem_expected, dnn_mem_t &mem_computed,
         else
             reg++;
 
-        if (r->errors < 10 && diff != 0.0) {
+        const float tolerance = is_bf16
+                ? 8.e-3f // due to bf16 truncation (7th mantissa bit -> 1/129)
+                : 0.f;
+        if (r->errors < 10 && diff > tolerance) {
             printf("idx: %zu exp: %f com:%f\n", i, expected, computed);
             r->errors++;
         }
@@ -212,11 +218,13 @@ int compare(const prb_t *p, dnn_mem_t &mem_expected, dnn_mem_t &mem_computed,
     const int c_src_max = c_src->min + c_src->range - 1;
     const int c_dst_max = c_dst->min + c_dst->range - 1;
 
-    bool check_inf_p = (dt != mkldnn_f32 && dt != mkldnn_s32)
+    bool check_inf_p =
+        (dt != mkldnn_f32 && dt != mkldnn_s32 && dt != mkldnn_bf16)
         && (c_src_max * max_scale > c_dst_max) ? true : false;
-    bool check_inf_n = (dt != mkldnn_f32 && dt != mkldnn_s32)
+    bool check_inf_n =
+        (dt != mkldnn_f32 && dt != mkldnn_s32 && dt != mkldnn_bf16)
         && (c_src->min * max_scale < c_dst->min) ? true : false;
-    bool check_zeros = (dt != mkldnn_f32)
+    bool check_zeros = (dt != mkldnn_f32 && dt != mkldnn_bf16)
         && (dt_min != 0 && dt_max != 0) ? true : false;
 
     bool mistrusted = reg == 0
@@ -285,6 +293,7 @@ int check_reorder(const prb_t *p, res_t *res) {
     dnn_mem_t mem_dt_in_fmt_in(ndims, dims, p->conf_in->dt, r.fmt_in);
     dnn_mem_t mem_dt_out_fmt_out(ndims, dims, p->conf_out->dt, r.fmt_out);
     dnn_mem_t mem_dt_out_fmt_ref(ndims, dims, p->conf_out->dt, fmt_ref);
+    dnn_mem_t mem_test_dt_out_fmt_out(ndims, dims, p->conf_out->dt, r.fmt_out);
     dnn_mem_t mem_test_dt_out_fmt_ref(ndims, dims, p->conf_out->dt, fmt_ref);
 
     /* Step 2: fill scales */
@@ -316,15 +325,39 @@ int check_reorder(const prb_t *p, res_t *res) {
 
     /* Step 5: check corrrectness */
     if (bench_mode & CORR) {
-        /* Step 5a: reorder output from mkldnn to ref format using mkldnn */
-        SAFE(mem_dt_out_fmt_ref.reorder(mem_dt_out_fmt_out), WARN);
+        if (p->alg == ALG_BOOT) {
+            /* "bootstrap" algorithm: compare to another mkldnn reorder. use
+             * this when benchdnn does not know about all details of the data
+             * layout, as is the case for "compensated" (_s8s8) formats */
 
-        /* Step 5b: execute benchdnn reorder */
-        SAFE(reorder(p, mem_test_dt_out_fmt_ref, mem_dt_in_fmt_ref, scales), WARN);
+            /* Step 5a: mkldnn reorder from ref format to output format */
+            SAFE(mem_test_dt_out_fmt_out.reorder(
+                         mem_dt_in_fmt_ref, mkldnn_attr),
+                    WARN);
 
-        /* Step 5c: compare benchdnn and mkldnn output */
-        SAFE(compare(p, mem_test_dt_out_fmt_ref, mem_dt_out_fmt_ref,
-                    scales, count, res), WARN);
+            /* Step 5b: compare results (expect bit-wise exactness) */
+            int diff = 0;
+            diff = memcmp((void *)mem_test_dt_out_fmt_out,
+                    (void *)mem_dt_out_fmt_out, mem_dt_out_fmt_out.size());
+            res->errors = diff == 0 ? 0 : 1;
+            res->state = diff == 0 ? PASSED : FAILED;
+            res->total = 1;
+            SAFE(res->state == FAILED ? FAIL : OK, WARN);
+        } else {
+            /* (default) "reference" algorithm: compare to benchdnn reorder */
+
+            /* Step 5a: reorder output from mkldnn to ref format using mkldnn */
+            SAFE(mem_dt_out_fmt_ref.reorder(mem_dt_out_fmt_out), WARN);
+
+            /* Step 5b: execute benchdnn reorder */
+            SAFE(reorder(p, mem_test_dt_out_fmt_ref, mem_dt_in_fmt_ref, scales),
+                    WARN);
+
+            /* Step 5c: compare benchdnn and mkldnn output */
+            SAFE(compare(p, mem_test_dt_out_fmt_ref, mem_dt_out_fmt_ref, scales,
+                         count, res),
+                    WARN);
+        }
     }
 
     /* Step 6: performance measurement */

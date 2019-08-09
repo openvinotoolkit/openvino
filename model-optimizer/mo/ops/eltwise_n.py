@@ -35,3 +35,18 @@ class EltwiseN(Op):
         }, attrs)
         if 'operation' not in self.attrs:
             raise Error('"operation" attribute is not set for operation "{}".'.format(__class__.op))
+
+
+class EltwiseNMul(EltwiseN):
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {'operation': 'mul'})
+
+
+class EltwiseNMax(EltwiseN):
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {'operation': 'max'})
+
+
+class EltwiseNAdd(EltwiseN):
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {'operation': 'sum'})

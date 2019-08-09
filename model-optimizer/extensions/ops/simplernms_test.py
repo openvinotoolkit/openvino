@@ -24,7 +24,7 @@ from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'SimplerNMS_1': {'type': 'SimplerNMS', 'kind': 'op'},
                     'node_1': {'type': 'Identity', 'kind': 'op'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+                    'op_output': { 'kind': 'op', 'op': 'Result'}
                     }
 
 

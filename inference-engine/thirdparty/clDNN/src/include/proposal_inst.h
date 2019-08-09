@@ -18,13 +18,13 @@
 #pragma once
 #include "api/CPP/proposal.hpp"
 #include "primitive_inst.h"
+#include <string>
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<proposal> : public typed_program_node_base<proposal>
-{
+struct typed_program_node<proposal> : public typed_program_node_base<proposal> {
     using parent = typed_program_node_base<proposal>;
     using parent::parent;
 
@@ -36,25 +36,19 @@ struct typed_program_node<proposal> : public typed_program_node_base<proposal>
 using proposal_node = typed_program_node<proposal>;
 
 template <>
-class typed_primitive_inst<proposal> : public typed_primitive_inst_base<proposal>
-{
+class typed_primitive_inst<proposal> : public typed_primitive_inst_base<proposal> {
     using parent = typed_primitive_inst_base<proposal>;
 
 public:
-    struct anchor
-    {
+    struct anchor {
         float start_x;
         float start_y;
         float end_x;
         float end_y;
 
-        anchor()
-        {
-            start_x = start_y = end_x = end_y = 0.0f;
-        }
+        anchor() { start_x = start_y = end_x = end_y = 0.0f; }
 
-        anchor(float s_x, float s_y, float e_x, float e_y)
-        {
+        anchor(float s_x, float s_y, float e_x, float e_y) {
             start_x = s_x;
             start_y = s_y;
             end_x = e_x;
@@ -63,14 +57,11 @@ public:
     };
 
     // indices of the memory objects used by the layer
-    enum input_index {
-        cls_scores_index,
-        bbox_pred_index,
-        image_info_index
-    };
+    enum input_index { cls_scores_index, bbox_pred_index, image_info_index, proposal_probabilities_out };
 
-    //TODO(ruv): missign validation?? for image_info dimensions? also faster r-cnn expected it to be dim3 while the new networks expect dim 6!!! ([5] being unused)
-    //TODO(ruv): we should be able to set dims[3]=dim[4]=1 if not provided
+    // TODO(ruv): missign validation?? for image_info dimensions? also faster r-cnn expected it to be dim3 while the new
+    // networks expect dim 6!!! ([5] being unused)
+    // TODO(ruv): we should be able to set dims[3]=dim[4]=1 if not provided
 
     // indices of the image info parameters inside the image_info memory object (the object
     // is an integer array of these parameters)
@@ -86,7 +77,7 @@ public:
     static layout calc_output_layout(proposal_node const& node);
     static std::string to_string(proposal_node const& node);
 
-public:    
+public:
     typed_primitive_inst(network_impl& network, proposal_node const& desc);
 
     const std::vector<anchor>& get_anchors() const { return _anchors; }
@@ -97,4 +88,4 @@ private:
 
 using proposal_inst = typed_primitive_inst<proposal>;
 
-}
+}  // namespace cldnn

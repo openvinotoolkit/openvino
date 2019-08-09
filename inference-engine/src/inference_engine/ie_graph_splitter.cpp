@@ -198,7 +198,7 @@ void sortSubgraphs(std::vector<LayersSet>& subgraphs) {
             for (auto&& dataIt : layer->insData) {
                 auto data = dataIt.lock();
                 assert(nullptr != data);
-                auto prevLayer = data->creatorLayer.lock();
+                auto prevLayer = data->getCreatorLayer().lock();
                 if (nullptr != prevLayer) {
                     for (auto j : ade::util::iota(subgraphs.size())) {
                         if (i != j) {

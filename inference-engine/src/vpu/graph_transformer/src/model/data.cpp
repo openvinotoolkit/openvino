@@ -19,9 +19,10 @@
 
 #include <vpu/model/edges.hpp>
 #include <vpu/model/stage.hpp>
+#include <vpu/backend/backend.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/numeric.hpp>
-#include <vpu/backend/backend.hpp>
+#include <vpu/compile_env.hpp>
 
 namespace vpu {
 
@@ -402,7 +403,7 @@ void DataNode::serializeOldBuffer(
         const Stage& stage,
         BlobSerializer& serializer,
         DimsOrder newOrder,
-        const EnumMap<Dim, std::vector<Dim>>& dimsReloc) {
+        const EnumMap<Dim, SmallVector<Dim, MAX_DIMS_64>>& dimsReloc) {
     const int OLD_FORMAT_NUM_DIMS = 3;
 
     auto newDims = _desc.dims();
@@ -532,6 +533,58 @@ void DataNode::serializeOldBuffer(
     //
 
     DataDesc newDesc(_desc.type(), newOrder, newDims);
+
+    if (stage != nullptr) {
+        for (const auto& inEdge : stage->inputEdges()) {
+            if (inEdge->input() == handle_from_this()) {
+                inEdge->attrs().set<DataDesc>("newDesc", newDesc);
+                inEdge->attrs().set<DimValues>("newStrides", newStrides);
+            }
+        }
+        for (const auto& outEdge : stage->outputEdges()) {
+            if (outEdge->output() == handle_from_this()) {
+                outEdge->attrs().set<DataDesc>("newDesc", newDesc);
+                outEdge->attrs().set<DimValues>("newStrides", newStrides);
+            }
+        }
+    }
+
+    //
+    // Serialize update data
+    //
+
+    serializeBufferImpl(serializer, newDesc, newStrides);
+}
+
+void DataNode::serializeOldBufferNC(
+        const Stage& stage,
+        BlobSerializer& serializer) {
+    const int OLD_FORMAT_NUM_DIMS = 3;
+
+    IE_ASSERT(_desc.dimsOrder() == DimsOrder::NC || _desc.dimsOrder() == DimsOrder::C);
+
+    auto newDims = _desc.dims();
+    //
+    // Adjust num dims and dims order to FixedNumDims
+    //
+
+    newDims.set(Dim::W, 1);
+    newDims.set(Dim::H, 1);
+    if (newDims.has(Dim::N)) {
+        IE_ASSERT(newDims[Dim::N] == 1);
+        newDims.erase(Dim::N);
+    }
+
+    DimsOrder newOrder = DimsOrder::CHW;
+    IE_ASSERT(newOrder.numDims() == OLD_FORMAT_NUM_DIMS);
+
+    //
+    // Create new DataDesc
+    //
+
+    DataDesc newDesc(_desc.type(), newOrder, newDims);
+
+    auto newStrides = calcStrides(newDesc, _requiredStrides);
 
     if (stage != nullptr) {
         for (const auto& inEdge : stage->inputEdges()) {

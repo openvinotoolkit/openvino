@@ -32,7 +32,7 @@ class SsdPatternRemoveTranspose(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('transpose', dict(op='transpose')),
+                ('transpose', dict(op='Transpose')),
                 ('softmax_activation', dict(op='SoftMax')),
                 ('multi_box_detection', dict(op='_contrib_MultiBoxDetection'))
             ],

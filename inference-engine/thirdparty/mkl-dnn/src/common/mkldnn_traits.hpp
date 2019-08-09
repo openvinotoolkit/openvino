@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016-2018 Intel Corporation
+* Copyright 2016-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ template <> struct prec_traits<data_type::s32> { typedef int32_t type; };
 template <> struct prec_traits<data_type::s16> { typedef int16_t type; };
 template <> struct prec_traits<data_type::s8> { typedef int8_t type; };
 template <> struct prec_traits<data_type::u8> { typedef uint8_t type; };
+template <> struct prec_traits<data_type::bf16> { typedef uint16_t type; };
 template <> struct prec_traits<data_type::bin> { typedef uint8_t type; };
 
 template <> struct data_traits<float>
@@ -51,6 +52,8 @@ template <> struct data_traits<int8_t>
 { static constexpr data_type_t data_type = data_type::s8; };
 template <> struct data_traits<uint8_t>
 { static constexpr data_type_t data_type = data_type::u8; };
+template <> struct data_traits<mkldnn_bfloat16_t>
+{ static constexpr data_type_t data_type = data_type::bf16; };
 
 template <> struct typesize_traits<4> { typedef float type; };
 template <> struct typesize_traits<2> { typedef int16_t type; };
@@ -76,6 +79,7 @@ PKIND_TRAITS_INST(rnn);
 PKIND_TRAITS_INST(roi_pooling);
 PKIND_TRAITS_INST(binary_convolution);
 PKIND_TRAITS_INST(binarization);
+PKIND_TRAITS_INST(deformable_convolution);
 #undef PKIND_TRAITS_INST
 
 }

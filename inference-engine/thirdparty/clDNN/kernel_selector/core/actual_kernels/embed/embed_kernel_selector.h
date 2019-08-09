@@ -18,20 +18,18 @@
 
 #include "kernel_selector.h"
 
-namespace kernel_selector
-{
-    class embed_kernel_selector : public kernel_selector_base
-    {
-    public:
-        static embed_kernel_selector &Instance() {
-            static embed_kernel_selector instance_;
-            return instance_;
-        }
+namespace kernel_selector {
+class embed_kernel_selector : public kernel_selector_base {
+public:
+    static embed_kernel_selector& Instance() {
+        static embed_kernel_selector instance_;
+        return instance_;
+    }
 
-        embed_kernel_selector();
+    embed_kernel_selector();
 
-        virtual ~embed_kernel_selector() {}
+    virtual ~embed_kernel_selector() {}
 
-        virtual KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-    };
-}
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+};
+}  // namespace kernel_selector

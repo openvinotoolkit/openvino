@@ -11,7 +11,7 @@
 namespace InferenceEngine {
 namespace PrecisionUtils {
 
-INFERENCE_ENGINE_API_CPP(void) f16tof32Arrays(float *dst,
+void f16tof32Arrays(float *dst,
                                               const short *src,
                                               size_t nelem,
                                               float scale,
@@ -23,7 +23,7 @@ INFERENCE_ENGINE_API_CPP(void) f16tof32Arrays(float *dst,
     }
 }
 
-INFERENCE_ENGINE_API_CPP(void) f32tof16Arrays(short *dst,
+void f32tof16Arrays(short *dst,
                                               const float *src,
                                               size_t nelem,
                                               float scale,
@@ -52,7 +52,7 @@ inline float asfloat(uint32_t v) {
 }
 
 // Function to convert F32 into F16
-INFERENCE_ENGINE_API_CPP(float) f16tof32(ie_fp16 x) {
+float f16tof32(ie_fp16 x) {
     // this is storage for output result
     uint32_t u = static_cast<uint32_t>(x);
 
@@ -109,7 +109,7 @@ INFERENCE_ENGINE_API_CPP(float) f16tof32(ie_fp16 x) {
 
 // This function convert f32 to f16 with rounding to nearest value to minimize error
 // the denormal values are converted to 0.
-INFERENCE_ENGINE_API_CPP(ie_fp16) f32tof16(float x) {
+ie_fp16 f32tof16(float x) {
     // create minimal positive normal f16 value in f32 format
     // exp:-14,mantissa:0 -> 2^-14 * 1.0
     static float min16 = asfloat((127 - 14) << 23);
@@ -119,7 +119,7 @@ INFERENCE_ENGINE_API_CPP(ie_fp16) f32tof16(float x) {
     static float max16 = asfloat(((127 + 15) << 23) | 0x007FE000);
     static uint32_t max16f16 = ((15 + 15) << 10) | 0x3FF;
 
-    // define and declare variable for intermidiate and output result
+    // define and declare variable for intermediate and output result
     // the union is used to simplify representation changing
     union {
         float f;

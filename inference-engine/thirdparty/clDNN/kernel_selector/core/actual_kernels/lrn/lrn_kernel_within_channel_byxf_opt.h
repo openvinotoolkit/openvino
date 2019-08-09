@@ -18,21 +18,19 @@
 
 #include "lrn_kernel_base.h"
 
-namespace kernel_selector
-{
-    class LRNKernelWithinChannelByxfOpt : public LRNKernelBase
-    {
-    public:
-        using Parent = LRNKernelBase;
-        LRNKernelWithinChannelByxfOpt() : LRNKernelBase("lrn_within_channel_byxf_opt") {}
-        virtual ~LRNKernelWithinChannelByxfOpt() {}
+namespace kernel_selector {
+class LRNKernelWithinChannelByxfOpt : public LRNKernelBase {
+public:
+    using Parent = LRNKernelBase;
+    LRNKernelWithinChannelByxfOpt() : LRNKernelBase("lrn_within_channel_byxf_opt") {}
+    virtual ~LRNKernelWithinChannelByxfOpt() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        bool Validate(const Params&, const optional_params&) const override;
-        virtual JitConstants GetJitConstants(const lrn_params& params, DispatchData kd) const override;
-        virtual DispatchData SetDefault(const lrn_params& params) const override;
-    };
-}
+protected:
+    bool Validate(const Params&, const optional_params&) const override;
+    JitConstants GetJitConstants(const lrn_params& params, DispatchData kd) const override;
+    DispatchData SetDefault(const lrn_params& params) const override;
+};
+}  // namespace kernel_selector

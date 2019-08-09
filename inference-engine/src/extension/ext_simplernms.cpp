@@ -202,7 +202,7 @@ public:
             if (layer->insData.size() != 3 || layer->outData.size() != 1)
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
-            if (layer->insData[0].lock()->dims.size() != 4)
+            if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4)
                 THROW_IE_EXCEPTION << "SimplerNMS supports only 4D blobs!";
 
             min_box_size_ = layer->GetParamAsInt("min_bbox_size");

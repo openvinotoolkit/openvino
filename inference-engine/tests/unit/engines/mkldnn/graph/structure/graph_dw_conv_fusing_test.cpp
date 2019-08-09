@@ -46,9 +46,9 @@ void ref_conv(const InferenceEngine::TBlob<data_t> &src, const data_t *weights, 
     size_t KH = prm.krn_h;
     size_t GC = prm.grp_c;
 
-    size_t IC = src.dims()[1];
-    size_t IH = src.dims()[2];
-    size_t IW = src.dims()[3];
+    size_t IC = src.getTensorDesc().getDims()[1];
+    size_t IH = src.getTensorDesc().getDims()[2];
+    size_t IW = src.getTensorDesc().getDims()[3];
 
     size_t OW = (IW + 2 * prm.pad_w - prm.krn_w) / prm.str_w + 1;
     size_t OH = (IH + 2 * prm.pad_h - prm.krn_h) / prm.str_h + 1;
@@ -270,7 +270,8 @@ protected:
             size_t conv1_w_size = p.conv1.krn_w * p.conv1.krn_h * p.conv1.out_c * p.in.c / p.conv1.grp_c + p.conv1.out_c; // conv1 weights + biases
             size_t conv2_w_size = p.conv2.krn_w * p.conv2.krn_h * p.conv2.out_c * p.conv1.out_c / p.conv2.grp_c + p.conv2.out_c; // conv2 weights + biases
 
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {(conv1_w_size+conv2_w_size) * sizeof(float)});
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
+                {(conv1_w_size+conv2_w_size) * sizeof(float)}, InferenceEngine::C });
             weights->allocate();
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float), 1);
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
@@ -282,7 +283,7 @@ protected:
 
             InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -309,12 +310,12 @@ protected:
 
             size_t c1_oh = (p.in.h + 2 * p.conv1.pad_h - p.conv1.krn_h) / p.conv1.str_h + 1;
             size_t c1_ow = (p.in.w + 2 * p.conv1.pad_w - p.conv1.krn_w) / p.conv1.str_w + 1;
-            InferenceEngine::TBlob<float> conv1_dst_ref(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, {c1_ow, c1_oh, p.conv1.out_c, p.in.n}, InferenceEngine::NCHW));
+            InferenceEngine::TBlob<float> conv1_dst_ref(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, {p.in.n, p.conv1.out_c, c1_oh, c1_ow}, InferenceEngine::NCHW));
             conv1_dst_ref.allocate();
 
             size_t c2_oh = (c1_oh + 2 * p.conv2.pad_h - p.conv2.krn_h) / p.conv2.str_h + 1;
             size_t c2_ow = (c1_ow + 2 * p.conv2.pad_w - p.conv2.krn_w) / p.conv2.str_w + 1;
-            InferenceEngine::TBlob<float> conv2_dst_ref(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, {c2_ow, c2_oh, p.conv2.out_c, p.in.n}, InferenceEngine::NCHW));
+            InferenceEngine::TBlob<float> conv2_dst_ref(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, {p.in.n, p.conv2.out_c, c2_oh, c2_ow}, InferenceEngine::NCHW));
             conv2_dst_ref.allocate();
 
             ref_conv(*srcPtr, (const float *)weights->buffer(), conv1_w_size, conv1_dst_ref, p.conv1, 0.0f);

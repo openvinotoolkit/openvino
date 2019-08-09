@@ -49,7 +49,8 @@ static algorithm ie2mkl(RNNCellBase::CellType cell_type) {
     }
 }
 
-MKLDNNRNN::MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng) : MKLDNNNode(layer, eng) {
+MKLDNNRNN::MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
+        MKLDNNNode(layer, eng, socket) {
     is_cell = one_of(layer->type, "LSTMCell", "GRUCell", "RNNCell");
 }
 
@@ -148,16 +149,19 @@ void MKLDNNRNN::fillCellDesc() {
         w_bias_d = {{L, D, Gb, SC}, memory::f32, memory::ldgo};
 
     std::vector<TensorDesc> in_candidate, out_candidate;
+    std::vector<memory::format> outputFormats;
     in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, memory::f32, memory::nc});
     in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
     out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
+    outputFormats.emplace_back(memory::nc);
 
     if (S == 2) {
         in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
         out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
+        outputFormats.emplace_back(memory::nc);
     }
 
-    createDescriptor(in_candidate, out_candidate);
+    createDescriptor(in_candidate, out_candidate, outputFormats);
 }
 
 void MKLDNNRNN::fillSeqDesc() {
@@ -271,19 +275,26 @@ void MKLDNNRNN::fillSeqDesc() {
         in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
 
     std::vector<TensorDesc> out_candidate;
-    if (nativeOrder)
+    std::vector<memory::format> outputFormats;
+    if (nativeOrder) {
         out_candidate.push_back(out_data_d);
-    else
+        outputFormats.push_back(out_data_d.getFormat());
+    } else {
         out_candidate.push_back(MKLDNNMemoryDesc{{N, T, SC}, memory::f32, memory::ntc});
+        outputFormats.push_back(memory::ntc);
+    }
 
-    for (int i = 1; i < outs.size(); i++)
-        out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
+    for (int i = 1; i < outs.size(); i++) {
+        out_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, memory::f32, memory::nc});
+        outputFormats.push_back(memory::nc);
+    }
 
-    createDescriptor(in_candidate, out_candidate);
+    createDescriptor(in_candidate, out_candidate, outputFormats);
 }
 
 void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
-                                 const std::vector<TensorDesc> &outputDesc) {
+                                 const std::vector<TensorDesc> &outputDesc,
+                                 const std::vector<memory::format> &outputFormats) {
     MKLDNNDescriptor desc(std::shared_ptr<rnn_forward::desc>(
             new rnn_forward::desc(forward_scoring, cell_desc,
                     direction,
@@ -315,7 +326,7 @@ void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
         config.outConfs.push_back(dataConfig);
     }
 
-    supportedPrimitiveDescriptors.push_back({config, ref_any});
+    supportedPrimitiveDescriptors.emplace_back(config, ref_any, outputFormats);
 }
 
 void MKLDNNRNN::createPrimitive() {

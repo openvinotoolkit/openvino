@@ -25,7 +25,7 @@ from .utils.path import Path
 
 class Network:
     @staticmethod
-    def reload(model_path: str, statistics = None, quantization_levels: dict() = None, batch_size: int = None):
+    def reload(model_path: str, statistics = None, quantization_levels: dict = None, batch_size: int = None):
         tmp_model_dir = None
         try:
             with Network(model_path) as network:

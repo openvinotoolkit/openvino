@@ -8,8 +8,6 @@ set (CMAKE_CXX_STANDARD 11)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 ####################################
 
-add_subdirectory(inference_engine)
-
 if(ENABLE_MKL_DNN)
     add_subdirectory(mkldnn_plugin)
 endif()
@@ -25,6 +23,8 @@ endif()
 if (ENABLE_GNA)
     add_subdirectory(gna_plugin)
 endif()
+
+add_subdirectory(inference_engine)
 
 add_subdirectory(hetero_plugin)
 

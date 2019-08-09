@@ -19,17 +19,15 @@
 #include "primitive_type_base.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include <string>
 
-namespace cldnn
-{
-primitive_type_id depth_to_space_type_id()
-{
+namespace cldnn {
+primitive_type_id depth_to_space_type_id() {
     static primitive_type_base<depth_to_space> instance;
     return &instance;
 }
 
-layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node)
-{
+layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input(0).get_output_layout();
@@ -38,22 +36,27 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node)
     const size_t block_size = desc->block_size;
 
     if (block_size < 2)
-        CLDNN_ERROR_MESSAGE(node.id(), "Invalid depthToSpace block_size value (should equal at least two). Actual block size is" +
-            std::to_string(block_size));
+        CLDNN_ERROR_MESSAGE(node.id(),
+                            "Invalid depthToSpace block_size value (should equal at least two). Actual block size is" +
+                                std::to_string(block_size));
 
     if (input_layout.size.feature[0] % (block_size * block_size) != 0)
-        CLDNN_ERROR_MESSAGE(node.id(), "The depth of the input tensor must be divisible by squared block size. Actual block size is " +
-            std::to_string(block_size));
+        CLDNN_ERROR_MESSAGE(
+            node.id(),
+            "The depth of the input tensor must be divisible by squared block size. Actual block size is " +
+                std::to_string(block_size));
 
     const size_t feature = input_layout.size.feature[0] / block_size / block_size;
     const size_t y = input_layout.size.spatial[1] * block_size;
     const size_t x = input_layout.size.spatial[0] * block_size;
 
-    return layout{input_layout.data_type, input_format, tensor(TensorValue(input_layout.size.batch[0]), TensorValue(feature), TensorValue(x), TensorValue(y))};
+    return layout{
+        input_layout.data_type,
+        input_format,
+        tensor(TensorValue(input_layout.size.batch[0]), TensorValue(feature), TensorValue(x), TensorValue(y))};
 }
 
-std::string depth_to_space_inst::to_string(depth_to_space_node const& node)
-{
+std::string depth_to_space_inst::to_string(depth_to_space_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
     auto& input = node.input();
@@ -71,8 +74,6 @@ std::string depth_to_space_inst::to_string(depth_to_space_node const& node)
 }
 
 depth_to_space_inst::typed_primitive_inst(network_impl& network, depth_to_space_node const& node)
-    : parent(network, node)
-{
-}
+    : parent(network, node) {}
 
-}
+}  // namespace cldnn

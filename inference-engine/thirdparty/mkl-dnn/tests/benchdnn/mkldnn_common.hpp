@@ -53,6 +53,7 @@
 /* aux */
 template <mkldnn_data_type_t> struct prec_traits;
 template <> struct prec_traits<mkldnn_f32> { typedef float type; };
+template <> struct prec_traits<mkldnn_bf16> { typedef mkldnn_bfloat16_t type; };
 template <> struct prec_traits<mkldnn_s32> { typedef int32_t type; };
 template <> struct prec_traits<mkldnn_s16> { typedef int16_t type; };
 template <> struct prec_traits<mkldnn_s8> { typedef int8_t type; };
@@ -62,6 +63,7 @@ inline size_t sizeof_dt(mkldnn_data_type_t dt) {
     switch (dt) {
 #   define CASE(dt) case dt: return sizeof(typename prec_traits<dt>::type)
     CASE(mkldnn_f32);
+    CASE(mkldnn_bf16);
     CASE(mkldnn_s32);
     CASE(mkldnn_s16);
     CASE(mkldnn_s8);

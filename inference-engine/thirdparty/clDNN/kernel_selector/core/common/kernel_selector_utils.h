@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016-2018 Intel Corporation
+﻿// Copyright (c) 2016-2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +11,27 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #pragma once
 
 #include "jitter.h"
+#include <vector>
 
 namespace kernel_selector {
 
-    struct weight_bias_params;
-    struct optional_params;
-    struct WeightsReorderParams;
+struct weight_bias_params;
+struct optional_params;
+struct WeightsReorderParams;
 
-    std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensions, const WeightsLayout layout);
-    bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout layout);
-    bool UpdateWeightsParams(weight_bias_params& newParams, const optional_params& options, std::vector<WeightsLayout> layouts, WeightsReorderParams& weightsReorderParams,  const ParamsKey& paramsKey = ParamsKey());
-    JitConstants GetTensorFriendlyWorkGroupsJit(const DataTensor& t);
-    std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t);
-    std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws);
-    bool CheckInputsOutputNoPitchSameDims(const base_params& params);
-}
+std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensions, const WeightsLayout layout);
+bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout layout);
+bool UpdateWeightsParams(weight_bias_params& newParams,
+                         const optional_params& options,
+                         std::vector<WeightsLayout> layouts,
+                         WeightsReorderParams& weightsReorderParams,
+                         const ParamsKey& paramsKey = ParamsKey());
+JitConstants GetTensorFriendlyWorkGroupsJit(const DataTensor& t);
+std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t);
+std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws);
+bool CheckInputsOutputNoPitchSameDims(const base_params& params);
+}  // namespace kernel_selector

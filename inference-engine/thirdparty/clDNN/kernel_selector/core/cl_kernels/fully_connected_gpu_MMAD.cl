@@ -108,7 +108,7 @@ KERNEL(fully_connected_gpu_MMAD)(
 
     const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
     const uint dst_index = GET_DATA_INDEX(OUTPUT, b, f, y, x) + out_split_offset;
-    output[dst_index] = ACTIVATION(convert_char(dotProd), NL_M, NL_N);
+    output[dst_index] = ACTIVATION(convert_char(dotProd), ACTIVATION_PARAMS);
 }
 
 #undef FILTER_IFM_MMAD_NUM

@@ -18,12 +18,11 @@
 #pragma once
 #include "api/CPP/gemm.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 template <>
-struct typed_program_node<gemm> : public typed_program_node_base<gemm>
-{
+struct typed_program_node<gemm> : public typed_program_node_base<gemm> {
     using parent = typed_program_node_base<gemm>;
 
 public:
@@ -36,8 +35,7 @@ public:
 using gemm_node = typed_program_node<gemm>;
 
 template <>
-class typed_primitive_inst<gemm> : public typed_primitive_inst_base<gemm>
-{
+class typed_primitive_inst<gemm> : public typed_primitive_inst_base<gemm> {
     using parent = typed_primitive_inst_base<gemm>;
 
 public:
@@ -50,4 +48,4 @@ public:
 
 using gemm_inst = typed_primitive_inst<gemm>;
 
-}
+}  // namespace cldnn

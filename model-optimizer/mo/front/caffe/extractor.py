@@ -16,14 +16,9 @@
 
 from mo.front.caffe.extractors.batchnorm import batch_norm_ext
 from mo.front.caffe.extractors.concat import concat_ext
-from mo.front.caffe.extractors.eltwise import eltwise_ext
 from mo.front.caffe.extractors.inner_product import inner_product_ext
-from mo.front.caffe.extractors.input import global_input_ext, input_ext
 from mo.front.caffe.extractors.lrn import lrn_ext
 from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
-from mo.front.caffe.extractors.permute import permute_ext
-from mo.front.caffe.extractors.power import power_ext
-from mo.front.caffe.extractors.relu import relu_ext
 from mo.front.caffe.extractors.reshape import reshape_ext
 from mo.front.caffe.extractors.roipooling import roipooling_ext
 from mo.front.caffe.extractors.scale import scale_ext
@@ -46,10 +41,6 @@ Keys are names that appear as layer names in .prototxt.
 Full list is available here: http://caffe.berkeleyvision.org/tutorial/layers.html
 """
 caffe_type_extractors = {
-    # Data Layers
-    'input': node_pb_arg(input_ext),
-    'globalinput': node_pb_arg(global_input_ext),
-
     # Common Layers
     'innerproduct': node_pb_arg(inner_product_ext),
     'inner_product': node_pb_arg(inner_product_ext),
@@ -60,18 +51,12 @@ caffe_type_extractors = {
     'lrn': node_pb_arg(lrn_ext),
 
     # Activation Layers
-    'power': node_pb_arg(power_ext),
-    'relu': node_pb_arg(relu_ext),
     'scale': node_pb_arg(scale_ext),
 
     # Utility Layers
     'concat': node_pb_arg(concat_ext),
-    'eltwise': node_pb_arg(eltwise_ext),
     'reshape': node_pb_arg(reshape_ext),
     'slice': node_pb_arg(slice_ext),
-
-    # Custom, implemented in IE, SSD-specific
-    'permute': node_pb_arg(permute_ext),
 
     # Custom, implemented in IE, Fast-RCNN-specific
     'roipooling': node_pb_arg(roipooling_ext),

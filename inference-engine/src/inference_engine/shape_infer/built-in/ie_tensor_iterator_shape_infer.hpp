@@ -52,7 +52,7 @@ public:
         for (auto &port_map : ti.input_port_map) {
             int ext_port = port_map.from;
             int int_port = port_map.to;
-            auto int_name = ti.body.inputs[int_port]->name;
+            auto int_name = ti.body.inputs[int_port]->getName();
 
             auto shape = inShapes[ext_port];
             if (port_map.axis != -1) {

@@ -21,6 +21,7 @@ from mo.graph.graph import Graph
 class InputCut(FrontReplacementPattern):
     enabled = True
     force_clean_up = True
+    run_not_recursively = True
 
     def run_after(self):
         from extensions.front.output_cut import OutputCut

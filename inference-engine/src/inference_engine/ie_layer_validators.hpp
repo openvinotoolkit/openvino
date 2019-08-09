@@ -138,6 +138,20 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
+class INFERENCE_ENGINE_API_CLASS(DeformableConvolutionValidator) : public ConvolutionValidator {
+public:
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    explicit DeformableConvolutionValidator(const std::string& _type);
+
+    void checkCorrespondence(const CNNLayer* layer,
+                             const std::map<std::string, Blob::Ptr>& blobs,
+                             const std::vector<SizeVector>& inShapes) const override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
 
 class INFERENCE_ENGINE_API_CLASS(PoolingValidator) : public LayerValidator {
 public:
@@ -469,9 +483,9 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
-class INFERENCE_ENGINE_API_CLASS(ExpandValidator) : public LayerValidator {
+class INFERENCE_ENGINE_API_CLASS(BroadcastValidator) : public LayerValidator {
 public:
-    explicit ExpandValidator(const std::string& _type);
+    explicit BroadcastValidator(const std::string& _type);
 
     void parseParams(CNNLayer* layer) override;
 
@@ -668,6 +682,17 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
+class INFERENCE_ENGINE_API_CLASS(OneHotValidator) : public LayerValidator {
+public:
+    explicit OneHotValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
 class INFERENCE_ENGINE_API_CLASS(UpsamplingValidator) : public LayerValidator {
 public:
     explicit UpsamplingValidator(const std::string& _type);
@@ -809,6 +834,51 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
+class INFERENCE_ENGINE_API_CLASS(SelectValidator) : public LayerValidator {
+public:
+    explicit SelectValidator(const std::string& _type);
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(MathValidator) : public LayerValidator {
+public:
+    explicit MathValidator(const std::string& _type);
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(ReduceValidator) : public LayerValidator {
+public:
+    explicit ReduceValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(GatherTreeValidator) : public LayerValidator {
+public:
+    explicit GatherTreeValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class INFERENCE_ENGINE_API_CLASS(TopKValidator) : public LayerValidator {
+public:
+    explicit TopKValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
 template<typename Validator>
 class ValidatorRegisterBase {
 public:
@@ -831,6 +901,7 @@ REG_LAYER_VALIDATOR_FOR_TYPE(ConvolutionValidator, Convolution);
 REG_LAYER_VALIDATOR_FOR_TYPE(CopyValidator, Copy);
 REG_LAYER_VALIDATOR_FOR_TYPE(CropValidator, Crop);
 REG_LAYER_VALIDATOR_FOR_TYPE(DeconvolutionValidator, Deconvolution);
+REG_LAYER_VALIDATOR_FOR_TYPE(DeformableConvolutionValidator, DeformableConvolution);
 REG_LAYER_VALIDATOR_FOR_TYPE(DetectionOutputValidator, DetectionOutput);
 REG_LAYER_VALIDATOR_FOR_TYPE(ELUValidator, ELU);
 REG_LAYER_VALIDATOR_FOR_TYPE(EltwiseValidator, Eltwise);
@@ -883,16 +954,55 @@ REG_LAYER_VALIDATOR_FOR_TYPE(RNNCellValidator<RNNSequenceLayer::LSTM>, LSTMCell)
 REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::RNN>, RNNSequence);
 REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::GRU>, GRUSequence);
 REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::LSTM>, LSTMSequence);
+REG_LAYER_VALIDATOR_FOR_TYPE(SelectValidator, Select);
 REG_LAYER_VALIDATOR_FOR_TYPE(SqueezeValidator, Squeeze);
 REG_LAYER_VALIDATOR_FOR_TYPE(UnsqueezeValidator, Unsqueeze);
 REG_LAYER_VALIDATOR_FOR_TYPE(RangeValidator, Range);
 REG_LAYER_VALIDATOR_FOR_TYPE(FillValidator, Fill);
-REG_LAYER_VALIDATOR_FOR_TYPE(ExpandValidator, Expand);
+REG_LAYER_VALIDATOR_FOR_TYPE(BroadcastValidator, Broadcast);
 REG_LAYER_VALIDATOR_FOR_TYPE(TanHValidator, TanH);
 REG_LAYER_VALIDATOR_FOR_TYPE(TileValidator, Tile);
 REG_LAYER_VALIDATOR_FOR_TYPE(UnpoolingValidator, Unpooling);
 REG_LAYER_VALIDATOR_FOR_TYPE(UpsamplingValidator, Upsampling);
+REG_LAYER_VALIDATOR_FOR_TYPE(OneHotValidator, OneHot);
 REG_LAYER_VALIDATOR_FOR_TYPE(QuantizeValidator, Quantize);
 REG_LAYER_VALIDATOR_FOR_TYPE(BinaryConvolutionValidator, BinaryConvolution);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Abs);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Acos);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Acosh);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Asin);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Asinh);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Atan);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Atanh);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Ceil);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Cos);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Cosh);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Erf);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Floor);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, HardSigmoid);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Log);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Neg);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Reciprocal);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Selu);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Sign);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Sin);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Sinh);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Softplus);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Softsign);
+REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Tan);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceAnd);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceL1);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceL2);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceLogSum);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceLogSumExp);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceMax);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceMean);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceMin);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceOr);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceProd);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceSum);
+REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceSumSquare);
+REG_LAYER_VALIDATOR_FOR_TYPE(GatherTreeValidator, GatherTree);
+REG_LAYER_VALIDATOR_FOR_TYPE(TopKValidator, TopK);
 }  // namespace details
 }  // namespace InferenceEngine

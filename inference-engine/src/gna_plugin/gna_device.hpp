@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "gna-api.h"
 #include "gna-api-dumper.h"
 #include "gna-api-instrumentation.h"
 #include "ie_common.h"
@@ -46,16 +47,11 @@ class GNADeviceHelper {
 
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
 
-    void propagateSync(const intel_nnet_type_t *pNeuralNetwork,
-                       const uint32_t *pActiveIndices,
-                       uint32_t nActiveIndices);
-
     uint32_t propagate(const intel_nnet_type_t *pNeuralNetwork,
                        const uint32_t *pActiveIndices,
                        uint32_t nActiveIndices);
 
     void wait(uint32_t id);
-
 
     struct DumpResult {
         intel_gna_model_header header;
@@ -73,6 +69,10 @@ class GNADeviceHelper {
     void updateGnaPerfCounters();
     void getGnaPerfCounters(std::map<std::string,
                         InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
+
+    intel_gna_status_t getGNAStatus() const noexcept {
+        return nGNAStatus;
+    }
 
  private:
     void open(uint8_t const n_threads);

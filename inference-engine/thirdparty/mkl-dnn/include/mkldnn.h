@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016-2018 Intel Corporation
+* Copyright 2016-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -482,7 +482,7 @@ mkldnn_status_t MKLDNN_API mkldnn_post_ops_get_params_depthwise(
  * The kind of this post operation is #mkldnn_convolution.
  */
 mkldnn_status_t MKLDNN_API mkldnn_post_ops_append_dw_conv(
-        mkldnn_post_ops_t post_ops, int in_h, int in_w, int ker_h, int ker_w, int str_h, int str_w,
+        mkldnn_post_ops_t post_ops, int in_h, int in_w, int ker_h, int ker_w, int str_h, int str_w, mkldnn_data_type_t in_dt,
         const float* weights_data, const float* biases_data);
 
 /** Gets the DW convolution parameters of the post operation with index @p index in
@@ -490,8 +490,8 @@ mkldnn_status_t MKLDNN_API mkldnn_post_ops_append_dw_conv(
  */
 mkldnn_status_t MKLDNN_API mkldnn_post_ops_get_params_dw_conv(
         const_mkldnn_post_ops_t post_ops, int index, int* in_h, int* in_w,
-        int* ker_h, int* ker_w, int* str_h, int* str_w, const float** weights_data,
-        const float** biases_data);
+        int* ker_h, int* ker_w, int* str_h, int* str_w, mkldnn_data_type_t* in_dt,
+        const float** weights_data, const float** biases_data);
 
 /** Appends binarization post operation to the @p post_ops with given parameters
  * @p kind and @p weights (@sa mkldnn_binarization_forward_desc_init and
@@ -1826,6 +1826,25 @@ mkldnn_status_t MKLDNN_API mkldnn_binarization_forward_desc_init(
 
 /** @} */
 
+/** @addtogroup c_api_deformable_convolution Deformable convolution
+ * A primitive to compute deformable convolution.
+ * @{ */
+
+/**
+ */
+
+mkldnn_status_t MKLDNN_API mkldnn_deformable_convolution_forward_desc_init(
+        mkldnn_deformable_convolution_desc_t *def_conv_desc, mkldnn_prop_kind_t prop_kind,
+        mkldnn_alg_kind_t alg_kind, mkldnn_memory_desc_t *src_descs, int num_inputs,
+        const mkldnn_memory_desc_t *weights_desc,
+        const mkldnn_memory_desc_t *bias_desc,
+        const mkldnn_memory_desc_t *dst_desc,
+        const mkldnn_dims_t strides, const mkldnn_dims_t dilates, const mkldnn_dims_t padding_l,
+        const mkldnn_dims_t padding_r, mkldnn_padding_kind_t padding_kind,
+        const int deformable_group);
+
+/** @} */
+
 /** @addtogroup c_api_engine Engine operations
  * @{ */
 
@@ -1980,6 +1999,32 @@ mkldnn_status_t MKLDNN_API mkldnn_gemm_s8s8s32(const char *transa,
         const int *K, const float *alpha, const int8_t *A, const int *lda,
         const int8_t *ao, const int8_t *B, const int *ldb, const int8_t *bo,
         const float *beta, int32_t *c, const int *ldc, const int32_t *co);
+
+/** gemm_bf16bf16f32 performs a matrix-matrix multiplication operation defined
+ * as
+ *
+ * C := alpha*op( A )*op( B ) + beta*C
+ *
+ * where
+ *  - op( X ) is one of op( X ) = X or op( X ) = X**T,
+ *  - alpha and beta are scalars,
+ *  - A, B and C are matrices, with op( A ) an m by k matrix, op( B ) a k by n
+ *    matrix and C an m by n matrix.
+ *
+ * The matrices are assumed to be stored in column-major order (the elements
+ * in a matrix columns are contiguous in memory).
+ *
+ * @note
+ *      The API is different from the standard BLAS routine
+ *      because it returns mkldnn_status_t for error handling.
+ *      XERBLA is not supported: no error message will be printed
+ *      in case of incorrect parameters. */
+mkldnn_status_t MKLDNN_API mkldnn_gemm_bf16bf16f32(const char *transa,
+        const char *transb, const int *M, const int *N, const int *K,
+        const float *alpha, const mkldnn_bfloat16_t *A, const int *lda,
+        const mkldnn_bfloat16_t *B, const int *ldb, const float *beta,
+        float *c, const int *ldc);
+
 /** @} */
 
 /** @} */

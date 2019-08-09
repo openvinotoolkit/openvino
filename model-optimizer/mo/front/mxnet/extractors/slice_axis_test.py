@@ -25,7 +25,7 @@ from mo.utils.unittest.graph import build_graph
 class TestMXNetSliceAxisExtractorOp(unittest.TestCase):
     def test_extract_slice_axis_layer(self):
         graph = build_graph(
-            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Placeholder'},
+            {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
              'slice_axis_node': {'type': 'sigmoid', 'kind': 'op', 'op': 'slice_axis', },
              'node_3': {'type': 'Identity', 'value': None, 'kind': 'op'},
              },

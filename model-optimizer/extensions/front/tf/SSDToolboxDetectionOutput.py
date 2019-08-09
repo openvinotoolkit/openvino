@@ -18,12 +18,14 @@ import numpy as np
 
 from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.ops.DetectionOutput import DetectionOutput
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
+from mo.ops.const import Const
 from mo.ops.op import PermuteAttrs
-from mo.ops.output import Output
 from mo.ops.reshape import Reshape
+from mo.ops.result import Result
 
 
 class SSDToolboxDetectionOutputReplacement(FrontReplacementFromConfigFileSubGraph):
@@ -45,31 +47,30 @@ class SSDToolboxDetectionOutputReplacement(FrontReplacementFromConfigFileSubGrap
         locs_out_nodes = locs_node[0].out_nodes()
         assert len(locs_out_nodes) == 1
         locs_out_node = locs_out_nodes[list(locs_out_nodes.keys())[0]]
-        assert locs_out_node.op == "OpOutput", locs_out_node.op
+        assert locs_out_node.op == "Result", locs_out_node.op
         graph.remove_node(locs_out_node.id)
 
         conf_out_nodes = conf_node[0].out_nodes()
         assert len(conf_out_nodes) == 1
         conf_out_node = conf_out_nodes[list(conf_out_nodes.keys())[0]]
-        assert conf_out_node.op == "OpOutput", conf_out_node.op
+        assert conf_out_node.op == "Result", conf_out_node.op
         graph.remove_node(conf_out_node.id)
 
         # reshape operation to flatten confidence tensor
-        reshape_loc_op = Reshape(graph, {'dim': np.array([0, -1])})
-        reshape_loc_node = reshape_loc_op.create_node([locs_node], dict(name='DetectionOutput_Reshape_loc_'))
+        const = Const(graph, {'value': int64_array([0, -1])}).create_node()
+        reshape_loc_node = Reshape(graph, {}).create_node([locs_node, const], dict(name='DetectionOutput_Reshape_loc_'))
 
         # reshape operation to flatten confidence tensor
-        reshape_conf_op = Reshape(graph, {'dim': np.array([0, -1])})
-        reshape_conf_node = reshape_conf_op.create_node([conf_node], dict(name='DetectionOutput_Reshape_conf_'))
+        reshape_conf_node = Reshape(graph, {}).create_node([conf_node, const], dict(name='DetectionOutput_Reshape_conf_'))
 
-        # remove the OpOutput node after the priors node
-        assert prior_boxes_node[0].out_node().op == "OpOutput"
+        # remove the Result node after the priors node
+        assert prior_boxes_node[0].out_node().op == "Result"
         graph.remove_node(prior_boxes_node[0].out_node().id)
 
         # reshape operation for prior boxes tensor
-        reshape_priors_op = Reshape(graph, {'dim': np.array([1, 2, -1])})
-        reshape_priors_node = reshape_priors_op.create_node([prior_boxes_node],
-                                                            dict(name='DetectionOutput_Reshape_priors_'))
+        const = Const(graph, {'value': int64_array([1, 2, -1])}).create_node()
+        reshape_priors_node = Reshape(graph, {}).create_node([prior_boxes_node, const],
+                                                             dict(name='DetectionOutput_Reshape_priors_'))
         # create Detection Output node with three inputs: locations, confidences and prior boxes
         detection_output_op = DetectionOutput(graph, match.custom_replacement_desc.custom_attributes)
         detection_output_node = detection_output_op.create_node(
@@ -78,6 +79,6 @@ class SSDToolboxDetectionOutputReplacement(FrontReplacementFromConfigFileSubGrap
         PermuteAttrs.set_permutation(reshape_priors_node, detection_output_node, None)
 
         # create Output node to mark DetectionOutput as a graph output operation
-        output_op = Output(graph)
+        output_op = Result(graph)
         output_op.create_node([detection_output_node], dict(name='sink_'))
         return {}

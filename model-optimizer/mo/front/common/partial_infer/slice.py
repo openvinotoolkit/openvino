@@ -22,8 +22,8 @@ from mo.utils.error import Error
 def tf_strided_slice_infer(node):
     if node.in_node(1).value is None or node.in_node(2).value is None:
         raise Error('Strided slice layer supports only constant begin and end inputs')
-    begin_id = node.in_node(1).value
-    end_id = node.in_node(2).value
+    begin_id = node.in_node(1).value.copy()
+    end_id = node.in_node(2).value.copy()
     if len(node.in_nodes()) > 3:
         if node.in_node(3).value is None:
             raise Error('Strided slice layer supports only constant stride input')

@@ -53,5 +53,5 @@ KERNEL (fully_connected_gpu_xb_bx)(
 #if BIAS_TERM
     result += bias[outXIdx];
 #endif
-    output[x] = ACTIVATION(result, NL_M, NL_N);
+    output[x] = ACTIVATION(result, ACTIVATION_PARAMS);
 }

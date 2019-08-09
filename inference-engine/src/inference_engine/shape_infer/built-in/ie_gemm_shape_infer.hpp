@@ -50,8 +50,8 @@ public:
             shapes.push_back(max_dim);
         }
 
-        unsigned long xAxis = dims0.size() - 1;
-        unsigned long yAxis = dims0.size() - 2;
+        unsigned long xAxis = gemmLayer.transpose_a ? dims0.size() - 2 : dims0.size() - 1;
+        unsigned long yAxis = gemmLayer.transpose_b ? dims1.size() - 1 : dims1.size() - 2;
 
         shapes.push_back(dims0[yAxis]);
         shapes.push_back(dims1[xAxis]);

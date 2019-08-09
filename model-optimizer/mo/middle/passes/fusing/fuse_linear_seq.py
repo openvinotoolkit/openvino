@@ -15,19 +15,14 @@
 """
 
 import logging as log
-from collections import deque
 
-import networkx as nx
 import numpy as np
 
-from mo.front.extractor import add_attrs_props
-from mo.middle.passes.eliminate import graph_clean_up
-from mo.utils.graph import pseudo_topological_sort
-from mo.ops.lin_op import Mul, Add
-from mo.middle.passes.eliminate import merge_data_nodes
-from mo.ops.op import Op
+from mo.ops.const import Const
+from extensions.ops.elementwise import Mul, Add
 from mo.graph.graph import Node, Graph
-from mo.middle.passes.fusing.helpers import backward_bfs, forward_bfs, get_tensor_id, get_value_id
+from mo.middle.passes.fusing.helpers import get_value_in_port, \
+    get_tensor_in_port
 
 
 def _fuse_linear_sequence(graph: Graph, start_node: Node):
@@ -39,18 +34,19 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
     fnodes = [start_node]
     while True:
         node = fnodes[-1]
-        data_node = node.out_node()
-        if (len(data_node.out_nodes()) != 1):
+        destinations = node.out_port(0).get_destinations()
+        if len(destinations) != 1:
             break
-        if (data_node.out_node().op in ['Mul', 'Add']) and get_value_id(data_node.out_node()) is not None and data_node.out_node().soft_get('can_be_fused') == True:
-            fnodes.append(data_node.out_node())
+        dst_node = destinations[0].node
+        if dst_node.soft_get('op') in ['Mul', 'Add'] and get_value_in_port(dst_node) is not None and dst_node.soft_get('can_be_fused') is True:
+            fnodes.append(dst_node)
         else:
             break
 
     if len(fnodes) == 1 or (len(fnodes) == 2 and fnodes[0].op == 'Mul' and fnodes[1].op == 'Add'):
         return False
 
-    input_shape = start_node.in_node(get_tensor_id(start_node)).shape
+    input_shape = get_tensor_in_port(start_node).data.get_shape()
 
     init_dims_cnt = len(input_shape) - 2 if graph.graph['layout'] == 'NCHW' else 1
 
@@ -60,43 +56,29 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
     first_mul_name = None
     first_add_name = None
 
-    for idx in range(len(fnodes)):
-        node = fnodes[idx]
-        const_node = get_value_id(node)
+    for node in fnodes:
+        const_port_value = get_value_in_port(node).data.get_value()
         if node.op == 'Mul':
             if first_mul_name is None:
                 first_mul_name = node.name
-            mul = mul * node.in_node(const_node).value
-            add = add * node.in_node(const_node).value
+            mul = mul * const_port_value
+            add = add * const_port_value
         elif node.op == 'Add':
             if first_add_name is None:
                 first_add_name = node.name
-            add = add + node.in_node(const_node).value
+            add = add + const_port_value
 
     # If mul is scalar we broadcast it to biases shape
     if mul.shape != add.shape and len(mul.shape) == 1 and mul.shape[0] == 1:
         mul = np.array([mul[0] for x in range(add.shape[0])])
 
-    assert (np.array_equal(fnodes[0].in_node(get_tensor_id(fnodes[0])).shape, fnodes[-1].out_node().shape))
+    assert (np.array_equal(get_tensor_in_port(fnodes[0]).data.get_shape(), fnodes[-1].out_port(0).data.get_shape()))
 
-    mul_node = Mul(graph, dict(name=first_mul_name + '/Fused_Mul_' if first_mul_name is not None else ''))
-    add_node = Add(graph, dict(name=first_add_name + '/Fused_Add_' if first_add_name is not None else ''))
+    mul_op = Mul(graph, dict(name='{}/Fused_Mul_'.format(first_mul_name or '')))
+    add_op = Add(graph, dict(name='{}/Fused_Add_'.format(first_add_name or '')))
 
-    in_node = fnodes[0].in_node(get_tensor_id(fnodes[0]))
-    out_node = fnodes[-1].out_node()
-
-    graph.remove_edge(in_node.id, fnodes[0].id)
-    graph.remove_edge(fnodes[-1].id, out_node.id)
-
-    # Remove deleted subgraph
-    for node in fnodes:
-        for tmp_node in node.in_nodes().values():
-            # Remove node only if it has one consumer (for case with shared weights)
-            if len(tmp_node.out_nodes()) == 1:
-                graph.remove_node(tmp_node.id)
-        for tmp_node in node.out_nodes().values():
-            graph.remove_node(tmp_node.id)
-        graph.remove_node(node.id)
+    in_port = get_tensor_in_port(fnodes[0])
+    out_port = fnodes[-1].out_port(0)
 
     """
     Four cases considered below:
@@ -106,19 +88,46 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
         4. When Mul and Add has not valid values we just merge two data nodes
     """
     if any([x != 0 for x in np.nditer(add)]) and any([x != 1 for x in np.nditer(mul)]):
-        data_mul = Op.create_input_data_node(graph, "data_mul_", np.array(mul))
-        data_add = Op.create_input_data_node(graph, "data_add_", np.array(add))
-        add_node.create_node_with_data(inputs=[mul_node.create_node_with_data([in_node, data_mul]), data_add],
-                                       data_nodes=out_node)
+        #  Const\    Const\
+        #  ----->Mul------>Add-->
+        mul_const = Const(graph, dict(name="data_mul_", value=np.array(mul))).create_node()
+        add_const = Const(graph, dict(name="data_add_", value=np.array(add))).create_node()
+
+        mul_node = mul_op.create_node()
+        add_node = add_op.create_node()
+
+        in_port.get_connection().set_destination(mul_node.in_port(0))
+        mul_const.out_port(0).connect(mul_node.in_port(1))
+
+        mul_node.out_port(0).connect(add_node.in_port(0))
+        add_const.out_port(0).connect(add_node.in_port(1))
+        out_port.get_connection().set_source(add_node.out_port(0))
     elif any([x != 1 for x in np.nditer(mul)]):
-        data_mul = Op.create_input_data_node(graph, "data_mul_", np.array(mul))
-        mul_node.create_node_with_data(inputs=[in_node, data_mul], data_nodes=out_node)
+        #  Const\
+        #  ----->Mul-->
+        mul_const = Const(graph, dict(name="data_mul_", value=np.array(mul))).create_node()
+        mul_node = mul_op.create_node()
+
+        in_port.get_connection().set_destination(mul_node.in_port(0))
+        mul_const.out_port(0).connect(mul_node.in_port(1))
+        out_port.get_connection().set_source(mul_node.out_port(0))
     elif any([x != 0 for x in np.nditer(add)]):
-        data_add = Op.create_input_data_node(graph, "data_add_", np.array(add))
-        add_node.create_node_with_data(inputs=[in_node, data_add], data_nodes=out_node)
+        #  Const\
+        #  ----->Add-->
+        add_const = Const(graph, dict(name="data_add_", value=np.array(add))).create_node()
+        add_node = add_op.create_node()
+
+        in_port.get_connection().set_destination(add_node.in_port(0))
+        add_const.out_port(0).connect(add_node.in_port(1))
+        out_port.get_connection().set_source(add_node.out_port(0))
     else:
-        merge_data_nodes(graph,out_node, in_node)
-        graph.remove_node(in_node.id)
+        source_node = in_port.get_source()
+        in_port.disconnect()
+        out_port.get_connection().set_source(source_node)
+
+    # Remove fused nodes
+    for node in fnodes:
+        graph.remove_node(node.id)
 
     log.debug('Fused {} operations'.format(len(fnodes)))
     return True
@@ -130,10 +139,9 @@ def fuse_mul_add_sequence(graph: Graph):
     """
     while True:
         is_fused = False
-        for idx in list(pseudo_topological_sort(graph)):
-            if idx in graph:
-                node = Node(graph, idx)
-                if node.soft_get('op') in ['Mul','Add'] and get_value_id(node) is not None and node.soft_get('can_be_fused') == True:
+        for node in graph.pseudo_topological_sort():
+            if node.id in graph:
+                if node.soft_get('op') in ['Mul','Add'] and get_value_in_port(node) is not None and node.soft_get('can_be_fused') is True:
                     is_fused |= _fuse_linear_sequence(graph, node)
         if not is_fused:
             break

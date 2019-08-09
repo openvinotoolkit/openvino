@@ -14,38 +14,31 @@
  limitations under the License.
 """
 
-import numpy as np
-
-from mo.graph.graph import Graph
+from extensions.ops.transpose import Transpose
+from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.reshape import Reshape
+from mo.ops.const import Const
 
 
-class SwapAxesMiddleReplacer(MiddleReplacementPattern):
-    enabled = False
+class SwapAxisMiddleReplacer(MiddleReplacementPattern):
+    enabled = True
 
     def pattern(self):
         return dict(
-            nodes=[('swapaxes', dict(kind='op', op='swapaxes'))],
+            nodes=[('op', dict(kind='op', op='SwapAxis'))],
             edges=[],
         )
 
-    def replace_pattern(self, graph: Graph, match: dict):
-        """
-            Replace swapaxes layer:
-            swapaxes -> Reshape
-        """
+    def replace_pattern(self, graph: Graph, match: [str, Node]):
+        swapaxis = match['op']
+        assert len(swapaxis.in_ports()) == 1
+        assert swapaxis.has_and_set('order')
+        order = swapaxis.order
 
-        swapaxes = match['swapaxes']
-        swapaxes_in_node = swapaxes.in_node()
-        swapaxes_out_node = swapaxes.out_node()
+        swapaxis.add_input_port(1)
+        const = Const(graph, {'value': order}).create_node()
+        const.out_port(0).connect(swapaxis.in_port(1))
 
-        input_edge_attrs = graph.get_edge_data(swapaxes_in_node.id, swapaxes.id)[0]
-        output_edge_attrs = graph.get_edge_data(swapaxes.id, swapaxes_out_node.id)[0]
+        Transpose.update_node_stat(swapaxis, {'need_shape_inference': True})
 
-        graph.remove_edge(swapaxes_in_node.id, swapaxes.id)
-        graph.remove_edge(swapaxes.id, swapaxes_out_node.id)
-        Reshape(graph, {'dim': np.array(swapaxes_in_node.shape)}).create_node_with_data(inputs=[swapaxes_in_node],
-                                                                                        data_nodes=[swapaxes_out_node],
-                                                                                        edge_attrs=[input_edge_attrs,
-                                                                                                    output_edge_attrs])
+        del swapaxis['order']

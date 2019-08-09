@@ -13,7 +13,7 @@
 # include <libgen.h>
 # include <dirent.h>
 #else
-# include <os/windows/w_dirent.h>
+# include <w_dirent.h>
 #endif
 
 #include <vector>

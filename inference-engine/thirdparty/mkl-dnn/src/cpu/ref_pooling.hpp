@@ -84,7 +84,7 @@ private:
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 };
 
-template <impl::data_type_t data_type, impl::data_type_t acc_type = data_type>
+template <impl::data_type_t data_type>
 struct ref_pooling_bwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_pooling_bwd_pd_t {
         pd_t(engine_t *engine, const pooling_desc_t *adesc,
@@ -124,7 +124,6 @@ struct ref_pooling_bwd_t: public cpu_primitive_t {
             const output_vector &outputs)
         : cpu_primitive_t(apd, inputs, outputs) {}
     typedef typename prec_traits<data_type>::type data_t;
-    typedef typename prec_traits<acc_type>::type acc_data_t;
 
     virtual void execute(event_t *e) const {
         execute_backward();

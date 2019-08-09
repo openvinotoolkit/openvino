@@ -101,6 +101,15 @@ class FrontReplacementSubgraph(FrontReplacementPattern):
                 if edge_attrs['out'] == old_out_port:
                     new_edge_attrs = edge_attrs.copy()
                     new_edge_attrs['out'] = new_out_port
+                    # Add control_flow ports, as we do not copy control flow ports to new node
+                    if 'control_flow_edge' in new_edge_attrs and new_edge_attrs['control_flow_edge'] is True:
+                        in_port_id = 'control_flow_{}'.format(new_edge_attrs['in'])
+                        out_port_id = 'control_flow_{}'.format(new_edge_attrs['out'])
+                        in_node, out_node = Node(graph, dst), Node(graph, new_node_name)
+                        # if not out_node.has_port('out', out_port_id, control_flow=True):
+                        out_node.add_output_port(out_port_id, control_flow=True, skip_if_exist=True)
+                        # if not in_node.has_port('in', in_port_id, control_flow=True):
+                        in_node.add_input_port(in_port_id, control_flow=True, skip_if_exist=True)
                     graph.add_edge(new_node_name, dst, **new_edge_attrs)
                     log.debug("Created edge from {} to {} with attrs: {}".format(new_node_name, dst, new_edge_attrs))
 

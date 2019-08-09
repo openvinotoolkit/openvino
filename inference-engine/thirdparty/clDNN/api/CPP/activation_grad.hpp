@@ -18,9 +18,9 @@
 #pragma once
 #include "../C/activation_grad.h"
 #include "primitive.hpp"
+#include <vector>
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -35,8 +35,7 @@ namespace cldnn
 ///   @li out(i,x,y) : value at x, y from i-th feature map after activation.
 ///   @li in(i,x,y) : value at x, y from i-th feature map before activation.
 ///   @li slope(i) : the slope value of the i-th feature map (can be shared across channels or one slope per channel).
-struct activation_grad : public primitive_base<activation_grad, CLDNN_PRIMITIVE_DESC(activation_grad)>
-{
+struct activation_grad : public primitive_base<activation_grad, CLDNN_PRIMITIVE_DESC(activation_grad)> {
     CLDNN_DECLARE_PRIMITIVE(activation_grad)
 
     /// @brief Constructs Relu grad primitive.
@@ -45,20 +44,16 @@ struct activation_grad : public primitive_base<activation_grad, CLDNN_PRIMITIVE_
     /// @param input Input primitive id.
     /// @param activation_grad_func activation_grad function.
     /// @param additional_params additional params (slope).
-    activation_grad(
-        const primitive_id& id,
-        const primitive_id& input_grad,
-        const primitive_id& input,
-        cldnn_activation_grad_func activation_grad_func,
-        cldnn_activation_additional_params additional_params = { 0.f,0.f },
-        const padding& output_padding = padding()
-        )
-        : primitive_base(id, { input_grad, input }, output_padding)
-        , activation_grad_func(activation_grad_func)
-        , additional_params(additional_params)
-        , additional_params_input("")
-    {
-    }
+    activation_grad(const primitive_id& id,
+                    const primitive_id& input_grad,
+                    const primitive_id& input,
+                    cldnn_activation_grad_func activation_grad_func,
+                    cldnn_activation_additional_params additional_params = {0.f, 0.f},
+                    const padding& output_padding = padding())
+        : primitive_base(id, {input_grad, input}, output_padding),
+          activation_grad_func(activation_grad_func),
+          additional_params(additional_params),
+          additional_params_input("") {}
 
     /// @brief Constructs Relu grad primitive.
     /// @param id This primitive id.
@@ -66,29 +61,23 @@ struct activation_grad : public primitive_base<activation_grad, CLDNN_PRIMITIVE_
     /// @param input Input primitive id.
     /// @param activation_grad_func activation_grad function.
     /// @param additional_params additional params (slope).
-    activation_grad(
-        const primitive_id& id,
-        const primitive_id& input_grad,
-        const primitive_id& input,
-        const primitive_id& additional_params_input,
-        cldnn_activation_grad_func activation_grad_func,
-        const padding& output_padding = padding()
-    )
-        : primitive_base(id, { input_grad, input }, output_padding)
-        , activation_grad_func(activation_grad_func)
-        , additional_params({ 0,0 })
-        , additional_params_input(additional_params_input)
-    {
-    }
+    activation_grad(const primitive_id& id,
+                    const primitive_id& input_grad,
+                    const primitive_id& input,
+                    const primitive_id& additional_params_input,
+                    cldnn_activation_grad_func activation_grad_func,
+                    const padding& output_padding = padding())
+        : primitive_base(id, {input_grad, input}, output_padding),
+          activation_grad_func(activation_grad_func),
+          additional_params({0, 0}),
+          additional_params_input(additional_params_input) {}
 
     /// @brief Constructs a copy from basic C API @CLDNN_PRIMITIVE_DESC{activation_grad}
     activation_grad(const dto* dto)
-        : primitive_base(dto)
-        , activation_grad_func(dto->activation_grad_func)
-        , additional_params(dto->additional_params)
-        , additional_params_input(dto->additional_params_input)
-    {
-    }
+        : primitive_base(dto),
+          activation_grad_func(dto->activation_grad_func),
+          additional_params(dto->additional_params),
+          additional_params_input(dto->additional_params_input) {}
 
     /// @brief activation_grad function.
     cldnn_activation_grad_func activation_grad_func;
@@ -102,16 +91,13 @@ struct activation_grad : public primitive_base<activation_grad, CLDNN_PRIMITIVE_
     primitive_id additional_params_input;
 
 protected:
-
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override
-    {
+    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         if (additional_params_input.empty())
-            return{};
-        return{ additional_params_input };
+            return {};
+        return {additional_params_input};
     }
 
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.activation_grad_func = activation_grad_func;
         dto.additional_params = additional_params;
         dto.additional_params_input = additional_params_input.c_str();
@@ -120,4 +106,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

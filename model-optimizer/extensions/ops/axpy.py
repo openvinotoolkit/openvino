@@ -20,7 +20,7 @@ from mo.ops.op import Op
 
 class AxpyOp(Op):
     """
-    Empty Op for Axpy layer. It will be replaced by AxpyToEltwise FrontReplacer
+    Empty Op for Axpy layer. It will be replaced by AxpyToSSandAdd FrontReplacer
     """
     op = 'Axpy'
     enabled = True

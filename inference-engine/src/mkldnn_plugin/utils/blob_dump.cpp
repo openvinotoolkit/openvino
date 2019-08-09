@@ -78,18 +78,18 @@ static TensorDesc parse_header(IEB_HEADER &header) {
     for (int i = 0; i < header.ndims; i++)
         dims[i] = header.dims[i];
 
-    return TensorDesc {prc, dims, plain_layout(dims)};
+    return TensorDesc {prc, dims, TensorDesc::getLayoutByDims(dims) };
 }
 
 
-bool is_plain(Blob::Ptr blob) {
+bool is_plain(const Blob::Ptr &blob) {
     bool res = true;
 
     auto orig_strides = blob->getTensorDesc().getBlockingDesc().getStrides();
     auto orig_order = blob->getTensorDesc().getBlockingDesc().getOrder();
     auto dims = blob->getTensorDesc().getDims();
 
-    for (int stride = 1, i = dims.size()-1; i >= 0; --i) {
+    for (int stride = 1, i = dims.size() - 1; i >= 0; --i) {
         if (stride != orig_strides[i] || i != orig_order[i]) res = false;
         stride *= dims[i];
     }
@@ -101,7 +101,7 @@ static Blob::Ptr prepare_plain_data(Blob::Ptr blob) {
     // check if it already plain
     if (is_plain(blob)) return blob;
 
-    Blob::Ptr pln_blob = make_plain_blob(blob->precision(), blob->getTensorDesc().getDims());
+    Blob::Ptr pln_blob = make_plain_blob(blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims());
     pln_blob->allocate();
 
     // Copy to plain
@@ -109,30 +109,30 @@ static Blob::Ptr prepare_plain_data(Blob::Ptr blob) {
     mkldnn::memory::desc desc = mdesc;
     mkldnn::impl::memory_desc_wrapper blob_wrp(desc.data);
 
-    int data_size = blob->size();
+    size_t data_size = blob->size();
 
     // TODO: make it with blob_copy utility
-    switch (blob->precision()) {
+    switch (blob->getTensorDesc().getPrecision()) {
         case Precision::FP32:
         case Precision::I32: {
-            int32_t *pln_blob_ptr = pln_blob->buffer().as<int32_t*>();
-            int32_t *blob_ptr = blob->buffer().as<int32_t*>();
+            auto *pln_blob_ptr = pln_blob->buffer().as<int32_t*>();
+            auto *blob_ptr = blob->buffer().as<int32_t*>();
             for (size_t i = 0; i < data_size; i++)
                 pln_blob_ptr[i] = blob_ptr[blob_wrp.off_l(i)];
             break;
         }
         case Precision::I16:
         case Precision::U16: {
-            int16_t *pln_blob_ptr = pln_blob->buffer().as<int16_t*>();
-            int16_t *blob_ptr = blob->buffer().as<int16_t *>();
+            auto *pln_blob_ptr = pln_blob->buffer().as<int16_t*>();
+            auto *blob_ptr = blob->buffer().as<int16_t *>();
             for (size_t i = 0; i < data_size; i++)
                 pln_blob_ptr[i] = blob_ptr[blob_wrp.off_l(i)];
             break;
         }
         case Precision::I8:
         case Precision::U8: {
-            int8_t *pln_blob_ptr = pln_blob->buffer().as<int8_t*>();
-            int8_t *blob_ptr = blob->buffer().as<int8_t *>();
+            auto *pln_blob_ptr = pln_blob->buffer().as<int8_t*>();
+            auto *blob_ptr = blob->buffer().as<int8_t *>();
             for (size_t i = 0; i < data_size; i++)
                 pln_blob_ptr[i] = blob_ptr[blob_wrp.off_l(i)];
             break;
@@ -183,7 +183,7 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) {
     SizeVector dims = _blob->getTensorDesc().getDims();
 
     // Header like "U8 4D shape: 2 3 224 224 ()
-    stream << _blob->precision().name() << " "
+    stream << _blob->getTensorDesc().getPrecision().name() << " "
            << dims.size() << "D "
            << "shape: ";
     for (size_t d : dims) stream << d << " ";
@@ -194,8 +194,8 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) {
     mkldnn::memory::desc desc = mdesc;
     mkldnn::impl::memory_desc_wrapper blob_wrp(desc.data);
 
-    int data_size = _blob->size();
-    switch (_blob->precision()) {
+    size_t data_size = _blob->size();
+    switch (_blob->getTensorDesc().getPrecision()) {
         case Precision::FP32: {
             auto *blob_ptr = _blob->buffer().as<float*>();
             for (size_t i = 0; i < data_size; i++)
@@ -329,13 +329,13 @@ static void plain_copy(const Blob::Ptr &from, const Blob::Ptr &scls, Blob::Ptr &
 }
 
 Blob::Ptr BlobDumper::getRealValue() {
-    if (_blob->precision() == Precision::FP32 && !_scales)
+    if (_blob->getTensorDesc().getPrecision() == Precision::FP32 && !_scales)
         return _blob;
 
     auto res = make_plain_blob(Precision::FP32, _blob->getTensorDesc().getDims());
     res->allocate();
 
-    switch (_blob->precision()) {
+    switch (_blob->getTensorDesc().getPrecision()) {
         case Precision::U8: plain_copy<uint8_t>(_blob, _scales, res); break;
         case Precision::FP32: plain_copy<float>(_blob, _scales, res); break;
         case Precision::I8: plain_copy<int8_t >(_blob, _scales, res); break;

@@ -177,9 +177,6 @@ class Cpu {
 					numCores_[level - 1] = extractBit(data[1], 0, 15);
 				}
 			}
-			if (numCores_[SmtLevel - 1] != 0) {
-				numCores_[CoreLevel - 1] /= numCores_[SmtLevel - 1];
-			}
 		} else {
 			/*
 				Failed to deremine num of cores without x2APIC support.
@@ -232,6 +229,8 @@ class Cpu {
 					* (data[2] + 1);
 				if (cacheType == DATA_CACHE && smt_width == 0) smt_width = actual_logical_cores;
 				assert(smt_width != 0);
+				// FIXME: check and fix number of cores sharing L3 cache for different configurations
+				// (HT-, 2 sockets), (HT-, 1 socket), (HT+, 2 sockets), (HT+, 1 socket)
 				coresSharignDataCache_[dataCacheLevels_] = (std::max)(actual_logical_cores / smt_width, 1u);
 				dataCacheLevels_++;
 			}
@@ -250,7 +249,9 @@ public:
 	unsigned int getNumCores(IntelCpuTopologyLevel level) {
 		if (level != SmtLevel && level != CoreLevel) throw Error(ERR_BAD_PARAMETER);
 		if (!x2APIC_supported_) throw Error(ERR_X2APIC_IS_NOT_SUPPORTED);
-		return numCores_[level - 1];
+		return (level == CoreLevel)
+			? numCores_[level - 1] / numCores_[SmtLevel - 1]
+			: numCores_[level - 1];
 	}
 
 	unsigned int getDataCacheLevels() const { return dataCacheLevels_; }
@@ -376,6 +377,7 @@ public:
 	static const Type tAVX512_VNNI = uint64(1) << 54;
 	static const Type tAVX512_BITALG = uint64(1) << 55;
 	static const Type tAVX512_VPOPCNTDQ = uint64(1) << 56;
+	static const Type tAVX512_BF = uint64(1) << 57;
 
 	Cpu()
 		: type_(NONE)
@@ -455,6 +457,9 @@ public:
 						if (ECX & (1U << 14)) type_ |= tAVX512_VPOPCNTDQ;
 						if (EDX & (1U << 2)) type_ |= tAVX512_4VNNIW;
 						if (EDX & (1U << 3)) type_ |= tAVX512_4FMAPS;
+
+						getCpuidEx(7, 1, data); // Read CPUID.7.1.EAX[5]
+						if (EAX & (1U << 5)) type_ |= tAVX512_BF;
 					}
 				}
 			}

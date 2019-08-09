@@ -127,13 +127,14 @@ public:
     virtual ~ILayerImplFactory() = default;
 
     /**
-     * @deprecated
+     * @deprecated Implement IShapeInferImpl extension for shape inference.
      * @brief Sets output shapes by input shapes.
      * @param inShapes Shapes of all inputs coming in this layer
      * @param outShapes Generated shapes coming from this layer given the input
      * @param resp Response descriptor
      * @return Status code
      */
+    INFERENCE_ENGINE_DEPRECATED
     virtual StatusCode getShapes(const std::vector<TensorDesc>& /*inShapes*/, std::vector<TensorDesc>& /*outShapes*/,
                                  ResponseDesc* /*resp*/) noexcept {
         return NOT_IMPLEMENTED;
@@ -168,14 +169,18 @@ public:
                                    ResponseDesc* /*resp*/) noexcept { return NOT_IMPLEMENTED; }  // For backward-compatibility
 
     /**
-     * @deprecated
+     * @deprecated Use IShapeInferImpl::inferShapes(const std::vector<Blob::CPtr>&, const std::map<std::string, std::string>&,
+                                   const std::map<std::string, Blob::Ptr>&, std::vector<SizeVector>&, ResponseDesc* ) noexcept.
      * @brief check that reshape can be applied, that parameters and shapes are valid
      */
+    INFERENCE_ENGINE_DEPRECATED
     virtual StatusCode inferShapes(const std::vector<SizeVector>& /*inShapes*/,
                                    const std::map<std::string, std::string>& /*params*/,
                                    const std::map<std::string, Blob::Ptr>& /*blobs*/,
                                    std::vector<SizeVector>& /*outShapes*/,
-                                   ResponseDesc* /*resp*/) noexcept { return NOT_IMPLEMENTED; }  // For backward-compatibility
+                                   ResponseDesc* /*resp*/) noexcept {
+        return NOT_IMPLEMENTED;
+    }
 };
 
 /**

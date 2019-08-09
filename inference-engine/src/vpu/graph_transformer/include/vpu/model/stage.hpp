@@ -17,6 +17,7 @@
 #include <vpu/model/data_desc.hpp>
 #include <vpu/backend/blob_serializer.hpp>
 #include <vpu/utils/enums.hpp>
+#include <vpu/utils/optional.hpp>
 
 namespace vpu {
 
@@ -47,8 +48,10 @@ VPU_DECLARE_ENUM(StageType,
     Concat,
     Split,
     Reshape,
-    Expand,
+    Broadcast,
     Shrink,
+
+    Empty = -1,
 
     //
     // Normal operations
@@ -112,6 +115,27 @@ VPU_DECLARE_ENUM(StageType,
     Resample = 72,
     Upsampling = 73,
     ArgMax = 74,
+    Div = 75,
+    Min = 76,
+    Squared_diff = 77,
+    Equal = 78,
+    Not_equal = 79,
+    Greater = 80,
+    Greater_equal = 81,
+    Less = 82,
+    Less_equal = 83,
+    Logical_NOT = 84,
+    Logical_AND = 85,
+    Logical_OR = 86,
+    Logical_XOR = 87,
+    Pow = 88,
+    Floor_mod = 89,
+    Select = 90,
+    GEMM = 91,
+    Log = 92,
+    ReduceAnd = 93,
+    ReverseSequence = 94,
+    Gather = 100,
 )
 
 //
@@ -157,6 +181,83 @@ VPU_DECLARE_ENUM(ScalePropagationStep,
     Propagate
 );
 
+template <typename Val>
+class StageDataInfo final {
+public:
+    StageDataInfo(const StageDataInfo&) = delete;
+    StageDataInfo& operator=(const StageDataInfo&) = delete;
+
+    StageDataInfo(StageDataInfo&&) = delete;
+    StageDataInfo& operator=(StageDataInfo&&) = delete;
+
+    inline void init(int numInputs, int numOutputs) {
+        _inputVals.clear();
+        _inputVals.resize(numInputs);
+
+        _outputVals.clear();
+        _outputVals.resize(numOutputs);
+    }
+
+    template <typename V>
+    inline void setInput(const StageInput& edge, V&& val) {
+        IE_ASSERT(edge->consumer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _inputVals.size());
+        _inputVals[edge->portInd()] = std::forward<V>(val);
+    }
+    template <typename V>
+    inline void setOutput(const StageOutput& edge, V&& val) {
+        IE_ASSERT(edge->producer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _outputVals.size());
+        _outputVals[edge->portInd()] = std::forward<V>(val);
+    }
+
+    inline bool hasInput(const StageInput& edge) const {
+        IE_ASSERT(edge->consumer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _inputVals.size());
+        return _inputVals[edge->portInd()].hasValue();
+    }
+    inline bool hasOutput(const StageOutput& edge) const {
+        IE_ASSERT(edge->producer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _outputVals.size());
+        return _outputVals[edge->portInd()].hasValue();
+    }
+
+    inline const Val& getInput(const StageInput& edge) const {
+        IE_ASSERT(edge->consumer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _inputVals.size());
+        return _inputVals[edge->portInd()].get();
+    }
+    inline const Val& getOutput(const StageOutput& edge) const {
+        IE_ASSERT(edge->producer().get() == _owner);
+        IE_ASSERT(edge->portInd() >= 0 && edge->portInd() < _outputVals.size());
+        return _outputVals[edge->portInd()].get();
+    }
+
+    bool empty() const {
+        for (const auto& val : _inputVals) {
+            if (val.hasValue()) {
+                return false;
+            }
+        }
+        for (const auto& val : _outputVals) {
+            if (val.hasValue()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+private:
+    friend class StageNode;
+    explicit StageDataInfo(const StageNode* owner) : _owner(owner) {}
+
+private:
+    const StageNode* _owner = nullptr;
+
+    SmallVector<Optional<Val>> _inputVals;
+    SmallVector<Optional<Val>> _outputVals;
+};
+
 class StageNode :
         public EnableHandleFromThis<StageNode>,
         public EnableCustomAttributes {
@@ -167,7 +268,6 @@ class StageNode :
     VPU_MODEL_ATTRIBUTE(std::string, name, "")
     VPU_MODEL_ATTRIBUTE(StageType, type, StageType::None)
     VPU_MODEL_ATTRIBUTE(int, index, -1)
-    VPU_MODEL_ATTRIBUTE(int, subGraphNumber, -1)
 
     //
     // Bindings with IE
@@ -196,6 +296,26 @@ class StageNode :
     //
     // Edges wrappers
     //
+
+public:
+    struct StageNameCmp final {
+        inline bool operator()(const Stage& left, const Stage& right) const {
+            auto res = left->name().compare(right->name());
+            if (res > 0) {
+                return true;
+            }
+            if (res < 0) {
+                return false;
+            }
+            // Different Stage nodes might have equal names, compare pointers instead
+            return reinterpret_cast<uintptr_t>(left.get()) > reinterpret_cast<uintptr_t>(right.get());
+        }
+    };
+    struct StageIndexCmp final {
+        inline bool operator()(const Stage& left, const Stage& right) const {
+            return left->index() < right->index();
+        }
+    };
 
 private:
     struct InputAccess final {
@@ -234,22 +354,8 @@ private:
         }
     };
 
-    struct StageCmp final {
-        inline bool operator()(const Stage& left, const Stage& right) const {
-            auto res = left->name().compare(right->name());
-            if (res > 0) {
-                return true;
-            }
-            if (res < 0) {
-                return false;
-            }
-            // Different Stage nodes might have equal names, compare pointers instead
-            return reinterpret_cast<uintptr_t>(left.get()) > reinterpret_cast<uintptr_t>(right.get());
-        }
-    };
-
     // It holds the number of separate edges per each prev/next stage
-    using StageOrderMap = std::map<Stage, int, StageCmp>;
+    using StageOrderMap = std::map<Stage, int, StageNameCmp>;
 
     struct StageOrderMapAccess final {
         inline const Stage& operator()(const StageOrderMap::value_type& p) const {
@@ -290,16 +396,8 @@ public:
     inline auto prevStages() const -> decltype(mapRange<StageOrderMapAccess>(contRange(_prevStages))) {
         return mapRange<StageOrderMapAccess>(contRange(_prevStages));
     }
-    template <class Cond>
-    inline auto prevStages(Cond&& cond) -> decltype(filterRange(prevStages(), std::forward<typename std::remove_reference<Cond>::type>(cond))) {
-        return filterRange(prevStages(), std::forward<typename std::remove_reference<Cond>::type>(cond));
-    }
     inline auto nextStages() const -> decltype(mapRange<StageOrderMapAccess>(contRange(_nextStages))) {
         return mapRange<StageOrderMapAccess>(contRange(_nextStages));
-    }
-    template <class Cond>
-    inline auto nextStages(Cond&& cond) -> decltype(filterRange(nextStages(), std::forward<typename std::remove_reference<Cond>::type>(cond))) {
-        return filterRange(nextStages(), std::forward<typename std::remove_reference<Cond>::type>(cond));
     }
 
     inline int numTempBuffers() const { return _tempBufferEdges.size(); }
@@ -350,12 +448,6 @@ public:
     inline std::string origLayerName() const { return _origLayer != nullptr ? _origLayer->name : std::string(); }
 
     //
-    // Main attributes
-    //
-
-    void setSubGraphNumber(int subGraphNumber);
-
-    //
     // SHAVEs allocation
     //
 
@@ -366,27 +458,30 @@ public:
     //
 
     // Scale factor propagation from inputs to outputs
-    DataMap<float> propagateScaleFactors(
-            const DataMap<float>& inputScales,
+    const StageDataInfo<float>& propagateScaleFactors(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step);
 
     // Data order propagation from inputs to outputs.
-    DataMap<DimsOrder> propagateDataOrder() const;
+    const StageDataInfo<DimsOrder>& propagateDataOrder() const;
 
     // Get Data strides requirements
-    DataMap<StridesRequirement> getDataStridesRequirements() const;
+    const StageDataInfo<StridesRequirement>& getDataStridesRequirements() const;
 
     // Finalize internal parameter to final Data layout.
     void finalizeDataLayout();
 
     // Information about batch support.
-    DataMap<BatchSupport> getBatchSupportInfo() const;
+    const StageDataInfo<BatchSupport>& getBatchSupportInfo() const;
 
     // Resources requirements.
     StageSHAVEsRequirements getSHAVEsRequirements() const;
 
     // Final check.
     void finalCheck() const;
+
+    // Name postfix for modified stage
+    inline void appendNamePostfix(const std::string& postfix) { _name = _name + postfix; }
 
     //
     // Backend utilities
@@ -401,17 +496,17 @@ protected:
 
     virtual StagePtr cloneImpl() const = 0;
 
-    virtual DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    virtual void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step);
 
-    virtual DataMap<DimsOrder> propagateDataOrderImpl() const = 0;
+    virtual void propagateDataOrderImpl() const = 0;
 
-    virtual DataMap<StridesRequirement> getDataStridesRequirementsImpl() const = 0;
+    virtual void getDataStridesRequirementsImpl() const = 0;
 
     virtual void finalizeDataLayoutImpl() = 0;
 
-    virtual DataMap<BatchSupport> getBatchSupportInfoImpl() const = 0;
+    virtual void getBatchSupportInfoImpl() const = 0;
 
     virtual StageSHAVEsRequirements getSHAVEsRequirementsImpl() const;
 
@@ -424,23 +519,33 @@ protected:
 protected:
     inline StageNode() :
             _injectedStageEdges(&InjectedStageEdge::_posInStage),
-            _posInModel(this),
-            _posInBfsQueue(this) {
+            _scaleInfo(this),
+            _orderInfo(this),
+            _stridesInfo(this),
+            _batchInfo(this),
+            _posInModel(this) {
     }
     inline StageNode(const StageNode& other) :
             EnableCustomAttributes(other),
             _injectedStageEdges(&InjectedStageEdge::_posInStage),
-            _posInModel(this),
-            _posInBfsQueue(this) {
+            _scaleInfo(this),
+            _orderInfo(this),
+            _stridesInfo(this),
+            _batchInfo(this),
+            _posInModel(this) {
     }
 
 protected:
     Handle<Model> _model;
 
+    mutable StageDataInfo<float> _scaleInfo;
+    mutable StageDataInfo<DimsOrder> _orderInfo;
+    mutable StageDataInfo<StridesRequirement> _stridesInfo;
+    mutable StageDataInfo<BatchSupport> _batchInfo;
+
 private:
     StagePtrList::iterator _ptrPosInModel;
     IntrusivePtrListNode<StageNode> _posInModel;
-    IntrusivePtrListNode<StageNode> _posInBfsQueue;
 
     friend class Model;
 };

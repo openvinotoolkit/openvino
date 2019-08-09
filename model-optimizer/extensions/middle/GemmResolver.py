@@ -20,9 +20,21 @@ from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.op import PermuteAttrs
 
 
+def graph_cond(graph):
+    if graph.graph['cmd_params'].generate_experimental_IR_V10:
+        return graph.graph['fw'] not in ['tf', 'onnx']
+    else:
+        return graph.graph['fw'] not in ['tf', 'caffe']
+
+def dims_order(graph):
+    if graph.graph['fw'] not in ['mxnet']:
+        return [0, 1, 2]
+    else:
+        return [1, 0, 2]
+
 class GemmResolver(MiddleReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['fw'] != 'tf']
+    graph_condition = [graph_cond]
 
     def run_before(self):
         from extensions.middle.NormalizeFullyConnected import NormalizeFullyConnected
@@ -52,11 +64,11 @@ class GemmResolver(MiddleReplacementPattern):
             'input_1'].shape.size > 2:
             match['fc']['type'] = 'GEMM'
         elif not match['input_0'].has_valid('value') and match['input_1'].has_valid('value'):
-            match['fc']['type'] = 'FullyConnected'
+            match['fc']['type'] = 'MatMul'
             node = match['fc']
             mark_input_bins(node)
             weights_node = match['input_1']
-            assign_dims_to_weights(weights_node, None, 0, 1, 2)
+            assign_dims_to_weights(weights_node, None, *dims_order(graph))
             PermuteAttrs.set_permutation(weights_node, node, PermuteAttrs.Permutation(perm=int64_array([1, 0]),
                                                                                       inv=int64_array([0, 1])))
             weights_shape = weights_node.shape

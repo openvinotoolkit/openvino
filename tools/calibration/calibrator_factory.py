@@ -16,7 +16,6 @@ limitations under the License.
 
 from .calibrator_configuration import CalibratorConfiguration
 from .int8_calibrator import Int8Calibrator
-from .fp16_calibrator import Fp16Calibrator
 
 
 class CalibratorFactory:
@@ -24,8 +23,5 @@ class CalibratorFactory:
     def create(precision: str, configuration: CalibratorConfiguration):
         if precision.lower() == "int8":
             return Int8Calibrator(configuration)
-
-        if precision.lower() == "fp16":
-            return Fp16Calibrator(configuration)
 
         raise ValueError("not supported precision '{}'".format(precision))

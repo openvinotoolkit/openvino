@@ -155,6 +155,8 @@ void parse_result(res_t &res, bool &want_perf_report, bool allow_unimpl,
         int status, char *pstr);
 
 /* misc */
+void init_fp_mode();
+
 void *zmalloc(size_t size, size_t align);
 void zfree(void *ptr);
 

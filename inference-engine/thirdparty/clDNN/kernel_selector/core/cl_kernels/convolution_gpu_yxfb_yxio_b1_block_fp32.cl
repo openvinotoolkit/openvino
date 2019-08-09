@@ -131,7 +131,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b1_block)(
 #if BIAS_TERM
     _data0 += BLOCK_READ(bias + ofm_offset);
 #endif
-    _data0 = ACTIVATION(_data0, NL_M, NL_N);
+    _data0 = ACTIVATION(_data0, ACTIVATION_PARAMS);
 
     uint _out_id = OUTPUT_OFFSET + out_id;
     BLOCK_WRITE(output + _out_id, _data0);

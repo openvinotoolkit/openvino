@@ -38,7 +38,7 @@ public:
         SizeVector outShape;
         std::vector<int> reshapeMask;
         if (inBlobs.size() == 2) {
-            if (inBlobs[1]->precision() == Precision::FP32) {
+            if (inBlobs[1]->getTensorDesc().getPrecision() == Precision::FP32) {
                 auto* buffer = inBlobs[1]->cbuffer().as<float*>();
                 if (buffer != nullptr) {
                     for (int i = 0; i < inBlobs[1]->size(); i++) {
@@ -47,7 +47,14 @@ public:
                 } else {
                     THROW_IE_EXCEPTION << "Second input must have allocated data";
                 }
-            } else if (inBlobs[1]->precision() == Precision::FP16) {
+            } else if (inBlobs[1]->getTensorDesc().getPrecision() == Precision::I32) {
+                auto* buffer = inBlobs[1]->cbuffer().as<int*>();
+                if (buffer != nullptr) {
+                    reshapeMask.assign(buffer, buffer + inBlobs[1]->size());
+                } else {
+                    THROW_IE_EXCEPTION << "Second input must have allocated data";
+                }
+            } else if (inBlobs[1]->getTensorDesc().getPrecision() == Precision::FP16) {
                 auto* buffer = inBlobs[1]->cbuffer().as<uint16_t*>();
                 if (buffer != nullptr) {
                     for (int i = 0; i < inBlobs[1]->size(); i++) {

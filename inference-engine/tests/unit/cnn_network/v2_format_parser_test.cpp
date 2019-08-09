@@ -524,19 +524,10 @@ TEST_F(V2FormatParserTest, parsesNumberOfLayersCorrectly) {
     string content = MAKE_ALEXNET_FOR_MEAN_TESTS_V2();
 
     ASSERT_NO_FATAL_FAILURE(assertParseSucceed(content));
+    IE_SUPPRESS_DEPRECATED_START
     CNNNetwork network(net.get());
+    IE_SUPPRESS_DEPRECATED_END
     ASSERT_EQ(network.layerCount(), LAYER_COUNT);
-}
-
-TEST_F(V2FormatParserTest, canThrowExceptionIfUnknownActivation) {
-
-    string content = BEGIN_NET()
-        .initlayerInOut("a", "Activation", 1, 1, 2)
-        .node("data").attr("type", "tanH1").close()
-        .close()
-            END_NET();
-
-    ASSERT_NO_FATAL_FAILURE(assertParseFail(content));
 }
 
 TEST_F(V2FormatParserTest, canThrowExceptionIfNoType) {

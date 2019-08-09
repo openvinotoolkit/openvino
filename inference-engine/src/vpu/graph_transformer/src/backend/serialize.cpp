@@ -220,8 +220,6 @@ void BackEnd::serialize(
 
     blobHeader.first = blob.data();
     blobHeader.second = sizeof(ElfN_Ehdr) + sizeof(mv_blob_header);
-
-    env.log->info("blobSize=%d", sizeof(char) * blob.size());
 }
 
 }  // namespace vpu

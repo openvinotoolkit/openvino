@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_IMGPROC_PERF_TESTS_INL_HPP
@@ -491,6 +491,52 @@ PERF_TEST_P_(SobelPerfTest, TestPerformance)
     {
         EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
         EXPECT_EQ(out_mat_gapi.size(), sz);
+    }
+
+    SANITY_CHECK_NOTHING();
+}
+
+//------------------------------------------------------------------------------
+
+PERF_TEST_P_(SobelXYPerfTest, TestPerformance)
+{
+    compare_f cmpF;
+    MatType type = 0;
+    int kernSize = 0, dtype = 0, order = 0;
+    cv::Size sz;
+    cv::GCompileArgs compile_args;
+    std::tie(cmpF, type, kernSize, sz, dtype, order, compile_args) = GetParam();
+
+    cv::Mat out_mat_ocv2;
+    cv::Mat out_mat_gapi2;
+
+    initMatsRandN(type, sz, dtype, false);
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::Sobel(in_mat1, out_mat_ocv, dtype, order, 0, kernSize);
+        cv::Sobel(in_mat1, out_mat_ocv2, dtype, 0, order, kernSize);
+    }
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::SobelXY(in, dtype, order, kernSize);
+    cv::GComputation c(cv::GIn(in), cv::GOut(std::get<0>(out), std::get<1>(out)));
+
+    // Warm-up graph engine:
+    c.apply(cv::gin(in_mat1), cv::gout(out_mat_gapi, out_mat_gapi2), std::move(compile_args));
+
+    TEST_CYCLE()
+    {
+        c.apply(cv::gin(in_mat1), cv::gout(out_mat_gapi, out_mat_gapi2));
+    }
+
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+        EXPECT_TRUE(cmpF(out_mat_gapi2, out_mat_ocv2));
+        EXPECT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_EQ(out_mat_gapi2.size(), sz);
     }
 
     SANITY_CHECK_NOTHING();

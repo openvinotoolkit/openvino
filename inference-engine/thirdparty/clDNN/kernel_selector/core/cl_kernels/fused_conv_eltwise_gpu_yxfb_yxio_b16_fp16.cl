@@ -151,7 +151,7 @@ KERNEL(fused_conv_eltwise_gpu_yxfb_yxio_b16)(
 #endif
     for(uint s = 0; s < BATCHES_PER_WORK_ITEM; s++)
     {
-        _data[s] = ACTIVATION(_data[s], NL_M, NL_N);
+        _data[s] = ACTIVATION(_data[s], ACTIVATION_PARAMS);
     }
 
 #if defined(USE_BLOCK_READ_2) || defined(USE_BLOCK_READ_1)
@@ -172,10 +172,10 @@ KERNEL(fused_conv_eltwise_gpu_yxfb_yxio_b16)(
             _data[2][i] += eltw_second_input_data1.s0;
             _data[3][i] += eltw_second_input_data1.s1;
 
-            _data[0][i] = ACTIVATION_ELTW(_data[0][i], NL_M_ELTW, NL_N_ELTW);
-            _data[1][i] = ACTIVATION_ELTW(_data[1][i], NL_M_ELTW, NL_N_ELTW);
-            _data[2][i] = ACTIVATION_ELTW(_data[2][i], NL_M_ELTW, NL_N_ELTW);
-            _data[3][i] = ACTIVATION_ELTW(_data[3][i], NL_M_ELTW, NL_N_ELTW);
+            _data[0][i] = ACTIVATION_ELTW(_data[0][i], ACTIVATION_PARAMS_ELTW);
+            _data[1][i] = ACTIVATION_ELTW(_data[1][i], ACTIVATION_PARAMS_ELTW);
+            _data[2][i] = ACTIVATION_ELTW(_data[2][i], ACTIVATION_PARAMS_ELTW);
+            _data[3][i] = ACTIVATION_ELTW(_data[3][i], ACTIVATION_PARAMS_ELTW);
 
             *(__global uint*)(output + _out_id) = as_uint((half2)(_data[0][i], _data[1][i]));
             *(__global uint*)(output + _out_id + 32) = as_uint((half2)(_data[2][i], _data[3][i]));
@@ -196,8 +196,8 @@ KERNEL(fused_conv_eltwise_gpu_yxfb_yxio_b16)(
 #endif
             _data[chunk_size * s][i] += eltw_second_input_data.s0;
             _data[chunk_size * s + 1][i] += eltw_second_input_data.s1;
-            _data[chunk_size * s][i] = ACTIVATION_ELTW(_data[chunk_size * s][i], NL_M_ELTW, NL_N_ELTW);
-            _data[chunk_size * s + 1][i] = ACTIVATION_ELTW(_data[chunk_size * s + 1][i], NL_M_ELTW, NL_N_ELTW);
+            _data[chunk_size * s][i] = ACTIVATION_ELTW(_data[chunk_size * s][i], ACTIVATION_PARAMS_ELTW);
+            _data[chunk_size * s + 1][i] = ACTIVATION_ELTW(_data[chunk_size * s + 1][i], ACTIVATION_PARAMS_ELTW);
         }
 
         *(__global uint*)(output + _out_id) = as_uint((half2)(_data[chunk_size * s].s0, _data[chunk_size * s + 1].s0)); _out_id += OUTPUT_FEATURE_PITCH;
@@ -232,7 +232,7 @@ KERNEL(fused_conv_eltwise_gpu_yxfb_yxio_b16)(
             half eltw_second_input_data = output[_eltw_id + i * INPUT1_FEATURE_PITCH];
 #endif
             _data[s][i] += eltw_second_input_data;
-            _data[s][i] = ACTIVATION_ELTW(_data[s][i], NL_M_ELTW, NL_N_ELTW);
+            _data[s][i] = ACTIVATION_ELTW(_data[s][i], ACTIVATION_PARAMS_ELTW);
         }
 
         output[_out_id] = _data[s].s0; _out_id += OUTPUT_FEATURE_PITCH;

@@ -116,6 +116,11 @@ public:
     void parseResample(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseArgMax(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseRNN(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseGEMM(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseLog(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseReverseSequence(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseGather(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseReduce(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
 
     //
     // Special layers
@@ -155,7 +160,8 @@ private:
     std::unordered_set<ie::DataPtr> _unbatchedOutputs;
     std::unordered_map<ie::DataPtr, Data> _ieToVpuMap;
 
-    ie::details::caseless_map<std::string, CustomLayer::Ptr> _customLayers;
+    ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> _customLayers;
+    ie::details::caseless_map<std::string, vpu::Data> kernelNodes;
     vpu::IeNetworkParser _ieNetworkParser;
 };
 

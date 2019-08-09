@@ -106,6 +106,7 @@ class DummyDataset:
     def __init__(self, label_map, bg=-1):
         self.label_map = label_map
         self.background = bg
+        self.name = 'dummy'
 
     @property
     def metadata(self):
@@ -114,14 +115,6 @@ class DummyDataset:
     @property
     def labels(self):
         return self.metadata['label_map']
-
-
-# @pytest.fixture(scope="function", params=[
-#     {0: 'dog', -1: 'background'}, {0: 'dog', 1: 'cat', 2: 'human', -1: 'background'}, {0: 'dog', 1: 'cat', 2: 'human'}
-# ], ids=['single class', 'multi class', 'multi_class_without_background'])
-# def dataset(request):
-#     labels = request.param
-#     yield DummyDataset(label_map=labels, bg=-1)
 
 
 def multi_class_dataset():

@@ -24,6 +24,7 @@
 #include "gmock/gmock.h"
 #include "matchers/input_data_matcher.hpp"
 #include <inference_engine/blob_factory.hpp>
+#include <details/ie_cnn_network_tools.h>
 
 using namespace std;
 using namespace InferenceEngine;
@@ -56,6 +57,43 @@ public:
     }
 };
 
+std::vector<CNNLayerPtr> TIBodySortTopologically(const TensorIterator::Body &body) {
+    std::vector<CNNLayerPtr> all_layers;
+
+    auto getAllInputs = [&](const std::vector<DataPtr> &heads) {
+        CNNLayerSet inputLayers;
+        std::unordered_set<CNNLayer *> allLayers;
+
+        // Define all start layers
+        for (const auto &data : heads) {
+            auto &secondLayers = data->getInputTo();
+
+            details::UnorderedDFS(allLayers, secondLayers.begin()->second, [&](CNNLayerPtr layer) {
+                if (layer->insData.empty()) {
+                    inputLayers.insert(layer);
+                }
+            }, false);
+        }
+
+        std::vector<DataPtr> res = heads;
+        // Add fake input data to point on not achievable
+        // layers from head (like const placeholders)
+        for (auto &starter : inputLayers) {
+            DataPtr holder(new Data(starter->name + ":input_holder", starter->precision));
+            holder->getInputTo()[starter->name] = starter;
+            res.push_back(holder);
+        }
+        return res;
+    };
+
+    auto all_input_layers = getAllInputs(body.inputs);
+    CNNNetForestDFS(all_input_layers, [&](CNNLayerPtr  current){
+        all_layers.push_back(current);
+    }, false);
+    std::reverse(all_layers.begin(), all_layers.end());
+    return all_layers;
+}
+
 void GNAPropagateMatcher :: match() {
     try {
         // matching gna propagate forward call.
@@ -83,18 +121,32 @@ void GNAPropagateMatcher :: match() {
             outputSize = details::product(std::begin(output_dims), std::end(output_dims));
 
             size_t weightsSize = 0;
-            for (auto &layer : net_original) {
-                auto w = layer->blobs["weights"];
-                auto b = layer->blobs["biases"];
+            std::vector<std::string> dataBlobs = {
+                    "weights",
+                    "biases",
+                    "custom"
+            };
 
-                if (w) {
-                    weightsSize += w->byteSize();
-                }
-                if (b) {
-                    weightsSize += b->byteSize();
+            std::vector<InferenceEngine::CNNLayerPtr> tiBodies;
+            for (auto &layer : net_original) {
+                if (layer->type == "TensorIterator") {
+                    auto tiBody = TIBodySortTopologically(std::dynamic_pointer_cast<InferenceEngine::TensorIterator>(layer)->body);
+                    tiBodies.insert(tiBodies.end(), tiBody.begin(), tiBody.end());
                 }
             }
-            auto weights = make_shared_blob<uint8_t >(Precision::U8, C, {weightsSize});
+            std::vector<CNNLayerPtr> sortedLayers = details::CNNNetSortTopologically(net_original);
+            sortedLayers.insert(sortedLayers.end(), tiBodies.begin(), tiBodies.end());
+
+            for (auto &layer : sortedLayers) {
+                for (auto &blobName : dataBlobs) {
+                    auto weights = layer->blobs[blobName];
+                    if (weights) {
+                        weightsSize += weights->byteSize();
+                    }
+                }
+            }
+
+            auto weights = make_shared_blob<uint8_t >({ Precision::U8, {weightsSize}, Layout::C });
 
             weights->allocate();
             if (!_env.weightsFillPattern.empty()) {
@@ -136,7 +188,7 @@ void GNAPropagateMatcher :: match() {
             } else {
                 ASSERT_NO_FATAL_FAILURE(loadNetworkFromIR());
             }
-            const int channel_idx = 0;
+            const int channel_idx = 1;
             bool haveInputs = !_env.input_init.empty();
             for (auto && info :inputsInfo) {
                 decltype(_env.input_init)::iterator it;
@@ -149,10 +201,11 @@ void GNAPropagateMatcher :: match() {
                         it = _env.input_init.begin();
                     }
                     in_C = it->second.size();
-                    ASSERT_EQ(in_C, info.second->getDims()[channel_idx]);
+                    ASSERT_EQ(in_C, info.second->getTensorDesc().getDims()[channel_idx]);
                 }
 
-                inputBlob = make_blob_with_precision(_env.input_precision, info.second->getLayout(), info.second->getDims());
+                inputBlob = make_blob_with_precision({ _env.input_precision, info.second->getTensorDesc().getDims(),
+                    info.second->getLayout() });
                 inputBlob->allocate();
                 if (haveInputs) {
                     if (_env.input_precision == Precision::FP32) {
@@ -165,8 +218,8 @@ void GNAPropagateMatcher :: match() {
                 }
             }
 
-            out_C = _env.matchOutput == true ? _env.expected_output.size(): outputSize;
-            output.reset(new TBlob<float>(Precision::FP32, NC, {out_C, out_N}));
+            out_C = _env.matchOutput == true ? _env.expected_output.size() : outputSize;
+            output.reset(new TBlob<float>({ Precision::FP32, {out_N, out_C}, Layout::NC }));
             output->allocate();
         };
 
@@ -212,7 +265,7 @@ void GNAPropagateMatcher :: match() {
                             .WillOnce(Return(GNA_NOERROR));
                         break;
                     case GnaPluginTestEnvironment::matchPwlInserted :
-                        combined->add(new PWLMatcher(_env.matchInserted, _env.matchQuantity));
+                        combined->add(new PWLMatcher(_env.matchInserted, _env.matchQuantity, _env.pwlsToMatchWith));
                         break;
                     case GnaPluginTestEnvironment::matchConvInserted:
                         combined->add(new ConvoluionLayerMatcher(_env.matchInserted, _env.matchQuantity));
@@ -274,8 +327,9 @@ void GNAPropagateMatcher :: match() {
             for (auto info : outputsInfo) {
                 size_t current_size = InferenceEngine::details::product(info.second->getTensorDesc().getDims());
                 output_blob_map[info.first] = make_shared_blob<float>(
-                    info.second->getPrecision(), NC,
-                    {1, details::product(info.second->getDims())}, output->data() + offset, current_size * sizeof(float));
+                    { info.second->getPrecision(),
+                    {1, details::product(info.second->getTensorDesc().getDims())}, NC },
+                    output->data() + offset, current_size * sizeof(float));
                 offset += current_size;
             }
 
@@ -337,18 +391,18 @@ void GNAPluginAOTMatcher :: match() {
 
     size_t weightsSize = 440*3;
 
-    auto weights = make_shared_blob<uint8_t >(Precision::U8, C, {weightsSize});
+    auto weights = make_shared_blob<uint8_t >({ Precision::U8, {weightsSize}, Layout::C });
     weights->allocate();
     GNATest::fillWeights(weights);
     net_reader.SetWeights(weights);
 
     GNAPlugin plugin(_env.config);
 
-    TBlob<float> input(Precision::FP32, NC, {10, 1});
+    TBlob<float> input({ Precision::FP32, {1, 10}, Layout::NC });
     input.allocate();
 
 
-    TBlob<float> output(Precision::FP32, NC, {10, 1});
+    TBlob<float> output({ Precision::FP32, {1, 10}, Layout::NC });
     output.allocate();
 
     net_reader.getNetwork().setTargetDevice(TargetDevice::eGNA);
@@ -380,7 +434,7 @@ void GNADumpXNNMatcher::load(GNAPlugin & plugin) {
 
         size_t weightsSize = 440 * 3;
 
-        auto weights = make_shared_blob<uint8_t>(Precision::U8, C, {weightsSize});
+        auto weights = make_shared_blob<uint8_t>({ Precision::U8, {weightsSize}, Layout::C });
         weights->allocate();
         GNATest::fillWeights(weights);
         net_reader.SetWeights(weights);
@@ -457,7 +511,7 @@ void GNAQueryStateMatcher :: match() {
 
         size_t weightsSize = 440 * 3;
 
-        auto weights = make_shared_blob<uint8_t>(Precision::U8, C, {weightsSize});
+        auto weights = make_shared_blob<uint8_t>({ Precision::U8, {weightsSize}, Layout::C });
         weights->allocate();
         GNATest::fillWeights(weights);
         net_reader.SetWeights(weights);

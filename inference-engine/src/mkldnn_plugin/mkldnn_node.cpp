@@ -38,6 +38,8 @@
 #include <nodes/mkldnn_rnn.h>
 #include <nodes/mkldnn_quantize_node.h>
 #include <nodes/mkldnn_bin_conv_node.h>
+#include <nodes/mkldnn_def_conv_node.h>
+#include <nodes/mkldnn_tensoriterator_node.h>
 #include <mkldnn_types.h>
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_plugin.h"
@@ -77,11 +79,13 @@ MKLDNNNode::Register<MKLDNNBinaryConvolutionNode> MKLDNNBinaryConvolutionNode::r
 MKLDNNNode::Register<MKLDNNMemoryInputNode> MKLDNNMemoryInputNode::reg;
 MKLDNNNode::Register<MKLDNNMemoryOutputNode> MKLDNNMemoryOutputNode::reg;
 MKLDNNNode::Register<MKLDNNRNN> MKLDNNRNN::reg;
+MKLDNNNode::Register<MKLDNNDeformableConvolutionNode> MKLDNNDeformableConvolutionNode::reg;
+MKLDNNNode::Register<MKLDNNTensorIteratorNode> MKLDNNTensorIteratorNode::reg;
 
-MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng)
+MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int _socket)
         : cnnLayer(layer), name(layer->name), typeStr(layer->type), type(TypeFromName(layer->type)), engine(eng),
           selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          profilingTask(name) {
+          profilingTask(name), socket(_socket) {
     if (!layer->outData.empty()) {
         for (const auto& outData : layer->outData) {
             outDims.emplace_back(outData->getDims());
@@ -161,8 +165,8 @@ void MKLDNNNode::remove() {
 }
 
 MKLDNNNode* MKLDNNNode::CreateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                                   const MKLDNNExtensionManager::Ptr& extMgr) {
-    MKLDNNNode* newNode = Registry::CreateNode(layer, eng, extMgr);
+                                   const MKLDNNExtensionManager::Ptr& extMgr, int socket) {
+    MKLDNNNode* newNode = Registry::CreateNode(layer, eng, extMgr, socket);
     if (!newNode)
         THROW_IE_EXCEPTION << "Unsupported primitive of type: " << layer->type << " name: " << layer->name;
 
@@ -302,6 +306,7 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
     SEARCH_TYPE(sse42);
     SEARCH_TYPE(blas);
     SEARCH_TYPE(any);
+    SEARCH_TYPE(uni);
 
     SEARCH_TYPE(winograd);
     SEARCH_TYPE(_dw);
@@ -414,16 +419,29 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                     config.inConfs.push_back(dataConfig);
                 }
 
+                std::vector<mkldnn::memory::format> outFormats;
                 for (size_t i = 0; i < desc.outputNumbers(); i++) {
                     InferenceEngine::DataConfig dataConfig;
                     dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                     dataConfig.constant = false;
                     dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getDstMemDesc(*itpd, i));
                     config.outConfs.push_back(dataConfig);
+
+                    auto primDesc = itpd->fetch();
+                    auto dstPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(dst_pd), 0);
+                    if (dstPrimDesc) {
+                        outFormats.emplace_back(static_cast<memory::format>(itpd->dst_primitive_desc().desc().data.format));
+                    } else {
+                        // This path is needed to correctly handle Deconvolution node
+                        auto diffSrcPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(diff_src_pd), 0);
+                        if (diffSrcPrimDesc) {
+                            outFormats.emplace_back(static_cast<memory::format>(itpd->diff_src_primitive_desc().desc().data.format));
+                        }
+                    }
                 }
                 impl_desc_type impl_type = parse_impl_name(itpd->get_impl_info_str());
 
-                supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+                supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
             } while (itpd->next());
         } catch (std::exception& e) {
             // it throw exception in case of no implementation found
@@ -447,7 +465,7 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
 
     std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
 
-    InferenceEngine::LayerConfig rightConfig = getSelectedPrimitiveDescriptor()->getConfig();
+    InferenceEngine::LayerConfig rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
     for (size_t j = 0; j < descs.size(); j++) {
         try {
@@ -534,7 +552,7 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
     if (intLayout == InferenceEngine::Layout::NCHW)
         intLayout = InferenceEngine::Layout::OIHW;
 
-    InferenceEngine::TensorDesc desc(blb->precision(), dims, intLayout);
+    InferenceEngine::TensorDesc desc(blb->getTensorDesc().getPrecision(), dims, intLayout);
 
     auto fillInternalBlob = [&](char *data, size_t intBuffSize) {
         size_t offset = blb->byteSize();
@@ -557,27 +575,23 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
         }
     };
 
-    if (blb->precision() == Precision::BIN) {
-        InferenceEngine::TBlob<int8_t>::Ptr internalBlob = InferenceEngine::make_shared_blob<int8_t>(desc);
-
-        internalBlob->allocate();
-        char *data = internalBlob->buffer();
-        size_t intBuffSize = internalBlob->byteSize();
-
-        fillInternalBlob(data, intBuffSize);
-
-        return internalBlob;
+    Blob::Ptr internalBlob;
+    if (blb->getTensorDesc().getPrecision() == Precision::BIN) {
+        internalBlob = InferenceEngine::make_shared_blob<int8_t>(desc);
+    } else if (blb->getTensorDesc().getPrecision() == Precision::I8) {
+        internalBlob = InferenceEngine::make_shared_blob<int8_t>(desc);
+    } else if (blb->getTensorDesc().getPrecision() == Precision::I32) {
+        internalBlob = InferenceEngine::make_shared_blob<int32_t>(desc);
     } else {
-        InferenceEngine::TBlob<float>::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
-
-        internalBlob->allocate();
-        char *data = internalBlob->buffer();
-        size_t intBuffSize = internalBlob->byteSize();
-
-        fillInternalBlob(data, intBuffSize);
-
-        return internalBlob;
+        internalBlob = InferenceEngine::make_shared_blob<float>(desc);
     }
+    internalBlob->allocate();
+    char *data = internalBlob->buffer();
+    size_t intBuffSize = internalBlob->byteSize();
+
+    fillInternalBlob(data, intBuffSize);
+
+    return internalBlob;
 }
 
 void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::primitive_desc_iterator& itpd) {
@@ -601,12 +615,13 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
     for (size_t i = 0; i < internalBlobs.size(); i++) {
         const auto &internalBlob = internalBlobs[i];
 
-        const uint64_t data_hash =  Engine::GetWeightsSharing().GetHashFunc().hash(internalBlob->buffer(), internalBlob->byteSize());
+        const uint64_t data_hash = Engine::GetWeightsSharing(socket)->GetHashFunc().hash(
+                internalBlob->buffer(), internalBlob->byteSize());
         const std::string string_hash = name + "_" + std::to_string(i)
                                      + "_" + std::to_string(internalBlob->byteSize())
                                      + "_" + std::to_string(data_hash);
         MKLDNNMemoryPtr ptr =
-                Engine::GetWeightsSharing().findOrCreate(string_hash, [&] () {
+                Engine::GetWeightsSharing(socket)->findOrCreate(string_hash, [&] () {
                     MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(engine));
                     _ptr->Create(intDescs[i]);
                     MKLDNNMemory memory(engine);
@@ -629,7 +644,10 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
 }
 
 bool MKLDNNNode::isInplace() const {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
 
     for (auto &in : config.inConfs) if (in.inPlace >= 0) return true;
     for (auto &out : config.outConfs) if (out.inPlace >= 0) return true;
@@ -699,80 +717,6 @@ void MKLDNNNode::cleanup() {
 
     for (auto it : mergedWith) {
         it->cleanup();
-    }
-}
-
-std::string MKLDNNNode::typeToStr(Type type) {
-    switch (type) {
-        case Generic:
-            return "Generic";
-        case Reorder:
-            return "Reorder";
-        case Input:
-            return "Input";
-        case Output:
-            return "Output";
-        case Convolution:
-            return "Convolution";
-        case Deconvolution:
-            return "Deconvolution";
-        case Convolution_Sum:
-            return "Convolution_Sum";
-        case Convolution_Activation:
-            return "Convolution_Activation";
-        case Convolution_Sum_Activation:
-            return "Convolution_Sum_Activation";
-        case Activation:
-            return "Activation";
-        case Lrn:
-            return "Lrn";
-        case Pooling:
-            return "Pooling";
-        case FullyConnected:
-            return "FullyConnected";
-        case FullyConnected_Activation:
-            return "FullyConnected_Activation";
-        case Gemm:
-            return "Gemm";
-        case SoftMax:
-            return "SoftMax";
-        case Split:
-            return "Split";
-        case Concatenation:
-            return "Concatenation";
-        case Power:
-            return "Power";
-        case Depthwise:
-            return "Depthwise";
-        case Crop:
-            return "Crop";
-        case Reshape:
-            return "Reshape";
-        case Tile:
-            return "Tile";
-        case SimplerNMS:
-            return "SimplerNMS";
-        case ROIPooling:
-            return "ROIPooling";
-        case BatchNormalization:
-            return "BatchNormalization";
-        case Flatten:
-            return "Flatten";
-        case Permute:
-            return "Permute";
-        case Copy:
-            return "Copy";
-        case MemoryOutput:
-            return "MemoryOutput";
-        case MemoryInput:
-            return "MemoryInput";
-        case RNNSeq:
-            return "RNNSeq";
-        case RNNCell:
-            return "RNNCell";
-
-        default:
-            return "Unknown";
     }
 }
 
@@ -926,7 +870,10 @@ InferenceEngine::TensorDesc MKLDNNNode::getConfiguredOutputDesc(const InferenceE
 }
 
 void MKLDNNNode::initOptimalPrimitiveDescriptor() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
     if (!isInitConfig(config)) {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
             config.inConfs[i].desc = getConfiguredInputDesc(config, i);
@@ -996,15 +943,35 @@ void MKLDNNNode::setDynamicBatchLim(int lim) {
 }
 
 MKLDNNNode *MKLDNNNode::Registry::CreateNode(const InferenceEngine::CNNLayerPtr &layer, const mkldnn::engine& eng,
-                                             const MKLDNNExtensionManager::Ptr& extMgr) {
+                                             const MKLDNNExtensionManager::Ptr& extMgr, int socket) {
+    MKLDNNNode *res = nullptr;
     for (auto maker : _dataByLayer) {
-        std::unique_ptr<MKLDNNNode> ol(maker(layer, eng));
-        if (ol != nullptr && ol->created(extMgr))
-            return ol.release();
+        std::unique_ptr<MKLDNNNode> ol(maker(layer, eng, socket));
+        if (ol != nullptr && ol->created(extMgr)) {
+            res = ol.release();
+            break;
+        }
     }
-    return nullptr;
+
+    //  WA-start : TI node requires all attributes to construct internal subgpath
+    //             including extManager, socket and mkldnn::eng.
+    MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(res);
+    if (ti != nullptr)
+        ti->setExtManager(extMgr);
+    //  WA-end
+
+    return res;
 }
 
 void MKLDNNNode::Registry::RegisterNode(MKLDNNNode::Registry::CreatorByLayerFunction f) {
     _dataByLayer.push_back(f);
+}
+
+bool MKLDNNNode::isFusedWith(Type fusedNodeType) const {
+    for (auto fusedNode : fusedWith) {
+        if (fusedNode->type == fusedNodeType)
+            return true;
+    }
+
+    return false;
 }

@@ -19,13 +19,11 @@
 #include <semaphore.h>
 #endif
 #include <XLinkPublicDefines.h>
-#include "XLinkPlatform.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-#define MAX_NAME_LENGTH 16
 
 #ifdef USE_USB_VSC
 #define HEADER_SIZE (64-12 -8)
@@ -85,12 +83,20 @@ typedef enum {
 } xLinkState_t;
 
 /**
+ * @brief Device description
+ */
+typedef struct xLinkDeviceHandle_t {
+    XLinkProtocol_t protocol;
+    void* xLinkFD;
+} xLinkDeviceHandle_t;
+
+/**
  * @brief Streams opened to device
  */
 typedef struct{
-    char name[MAX_NAME_LENGTH];
+    char name[MAX_STREAM_NAME_LENGTH];
     streamId_t id;
-    void* fd;
+    xLinkDeviceHandle_t deviceHandle;
     uint32_t writeSize;
     uint32_t readSize;  /*No need of read buffer. It's on remote,
     will read it directly to the requested buffer*/
@@ -118,7 +124,7 @@ typedef struct xLinkDesc_t {
     int nextUniqueStreamId;
     streamDesc_t availableStreams[XLINK_MAX_STREAMS];
     xLinkState_t peerState;
-    void* fd;
+    xLinkDeviceHandle_t deviceHandle;
     linkId_t id;
 } xLinkDesc_t;
 
@@ -164,13 +170,13 @@ typedef enum
 } xLinkEventOrigin_t;
 
 #define MAX_EVENTS 64
-
+#define MAX_LINKS 32
 #define MAX_SCHEDULERS MAX_LINKS
 
 typedef struct xLinkEventHeader_t{
     eventId_t           id;
     xLinkEventType_t    type;
-    char                streamName[MAX_NAME_LENGTH];
+    char                streamName[MAX_STREAM_NAME_LENGTH];
     streamId_t          streamId;
     uint32_t            size;
     union{
@@ -190,7 +196,7 @@ typedef struct xLinkEventHeader_t{
 
 typedef struct xLinkEvent_t {
     xLinkEventHeader_t header;
-    void* xLinkFD;
+    xLinkDeviceHandle_t deviceHandle;
     void* data;
 }xLinkEvent_t;
 

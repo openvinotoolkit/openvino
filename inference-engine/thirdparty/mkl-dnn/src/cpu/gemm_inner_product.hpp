@@ -25,6 +25,7 @@
 #include "type_helpers.hpp"
 #include "utils.hpp"
 #include "gemm/gemm.hpp"
+#include "gemm_inner_product_utils.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -54,10 +55,9 @@ struct gemm_inner_product_fwd_t: public cpu_primitive_t {
                         desc()->dst_desc.data_type)
                 && IMPLICATION(this->with_bias(),
                         data_type == desc()->bias_desc.data_type)
-                && attr()->output_scales_.has_default_values()
                 && attr()->post_ops_.len_ <= 1
                 && IMPLICATION(attr()->post_ops_.len_ == 1,
-                        attr()->post_ops_.entry_[0].is_relu(true, false))
+                        attr()->post_ops_.entry_[0].is_eltwise())
                 && dense_gemm_consitency_check(src_pd(), weights_pd(),
                         dst_pd());
             return ok ? status::success : status::unimplemented;
@@ -66,7 +66,16 @@ struct gemm_inner_product_fwd_t: public cpu_primitive_t {
 
     gemm_inner_product_fwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(apd, inputs, outputs) {}
+        : cpu_primitive_t(apd, inputs, outputs) {
+        bool has_bias = pd()->with_bias(),
+             has_eltwise = pd()->attr()->post_ops_.len_ == 1,
+             has_scale = !pd()->attr()->output_scales_.has_default_values();
+        postops_in_ip_ = has_bias || has_eltwise || has_scale;
+        pp_kernel_ = new inner_product_utils::pp_kernel_t<data_type, data_type>(
+                apd);
+    }
+    ~gemm_inner_product_fwd_t() { delete pp_kernel_; }
+
     typedef typename prec_traits<data_type>::type data_t;
 
     virtual void execute(event_t *e) const {
@@ -77,6 +86,9 @@ struct gemm_inner_product_fwd_t: public cpu_primitive_t {
 private:
     void execute_forward() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
+
+    inner_product_utils::pp_kernel_t<data_type, data_type> *pp_kernel_;
+    bool postops_in_ip_;
 };
 
 template <impl::data_type_t data_type>

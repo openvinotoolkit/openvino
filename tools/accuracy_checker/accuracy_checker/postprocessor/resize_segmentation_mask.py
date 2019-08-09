@@ -23,20 +23,17 @@ from .postprocessor import PostprocessorWithSpecificTargets, PostprocessorWithTa
 from ..representation import SegmentationPrediction, SegmentationAnnotation
 
 
+class ResizeMaskConfigValidator(PostprocessorWithTargetsConfigValidator):
+    size = NumberField(floats=False, optional=True, min_value=1)
+    dst_width = NumberField(floats=False, optional=True, min_value=1)
+    dst_height = NumberField(floats=False, optional=True, min_value=1)
+
 class ResizeSegmentationMask(PostprocessorWithSpecificTargets):
     __provider__ = 'resize_segmentation_mask'
 
     annotation_types = (SegmentationAnnotation, )
     prediction_types = (SegmentationPrediction, )
-
-    def validate_config(self):
-        class _ResizeConfigValidator(PostprocessorWithTargetsConfigValidator):
-            size = NumberField(floats=False, optional=True, min_value=1)
-            dst_width = NumberField(floats=False, optional=True, min_value=1)
-            dst_height = NumberField(floats=False, optional=True, min_value=1)
-
-        resize_config_validator = _ResizeConfigValidator(self.__provider__)
-        resize_config_validator.validate(self.config)
+    _config_validator_type = ResizeMaskConfigValidator
 
     def configure(self):
         self.dst_height, self.dst_width = get_size_from_config(self.config, allow_none=True)

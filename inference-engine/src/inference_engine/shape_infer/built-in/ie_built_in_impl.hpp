@@ -44,15 +44,6 @@ public:
                                  const std::map<std::string, Blob::Ptr>& blobs,
                                  std::vector<SizeVector>& outShapes) = 0;
 
-    StatusCode inferShapes(const std::vector<SizeVector>& inShapes,
-                           const std::map<std::string, std::string>& params,
-                           const std::map<std::string, Blob::Ptr>& blobs,
-                           std::vector<SizeVector>& outShapes,
-                           ResponseDesc* resp) noexcept override {
-        return DescriptionBuffer(GENERAL_ERROR, resp)
-                << "Unexpected call of deprecated Shape Infer function with input shapes";
-    }
-
     StatusCode inferShapes(const std::vector<Blob::CPtr>& inBlobs,
                            const std::map<std::string, std::string>& params,
                            const std::map<std::string, Blob::Ptr>& blobs,

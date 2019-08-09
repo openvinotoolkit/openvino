@@ -16,10 +16,14 @@
 
 import logging as log
 
+import numpy as np
+
 from extensions.front.Pack import Pack
-from extensions.ops.resample import ResampleOp
+from extensions.ops.interpolate import Interpolate
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
+from mo.ops.const import Const
 
 
 class NearestNeighborUpsampling(FrontReplacementSubgraph):
@@ -31,7 +35,7 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[('op', dict(kind='op')),
-                   ('shape', dict(kind='op', op='Shape')),
+                   ('shape', dict(kind='op', op='ShapeOf')),
                    ('strided_slice', dict(kind='op', op='StridedSlice')),
                    ('pack_1', dict(kind='op', op='Pack')),
                    ('reshape_1', dict(kind='op', op='Reshape')),
@@ -66,10 +70,17 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
             log.warning('Failed to determine scaling parameters from the topology. Do not apply pattern.')
             return
 
-        resample_op = ResampleOp(graph, {'width': input_width * width_scale, 'height': input_height * height_scale,
-                                         'name': 'Resample_', 'antialias': 0,
-                                         'resample_type': 'caffe.ResampleParameter.NEAREST'})
+        axes = int64_array([2, 3]) if graph.graph['layout'] == 'NCHW' else int64_array([1, 2])
+
+        const = Const(graph,
+                      {'value': np.array([input_height * height_scale, input_width * width_scale])}).create_node()
+        resample_op = Interpolate(graph, {'name': 'Resample_', 'antialias': 0, 'mode': 'nearest', 'axes': axes})
         resample_node = resample_op.create_node([match['op']])
 
         match['reshape_2'].replace_node(resample_node)
+
+        resample_node.add_input_port(1, skip_if_exist=True)
+        assert resample_node.in_port(1).disconnected()
+        const.out_port(0).connect(resample_node.in_port(1))
+
         graph.remove_nodes_from([node.id for node in match.values() if node.id != match['op'].id])

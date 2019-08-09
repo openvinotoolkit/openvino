@@ -13,8 +13,10 @@
 #include <map>
 #include <string>
 #include <ie_plugin.hpp>
+#include "ie_common.h"
 #include "description_buffer.hpp"
 #include "cpp_interfaces/exception2status.hpp"
+#include "cpp_interfaces/base/ie_inference_plugin_api.hpp"
 
 namespace InferenceEngine {
 
@@ -24,7 +26,7 @@ namespace InferenceEngine {
  * @details can be used to create external wrapper too
  */
 template<class T>
-class PluginBase : public IInferencePlugin {
+class PluginBase : public IInferencePluginAPI, public IInferencePlugin {
 protected:
     class VersionStore : public Version {
         std::string _dsc;
@@ -51,6 +53,14 @@ public:
             THROW_IE_EXCEPTION << "implementation not defined";
         }
         _impl = impl;
+    }
+
+    void SetName(const std::string & pluginName) noexcept override {
+        _impl->SetName(pluginName);
+    }
+
+    std::string GetName() const noexcept override {
+        return _impl->GetName();
     }
 
     /**
@@ -108,14 +118,31 @@ public:
     }
 
     /**
-     * @depricated Use the version with config parameter
+     * @deprecated Use the version with config parameter
      */
     void QueryNetwork(const ICNNNetwork &network, QueryNetworkResult &res) const noexcept override {
-        QueryNetwork(network, {}, res);
+        TO_STATUSVAR(QueryNetwork(network, {}, res), res.rc, &res.resp);
     }
 
     void QueryNetwork(const ICNNNetwork &network, const std::map<std::string, std::string>& config, QueryNetworkResult &res) const noexcept override {
-        _impl->QueryNetwork(network, config, res);
+        TO_STATUSVAR(_impl->QueryNetwork(network, config, res), res.rc, &res.resp);
+    }
+
+    void SetCore(ICore *core) noexcept override {
+        _impl->SetCore(core);
+    }
+
+    const ICore& GetCore() const override {
+        IE_ASSERT(nullptr != _impl->GetCore());
+        return *_impl->GetCore();
+    }
+
+    Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter> & options) const override {
+        return _impl->GetConfig(name, options);
+    }
+
+    Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter> & options) const override {
+        return _impl->GetMetric(name, options);
     }
 
 private:

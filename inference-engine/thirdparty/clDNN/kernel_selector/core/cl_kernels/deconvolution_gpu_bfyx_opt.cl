@@ -121,12 +121,12 @@ KERNEL(deconvolution_gpu_bfyx_opt)(
 #if FUSED_ELTWISE
     const uint fused_index = INPUT1_OFFSET + split_idx * INPUT1_FEATURE_PITCH * FILTER_OFM_NUM + batch_offset*INPUT1_BATCH_PITCH + ofm_offset*INPUT1_FEATURE_PITCH + id_y*INPUT1_Y_PITCH + id_x*INPUT1_X_PITCH;
 #if !GRADIENT
-	output[dst_index] = ACTIVATION(result + fuse_input[fused_index], NL_M, NL_N);
+	output[dst_index] = ACTIVATION(result + fuse_input[fused_index], ACTIVATION_PARAMS);
 #else
 	output[dst_index] = result + fuse_input[fused_index];
 #endif
 #else
-    output[dst_index] = ACTIVATION(result, NL_M, NL_N);
+    output[dst_index] = ACTIVATION(result, ACTIVATION_PARAMS);
 #endif
 }
 

@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #include "softmax_loss_grad_kernel_selector.h"
 #include "softmax_loss_grad_kernel_ref.h"
 
 namespace kernel_selector {
 
-    softmax_loss_grad_kernel_selector::softmax_loss_grad_kernel_selector()
-    {
-        Attach<SoftmaxLossGradKernelRef>();
-    }
+softmax_loss_grad_kernel_selector::softmax_loss_grad_kernel_selector() { Attach<SoftmaxLossGradKernelRef>(); }
 
-    KernelsData softmax_loss_grad_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::SOFT_MAX_LOSS_GRAD);
-    }
+KernelsData softmax_loss_grad_kernel_selector::GetBestKernels(const Params& params,
+                                                              const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::SOFT_MAX_LOSS_GRAD);
 }
+}  // namespace kernel_selector

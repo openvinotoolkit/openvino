@@ -4,7 +4,6 @@
 
 #include <vpu/frontend/frontend.hpp>
 
-#include <vector>
 #include <memory>
 #include <string>
 
@@ -22,81 +21,40 @@ void FrontEnd::parseBias(
 
     auto input = inputs[0];
     auto biases = inputs[1];
+    auto output = outputs[0];
 
-    auto biasesDims = biases->desc().dims();
-    if (biasesDims.size() < 4 && input->desc().numDims() == 4) {
-        biasesDims.set(Dim::N, 1);
-    }
-
-    if (input->desc().dims() != biasesDims) {
-        VPU_THROW_EXCEPTION
-            << "Current Bias layer implementation supports only equal inputs (axis 0, 1 for 4D tensor, axis 0 for other dimensions),"
-            << " layer name is " << layer->name;
-    }
-
-    if (biases->desc().numDims() < 4 && input->desc().numDims() == 4) {
-        DataDesc newBiasesDesc({
-            biases->desc().dim(Dim::W),
-            biases->desc().dim(Dim::H),
-            biases->desc().dim(Dim::C),
-            1});
-
-        auto newBiases = model->duplicateData(
-            biases,
-            "@reshaped",
-            newBiasesDesc);
-
-        _stageBuilder->addReshapeStage(
-            model,
-            newBiases->name(),
-            layer,
-            biases,
-            newBiases);
-
-        biases = newBiases;
-    }
-
-    _stageBuilder->addSumStage(
+    _stageBuilder->addBiasStage(
         model,
         layer->name,
         layer,
         input, biases,
-        outputs[0]);
+        output);
 }
 
 namespace {
-
 class BiasStage final : public PostOpStage {
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<BiasStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(_inputEdges.size() == 2);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto biases = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<float> out;
-
         if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales.at(input);
+            auto inputScale = inputScales[0];
 
-            out[biases] = inputScale;
-            out[output] = inputScale;
+            _scaleInfo.setInput(_inputEdges[1], inputScale);
+            _scaleInfo.setOutput(_outputEdges[0], inputScale);
         } else {
             // Bias can only propagate scaling, not generate.
-            out[input] = 1.0f;
-            out[biases] = 1.0f;
-            out[output] = 1.0f;
+            _scaleInfo.setInput(_inputEdges[0], 1.0f);
+            _scaleInfo.setInput(_inputEdges[1], 1.0f);
+            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
         }
-
-        return out;
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {

@@ -13,14 +13,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-import logging as log
-
-import numpy as np
-
 from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
+import numpy as np
+import logging as log
 
 
 class Power(Op):
@@ -29,7 +26,7 @@ class Power(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': 'Power',
+            'type': __class__.op,
             'op': __class__.op,
             'power': 1,
             'scale': 1,
@@ -66,4 +63,3 @@ class Power(Op):
             node.graph.remove_edge(node.in_node(1).id, node.id)
 
         eltwise_infer(node, lambda a: np.power(a * node.scale + node.shift, node.power))
-

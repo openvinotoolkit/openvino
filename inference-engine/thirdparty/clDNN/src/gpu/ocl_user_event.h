@@ -14,34 +14,31 @@
 // limitations under the License.
 */
 
-
 #pragma once
 
 #include "ocl_base_event.h"
 #include "api/CPP/profiling.hpp"
+#include <memory>
+#include <list>
 
 #ifdef _WIN32
 #pragma warning(push)
-#pragma warning(disable: 4250) //Visual Studio warns us about inheritance via dominance but it's done intentionally so turn it off
+#pragma warning(disable : 4250)  // Visual Studio warns us about inheritance via dominance but it's done intentionally
+                                 // so turn it off
 #endif
 
-namespace cldnn { namespace gpu {
+namespace cldnn {
+namespace gpu {
 
-struct user_event : public base_event, public cldnn::user_event
-{
-    user_event(std::shared_ptr<gpu_toolkit> ctx) 
-        : base_event(ctx)
-        , cldnn::user_event(false)
-    {}
+struct user_event : public base_event, public cldnn::user_event {
+    explicit user_event(std::shared_ptr<gpu_toolkit> ctx) : base_event(ctx), cldnn::user_event(false) {}
 
     void set_impl() override;
-    void attach_event(bool set)
-    {
+    void attach_event(bool set) {
         _event = cl::UserEvent(get_context()->context());
-        //we need to reset the timer(since attach_ocl_event is called only when this object is being reused)
-        _timer = cldnn::instrumentation::timer<>(); 
-        if (set)
-        {
+        // we need to reset the timer(since attach_ocl_event is called only when this object is being reused)
+        _timer = cldnn::instrumentation::timer<>();
+        if (set) {
             set_impl();
             _set = set;
         }
@@ -57,4 +54,5 @@ protected:
 #pragma warning(pop)
 #endif
 
-} }
+}  // namespace gpu
+}  // namespace cldnn

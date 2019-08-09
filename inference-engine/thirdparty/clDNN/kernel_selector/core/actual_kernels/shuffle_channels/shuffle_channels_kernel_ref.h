@@ -18,40 +18,33 @@
 
 #include "common_kernel_base.h"
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // shuffle_channels_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct shuffle_channels_params : public base_params
-    {
-        shuffle_channels_params() : base_params(KernelType::SHUFFLE_CHANNELS) {}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// shuffle_channels_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct shuffle_channels_params : public base_params {
+    shuffle_channels_params() : base_params(KernelType::SHUFFLE_CHANNELS) {}
 
-        int32_t group;
-        int32_t axis;
+    int32_t group;
+    int32_t axis;
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            return base_params::GetParamsKey();
-        }
-    };
+    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // shuffle_channels_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct shuffle_channels_optional_params : optional_params
-    {
-        shuffle_channels_optional_params() : optional_params(KernelType::SHUFFLE_CHANNELS) {}
-    };
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// shuffle_channels_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct shuffle_channels_optional_params : optional_params {
+    shuffle_channels_optional_params() : optional_params(KernelType::SHUFFLE_CHANNELS) {}
+};
 
-    class ShuffleChannelsKernelRef : public common_kernel_base
-    {
-    public:
-        ShuffleChannelsKernelRef() : common_kernel_base("shuffle_channels_ref") {}
-        virtual ~ShuffleChannelsKernelRef() {}
-        virtual JitConstants GetJitConstants(const shuffle_channels_params& params) const;
-        virtual CommonDispatchData SetDefault(const shuffle_channels_params& params, const optional_params&) const;
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+class ShuffleChannelsKernelRef : public common_kernel_base {
+public:
+    ShuffleChannelsKernelRef() : common_kernel_base("shuffle_channels_ref") {}
+    virtual ~ShuffleChannelsKernelRef() {}
+    virtual JitConstants GetJitConstants(const shuffle_channels_params& params) const;
+    virtual CommonDispatchData SetDefault(const shuffle_channels_params& params, const optional_params&) const;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

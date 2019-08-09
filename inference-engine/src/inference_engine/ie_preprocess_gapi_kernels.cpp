@@ -269,6 +269,22 @@ GAPI_FLUID_KERNEL(FSplit4, Split4, false) {
 
 template<typename T>
 static void chanToPlaneRow(const uint8_t* in, int chan, int chs, uint8_t* out, int length) {
+#if MANUAL_SIMD
+    if (with_cpu_x86_sse42()) {
+        if (std::is_same<T, uint8_t>::value && chs == 1) {
+            copyRow_8U(in, out, length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 1) {
+            copyRow_32F(reinterpret_cast<const float*>(in),
+                        reinterpret_cast<float*>(out),
+                        length);
+            return;
+        }
+    }
+#endif
+
     const auto inT  = reinterpret_cast<const T*>(in);
           auto outT = reinterpret_cast<      T*>(out);
 
@@ -1515,6 +1531,78 @@ GAPI_FLUID_KERNEL(FScalePlaneArea8u, ScalePlaneArea8u, true) {
     }
 };
 
+static const int ITUR_BT_601_CY = 1220542;
+static const int ITUR_BT_601_CUB = 2116026;
+static const int ITUR_BT_601_CUG = -409993;
+static const int ITUR_BT_601_CVG = -852492;
+static const int ITUR_BT_601_CVR = 1673527;
+static const int ITUR_BT_601_SHIFT = 20;
+
+static inline void uvToRGBuv(const uchar u, const uchar v, int& ruv, int& guv, int& buv) {
+    int uu, vv;
+    uu = static_cast<int>(u) - 128;
+    vv = static_cast<int>(v) - 128;
+
+    ruv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVR * vv;
+    guv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVG * vv + ITUR_BT_601_CUG * uu;
+    buv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CUB * uu;
+}
+
+static inline void yRGBuvToRGB(const uchar vy, const int ruv, const int guv, const int buv,
+                                uchar& r, uchar& g, uchar& b) {
+    int yy = static_cast<int>(vy);
+    int y = std::max(0, yy - 16) * ITUR_BT_601_CY;
+    r = saturate_cast<uchar>((y + ruv) >> ITUR_BT_601_SHIFT);
+    g = saturate_cast<uchar>((y + guv) >> ITUR_BT_601_SHIFT);
+    b = saturate_cast<uchar>((y + buv) >> ITUR_BT_601_SHIFT);
+}
+
+static void calculate_nv12_to_rgb_fallback(const  uchar **y_rows,
+                                           const  uchar *uv_row,
+                                                  uchar **out_rows,
+                                           int buf_width) {
+    for (int i = 0; i < buf_width; i += 2) {
+        uchar u = uv_row[i];
+        uchar v = uv_row[i + 1];
+        int ruv, guv, buv;
+        uvToRGBuv(u, v, ruv, guv, buv);
+
+        for (int y = 0; y < 2; y++) {
+            for (int x = 0; x < 2; x++) {
+                uchar vy = y_rows[y][i + x];
+                uchar r, g, b;
+                yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
+
+                out_rows[y][3*(i + x)]     = r;
+                out_rows[y][3*(i + x) + 1] = g;
+                out_rows[y][3*(i + x) + 2] = b;
+            }
+        }
+    }
+}
+
+GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
+    static const int Window = 1;
+    static const int LPI    = 2;
+    static const auto Kind = cv::GFluidKernel::Kind::NV12toRGB;
+
+    static void run(const cv::gapi::fluid::View &in_y,
+                    const cv::gapi::fluid::View &in_uv,
+                          cv::gapi::fluid::Buffer &out) {
+        const uchar* uv_row = in_uv.InLineB(0);
+        const uchar* y_rows[2] = {in_y. InLineB(0), in_y. InLineB(1)};
+        uchar* out_rows[2] = {out.OutLineB(0), out.OutLineB(1)};
+
+        int buf_width = out.length();
+
+        #if MANUAL_SIMD
+            calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
+        #else
+            calculate_nv12_to_rgb_fallback(y_rows, uv_row, out_rows, buf_width);
+        #endif
+    }
+};
+
 }  // namespace kernels
 
 //----------------------------------------------------------------------
@@ -1538,6 +1626,7 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FSplit2
         , FSplit3
         , FSplit4
+        , FNV12toRGB
         >();
 }
 

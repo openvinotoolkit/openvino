@@ -854,6 +854,15 @@ status_t jit_uni_i8i8_pooling_fwd_ker_t<isa>::init_conf(jit_pool_conf_t &jpp,
     jpp.t_pad = pd.padding[0][0];
     jpp.l_pad = pd.padding[0][1];
 
+    int right_pad = (jpp.ow - 1) * jpp.stride_w
+        + jpp.kw - 1 - (jpp.iw + jpp.l_pad - 1);
+    int bottom_pad = (jpp.oh - 1) * jpp.stride_h
+        + jpp.kh - 1 - (jpp.ih + jpp.t_pad - 1);
+
+    if (jpp.t_pad >= jpp.kh || jpp.l_pad >= jpp.kw
+         || bottom_pad >= jpp.kh || right_pad >= jpp.kw)
+        return status::unimplemented;
+
     jpp.alg = pd.alg_kind;
 
     jpp.src_dt = pd.src_desc.data_type;

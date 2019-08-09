@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GKERNEL_HPP
@@ -63,6 +63,10 @@ namespace detail
         {
             static inline cv::GMat yield(cv::GCall &call, int i) { return call.yield(i); }
         };
+        template<> struct Yield<cv::GMatP>
+        {
+            static inline cv::GMatP yield(cv::GCall &call, int i) { return call.yieldP(i); }
+        };
         template<> struct Yield<cv::GScalar>
         {
             static inline cv::GScalar yield(cv::GCall &call, int i) { return call.yieldScalar(i); }
@@ -82,6 +86,7 @@ namespace detail
     //    This mapping is used to transform types to call outMeta() callback.
     template<typename T> struct MetaType;
     template<> struct MetaType<cv::GMat>    { using type = GMatDesc; };
+    template<> struct MetaType<cv::GMatP>   { using type = GMatDesc; };
     template<> struct MetaType<cv::GScalar> { using type = GScalarDesc; };
     template<typename U> struct MetaType<cv::GArray<U> > { using type = GArrayDesc; };
     template<typename T> struct MetaType    { using type = T; }; // opaque args passed as-is
@@ -376,7 +381,7 @@ namespace gapi {
     public:
         /**
          * @brief Returns total number of kernels in the package
-         * (accross all backends included)
+         * (across all backends included)
          *
          * @return a number of kernels in the package
          */

@@ -26,7 +26,7 @@ nodes_attributes = {'node_1': {'kind': 'data', 'value': None},
                     'node_2': {'kind': 'data', 'value': None},
                     'concat': {'type': 'Concat', 'kind': 'op'},
                     'node_3': {'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
+                    'op_output': { 'kind': 'op', 'op': 'Result'},
                     }
 
 

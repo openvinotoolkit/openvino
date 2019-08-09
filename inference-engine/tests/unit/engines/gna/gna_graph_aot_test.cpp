@@ -36,7 +36,7 @@ TEST_F(GNAAOTTests, AffineWith2AffineOutputs_canbe_export_imported) {
 
     // running export to a file
     export_network(AffineWith2AffineOutputsModel())
-        .inNotCompactMode().as().gna().model().to(X);
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).as().gna().model().to(X);
 
     // running infer using imported model instead of IR
     assert_that().onInferModel().importedFrom(X)
@@ -50,17 +50,18 @@ TEST_F(GNAAOTTests, AffineWith2AffineOutputs_canbe_imported_verify_structure) {
 
     // saving pointer to nnet - todo probably deep copy required
     save_args().onInferModel(AffineWith2AffineOutputsModel())
-        .inNotCompactMode().from().gna().propagate_forward().to(&nnet_type);
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).from().gna().propagate_forward().to(&nnet_type);
 
     const std::string X = registerFileForRemove("unit_tests.bin");
 
     // running export to a file
     export_network(AffineWith2AffineOutputsModel())
-        .inNotCompactMode().as().gna().model().to(X);
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).as().gna().model().to(X);
 
     // running infer using imported model instead of IR
     assert_that().onInferModel().importedFrom(X)
-        .inNotCompactMode().gna().propagate_forward().called_with().exact_nnet_structure(&nnet_type);
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).gna()
+        .propagate_forward().called_with().exact_nnet_structure(&nnet_type);
 
 }
 
@@ -70,16 +71,19 @@ TEST_F(GNAAOTTests, CanConvertFromAOTtoSueModel) {
 
     // saving pointer to nnet - todo probably deep copy required
     save_args().onInferModel(AffineWith2AffineOutputsModel())
-        .inNotCompactMode().from().gna().propagate_forward().to(&nnet_type);
+        .inNotCompactMode().inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .from().gna().propagate_forward().to(&nnet_type);
 
     const std::string X = registerFileForRemove("unit_tests.bin");
 
     // running export to a file
     export_network(AffineWith2AffineOutputsModel())
-        .inNotCompactMode().as().gna().model().to(X);
+        .inNotCompactMode().inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .as().gna().model().to(X);
 
     // running infer using imported model instead of IR
     assert_that().onInferModel().importedFrom(X)
-        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), "sue.dump").gna().dumpXNN().called();
+        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).withGNAConfig(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), "sue.dump")
+        .gna().dumpXNN().called();
 }
 

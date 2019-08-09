@@ -30,6 +30,8 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
     return GET_DATA_BF8_XY16_INDEX(INPUT0, b, f, y, x);
 #elif defined INPUT0_LAYOUT_BYXF_AF32
 	return GET_DATA_BYXF_AF32_INDEX(INPUT0, b, f, y, x);
+#elif defined INPUT0_LAYOUT_BFYX_F16
+    return GET_DATA_BFYX_F16_INDEX(INPUT0, b, f, y, x);
 #else
 #error reorder_data_to_yxfb_batched.cl: input format - not supported
 #endif
@@ -85,13 +87,13 @@ KERNEL (reorder_data_to_yxfb_batched)(
         res = MEAN_OP(res, mean_subtract[f]);
     #else
         MEAN_SUBTRACT_TYPE res = TO_MEAN_TYPE(input[input_idx]);
-        uint4 msv = FUNC_CALL(reshape_dims)(b,f,y,x, INPUT0_SIZE_Y, INPUT0_SIZE_X, MEAN_SUBTRACT_SIZE_Y, MEAN_SUBTRACT_SIZE_X, INPUT0_DIMS, MEAN_SUBTRACT_DIMS);
-        res = MEAN_OP(res, mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[0], msv[1], msv[2], msv[3])]);
+        uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, 0, 0, y,x);
+        res = MEAN_OP(res, mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[0], msv[1], msv[4], msv[5])]);
     #endif
     #else
         CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
     #endif
 
-        output[output_idx] = ACTIVATION(TO_OUTPUT_REORDER_TYPE(res), NL_M ,NL_N);
+        output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), NL_M, NL_N);
     }
 }

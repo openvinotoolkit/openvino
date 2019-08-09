@@ -3,11 +3,21 @@
 //
 
 #include "ie_blob.h"
+#include "ie_compound_blob.h"
 #include "blob_factory.hpp"
+
+#include <memory>
+#include <vector>
+#include <utility>
 
 namespace InferenceEngine {
 
 Blob::Ptr make_shared_blob(const Blob::Ptr &inputBlob, const ROI &roi) {
+    // reject compound blobs
+    if (inputBlob->is<CompoundBlob>()) {
+        THROW_IE_EXCEPTION << "Compound blobs do not support ROI";
+    }
+
     size_t blkDimsH = roi.sizeY;
     size_t blkDimsW = roi.sizeX;
     size_t blkDimsC = inputBlob->getTensorDesc().getDims()[1];

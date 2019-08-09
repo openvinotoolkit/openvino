@@ -1,35 +1,26 @@
 // Copyright (C) 2018-2019 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #pragma once
 
-#include <ie_extension.h>
-#include <iterator>
+#include "Python.h"
 
+#include <iterator>
 #include <string>
 #include <utility>
 #include <map>
 #include <vector>
 #include <set>
-
-
 #include <iostream>
 #include <algorithm>
-
 #include <sstream>
 #include <chrono>
+
+#include <ie_extension.h>
 #include "inference_engine.hpp"
+#include "../../../../../src/inference_engine/ie_ir_reader.hpp"
+
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -90,10 +81,11 @@ struct IENetwork {
     InferenceEngine::CNNNetwork actual;
     std::string name;
     std::size_t batch_size;
+    std::string precision;
 
     void setBatch(const size_t size);
 
-    void addOutputs(const std::vector<std::string> &out_layers, const std::string &precision);
+    void addOutput(const std::string &out_layer, size_t port_id, const std::string &precision);
 
     const std::vector<std::pair<std::string, InferenceEnginePython::IENetLayer>> getLayers();
 
@@ -109,20 +101,32 @@ struct IENetwork {
 
     const std::map<std::string, std::map<std::string, std::vector<float>>> getStats();
 
-    IENetwork(const std::string &model, const std::string &weights);
+    void load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size);
+
+    IENetwork(const std::string &model, const std::string &weights, bool ngraph_compatibility);
+
+    IENetwork(const InferenceEngine::CNNNetwork& cnn_network);
 
     IENetwork() = default;
 };
 
 struct InferRequestWrap {
+    using cy_callback = void (*)(void*, int);
+
     InferenceEngine::IInferRequest::Ptr request_ptr;
     Time::time_point start_time;
     double exec_time;
+    cy_callback user_callback;
+    void *user_data;
+    int status;
+
     void infer();
 
     void infer_async();
 
     int  wait(int64_t timeout);
+
+    void setCyCallback(cy_callback callback, void *data);
 
     void getBlobPtr(const std::string &blob_name, InferenceEngine::Blob::Ptr &blob_ptr);
 
@@ -139,7 +143,12 @@ struct IEExecNetwork {
 
     IEExecNetwork(const std::string &name, size_t num_requests);
 
+    IENetwork GetExecGraphInfo();
+
     void infer();
+
+    PyObject* getMetric(const std::string & metric_name);
+    PyObject* getConfig(const std::string & metric_name);
 };
 
 
@@ -163,7 +172,25 @@ struct IEPlugin {
 
     std::set<std::string> queryNetwork(const InferenceEnginePython::IENetwork &net);
 
-    InferenceEngine::InferenceEnginePluginPtr actual;
+    InferenceEngine::InferencePlugin actual;
+};
+
+struct IECore {
+    InferenceEngine::Core actual;
+    explicit IECore(const std::string & xmlConfigFile = std::string());
+    std::map<std::string, InferenceEngine::Version> getVersions(const std::string & deviceName);
+    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetwork(IENetwork network, const std::string & deviceName,
+            const std::map<std::string, std::string> & config, int num_requests);
+    std::map<std::string, std::string> queryNetwork(IENetwork network, const std::string & deviceName,
+                                       const std::map<std::string, std::string> & config);
+    void setConfig(const std::map<std::string, std::string> &config, const std::string & deviceName = std::string());
+    void registerPlugin(const std::string & pluginName, const std::string & deviceName);
+    void unregisterPlugin(const std::string & deviceName);
+    void registerPlugins(const std::string & xmlConfigFile);
+    void addExtension(const std::string & ext_lib_path, const std::string & deviceName);
+    std::vector<std::string> getAvailableDevices();
+    PyObject* getMetric(const std::string & deviceName, const std::string & name);
+    PyObject* getConfig(const std::string & deviceName, const std::string & name);
 };
 
 template<class T>

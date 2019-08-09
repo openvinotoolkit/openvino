@@ -17,7 +17,6 @@
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.eliminate import remove_op_node_with_data_node
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.utils.graph import pseudo_topological_sort
 
 
 class ConstSwitchEraser(MiddleReplacementPattern):
@@ -31,10 +30,10 @@ class ConstSwitchEraser(MiddleReplacementPattern):
         return [MiddleStart]
 
     def find_and_replace_pattern(self, graph: Graph):
-        for n in pseudo_topological_sort(graph):
-            if graph.node[n]['kind'] == 'data' or graph.node[n]['op'] != 'Switch':
+        for node in graph.pseudo_topological_sort():
+            if node.kind == 'data' or node.op != 'Switch':
                 continue
-            switch_op_node = Node(graph, n)
+            switch_op_node = node
             pred_id_data_node = switch_op_node.in_node(1)
             graph.remove_edge(pred_id_data_node.id, switch_op_node.id)
             remove_op_node_with_data_node(graph, switch_op_node)

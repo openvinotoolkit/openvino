@@ -27,6 +27,24 @@
 #include <inttypes.h>
 #include <time.h>
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE // fix for warning: implicit declaration of function ‘pthread_getname_np’
+#endif
+
+#if (defined(_WIN32) || defined(_WIN64))
+#include "win_pthread.h"
+#else
+#include <pthread.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern int pthread_getname_np (pthread_t , char *, size_t);
+#ifdef __cplusplus
+}
+#endif
+
 #ifdef __RTEMS__
 #include <rtems.h>
 #include <rtems/bspIo.h>
@@ -113,7 +131,7 @@ logprintf(enum mvLog_t lvl, const char * func, const int line,
     if((MVLOGLEVEL(MVLOG_UNIT_NAME) < MVLOG_LAST && lvl < MVLOGLEVEL(MVLOG_UNIT_NAME)))
         return 0;
 
-    const char headerFormat[] = "%s [%s] [%10" PRId64 "] %s:%d\t";
+    const char headerFormat[] = "%s [%s] [%10" PRId64 "] [%s] %s:%d\t";
 #ifdef __RTEMS__
     uint64_t timestamp = rtems_clock_get_uptime_nanoseconds() / 1000;
 #elif !defined(_WIN32)
@@ -126,18 +144,21 @@ logprintf(enum mvLog_t lvl, const char * func, const int line,
     va_list args;
     va_start (args, format);
 
+    char threadName[20] = {0};
+    pthread_getname_np(pthread_self(), threadName, sizeof(threadName));
+
 #ifdef __RTEMS__
     if(!rtems_interrupt_is_in_progress())
     {
 #endif
-        fprintf(stdout, headerFormat, mvLogHeader[lvl], UNIT_NAME_STR, timestamp, func, line);
+        fprintf(stdout, headerFormat, mvLogHeader[lvl], UNIT_NAME_STR, timestamp, threadName, func, line);
         vfprintf(stdout, format, args);
         fprintf(stdout, "%s\n", ANSI_COLOR_RESET);
 #ifdef __RTEMS__
     }
     else
     {
-        printk(headerFormat, mvLogHeader[lvl], UNIT_NAME_STR, timestamp, func, line);
+        printk(headerFormat, mvLogHeader[lvl], UNIT_NAME_STR, timestamp, threadName, func, line);
         vprintk(format, args);
         printk("%s\n", ANSI_COLOR_RESET);
     }

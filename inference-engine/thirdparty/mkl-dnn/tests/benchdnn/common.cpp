@@ -179,6 +179,7 @@ void parse_result(res_t &res, bool &want_perf_report, bool allow_unimpl,
 }
 
 /* misc */
+
 void *zmalloc(size_t size, size_t align) {
     void *ptr;
 #ifdef _WIN32
@@ -380,6 +381,16 @@ int div_up(const int a, const int b){
     SAFE_V(b != 0 ? OK : FAIL);
     return (a + b - 1) / b;
 }
+
+#if defined(__x86_64__) || defined(_M_X64)
+#include <xmmintrin.h>
+void init_fp_mode() {
+    // We set ftz to avoid denormals in perf measurements
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+}
+#else
+void init_fp_mode() {}
+#endif
 
 void array_set(char *arr, size_t size) {
     for (size_t i = 0; i < size; ++i)

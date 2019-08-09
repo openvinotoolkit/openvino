@@ -291,7 +291,7 @@ protected:
                     break;
             }
 
-            Blob::Ptr src = make_shared_blob<float, const SizeVector>(Precision::FP32, layout, dims_src);
+            Blob::Ptr src = make_shared_blob<float>({ Precision::FP32, dims_src, layout });
             src->allocate();
             fill_data(src->buffer(), src->size());
 

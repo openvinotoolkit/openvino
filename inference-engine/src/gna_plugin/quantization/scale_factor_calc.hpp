@@ -9,6 +9,7 @@
 #include <limits>
 #include <string>
 #include <map>
+#include <gna_upstream_iterator.hpp>
 #include "gna_layer_info.hpp"
 #include "ie_layers.h"
 #include "gna_plugin_log.hpp"
@@ -38,11 +39,10 @@ class ScaleFactorPerLayer {
      * also calculates output scale factor for the given layer
      * @param cnnLayer
      * @param weightsSize
-     * @param inputScaleFactor
      * @param result
      * @return
      */
-    bool operator()(T cnnLayer, int weightsSize, float inputScaleFactor, ScaleFactorUpdateResult &result) {
+    bool operator()(T cnnLayer, int weightsSize, ScaleFactorUpdateResult &result) {
         return false;
     }
 };
@@ -64,7 +64,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             // set the initial value
             float result = 1.0f;
             result = (layer.isIdentity()) ? identity_scale_factor : activation_scale_factor;
-            // if activation is one from relu family, we need to apply heuruistic to avoid activation output overflow
+            // if activation is one from relu family, we need to apply heuristic to avoid activation output overflow
             if (layer.isRelu() &&
                     static_cast<uint64_t>(result * qunatizedParams->_src_quant.scale)
                                                                 > std::numeric_limits<int32_t>::max()-1) {
@@ -74,13 +74,14 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
     }
 
  public :
-    bool operator()(InferenceEngine::CNNLayer *cnnLayer, int weightsSize, float inputScaleFactor, ScaleFactorUpdateResult &result) {
+    bool operator()(InferenceEngine::CNNLayer *cnnLayer, int weightsSize, ScaleFactorUpdateResult &result) {
         if ( !cnnLayer ) {
             THROW_IE_EXCEPTION << "Incorrect Convolutional Layer pointer \n";
         }
         LayerInfo layerInfo(*cnnLayer);
         // TODO: current approach set input scale factor for true input layer(s) equals to provided factor,
         auto quant = getInjectedData<QuantizedLayerParams>(*cnnLayer);
+
         if (InferenceEngine::details::CaselessEq<std::string>()(cnnLayer->type, "Memory")) {
              if (CNNNetHasPrevLayer(cnnLayer)) {
                 auto prevLayer = CNNNetPrevLayer(cnnLayer);
@@ -123,12 +124,15 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         }
 
         if (!CNNNetHasPrevLayer(cnnLayer)) {
-            quant->_dst_quant.scale = inputScaleFactor;
+            quant->_dst_quant.scale = quant->_src_quant.scale;
             return ScaleFactorUpdateResult();
         }
 
         // by default layer is pass thru its scale factor
         auto inputQuant = getInjectedData<QuantizedLayerParams>(CNNNetPrevLayer(cnnLayer));
+        if (!inputQuant) {
+            THROW_GNA_EXCEPTION << "layer: " << CNNNetPrevLayer(cnnLayer)->name << "not quantized";
+        }
         quant->_dst_quant.scale = inputQuant->_dst_quant.scale;
         quant->_src_quant.scale = inputQuant->_dst_quant.scale;
 
@@ -144,7 +148,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
 template<>
 class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
  public:
-    bool operator()(InferenceEngine::EltwiseLayer* eltwiseLayer, int weightsSize, float inputScaleFactor, ScaleFactorUpdateResult &result) {
+    bool operator()(InferenceEngine::EltwiseLayer* eltwiseLayer, int weightsSize, ScaleFactorUpdateResult &result) {
         if ( !eltwiseLayer ) {
             THROW_GNA_EXCEPTION << "Incorrect Eltwise Layer pointer \n";
         }
@@ -231,7 +235,7 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
 template<>
 class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
  public:
-    bool operator()(InferenceEngine::ConcatLayer* concatLayer, int weightsSize, float inputScaleFactor, ScaleFactorUpdateResult &result) {
+    bool operator()(InferenceEngine::ConcatLayer* concatLayer, int weightsSize, ScaleFactorUpdateResult &result) {
         if ( !concatLayer ) {
             THROW_GNA_EXCEPTION << "Incorrect Concat Layer pointer \n";
         }
@@ -244,32 +248,95 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         GNAPluginNS::QuantizedLayerParams* sourceQuantParams = NULL;
         auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
 
-        if (quantParams0->_dst_quant.scale == quantParams1->_dst_quant.scale) {
+        auto fp32eq = [](float p1, float p2) -> bool {
+            return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+        };
+
+        // if both inputs have same quant value - trivial propagation
+        if (fp32eq(quantParams0->_dst_quant.scale, quantParams1->_dst_quant.scale)) {
+            quantData->_dst_quant.scale = quantParams0->_dst_quant.scale;
+            quantData->_src_quant.scale = quantParams0->_dst_quant.scale;
             return true;
-        } else if (infoIn0.isInput() && infoIn1.isInput()) {
+        }
+        // support only cases when one of input is network input
+        if (infoIn0.isInput() && infoIn1.isInput()) {
             THROW_GNA_EXCEPTION << "Two Input layers has different scales in concat!!! \n";
         }
 
-        int i = 0;
+        int concatIdxToUpdate = -1;
+
         if (infoIn0.isInput()) {
             sourceQuantParams = quantParams0;
         } else if (infoIn1.isInput()) {
-            ++i;
+            concatIdxToUpdate = 0;
+            sourceQuantParams = quantParams1;
+        }
+
+        // possible case when some of the concat inputs are free to select scale ex: const->concat<-affine
+        if (quantParams1->_dst_quant.scale == 1.0) {
+            quantParams1->_weights_quant = quantParams0->_dst_quant;
+            quantParams1->_dst_quant     = quantParams0->_dst_quant;
+
+            sourceQuantParams = quantParams0;
+        }
+
+        if (quantParams0->_dst_quant.scale == 1.0) {
+            quantParams0->_weights_quant = quantParams1->_dst_quant;
+            quantParams0->_dst_quant     = quantParams1->_dst_quant;
             sourceQuantParams = quantParams1;
         }
 
         if (!sourceQuantParams) {
             THROW_GNA_EXCEPTION << "Concat quantization for this case need to be implemented!!! \n";
         }
-        auto destinationQuantParams =
-                InferenceEngine::getInjectedData<QuantizedLayerParams>(InferenceEngine::CNNNetPrevLayer(concatLayer, !i));
-        InferenceEngine::CNNLayerPtr in = InferenceEngine::CNNNetPrevLayer(concatLayer, !i);
+
+        if (!fp32eq(quantParams0->_dst_quant.scale, quantParams1->_dst_quant.scale) && concatIdxToUpdate == -1) {
+            THROW_GNA_EXCEPTION << "layers entered into concat have different scale factors" << concatLayer->name;
+        }
 
         quantData->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
         quantData->_src_quant.scale = sourceQuantParams->_dst_quant.scale;
 
+        if (concatIdxToUpdate == -1) {
+            return true;
+        }
+
+        auto destinationQuantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
         destinationQuantParams->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
-        result = ScaleFactorUpdateResult(in.get());
+
+        CNNLayerPtr  restartedLayer;
+        // making a link activation possible without extra layer if first input to concat not a parent / indirect parent of second input
+        // using ufs - upper first search
+        gnalog() << "[UFS] searching for quantizeable layer prior: "<< concatLayer->name << ", via " << concatIdxToUpdate << "\n";
+
+        CNNNetDFS(CNNLayerPtr(concatLayer, [](CNNLayer*){}), [&restartedLayer, concatLayer](CNNLayerPtr layer) {
+            gnalog() << "[UFS] from : "<< concatLayer->name <<" reached: " << layer->name;
+            // found that direct input to concat is a indirect parent of align filter - so no link required
+            auto info = LayerInfo(layer);
+            if (!info.isWeightable() && !info.isActivation()) {
+                gnalog() << "... skipped\n";
+                return;
+            }
+            restartedLayer = layer;
+            gnalog() << "... OK,  need requantize\n";
+        }, true, [&restartedLayer, &concatLayer, &concatIdxToUpdate](InferenceEngine::CNNLayer* from) {
+            // aborting UFS once found functional layer, and using only specified input of concat
+            return make_upstream_order(restartedLayer == nullptr? from : nullptr,
+                                       from == concatLayer ? concatIdxToUpdate : -1);
+        });
+
+        if (restartedLayer == nullptr) {
+            THROW_GNA_EXCEPTION << "cannot requantize " << concatIdxToUpdate << "input to concat: " << concatLayer->name;
+        }
+        auto quantDataForConCatInput = InferenceEngine::getInjectedData<QuantizedLayerParams>(*restartedLayer);
+
+        auto restarLayerInfo = LayerInfo(restartedLayer);
+        if (restarLayerInfo.isActivation()) {
+            // requantize activation by just changing it's output scale factor
+            quantDataForConCatInput->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
+        }
+
+        result = ScaleFactorUpdateResult(restartedLayer.get());
 
         return true;
     }
@@ -289,7 +356,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
     uint16_t const _scale_change_threshold_200 = 200;
 
  public:
-    bool operator()(InferenceEngine::WeightableLayer *wl, int weightsSize, float inputScaleFactor, ScaleFactorUpdateResult &result) {
+    bool operator()(InferenceEngine::WeightableLayer *wl, int weightsSize, ScaleFactorUpdateResult &result) {
         if ( !wl ) {
             THROW_GNA_EXCEPTION << "Incorrect Weightable Layer pointer  \n";
         } else if (!wl->_weights) {
@@ -318,7 +385,18 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             if (weightsSize == 1) {
                 quant->_weights_quant.scale *= MAX_OUT_MULTIPLIER;
             }
+
+            double weights_reducer = 1.0;
+            auto conv = dynamic_cast<ConvolutionLayer*>(wl);
+            if (conv) {
+                auto dims = conv->insData.front().lock()->getDims();
+
+                weights_reducer = MAX_VAL_2B_FEAT * scaleRange * dims[1] / std::numeric_limits<int32_t>::max();
+                weights_reducer = std::max(1.0, weights_reducer);
+            }
+            quant->_weights_quant.scale /= weights_reducer;
         }
+
 
         quant->_src_quant.scale = quantDataForInputLayer->_dst_quant.scale;
 
@@ -329,7 +407,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                                                     static_cast<uint64_t>(std::numeric_limits<int32_t>::max()-1) * _scale_change_req_threshold) {
             gnawarn() << "Output scale for " << wl->name
                                             << " too large and are being reduced. Else saturations likely will happen \n";
-            // reduce weight scale according experimentatl heuruistic
+            // reduce weight scale according experimental heuristic
             if (quant->_dst_quant.scale * quant->_src_quant.scale / std::numeric_limits<int32_t>::max() < _scale_change_threshold_100) {
                 quant->_weights_quant.scale *= _scale_reduction_50;
                 tmp_dst_quant_scale *= _scale_reduction_50;
@@ -354,8 +432,8 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 template<>
 class ScaleFactorPerLayer<InferenceEngine::ScaleShiftLayer*> : public ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
  public:
-    bool operator()(InferenceEngine::WeightableLayer *wl, int weightsSize, float inputScaleFactor, ScaleFactorUpdateResult &result) {
-        return ScaleFactorPerLayer<InferenceEngine::WeightableLayer*>::operator()(wl, 2, inputScaleFactor, result);
+    bool operator()(InferenceEngine::WeightableLayer *wl, int weightsSize, ScaleFactorUpdateResult &result) {
+        return ScaleFactorPerLayer<InferenceEngine::WeightableLayer*>::operator()(wl, 2, result);
     }
 };
 
@@ -377,13 +455,12 @@ class ScaleFactorCalculator {
     using Cnt = std::vector<InferenceEngine::CNNLayerPtr>;
     Cnt  net;
     mutable Cnt::const_iterator idx;
-    float inputScaleFactor;
     mutable bool needRestart = false;
     int weightsBytesSize;
 
  public:
-    ScaleFactorCalculator(Cnt &net, int weightsBytesSize, float inputScaleFactor)
-            : net(net), inputScaleFactor(inputScaleFactor), weightsBytesSize(weightsBytesSize) {
+    ScaleFactorCalculator(Cnt &net, int weightsBytesSize)
+            : net(net), weightsBytesSize(weightsBytesSize) {
         idx = std::begin(this->net);
     }
     bool needToRestart() const {
@@ -399,7 +476,7 @@ class ScaleFactorCalculator {
     bool operator()(T ptr) const {
         needRestart = false;
         details::ScaleFactorUpdateResult result;
-        if (!details::ScaleFactorPerLayer<T>()(ptr, weightsBytesSize, inputScaleFactor, result)) {
+        if (!details::ScaleFactorPerLayer<T>()(ptr, weightsBytesSize, result)) {
             return false;
         }
         if (result) {

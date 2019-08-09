@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .adapter import Adapter, AdapterField
+from .adapter import Adapter, AdapterField, create_adapter
 
 from .action_recognition import ActionDetection
 from .text_detection import TextDetectionAdapter, LPRAdapter, BeamSearchDecoder
@@ -41,6 +41,7 @@ from .hit_ratio import HitRatioAdapter
 __all__ = [
     'Adapter',
     'AdapterField',
+    'create_adapter',
 
     'XML2DetectionAdapter',
 

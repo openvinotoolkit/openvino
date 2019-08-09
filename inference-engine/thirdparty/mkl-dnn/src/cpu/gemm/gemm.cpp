@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2018-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@
 #include "f32/jit_avx_gemm_f32.hpp"
 #include "f32/ref_gemm_f32.hpp"
 
-#include "s8x8s32/jit_avx512_core_gemm_s8u8s32.hpp"
-#include "s8x8s32/jit_avx512_core_gemm_s8s8s32.hpp"
+#include "gemm_driver.hpp"
 #include "s8x8s32/ref_gemm_s8x8s32.hpp"
+#include "s8x8s32/simple_gemm_s8s8s32.hpp"
 
 #include "os_blas.hpp"
 
@@ -93,14 +93,14 @@ mkldnn_status_t extended_sgemm(const char *transa, const char *transb,
         const int *M, const int *N, const int *K, const float *alpha,
         const float *A, const int *lda, const float *B, const int *ldb,
         const float *beta, float *C, const int *ldc,
-        const float *bias, const bool force_jit_gemm) {
+        const float *bias, const bool force_jit_nocopy_gemm) {
     mkldnn_status_t status = check_gemm_input(transa, transb, M, N, K,
             lda, ldb, ldc, alpha, beta, bias != nullptr);
     if (status != mkldnn_success)
         return status;
 
 #ifdef USE_CBLAS
-    if (!force_jit_gemm) {
+    if (!force_jit_nocopy_gemm) {
         bool trA = *transa == 't' || *transa == 'T';
         bool trB = *transb == 't' || *transb == 'T';
         CBLAS_TRANSPOSE Cblas_trA = trA ? CblasTrans : CblasNoTrans;
@@ -120,15 +120,20 @@ mkldnn_status_t extended_sgemm(const char *transa, const char *transb,
     }
 #endif
 
-    if (mayiuse(avx512_common))
+    if (mayiuse(avx512_mic)) {
         return jit_avx512_common_gemm_f32(transa, transb,
                 M, N, K, alpha, A, lda, B, ldb, beta, C, ldc, bias);
-    else if (mayiuse(avx))
-        return jit_avx_gemm_f32(transa, transb,
-                M, N, K, alpha, A, lda, B, ldb, beta, C, ldc, bias);
-    else
+    } else if (mayiuse(avx)) {
+        float *dummy_ao = NULL;
+        float *dummy_bo = NULL;
+
+        return gemm_driver(transa, transb, bias ? "C" : NULL, M, N, K, alpha,
+                A, lda, dummy_ao, B, ldb, dummy_bo, beta, C, ldc, bias,
+                force_jit_nocopy_gemm);
+    } else {
         return ref_gemm<float>(transa, transb,
                 M, N, K, alpha, A, lda, B, ldb, beta, C, ldc, bias);
+    }
 }
 
 template <typename b_dt>
@@ -168,9 +173,8 @@ mkldnn_status_t gemm_s8x8s32(const char *transa, const char *transb,
         assert(data_traits<b_dt>::data_type == data_type::s8);
         // TODO CBLAS implementation of gemm_s8s8s32 goes here.
         // mkldnn_gemm_s8s8s32 doesn't support non-zero ao and bo
-        if ((mayiuse(avx512_core) || mayiuse(avx512_core_vnni))
-                && *ao == 0 && *bo == 0) {
-            return jit_avx512_core_gemm_s8s8s32(transa, transb, offsetc, M,
+        if (utils::everyone_is(0, *ao, *bo)) {
+            return simple_gemm_s8s8s32(transa, transb, offsetc, M,
                     N, K, alpha, A, LDA, ao, (int8_t *)B, LDB, bo, beta,
                     C, LDC, co);
         } else {
@@ -190,9 +194,9 @@ mkldnn_status_t gemm_s8x8s32(const char *transa, const char *transb,
         switch (isa) {
         case avx512_core:
         case avx512_core_vnni:
-            return jit_avx512_core_gemm_s8u8s32(transa, transb, offsetc, M,
+            return gemm_driver(transa, transb, offsetc, M,
                     N, K, alpha, A, LDA, ao, (uint8_t *)B, LDB, bo, beta,
-                    C, LDC, co);
+                    C, LDC, co, false);
         default:
             return ref_gemm_s8x8s32(transa, transb, offsetc, M, N, K,
                     alpha, A, LDA, ao, B, LDB, bo, beta, C, LDC, co);
@@ -202,7 +206,7 @@ mkldnn_status_t gemm_s8x8s32(const char *transa, const char *transb,
         // mkldnn_gemm_s8s8s32 doesn't support non-zero ao and bo
         if ((mayiuse(avx512_core) || mayiuse(avx512_core_vnni))
                 && *ao == 0 && *bo == 0) {
-            return jit_avx512_core_gemm_s8s8s32(transa, transb, offsetc, M,
+            return simple_gemm_s8s8s32(transa, transb, offsetc, M,
                     N, K, alpha, A, LDA, ao, (int8_t *)B, LDB, bo, beta,
                     C, LDC, co);
         } else {
@@ -246,4 +250,27 @@ mkldnn_status_t mkldnn_gemm_s8s8s32(const char *transa, const char *transb,
     return gemm_s8x8s32(
         transa, transb, offsetc, M, N, K, alpha, A, lda, ao, B, ldb, bo,
         beta, C, ldc, co);
+}
+
+mkldnn_status_t mkldnn_gemm_bf16bf16f32(const char *transa, const char *transb,
+        const int *M, const int *N, const int *K, const float *alpha,
+        const mkldnn_bfloat16_t *A, const int *lda, const mkldnn_bfloat16_t *B,
+        const int *ldb, const float *beta, float *C, const int *ldc) {
+    mkldnn_status_t status = check_gemm_input(transa, transb, M, N, K, lda,
+            ldb, ldc, alpha, beta, false);
+    if (status != mkldnn_success)
+        return status;
+
+    char *dummyOffsetC = NULL;
+    mkldnn_bfloat16_t *dummy_ao = NULL;
+    mkldnn_bfloat16_t *dummy_bo = NULL;
+    float *dummy_co = NULL;
+
+    if (mayiuse(avx512_core)) {
+        return gemm_driver(transa, transb, dummyOffsetC, M, N, K,
+                alpha, A, lda, dummy_ao, B, ldb, dummy_bo, beta, C, ldc,
+                dummy_co, false);
+    } else {
+        return mkldnn_unimplemented;
+    }
 }

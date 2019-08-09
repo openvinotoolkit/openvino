@@ -12,6 +12,7 @@
 
 #include <vpu/model/stage.hpp>
 #include <vpu/utils/numeric.hpp>
+#include <vpu/utils/profiling.hpp>
 
 namespace vpu {
 
@@ -37,21 +38,19 @@ void printTo(DotLabel& lbl, const HwOpList& hwOps) {
 HwPaddingInfo getHwPaddingInfo(
         const DimValues& inDims, const DimValues& outDims,
         int kernelDimX, int kernelDimY,
-        int kernelStrideX, int kernelStrideY) {
-    int valid_out_x = std::ceil(static_cast<double>(inDims[Dim::W] - kernelDimX + 1) / kernelStrideX);
-    int valid_out_y = std::ceil(static_cast<double>(inDims[Dim::H] - kernelDimY + 1) / kernelStrideY);
-
+        int kernelStrideX, int kernelStrideY,
+        int padLeft, int padTop) {
     auto pad_along_x = (outDims[Dim::W] - 1) * kernelStrideX + kernelDimX - inDims[Dim::W];
     auto pad_along_y = (outDims[Dim::H] - 1) * kernelStrideY + kernelDimY - inDims[Dim::H];
 
     HwPaddingInfo pad;
 
-    pad.left = pad_along_x / 2;
-    pad.right = pad_along_x - pad.left;
-    pad.top = pad_along_y / 2;
-    pad.bottom = pad_along_y - pad.top;
+    pad.left   = padLeft;
+    pad.right  = std::max(0, pad_along_x - pad.left);
+    pad.top    = padTop;
+    pad.bottom = std::max(0, pad_along_y - pad.top);
 
-    pad.enable = (outDims[Dim::W] != valid_out_x || outDims[Dim::H] != valid_out_y);
+    pad.enable = pad.left || pad.right || pad.top || pad.bottom;
 
     return pad;
 }
@@ -110,7 +109,7 @@ void HwWeightsContent::fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseC
     IE_ASSERT(HW_OC_outer * HW_OC_inner >= OC);
 
     auto HW_K = desc().dim(Dim::H);
-    IE_ASSERT(HW_K == HW_K);
+    IE_ASSERT(HW_K == KX * KY);
 
     IE_ASSERT(_channelStartIndex < IC);
     auto HW_IC = desc().dim(Dim::C);

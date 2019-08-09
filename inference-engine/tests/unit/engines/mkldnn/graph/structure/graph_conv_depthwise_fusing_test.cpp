@@ -47,9 +47,9 @@ void ref_conv_depthwise(const InferenceEngine::TBlob<data_t> &src, const data_t 
     size_t KH = prm.conv.krn_h;
     size_t GC = prm.conv.grp_c;
 
-    size_t IC = src.dims()[1];
-    size_t IH = src.dims()[2];
-    size_t IW = src.dims()[3];
+    size_t IC = src.getTensorDesc().getDims()[1];
+    size_t IH = src.getTensorDesc().getDims()[2];
+    size_t IW = src.getTensorDesc().getDims()[3];
 
     size_t OW = (IW + 2 * prm.conv.pad_w - prm.conv.krn_w) / prm.conv.str_w + 1;
     size_t OH = (IH + 2 * prm.conv.pad_h - prm.conv.krn_h) / prm.conv.str_h + 1;
@@ -244,7 +244,8 @@ protected:
             size_t array_size =  p.isBroadcast ? 1 : p.conv.out_c;
             size_t depthwise_w_size = array_size + array_size; // depthwise weights + biases
 
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {(conv_w_size+depthwise_w_size) * sizeof(float)});
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
+                {(conv_w_size+depthwise_w_size) * sizeof(float)}, InferenceEngine::C });
             weights->allocate();
             fill_data_sine((float *) weights->buffer(), weights->size() / sizeof(float), 5, 10, 0.5);
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
@@ -259,20 +260,22 @@ protected:
             if (p.in.c == 3) {
                 ASSERT_EQ(nodes.size(), 3);
                 ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);
-                ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Convolution_Depthwise);
+                ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Convolution);
+                ASSERT_TRUE(nodes[1].get()->isFusedWith(MKLDNNPlugin::Type::Depthwise));
                 ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Output);
             } else {
                 ASSERT_EQ(nodes.size(), 5);
                 ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);
                 ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Reorder);
-                ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Convolution_Depthwise);
+                ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Convolution);
+                ASSERT_TRUE(nodes[2].get()->isFusedWith(MKLDNNPlugin::Type::Depthwise));
                 ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Reorder);
                 ASSERT_EQ(nodes[4].get()->getType(), MKLDNNPlugin::Type::Output);
             }
 
             InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
             src->allocate();
             fill_data(src->buffer(), src->size());
 

@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GPROTO_PRIV_HPP
@@ -11,7 +11,7 @@
 #include "opencv2/gapi/gproto.hpp"
 #include "opencv2/gapi/garg.hpp"
 
-#include "api/gapi_priv.hpp"
+#include "api/gorigin.hpp"
 
 namespace cv {
 namespace gimpl {

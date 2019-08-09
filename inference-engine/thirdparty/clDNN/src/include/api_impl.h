@@ -22,53 +22,44 @@
 
 #include <functional>
 #include <stdexcept>
+#include <string>
 
-#define API_CAST(api_type, impl_type) \
-inline api_type api_cast(impl_type* value) { return reinterpret_cast<api_type>(value); } \
-inline impl_type* api_cast(api_type value) { return reinterpret_cast<impl_type*>(value); }
+#define API_CAST(api_type, impl_type)                                                        \
+    inline api_type api_cast(impl_type* value) { return reinterpret_cast<api_type>(value); } \
+    inline impl_type* api_cast(api_type value) { return reinterpret_cast<impl_type*>(value); }
 
 namespace cldnn {
-    struct last_err {
-        /// @breif Sets the message of last error
-        void set_last_error_message(const std::string& msg)
-        {
-            _msg = msg;
-        }
+struct last_err {
+    /// @breif Sets the message of last error
+    void set_last_error_message(const std::string& msg) { _msg = msg; }
 
-        void set_last_exception(const std::exception& ex)
-        {
-            _msg = ex.what();
-        }
+    void set_last_exception(const std::exception& ex) { _msg = ex.what(); }
 
-        /// @breif Gets the message of last error
-        const std::string& get_last_error_message()
-        {
-            return _msg;
-        }
-        static last_err& instance();
-    private:
-        std::string _msg;
-        last_err() :_msg("Operation succeed") {}
-    };
+    /// @breif Gets the message of last error
+    const std::string& get_last_error_message() { return _msg; }
+    static last_err& instance();
 
-    // float <--> half convertors
-    float half_to_float(uint16_t value);
-    uint16_t float_to_half(float value);
-}
+private:
+    std::string _msg;
+    last_err() : _msg("Operation succeed") {}
+};
 
+// float <--> half convertors
+float half_to_float(uint16_t value);
+uint16_t float_to_half(float value);
+}  // namespace cldnn
 
-template<typename T>
-T exception_handler(cldnn_status default_error, cldnn_status* status, const T& default_result, std::function<T()> func)
-{
-    //NOTE for implementer: status should not be modified after successful func() call
-    try
-    {
+template <typename T>
+T exception_handler(cldnn_status default_error,
+                    cldnn_status* status,
+                    const T& default_result,
+                    std::function<T()> func) {
+    // NOTE for implementer: status should not be modified after successful func() call
+    try {
         if (status)
             *status = CLDNN_SUCCESS;
         return func();
-    }
-    catch (const cldnn::error& err)
-    {
+    } catch (const cldnn::error& err) {
         if (status)
             *status = err.status();
         cldnn::last_err::instance().set_last_exception(err);
@@ -77,9 +68,7 @@ T exception_handler(cldnn_status default_error, cldnn_status* status, const T& d
         static_cast<void>(default_result);
         throw;
 #endif
-    }
-    catch (const std::exception& err)
-    {
+    } catch (const std::exception& err) {
         if (status)
             *status = default_error;
         cldnn::last_err::instance().set_last_exception(err);
@@ -88,9 +77,7 @@ T exception_handler(cldnn_status default_error, cldnn_status* status, const T& d
         static_cast<void>(default_result);
         throw;
 #endif
-    }
-    catch (...)
-    {
+    } catch (...) {
         if (status)
             *status = default_error;
         cldnn::last_err::instance().set_last_error_message("error unknown");
@@ -106,26 +93,20 @@ T exception_handler(cldnn_status default_error, cldnn_status* status, const T& d
 #endif
 }
 
-inline void exception_handler(cldnn_status default_error, cldnn_status* status, std::function<void()> func)
-{
-    //NOTE for implementer: status should not be modified after successful func() call
-    try
-    {
+inline void exception_handler(cldnn_status default_error, cldnn_status* status, std::function<void()> func) {
+    // NOTE for implementer: status should not be modified after successful func() call
+    try {
         if (status)
             *status = CLDNN_SUCCESS;
         func();
-    }
-    catch (const cldnn::error& err)
-    {
+    } catch (const cldnn::error& err) {
         if (status)
-          *status = err.status();
+            *status = err.status();
         cldnn::last_err::instance().set_last_exception(err);
 #ifndef NDEBUG
         throw;
 #endif
-    }
-    catch (const std::exception& err)
-    {
+    } catch (const std::exception& err) {
         if (status)
             *status = default_error;
         cldnn::last_err::instance().set_last_exception(err);
@@ -133,9 +114,7 @@ inline void exception_handler(cldnn_status default_error, cldnn_status* status, 
 #ifndef NDEBUG
         throw;
 #endif
-    }
-    catch (...)
-    {
+    } catch (...) {
         if (status)
             *status = default_error;
         cldnn::last_err::instance().set_last_error_message("error unknown");

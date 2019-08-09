@@ -21,20 +21,19 @@ from ..preprocessor import Crop3D
 from ..utils import get_size_3d_from_config
 
 
+class CropMaskConfigValidator(PostprocessorWithTargetsConfigValidator):
+    size = NumberField(floats=False, min_value=1)
+    dst_width = NumberField(floats=False, optional=True, min_value=1)
+    dst_height = NumberField(floats=False, optional=True, min_value=1)
+    dst_volume = NumberField(floats=False, optional=True, min_value=1)
+
+
 class CropSegmentationMask(PostprocessorWithSpecificTargets):
     __provider__ = 'crop_segmentation_mask'
 
     annotation_types = (BrainTumorSegmentationAnnotation,)
     prediction_types = (BrainTumorSegmentationPrediction,)
-
-    def validate_config(self):
-        class _ConfigValidator(PostprocessorWithTargetsConfigValidator):
-            size = NumberField(floats=False, min_value=1)
-            dst_width = NumberField(floats=False, optional=True, min_value=1)
-            dst_height = NumberField(floats=False, optional=True, min_value=1)
-            dst_volume = NumberField(floats=False, optional=True, min_value=1)
-
-        _ConfigValidator(self.name, on_extra_argument=_ConfigValidator.ERROR_ON_EXTRA_ARGUMENT).validate(self.config)
+    _config_validator_type = CropMaskConfigValidator
 
     def configure(self):
         self.dst_height, self.dst_width, self.dst_volume = get_size_3d_from_config(self.config)

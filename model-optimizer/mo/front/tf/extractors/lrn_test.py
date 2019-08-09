@@ -41,12 +41,11 @@ class LRNExtractorTest(unittest.TestCase):
         res = tf_lrn_ext(pb)
         # Reference results for given parameters
         ref = {
-            'type': 'Norm',
+            'type': 'LRN',
             'alpha': 9.999999747378752e-05,
             'beta': 0.75,
             'bias': 2.0,
             'local_size': 5,
-            'region': 'across',
             'infer': copy_shape_infer,
         }
         for attr in ref:

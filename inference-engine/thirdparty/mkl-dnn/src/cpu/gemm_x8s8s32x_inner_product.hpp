@@ -26,6 +26,7 @@
 
 #include "gemm/gemm.hpp"
 #include "jit_generator.hpp"
+#include "gemm_inner_product_utils.hpp"
 
 #include "cpu_inner_product_pd.hpp"
 
@@ -65,7 +66,7 @@ struct gemm_x8s8s32x_inner_product_fwd_t: public cpu_primitive_t {
                             u8))
                 && attr()->post_ops_.len_ <= 1
                 && IMPLICATION(attr()->post_ops_.len_,
-                        attr()->post_ops_.entry_[0].is_relu(true, false))
+                        attr()->post_ops_.entry_[0].is_eltwise())
                 && dense_gemm_consitency_check(src_pd(), weights_pd(),
                         dst_pd());
             if (!ok) return status::unimplemented;
@@ -84,16 +85,19 @@ struct gemm_x8s8s32x_inner_product_fwd_t: public cpu_primitive_t {
             using namespace memory_format;
 
             if (this->src_pd_.desc()->format == any) {
-                if (ndims() == 4) CHECK(this->src_pd_.set_format(nhwc));
-                else if (ndims() == 5) CHECK(this->src_pd_.set_format(ndhwc));
-                else CHECK(this->src_pd_.set_format(nc));
+                CHECK(this->src_pd_.set_format(
+                        utils::pick(ndims() - 2, nc, nwc, nhwc, ndhwc)));
             }
             if (this->dst_pd_.desc()->format == any)
                 CHECK(this->dst_pd_.set_format(nc));
             if (this->weights_pd_.desc()->format == any) {
-                if (ndims() == 4) CHECK(this->weights_pd_.set_format(hwio));
-                else if (ndims() == 5) CHECK(this->weights_pd_.set_format(dhwio));
-                else CHECK(this->weights_pd_.set_format(io));
+                if (MB() > 1) {
+                    CHECK(this->weights_pd_.set_format(
+                        utils::pick(ndims() - 2, io, wio, hwio, dhwio)));
+                } else {
+                    CHECK(this->weights_pd_.set_format(
+                        utils::pick(ndims() - 2, oi, owi, ohwi, odhwi)));
+                }
             }
             if (this->bias_pd_.desc()->format == any)
                 CHECK(this->bias_pd_.set_format(x));
@@ -112,10 +116,12 @@ struct gemm_x8s8s32x_inner_product_fwd_t: public cpu_primitive_t {
         }
     };
 
-    gemm_x8s8s32x_inner_product_fwd_t(const pd_t *apd, const input_vector &inputs,
-            const output_vector &outputs)
-        : cpu_primitive_t(apd, inputs, outputs, true)
-    { pp_kernel_ = new pp_kernel_t(apd, pd()->dst_is_acc_); }
+    gemm_x8s8s32x_inner_product_fwd_t(const pd_t *apd,
+            const input_vector &inputs, const output_vector &outputs)
+        : cpu_primitive_t(apd, inputs, outputs, true) {
+        pp_kernel_ = new inner_product_utils::pp_kernel_t<data_type::s32,
+                dst_type>(apd);
+    }
     ~gemm_x8s8s32x_inner_product_fwd_t() { delete pp_kernel_; }
 
     typedef typename prec_traits<dst_type>::type data_t;
@@ -131,45 +137,10 @@ struct gemm_x8s8s32x_inner_product_fwd_t: public cpu_primitive_t {
     }
 
 private:
-    // XXX: this is throwaway code that will become unnecessary when we have a
-    // sufficiently advanced igemm jit generator that supports quantization,
-    // relu, and whatnot
-    class pp_kernel_t: jit_generator {
-    public:
-        DECLARE_CPU_JIT_AUX_FUNCTIONS(
-                gemm_x8s8s32x_inner_product_fwd_t::pp_kernel);
-        pp_kernel_t(const pd_t *pd, bool dst_is_acc);
-
-        void operator()(dst_data_t *dst, const acc_data_t *acc,
-                const char *bias, const float *scales, float nslope,
-                size_t start, size_t end);
-    private:
-        void generate();
-
-        struct ker_args {
-            dst_data_t *dst;
-            const acc_data_t *acc;
-            const char *bias;
-            const float *scales;
-            float nslope;
-            size_t len;
-            size_t oc_offset;
-        };
-        void (*ker_)(const ker_args *args);
-
-        size_t OC_;
-        data_type_t bias_data_type_;
-        size_t bias_data_type_size_;
-        size_t scale_idx_mult_;
-        round_mode_t rmode_;
-        bool do_bias_;
-        bool do_relu_;
-    };
-
     void execute_forward() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 
-    pp_kernel_t *pp_kernel_;
+    inner_product_utils::pp_kernel_t<data_type::s32, dst_type> *pp_kernel_;
 };
 }
 }

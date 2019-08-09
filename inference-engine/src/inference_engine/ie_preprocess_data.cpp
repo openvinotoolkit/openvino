@@ -10,6 +10,7 @@
 #endif
 #include "ie_preprocess_gapi.hpp"
 #include "debug.h"
+#include "ie_compound_blob.h"
 
 #include <algorithm>
 
@@ -752,47 +753,49 @@ Blob::Ptr PreProcessData::getRoiBlob() const {
     return _roiBlob;
 }
 
-void PreProcessData::execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm, bool serial,
+void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, bool serial,
         int batchSize) {
     IE_PROFILING_AUTO_SCOPE_TASK(perf_preprocessing)
 
-    if (algorithm == NO_RESIZE) {
-        THROW_IE_EXCEPTION << "Input pre-processing is called without resize algorithm set";
+    auto algorithm = info.getResizeAlgorithm();
+    auto fmt = info.getColorFormat();
+
+    if (algorithm == NO_RESIZE && fmt == ColorFormat::RAW) {
+       THROW_IE_EXCEPTION << "Input pre-processing is called without the pre-processing info set: "
+                             "there's nothing to be done";
     }
 
     if (_roiBlob == nullptr) {
         THROW_IE_EXCEPTION << "Input pre-processing is called without ROI blob set";
     }
 
-    if (batchSize == 0) {
-        THROW_IE_EXCEPTION << "Input pre-processing is called with invalid batch size "
-                           << batchSize;
-    }
-
-    if (batchSize < 0) {
-        // if batch_size is unspecified, process the whole input blob
-        batchSize = static_cast<int>(_roiBlob->getTensorDesc().getDims()[0]);
-    }
+    batchSize = PreprocEngine::getCorrectBatchSize(batchSize, _roiBlob);
 
     if (!_preproc) {
         _preproc.reset(new PreprocEngine);
     }
-    if (_preproc->preprocessWithGAPI(_roiBlob, outBlob, algorithm, serial, batchSize)) {
+    if (_preproc->preprocessWithGAPI(_roiBlob, outBlob, algorithm, fmt, serial, batchSize)) {
         return;
     }
 
     if (batchSize > 1) {
-        THROW_IE_EXCEPTION <<   "Batch pre-processing is unsupported in this mode. "
-                                "Use default pre-processing instead to process batches.";
+        THROW_IE_EXCEPTION << "Batch pre-processing is unsupported in this mode. "
+                              "Use default pre-processing instead to process batches.";
+    }
+
+    if (fmt != ColorFormat::RAW) {
+        THROW_IE_EXCEPTION << "Non-default (not ColorFormat::RAW) color formats are unsupported "
+                              "in this mode. Use default pre-processing instead to process color "
+                              "formats.";
     }
 
     Blob::Ptr res_in, res_out;
     if (_roiBlob->getTensorDesc().getLayout() == NHWC) {
         if (!_tmp1 || _tmp1->size() != _roiBlob->size()) {
             if (_roiBlob->getTensorDesc().getPrecision() == Precision::FP32) {
-                _tmp1 = make_shared_blob<float>(Precision::FP32, NCHW, _roiBlob->dims());
+                _tmp1 = make_shared_blob<float>({Precision::FP32, _roiBlob->getTensorDesc().getDims(), Layout::NCHW});
             } else {
-                _tmp1 = make_shared_blob<uint8_t>(Precision::U8, NCHW, _roiBlob->dims());
+                _tmp1 = make_shared_blob<uint8_t>({Precision::U8, _roiBlob->getTensorDesc().getDims(), Layout::NCHW});
             }
             _tmp1->allocate();
         }
@@ -809,9 +812,9 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorith
     if (outBlob->getTensorDesc().getLayout() == NHWC) {
         if (!_tmp2 || _tmp2->size() != outBlob->size()) {
             if (outBlob->getTensorDesc().getPrecision() == Precision::FP32) {
-                _tmp2 = make_shared_blob<float>(Precision::FP32, NCHW, outBlob->dims());
+                _tmp2 = make_shared_blob<float>({Precision::FP32, outBlob->getTensorDesc().getDims(), Layout::NCHW});
             } else {
-                _tmp2 = make_shared_blob<uint8_t>(Precision::U8, NCHW, outBlob->dims());
+                _tmp2 = make_shared_blob<uint8_t>({Precision::U8, outBlob->getTensorDesc().getDims(), Layout::NCHW});
             }
             _tmp2->allocate();
         }
@@ -832,6 +835,17 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorith
 }
 
 void PreProcessData::isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) {
+    // if G-API pre-processing is used, let it check that pre-processing is applicable
+    if (PreprocEngine::useGAPI()) {
+        PreprocEngine::checkApplicabilityGAPI(src, dst);
+        return;
+    }
+
+    if (!src->is<MemoryBlob>() || !dst->is<MemoryBlob>()) {
+        THROW_IE_EXCEPTION << "Preprocessing is not applicable. Source and destination blobs must "
+                              "be memory blobs";
+    }
+
     auto &src_dims = src->getTensorDesc().getDims();
     auto &dst_dims = dst->getTensorDesc().getDims();
 

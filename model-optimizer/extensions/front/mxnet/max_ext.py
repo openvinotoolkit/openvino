@@ -14,11 +14,10 @@
  limitations under the License.
 """
 
-import numpy as np
-
+from extensions.ops.ReduceOps import ReduceMax
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.ops.reduce import Reduce
 
 
 class MaxFrontExtractor(FrontExtractorOp):
@@ -28,11 +27,5 @@ class MaxFrontExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        data = {
-            'axis': np.array([attrs.int('axis', 0)], dtype=np.int64),
-            'reduce_type': 'max',
-            'keep_dims': False
-        }
-        # update the attributes of the node
-        Reduce.update_node_stat(node, data)
+        ReduceMax.update_node_stat(node, {'axis': int64_array([attrs.int('axis', 0)]), 'keep_dims': False})
         return __class__.enabled

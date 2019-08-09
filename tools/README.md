@@ -57,7 +57,7 @@ deactivate
 The next step is installing package prerequisites.
 
 ```bash
-python3 -m pip install -r accuracy_checker/requirements.txt benchmark/requirements.txt calibration/requirements.txt
+python3 -m pip install -r benchmark/requirements.txt calibration/requirements.txt
 ```
 
 ### Configuration

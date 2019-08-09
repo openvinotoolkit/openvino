@@ -10,7 +10,7 @@
 class DiagLayerMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
     bool matchInserted;
     int matchQuantity;
- public:
+public:
     DiagLayerMatcher(bool matchInserted, int matchQuantity) : matchInserted(matchInserted), matchQuantity(matchQuantity) {}
     bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo == nullptr)
@@ -20,18 +20,31 @@ class DiagLayerMatcher : public ::testing::MatcherInterface<const intel_nnet_typ
             // diagonal layer has to have 1 for weights and 0 for biases
 
             auto diag = (intel_affine_func_t*)foo->pLayers[i].pLayerStruct;
-
             bool bWeightsOK = true;
+
+            int beforePadding = -1;
             for (int j =0; j < foo->pLayers[i].nOutputRows; j++) {
-                auto weights = (int16_t*)diag->pWeights;    
+                auto weights = (int16_t*)diag->pWeights;
                 auto biases = (int32_t*)diag->pBiases;
-                // identity matrix tansformed to 16384 values
+                // identity matrix transformed to 16384 values
                 if (weights[j] != MAX_VAL_2B_WEIGHT || biases[j] != 0) {
+                    beforePadding = j;
+                    break;
+                }
+            }
+
+            for (int j = beforePadding; j < foo->pLayers[i].nOutputRows; j++) {
+                auto weights = (int16_t*)diag->pWeights;
+                auto biases = (int32_t*)diag->pBiases;
+                // identity matrix transformed to 16384 values
+                if (weights[j] != 0 || biases[j] != 0) {
                     bWeightsOK = false;
                     break;
                 }
             }
-            if (!bWeightsOK) continue;
+
+            // if all weights are zero, or zero value doesn't look like padding
+            if (!bWeightsOK && beforePadding == -1) continue;
 
             return matchInserted;
         }

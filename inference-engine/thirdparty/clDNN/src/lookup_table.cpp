@@ -20,48 +20,42 @@
 #include "sliding_window_utils.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include <string>
 
-namespace cldnn
-{
-    primitive_type_id lookup_table_type_id()
-    {
-        static primitive_type_base<lookup_table> instance;
-        return &instance;
-    }
-
-    layout lookup_table_inst::calc_output_layout(lookup_table_node const& node)
-    {
-        assert((bool)node.get_primitive()->output_data_type == false
-               && "Output data type forcing is not supported for "
-                  "lookup_table_node!");
-        auto desc = node.get_primitive();
-
-        auto input_data_layout = node.input().get_output_layout();
-        auto input_indices_layout = node.indices().get_output_layout();
-
-        return layout{ input_data_layout.data_type, input_data_layout.format, input_indices_layout.size };
-    }
-
-    std::string lookup_table_inst::to_string(lookup_table_node const& node)
-    {
-        auto desc = node.get_primitive();
-        auto node_info = node.desc_to_json();
-        auto axis = desc->with_axis ? "true" : "false";
-
-        std::stringstream primitive_description;
-
-        json_composite conv_info;
-        conv_info.add("with axis", axis);
-        if (desc->with_axis)
-            conv_info.add("axis", desc->axis);
-        node_info->add("lookup_table info", conv_info);
-        node_info->dump(primitive_description);
-
-        return primitive_description.str();
-    }
-
-    lookup_table_inst::typed_primitive_inst(network_impl& network, lookup_table_node const& node)
-        : parent(network, node)
-    {
-    }
+namespace cldnn {
+primitive_type_id lookup_table_type_id() {
+    static primitive_type_base<lookup_table> instance;
+    return &instance;
 }
+
+layout lookup_table_inst::calc_output_layout(lookup_table_node const& node) {
+    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+           "Output data type forcing is not supported for "
+           "lookup_table_node!");
+    auto desc = node.get_primitive();
+
+    auto input_data_layout = node.input().get_output_layout();
+    auto input_indices_layout = node.indices().get_output_layout();
+
+    return layout{input_data_layout.data_type, input_data_layout.format, input_indices_layout.size};
+}
+
+std::string lookup_table_inst::to_string(lookup_table_node const& node) {
+    auto desc = node.get_primitive();
+    auto node_info = node.desc_to_json();
+    auto axis = desc->with_axis ? "true" : "false";
+
+    std::stringstream primitive_description;
+
+    json_composite conv_info;
+    conv_info.add("with axis", axis);
+    if (desc->with_axis)
+        conv_info.add("axis", desc->axis);
+    node_info->add("lookup_table info", conv_info);
+    node_info->dump(primitive_description);
+
+    return primitive_description.str();
+}
+
+lookup_table_inst::typed_primitive_inst(network_impl& network, lookup_table_node const& node) : parent(network, node) {}
+}  // namespace cldnn

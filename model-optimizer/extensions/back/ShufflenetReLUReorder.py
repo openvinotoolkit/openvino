@@ -26,6 +26,10 @@ class ShufflenetReLUReorder(BackReplacementPattern):
     """
     enabled = False
 
+    def run_before(self):
+        from extensions.back.TransposeToPermute import TransposeToPermute
+        return [TransposeToPermute]
+
     def pattern(self):
         return dict(
             nodes=[
@@ -33,7 +37,7 @@ class ShufflenetReLUReorder(BackReplacementPattern):
                 ('relu_data', dict(kind='data')),
                 ('reshape1', dict(kind='op', type='Reshape')),
                 ('reshape1_data', dict(kind='data')),
-                ('transpose', dict(kind='op', type='Permute')),
+                ('transpose', dict(kind='op', type='Transpose')),
                 ('transpose_data', dict(kind='data')),
                 ('reshape2', dict(kind='op', type='Reshape')),
                 ('reshape2_data', dict(kind='data')),

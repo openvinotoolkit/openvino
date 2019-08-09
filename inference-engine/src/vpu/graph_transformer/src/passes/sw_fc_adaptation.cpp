@@ -21,49 +21,36 @@ private:
         return std::make_shared<FullyConnectedStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>&,
             ScalePropagationStep) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 3);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
         auto output = _outputEdges[0]->output();
 
-        DataMap<DimsOrder> out;
-
-        out[input] = input->desc().dimsOrder().createMovedDim(Dim::C, 0);
-        out[output] = output->desc().dimsOrder().createMovedDim(Dim::C, 0);
-
-        return out;
+        _orderInfo.setInput(_inputEdges[0], input->desc().dimsOrder().createMovedDim(Dim::C, 0));
+        _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, 0));
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 3);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<StridesRequirement> out;
-
-        out[input] = StridesRequirement::compact();
-        out[output] = StridesRequirement::compact();
-
-        return out;
+        _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
+        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
         IE_ASSERT(_inputEdges.size() == 3);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
         auto weights = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
 
         auto swWeights = weights->attrs().getOrDefault<Data>("swWeights", nullptr);
         if (swWeights == nullptr) {
@@ -79,24 +66,12 @@ private:
         _model->replaceStageInput(_inputEdges[1], swWeights);
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const  override {
+    void getBatchSupportInfoImpl() const  override {
         IE_ASSERT(_inputEdges.size() == 3);
         IE_ASSERT(_outputEdges.size() == 1);
 
-        auto input = _inputEdges[0]->input();
-        auto weights = _inputEdges[1]->input();
-        auto biases = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
-
-        DataMap<BatchSupport> out;
-
-        IE_ASSERT(weights->usage() == DataUsage::Const);
-        IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
-
-        out[input] = BatchSupport::Split;
-        out[output] = BatchSupport::Split;
-
-        return out;
+        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
+        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
     }
 
     void finalCheckImpl() const override {

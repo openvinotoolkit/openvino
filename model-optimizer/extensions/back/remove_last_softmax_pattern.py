@@ -30,7 +30,7 @@ class RemoveLastSoftMaxPattern(BackReplacementPattern):
             nodes=[
                 ('softmax_node', dict(op='SoftMax')),
                 ('softmax_data', dict(kind='data')),
-                ('op_output', dict(op='OpOutput'))
+                ('op_output', dict(op='Result'))
             ],
             edges=[
                 ('softmax_node', 'softmax_data'),

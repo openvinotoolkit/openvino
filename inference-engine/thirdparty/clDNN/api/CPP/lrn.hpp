@@ -19,8 +19,7 @@
 #include "../C/lrn.h"
 #include "primitive.hpp"
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -39,8 +38,7 @@ namespace cldnn
 ///   @li N : number of feature maps
 ///   @li n : size of normalization
 ///   @li k, alpha, beta : hyper parameters (equal to 2, 10e-4, 0.75 in paper).
-struct lrn :public primitive_base<lrn, CLDNN_PRIMITIVE_DESC(lrn)>
-{
+struct lrn : public primitive_base<lrn, CLDNN_PRIMITIVE_DESC(lrn)> {
     CLDNN_DECLARE_PRIMITIVE(lrn)
 
     /// @brief Constructs LRN primitive.
@@ -51,33 +49,29 @@ struct lrn :public primitive_base<lrn, CLDNN_PRIMITIVE_DESC(lrn)>
     /// @param alpha Hyper parameter "alpha".
     /// @param beta Hyper parameter "beta".
     /// @param lrn_norm_region Normalize across or within channel
-    lrn(
-        const primitive_id& id,
+    lrn(const primitive_id& id,
         const primitive_id& input,
         uint32_t size,
         float k,
         float alpha,
         float beta,
         cldnn_lrn_norm_region lrn_norm_region,
-        const padding& output_padding = padding()
-        )
-        : primitive_base(id, {input}, output_padding)
-        , size(size)
-        , k(k)
-        , alpha(alpha)
-        , beta(beta)
-        , norm_region(lrn_norm_region)
-    {}
+        const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          size(size),
+          k(k),
+          alpha(alpha),
+          beta(beta),
+          norm_region(lrn_norm_region) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{normalization}
     lrn(const dto* dto)
-        : primitive_base(dto)
-        , size(dto->size)
-        , k(dto->k)
-        , alpha(dto->alpha)
-        , beta(dto->beta)
-        , norm_region(dto->norm_region)
-    {}
+        : primitive_base(dto),
+          size(dto->size),
+          k(dto->k),
+          alpha(dto->alpha),
+          beta(dto->beta),
+          norm_region(dto->norm_region) {}
 
     /// @brief Size of normalization.
     uint32_t size;
@@ -91,8 +85,7 @@ struct lrn :public primitive_base<lrn, CLDNN_PRIMITIVE_DESC(lrn)>
     cldnn_lrn_norm_region norm_region;
 
 protected:
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.size = size;
         dto.k = k;
         dto.alpha = alpha;
@@ -103,4 +96,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

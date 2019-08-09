@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef CONVOLUTION_GRAD_WEIGHTS_H
-#define CONVOLUTION_GRAD_WEIGHTS_H
-
+#pragma once
 #include <stdbool.h>
 #include "cldnn.h"
 /// @addtogroup c_api C API
@@ -40,7 +38,7 @@ cldnn_tensor input_offset;
 /// @brief Defines the spatial dimensions of stride of adjacent elements in input buffer.
 cldnn_tensor stride;
 /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
-/// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1. 
+/// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
 /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
 cldnn_tensor dilation;
 /// @brief On how many cards split the computation to.
@@ -51,9 +49,11 @@ cldnn_primitive_id_arr weights;
 cldnn_primitive_id_arr bias;
 /// @brief Primitive id containing convolution gradient data. Used for proper order of gradient calculation. Leave empty if primitive is last in backward pass.
 cldnn_primitive_id conv_grad;
-/// @brief Array of primitive ids containing weights gradient data calculated in previous iteration. Amount of primitives and their memory sizes should be same as weights.
+/// @brief Array of primitive ids containing weights gradient data calculated in previous iteration.
+/// Amount of primitives and their memory sizes should be same as weights.
 cldnn_primitive_id_arr prev_weights_grad;
-/// @brief Array of primitive ids containing bias gradient data calculated in previous iteration. Amount of primitives and their memory sizes should be same as biases.
+/// @brief Array of primitive ids containing bias gradient data calculated in previous iteration.
+/// Amount of primitives and their memory sizes should be same as biases.
 cldnn_primitive_id_arr prev_bias_grad;
 /// @brief Should primitive give weights gradient (delta) as an output
 bool output_grad_w;
@@ -69,5 +69,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(convolution_grad_weights);
 /// @}
 /// @}
 /// @}
-#endif /* CONVOLUTION_GRAD_WEIGHTS_H */
 

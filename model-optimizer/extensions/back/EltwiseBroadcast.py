@@ -22,16 +22,19 @@ import numpy as np
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Node, Graph
 from mo.ops.tile import Tile
+from mo.ops.broadcast import Broadcast
+from mo.ops.const import Const
 
 
 class EltwiseBroadcast(BackReplacementPattern):
     enabled = True
+    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     @staticmethod
     def pattern():
         return dict(
             nodes=[
-                ('op', dict(kind='op', type='Eltwise'))],
+                ('op', dict(kind='op', is_eltwise=True))],
             edges=[]
         )
 
@@ -40,45 +43,19 @@ class EltwiseBroadcast(BackReplacementPattern):
         node = match['op']
         shapes = [in_node.shape for _, in_node in node.in_nodes().items()]
         out_shape = node.out_node().shape
-        tname = node.name + '/Broadcast/'
-        tile = Tile(graph, dict(name=tname))
+        broadcast_name = node.name + '/Broadcast/'
 
-        # Working with scalar values
         for i, shape in enumerate(shapes):
-            if len(shape) == 0:
-                shapes[i] = np.ones(len(out_shape), dtype=np.int64)
-                node.in_node(i).shape = shapes[i].copy()
-                if node.in_node(i).value is not None:
-                    node.in_node(i).value = np.reshape(node.in_node(i).value, newshape=shapes[i])
-
-        if not all([len(shape) == len(out_shape) for shape in shapes]):
-            log.warning("Cannot apply broadcast for Eltwise layer {} "
-                        "because not all input shapes {} have the same number of elements "
-                        "as output shape {}.".format(node.soft_get('name'),
-                                                     shapes,
-                                                     out_shape
-                                                     )
-                        )
-            return
-
-        input_idx = 0
-        for port, old_input in node.in_nodes().items():
-            # old_input = node.in_node(input_idx)
-            input = old_input
-            for i in range(len(out_shape)):
-                if shapes[input_idx][i] == 1 and out_shape[i] > 1:
-                    new_op = tile.create_node([input], dict(axis=i, tiles=out_shape[i]))
-                    # add a data node following a new operation node
-                    data_id = graph.unique_id(node.name)
-                    graph.add_node(data_id, kind='data', shape=None, value=None)
-                    new_data = Node(graph, data_id)
-                    graph.add_edge(new_op.id, new_data.id, **{'out': 0})
-                    new_op.infer(new_op)
-                    input = new_data
-            if input != old_input:
-                # create a new edge from new data node after Tile application to the eltwise
-                # and copy all edge attributes from the old edge
-                # [0] is not what we really want
-                graph.add_edge(input.id, node.id, **graph[old_input.id][node.id][0])
-                graph.remove_edge(old_input.id, node.id)
-            input_idx += 1
+            if not np.array_equal(shape, out_shape):
+                # Add Broadcast op for this input
+                # Need to create additional Const op for shape
+                new_shape = Const(graph, {'name': broadcast_name + 'Shape', 'value': out_shape.copy()}).create_node()
+                broadcast_axis = Const(graph, {
+                    'name': broadcast_name + 'Axis',
+                    'value': np.array(range(len(out_shape)), dtype=np.int64)}
+                ).create_node()
+                broadcast = Broadcast(graph, {'name': broadcast_name}).create_node()
+                node.in_port(i).get_connection().set_destination(broadcast.in_port(0))
+                broadcast.in_port(1).connect(new_shape.out_port(0))
+                broadcast.in_port(2).connect(broadcast_axis.out_port(0))
+                broadcast.out_port(0).connect(node.in_port(i))

@@ -23,18 +23,22 @@ class GNAProcTypeTest : public GNATest {
 };
 
 TEST_F(GNAProcTypeTest, defaultProcTypeIsSWEXACT) {
-    assert_that().onInfer1AFModel().gna().propagate_forward().called_with().proc_type(GNA_SOFTWARE & GNA_HARDWARE);
+    assert_that().onInfer1AFModel().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+    .gna().propagate_forward().called_with().proc_type(GNA_SOFTWARE & GNA_HARDWARE);
 }
 
 TEST_F(GNAProcTypeTest, canPassHWProcTypeToGNA) {
-    assert_that().onInfer1AFModel().withGNADeviceMode("GNA_HW").gna().propagate_forward().called_with().proc_type(GNA_HARDWARE);
+    assert_that().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+    .onInfer1AFModel().withGNADeviceMode("GNA_HW").gna().propagate_forward().called_with().proc_type(GNA_HARDWARE);
 }
 
 TEST_F(GNAProcTypeTest, canPassSWProcTypeToGNA) {
-    assert_that().onInfer1AFModel().withGNADeviceMode("GNA_SW").gna().propagate_forward().called_with().proc_type(GNA_SOFTWARE);
+    assert_that().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+    .onInfer1AFModel().withGNADeviceMode("GNA_SW").gna().propagate_forward().called_with().proc_type(GNA_SOFTWARE);
 }
 
 TEST_F(GNAProcTypeTest, canPassSWEXACTProcTypeToGNA) {
-    assert_that().onInfer1AFModel().withGNADeviceMode("GNA_SW_EXACT").gna().
+    assert_that().onInfer1AFModel().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+        .withGNADeviceMode("GNA_SW_EXACT").gna().
         propagate_forward().called_with().proc_type(GNA_SOFTWARE & GNA_HARDWARE);
 }

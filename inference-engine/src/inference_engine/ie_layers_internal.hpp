@@ -26,6 +26,7 @@ INFERENCE_ENGINE_API_CPP(Paddings) getPaddingsImpl(const CNNLayer &layer);
  */
 template <class T>
 inline  typename std::enable_if<is_one_of<T,
+                                          DeformableConvolutionLayer,
                                           DeconvolutionLayer,
                                           ConvolutionLayer,
                                           BinaryConvolutionLayer,
@@ -34,5 +35,16 @@ getPaddings(const T & layer) {
     return getPaddingsImpl(layer);
 }
 
+/*********************************************
+ * TensorIterator Helpers section
+ *********************************************/
+
+/**
+ * @brief Calculate number of iteration required for provided TI layer
+ *
+ * @param ti TensorIterator layer to parse
+ * @return positive value in case of correct TI layer, -1 in case of inconsistency
+ */
+INFERENCE_ENGINE_API_CPP(int) getNumIteration(const TensorIterator &ti);
 
 }  // namespace InferenceEngine

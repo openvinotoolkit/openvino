@@ -18,17 +18,20 @@ import sys
 import subprocess
 from pathlib import Path
 from typing import Union
+from collections import namedtuple
 from ..utils import get_path, format_key
 
+FrameworkParameters = namedtuple('FrameworkParameters', ['name', 'meta'])
 
-def convert_model(topology_name, model=None, weights=None,
-                  framework='caffe', mo_search_paths=None, mo_params=None, mo_flags=None,
+def convert_model(topology_name, model=None, weights=None, meta=None,
+                  framework=FrameworkParameters('caffe', False), mo_search_paths=None, mo_params=None, mo_flags=None,
                   tf_custom_op_config_dir=None, tf_object_detection_api_config_dir=None):
     """
     Args:
         topology_name: name for converted model files.
         model: path to the topology file.
         weights: path to the weights file.
+        meta: path to the meta file
         framework: framework name for original model.
         mo_search_paths: paths where ModelOptimizer may be found. If None only default paths is used.
         mo_params: value parameters for ModelOptimizer execution.
@@ -52,14 +55,15 @@ def convert_model(topology_name, model=None, weights=None,
         )
 
     framework_specific_options = {
-        'caffe': {'input_model': weights, 'input_proto': model},
-        'mxnet': {'input_model': weights},
-        'tf': {'input_model': model},
-        'onnx': {'input_model': model},
-        'kaldi': {'input_model': model}
+        FrameworkParameters('caffe', False): {'input_model': weights, 'input_proto': model},
+        FrameworkParameters('mxnet', False): {'input_model': weights},
+        FrameworkParameters('tf', False): {'input_model': model},
+        FrameworkParameters('tf', True): {'input_meta_graph': meta},
+        FrameworkParameters('onnx', False): {'input_model': model},
+        FrameworkParameters('kaldi', False): {'input_model': model}
     }
 
-    mo_params['framework'] = framework
+    mo_params['framework'] = framework.name
     mo_params.update(framework_specific_options.get(framework, {}))
 
     set_path_to_custom_operation_configs(mo_params, framework, tf_custom_op_config_dir, model_optimizer_executable)
@@ -103,7 +107,7 @@ def find_mo(search_paths=None) -> Union[Path, None]:
         path to the ModelOptimizer or None if it wasn't found.
     """
 
-    default_mo_path = ('intel', 'computer_vision_sdk', 'deployment_tools', 'model_optimizer')
+    default_mo_path = ('intel', 'openvino', 'deployment_tools', 'model_optimizer')
     default_paths = [Path.home().joinpath(*default_mo_path), Path('/opt').joinpath(*default_mo_path)]
 
     executable = 'mo.py'
@@ -156,7 +160,7 @@ def exec_mo_binary(args, timeout=None):
 
 
 def set_path_to_custom_operation_configs(mo_params, framework, tf_custom_op_config_dir, mo_path):
-    if framework != 'tf':
+    if framework.name != 'tf':
         return mo_params
 
     config_path = mo_params.get('tensorflow_use_custom_operations_config')
@@ -179,10 +183,11 @@ def set_path_to_custom_operation_configs(mo_params, framework, tf_custom_op_conf
 
 def set_path_to_object_detection_api_pipeline_config(mo_params, framework, object_detection_api_config_dir=None):
     object_detection_api_config = mo_params.get('tensorflow_object_detection_api_pipeline_config')
-    if framework != 'tf' or not object_detection_api_config:
+    if framework.name != 'tf' or not object_detection_api_config:
         return mo_params
+    model_path = mo_params.get('input_model') or mo_params.get('input_meta_graph')
 
-    object_detection_api_config_dir = Path(object_detection_api_config_dir or get_path(mo_params['input_model']).parent)
+    object_detection_api_config_dir = Path(object_detection_api_config_dir or get_path(model_path).parent)
     config_path = object_detection_api_config_dir / object_detection_api_config
     mo_params['tensorflow_object_detection_api_pipeline_config'] = str(get_path(config_path))
 

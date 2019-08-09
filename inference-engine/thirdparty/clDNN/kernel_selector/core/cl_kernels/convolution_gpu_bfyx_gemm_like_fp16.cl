@@ -268,8 +268,8 @@ KERNEL(convolution_f16)(
         blockC10 += *(biasPtr + 1);
         #endif
 
-        blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
-        blockC10 = ACTIVATION(blockC10, NL_M, NL_N);
+        blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
+        blockC10 = ACTIVATION(blockC10, ACTIVATION_PARAMS);
 
         for (unsigned i = 0; i < 16; i++)
         {
@@ -285,8 +285,8 @@ KERNEL(convolution_f16)(
             blockC10 += *(biasPtr + 1);
             #endif
 
-            blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
-            blockC10 = ACTIVATION(blockC10, NL_M, NL_N);
+            blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
+            blockC10 = ACTIVATION(blockC10, ACTIVATION_PARAMS);
 
             for ( unsigned i = 0; i < 16; i++ )
             {
@@ -300,7 +300,7 @@ KERNEL(convolution_f16)(
             blockC00 += *biasPtr;
             #endif
 
-            blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
+            blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
 
             for (unsigned i = 0; i < 16; i++)
             {
@@ -315,8 +315,8 @@ KERNEL(convolution_f16)(
             blockC10 += *(biasPtr + 1);
             #endif
 
-            blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
-            blockC10 = ACTIVATION(blockC10, NL_M, NL_N);
+            blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
+            blockC10 = ACTIVATION(blockC10, ACTIVATION_PARAMS);
 
             for ( unsigned i = 0; i < 16; i++ )
             {
@@ -333,8 +333,8 @@ KERNEL(convolution_f16)(
             blockC10 += *(biasPtr + 1);
             #endif
 
-            blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
-            blockC10 = ACTIVATION(blockC10, NL_M, NL_N);
+            blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
+            blockC10 = ACTIVATION(blockC10, ACTIVATION_PARAMS);
 
             for (unsigned i = 0; i < 16 ; i++)
             {
@@ -349,7 +349,7 @@ KERNEL(convolution_f16)(
             blockC00 += *biasPtr;
             #endif
 
-            blockC00 = ACTIVATION(blockC00, NL_M, NL_N);
+            blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
 
             for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 16 ; i++)
             {

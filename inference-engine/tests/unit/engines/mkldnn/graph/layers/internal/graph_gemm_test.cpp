@@ -101,8 +101,8 @@ class MKLDNNGraphGemmTests: public TestsCommon,
                 <port id="1">
                     <dim>_MB1_A_</dim>
                     <dim>_MB2_A_</dim>
-                    <dim>_M_</dim>
-                    <dim>_K_</dim>
+                    <dim>_M_A_</dim>
+                    <dim>_N_A_</dim>
                 </port>
             </output>
         </layer>
@@ -111,8 +111,8 @@ class MKLDNNGraphGemmTests: public TestsCommon,
                 <port id="1">
                     <dim>_MB1_B_</dim>
                     <dim>_MB2_B_</dim>
-                    <dim>_K_</dim>
-                    <dim>_N_</dim>
+                    <dim>_M_B_</dim>
+                    <dim>_N_B_</dim>
                 </port>
             </output>
         </layer>
@@ -132,14 +132,14 @@ class MKLDNNGraphGemmTests: public TestsCommon,
                 <port id="1">
                     <dim>_MB1_A_</dim>
                     <dim>_MB2_A_</dim>
-                    <dim>_M_</dim>
-                    <dim>_K_</dim>
+                    <dim>_M_A_</dim>
+                    <dim>_N_A_</dim>
                 </port>
                 <port id="2">
                     <dim>_MB1_B_</dim>
                     <dim>_MB2_B_</dim>
-                    <dim>_K_</dim>
-                    <dim>_N_</dim>
+                    <dim>_M_B_</dim>
+                    <dim>_N_B_</dim>
                 </port>
                 <port id="3">
                     <dim>_MB1_C_</dim>
@@ -180,6 +180,16 @@ protected:
         REPLACE_WITH_NUM(model, "_MB1_D_", p.batches.MB1_D);
         REPLACE_WITH_NUM(model, "_MB2_D_", p.batches.MB2_D);
 
+        auto m_A = p.transposeA ? p.K : p.M;
+        auto n_A = p.transposeA ? p.M : p.K;
+        auto m_B = p.transposeB ? p.N : p.K;
+        auto n_B = p.transposeB ? p.K : p.N;
+
+        REPLACE_WITH_NUM(model, "_M_A_", m_A);
+        REPLACE_WITH_NUM(model, "_N_A_", n_A);
+        REPLACE_WITH_NUM(model, "_M_B_", m_B);
+        REPLACE_WITH_NUM(model, "_N_B_", n_B);
+
         REPLACE_WITH_NUM(model, "_M_", p.M);
         REPLACE_WITH_NUM(model, "_N_", p.N);
         REPLACE_WITH_NUM(model, "_K_", p.K);
@@ -219,26 +229,31 @@ protected:
                 }
             }
 
-            InferenceEngine::SizeVector dims_src1 = {p.batches.MB1_A, p.batches.MB2_A, p.M, p.K};
-            InferenceEngine::SizeVector dims_src2 = {p.batches.MB1_B, p.batches.MB2_B, p.K, p.N};
+            auto m_A = p.transposeA ? p.K : p.M;
+            auto n_A = p.transposeA ? p.M : p.K;
+            auto m_B = p.transposeB ? p.N : p.K;
+            auto n_B = p.transposeB ? p.K : p.N;
+
+            InferenceEngine::SizeVector dims_src1 = {p.batches.MB1_A, p.batches.MB2_A, m_A, n_A};
+            InferenceEngine::SizeVector dims_src2 = {p.batches.MB1_B, p.batches.MB2_B, m_B, n_B};
             InferenceEngine::SizeVector dims_src3 = {p.batches.MB1_C, p.batches.MB2_C, p.M, p.N};
             InferenceEngine::SizeVector dims_dst  = {p.batches.MB1_D, p.batches.MB2_D, p.M, p.N};
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, InferenceEngine::NCHW});
             src1->allocate();
             InferenceEngine::TBlob<float>* srcPtr1 = dynamic_cast<InferenceEngine::TBlob<float>*>(src1.get());
             if (srcPtr1 == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
             fill_data(src1->buffer(), src1->size());
 
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, InferenceEngine::NCHW});
             src2->allocate();
             InferenceEngine::TBlob<float>* srcPtr2 = dynamic_cast<InferenceEngine::TBlob<float>*>(src2.get());
             if (srcPtr2 == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
             fill_data(src2->buffer(), src2->size());
 
-            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src3);
+            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src3, InferenceEngine::NCHW});
             src3->allocate();
             InferenceEngine::TBlob<float>* srcPtr3 = dynamic_cast<InferenceEngine::TBlob<float>*>(src3.get());
             if (srcPtr3 == nullptr)
@@ -394,26 +409,31 @@ protected:
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
             graph.CreateGraph(net_reader.getNetwork());
 
-            InferenceEngine::SizeVector dims_src1 = {MB, p.batches.MB2_A, p.M, p.K};
-            InferenceEngine::SizeVector dims_src2 = {MB, p.batches.MB2_B, p.K, p.N};
+            auto m_A = p.transposeA ? p.K : p.M;
+            auto n_A = p.transposeA ? p.M : p.K;
+            auto m_B = p.transposeB ? p.N : p.K;
+            auto n_B = p.transposeB ? p.K : p.N;
+
+            InferenceEngine::SizeVector dims_src1 = {MB, p.batches.MB2_A, m_A, n_A};
+            InferenceEngine::SizeVector dims_src2 = {MB, p.batches.MB2_B, m_B, n_B};
             InferenceEngine::SizeVector dims_src3 = {MB, p.batches.MB2_C, p.M, p.N};
             InferenceEngine::SizeVector dims_dst  = {MB, p.batches.MB2_D, p.M, p.N};
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, InferenceEngine::NCHW});
             src1->allocate();
             InferenceEngine::TBlob<float>* srcPtr1 = dynamic_cast<InferenceEngine::TBlob<float>*>(src1.get());
             if (srcPtr1 == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
             fill_data(src1->buffer(), src1->size());
 
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, InferenceEngine::NCHW});
             src2->allocate();
             InferenceEngine::TBlob<float>* srcPtr2 = dynamic_cast<InferenceEngine::TBlob<float>*>(src2.get());
             if (srcPtr2 == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
             fill_data(src2->buffer(), src2->size());
 
-            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src3);
+            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src3, InferenceEngine::NCHW});
             src3->allocate();
             InferenceEngine::TBlob<float>* srcPtr3 = dynamic_cast<InferenceEngine::TBlob<float>*>(src3.get());
             if (srcPtr3 == nullptr)
@@ -466,8 +486,8 @@ class MKLDNNGraphSingleBatchDimGemmTests: public TestsCommon,
             <output>
                 <port id="1">
                     <dim>_MB_A_</dim>
-                    <dim>_M_</dim>
-                    <dim>_K_</dim>
+                    <dim>_M_A_</dim>
+                    <dim>_N_A_</dim>
                 </port>
             </output>
         </layer>
@@ -475,8 +495,8 @@ class MKLDNNGraphSingleBatchDimGemmTests: public TestsCommon,
             <output>
                 <port id="1">
                     <dim>_MB_B_</dim>
-                    <dim>_K_</dim>
-                    <dim>_N_</dim>
+                    <dim>_M_B_</dim>
+                    <dim>_N_B_</dim>
                 </port>
             </output>
         </layer>
@@ -485,13 +505,13 @@ class MKLDNNGraphSingleBatchDimGemmTests: public TestsCommon,
             <input>
                 <port id="1">
                     <dim>_MB_A_</dim>
-                    <dim>_M_</dim>
-                    <dim>_K_</dim>
+                    <dim>_M_A_</dim>
+                    <dim>_N_A_</dim>
                 </port>
                 <port id="2">
                     <dim>_MB_B_</dim>
-                    <dim>_K_</dim>
-                    <dim>_N_</dim>
+                    <dim>_M_B_</dim>
+                    <dim>_N_B_</dim>
                 </port>
             </input>
             <output>
@@ -518,6 +538,16 @@ protected:
         REPLACE_WITH_NUM(model, "_MB_A_", p.batches.MB2_A);
         REPLACE_WITH_NUM(model, "_MB_B_", p.batches.MB2_B);
         REPLACE_WITH_NUM(model, "_MB_D_", p.batches.MB2_D);
+
+        auto m_A = p.transposeA ? p.K : p.M;
+        auto n_A = p.transposeA ? p.M : p.K;
+        auto m_B = p.transposeB ? p.N : p.K;
+        auto n_B = p.transposeB ? p.K : p.N;
+
+        REPLACE_WITH_NUM(model, "_M_A_", m_A);
+        REPLACE_WITH_NUM(model, "_N_A_", n_A);
+        REPLACE_WITH_NUM(model, "_M_B_", m_B);
+        REPLACE_WITH_NUM(model, "_N_B_", n_B);
 
         REPLACE_WITH_NUM(model, "_M_", p.M);
         REPLACE_WITH_NUM(model, "_N_", p.N);
@@ -558,18 +588,23 @@ protected:
                 }
             }
 
-            InferenceEngine::SizeVector dims_src1 = {p.batches.MB2_A, p.M, p.K};
-            InferenceEngine::SizeVector dims_src2 = {p.batches.MB2_B, p.K, p.N};
+            auto m_A = p.transposeA ? p.K : p.M;
+            auto n_A = p.transposeA ? p.M : p.K;
+            auto m_B = p.transposeB ? p.N : p.K;
+            auto n_B = p.transposeB ? p.K : p.N;
+
+            InferenceEngine::SizeVector dims_src1 = {p.batches.MB2_A, m_A, n_A};
+            InferenceEngine::SizeVector dims_src2 = {p.batches.MB2_B, m_B, n_B};
             InferenceEngine::SizeVector dims_dst  = {p.batches.MB2_D, p.M, p.N};
 
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::CHW, dims_src1);
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, InferenceEngine::CHW});
             src1->allocate();
             InferenceEngine::TBlob<float>* srcPtr1 = dynamic_cast<InferenceEngine::TBlob<float>*>(src1.get());
             if (srcPtr1 == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
             fill_data(src1->buffer(), src1->size());
 
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::CHW, dims_src2);
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, InferenceEngine::CHW});
             src2->allocate();
             InferenceEngine::TBlob<float>* srcPtr2 = dynamic_cast<InferenceEngine::TBlob<float>*>(src2.get());
             if (srcPtr2 == nullptr)

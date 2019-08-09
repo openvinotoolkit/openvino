@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNGemmNode : public MKLDNNNode {
 public:
-    MKLDNNGemmNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNGemmNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNGemmNode() override = default;
 
     void getSupportedDescriptors() override;

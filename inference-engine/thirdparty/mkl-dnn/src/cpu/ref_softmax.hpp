@@ -82,9 +82,12 @@ struct ref_softmax_fwd_t: public cpu_primitive_t {
         inner_size_ = utils::array_product(dims + axis + 1, ndims - axis - 1);
 
         const memory_desc_wrapper data_d(pd()->src_pd());
-        use_dense_ = inner_size_ == 1 && data_d.is_dense()
-            && data_d.blocking_desc().block_dims[axis] == 1
-            && data_d.blocking_desc().strides[0][axis] == 1;
+        use_dense_ = true
+            && inner_size_ == 1
+            && data_d.is_dense(true)
+            && data_d.only_padded_dim(axis)
+            && data_d.blocking_desc().strides[0][axis] ==
+                    data_d.blocking_desc().block_dims[axis];
     }
     ~ref_softmax_fwd_t() {}
 
@@ -149,15 +152,16 @@ struct ref_softmax_bwd_t: public cpu_primitive_t {
         channels_ = dims[axis];
         inner_size_ = utils::array_product(dims + axis + 1, ndims - axis - 1);
 
-        // Diff desc as well as data desc whould be checked
+        // Diff desc as well as data desc should be checked
         const memory_desc_wrapper data_d(pd()->dst_pd());
         const memory_desc_wrapper diff_d(pd()->diff_dst_pd());
         use_dense_ = true
             && inner_size_ == 1
             && diff_d == data_d
-            && diff_d.is_dense()
-            && diff_d.blocking_desc().block_dims[axis] == 1
-            && diff_d.blocking_desc().strides[0][axis] == 1;
+            && diff_d.is_dense(true)
+            && diff_d.only_padded_dim(axis)
+            && diff_d.blocking_desc().strides[0][axis] ==
+                    diff_d.blocking_desc().block_dims[axis];
     }
     ~ref_softmax_bwd_t() {}
 

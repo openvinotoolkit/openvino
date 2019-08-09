@@ -20,6 +20,7 @@ from .calibrator_configuration import CalibratorConfiguration
 from .calibrator_factory import CalibratorFactory
 from .command_line_reader import CommandLineReader
 from .command_line_processor import CommandLineProcessor
+from .accuracy.metric_factory import MetricFactory
 
 __version__ = "0.0.1"
 __all__ = [
@@ -30,5 +31,6 @@ __all__ = [
     'CalibratorConfiguration',
     'CalibratorFactory',
     'CommandLineReader',
-    'CommandLineProcessor'
+    'CommandLineProcessor',
+    'MetricFactory'
 ]

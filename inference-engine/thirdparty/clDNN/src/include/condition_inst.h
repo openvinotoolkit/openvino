@@ -19,54 +19,45 @@
 
 #include "network_impl.h"
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
-namespace details
-{
-
-}
+namespace cldnn {
+namespace details {}
 
 template <>
-struct typed_program_node<condition> : public typed_program_node_base<condition>
-{
+struct typed_program_node<condition> : public typed_program_node_base<condition> {
 private:
     using parent = typed_program_node_base<condition>;
 
-    class branch
-    {
+    class branch {
     public:
-        branch(topology_impl& tpl) : _topology(tpl) {}
+        explicit branch(topology_impl& tpl) : _topology(tpl) {}
 
-        void set(const program_node& node)
-        {
+        void set(const program_node& node) {
             add_or_change_input_layout(node);
-            _program = node.get_program().get_engine().build_program(_topology, node.get_program().get_options(), true); //rebuild program 
+            _program = node.get_program().get_engine().build_program(_topology,
+                                                                     node.get_program().get_options(),
+                                                                     true);  // rebuild program
         }
         program_impl::ptr get() const { return _program; }
 
     private:
-        topology_impl & _topology;
-        program_impl::ptr _program = nullptr;
+        topology_impl& _topology;
+        program_impl::ptr _program = (program_impl::ptr) nullptr;
 
-        void add_or_change_input_layout(const program_node& node)
-        {
+        void add_or_change_input_layout(const program_node& node) {
             auto layout = node.get_dependency(0).get_output_layout();
             auto input_id = node.as<condition>().result_id();
-            if (_program == nullptr) //if first run, create input_layout
-            {
+            if (_program == (program_impl::ptr) nullptr) {  // if first run, create input_layout
                 _topology.add(std::make_shared<input_layout>(input_id, layout));
-                for (auto& prim : _topology.get_primitives())
-                {
-                    for (auto& inp : prim.second->input)
-                    {
+                for (auto& prim : _topology.get_primitives()) {
+                    for (auto& inp : prim.second->input) {
                         if (inp == node.id())
                             inp = input_id;
                     }
                 }
-            }
-            else
-            {
+            } else {
                 _topology.change_input_layout(input_id, layout);
             }
         }
@@ -76,23 +67,20 @@ public:
     using parent::parent;
 
     typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
-        : parent(prim, prog)
-        , _branch_true(*api_cast(this->get_primitive()->topology_true.get()))
-        , _branch_false(*api_cast(this->get_primitive()->topology_false.get()))
-    {
-    }
+        : parent(prim, prog),
+          _branch_true(*api_cast(this->get_primitive()->topology_true.get())),
+          _branch_false(*api_cast(this->get_primitive()->topology_false.get())) {}
 
     program_node& input() const { return get_dependency(0); }
     program_node& compare() const { return get_dependency(1); }
     cond_functions func() const { return get_primitive()->function; }
     tensor offset() const { return get_primitive()->offset; }
-    void set_branches() const
-    {
+    void set_branches() const {
         _branch_true.set(*this);
         _branch_false.set(*this);
     }
     program_impl::ptr get_branch_true() const { return _branch_true.get(); }
-    program_impl::ptr get_branch_false() const{ return _branch_false.get(); }
+    program_impl::ptr get_branch_false() const { return _branch_false.get(); }
     primitive_id result_id() const { return id() + ":result"; }
 
 private:
@@ -102,10 +90,8 @@ private:
 
 using condition_node = typed_program_node<condition>;
 
-
 template <>
-class typed_primitive_inst<condition> : public typed_primitive_inst_base<condition>
-{
+class typed_primitive_inst<condition> : public typed_primitive_inst_base<condition> {
     using parent = typed_primitive_inst_base<condition>;
 
 public:
@@ -118,10 +104,11 @@ public:
     network_impl::ptr get_net_true() const { return _net_true; }
     network_impl::ptr get_net_false() const { return _net_false; }
     primitive_id result_id() const { return node.result_id(); }
+
 private:
     network_impl::ptr _net_true;
     network_impl::ptr _net_false;
 };
 
 using condition_inst = typed_primitive_inst<condition>;
-}
+}  // namespace cldnn

@@ -109,7 +109,7 @@ KERNEL(convolution_1x1_gemm_MMAD)(
         if(curr_x < INPUT0_SIZE_X && curr_y < INPUT0_SIZE_Y)
         {
             const uint dst_index = GET_DATA_INDEX(OUTPUT, b, f, curr_y, curr_x) + out_split_offset;
-            output[dst_index] = ACTIVATION(convert_char(tileC[i]), NL_M, NL_N);
+            output[dst_index] = ACTIVATION(convert_char(tileC[i]), ACTIVATION_PARAMS);
         }
     }
 }

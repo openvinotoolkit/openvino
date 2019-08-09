@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016-2018 Intel Corporation
+* Copyright 2016-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <vector>
 #include <cmath>
 #include <stdint.h>
+#include<iostream>
 
 #include "gtest/gtest.h"
 
@@ -32,6 +33,14 @@
 #include "mkldnn.hpp"
 
 #include "src/common/mkldnn_thread.hpp"
+
+#define SKIP_IF(cond, msg)                                      \
+    do {                                                        \
+        if (cond) {                                             \
+            std::cout << "[ SKIPPED ] " << (msg) << std::endl; \
+            return;                                             \
+        }                                                       \
+    } while (0)
 
 template <typename data_t> struct data_traits { };
 template <> struct data_traits<float> {
@@ -49,6 +58,18 @@ template <> struct data_traits<int16_t> {
 template <> struct data_traits<int32_t> {
     static const auto data_type = mkldnn::memory::data_type::s32;
 };
+template <> struct data_traits<mkldnn_bfloat16_t> {
+    static const auto data_type = mkldnn::memory::data_type::bf16;
+};
+
+template <mkldnn::memory::data_type> struct prec_traits {};
+template <> struct prec_traits<mkldnn::memory::data_type::f32> { typedef float type; };
+template <> struct prec_traits<mkldnn::memory::data_type::s32> { typedef int32_t type; };
+template <> struct prec_traits<mkldnn::memory::data_type::s16> { typedef int16_t type; };
+template <> struct prec_traits<mkldnn::memory::data_type::s8> { typedef int8_t type; };
+template <> struct prec_traits<mkldnn::memory::data_type::u8> { typedef uint8_t type; };
+template <> struct prec_traits<mkldnn::memory::data_type::bf16> { typedef mkldnn_bfloat16_t type; };
+
 
 template <typename T> inline void assert_eq(T a, T b);
 template <> inline void assert_eq<float>(float a, float b) {
@@ -305,6 +326,30 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     return mkldnn::memory::desc(dims, data_type, fmt);
 }
 
+union float_raw {
+  float f;
+  unsigned short i[2];
+};
+
+static void truncate_ps_to_bf16(mkldnn_bfloat16_t *out_bf16, const float *in_f32,
+                    size_t length = 1) {
+    for (size_t i = 0; i < length; i++) {
+        union float_raw t = {0};
+        t.f = in_f32[i];
+        out_bf16[i] = t.i[1];
+    }
+}
+
+static void cvt_bf16_to_ps(float *out_f32, const mkldnn_bfloat16_t *in_bf16,
+                    size_t length = 1) {
+    for (size_t i = 0; i < length; i++) {
+        union float_raw t = {0};
+        t.i[1] = in_bf16[i];
+        t.i[0] = 0;
+        out_f32[i] = t.f;
+    }
+}
+
 template <typename data_t>
 static inline data_t set_value(size_t index, data_t mean, data_t deviation,
         double sparsity)
@@ -316,12 +361,22 @@ static inline data_t set_value(size_t index, data_t mean, data_t deviation,
         const bool fill = in_group == ((group % 1637) % group_size);
         return fill ? static_cast<data_t>(mean + deviation * sinf(float(index % 37)))
             : data_t{0};
+    } else if (data_traits<data_t>::data_type == mkldnn::memory::data_type::bf16) {
+        const size_t group_size = (size_t)(1. / sparsity);
+        const size_t group = index / group_size;
+        const size_t in_group = index % group_size;
+        const bool fill = in_group == ((group % 1637) % group_size);
+        float val_f32 = fill ? mean + deviation * sinf(float(index % 37))
+            : data_t{0};
+        mkldnn_bfloat16_t val_bf16;
+        truncate_ps_to_bf16(&val_bf16, &val_f32);
+        return val_bf16;
     } else if (data_traits<data_t>::data_type == mkldnn::memory::data_type::s32
         || data_traits<data_t>::data_type == mkldnn::memory::data_type::s16
         || data_traits<data_t>::data_type == mkldnn::memory::data_type::s8) {
-        return data_t(rand() % 21 - 10);
+        return data_t(index * 13 % 21 - 10);
     } else if (data_traits<data_t>::data_type == mkldnn::memory::data_type::u8) {
-        return data_t(rand() % 17);
+        return data_t(index * 13 % 17);
     } else {
         return data_t(0);
     }
@@ -350,6 +405,46 @@ static void fill_data(const size_t size, data_t *data, double sparsity = 1.,
 
 int div_up(const int a, const int b) {
     return (a + b - 1) / b;
+}
+
+template <typename data_t>
+inline void fill_data(const size_t size, data_t *data, const int init_range)
+{
+    for (size_t i = 0; i < size; i++) {
+        float sign = (i % 3 == 0U) ? -1.0 : 1.0;
+        data[i] = sign * ((i * 1637) % init_range);
+    }
+
+}
+
+template <>
+inline void fill_data<mkldnn_bfloat16_t>(const size_t size, mkldnn_bfloat16_t *data,
+        const int init_range)
+{
+    union float_raw t = {0};
+    for (size_t i = 0; i < size; i++) {
+        float sign = (i % 3 == 0U) ? -1.0 : 1.0;
+        t.f = sign * (float)((i * 1637) % init_range);
+        data[i] = t.i[1];
+    }
+
+}
+
+static inline void fill_data_bf16(const size_t size,
+        mkldnn::memory& memory_bf16,
+        mkldnn::memory& memory_f32,
+        float mean = 1.0f, float deviation = 2.0e-1f, double sparsity = 1.) {
+   fill_data<float>(size, (float *)memory_f32.get_data_handle(),
+                    mean, deviation, sparsity);
+   check_zero_tail<float>(1, memory_f32);
+   truncate_ps_to_bf16((mkldnn_bfloat16_t *)memory_bf16.get_data_handle(),
+       (float *)memory_f32.get_data_handle(), size);
+
+   /* Adjust f32 data to be exactly representable in bf16
+    * in order to get computed results which are bitwise accurate
+    * when output data type is f32 */
+   cvt_bf16_to_ps((float *)memory_f32.get_data_handle(),
+           (mkldnn_bfloat16_t *)memory_bf16.get_data_handle(), size);
 }
 
 template <typename data_t>
@@ -663,6 +758,53 @@ struct test_binary_convolution_dw_conv_params_t {
     mkldnn::algorithm binarization_algorithm;
     test_convolution_dw_conv_formats_t formats;
     test_convolution_dw_conv_sizes_t sizes;
+};
+
+struct test_deformable_convolution_formats_t {
+    mkldnn::memory::format src_format;
+    mkldnn::memory::format offsets_format;
+    mkldnn::memory::format weights_format;
+    mkldnn::memory::format bias_format;
+    mkldnn::memory::format dst_format;
+};
+
+struct test_deformable_convolution_sizes_t {
+    test_deformable_convolution_sizes_t(
+        int mb,
+        int ng,
+        int dg,
+        int ic, int ih, int iw,
+        int oc, int oh, int ow,
+        int kh, int kw,
+        int padh, int padw,
+        int strh, int strw,
+        int dilh=0, int dilw=0
+    ) :
+        mb(mb),
+        ng(ng),
+        dg(dg),
+        ic(ic), ih(ih), iw(iw),
+        oc(oc), oh(oh), ow(ow),
+        kh(kh), kw(kw),
+        padh(padh), padw(padw),
+        strh(strh), strw(strw),
+        dilh(dilh), dilw(dilw) {}
+    int mb;
+    int ng;
+    int dg;
+    int ic, ih, iw;
+    int oc, oh, ow;
+    int kh, kw;
+    int padh, padw;
+    int strh, strw;
+    int dilh, dilw;
+};
+
+struct test_deformable_convolution_params_t {
+    const mkldnn::engine::kind engine_kind;
+    mkldnn::algorithm aalgorithm;
+    test_deformable_convolution_formats_t formats;
+    test_deformable_convolution_sizes_t sizes;
 };
 
 std::ostream &operator<<(std::ostream &stream,

@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef CROP_H
-#define CROP_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -70,5 +68,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(crop);
 /// @}
 /// @}
 /// @}
-#endif /* CROP_H */
 

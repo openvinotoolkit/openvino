@@ -26,6 +26,7 @@
 #include "dnn_types.hpp"
 #include "mkldnn_common.hpp"
 #include "mkldnn_debug.hpp"
+#include "src/common/math_utils.hpp"
 
 dir_t str2dir(const char *str) {
 #define CASE(x) if (!strcasecmp(STRINGIFY(x), str)) return x
@@ -81,16 +82,21 @@ data_kind_t fmt2data_kind(mkldnn_memory_format_t fmt) {
 
     case mkldnn_ncw:
     case mkldnn_nwc:
+    case mkldnn_nCw4c:
+    case mkldnn_nCw8c:
     case mkldnn_nCw16c:
 
     case mkldnn_nchw:
     case mkldnn_nhwc:
     case mkldnn_chwn:
+    case mkldnn_nChw4c:
     case mkldnn_nChw8c:
     case mkldnn_nChw16c:
 
     case mkldnn_ncdhw:
     case mkldnn_ndhwc:
+    case mkldnn_nCdhw4c:
+    case mkldnn_nCdhw8c:
     case mkldnn_nCdhw16c:
         return DATA;
 
@@ -100,17 +106,27 @@ data_kind_t fmt2data_kind(mkldnn_memory_format_t fmt) {
     case mkldnn_gOiw16o:
     case mkldnn_gOwi16o:
     case mkldnn_gOIw8i16o2i:
+    case mkldnn_Goiw16g:
+    case mkldnn_Goiw16g_s8s8:
+    case mkldnn_gOIw4i16o4i:
+    case mkldnn_gOIw4i16o4i_s8s8:
     case mkldnn_goihw:
     case mkldnn_hwigo:
     case mkldnn_giohw:
     case mkldnn_hwigo_s8s8:
     case mkldnn_gOIhw8i8o:
     case mkldnn_gOIhw16i16o:
+    case mkldnn_gOIhw2i8o4i:
+    case mkldnn_gOIhw2i8o4i_s8s8:
     case mkldnn_gOIhw4i16o4i:
     case mkldnn_gOIhw4i16o4i_s8s8:
     case mkldnn_gOIhw8i16o2i:
+    case mkldnn_gIOhw8i16o2i:
     case mkldnn_gOIdhw8i16o2i:
     case mkldnn_gOIhw8o16i2o:
+    case mkldnn_gIOhw8o16i2o:
+    case mkldnn_gOIhw4o4i:
+    case mkldnn_gOIhw4o4i_s8s8:
     case mkldnn_gOIhw8o8i:
     case mkldnn_gOIhw16o16i:
     case mkldnn_gIOhw16o16i:
@@ -470,11 +486,16 @@ mkldnn_primitive_attr_t create_mkldnn_attr(const attr_t &attr, int scale_cnt,
 
 mkldnn_memory_format_t get_default_format(int ndims, data_kind_t kind) {
     switch(kind) {
+    case BIA: return mkldnn_x;
+    case SRC:
+    case DST:
     case DATA: return (ndims == 5)
         ? mkldnn_ncdhw
         : (ndims == 4)
         ? mkldnn_nchw
-        : mkldnn_ncw;
+        : (ndims == 3)
+        ? mkldnn_ncw
+        : mkldnn_nc;
     case GWEI: return (ndims == 6)
         ? mkldnn_goidhw
         : (ndims == 5)
@@ -489,4 +510,45 @@ mkldnn_memory_format_t get_default_format(int ndims, data_kind_t kind) {
         assert(!"unknown kind");
     }
     return mkldnn_format_undef;
+}
+
+void maybe_scale(float &d, float *scales, int oc, const attr_t &attr) {
+    if (!attr.oscale.is_def()) {
+        using policy_t = attr_t::scale_t::policy_t;
+        const auto &s = attr.oscale;
+        if (s.policy == policy_t::COMMON) {
+            d *= s.scale;
+        } else {
+            d *= scales[oc];
+        }
+    }
+}
+
+void maybe_post_ops(float &d, float dst, const attr_t &attr) {
+    using namespace mkldnn::impl::math;
+
+    const auto &ops = attr.post_ops;
+    for (int idx = 0; idx < ops.len; ++idx) {
+        using pk = attr_t::post_ops_t::kind_t;
+        const auto &e = ops.entry[idx];
+
+        const auto &s = e.eltwise.scale;
+        const auto &a = e.eltwise.alpha;
+        const auto &b = e.eltwise.beta;
+
+        switch (e.kind) {
+        case pk::SUM: d += e.sum.scale * dst; break;
+        case pk::RELU: d = s * relu_fwd(d, a); break;
+        case pk::TANH: d = s * tanh_fwd(d); break;
+        case pk::ELU: d = s * elu_fwd(d, a); break;
+        case pk::SQUARE: d = s * square_fwd(d); break;
+        case pk::ABS: d = s * abs_fwd(d); break;
+        case pk::SQRT: d = s * sqrt_fwd(d); break;
+        case pk::LINEAR: d = s * linear_fwd(d, a, b); break;
+        case pk::BRELU: d = s * bounded_relu_fwd(d, a); break;
+        case pk::SRELU: d = s * soft_relu_fwd(d); break;
+        case pk::LOGISTIC: d = s * logistic_fwd(d); break;
+        default: assert(!"unknown attr::post_ops::kind");
+        }
+    }
 }

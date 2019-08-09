@@ -15,6 +15,8 @@
 #include <iostream>
 #include <sys/stat.h>
 
+#include <samples/slog.hpp>
+
 #ifdef _WIN32
 #include <os/windows/w_dirent.h>
 #else

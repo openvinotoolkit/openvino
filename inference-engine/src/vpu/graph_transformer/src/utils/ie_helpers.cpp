@@ -11,11 +11,14 @@
 
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/numeric.hpp>
+#include <vpu/compile_env.hpp>
 
 namespace vpu {
 
 ie::Blob::Ptr getBlobFP16(const ie::Blob::Ptr& in) {
     VPU_PROFILE(getBlobFP16);
+
+    const auto& env = CompileEnv::get();
 
     auto inDesc = in->getTensorDesc();
 
@@ -24,7 +27,7 @@ ie::Blob::Ptr getBlobFP16(const ie::Blob::Ptr& in) {
     if (precision == ie::Precision::FP16)
         return in;
 
-    if (precision != ie::Precision::FP32) {
+    if (precision != ie::Precision::FP32 || !env.config.allowFP32Models) {
         VPU_THROW_EXCEPTION << "Unsupported precision " << precision.name();
     }
 

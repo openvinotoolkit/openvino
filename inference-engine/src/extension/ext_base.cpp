@@ -59,10 +59,10 @@ void ExtLayerBase::addConfig(const CNNLayer* layer, std::vector<DataConfigurator
     LayerConfig config;
 
     if (in_l.size() != layer->insData.size())
-        THROW_IE_EXCEPTION << "Incorrect number of input edges. Expected " << layer->insData.size()
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << layer->name << ". Expected " << layer->insData.size()
                            << " but layout specification provided for " << in_l.size();
     if (out_l.size() != layer->outData.size())
-        THROW_IE_EXCEPTION << "Incorrect number of input edges. Expected " << layer->outData.size()
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << layer->name << ". Expected " << layer->outData.size()
                            << " but layout specification provided for " << out_l.size();
 
     // Fill tensor parameters into config

@@ -18,17 +18,13 @@
 
 #include "lookup_table_kernel_base.h"
 
-namespace kernel_selector
-{
-    class LookUpTableKernelAxis : public LookUpTableKernelBase
-    {
-    public:
-        LookUpTableKernelAxis() : LookUpTableKernelBase("lookup_table_axis") {}
-        virtual ~LookUpTableKernelAxis() {}
+namespace kernel_selector {
+class LookUpTableKernelAxis : public LookUpTableKernelBase {
+public:
+    LookUpTableKernelAxis() : LookUpTableKernelBase("lookup_table_axis") {}
+    virtual ~LookUpTableKernelAxis() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

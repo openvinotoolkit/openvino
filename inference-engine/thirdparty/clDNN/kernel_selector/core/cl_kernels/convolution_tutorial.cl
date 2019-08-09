@@ -98,7 +98,7 @@ KERNEL(convolution_tutorial)(
     
     const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;    // calculating output split offset
     const uint dst_index = GET_DATA_INDEX(OUTPUT, b, f, y, x) + out_split_offset;           // helper macro to calculate output index
-    output[dst_index] = ACTIVATION(dotProd, NL_M, NL_N);                                    // run activation functions (RelU in most cases) and set output
+    output[dst_index] = ACTIVATION(dotProd, ACTIVATION_PARAMS);                                    // run activation functions (RelU in most cases) and set output
 }
 
 #else

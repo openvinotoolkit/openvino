@@ -19,8 +19,7 @@
 #include "../C/average_unpooling.h"
 #include "primitive.hpp"
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -31,8 +30,7 @@ namespace cldnn
 /// @brief Performs "average_unpooling" operation.
 /// @details Reverse operation of average pooling.
 /// Each element in every pooling window is filled with output / window size value. In case of window overlap the elements are added.
-struct average_unpooling : public primitive_base<average_unpooling, CLDNN_PRIMITIVE_DESC(average_unpooling)>
-{
+struct average_unpooling : public primitive_base<average_unpooling, CLDNN_PRIMITIVE_DESC(average_unpooling)> {
     CLDNN_DECLARE_PRIMITIVE(average_unpooling)
 
     /// @brief Constructs average_unpooling primitive.
@@ -47,21 +45,12 @@ struct average_unpooling : public primitive_base<average_unpooling, CLDNN_PRIMIT
         const tensor output_size,
         const tensor& size,
         const tensor& stride,
-        const padding& output_padding = padding()
-    )
-        : primitive_base(id, { input }, output_padding)
-        , stride(stride)
-        , size(size)
-        , output_size(output_size)
-    {}
+        const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding), stride(stride), size(size), output_size(output_size) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{average_unpooling}
     average_unpooling(const dto* dto)
-        : primitive_base(dto)
-        , stride(dto->stride)
-        , size(dto->size)
-        , output_size(dto->output_size)
-    {}
+        : primitive_base(dto), stride(dto->stride), size(dto->size), output_size(dto->output_size) {}
 
     /// @brief Defines shift in output buffer.
     tensor stride;
@@ -71,9 +60,7 @@ struct average_unpooling : public primitive_base<average_unpooling, CLDNN_PRIMIT
     tensor output_size;
 
 protected:
-
-    void update_dto(dto& dto) const override
-    {
+    void update_dto(dto& dto) const override {
         dto.stride = stride;
         dto.size = size;
         dto.output_size = output_size;
@@ -82,4 +69,4 @@ protected:
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

@@ -16,6 +16,7 @@ limitations under the License.
 
 from .dummy_launcher import DummyLauncher
 from .launcher import Launcher, create_launcher, unsupported_launcher
+from .input_feeder import InputFeeder
 
 try:
     from .caffe_launcher import CaffeLauncher
@@ -31,4 +32,4 @@ except ImportError as import_error:
         'dlsdk', "IE Python isn't installed. Please, install it before using. \n{}".format(import_error.msg)
     )
 
-__all__ = ['create_launcher', 'Launcher', 'CaffeLauncher', 'DLSDKLauncher', 'DummyLauncher']
+__all__ = ['create_launcher', 'Launcher', 'CaffeLauncher', 'DLSDKLauncher', 'DummyLauncher', 'InputFeeder']

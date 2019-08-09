@@ -13,9 +13,7 @@
 // limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef INDEX_SELECT_H
-#define INDEX_SELECT_H
-
+#pragma once
 #include "cldnn.h"
 
 #include <stdbool.h>
@@ -33,7 +31,7 @@ extern "C" {
 
 /// @brief Select index, which will be copied to the output..
 ///
-/// @details Applies index selecting along specified dimension. The indices, which will be copied are specifed by 
+/// @details Applies index selecting along specified dimension. The indices, which will be copied are specifed by
 ///          by @c indices.
 /// @n
 /// @n Example:
@@ -41,7 +39,7 @@ extern "C" {
 /// @n      <tt>input_values = (a, b, c, d)</tt>
 /// @n      <tt>               (e, f, g, h)</tt>
 /// @n      <tt>indices_sizes  = (1, 1, 6, 1)</tt>
-/// @n      <tt>indices_values = {0, 0, 1, 1, 3, 3}</tt>                  
+/// @n      <tt>indices_values = {0, 0, 1, 1, 3, 3}</tt>
 /// @n  For axis: along_x:
 /// @n      <tt>output_sizes  = (1, 2, 6, 2)</tt>
 /// @n      <tt>output_values = (a, a, b, b, d, d)</tt>
@@ -52,7 +50,7 @@ extern "C" {
 /// @n@b Requirements:
 /// @n - @c input must be a valid primitive_id, which output's format is bfyx/yxfb;
 /// @n - @c indices must be a valid primitive_id, which output's layout is: (bfyx/yxfb, i32, {1, 1, indicies_size, 1})
-/// @n - @c axis - valid index_select_axis_name instance. 
+/// @n - @c axis - valid index_select_axis_name instance.
 /// @n Breaking any of this conditions will cause exeption throw.
 CLDNN_BEGIN_PRIMITIVE_DESC(index_select)
 
@@ -65,7 +63,6 @@ bool reverse;
 
 CLDNN_END_PRIMITIVE_DESC(index_select)
 
-
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(index_select);
 
 #ifdef __cplusplus
@@ -75,4 +72,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(index_select);
 /// @}
 /// @}
 /// @}
-#endif // INDEX_SELECT_H
+

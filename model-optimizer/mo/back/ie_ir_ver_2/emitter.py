@@ -42,6 +42,17 @@ def serialize_constants(graph: Graph, bin_file_name:str, data_type=np.float32):
         serialize_constants_recursively(graph, bin_file, data_type, bin_hashes)
 
 
+def update_offset_size_in_const_node(node: Node):
+    assert node.kind == 'data'
+    for consumer in node.out_nodes():
+        if consumer.type != 'Const':
+            continue
+        assert not consumer.has_valid('offset')
+        assert not consumer.has_valid('size')
+        consumer['offset'] = node.offset
+        consumer['size'] = node.size
+
+
 def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashes):
     nodes = sorted(graph.nodes())
     for node in nodes:
@@ -54,6 +65,8 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
             if blob_hash in bin_hashes and np.array_equal(blob, bin_hashes[blob_hash]['blob']):
                 graph.node[node.node]['offset'] = bin_hashes[blob_hash]['offset']
                 graph.node[node.node]['size'] = bin_hashes[blob_hash]['size']
+                if graph.graph['cmd_params'].generate_experimental_IR_V10:
+                    update_offset_size_in_const_node(node)
             else:
                 start = bin_file.tell()
                 blob.tofile(bin_file)
@@ -64,6 +77,8 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
 
                 bin_hashes[blob_hash] = {'offset': graph.node[node.node]['offset'],
                                          'size': graph.node[node.node]['size'], 'blob': blob}
+                if graph.graph['cmd_params'].generate_experimental_IR_V10:
+                    update_offset_size_in_const_node(node)
 
                 assert (blob.dtype.itemsize * np.prod(node.shape) == end - start)
 
@@ -99,8 +114,8 @@ def serialize_mean_image(bin_file_name: str, mean_data=[]):
 def xml_shape(shape: np.ndarray, element: Element):
     for d in shape:
         dim = SubElement(element, 'dim')
-        if d <= 0:
-            raise Error('The value "{}" for shape is less or equal to 0. May be the input shape of the topology is '
+        if d < 0:
+            raise Error('The value "{}" for shape is less 0. May be the input shape of the topology is '
                         'wrong.'.format(d))
         if int(d) != d:
             raise Error('The value "{}" for shape is not integer.'.format(d))
@@ -151,7 +166,7 @@ def xml_ports(node: Node, element: Element, edges: Element):
 def xml_consts(graph: Graph, node: Node, element: Element):
     blobs = None  # sub-element that will be created on-demand
     for u, d in node.get_sorted_inputs():
-        if 'bin' in d:
+        if 'bin' in d and (node.type != 'Const' or not graph.graph['cmd_params'].generate_experimental_IR_V10):
             if not blobs:
                 blobs = SubElement(element, 'blobs')
             const = SubElement(blobs, d['bin'])
@@ -333,10 +348,10 @@ def serialize_network(graph, net_element, unsupported):
     nodes = sorted(graph.nodes())
     for node in nodes:
         node = Node(graph, node)
-        if not node.has('IE'):
-            continue
         if node.kind == 'op' and (not node.has('type') or node.type is None):
             unsupported.add(node)
+            continue
+        if not node.has('IE'):
             continue
         try:
             serialize_node_attributes(graph, node, node.IE, layers, edges, unsupported)

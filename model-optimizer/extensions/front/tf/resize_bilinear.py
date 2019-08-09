@@ -13,7 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.interp import InterpOp
+from extensions.ops.interpolate import Interpolate
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -24,9 +25,11 @@ class ResizeBilinearFrontExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
         mapping_rule = {
-            'pad_end': 0,
-            'pad_beg': 0,
-            'align_corners': int(node.pb.attr['align_corners'].b)
+            'pads_begin': 0,
+            'pads_end': 0,
+            'align_corners': int(node.pb.attr['align_corners'].b),
+            'mode': 'linear',
+            'axes': int64_array([1, 2]),
         }
-        InterpOp.update_node_stat(node, mapping_rule)
+        Interpolate.update_node_stat(node, mapping_rule)
         return __class__.enabled

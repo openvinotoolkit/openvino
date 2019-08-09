@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 
 from extensions.middle.EltwiseInputNormalization import EltwiseInputNormalize
-from extensions.middle.EltwiseInputReshape import EltwiseInputReshape
+from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.passes.eliminate_test import build_graph
 from mo.middle.passes.fusing.fuse_linear_ops_test import compare_graphs
 
@@ -27,7 +27,7 @@ from mo.middle.passes.fusing.fuse_linear_ops_test import compare_graphs
 # dictionary with node attributes.
 nodes_attributes = {
     # Placeholder layers
-    'placeholder_1': {'value': None, 'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'value': None, 'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
@@ -36,21 +36,25 @@ nodes_attributes = {
     # Reshape layers
     'reshape_1': {'type': 'Reshape', 'value': None, 'kind': 'op', 'op': 'Reshape'},
     'reshape_1_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'reshape_1_const': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': None},
+    'reshape_1_const_data': {'kind': 'data', 'value': None, 'shape': None},
 
     'reshape_2': {'type': 'Reshape', 'value': None, 'kind': 'op', 'op': 'Reshape'},
     'reshape_2_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'reshape_2_const': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': None},
+    'reshape_2_const_data': {'kind': 'data', 'value': None, 'shape': None},
 
     # Eltwise consumes layers
-    'eltwise_1': {'type': 'Eltwise', 'value': None, 'kind': 'op', 'op': 'Eltwise'},
+    'eltwise_1': {'kind': 'op', 'is_eltwise': True},
     'eltwise_1_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'eltwise_2': {'type': 'Eltwise', 'value': None, 'kind': 'op', 'op': 'Eltwise'},
+    'eltwise_2': {'kind': 'op', 'is_eltwise': True},
     'eltwise_2_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'eltwise_3': {'type': 'Eltwise', 'value': None, 'kind': 'op', 'op': 'Eltwise'},
+    'eltwise_3': {'kind': 'op', 'is_eltwise': True},
     'eltwise_3_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'eltwise_4': {'type': 'Eltwise', 'value': None, 'kind': 'op', 'op': 'Eltwise'},
+    'eltwise_4': {'kind': 'op', 'is_eltwise': True},
     'eltwise_4_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     # Concat
@@ -80,7 +84,11 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1_data', 'eltwise_1'),
                                  ('placeholder_2_data', 'reshape_1'),
+                                 ('reshape_1_const', 'reshape_1_const_data'),
+                                 ('reshape_1_const_data', 'reshape_1'),
                                  ('placeholder_3_data', 'reshape_2'),
+                                 ('reshape_2_const', 'reshape_2_const_data'),
+                                 ('reshape_2_const_data', 'reshape_2'),
                                  ('reshape_1', 'reshape_1_data'),
                                  ('reshape_2', 'reshape_2_data'),
                                  ('reshape_1_data', 'eltwise_1'),
@@ -88,9 +96,13 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
                                  ('eltwise_1', 'eltwise_1_data')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 3, 64, 64])},
-                                 'reshape_1': {'dim': np.array([1, 1, 64, 1])},
+                                 'reshape_1_const': {'value': int64_array([1, 1, 64, 1]), 'shape': int64_array([4])},
+                                 'reshape_1_const_data': {'value': int64_array([1, 1, 64, 1]),
+                                                          'shape': int64_array([4])},
                                  'reshape_1_data': {'shape': np.array([1, 1, 64, 1])},
-                                 'reshape_2': {'dim': np.array([1, 1, 64, 1])},
+                                 'reshape_2_const': {'value': int64_array([1, 1, 64, 1]), 'shape': int64_array([4])},
+                                 'reshape_2_const_data': {'value': int64_array([1, 1, 64, 1]),
+                                                          'shape': int64_array([4])},
                                  'reshape_2_data': {'shape': np.array([1, 1, 64, 1])},
                                  'eltwise_1_data': {'shape': np.array([1, 3, 64, 64])}
                                  }, nodes_with_edges_only=True)
@@ -144,35 +156,40 @@ class EltwiseInputNormalizationTest(unittest.TestCase):
                              }, nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
-                            [('placeholder_1_data', 'eltwise_1'),
-                             ('placeholder_2_data', 'eltwise_1'),
-                             ('eltwise_1', 'eltwise_1_data'),
-                             ('eltwise_1_data', 'eltwise_2'),
-                             ('placeholder_4_data', 'eltwise_3'),
-                             ('placeholder_3_data', 'eltwise_3'),
-                             ('eltwise_3', 'eltwise_3_data'),
-                             ('eltwise_3_data', 'reshape_1'),
-                             ('reshape_1', 'reshape_1_data'),
-                             ('reshape_1_data', 'eltwise_2'),
-                             ('eltwise_2', 'eltwise_2_data'),
-                             ('eltwise_2_data', 'eltwise_4'),
-                             ('placeholder_2_data', 'eltwise_4'),
-                             ('eltwise_4', 'eltwise_4_data'),
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 3, 64, 64])},
-                             'placeholder_2_data': {'shape': np.array([1, 1, 64, 1]), 'value': np.ones([1, 1, 64, 1])},
-                             'placeholder_3_data': {'shape': np.array([64, 1])},
-                             'placeholder_4_data': {'shape': np.array([64, 1]), 'value': np.ones([64, 1])},
-                             'reshape_1': {'dim': np.array([1,1,64,1])},
-                             'reshape_1_data': {'shape': np.array([1,1,64,1])},
-                             'eltwise_1_data': {'shape': np.array([1, 3, 64, 64])},
-                             'eltwise_2_data': {'shape': np.array([1, 3, 64, 64])},
-                             'eltwise_3_data': {'shape': np.array([64, 1])},
-                             'eltwise_4_data': {'shape': np.array([1, 3, 64, 64])}
-                             }, nodes_with_edges_only=True)
+                                [('placeholder_1_data', 'eltwise_1'),
+                                 ('placeholder_2_data', 'eltwise_1'),
+                                 ('eltwise_1', 'eltwise_1_data'),
+                                 ('eltwise_1_data', 'eltwise_2'),
+                                 ('placeholder_4_data', 'eltwise_3'),
+                                 ('placeholder_3_data', 'eltwise_3'),
+                                 ('eltwise_3', 'eltwise_3_data'),
+                                 ('eltwise_3_data', 'reshape_1'),
+                                 ('reshape_1_const', 'reshape_1_const_data'),
+                                 ('reshape_1_const_data', 'reshape_1'),
+                                 ('reshape_1', 'reshape_1_data'),
+                                 ('reshape_1_data', 'eltwise_2'),
+                                 ('eltwise_2', 'eltwise_2_data'),
+                                 ('eltwise_2_data', 'eltwise_4'),
+                                 ('placeholder_2_data', 'eltwise_4'),
+                                 ('eltwise_4', 'eltwise_4_data'),
+                                 ],
+                                {'placeholder_1_data': {'shape': np.array([1, 3, 64, 64])},
+                                 'placeholder_2_data': {'shape': np.array([1, 1, 64, 1]),
+                                                        'value': np.ones([1, 1, 64, 1])},
+                                 'placeholder_3_data': {'shape': np.array([64, 1])},
+                                 'placeholder_4_data': {'shape': np.array([64, 1]), 'value': np.ones([64, 1])},
+                                 'reshape_1_const': {'value': int64_array([1, 1, 64, 1]), 'shape': int64_array([4])},
+                                 'reshape_1_const_data': {'value': int64_array([1, 1, 64, 1]),
+                                                          'shape': int64_array([4])},
+                                 'reshape_1_data': {'shape': np.array([1, 1, 64, 1])},
+                                 'eltwise_1_data': {'shape': np.array([1, 3, 64, 64])},
+                                 'eltwise_2_data': {'shape': np.array([1, 3, 64, 64])},
+                                 'eltwise_3_data': {'shape': np.array([64, 1])},
+                                 'eltwise_4_data': {'shape': np.array([1, 3, 64, 64])}
+                                 }, nodes_with_edges_only=True)
 
         pattern = EltwiseInputNormalize()
         pattern.find_and_replace_pattern(graph)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'eltwise_1', check_op_attrs=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'eltwise_4', check_op_attrs=True)
         self.assertTrue(flag, resp)

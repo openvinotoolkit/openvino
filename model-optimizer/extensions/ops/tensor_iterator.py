@@ -14,15 +14,9 @@
  limitations under the License.
 """
 
-import logging as log
-
-import networkx as nx
-import numpy as np
-
-from mo.utils.error import Error
 from mo.graph.graph import Node, dict_includes, Graph
 from mo.ops.op import Op
-from mo.utils.utils import refer_to_faq_msg
+from mo.utils.error import Error
 
 
 class TensorIterator(Op):
@@ -147,3 +141,40 @@ class TensorIterator(Op):
         return
         raise Error('TensorIterator.infer is not implemented. '
             'Do not insert TensorIterator before middle-end in Model Optimizer')
+
+
+# Some utils for TI
+def _get_internal_idxs_to_names_dict(graph: Graph, ports_type='in'):
+    """
+    Create mapping from (internal_layer_id, internal_port_id) to layer id in body of TensorIterator.
+    """
+    mapping = {}
+    ordered_nodes = graph.pseudo_topological_sort()
+    for node in ordered_nodes:
+        if node.kind == 'op' and node.has_valid('internal_layer_id'):
+            edges = node.out_edges() if ports_type == 'out' else node.in_edges()
+            for port in edges:
+                if 'internal_port_id' in edges[port]:
+                    internal_port = edges[port]['internal_port_id']
+                    mapping[(node.internal_layer_id, internal_port)] = node.out_node(port).id if ports_type == 'out'\
+                        else node.in_node(port).id
+
+    return mapping
+
+
+def _get_internal_output_node_id(graph: Graph, ti_node_id: str, external_port: int):
+    node = Node(graph, ti_node_id)
+    outputs = node['output_port_map']
+    mapping = _get_internal_idxs_to_names_dict(node['body'], 'out')
+    for out in outputs:
+        if out['external_port_id'] == external_port:
+            return mapping[(out['internal_layer_id'], out['internal_port_id'])]
+
+
+def _get_internal_input_node_id(graph: Graph, ti_node_id: str, external_port: int):
+    node = Node(graph, ti_node_id)
+    inputs = node['input_port_map']
+    mapping = _get_internal_idxs_to_names_dict(node['body'], 'in')
+    for inp in inputs:
+        if inp['external_port_id'] == external_port:
+            return mapping[(inp['internal_layer_id'], inp['internal_port_id'])]

@@ -1,0 +1,241 @@
+﻿// Copyright (c) 2019 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+#include <iostream>
+#include "binary_convolution_kernel_generic.h"
+#include <string>
+
+namespace kernel_selector {
+
+static const int sub_group_size = 16;
+static const int ic_pack_size = 32;
+static const int x_block_size = 16;
+
+ParamsKey BinaryConvolutionKernelGeneric::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::BINARY);
+    k.EnableInputWeightsType(WeightsType::BINARY);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT32);
+    k.EnableOutputDataType(Datatype::BINARY);
+    k.EnableInputLayout(DataLayout::b_fs_yx_32fp);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_32fp);
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableNonBiasTerm();
+    k.EnableBatching();
+    k.EnableDifferentTypes();
+    return k;
+}
+
+BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelGeneric::SetDefault(
+    const binary_convolution_params& params,
+    int) const {
+    DispatchData kd = BinaryConvolutionKernelBase::SetDefault(params);
+
+    const auto& out = params.output;
+
+    auto x = out.X().v;
+    auto y = out.Y().v;
+    auto f = out.Feature().v;
+    auto b = out.Batch().v;
+
+    kd.gws0 = Align(x, sub_group_size) * y;
+    kd.gws1 = CeilDiv(f, 2 * sub_group_size);  // 1 WI calc 2 OC x 16 X
+    kd.gws2 = b;
+
+    kd.lws0 = sub_group_size;
+    kd.lws1 = 1;
+    kd.lws2 = 1;
+
+    kd.effiency = FORCE_PRIORITY_2;
+
+    return kd;
+}
+
+bool BinaryConvolutionKernelGeneric::Validate(const Params& p, const optional_params& o) const {
+    if (!BinaryConvolutionKernelBase::Validate(p, o) || !CovolutionBinaryCheckInput(p, o))
+        return false;
+
+    const auto& params = static_cast<const binary_convolution_params&>(p);
+
+    if (params.split > 1 || params.groups > 1 || params.depthwise_separable_opt)
+        return false;
+
+    return true;
+}
+
+JitConstants BinaryConvolutionKernelGeneric::GetJitConstants(const binary_convolution_params& params,
+                                                             const DispatchData& runInfo) const {
+    auto jit = Parent::GetJitConstants(params, runInfo);
+
+    auto input = params.inputs[0];
+    auto output = params.output;
+    size_t input_line_size = params.stride.x * (x_block_size - 1) + params.weights.X().v;
+
+    int pad_physical_val = params.pad_value == -1.0f ? 0x00000000 : 0xFFFFFFFF;
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
+    jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_NUM_PACKED", CeilDiv(params.inputs[0].Feature().v, ic_pack_size)));
+    jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_NUM_PACKED", CeilDiv(params.output.Feature().v, ic_pack_size)));
+    jit.AddConstant(MakeJitConstant("PAD_VALUE", pad_physical_val));
+    jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", x_block_size));
+    jit.AddConstant(MakeJitConstant("INPUT_ELEMENTS_PER_WI", CeilDiv(input_line_size, sub_group_size)));
+    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(output.X().v, x_block_size)));
+    jit.AddConstant(MakeJitConstant("EXCLUDE_PAD", params.pad_value == 0.0f));
+    if (params.inputs[0].Feature().v % ic_pack_size) {
+        jit.AddConstant(MakeJitConstant("LEFTOVERS_IC", params.inputs[0].Feature().v % ic_pack_size));
+        jit.AddConstant(MakeJitConstant("FILTER_MASK",
+                                        (0xFFFFFFFF >> (ic_pack_size - params.inputs[0].Feature().v % ic_pack_size))));
+    }
+
+    if (params.output.GetDType() == Datatype::BINARY) {
+        jit.AddConstant(MakeJitConstant("BINARY_PACKED_OUTPUT", 1));
+    }
+
+    return jit;
+}
+
+JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(const binary_convolution_params& params,
+                                                                            const DispatchData& /*kd*/) const {
+    JitConstants jit = {};
+
+    size_t op_id = 0;
+    std::string input_decls = "";
+    std::string eltwise_fused_ops = "";
+    std::string channel_pack_fused_ops = "";
+    std::string prepare_data = "";
+    for (auto& fused_dep : params.fused_ops) {
+        auto get_aligned_load2 = [&](std::string ptr, std::string byte_offset) -> std::string {
+            if (fused_dep.tensors[0].GetDType() == Datatype::F32)
+                return "(intel_sub_group_block_read2((const __global uint*)(" + ptr + ") + (" + byte_offset + ")))";
+            else
+                return "(intel_sub_group_block_read_us2((const __global ushort*)(" + ptr + ") + (" + byte_offset +
+                       ")))";
+        };
+
+        std::string op_type = "";
+        std::string op_prefix = "FUSED_OP_" + std::to_string(op_id) + "_INPUT";
+        switch (fused_dep.type) {
+            case binary_convolution_params::fused_operation_desc::Type::SCALE: {
+                op_type = "scale";
+                std::string data_type = op_prefix + "0_TYPE";
+                std::string vec_data_type = "MAKE_VECTOR_TYPE(" + data_type + ", 2)";
+                std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
+
+                if (fused_dep.tensors.size() == 1) {
+                    std::string var_name = op_type + std::to_string(op_id) + "_scales";
+                    prepare_data += vec_data_type + var_name + cast_type +
+                                    get_aligned_load2(op_type + "_input0", "f_block*OC_BLOCK_SIZE") + ";";
+                    eltwise_fused_ops += data_type + " sc = (i < 16) ? " + var_name + ".s0" + " : " + var_name + ".s1;";
+                    eltwise_fused_ops += "res = res*sc;";
+                } else {
+                    std::string var0_name = op_type + std::to_string(op_id) + "_scales";
+                    std::string var1_name = op_type + std::to_string(op_id) + "_shifts";
+                    prepare_data += vec_data_type + " " + var0_name + " = " + cast_type +
+                                    get_aligned_load2(op_type + "_input0", "f_block*OC_BLOCK_SIZE") + ";";
+                    prepare_data += vec_data_type + " " + var1_name + " = " + cast_type +
+                                    get_aligned_load2(op_type + "_input1", "f_block*OC_BLOCK_SIZE") + ";";
+                    eltwise_fused_ops +=
+                        data_type + " sc = (i < 16) ? " + var0_name + ".s0" + " : " + var0_name + ".s1;";
+                    eltwise_fused_ops +=
+                        data_type + " sh = (i < 16) ? " + var1_name + ".s0" + " : " + var1_name + ".s1;";
+                    eltwise_fused_ops += "res = res*sc + sh;";
+                }
+                break;
+            }
+            case binary_convolution_params::fused_operation_desc::Type::QUANTIZE: {
+                op_type = "quantize";
+                std::string data_type = op_prefix + "0_TYPE";
+                std::string vec_data_type = "MAKE_VECTOR_TYPE(" + data_type + ", 2)";
+                std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
+
+                std::string var_name_in = op_type + std::to_string(op_id) + "_threshold";
+                std::string var_name_out = op_type + std::to_string(op_id) + "_out_val";
+                prepare_data += vec_data_type + " " + var_name_in + " = " + cast_type +
+                                get_aligned_load2(op_type + "_input0", "f_block*OC_BLOCK_SIZE") + ";";
+                if (fused_dep.tensors[2].Feature().v == params.output.Feature().v) {
+                    std::string cast_type_out = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
+                    prepare_data += vec_data_type + " " + var_name_out + " = " + cast_type_out +
+                                    get_aligned_load2(op_type + "_input3", "f_block*OC_BLOCK_SIZE") + ";";
+                } else {
+                    std::string cast_type_out = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float" : "as_half";
+                    prepare_data += vec_data_type + " " + var_name_out + " = " + cast_type_out +
+                                    "(" + op_type + "_input3[0]);";
+                }
+
+                channel_pack_fused_ops += "for (int i = 0; i < 16; i++) {";
+                if (fused_dep.tensors[2].Feature().v == params.output.Feature().v) {
+                    channel_pack_fused_ops += "if ("+ var_name_out+ ".s0 == UNIT_VAL_ONE) ";
+                    channel_pack_fused_ops += "int ch0 = dst[0*SUB_GROUP_SIZE + i] > " + var_name_in + ".s0 ? (1 << lid) : 0;";
+                    channel_pack_fused_ops += "else ";
+                    channel_pack_fused_ops += "int ch0 = dst[0*SUB_GROUP_SIZE + i] <= " + var_name_in + ".s0 ? (1 << lid) : 0;";
+                    channel_pack_fused_ops += "if ("+ var_name_out+ ".s1 == UNIT_VAL_ONE) ";
+                    channel_pack_fused_ops += "int ch1 = dst[1*SUB_GROUP_SIZE + i] > " + var_name_in + ".s1 ? "
+                                                         "(1 << (SUB_GROUP_SIZE + lid)) : 0;";
+                    channel_pack_fused_ops += "else ";
+                    channel_pack_fused_ops += "int ch1 = dst[1*SUB_GROUP_SIZE + i] <= " + var_name_in + ".s1 ? "
+                                                         "(1 << (SUB_GROUP_SIZE + lid)) : 0;";
+                } else {
+                    channel_pack_fused_ops += "if ("+ var_name_out+ " == UNIT_VAL_ONE) {";
+                    channel_pack_fused_ops += "int ch0 = dst[0*SUB_GROUP_SIZE + i] > " + var_name_in + ".s0 ? (1 << lid) : 0;";
+                    channel_pack_fused_ops += "int ch1 = dst[1*SUB_GROUP_SIZE + i] > " + var_name_in + ".s1 ? "
+                                                         "(1 << (SUB_GROUP_SIZE + lid)) : 0;";
+                    channel_pack_fused_ops += "} else {";
+                    channel_pack_fused_ops += "int ch0 = dst[0*SUB_GROUP_SIZE + i] > " + var_name_in + ".s0 ? (1 << lid) : 0;";
+                    channel_pack_fused_ops += "int ch1 = dst[1*SUB_GROUP_SIZE + i] > " + var_name_in + ".s1 ? "
+                                                                                                       "(1 << (SUB_GROUP_SIZE + lid)) : 0;";
+                    channel_pack_fused_ops += "}";
+                }
+                channel_pack_fused_ops += "int packed = ch0 + ch1;";
+                channel_pack_fused_ops += "packed_out[i] = sub_group_reduce_add(packed);";
+                channel_pack_fused_ops += "}";
+
+                break;
+            }
+            default:
+                throw std::invalid_argument("Invalid fused op in binary_convolution kernel: " + params.layerID);
+        }
+
+        for (size_t op_input_id = 0; op_input_id < fused_dep.tensors.size(); op_input_id++) {
+            std::string name = op_prefix + std::to_string(op_input_id);
+            jit.AddConstant(MakeJitConstant(name, fused_dep.tensors[op_input_id]));
+            input_decls += "const __global " + toCLType(fused_dep.tensors[op_input_id].GetDType()) + "* " + op_type +
+                           "_input" + std::to_string(op_input_id) + ",";
+        }
+
+        if (fused_dep.activation.function != ActivationFunction::NONE) {
+            std::string temp_op_type = op_type;
+            for (auto& ch : temp_op_type) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+            std::string suffix = "_" + temp_op_type;
+
+            jit.Merge(MakeActivationJitConstants(fused_dep.activation, suffix));
+            eltwise_fused_ops += "res = ACTIVATION" + suffix + "(res, ACTIVATION_PARAMS" + suffix + ");";
+        }
+        op_id++;
+    }
+    jit.AddConstant(MakeJitConstant("FUSED_OPS_DECLS", input_decls));
+    jit.AddConstant(MakeJitConstant("DO_ELTWISE_FUSED_OPS", eltwise_fused_ops));
+    jit.AddConstant(MakeJitConstant("DO_CHANNEL_PACK_OPS", channel_pack_fused_ops));
+    jit.AddConstant(MakeJitConstant("FUSED_OPS_PREPARE_DATA", prepare_data));
+
+    return jit;
+}
+
+KernelsData BinaryConvolutionKernelGeneric::GetKernelsData(const Params& params, const optional_params& options) const {
+    return GetTunedKernelsDataByIndex(params, options);
+}
+}  // namespace kernel_selector

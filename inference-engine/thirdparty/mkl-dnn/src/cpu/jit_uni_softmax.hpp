@@ -48,8 +48,6 @@ struct jit_uni_softmax_fwd_t : public cpu_primitive_t {
         virtual status_t init() override {
             using namespace prop_kind;
 
-            auto desired_fmt = memory_format::nchw;
-
             assert(engine()->kind() == engine_kind::cpu);
 
             auto ndims = desc_.data_desc.ndims;
@@ -57,6 +55,14 @@ struct jit_uni_softmax_fwd_t : public cpu_primitive_t {
             auto axis = desc_.softmax_axis;
 
             size_t inner_size = utils::array_product(dims + axis + 1, ndims - axis - 1);
+
+            memory_format_t desired_fmt;
+            switch (ndims) {
+                case 3: desired_fmt = memory_format::ncw; break;
+                case 4: desired_fmt = memory_format::nchw; break;
+                case 5: desired_fmt = memory_format::ncdhw; break;
+                default: return status::unimplemented;
+            }
 
             bool ok = mayiuse(isa)
                       && utils::one_of(desc()->prop_kind, forward_training,

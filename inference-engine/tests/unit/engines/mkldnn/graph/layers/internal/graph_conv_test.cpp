@@ -46,17 +46,18 @@ struct conv_test_params {
 template <typename data_t>
 void ref_conv(const TBlob<data_t> &src, const data_t *weights, const size_t weightsSize,
                 TBlob<data_t> &dst, conv_test_params prm) {
-    auto dims_size = src.dims().size();
+    SizeVector src_dims = src.getTensorDesc().getDims();
+    auto dims_size = src_dims.size();
 
     size_t KW = prm.kernel[X_AXIS];
     size_t KH = prm.kernel[Y_AXIS];
     size_t KD = dims_size == 5 ? prm.kernel[Z_AXIS] : 1u;
     size_t GC = prm.grp_c;
 
-    size_t IC = src.dims()[1];
-    size_t ID = dims_size == 5 ? src.dims()[dims_size - 3] : 1u;
-    size_t IH = src.dims()[dims_size - 2];
-    size_t IW = src.dims()[dims_size - 1];
+    size_t IC = src_dims[1];
+    size_t ID = dims_size == 5 ? src_dims[dims_size - 3] : 1u;
+    size_t IH = src_dims[dims_size - 2];
+    size_t IW = src_dims[dims_size - 1];
 
     size_t OW = (IW + 2u * prm.pads_begin[X_AXIS] - prm.kernel[X_AXIS]) / prm.strides[X_AXIS] + 1u;
     size_t OH = (IH + 2u * prm.pads_begin[Y_AXIS] - prm.kernel[Y_AXIS]) / prm.strides[Y_AXIS] + 1u;
@@ -70,9 +71,11 @@ void ref_conv(const TBlob<data_t> &src, const data_t *weights, const size_t weig
     data_t *dst_data = dst.data();
 
     IE_ASSERT(KW * KH * KD * OC * IC / GC + OC == weightsSize);
-    IE_ASSERT(OW == dst.dims()[0]);
-    IE_ASSERT(OH == dst.dims()[1]);
-    
+    SizeVector dst_dims = dst.getTensorDesc().getDims();
+    auto dst_dims_size = dst_dims.size();
+    IE_ASSERT(OW == dst_dims[dst_dims_size - 1]);
+    IE_ASSERT(OH == dst_dims[dst_dims_size - 2]);
+
     size_t SC1 = OH * OW;
     size_t SC2 = SC1 * OD;
     size_t SC3 = OC / GC;
@@ -249,11 +252,10 @@ protected:
             }
             blob_size = (blob_size + p.out_c) * sizeof(float);
             TBlob<uint8_t> *weights = new TBlob<uint8_t>
-                    (Precision::U8, C, {blob_size});
+                    ({ Precision::U8, {blob_size}, C });
             weights->allocate();
 
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
-            size_t w_buffer_len = weights->size() / sizeof(float);
 
             TBlob<uint8_t>::Ptr weights_ptr = TBlob<uint8_t>::Ptr(weights);
 
@@ -303,8 +305,8 @@ protected:
                     break;
             }
 
-            Blob::Ptr src = make_shared_blob<float, const SizeVector>
-                    (Precision::FP32, layout, p.dims);
+            Blob::Ptr src = make_shared_blob<float>
+                    ({ Precision::FP32, p.dims, layout });
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -423,8 +425,7 @@ protected:
                 blob_size *= k;
             }
             blob_size = (blob_size + p.out_c) * sizeof(float);
-            TBlob<uint8_t> *weights = new TBlob<uint8_t>(Precision::U8, C,
-                    {blob_size});
+            TBlob<uint8_t> *weights = new TBlob<uint8_t>({ Precision::U8, {blob_size}, Layout::C });
             weights->allocate();
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
             TBlob<uint8_t>::Ptr weights_ptr = TBlob<uint8_t>::Ptr(weights);
@@ -450,8 +451,7 @@ protected:
                     break;
             }
 
-            Blob::Ptr src = make_shared_blob<float, const SizeVector>
-                    (Precision::FP32, layout, dims);
+            Blob::Ptr src = make_shared_blob<float>({ Precision::FP32, dims, layout });
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -475,10 +475,7 @@ protected:
             outputBlobs[item.first] = output;
 
             auto checkConvolution = [](const MKLDNNPlugin::MKLDNNNodePtr& node) {
-                return node->getType() == MKLDNNPlugin::Convolution ||
-                       node->getType() == MKLDNNPlugin::Convolution_Activation ||
-                       node->getType() == MKLDNNPlugin::Convolution_Sum ||
-                       node->getType() == MKLDNNPlugin::Convolution_Sum_Activation;
+                return node->getType() == MKLDNNPlugin::Convolution;
             };
 
             graph.checkDynBatch(srcs, outputBlobs, dims[0], dims[0], checkConvolution, MKLDNNGraphTestClass::CheckDynBatchType::Child);

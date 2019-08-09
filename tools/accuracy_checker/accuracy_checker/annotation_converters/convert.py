@@ -22,7 +22,7 @@ from functools import partial
 import numpy as np
 
 from ..utils import get_path
-
+from ..representation import ReIdentificationClassificationAnnotation
 from .format_converter import BaseFormatConverter
 
 
@@ -50,11 +50,44 @@ def build_argparser():
 
 
 def make_subset(annotation, size, seed=666):
+    def make_subset_pairwise(annotation, size):
+        def get_pairs(pairs_list):
+            pairs_set = set()
+            for identifier in pairs_list:
+                next_annotation = next(
+                    pair_annotation for pair_annotation in annotation if pair_annotation.identifier == identifier
+                )
+                positive_pairs = get_pairs(next_annotation.positive_pairs)
+                negative_pairs = get_pairs(next_annotation.negative_pairs)
+                pairs_set.add(next_annotation)
+                pairs_set.update(positive_pairs)
+                pairs_set.update(negative_pairs)
+            return pairs_set
+
+        subsample_set = set()
+        while len(subsample_set) < size:
+            ann_ind = np.random.choice(len(annotation), 1)
+            annotation_for_subset = annotation[ann_ind[0]]
+            positive_pairs = annotation_for_subset.positive_pairs
+            negative_pairs = annotation_for_subset.negative_pairs
+            if len(positive_pairs) + len(negative_pairs) == 0:
+                continue
+            updated_pairs = set()
+            updated_pairs.add(annotation_for_subset)
+            updated_pairs.update(get_pairs(positive_pairs))
+            updated_pairs.update(get_pairs(negative_pairs))
+            subsample_set.update(updated_pairs)
+        return list(subsample_set)
+
+    np.random.seed(seed)
     dataset_size = len(annotation)
     if dataset_size < size:
-        warnings.warn('dataset size - {} less than subsample size - {}'.format(dataste_size, size))
+        warnings.warn('Dataset size {} less than subset size {}'.format(dataset_size, size))
         return annotation
-    np.random.seed(seed)
+    if isinstance(annotation[-1], ReIdentificationClassificationAnnotation):
+        return make_subset_pairwise(annotation, size)
+
+
     return list(np.random.choice(annotation, size=size, replace=False))
 
 
@@ -120,7 +153,3 @@ def get_converter_arguments(arguments):
     converter_argparser = converter.get_argparser()
     converter_options, _ = converter_argparser.parse_known_args()
     return converter, converter_argparser, converter_options
-
-
-if __name__ == '__main__':
-    main()

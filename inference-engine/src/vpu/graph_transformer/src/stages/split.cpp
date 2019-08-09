@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_set>
 #include <algorithm>
+#include <utility>
 
 namespace vpu {
 
@@ -20,50 +21,40 @@ protected:
         return std::make_shared<SplitStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>& inputScales,
+    void propagateScaleFactorsImpl(
+            const SmallVector<float>& inputScales,
             ScalePropagationStep step) override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(!_outputEdges.empty());
 
-        auto input = _inputEdges[0]->input();
-
-        DataMap<float> out;
-
         if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales.at(input);
+            auto inputScale = inputScales[0];
 
             for (const auto& outEdge : _outputEdges) {
-                out[outEdge->output()] = inputScale;
+                _scaleInfo.setOutput(outEdge, inputScale);
             }
         } else {
             // Split can only propagate scaling.
-            out[input] = 1.0f;
+            _scaleInfo.setInput(_inputEdges[0], 1.0f);
 
             for (const auto& outEdge : _outputEdges) {
-                out[outEdge->output()] = 1.0f;
+                _scaleInfo.setOutput(outEdge, 1.0f);
             }
         }
-
-        return out;
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(!_outputEdges.empty());
 
         auto input = _inputEdges[0]->input();
 
-        DataMap<DimsOrder> out;
-
         for (const auto& outEdge : _outputEdges) {
-            out[outEdge->output()] = input->desc().dimsOrder();
+            _orderInfo.setOutput(outEdge, input->desc().dimsOrder());
         }
-
-        return out;
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(!_outputEdges.empty());
 
@@ -102,12 +93,11 @@ protected:
         for (const auto& outEdge : _outputEdges) {
             auto curOutput = outEdge->output();
 
-            for (const auto& consumer : curOutput->consumers()) {
-                auto consumerInfo = consumer->getDataStridesRequirements();
+            for (const auto& consumerEdge : curOutput->consumerEdges()) {
+                const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
 
-                auto consumerStrideIt = consumerInfo.find(curOutput);
-                if (consumerStrideIt != consumerInfo.end()) {
-                    auto consumerReqs = consumerStrideIt->second;
+                if (consumerInfo.hasInput(consumerEdge)) {
+                    const auto& consumerReqs = consumerInfo.getInput(consumerEdge);
 
                     for (int i = 0; i < dimsOrder.numDims(); ++i) {
                         if (inputReqs.get(i) == DimStride::Any) {
@@ -133,22 +123,16 @@ protected:
         // Return merged StridesRequirements.
         //
 
-        DataMap<StridesRequirement> out;
-
-        out[input] = inputReqs;
+        _stridesInfo.setInput(_inputEdges[0], inputReqs);
         for (const auto& outEdge : _outputEdges) {
-            auto output = outEdge->output();
-            out[output] = outputReqs;
+            _stridesInfo.setOutput(outEdge, outputReqs);
         }
-
-        return out;
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     void finalCheckImpl() const override {
@@ -263,6 +247,7 @@ Stage StageBuilder::addSplitStage(
         const Data& input,
         const DataVector& outputs) {
     std::vector<DimValues> offsets;
+    offsets.reserve(outputs.size());
 
     DimValues curOffset({{axis, 0}});
     for (const auto& output : outputs) {
@@ -270,7 +255,7 @@ Stage StageBuilder::addSplitStage(
         curOffset.set(axis, curOffset[axis] + output->desc().dim(axis));
     }
 
-    auto stage = addSplitStage(model, name, layer, offsets, input, outputs);
+    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs);
 
     stage->attrs().set("axis", axis);
 
@@ -281,7 +266,7 @@ Stage StageBuilder::addSplitStage(
         const Model::Ptr& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
-        const std::vector<DimValues>& offsets,
+        std::vector<vpu::DimValues>&& offsets,
         const Data& input,
         const DataVector& outputs) {
     IE_ASSERT(offsets.size() == outputs.size());
@@ -293,7 +278,7 @@ Stage StageBuilder::addSplitStage(
         {input},
         outputs);
 
-    stage->attrs().set("offsets", offsets);
+    stage->attrs().set("offsets", std::move(offsets));
 
     return stage;
 }

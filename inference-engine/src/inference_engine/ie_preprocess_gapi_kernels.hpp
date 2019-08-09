@@ -4,8 +4,13 @@
 
 #pragma once
 
+# ifndef GAPI_STANDALONE
+# error non standalone GAPI
+# endif
+
 #include <tuple>
 
+#include <opencv2/gapi/opencv_includes.hpp>
 #include <opencv2/gapi.hpp>
 #include <opencv2/gapi/gmat.hpp>
 #include <opencv2/gapi/gkernel.hpp>
@@ -19,7 +24,8 @@ namespace gapi {
     using GMat4 = std::tuple<cv::GMat, cv::GMat, cv::GMat, cv::GMat>;
 
     G_TYPED_KERNEL(ChanToPlane, <cv::GMat(cv::GMat, int)>, "com.intel.ie.chan_to_plane") {
-        static cv::GMatDesc outMeta(const cv::GMatDesc &in, int) {
+        static cv::GMatDesc outMeta(const cv::GMatDesc &in, int chan) {
+            GAPI_Assert(chan < in.chan);
             return in.withType(in.depth, 1);
         }
     };
@@ -32,7 +38,13 @@ namespace gapi {
     };
 
     G_TYPED_KERNEL_M(ScalePlanes, <GMat3(cv::GMat, int, Size, Size, int)>, "com.intel.ie.scale_planes") {
-        static std::tuple<cv::GMatDesc, cv::GMatDesc, cv::GMatDesc> outMeta(const cv::GMatDesc &in, int /*type*/, const Size &szIn, const Size &szOut, int) {
+        static std::tuple<cv::GMatDesc, cv::GMatDesc, cv::GMatDesc> outMeta(const cv::GMatDesc &in, int /*type*/, const Size &szIn,
+                                                                            const Size &szOut, int interp) {
+            // This kernel supports only RGB 8U inputs
+            GAPI_Assert(in.depth == CV_8U);
+            GAPI_Assert(in.chan == 3);
+            // cv::INTER_LINEAR is the only supported interpolation
+            GAPI_Assert(interp == cv::INTER_LINEAR);
             cv::GMatDesc out_desc;
             out_desc.depth = in.depth;
             out_desc.chan  = 1;
@@ -84,6 +96,19 @@ namespace gapi {
             const auto out_depth = in.depth;
             const auto out_desc  = in.withType(out_depth, 1);
             return std::make_tuple(out_desc, out_desc, out_desc, out_desc);
+        }
+    };
+
+    G_TYPED_KERNEL(NV12toRGB, <cv::GMat(cv::GMat, cv::GMat)>, "com.intel.ie.nv12torgb") {
+        static cv::GMatDesc outMeta(cv::GMatDesc in_y, cv::GMatDesc in_uv) {
+            GAPI_Assert(in_y.chan == 1);
+            GAPI_Assert(in_uv.chan == 2);
+            GAPI_Assert(in_y.depth == CV_8U);
+            GAPI_Assert(in_uv.depth == CV_8U);
+            // UV size should be aligned with Y
+            GAPI_Assert(in_y.size.width == 2 * in_uv.size.width);
+            GAPI_Assert(in_y.size.height == 2 * in_uv.size.height);
+            return in_y.withType(CV_8U, 3);
         }
     };
 

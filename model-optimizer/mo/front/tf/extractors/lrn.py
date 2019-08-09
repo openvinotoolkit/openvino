@@ -32,11 +32,10 @@ def tf_lrn_ext(pb):
     """
 
     return {
-        'type': 'Norm',
+        'type': 'LRN',
         'alpha': pb.attr['alpha'].f * (2. * pb.attr['depth_radius'].i + 1.),
         'beta': pb.attr['beta'].f,
         'bias': pb.attr['bias'].f,
         'local_size': (2 * pb.attr['depth_radius'].i + 1),
-        'region': 'across',
         'infer': copy_shape_infer
     }

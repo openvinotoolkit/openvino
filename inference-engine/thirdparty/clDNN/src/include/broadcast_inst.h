@@ -18,29 +18,28 @@
 #include <api/CPP/broadcast.hpp>
 
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-
-namespace cldnn
-{
+namespace cldnn {
 template <>
-struct typed_program_node<broadcast> : typed_program_node_base<broadcast>
-{
+struct typed_program_node<broadcast> : typed_program_node_base<broadcast> {
 private:
     using parent = typed_program_node_base<broadcast>;
 
 public:
     using parent::parent;
 
-    typed_program_node(const std::shared_ptr<broadcast> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
+    typed_program_node(const std::shared_ptr<broadcast> prim, program_impl& prog) : parent(prim, prog) {
+        support_padding_all(true);
+    }
     program_node& input() const { return get_dependency(0); }
 };
 
 using broadcast_node = typed_program_node<broadcast>;
 
-
 template <>
-class typed_primitive_inst<broadcast> : public typed_primitive_inst_base<broadcast>
-{
+class typed_primitive_inst<broadcast> : public typed_primitive_inst_base<broadcast> {
     using parent = typed_primitive_inst_base<broadcast>;
 
 public:
@@ -50,4 +49,4 @@ public:
 };
 
 using broadcast_inst = typed_primitive_inst<broadcast>;
-}
+}  // namespace cldnn

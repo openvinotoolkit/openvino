@@ -28,6 +28,8 @@ SUPPORTED_DATA_TYPES = {
     'FP16': (np.float16, 'FP16'),
     'I32': (np.int32, 'I32'),
     'uint8': (np.uint8, 'UI8'),
+    'int32': (np.int32, 'I32'),
+    'int64': (np.int64, 'I64'),
 }
 
 
@@ -39,14 +41,19 @@ def data_type_str_to_precision(data_type_str: str):
     return SUPPORTED_DATA_TYPES[data_type_str][1] if data_type_str in SUPPORTED_DATA_TYPES else None
 
 
-def convert_blob(graph: Graph, node: Node, data_type: type):
+def convert_blob(graph: Graph, node: Node, data_type: type, force_precision: str):
     out_edges = graph.out_edges(node.node, data=True)
 
     # if the data.value is used as binary weights
     if any('bin' in d for _, __, d in out_edges):
         blob = node.value
         if blob.dtype != data_type:
-            new_blob = blob.astype(dtype=data_type, casting="same_kind")
+            # check that forcing precision to int data types does not lead to rounding
+            if force_precision is not None and force_precision in ('int32', 'int64'):
+                if not np.array_equal(blob, blob.astype(dtype=data_type, casting="unsafe")):
+                    raise Error('The conversion of blob with value "{}" to data_type "{}" results in rounding'
+                                ''.format(blob, force_precision))
+            new_blob = blob.astype(dtype=data_type, casting="unsafe")
             consumers = [x.name if x.has_valid('name') else '<NO NAME>' for x in node.out_nodes()]
             log.debug(
                 'Blob was converted to {} while dumping to the bin file. This blob is an input for {} nodes.'.format(
@@ -74,13 +81,15 @@ def convert(graph: Graph, data_type_str: str):
     for node_name, node_attrs in graph.nodes(data=True):
         node = Node(graph, node_name)
         # if the data type is forcibly set then use it
+        force_precision = None
         if node.has_valid('force_precision'):
             real_data_type_str = node_attrs['force_precision']
+            force_precision = real_data_type_str
         else:
             real_data_type_str = data_type_str
         node_attrs['precision'] = data_type_str_to_precision(real_data_type_str)
         if node.kind == 'data' and node.value is not None:
             try:
-                convert_blob(graph, node, data_type_str_to_np(real_data_type_str))
+                convert_blob(graph, node, data_type_str_to_np(real_data_type_str), force_precision)
             except Exception as e:
                 raise Error('Coudn\'t convert blob {}, details: {}', node.soft_get('name'), e) from e

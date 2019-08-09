@@ -19,17 +19,16 @@
 #include "common_kernel_base.h"
 #include "weight_bias_params.h"
 
-namespace kernel_selector
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // WeightsBiasKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class WeightBiasKernelBase : public common_kernel_base
-    {
-    public:
-        using common_kernel_base::common_kernel_base;
-        virtual ~WeightBiasKernelBase() {}
-    protected:
-        virtual JitConstants GetJitConstants(const weight_bias_params& params) const;
-    };
-}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// WeightsBiasKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class WeightBiasKernelBase : public common_kernel_base {
+public:
+    using common_kernel_base::common_kernel_base;
+    virtual ~WeightBiasKernelBase() {}
+
+protected:
+    virtual JitConstants GetJitConstants(const weight_bias_params& params) const;
+};
+}  // namespace kernel_selector

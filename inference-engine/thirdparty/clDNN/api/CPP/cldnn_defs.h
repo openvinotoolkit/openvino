@@ -140,36 +140,33 @@
 #include "../C/cldnn.h"
 
 namespace cldnn {
-    // There is no portable half precision floating point support.
-    // Using wrapped integral type with the same size and alignment restrictions.
-    class half_impl
-    {
-    public:
-        half_impl() = default;
-        template <typename T, typename = typename std::enable_if<!std::is_floating_point<T>::value>::type>
-        explicit half_impl(T data) : _data(data) {}
+// There is no portable half precision floating point support.
+// Using wrapped integral type with the same size and alignment restrictions.
+class half_impl {
+public:
+    half_impl() = default;
+    template <typename T, typename = typename std::enable_if<!std::is_floating_point<T>::value>::type>
+    explicit half_impl(T data) : _data(data) {}
 
-        operator uint16_t() const { return _data; }
-        operator float() const
-        {
-           cldnn_status status = CLDNN_SUCCESS;
-           auto value = cldnn_half_to_float(_data, &status);
-           if (status != CLDNN_SUCCESS)
-               throw std::runtime_error("Conversion from half failed");
-           return value;
-        }
-        explicit half_impl(float value)
-        {
-            cldnn_status status = CLDNN_SUCCESS;
-            _data = cldnn_float_to_half(value, &status);
-            if (status != CLDNN_SUCCESS)
-                throw std::runtime_error("Conversion to half failed");
-        }
+    operator uint16_t() const { return _data; }
+    operator float() const {
+        cldnn_status status = CLDNN_SUCCESS;
+        auto value = cldnn_half_to_float(_data, &status);
+        if (status != CLDNN_SUCCESS)
+            throw std::runtime_error("Conversion from half failed");
+        return value;
+    }
+    explicit half_impl(float value) {
+        cldnn_status status = CLDNN_SUCCESS;
+        _data = cldnn_float_to_half(value, &status);
+        if (status != CLDNN_SUCCESS)
+            throw std::runtime_error("Conversion to half failed");
+    }
 
-    private:
-        uint16_t _data;
-    };
-}
+private:
+    uint16_t _data;
+};
+}  // namespace cldnn
 // Use complete implementation if necessary.
 #if defined HALF_HALF_HPP
 typedef half half_t;
@@ -187,32 +184,27 @@ namespace cldnn {
 using status_t = ::cldnn_status;
 
 /// @brief clDNN specific exception type.
-class error : public std::runtime_error
-{
+class error : public std::runtime_error {
 public:
     explicit error(const std::string& _Message, status_t status = CLDNN_ERROR)
-        : runtime_error(_Message)
-        , _status(status)
-    {
+        : runtime_error(_Message), _status(status) {
     }
 
     explicit error(const char* _Message, status_t status = CLDNN_ERROR)
-        : runtime_error(_Message)
-        , _status(status)
-    {
+        : runtime_error(_Message), _status(status) {
     }
 
     /// @brief Returns clDNN status code.
     const status_t& status() const { return _status; }
+
 private:
     status_t _status;
 };
 
 #define CLDNN_THROW(msg, status) throw cldnn::error(msg, status);
 
-template<class T>
-T check_status(std::string err_msg, std::function<T(status_t*)> func)
-{
+template <class T>
+T check_status(std::string err_msg, std::function<T(status_t*)> func) {
     status_t status = CLDNN_SUCCESS;
     auto result = func(&status);
     if (status != CLDNN_SUCCESS)
@@ -220,9 +212,8 @@ T check_status(std::string err_msg, std::function<T(status_t*)> func)
     return result;
 }
 
-template<>
-inline void check_status<void>(std::string err_msg, std::function<void(status_t*)> func)
-{
+template <>
+inline void check_status<void>(std::string err_msg, std::function<void(status_t*)> func) {
     status_t status = CLDNN_SUCCESS;
     func(&status);
     if (status != CLDNN_SUCCESS)
@@ -237,11 +228,9 @@ inline void check_status<void>(std::string err_msg, std::function<void(status_t*
 using version_t = ::cldnn_version;
 
 /// @brief Get information about version of clDNN.
-inline version_t get_version()
-{
+inline version_t get_version() {
     return check_status<version_t>("get_version: fetching version information failed",
-                                   [](status_t* status)
-                                   {
+                                   [](status_t* status) {
                                        return ::cldnn_get_version(status);
                                    });
 }
@@ -255,20 +244,18 @@ inline version_t get_version()
 
 #define CLDNN_API_CLASS(the_class) static_assert(std::is_standard_layout<the_class>::value, #the_class " has to be 'standart layout' class");
 
-
-template<typename T>
+template <typename T>
 typename std::enable_if<std::is_integral<T>::value, T>::type align_to(T size, size_t align) {
     return static_cast<T>((size % align == 0) ? size : size - size % align + align);
 }
 
-template<typename T>
+template <typename T>
 typename std::enable_if<std::is_integral<T>::value, T>::type pad_to(T size, size_t align) {
     return static_cast<T>((size % align == 0) ? 0 : align - size % align);
 }
 
-template<typename T>
-typename std::enable_if<std::is_integral<T>::value, bool>::type is_aligned_to(T size, size_t align)
-{
+template <typename T>
+typename std::enable_if<std::is_integral<T>::value, bool>::type is_aligned_to(T size, size_t align) {
     return !(size % align);
 }
 
@@ -289,8 +276,7 @@ typename std::enable_if<std::is_integral<T>::value, bool>::type is_aligned_to(T 
 template <typename T1, typename T2>
 constexpr auto ceil_div(T1 val, T2 divider)
     -> typename std::enable_if<std::is_integral<T1>::value && std::is_integral<T2>::value,
-                               decltype(std::declval<typename std::make_unsigned<T1>::type>() / std::declval<typename std::make_unsigned<T2>::type>())>::type
-{
+                               decltype(std::declval<typename std::make_unsigned<T1>::type>() / std::declval<typename std::make_unsigned<T2>::type>())>::type {
     typedef typename std::make_unsigned<T1>::type UT1;
     typedef typename std::make_unsigned<T2>::type UT2;
     typedef decltype(std::declval<UT1>() / std::declval<UT2>()) RetT;
@@ -314,8 +300,7 @@ constexpr auto ceil_div(T1 val, T2 divider)
 template <typename T1, typename T2>
 constexpr auto round_up_to(T1 val, T2 rounding)
     -> typename std::enable_if<std::is_integral<T1>::value && std::is_integral<T2>::value,
-                               decltype(std::declval<typename std::make_unsigned<T1>::type>() / std::declval<typename std::make_unsigned<T2>::type>())>::type
-{
+                               decltype(std::declval<typename std::make_unsigned<T1>::type>() / std::declval<typename std::make_unsigned<T2>::type>())>::type {
     typedef typename std::make_unsigned<T1>::type UT1;
     typedef typename std::make_unsigned<T2>::type UT2;
     typedef decltype(std::declval<UT1>() / std::declval<UT2>()) RetT;
@@ -326,11 +311,9 @@ constexpr auto round_up_to(T1 val, T2 rounding)
 ///
 /// \brief Converts C API float array to std::vector<float>
 ///
-inline std::vector<float> float_arr_to_vector(const cldnn_float_arr& arr)
-{
+inline std::vector<float> float_arr_to_vector(const cldnn_float_arr& arr) {
     std::vector<float> result(arr.size);
-    for (size_t i = 0; i < arr.size; i++)
-    {
+    for (size_t i = 0; i < arr.size; i++) {
         result[i] = arr.data[i];
     }
     return result;
@@ -339,11 +322,9 @@ inline std::vector<float> float_arr_to_vector(const cldnn_float_arr& arr)
 ///
 /// \brief Converts C API float array to std::vector<uint16_t>
 ///
-inline std::vector<uint16_t> uint16_t_arr_to_vector(const cldnn_uint16_t_arr& arr)
-{
+inline std::vector<uint16_t> uint16_t_arr_to_vector(const cldnn_uint16_t_arr& arr) {
     std::vector<uint16_t> result(arr.size);
-    for (size_t i = 0; i < arr.size; i++)
-    {
+    for (size_t i = 0; i < arr.size; i++) {
         result[i] = arr.data[i];
     }
     return result;
@@ -352,11 +333,9 @@ inline std::vector<uint16_t> uint16_t_arr_to_vector(const cldnn_uint16_t_arr& ar
 ///
 /// \brief Converts C API uint8_t array to std::vector<uint8_t>
 ///
-inline std::vector<uint8_t> uint8_t_arr_to_vector(const cldnn_uint8_t_arr& arr)
-{
+inline std::vector<uint8_t> uint8_t_arr_to_vector(const cldnn_uint8_t_arr& arr) {
     std::vector<uint8_t> result(arr.size);
-    for (size_t i = 0; i < arr.size; i++)
-    {
+    for (size_t i = 0; i < arr.size; i++) {
         result[i] = arr.data[i];
     }
     return result;
@@ -365,40 +344,35 @@ inline std::vector<uint8_t> uint8_t_arr_to_vector(const cldnn_uint8_t_arr& arr)
 ///
 /// \brief Converts std::vector<float> to C API float_array
 ///
-inline cldnn_float_arr float_vector_to_arr(const std::vector<float>& stor)
-{
-    return { stor.data(), stor.size() };
+inline cldnn_float_arr float_vector_to_arr(const std::vector<float>& stor) {
+    return {stor.data(), stor.size()};
 }
 
 ///
 /// \brief Converts std::vector<uint16_t> to C API float_array
 ///
-inline cldnn_uint16_t_arr uint16_t_vector_to_arr(const std::vector<uint16_t>& stor)
-{
-    return{ stor.data(), stor.size() };
+inline cldnn_uint16_t_arr uint16_t_vector_to_arr(const std::vector<uint16_t>& stor) {
+    return {stor.data(), stor.size()};
 }
 
 ///
 /// \brief Converts std::vector<uint8_t> to C API uint8_t array
 ///
-inline cldnn_uint8_t_arr uint8_t_vector_to_arr(const std::vector<uint8_t>& stor)
-{
-    return{ stor.data(), stor.size() };
+inline cldnn_uint8_t_arr uint8_t_vector_to_arr(const std::vector<uint8_t>& stor) {
+    return {stor.data(), stor.size()};
 }
 
 ///
 /// \brief Converts std::vector<tensor> to C API tensor_array
 ///
-inline cldnn_tensor_arr tensor_vector_to_arr(const std::vector<cldnn_tensor>& stor)
-{
-    return cldnn_tensor_arr{ stor.data(), stor.size() };
+inline cldnn_tensor_arr tensor_vector_to_arr(const std::vector<cldnn_tensor>& stor) {
+    return cldnn_tensor_arr{stor.data(), stor.size()};
 }
 
 ///
 /// \brief Converts C API tensor_array to std::vector of C API tensor
 ///
-inline std::vector<cldnn_tensor> tensor_arr_to_cldnn_vector(const cldnn_tensor_arr& arr)
-{
+inline std::vector<cldnn_tensor> tensor_arr_to_cldnn_vector(const cldnn_tensor_arr& arr) {
     std::vector<cldnn_tensor> result(arr.size);
     for (size_t i = 0; i < arr.size; i++)
         result[i] = arr.data[i];
@@ -411,4 +385,4 @@ inline std::vector<cldnn_tensor> tensor_arr_to_cldnn_vector(const cldnn_tensor_a
 /// @endcond
 
 /// @}
-}
+}  // namespace cldnn

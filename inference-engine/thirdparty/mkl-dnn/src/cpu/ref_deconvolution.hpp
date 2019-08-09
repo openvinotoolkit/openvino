@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2018-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -35,6 +35,8 @@ namespace cpu {
 static status_t compute_blocked_format(bool with_groups,
     const memory_desc_t *oi_md, memory_desc_t *io_md)
 {
+    using namespace memory_format;
+    using namespace types;
     /* Computes blocking for *i*o* format from *o*i* format */
     if (oi_md->ndims != io_md->ndims) return status::invalid_arguments;
     blocking_desc_t oi_blk = oi_md->layout_desc.blocking,
@@ -46,7 +48,22 @@ static status_t compute_blocked_format(bool with_groups,
     nstl::swap(io_blk.offset_padding_to_data[0+with_groups],
          io_blk.offset_padding_to_data[1+with_groups]);
     nstl::swap(io_blk.block_dims[0+with_groups], io_blk.block_dims[1+with_groups]);
-    io_md->format = memory_format::blocked;
+
+    if (is_format_double_blocked(oi_md->format)) {
+        memory_format_t fmt;
+        switch (oi_md->format) {
+        case gOIhw8o16i2o: fmt = gIOhw8i16o2i; break;
+        case OIhw8o16i2o: fmt = IOhw8i16o2i; break;
+        /* 1x1 formats */
+        case IOhw8o16i2o: fmt = OIhw8i16o2i; break;
+        case gIOhw8o16i2o: fmt = gOIhw8i16o2i; break;
+        case gOIhw8i16o2i: fmt = gIOhw8o16i2o; break;
+        case OIhw8i16o2i: fmt = IOhw8o16i2o; break;
+        default: return unimplemented;
+        }
+        io_md->format = fmt;
+    } else
+        io_md->format = memory_format::blocked;
     return status::success;
 }
 
@@ -84,10 +101,9 @@ static status_t conv_descr_create(const deconvolution_desc_t *dd,
     nstl::swap(c_weights_d.dims[with_groups + 0], c_weights_d.dims[with_groups + 1]);
     if (c_weights_d.format != any)
     {
-        if (utils::one_of(c_weights_d.format, gOIhw8i16o2i, OIhw8i16o2i,
-            gOIhw8o16i2o, OIhw8o16i2o, gOIhw4i16o4i, OIhw4i16o4i))
+        if (utils::one_of(c_weights_d.format, gOIhw4i16o4i, OIhw4i16o4i))
             return unimplemented;
-        CHECK( compute_blocked_format(with_groups, &d_weights_d, &c_weights_d));
+        CHECK(compute_blocked_format(with_groups, &d_weights_d, &c_weights_d));
     }
     return conv_desc_init(cd, prop_kind, alg_kind, src_md, &(c_weights_d),
             (prop_kind != backward_weights ? &(dd->bias_desc) : nullptr),
@@ -130,22 +146,26 @@ struct ref_deconvolution_fwd_t: public cpu_primitive_t {
                 conv_pd_ = *it;
                 conv_supports_bias_ = static_cast<cpu_convolution_bwd_data_pd_t *>
                     (conv_pd_)->support_bias();
-                bool output_f32 = utils::everyone_is(data_type::f32,
-                        desc()->accum_data_type,
-                        desc()->dst_desc.data_type);
-                auto wei_fmt =
-                    format_normalize(conv_pd_->weights_pd()->desc()->format);
+                bool bias_supported = true
+                        && desc()->accum_data_type == data_type::f32
+                        && utils::one_of(desc()->dst_desc.data_type,
+                                           data_type::f32, data_type::bf16);
+                auto wei_fmt = format_normalize(conv_pd_->weights_pd()->desc()->format);
+                auto src_fmt = conv_pd_->diff_dst_pd()->desc()->format;
 
                 bool ok = true
-                    /* only weights in non-double-blocked format are supported */
-                    && (wei_fmt == blocked && !is_format_double_blocked(wei_fmt))
-                    /* deconv reference code can process only f32 bias */
-                    && IMPLICATION(with_bias(),
-                            conv_supports_bias_ || output_f32);
+                        && (wei_fmt == blocked)
+                        && IMPLICATION(
+                                desc()->src_desc.data_type == data_type::bf16,
+                                utils::one_of(src_fmt,
+                                    nCw16c, nChw16c, nCdhw16c))
+                        && IMPLICATION(with_bias(),
+                                   conv_supports_bias_ || bias_supported);
                 if (ok)
                     return success;
                 delete conv_pd_;
             }
+            conv_pd_ = nullptr;
             return unimplemented;
         };
         virtual status_t init() override {
@@ -161,11 +181,10 @@ struct ref_deconvolution_fwd_t: public cpu_primitive_t {
 
             if (ok) {
                 CHECK(init_convolution());
-                if (weights_pd_.desc()->format == memory_format::any)
-                {
+                if (weights_pd_.desc()->format == memory_format::any) {
                     CHECK(compute_blocked_format(with_groups(),
-                        conv_pd_->weights_pd()->desc(),
-                        &desc_.weights_desc));
+                            conv_pd_->weights_pd()->desc(),
+                            &desc_.weights_desc));
                     cpu_memory_pd_t weights(engine_, &desc_.weights_desc);
                     weights_pd_ = weights;
                 }
@@ -195,22 +214,32 @@ struct ref_deconvolution_fwd_t: public cpu_primitive_t {
         case prop_kind::forward_inference:
             (conv_p_)->execute(e);
             if (pd()->with_bias() && !pd()->conv_supports_bias_) {
-                switch (pd()->dst_pd()->desc()->format) {
-                    case memory_format::nchw :
-                    case memory_format::ncdhw :
+                auto dst_t = pd()->desc()->dst_desc.data_type;
+
+                if (dst_t == data_type::bf16) {
+                    compute_fwd_bias_nCdhwXc_bf16<16>();
+                } else {
+                    switch (pd()->dst_pd()->desc()->format) {
+                    /* XXX: current implementation only provides funcitonality. This
+                     * needs to be cleaned and optimized. */
+                    case memory_format::ncw:
+                    case memory_format::nchw:
+                    case memory_format::ncdhw:
                         compute_fwd_bias_ncdhw();
                         break;
-                    case memory_format::nChw8c :
-                    case memory_format::nCdhw8c :
+                    case memory_format::nChw8c:
+                    case memory_format::nCdhw8c:
                         compute_fwd_bias_nCdhwXc<8>();
                         break;
-                    case memory_format::nChw16c :
-                    case memory_format::nCdhw16c :
+                    case memory_format::nCw16c:
+                    case memory_format::nChw16c:
+                    case memory_format::nCdhw16c:
                         compute_fwd_bias_nCdhwXc<16>();
                         break;
                     default:
                         compute_fwd_bias();
                         break;
+                    }
                 }
             }
             break;
@@ -221,9 +250,12 @@ struct ref_deconvolution_fwd_t: public cpu_primitive_t {
     }
 
 private:
+    typedef typename prec_traits<data_type::f32>::type f32_data_t;
+    typedef typename prec_traits<data_type::bf16>::type bf16_data_t;
     void compute_fwd_bias() const;
     void compute_fwd_bias_ncdhw() const;
     template <int blksize> void compute_fwd_bias_nCdhwXc() const;
+    template <int blksize> void compute_fwd_bias_nCdhwXc_bf16() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
     primitive_t *conv_p_;
 };
@@ -259,13 +291,12 @@ struct ref_deconvolution_bwd_data_t: public cpu_primitive_t {
                 &(this->attr_), nullptr);
              while (++it != it.end()) {
                 conv_pd_ = *it;
-                auto wei_fmt =
-                    format_normalize(conv_pd_->weights_pd()->desc()->format);
-                /* only weights in non-double-blocked format are supported */
-                if (wei_fmt == blocked && !is_format_double_blocked(wei_fmt))
+                if (format_normalize(conv_pd_->weights_pd()->desc()->format)
+                        == blocked)
                     return success;
                 delete conv_pd_;
             }
+            conv_pd_ = nullptr;
             return unimplemented;
         };
 
@@ -275,13 +306,19 @@ struct ref_deconvolution_bwd_data_t: public cpu_primitive_t {
             assert(this->engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && this->desc()->prop_kind == backward_data
-                && utils::everyone_is(data_type::f32,
+                && (utils::everyone_is(data_type::f32,
+                                this->desc()->weights_desc.data_type,
+                                this->desc()->diff_dst_desc.data_type)
+                        || utils::everyone_is(data_type::bf16,
+                            this->desc()->weights_desc.data_type,
+                            this->desc()->diff_dst_desc.data_type))
+                && utils::one_of(
                         this->desc()->diff_src_desc.data_type,
-                        this->desc()->weights_desc.data_type,
-                        this->desc()->diff_dst_desc.data_type)
+                        data_type::f32,
+                        data_type::bf16)
                 && utils::one_of(this->desc()->alg_kind,
-                        alg_kind::deconvolution_direct,
-                        alg_kind::deconvolution_winograd);
+                               alg_kind::deconvolution_direct,
+                               alg_kind::deconvolution_winograd);
 
             if (ok) {
                 CHECK(init_convolution());
@@ -355,13 +392,20 @@ struct ref_deconvolution_bwd_weights_t: public cpu_primitive_t {
                 &(this->attr_), nullptr);
              while (++it != it.end()) {
                 conv_pd_ = *it;
-                auto wei_fmt = format_normalize(
-                        conv_pd_->diff_weights_pd()->desc()->format);
-                /* only weights in non-double-blocked format are supported */
-                if (wei_fmt == blocked && !is_format_double_blocked(wei_fmt))
+                auto wei_fmt = conv_pd_->diff_weights_pd()->desc()->format;
+                auto diff_dst_fmt = conv_pd_->src_pd()->desc()->format;
+                bool ok = true
+                        && format_normalize(wei_fmt) == blocked
+                        && !is_format_double_blocked(wei_fmt)
+                        && IMPLICATION(
+                                desc()->src_desc.data_type == data_type::bf16,
+                                utils::one_of(diff_dst_fmt,
+                                    nCw16c, nChw16c, nCdhw16c));
+                if (ok)
                     return success;
                 delete conv_pd_;
             }
+            conv_pd_ = nullptr;
             return unimplemented;
         };
 
@@ -370,14 +414,25 @@ struct ref_deconvolution_bwd_weights_t: public cpu_primitive_t {
             assert(this->engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && this->desc()->prop_kind == backward_weights
-                && utils::everyone_is(data_type::f32,
+                && (utils::everyone_is(data_type::f32,
                         this->desc()->src_desc.data_type,
-                        this->desc()->diff_weights_desc.data_type,
                         this->desc()->diff_dst_desc.data_type)
+                    || (utils::everyone_is(data_type::bf16,
+                            this->desc()->src_desc.data_type,
+                            this->desc()->diff_dst_desc.data_type)
+                        && utils::one_of(
+                            this->desc()->diff_weights_desc.data_type,
+                                                     data_type::f32,
+                                                     data_type::bf16)))
                 && utils::one_of(this->desc()->alg_kind,
                         alg_kind::deconvolution_direct,
                         alg_kind::deconvolution_winograd)
-                && this->attr()->has_default_values();
+                && this->attr()->has_default_values()
+                && IMPLICATION(this->with_bias(),
+                        (this->desc()->diff_bias_desc.data_type
+                                == data_type::f32)
+                        && utils::one_of(this->desc()->diff_dst_desc.data_type,
+                            data_type::f32, data_type::bf16));
             if (ok) {
                 CHECK(init_convolution());
                 if (diff_weights_pd_.desc()->format == memory_format::any)
@@ -414,21 +469,30 @@ struct ref_deconvolution_bwd_weights_t: public cpu_primitive_t {
         case prop_kind::backward_weights:
             (conv_p_)->execute(e);
             if (pd()->with_bias()) {
-                switch (pd()->diff_dst_pd()->desc()->format) {
-                    case memory_format::nchw :
-                    case memory_format::ncdhw :
+                auto dst_t = pd()->desc()->diff_dst_desc.data_type;
+                if (dst_t == data_type::bf16) {
+                    compute_bwd_bias_nCdhwXc_bf16<16>();
+                } else {
+                    switch (pd()->diff_dst_pd()->desc()->format) {
+                    /* XXX: current implementation only provides funcitonality. This
+                     * needs to be cleaned and optimized. */
+                    case memory_format::ncw:
+                    case memory_format::nchw:
+                    case memory_format::ncdhw:
                         compute_bwd_bias_ncdhw();
                         break;
-                    case memory_format::nChw8c :
+                    case memory_format::nChw8c:
                         compute_bwd_bias_nCdhwXc<8>();
                         break;
-                    case memory_format::nChw16c :
-                    case memory_format::nCdhw16c :
+                    case memory_format::nCw16c:
+                    case memory_format::nChw16c:
+                    case memory_format::nCdhw16c:
                         compute_bwd_bias_nCdhwXc<16>();
                         break;
                     default:
                         compute_bwd_bias();
                         break;
+                    }
                 }
             }
             break;
@@ -439,11 +503,14 @@ struct ref_deconvolution_bwd_weights_t: public cpu_primitive_t {
     }
 
 private:
+    typedef typename prec_traits<data_type::f32>::type f32_data_t;
+    typedef typename prec_traits<data_type::bf16>::type bf16_data_t;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
     primitive_t *conv_p_;
     void compute_bwd_bias() const;
     void compute_bwd_bias_ncdhw() const;
     template <int blksize> void compute_bwd_bias_nCdhwXc() const;
+    template <int blksize> void compute_bwd_bias_nCdhwXc_bf16() const;
 };
 
 }

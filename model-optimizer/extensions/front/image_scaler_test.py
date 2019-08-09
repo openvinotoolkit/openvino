@@ -22,7 +22,7 @@ from extensions.front.image_scaler import ImageScaler
 from mo.utils.unittest.graph import build_graph, compare_graphs
 
 nodes_attributes = {
-    'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # ImageScaler operation
     'im_scaler': {'type': None, 'kind': 'op', 'op': 'ImageScaler'},

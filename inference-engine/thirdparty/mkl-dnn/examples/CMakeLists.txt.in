@@ -1,0 +1,93 @@
+#===============================================================================
+# Copyright 2019 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+cmake_minimum_required(VERSION 2.8.11)
+project (MKLDNN_EXAMPLES)
+
+if(POLICY CMP0015)
+    cmake_policy(SET CMP0015 NEW)
+endif()
+
+set(MKLDNNROOT "..")
+
+if(APPLE OR WIN32)
+    set(LIBDIR ${MKLDNNROOT}/lib)
+else()
+    set(LIBDIR ${MKLDNNROOT}/lib64)
+endif()
+
+link_directories(${LIBDIR})
+include_directories(${MKLDNNROOT}/include)
+
+enable_testing()
+
+if(WIN32)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Qstd=c99")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qstd=c++11")
+else()
+    set(LIBM m)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    if(NOT APPLE)
+        set(CMAKE_EXE_LINKER_FLAGS "-Wl,--as-needed")
+    endif()
+endif()
+
+if(WIN32 AND ${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
+    add_definitions(/Qpar)
+    add_definitions(/openmp)
+else()
+    find_package(OpenMP)
+    #newer version for findOpenMP (>= v. 3.9)
+    if(CMAKE_VERSION VERSION_LESS "3.9" AND OPENMP_FOUND)
+        if(${CMAKE_MAJOR_VERSION} VERSION_LESS "3" AND
+                ${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
+            # Override FindOpenMP flags for Intel Compiler (otherwise deprecated)
+            set(OpenMP_CXX_FLAGS "-fopenmp")
+            set(OpenMP_C_FLAGS "-fopenmp")
+        endif()
+        set(OpenMP_C_FOUND true)
+        set(OpenMP_CXX_FOUND true)
+    endif()
+    if(OpenMP_C_FOUND)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    endif()
+    if(OpenMP_CXX_FOUND)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    endif()
+endif()
+
+# Register example
+#   name -- name of the executable
+#   srcs -- list of source, if many must be enclosed with ""
+function(register_example name srcs)
+    add_executable(${name} ${srcs})
+    find_package(mkldnn @PROJECT_VERSION@ CONFIG REQUIRED HINTS ${LIBDIR}/cmake/mkldnn)
+    target_link_libraries(${name} mkldnn ${LIBM})
+    add_test(${name} ${name})
+    if(WIN32 OR MINGW)
+        set_property(TEST ${name} PROPERTY ENVIRONMENT "PATH=${CTESTCONFIG_PATH};$ENV{PATH}")
+        configure_file(template.vcxproj.user ${name}.vcxproj.user @ONLY)
+    endif()
+endfunction()
+
+register_example(simple-net-c simple_net.c)
+register_example(simple-net-cpp simple_net.cpp)
+register_example(simple-training-net-c simple_training_net.c)
+register_example(simple-training-net-cpp simple_training_net.cpp)
+register_example(simple-net-int8-cpp simple_net_int8.cpp)
+register_example(simple-rnn-cpp simple_rnn.cpp)
+register_example(simple-rnn-training-cpp simple_rnn_training.cpp)

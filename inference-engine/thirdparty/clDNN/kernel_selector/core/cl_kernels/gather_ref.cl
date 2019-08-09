@@ -15,7 +15,7 @@
 
 #include "include/include_all.cl"
 
-KERNEL(gather_ref)(const __global UNIT_TYPE* dictionary, const __global float* indices, __global UNIT_TYPE* output)
+KERNEL(gather_ref)(const __global UNIT_TYPE* dictionary, const __global INPUT1_TYPE* indices, __global UNIT_TYPE* output)
 {
     const uint workItemId = get_global_id(0);
 
@@ -28,6 +28,6 @@ KERNEL(gather_ref)(const __global UNIT_TYPE* dictionary, const __global float* i
 
     for (int k = 0; k < SLICE_SIZE; ++k)
     {
-        output[outputIndex++] = dictionary[(partNumber * PART_SIZE) + ((uint) indices[index] * SLICE_SIZE) + k];
+        output[outputIndex++] = ACTIVATION(dictionary[(partNumber * PART_SIZE) + ((uint) indices[index] * SLICE_SIZE) + k], ACTIVATION_PARAMS);
     }
 }

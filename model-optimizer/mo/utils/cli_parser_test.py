@@ -16,6 +16,8 @@
 import argparse
 import imp
 import os
+import shutil
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -24,7 +26,7 @@ import numpy as np
 
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, get_model_name, \
     get_absolute_path, parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
-    readable_file
+    readable_file, get_freeze_placeholder_values
 from mo.utils.error import Error
 
 
@@ -417,6 +419,91 @@ class TestShapesParsing(unittest.TestCase):
         for i in exp_res.keys():
             np.testing.assert_array_equal(result[i], exp_res[i])
 
+    def test_get_shapes_several_inputs_several_shapes2(self):
+        # shapes specified using --input command line parameter and no values
+        argv_input = "inp1[1 22 333 123],inp2[-1 45 7 1]"
+        result = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': np.array([1, 22, 333, 123]), 'inp2': np.array([-1, 45, 7, 1])}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            np.testing.assert_array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {}
+        input_node_names_ref = "inp1,inp2"
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            np.testing.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_several_inputs_several_shapes3(self):
+        # shapes and value for freezing specified using --input command line parameter
+        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3],inp3[5]->[1.0 1.0 2.0 3.0 5.0]"
+        result = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': np.array([5])}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            np.testing.assert_array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
+        input_node_names_ref = "inp1,inp2,inp3"
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            np.testing.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_several_inputs_several_shapes4(self):
+        # shapes specified using --input_shape and values for freezing using --input command line parameter
+        argv_input = "inp1->[1.0 2.0 3.0],inp2,inp3->[1.0 1.0 2.0 3.0 5.0]"
+        input_shapes = "(3,1), (3,2,3), (5)"
+        result = get_placeholder_shapes(argv_input, input_shapes)
+        exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': np.array([5])}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            np.testing.assert_array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
+        input_node_names_ref = "inp1,inp2,inp3"
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        for i in placeholder_values_ref.keys():
+            np.testing.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+        self.assertEqual(input_node_names_ref, input_node_names_res)
+
+    def test_get_shapes_several_inputs_several_shapes5(self):
+        # some values for freezing specified using --freeze_placeholder_with_value
+        argv_input = "inp1->[1.0 2.0 3.0],inp2,inp3->[1.0 1.0 2.0 3.0 5.0]"
+        input_shapes = "(3,1), (3,2,3), (5)"
+        argv_freeze_placeholder_with_value = "inp2->[5.0 7.0 3.0],inp4->[100.0 200.0]"
+
+        result = get_placeholder_shapes(argv_input, input_shapes)
+        exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': np.array([5])}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            np.testing.assert_array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, argv_freeze_placeholder_with_value)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'],),
+                                  'inp2': np.array(['5.0', '7.0', '3.0']), 'inp4': np.array(['100.0', '200.0'])}
+        input_node_names_ref = "inp1,inp2,inp3"
+        self.assertEqual(sorted(list(placeholder_values_res.keys())), sorted(list(placeholder_values_ref.keys())))
+        for i in placeholder_values_ref.keys():
+            np.testing.assert_array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+        self.assertEqual(input_node_names_ref, input_node_names_res)
+
+    def test_shapes_specified_using_both_params(self):
+        # shapes specified using both command line parameter --input and --input_shape
+        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3],inp3[5]->[1.0 1.0 2.0 3.0 5.0]"
+        input_shapes = "(3,1), (3,2,3), (5)"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
+
+    def test_shape_and_value_shape_mismatch(self):
+        # size of value tensor does not correspond to specified shape for the third node
+        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3],inp3[5 3]->[2.0 3.0 5.0]"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, None)
+
+    def test_wrong_data_for_input_cmd_param(self):
+        # test that wrongly formatted data specified in --input is handled properly
+        argv_input = "abc->[1.0"
+        self.assertRaises(Error, get_freeze_placeholder_values, argv_input, None)
+        argv_input = "def[2 2]->[1.0 2.0 3.0 4.0],abc->1.0 34]"
+        self.assertRaises(Error, get_freeze_placeholder_values, argv_input, None)
+
     def test_get_shapes_several_inputs_several_shapes_not_equal(self):
         argv_input = "inp1,inp2,inp3"
         input_shapes = "(1,22,333,123), (-1,45,7,1)"
@@ -545,7 +632,6 @@ class TestShapesParsing(unittest.TestCase):
         input_shapes = "(12,4,1),(4,-6,8)"
         self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
 
-
 class TestModelNameParsing(unittest.TestCase):
     def test_model_name_ideal(self):
         model_name = '/home/models/mymodel.caffemodel'
@@ -631,19 +717,21 @@ class PathCheckerFunctions(unittest.TestCase):
         if os.path.exists(__class__.WRITABLE_DIR):
             os.removedirs(__class__.WRITABLE_DIR)
         if os.path.exists(__class__.NOT_WRITABLE_DIR):
-            os.removedirs(__class__.NOT_WRITABLE_DIR)
+            shutil.rmtree(__class__.NOT_WRITABLE_DIR, ignore_errors=True)
         if os.path.exists(os.path.dirname(__class__.NOT_WRITABLE_SUB_DIR)):
-            os.removedirs(os.path.dirname(__class__.NOT_WRITABLE_SUB_DIR))
+            shutil.rmtree(os.path.dirname(__class__.NOT_WRITABLE_SUB_DIR), ignore_errors=True)
         if os.path.exists(__class__.EXISTING_FILE):
             os.remove(__class__.EXISTING_FILE)
 
     def test_single_writable_dir(self):
         self.assertEqual(__class__.WRITABLE_DIR, writable_dir(__class__.WRITABLE_DIR))
 
+    @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
     def test_single_non_writable_dir(self):
         with self.assertRaises(Error) as cm:
             writable_dir(__class__.NOT_WRITABLE_DIR)
 
+    @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
     def test_single_non_writable_sub_dir(self):
         with self.assertRaises(Error) as cm:
             writable_dir(__class__.NOT_WRITABLE_SUB_DIR)

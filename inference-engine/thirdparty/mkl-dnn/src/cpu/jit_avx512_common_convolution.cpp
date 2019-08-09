@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016-2018 Intel Corporation
+* Copyright 2016-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -49,6 +49,8 @@ inline void jit_conv_ker_pipeline(jit_conv_ker_t ker, jit_conv_call_s &p,
     PIPELINE(filt);
     PIPELINE(bias);
     PIPELINE(channel);
+    // non-positive value of kh_padding is allowed, in this case kernel must
+    // skip computation part and initialize output by zeroes
     PIPELINE(kh_padding);
     PIPELINE(oc_off);
 
@@ -66,6 +68,8 @@ inline void jit_conv_ker_pipeline_ow_thr(jit_conv_ker_t ker, jit_conv_call_s &p,
     PIPELINE(filt);
     PIPELINE(bias);
     PIPELINE(channel);
+    // non-positive value of kh_padding is allowed, in this case kernel must
+    // skip computation part and initialize output by zeroes
     PIPELINE(kh_padding);
     PIPELINE(owb);
     PIPELINE(oc_off);
@@ -83,6 +87,8 @@ inline void jit_conv_3d_ker_pipeline(jit_conv_ker_t ker, jit_conv_call_s &p,
     PIPELINE(filt);
     PIPELINE(bias);
     PIPELINE(channel);
+    // non-positive value of both kd_padding and kh_padding is allowed, in this
+    // case kernel must skip computation part and initialize output by zeroes
     PIPELINE(kh_padding);
     PIPELINE(kd_padding);
     PIPELINE(oc_off);
@@ -101,6 +107,8 @@ inline void jit_conv_3d_ker_pipeline_ow_thr(jit_conv_ker_t ker,
     PIPELINE(filt);
     PIPELINE(bias);
     PIPELINE(channel);
+    // non-positive value of both kd_padding and kh_padding is allowed, in this
+    // case kernel must skip computation part and initialize output by zeroes
     PIPELINE(kh_padding);
     PIPELINE(kd_padding);
     PIPELINE(owb);
@@ -110,18 +118,40 @@ inline void jit_conv_3d_ker_pipeline_ow_thr(jit_conv_ker_t ker,
         ker(&p);
 }
 
+void jit_conv_2d_ker_bwd_w_pipeline(jit_conv_ker_t ker, jit_conv_call_s &p,
+        const void *src, const void *dst, const void *filt, const void *bias,
+        int channel, int os_index_begin, int os_index_end,
+        int kh_padding /* kh_work_size */, size_t kh_offset) {
+    PIPELINE(src);
+    PIPELINE(dst);
+    PIPELINE(filt);
+    PIPELINE(bias);
+    PIPELINE(channel);
+    PIPELINE(os_index_begin);
+    PIPELINE(os_index_end);
+    // non-positive value of kh_padding is allowed, in this case kernel must
+    // skip kw loop computation and initialize output by zeroes
+    PIPELINE(kh_padding);
+    PIPELINE(kh_offset);
+
+    if (p.src)
+        ker(&p);
+}
+
 void jit_conv_3d_ker_bwd_w_pipeline(jit_conv_ker_t ker, jit_conv_call_s &p,
         const void *src, const void *dst, const void *filt, const void *bias,
-        int channel, int d_index, int d_worksize,
+        int channel, int os_index_begin, int os_index_end,
         int kd_padding /* kd_work_size */, size_t kd_offset) {
     PIPELINE(src);
     PIPELINE(dst);
     PIPELINE(filt);
     PIPELINE(bias);
     PIPELINE(channel);
+    PIPELINE(os_index_begin);
+    PIPELINE(os_index_end);
+    // non-positive value of kd_padding is allowed, in this case kernel must
+    // skip kh loop computation and initialize output by zeroes
     PIPELINE(kd_padding);
-    PIPELINE(d_worksize);
-    PIPELINE(d_index);
     PIPELINE(kd_offset);
 
     if (p.src)
@@ -173,13 +203,13 @@ void jit_avx512_common_convolution_fwd_t
     else
         nthr = mkldnn_get_max_threads();
 
-    parallel(nthr, [&](const int ithr, const int nthr) {
+    parallel(nthr, work_amount, [&](const int ithr, const int nthr) {
         int start{0}, end{0}, start_copy;
         balance211(work_amount, nthr, ithr, start, end);
         start_copy = start;
 
         auto par_conv = jit_conv_call_s();
-        size_t src_c_stride = src_d.blk_off(0, 1);
+        size_t src_c_stride = src_d.blk_off(0, 1) - src_d.off_l(0);
         size_t wht_ic_stride = wht_blk_off(weights_d, 0, 0, 1);
 
         for (int icb_l2 = 0 ; icb_l2 < jcp.nb_ic; icb_l2 += jcp.nb_ic_L2) {
@@ -234,6 +264,11 @@ void jit_avx512_common_convolution_fwd_t
                 }
             }
         }
+
+        // This call is required only to finalize pipeline with paramaters set
+        // on the last iteration of loop above. Only valid pointers make sense
+        // here as call parameters to avoid execution of prefetch instructions
+        // with nullptr, other parameters are not used in real jit call here
         jit_conv_ker_pipeline_ow_thr(kernel_->jit_ker, par_conv,
                 src, dst, weights, bias, 0, 0, 0, 0);
     });
@@ -268,7 +303,7 @@ void jit_avx512_common_convolution_fwd_t
     else
         nthr = mkldnn_get_max_threads();
 
-    parallel(nthr, [&](const int ithr, const int nthr) {
+    parallel(nthr, (size_t)work_amount, [&](const int ithr, const int nthr) {
         int start{0}, end{0}, start_copy;
         balance211(work_amount, nthr, ithr, start, end);
         start_copy = start;
@@ -359,6 +394,10 @@ void jit_avx512_common_convolution_fwd_t
             }
         }
 
+        // This call is required only to finalize pipeline with paramaters set
+        // on the last iteration of loop above. Only valid pointers make sense
+        // here as call parameters to avoid execution of prefetch instructions
+        // with nullptr, other parameters are not used in real jit call here
         jit_conv_ker_pipeline_ow_thr(kernel_->jit_ker, par_conv,
                 src, dst, weights, bias, 0, 0, 0, 0);
     });
@@ -384,20 +423,20 @@ void jit_avx512_common_convolution_fwd_t
     const auto &jcp = pd()->jcp_;
     const int MB = pd()->MB();
     assert(jcp.nb_oc % jcp.nb_oc_blocking == 0);
+    int oc_chunks = jcp.nb_oc / jcp.nb_oc_blocking;
+    int work_amount = MB * jcp.ngroups * oc_chunks * jcp.od * jcp.oh
+                      * jcp.nb_ow;
 
-    parallel(0, [&](const int ithr, const int nthr) {
-        int oc_chunks = jcp.nb_oc / jcp.nb_oc_blocking;
+    parallel(0, (size_t)work_amount, [&](const int ithr, const int nthr) {
         int start{0}, end{0}, start_copy;
-        int work_amount = MB * jcp.ngroups * oc_chunks * jcp.od * jcp.oh
-            * jcp.nb_ow;
         balance211(work_amount, nthr, ithr, start, end);
         start_copy = start;
 
         auto par_conv = jit_conv_call_s();
-        size_t src_d_stride = src_d.blk_off(0, 0, 1);
-        size_t src_h_stride = src_d.blk_off(0, 0, 0, 1);
-        size_t src_c_stride = src_d.blk_off(0, 1);
-        size_t dst_h_stride = dst_d.blk_off(0, 0, 0, 1);
+        size_t src_d_stride = src_d.blk_off(0, 0, 1) - src_d.off_l(0);
+        size_t src_h_stride = src_d.blk_off(0, 0, 0, 1) - src_d.off_l(0);
+        size_t src_c_stride = src_d.blk_off(0, 1) - src_d.off_l(0);
+        size_t dst_h_stride = dst_d.blk_off(0, 0, 0, 1) - dst_d.off_l(0);
         size_t wht_d_stride = wht_blk_off(weights_d, 0, 0, 0, 1);
         size_t wht_h_stride = wht_blk_off(weights_d, 0, 0, 0, 0, 1);
         size_t wht_ic_stride = wht_blk_off(weights_d, 0, 0, 1);
@@ -489,6 +528,11 @@ void jit_avx512_common_convolution_fwd_t
                     assert(!"unsupported loop order");
             }
         }
+
+        // This call is required only to finalize pipeline with paramaters set
+        // on the last iteration of loop above. Only valid pointers make sense
+        // here as call parameters to avoid execution of prefetch instructions
+        // with nullptr, other parameters are not used in real jit call here
         jit_conv_3d_ker_pipeline(kernel_->jit_ker, par_conv,
                 src, dst, weights, bias, 0, 0, 0, 0);
     });
@@ -512,11 +556,12 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
     const memory_desc_wrapper weights_d(pd()->weights_pd(0));
 
     const auto &jcp = kernel_->jcp;
+    int ic_chunks = jcp.nb_ic / jcp.nb_ic_blocking;
+    int work_amount = jcp.ngroups * jcp.mb * ic_chunks * jcp.ih;
 
-    parallel(0, [&](const int ithr, const int nthr) {
+    parallel(0, (size_t)work_amount, [&](const int ithr, const int nthr) {
         int start{0}, end{0}, start_copy;
-        int ic_chunks = jcp.nb_ic / jcp.nb_ic_blocking;
-        int work_amount = jcp.ngroups * jcp.mb * ic_chunks * jcp.ih;
+
         balance211(work_amount, nthr, ithr, start, end);
         start_copy = start;
 
@@ -571,6 +616,10 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
             }
         }
 
+        // This call is required only to finalize pipeline with paramaters set
+        // on the last iteration of loop above. Only valid pointers make sense
+        // here as call parameters to avoid execution of prefetch instructions
+        // with nullptr, other parameters are not used in real jit call here
         jit_conv_ker_pipeline(kernel_->jit_ker, par_conv,
                 diff_src, diff_dst, weights, 0, 0, 1, 0);
     });
@@ -591,11 +640,12 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
 
     const auto &jcp = kernel_->jcp;
     const int MB = pd()->MB();
+    int ic_chunks = jcp.nb_ic / jcp.nb_ic_blocking;
+    int work_amount = jcp.ngroups * MB * ic_chunks * jcp.ih;
 
-    parallel(0, [&](const int ithr, const int nthr) {
+    parallel(0, (size_t)work_amount, [&](const int ithr, const int nthr) {
         int start{0}, end{0}, start_copy;
-        int ic_chunks = jcp.nb_ic / jcp.nb_ic_blocking;
-        int work_amount = jcp.ngroups * MB * ic_chunks * jcp.ih;
+
         balance211(work_amount, nthr, ithr, start, end);
         start_copy = start;
 
@@ -673,7 +723,6 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
                             k_lo = overflow_kh_lo + i_b_overflow * jcp.stride_h;
                             oj = (ij + jcp.t_pad - k_lo) / jcp.stride_h;
                         }
-                        assert(k_len >= 0);
 
                         jit_conv_ker_pipeline(kernel_->jit_ker, par_conv,
                                 diff_src_w + ij * diff_src_h_stride,
@@ -696,6 +745,10 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
             }
         }
 
+        // This call is required only to finalize pipeline with paramaters set
+        // on the last iteration of loop above. Only valid pointers make sense
+        // here as call parameters to avoid execution of prefetch instructions
+        // with nullptr, other parameters are not used in real jit call here
         jit_conv_ker_pipeline(kernel_->jit_ker, par_conv,
                 diff_src, diff_dst, weights, 0, 0, 1, 0);
     });
@@ -716,11 +769,12 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
 
     const auto &jcp = kernel_->jcp;
     const int MB = pd()->MB();
+    int ic_chunks = jcp.nb_ic / jcp.nb_ic_blocking;
+    int work_amount = jcp.ngroups * MB * ic_chunks * jcp.id * jcp.ih;
 
-    parallel(0, [&](const int ithr, const int nthr) {
+    parallel(0, (size_t)work_amount, [&](const int ithr, const int nthr) {
         int start{0}, end{0}, start_copy;
-        int ic_chunks = jcp.nb_ic / jcp.nb_ic_blocking;
-        int work_amount = jcp.ngroups * MB * ic_chunks * jcp.id * jcp.ih;
+
         balance211(work_amount, nthr, ithr, start, end);
         start_copy = start;
 
@@ -793,7 +847,6 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
                     d_lo = overflow_kd_lo + d_b_overflow * jcp.stride_d;
                     d_oj = (id_s + jcp.f_pad - d_lo) / jcp.stride_d;
                 }
-                assert(d_len >= 0);
 
                 auto diff_src_w = diff_src + diff_src_d.blk_off(n, g_icb)
                     + id_s * diff_src_d_stride;
@@ -868,6 +921,10 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
             }
         }
 
+        // This call is required only to finalize pipeline with paramaters set
+        // on the last iteration of loop above. Only valid pointers make sense
+        // here as call parameters to avoid execution of prefetch instructions
+        // with nullptr, other parameters are not used in real jit call here
         jit_conv_3d_ker_pipeline(kernel_->jit_ker, par_conv,
                 diff_src, diff_dst, weights, 0, 0, 1, 1, 0);
     });
@@ -979,7 +1036,9 @@ struct jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
         const auto &jcp = self->kernel_->jcp;
 
         /* reduction dimension */
-        balance211(jcp.mb*jcp.od, self->nthr_mb_, ithr_mb, img_start, img_end);
+        int oh_reduce = jcp.harness == harness_2d_reduction ? jcp.oh : 1;
+        balance211(jcp.mb * jcp.od * oh_reduce, self->nthr_mb_, ithr_mb,
+                img_start, img_end);
         img_work = img_end - img_start;
 
         /* independent dimensions */
@@ -1117,7 +1176,6 @@ void jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
             = &ti->diff_dst[diff_dst_d.blk_off(img, oc, j)];
         diff_dst_data_t *tr_diff_dst1
             = &ti->tr_diff_dst[tr_diff_dst_off(img, oc, j)];
-
 
         assert(jcp.ic_block == 16);
         const int diff_dst_stride = jcp.ow * jcp.oc_block;
@@ -1274,6 +1332,11 @@ void jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
 
             const int _oc = ti->g_start * jcp.nb_oc + ti->oc_b_start;
             const int _ic = ti->g_start * jcp.nb_ic + ti->ic_b_start;
+            // This call is required only to finalize pipeline with paramaters
+            // set on the last iteration of loop above. Only valid pointers make
+            // sense here as call parameters to avoid execution of prefetch
+            // instructions with nullptr, other parameters are not used in real
+            // jit call here
             jit_conv_ker_pipeline(kernel_->jit_ker, p,
                     (utils::one_of(jcp.ver, ver_4fma, ver_4vnni, ver_vnni)
                      ? &ti->tr_src[tr_src_off(ti->ithr_mb, _ic, 0)]
@@ -1286,6 +1349,78 @@ void jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
                         ti->oc_b_start, ti->ic_b_start),
                     0, 0, 0, 0);
         }
+    }
+}
+
+template <data_type_t src_type, data_type_t diff_dst_type,
+          data_type_t diff_weights_type>
+void jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
+    diff_weights_type>::compute_diff_weights_2d(const thread_info_t *ti) const
+{
+    const memory_desc_wrapper src_d(pd()->src_pd(0));
+    const memory_desc_wrapper diff_dst_d(pd()->diff_dst_pd());
+    const memory_desc_wrapper diff_weights_d(pd()->diff_weights_pd(0));
+
+    const auto &jcp = kernel_->jcp;
+    const int wei_size = jcp.ngroups * jcp.oc * jcp.ic * jcp.kh * jcp.kw;
+
+    diff_weights_data_t *diff_wei = ti->ithr_mb == 0
+        ? (diff_weights_data_t*)ti->diff_weights
+        : ti->wei_bia_reduction + (ti->ithr_mb - 1) * wei_size;
+    diff_weights_data_t *diff_bia = ti->ithr_mb == 0
+        ? (diff_weights_data_t*)ti->diff_bias
+        : ti->wei_bia_reduction + (nthr_mb_ - 1) * wei_size
+          + (ti->ithr_mb - 1) * jcp.ngroups * jcp.oc;
+
+    int img{0}, oh_s{0};
+    int img_start = ti->img_start, img_end = ti->img_end;
+    nd_iterator_init(img_start, img, jcp.mb, oh_s, jcp.oh);
+    const int img_first = img;
+
+    while (img_start < img_end) {
+        auto p = jit_conv_call_s();
+
+        int work_rem = img_end - img_start;
+        const int oh_e = oh_s + work_rem > jcp.oh ? jcp.oh : oh_s + work_rem;
+        const int ih_s = -jcp.t_pad + oh_s * jcp.stride_h;
+        const int kh_top_overflow = nstl::max(0, -ih_s);
+        const int kh_bottom_overflow = nstl::max(0, ih_s - jcp.ih + jcp.kh);
+        int kh_padding = jcp.kh - kh_top_overflow - kh_bottom_overflow;
+        int kh_padding_offset = nstl::min(jcp.kh - 1, kh_top_overflow) * jcp.kw
+                * jcp.ic_block * jcp.oc_block * jcp.typesize_out;
+        auto src_h = ti->src + src_d.blk_off(img, 0, ih_s + kh_top_overflow);
+        auto diff_dst_h = ti->diff_dst + diff_dst_d.blk_off(img, 0, oh_s);
+
+        for (int g = ti->g_start; g < ti->g_end; ++g)
+        for (int oc_b = ti->oc_b_start; oc_b < ti->oc_b_end; ++oc_b)
+        for (int ic_b = ti->ic_b_start; ic_b < ti->ic_b_end; ++ic_b) {
+            const int _oc = g * jcp.nb_oc + oc_b;
+            const int _ic = g * jcp.nb_ic + ic_b;
+
+            auto src = src_h + src_d.blk_off(0, _ic);
+            auto diff_dst = diff_dst_h + diff_dst_d.blk_off(0, _oc);
+
+            jit_conv_2d_ker_bwd_w_pipeline(kernel_->jit_ker, p, src, diff_dst,
+                    diff_wei + wht_blk_off(diff_weights_d, g, oc_b, ic_b),
+                    diff_bia + _oc * jcp.oc_block, (img == img_first),
+                    oh_s, oh_e, kh_padding, kh_padding_offset);
+
+            p.flags = ic_b == 0 ? 0 : 1;
+        }
+
+        const int _oc = ti->g_start * jcp.nb_oc + ti->oc_b_start;
+        const int _ic = ti->g_start * jcp.nb_ic + ti->ic_b_start;
+        // This call is required only to finalize pipeline with paramaters set
+        // on the last iteration of loop above. Only valid pointers make sense
+        // here as call parameters to avoid execution of prefetch instructions
+        // with nullptr, other parameters are not used in real jit call here
+        jit_conv_2d_ker_bwd_w_pipeline(kernel_->jit_ker, p,
+                ti->src + src_d.blk_off(img + 1, _ic),
+                ti->diff_dst + diff_dst_d.blk_off(img + 1, _oc),
+                diff_wei + wht_blk_off(diff_weights_d, ti->g_start,
+                                   ti->oc_b_start, ti->ic_b_start),
+                diff_bia + _oc * jcp.oc_block, 0, 0, 0, 0, 0);
+        nd_iterator_jump(img_start, img_end, img, jcp.mb, oh_s, jcp.oh);
     }
 }
 
@@ -1311,7 +1446,7 @@ void jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
           + (ti->ithr_mb - 1) * jcp.ngroups * jcp.oc;
 
     const int inp_mult = jcp.is_1stconv ? 1 : jcp.ic_block;
-    const int input_step = jcp.stride_d * jcp.ih * jcp.iw * inp_mult;
+    const int input_step = jcp.ih * jcp.iw * inp_mult;
     const int output_step = jcp.ow * jcp.oh * jcp.oc_block;
     int img{0}, od_s{0};
     int img_start = ti->img_start, img_end = ti->img_end;
@@ -1326,9 +1461,10 @@ void jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
         const int id_s = od_s * jcp.stride_d;
         const int ik_overlap = nstl::max(0, id_s - jcp.f_pad);
         const int kd_front_pad = nstl::max(0, jcp.f_pad - id_s);
-        const int kd_back_pad = nstl::max(0, id_s + 1 + jcp.back_pad - jcp.od);
-        int kd_pad_off = kd_front_pad * jcp.kh * jcp.kw * jcp.ic_block
-                * jcp.oc_block * jcp.typesize_out;
+        const int kd_back_pad
+                = nstl::max(0, id_s - jcp.f_pad - jcp.id + jcp.kd);
+        int kd_pad_off = nstl::min(jcp.kd - 1, kd_front_pad) * jcp.kh * jcp.kw
+                * jcp.ic_block * jcp.oc_block * jcp.typesize_out;
 
         for (int g = ti->g_start; g < ti->g_end; ++g) {
         for (int oc_b = ti->oc_b_start; oc_b < ti->oc_b_end; ++oc_b) {
@@ -1344,16 +1480,19 @@ void jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
             jit_conv_3d_ker_bwd_w_pipeline(kernel_->jit_ker, p, src, dst,
                     diff_wei + wht_blk_off(diff_weights_d, g, oc_b, ic_b),
                     diff_bia + _oc * 16, (img == img_first), od_s, od_e,
-                    jcp.kd - nstl::max(kd_front_pad, kd_back_pad), kd_pad_off);
+                    jcp.kd - kd_front_pad - kd_back_pad, kd_pad_off);
 
-            if (ic_b == 0) p.flags = 0;
-            else p.flags = 1;
+            p.flags = ic_b == 0 ? 0 : 1;
         }
         }
         }
 
         const int _oc = ti->g_start * jcp.nb_oc + ti->oc_b_start;
         const int _ic = ti->g_start * jcp.nb_ic + ti->ic_b_start;
+        // This call is required only to finalize pipeline with paramaters set
+        // on the last iteration of loop above. Only valid pointers make sense
+        // here as call parameters to avoid execution of prefetch instructions
+        // with nullptr, other parameters are not used in real jit call here
         jit_conv_3d_ker_bwd_w_pipeline(kernel_->jit_ker, p,
                 &ti->src[src_d.blk_off(img + 1, _ic)],
                 &ti->diff_dst[diff_dst_d.blk_off(img + 1, _oc)],
@@ -1533,7 +1672,7 @@ void jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
 template <data_type_t src_type, data_type_t diff_dst_type,
           data_type_t diff_weights_type>
 void jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
-    diff_weights_type>::compute_diff_bias_3d(const thread_info_t *ti) const {
+    diff_weights_type>::reduce_diff_bias(const thread_info_t *ti) const {
 
     const auto &jcp = kernel_->jcp;
 
@@ -1615,21 +1754,31 @@ void jit_avx512_common_convolution_bwd_weights_t<src_type, diff_dst_type,
     diff_weights_type>::execute_backward_weights() const {
     prepare_scratchpad_data();
 
-    parallel(nthr_, [&](const int ithr, const int nthr) {
+    parallel(nthr_, (size_t)mkldnn_get_max_threads(), [&](const int ithr, const int nthr) {
         assert(nthr_ == nthr);
 
         thread_info_t thread_info(this, ithr);
 
-        if (utils::one_of(pd()->ndims(), 3, 4)) {
-            compute_diff_weights(&thread_info);
+        switch (pd()->jcp_.harness) {
+        case harness_2d_reduction:
+            compute_diff_weights_2d(&thread_info);
             if (nthr_mb_ > 1) reduce_diff_weights(&thread_info);
-            if (pd()->with_bias()) compute_diff_bias(&thread_info);
-        } else if (pd()->ndims() == 5) {
+            if (pd()->with_bias())
+                reduce_diff_bias(&thread_info);
+            break;
+        case harness_3d_reduction:
             compute_diff_weights_3d(&thread_info);
             if (nthr_mb_ > 1) reduce_diff_weights_3d(&thread_info);
-            if (pd()->with_bias()) compute_diff_bias_3d(&thread_info);
-        } else {
-            assert(false);
+            if (pd()->with_bias()) reduce_diff_bias(&thread_info);
+            break;
+        case harness_mb_reduction:
+            compute_diff_weights(&thread_info);
+            if (nthr_mb_ > 1)
+                reduce_diff_weights(&thread_info);
+            if (pd()->with_bias())
+                compute_diff_bias(&thread_info);
+            break;
+        default: assert(!"Invalid harness type");
         }
     });
 

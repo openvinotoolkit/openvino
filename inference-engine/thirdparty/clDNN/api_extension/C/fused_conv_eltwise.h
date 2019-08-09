@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef FUSED_CONV_ELTWISE_H
-#define FUSED_CONV_ELTWISE_H
-
+#pragma once
 #include "api/C/cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -34,14 +32,13 @@ extern "C" {
 /// Also supports built-in Relu @CLDNN_PRIMITIVE_DESC{activation} separate for convolution and for eltwise, available by setting it in arguments.
 CLDNN_BEGIN_PRIMITIVE_DESC(fused_conv_eltwise)
 
-struct conv_data
-{
+struct conv_data {
     /// @brief Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the convolution window should start calculations.
     cldnn_tensor input_offset;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
     cldnn_tensor stride;
     /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
-    /// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1. 
+    /// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
     cldnn_tensor dilation;
     /// @brief Enable Relu activation.
@@ -68,8 +65,7 @@ struct conv_data
     float output_quantization_factor;
 } conv;
 
-struct eltw_data
-{
+struct eltw_data {
     /// @brief Primitive id containing output quanitization factors per output feature map.
     cldnn_primitive_id output_calibration_factors;
     /// @brief Output quantization factor
@@ -86,6 +82,11 @@ struct eltw_data
     cldnn_tensor_arr stride;
 } eltw;
 
+// @brief Non-convolution output scaling factor. Might be used both to represent
+// i8->float dynamic range conversion and dynamic range scaling without changing
+// data precision (e.g. to align dynamic range with that of convolution result).
+float non_conv_scale = 1.0f;
+
 /// @brief Is optimization that output contains data from second input ON ?
 bool second_input_in_output = false;
 
@@ -100,5 +101,3 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(fused_conv_eltwise);
 /// @}
 /// @}
 /// @}
-#endif /* FUSED_CONV_ELTWISE_H */
-

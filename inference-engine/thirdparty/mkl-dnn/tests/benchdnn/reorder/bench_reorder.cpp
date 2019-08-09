@@ -26,6 +26,7 @@
 namespace reorder {
 
 /* global driver parameters */
+alg_t alg = ALG_REF;
 attr_t attr;
 bool allow_unimpl = false;
 bool both_dir_dt = false;
@@ -38,6 +39,7 @@ std::vector<dims_t> v_dims;
 std::vector<float> v_def_scale;
 
 void reset_parameters() {
+    alg = ALG_REF;
     attr = attr_t();
     allow_unimpl = false;
     both_dir_dt = false;
@@ -84,7 +86,7 @@ void run() {
         auto &v_scale = attr.oscale.scale == 0 ? v_def_scale : v_attr_scale;
 
         for (auto &scale: v_scale) {
-            const prb_t p(reorder_conf, iconf, oconf, attr, scale);
+            const prb_t p(reorder_conf, iconf, oconf, attr, alg, scale);
             check(&p);
         }
     }
@@ -97,6 +99,8 @@ int bench(int argc, char **argv, bool main_bench) {
     for (int arg = 0; arg < argc; ++arg) {
         if (!strncmp("--batch=", argv[arg], 8))
             SAFE(batch(argv[arg] + 8, bench), CRIT);
+        else if (!strncmp("--alg=", argv[arg], 6))
+            alg = str2alg(argv[arg] + 6);
         else if (!strncmp("--idt=", argv[arg], 6))
             read_csv(argv[arg] + 6, [&]() { v_idt.clear(); },
                     [&](const char *str) { v_idt.push_back(str2dt(str)); });

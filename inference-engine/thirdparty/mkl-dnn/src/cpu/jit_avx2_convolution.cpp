@@ -161,7 +161,7 @@ void jit_avx2_convolution_fwd_t::execute_forward() const {
         bias = padded_bias;
     }
 
-    parallel(0, ker);
+    parallel(0, work_amount, ker);
 
     if (pd()->wants_zero_pad_dst())
         output_memory_primitive(0)->zero_pad();
@@ -324,7 +324,7 @@ void jit_avx2_convolution_fwd_t::execute_forward_with_dw_conv() const {
         dw_bias = dw_padded_bias;
     }
 
-    parallel(0, ker);
+    parallel(0, work_amount, ker);
 
     if (pd()->wants_zero_pad_dst())
         output_memory_primitive(0)->zero_pad();
@@ -418,7 +418,7 @@ void jit_avx2_convolution_bwd_data_t::execute_backward_data() const {
         }
     };
 
-    parallel(0, ker);
+    parallel(0, work_amount, ker);
 }
 
 void jit_avx2_convolution_bwd_weights_t::execute_backward_weights() const {
@@ -557,7 +557,7 @@ void jit_avx2_convolution_bwd_weights_t::execute_backward_weights() const {
         rb->reduce(ithr, diff_bias, reducer_bia_scratchpad);
     };
 
-    parallel(0, [&](const int ithr, const int nthr) {
+    parallel(0, (size_t)mkldnn_get_max_threads(), [&](const int ithr, const int nthr) {
         ker(ithr, nthr);
         if (pd()->with_bias())
             ker_bias(ithr, nthr);

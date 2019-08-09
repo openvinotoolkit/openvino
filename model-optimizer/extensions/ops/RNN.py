@@ -146,7 +146,8 @@ def rnn_infer(node: Node, out_ports=None):
                 name=node.node + '/ExtraOutput/' + str(i),
                 attrs={'executable': True}
             )
-            node.add_output_port(i)
+            if i not in node.out_ports():
+                node.add_output_port(i)
             node.graph.add_edge(node.id, data_node.id, key=0, out=i)
             add_opoutput(node.graph, data_node.id, 0, False)
         else:

@@ -7,6 +7,10 @@
 ///
 /// @brief     Application configuration Leon header
 ///
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE // fix for warning: implicit declaration of function ‘pthread_setname_np’
+#endif
 #include "stdio.h"
 #include "stdint.h"
 #include "stdlib.h"
@@ -65,7 +69,7 @@ typedef struct{
  * @brief Scheduler for each device
  */
 typedef struct {
-    void* xLinkFD; //will be device handler
+    xLinkDeviceHandle_t deviceHandle; //will be device handler
     int schedulerId;
 
     sem_t addEventSem;
@@ -197,18 +201,18 @@ static void* eventReader(void* ctx)
 
     xLinkEvent_t event = { 0 };
     event.header.id = -1;
-    event.xLinkFD = curr->xLinkFD;
+    event.deviceHandle = curr->deviceHandle;
 
-    mvLog(MVLOG_INFO,"eventReader started");
+    mvLog(MVLOG_INFO,"eventReader thread started");
 
     while (!curr->resetXLink) {
         int sc = glControlFunc->eventReceive(&event);
-        mvLog(MVLOG_DEBUG,"Reading %s (scheduler %d, fd %p, event id %d, event stream_id %d, event size %d)\n",
-            TypeToStr(event.header.type), curr->schedulerId, event.xLinkFD, event.header.id, event.header.streamId, event.header.size);
+        mvLog(MVLOG_DEBUG,"Reading %s (scheduler %d, fd %p, event id %d, event stream_id %u, event size %u)\n",
+            TypeToStr(event.header.type), curr->schedulerId, event.deviceHandle.xLinkFD, event.header.id, event.header.streamId, event.header.size);
 
         if (event.header.type == XLINK_RESET_RESP) {
             curr->resetXLink = 1;
-            mvLog(MVLOG_INFO,"eventReader stopped");
+            mvLog(MVLOG_INFO,"eventReader thread stopped: reset");
             break;
         }
 
@@ -216,7 +220,7 @@ static void* eventReader(void* ctx)
             if (sem_post(&curr->notifyDispatcherSem)) {
                 mvLog(MVLOG_ERROR,"can't post semaphore\n"); // stop eventSchedulerRun thread
             }
-            mvLog(MVLOG_ERROR,"eventReader stopped");
+            mvLog(MVLOG_ERROR,"eventReader thread stopped (err %d)", sc);
             break;
         }
     }
@@ -434,7 +438,7 @@ static void closeDeviceFdAndResetScheduler(xLinkSchedulerState_t* curr)
 {
 
     mvLog(MVLOG_INFO, "Dispatcher Cleaning...");
-    glControlFunc->closeDeviceFd(curr->xLinkFD);
+    glControlFunc->closeDeviceFd(&curr->deviceHandle);
     curr->schedulerId = -1;
     curr->resetXLink = 1;
     sem_destroy(&curr->addEventSem);
@@ -465,7 +469,7 @@ static int dispatcherReset(xLinkSchedulerState_t* curr)
 
     mvLog(MVLOG_INFO, "Resetting...");
 
-    glControlFunc->closeLink(curr->xLinkFD);
+    glControlFunc->closeLink(curr->deviceHandle.xLinkFD);
 
     //notifyDispatcherSem +1 for NULL event, avoid dispatcher blocking.
     if (sem_post(&curr->notifyDispatcherSem)) {
@@ -521,6 +525,12 @@ static void* eventSchedulerRun(void* ctx)
         }
         return NULL;
     }
+    char eventReaderThreadName[20];
+    snprintf(eventReaderThreadName, sizeof(eventReaderThreadName), "EventRead%.2dThr", schedulerId);
+    sc = pthread_setname_np(readerThreadId, eventReaderThreadName);
+    if (sc != 0) {
+        perror("Setting name for event reader thread failed");
+    }
     sc = pthread_attr_destroy(&attr);
     if (sc) {
         mvLog(MVLOG_WARN, "Thread attr destroy failed");
@@ -536,7 +546,7 @@ static void* eventSchedulerRun(void* ctx)
             break;
         }
 
-        ASSERT_X_LINK_R(event->packet.xLinkFD == curr->xLinkFD, NULL);
+        ASSERT_X_LINK_R(event->packet.deviceHandle.xLinkFD == curr->deviceHandle.xLinkFD, NULL);
         getRespFunction getResp;
         xLinkEvent_t* toSend;
 
@@ -559,13 +569,21 @@ static void* eventSchedulerRun(void* ctx)
                 // FIXME We shouldn't send reset request for PCIE and with turned on "NO_BOOT" cmake option
                 //  Also, we can't just close evenReader thread, as WinPthread don't have suitable function for this emergency exit,
                 //  so, let's pretend that would be ping request, and then we can correctly close eventReader thread
-#if defined(USE_PCIE) || defined(NO_BOOT)
+
                 if (toSend->header.type == XLINK_RESET_REQ) {
-                    toSend->header.type = XLINK_PING_REQ;
-                    curr->resetXLink = 1;
-                    mvLog(MVLOG_INFO, "Request for reboot not sent");
-                }
+                    if(toSend->deviceHandle.protocol == X_LINK_PCIE) {
+                        toSend->header.type = XLINK_PING_REQ;
+                        curr->resetXLink = 1;
+                        mvLog(MVLOG_INFO, "Request for reboot not sent");
+                    } else {
+#if defined(NO_BOOT)
+                        toSend->header.type = XLINK_PING_REQ;
+                        curr->resetXLink = 1;
+                        mvLog(MVLOG_INFO, "Request for reboot not sent");
 #endif
+                    }
+                }
+
                 if (glControlFunc->eventSend(toSend) != 0) {
                     mvLog(MVLOG_ERROR, "Event sending failed");
                 }
@@ -622,7 +640,7 @@ static xLinkSchedulerState_t* findCorrespondingScheduler(void* xLinkFD)
     }
     for (i=0; i < MAX_SCHEDULERS; i++)
         if (schedulerState[i].schedulerId != -1 &&
-            schedulerState[i].xLinkFD == xLinkFD)
+            schedulerState[i].deviceHandle.xLinkFD == xLinkFD)
             return &schedulerState[i];
 
     return NULL;
@@ -631,7 +649,7 @@ static xLinkSchedulerState_t* findCorrespondingScheduler(void* xLinkFD)
 /*Adds a new event with parameters and returns event id*/
 xLinkEvent_t* dispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event)
 {
-    xLinkSchedulerState_t* curr = findCorrespondingScheduler(event->xLinkFD);
+    xLinkSchedulerState_t* curr = findCorrespondingScheduler(event->deviceHandle.xLinkFD);
     ASSERT_X_LINK_R(curr != NULL, NULL);
 
     if(curr->resetXLink) {
@@ -674,9 +692,9 @@ xLinkEvent_t* dispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event)
     return ev;
 }
 
-int dispatcherWaitEventComplete(void* xLinkFD, unsigned int timeout)
+int dispatcherWaitEventComplete(xLinkDeviceHandle_t* deviceHandle, unsigned int timeout)
 {
-    xLinkSchedulerState_t* curr = findCorrespondingScheduler(xLinkFD);
+    xLinkSchedulerState_t* curr = findCorrespondingScheduler(deviceHandle->xLinkFD);
     ASSERT_X_LINK(curr != NULL);
 
     sem_t* id = getCurrentSem(pthread_self(), curr, 0);
@@ -685,12 +703,10 @@ int dispatcherWaitEventComplete(void* xLinkFD, unsigned int timeout)
     }
 
     int rc = XLinkWaitSemUserMode(id, timeout);
-
-#if !defined(USE_PCIE)
-    if (rc) {
+    if (rc && deviceHandle->protocol != X_LINK_PCIE) {
         xLinkEvent_t event = {0};
         event.header.type = XLINK_RESET_REQ;
-        event.xLinkFD = xLinkFD;
+        event.deviceHandle = *deviceHandle;
         mvLog(MVLOG_ERROR,"waiting is timeout, sending reset remote event");
         dispatcherAddEvent(EVENT_LOCAL, &event);
         id = getCurrentSem(pthread_self(), curr, 0);
@@ -698,7 +714,6 @@ int dispatcherWaitEventComplete(void* xLinkFD, unsigned int timeout)
             dispatcherReset(curr);
         }
     }
-#endif
 
     return rc;
 }
@@ -745,9 +760,9 @@ int findAvailableScheduler()
 /**
  * Initialize scheduler for device
  */
-int dispatcherStart(void* fd)
+int dispatcherStart(xLinkDeviceHandle_t* deviceHandle)
 {
-    if (fd == NULL) {
+    if (deviceHandle->xLinkFD == NULL) {
         mvLog(MVLOG_ERROR, "Invalid device filedescriptor");
         return -1;
     }
@@ -771,7 +786,7 @@ int dispatcherStart(void* fd)
     schedulerState[idx].semaphores = 0;
 
     schedulerState[idx].resetXLink = 0;
-    schedulerState[idx].xLinkFD = fd;
+    schedulerState[idx].deviceHandle = *deviceHandle;
     schedulerState[idx].schedulerId = idx;
 
     schedulerState[idx].lQueue.cur = schedulerState[idx].lQueue.q;
@@ -821,6 +836,14 @@ int dispatcherStart(void* fd)
         }
         return -1;
     }
+
+    char schedulerThreadName[20];
+    snprintf(schedulerThreadName, sizeof(schedulerThreadName), "Scheduler%.2dThr", schedulerState[idx].schedulerId);
+    sc = pthread_setname_np(schedulerState[idx].xLinkThreadId, schedulerThreadName);
+    if (sc != 0) {
+        perror("Setting name for indexed scheduler thread failed");
+    }
+
     pthread_detach(schedulerState[idx].xLinkThreadId);
     numSchedulers++;
 

@@ -70,7 +70,7 @@ void NetworkSerializer::serialize(
 
     // no need to print this information for executable graph information serialization because it is not IR.
     if (!execGraphInfoSerialization) {
-        netXml.append_attribute("version").set_value("3");
+        netXml.append_attribute("version").set_value("6");
         netXml.append_attribute("batch").set_value(network.getBatchSize());
     }
 
@@ -170,7 +170,7 @@ void NetworkSerializer::serialize(
             }
             for (size_t oport = 0; oport < node->outData.size(); oport++) {
                 const DataPtr outData = node->outData[oport];
-                for (const auto &inputTo : outData->inputTo) {
+                for (const auto &inputTo : outData->getInputTo()) {
                     auto itTo = matching.find(inputTo.second);
                     if (itTo == matching.end()) {
                         THROW_IE_EXCEPTION << "Broken edge form layer " << node->name << " to layer "  << inputTo.first<< "during serialization of IR";
@@ -183,7 +183,8 @@ void NetworkSerializer::serialize(
                         }
                     }
                     if (foundPort == -1) {
-                        THROW_IE_EXCEPTION << "Broken edge from layer to parent, cannot find parent " << outData->name << " for layer " << inputTo.second->name
+                        THROW_IE_EXCEPTION << "Broken edge from layer to parent, cannot find parent " <<
+                            outData->getName() << " for layer " << inputTo.second->name
                             << "\ninitial layer for edge output " << node->name;
                     }
                     pugi::xml_node edge = edges.append_child("edge");
@@ -234,6 +235,19 @@ void NetworkSerializer::updateStdLayerParams(const CNNLayer::Ptr &layer) {
         params["dilations"] = arrayRevertToIRProperty(lr->_dilation);
         params["output"] = std::to_string(lr->_out_depth);
         params["group"] = std::to_string(lr->_group);
+    } else if (CaselessEq<std::string>()(layer->type, "deformable_convolution")) {
+        auto *lr = dynamic_cast<DeformableConvolutionLayer *>(layerPtr);
+        if (lr == nullptr) {
+            THROW_IE_EXCEPTION << "Layer " << layerPtr->name << " is not instance of DeformableConvolutionLayer class";
+        }
+        params["kernel"] = arrayRevertToIRProperty(lr->_kernel);
+        params["pads_begin"] = arrayRevertToIRProperty(lr->_padding);
+        params["pads_end"] = arrayRevertToIRProperty(lr->_pads_end);
+        params["strides"] = arrayRevertToIRProperty(lr->_stride);
+        params["dilations"] = arrayRevertToIRProperty(lr->_dilation);
+        params["output"] = std::to_string(lr->_out_depth);
+        params["group"] = std::to_string(lr->_group);
+        params["deformable_group"] = std::to_string(lr->_deformable_group);
     } else if (CaselessEq<std::string>()(layer->type, "relu")) {
         auto *lr = dynamic_cast<ReLULayer *>(layerPtr);
         if (lr == nullptr) {

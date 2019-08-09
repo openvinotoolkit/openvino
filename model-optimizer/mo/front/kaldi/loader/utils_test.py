@@ -19,8 +19,9 @@ import struct
 import unittest
 
 from mo.front.kaldi.loader.utils import end_of_nnet_tag, end_of_component_tag, get_bool, get_uint16, get_uint32, \
-    get_uint64, read_binary_bool_token, read_binary_integer32_token, read_binary_integer64_token, find_next_tag, \
-    find_next_component, find_end_of_component, get_parameters
+    get_uint64, read_binary_bool_token, read_binary_integer32_token, read_binary_integer64_token, read_string, \
+    read_binary_float_token, find_next_tag, find_next_component, find_end_of_component, get_parameters, \
+    collect_until_token_and_read, get_args_for_specifier
 from mo.utils.error import Error
 
 
@@ -64,6 +65,14 @@ class TestKaldiUtilsLoading(unittest.TestCase):
         stream = self.bytesio_from(self.pack_value(8, 'B') + self.pack_value(64, self.uint64_fmt))
         self.assertEqual(read_binary_integer64_token(stream), 64)
 
+    def test_read_binary_float_token(self):
+        stream = self.bytesio_from(self.pack_value(4, 'B') + self.pack_value(0.001, self.float32_fmt))
+        self.assertAlmostEqual(read_binary_float_token(stream), 0.001)
+
+    def test_read_string_token(self):
+        stream = self.bytesio_from(b"opgru3.renorm <NormalizeComponent> ")
+        self.assertEqual(read_string(stream), b"opgru3.renorm")
+
     def test_find_next_tag(self):
         test_token = b'<TestToken>'
         self.assertEqual(find_next_tag(self.bytesio_from(test_token)), test_token.decode('ascii'))
@@ -95,3 +104,29 @@ class TestKaldiUtilsLoading(unittest.TestCase):
         test_file = b'somefakeinfo<another>info<tag>' + bytes(end_of_component_tag, 'ascii') + b'</Nnet>'
         end_tag, end_position = find_end_of_component(self.bytesio_from(test_file), component[1:-1].lower())
         pb = get_parameters(self.bytesio_from(test_file), 0, end_position)
+
+    def test_collect_until_token_and_read(self):
+        tag = b'<InputDim>'
+        test_file = b'<ComponentName> opgru3.renorm <NormalizeComponent> <InputDim> ' + self.pack_value(4, 'B') + \
+                    self.pack_value(256, 'I') + b' <TargetRms> ' + self.pack_value(4, 'B') + \
+                    self.pack_value(0.5, 'f') + b' <AddLogStddev> F</NormalizeComponent>'
+        value = collect_until_token_and_read(self.bytesio_from(test_file), tag)
+        self.assertEqual(value, 256)
+
+    def test_get_args_for_specifier(self):
+        string = b"(Offset(input, -2), Offset(input, -1), input, Offset(input, 1), Offset(input, 2))"
+        args = get_args_for_specifier(string)
+        ref = [b"Offset(input, -2)", b"Offset(input, -1)", b"input", b"Offset(input, 1)", b"Offset(input, 2)"]
+        self.assertEqual(args, ref)
+
+    def test_get_args_for_specifier_2(self):
+        string = b"(Offset(input, -2), input, Offset(Offset(input, -1), 1))"
+        args = get_args_for_specifier(string)
+        ref = [b"Offset(input, -2)", b"input", b"Offset(Offset(input, -1), 1)"]
+        self.assertEqual(args, ref)
+
+    def test_get_args_for_specifier_3(self):
+        string = b"(Offset(input, 1), Offset(input, 2))"
+        args = get_args_for_specifier(string)
+        ref = [b"Offset(input, 1)", b"Offset(input, 2)"]
+        self.assertEqual(args, ref)

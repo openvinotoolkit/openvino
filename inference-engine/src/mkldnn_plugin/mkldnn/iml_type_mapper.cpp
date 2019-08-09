@@ -9,6 +9,12 @@ using namespace MKLDNNPlugin;
 impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
     impl_desc_type res = impl_desc_type::unknown;
 
+#define REPLACE_WORD(_wrd, _sub) int pos = impl_desc_name.find(#_wrd); \
+    if (pos != std::string::npos) impl_desc_name.replace(pos, std::string(#_wrd).length(), #_sub);
+
+    REPLACE_WORD(simple, ref);
+#undef REPLACE_WORD
+
 #define SEARCH_WORD(_wrd) if (impl_desc_name.find(#_wrd) != std::string::npos) \
     res = static_cast<impl_desc_type>(res | impl_desc_type::_wrd);
 
@@ -20,6 +26,7 @@ impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(avx2);
     SEARCH_WORD(avx512);
     SEARCH_WORD(any);
+    SEARCH_WORD(uni);
     SEARCH_WORD(_1x1);
     SEARCH_WORD(_dw);
     SEARCH_WORD(reorder);

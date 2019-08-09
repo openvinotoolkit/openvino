@@ -25,7 +25,7 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
                     'pool': {'type': 'Pooling', 'value': None, 'kind': 'op'},
                     'node_2': {'value': None, 'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'OpOutput'},
+                    'op_output': { 'kind': 'op', 'op': 'Result'},
                     }
 
 

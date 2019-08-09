@@ -64,7 +64,7 @@ def move_scaleshift_to_preprocess(graph: Graph):
             ('biases', dict(kind='data')),
             ('input_output', dict(kind='data')),
             ('scsh_output', dict(kind='data')),
-            ('input_op', dict(kind='op', type='Input')),
+            ('input_op', dict(kind='op', type='Parameter')),
             ('scale_shift', dict(kind='op', type='ScaleShift')),
         ],
         edges=[

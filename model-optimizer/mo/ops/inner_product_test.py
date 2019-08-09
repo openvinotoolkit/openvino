@@ -43,6 +43,6 @@ class TestInnerProductOp(unittest.TestCase):
                                 ('fc_node', 'node_3')
                             ])
         fc_node = InnerProduct(graph, self.nodes_attributes['fc_node']).add_node()
-        self.assertEqual(fc_node.type, 'FullyConnected')
-        self.assertEqual(fc_node.op, 'FullyConnected')
+        self.assertEqual(fc_node.type, 'MatMul')
+        self.assertEqual(fc_node.op, 'MatMul')
         self.assertEqual(fc_node.infer, caffe_inner_product)

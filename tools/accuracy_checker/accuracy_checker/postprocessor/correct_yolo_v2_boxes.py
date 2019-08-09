@@ -20,22 +20,18 @@ from ..representation import DetectionPrediction, DetectionAnnotation
 from ..utils import get_size_from_config
 
 
+class CorrectYoloV2BoxesConfigValidator(BasePostprocessorConfig):
+    dst_width = NumberField(floats=False, optional=True, min_value=1)
+    dst_height = NumberField(floats=False, optional=True, min_value=1)
+    size = NumberField(floats=False, optional=True, min_value=1)
+
+
 class CorrectYoloV2Boxes(Postprocessor):
     __provider__ = 'correct_yolo_v2_boxes'
 
     prediction_types = (DetectionPrediction, )
     annotation_types = (DetectionAnnotation, )
-
-    def validate_config(self):
-        class _CorrectYoloV2BoxesConfigValidator(BasePostprocessorConfig):
-            dst_width = NumberField(floats=False, optional=True, min_value=1)
-            dst_height = NumberField(floats=False, optional=True, min_value=1)
-            size = NumberField(floats=False, optional=True, min_value=1)
-
-        clip_config_validator = _CorrectYoloV2BoxesConfigValidator(
-            self.__provider__, on_extra_argument=_CorrectYoloV2BoxesConfigValidator.ERROR_ON_EXTRA_ARGUMENT
-        )
-        clip_config_validator.validate(self.config)
+    _config_validator_type = CorrectYoloV2BoxesConfigValidator
 
     def configure(self):
         self.dst_height, self.dst_width = get_size_from_config(self.config)

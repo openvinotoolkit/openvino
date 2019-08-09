@@ -77,7 +77,7 @@ REG_VALIDATOR_FOR(MVN, [](const Builder::Layer::CPtr& input_layer, bool partial)
 });
 
 REG_CONVERTER_FOR(MVN, [](const CNNLayerPtr& cnnLayer, Builder::Layer& layer) {
-    layer.getParameters()["across_channels"] = cnnLayer->GetParamsAsBool("across_channels", 0);
-    layer.getParameters()["normalize_variance"] = cnnLayer->GetParamsAsBool("normalize_variance", 0);
+    layer.getParameters()["across_channels"] = cnnLayer->GetParamAsBool("across_channels", 0);
+    layer.getParameters()["normalize_variance"] = cnnLayer->GetParamAsBool("normalize_variance", 0);
     layer.getParameters()["eps"] = cnnLayer->GetParamAsFloat("eps", 0);
 });

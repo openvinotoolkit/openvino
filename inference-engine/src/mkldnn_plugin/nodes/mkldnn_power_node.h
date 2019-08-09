@@ -12,7 +12,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNPowerNode : public MKLDNNNode {
 public:
-    MKLDNNPowerNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNPowerNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNPowerNode() override = default;
 
     void getSupportedDescriptors() override;

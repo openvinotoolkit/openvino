@@ -18,13 +18,12 @@
 #pragma once
 #include "api/CPP/scale_grad_input.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<scale_grad_input> : public typed_program_node_base<scale_grad_input>
-{
+struct typed_program_node<scale_grad_input> : public typed_program_node_base<scale_grad_input> {
     using parent = typed_program_node_base<scale_grad_input>;
 
 public:
@@ -37,8 +36,7 @@ public:
 using scale_grad_input_node = typed_program_node<scale_grad_input>;
 
 template <>
-class typed_primitive_inst<scale_grad_input> : public typed_primitive_inst_base<scale_grad_input>
-{
+class typed_primitive_inst<scale_grad_input> : public typed_primitive_inst_base<scale_grad_input> {
     using parent = typed_primitive_inst_base<scale_grad_input>;
 
 public:
@@ -53,4 +51,4 @@ public:
 
 using scale_grad_input_inst = typed_primitive_inst<scale_grad_input>;
 
-}
+}  // namespace cldnn

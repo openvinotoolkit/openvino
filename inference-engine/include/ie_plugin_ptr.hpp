@@ -32,6 +32,7 @@ public:
 /**
  * @brief This class defines the name of the fabric for creating an IHeteroInferencePlugin object in DLL
  */
+IE_SUPPRESS_DEPRECATED_START
 template<>
 class SOCreatorTrait<IHeteroInferencePlugin> {
 public:
@@ -40,6 +41,7 @@ public:
      */
     static constexpr auto name = "CreatePluginEngine";
 };
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace details
 
@@ -50,6 +52,8 @@ public:
 using InferenceEnginePluginPtr = InferenceEngine::details::SOPointer<IInferencePlugin>;
 
 /** @copybrief InferenceEnginePluginPtr */
+IE_SUPPRESS_DEPRECATED_START
 using HeteroPluginPtr = InferenceEngine::details::SOPointer<IHeteroInferencePlugin>;
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

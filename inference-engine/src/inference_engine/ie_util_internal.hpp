@@ -105,6 +105,27 @@ cloneNet(const std::vector<InferenceEngine::CNNLayerPtr>& layers,
 INFERENCE_ENGINE_API_CPP(InferenceEngine::details::CNNNetworkImplPtr)
 cloneNet(const InferenceEngine::ICNNNetwork &network);
 
+/**
+ * Reallocates and converts FP16 blob to FP32
+ *
+ * @param blob - FP16 blob to convert
+ *
+ * @return converted FP32 blob
+ * */
+INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr)
+convertBlobFP16toFP32(const InferenceEngine::Blob::Ptr &blob);
+
+/**
+ * Converts FP16 layer to FP32. It converts required layer's blobs
+ * to FP32 precision.
+ *
+ * @param layer - FP16 layer to convert
+ *
+ * @return converted FP32 layer
+ * */
+INFERENCE_ENGINE_API_CPP(void)
+convertLayerFP16toFP32(const InferenceEngine::CNNLayerPtr &layer);
+
 namespace traverse {
 
 INFERENCE_ENGINE_API_CPP(void)
@@ -163,6 +184,8 @@ INFERENCE_ENGINE_API_CPP(void) saveGraphToDot(InferenceEngine::ICNNNetwork &netw
   */
 INFERENCE_ENGINE_API_CPP(std::unordered_set<DataPtr>)
 getRootDataObjects(ICNNNetwork &network);
+
+INFERENCE_ENGINE_API_CPP(std::string) getIELibraryPath();
 
 }  // namespace InferenceEngine
 

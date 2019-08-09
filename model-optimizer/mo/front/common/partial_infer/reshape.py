@@ -15,7 +15,7 @@
 """
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.ops.op import PermuteAttrs
+from mo.graph.perm_inputs import PermuteInputs
 from mo.utils.error import Error
 
 
@@ -27,12 +27,10 @@ def tf_reshape_shape_infer(node):
     if node.in_node(0).shape is None:
         return None
 
-    input_shape = node.in_node(0).shape
-    reshape_output = node.in_node(1).value if len(node.in_nodes()) > 1 else node.dim
+    assert len(node.in_nodes()) == 2, 'The Reshape operation {} must have 2 inputs'.format(node.name)
 
-    # In case if Reshape operation was created with two inputs and dim attr wasn't set, we set in automatically
-    if not node.has_valid('dim'):
-        node['dim'] = reshape_output.copy()
+    input_shape = node.in_port(0).data.get_shape()
+    reshape_output = node.in_port(1).data.get_value()
 
     if node.in_node(0).shape is None:
         return None
@@ -64,12 +62,10 @@ def tf_reshape_shape_infer(node):
         out_shape_total *= i
 
     if total != out_shape_total:
-        raise Error(
-            "Number of elements in input {} and output {} of reshape node {} mismatch".format(input_shape, output_shape,
-                                                                                              node.name))
+        raise Error("Number of elements in input {} and output {} of reshape node {} mismatch"
+                    "".format(input_shape, output_shape, node.name))
 
-    PermuteAttrs.create_permute_attrs(node, attrs=[('dim', 'output:0')])
+    PermuteInputs().set_input_permutation(node.in_node(1), node, 'output:0', 'shape')
 
     output_shape = int64_array(output_shape)
-
     return output_shape

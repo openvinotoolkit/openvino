@@ -10,10 +10,11 @@ from ..inference_result import InferenceResult
 
 
 class CollectorByImage:
-    def __init__(self, configuration, plugin, normalizer):
+    def __init__(self, configuration, plugin, normalizer, ignore_layer_names: list):
         self._configuration = configuration
         self._plugin = plugin
         self._normalizer = normalizer
+        self._ignore_layer_names = ignore_layer_names
 
     def _create_single_layer_networks(self, stat):
         '''
@@ -48,7 +49,8 @@ class CollectorByImage:
             layer_index = 1
             for layer_to_clone in network.layers.values():
                 layer_to_clone_info = network_info.get_layer(layer_to_clone.name)
-                if not self._normalizer.is_quantization_supported(layer_to_clone.type) or \
+                if layer_to_clone.name in self._ignore_layer_names or \
+                        not self._normalizer.is_quantization_supported(layer_to_clone.type) or \
                         len(layer_to_clone_info.outputs) != 1 or \
                         len(layer_to_clone_info.outputs[0].layer.inputs != 1):
                     continue
@@ -98,7 +100,7 @@ class CollectorByImage:
         finally:
             del network
 
-    def collect(self, statistics: dict(), full_network_results: InferenceResult) -> list:
+    def collect(self, statistics: dict, full_network_results: InferenceResult) -> list:
         single_layer_networks = self._create_single_layer_networks(statistics)
 
         accuracy_drop_list_by_layer_name = dict()

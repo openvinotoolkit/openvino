@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2018-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include "common_u8.hpp"
 #include "jit_generator.hpp"
-#include "common.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-jit_avx512_core_u8_copy_bn_kern::jit_avx512_core_u8_copy_bn_kern(): jit_generator(nullptr, GEMM_CODE_SIZE)
-{
+jit_avx512_core_u8_copy_bn_kern::jit_avx512_core_u8_copy_bn_kern() :
+    jit_generator(nullptr, U8_COPY_KERNEL_CODE_SIZE) {
 
 #ifndef _WIN32
 #define M	rdi

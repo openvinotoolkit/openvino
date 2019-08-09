@@ -160,7 +160,7 @@ void _jit_uni_planar_convolution_fwd_t<isa>::execute_forward() const {
         }
     };
 
-    parallel(0, ker);
+    parallel(0, (size_t)mkldnn_get_max_threads(), ker);
 }
 
 

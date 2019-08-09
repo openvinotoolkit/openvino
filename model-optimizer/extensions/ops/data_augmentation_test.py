@@ -26,7 +26,7 @@ nodes_attributes = {
     'node_1': {'type': 'Identity', 'kind': 'op'},
     'da': {'type': 'DataAugmentation', 'kind': 'op'},
     'node_3': {'type': 'Identity', 'kind': 'op'},
-    'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+    'op_output': { 'kind': 'op', 'op': 'Result'}
 }
 
 

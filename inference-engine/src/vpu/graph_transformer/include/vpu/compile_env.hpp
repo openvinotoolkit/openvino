@@ -8,10 +8,12 @@
 #include <vpu/network_config.hpp>
 #include <vpu/model/model.hpp>
 #include <vpu/utils/logger.hpp>
+#include <vpu/utils/profiling.hpp>
 
 namespace vpu {
 
 struct CompileEnv final {
+public:
     Platform platform = Platform::UNKNOWN;
     Resources resources;
 
@@ -20,9 +22,21 @@ struct CompileEnv final {
 
     Logger::Ptr log;
 
+#if ENABLE_PROFILING_RAW
+    mutable Profiler profile;
+#endif
+
     bool initialized = false;
 
+public:
+    CompileEnv(const CompileEnv&) = delete;
+    CompileEnv& operator=(const CompileEnv&) = delete;
+
+    CompileEnv(CompileEnv&&) = delete;
+    CompileEnv& operator=(CompileEnv&&) = delete;
+
     static const CompileEnv& get();
+    static const CompileEnv* getOrNull();
 
     static void init(
             Platform platform,
@@ -30,6 +44,9 @@ struct CompileEnv final {
             const Logger::Ptr& log);
     static void updateConfig(const CompilationConfig& config);
     static void free();
+
+private:
+    inline CompileEnv() = default;
 };
 
 }  // namespace vpu

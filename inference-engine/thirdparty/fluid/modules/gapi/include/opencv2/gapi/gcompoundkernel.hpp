@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GCOMPOUNDKERNEL_HPP
@@ -78,7 +78,7 @@ template<typename T> struct tuple_wrap_helper
 template<typename... Objs>
 struct tuple_wrap_helper<std::tuple<Objs...>>
 {
-    static std::tuple<Objs...> get(std::tuple<Objs...>&& objs) { return objs; }
+    static std::tuple<Objs...> get(std::tuple<Objs...>&& objs) { return std::forward<std::tuple<Objs...>>(objs); }
 };
 
 template<typename, typename, typename>

@@ -310,10 +310,16 @@ status_t cpu_memory_t::typed_zero_pad() const {
     MAYBE_WEIGHTS(Owi16o);
     MAYBE_WEIGHTS(OIw8i16o2i);
     MAYBE_WEIGHTS(OIw8o16i2o);
+    MAYBE_WEIGHTS(IOw8o16i2o);
     MAYBE_WEIGHTS(IOw16o16i);
+    MAYBE_WEIGHTS(OIw4i16o4i);
+    MAYBE_WEIGHTS(OIw4i16o4i_s8s8);
     MAYBE_WEIGHTS(OIhw8i16o2i);
-    MAYBE_WEIGHTS(OIdhw8i16o2i);
     MAYBE_WEIGHTS(OIhw8o16i2o);
+    MAYBE_WEIGHTS(IOhw8o16i2o);
+    MAYBE_WEIGHTS(OIdhw8i16o2i);
+    MAYBE_WEIGHTS(OIdhw8o16i2o);
+    MAYBE_WEIGHTS(IOdhw8o16i2o);
     MAYBE_WEIGHTS(OIhw8o8i);
     MAYBE_WEIGHTS(OIhw16o16i);
     MAYBE_WEIGHTS(IOhw16o16i);
@@ -342,10 +348,16 @@ status_t cpu_memory_t::typed_zero_pad() const {
     MAYBE_WEIGHTS(gOwi16o);
     MAYBE_WEIGHTS(gOIw8i16o2i);
     MAYBE_WEIGHTS(gOIw8o16i2o);
+    MAYBE_WEIGHTS(gIOw8o16i2o);
     MAYBE_WEIGHTS(gIOw16o16i);
+    MAYBE_WEIGHTS(gOIw4i16o4i);
+    MAYBE_WEIGHTS(gOIw4i16o4i_s8s8);
     MAYBE_WEIGHTS(gOIhw8i16o2i);
-    MAYBE_WEIGHTS(gOIdhw8i16o2i);
     MAYBE_WEIGHTS(gOIhw8o16i2o);
+    MAYBE_WEIGHTS(gIOhw8o16i2o);
+    MAYBE_WEIGHTS(gOIdhw8i16o2i);
+    MAYBE_WEIGHTS(gOIdhw8o16i2o);
+    MAYBE_WEIGHTS(gIOdhw8o16i2o);
     MAYBE_WEIGHTS(gOIhw8o8i);
     MAYBE_WEIGHTS(gOIhw16o16i);
     MAYBE_WEIGHTS(gIOhw16o16i);
@@ -365,6 +377,7 @@ status_t cpu_memory_t::typed_zero_pad() const {
     MAYBE_WEIGHTS(gOdhwi8o);
     MAYBE_WEIGHTS(Goihw8g);
     MAYBE_WEIGHTS(Goihw16g);
+    MAYBE_WEIGHTS(Goiw16g);
 #   undef MAYBE_WEIGHTS
 
     // the last line of defence
@@ -388,6 +401,7 @@ status_t cpu_memory_t::zero_pad() const {
         case f32: return typed_zero_pad<f32>();
         case s32: return typed_zero_pad<s32>();
         case s16: return typed_zero_pad<s16>();
+        case bf16: return typed_zero_pad<s16>();
         case s8: return typed_zero_pad<s8>();
         case u8: return typed_zero_pad<u8>();
         case bin: return typed_zero_pad<u8>();

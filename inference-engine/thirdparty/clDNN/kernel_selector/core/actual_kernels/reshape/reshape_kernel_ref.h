@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,44 +11,37 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
 
 #pragma once
 
 #include "common_kernel_base.h"
- 
-namespace kernel_selector 
-{    
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // reshape_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct reshape_params : public base_params
-    {
-        reshape_params() : base_params(KernelType::RESHAPE) {}
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            return base_params::GetParamsKey();
-        }
-    };
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// reshape_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct reshape_params : public base_params {
+    reshape_params() : base_params(KernelType::RESHAPE) {}
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // reshape_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct reshape_optional_params : optional_params
-    {
-        reshape_optional_params() : optional_params(KernelType::RESHAPE) {}
-    };
+    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
+};
 
-    class ReshapeKernelRef : public common_kernel_base
-    {
-    public:
-        ReshapeKernelRef() : common_kernel_base("reshape_ref") {}
-        virtual ~ReshapeKernelRef() {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// reshape_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct reshape_optional_params : optional_params {
+    reshape_optional_params() : optional_params(KernelType::RESHAPE) {}
+};
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+class ReshapeKernelRef : public common_kernel_base {
+public:
+    ReshapeKernelRef() : common_kernel_base("reshape_ref") {}
+    virtual ~ReshapeKernelRef() {}
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    bool Validate(const Params& p, const optional_params& op) const override;
+};
+}  // namespace kernel_selector

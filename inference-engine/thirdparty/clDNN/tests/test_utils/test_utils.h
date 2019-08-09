@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -338,7 +338,7 @@ public:
 
 struct pitches
 {
-    size_t b, f, y, x;
+    size_t b, f, y, x, z;
 };
 
 struct memory_desc
@@ -370,6 +370,7 @@ public:
     void compare_buffers(const cldnn::memory& out, const cldnn::memory& ref);
 
     static size_t get_linear_index(const cldnn::layout & layout, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc);
+    static size_t get_linear_index(const cldnn::layout & layout, size_t b, size_t f, size_t z, size_t y, size_t x, const memory_desc& desc);
     static size_t get_linear_index_with_broadcast(const cldnn::layout& in_layout, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc);
 
     static memory_desc get_linear_memory_desc(const cldnn::layout & layout);
@@ -400,10 +401,7 @@ protected:
     virtual cldnn::memory generate_reference(const std::vector<cldnn::memory>& inputs) = 0;
     // Allows the test to override the random input data that the framework generates
 
-    virtual void prepare_input_for_test(std::vector<cldnn::memory>& inputs) 
-    {
-        inputs = inputs;
-    }
+    virtual void prepare_input_for_test(std::vector<cldnn::memory>& /*inputs*/) { }
    
     static std::vector<cldnn::data_types> test_data_types();
     static std::vector<cldnn::format> test_input_formats;
@@ -507,4 +505,137 @@ inline void PrintTupleTo(const std::tuple<tests::test_params*, cldnn::primitive*
 
     *os << str.str();
 }
+
+template <typename T, typename U>
+T div_up(const T a, const U b) {
+    assert(b);
+    return (a + b - 1) / b;
 }
+
+inline void print_bin_blob(cldnn::memory& mem, std::string name)
+{
+    auto&& size = mem.get_layout().size;
+
+    std::cerr << name;
+    std::cerr << " shape: ";
+    std::cerr << size.batch[0] << " ";
+    std::cerr << size.feature[0] << " ";
+    std::cerr << size.spatial[1] << " ";
+    std::cerr << size.spatial[0] << " ";
+    std::cerr << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
+
+    auto mem_ptr = mem.pointer<uint32_t>();
+
+    bool packed_ic = mem.get_layout().format == cldnn::format::b_fs_yx_32fp ? 1 : 0;
+    int B = size.batch[0];
+    int C = size.feature[0];
+    int H = size.spatial[1];
+    int W = size.spatial[0];
+
+    for (cldnn::tensor::value_type b = 0; b < B; ++b)
+    {
+        for (cldnn::tensor::value_type f = 0; f < C; ++f)
+        {
+            for (cldnn::tensor::value_type y = 0; y < H; ++y)
+            {
+                for (cldnn::tensor::value_type x = 0; x < W; ++x)
+                {
+                    if (!packed_ic)
+                    {
+                        size_t input_it = b * C*H*W + f * W*H + y * W + x;
+                        size_t elem = input_it / 32;
+                        size_t bit = input_it % 32;
+                        std::cerr << ((mem_ptr[elem] & (1 << bit)) >> bit) << " ";
+                    }
+                    else
+                    {
+                        size_t input_it = b * (C / 32)*W*H + (f / 32)*W*H + y * W + x;
+                        size_t bit = f % 32;
+                        std::cerr << ((mem_ptr[input_it] & (1 << bit)) >> bit) << " ";
+                    }
+                }
+                std::cerr << std::endl;
+            }
+            std::cerr << std::endl;
+        }
+        std::cerr << "==============" << std::endl;
+    }
+}
+
+inline void print_bin_blob_packed(cldnn::memory& mem, std::string name)
+{
+    auto&& size = mem.get_layout().size;
+
+    std::cerr << name;
+    std::cerr << " shape: ";
+    std::cerr << size.batch[0] << " ";
+    std::cerr << size.feature[0] << " ";
+    std::cerr << size.spatial[1] << " ";
+    std::cerr << size.spatial[0] << " ";
+    std::cerr << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
+
+    auto mem_ptr = mem.pointer<uint32_t>();
+
+    int B = size.batch[0];
+    int C = size.feature[0];
+    int H = size.spatial[1];
+    int W = size.spatial[0];
+
+    for (cldnn::tensor::value_type b = 0; b < B; ++b)
+    {
+        for (cldnn::tensor::value_type f = 0; f < div_up(C, 32); ++f)
+        {
+            for (cldnn::tensor::value_type y = 0; y < H; ++y)
+            {
+                for (cldnn::tensor::value_type x = 0; x < W; ++x)
+                {
+                    size_t input_it = b * div_up(C, 32)*W*H + f * W*H + y * W + x;
+                    std::cerr << mem_ptr[input_it] << " ";
+                }
+                std::cerr << std::endl;
+            }
+            std::cerr << std::endl;
+        }
+        std::cerr << "==============" << std::endl;
+    }
+}
+
+inline void print_blob(cldnn::memory& mem, std::string name)
+{
+    auto&& size = mem.get_layout().size;
+
+    std::cerr << name;
+    std::cerr << " shape: ";
+    std::cerr << size.batch[0] << " ";
+    std::cerr << size.feature[0] << " ";
+    std::cerr << size.spatial[1] << " ";
+    std::cerr << size.spatial[0] << " ";
+    std::cerr << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
+
+    auto mem_ptr = mem.pointer<float>();
+
+    int B = size.batch[0];
+    int C = size.feature[0];
+    int H = size.spatial[1];
+    int W = size.spatial[0];
+
+    for (cldnn::tensor::value_type b = 0; b < B; ++b)
+    {
+        for (cldnn::tensor::value_type f = 0; f < C; ++f)
+        {
+            for (cldnn::tensor::value_type y = 0; y < H; ++y)
+            {
+                for (cldnn::tensor::value_type x = 0; x < W; ++x)
+                {
+                    size_t input_it = b * C*W*H + f * W*H + y * W + x;
+                    std::cerr << std::setw(4) << mem_ptr[input_it] << " ";
+                }
+                std::cerr << std::endl;
+            }
+            std::cerr << std::endl;
+        }
+        std::cerr << "==============" << std::endl;
+    }
+}
+} // namespace tests
+

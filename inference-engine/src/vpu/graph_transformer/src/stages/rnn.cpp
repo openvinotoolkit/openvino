@@ -21,65 +21,43 @@ private:
         return std::make_shared<LSTMCellStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
-        IE_ASSERT(_inputEdges.size() == 5);
-        IE_ASSERT(_outputEdges.size() == 2);
-
-        DataMap<float> out;
-
-        for (const auto& inEdge : _inputEdges) {
-            out[inEdge->input()] = 1.0f;
-        }
-        for (const auto& outEdge : _outputEdges) {
-            out[outEdge->output()] = 1.0f;
-        }
-
-        return out;
-    }
-
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 5);
         IE_ASSERT(_outputEdges.size() == 2);
 
         auto output = _outputEdges[0]->output();
         auto input = _inputEdges[0]->input();
 
-        DimsOrder inputDimsOrder = input->desc().dimsOrder();
-        DimsOrder outputDimsOrder = output->desc().dimsOrder();
+        auto inputDimsOrder = input->desc().dimsOrder();
+        auto outputDimsOrder = output->desc().dimsOrder();
 
-        if (inputDimsOrder.numDims() >= 3) inputDimsOrder.moveDim(Dim::C, 2);  // ->...CHW
-        if (outputDimsOrder.numDims() >= 3) outputDimsOrder.moveDim(Dim::C, 2);
+        if (inputDimsOrder.numDims() >= 3) {
+            inputDimsOrder.moveDim(Dim::C, 2);  // ->...CHW
+        }
+        if (outputDimsOrder.numDims() >= 3) {
+            outputDimsOrder.moveDim(Dim::C, 2);  // ->...CHW
+        }
 
-        DataMap<DimsOrder> out;
-        out[input] = inputDimsOrder;
-        out[output] = outputDimsOrder;
-
-        return out;
+        _orderInfo.setInput(_inputEdges[0], inputDimsOrder);
+        _orderInfo.setOutput(_outputEdges[0], outputDimsOrder);
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl() const override {
         IE_ASSERT(_inputEdges.size() == 5);
         IE_ASSERT(_outputEdges.size() == 2);
 
-        DataMap<StridesRequirement> out;
-
         for (const auto& inEdge : _inputEdges) {
-            out[inEdge->input()] = StridesRequirement::compact();
+            _stridesInfo.setInput(inEdge, StridesRequirement::compact());
         }
         for (const auto& outEdge : _outputEdges) {
-            out[outEdge->output()] = StridesRequirement::compact();
+            _stridesInfo.setOutput(outEdge, StridesRequirement::compact());
         }
-
-        return out;
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     void finalCheckImpl() const override {
@@ -172,7 +150,10 @@ void FrontEnd::parseRNN(
     IE_ASSERT(state_size * ngates == biasesSize);
 
     /* weights repacking */
-    auto newWeightsBlob = ie::make_shared_blob<fp16_t>(ie::Precision::FP16, ie::Layout::C, {weightsSize});
+    auto newWeightsBlob = ie::make_shared_blob<fp16_t>(ie::TensorDesc(
+        ie::Precision::FP16,
+        {weightsSize},
+        ie::Layout::C));
     newWeightsBlob->allocate();
     auto newWeightsPtr = newWeightsBlob->buffer().as<fp16_t*>();
     auto content = weights->content();

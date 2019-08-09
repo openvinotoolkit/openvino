@@ -18,41 +18,39 @@
 #pragma once
 #include "api/CPP/embed.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
-	template <>
-	struct typed_program_node<embed> : public typed_program_node_base<embed>
-	{
-		using parent = typed_program_node_base<embed>;
+namespace cldnn {
+template <>
+struct typed_program_node<embed> : public typed_program_node_base<embed> {
+    using parent = typed_program_node_base<embed>;
 
-	public:
-		using parent::parent;
+public:
+    using parent::parent;
 
-		program_node& input() const { return get_dependency(0); }
-		program_node& weights() const { return get_dependency(1); }
-		program_node& bias() const { return get_dependency(2); }
-		bool bias_term() const { return !get_primitive()->bias.empty(); }
-	};
+    program_node& input() const { return get_dependency(0); }
+    program_node& weights() const { return get_dependency(1); }
+    program_node& bias() const { return get_dependency(2); }
+    bool bias_term() const { return !get_primitive()->bias.empty(); }
+};
 
-	using embed_node = typed_program_node<embed>;
+using embed_node = typed_program_node<embed>;
 
-	template <>
-	class typed_primitive_inst<embed> : public typed_primitive_inst_base<embed>
-	{
-		using parent = typed_primitive_inst_base<embed>;
+template <>
+class typed_primitive_inst<embed> : public typed_primitive_inst_base<embed> {
+    using parent = typed_primitive_inst_base<embed>;
 
-	public:
-		static layout calc_output_layout(embed_node const& node);
-		static std::string to_string(embed_node const& node);
+public:
+    static layout calc_output_layout(embed_node const& node);
+    static std::string to_string(embed_node const& node);
 
-	public:
-		typed_primitive_inst(network_impl& network, embed_node const& node);
-		memory_impl& weights_memory() const { return dep_memory(1); }
-		memory_impl& bias_memory() const { return dep_memory(2); }
-		bool bias_term() const { return !argument.bias.empty(); }
-	};
+public:
+    typed_primitive_inst(network_impl& network, embed_node const& node);
+    memory_impl& weights_memory() const { return dep_memory(1); }
+    memory_impl& bias_memory() const { return dep_memory(2); }
+    bool bias_term() const { return !argument.bias.empty(); }
+};
 
-	using embed_inst = typed_primitive_inst<embed>;
+using embed_inst = typed_primitive_inst<embed>;
 
-}
+}  // namespace cldnn

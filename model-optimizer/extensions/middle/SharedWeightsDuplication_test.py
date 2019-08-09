@@ -37,7 +37,7 @@ nodes_attributes = {
     # Concat1 operation
     'concat_1': {'type': 'Concat', 'kind': 'op', 'op': 'Concat'},
     'concat_1_data': {'value': None, 'shape': None, 'kind': 'data'},
-    'op_output': {'op': 'OpOutput', 'kind': 'op'}
+    'op_output': {'op': 'Result', 'kind': 'op'}
 }
 
 

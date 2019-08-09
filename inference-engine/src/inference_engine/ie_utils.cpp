@@ -146,7 +146,7 @@ std::unordered_map<std::string,
     // Get all network inputs
     CNNLayerSet inputs;
     for (auto input : networkInputs) {
-        for (auto l : input.second->getInputData()->inputTo) {
+        for (auto l : input.second->getInputData()->getInputTo()) {
             inputs.insert(l.second);
         }
     }

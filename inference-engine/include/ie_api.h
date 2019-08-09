@@ -18,6 +18,7 @@
 #else
     #if defined(_WIN32)
         #define INFERENCE_ENGINE_CDECL
+
         #ifdef IMPLEMENT_INFERENCE_ENGINE_API
             #define INFERENCE_ENGINE_API(type) extern "C"   __declspec(dllexport) type __cdecl
             #define INFERENCE_ENGINE_API_CPP(type)  __declspec(dllexport) type __cdecl
@@ -39,4 +40,34 @@
             #define INFERENCE_ENGINE_API_CLASS(type)   type
         #endif
     #endif
+#endif
+
+#if defined(_WIN32)
+    #define INFERENCE_ENGINE_DEPRECATED  __declspec(deprecated)
+#else
+    #define INFERENCE_ENGINE_DEPRECATED __attribute__((deprecated))
+#endif
+
+// Suppress warning "-Wdeprecated-declarations" / C4996
+#if defined(_MSC_VER)
+    #define IE_DO_PRAGMA(x) __pragma(x)
+#elif defined(__GNUC__)
+    #define IE_DO_PRAGMA(x) _Pragma (#x)
+#else
+    #define IE_DO_PRAGMA(x)
+#endif
+
+#ifdef _MSC_VER
+#define IE_SUPPRESS_DEPRECATED_START \
+    IE_DO_PRAGMA(warning(push)) \
+    IE_DO_PRAGMA(warning(disable: 4996))
+#define IE_SUPPRESS_DEPRECATED_END IE_DO_PRAGMA(warning(pop))
+#elif defined(__clang__) || ((__GNUC__)  && (__GNUC__*100 + __GNUC_MINOR__ > 405))
+#define IE_SUPPRESS_DEPRECATED_START \
+    IE_DO_PRAGMA(GCC diagnostic push) \
+    IE_DO_PRAGMA(GCC diagnostic ignored "-Wdeprecated-declarations")
+#define IE_SUPPRESS_DEPRECATED_END IE_DO_PRAGMA(GCC diagnostic pop)
+#else
+#define IE_SUPPRESS_DEPRECATED_START
+#define IE_SUPPRESS_DEPRECATED_END
 #endif

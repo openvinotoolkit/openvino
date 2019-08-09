@@ -21,7 +21,11 @@ import numpy as np
 from .dependency import ClassProvider
 from .logging import print_info
 
-EvaluationResult = namedtuple('EvaluationResult', ['evaluated_value', 'reference_value', 'name', 'threshold', 'meta'])
+EvaluationResult = namedtuple(
+    'EvaluationResult', [
+        'evaluated_value', 'reference_value', 'name', 'metric_type', 'threshold', 'meta'
+    ]
+)
 
 
 class Color(Enum):
@@ -46,11 +50,15 @@ class ScalarPrintPresenter(BasePresenter):
     __provider__ = "print_scalar"
 
     def write_result(self, evaluation_result: EvaluationResult, output_callback=None, ignore_results_formatting=False):
-        value, reference, name, threshold, meta = evaluation_result
+        value, reference, name, _, threshold, meta = evaluation_result
         value = np.mean(value)
         postfix, scale, result_format = get_result_format_parameters(meta, ignore_results_formatting)
+        difference = None
+        if reference:
+            _, original_scale, _ = get_result_format_parameters(meta, False)
+            difference = compare_with_ref(reference, value, original_scale)
         write_scalar_result(
-            value, name, reference, threshold, postfix=postfix, scale=scale, result_format=result_format
+            value, name, threshold, difference, postfix=postfix, scale=scale, result_format=result_format
         )
 
 
@@ -58,49 +66,77 @@ class VectorPrintPresenter(BasePresenter):
     __provider__ = "print_vector"
 
     def write_result(self, evaluation_result: EvaluationResult, output_callback=None, ignore_results_formatting=False):
-        value, reference, name, threshold, meta = evaluation_result
+        value, reference, name, _, threshold, meta = evaluation_result
         if threshold:
             threshold = float(threshold)
 
         value_names = meta.get('names')
         postfix, scale, result_format = get_result_format_parameters(meta, ignore_results_formatting)
         if np.isscalar(value) or np.size(value) == 1:
-            value = [value]
+            if not np.isscalar(value):
+                value = value[0]
+            difference = None
+            if reference:
+                _, original_scale, _ = get_result_format_parameters(meta, False)
+                difference = compare_with_ref(reference, value, original_scale)
+            write_scalar_result(
+                value, name, threshold, difference,
+                value_name=value_names[0] if value_names else None,
+                postfix=postfix[0] if not np.isscalar(postfix) else postfix,
+                scale=scale[0] if not np.isscalar(scale) else scale,
+                result_format=result_format
+            )
+            return
 
         for index, res in enumerate(value):
+            cur_postfix = '%'
+            if not np.isscalar(postfix):
+                if index < len(postfix):
+                    cur_postfix = postfix[index]
+            else:
+                cur_postfix = postfix
             write_scalar_result(
-                res, name, reference, threshold,
+                res, name,
                 value_name=value_names[index] if value_names else None,
-                postfix=postfix[index] if not np.isscalar(postfix) else postfix,
+                postfix=cur_postfix,
                 scale=scale[index] if not np.isscalar(scale) else scale,
                 result_format=result_format
             )
 
         if len(value) > 1 and meta.get('calculate_mean', True):
+            mean_value = np.mean(np.multiply(value, scale))
+            difference = None
+            if reference:
+                original_scale = get_result_format_parameters(meta, False)[1] if ignore_results_formatting else 1
+                difference = compare_with_ref(reference, mean_value, original_scale)
             write_scalar_result(
-                np.mean(np.multiply(value, scale)), name, reference, threshold, value_name='mean',
+                mean_value, name, threshold, difference, value_name='mean',
                 postfix=postfix[-1] if not np.isscalar(postfix) else postfix, scale=1,
                 result_format=result_format
             )
 
 
-def write_scalar_result(res_value, name, reference, threshold, value_name=None, postfix='%', scale=100,
-                        result_format='{:.2f}'):
+def write_scalar_result(
+        res_value, name, threshold=None, diff_with_ref=None, value_name=None,
+        postfix='%', scale=100, result_format='{:.2f}'
+):
     display_name = "{}@{}".format(name, value_name) if value_name else name
     display_result = result_format.format(res_value * scale)
     message = '{}: {}{}'.format(display_name, display_result, postfix)
 
-    if reference:
+    if diff_with_ref:
         threshold = threshold or 0
-
-        difference = abs(reference - (res_value * scale))
-        if threshold <= difference:
-            fail_message = "[FAILED: error = {:.4}]".format(difference)
+        if threshold <= diff_with_ref:
+            fail_message = "[FAILED: error = {:.4}]".format(diff_with_ref)
             message = "{} {}".format(message, color_format(fail_message, Color.FAILED))
         else:
             message = "{} {}".format(message, color_format("[OK]", Color.PASSED))
 
     print_info(message)
+
+
+def compare_with_ref(reference, res_value, scale):
+    return abs(reference - (res_value * scale))
 
 
 class ReturnValuePresenter(BasePresenter):

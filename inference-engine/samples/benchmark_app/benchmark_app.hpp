@@ -9,46 +9,39 @@
 #include <gflags/gflags.h>
 #include <iostream>
 
-#ifdef _WIN32
-#include <os/windows/w_dirent.h>
-#else
-#include <sys/stat.h>
-#include <dirent.h>
-#endif
-
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message";
 
 /// @brief message for images argument
-static const char image_message[] = "Required. Path to a folder with images or to image files.";
-
-/// @brief message for images argument
-static const char multi_input_message[] = "Path to multi input file containing.";
+static const char input_message[] = "Optional. Path to a folder with images and/or binaries or to specific image or binary file.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model.";
-
-/// @brief message for plugin_path argument
-static const char plugin_path_message[] = "Optional. Path to a plugin folder.";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional. Enable Sync/Async API. Default value is \"async\".";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] = "Optional. Specify a target device to infer on: CPU, GPU, FPGA, HDDL or MYRIAD. Default value is CPU. " \
-"Use \"-d HETERO:<comma-separated_devices_list>\" format to specify HETERO plugin. " \
-"The application looks for a suitable plugin for the specified device.";
+static const char target_device_message[] = "Optional. Specify a target device to infer on (the list of available devices is shown below). " \
+"Default value is CPU. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify HETERO plugin. ";
 
 /// @brief message for iterations count
 static const char iterations_count_message[] = "Optional. Number of iterations. " \
 "If not specified, the number of iterations is calculated depending on a device.";
 
 /// @brief message for requests count
-static const char infer_requests_count_message[] = "Optional. Number of infer requests. Default value is 2.";
+static const char infer_requests_count_message[] = "Optional. Number of infer requests. Default value is determined automatically for device.";
+
+/// @brief message for execution time
+static const char execution_time_message[] = "Optional. Time in seconds to execute topology.";
 
 /// @brief message for #threads for CPU inference
 static const char infer_num_threads_message[] = "Optional. Number of threads to use for inference on the CPU "
-                                                "(including HETERO cases).";
+                                                "(including HETERO case).";
+
+/// @brief message for #streams for CPU inference
+static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU or/and GPU in throughput mode "
+                                                "(for HETERO device case use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>)";
 
 /// @brief message for user library argument
 static const char custom_cpu_library_message[] = "Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.";
@@ -68,10 +61,10 @@ static const char stream_output_message[] = "Optional. Print progress as a plain
 
 // @brief message for report_type option
 static const char report_type_message[] = "Optional. Enable collecting statistics report. \"no_counters\" report contains "
-                                          "configuration options specified, resulting FPS and latency. \"median_counters\" "
-                                          "report extends \"no_counters\" report and additionally includes median PM "
+                                          "configuration options specified, resulting FPS and latency. \"average_counters\" "
+                                          "report extends \"no_counters\" report and additionally includes average PM "
                                           "counters values for each layer from the network. \"detailed_counters\" report "
-                                          "extends \"median_counters\" report and additionally includes per-layer PM "
+                                          "extends \"average_counters\" report and additionally includes per-layer PM "
                                           "counters and latency for each executed infer request.";
 
 // @brief message for report_folder option
@@ -80,19 +73,25 @@ static const char report_folder_message[] = "Optional. Path to a folder where st
 // @brief message for exec_graph_path option
 static const char exec_graph_path_message[] = "Optional. Path to a file where to store executable graph information serialized.";
 
+// @brief message for progress bar option
+static const char progress_message[] = "Optional. Show progress bar (can affect performance measurement). Default values is \"false\".";
+
+// @brief message for performance counters option
+static const char pc_message[] = "Optional. Report performance counters.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
+/// @brief Declare flag for showing help message <br>
+DECLARE_bool(help);
+
 /// @brief Define parameter for set image file <br>
 /// i or mif is a required parameter
-DEFINE_string(i, "", image_message);
+DEFINE_string(i, "", input_message);
 
 /// @brief Define parameter for set model file <br>
 /// It is a required parameter
 DEFINE_string(m, "", model_message);
-
-/// @brief Define parameter for set path to plugins <br>
-DEFINE_string(pp, "", plugin_path_message);
 
 /// @brief Define execution mode
 DEFINE_string(api, "async", api_message);
@@ -113,11 +112,17 @@ DEFINE_string(c, "", custom_cldnn_message);
 /// Async mode: StartAsync counts
 DEFINE_uint32(niter, 0, iterations_count_message);
 
-/// @brief Number of infer requests in parallel
-DEFINE_uint32(nireq, 2, infer_requests_count_message);
+/// @brief Time to execute topology in seconds
+DEFINE_uint32(t, 0, execution_time_message);
 
-/// @brief Number of threads to use for inference on the CPU (also affects Hetero cases)
+/// @brief Number of infer requests in parallel
+DEFINE_uint32(nireq, 0, infer_requests_count_message);
+
+/// @brief Number of threads to use for inference on the CPU in throughput mode (also affects Hetero cases)
 DEFINE_uint32(nthreads, 0, infer_num_threads_message);
+
+/// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
+DEFINE_string(nstreams, "", infer_num_streams_message);
 
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
@@ -138,6 +143,12 @@ DEFINE_string(report_folder, "", report_folder_message);
 /// @brief Path to a file where to store executable graph information serialized
 DEFINE_string(exec_graph_path, "", exec_graph_path_message);
 
+/// @brief Define flag for showing progress bar <br>
+DEFINE_bool(progress, false, progress_message);
+
+/// @brief Define flag for showing performance counters <br>
+DEFINE_bool(pc, false, pc_message);
+
 /**
 * @brief This function show a help message
 */
@@ -146,10 +157,9 @@ static void showUsage() {
     std::cout << "benchmark_app [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
-    std::cout << "    -h                        " << help_message << std::endl;
-    std::cout << "    -i \"<path>\"               " << image_message << std::endl;
+    std::cout << "    -h, --help                " << help_message << std::endl;
+    std::cout << "    -i \"<path>\"               " << input_message << std::endl;
     std::cout << "    -m \"<path>\"               " << model_message << std::endl;
-    std::cout << "    -pp \"<path>\"              " << plugin_path_message << std::endl;
     std::cout << "    -d \"<device>\"             " << target_device_message << std::endl;
     std::cout << "    -l \"<absolute_path>\"      " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
@@ -159,11 +169,15 @@ static void showUsage() {
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
     std::cout << "    -b \"<integer>\"            " << batch_size_message << std::endl;
     std::cout << "    -stream_output            " << stream_output_message << std::endl;
-    std::cout << std::endl << "  CPU-specific performance options:" << std::endl;
+    std::cout << "    -t                        " << execution_time_message << std::endl;
+    std::cout << "    -progress                 " << progress_message << std::endl;
+    std::cout << std::endl << "  device-specific performance options:" << std::endl;
+    std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -pin \"YES\"/\"NO\"           " << infer_threads_pinning_message << std::endl;
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
+    std::cout << "    -pc                       " << pc_message << std::endl;
 }

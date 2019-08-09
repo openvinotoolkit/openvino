@@ -81,11 +81,17 @@ class FrontReplacementFromConfigFileSubGraph(FrontReplacementSubgraph):
         # there are a list of custom replacements descriptions that have the same replacement id
         for replacement_description in replacement_descriptions:
             sub_graph_matcher = SubgraphMatcher(replacement_description)
-            for match in sub_graph_matcher.matched_sub_graph_instances(graph):
+            matched_instances = list(sub_graph_matcher.matched_sub_graph_instances(graph))
+            if not len(matched_instances):
+                log.error("Failed to match nodes from custom replacement description with id '{}':\nIt means model and "
+                          "custom replacement description are incompatible.\nTry to correct custom replacement "
+                          "description according to documentation with respect to model node names"
+                          "".format(self.replacement_id))
+            for match in matched_instances:
                 if not is_connected_component(graph, match.matched_nodes_names()):
                     log.warning("The following nodes don't form connected sub-graph: {}".format(
                         match.matched_nodes_names()))
-                    graph.dump_graph_for_graphviz(match.matched_nodes_names())
+                    # graph.dump_graph_for_graphviz(match.matched_nodes_names())
                 self.replace_sub_graph(graph, match)
 
     registered_ops = {}

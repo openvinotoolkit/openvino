@@ -100,7 +100,7 @@ void jit_uni_binary_convolution_fwd_t<isa>::execute_forward() const {
         }
     };
 
-    parallel(0, ker);
+    parallel(0, (size_t)work_amount, ker);
 }
 
 template <cpu_isa_t isa>
@@ -239,7 +239,7 @@ void jit_uni_binary_convolution_fwd_t<isa>::execute_forward_with_dw_conv() const
         dw_conv_bias = dw_conv_padded_bias;
     }
 
-    parallel(0, ker);
+    parallel(0, (size_t)work_amount, ker);
 }
 
 template struct jit_uni_binary_convolution_fwd_t<avx512_common>;

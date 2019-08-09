@@ -14,12 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import itertools
 import math
 
 import numpy as np
 
 from ..adapters import Adapter
 from ..config import ConfigValidator, NumberField, StringField, ListField
+from ..postprocessor.nms import NMS
 from ..representation import DetectionPrediction, ContainerPrediction
 from ..utils import get_or_parse_value
 
@@ -259,7 +261,7 @@ class YoloV3Adapter(Adapter):
         predictions = [[] for _ in range(batch)]
         for blob in outputs:
             for b in range(batch):
-                predictions[b].append(raw[blob][b])
+                predictions[b].append(raw_outputs[blob][b])
 
         for identifier, prediction, meta in zip(identifiers, predictions, frame_meta):
             detections = {'labels': [], 'scores': [], 'x_mins': [], 'y_mins': [], 'x_maxs': [], 'y_maxs': []}
@@ -315,6 +317,161 @@ class SSDAdapter(Adapter):
         return prediction_blob[:m, :]
 
 
+class PyTorchSSDDecoderConfig(ConfigValidator):
+    type = StringField()
+    scores_out = StringField()
+    boxes_out = StringField()
+    confidence_threshold = NumberField(optional=True)
+    nms_threshold = NumberField(optional=True)
+    keep_top_k = NumberField(optional=True, floats=False)
+
+
+class PyTorchSSDDecoder(Adapter):
+    """
+    Class for converting output of PyTorch SSD models to DetectionPrediction representation
+    """
+    __provider__ = 'pytorch_ssd_decoder'
+
+    def validate_config(self):
+        config_validator = PyTorchSSDDecoderConfig(
+            'PyTorchSSD_decoder_config', PyTorchSSDDecoderConfig.ERROR_ON_EXTRA_ARGUMENT
+        )
+
+        config_validator.validate(self.launcher_config)
+
+    def configure(self):
+        self.scores_out = self.launcher_config['scores_out']
+        self.boxes_out = self.launcher_config['boxes_out']
+        self.confidence_threshold = self.launcher_config.get('confidence_threshold', 0.05)
+        self.nms_threshold = self.launcher_config.get('nms_threshold', 0.5)
+        self.keep_top_k = self.launcher_config.get('keep_top_k', 200)
+
+        # Set default values according to:
+        # https://github.com/mlperf/inference/tree/master/cloud/single_stage_detector
+        self.aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
+        self.feat_size = [[50, 50], [25, 25], [13, 13], [7, 7], [3, 3], [3, 3]]
+        self.scales = [21, 45, 99, 153, 207, 261, 315]
+        self.strides = [3, 3, 2, 2, 2, 2]
+        self.scale_xy = 0.1
+        self.scale_wh = 0.2
+
+    @staticmethod
+    def softmax(x, axis=0):
+        return np.transpose(np.transpose(np.exp(x)) * np.reciprocal(np.sum(np.exp(x), axis=axis)))
+
+    @staticmethod
+    def default_boxes(fig_size, feat_size, scales, aspect_ratios):
+
+        fig_size_w, fig_size_h = fig_size
+        scales = [(int(s * fig_size_w / 300), int(s * fig_size_h / 300)) for s in scales]
+        fkw, fkh = np.transpose(feat_size)
+
+        default_boxes = []
+        for idx, sfeat in enumerate(feat_size):
+            sfeat_w, sfeat_h = sfeat
+            sk1 = scales[idx][0] / fig_size_w
+            sk2 = scales[idx + 1][1] / fig_size_h
+            sk3 = math.sqrt(sk1 * sk2)
+            all_sizes = [(sk1, sk1), (sk3, sk3)]
+            for alpha in aspect_ratios[idx]:
+                w, h = sk1 * math.sqrt(alpha), sk1 / math.sqrt(alpha)
+                all_sizes.append((w, h))
+                all_sizes.append((h, w))
+            for w, h in all_sizes:
+                for i, j in itertools.product(range(sfeat_w), range(sfeat_h)):
+                    cx, cy = (j + 0.5) / fkh[idx], (i + 0.5) / fkw[idx]
+                    default_boxes.append((cx, cy, w, h))
+        default_boxes = np.clip(default_boxes, 0, 1)
+
+        return default_boxes
+
+    def process(self, raw, identifiers=None, frame_meta=None):
+        """
+        Args:
+            identifiers: list of input data identifiers
+            raw: output of model
+        Returns:
+            list of DetectionPrediction objects
+        """
+        raw_outputs = self._extract_predictions(raw, frame_meta)
+
+        batch_scores = raw_outputs[self.scores_out]
+        batch_boxes = raw_outputs[self.boxes_out]
+
+        result = []
+        for identifier, scores, boxes, meta in zip(identifiers, batch_scores, batch_boxes, frame_meta):
+            detections = {'labels': [], 'scores': [], 'x_mins': [], 'y_mins': [], 'x_maxs': [], 'y_maxs': []}
+            image_info = meta.get("image_size")[0:2]
+
+            # Default boxes
+            dboxes = self.default_boxes(image_info, self.feat_size, self.scales, self.aspect_ratios)
+
+            # Scores
+            scores = np.transpose(scores)
+            scores = self.softmax(scores, axis=1)
+
+            # Boxes
+            boxes = np.transpose(boxes)
+            boxes[:, :2] = self.scale_xy * boxes[:, :2]
+            boxes[:, 2:] = self.scale_wh * boxes[:, 2:]
+            boxes[:, :2] = boxes[:, :2] * dboxes[:, 2:] + dboxes[:, :2]
+            boxes[:, 2:] = np.exp(boxes[:, 2:]) * dboxes[:, 2:]
+
+            for label, score in enumerate(np.transpose(scores)):
+
+                # Skip background label
+                if label == 0:
+                    continue
+
+                # Filter out detections with score < confidence_threshold
+                mask = score > self.confidence_threshold
+                filtered_boxes, filtered_score = boxes[mask, :], score[mask]
+                if filtered_score.size == 0:
+                    continue
+
+                # Transform to format (x_min, y_min, x_max, y_max)
+                x_mins = (filtered_boxes[:, 0] - 0.5 * filtered_boxes[:, 2])
+                y_mins = (filtered_boxes[:, 1] - 0.5 * filtered_boxes[:, 3])
+                x_maxs = (filtered_boxes[:, 0] + 0.5 * filtered_boxes[:, 2])
+                y_maxs = (filtered_boxes[:, 1] + 0.5 * filtered_boxes[:, 3])
+
+                # Apply NMS
+                keep = NMS.nms(x_mins, y_mins, x_maxs, y_maxs, filtered_score, self.nms_threshold,
+                               include_boundaries=False, keep_top_k=self.keep_top_k)
+
+                filtered_score = filtered_score[keep]
+                x_mins = x_mins[keep]
+                y_mins = y_mins[keep]
+                x_maxs = x_maxs[keep]
+                y_maxs = y_maxs[keep]
+
+                # Keep topK
+                # Applied just after NMS - no additional sorting is required for filtered_score array
+                filtered_score = filtered_score[:self.keep_top_k]
+                x_mins = x_mins[:self.keep_top_k]
+                y_mins = y_mins[:self.keep_top_k]
+                x_maxs = x_maxs[:self.keep_top_k]
+                y_maxs = y_maxs[:self.keep_top_k]
+
+                # Save detections
+                labels = np.full_like(filtered_score, label)
+                detections['labels'].extend(labels)
+                detections['scores'].extend(filtered_score)
+                detections['x_mins'].extend(x_mins)
+                detections['y_mins'].extend(y_mins)
+                detections['x_maxs'].extend(x_maxs)
+                detections['y_maxs'].extend(y_maxs)
+
+            result.append(
+                DetectionPrediction(
+                    identifier, detections['labels'], detections['scores'], detections['x_mins'],
+                    detections['y_mins'], detections['x_maxs'], detections['y_maxs']
+                )
+            )
+
+        return result
+
+
 class FacePersonDetectionAdapterConfig(ConfigValidator):
     type = StringField()
     face_out = StringField()
@@ -336,8 +493,8 @@ class FacePersonAdapter(Adapter):
         self.person_adapter = SSDAdapter(self.launcher_config, self.label_map, self.person_detection_out)
 
     def process(self, raw, identifiers=None, frame_meta=None):
-        face_batch_result = self.face_adapter(raw, identifiers)
-        person_batch_result = self.person_adapter(raw, identifiers)
+        face_batch_result = self.face_adapter.process(raw, identifiers)
+        person_batch_result = self.person_adapter.process(raw, identifiers)
         result = [ContainerPrediction({self.face_detection_out: face_result, self.person_detection_out: person_result})
                   for face_result, person_result in zip(face_batch_result, person_batch_result)]
 

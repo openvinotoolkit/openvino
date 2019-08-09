@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,42 +17,37 @@
 #pragma once
 
 #include "convolution_kernel_base.h"
+#include <vector>
 
 namespace kernel_selector {
 
-    class ConvolutionKernel_imad_3x3 : public ConvolutionKernelBase
-    {
-    public:
-        using Parent = ConvolutionKernelBase;
-        ConvolutionKernel_imad_3x3() : ConvolutionKernelBase("convolution_gpu_imad") {}
-        ConvolutionKernel_imad_3x3(size_t FilterSizeX, size_t FilterSizeY)
-            : ConvolutionKernelBase("convolution_gpu_imad"),
-              m_FilterSizeX(FilterSizeX),
-              m_FilterSizeY(FilterSizeY) {}
-        virtual ~ConvolutionKernel_imad_3x3() {}
+class ConvolutionKernel_imad_3x3 : public ConvolutionKernelBase {
+public:
+    using Parent = ConvolutionKernelBase;
+    ConvolutionKernel_imad_3x3() : ConvolutionKernel_imad_3x3(3, 3) {}
+    ConvolutionKernel_imad_3x3(size_t FilterSizeX, size_t FilterSizeY)
+        : ConvolutionKernelBase("fused_conv_eltwise_gpu_imad"),
+          m_FilterSizeX(FilterSizeX),
+          m_FilterSizeY(FilterSizeY) {}
+    virtual ~ConvolutionKernel_imad_3x3() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
 
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params& options, const std::string exeMode = DEFAULT, int autoTuneIndex = -1) const;
+protected:
+    bool Validate(const Params& params, const optional_params& options) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        virtual bool Validate(const Params& params, const optional_params& options) const override;
-        JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
-        DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
+    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
+        return {WeightsLayout::os_is_yx_osv16_isv4};
+    }
 
-        std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override
-        {
-            return{
-                WeightsLayout::os_is_yx_osv16_isv4
-            };
-        }
-
-    protected:
-        // This class is base one for several similar classes with different
-        // filter sizes. That's why the actual filters sizes must be explicitly
-        // specified.
-        size_t m_FilterSizeX = 3;
-        size_t m_FilterSizeY = 3;
-    };
-}
+protected:
+    // This class is base one for several similar classes with different
+    // filter sizes. That's why the actual filters sizes must be explicitly
+    // specified.
+    size_t m_FilterSizeX;
+    size_t m_FilterSizeY;
+};
+}  // namespace kernel_selector

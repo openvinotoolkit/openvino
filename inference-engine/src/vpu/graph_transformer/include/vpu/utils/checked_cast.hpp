@@ -15,70 +15,112 @@
 
 namespace vpu {
 
-template <typename I, typename J>
-typename std::enable_if<
-        std::is_same<I, J>::value,
-    I>::type checked_cast(J value) {
+namespace details {
+
+template <bool Cond, class Func>
+inline typename std::enable_if<Cond, void>::type runIf(Func&& func) {
+    func();
+}
+template <bool Cond, class Func>
+inline typename std::enable_if<!Cond, void>::type runIf(Func&&) {
+}
+
+// To overcame syntax parse error, when `>` comparison operator is threated as template closing bracket
+template <typename T1, typename T2>
+constexpr inline bool Greater(T1&& v1, T2&& v2) {
+    return v1 > v2;
+}
+
+}  // namespace details
+
+template <typename OutT, typename InT>
+inline typename std::enable_if<
+        std::is_same<OutT, InT>::value,
+OutT>::type checked_cast(InT value) {
     return value;
 }
 
-template <typename I, typename J>
-typename std::enable_if<
-        std::is_integral<I>::value && std::is_integral<J>::value &&
-        std::is_signed<I>::value && std::is_signed<J>::value &&
-        !std::is_same<I, J>::value,
-    I>::type checked_cast(J value) {
-    IE_ASSERT(value >= std::numeric_limits<I>::lowest()) << value;
-    IE_ASSERT(value <= std::numeric_limits<I>::max()) << value;
-    return static_cast<I>(value);
+template <typename OutT, typename InT>
+inline typename std::enable_if<
+        std::is_integral<OutT>::value && std::is_integral<InT>::value &&
+        std::is_signed<OutT>::value && std::is_signed<InT>::value &&
+        !std::is_same<OutT, InT>::value,
+OutT>::type checked_cast(InT value) {
+    details::runIf<
+        std::numeric_limits<InT>::lowest() < std::numeric_limits<OutT>::lowest()
+    >([&] {
+        IE_ASSERT(value >= std::numeric_limits<OutT>::lowest()) << value;
+    });
+    details::runIf<
+        details::Greater(std::numeric_limits<InT>::max(), std::numeric_limits<OutT>::max())
+    >([&] {
+        IE_ASSERT(value <= std::numeric_limits<OutT>::max()) << value;
+    });
+
+    return static_cast<OutT>(value);
 }
 
-template <typename I, typename J>
+template <typename OutT, typename InT>
 typename std::enable_if<
-        std::is_integral<I>::value && std::is_integral<J>::value &&
-        std::is_signed<I>::value && std::is_unsigned<J>::value,
-    I>::type checked_cast(J value) {
-    IE_ASSERT(value <= static_cast<typename std::make_unsigned<I>::type>(std::numeric_limits<I>::max())) << value;
-    return static_cast<I>(value);
+        std::is_integral<OutT>::value && std::is_integral<InT>::value &&
+        std::is_unsigned<OutT>::value && std::is_unsigned<InT>::value &&
+        !std::is_same<OutT, InT>::value,
+    OutT>::type checked_cast(InT value) {
+    details::runIf<
+        details::Greater(std::numeric_limits<InT>::max(), std::numeric_limits<OutT>::max())
+    >([&] {
+        IE_ASSERT(value <= std::numeric_limits<OutT>::max()) << value;
+    });
+
+    return static_cast<OutT>(value);
 }
 
-template <typename I, typename J>
+template <typename OutT, typename InT>
 typename std::enable_if<
-        std::is_integral<I>::value && std::is_integral<J>::value &&
-        std::is_unsigned<I>::value && std::is_signed<J>::value,
-    I>::type checked_cast(J value) {
+        std::is_integral<OutT>::value && std::is_integral<InT>::value &&
+        std::is_signed<OutT>::value && std::is_unsigned<InT>::value,
+    OutT>::type checked_cast(InT value) {
+    details::runIf<
+        details::Greater(std::numeric_limits<InT>::max(), static_cast<typename std::make_unsigned<OutT>::type>(std::numeric_limits<OutT>::max()))
+    >([&] {
+        IE_ASSERT(value <= static_cast<typename std::make_unsigned<OutT>::type>(std::numeric_limits<OutT>::max())) << value;
+    });
+
+    return static_cast<OutT>(value);
+}
+
+template <typename OutT, typename InT>
+typename std::enable_if<
+        std::is_integral<OutT>::value && std::is_integral<InT>::value &&
+        std::is_unsigned<OutT>::value && std::is_signed<InT>::value,
+    OutT>::type checked_cast(InT value) {
     IE_ASSERT(value >= 0) << value;
-    // coverity[result_independent_of_operands]
-    IE_ASSERT(static_cast<typename std::make_unsigned<J>::type>(value) <= std::numeric_limits<I>::max()) << value;
-    return static_cast<I>(value);
+    details::runIf<
+        details::Greater(static_cast<typename std::make_unsigned<InT>::type>(std::numeric_limits<InT>::max()), std::numeric_limits<OutT>::max())
+    >([&] {
+        IE_ASSERT(static_cast<typename std::make_unsigned<InT>::type>(value) <= std::numeric_limits<OutT>::max()) << value;
+    });
+
+    return static_cast<OutT>(value);
 }
 
-template <typename I, typename J>
+template <typename OutT, typename InT>
 typename std::enable_if<
-        std::is_integral<I>::value && std::is_integral<J>::value &&
-        std::is_unsigned<I>::value && std::is_unsigned<J>::value &&
-        !std::is_same<I, J>::value,
-    I>::type checked_cast(J value) {
-    // coverity[result_independent_of_operands]
-    IE_ASSERT(value <= std::numeric_limits<I>::max()) << value;
-    return static_cast<I>(value);
+        std::is_integral<OutT>::value && std::is_floating_point<InT>::value,
+    OutT>::type checked_cast(InT value) {
+    IE_ASSERT(value <= static_cast<InT>(std::numeric_limits<OutT>::max())) << value;
+    IE_ASSERT(value >= static_cast<InT>(std::numeric_limits<OutT>::lowest())) << value;
+
+    return static_cast<OutT>(value);
 }
 
-template <typename I, typename J>
+template <typename OutT, typename InT>
 typename std::enable_if<
-        std::is_integral<I>::value && std::is_floating_point<J>::value,
-    I>::type checked_cast(J value) {
-    IE_ASSERT(value <= static_cast<J>(std::numeric_limits<I>::max())) << value;
-    IE_ASSERT(value >= static_cast<J>(std::numeric_limits<I>::lowest())) << value;
-    return static_cast<I>(value);
-}
-
-template <typename I, typename J>
-typename std::enable_if<
-        std::is_same<float, I>::value && std::is_same<double, J>::value,
-    I>::type checked_cast(J value) {
+        std::is_same<float, OutT>::value && std::is_same<double, InT>::value,
+    OutT>::type checked_cast(InT value) {
     IE_ASSERT(static_cast<double>(static_cast<float>(value)) == value) << value;
-    return static_cast<I>(value);
+
+    return static_cast<OutT>(value);
 }
 
 }  // namespace vpu

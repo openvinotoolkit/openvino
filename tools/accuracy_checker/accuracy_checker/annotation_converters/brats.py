@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from pathlib import Path
+import warnings
 
 from ..representation import BrainTumorSegmentationAnnotation
 from ..utils import get_path
@@ -40,12 +41,18 @@ class BratsConverter(BaseFormatConverter):
         mask_folder = Path(self.mask_folder)
         image_folder = Path(self.image_folder)
         image_dir = get_path(self.data_dir / image_folder, is_directory=True)
+        mask_dir = get_path(self.data_dir / mask_folder, is_directory=True)
 
         annotations = []
         for file_in_dir in image_dir.iterdir():
+            file_name = file_in_dir.parts[-1]
+            mask = mask_dir / file_name
+            if not mask.exists():
+                warnings.warn('Annotation mask for {} does not exists. File will be ignored.'.format(file_name))
+                continue
             annotation = BrainTumorSegmentationAnnotation(
-                str(image_folder / file_in_dir.parts[-1]),
-                str(mask_folder / file_in_dir.parts[-1]),
+                str(image_folder / file_name),
+                str(mask_folder / file_name),
             )
 
             annotations.append(annotation)

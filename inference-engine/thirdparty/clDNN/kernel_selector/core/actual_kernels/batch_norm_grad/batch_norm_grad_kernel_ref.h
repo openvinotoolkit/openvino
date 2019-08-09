@@ -18,17 +18,13 @@
 
 #include "batch_norm_grad_kernel_base.h"
 
-namespace kernel_selector
-{
-    class BatchNormGradKernelRef : public BatchNormGradKernelBase
-    {
-    public:
-        BatchNormGradKernelRef() : BatchNormGradKernelBase("batch_norm_grad_gpu_ref") {}
-        virtual ~BatchNormGradKernelRef() {}
+namespace kernel_selector {
+class BatchNormGradKernelRef : public BatchNormGradKernelBase {
+public:
+    BatchNormGradKernelRef() : BatchNormGradKernelBase("batch_norm_grad_gpu_ref") {}
+    virtual ~BatchNormGradKernelRef() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

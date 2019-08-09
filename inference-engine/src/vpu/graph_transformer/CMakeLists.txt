@@ -10,10 +10,13 @@ add_library(${TARGET_NAME} STATIC ${SOURCES})
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 # TODO: enable some day and fix all warnings
-# if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 #     target_compile_options(${TARGET_NAME} PRIVATE "-Wall")
-# endif()
+    target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-variable")
+    target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-function")
+    target_compile_options(${TARGET_NAME} PRIVATE "-Werror=strict-aliasing")
+endif()
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
@@ -25,22 +28,27 @@ target_include_directories(${TARGET_NAME}
         "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
         "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include")
 
-set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+target_link_libraries(${TARGET_NAME} PUBLIC pugixml)
+
+if(WIN32)
+    target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
+
+    set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+add_cppcheck(${TARGET_NAME})
 
 # unit tests support for graph transformer
 if (WIN32)
-    set(UTEST_SOURCES ${SOURCES})
-
-    add_library(${TARGET_NAME}_test_static STATIC ${UTEST_SOURCES})
+    add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
 
     set_ie_threading_interface_for(${TARGET_NAME}_test_static)
 
     # static linkage to inference_engine library
-    target_compile_definitions(${TARGET_NAME}_test_static PUBLIC -DUSE_STATIC_IE)
-    get_target_property(target_includes ${TARGET_NAME} INTERFACE_INCLUDE_DIRECTORIES)
+    target_compile_definitions(${TARGET_NAME}_test_static PUBLIC USE_STATIC_IE PRIVATE NOMINMAX)
 
+    get_target_property(target_includes ${TARGET_NAME} INTERFACE_INCLUDE_DIRECTORIES)
     target_include_directories(${TARGET_NAME}_test_static SYSTEM PUBLIC ${target_includes})
 
     set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
@@ -48,4 +56,9 @@ else()
     add_library(${TARGET_NAME}_test_static ALIAS ${TARGET_NAME})
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC pugixml)
+#
+# developer package
+#
+
+export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+        APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")

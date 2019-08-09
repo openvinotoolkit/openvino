@@ -88,7 +88,10 @@ execute_forward() const {
         bias = padded_bias;
     }
 
-    parallel(0, [&](const int ithr, const int nthr) {
+    const int MB = pd()->MB();
+    const int work_amount = MB * jcp.ngroups * jcp.nb_bcast * jcp.nb_load;
+
+    parallel(0, (size_t)work_amount, [&](const int ithr, const int nthr) {
         execute_forward_thr(ithr, nthr, src, weights, bias, dst, scratchpad);
     });
 
@@ -310,7 +313,6 @@ void jit_avx512_common_1x1_convolution_bwd_data_t<diff_dst_type, wei_type,
     const auto &jcp = kernel_->jcp;
     const int MB = pd()->MB();
 
-    // TODO (Roma): remove this restriction
     assert(jcp.stride_w == 1 && jcp.stride_h == 1);
 
     const int stride_h = (ndims == 3) ? 1 : pd()->desc()->strides[0];
@@ -323,14 +325,14 @@ void jit_avx512_common_1x1_convolution_bwd_data_t<diff_dst_type, wei_type,
     const int os_block = jcp.bcast_block;
     const int nb_oc_blocking = jcp.nb_reduce_blocking;
 
-    const int work_amount = MB * jcp.ngroups * jcp.nb_bcast;
+    const int work_amount = MB * jcp.ngroups * jcp.nb_bcast * jcp.nb_load;
 
     auto step = [](int default_step, int remaining, int tail_step) {
         assert(default_step <= tail_step);
         return remaining < tail_step ? remaining : default_step;
     };
 
-    parallel(0, [&](const int ithr, const int nthr) {
+    parallel(0, (size_t)work_amount, [&](const int ithr, const int nthr) {
         auto p = jit_1x1_conv_call_s();
         auto rp = rtus_driver_t<avx512_common>::call_params_t();
 
@@ -810,7 +812,7 @@ void jit_avx512_common_1x1_convolution_bwd_weights_t::execute_backward_weights()
         rb->reduce(ithr, diff_bias, reducer_bia_scratchpad);
     };
 
-    parallel(jcp.nthr, [&](const int ithr, const int nthr) {
+    parallel(jcp.nthr, (size_t)mkldnn_get_max_threads(), [&](const int ithr, const int nthr) {
         ker(ithr, jcp.nthr);
         if (pd()->with_bias())
             ker_bias(ithr, jcp.nthr);

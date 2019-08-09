@@ -20,7 +20,7 @@
     typedef struct 
     {
         uint index; 
-        UNIT_TYPE value; 
+        INPUT0_TYPE value; 
     } iav_type;
     #define IAV_STRUCT_DEFINED
 #endif

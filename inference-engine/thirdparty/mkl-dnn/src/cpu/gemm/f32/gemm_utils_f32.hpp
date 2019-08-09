@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2018-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef GEMM_UTILS_HPP
-#define GEMM_UTILS_HPP
+#ifndef GEMM_UTILS_F32_HPP
+#define GEMM_UTILS_F32_HPP
 
 namespace mkldnn {
 namespace impl {
@@ -69,4 +69,4 @@ void partition_unit_diff(
 }
 }
 }
-#endif
+#endif // GEMM_UTILS_F32_HPP

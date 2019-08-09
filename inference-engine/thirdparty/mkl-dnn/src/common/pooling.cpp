@@ -78,11 +78,20 @@ status_t pooling_desc_init(pooling_desc_t *pool_desc,
         && utils::one_of(dst_desc->ndims, 4, 5)
         && src_desc->dims[0] == dst_desc->dims[0]
         && src_desc->dims[1] == dst_desc->dims[1];
-    for (int i = 2; i < src_desc->ndims; ++i)
+    for (int i = 2; i < src_desc->ndims; ++i) {
         consistency = consistency && (
                 (src_desc->dims[i] - kernel[i - 2] + padding_l[i - 2]
                  + padding_r[i - 2]) / strides[i - 2] + 1
                 == dst_desc->dims[i]);
+// The check is disabled in order to support old behavior
+//        if (alg_kind == pooling_avg_exclude_padding)
+//            // It's not allowed for pooling window to be totally placeed outside
+//            // of real source domain for pooling_avg_exclude_padding algorithm
+//            // due to 0 / 0 ambiguity
+//            consistency = consistency
+//                && padding_l[i - 2] < kernel[i - 2]
+//                && padding_r[i - 2] < kernel[i - 2];
+    }
     if (!consistency) return invalid_arguments;
 
     *pool_desc = pd;

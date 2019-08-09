@@ -24,7 +24,8 @@ import openvino.inference_engine as ie
 
 from ..accuracy_checker.accuracy_checker.progress_reporters import TQDMReporter, ProgressReporter
 from ..accuracy_checker.accuracy_checker.config import ConfigReader
-from ..accuracy_checker.accuracy_checker.model_evaluator import ModelEvaluator
+from ..accuracy_checker.accuracy_checker.evaluators.model_evaluator import ModelEvaluator
+from ..accuracy_checker.accuracy_checker.presenters import get_result_format_parameters
 
 from ..utils.network_info import NetworkInfo
 from ..utils.building.network_builder import NetworkBuilder
@@ -38,7 +39,13 @@ from .single_layer_network import SingleLayerNetwork
 from .inference_result import InferenceResult
 from .calibration_metrics import CalibrationMetrics
 from .infer_raw_results import InferRawResults
+from .accuracy.metric_factory import MetricFactory
+from .accuracy.metric_in_percent import MetricInPercent
 
+from .process_dataset_callbacks.collect_results_callback import CollectResultsCallback
+from .process_dataset_callbacks.calculate_accuracy_callback import CalculateAccuracyCallback
+from ..utils.weights import Weights
+from ..utils.biases import Biases
 
 class MetricsCallback:
     def __init__(self):
@@ -56,70 +63,6 @@ class MetricsCallback:
     @property
     def latencies(self):
         return self._latencies
-
-
-class DatasetCallback:
-    def __init__(
-        self,
-        network: ie.IENetwork,
-        exec_network: ie.ExecutableNetwork,
-        collect_resuls: bool = True,
-        collect_layers: set = None,
-        collect_aggregated_statistics: bool = True,
-        iterations_count: int = 1,
-        dataset_size: int = 1
-    ):
-
-        self._network = network
-        self._exec_network = exec_network
-        self._aggregated_statistics = None
-        self._iterations_count = iterations_count
-        self._dataset_size = dataset_size
-        self._collect_results = collect_resuls
-        self._collect_layers = collect_layers
-        self._collect_aggregated_statistics = collect_aggregated_statistics
-        self._infer_raw_results = InferRawResults() if collect_resuls else None
-        self._latencies = list()
-
-    def callback(self, value, latency = None):
-        if self._collect_aggregated_statistics:
-            if not self._aggregated_statistics:
-                self._aggregated_statistics = AggregatedStatistics(
-                    iterations_count = self._iterations_count,
-                    dataset_size = self._dataset_size)
-            self._aggregated_statistics.add(self._network, self._exec_network, value)
-
-        if self._collect_results:
-            if self._collect_layers:
-                collect_value = dict()
-                for layer_name in value:
-                    if layer_name in self._collect_layers:
-                        collect_value[layer_name] = value[layer_name]
-                self._infer_raw_results.add(collect_value)
-            else:
-                self._infer_raw_results.add(value)
-
-        if latency:
-            self._latencies.append(latency)
-
-    @property
-    def aggregated_statistics(self) -> AggregatedStatistics:
-        return self._aggregated_statistics
-
-    @property
-    def infer_raw_result(self) -> InferRawResults:
-        return self._infer_raw_results
-
-    @property
-    def latencies(self) -> list:
-        return self._latencies
-
-    def release(self):
-        if self._aggregated_statistics:
-            self._aggregated_statistics.release()
-        if self._infer_raw_results:
-            self._infer_raw_results.release()
-
 
 class BaseCalibrator:
     '''
@@ -171,79 +114,108 @@ class BaseCalibrator:
         weights: str,
         quantization_layer: ie.IENetLayer,
         quantization_layer_info: Layer,
-        activation_layer: ie.IENetLayer
-    ):
+        activation_layer: ie.IENetLayer):
 
-        if self.is_quantization_supported(quantization_layer.type):
-            input_layer_info = quantization_layer_info.inputs[0].layer
+        quantization_layer_weights = None
+        quantization_layer_biases = None
+        weights_file_path_has_to_be_removed = False
+        try:
+            if weights is None:
+                weights_file_path_has_to_be_removed = True
+                weights_file_path = os.path.join(tempfile._get_default_tempdir(), "model_" + next(tempfile._get_candidate_names()) + ".bin")
+                with open(weights_file_path, 'wb') as bin_file:
+                    for blob_name, blob_content in quantization_layer.weights.items():
+                        start = bin_file.tell()
+                        blob_content.tofile(bin_file)
+                        end = bin_file.tell()
+                        if blob_name == 'weights':
+                            quantization_layer_weights = Weights(start, end - start)
+                        if blob_name == 'biases':
+                            quantization_layer_biases = Biases(start, end - start)
 
-            layers = [
-                Layer(
-                    0,
-                    "Input",
-                    input_layer_info.name,
-                    {},
-                    [],
-                    input_layer_info.outputs[0].port.dim),
+                if quantization_layer_weights is None:
+                    raise ValueError("quantization layer '{}' doesn't contain weights".format(quantization_layer.name))
+            else:
+                weights_file_path = weights
+                quantization_layer_weights = quantization_layer_info.weights
+                quantization_layer_biases = quantization_layer_info.biases
 
-                Layer(
-                    1,
-                    quantization_layer.type,
-                    quantization_layer.name,
-                    quantization_layer.params,
-                    quantization_layer_info.inputs[0].port.dim,
-                    quantization_layer_info.outputs[0].port.dim,
-                    quantization_layer_info.weights,
-                    quantization_layer_info.biases)
-            ]
+            if self.is_quantization_supported(quantization_layer.type):
+                input_layer_info = quantization_layer_info.inputs[0].layer
 
-            if activation_layer:
-                activation_layer_info = quantization_layer_info.outputs[0].layer
-                reference_output_layer_name = activation_layer_info.name
-                outputs = activation_layer_info.outputs
-                output_layer_outputs_dim = \
-                    outputs[0].port.dim if outputs else activation_layer_info.inputs[0].port.dim
+                layers = [
+                    Layer(
+                        0,
+                        "Input",
+                        input_layer_info.name,
+                        quantization_layer.precision,
+                        {},
+                        [],
+                        input_layer_info.outputs[0].port.dim),
+
+                    Layer(
+                        1,
+                        quantization_layer.type,
+                        quantization_layer.name,
+                        quantization_layer.precision,
+                        quantization_layer.params,
+                        quantization_layer_info.inputs[0].port.dim,
+                        quantization_layer_info.outputs[0].port.dim,
+                        quantization_layer_weights,
+                        quantization_layer_biases)
+                ]
+
+                if activation_layer:
+                    activation_layer_info = quantization_layer_info.outputs[0].layer
+                    reference_output_layer_name = activation_layer_info.name
+                    outputs = activation_layer_info.outputs
+                    output_layer_outputs_dim = \
+                        outputs[0].port.dim if outputs else activation_layer_info.inputs[0].port.dim
+
+                    layers.append(Layer(
+                        len(layers),
+                        activation_layer.type,
+                        activation_layer.name,
+                        activation_layer.precision,
+                        activation_layer.params,
+                        activation_layer_info.inputs[0].port.dim,
+                        output_layer_outputs_dim))
+                else:
+                    reference_output_layer_name = quantization_layer_info.name
+                    output_layer_outputs_dim = quantization_layer_info.outputs[0].port.dim
 
                 layers.append(Layer(
                     len(layers),
-                    activation_layer.type,
-                    activation_layer.name,
-                    activation_layer.params,
-                    activation_layer_info.inputs[0].port.dim,
+                    "Power",
+                    quantization_layer.name + "_",
+                    quantization_layer.precision,
+                    {'power': 1.0, 'scale': 1.0, 'shift': 0.0},
+                    output_layer_outputs_dim,
                     output_layer_outputs_dim))
+
+                builder = NetworkBuilder().sequential(layers)
             else:
-                reference_output_layer_name = quantization_layer_info.name
-                output_layer_outputs_dim = quantization_layer_info.outputs[0].port.dim
+                raise ValueError("unsupported layer type '{}'".format(quantization_layer.type))
 
-            layers.append(Layer(
-                len(layers),
-                "Power",
-                quantization_layer.name + "_",
-                {'power': 1.0, 'scale': 1.0, 'shift': 0.0},
-                output_layer_outputs_dim,
-                output_layer_outputs_dim))
+            # filling weights and biases
 
-            builder = NetworkBuilder().sequential(layers)
-        else:
-            raise ValueError("unsupported layer type '{}'".format(quantization_layer.type))
-
-        # filling weights and biases
-
-        temporary_file = tempfile.NamedTemporaryFile(delete=False)
-        try:
-            builder_str = str(builder)
-            network_content = str.encode(builder_str)
-            temporary_file.write(network_content)
-            temporary_file.close()
-
-            network_for_layer_model = temporary_file.name
-            network_for_layer_weights = weights
-            network_for_layer = ie.IENetwork(network_for_layer_model, network_for_layer_weights)
-            network_for_layer.add_outputs([quantization_layer.name + "_"])
-        finally:
-            if os.path.exists(temporary_file.name):
+            temporary_file = tempfile.NamedTemporaryFile(delete=False)
+            try:
+                builder_str = str(builder)
+                network_content = str.encode(builder_str)
+                temporary_file.write(network_content)
                 temporary_file.close()
-                os.remove(temporary_file.name)
+
+                network_for_layer_model = temporary_file.name
+                network_for_layer = ie.IENetwork(network_for_layer_model, weights_file_path)
+                network_for_layer.add_outputs([quantization_layer.name + "_"])
+            finally:
+                if os.path.exists(temporary_file.name):
+                    temporary_file.close()
+                    os.remove(temporary_file.name)
+        finally:
+            if weights_file_path_has_to_be_removed and os.path.exists(weights_file_path):
+                os.remove(weights_file_path)
 
         return network_for_layer, reference_output_layer_name
 
@@ -300,54 +272,6 @@ class BaseCalibrator:
                 return False
         return True
 
-    def get_affected_layers(self, output_layers: list=None):
-        '''
-        CVS-14299: Linux only: IENetwork.add_outputs (Python API) [and ICNNNetwork::addOutputs (C++ API)]
-        for some layers affects network inference result
-        '''
-        affected_layers = []
-        not_affected_layers = []
-
-        layers = self.create_network().layers.values()
-        info("total layers: {}".format(len(layers)))
-
-        network = self.create_network()
-        ref_results = self._infer(network=network)
-        info("ORIGINAL: original accuracy (no additional output layers): {}".format(ref_results.metrics.accuracy))
-
-        index = 1
-        for layer in layers:
-            if layer.type == 'Input':
-                info("SKIPPED ({}/{}): layer {}/{}".format(index, len(layers), layer.name, layer.type))
-            else:
-                network = self.create_network()
-
-                tmp = not_affected_layers.copy()
-                tmp.append(layer)
-
-                self.add_outputs(network, tmp)
-                results = self._infer(network=network)
-                # if results.metrics.accuracy == 0.0:
-                if not Int8Calibrator.compare_result(ref_results.result, results.result, self._output_layer_name):
-                    affected_layers.append(layer)
-                    info("FAILED ({}/{}): output layer {}/{} affects result, accuracy: {}".format(
-                        index,
-                        len(layers),
-                        layer.name,
-                        layer.type,
-                        results.metrics.accuracy))
-                else:
-                    not_affected_layers.append(layer)
-                    info("PASSED ({}/{}): output layer {}/{}, accuracy: {}".format(
-                        index,
-                        len(layers),
-                        layer.name,
-                        layer.type,
-                        results.metrics.accuracy))
-            index += 1
-
-        return affected_layers
-
     # TODO: add_outputs - remove, not neccessary
     def infer(self,
               add_outputs=False,
@@ -357,7 +281,8 @@ class BaseCalibrator:
               collect_layers: set = None,
               collect_aggregated_statistics: bool = False,
               network: ie.IENetwork = None,
-              collect_performance_counters: bool = False) -> InferenceResult:
+              collect_performance_counters: bool = False,
+              ignore_layer_names: list = None) -> InferenceResult:
 
         if network is None:
             network = self.create_network()
@@ -377,7 +302,8 @@ class BaseCalibrator:
             collect_resuls=collect_resuls,
             collect_layers=collect_layers,
             collect_aggregated_statistics=collect_aggregated_statistics,
-            collect_performance_counters=collect_performance_counters)
+            collect_performance_counters=collect_performance_counters,
+            ignore_layer_names=ignore_layer_names)
 
     def infer_single_layer_network(self,
                                    single_layer_network: SingleLayerNetwork,
@@ -414,7 +340,8 @@ class BaseCalibrator:
         collect_aggregated_statistics: bool = True,
         collect_resuls: bool = True,
         collect_layers: set = None,
-        collect_performance_counters: bool = False
+        collect_performance_counters: bool = False,
+        ignore_layer_names: list = None
     ) -> InferenceResult:
         '''
         Accuracy checker infer and compare results
@@ -431,6 +358,7 @@ class BaseCalibrator:
             if network:
                 del model_evaluator.launcher.network
                 del model_evaluator.launcher.exec_network
+                model_evaluator.launcher.reload_network = False
                 model_evaluator.launcher.network = network
                 model_evaluator.launcher.exec_network = model_evaluator.launcher.plugin.load(network)
 
@@ -455,14 +383,25 @@ class BaseCalibrator:
             else :
                 progress_reporter = None
 
-            process_dataset_callback = DatasetCallback(
-                model_evaluator.launcher.network,
-                model_evaluator.launcher.exec_network,
-                collect_resuls=collect_resuls,
-                collect_layers=collect_layers,
-                collect_aggregated_statistics=collect_aggregated_statistics,
-                iterations_count=int(dataset_size / self._configuration.batch_size),
-                dataset_size=dataset_size)
+            if collect_layers:
+                process_dataset_callback = CalculateAccuracyCallback(
+                    model_evaluator.launcher.network,
+                    model_evaluator.launcher.exec_network,
+                    collect_layers=collect_layers,
+                    configuration=self._configuration,
+                    statistics=statistics,
+                    normalizer=self,
+                    ignore_layer_names=ignore_layer_names)
+            else:
+                process_dataset_callback = CollectResultsCallback(
+                    model_evaluator.launcher.network,
+                    model_evaluator.launcher.exec_network,
+                    collect_resuls=collect_resuls,
+                    collect_layers=collect_layers,
+                    collect_aggregated_statistics=collect_aggregated_statistics,
+                    iterations_count=int(dataset_size / self._configuration.batch_size),
+                    dataset_size=dataset_size)
+
 
             model_evaluator.process_dataset(None,
                                             progress_reporter=progress_reporter,
@@ -471,6 +410,7 @@ class BaseCalibrator:
                 raise ValueError("unexpected network requests count")
 
             inference_result = process_dataset_callback.infer_raw_result
+            layers_accuracy_drop = process_dataset_callback.get_accuracy_drop() if collect_layers else None
             inference_latencies = process_dataset_callback.latencies
 
             performance_counters = \
@@ -479,10 +419,24 @@ class BaseCalibrator:
             model_evaluator_callback = MetricsCallback()
             model_evaluator.compute_metrics(output_callback=model_evaluator_callback.callback)
             presenter_values = model_evaluator_callback.values
+            postfix = ""
+            scale = ""
             for presenter_value in presenter_values:
-                value, reference, name, threshold, meta = presenter_value
-                accuracy = np.mean(value)
+                value, reference, name, metric_type, threshold, meta = presenter_value
+                info("Accuracy checker meta data: '{}'".format(meta))
+                postfix, scale, result_format = get_result_format_parameters(meta, False)
+                if np.isscalar(value):
+                    accuracy = value
+                # In case of vectorized metric with one number 'value'l could be array with zero shape
+                elif meta.get('calculate_mean', True) or (isinstance(value, np.ndarray) and len(value.shape) == 0):
+                    info("'mean' value is used as accuracy")
+                    accuracy = np.mean(value)
+                elif len(value) > 0:
+                    accuracy = value[0]
+                else:
+                    raise Exception('Unsupported model evaluation output')
         except Exception:
+
             if process_dataset_callback:
                 process_dataset_callback.release()
             raise
@@ -491,9 +445,12 @@ class BaseCalibrator:
 
         return InferenceResult(
             inference_result,
-            CalibrationMetrics(accuracy, np.mean(inference_latencies)) if len(inference_latencies) else CalibrationMetrics(accuracy),
-            process_dataset_callback.aggregated_statistics,
-            performance_counters)
+            CalibrationMetrics(MetricFactory.create(scale, postfix, accuracy), np.mean(inference_latencies))
+                if len(inference_latencies)
+                else CalibrationMetrics(MetricFactory.create(scale, postfix, accuracy)),
+            aggregated_statistics=process_dataset_callback.aggregated_statistics,
+            performance_counters=performance_counters,
+            layers_accuracy_drop=layers_accuracy_drop)
 
     def get_quantization_levels(self, ignore_layer_names=None) -> Dict[str, str]:
         network = self.create_network()
@@ -502,7 +459,7 @@ class BaseCalibrator:
         for layer in network.layers.values():
             if self.is_quantization_supported(layer.type):
                 if ignore_layer_names and (layer.name in ignore_layer_names):
-                    quantization_levels[layer.name] = "FP32"
+                    quantization_levels[layer.name] = layer.precision
                 else:
                     quantization_levels[layer.name] = "I8" if self.precision == "INT8" else self.precision
 
@@ -520,7 +477,7 @@ class BaseCalibrator:
         return layer_type.lower() == 'relu' or layer_type.lower() == 'activation' or layer_type.lower() == 'clamp'
 
     def is_quantization_fusing_supported(self, parent_layer, child_layer):
-        if parent_layer.outputs[0].layer.id != child_layer.id:
+        if len(parent_layer.outputs) == 0 or parent_layer.outputs[0].layer.id != child_layer.id:
             # not supported fuse, let's ignore
             return False
 

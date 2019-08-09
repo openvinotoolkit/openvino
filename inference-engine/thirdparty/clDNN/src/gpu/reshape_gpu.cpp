@@ -22,37 +22,30 @@
 #include "reshape/reshape_kernel_selector.h"
 #include "error_handler.h"
 
-namespace cldnn { namespace gpu {
+namespace cldnn {
+namespace gpu {
 
-struct reshape_gpu : public typed_primitive_gpu_impl<reshape>
-{
+struct reshape_gpu : public typed_primitive_gpu_impl<reshape> {
     using parent = typed_primitive_gpu_impl<reshape>;
     using parent::parent;
 
-protected:
-
-    virtual bool optimized_out(reshape_inst& instance) const override
-    {
-        return
-            parent::optimized_out(instance) || _outer.is_in_place();
-    }
-
 public:
-
-    static primitive_impl* create(reshape_node const& arg) 
-    { 
-        if (arg.is_in_place())
-        {
+    static primitive_impl* create(reshape_node const& arg) {
+        if (arg.can_be_optimized()) {
             return new reshape_gpu(arg, {});
         }
 
         auto reorder_params = get_default_params<kernel_selector::reshape_params>(arg);
-        auto reorder_optional_params = get_default_optional_params<kernel_selector::reshape_optional_params>(arg.get_program());
+        auto reorder_optional_params =
+            get_default_optional_params<kernel_selector::reshape_optional_params>(arg.get_program());
 
         auto& kernel_selector = kernel_selector::reshape_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(reorder_params, reorder_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
+        CLDNN_ERROR_BOOL(arg.id(),
+                         "Best_kernel.empty()",
+                         best_kernels.empty(),
+                         "Cannot find a proper kernel with this arguments");
 
         auto reshape = new reshape_gpu(arg, best_kernels[0]);
 
@@ -61,14 +54,11 @@ public:
 };
 
 namespace {
-    struct attach {
-        attach() {
-            implementation_map<reshape>::add({
-                { engine_types::ocl, reshape_gpu::create }
-            });
-        }
-        ~attach() {}
-    };
-    attach attach_impl;
-}
-} }
+struct attach {
+    attach() { implementation_map<reshape>::add({{engine_types::ocl, reshape_gpu::create}}); }
+    ~attach() {}
+};
+attach attach_impl;
+}  // namespace
+}  // namespace gpu
+}  // namespace cldnn

@@ -38,10 +38,10 @@ struct batchnorm4D_test_params {
 template <typename data_t>
 void ref_batchnorm4D(const InferenceEngine::TBlob<data_t> &src, const data_t *variance, const data_t *mean,
                      InferenceEngine::TBlob<data_t> &dst, batchnorm4D_test_params prm) {
-    size_t MB = src.dims()[0];
-    size_t IC = src.dims()[1];
-    size_t IH = src.dims()[2];
-    size_t IW = src.dims()[3];
+    size_t MB = src.getTensorDesc().getDims()[0];
+    size_t IC = src.getTensorDesc().getDims()[1];
+    size_t IH = src.getTensorDesc().getDims()[2];
+    size_t IW = src.getTensorDesc().getDims()[3];
 
     const double eps = prm.epsilon;
 
@@ -149,7 +149,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::FP32, InferenceEngine::C, {p.in.c * 2 * sizeof(float)});
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::FP32, 
+                {p.in.c * 2 * sizeof(float)}, InferenceEngine::C });
             weights->allocate();
             fill_data(weights->buffer(), weights->size() / sizeof(float));
             float * data = weights->buffer();
@@ -181,7 +182,7 @@ protected:
 
             InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -244,7 +245,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {p.in.c * 4 * sizeof(float)});
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
+                {p.in.c * 4 * sizeof(float)}, InferenceEngine::C });
             weights->allocate();
             fill_data( weights->data().as<float*>(), weights->size() / sizeof(float));
             float * data = weights->buffer();
@@ -267,8 +269,8 @@ protected:
             graph.CreateGraph(net_reader.getNetwork());
 
             InferenceEngine::SizeVector dims_src = {MB, p.in.c, p.in.h, p.in.w};
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
-            InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
+            auto* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
             if (srcPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
 

@@ -64,7 +64,7 @@ class MKLDNNMemoryNodeVirtualEdge {
 
 class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
  public:
-    MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNMemoryOutputNode() override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -92,7 +92,7 @@ class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
     static std::string nameFromCombinedName(std::string name);
     static std::string idFromCombinedName(std::string name);
  public:
-    MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng);
+    MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNMemoryInputNode() override;
 
     bool created() const override {

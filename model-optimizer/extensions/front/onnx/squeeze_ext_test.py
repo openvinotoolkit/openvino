@@ -57,7 +57,7 @@ class TestSqueezeONNXExt(unittest.TestCase):
         SqueezeFrontExtractor.extract(node)
 
         exp_res = {
-            'type': 'Reshape',
+            'type': 'Squeeze',
             'squeeze_dims': axes,
         }
 

@@ -265,7 +265,7 @@ float StdDevRelError(score_error_t error) {
                  - (error.sumRelError / error.numScores) * (error.sumRelError / error.numScores)));
 }
 
-#if !defined(__arm__) && !defined(_M_ARM)
+#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
 #include <intrin.h>
 #include <windows.h>
@@ -325,7 +325,7 @@ float getGnaFrequencyMHz() {
     }
 }
 
-#endif  // !defined(__arm__) && !defined(_M_ARM)
+#endif  // if not ARM
 
 void printReferenceCompareResults(score_error_t const &totalError,
                                   size_t framesNum,
@@ -344,8 +344,8 @@ void printReferenceCompareResults(score_error_t const &totalError,
 void printPerformanceCounters(std::map<std::string,
         InferenceEngine::InferenceEngineProfileInfo> const &utterancePerfMap,
                               size_t callsNum,
-                              std::ostream &stream) {
-#if !defined(__arm__) && !defined(_M_ARM)
+                              std::ostream &stream, std::string fullDeviceName) {
+#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << "" << "Counter descriptions";
     stream << std::setw(22) << "Utt scoring time";
@@ -371,6 +371,9 @@ void printPerformanceCounters(std::map<std::string,
         stream << std::endl;
     }
     stream << std::endl;
+    std::cout << std::endl;
+    std::cout << "Full device name: " << fullDeviceName << std::endl;
+    std::cout << std::endl;
 #endif
 }
 
@@ -397,6 +400,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
+        showAvailableDevices();
         return false;
     }
     bool isDumpMode = !FLAGS_wg.empty() || !FLAGS_we.empty();
@@ -418,20 +422,23 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("Only one of -m and -rg is allowed.");
     }
 
-    std::vector<std::string> possibleDeviceTypes = {
+    std::vector<std::string> supportedDevices = {
             "CPU",
             "GPU",
             "GNA_AUTO",
             "GNA_HW",
             "GNA_SW_EXACT",
             "GNA_SW",
+            "GNA_SW_FP32",
             "HETERO:GNA,CPU",
             "HETERO:GNA_HW,CPU",
             "HETERO:GNA_SW_EXACT,CPU",
             "HETERO:GNA_SW,CPU",
+            "HETERO:GNA_SW_FP32,CPU",
+            "MYRIAD"
     };
 
-    if (std::find(possibleDeviceTypes.begin(), possibleDeviceTypes.end(), FLAGS_d) == possibleDeviceTypes.end()) {
+    if (std::find(supportedDevices.begin(), supportedDevices.end(), FLAGS_d) == supportedDevices.end()) {
         throw std::logic_error("Specified device is not supported.");
     }
 
@@ -459,11 +466,15 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     }
 
     if (FLAGS_nthreads <= 0) {
-        throw std::logic_error("Not valid value for 'nthreads' argument. It should be > 0 ");
+        throw std::logic_error("Invalid value for 'nthreads' argument. It must be greater that or equal to 0");
     }
 
-    if (FLAGS_cw < 0) {
-        throw std::logic_error("Not valid value for 'cw' argument. It should be > 0 ");
+    if (FLAGS_cw_r < 0) {
+        throw std::logic_error("Invalid value for 'cw_r' argument. It must be greater than or equal to 0");
+    }
+
+    if (FLAGS_cw_l < 0) {
+        throw std::logic_error("Invalid value for 'cw_l' argument. It must be greater than or equal to 0");
     }
 
     return true;
@@ -494,23 +505,39 @@ int main(int argc, char *argv[]) {
         std::string deviceStr =
                 useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
         float scaleFactorInput = static_cast<float>(FLAGS_sf);
-        uint32_t batchSize = FLAGS_cw > 0 ? 1 : (uint32_t) FLAGS_bs;
-        /** Extract input ark file name **/
-        std::string inputArkName = fileNameNoExt(FLAGS_i) + ".ark";
+        uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t) FLAGS_bs;
 
-        uint32_t numUtterances(0), numBytesThisUtterance(0);
+        std::vector<std::string> inputArkFiles;
+        std::vector<uint32_t> numBytesThisUtterance;
+        uint32_t numUtterances(0);
         if (!FLAGS_i.empty()) {
-            GetKaldiArkInfo(inputArkName.c_str(), 0, &numUtterances, &numBytesThisUtterance);
+            std::string outStr;
+            std::istringstream stream(FLAGS_i);
+
+            uint32_t currentNumUtterances(0), currentNumBytesThisUtterance(0);
+            while (getline(stream, outStr, ',')) {
+                std::string filename(fileNameNoExt(outStr) + ".ark");
+                inputArkFiles.push_back(filename);
+
+                GetKaldiArkInfo(filename.c_str(), 0, &currentNumUtterances, &currentNumBytesThisUtterance);
+                if (numUtterances == 0) {
+                    numUtterances = currentNumUtterances;
+                } else if (currentNumUtterances != numUtterances) {
+                    throw std::logic_error("Incorrect input files. Number of utterance must be the same for all ark files");
+                }
+                numBytesThisUtterance.push_back(currentNumBytesThisUtterance);
+            }
         }
+        size_t numInputArkFiles(inputArkFiles.size());
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 1. Load Plugin for inference engine -------------------------------------
-        slog::info << "Loading plugin" << slog::endl;
-        /** Loading plugin for device **/
-        InferencePlugin plugin = PluginDispatcher({FLAGS_pp}).getPluginByDevice(deviceStr);
+        // --------------------------- 1. Load inference engine -------------------------------------
+        slog::info << "Loading Inference Engine" << slog::endl;
+        Core ie;
 
-        /** Printing plugin version **/
-        std::cout << plugin.GetVersion() << std::endl << std::endl;
+        /** Printing device version **/
+        slog::info << "Device info: " << slog::endl;
+        std::cout << ie.GetVersions(deviceStr) << std::endl;
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 2. Read IR Generated by ModelOptimizer (.xml and .bin files) ------------
@@ -534,7 +561,7 @@ int main(int argc, char *argv[]) {
                        << slog::endl;
         }
 
-        /** Setting plugin parameter for per layer metrics **/
+        /** Setting parameter for per layer metrics **/
         std::map<std::string, std::string> gnaPluginConfig;
         std::map<std::string, std::string> genericPluginConfig;
         if (useGna) {
@@ -542,13 +569,13 @@ int main(int argc, char *argv[]) {
                     useHetero ? FLAGS_d.substr(FLAGS_d.find("GNA"), FLAGS_d.find(",") - FLAGS_d.find("GNA")) : FLAGS_d;
             gnaPluginConfig[GNAConfigParams::KEY_GNA_DEVICE_MODE] =
                     gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
-        } else if (plugin.GetVersion()->description == std::string("MKLDNNPlugin")) {
+        } else if (deviceStr.find("CPU") != std::string::npos) {
             /**
              * cpu_extensions library is compiled from "extension" folder containing
              * custom MKLDNNPlugin layer implementations. These layers are not supported
              * by mkldnn, but they can be useful for inferring custom topologies.
             **/
-            plugin.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>());
+            ie.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>(), "CPU");
         }
 
         if (FLAGS_pc) {
@@ -556,26 +583,35 @@ int main(int argc, char *argv[]) {
         }
 
         if (FLAGS_q.compare("user") == 0) {
-            std::cout << "[ INFO ] Using scale factor of " << FLAGS_sf << std::endl;
+            if (numInputArkFiles > 1) {
+                std::string errMessage("Incorrect use case for multiple input ark files. Please don't use -q 'user' for this case.");
+                throw std::logic_error(errMessage);
+            }
+            slog::info << "Using scale factor of " << FLAGS_sf << slog::endl;
             gnaPluginConfig[GNA_CONFIG_KEY(SCALE_FACTOR)] = std::to_string(FLAGS_sf);
-        } else {  // "static" quantization with calculated scale factor
-            std::string name;
-            std::vector<uint8_t> ptrFeatures;
-            uint32_t numArrays(0), numBytes(0), numFrames(0), numFrameElements(0), numBytesPerElement(0);
-            GetKaldiArkInfo(inputArkName.c_str(), 0, &numArrays, &numBytes);
-            ptrFeatures.resize(numBytes);
-            LoadKaldiArkArray(inputArkName.c_str(),
-                              0,
-                              name,
-                              ptrFeatures,
-                              &numFrames,
-                              &numFrameElements,
-                              &numBytesPerElement);
-            scaleFactorInput =
-                    ScaleFactorForQuantization(ptrFeatures.data(), MAX_VAL_2B_FEAT, numFrames * numFrameElements);
-            slog::info << "Using scale factor of " << scaleFactorInput << " calculated from first utterance."
-                       << slog::endl;
-            gnaPluginConfig[GNA_CONFIG_KEY(SCALE_FACTOR)] = std::to_string(scaleFactorInput);
+        } else {
+            // "static" quantization with calculated scale factor
+            for (size_t i = 0; i < numInputArkFiles; i++) {
+                auto inputArkName = inputArkFiles[i].c_str();
+                std::string name;
+                std::vector<uint8_t> ptrFeatures;
+                uint32_t numArrays(0), numBytes(0), numFrames(0), numFrameElements(0), numBytesPerElement(0);
+                GetKaldiArkInfo(inputArkName, 0, &numArrays, &numBytes);
+                ptrFeatures.resize(numBytes);
+                LoadKaldiArkArray(inputArkName,
+                                  0,
+                                  name,
+                                  ptrFeatures,
+                                  &numFrames,
+                                  &numFrameElements,
+                                  &numBytesPerElement);
+                scaleFactorInput =
+                        ScaleFactorForQuantization(ptrFeatures.data(), MAX_VAL_2B_FEAT, numFrames * numFrameElements);
+                slog::info << "Using scale factor of " << scaleFactorInput << " calculated from first utterance."
+                           << slog::endl;
+                std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
+                gnaPluginConfig[scaleFactorConfigKey] = std::to_string(scaleFactorInput);
+            }
         }
 
         if (FLAGS_qb == 8) {
@@ -584,7 +620,7 @@ int main(int argc, char *argv[]) {
             gnaPluginConfig[GNAConfigParams::KEY_GNA_PRECISION] = "I16";
         }
 
-        gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] = std::to_string(FLAGS_cw > 0 ? 1 : FLAGS_nthreads);
+        gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] = std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
         // -----------------------------------------------------------------------------------------------------
 
@@ -595,7 +631,7 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 5. Loading model to the plugin ------------------------------------------
+        // --------------------------- 5. Loading model to the device ------------------------------------------
 
         if (useGna) {
             genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
@@ -604,11 +640,11 @@ int main(int argc, char *argv[]) {
         ExecutableNetwork executableNet;
 
         if (!FLAGS_m.empty()) {
-            slog::info << "Loading model to the plugin" << slog::endl;
-            executableNet = plugin.LoadNetwork(netBuilder.getNetwork(), genericPluginConfig);
+            slog::info << "Loading model to the device" << slog::endl;
+            executableNet = ie.LoadNetwork(netBuilder.getNetwork(), deviceStr, genericPluginConfig);
         } else {
-            slog::info << "Importing model to the plugin" << slog::endl;
-            executableNet = plugin.ImportNetwork(FLAGS_rg.c_str(), genericPluginConfig);
+            slog::info << "Importing model to the device" << slog::endl;
+            executableNet = ie.ImportNetwork(FLAGS_rg.c_str(), deviceStr, genericPluginConfig);
         }
 
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
@@ -629,7 +665,7 @@ int main(int argc, char *argv[]) {
             return 0;
         }
 
-        std::vector<InferRequestStruct> inferRequests(FLAGS_cw > 0 ? 1 : FLAGS_nthreads);
+        std::vector<InferRequestStruct> inferRequests((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         for (auto& inferRequest : inferRequests) {
             inferRequest = {executableNet.CreateInferRequest(), -1, batchSize};
         }
@@ -638,23 +674,27 @@ int main(int argc, char *argv[]) {
         // --------------------------- 7. Prepare input blobs --------------------------------------------------
         /** Taking information about all topology inputs **/
         ConstInputsDataMap cInputInfo = executableNet.GetInputsInfo();
+        /** Stores all input blobs data **/
+        if (cInputInfo.size() != numInputArkFiles) {
+            throw std::logic_error("Number of network inputs("
+                + std::to_string(cInputInfo.size()) + ") is not equal to number of ark files("
+                + std::to_string(numInputArkFiles) + ")");
+        }
+
+        std::vector<Blob::Ptr> ptrInputBlobs;
+        for (auto& input : cInputInfo) {
+            ptrInputBlobs.push_back(inferRequests.begin()->inferRequest.GetBlob(input.first));
+        }
+
         InputsDataMap inputInfo;
         if (!FLAGS_m.empty()) {
             inputInfo = netBuilder.getNetwork().getInputsInfo();
         }
-
-        /** Stores all input blobs data **/
-        if (cInputInfo.size() != 1) {
-            throw std::logic_error("Sample supports only topologies with  1 input");
-        }
-
-        Blob::Ptr ptrInputBlob = inferRequests[0].inferRequest.GetBlob(cInputInfo.begin()->first);
-
         /** configure input precision if model loaded from IR **/
         for (auto &item : inputInfo) {
             Precision inputPrecision = Precision::FP32;  // specify Precision::I16 to provide quantized inputs
             item.second->setPrecision(inputPrecision);
-            item.second->getInputData()->layout = NC;  // row major layout
+            item.second->getInputData()->setLayout(Layout::NC);  // row major layout
         }
 
         // -----------------------------------------------------------------------------------------------------
@@ -666,7 +706,7 @@ int main(int argc, char *argv[]) {
             outputInfo = netBuilder.getNetwork().getOutputsInfo();
         }
 
-        Blob::Ptr ptrOutputBlob = inferRequests[0].inferRequest.GetBlob(cOutputInfo.begin()->first);
+        Blob::Ptr ptrOutputBlob = inferRequests[0].inferRequest.GetBlob(cOutputInfo.rbegin()->first);
 
         for (auto &item : outputInfo) {
             DataPtr outData = item.second;
@@ -676,40 +716,62 @@ int main(int argc, char *argv[]) {
 
             Precision outputPrecision = Precision::FP32;  // specify Precision::I32 to retrieve quantized outputs
             outData->setPrecision(outputPrecision);
-            outData->layout = NC;  // row major layout
+            outData->setLayout(Layout::NC);  // row major layout
         }
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 9. Do inference ---------------------------------------------------------
-        std::vector<uint8_t> ptrUtterance;
+        std::vector<std::vector<uint8_t>> ptrUtterances;
         std::vector<uint8_t> ptrScores;
         std::vector<uint8_t> ptrReferenceScores;
         score_error_t frameError, totalError;
 
+        ptrUtterances.resize(inputArkFiles.size());
         for (uint32_t utteranceIndex = 0; utteranceIndex < numUtterances; ++utteranceIndex) {
             std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> utterancePerfMap;
             std::string uttName;
-            uint32_t numFrames(0), numFrameElementsInput(0), numBytesPerElementInput(0), n(0);
+            uint32_t numFrames(0), n(0);
+            std::vector<uint32_t> numFrameElementsInput;
+
             uint32_t numFramesReference(0), numFrameElementsReference(0), numBytesPerElementReference(0),
                     numBytesReferenceScoreThisUtterance(0);
             const uint32_t numScoresPerFrame = ptrOutputBlob->size() / batchSize;
-            GetKaldiArkInfo(inputArkName.c_str(), utteranceIndex, &n, &numBytesThisUtterance);
-            ptrUtterance.resize(numBytesThisUtterance);
-            LoadKaldiArkArray(inputArkName.c_str(),
-                              utteranceIndex,
-                              uttName,
-                              ptrUtterance,
-                              &numFrames,
-                              &numFrameElementsInput,
-                              &numBytesPerElementInput);
 
-            uint32_t numFrameElementsInputPadded = numFrameElementsInput;
+            numFrameElementsInput.resize(numInputArkFiles);
+            for (size_t i = 0; i < inputArkFiles.size(); i++) {
+                std::vector<uint8_t> ptrUtterance;
+                auto inputArkFilename = inputArkFiles[i].c_str();
+                uint32_t currentNumFrames(0), currentNumFrameElementsInput(0), currentNumBytesPerElementInput(0);
+                GetKaldiArkInfo(inputArkFilename, utteranceIndex, &n, &numBytesThisUtterance[i]);
+                ptrUtterance.resize(numBytesThisUtterance[i]);
+                LoadKaldiArkArray(inputArkFilename,
+                                  utteranceIndex,
+                                  uttName,
+                                  ptrUtterance,
+                                  &currentNumFrames,
+                                  &currentNumFrameElementsInput,
+                                  &currentNumBytesPerElementInput);
+                if (numFrames == 0) {
+                    numFrames = currentNumFrames;
+                } else if (numFrames != currentNumFrames) {
+                    std::string errMessage("Number of frames in ark files is different: " + std::to_string(numFrames) +
+                                           " and " + std::to_string(currentNumFrames));
+                    throw std::logic_error(errMessage);
+                }
 
-            if (ptrInputBlob->size() != numFrameElementsInputPadded * batchSize) {
-                throw std::logic_error("network input size(" + std::to_string(ptrInputBlob->size()) +
-                                       ") mismatch to ark file size (" +
-                                       std::to_string(numFrameElementsInputPadded * batchSize) + ")");
+                ptrUtterances[i] = ptrUtterance;
+                numFrameElementsInput[i] = currentNumFrameElementsInput;
             }
+
+            int i = 0;
+            for (auto& ptrInputBlob : ptrInputBlobs) {
+                if (ptrInputBlob->size() != numFrameElementsInput[i++] * batchSize) {
+                    throw std::logic_error("network input size(" + std::to_string(ptrInputBlob->size()) +
+                                           ") mismatch to ark file size (" +
+                                           std::to_string(numFrameElementsInput[i-1] * batchSize) + ")");
+                }
+            }
+
             ptrScores.resize(numFrames * numScoresPerFrame * sizeof(float));
             if (!FLAGS_r.empty()) {
                 std::string refUtteranceName;
@@ -730,13 +792,17 @@ int main(int argc, char *argv[]) {
 
             ClearScoreError(&totalError);
             totalError.threshold = frameError.threshold = MAX_SCORE_DIFFERENCE;
-            auto inputFrame = &ptrUtterance.front();
             auto outputFrame = &ptrScores.front();
+            std::vector<uint8_t*> inputFrame;
+            for (auto& ut : ptrUtterances) {
+                inputFrame.push_back(&ut.front());
+            }
 
             std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> callPerfMap;
 
             size_t frameIndex = 0;
-            numFrames += 2 * FLAGS_cw;
+            uint32_t numFramesArkFile = numFrames;
+            numFrames += FLAGS_cw_l + FLAGS_cw_r;
             uint32_t numFramesThisBatch{batchSize};
 
             auto t0 = Time::now();
@@ -763,6 +829,7 @@ int main(int argc, char *argv[]) {
                     if (inferRequest.frameIndex != -1) {
                         StatusCode code = inferRequest.inferRequest.Wait(
                                 InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+
                         if (code != StatusCode::OK) {
                             if (!useHetero) continue;
                             if (code != StatusCode::INFER_NOT_STARTED) continue;
@@ -804,30 +871,37 @@ int main(int argc, char *argv[]) {
                         continue;
                     }
 
-                    Blob::Ptr inputBlob = inferRequest.inferRequest.GetBlob(cInputInfo.begin()->first);
+                    ptrInputBlobs.clear();
+                    for (auto& input : cInputInfo) {
+                        ptrInputBlobs.push_back(inferRequest.inferRequest.GetBlob(input.first));
+                    }
 
-                    std::memcpy(inputBlob->buffer(),
-                                inputFrame,
-                                inputBlob->byteSize());
+                    for (size_t i = 0; i < numInputArkFiles; i++) {
+                        std::memcpy(ptrInputBlobs[i]->buffer(),
+                                    inputFrame[i],
+                                    ptrInputBlobs[i]->byteSize());
+                    }
 
-                    int index = static_cast<int>(frameIndex) - 2 * FLAGS_cw;
+                    int index = static_cast<int>(frameIndex) - (FLAGS_cw_l + FLAGS_cw_r);
                     inferRequest.inferRequest.StartAsync();
                     inferRequest.frameIndex = index < 0 ? -2 : index;
                     inferRequest.numFramesThisBatch = numFramesThisBatch;
 
                     frameIndex += numFramesThisBatch;
-
-                    if (FLAGS_cw > 0) {
-                        int i = frameIndex - FLAGS_cw;
-                        if (i > 0 && i < static_cast<int>(numFrames)) {
-                            inputFrame += sizeof(float) * numFrameElementsInput * numFramesThisBatch;
-                        } else if (i >= static_cast<int>(numFrames)) {
-                            inputFrame = &ptrUtterance.front() +
-                                         (numFrames - 1) * sizeof(float) * numFrameElementsInput *
-                                         numFramesThisBatch;
+                    for (size_t j = 0; j < inputArkFiles.size(); j++) {
+                        if (FLAGS_cw_l > 0 || FLAGS_cw_r > 0) {
+                            int i = frameIndex - FLAGS_cw_l;
+                            if (i > 0 && i < static_cast<int>(numFramesArkFile)) {
+                                inputFrame[j] += sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
+                            } else if (i >= static_cast<int>(numFramesArkFile)) {
+                                inputFrame[j] = &ptrUtterances[0].front() +
+                                        (numFramesArkFile - 1) * sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
+                            } else if (i < 0) {
+                                inputFrame[j] = &ptrUtterances[0].front();
+                            }
+                        } else {
+                            inputFrame[j] += sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
                         }
-                    } else {
-                        inputFrame += sizeof(float) * numFrameElementsInput * numFramesThisBatch;
                     }
                     inferRequestFetched |= true;
                 }
@@ -863,7 +937,7 @@ int main(int argc, char *argv[]) {
                       << std::endl;
             if (FLAGS_pc) {
                 // print
-                printPerformanceCounters(utterancePerfMap, frameIndex, std::cout);
+                printPerformanceCounters(utterancePerfMap, frameIndex, std::cout, getFullDeviceName(ie, FLAGS_d));
             }
             if (!FLAGS_r.empty()) {
                 printReferenceCompareResults(totalError, numFrames, std::cout);

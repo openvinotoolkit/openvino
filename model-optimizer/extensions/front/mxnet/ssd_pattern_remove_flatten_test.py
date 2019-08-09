@@ -23,7 +23,7 @@ from mo.graph.graph import Node
 
 class TestSsdPatternRemoveFlatten(unittest.TestCase):
     def test_pattern_remove_transpose(self):
-        graph = build_graph({'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Placeholder'},
+        graph = build_graph({'node_1': {'type': 'Identity', 'kind': 'op', 'op': 'Parameter'},
                              'node_2': {'type': 'Identity', 'kind': 'op'},
                              'node_multi_box_prior': {'type': '_contrib_MultiBoxPrior', 'kind': 'op',
                                                       'op': '_contrib_MultiBoxPrior'},

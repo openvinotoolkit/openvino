@@ -103,14 +103,14 @@ TEST(gpu_engine, engine_info)
     EXPECT_GT(info.core_frequency, 0u);
 }
 
-TEST(gpu_engine, DISABLED_user_context)
+TEST(gpu_engine, user_context)
 {
     user_gpu_toolkit gpu_toolkit;
     cl_context user_context = gpu_toolkit.get_gpu_context();
 
     //[0] Check if the user engine config works.
-    auto engine_config = cldnn::engine_configuration(false, false, false, "", "", true, "", "", cldnn::priority_mode_types::disabled, cldnn::throttle_mode_types::disabled, true, &user_context);
-    
+    auto engine_config = cldnn::engine_configuration(false, false, false, "", "", true, "", "", cldnn::priority_mode_types::disabled, cldnn::throttle_mode_types::disabled, true, 1, &user_context);
+
     //[1]Check if the engine creation works.
     engine engine(engine_config);
     auto info = engine.get_info();

@@ -11,6 +11,7 @@
 #include "ie_mul_const_infer.hpp"
 #include "ie_add_const_infer.hpp"
 #include "ie_div_const_infer.hpp"
+#include "ie_eltw_const_infer.hpp"
 #include "ie_const_const_infer.hpp"
 #include "ie_shape_const_infer.hpp"
 #include "ie_power_const_infer.hpp"
@@ -23,6 +24,8 @@
 #include "ie_strided_slice_const_infer.hpp"
 #include "ie_fill_const_infer.hpp"
 #include "ie_range_const_infer.hpp"
+#include "ie_broadcast_const_infer.hpp"
+#include "ie_onehot_const_infer.hpp"
 #include <list>
 #include <memory>
 #include <string>
@@ -62,6 +65,7 @@ IConstInferImpl::Ptr ConstInferHolder::getConstInferImpl(const std::string& type
 REG_CONST_INFER_FOR_TYPE(MulConstInfer, Mul);
 REG_CONST_INFER_FOR_TYPE(AddConstInfer, Add);
 REG_CONST_INFER_FOR_TYPE(DivConstInfer, Div);
+REG_CONST_INFER_FOR_TYPE(EltwiseConstInfer, Eltwise);
 REG_CONST_INFER_FOR_TYPE(ShapeConstInfer, Shape);
 REG_CONST_INFER_FOR_TYPE(ConstConstInfer, Const);
 REG_CONST_INFER_FOR_TYPE(PowerConstInfer, Power);
@@ -75,6 +79,8 @@ REG_CONST_INFER_FOR_TYPE(InPlaceConstInfer, Squeeze);
 REG_CONST_INFER_FOR_TYPE(StridedSliceConstInfer, StridedSlice);
 REG_CONST_INFER_FOR_TYPE(FillConstInfer, Fill);
 REG_CONST_INFER_FOR_TYPE(RangeConstInfer, Range);
+REG_CONST_INFER_FOR_TYPE(BroadcastConstInfer, Broadcast);
+REG_CONST_INFER_FOR_TYPE(OneHotConstInfer, OneHot);
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine

@@ -44,19 +44,18 @@ void gemm_inner_product_fwd_t<data_type>::execute_forward() const {
     bool wei_tr = !utils::one_of(pd()->weights_pd()->desc()->format,
              hwio, dhwio, io);
 
-    const auto &post_ops = pd()->attr()->post_ops_;
-    const bool do_relu = post_ops.len_ == 1;
+    const float *scales = pd()->attr()->output_scales_.scales_;
 
     float alpha = 1.0, beta = 0.0;
     extended_sgemm(wei_tr ? "T" : "N", "N", &OC, &MB, &IC, &alpha, weights,
-            wei_tr ? &IC : &OC, src, &IC, &beta, dst, &OC, bias);
+            wei_tr ? &IC : &OC, src, &IC, &beta, dst, &OC,
+            postops_in_ip_ ? nullptr : bias);
 
-    if (do_relu) {
-        float nslope = post_ops.entry_[0].eltwise.alpha;
-        parallel_nd(MB, OC, [&](int mb, int oc) {
-            size_t dst_off = mb * OC + oc;
-            if (dst[dst_off] < 0)
-                dst[dst_off] *= nslope;
+    if (postops_in_ip_) {
+        parallel(0, (size_t)OC * MB, [&](int ithr, int nthr) {
+            size_t start = 0, end = 0;
+            balance211((size_t)OC * MB, nthr, ithr, start, end);
+            (*pp_kernel_)(dst, dst, (char *)bias, scales, start, end);
         });
     }
 }
@@ -111,7 +110,7 @@ void gemm_inner_product_bwd_weights_t<data_type>::execute_backward_weights() con
         constexpr int blksize = 8;
         const int OC_blocks = OC / blksize;
         const int rem_OC = OC % blksize;
-        parallel(0, [&](const int ithr, const int nthr) {
+        parallel(0, (size_t)OC_blocks, [&](const int ithr, const int nthr) {
             int oc_st{0}, oc_e{0};
             balance211(OC_blocks, nthr, ithr, oc_st, oc_e);
             oc_st = oc_st * blksize;

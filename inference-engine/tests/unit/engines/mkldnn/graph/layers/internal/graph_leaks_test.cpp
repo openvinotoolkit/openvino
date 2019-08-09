@@ -243,7 +243,7 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
         size_t weights_size = 1724320;
         net_reader.ReadNetwork(model.c_str(), model.size());
 
-        InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {weights_size});
+        InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::C });
         weights->allocate();
         fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
         InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);

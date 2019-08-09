@@ -33,21 +33,13 @@ TEST_F(DeviceTests, externalFindReturnsErrorStatus) {
     ASSERT_EQ(status, GENERAL_ERROR);
 }
 
-#if defined(ENABLE_OPENVX) || defined(ENABLE_MKL_DNN) || defined(ENABLE_OPENVX_CVE)
+#if defined(ENABLE_MKL_DNN)
 TEST_F(DeviceTests, externalFindPopulatesResult) {
     FindPluginRequest request = { TargetDevice::eCPU };
     FindPluginResponse result;
     ResponseDesc desc;
     StatusCode status = findPlugin(request, result, &desc);
     ASSERT_EQ(status, OK);
-    ASSERT_NE(result.names.size(), 0);
-}
-#endif
-
-#if defined(ENABLE_OPENVX) || defined(ENABLE_CLDNN)
-TEST_F(DeviceTests, internalFindReturnsResponse) {
-    FindPluginRequest request = { TargetDevice::eGPU };
-    FindPluginResponse result = findPlugin(request);
     ASSERT_NE(result.names.size(), 0);
 }
 #endif

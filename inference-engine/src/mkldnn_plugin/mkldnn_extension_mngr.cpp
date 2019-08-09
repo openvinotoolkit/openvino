@@ -39,5 +39,24 @@ InferenceEngine::ILayerImplFactory* MKLDNNExtensionManager::CreateExtensionFacto
     return factory;
 }
 
+IShapeInferImpl::Ptr MKLDNNExtensionManager::CreateReshaper(const InferenceEngine::CNNLayerPtr &layer) {
+    if (!layer)
+        THROW_IE_EXCEPTION << "Cannot get cnn layer!";
+    IShapeInferImpl::Ptr reshaper = nullptr;
+    for (auto& ext : _extensions) {
+        ResponseDesc responseDesc;
+        StatusCode rc;
+        rc = ext->getShapeInferImpl(reshaper, layer->type.c_str(), &responseDesc);
+        if (rc != OK) {
+            reshaper = nullptr;
+            continue;
+        }
+        if (reshaper != nullptr) {
+            break;
+        }
+    }
+    return reshaper;
+}
+
 
 

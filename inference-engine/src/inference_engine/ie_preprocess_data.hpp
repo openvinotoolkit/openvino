@@ -52,14 +52,13 @@ public:
     Blob::Ptr getRoiBlob() const;
 
     /**
-     * @brief Executes input pre-processing with a given resize algorithm.
+     * @brief Executes input pre-processing with a given pre-processing information.
      * @param outBlob pre-processed output blob to be used for inference.
-     * @param algorithm resize algorithm.
+     * @param info pre-processing info that specifies resize algorithm and color format.
      * @param serial disable OpenMP threading if the value set to true.
      * @param batchSize batch size for pre-processing.
      */
-    void execute(Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm, bool serial,
-                 int batchSize = -1);
+    void execute(Blob::Ptr &outBlob, const PreProcessInfo& info, bool serial, int batchSize = -1);
 
     static void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst);
 };

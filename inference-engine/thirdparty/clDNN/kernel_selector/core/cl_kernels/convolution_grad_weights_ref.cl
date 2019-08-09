@@ -72,11 +72,11 @@ KERNEL(convolution_grad_weights_gpu_ref)(
 #endif
                 if(!zero_x && !zero_y)
                 {
-                    uint input_idx = in_split_offset + b*INPUT1_BATCH_PITCH + ifm*INPUT1_FEATURE_PITCH + (uint)input_offset_x*INPUT1_X_PITCH + (uint)input_offset_y*INPUT1_Y_PITCH;
+                    uint input_idx = INPUT1_OFFSET + in_split_offset + b*INPUT1_BATCH_PITCH + ifm*INPUT1_FEATURE_PITCH + (uint)input_offset_x*INPUT1_X_PITCH + (uint)input_offset_y*INPUT1_Y_PITCH;
 #if BIAS_TERM
                     result = fma(TO_ACCUMULATOR_TYPE(input[input_idx]), grad, result);
 #else
-                    uint input_grad_idx = grad_split_offset + b*INPUT0_BATCH_PITCH + ofm*INPUT0_FEATURE_PITCH + j*INPUT0_X_PITCH + i*INPUT0_Y_PITCH;
+                    uint input_grad_idx = INPUT0_OFFSET + grad_split_offset + b*INPUT0_BATCH_PITCH + ofm*INPUT0_FEATURE_PITCH + j*INPUT0_X_PITCH + i*INPUT0_Y_PITCH;
                     result = fma(TO_ACCUMULATOR_TYPE(input[input_idx]), TO_ACCUMULATOR_TYPE(input_grad[input_grad_idx]), result);
 #endif
                 }

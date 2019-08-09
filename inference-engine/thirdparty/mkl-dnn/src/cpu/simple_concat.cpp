@@ -91,10 +91,9 @@ void simple_concat_t<data_type>::execute() const {
             uint8_t *ptro = reinterpret_cast<uint8_t *>(o);
             const uint8_t *ptri = reinterpret_cast<const uint8_t *>(i);
             const size_t main_part =
-                nelems_to_copy[a] * sizeof(data_t) / sizeof(uint32_t);
+                (nelems_to_copy[a] * sizeof(data_t)) / sizeof(uint32_t);
             const size_t tail_part =
-                nelems_to_copy[a] * sizeof(data_t) % sizeof(uint32_t);
-
+                (nelems_to_copy[a] * sizeof(data_t)) % sizeof(uint32_t);
             PRAGMA_OMP_SIMD()
             for (size_t e = 0; e < main_part; ++e) {
                 *(reinterpret_cast<uint32_t *>(ptro))
@@ -119,6 +118,7 @@ template struct simple_concat_t<data_type::f32>;
 template struct simple_concat_t<data_type::u8>;
 template struct simple_concat_t<data_type::s8>;
 template struct simple_concat_t<data_type::s32>;
+template struct simple_concat_t<data_type::bf16>;
 
 }
 }

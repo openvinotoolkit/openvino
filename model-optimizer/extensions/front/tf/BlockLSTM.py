@@ -73,6 +73,10 @@ class BlockLSTM(FrontReplacementOp):
                 return k
         return key
 
+    def run_after(self):
+        from extensions.front.restore_ports import RestorePorts
+        return [RestorePorts]
+
     def replace_op(self, graph: Graph, node: Node):
         if node.use_peephole:
             raise Error("BlockLSTM operation is not supported with `use_peephole`==True. Node: {}"
@@ -136,6 +140,7 @@ class BlockLSTM(FrontReplacementOp):
         outputs = node.out_edges()
         if 6 in outputs:
             outputs[6]['out'] = 0
+            node.add_output_port(0, skip_if_exist=True)
 
         # do not replace any output edge
         return []

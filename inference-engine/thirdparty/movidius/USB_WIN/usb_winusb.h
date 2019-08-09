@@ -34,7 +34,7 @@ extern int usb_list_devices(uint16_t vid, uint16_t pid, uint8_t dev_des[][2 + 2 
 extern void *  enumerate_usb_device(uint16_t vid, uint16_t pid, const char *addr, int loud);
 extern void *  usb_find_device_by_guid(int loud);
 extern int usb_check_connected(usb_dev dev);
-extern void * usb_open_device(usb_dev dev, uint8_t *ep, uint8_t intfaceno, char *err_string_buff);
+extern void * usb_open_device(usb_dev dev, uint8_t *ep, uint8_t intfaceno, char *err_string_buff, size_t err_max_len);
 extern uint8_t usb_get_bulk_endpoint(usb_han han, int dir);
 extern size_t usb_get_endpoint_size(usb_han han, uint8_t ep);
 extern int usb_bulk_write(usb_han han, uint8_t ep, const void *buffer, size_t sz, uint32_t *wrote_bytes, int timeout_ms);

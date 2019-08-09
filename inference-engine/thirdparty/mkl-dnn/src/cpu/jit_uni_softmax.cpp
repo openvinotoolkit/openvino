@@ -60,10 +60,11 @@ void jit_uni_softmax_fwd_t<isa>::execute_forward() const
     size_t dim = jpp.channels * jpp.inner_size;
 
     if (jpp.inner_size > 1) {
+        const size_t work_amount = outer_size;
+
         auto ker = [&](const int ithr, const int nthr) {
             size_t start{0}, end{0};
 
-            const size_t work_amount = outer_size;
             balance211(work_amount, nthr, ithr, start, end);
 
             size_t ou{0};
@@ -83,14 +84,14 @@ void jit_uni_softmax_fwd_t<isa>::execute_forward() const
             }
         };
 
-        parallel(0, ker);
+        parallel(0, work_amount, ker);
     } else {
+        int ou_blocks = div_up(outer_size, jpp.outer_block);
+        const size_t work_amount = ou_blocks;
+
         auto ker = [&](const int ithr, const int nthr) {
             size_t start{0}, end{0};
 
-            int ou_blocks = div_up(outer_size, jpp.outer_block);
-
-            const size_t work_amount = ou_blocks;
             balance211(work_amount, nthr, ithr, start, end);
 
             size_t oub{0};
@@ -112,7 +113,7 @@ void jit_uni_softmax_fwd_t<isa>::execute_forward() const
             }
         };
 
-        parallel(0, ker);
+        parallel(0, work_amount, ker);
     }
 }
 

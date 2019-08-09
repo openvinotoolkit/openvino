@@ -35,7 +35,7 @@ mkldnn_prop_kind_t prop = mkldnn_forward;
 alg_t alg = VANILLA_RNN;
 mkldnn_rnn_direction_t direction = mkldnn_unidirectional_left2right;
 activation_t activation = RELU;
-const char *perf_template = "perf,%n,%d,,,%-t,,%0t,";
+const char *perf_template = "perf,%n,%d,%GO,%GF,%-t,%-Gp,%0t,%0Gp";
 const dt_conf_t *cfg = conf_f32;
 policy_t scale_policy = NONE;
 attr_t attr;
@@ -95,13 +95,6 @@ int bench(int argc, char **argv, bool main_bench) {
             if (str2desc(&d, argv[arg]) == FAIL) {
                 fprintf(stderr, "driver: unknown option: `%s`, exiting...\n",
                         argv[arg]);
-                exit(2);
-            }
-            if (cfg != conf_f32 && alg != VANILLA_LSTM) {
-                fprintf(stderr,
-                        "driver: configuration ``%s` is supported for LSTM "
-                        "cell only, exiting...\n",
-                        cfg2str(cfg));
                 exit(2);
             }
             if (cfg != conf_f32 && scale_policy == NONE) {

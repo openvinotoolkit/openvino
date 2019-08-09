@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef upsampling_H
-#define upsampling_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -31,8 +28,7 @@ extern "C" {
 #endif
 
 /// @brief Sample mode for upsampling layer ( @CLDNN_PRIMITIVE_DESC{upsampling} ​).
-typedef enum /*:int32_t*/
-{
+typedef enum /*:int32_t*/ {
     /// @brief upsampling nearest neighbor.
     cldnn_upsampling_nearest,
     /// @brief upsampling bilinear.
@@ -43,7 +39,7 @@ typedef enum /*:int32_t*/
 /// Also supports built-in Relu @ref activation available by setting it in arguments.
 CLDNN_BEGIN_PRIMITIVE_DESC(upsampling)
 /// @param scale Upsampling scale.
-uint32_t scale;
+float scale;
 /// @param num_filter Input filter. Only used by bilinear sample_type.
 uint32_t num_filter;
 /// @param sample_type Upsampling method (nearest neighbor/bilinear).
@@ -63,5 +59,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(upsampling);
 /// @}
 /// @}
 /// @}
-#endif /* upsampling_H */
 

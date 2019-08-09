@@ -13,7 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.resample import ResampleOp
+from extensions.ops.interpolate import Interpolate
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -24,9 +25,9 @@ class ResizeNearestNeighborFrontExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
         mapping_rule = {
-            'resample_type': 'caffe.ResampleParameter.NEAREST',
-            'fw': 'tf',
-            'antialias': 0
+            'mode': 'nearest',
+            'antialias': 0,
+            'axes': int64_array([1, 2]),
         }
-        ResampleOp.update_node_stat(node, mapping_rule)
+        Interpolate.update_node_stat(node, mapping_rule)
         return __class__.enabled

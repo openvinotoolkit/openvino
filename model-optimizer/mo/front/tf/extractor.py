@@ -17,26 +17,17 @@
 import numpy as np
 
 from mo.front.common.partial_infer.split import tf_split_infer
-from mo.front.tf.extractors.bias_add import tf_bias_add_ext
 from mo.front.tf.extractors.concat import tf_concat_ext
 from mo.front.tf.extractors.const import tf_const_ext
 from mo.front.tf.extractors.eltwise import make_tf_eltwise
-from mo.front.tf.extractors.expand_dims import tf_expand_dims_ext
 from mo.front.tf.extractors.fused_bn import tf_fused_bn_extractor
 from mo.front.tf.extractors.lrn import tf_lrn_ext
-from mo.front.tf.extractors.matmul import tf_matmul_ext
-from mo.front.tf.extractors.mean import tf_mean_ext
+from mo.front.tf.extractors.matmul import tf_matmul_ext, tf_batchmatmul_ext
 from mo.front.tf.extractors.native_tf import native_tf_node_extractor
 from mo.front.tf.extractors.pack import tf_pack_ext
-from mo.front.tf.extractors.placeholder import tf_placeholder_ext
-from mo.front.tf.extractors.prod import tf_reduce_prod_ext
 from mo.front.tf.extractors.random_uniform import tf_random_uniform_ext
-from mo.front.tf.extractors.range import tf_range_ext
-from mo.front.tf.extractors.reshape import tf_reshape_ext
 from mo.front.tf.extractors.space_to_batch import tf_space_to_batch_ext, tf_batch_to_space_ext
 from mo.front.tf.extractors.split import tf_split_ext
-from mo.front.tf.extractors.squeeze import tf_squeeze_ext
-from mo.front.tf.extractors.transpose import tf_transpose_ext
 from mo.front.tf.extractors.unpack import tf_unpack_ext
 from mo.front.tf.extractors.utils import get_tf_node_port
 from mo.graph.graph import Node
@@ -76,41 +67,19 @@ def node_pb_arg(pb_extractor: callable):
 
 tf_op_extractors = {
     'TFCustomSubgraphCall': node_pb_arg(lambda pb: None),
-    'Transpose': node_pb_arg(tf_transpose_ext),
     'LRN': node_pb_arg(tf_lrn_ext),
     'Split': node_pb_arg(lambda pb: tf_split_ext(pb, tf_split_infer)),
     'FusedBatchNorm': node_pb_arg(tf_fused_bn_extractor),
-    'Relu6': node_pb_arg(
-        make_tf_eltwise(lambda a: np.maximum(0, np.minimum(a, 6)), attrs={'type': 'Clamp', 'min': 0, 'max': 6})),
-    'ExpandDims': node_pb_arg(tf_expand_dims_ext),
     'ConcatV2': node_pb_arg(tf_concat_ext),
     'MatMul': node_pb_arg(tf_matmul_ext),
+    'BatchMatMul': node_pb_arg(tf_batchmatmul_ext),
     'Pack': node_pb_arg(tf_pack_ext),
     'Unpack': node_pb_arg(tf_unpack_ext),
-    'Prod': node_pb_arg(tf_reduce_prod_ext),
     'Const': node_pb_arg(tf_const_ext),
-    'Placeholder': node_pb_arg(tf_placeholder_ext),
     'Identity': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
-    'Add': node_pb_arg(
-        make_tf_eltwise(lambda a, b: a + b, attrs={'type': 'Eltwise', 'operation': 'sum', 'can_be_bias': True})),
-    'Mul': node_pb_arg(make_tf_eltwise(lambda a, b: a * b, attrs={'type': 'Eltwise', 'operation': 'mul'})),
-    'Rsqrt': node_pb_arg(make_tf_eltwise(lambda v: np.reciprocal(np.sqrt(v)),
-                                         attrs={'type': 'Power', 'power': -0.5, 'scale': 1, 'shift': 0})),
-    'Neg': node_pb_arg(make_tf_eltwise(lambda v: -v, attrs={'type': 'Power', 'power': 1, 'scale': -1, 'shift': 0})),
-    'Sub': node_pb_arg(make_tf_eltwise(lambda a, b: a - b)),
-    'RealDiv': node_pb_arg(make_tf_eltwise(lambda a, b: a / b, attrs={'op': 'Div'})),
-    'Relu': node_pb_arg(make_tf_eltwise(lambda v: np.maximum(0, v), attrs={'type': 'ReLU'})),  # 0 is an integer
     'RandomUniform': node_pb_arg(tf_random_uniform_ext),
-    'Mean': node_pb_arg(tf_mean_ext),
-    'BiasAdd': node_pb_arg(tf_bias_add_ext),
-    'Reshape': node_pb_arg(tf_reshape_ext),
-    'Squeeze': node_pb_arg(tf_squeeze_ext),
     'SpaceToBatchND': node_pb_arg(tf_space_to_batch_ext),
     'BatchToSpaceND': node_pb_arg(tf_batch_to_space_ext),
-    'Square': node_pb_arg(make_tf_eltwise(lambda a: a * a)),
-    'Minimum': node_pb_arg(make_tf_eltwise(lambda a, b: np.minimum(a, b))),  # can use clamp if one argument is const
-    'Maximum': node_pb_arg(make_tf_eltwise(lambda a, b: np.maximum(a, b), attrs={'type': 'Eltwise',
-                                                                                 'operation': 'max'})),
     'ReadVariableOp': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
     'PlaceholderWithDefault': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True}))
 }

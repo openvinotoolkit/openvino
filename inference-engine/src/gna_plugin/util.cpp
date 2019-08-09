@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// util.cpp : various utility functions for debugging, file i/o, etc.
+//
 
 #include <cinttypes>
 #ifndef _WIN32

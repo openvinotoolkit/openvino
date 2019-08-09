@@ -13,11 +13,8 @@
 // limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef CONDITION_H
-#define CONDITION_H
-
+#pragma once
 #include "cldnn.h"
-
 
 /// @addtogroup c_api C API
 /// @{
@@ -31,8 +28,7 @@ extern "C" {
 #endif
 
 /// @brief Function, which will be used during comparison.
-typedef enum /*:int32_t*/
-{
+typedef enum /*:int32_t*/ {
     EQUAL,
     GREATER,
     LESS
@@ -59,7 +55,6 @@ cldnn_tensor offset;
 CLDNN_END_PRIMITIVE_DESC(condition)
 CLDNN_DECLARE_PRIMITIVE_TYPE_ID(condition);
 
-
 #ifdef __cplusplus
 }
 #endif
@@ -67,4 +62,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(condition);
 /// @}
 /// @}
 /// @}
-#endif // CONDITION_H
+

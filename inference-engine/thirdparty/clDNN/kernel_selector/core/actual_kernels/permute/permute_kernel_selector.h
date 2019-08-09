@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +11,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
 #include "kernel_selector.h"
- 
-namespace kernel_selector 
-{
-    class permute_kernel_selector : public kernel_selector_base
-    {
-    public:
-        static permute_kernel_selector &Instance() {
-            static permute_kernel_selector instance_;
-            return instance_;
-        }
 
-        permute_kernel_selector();
+namespace kernel_selector {
+class permute_kernel_selector : public kernel_selector_base {
+public:
+    static permute_kernel_selector& Instance() {
+        static permute_kernel_selector instance_;
+        return instance_;
+    }
 
-        virtual ~permute_kernel_selector() {}
+    permute_kernel_selector();
 
-        virtual KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
-    };
-}
+    virtual ~permute_kernel_selector() {}
+
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+};
+}  // namespace kernel_selector

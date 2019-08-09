@@ -1,0 +1,11 @@
+# bf16
+--reset --mb=2 --allow-unimpl=true
+
+--cfg=bf16bf16bf16
+--dir=FWD_B --batch=deconv_2d
+--dir=BWD_D --batch=deconv_2d
+--dir=BWD_WB --batch=deconv_2d
+
+--cfg=bf16bf16f32 --dir=FWD_B --batch=deconv_2d
+--cfg=f32bf16bf16 --dir=BWD_D --batch=deconv_2d
+--cfg=bf16f32bf16 --dir=BWD_WB --batch=deconv_2d

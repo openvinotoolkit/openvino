@@ -117,7 +117,7 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     topology.add(data("weights2", weights2));
 
     topology.add(cldnn::convolution("conv1", { "input" }, { "weights1" }));
-    topology.add(cldnn::reorder("reorder", "input", cldnn::layout(data_types::f32, format::byxf, 4)));
+    topology.add(cldnn::reorder("reorder", "input", cldnn::layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(cldnn::convolution("conv2", { "reorder" }, { "weights2" }));
 
     topology.add(cldnn::concatenation("concat", { "conv1", "conv2" }, cldnn::concatenation::along_f));
@@ -149,10 +149,11 @@ void tile_ref(const memory& input, memory& output, tile::tile_axis axis, int num
     {
         switch (axis)
         {
-        case tile::along_b: return std::make_pair(1, size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0]);
-        case tile::along_f: return std::make_pair(size.batch[0], size.feature[0] * size.spatial[1] * size.spatial[0]);
-        case tile::along_y: return std::make_pair(size.batch[0] * size.feature[0], size.spatial[1] * size.spatial[0]);
-        case tile::along_x: return std::make_pair(size.batch[0] * size.feature[0] * size.spatial[1], size.spatial[0]);
+        case tile::along_b: return std::make_pair(1, size.batch[0] * size.feature[0] * size.spatial[2] * size.spatial[1] * size.spatial[0]);
+        case tile::along_f: return std::make_pair(size.batch[0], size.feature[0] * size.spatial[2] * size.spatial[1] * size.spatial[0]);
+        case tile::along_z: return std::make_pair(size.batch[0] * size.feature[0], size.spatial[2] * size.spatial[1] * size.spatial[0]);
+        case tile::along_y: return std::make_pair(size.batch[0] * size.feature[0] * size.spatial[2], size.spatial[1] * size.spatial[0]);
+        case tile::along_x: return std::make_pair(size.batch[0] * size.feature[0] * size.spatial[2] * size.spatial[1], size.spatial[0]);
         default: throw std::invalid_argument("Invalid axis(" + std::to_string(static_cast<int>(axis)) + ") in tile ref version");
         }
     };

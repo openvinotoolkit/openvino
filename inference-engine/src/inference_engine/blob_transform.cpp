@@ -29,7 +29,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
     size_t H = dims[2];
     size_t W = dims[3];
 
-    const Layout src_l = src->layout();
+    const Layout src_l = src->getTensorDesc().getLayout();
     const auto &src_blk_dsc = src->getTensorDesc().getBlockingDesc();
     const auto &src_strides = src_blk_dsc.getStrides();
     const auto N_src_stride = src_strides[0];
@@ -38,7 +38,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
     const auto W_src_stride = src_l == NHWC ? src_strides[2] : src_strides[3];
     src_ptr += src_blk_dsc.getOffsetPadding();
 
-    const Layout dst_l = dst->layout();
+    const Layout dst_l = dst->getTensorDesc().getLayout();
     const auto &dst_blk_desc = dst->getTensorDesc().getBlockingDesc();
     const auto &dst_strides = dst_blk_desc.getStrides();
     const auto N_dst_stride = dst_strides[0];
@@ -49,7 +49,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
     src_ptr += dst_blk_desc.getOffsetPadding();
 
 #ifdef HAVE_SSE
-    if (src->layout() == NHWC && dst->layout() == NCHW && C == 3
+    if (src->getTensorDesc().getLayout() == NHWC && dst->getTensorDesc().getLayout() == NCHW && C == 3
         && C_src_stride == 1 && W_src_stride == 3 && W_dst_stride == 1 &&
         with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
@@ -73,7 +73,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
         }
     }
 
-    if (src->layout() == NCHW && dst->layout() == NHWC && C == 3 &&
+    if (src->getTensorDesc().getLayout() == NCHW && dst->getTensorDesc().getLayout() == NHWC && C == 3 &&
         C_dst_stride == 1 && W_dst_stride == 3 && W_src_stride == 1 &&
         with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
@@ -98,7 +98,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
     }
 #endif  // HAVE_SSE
 
-    if (src->layout() == NHWC && dst->layout() == NCHW) {
+    if (src->getTensorDesc().getLayout() == NHWC && dst->getTensorDesc().getLayout() == NCHW) {
         for (int n = 0; n < N; n++) {
             for (int c = 0; c < C; c++) {
                 data_t *dst_ptr_l = dst_ptr + n * N_dst_stride + c * C_dst_stride;
@@ -113,7 +113,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
                 }
             }
         }
-    } else if (src->layout() == NCHW && dst->layout() == NHWC) {
+    } else if (src->getTensorDesc().getLayout() == NCHW && dst->getTensorDesc().getLayout() == NHWC) {
         for (int n = 0; n < N; n++) {
             for (int c = 0; c < C; c++) {
                 data_t *src_ptr_l = src_ptr + n * N_src_stride + c * C_src_stride;
@@ -136,7 +136,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
 }
 
 static inline void blob_copy_4d(Blob::Ptr src, Blob::Ptr dst) {
-    switch (src->precision()) {
+    switch (src->getTensorDesc().getPrecision()) {
         case Precision::FP32:
         case Precision::I32:
             blob_copy_4d_t<Precision::FP32>(src, dst);
@@ -154,7 +154,7 @@ static inline void blob_copy_4d(Blob::Ptr src, Blob::Ptr dst) {
             break;
 
         default:
-            THROW_IE_EXCEPTION << "Unsupported blob transformation for precision " << src->precision();
+            THROW_IE_EXCEPTION << "Unsupported blob transformation for precision " << src->getTensorDesc().getPrecision();
     }
 }
 
@@ -165,14 +165,14 @@ void blob_copy(Blob::Ptr src, Blob::Ptr dst) {
     if (dst->buffer() == nullptr)
         THROW_IE_EXCEPTION << "Cannot copy blob data. Destination is not allocated.";
 
-    if (src->precision() != dst->precision())
+    if (src->getTensorDesc().getPrecision() != dst->getTensorDesc().getPrecision())
         THROW_IE_EXCEPTION << "Unimplemented blob transformation from precision "
-                           << src->precision() << " to " << src->precision();
+                           << src->getTensorDesc().getPrecision() << " to " << src->getTensorDesc().getPrecision();
 
-    if (src->dims() != dst->dims())
+    if (src->getTensorDesc().getDims() != dst->getTensorDesc().getDims())
         THROW_IE_EXCEPTION << "Unimplemented blob transformation from different shapes ";
 
-    if (src->dims().size() == 4)
+    if (src->getTensorDesc().getDims().size() == 4)
         blob_copy_4d(src, dst);
     else
         THROW_IE_EXCEPTION << "Unimplemented blob transformation. Only 4d supported.";

@@ -14,7 +14,6 @@
  limitations under the License.
 """
 from extensions.back.CreateConstNodes import CreateConstNodesReplacement
-from extensions.front.restore_ports import RestorePorts
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
@@ -31,16 +30,16 @@ from mo.front.extractor import extract_node_attrs, remove_output_ops
 from mo.front.mxnet.extractor import mxnet_op_extractor
 from mo.front.mxnet.loader import symbol2nx, load_symbol_def
 from mo.middle.passes.fusing.decomposition import convert_batch_norm, convert_scale_shift_to_mul_add
-from mo.middle.passes.conv import convert_muladd_to_scaleshift_or_power, \
-    convert_add_or_mul_to_scaleshift, fuse_pad
+from mo.middle.passes.conv import convert_muladd_to_scaleshift, \
+    convert_add_or_mul_to_scaleshift, fuse_pad, convert_matmul_to_fully_connected
 from mo.middle.passes.eliminate import graph_clean_up, remove_const_ops
 from mo.middle.passes.fusing.fuse_linear_ops import fuse_linear_ops
 from mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
 from mo.middle.passes.fusing.mark_unfused_nodes import mark_unfused_nodes
 from mo.middle.passes.fusing.resnet_optimization import stride_optimization
-from mo.middle.passes.infer import convert_mul_add_to_power
 from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
-from mo.middle.passes.shape import reverse_input_channels
+from mo.middle.passes.shape import reverse_input_channels, merge_nodes_permutations, permute_data_nodes_attrs, \
+    permute_op_nodes_attrs
 from mo.pipeline.common import prepare_emit_ir
 from mo.front.mxnet.nd_to_params import save_params_file
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
@@ -79,7 +78,13 @@ def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, o
     graph.graph['cmd_params'] = argv
     graph.graph['fw'] = 'mxnet'
     graph.graph['feature_dim'] = 1 if graph.graph['layout'] == 'NCHW' else 3
-    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else 5
+
+    if graph.graph['cmd_params'].generate_experimental_IR_V10:
+        version = 10
+    else:
+        version = 6
+    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else version
+
     extract_node_attrs(graph, mxnet_op_extractor)
 
     # --------------------------------- LOAD END ------------------------------------------------------
@@ -114,11 +119,9 @@ def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, o
     fuse_pad(graph)
 
     # Converting Mul->Add to ScaleShift node
-    convert_muladd_to_scaleshift_or_power(graph)
+    convert_muladd_to_scaleshift(graph)
     graph_clean_up(graph)
 
-    convert_mul_add_to_power(graph)
-    graph_clean_up(graph)
     convert_add_or_mul_to_scaleshift(graph)  # scale = 1
     graph_clean_up(graph)
 
@@ -132,6 +135,13 @@ def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, o
     pattern = EltwiseInputNormalize()
     pattern.find_and_replace_pattern(graph)
 
+    for_graph_and_each_sub_graph_recursively(graph, convert_matmul_to_fully_connected)
+
+    merge_nodes_permutations(graph)
+    permute_data_nodes_attrs(graph)
+    permute_op_nodes_attrs(graph)
+
+    graph_clean_up(graph)
     class_registration.apply_replacements(graph, class_registration.ClassType.BACK_REPLACER)
 
     for_graph_and_each_sub_graph_recursively(graph, remove_const_ops)

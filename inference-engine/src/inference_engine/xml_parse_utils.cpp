@@ -73,9 +73,11 @@ float XMLParseUtils::GetFloatAttr(const pugi::xml_node &node, const char *str) {
         THROW_IE_EXCEPTION << "node <" << node.name() << "> is missing mandatory attribute: " << str << " at offset "
                            << node.offset_debug();
     std::string str_value = std::string(attr.value());
-    std::size_t idx = 0;
-    float float_value = std::stof(str_value, &idx);
-    if (idx != str_value.length())
+    std::stringstream str_stream(str_value);
+    str_stream.imbue(std::locale("C"));
+    float float_value;
+    str_stream >> float_value;
+    if (!str_stream.eof())
         THROW_IE_EXCEPTION << "node <" << node.name() << "> has attribute \"" << str << "\" = \"" << str_value
                            << "\" which is not a floating point" << " at offset "
                            << node.offset_debug();
@@ -125,18 +127,5 @@ int XMLParseUtils::GetIntChild(const pugi::xml_node &node, const char *str, int 
     auto child = node.child(str);
     if (child.empty()) return defVal;
     return atoi(child.child_value());
-}
-
-std::string XMLParseUtils::NameFromFilePath(const char *filepath) {
-    std::string baseName = filepath;
-    auto slashPos = baseName.rfind('/');
-    slashPos = slashPos == std::string::npos ? 0 : slashPos + 1;
-    auto dotPos = baseName.rfind('.');
-    if (dotPos != std::string::npos) {
-        baseName = baseName.substr(slashPos, dotPos - slashPos);
-    } else {
-        baseName = baseName.substr(slashPos);
-    }
-    return baseName;
 }
 

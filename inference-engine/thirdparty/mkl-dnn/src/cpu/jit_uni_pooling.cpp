@@ -19,14 +19,15 @@
 #include "c_types_map.hpp"
 #include "jit_uni_pooling.hpp"
 #include "type_helpers.hpp"
+#include "bfloat16_utils.hpp"
 #include "nstl.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-template <cpu_isa_t isa>
-void jit_uni_pooling_fwd_t<isa>::execute_forward() const {
+template <cpu_isa_t isa, data_type_t d_type>
+void jit_uni_pooling_fwd_t<isa, d_type>::execute_forward() const {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto dst = reinterpret_cast<data_t*>(this->memory(0));
     auto indices = pd()->desc()->alg_kind == alg_kind::pooling_max ?
@@ -49,11 +50,11 @@ void jit_uni_pooling_fwd_t<isa>::execute_forward() const {
         const int i_b_overflow = nstl::max(jpp.ih, ij+jpp.kh-jpp.t_pad)-jpp.ih;
         const int ih = nstl::max(ij - jpp.t_pad, 0);
 
-        arg.src = &src[src_d.blk_off(n, b_c, ih)];
-        arg.dst = &dst[dst_d.blk_off(n, b_c, oh)];
+        arg.src = (const void*)&src[src_d.blk_off(n, b_c, ih)];
+        arg.dst = (const void*)&dst[dst_d.blk_off(n, b_c, oh)];
         if (indices) {
             const size_t ind_off = indices_d.blk_off(n, b_c, oh);
-            arg.indices = &indices[ind_off * ind_dt_size];
+            arg.indices = (const void*)&indices[ind_off * ind_dt_size];
         }
         arg.oh = oh == 0;
         arg.kh_padding = jpp.kh - i_t_overflow - i_b_overflow;
@@ -73,8 +74,8 @@ void jit_uni_pooling_fwd_t<isa>::execute_forward() const {
     });
 }
 
-template <cpu_isa_t isa>
-void jit_uni_pooling_fwd_t<isa>::execute_forward_3d() const {
+template <cpu_isa_t isa, data_type_t d_type>
+void jit_uni_pooling_fwd_t<isa, d_type>::execute_forward_3d() const {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto dst = reinterpret_cast<data_t*>(this->memory(0));
     auto indices = pd()->desc()->alg_kind == alg_kind::pooling_max ?
@@ -133,9 +134,8 @@ void jit_uni_pooling_fwd_t<isa>::execute_forward_3d() const {
     });
 }
 
-
-template <cpu_isa_t isa>
-void jit_uni_pooling_bwd_t<isa>::execute_backward() const {
+template <cpu_isa_t isa, data_type_t d_type>
+void jit_uni_pooling_bwd_t<isa, d_type>::execute_backward() const {
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto diff_src = reinterpret_cast<data_t*>(this->memory(0));
     auto indices = pd()->desc()->alg_kind == alg_kind::pooling_max ?
@@ -182,8 +182,8 @@ void jit_uni_pooling_bwd_t<isa>::execute_backward() const {
     });
 }
 
-template <cpu_isa_t isa>
-void jit_uni_pooling_bwd_t<isa>::execute_backward_3d() const {
+template <cpu_isa_t isa, data_type_t d_type>
+void jit_uni_pooling_bwd_t<isa, d_type>::execute_backward_3d() const {
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto diff_src = reinterpret_cast<data_t*>(this->memory(0));
     auto indices = pd()->desc()->alg_kind == alg_kind::pooling_max ?
@@ -207,11 +207,11 @@ void jit_uni_pooling_bwd_t<isa>::execute_backward_3d() const {
         const int i_b_overflow = nstl::max(jpp.ih, ij+jpp.kh-jpp.t_pad)-jpp.ih;
         const int ih = nstl::max(ij - jpp.t_pad, 0);
 
-        arg.src = &diff_src[diff_src_d.blk_off(n, b_c, id + kd, ih)];
-        arg.dst = &diff_dst[diff_dst_d.blk_off(n, b_c, od, oh)];
+        arg.src = (const void*)&diff_src[diff_src_d.blk_off(n, b_c, id + kd, ih)];
+        arg.dst = (const void*)&diff_dst[diff_dst_d.blk_off(n, b_c, od, oh)];
         if (indices) {
             const size_t ind_off = indices_d.blk_off(n, b_c, od, oh);
-            arg.indices = &indices[ind_off * ind_dt_size];
+            arg.indices = (const void*)&indices[ind_off * ind_dt_size];
         }
         arg.oh = zero_size;
         arg.kd_padding = jpp.kd - d_t_overflow - d_b_overflow;
@@ -249,7 +249,14 @@ void jit_uni_pooling_bwd_t<isa>::execute_backward_3d() const {
         ptrdiff_t nelems = (ptrdiff_t)mb * (ptrdiff_t)jpp.c
             * (ptrdiff_t)jpp.id * (ptrdiff_t)jpp.ih * (ptrdiff_t)jpp.iw;
 
-        parallel_nd(nelems, [&](ptrdiff_t i) { diff_src[i] = 0.f; });
+        if (diff_src_d.data_type() == data_type::bf16) {
+            mkldnn_bfloat16_t bf16_zero =
+                bf16_cvt_utils::cvt_float_to_bfloat16(0.f);
+            parallel_nd(nelems, [&](ptrdiff_t i) {
+                    diff_src[i] = bf16_zero;});
+        } else
+            parallel_nd(nelems, [&](ptrdiff_t i) {
+                    diff_src[i] = static_cast<data_t>(0.f); });
 
         for (int kd = 0; kd < jpp.kd; ++kd) {
             parallel_nd(mb, jpp.nb_c, [&](int n, int b_c) {
@@ -272,12 +279,14 @@ void jit_uni_pooling_bwd_t<isa>::execute_backward_3d() const {
 }
 
 
-template struct jit_uni_pooling_fwd_t<sse42>;
-template struct jit_uni_pooling_bwd_t<sse42>;
-template struct jit_uni_pooling_fwd_t<avx>;
-template struct jit_uni_pooling_bwd_t<avx>;
-template struct jit_uni_pooling_fwd_t<avx512_common>;
-template struct jit_uni_pooling_bwd_t<avx512_common>;
+template struct jit_uni_pooling_fwd_t<sse42, data_type::f32>;
+template struct jit_uni_pooling_bwd_t<sse42, data_type::f32>;
+template struct jit_uni_pooling_fwd_t<avx, data_type::f32>;
+template struct jit_uni_pooling_bwd_t<avx, data_type::f32>;
+template struct jit_uni_pooling_fwd_t<avx512_common, data_type::f32>;
+template struct jit_uni_pooling_bwd_t<avx512_common, data_type::f32>;
+template struct jit_uni_pooling_fwd_t<avx512_common, data_type::bf16>;
+template struct jit_uni_pooling_bwd_t<avx512_common, data_type::bf16>;
 
 }
 }

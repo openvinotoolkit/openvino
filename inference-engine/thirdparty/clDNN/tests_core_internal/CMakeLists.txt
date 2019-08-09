@@ -23,7 +23,7 @@ set(CLDNN__CAPS_SCAN_ORDER
 
 # ========================================= Name / Output settings =====================================
 
-set(CLDNN_BUILD__PROJ             "tests_core_internal")
+set(CLDNN_BUILD__PROJ             "clDNN_tests_core_internal")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
 set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
 

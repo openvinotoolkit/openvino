@@ -20,9 +20,10 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng)
-        : MKLDNNNode(layer, eng), withBiases(false), withSum(false),  dw_conv_iw(0), dw_conv_ih(0),
-        dw_conv_oc(0), isDW(false), isMerged(false), withActivation(false), convLayer(nullptr), isGrouped(false) {
+MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
+        : MKLDNNNode(layer, eng, socket), withBiases(false), withSum(false),  dw_conv_iw(0), dw_conv_ih(0),
+        dw_conv_oc(0), dw_conv_in_dt(memory::data_type::data_undef), isDW(false), isMerged(false), withActivation(false),
+        convLayer(nullptr), isGrouped(false) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });
@@ -69,7 +70,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         THROW_IE_EXCEPTION << "Cannot convert convolution layer.";
 
     if (getParentEdges().size() != 1 &&
-        ((getType() != Convolution_Sum && getType() != Convolution_Sum_Activation) || getParentEdges().size() != 2))
+        (!isFusedWith(Eltwise) || getParentEdges().size() != 2))
         THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
         THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
@@ -117,7 +118,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     }
 
     Blob::Ptr weights = this->getCnnLayer()->blobs.find("weights")->second;
-    if (weights->precision() == Precision::I8) {
+    if (weights->getTensorDesc().getPrecision() == Precision::I8) {
         // The weights blob has incorrect dims, so we have to fix it
         TensorDesc wdesc = internalBlobs[0]->getTensorDesc();
         wdesc.setPrecision(Precision::I8);
@@ -159,7 +160,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         paddingR[i] = (dst - calc_dst) * stride[i];
     }
 
-    withSum = getType() == Convolution_Sum || getType() == Convolution_Sum_Activation;
+    withSum = isFusedWith(Eltwise);
 
     for (auto &node : fusedWith) {
         auto *convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(node.get());
@@ -174,6 +175,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             for (int i = 0; i < convLayer->_stride.size(); i++) {
                 dw_conv_strides.push_back(convLayer->_stride[i]);
             }
+            dw_conv_in_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(convLayer->outData[0]->getPrecision());
         }
     }
 
@@ -342,6 +344,7 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                                                             dwBiasesDims.size() * MKLDNNExtensionUtils::sizeOfDataType(biasPrc));
                 ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
                                    dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                                   mkldnn::memory::convert_to_c(dw_conv_in_dt),
                                    (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
                                    (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
 
@@ -349,6 +352,7 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
             } else {
                 ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
                                    dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                                   mkldnn::memory::convert_to_c(dw_conv_in_dt),
                                    nullptr,
                                    nullptr);
             }
@@ -397,6 +401,67 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                 if (dwConvActivationNode) {
                     ops.append_eltwise(1.0, dwConvActivationNode->getAlgorithm(), dwConvActivationNode->getAlpha(),
                                        dwConvActivationNode->getBeta());
+
+                    continue;
+                }
+
+                auto* dwConvDepthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(dwConvFusedNode.get());
+                if (dwConvDepthwiseNode) {
+                    auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(dwConvDepthwiseNode->getCnnLayer().get());
+
+                    if (initWeights) {
+                        MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(biasesDims[0], 16))});
+
+                        PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+                        PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+
+                        PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
+                                                                     depthwiseLayer->_weights->buffer(),
+                                                                     depthwiseLayer->_weights->size() *
+                                                                     MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+                        if (dwConvDepthwiseNode->isBroadcast()) {
+                            float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
+                            for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
+                                static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
+                            }
+                        }
+
+                        if (dwConvDepthwiseNode->getAlgorithm() == depthwise_scale_shift) {
+                            PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+                            PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
+                                                                        memory::format::x);
+                            PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
+                                                                         depthwiseLayer->_biases->buffer(),
+                                                                         depthwiseLayer->_biases->size() *
+                                                                         MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+                            if (dwConvDepthwiseNode->isBroadcast()) {
+                                float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
+                                for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
+                                    static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
+                                }
+                            }
+
+                            ops.append_depthwise(dwConvDepthwiseNode->getAlgorithm(),
+                                                 (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
+                                                 (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
+
+                            blob_idx += 2;
+                        } else {
+                            ops.append_depthwise(dwConvDepthwiseNode->getAlgorithm(),
+                                                 (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
+                                                 nullptr);
+
+                            blob_idx += 1;
+                        }
+                    } else {
+                        ops.append_depthwise(dwConvDepthwiseNode->getAlgorithm(),
+                                             nullptr,
+                                             nullptr);
+                    }
+
+                    continue;
                 }
             }
 
@@ -430,6 +495,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                     config.inConfs.push_back(dataConfig);
                 }
 
+                std::vector<memory::format> outFormats;
                 for (size_t i = 0; i < desc.outputNumbers(); i++) {
                     InferenceEngine::DataConfig dataConfig;
                     if (withSum) {
@@ -446,10 +512,12 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                         dataConfig.inPlace = -1;
                         config.inConfs.push_back(dataConfig);
                     }
+
+                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
                 }
                 impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 
-                supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+                supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
             } while (itpd.next());
         } catch (std::exception& e) {
             // it throw exception in case of no implementation found
@@ -485,8 +553,7 @@ void MKLDNNConvolutionNode::createPrimitive() {
 }
 
 bool MKLDNNConvolutionNode::created() const {
-    return getType() == Convolution || getType() == Convolution_Sum_Activation ||
-           getType() == Convolution_Activation || getType() == Convolution_Sum;
+    return getType() == Convolution;
 }
 
 void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
@@ -497,7 +564,7 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
 
     Blob::Ptr weights = this->getCnnLayer()->blobs.find("weights")->second;
 
-    if (weights->precision() == Precision::I8) {
+    if (weights->getTensorDesc().getPrecision() == Precision::I8) {
         wdt = memory::s8;
         bdt = memory::s32;
 

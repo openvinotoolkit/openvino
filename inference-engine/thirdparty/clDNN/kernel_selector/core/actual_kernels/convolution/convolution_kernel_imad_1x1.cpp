@@ -20,18 +20,15 @@
 
 namespace kernel_selector {
 
-    JitConstants
-        ConvolutionKernel_imad_1x1::GetJitConstants(
-            const convolution_params& params,
-            const DispatchData&       kd) const
-    {
-        auto mem_consts = Parent::GetJitConstants(params, kd);
+JitConstants ConvolutionKernel_imad_1x1::GetJitConstants(const convolution_params& params,
+                                                         const DispatchData& kd) const {
+    auto mem_consts = Parent::GetJitConstants(params, kd);
 
-        mem_consts.AddConstants({
-            // Block reading optimization is implemented for 3x3 only.
-            // For 1x1 it should be disabled.
-            MakeJitConstant("NON_BLOCK_LOAD", 1),
-        });
-        return mem_consts;
-    }
+    mem_consts.AddConstants({
+        // Block reading optimization is implemented for 3x3 only.
+        // For 1x1 it should be disabled.
+        MakeJitConstant("NON_BLOCK_LOAD", 1),
+    });
+    return mem_consts;
 }
+}  // namespace kernel_selector

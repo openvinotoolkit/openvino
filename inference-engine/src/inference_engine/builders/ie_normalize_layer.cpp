@@ -82,8 +82,8 @@ REG_VALIDATOR_FOR(Normalize, [] (const InferenceEngine::Builder::Layer::CPtr& in
 });
 
 REG_CONVERTER_FOR(Normalize, [](const CNNLayerPtr& cnnLayer, Builder::Layer& layer) {
-    layer.getParameters()["region"] = cnnLayer->GetParamsAsBool("region", 0);
-    layer.getParameters()["channel_shared"] = cnnLayer->GetParamsAsBool("channel_shared", 0);
+    layer.getParameters()["region"] = cnnLayer->GetParamAsBool("region", 0);
+    layer.getParameters()["channel_shared"] = cnnLayer->GetParamAsBool("channel_shared", 0);
     layer.getParameters()["eps"] = cnnLayer->GetParamAsFloat("eps", 0);
 });
 

@@ -22,15 +22,16 @@ from extensions.front.div import Div
 from mo.utils.unittest.graph import build_graph, compare_graphs
 
 nodes_attributes = {
-    'placeholder_1': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
-    'placeholder_2': {'shape': None, 'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
+    'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     # Div operation
     'Div': {'kind': 'op', 'op': 'Div'},
     # Test operation
     'last': {'type': None, 'value': None, 'kind': 'op', 'op': None},
-    # Add and Power operations
-    'power_1': {'scale': None, 'power': None, 'shift': None, 'type': 'Power', 'kind': 'op', 'op': 'Power'},
-    'mul_1': {'value': None, 'type': 'Eltwise', 'kind': 'op', 'op': 'Mul'},
+    # Mul and Pow operations
+    'const': {'value': np.array(-1), 'op': 'Const', 'kind': 'op'},
+    'reciprocal': {'value': None, 'type': 'Pow', 'kind': 'op', 'op': 'Pow'},
+    'mul_1': {'value': None, 'type': 'Multiply', 'kind': 'op', 'op': 'Mul'},
 }
 
 
@@ -47,16 +48,14 @@ class TestDiv(unittest.TestCase):
                              }, nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_2', 'power_1'),
-                                 ('power_1', 'mul_1'),
+                                [('placeholder_2', 'reciprocal', {'in': 0}),
+                                 ('const', 'reciprocal', {'in': 1}),
+                                 ('reciprocal', 'mul_1'),
                                  ('placeholder_1', 'mul_1'),
                                  ('mul_1', 'last'),
                                  ],
                                 {'placeholder_1': {'shape': np.array([1, 227, 227, 3])},
                                  'placeholder_2': {'shape': np.array([1, 227, 227, 3])},
-                                 'power_1': {'scale': np.array(1), 'power': np.array(-1), 'shift': np.array(0),
-                                             'type': 'Power'},
-                                 'mul_1': {'type': 'Eltwise', 'op': 'Mul'},
                                  }, nodes_with_edges_only=True)
 
         graph.stage = 'front'
@@ -78,15 +77,13 @@ class TestDiv(unittest.TestCase):
                              }, nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
-                                [('power_1', 'mul_1'),
+                                [('reciprocal', 'mul_1'),
                                  ('placeholder_1', 'mul_1'),
-                                 ('placeholder_1', 'power_1'),
+                                 ('placeholder_1', 'reciprocal', {'in': 0}),
+                                 ('const', 'reciprocal', {'in': 1}),
                                  ('mul_1', 'last'),
                                  ],
                                 {'placeholder_1': {'shape': np.array([1, 227, 227, 3])},
-                                 'power_1': {'scale': np.array(1), 'power': np.array(-1), 'shift': np.array(0),
-                                             'type': 'Power'},
-                                 'mul_1': {'type': 'Eltwise', 'op': 'Mul'},
                                  }, nodes_with_edges_only=True)
 
         graph.stage = 'front'

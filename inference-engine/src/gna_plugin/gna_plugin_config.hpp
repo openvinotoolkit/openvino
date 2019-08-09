@@ -16,11 +16,11 @@ using CNNNetworkPtr = std::shared_ptr<InferenceEngine::ICNNNetwork>;
 
 struct Endpoint {
     InferenceEngine::TargetDevice device;
-    InferenceEngine::Precision networkPrec;
+    std::vector<InferenceEngine::Precision> networkPrec;
     std::function<CNNNetworkPtr(InferenceEngine::ICNNNetwork &network)> convert;
 
     Endpoint(InferenceEngine::TargetDevice device,
-             InferenceEngine::Precision networkPrec,
+             std::vector<InferenceEngine::Precision> networkPrec,
              std::function<CNNNetworkPtr(InferenceEngine::ICNNNetwork &network)> converter = [](InferenceEngine::ICNNNetwork &network) {
                  return CNNNetworkPtr(&network, [](InferenceEngine::ICNNNetwork *nodelete) {});
              }) : device(device), networkPrec(networkPrec), convert(converter) {
@@ -48,10 +48,12 @@ class Config {
     inline Endpoint find_configuration(InferenceEngine::ICNNNetwork &network) {
         auto device = network.getTargetDevice();
         auto targetDevice = device == InferenceEngine::TargetDevice::eDefault ? _defaultDevice : device;
-
         auto res = std::find_if(std::begin(supported), std::end(supported), [&](Endpoint &e) {
-            return e.networkPrec == network.getPrecision() && (
-                e.device == device ||
+            auto& netPrec(e.networkPrec);
+            auto isEqualPrec = std::find(netPrec.begin(), netPrec.end(), network.getPrecision());
+
+            return isEqualPrec != netPrec.end() && (
+                    e.device == device ||
                     e.device == targetDevice);
         });
 

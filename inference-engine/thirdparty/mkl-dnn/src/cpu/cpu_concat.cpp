@@ -37,6 +37,7 @@ static const cpd_create_f cpu_concat_impl_list[] = {
     INSTANCE(simple_concat_t<data_type::u8>),
     INSTANCE(simple_concat_t<data_type::s8>),
     INSTANCE(simple_concat_t<data_type::s32>),
+    INSTANCE(simple_concat_t<data_type::bf16>),
     INSTANCE(ref_concat_t),
     nullptr,
 };

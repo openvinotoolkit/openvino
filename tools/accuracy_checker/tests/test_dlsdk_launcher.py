@@ -29,8 +29,9 @@ from accuracy_checker.config import ConfigError
 from accuracy_checker.launcher import DLSDKLauncher
 from accuracy_checker.launcher.dlsdk_launcher import DLSDKLauncherConfig
 from accuracy_checker.launcher.launcher import create_launcher
+from accuracy_checker.launcher.model_conversion import FrameworkParameters
 from tests.common import update_dict
-from accuracy_checker.dataset import DataRepresentation
+from accuracy_checker.data_readers import DataRepresentation
 from accuracy_checker.utils import contains_all
 
 
@@ -76,35 +77,23 @@ def get_image(image_path, input_shape):
 class TestDLSDKLauncherInfer:
     def test_infer(self, data_dir, models_dir):
         dlsdk_test_model = get_dlsdk_test_model(models_dir)
-        result = dlsdk_test_model.predict(['1.jpg'], [get_image(data_dir / '1.jpg', dlsdk_test_model.inputs['data'])])
+        image = get_image(data_dir / '1.jpg', dlsdk_test_model.inputs['data'])
+        input_blob = np.transpose([image.data], (0, 3, 1, 2))
+        result = dlsdk_test_model.predict([{'data': input_blob.astype(np.float32)}], [image.metadata])
+        assert dlsdk_test_model.output_blob == 'fc3'
 
-        assert dlsdk_test_model.adapter.output_blob == 'fc3'
-        assert result[0].label == 6
+        assert np.argmax(result[0][dlsdk_test_model.output_blob]) == 6
+        assert image.metadata['input_shape'] == {'data': [3, 32, 32]}
 
     def test_launcher_creates(self, models_dir):
         assert get_dlsdk_test_model(models_dir).inputs['data'] == [3, 32, 32]
 
     def test_infer_with_additional_outputs(self, data_dir, models_dir):
         dlsdk_test_model = get_dlsdk_test_model(models_dir, {'outputs': ['fc1', 'fc2']})
-        result = dlsdk_test_model.predict(['1.jpg'], [get_image(data_dir / '1.jpg', dlsdk_test_model.inputs['data'])])
         outputs = list(dlsdk_test_model.network.outputs.keys())
-        adapter_output_blob = dlsdk_test_model.adapter.output_blob
 
         assert contains_all(outputs, ['fc1', 'fc2', 'fc3'])
-        assert adapter_output_blob == 'fc3'
-        assert result[0].label == 6
-
-    def test_dlsdk_launcher_provide_input_shape_to_adapter(self, mocker, models_dir):
-        raw_results = {}
-
-        def raw_results_callback(outputs):
-            raw_results.update(outputs)
-
-        launcher = get_dlsdk_test_model(models_dir)
-
-        adapter_mock = mocker.patch('accuracy_checker.adapters.ClassificationAdapter.process')
-        launcher.predict(['1.png'], [DataRepresentation(np.zeros((32, 32, 3)))], output_callback=raw_results_callback)
-        adapter_mock.assert_called_once_with([raw_results], ['1.png'], [{'input_shape': {'data': [3, 32, 32]}, 'image_size': (32, 32, 3)}])
+        assert dlsdk_test_model.output_blob == 'fc3'
 
     def test_dlsd_launcher_set_batch_size(self, models_dir):
         dlsdk_test_model = get_dlsdk_test_model(models_dir, {'batch': 2})
@@ -114,7 +103,7 @@ class TestDLSDKLauncherInfer:
 @pytest.mark.usefixtures('mock_path_exists')
 class TestDLSDKLauncherAffinity:
     def test_dlsdk_launcher_valid_affinity_map(self, mocker, models_dir):
-        affinity_map = {'conv1' : 'GPU'}
+        affinity_map = {'conv1': 'GPU'}
 
         mocker.patch(
             'accuracy_checker.launcher.dlsdk_launcher.read_yaml', return_value=affinity_map
@@ -126,7 +115,7 @@ class TestDLSDKLauncherAffinity:
             assert layers[key].affinity == value
 
     def test_dlsdk_launcher_affinity_map_invalid_device(self, mocker, models_dir):
-        affinity_map = {'conv1' : 'GPU'}
+        affinity_map = {'conv1': 'GPU'}
 
         mocker.patch(
             'accuracy_checker.launcher.dlsdk_launcher.read_yaml', return_value=affinity_map
@@ -160,8 +149,8 @@ class TestDLSDKLauncher:
             '_models_prefix': 'prefix',
             '_aocl': Path('aocl')
         }
-        launcher = create_launcher(config, {'label_map': {}})
-        subprocess_mock.assert_called_once_with(['aocl', 'program', 'acl0', 'custom_bitstream'])
+        launcher = create_launcher(config)
+        subprocess_mock.assert_called_once_with(['aocl', 'program', 'acl0', 'custom_bitstream'], check=True)
         launcher.release()
 
     def test_program_bitsream_when_fpga_in_hetero_device(self, mocker):
@@ -176,8 +165,8 @@ class TestDLSDKLauncher:
             '_models_prefix': 'prefix',
             '_aocl': Path('aocl')
         }
-        launcher = create_launcher(config, {'label_map': {}})
-        subprocess_mock.assert_called_once_with(['aocl', 'program', 'acl0', 'custom_bitstream'])
+        launcher = create_launcher(config)
+        subprocess_mock.assert_called_once_with(['aocl', 'program', 'acl0', 'custom_bitstream'], check=True)
         launcher.release()
 
     def test_does_not_program_bitsream_when_device_is_not_fpga(self, mocker):
@@ -259,7 +248,7 @@ class TestDLSDKLauncher:
             'adapter': 'classification',
             '_models_prefix': 'prefix'
         }
-        create_launcher(config, {'label_map': {}})
+        create_launcher(config)
 
         os.environ.__setitem__.assert_called_once_with('DLA_AOCX', 'custom_bitstream')
 
@@ -275,7 +264,7 @@ class TestDLSDKLauncher:
             'adapter': 'classification',
             '_models_prefix': 'prefix'
         }
-        create_launcher(config, {'label_map': {}})
+        create_launcher(config)
         os.environ.__setitem__.assert_called_once_with('DLA_AOCX', 'custom_bitstream')
 
     def test_does_not_set_dla_aocx_when_device_is_not_fpga(self, mocker):
@@ -359,10 +348,11 @@ class TestDLSDKLauncher:
             '_models_prefix': '/path/to/source_models',
             'adapter': 'classification'
         }
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
 
         mock.assert_called_once_with(
-            'custom_model', '/path/to/source_models/custom_model', '/path/to/source_models/custom_weights', 'caffe',
+            'custom_model', '/path/to/source_models/custom_model', '/path/to/source_models/custom_weights', '',
+            FrameworkParameters('caffe', False),
             [], None, None, None, None
         )
 
@@ -382,10 +372,11 @@ class TestDLSDKLauncher:
             'mo_params': {'data_type': 'FP16'},
             'adapter': 'classification'
         }
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
 
         mock.assert_called_once_with(
-            'custom_model', '/path/to/source_models/custom_model', '/path/to/source_models/custom_weights', 'caffe',
+            'custom_model', '/path/to/source_models/custom_model', '/path/to/source_models/custom_weights', '',
+            FrameworkParameters('caffe', False),
             [], {'data_type': 'FP16'}, None, None, None
         )
 
@@ -406,10 +397,11 @@ class TestDLSDKLauncher:
             'adapter': 'classification'
         }
 
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
 
         mock.assert_called_once_with(
-            'custom_model', '/path/to/source_models/custom_model', '/path/to/source_models/custom_weights', 'caffe',
+            'custom_model', '/path/to/source_models/custom_model', '/path/to/source_models/custom_weights', '',
+            FrameworkParameters('caffe', False),
             [], None, ['reverse_input_channels'], None, None
         )
 
@@ -435,7 +427,7 @@ class TestDLSDKLauncher:
             'accuracy_checker.launcher.model_conversion.exec_mo_binary',
             return_value=subprocess.CompletedProcess(args, returncode=0)
         )
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
         prepare_args_patch.assert_called_once_with('ModelOptimizer', flag_options=[], value_options=args)
 
     def test_model_converted_from_tf(self, mocker):
@@ -451,10 +443,31 @@ class TestDLSDKLauncher:
             '_models_prefix': '/path/to/source_models',
             'adapter': 'classification'
         }
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
 
         mock.assert_called_once_with(
-            'custom_model', '/path/to/source_models/custom_model', '', 'tf', [], None, None, None, None
+            'custom_model', '/path/to/source_models/custom_model', '', '',
+            FrameworkParameters('tf', False), [], None, None, None, None
+        )
+
+    def test_model_converted_from_tf_checkpoint(self, mocker):
+        mock = mocker.patch(
+            'accuracy_checker.launcher.dlsdk_launcher.convert_model',
+            return_value=('converted_model', 'converted_weights')
+        )
+
+        config = {
+            'framework': 'dlsdk',
+            'tf_meta': '/path/to/source_models/custom_model',
+            'device': 'cpu',
+            '_models_prefix': '/path/to/source_models',
+            'adapter': 'classification'
+        }
+        DLSDKLauncher(config)
+
+        mock.assert_called_once_with(
+            'custom_model', '', '', '/path/to/source_models/custom_model',
+            FrameworkParameters('tf', True), [], None, None, None, None
         )
 
     def test_model_converted_from_tf_with_arg_path_to_custom_tf_config(self, mocker):
@@ -481,7 +494,7 @@ class TestDLSDKLauncher:
             'accuracy_checker.launcher.model_conversion.exec_mo_binary',
             return_value=subprocess.CompletedProcess(args, returncode=0)
         )
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
         prepare_args_patch.assert_called_once_with('/path/ModelOptimizer', flag_options=[], value_options=args)
 
     def test_model_converted_from_tf_with_default_path_to_custom_tf_config(self, mocker):
@@ -507,7 +520,7 @@ class TestDLSDKLauncher:
             'accuracy_checker.launcher.model_conversion.exec_mo_binary',
             return_value=subprocess.CompletedProcess(args, returncode=0)
         )
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
         prepare_args_patch.assert_called_once_with('/path/ModelOptimizer', flag_options=[], value_options=args)
 
     def test_model_converted_from_tf_with_default_path_to_obj_detection_api_config(self, mocker):
@@ -534,7 +547,7 @@ class TestDLSDKLauncher:
             'accuracy_checker.launcher.model_conversion.exec_mo_binary',
             return_value=subprocess.CompletedProcess(args, returncode=0)
         )
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
         prepare_args_patch.assert_called_once_with('/path/ModelOptimizer', flag_options=[], value_options=args)
 
     def test_model_converted_from_tf_with_arg_path_to_obj_detection_api_config(self, mocker):
@@ -562,7 +575,115 @@ class TestDLSDKLauncher:
             'accuracy_checker.launcher.model_conversion.exec_mo_binary',
             return_value=subprocess.CompletedProcess(args, returncode=0)
         )
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
+        prepare_args_patch.assert_called_once_with('/path/ModelOptimizer', flag_options=[], value_options=args)
+
+    def test_model_converted_from_tf_checkpoint_with_arg_path_to_custom_tf_config(self, mocker):
+        config = {
+            'framework': 'dlsdk',
+            'tf_meta': '/path/to/source_models/custom_model',
+            'device': 'cpu',
+            '_models_prefix': '/path/to',
+            'adapter': 'classification',
+            'mo_params': {'tensorflow_use_custom_operations_config': 'ssd_v2_support.json'},
+            '_tf_custom_op_config_dir': 'config/dir'
+        }
+        mocker.patch('accuracy_checker.launcher.model_conversion.find_mo', return_value=Path('/path/ModelOptimizer'))
+        prepare_args_patch = mocker.patch('accuracy_checker.launcher.model_conversion.prepare_args')
+
+        args = {
+            'input_meta_graph': '/path/to/source_models/custom_model',
+            'model_name': 'custom_model',
+            'framework': 'tf',
+            'tensorflow_use_custom_operations_config': 'config/dir/ssd_v2_support.json'
+        }
+
+        mocker.patch(
+            'accuracy_checker.launcher.model_conversion.exec_mo_binary',
+            return_value=subprocess.CompletedProcess(args, returncode=0)
+        )
+        DLSDKLauncher(config)
+        prepare_args_patch.assert_called_once_with('/path/ModelOptimizer', flag_options=[], value_options=args)
+
+    def test_model_converted_from_tf_checkoint_with_default_path_to_custom_tf_config(self, mocker):
+        config = {
+            'framework': 'dlsdk',
+            'tf_meta': '/path/to/source_models/custom_model',
+            'device': 'cpu',
+            '_models_prefix': '/path/to',
+            'adapter': 'classification',
+            'mo_params': {'tensorflow_use_custom_operations_config': 'config.json'}
+        }
+        mocker.patch('accuracy_checker.launcher.model_conversion.find_mo', return_value=Path('/path/ModelOptimizer'))
+        prepare_args_patch = mocker.patch('accuracy_checker.launcher.model_conversion.prepare_args')
+
+        args = {
+            'input_meta_graph': '/path/to/source_models/custom_model',
+            'model_name': 'custom_model',
+            'framework': 'tf',
+            'tensorflow_use_custom_operations_config': '/path/extensions/front/tf/config.json'
+        }
+
+        mocker.patch(
+            'accuracy_checker.launcher.model_conversion.exec_mo_binary',
+            return_value=subprocess.CompletedProcess(args, returncode=0)
+        )
+        DLSDKLauncher(config)
+        prepare_args_patch.assert_called_once_with('/path/ModelOptimizer', flag_options=[], value_options=args)
+
+    def test_model_converted_from_tf_checkoint_with_default_path_to_obj_detection_api_config(self, mocker):
+        config = {
+            'framework': 'dlsdk',
+            'tf_meta': '/path/to/source_models/custom_model',
+            'device': 'cpu',
+            '_models_prefix': '/path/to',
+            'adapter': 'classification',
+            'mo_params': {'tensorflow_object_detection_api_pipeline_config': 'operations.config'},
+            '_tf_obj_detection_api_pipeline_config_path': None
+        }
+        mocker.patch('accuracy_checker.launcher.model_conversion.find_mo', return_value=Path('/path/ModelOptimizer'))
+        prepare_args_patch = mocker.patch('accuracy_checker.launcher.model_conversion.prepare_args')
+
+        args = {
+            'input_meta_graph': '/path/to/source_models/custom_model',
+            'model_name': 'custom_model',
+            'framework': 'tf',
+            'tensorflow_object_detection_api_pipeline_config': '/path/to/source_models/operations.config'
+        }
+
+        mocker.patch(
+            'accuracy_checker.launcher.model_conversion.exec_mo_binary',
+            return_value=subprocess.CompletedProcess(args, returncode=0)
+        )
+        DLSDKLauncher(config)
+        prepare_args_patch.assert_called_once_with('/path/ModelOptimizer', flag_options=[], value_options=args)
+
+    def test_model_converted_from_tf_checkpoint_with_arg_path_to_obj_detection_api_config(self, mocker):
+        config = {
+            'framework': 'dlsdk',
+            'tf_meta': '/path/to/source_models/custom_model',
+            'device': 'cpu',
+            '_models_prefix': '/path/to',
+            'adapter': 'classification',
+            'mo_params': {'tensorflow_object_detection_api_pipeline_config': 'operations.config'},
+            '_tf_custom_op_config_dir': 'config/dir',
+            '_tf_obj_detection_api_pipeline_config_path': 'od_api'
+        }
+        mocker.patch('accuracy_checker.launcher.model_conversion.find_mo', return_value=Path('/path/ModelOptimizer'))
+        prepare_args_patch = mocker.patch('accuracy_checker.launcher.model_conversion.prepare_args')
+
+        args = {
+            'input_meta_graph': '/path/to/source_models/custom_model',
+            'model_name': 'custom_model',
+            'framework': 'tf',
+            'tensorflow_object_detection_api_pipeline_config': 'od_api/operations.config'
+        }
+
+        mocker.patch(
+            'accuracy_checker.launcher.model_conversion.exec_mo_binary',
+            return_value=subprocess.CompletedProcess(args, returncode=0)
+        )
+        DLSDKLauncher(config)
         prepare_args_patch.assert_called_once_with('/path/ModelOptimizer', flag_options=[], value_options=args)
 
     def test_model_converted_from_mxnet(self, mocker):
@@ -578,10 +699,11 @@ class TestDLSDKLauncher:
             '_models_prefix': '/path/to/source_models',
             'adapter': 'classification'
         }
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
 
         mock.assert_called_once_with(
-            'custom_weights', '', '/path/to/source_models/custom_weights', 'mxnet', [], None, None, None, None
+            'custom_weights', '', '/path/to/source_models/custom_weights', '',
+            FrameworkParameters('mxnet', False), [], None, None, None, None
         )
 
     def test_model_converted_from_onnx(self, mocker):
@@ -597,10 +719,11 @@ class TestDLSDKLauncher:
             '_models_prefix': '/path/to/source_models',
             'adapter': 'classification'
         }
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
 
         mock.assert_called_once_with(
-            'custom_model', '/path/to/source_models/custom_model', '', 'onnx', [], None, None, None, None
+            'custom_model', '/path/to/source_models/custom_model', '', '',
+            FrameworkParameters('onnx', False), [], None, None, None, None
         )
 
     def test_model_converted_from_kaldi(self, mocker):
@@ -616,10 +739,11 @@ class TestDLSDKLauncher:
             '_models_prefix': '/path/to/source_models',
             'adapter': 'classification'
         }
-        DLSDKLauncher(config, dummy_adapter)
+        DLSDKLauncher(config)
 
         mock.assert_called_once_with(
-            'custom_model', '/path/to/source_models/custom_model', '', 'kaldi', [], None, None, None, None
+            'custom_model', '/path/to/source_models/custom_model', '', '',
+            FrameworkParameters('kaldi', False), [], None, None, None, None
         )
 
     def test_raises_with_multiple_models_caffe_dlsdk(self):
@@ -634,7 +758,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_tf_dlsdk(self):
         config = {
@@ -647,7 +771,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_mxnet_dlsdk(self):
         config = {
@@ -660,7 +784,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_onnx_dlsdk(self):
         config = {
@@ -673,7 +797,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_kaldi_dlsdk(self):
         config = {
@@ -686,7 +810,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_mxnet_caffe(self):
         config = {
@@ -699,7 +823,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_tf_caffe(self):
 
@@ -713,7 +837,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_onnx_caffe(self):
 
@@ -727,7 +851,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_mxnet_tf(self):
         config = {
@@ -739,7 +863,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_onnx_tf(self):
         config = {
@@ -751,7 +875,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_mxnet_caffe_tf(self):
         config = {
@@ -765,7 +889,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_dlsdk_caffe_tf(self):
         config = {
@@ -780,7 +904,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_dlsdk_caffe_onnx(self):
         config = {
@@ -795,7 +919,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_dlsdk_caffe_mxnet(self):
         config = {
@@ -810,7 +934,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_dlsdk_tf_mxnet(self):
         config = {
@@ -824,7 +948,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_dlsdk_tf_onnx(self):
         config = {
@@ -838,7 +962,7 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_dlsdk_tf_mxnet_caffe(self):
         config = {
@@ -854,7 +978,7 @@ class TestDLSDKLauncher:
             '_models_prefix': 'prefix'
         }
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
 
     def test_raises_with_multiple_models_dlsdk_tf_mxnet_caffe_onnx(self):
         config = {
@@ -870,7 +994,24 @@ class TestDLSDKLauncher:
         }
 
         with pytest.raises(ConfigError):
-            DLSDKLauncher(config, dummy_adapter)
+            DLSDKLauncher(config)
+
+    def test_raises_with_tf_model_and_tf_meta_both_provided(self):
+        config = {
+            'framework': 'dlsdk',
+            'model': 'custom_model',
+            'weights': 'custom_weights',
+            'caffe_model': 'caffe_model',
+            'caffe_weights': 'caffe_weights',
+            'mxnet_weights': 'mxnet_weights',
+            'tf_model': 'tf_model',
+            'tf_meta': 'tf_meta',
+            'device': 'cpu',
+            '_models_prefix': 'prefix'
+        }
+
+        with pytest.raises(ConfigError):
+            DLSDKLauncher(config)
 
 
 @pytest.mark.usefixtures('mock_path_exists', 'mock_inputs', 'mock_inference_engine')

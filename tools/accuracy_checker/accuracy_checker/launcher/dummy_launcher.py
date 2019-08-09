@@ -39,18 +39,15 @@ class DummyLauncher(Launcher):
 
     __provider__ = 'dummy'
 
-    def __init__(self, config_entry: dict, adapter, *args, **kwargs):
-        super().__init__(config_entry, adapter, *args, **kwargs)
+    def __init__(self, config_entry: dict, *args, **kwargs):
+        super().__init__(config_entry, *args, **kwargs)
 
         dummy_launcher_config = DummyLauncherConfig('Dummy_Launcher')
-        dummy_launcher_config.validate(self._config)
+        dummy_launcher_config.validate(self.config)
 
-        self.data_path = get_path(self._config['data_path'])
+        self.data_path = get_path(self.config['data_path'])
 
-        self._loader = Loader.provide(self._config['loader'], self.data_path)
-        if self.adapter:
-            self.adapter.output_blob = self.adapter.output_blob or self.data_path
-            self._loader.data = self.adapter(self._loader.data)
+        self._loader = Loader.provide(self.config['loader'], self.data_path)
 
         print_info("{} predictions objects loaded from {}".format(len(self._loader), self.data_path))
 
@@ -67,3 +64,10 @@ class DummyLauncher(Launcher):
     @property
     def inputs(self):
         return None
+
+    def get_all_inputs(self):
+        return self.inputs
+
+    @property
+    def output_blob(self):
+        return self.data_path

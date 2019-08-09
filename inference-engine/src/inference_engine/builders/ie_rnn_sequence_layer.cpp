@@ -85,7 +85,7 @@ Builder::RNNSequenceLayer& Builder::RNNSequenceLayer::setActivationsBeta(const s
 }
 REG_CONVERTER_FOR(RNNSequence, [](const CNNLayerPtr& cnnLayer, Builder::Layer& layer) {
     layer.getParameters()["hidden_size"] = cnnLayer->GetParamAsInt("hidden_size");
-    layer.getParameters()["sequence_dim"] = cnnLayer->GetParamsAsBool("sequence_dim", true);
+    layer.getParameters()["sequence_dim"] = cnnLayer->GetParamAsBool("sequence_dim", true);
     std::vector<std::string> activations;
     std::istringstream stream(cnnLayer->GetParamAsString("activations"));
     std::string str;

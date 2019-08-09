@@ -40,3 +40,8 @@ class Const(Op):
             self.attrs['value'] = np.array(self.attrs['value'])
         self.attrs['shape'] = np.array(self.attrs['value'].shape, dtype=np.int64)
 
+    def supported_attrs(self):
+        return [
+            'offset',
+            'size'
+        ]

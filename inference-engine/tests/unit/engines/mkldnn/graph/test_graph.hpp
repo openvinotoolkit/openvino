@@ -93,7 +93,7 @@ public:
             // need to retain converted blobs until infer finish
             std::vector<InferenceEngine::Blob::Ptr> convertedInputs;
             for (auto input : inputs) {
-                switch (input.second->precision()) {
+                switch (input.second->getTensorDesc().getPrecision()) {
                     case InferenceEngine::Precision::FP32: {
                         InferenceEngine::TBlob<float> *in_f = nullptr;
                         in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(input.second.get());
@@ -167,7 +167,7 @@ public:
                     }
                     break;
                     default:
-                        THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->precision();
+                        THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
                 }
 
                 PushInputData(input.first, input.second, batch);

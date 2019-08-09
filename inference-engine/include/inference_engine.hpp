@@ -22,6 +22,7 @@
 #include <ie_plugin_config.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_icnn_network_stats.hpp>
+#include <ie_core.hpp>
 #include <cpp/ie_cnn_net_reader.h>
 #include <cpp/ie_plugin_cpp.hpp>
 #include <cpp/ie_executable_network.hpp>
@@ -36,10 +37,11 @@ namespace InferenceEngine {
  */
 template<class T>
 inline void TopResults(unsigned int n, TBlob<T> &input, std::vector<unsigned> &output) {
-    size_t input_rank = input.dims().size();
-    if (!input_rank || !input.dims().at(input_rank - 1))
+    SizeVector dims = input.getTensorDesc().getDims();
+    size_t input_rank = dims.size();
+    if (!input_rank || !dims[0])
         THROW_IE_EXCEPTION << "Input blob has incorrect dimensions!";
-    size_t batchSize = input.dims().at(input_rank - 1);
+    size_t batchSize = dims[0];
     std::vector<unsigned> indexes(input.size() / batchSize);
 
     n = static_cast<unsigned>(std::min<size_t>((size_t) n, input.size()));
@@ -77,7 +79,7 @@ inline void TopResults(unsigned int n, TBlob<T> &input, std::vector<unsigned> &o
  * @param output Vector of indexes for the top n places
  */
 inline void TopResults(unsigned int n, Blob &input, std::vector<unsigned> &output) {
-    switch (input.precision()) {
+    switch (input.getTensorDesc().getPrecision()) {
         TBLOB_TOP_RESULT(FP32);
         TBLOB_TOP_RESULT(FP16);
         TBLOB_TOP_RESULT(Q78);
@@ -87,7 +89,7 @@ inline void TopResults(unsigned int n, Blob &input, std::vector<unsigned> &outpu
         TBLOB_TOP_RESULT(U16);
         TBLOB_TOP_RESULT(I32);
         default:
-            THROW_IE_EXCEPTION << "cannot locate blob for precision: " << input.precision();
+            THROW_IE_EXCEPTION << "cannot locate blob for precision: " << input.getTensorDesc().getPrecision();
     }
 }
 
@@ -103,13 +105,14 @@ inline void TopResults(unsigned int n, Blob &input, std::vector<unsigned> &outpu
  */
 template<typename data_t>
 void copyFromRGB8(uint8_t *RGB8, size_t RGB8_size, InferenceEngine::TBlob<data_t> *blob) {
-    if (4 != blob->dims().size())
+    SizeVector dims = blob->getTensorDesc().getDims();
+    if (4 != dims.size())
         THROW_IE_EXCEPTION << "Cannot write data to input blob! Blob has incorrect dimensions size "
-                           << blob->dims().size();
-    size_t num_channels = blob->dims()[2];  // because RGB
-    size_t num_images = blob->dims()[3];
-    size_t w = blob->dims()[0];
-    size_t h = blob->dims()[1];
+                           << dims.size();
+    size_t num_channels = dims[1];  // because RGB
+    size_t num_images = dims[0];
+    size_t w = dims[3];
+    size_t h = dims[2];
     size_t nPixels = w * h;
 
     if (RGB8_size != w * h * num_channels * num_images)
@@ -168,7 +171,7 @@ void copyToFloat(float *dst, const InferenceEngine::Blob *src) {
     }
     const InferenceEngine::TBlob<T> *t_blob = dynamic_cast<const InferenceEngine::TBlob<T> *>(src);
     if (t_blob == nullptr) {
-        THROW_IE_EXCEPTION << "input type is " << src->precision() << " but input is not " << typeid(T).name();
+        THROW_IE_EXCEPTION << "input type is " << src->getTensorDesc().getPrecision() << " but input is not " << typeid(T).name();
     }
 
     const T *srcPtr = t_blob->readOnly();

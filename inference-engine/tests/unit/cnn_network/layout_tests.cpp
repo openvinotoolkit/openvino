@@ -15,6 +15,8 @@ public:
 
 };
 
+IE_SUPPRESS_DEPRECATED_START
+
 TEST_F(LayoutTest, offsetNCHW) {
     size_t N = 2, C = 3, H = 4, W = 5;
     SizeVector dims = { W, H, C, N };
@@ -67,7 +69,6 @@ TEST_F(LayoutTest, offsetNHWC) {
 
 }
 
-
 TEST_F(LayoutTest, convertNCHWtoNHWC) {
     const size_t N = 1, C = 2, H = 3, W = 2;
     SizeVector dims = { W, H, C, N };
@@ -91,3 +92,4 @@ TEST_F(LayoutTest, convertNCHWtoNHWC) {
     EXPECT_TRUE( 0 == memcmp( sourceBuf, destBuf2, N*C*H*W * sizeof(float) ) );
 }
 
+IE_SUPPRESS_DEPRECATED_END

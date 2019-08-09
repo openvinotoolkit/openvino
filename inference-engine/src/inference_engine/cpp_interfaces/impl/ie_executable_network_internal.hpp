@@ -72,6 +72,20 @@ public:
         return {};
     }
 
+    void SetConfig(const std::map<std::string, Parameter> &config, ResponseDesc *resp) override {
+        if (config.empty()) {
+            THROW_IE_EXCEPTION << "The list of configuration values is empty";
+        }
+        THROW_IE_EXCEPTION << "The following config value cannot be changed dynamically for ExecutableNetwork: " << config.begin()->first;
+    }
+
+    void GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const override {
+        THROW_IE_EXCEPTION << "GetConfig for executable network is not supported by this device";
+    }
+
+    void GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const override {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    }
 
 protected:
     InferenceEngine::InputsDataMap _networkInputs;

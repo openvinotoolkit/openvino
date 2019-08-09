@@ -49,11 +49,11 @@ class TestCaffeNativePartialInfer(unittest.TestCase):
         import sys
         sys.modules['caffe'] = Caffe()
         cls.nodes_attributes = {
-            'node_1': {'type': 'Input', 'kind': 'op'},
-            'node_2': {'type': 'Input', 'kind': 'op'},
+            'node_1': {'type': 'Parameter', 'kind': 'op'},
+            'node_2': {'type': 'Parameter', 'kind': 'op'},
             'node_3': {'type': 'Identity', 'kind': 'op'},
             'node_4': {'type': 'Identity', 'kind': 'op'},
-            'op_output': { 'kind': 'op', 'op': 'OpOutput'}
+            'op_output': { 'kind': 'op', 'op': 'Result'}
         }
 
     def test_build_net_equal_inputs(self):

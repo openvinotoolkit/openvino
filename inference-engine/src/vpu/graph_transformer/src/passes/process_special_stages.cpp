@@ -27,7 +27,7 @@ private:
     void processConcat(const Model::Ptr& model, const Stage& stage);
     void processSplit(const Model::Ptr& model, const Stage& stage);
     void processReshape(const Model::Ptr& model, const Stage& stage);
-    void processExpand(const Model::Ptr& model, const Stage& stage);
+    void processBroadcast(const Model::Ptr& model, const Stage& stage);
     void processShrink(const Model::Ptr& model, const Stage& stage);
 
 private:
@@ -38,28 +38,28 @@ void PassImpl::run(const Model::Ptr& model) {
     VPU_PROFILE(processSpecialStages);
 
     //
-    // Merge multiple Expand stages applied to the same input.
+    // Merge multiple Broadcast stages applied to the same input.
     //
 
-    for (const auto& curExpandStage : model->getStages()) {
-        if (curExpandStage == nullptr) {
+    for (const auto& curBroadcastStage : model->getStages()) {
+        if (curBroadcastStage == nullptr) {
             continue;
         }
 
-        if (curExpandStage->type() != StageType::Expand) {
+        if (curBroadcastStage->type() != StageType::Broadcast) {
             continue;
         }
 
-        auto input = curExpandStage->input(0);
-        auto output = curExpandStage->output(0);
+        auto input = curBroadcastStage->input(0);
+        auto output = curBroadcastStage->output(0);
 
         bool hasDuplicates = false;
         for (const auto& inputConsumer : input->consumers()) {
-            if (inputConsumer->type() != StageType::Expand) {
+            if (inputConsumer->type() != StageType::Broadcast) {
                 continue;
             }
 
-            if (inputConsumer == curExpandStage) {
+            if (inputConsumer == curBroadcastStage) {
                 continue;
             }
 
@@ -83,11 +83,11 @@ void PassImpl::run(const Model::Ptr& model) {
         }
 
         for (const auto& inputConsumer : input->consumers()) {
-            if (inputConsumer->type() != StageType::Expand) {
+            if (inputConsumer->type() != StageType::Broadcast) {
                 continue;
             }
 
-            if (inputConsumer == curExpandStage) {
+            if (inputConsumer == curBroadcastStage) {
                 continue;
             }
 
@@ -116,8 +116,8 @@ void PassImpl::run(const Model::Ptr& model) {
             processSplit(model, stage);
         } else if (stage->type() == StageType::Reshape) {
             processReshape(model, stage);
-        } else if (stage->type() == StageType::Expand) {
-            processExpand(model, stage);
+        } else if (stage->type() == StageType::Broadcast) {
+            processBroadcast(model, stage);
         } else if (stage->type() == StageType::Shrink) {
             processShrink(model, stage);
         }
@@ -172,12 +172,11 @@ void PassImpl::processConcat(const Model::Ptr& model, const Stage& stage) {
             //
 
             if (!needCopy) {
-                for (const auto& consumer : input->consumers()) {
-                    auto consumerInfo = consumer->getDataStridesRequirements();
+                for (const auto& consumerEdge : input->consumerEdges()) {
+                    const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
 
-                    auto strideIt = consumerInfo.find(input);
-                    if (strideIt != consumerInfo.end()) {
-                        auto consumerStrideReqs = strideIt->second;
+                    if (consumerInfo.hasInput(consumerEdge)) {
+                        const auto& consumerStrideReqs = consumerInfo.getInput(consumerEdge);
                         IE_ASSERT(input->checkStrides(consumerStrideReqs));
 
                         if (!checkStrides(input->desc(), output->strides(), consumerStrideReqs)) {
@@ -193,12 +192,11 @@ void PassImpl::processConcat(const Model::Ptr& model, const Stage& stage) {
             //
 
             if (!needCopy) {
-                if (auto producer = input->producer()) {
-                    auto producerInfo = producer->getDataStridesRequirements();
+                if (auto producerEdge = input->producerEdge()) {
+                    const auto& producerInfo = producerEdge->producer()->getDataStridesRequirements();
 
-                    auto strideIt = producerInfo.find(input);
-                    if (strideIt != producerInfo.end()) {
-                        auto producerStrideReqs = strideIt->second;
+                    if (producerInfo.hasOutput(producerEdge)) {
+                        const auto& producerStrideReqs = producerInfo.getOutput(producerEdge);
                         IE_ASSERT(input->checkStrides(producerStrideReqs));
 
                         if (!checkStrides(input->desc(), output->strides(), producerStrideReqs)) {
@@ -212,7 +210,7 @@ void PassImpl::processConcat(const Model::Ptr& model, const Stage& stage) {
                         // To reduce the size of HW output (still can be optimized).
                         //
 
-                        if (producer->category() == StageCategory::HW) {
+                        if (producerEdge->producer()->category() == StageCategory::HW) {
                             needCopy = true;
                             optionalCopy = true;
                         }
@@ -309,12 +307,11 @@ void PassImpl::processSplit(const Model::Ptr& model, const Stage& stage) {
             //
 
             if (!needCopy) {
-                for (const auto& consumer : output->consumers()) {
-                    auto consumerInfo = consumer->getDataStridesRequirements();
+                for (const auto& consumerEdge : output->consumerEdges()) {
+                    const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
 
-                    auto strideIt = consumerInfo.find(output);
-                    if (strideIt != consumerInfo.end()) {
-                        auto consumerStrideReqs = strideIt->second;
+                    if (consumerInfo.hasInput(consumerEdge)) {
+                        const auto& consumerStrideReqs = consumerInfo.getInput(consumerEdge);
                         IE_ASSERT(output->checkStrides(consumerStrideReqs));
 
                         if (!checkStrides(output->desc(), input->strides(), consumerStrideReqs)) {
@@ -441,7 +438,7 @@ void PassImpl::processReshape(const Model::Ptr& model, const Stage& stage) {
     }
 }
 
-void PassImpl::processExpand(const Model::Ptr& model, const Stage& stage) {
+void PassImpl::processBroadcast(const Model::Ptr& model, const Stage& stage) {
     auto input = stage->input(0);
     auto output = stage->output(0);
 
@@ -483,12 +480,11 @@ void PassImpl::processExpand(const Model::Ptr& model, const Stage& stage) {
         //
 
         if (!needCopy) {
-            for (const auto& consumer : input->consumers()) {
-                auto consumerInfo = consumer->getDataStridesRequirements();
+            for (const auto& consumerEdge : input->consumerEdges()) {
+                const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
 
-                auto strideIt = consumerInfo.find(input);
-                if (strideIt != consumerInfo.end()) {
-                    auto consumerStrideReqs = strideIt->second;
+                if (consumerInfo.hasInput(consumerEdge)) {
+                    const auto& consumerStrideReqs = consumerInfo.getInput(consumerEdge);
                     IE_ASSERT(input->checkStrides(consumerStrideReqs));
 
                     if (!checkStrides(input->desc(), output->strides(), consumerStrideReqs)) {
@@ -504,12 +500,11 @@ void PassImpl::processExpand(const Model::Ptr& model, const Stage& stage) {
         //
 
         if (!needCopy) {
-            if (auto producer = input->producer()) {
-                auto producerInfo = producer->getDataStridesRequirements();
+            if (auto producerEdge = input->producerEdge()) {
+                const auto& producerInfo = producerEdge->producer()->getDataStridesRequirements();
 
-                auto strideIt = producerInfo.find(input);
-                if (strideIt != producerInfo.end()) {
-                    auto producerStrideReqs = strideIt->second;
+                if (producerInfo.hasOutput(producerEdge)) {
+                    const auto& producerStrideReqs = producerInfo.getOutput(producerEdge);
                     IE_ASSERT(input->checkStrides(producerStrideReqs));
 
                     if (!checkStrides(input->desc(), output->strides(), producerStrideReqs)) {
@@ -523,7 +518,7 @@ void PassImpl::processExpand(const Model::Ptr& model, const Stage& stage) {
                     // To reduce the size of HW output (still can be optimized).
                     //
 
-                    if (producer->category() == StageCategory::HW) {
+                    if (producerEdge->producer()->category() == StageCategory::HW) {
                         needCopy = true;
                         optionalCopy = true;
                     }
@@ -551,7 +546,7 @@ void PassImpl::processExpand(const Model::Ptr& model, const Stage& stage) {
 
         auto copyStage = _stageBuilder->addCopyStage(
             model,
-            formatString("%s@copy-for-expand", stage->name()),
+            formatString("%s@copy-for-broadcast", stage->name()),
             stage->origLayer(),
             input,
             inputCopy);
@@ -613,12 +608,11 @@ void PassImpl::processShrink(const Model::Ptr& model, const Stage& stage) {
         //
 
         if (!needCopy) {
-            for (const auto& consumer : output->consumers()) {
-                auto consumerInfo = consumer->getDataStridesRequirements();
+            for (const auto& consumerEdge : output->consumerEdges()) {
+                const auto& consumerInfo = consumerEdge->consumer()->getDataStridesRequirements();
 
-                auto strideIt = consumerInfo.find(output);
-                if (strideIt != consumerInfo.end()) {
-                    auto consumerStrideReqs = strideIt->second;
+                if (consumerInfo.hasInput(consumerEdge)) {
+                    const auto& consumerStrideReqs = consumerInfo.getInput(consumerEdge);
                     IE_ASSERT(output->checkStrides(consumerStrideReqs));
 
                     if (!checkStrides(output->desc(), input->strides(), consumerStrideReqs)) {

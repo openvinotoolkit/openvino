@@ -18,12 +18,11 @@
 #pragma once
 #include "api/CPP/shuffle_channels.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace  cldnn
-{
+namespace cldnn {
 template <>
-struct typed_program_node<shuffle_channels> : public typed_program_node_base<shuffle_channels>
-{
+struct typed_program_node<shuffle_channels> : public typed_program_node_base<shuffle_channels> {
     using parent = typed_program_node_base<shuffle_channels>;
 
 public:
@@ -35,8 +34,7 @@ public:
 using shuffle_channels_node = typed_program_node<shuffle_channels>;
 
 template <>
-class typed_primitive_inst<shuffle_channels> : public typed_primitive_inst_base<shuffle_channels>
-{
+class typed_primitive_inst<shuffle_channels> : public typed_primitive_inst_base<shuffle_channels> {
     using parent = typed_primitive_inst_base<shuffle_channels>;
 
 public:
@@ -48,4 +46,4 @@ public:
 };
 
 using shuffle_channels_inst = typed_primitive_inst<shuffle_channels>;
-}
+}  // namespace cldnn

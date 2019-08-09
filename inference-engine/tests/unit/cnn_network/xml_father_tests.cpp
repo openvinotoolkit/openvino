@@ -12,38 +12,50 @@ public:
 };
 
 TEST_F(XMLFatherF, canCreateValidXmlNode) {
-    ASSERT_STREQ("<net></net>\n", x.node("net").c_str());
+    std::string actual(x.node("net").c_str());
+    actual.erase(std::remove(actual.begin(), actual.end(), '\n'), actual.end());
+    ASSERT_EQ(std::string("<net></net>"), actual);
 }
 
-TEST_F(XMLFatherF, canCreateValidNodeWithName) {
-    ASSERT_STREQ("<net name=\"myname\"></net>\n", x.node("net").attr("name", "myname").c_str());
+TEST_F(XMLFatherF, canCreateValidXmlNodeWithName) {
+    std::string actual(x.node("net").attr("name", "myname").c_str());
+    actual.erase(std::remove(actual.begin(), actual.end(), '\n'), actual.end());
+    ASSERT_EQ(std::string("<net name=\"myname\"></net>"), actual);
 }
 
 
 TEST_F(XMLFatherF, canCreateValidXmlNodeWithContent) {
-    ASSERT_STREQ("<net><model>10</model></net>\n", x.node("net").node("model", 10).c_str());
+    std::string actual(x.node("net").node("model", 10).c_str());
+    actual.erase(std::remove(actual.begin(), actual.end(), '\n'), actual.end());
+    ASSERT_EQ(std::string("<net><model>10</model></net>"), actual);
 }
 
 TEST_F(XMLFatherF, canCreateValidXmlNodeWithAdvancedContent) {
-    ASSERT_STREQ("<net><model>10 10 12</model></net>\n", x.node("net").node("model", 10, 10, 12).c_str());
+    std::string actual(x.node("net").node("model", 10, 10, 12).c_str());
+    actual.erase(std::remove(actual.begin(), actual.end(), '\n'), actual.end());
+    ASSERT_EQ(std::string("<net><model>10 10 12</model></net>"), actual);
 }
 
 TEST_F(XMLFatherF, canCreateLevel2Hierarchy) {
-    ASSERT_STREQ("<net><net2><model>10</model></net2></net>\n", x.node("net").node("net2").node("model", 10).c_str());
+    std::string actual(x.node("net").node("net2").node("model", 10).c_str());
+    actual.erase(std::remove(actual.begin(), actual.end(), '\n'), actual.end());
+    ASSERT_EQ(std::string("<net><net2><model>10</model></net2></net>"), actual);
 }
 
 TEST_F(XMLFatherF, canContinueAfterTrivialNode) {
-    ASSERT_STREQ("<net><net2><model>10</model><model2>20</model2></net2></net>\n",
-                 x.node("net").node("net2").node("model", 10).node("model2", 20).c_str());
+    std::string actual(x.node("net").node("net2").node("model", 10).node("model2", 20).c_str());
+    actual.erase(std::remove(actual.begin(), actual.end(), '\n'), actual.end());
+    ASSERT_EQ(std::string("<net><net2><model>10</model><model2>20</model2></net2></net>"), actual);
 }
 
 TEST_F(XMLFatherF, canContinueAfterNodeWithSubnodes) {
-    ASSERT_STREQ("<net><net2><model>10</model></net2><net4><model4>1</model4></net4></net>\n",
-                 x.node("net")
+    std::string actual(x.node("net")
                     .node("net2")
-                        .node("model", 10)
+                    .node("model", 10)
                     .close()
                     .node("net4")
-                        .node("model4", 1)
-                 .c_str());
+                    .node("model4", 1)
+                    .c_str());
+    actual.erase(std::remove(actual.begin(), actual.end(), '\n'), actual.end());
+    ASSERT_EQ(std::string("<net><net2><model>10</model></net2><net4><model4>1</model4></net4></net>"), actual);
 }

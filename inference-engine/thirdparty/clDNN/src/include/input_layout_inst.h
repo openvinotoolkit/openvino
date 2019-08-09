@@ -18,14 +18,14 @@
 #pragma once
 #include "api/CPP/input_layout.hpp"
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
+namespace cldnn {
 struct memory_impl;
 
 template <>
-struct typed_program_node<input_layout> : public typed_program_node_base<input_layout> 
-{
+struct typed_program_node<input_layout> : public typed_program_node_base<input_layout> {
     using parent = typed_program_node_base<input_layout>;
     using parent::parent;
 
@@ -35,15 +35,11 @@ struct typed_program_node<input_layout> : public typed_program_node_base<input_l
 using input_layout_node = typed_program_node<input_layout>;
 
 template <>
-class typed_primitive_inst<input_layout> : public typed_primitive_inst_base<input_layout>
-{
+class typed_primitive_inst<input_layout> : public typed_primitive_inst_base<input_layout> {
     using parent = typed_primitive_inst_base<input_layout>;
 
 public:
-    static layout calc_output_layout(input_layout_node const& node)
-    {
-        return node.get_primitive()->layout;
-    }
+    static layout calc_output_layout(input_layout_node const& node) { return node.get_primitive()->layout; }
     static std::string to_string(input_layout_node const& node);
 
 public:
@@ -54,4 +50,4 @@ public:
 
 using input_layout_inst = typed_primitive_inst<input_layout>;
 
-}
+}  // namespace cldnn

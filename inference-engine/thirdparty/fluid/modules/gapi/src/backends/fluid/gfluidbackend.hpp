@@ -2,11 +2,13 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
-
+// Copyright (C) 2018 Intel Corporation
 
 #ifndef OPENCV_GAPI_FLUID_BACKEND_HPP
 #define OPENCV_GAPI_FLUID_BACKEND_HPP
+
+// FIXME? Actually gfluidbackend.hpp is not included anywhere
+// and can be placed in gfluidbackend.cpp
 
 #include "opencv2/gapi/garg.hpp"
 #include "opencv2/gapi/gproto.hpp"
@@ -25,7 +27,7 @@ struct FluidUnit
     GFluidKernel k;
     gapi::fluid::BorderOpt border;
     int border_size;
-    int line_consumption;
+    std::vector<int> line_consumption;
     double ratio;
 };
 
@@ -90,8 +92,8 @@ public:
 private:
     // FIXME!!!
     // move to another class
-    virtual int firstWindow() const = 0;
-    virtual std::pair<int,int> linesReadAndnextWindow() const = 0;
+    virtual int firstWindow(std::size_t inPort) const = 0;
+    virtual std::pair<int,int> linesReadAndnextWindow(std::size_t inPort) const = 0;
 };
 
 class GFluidExecutable final: public GIslandExecutable

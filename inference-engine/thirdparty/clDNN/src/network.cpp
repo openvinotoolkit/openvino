@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,15 +26,18 @@
 #include "error_handler.h"
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
+#include "mutable_data_inst.h"
 #include "condition_inst.h"
 #include "kernel_selector_helper.h"
 #include <algorithm>
 
 #include "gpu/ocl_toolkit.h"
+#include <string>
+#include <vector>
+#include <memory>
+#include <set>
 
-
-//#define DEBUG_DUMP_PATH "/tmp/dump/"
-
+// #define DEBUG_DUMP_PATH "cldnn_dump/"
 
 #ifdef DEBUG_DUMP_PATH
 #include <iomanip>
@@ -45,128 +48,140 @@
 #define DUMP_LAYER_NAME ""
 #endif
 
-namespace cldnn
-{
+namespace cldnn {
 #ifdef DEBUG_DUMP_PATH
-static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false)
-    {
+static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false) {
 #if defined HALF_HALF_HPP
-        return val;
+    return val;
 #else
-        // FP32 parts extracted from FP16.
-        uint32_t sign = (static_cast<uint16_t>(val) & 0x8000U) << 16;
-        uint32_t mantissa = (static_cast<uint16_t>(val) & 0x3FFU) << 13;
+    // FP32 parts extracted from FP16.
+    uint32_t sign = (static_cast<uint16_t>(val) & 0x8000U) << 16;
+    uint32_t mantissa = (static_cast<uint16_t>(val) & 0x3FFU) << 13;
 
-        uint32_t exp_val_f16 = (static_cast<uint16_t>(val) & 0x7C00U) >> 10;
-        uint32_t exp;
-        if (exp_val_f16 == 0)
-        {
-            // Handling +/-0 and denormals.
-            if (mantissa == 0)
-            {
-                exp = 0;
+    uint32_t exp_val_f16 = (static_cast<uint16_t>(val) & 0x7C00U) >> 10;
+    uint32_t exp;
+    if (exp_val_f16 == 0) {
+        // Handling +/-0 and denormals.
+        if (mantissa == 0) {
+            exp = 0;
+        } else if (flush_denorm_to_zero) {
+            sign = 0;
+            exp = 0;
+            mantissa = 0;
+        } else {
+            // Denorms conversion to normal numbers.
+            exp = 127 - 15;
+            while (!(mantissa & 0x400000U)) {
+                mantissa <<= 1;
+                --exp;
             }
-            else if (flush_denorm_to_zero)
-            {
-                sign = 0;
-                exp = 0;
-                mantissa = 0;
-            }
-            else
-            {
-                // Denorms conversion to normal numbers.
-                exp = 127 - 15;
-                while (!(mantissa & 0x400000U))
-                {
-                    mantissa <<= 1;
-                    --exp;
-                }
-                mantissa = (mantissa << 1) & 0x7FFFFFU;
-                exp <<= 23;
-            }
+            mantissa = (mantissa << 1) & 0x7FFFFFU;
+            exp <<= 23;
         }
-        else
-        {
-            // Handling +/-infinity, NaN and normal numbers.
-            exp = (exp_val_f16 == 0x1FU ? 0xFFU : exp_val_f16 + 127 - 15) << 23;
-        }
+    } else {
+        // Handling +/-infinity, NaN and normal numbers.
+        exp = (exp_val_f16 == 0x1FU ? 0xFFU : exp_val_f16 + 127 - 15) << 23;
+    }
 
-        float ret;
-        reinterpret_cast<uint32_t&>(ret) = sign | exp | mantissa;
+    float ret;
+    reinterpret_cast<uint32_t&>(ret) = sign | exp | mantissa;
 
-        return ret;
+    return ret;
 #endif
-    }
+}
 
-    float convert_element(float f)
-    {
-        return f;
-    }
+float convert_element(float f) { return f; }
 
-    float convert_element(half_t h)
-    {
-        return convert_half_to_float(h);
-    }
+float convert_element(half_t h) { return convert_half_to_float(h); }
 
-    template <class T>
-    static void dump(memory_impl& mem, std::ofstream& file_stream)
-    {
-        auto&& size = mem.get_layout().size;
+template <class T>
+static void dump(memory_impl& mem, std::ofstream& file_stream) {
+    auto&& size = mem.get_layout().size;
 
-        file_stream << "shape: ";
-        file_stream << size.batch[0] << " ";
-        file_stream << size.feature[0] << " ";
-        file_stream << size.spatial[1] << " ";
-        file_stream << size.spatial[0] << " ";
-        file_stream << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
+    file_stream << "shape: ";
+    file_stream << size.batch[0] << " ";
+    file_stream << size.feature[0] << " ";
+    file_stream << size.spatial[3] << " ";
+    file_stream << size.spatial[2] << " ";
+    file_stream << size.spatial[1] << " ";
+    file_stream << size.spatial[0] << " ";
+    file_stream << "(" << size.batch[0] * size.feature[0] * size.spatial[3] * size.spatial[2] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
 
-        auto mem_ptr = static_cast<T*>(mem.lock());
+    auto mem_ptr = static_cast<T*>(mem.lock());
 
-        for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b)
-        {
-            for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f)
-            {
-                for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y)
-                {
-                    for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x)
-                    {
-                        cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y));
-                        size_t input_it = mem.get_layout().get_linear_offset(t);
-                        file_stream << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;
+    for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
+        for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
+            for (cldnn::tensor::value_type w = 0; w < size.spatial[3]; ++w) {
+                for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
+                    for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
+                        for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
+                            cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, w));
+                            size_t input_it = mem.get_layout().get_linear_offset(t);
+                            file_stream << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;
+                        }
                     }
                 }
             }
         }
-
-        mem.unlock();
     }
 
-    static void log_memory_to_file(memory_impl& mem, std::string layerName)
-    {
-        std::string filename = layerName;
-        std::replace(filename.begin(), filename.end(), '\\', '_');
-        std::replace(filename.begin(), filename.end(), '/', '_');
-        std::replace(filename.begin(), filename.end(), ' ', '_');
-        std::replace(filename.begin(), filename.end(), ':', '_');
-        filename = DEBUG_DUMP_PATH + filename + ".txt";
+    mem.unlock();
+}
+template <>
+void dump<uint32_t>(memory_impl& mem, std::ofstream& file_stream) {
+    auto&& size = mem.get_layout().size;
 
-        std::ofstream file_stream(filename);
-        if (mem.get_layout().data_type == cldnn::data_types::f32)
-            dump<float>(mem, file_stream);
-        else
-            dump<half_t>(mem, file_stream);
+    file_stream << "shape: ";
+    file_stream << size.batch[0] << " ";
+    file_stream << size.feature[0] << " ";
+    file_stream << size.spatial[1] << " ";
+    file_stream << size.spatial[0] << " ";
+    file_stream << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
+
+    auto mem_ptr = static_cast<uint32_t*>(mem.lock());
+
+    for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
+        for (cldnn::tensor::value_type f = 0; f < (cldnn::tensor::value_type)ceil_div(size.feature[0], 32); ++f) {
+            for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
+                for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
+                    cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, 0, 0));
+                    size_t input_it = mem.get_layout().get_linear_offset(t);
+                    file_stream << mem_ptr[input_it] << std::endl;
+                }
+            }
+        }
     }
+
+    mem.unlock();
+}
+
+static void log_memory_to_file(memory_impl& mem, std::string layerName) {
+    std::string filename = layerName;
+    std::replace(filename.begin(), filename.end(), '\\', '_');
+    std::replace(filename.begin(), filename.end(), '/', '_');
+    std::replace(filename.begin(), filename.end(), ' ', '_');
+    std::replace(filename.begin(), filename.end(), ':', '_');
+    filename = DEBUG_DUMP_PATH + filename + ".txt";
+
+    std::ofstream file_stream(filename);
+    if (mem.get_layout().data_type == cldnn::data_types::f32)
+        dump<float>(mem, file_stream);
+    else if (mem.get_layout().data_type == cldnn::data_types::f16)
+        dump<half_t>(mem, file_stream);
+    else if (mem.get_layout().data_type == cldnn::data_types::bin)
+        dump<uint32_t>(mem, file_stream);
+    else if (mem.get_layout().data_type == cldnn::data_types::i32)
+        dump<int32_t>(mem, file_stream);
+}
 #endif
 /*
-Network_impl will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants opt pass).
+Network_impl will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
+opt pass).
 */
-network_impl::network_impl(const program_impl& program, bool is_internal)
-    : _program(&program)
-    , _internal(is_internal)
-{
-    static std::atomic<uint32_t> id_gen{ 0 };
-    if (!_internal)
-    {
+network_impl::network_impl(const program_impl& program, uint16_t stream_id, bool is_internal)
+    : _program(&program), _stream_id(stream_id), _internal(is_internal) {
+    static std::atomic<uint32_t> id_gen{0};
+    if (!_internal) {
         net_id = ++id_gen;
     }
 
@@ -178,32 +193,30 @@ network_impl::network_impl(const program_impl& program, bool is_internal)
     _program->dump_memory_pool();
 }
 
-network_impl::network_impl(engine_impl& engine, const topology_impl& topo, const build_options& options, bool is_internal)
-    : network_impl(*engine.build_program(topo, options, is_internal), is_internal)
-{
-}
+network_impl::network_impl(engine_impl& engine,
+                           const topology_impl& topo,
+                           const build_options& options,
+                           uint16_t stream_id,
+                           bool is_internal)
+    : network_impl(*engine.build_program(topo, options, is_internal), stream_id, is_internal) {}
 
-network_impl::network_impl(engine_impl& engine, const std::set<std::shared_ptr<program_node>>& nodes, const build_options& options, bool is_internal)
-    : network_impl(*engine.build_program(nodes, options, is_internal), is_internal)
-{
-}
+network_impl::network_impl(engine_impl& engine,
+                           const std::set<std::shared_ptr<program_node>>& nodes,
+                           const build_options& options,
+                           bool is_internal)
+    : network_impl(*engine.build_program(nodes, options, is_internal), 0, is_internal) {}
 
-void network_impl::validate_primitives()
-{
-    for (auto const& prim : _exec_order)
-    {
+void network_impl::validate_primitives() {
+    for (auto const& prim : _exec_order) {
         bool valid = prim->validate();
         CLDNN_ERROR_NOT_EQUAL(prim->id(), "validate", valid, "", true, "has not a valid instance.");
     }
 }
 
-void network_impl::reset_execution(bool wait)
-{
-    if (wait && _events.size() > 0)
-    {
+void network_impl::reset_execution(bool wait) {
+    if (wait && _events.size() > 0) {
         std::vector<event_impl::ptr> events;
-        for (auto& pair : _events)
-        {
+        for (auto& pair : _events) {
             auto& ev = pair.second;
             if (ev->is_set())
                 continue;
@@ -216,39 +229,33 @@ void network_impl::reset_execution(bool wait)
     _events.clear();
 }
 
-void network_impl::set_input_data(const primitive_id& id, memory_impl& data)
-{
+void network_impl::set_input_data(const primitive_id& id, memory_impl& data) {
     std::shared_ptr<primitive_inst> primitive_inst;
 
     primitive_inst = find_primitive(id);
 
-    if(primitive_inst == nullptr)
+    if (primitive_inst == nullptr)
         throw std::runtime_error("topology doesn't contain prmitive:" + id);
 
-    if (primitive_inst->type() != input_layout::type_id())
-    {
+    if (primitive_inst->type() != input_layout::type_id()) {
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
     }
 
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
 
-    //Wait for previous execution completion
+    // Wait for previous execution completion
     reset_execution(true);
     input->set_data(data);
 }
 
-void cldnn::network_impl::check_names()
-{
-    for (auto const& prim : _primitives)
-    {
+void cldnn::network_impl::check_names() {
+    for (auto const& prim : _primitives) {
         if (find_in_internal_networks(prim.first) != nullptr)
-            CLDNN_ERROR_MESSAGE("Network_impl", "Found primitive with id: " + prim.first
-                + "in anotother network.");
+            CLDNN_ERROR_MESSAGE("Network_impl", "Found primitive with id: " + prim.first + "in anotother network.");
     }
 }
 
-std::shared_ptr<primitive_inst> cldnn::network_impl::find_primitive(const primitive_id& id)
-{
+std::shared_ptr<primitive_inst> cldnn::network_impl::find_primitive(const primitive_id& id) {
     std::shared_ptr<primitive_inst> ret;
 
     if (_primitives.find(id) != _primitives.end())
@@ -257,14 +264,11 @@ std::shared_ptr<primitive_inst> cldnn::network_impl::find_primitive(const primit
     return find_in_internal_networks(id);
 }
 
-std::shared_ptr<primitive_inst> cldnn::network_impl::find_in_internal_networks(const primitive_id& id)
-{
+std::shared_ptr<primitive_inst> cldnn::network_impl::find_in_internal_networks(const primitive_id& id) {
     std::shared_ptr<primitive_inst> ret;
 
-    for (auto const& prim : _primitives)
-    {
-        if (prim.second->type() == condition::type_id()) //currently only condition inst contains mini networks
-        {
+    for (auto const& prim : _primitives) {
+        if (prim.second->type() == condition::type_id()) {  // currently only condition inst contains mini networks
             auto cond_inst = std::static_pointer_cast<condition_inst>(prim.second);
             ret = cond_inst->get_net_true()->find_primitive(id);
             if (ret != nullptr)
@@ -277,73 +281,62 @@ std::shared_ptr<primitive_inst> cldnn::network_impl::find_in_internal_networks(c
     return nullptr;
 }
 
-void network_impl::set_learning_rate(const float lr)
-{
-    _learning_rate = lr;
-}
+void network_impl::set_learning_rate(const float lr) { _learning_rate = lr; }
 
-float network_impl::get_learning_rate()
-{
-    return _learning_rate;
-}
+float network_impl::get_learning_rate() { return _learning_rate; }
 
-std::string network_impl::get_primitive_info(const primitive_id& id) const
-{
+std::string network_impl::get_primitive_info(const primitive_id& id) const {
     const auto& node = _program->get_node(id);
     return node.type()->to_string(node);
 }
 
-void network_impl::allocate_primitives()
-{
+void network_impl::allocate_primitives() {
     std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
-    for (auto node : _program->get_processing_order())
-    {
+    for (auto node : _program->get_processing_order()) {
         nodes_to_allocate.push_back(_program->get_node_ptr(node->id()));
     }
-    std::sort(nodes_to_allocate.begin(), nodes_to_allocate.end(), [](std::shared_ptr<program_node> const& lhs,
-                                                                     std::shared_ptr<program_node> const& rhs)
-    {
-        return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
-    });
+    std::sort(nodes_to_allocate.begin(),
+              nodes_to_allocate.end(),
+              [](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
+                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+              });
 
-    for (auto const& node : nodes_to_allocate)
-    {
+    std::vector<std::shared_ptr<program_node>> mutable_data_nodes;
+    for (auto const& node : nodes_to_allocate) {
+        if (node->is_type<mutable_data>())
+            mutable_data_nodes.push_back(node);
+    }
+
+    allocate_mutable_data_for_streams(mutable_data_nodes);
+
+    for (auto const& node : nodes_to_allocate) {
         allocate_primitive_instance(*node);
     }
 }
 
-void network_impl::build_insts_deps()
-{
-    for (auto& inst : _primitives)
-    {
+void network_impl::build_insts_deps() {
+    for (auto& inst : _primitives) {
         inst.second->build_deps();
     }
 }
 
-void network_impl::build_exec_order()
-{
-    for (auto& node : _program->get_processing_order())
-    {
-        if (!node->is_type<data>() &&
-            !(node->is_type<mutable_data>() && node->get_dependencies().empty()))
-        {
+void network_impl::build_exec_order() {
+    for (auto& node : _program->get_processing_order()) {
+        if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
             add_to_exec_order(node->id());
         }
     }
 }
-void network_impl::add_to_exec_order(const primitive_id& id)
-{
+void network_impl::add_to_exec_order(const primitive_id& id) {
     auto inst = get_primitive(id);
     _exec_order.push_back(inst);
 }
 
-void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& events)
-{
-    //Wait for previous execution completion
+void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& events) {
+    // Wait for previous execution completion
     reset_execution(false);
 
-    for (auto& inst : _exec_order)
-    {
+    for (auto& inst : _exec_order) {
 #ifdef DEBUG_DUMP_PATH
         auto& node = _program->get_node(inst->id());
 
@@ -352,15 +345,16 @@ void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& ev
         std::cerr << get_primitive_info(inst->id()) << std::endl;
 #endif
 #if DUMP_SINGLE_LAYER
-        if (layer_name == DUMP_LAYER_NAME)
+        if (layer_name == DUMP_LAYER_NAME) {
 #endif
-        {
             std::cerr << "Dump " << layer_name << " layer" << std::endl;
-            for (size_t i = 0; i < get_primitive(inst->id())->inputs_memory_count(); i++)
-            {
-                log_memory_to_file(get_primitive(inst->id())->input_memory(i), layer_name + "_src_" + std::to_string(i));
+            for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
+                log_memory_to_file(get_primitive(inst->id())->dep_memory(i),
+                                   layer_name + "_src_" + std::to_string(i));
             }
+#if DUMP_SINGLE_LAYER
         }
+#endif
 #endif
         execute_primitive(inst, events);
 #ifdef DEBUG_DUMP_PATH
@@ -370,34 +364,27 @@ void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& ev
         {
             log_memory_to_file(get_primitive(inst->id())->output_memory(), layer_name + "_dst_0");
         }
-        get_engine().flush_network();
+        get_engine().flush_network(_stream_id);
 #endif
     }
 
-    for (auto& inst : _program->get_processing_order())
-    {
-        //Special handling for mutable data. The event should be the same as the user or dependency with highest processing_num as
-        //the mutable_data can be updated when is both user or dependency.
-        if (inst->is_type<mutable_data>())
-        {
+    for (auto& inst : _program->get_processing_order()) {
+        // Special handling for mutable data. The event should be the same as the user or dependency with highest
+        // processing_num as the mutable_data can be updated when is both user or dependency.
+        if (inst->is_type<mutable_data>()) {
             decltype(_program->get_processing_order().get_processing_number(inst)) proc_num = 0;
-            for (auto& user : inst->get_users())
-            {
+            for (auto& user : inst->get_users()) {
                 auto user_proc_num = _program->get_processing_order().get_processing_number(user);
-                if (user_proc_num > proc_num)
-                {
+                if (user_proc_num > proc_num) {
                     _events[inst->id()] = _events[user->id()];
                     proc_num = user_proc_num;
                 }
             }
 
-            if (!inst->get_dependencies().empty())
-            {
-                for (auto& dep : inst->get_dependencies())
-                {
+            if (!inst->get_dependencies().empty()) {
+                for (auto& dep : inst->get_dependencies()) {
                     auto dep_proc_num = _program->get_processing_order().get_processing_number(dep);
-                    if (dep_proc_num > proc_num)
-                    {
+                    if (dep_proc_num > proc_num) {
                         _events[inst->id()] = _events[dep->id()];
                         proc_num = dep_proc_num;
                     }
@@ -406,104 +393,137 @@ void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& ev
         }
     }
 
-    for (auto& dout : _data_outputs) //data primitives are not executed so if they are marked as output we need to add them valid events manually
-    {
-        _events[dout->id()] = get_engine().create_user_event(true);
+    for (auto& dout : _data_outputs) {  // data primitives are not executed so if they are marked as output we need to add
+                                        // them valid events manually
+        _events[dout->id()] = get_engine().create_user_event(get_stream_id(), true);
     }
 
-    for (auto& prim : _primitives)
-    {
+    for (auto& prim : _primitives) {
         prim.second->reset_output_change();
     }
 
-    get_engine().get_context()->reset_events();
+    get_engine().get_context()->reset_events(get_stream_id());
 
     // Using output of previouse network as input to another one may cause hazard (in OOOQ mode) if user would not
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
-    get_engine().flush_network();
+    get_engine().flush_network(get_stream_id());
 }
 
-std::vector<primitive_id> network_impl::get_output_ids() const
-{
+std::vector<primitive_id> network_impl::get_output_ids() const {
     std::vector<primitive_id> ret;
     ret.reserve(_outputs.size());
-    for (auto const& output : _outputs)
-        ret.push_back(output->id());
+    for (auto const& output : _outputs) ret.push_back(output->id());
     return ret;
 }
 
-std::vector<primitive_id> network_impl::get_executed_primitive_ids() const
-{
+std::vector<primitive_id> network_impl::get_executed_primitive_ids() const {
     std::vector<primitive_id> ret;
     ret.reserve(_exec_order.size());
-    for (auto const& executed_primitive : _exec_order)
-    {
+    for (auto const& executed_primitive : _exec_order) {
         ret.push_back(executed_primitive->id());
     }
     return ret;
 }
 
-std::vector<primitive_id> network_impl::get_all_primitive_ids() const
-{
+std::vector<primitive_id> network_impl::get_all_primitive_ids() const {
     std::vector<primitive_id> ret;
     ret.reserve(_primitives.size());
     for (auto const& primitive : _primitives)
-        if(primitive.second->can_be_optimized())
+        if (primitive.second->can_be_optimized())
             ret.push_back("_optimized_");
         else
             ret.push_back(primitive.second->id());
     return ret;
 }
 
-std::vector<primitive_id> network_impl::get_all_primitive_org_ids() const
-{
+std::vector<primitive_id> network_impl::get_all_primitive_org_ids() const {
     std::vector<primitive_id> ret;
     ret.reserve(_primitives.size());
-    for (auto const& primitive : _primitives)
-        ret.push_back(primitive.second->org_id());
+    for (auto const& primitive : _primitives) ret.push_back(primitive.second->org_id());
     return ret;
 }
 
-std::shared_ptr<primitive_inst> network_impl::get_primitive(const primitive_id& id)
-{
+const program_impl::primitives_info& network_impl::get_primitives_info() const {
+    return _program->get_primitives_info();
+}
+
+const program_impl::graph_optimizer_info& network_impl::get_optimizer_passes_info() const {
+    return _program->get_optimizer_passes_info();
+}
+
+std::shared_ptr<primitive_inst> network_impl::get_primitive(const primitive_id& id) {
     if (!_primitives.count(id))
         allocate_primitive_instance(_program->get_node(id));
 
     return _primitives.at(id);
 }
 
-std::vector<std::shared_ptr<primitive_inst>> network_impl::get_primitives(const std::vector<primitive_id>& ids)
-{
+std::vector<std::shared_ptr<primitive_inst>> network_impl::get_primitives(const std::vector<primitive_id>& ids) {
     std::vector<std::shared_ptr<primitive_inst>> result(ids.size());
-    std::transform(std::begin(ids), std::end(ids), std::begin(result), [&](const primitive_id& id) { return get_primitive(id); });
+    std::transform(std::begin(ids), std::end(ids), std::begin(result), [&](const primitive_id& id) {
+        return get_primitive(id);
+    });
     return result;
 }
 
-std::vector<std::shared_ptr<primitive_inst>> network_impl::get_primitives(const std::vector<program_node*>& nodes)
-{
+std::vector<std::shared_ptr<primitive_inst>> network_impl::get_primitives(const std::vector<program_node*>& nodes) {
     std::vector<std::shared_ptr<primitive_inst>> result(nodes.size());
-    std::transform(std::begin(nodes), std::end(nodes), std::begin(result), [&](const program_node* node) { return get_primitive(node->id()); });
+    std::transform(std::begin(nodes), std::end(nodes), std::begin(result), [&](const program_node* node) {
+        return get_primitive(node->id());
+    });
     return result;
 }
 
-void network_impl::execute_primitive(const std::shared_ptr<primitive_inst>& primitive, const std::vector<refcounted_obj_ptr<event_impl>>& events)
-{
+void network_impl::execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
+                                     const std::vector<refcounted_obj_ptr<event_impl>>& events) {
     auto id = primitive->id();
     auto it = _events.find(id);
     bool found = (it != _events.end());
-    CLDNN_ERROR_BOOL(id, "Invalid primitive call ", found, "Primitive " + id + " is tried to be executed for the second time");
+    CLDNN_ERROR_BOOL(id,
+                     "Invalid primitive call ",
+                     found,
+                     "Primitive " + id + " is tried to be executed for the second time");
 
     event_impl::ptr ev;
     if (!get_engine().get_context()->enabled_single_kernel() || get_engine().get_context()->single_kernel_name() == id)
         ev = primitive->execute(events);
     else
-        ev = get_engine().create_user_event(true);
-    _events.insert({ id, ev });
+        ev = get_engine().create_user_event(get_stream_id(), true);
+    _events.insert({id, ev});
 }
 
-void network_impl::allocate_primitive_instance(program_node const& node)
-{
+void network_impl::allocate_mutable_data_for_streams(std::vector<std::shared_ptr<program_node>>& mutable_data_nodes) {
+    // When multiple streams are used, mutable_data should be duplicated for each stream.
+    while (!mutable_data_nodes.empty()) {
+        auto it = mutable_data_nodes.begin();
+        mutable_data_node& node = (*it)->as<mutable_data>();
+        auto mem = node.get_attached_memory_ptr();
+        if (mem->get_stream_id() != get_stream_id()) {
+            // Alloc new buffer for this stream and copy data to have valid initial state
+            memory_impl::ptr result = get_engine().allocate_memory(mem->get_layout(), get_stream_id());
+            {
+                mem_lock<char> src(mem);
+                mem_lock<char> dst(result);
+                std::copy(src.begin(), src.end(), dst.begin());
+            }
+
+            // It's possible that several mutable_data nodes use the same memory buffer, so replace all usages
+            for (auto it1 = it; it1 != mutable_data_nodes.end();) {
+                if (get_engine().is_the_same_buffer((*it1)->as<mutable_data>().get_attached_memory(), *mem)) {
+                    (*it1)->as<mutable_data>().attach_memory(*result, false);
+                    it1 = mutable_data_nodes.erase(it1);
+                } else {
+                    ++it1;
+                }
+            }
+        } else {
+            mutable_data_nodes.erase(it);
+        }
+    }
+}
+
+void network_impl::allocate_primitive_instance(program_node const& node) {
     if (_primitives.count(node.id()))
         return;
 
@@ -511,11 +531,10 @@ void network_impl::allocate_primitive_instance(program_node const& node)
     _primitives[node.id()] = inst;
     if (node.is_input())
         _inputs.push_back(inst);
-    if (node.is_output())
-    {
+    if (node.is_output()) {
         _outputs.push_back(inst);
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
 }
-}
+}  // namespace cldnn

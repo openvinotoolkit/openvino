@@ -18,37 +18,35 @@
 #pragma once
 #include "api/CPP/batch_norm_grad.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 
-    template <>
-    struct typed_program_node<batch_norm_grad> : public typed_program_node_base<batch_norm_grad>
-    {
-        using parent = typed_program_node_base<batch_norm_grad>;
+template <>
+struct typed_program_node<batch_norm_grad> : public typed_program_node_base<batch_norm_grad> {
+    using parent = typed_program_node_base<batch_norm_grad>;
 
-    public:
-        using parent::parent;
-        program_node& input() const { return get_dependency(0); }
-        program_node& inv_variance() const { return get_dependency(2); }
-    };
+public:
+    using parent::parent;
+    program_node& input() const { return get_dependency(0); }
+    program_node& inv_variance() const { return get_dependency(2); }
+};
 
-    using batch_norm_grad_node = typed_program_node<batch_norm_grad>;
+using batch_norm_grad_node = typed_program_node<batch_norm_grad>;
 
-    template <>
-    class typed_primitive_inst<batch_norm_grad> : public typed_primitive_inst_base<batch_norm_grad>
-    {
-        using parent = typed_primitive_inst_base<batch_norm_grad>;
+template <>
+class typed_primitive_inst<batch_norm_grad> : public typed_primitive_inst_base<batch_norm_grad> {
+    using parent = typed_primitive_inst_base<batch_norm_grad>;
 
-    public:
-        typed_primitive_inst(network_impl& network, batch_norm_grad_node const& desc);
+public:
+    typed_primitive_inst(network_impl& network, batch_norm_grad_node const& desc);
 
-        memory_impl& inv_variance_memory() const { return dep_memory(2); }
+    memory_impl& inv_variance_memory() const { return dep_memory(2); }
 
-        static layout calc_output_layout(batch_norm_grad_node const& node);
-        static std::string to_string(batch_norm_grad_node const& node);
-    };
+    static layout calc_output_layout(batch_norm_grad_node const& node);
+    static std::string to_string(batch_norm_grad_node const& node);
+};
 
-    using batch_norm_grad_inst = typed_primitive_inst<batch_norm_grad>;
+using batch_norm_grad_inst = typed_primitive_inst<batch_norm_grad>;
 
-}
+}  // namespace cldnn

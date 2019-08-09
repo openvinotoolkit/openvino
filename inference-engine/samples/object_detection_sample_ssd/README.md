@@ -6,7 +6,7 @@ networks like SSD-VGG on Intel® Processors and Intel® HD Graphics.
 ## How It Works
 
 Upon the start-up the sample application reads command line parameters and loads a network and an image to the Inference
-Engine plugin. When inference is done, the application creates an
+Engine device. When inference is done, the application creates an
 output image and outputs data to the standard output stream.
 
 > **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
@@ -26,13 +26,10 @@ Options:
     -h                      Print a usage message.
     -i "<path>"             Required. Path to an .bmp image.
     -m "<path>"             Required. Path to an .xml file with a trained model.
-      -l "<absolute_path>"    Required for CPU custom layers. Absolute path to a shared library with the kernel implementations.
+      -l "<absolute_path>"  Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
-      -c "<absolute_path>"    Required for GPU custom kernels. Absolute path to the .xml file with the kernel descriptions.
-    -pp "<path>"            Optional. Path to a plugin folder.
-    -d "<device>"           Optional. Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD is acceptable. Sample will look for a suitable plugin for device specified
-    -pc                     Optional. Enables per-layer performance report
-    -ni "<integer>"         Optional. Number of iterations. Default value is 1
+      -c "<absolute_path>"  Required for GPU custom kernels. Absolute path to the .xml file with the kernels descriptions.
+    -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Sample will look for a suitable plugin for device specified
     -p_msg                  Optional. Enables messages from a plugin
 
 ```

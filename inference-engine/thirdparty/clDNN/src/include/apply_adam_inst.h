@@ -18,13 +18,13 @@
 #pragma once
 #include "api/CPP/apply_adam.hpp"
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<apply_adam> : public typed_program_node_base<apply_adam>
-{
+struct typed_program_node<apply_adam> : public typed_program_node_base<apply_adam> {
     typed_program_node(const std::shared_ptr<apply_adam> prim, program_impl& prog);
     using parent = typed_program_node_base<apply_adam>;
 
@@ -44,8 +44,7 @@ public:
 using apply_adam_node = typed_program_node<apply_adam>;
 
 template <>
-class typed_primitive_inst<apply_adam> : public typed_primitive_inst_base<apply_adam>
-{
+class typed_primitive_inst<apply_adam> : public typed_primitive_inst_base<apply_adam> {
     using parent = typed_primitive_inst_base<apply_adam>;
 
 public:
@@ -66,4 +65,4 @@ public:
 
 using apply_adam_inst = typed_primitive_inst<apply_adam>;
 
-}
+}  // namespace cldnn

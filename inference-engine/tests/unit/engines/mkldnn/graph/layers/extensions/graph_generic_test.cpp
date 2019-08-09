@@ -649,7 +649,7 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteConstGenericPrimitive) {
     InferenceEngine::SizeVector dims_src = {1, 3, 5, 5};
 
     InferenceEngine::Blob::Ptr src =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
     src->allocate();
     fill_data(src->buffer(), src->size());
 
@@ -736,7 +736,7 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteGenericPrimitive) {
     InferenceEngine::SizeVector dims_src = {1, 3, 5, 5};
 
     InferenceEngine::Blob::Ptr src =
-           InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+           InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
     src->allocate();
     fill_data(src->buffer(), src->size());
 
@@ -872,7 +872,7 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteGenericPrimitiveWithTwoOutputs) {
     InferenceEngine::SizeVector dims_src = {1, 3, 5, 5};
 
     InferenceEngine::Blob::Ptr src =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
     src->allocate();
 
     float * data_src = src->buffer();
@@ -981,7 +981,7 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteGenericInPlaceConcat) {
     InferenceEngine::SizeVector dims_src1 = {1, 3, 5, 5};
 
     InferenceEngine::Blob::Ptr src1 =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src1);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, InferenceEngine::NCHW});
     src1->allocate();
 
     float * data_src1 = src1->buffer();
@@ -991,7 +991,7 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteGenericInPlaceConcat) {
     InferenceEngine::SizeVector dims_src2 = {1, 2, 5, 5};
 
     InferenceEngine::Blob::Ptr src2 =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src2);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, InferenceEngine::NCHW});
     src2->allocate();
 
     float * data_src2 = src2->buffer();
@@ -1125,7 +1125,7 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteGenericInPlaceSplit) {
     InferenceEngine::SizeVector dims_src = {1, 4, 4, 4};
 
     InferenceEngine::Blob::Ptr src =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
     src->allocate();
 
     float * data_src = src->buffer();
@@ -1221,11 +1221,11 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteGenericPrimitiveWithDynamicBatch) {
     InferenceEngine::SizeVector dims_src = {2, 3, 5, 5};
 
     InferenceEngine::Blob::Ptr src =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
     src->allocate();
     fill_data(src->buffer(), src->size());
 
-    InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
+    auto* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
 
     if (srcPtr == nullptr)
         FAIL() << "Cannot cast blob to TBlob<float>.";
@@ -1374,11 +1374,11 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteNotInLineGRN) {
     InferenceEngine::SizeVector dims_src = {1, 3, 2, 2};
 
     InferenceEngine::Blob::Ptr src =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
     src->allocate();
     fill_data(src->buffer(), src->size());
 
-    InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
+    auto* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
 
     if (srcPtr == nullptr)
         FAIL() << "Cannot cast blob to TBlob<float>.";
@@ -1517,12 +1517,12 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteInLineGRN) {
     InferenceEngine::SizeVector dims_src = {1, 3, 2, 2};
 
     InferenceEngine::Blob::Ptr src1 =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
     src1->allocate();
     fill_data(src1->buffer(), src1->size());
 
     InferenceEngine::Blob::Ptr src2 =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
     src2->allocate();
     fill_data(src2->buffer(), src2->size());
 

@@ -20,36 +20,30 @@ private:
         return std::make_shared<ArgMaxStage>(*this);
     }
 
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         IE_ASSERT(_inputEdges.size() == 1);
         IE_ASSERT(_outputEdges.size() == 1);
 
         auto input = _inputEdges[0]->input();
         auto output = _outputEdges[0]->output();
 
-        DataMap<DimsOrder> out;
-
         auto has_axis = attrs().get<bool>("has_axis");
         if (has_axis) {
-            out[output] = input->desc().dimsOrder();
+            _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
         } else {
             // axis<0 requires flatten so only NCHW layout is supported
-            out[input] = DimsOrder::fromNumDims(input->desc().numDims());
-            out[output] = DimsOrder::fromNumDims(output->desc().numDims());
+            _orderInfo.setInput(_inputEdges[0], DimsOrder::fromNumDims(input->desc().numDims()));
+            _orderInfo.setOutput(_outputEdges[0], DimsOrder::fromNumDims(output->desc().numDims()));
         }
-
-        return out;
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        return DataMap<StridesRequirement>();
+    void getDataStridesRequirementsImpl() const override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        return DataMap<BatchSupport>();
+    void getBatchSupportInfoImpl() const override {
     }
 
     void finalCheckImpl() const override {

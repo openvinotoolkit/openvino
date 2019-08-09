@@ -17,59 +17,44 @@
 #include "common_kernel_base.h"
 #include "kernel_selector_params.h"
 
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// border_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct border_params : public base_params {
+    DimTensor<> lt_sizes;
+    DimTensor<> rb_sizes;
+    BorderType b_type;
+    float border_value;
 
-namespace kernel_selector 
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // border_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct border_params : public base_params
-    {
-        DimTensor<> lt_sizes;
-        DimTensor<> rb_sizes;
-        BorderType b_type;
-        float border_value;
+    border_params() : base_params(KernelType::BORDER), b_type(BorderType::CONSTANT), border_value(0.0f) {}
 
+    ParamsKey GetParamsKey() const override {
+        ParamsKey k = base_params::GetParamsKey();
+        // k.EnableBorderType(b_type);
+        return k;
+    }
+};
 
-        border_params()
-            : base_params(KernelType::BORDER),
-            b_type(BorderType::CONSTANT),
-            border_value(0.0f)
-        {
-        }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// border_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct border_optional_params : optional_params {
+    border_optional_params() : optional_params(KernelType::BORDER) {}
+};
 
-        ParamsKey GetParamsKey() const override
-        {
-            ParamsKey k = base_params::GetParamsKey();
-            // k.EnableBorderType(b_type);
-            return k;
-        }
-    };
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BorderKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class BorderKernelBase : public common_kernel_base {
+public:
+    using common_kernel_base::common_kernel_base;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // border_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct border_optional_params : optional_params
-    {
-        border_optional_params()
-            : optional_params(KernelType::BORDER)
-        {
-        }
-    };
+    using DispatchData = CommonDispatchData;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // BorderKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class BorderKernelBase : public common_kernel_base
-    {
-    public:
-        using common_kernel_base::common_kernel_base;
-
-        using DispatchData = CommonDispatchData;
-
-    protected:
-        JitConstants GetJitConstants(const border_params& params) const;
-        DispatchData SetDefault(const border_params& params) const;
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
-    };
-}
+protected:
+    JitConstants GetJitConstants(const border_params& params) const;
+    DispatchData SetDefault(const border_params& params) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+};
+}  // namespace kernel_selector

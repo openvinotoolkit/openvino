@@ -25,12 +25,15 @@ namespace vpu {
 namespace {
 
 void runDFS(
+        const std::string& networkName,
         const ie::CNNLayerPtr& layer,
         std::vector<ie::CNNLayerPtr>& out,
         std::unordered_map<ie::CNNLayerPtr, bool>& visitedMap) {
+    const auto& env = CompileEnv::get();
+
     visitedMap[layer] = false;
 
-    std::vector<ie::CNNLayerPtr> nextLayers;
+    SmallVector<ie::CNNLayerPtr> nextLayers;
     for (const auto& output : layer->outData) {
         IE_ASSERT(output != nullptr);
 
@@ -55,13 +58,13 @@ void runDFS(
             auto visited = it->second;
 
             if (!visited) {
-                VPU_THROW_EXCEPTION << "The graph has a loop";
+                VPU_LOG_AND_THROW(env.log, "The network [%s] has a loop", networkName);
             }
 
             continue;
         }
 
-        runDFS(nextLayer, out, visitedMap);
+        runDFS(networkName, nextLayer, out, visitedMap);
     }
 
     visitedMap[layer] = true;
@@ -81,28 +84,21 @@ void IeNetworkParser::clear() {
 void IeNetworkParser::checkNetwork(const ie::CNNNetwork& network) {
     const auto& env = CompileEnv::get();
 
-    auto networkPrecision = network.getPrecision();
-    if (networkPrecision != ie::Precision::FP16) {
-        if (networkPrecision != ie::Precision::FP32 || !env.config.allowFP32Models) {
-            VPU_THROW_EXCEPTION << "Unsupported network precision : " << networkPrecision;
-        }
-    }
-
     networkInputs = network.getInputsInfo();
     networkOutputs = network.getOutputsInfo();
 
     if (networkInputs.empty()) {
-        VPU_THROW_EXCEPTION << "No inputs detected in network " << network.getName();
+        VPU_LOG_AND_THROW(env.log, "No inputs detected in network %s", network.getName());
     }
     if (networkOutputs.empty()) {
-        VPU_THROW_EXCEPTION << "No outputs detected in network " << network.getName();
+        VPU_LOG_AND_THROW(env.log, "No outputs detected in network %s", network.getName());
     }
 
     for (const auto& netInput : networkInputs) {
         auto inputInfo = netInput.second;
         IE_ASSERT(inputInfo != nullptr);
 
-        auto inputPrecision = inputInfo->getInputPrecision();
+        auto inputPrecision = inputInfo->getPrecision();
 
         if (inputPrecision != ie::Precision::U8 &&
             inputPrecision != ie::Precision::FP16 &&
@@ -131,7 +127,8 @@ void IeNetworkParser::parseNetworkDFS(const ie::CNNNetwork& network) {
 
     ie::details::CaselessEq<std::string> cmp;
 
-    env.log->debug("parse network %s", network.getName());
+    env.log->debug("Parse network in DFS order");
+    VPU_LOGGER_SECTION(env.log);
 
     //
     // Check network inputs and outputs.
@@ -195,7 +192,7 @@ void IeNetworkParser::parseNetworkDFS(const ie::CNNNetwork& network) {
     //
 
     std::unordered_set<ie::CNNLayerPtr> visitedInitialLayers;
-    std::vector<ie::CNNLayerPtr> initialLayers;
+    SmallVector<ie::CNNLayerPtr> initialLayers;
 
     for (const auto& inputData : allInputDatas) {
         for (const auto& consumer : inputData->getInputTo()) {
@@ -237,7 +234,7 @@ void IeNetworkParser::parseNetworkDFS(const ie::CNNNetwork& network) {
 
     std::unordered_map<ie::CNNLayerPtr, bool> visitedMap;
     for (const auto& layer : initialLayers) {
-        runDFS(layer, orderedLayers, visitedMap);
+        runDFS(network.getName(), layer, orderedLayers, visitedMap);
     }
 
     //
@@ -251,6 +248,9 @@ void IeNetworkParser::parseNetworkBFS(const ie::CNNNetwork& network) {
     VPU_PROFILE(parseNetworkBFS);
 
     const auto& env = CompileEnv::get();
+
+    env.log->debug("Parse network in BFS order");
+    VPU_LOGGER_SECTION(env.log);
 
     ie::details::CaselessEq<std::string> cmp;
 
@@ -397,7 +397,7 @@ void IeNetworkParser::parseNetworkBFS(const ie::CNNNetwork& network) {
             // New data added -> have to reset loop tracking.
             loopTracker = 0;
 
-            for (const auto& layerInfo : out->inputTo) {
+            for (const auto& layerInfo : out->getInputTo()) {
                 auto consumer = layerInfo.second;
                 IE_ASSERT(consumer != nullptr);
 

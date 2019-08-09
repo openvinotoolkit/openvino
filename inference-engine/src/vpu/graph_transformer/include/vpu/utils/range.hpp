@@ -147,8 +147,8 @@ public:
 
         template <class BI>
         inline Iterator(BI&& cur, BI&& end, const MapOp& op) :
-                _cur(std::forward<BI>(cur)),
-                _end(std::forward<BI>(end)),
+                _cur(std::forward<typename std::remove_reference<BI>::type>(cur)),
+                _end(std::forward<typename std::remove_reference<BI>::type>(end)),
                 _op(&op) {
         }
 
@@ -196,8 +196,8 @@ public:
 
     template <class _B, class _M>
     inline MapRange(_B&& base, _M&& op) :
-            _base(std::forward<_B>(base)),
-            _op(std::forward<_M>(op)) {
+            _base(std::forward<typename std::remove_reference<_B>::type>(base)),
+            _op(std::forward<typename std::remove_reference<_M>::type>(op)) {
     }
 
     inline Iterator begin() const { return Iterator(_base.begin(), _base.end(), _op); }
@@ -256,8 +256,8 @@ public:
 
         template <class BI>
         inline Iterator(BI&& cur, BI&& end, const FilterOp& op) :
-                _cur(std::forward<BI>(cur)),
-                _end(std::forward<BI>(end)),
+                _cur(std::forward<typename std::remove_reference<BI>::type>(cur)),
+                _end(std::forward<typename std::remove_reference<BI>::type>(end)),
                 _op(&op) {
             advance();
         }
@@ -313,8 +313,8 @@ public:
 
     template <class _B, class _F>
     inline FilterRange(_B&& base, _F&& op) :
-            _base(std::forward<_B>(base)),
-            _op(std::forward<_F>(op)) {
+            _base(std::forward<typename std::remove_reference<_B>::type>(base)),
+            _op(std::forward<typename std::remove_reference<_F>::type>(op)) {
     }
 
     inline Iterator begin() const { return Iterator(_base.begin(), _base.end(), _op); }
@@ -376,9 +376,12 @@ inline std::vector<typename std::decay<typename Range::value_type>::type> toVect
     return out;
 }
 
-template <int Capacity, class Range>
-inline SmallVector<typename std::decay<typename Range::value_type>::type, Capacity> toSmallVector(const Range& range) {
-    SmallVector<typename std::decay<typename Range::value_type>::type, Capacity> out;
+template <class Range>
+inline SmallVector<typename std::decay<typename Range::value_type>::type> toSmallVector(const Range& range, int capacity = 0) {
+    SmallVector<typename std::decay<typename Range::value_type>::type> out;
+    if (capacity > 0) {
+        out.reserve(capacity);
+    }
     for (const auto& item : range) {
         out.emplace_back(item);
     }

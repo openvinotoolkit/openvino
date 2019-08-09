@@ -15,6 +15,7 @@ extern "C"
 {
 #endif
 
+#define XLINK_MAX_NAME_SIZE 28
 #define XLINK_MAX_STREAMS 32
 #define XLINK_MAX_PACKETS_PER_STREAM 64
 
@@ -31,22 +32,42 @@ typedef enum{
 } XLinkError_t;
 
 typedef enum{
-    USB_VSC = 0,
-    USB_CDC,
-    PCIE,
-    IPC,
-    NMB_OF_PROTOCOLS
+    X_LINK_USB_VSC = 0,
+    X_LINK_USB_CDC,
+    X_LINK_PCIE,
+    X_LINK_IPC,
+    X_LINK_NMB_OF_PROTOCOLS,
+    X_LINK_ANY_PROTOCOL
 } XLinkProtocol_t;
+
+typedef enum{
+    X_LINK_ANY_PLATFORM = 0,
+    X_LINK_MYRIAD_2 = 2450,
+    X_LINK_MYRIAD_X = 2480,
+} XLinkPlatform_t;
+
+typedef enum{
+    X_LINK_ANY_STATE = 0,
+    X_LINK_BOOTED,
+    X_LINK_UNBOOTED,
+} XLinkDeviceState_t;
 
 #define USB_LINK_INVALID_FD  (-314)
 
 #define INVALID_STREAM_ID 0xDEADDEAD
 #define INVALID_STREAM_ID_OUT_OF_MEMORY 0xDEADFFFF
 #define INVALID_LINK_ID   0xFF
+#define MAX_STREAM_NAME_LENGTH 64
 
 typedef uint32_t streamId_t;
 typedef uint8_t linkId_t;
 
+typedef struct deviceDesc_t
+{
+    XLinkProtocol_t protocol;
+    XLinkPlatform_t platform;
+    char name[XLINK_MAX_NAME_SIZE];
+} deviceDesc_t;
 
 typedef struct streamPacketDesc_t
 {
@@ -67,9 +88,7 @@ typedef struct XLinkProf_t
 
 typedef struct XLinkGlobalHandler_t
 {
-    int loglevel;
     int profEnable;
-    XLinkProtocol_t protocol;
     XLinkProf_t profilingData;
 } XLinkGlobalHandler_t;
 
@@ -78,6 +97,7 @@ typedef struct
     char* devicePath;
     char* devicePath2;
     linkId_t linkId;
+    XLinkProtocol_t protocol;
 } XLinkHandler_t;
 
 #ifdef __cplusplus

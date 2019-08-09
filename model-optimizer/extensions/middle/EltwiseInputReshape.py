@@ -20,8 +20,11 @@ import numpy as np
 
 from mo.front.common.layout import get_features_dim, shape_for_layout
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.eliminate import graph_clean_up, graph_clean_up_tf, graph_clean_up_onnx
 from mo.middle.passes.fusing.helpers import get_value_id
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.ops.reshape import Reshape
 
@@ -49,16 +52,15 @@ class Eltwise1DInputReshape(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         layout = graph.graph['layout']
-        for n in list(graph.nodes()):
-            if 'type' in graph.node[n] and graph.node[n]['type'] == 'Eltwise' and get_value_id(Node(graph, n)) is None:
-                eltwise_op_node = Node(graph, n)
+        for eltwise_op_node in graph.get_op_nodes(is_eltwise=True):
+            if get_value_id(eltwise_op_node) is None:
                 out_shape = eltwise_op_node.out_node().shape
                 if 4 <= len(out_shape) <= 5:
                     out_features = out_shape[get_features_dim(layout, len(out_shape))]
                     for port, node in eltwise_op_node.in_nodes().items():
                         if len(node.shape) != len(out_shape) and len(node.shape) == 1 and out_features == node.shape[0]:
-                            in_atts = deepcopy(graph.get_edge_data(node.id, n)[0])
-                            graph.remove_edge(node.id, n)
+                            in_atts = deepcopy(graph.get_edge_data(node.id, eltwise_op_node.id)[0])
+                            graph.remove_edge(node.id, eltwise_op_node.id)
                             new_shape = shape_for_layout(layout, batch=1, features=out_features, height=1, width=1,
                                                          depth=1 if len(out_shape) == 5 else None)
                             reshape_data_op = Reshape(graph, attrs={'dim': new_shape, 'name': node.id + '/Broadcast'})
@@ -68,14 +70,14 @@ class Eltwise1DInputReshape(MiddleReplacementPattern):
 
 class EltwiseInputReshape(MiddleReplacementPattern):
     enabled = True
+    force_clean_up = True
 
     def run_after(self):
         from extensions.middle.pass_separator import MiddleStart
         return [MiddleStart]
 
     def find_and_replace_pattern(self, graph: Graph):
-        data_nodes = [Node(graph, node) for node in graph.node if Node(graph, node).kind == 'data']
-        for node in data_nodes:
+        for node in graph.get_data_nodes():
             # Get all requested shapes for current node
             # This mapping will contain pairs like {shape:[list of consumers nodes]}
             mapping = {}
@@ -108,8 +110,9 @@ class EltwiseInputReshape(MiddleReplacementPattern):
                 # Insert Reshape layer between data node and consumer
                 for shape_key in mapping.keys():
                     shape = list(shape_key)
-                    reshape = Reshape(graph, attrs={'dim': shape, 'name': 'EltwiseReshapeNormalization'})
-                    reshape_data = reshape.create_node_with_data(inputs=[node])
+                    reshape = Reshape(graph, attrs={'name': 'EltwiseReshapeNormalization'})
+                    reshape_dim = Const(graph, {'value': shape}).create_node_with_data()
+                    reshape_data = reshape.create_node_with_data(inputs=[node, reshape_dim])
 
                     # Iterate over consumers and reconnect them to Reshape layer output
                     for consumer in mapping[shape_key]:

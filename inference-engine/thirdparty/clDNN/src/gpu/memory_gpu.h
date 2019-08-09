@@ -21,47 +21,56 @@
 #include <cassert>
 #include <iterator>
 #include <mutex>
+#include <memory>
 
 #define BUFFER_ALIGNMENT 4096
 #define CACHE_ALIGNMENT 64
 
-namespace cldnn { namespace gpu {
+namespace cldnn {
+namespace gpu {
 
-template<typename T>
+template <typename T>
 T* allocate_aligned(size_t size, size_t align) {
     assert(sizeof(T) <= size);
     assert(alignof(T) <= align);
     return reinterpret_cast<T*>(_mm_malloc(align_to(size, align), align));
 }
 
-template<typename T>
+template <typename T>
 void deallocate_aligned(T* ptr) {
     _mm_free(ptr);
 }
 
 #if defined(_SECURE_SCL) && (_SECURE_SCL > 0)
-template<typename T>
+template <typename T>
 stdext::checked_array_iterator<T*> arr_begin(T* buf, size_t count) {
     return stdext::make_checked_array_iterator(buf, count);
 }
 
-template<typename T>
+template <typename T>
 stdext::checked_array_iterator<T*> arr_end(T* buf, size_t count) {
     return stdext::make_checked_array_iterator(buf, count, count);
 }
 
 #else
-template<typename T>
-T* arr_begin(T* buf, size_t) { return buf; }
+template <typename T>
+T* arr_begin(T* buf, size_t) {
+    return buf;
+}
 
-template<typename T>
-T* arr_end(T* buf, size_t count) { return buf + count; }
+template <typename T>
+T* arr_end(T* buf, size_t count) {
+    return buf + count;
+}
 #endif
 
 struct gpu_buffer : public memory_impl {
     friend cldnn::memory_pool;
 
-    gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine, const layout& new_layout, const cl::Buffer& buffer);
+    gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine,
+               const layout& new_layout,
+               const cl::Buffer& buffer,
+               uint16_t stream_id);
     void* lock() override;
     void unlock() override;
     void fill(unsigned char pattern, event_impl::ptr ev) override;
@@ -71,8 +80,8 @@ struct gpu_buffer : public memory_impl {
     }
 
 private:
-    gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout);
-    
+    gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint16_t stream_id);
+
     std::shared_ptr<gpu_toolkit> _context;
     std::mutex _mutex;
     unsigned _lock_count;
@@ -83,7 +92,10 @@ private:
 struct gpu_image2d : public memory_impl {
     friend cldnn::memory_pool;
 
-    gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const layout& new_layout, const cl::Image2D& buffer);
+    gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine,
+                const layout& new_layout,
+                const cl::Image2D& buffer,
+                uint16_t stream_id);
     void* lock() override;
     void unlock() override;
     void fill(unsigned char pattern, event_impl::ptr ev) override;
@@ -93,8 +105,8 @@ struct gpu_image2d : public memory_impl {
     }
 
 private:
-    gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout);
-    
+    gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint16_t stream_id);
+
     std::shared_ptr<gpu_toolkit> _context;
     std::mutex _mutex;
     unsigned _lock_count;
@@ -105,4 +117,5 @@ private:
     size_t _slice_pitch;
     void* _mapped_ptr;
 };
-} }
+}  // namespace gpu
+}  // namespace cldnn

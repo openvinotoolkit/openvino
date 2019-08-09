@@ -18,23 +18,24 @@
 #pragma once
 #include "api/CPP/reshape.hpp"
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<reshape> : public typed_program_node_base<reshape>
-{
+struct typed_program_node<reshape> : public typed_program_node_base<reshape> {
     using parent = typed_program_node_base<reshape>;
-    typed_program_node(const std::shared_ptr<reshape> prim, program_impl& prog) : parent(prim, prog) { support_padding(true); }
+    typed_program_node(const std::shared_ptr<reshape> prim, program_impl& prog) : parent(prim, prog) {
+        support_padding_all(true);
+    }
 
 public:
     using parent::parent;
 
     program_node& input() const { return get_dependency(0); }
 
-    bool is_in_place() const
-    {
+    bool is_in_place() const {
         if (this->is_output() || this->get_fused_activation_func() != activation_none)
             return false;
         return (!this->get_output_layout().data_padding && !input().get_output_layout(false).data_padding);
@@ -44,8 +45,7 @@ public:
 using reshape_node = typed_program_node<reshape>;
 
 template <>
-class typed_primitive_inst<reshape> : public typed_primitive_inst_base<reshape>
-{
+class typed_primitive_inst<reshape> : public typed_primitive_inst_base<reshape> {
     using parent = typed_primitive_inst_base<reshape>;
 
 public:
@@ -63,5 +63,4 @@ private:
 
 using reshape_inst = typed_primitive_inst<reshape>;
 
-}
-
+}  // namespace cldnn

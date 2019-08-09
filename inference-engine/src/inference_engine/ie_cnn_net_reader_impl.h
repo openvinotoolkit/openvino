@@ -5,9 +5,11 @@
 #pragma once
 
 #include "ie_icnn_net_reader.h"
+#include "ie_memcpy.h"
 #include "cnn_network_impl.hpp"
 #include "parsers.h"
 #include <memory>
+#include <algorithm>
 #include <string>
 #include <map>
 
@@ -22,17 +24,15 @@ namespace details {
 
 struct FormatParserCreator {
     using Ptr = std::shared_ptr<FormatParserCreator>;
-    virtual std::shared_ptr<IFormatParser> create(int version) = 0;
+    virtual std::shared_ptr<IFormatParser> create(size_t version) = 0;
 };
 
 struct V2FormatParserCreator : public FormatParserCreator {
-    std::shared_ptr<IFormatParser> create(int version) override;
+    std::shared_ptr<IFormatParser> create(size_t version) override;
 };
 
 class CNNNetReaderImpl : public ICNNNetReader {
 public:
-    static std::string NameFromFilePath(const char *filepath);
-
     explicit CNNNetReaderImpl(const FormatParserCreator::Ptr& _parserCreator);
 
     StatusCode ReadNetwork(const char *filepath, ResponseDesc *resp) noexcept override;
@@ -47,20 +47,20 @@ public:
         return network.get();
     }
 
-
     bool isParseSuccess(ResponseDesc *resp) noexcept override {
         return parseSuccess;
     }
-
 
     StatusCode getDescription(ResponseDesc *desc) noexcept override {
         return DescriptionBuffer(OK, desc) << description;
     }
 
-
     StatusCode getName(char *name, size_t len, ResponseDesc *resp) noexcept override {
-        strncpy(name, this->name.c_str(), len - 1);
-        if (len) name[len-1] = '\0';  // strncpy is not doing this, so output might be not null-terminated
+        if (len > 0) {
+            size_t length = std::min(this->name.size(), len-1);  // cut the name if buffer is too small
+            ie_memcpy(name, len, this->name.c_str(), length);
+            name[length] = '\0';  // null terminate
+        }
         return OK;
     }
 
@@ -74,16 +74,14 @@ public:
 
 private:
     std::shared_ptr<InferenceEngine::details::IFormatParser> _parser;
-
-    static int GetFileVersion(pugi::xml_node &root);
-
+    size_t GetFileVersion(pugi::xml_node &root);
     StatusCode ReadNetwork(pugi::xml_document &xmlDoc);
 
     std::string description;
     std::string name;
     InferenceEngine::details::CNNNetworkImplPtr network;
     bool parseSuccess;
-    int _version;
+    size_t _version;
     FormatParserCreator::Ptr parserCreator;
 };
 }  // namespace details

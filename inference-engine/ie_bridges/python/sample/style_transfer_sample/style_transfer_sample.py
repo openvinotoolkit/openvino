@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 import logging as log
 from time import time
-from openvino.inference_engine import IENetwork, IEPlugin
+from openvino.inference_engine import IENetwork, IECore
 
 
 def build_argparser():
@@ -36,13 +36,11 @@ def build_argparser():
                       help="Optional. Required for CPU custom layers. "
                            "Absolute MKLDNN (CPU)-targeted custom layers. Absolute path to a shared library with the "
                            "kernels implementations", type=str, default=None)
-    args.add_argument("-pp", "--plugin_dir", help="Path to a plugin folder", type=str, default=None)
     args.add_argument("-d", "--device",
                       help="Specify the target device to infer on; CPU, GPU, FPGA, HDDL or MYRIAD is acceptable. Sample "
                            "will look for a suitable plugin for device specified. Default value is CPU", default="CPU",
                       type=str)
     args.add_argument("-nt", "--number_top", help="Number of top results", default=10, type=int)
-    args.add_argument("-ni", "--number_iter", help="Number of inference iterations", default=1, type=int)
     args.add_argument("--mean_val_r", "-mean_val_r",
                       help="Mean value of red chanel for mean value subtraction in postprocessing ", default=0,
                       type=float)
@@ -52,8 +50,6 @@ def build_argparser():
     args.add_argument("--mean_val_b", "-mean_val_b",
                       help="Mean value of blue chanel for mean value subtraction in postprocessing ", default=0,
                       type=float)
-    args.add_argument("-pc", "--perf_counts", help="Report performance counters", default=False, action="store_true")
-
     return parser
 
 
@@ -64,19 +60,20 @@ def main():
     model_bin = os.path.splitext(model_xml)[0] + ".bin"
 
     # Plugin initialization for specified device and load extensions library if specified
-    plugin = IEPlugin(device=args.device, plugin_dirs=args.plugin_dir)
+    log.info("Creating Inference Engine")
+    ie = IECore()
     if args.cpu_extension and 'CPU' in args.device:
-        plugin.add_cpu_extension(args.cpu_extension)
+        ie.add_extension(args.cpu_extension, "CPU")
     # Read IR
     log.info("Loading network files:\n\t{}\n\t{}".format(model_xml, model_bin))
     net = IENetwork(model=model_xml, weights=model_bin)
 
-    if plugin.device == "CPU":
-        supported_layers = plugin.get_supported_layers(net)
+    if "CPU" in args.device:
+        supported_layers = ie.query_network(net, "CPU")
         not_supported_layers = [l for l in net.layers.keys() if l not in supported_layers]
         if len(not_supported_layers) != 0:
             log.error("Following layers are not supported by the plugin for specified device {}:\n {}".
-                      format(plugin.device, ', '.join(not_supported_layers)))
+                      format(args.device, ', '.join(not_supported_layers)))
             log.error("Please try to specify cpu extensions library path in sample's command line parameters using -l "
                       "or --cpu_extension command line argument")
             sys.exit(1)
@@ -103,23 +100,12 @@ def main():
 
     # Loading model to the plugin
     log.info("Loading model to the plugin")
-    exec_net = plugin.load(network=net)
+    exec_net = ie.load_network(network=net, device_name=args.device)
 
     # Start sync inference
-    log.info("Starting inference ({} iterations)".format(args.number_iter))
-    infer_time = []
-    for i in range(args.number_iter):
-        t0 = time()
-        res = exec_net.infer(inputs={input_blob: images})
-        infer_time.append((time() - t0) * 1000)
-    log.info("Average running time of one iteration: {} ms".format(np.average(np.asarray(infer_time))))
-    if args.perf_counts:
-        perf_counts = exec_net.requests[0].get_perf_counts()
-        log.info("Performance counters:")
-        print("{:<70} {:<15} {:<15} {:<15} {:<10}".format('name', 'layer_type', 'exet_type', 'status', 'real_time, us'))
-        for layer, stats in perf_counts.items():
-            print("{:<70} {:<15} {:<15} {:<15} {:<10}".format(layer, stats['layer_type'], stats['exec_type'],
-                                                              stats['status'], stats['real_time']))
+    log.info("Starting inference")
+    res = exec_net.infer(inputs={input_blob: images})
+
     # Processing output blob
     log.info("Processing output blob")
     res = res[out_blob]
@@ -135,6 +121,7 @@ def main():
         out_img = os.path.join(os.path.dirname(__file__), "out_{}.bmp".format(batch))
         cv2.imwrite(out_img, data)
         log.info("Result image was saved to {}".format(out_img))
+    log.info("This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n")
 
 
 if __name__ == '__main__':

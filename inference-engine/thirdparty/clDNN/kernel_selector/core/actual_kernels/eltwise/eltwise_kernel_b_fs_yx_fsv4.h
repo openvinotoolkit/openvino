@@ -18,20 +18,19 @@
 
 #include "eltwise_kernel_base.h"
 
-namespace kernel_selector
-{
-    class EltwiseKernel_b_fs_yx_fsv4 : public EltwiseKernelBase
-    {
-    public:
-        using Parent = EltwiseKernelBase;
-        EltwiseKernel_b_fs_yx_fsv4() : EltwiseKernelBase("eltwise_b_fs_yx_fsv4") {}
-        virtual ~EltwiseKernel_b_fs_yx_fsv4() {}
+namespace kernel_selector {
+class EltwiseKernel_b_fs_yx_fsv4 : public EltwiseKernelBase {
+public:
+    using Parent = EltwiseKernelBase;
+    EltwiseKernel_b_fs_yx_fsv4() : EltwiseKernelBase("eltwise_b_fs_yx_fsv4") {}
+    virtual ~EltwiseKernel_b_fs_yx_fsv4() {}
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-        virtual bool Validate(const Params& params, const optional_params& options) const override;
-        JitConstants GetJitConstants(const eltwise_params& params) const override;
-        virtual DispatchData SetDefault(const eltwise_params& params) const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+
+protected:
+    bool Validate(const Params& params, const optional_params& options) const override;
+    JitConstants GetJitConstants(const eltwise_params& params) const override;
+    DispatchData SetDefault(const eltwise_params& params) const override;
+};
+}  // namespace kernel_selector

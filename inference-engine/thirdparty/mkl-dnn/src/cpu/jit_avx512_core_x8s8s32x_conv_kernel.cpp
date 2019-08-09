@@ -42,7 +42,7 @@ void pick_loop_order(jit_conv_conf_t &jcp, int nthr)
     if (jcp.ngroups > 1) {
         jcp.loop_order = loop_ngcw;
         if (jcp.mb < nthr)
-            jcp.loop_order = loop_nhwcg;
+            jcp.loop_order = jcp.ndims == 3 ? loop_nwcg : loop_nhwcg;
     }
 }
 }
@@ -68,9 +68,6 @@ void _jit_avx512_core_x8s8s32x_fwd_kernel<Vmm>::prepare_output(int ur_w)
             mov(_t8, (int8_t)128);
             vpbroadcastb(vmm_shift, _t8);
         }
-    }
-    if (jcp.is_fast_depthwise) {
-       vpxord(zmm_zero_blend, zmm_zero_blend, zmm_zero_blend);
     }
 }
 
@@ -272,80 +269,123 @@ void _jit_avx512_core_x8s8s32x_fwd_kernel<Vmm>::compute_ker_dw(
 template <>
 void _jit_avx512_core_x8s8s32x_fwd_kernel<Zmm>::compute_ker_dw(
         int ur_w, int pad_l, int pad_r, ic_block_t last_ic_block_flag, bool h_padded) {
-    auto input_offset = [=](int oi, int ii, int ki) {
-        return jcp.typesize_in
-                * ((ki * (jcp.dilate_w + 1) + oi * jcp.stride_w - pad_l)
-                                  * jcp.ngroups
-                          + ii * jcp.ch_block);
+
+    auto input_spatial_index = [=](int oi, int ki) {
+        return (ki * (jcp.dilate_w + 1) + oi * jcp.stride_w - pad_l);
     };
 
-    auto kernel_offset = [=](int ii, int ki) {
-        return jcp.typesize_in * ((ii * jcp.kh * jcp.kw + ki) * jcp.ch_block);
+    auto input_offset2 = [=](int ii, int ci) {
+        return jcp.typesize_in * (ii * jcp.ngroups + ci * jcp.ch_block);
     };
 
-    auto compute = [=](Zmm vreg_acc, Zmm vreg_wei,
-            Zmm vreg_src) {
+    auto input_offset3 = [=](int oi, int ci, int ki) {
+        return jcp.typesize_in * input_offset2(input_spatial_index(oi, ki), ci);
+    };
+
+    auto kernel_offset = [=](int ci, int ki) {
+        return jcp.typesize_in * ((ci * jcp.kh * jcp.kw + ki) * jcp.ch_block);
+    };
+
+    auto compute = [=](Zmm vreg_acc, Zmm vreg_wei, Zmm vreg_src) {
         // okay for depthwise since src is zero-extended
         if (jcp.ver == ver_vnni) {
             vpdpbusd(vreg_acc, vreg_src, vreg_wei);
         } else {
-            // zmm_src is a tmp register that can be safely overwritten here
-            vpmaddwd(vreg_src, vreg_src, vreg_wei);
-            vpaddd(vreg_acc, vreg_acc, vreg_src);
+            vpmaddwd(zmm_tmp, vreg_src, vreg_wei);
+            vpaddd(vreg_acc, vreg_acc, zmm_tmp);
         }
     };
 
-    for (int ki = 0; ki < jcp.kw; ki++) {
-        for (int ii = 0; ii < jcp.nb_ch_blocking; ii++) {
-            int aux_kernel_offset = kernel_offset(ii, ki);
+    int ii_start = 0;
+    int ii_end = -1;
+    if (jcp.is_resrc_depthwise && !h_padded) {
+        // find bounds of input spatial indices
+        bool first = true;
+        for (int ki = 0; ki < jcp.kw; ki++) {
+            int oi_start = get_ow_start(ki, pad_l);
+            int oi_end = get_ow_end(ur_w, ki, pad_r);
+            for (int oi = oi_start; oi < oi_end; oi++) {
+                int ii = input_spatial_index(oi, ki);
+                if (first || ii < ii_start)
+                    ii_start = ii;
+                if (first || ii > ii_end)
+                    ii_end = ii;
+                first = false;
+            }
+        }
+    }
+
+    if (jcp.signed_input) {
+        vpxord(zmm_shifted_zero, zmm_shifted_zero, zmm_shifted_zero);
+        vpaddb(zmm_shifted_zero, zmm_shifted_zero, vmm_shift);
+    }
+    for (int ci = 0; ci < jcp.nb_ch_blocking; ci++) {
+        const bool mask_flag = last_ic_block_flag != no_last_block
+                && ci == jcp.nb_ch_blocking - 1;
+        if (jcp.is_resrc_depthwise && !h_padded) {
+            // now we can load input once and reuse up to jcp.kw times
+            for (int ii = ii_start; ii <= ii_end; ii++) {
+                int aux_input_offset = input_offset2(ii, ci);
+                const Zmm zmm_inp_tmp = zmm_inp(ii, jcp.nb_ch_blocking);
+                const Zmm zmm_inp_msk = mask_flag
+                        ? zmm_inp_tmp | ktail_mask | T_z
+                        : zmm_inp_tmp;
+                if (jcp.is_fast_depthwise) {
+                    assert(!mask_flag);
+                    vbroadcasti32x4(zmm_inp_msk,
+                            EVEX_compress_addr(aux_reg_inp, aux_input_offset));
+                } else {
+                    vpmovzxbd(zmm_inp_msk,
+                            EVEX_compress_addr(aux_reg_inp, aux_input_offset));
+                }
+                if (jcp.signed_input)
+                    vpaddb(zmm_inp_tmp, zmm_inp_tmp, vmm_shift);
+            }
+        }
+        for (int ki = 0; ki < jcp.kw; ki++) {
+            int aux_kernel_offset = kernel_offset(ci, ki);
             if (jcp.is_fast_depthwise) {
                 vbroadcasti32x4(zmm_wei,
                         EVEX_compress_addr(aux_reg_ker, aux_kernel_offset));
-                vpblendmb(zmm_wei | kblend_mask, zmm_zero_blend, zmm_wei);
+                vmovdqu8(zmm_wei | kblend_mask | T_z, zmm_wei);
             } else {
                 vpmovsxbd(zmm_wei,
-                         EVEX_compress_addr(aux_reg_ker, aux_kernel_offset));
+                        EVEX_compress_addr(aux_reg_ker, aux_kernel_offset));
             }
             if (h_padded) {
-                if (jcp.ver == ver_vnni) {
-                    vpxord(zmm_src, zmm_src, zmm_src);
-                    vpaddb(zmm_src, zmm_src, vmm_shift);
-                }
-                for (int jj = 0; jj < ur_w; jj++) {
-                    if (jcp.ver != ver_vnni) {
-                        vpxord(zmm_src, zmm_src, zmm_src);
-                        vpaddb(zmm_src, zmm_src, vmm_shift);
-                    }
-                    compute(zmm_out(jj, ii), zmm_wei, zmm_src);
-                }
+                assert(jcp.signed_input);
+                for (int oi = 0; oi < ur_w; oi++)
+                    compute(zmm_out(oi, ci), zmm_wei, zmm_shifted_zero);
             } else {
-                const bool mask_flag = last_ic_block_flag != no_last_block
-                    && ii == jcp.nb_ch_blocking - 1;
                 const Zmm r_zmm_src = mask_flag ? zmm_src | ktail_mask : zmm_src;
-                int jj_start = get_ow_start(ki, pad_l);
-                int jj_end = get_ow_end(ur_w, ki, pad_r);
-                int start_ = jcp.signed_input ? 0 : jj_start;
-                int end_ = jcp.signed_input ? ur_w : jj_end;
-                for (int jj = start_; jj < end_; jj++) {
-                    if (jj >= jj_start && jj < jj_end) {
-                        int aux_input_offset = input_offset(jj, ii, ki);
-                        if (jcp.is_fast_depthwise) {
-                           vbroadcasti32x4(zmm_src,
-                                    EVEX_compress_addr(aux_reg_inp, aux_input_offset));
+                int oi_start = get_ow_start(ki, pad_l);
+                int oi_end = get_ow_end(ur_w, ki, pad_r);
+                int start_ = jcp.signed_input ? 0 : oi_start;
+                int end_ = jcp.signed_input ? ur_w : oi_end;
+                for (int oi = start_; oi < end_; oi++) {
+                    if (oi >= oi_start && oi < oi_end) {
+                        if (jcp.is_resrc_depthwise) {
+                            int ii = input_spatial_index(oi, ki);
+                            zmm_src = zmm_inp(ii, jcp.nb_ch_blocking);
                         } else {
-                            vpmovzxbd(r_zmm_src,
-                                    EVEX_compress_addr(aux_reg_inp, aux_input_offset));
+                            int aux_input_offset = input_offset3(oi, ci, ki);
+                            if (jcp.is_fast_depthwise) {
+                                assert(!mask_flag);
+                                vbroadcasti32x4(r_zmm_src,
+                                        EVEX_compress_addr(aux_reg_inp,
+                                                        aux_input_offset));
+                            } else {
+                                vpmovzxbd(r_zmm_src,
+                                        EVEX_compress_addr(aux_reg_inp,
+                                                  aux_input_offset));
+                            }
+                            if (jcp.signed_input)
+                                vpaddb(zmm_src, zmm_src, vmm_shift);
                         }
-                        if (jcp.signed_input) {
-                            vpaddb(zmm_src, zmm_src, vmm_shift);
-                        }
-                    } else {
-                        if (jcp.signed_input) {
-                            vpxord(zmm_src, zmm_src, zmm_src);
-                            vpaddb(zmm_src, zmm_src, vmm_shift);
-                        }
+                    } else if (jcp.signed_input) {
+                        zmm_src = zmm_shifted_zero;
                     }
-                    compute(zmm_out(jj, ii), zmm_wei, zmm_src);
+                    compute(zmm_out(oi, ci), zmm_wei, zmm_src);
                 }
             }
         }
@@ -460,7 +500,7 @@ void _jit_avx512_core_x8s8s32x_fwd_kernel<Vmm>::kh_loop(
     mov(aux_reg_inp, reg_inp);
     mov(aux_reg_ker, reg_ker);
 
-    if (jcp.signed_input) {
+    if (jcp.signed_input && jcp.ndims > 3) {
         mov(reg_overflow, ptr[param1 + GET_OFF(t_overflow)]);
         cmp(reg_overflow, 0);
         je(no_t_overflow_label, T_NEAR);
@@ -490,7 +530,7 @@ void _jit_avx512_core_x8s8s32x_fwd_kernel<Vmm>::kh_loop(
         jg(kh_label, T_NEAR);
     }
     L(skip_kh_loop);
-    if (jcp.signed_input) {
+    if (jcp.signed_input && jcp.ndims > 3) {
         mov(reg_overflow, ptr[param1 + GET_OFF(b_overflow)]);
         cmp(reg_overflow, 0);
         je(no_b_overflow_label, T_NEAR);
@@ -602,11 +642,18 @@ void _jit_avx512_core_x8s8s32x_fwd_kernel<Vmm>::generate()
     preamble();
 
     if (jcp.is_depthwise) {
-        zmm_src = Zmm(jcp.max_regs_ur);
-        if (jcp.is_fast_depthwise) {
-            zmm_zero_blend = Zmm(jcp.max_regs_ur + 1);
-            zmm_permute = Zmm(jcp.max_regs_ur + 2);
+        int idx = jcp.max_regs_ur - 1;
+        if (!jcp.is_resrc_depthwise)
+            zmm_src = Zmm(++idx);
+        if (jcp.ver != ver_vnni)
+            zmm_tmp = Zmm(++idx);
+        if (jcp.is_fast_depthwise)
+            zmm_permute = Zmm(++idx);
+        if (jcp.signed_input) {
+            zmm_shifted_zero = Zmm(++idx);
+            ++idx; // due to extra register used for shifts and compensations
         }
+        assert(idx == ker_dw_reg_base_idx);
     }
 
     if (!jcp.is_depthwise && jcp.ver != ver_vnni) {
@@ -825,24 +872,20 @@ void _jit_avx512_core_x8s8s32x_fwd_kernel<Vmm>::generate()
 bool jit_avx512_core_x8s8s32x_fwd_kernel::post_ops_ok(
         jit_conv_conf_t &jcp, const primitive_attr_t &attr)
 {
-    using namespace primitive_kind;
     const auto &p = attr.post_ops_;
 
-    auto is_eltwise = [&](int idx) { return p.entry_[idx].is_eltwise(); };
-    auto is_depthwise = [&](int idx) { return p.entry_[idx].is_depthwise(); };
-    auto is_sum = [&](int idx) { return p.entry_[idx].is_sum(false); };
-    auto is_simple = [&](int idx) { return is_eltwise(idx) || is_depthwise(idx); };
+    auto all_post_ops_supported = [&]() {
+        bool ok = true;
 
-    switch (p.len_) {
-        case 0: return true;
-        case 1: return is_simple(0) || is_sum(0);
-        case 2: return (is_sum(0) && is_simple(1)) || (is_simple(0) && is_sum(1)) ||
-                       (is_simple(0) && is_simple(1));
-        case 3: return (is_simple(0) && is_sum(1) && is_simple(2));
-        default: return false;
-    }
+        for (int i = 0; i < p.len_; i++) {
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise);
+        }
+        return ok;
+    };
+    auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind); };
 
-    return false;
+    return all_post_ops_supported() &&
+           count(primitive_kind::sum) <= 1;
 }
 
 status_t jit_avx512_core_x8s8s32x_fwd_kernel::init_conf(jit_conv_conf_t &jcp,
@@ -859,6 +902,8 @@ status_t jit_avx512_core_x8s8s32x_fwd_kernel::init_conf(jit_conv_conf_t &jcp,
     const memory_desc_wrapper bias_d(&bias_pd);
 
     const bool with_groups = weights_d.ndims() == src_d.ndims() + 1;
+    int ndims = src_d.ndims();
+    bool is_1d = ndims == 3;
 
     if (!(mayiuse(avx512_core)
          && one_of(src_d.data_type(), data_type::u8, data_type::s8)
@@ -868,6 +913,7 @@ status_t jit_avx512_core_x8s8s32x_fwd_kernel::init_conf(jit_conv_conf_t &jcp,
         return status::unimplemented;
 
     jcp = zero<decltype(jcp)>();
+    jcp.ndims = ndims;
     jcp.prop_kind = cd.prop_kind;
     jcp.ngroups = with_groups ? weights_d.dims()[0] : 1;
     jcp.mb = src_d.dims()[0];
@@ -875,23 +921,23 @@ status_t jit_avx512_core_x8s8s32x_fwd_kernel::init_conf(jit_conv_conf_t &jcp,
     jcp.oc_without_padding = jcp.oc;
     jcp.ic = src_d.dims()[1] / jcp.ngroups;
     jcp.ic_without_padding = jcp.ic;
-    jcp.ih = src_d.dims()[2];
-    jcp.iw = src_d.dims()[3];
-    jcp.oh = dst_d.dims()[2];
-    jcp.ow = dst_d.dims()[3];
-    jcp.kh = weights_d.dims()[with_groups + 2];
-    jcp.kw = weights_d.dims()[with_groups + 3];
-    jcp.t_pad = cd.padding[0][0];
-    jcp.l_pad = cd.padding[0][1];
-    jcp.stride_h = cd.strides[0];
-    jcp.stride_w = cd.strides[1];
+    jcp.ih = is_1d ? 1 : src_d.dims()[ndims - 2];
+    jcp.iw = src_d.dims()[ndims - 1];
+    jcp.oh = is_1d ? 1 : dst_d.dims()[ndims - 2];
+    jcp.ow = dst_d.dims()[ndims - 1];
+    jcp.kh = is_1d ? 1 : weights_d.dims()[with_groups + ndims - 2];
+    jcp.kw = weights_d.dims()[with_groups + ndims - 1];
+    jcp.t_pad = is_1d ? 0 : cd.padding[0][ndims - 4];
+    jcp.l_pad = cd.padding[0][ndims - 3];
+    jcp.stride_h = is_1d ? 1 : cd.strides[ndims - 4];
+    jcp.stride_w = cd.strides[ndims - 3];
     jcp.src_fmt = src_d.format();
     jcp.with_bias = cd.bias_desc.format != memory_format::undef;
 
-    jcp.ur_h = 1;
+    jcp.ur_h = 1; /* no code-unrolling by h so far */
 
-    jcp.dilate_h = cd.dilates[0];
-    jcp.dilate_w = cd.dilates[1];
+    jcp.dilate_h = is_1d ? 0 : cd.dilates[ndims - 4];
+    jcp.dilate_w = cd.dilates[ndims - 3];
 
     jcp.signed_input = (src_d.data_type() == data_type::s8) ? true : false;
     jcp.is_depthwise = true && with_groups && everyone_is(1, jcp.ic, jcp.oc);
@@ -909,7 +955,7 @@ status_t jit_avx512_core_x8s8s32x_fwd_kernel::init_conf(jit_conv_conf_t &jcp,
             /* For non grouped convolutions, pad channels by 16 if needed */
             jcp.oc = rnd_up(jcp.oc, jcp.oc_block);
             jcp.ic = rnd_up(jcp.ic, jcp.ic_block);
-        } else if (jcp.ngroups != 1 && jcp.ic % jcp.ic_block != 0) {
+        } else if (!is_1d && jcp.ngroups != 1 && jcp.ic % jcp.ic_block != 0) {
             /* For grouped convolutions, MKL-DNN doesn't support padding.
                Use Ymm when channels per group is multiple of 8,
                Xmm when channels per group is multiple of 4 */
@@ -928,40 +974,49 @@ status_t jit_avx512_core_x8s8s32x_fwd_kernel::init_conf(jit_conv_conf_t &jcp,
 
     jcp.ver = mayiuse(avx512_core_vnni) ? ver_vnni : ver_avx512_core;
     jcp.is_fast_depthwise = true && jcp.is_depthwise && jcp.ver == ver_vnni
-        && jcp.ngroups % jcp.ch_block == 0; // for groups not multiple of 16 would require byte masking for load from src
+            && jcp.ngroups % jcp.ch_block == 0; // for groups not multiple of 16
+                                                // would require byte masking
+                                                // for load from src
+    jcp.is_resrc_depthwise = jcp.is_depthwise && jcp.stride_w < jcp.kw
+            && jcp.kw < 4 && jcp.dilate_w == 0;
     if (jcp.is_depthwise) {
-        jcp.max_regs_ur = jcp.is_fast_depthwise
-            ? (jcp.signed_input ? 27 : 28)
-            : (jcp.signed_input ? 29 : 30);
+        jcp.max_regs_ur = 31 - jcp.is_fast_depthwise - !jcp.is_resrc_depthwise
+                - 2 * jcp.signed_input - (jcp.ver != ver_vnni);
     } else {
         jcp.max_regs_ur = jcp.ver == ver_vnni ? 31 : 28;
     }
 
+    auto src_format = pick(ndims - 3, nwc, nhwc);
+    auto dst_format = pick(ndims - 3, nwc, nhwc);
+#define pick_signed(fmt) (jcp.signed_input ? fmt##_s8s8 : fmt)
     memory_format_t w_format;
     if (jcp.ic_block == 16 || jcp.ch_block == 16) {
-        w_format = with_groups
-            ? (jcp.is_depthwise ? (jcp.signed_input ? Goihw16g_s8s8 : Goihw16g)
-                    : (jcp.signed_input) ? gOIhw4i16o4i_s8s8 : gOIhw4i16o4i)
-            : (jcp.signed_input) ? OIhw4i16o4i_s8s8 : OIhw4i16o4i;
-     /* Non-grouped conv will always be padded by 16*/
+        w_format = is_1d ?
+                (with_groups ? (jcp.is_depthwise ? pick_signed(Goiw16g) :
+                                                   pick_signed(gOIw4i16o4i)) :
+                               pick_signed(OIw4i16o4i)) :
+                (with_groups ? (jcp.is_depthwise ? pick_signed(Goihw16g) :
+                                                   pick_signed(gOIhw4i16o4i)) :
+                               pick_signed(OIhw4i16o4i));
+        /* Non-grouped conv will always be padded by 16*/
     } else if (with_groups && jcp.ic_block == 8) {
-        w_format = jcp.signed_input ? gOIhw2i8o4i_s8s8 : gOIhw2i8o4i;
+        w_format = pick_signed(gOIhw2i8o4i);
     } else {
-        w_format = jcp.signed_input ? gOIhw4o4i_s8s8 : gOIhw4o4i;
+        w_format = pick_signed(gOIhw4o4i);
     }
+#undef pick_signed
 
     if (weights_d.format() == any)
         CHECK(weights_pd.set_format(w_format));
     if (weights_d.format() != w_format)
         return status::unimplemented;
-
     if (dst_d.format() == any)
-        CHECK(dst_pd.set_format(nhwc));
-    if (dst_d.format() != nhwc)
+        CHECK(dst_pd.set_format(dst_format));
+    if (dst_d.format() != dst_format)
         return status::unimplemented;
     if (src_d.format() == any)
-        CHECK(src_pd.set_format(nhwc));
-    if (src_d.format() != nhwc)
+        CHECK(src_pd.set_format(src_format));
+    if (src_d.format() != src_format)
         return status::unimplemented;
     if (jcp.with_bias) {
         if (bias_d.format() == any)
@@ -984,39 +1039,75 @@ status_t jit_avx512_core_x8s8s32x_fwd_kernel::init_conf(jit_conv_conf_t &jcp,
     jcp.nb_oc = jcp.oc / jcp.oc_block;
 
     // Try to use 4 channel-groups at a time to avoid false sharing (depthwise)
-    jcp.nb_ch_blocking = jcp.is_depthwise
-        ? (jcp.nb_ch % 4 == 0 ? 4 : jcp.nb_ch % 2 == 0 ? 2 : 1)
-        : 1;
+    int nb_ch_blocking = 4;
+    for ( /* init above */ ; nb_ch_blocking > 1; nb_ch_blocking--)
+        if (jcp.nb_ch % nb_ch_blocking == 0)
+            break;
+    jcp.nb_ch_blocking = jcp.is_depthwise ? nb_ch_blocking : 1;
 
     // If OC blocking is incommensurate with the number of OC blocks (general
     // requirement for all convolutions), or if it results in an unrolling
     // factor smaller than the left padding (special requirement for SSD:fc6),
     // then search for a smaller OC blocking that satisfies both constraints.
-    jcp.nb_oc_blocking = nstl::min(4, jcp.nb_oc);
-    for (; jcp.nb_oc_blocking > 1; jcp.nb_oc_blocking--) {
-        int ur_w = jcp.max_regs_ur / (jcp.nb_oc_blocking + 1);
-        if (jcp.nb_oc % jcp.nb_oc_blocking == 0
-                && (jcp.l_pad <= ur_w
-                         && IMPLICATION(jcp.ow != 1, jcp.ow % ur_w != 1)))
+    auto is_oc_blocking_ok = [&](int block) {
+        int ur_w = nstl::min(jcp.ow, jcp.max_regs_ur / (block + 1));
+        return jcp.nb_oc % block == 0
+                && jcp.l_pad <= ur_w && jcp.ow % ur_w != 1;
+    };
+
+    // choose nb_oc work chunk size for distribution within threads
+    int max_threading_nb_oc_chunk = 4;
+    // Performance improvements for googlenet_v3 and resnet_50 with mb = 1;
+    // TODO: generalize this condition and rewrite it in appropriate manner
+    if (jcp.ver == ver_vnni && jcp.mb == 1 && jcp.kh == 3 && jcp.kw == 3
+            && jcp.stride_w == 1 && jcp.ic % 64 == 0)
+        max_threading_nb_oc_chunk = 2;
+    jcp.nb_oc_blocking_thr_chunk =
+        nstl::min(max_threading_nb_oc_chunk, jcp.nb_oc);
+    for (; jcp.nb_oc_blocking_thr_chunk > 1; jcp.nb_oc_blocking_thr_chunk--) {
+        if (is_oc_blocking_ok(jcp.nb_oc_blocking_thr_chunk))
             break;
     }
 
-    jcp.ur_w = jcp.max_regs_ur
-            / (jcp.is_depthwise ? jcp.nb_ch_blocking : jcp.nb_oc_blocking + 1);
+    // choose oc blocking for computational kernel
+    jcp.nb_oc_blocking = jcp.nb_oc_blocking_thr_chunk;
+    // Performance improvements for googlenet_v3 with mb = 1;
+    // TODO: generalize this condition and rewrite it in appropriate manner
+    const int size_treshold_for_nb_oc_blocking_reduction = 17;
+    if (jcp.mb == 1 && jcp.ow <= size_treshold_for_nb_oc_blocking_reduction
+            && jcp.stride_w == 1
+            && !(jcp.kh == 1 && jcp.kw == 3)
+            && !(jcp.kh >= 7 && jcp.oc % 64 == 0)) {
+        const int max_nb_oc_blocking = 2;
+        jcp.nb_oc_blocking = nstl::min(max_nb_oc_blocking, jcp.nb_oc);
+        for (; jcp.nb_oc_blocking > 1; jcp.nb_oc_blocking--)
+            if (jcp.nb_oc_blocking_thr_chunk % jcp.nb_oc_blocking == 0
+                && is_oc_blocking_ok(jcp.nb_oc_blocking))
+                break;
+    }
+
+    if (jcp.is_resrc_depthwise)
+        jcp.ur_w = (jcp.max_regs_ur - jcp.kw + jcp.stride_w)
+                / (jcp.nb_ch_blocking + jcp.stride_w);
+    else
+        jcp.ur_w
+                = jcp.max_regs_ur / (jcp.is_depthwise ? jcp.nb_ch_blocking
+                                                      : jcp.nb_oc_blocking + 1);
     if (jcp.ow < jcp.ur_w)
         jcp.ur_w = jcp.ow;
     jcp.ur_w_tail = jcp.ow % jcp.ur_w;
 
     jcp.ow_block = jcp.ow;
-    int base_work_amount
-            = jcp.mb * jcp.nb_ch * jcp.oh * (jcp.nb_oc / jcp.nb_oc_blocking);
+    int base_work_amount = jcp.mb * jcp.nb_ch * jcp.oh
+                         * (jcp.nb_oc / jcp.nb_oc_blocking_thr_chunk);
     float best_thr_eff
             = (float)base_work_amount / rnd_up(base_work_amount, nthreads);
     int max_nb_ow = div_up(jcp.ow, 2 * jcp.ur_w);
     for (int nb_ow = 1; nb_ow <= max_nb_ow; nb_ow++) {
         int ow_block
                 = nstl::min(rnd_up(div_up(jcp.ow, nb_ow), jcp.ur_w), jcp.ow);
-        if (ow_block < jcp.nb_oc_blocking * jcp.oc_block && best_thr_eff > 0.8f)
+        if (ow_block < jcp.nb_oc_blocking_thr_chunk * jcp.oc_block
+             && best_thr_eff > 0.8f)
             break;
         if (div_up(jcp.ow, ow_block) != nb_ow)
             continue;

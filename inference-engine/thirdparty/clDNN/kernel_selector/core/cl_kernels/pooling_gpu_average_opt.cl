@@ -95,7 +95,7 @@ KERNEL(pooling_gpu_average_opt)(const __global float* input, __global float* out
 
         if ((local_id < TILE_WIDTH) && (offset_x < INPUT0_SIZE_X))
         {
-            output[offset + y * INPUT0_SIZE_X + offset_x] = ACTIVATION(res, NL_M ,NL_N);
+            output[offset + y * INPUT0_SIZE_X + offset_x] = ACTIVATION(res, ACTIVATION_PARAMS);
         }
 
         first = (first + 1) % 3;

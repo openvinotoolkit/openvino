@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,49 +11,42 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
 #include "common_kernel_base.h"
- 
-namespace kernel_selector 
-{    
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // permute_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct permute_params : public base_params
-    {
-        permute_params(): base_params(KernelType::PERMUTE) {}
+#include <vector>
 
-        std::vector<uint16_t> order;
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// permute_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct permute_params : public base_params {
+    permute_params() : base_params(KernelType::PERMUTE) {}
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            return base_params::GetParamsKey();
-        }
-    };
+    std::vector<uint16_t> order;
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // permute_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct permute_optional_params : optional_params
-    {
-        permute_optional_params() : optional_params(KernelType::PERMUTE) {}
-    };
+    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // PermuteKernelRef
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class PermuteKernelRef : public common_kernel_base
-    {
-    public:
-        PermuteKernelRef() : common_kernel_base("permute_ref") {}
-        virtual ~PermuteKernelRef() {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// permute_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct permute_optional_params : optional_params {
+    permute_optional_params() : optional_params(KernelType::PERMUTE) {}
+};
 
-        virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PermuteKernelRef
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class PermuteKernelRef : public common_kernel_base {
+public:
+    PermuteKernelRef() : common_kernel_base("permute_ref") {}
+    virtual ~PermuteKernelRef() {}
 
-    protected:
-        virtual ParamsKey GetSupportedKey() const override;
-    };
-}
+    JitConstants GetJitConstants(const permute_params& params) const;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

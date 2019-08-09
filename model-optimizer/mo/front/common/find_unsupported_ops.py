@@ -33,7 +33,7 @@ def find_unsupported_ops(graph: Graph):
         node = Node(graph, node_name)
         # op node that produce non FP32 data or has no type are considered unsupported
         if node.kind == 'op':
-            if node.has_valid('type') or (node.has_valid('op') and node.op == 'OpOutput'):
+            if node.has_valid('type') or (node.has_valid('op') and node.op == 'Result'):
                 for out_data_node in node.out_nodes().values():
                     if out_data_node.has_valid('data_type') and out_data_node.data_type != np.float32:
                         log.info('Node "{}" produces output as non FP32. Consider it unsupported'.format(node_name))

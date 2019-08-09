@@ -22,6 +22,10 @@
 #define EXPAND_FORMATS(src, conv1_weights, conv1_bias, conv2_weights, conv2_bias, dst) \
     { mkldnn::memory::format::src, mkldnn::memory::format::conv1_weights, mkldnn::memory::format::conv1_bias, \
     mkldnn::memory::format::conv2_weights, mkldnn::memory::format::conv2_bias, mkldnn::memory::format::dst }
+#elif defined(DEF)
+#define EXPAND_FORMATS(src, offsets, weights, bias, dst) \
+    { mkldnn::memory::format::src, mkldnn::memory::format::offsets, mkldnn::memory::format::weights, \
+    mkldnn::memory::format::bias, mkldnn::memory::format::dst }
 #else
 #define EXPAND_FORMATS(src, weights, bias, dst) \
     { mkldnn::memory::format::src, mkldnn::memory::format::weights, \
@@ -33,6 +37,8 @@
 #define ENGINE mkldnn::engine::kind::cpu
 #if defined(BIN)
 #define ALGORITHM mkldnn::binary_convolution_direct
+#elif defined(DEF)
+#define ALGORITHM mkldnn::deformable_convolution_direct
 #else
 #define ALGORITHM mkldnn::convolution_direct
 #endif
@@ -111,6 +117,11 @@
         str, binary_convolution_test, ::testing::Values(__VA_ARGS__))
 #define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
+#elif defined(DEF)
+#define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_CASE_P( \
+        str, deformable_convolution_test, ::testing::Values(__VA_ARGS__))
+#define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
+        CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
 #else
 #define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_CASE_P( \
         str, convolution_test, ::testing::Values(__VA_ARGS__))
@@ -186,6 +197,11 @@
     {__VA_ARGS__} }
 #endif
 #endif
+#elif defined(DEF)
+#define PARAMS(src, offsets, weights, bias, dst, ...) \
+    test_deformable_convolution_params_t { ENGINE, ALGORITHM, \
+    EXPAND_FORMATS(src, offsets, weights, bias, dst), \
+    {__VA_ARGS__} }
 #else
 #define PARAMS(src, weights, bias, dst, ...) \
     test_convolution_params_t { ENGINE, ALGORITHM, \
@@ -212,8 +228,8 @@
 #include "convolution_attr.h"
 #else
 
-#if !defined(BIN)
-#include "convolution_simple_small.h"
+#if !defined(BIN) && !defined(DEF)
+#include "convolution_simple.h"
 #endif
 
 #endif

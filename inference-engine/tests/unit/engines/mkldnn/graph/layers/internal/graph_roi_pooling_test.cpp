@@ -49,17 +49,17 @@ void ref_roipooling(const InferenceEngine::TBlob<data_t> &src, const InferenceEn
     const data_t* src_data = src.readOnly();
     const data_t* src_roi = roi.readOnly();
 
-    int C = src.dims()[1];
-    int H = src.dims()[2];
-    int W = src.dims()[3];
+    int C = src.getTensorDesc().getDims()[1];
+    int H = src.getTensorDesc().getDims()[2];
+    int W = src.getTensorDesc().getDims()[3];
 
-    int ROIS = roi.dims()[0];
+    int ROIS = roi.getTensorDesc().getDims()[0];
 
     double spatial_scale = params.spatial_scale;
     int pooled_h = params.pooled_h;
     int pooled_w = params.pooled_w;
 
-    data_t *arg_max_ = new data_t[dst_blob.size()];
+    auto *arg_max_ = new data_t[dst_blob.size()];
 
     for (size_t i = 0; i < dst_blob.size(); i++) {
         arg_max_[i] = -1;
@@ -69,11 +69,11 @@ void ref_roipooling(const InferenceEngine::TBlob<data_t> &src, const InferenceEn
     int roi_off;
 
     for (int n = 0; n < ROIS; ++n) {
-        if(roi.dims().size() == 4) {
-            roi_off = n*roi.dims()[1]*roi.dims()[2]*roi.dims()[3];
+        if(roi.getTensorDesc().getDims().size() == 4) {
+            roi_off = n*roi.getTensorDesc().getDims()[1]*roi.getTensorDesc().getDims()[2]*roi.getTensorDesc().getDims()[3];
         }
         else {
-            roi_off = n*roi.dims()[1];
+            roi_off = n*roi.getTensorDesc().getDims()[1];
         }
 
         const data_t* src_roi_ptr = &src_roi[roi_off];
@@ -118,8 +118,8 @@ void ref_roipooling(const InferenceEngine::TBlob<data_t> &src, const InferenceEn
 
                     bool is_empty = (hend <= hstart) || (wend <= wstart);
 
-                    const int pool_index = n*dst_blob.dims()[2]*dst_blob.dims()[1]*dst_blob.dims()[0] +
-                            c*dst_blob.dims()[1]*dst_blob.dims()[0] + ph*dst_blob.dims()[0] + pw;
+                    const int pool_index = n*dst_blob.getTensorDesc().getDims()[3]*dst_blob.getTensorDesc().getDims()[2]*dst_blob.getTensorDesc().getDims()[1] +
+                            c*dst_blob.getTensorDesc().getDims()[3]*dst_blob.getTensorDesc().getDims()[2] + ph*dst_blob.getTensorDesc().getDims()[3] + pw;
 
                     if (is_empty) {
                         dst[pool_index] = 0;
@@ -128,8 +128,8 @@ void ref_roipooling(const InferenceEngine::TBlob<data_t> &src, const InferenceEn
 
                     for (int h = hstart; h < hend; ++h) {
                         for (int w = wstart; w < wend; ++w) {
-                            int src_index_data = roi_batch_ind*src.dims()[1]*src.dims()[2]*src.dims()[3] +
-                                                 c*src.dims()[2]*src.dims()[3] + h*src.dims()[3] + w;
+                            int src_index_data = roi_batch_ind*src.getTensorDesc().getDims()[1]*src.getTensorDesc().getDims()[2]*src.getTensorDesc().getDims()[3] +
+                                                 c*src.getTensorDesc().getDims()[2]*src.getTensorDesc().getDims()[3] + h*src.getTensorDesc().getDims()[3] + w;
                             data_t batch_data = src_data[src_index_data];
 
                             if (batch_data > dst[pool_index]) {
@@ -250,18 +250,18 @@ protected:
             }
             InferenceEngine::SizeVector dims_src = {p.in1.n, p.in1.c, p.in1.h, p.in1.w};
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
-            InferenceEngine::TBlob<float>* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
+            auto* srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
 
             if (srcPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
 
             InferenceEngine::SizeVector dims_roi = {p.in2.n, p.in2.c};
 
-            InferenceEngine::Blob::Ptr roi = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NC, dims_roi);
+            InferenceEngine::Blob::Ptr roi = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_roi, InferenceEngine::NC});
             roi->allocate();
             fill_data(roi->buffer(), roi->size());
 

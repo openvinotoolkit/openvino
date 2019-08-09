@@ -5,14 +5,12 @@ cmake_minimum_required (VERSION 3.3)
 project (ie_python_api)
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
-if (CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
-    set (ARCH armv7l)
-elseif ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-    set (ARCH intel64)
-else()
-    set (ARCH ia32)
+string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
+if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
+    set(ARCH intel64)
+elseif(ARCH STREQUAL "i386")
+    set(ARCH ia32)
 endif()
-
 
 # in case of independent python api build (out of Inference Engine root Cmake)
 if (NOT(IE_MAIN_SOURCE_DIR))
@@ -51,3 +49,4 @@ find_package (InferenceEngine REQUIRED)
 
 set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory (src/openvino/inference_engine)
+add_subdirectory (src/openvino/tools/statistics_collector)

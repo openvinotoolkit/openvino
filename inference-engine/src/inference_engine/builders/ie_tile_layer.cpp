@@ -64,7 +64,7 @@ Builder::TileLayer& Builder::TileLayer::setAxis(size_t axis) {
     return *this;
 }
 
-REG_CONVERTER_FOR(SoftMax, [](const CNNLayerPtr& cnnLayer, Builder::Layer& layer) {
+REG_CONVERTER_FOR(Tile, [](const CNNLayerPtr& cnnLayer, Builder::Layer& layer) {
     layer.getParameters()["axis"] = static_cast<size_t>(cnnLayer->GetParamAsUInt("axis"));
     layer.getParameters()["tiles"] = static_cast<size_t>(cnnLayer->GetParamAsUInt("tiles"));
 });

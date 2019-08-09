@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016-2018 Intel Corporation
+* Copyright 2016-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -2332,8 +2332,8 @@ const xbyak_gemm *get_xbyak_gemm(
 void sgemm_nocopy_driver(const char *transa,
         const char *transb, int m, int n, int k, const float *alpha,
         const float *a, dim_t lda, const float *b, dim_t ldb, const float *beta,
-        float *c, dim_t ldc, const float *bias, float *ws)
-{
+        float *c, dim_t ldc, const float *bias, float *ws) {
+
     bool isTransA = (*transa == 'T' || *transa == 't');
     bool isTransB = (*transb == 'T' || *transb == 't');
 
@@ -2444,8 +2444,8 @@ mkldnn_status_t jit_avx_gemm_f32(
         const char *transa, const char *transb,
         const int *p_m, const int *p_n, const int *p_k, const float *p_alpha,
         const float *A, const int *p_lda, const float *B, const int *p_ldb,
-        const float *p_beta, float *C, const int *p_ldc, const float *bias)
-{
+        const float *p_beta, float *C, const int *p_ldc, const float *bias) {
+
     using namespace mkldnn::impl::utils;
     using namespace avx_gemm_f32;
     using namespace gemm_utils;
@@ -2682,7 +2682,7 @@ mkldnn_status_t jit_avx_gemm_f32(
                                 + (dim_t)n1 * MB;
 
                             sum_two_matrices(myM, n2, myC, MB,
-                                             &C[m_from + (n_from + n1) * ldc], ldc);
+                                    &C[m_from + (n_from + n1) * ldc], ldc);
                         }
                     }
                 }

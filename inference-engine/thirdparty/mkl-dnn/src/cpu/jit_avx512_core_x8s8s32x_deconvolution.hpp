@@ -225,12 +225,16 @@ struct _jit_avx512_core_x8s8s32x_deconvolution_fwd_t : public cpu_primitive_t {
 
     virtual void execute(event_t *e) const
     {
-        execute_forward();
+        if(pd()->ndims() == 3)
+            execute_forward_1d();
+        else
+            execute_forward_2d();
         e->set_state(event_t::ready);
     }
 
 private:
-    void execute_forward() const;
+    void execute_forward_1d() const;
+    void execute_forward_2d() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
     jit_avx512_core_x8s8s32x_deconv_fwd_kernel *kernel_;
 };

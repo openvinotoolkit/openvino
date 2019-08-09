@@ -18,7 +18,6 @@ import logging as log
 from collections import defaultdict
 from copy import copy
 
-import networkx as nx
 import numpy as np
 
 from mo.front.onnx.extractors.utils import get_backend_pad
@@ -26,7 +25,6 @@ from mo.graph.graph import Node, Graph, add_opoutput
 from mo.middle.passes.eliminate import reverse_dfs
 from mo.utils import class_registration
 from mo.utils.error import Error
-from mo.utils.graph import dfs
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 
@@ -186,6 +184,7 @@ def update_ie_fields(attrs: dict, ir_version = None):
                         ('local-size', 'local_size'),
                         'region',
                         'knorm',
+                        'bias',
 
                         'num_classes',
                         'keep_top_k',
@@ -235,6 +234,7 @@ def update_ie_fields(attrs: dict, ir_version = None):
 
                         ('type', 'norm_type'),
                         'eps',
+                        'eps_mode',
                         'across_spatial',
                         'channel_shared',
 
@@ -271,7 +271,8 @@ def update_ie_fields(attrs: dict, ir_version = None):
                         ('protobuf', lambda node: node_defs_to_str(node) if node.has('pbs') else None),
                         {'custom_attributes': None},
                         ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims])) if node.has_valid('stride') else None),
-                        ('kernel', lambda node: ','.join(map(str, node['kernel_spatial'])) if node.has_valid('kernel_spatial') else None),
+                        ('kernel', lambda node: ','.join(map(str, node['kernel_spatial'])) if node.has_valid(
+                            'kernel_spatial') else None),
                         ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims])) if node.has_valid('dilation') else None),
 
                         ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid('pad') else None),
@@ -301,7 +302,8 @@ def update_ie_fields(attrs: dict, ir_version = None):
                         'resample_type',
                         'factor',
                         'coeff',
-                        ('ratio', lambda node: attr_getter(node, 'ratio'))
+                        ('ratio', lambda node: attr_getter(node, 'ratio')),
+                        'size',
                     ],
                     []),
                 '@ports',
@@ -462,7 +464,8 @@ def update_ie_fields(attrs: dict, ir_version = None):
                         'resample_type',
                         'factor',
                         'coeff',
-                        ('ratio', lambda node: attr_getter(node, 'ratio'))
+                        ('ratio', lambda node: attr_getter(node, 'ratio')),
+                        'size',
                     ],
                     []),
                 '@ports',
@@ -472,6 +475,8 @@ def update_ie_fields(attrs: dict, ir_version = None):
     ir_version_mapping = {
         # Default behaviour is IR V3 attributes
         None: ir_v3_attrs,
+        10: ir_v3_attrs,
+        6: ir_v3_attrs,
         5: ir_v3_attrs,
         4: ir_v3_attrs,
         3: ir_v3_attrs,
@@ -512,8 +517,8 @@ def create_tensor_nodes(graph: Graph):
         # below)
         graph.node[node]['kind'] = 'op'
 
-        # the OpOutput nodes are just marker operations so we don't need to create output tensors for them
-        if node_attr['op'] == 'OpOutput':
+        # the Result nodes are just marker operations so we don't need to create output tensors for them
+        if node_attr['op'] == 'Result':
             continue
         # out_edges is a list of (u, v, d), where d is a dict of edge attributes
         out_edges = list(graph.out_edges(node, data=True))
@@ -568,10 +573,9 @@ def create_tensor_nodes(graph: Graph):
                     dict(kind='data', value=value, shape=shape, data_type=None, infer=None)))
                 edge_attrs = {'in': port_index, 'name': value_attr}
                 edge_attrs.update(attrs)
-                graph.add_edge(input_node_id, node, **edge_attrs)
                 op_node = Node(graph, node)
-                if not op_node.has_port(port_type='in', idx=edge_attrs['in']):
-                    op_node.add_input_port(edge_attrs['in'])
+                op_node.add_input_port(edge_attrs['in'], skip_if_exist=True)
+                graph.add_edge(input_node_id, node, **edge_attrs)
                 del node_attr[value_attr]
     return graph
 
@@ -596,8 +600,8 @@ def extract_node_attrs(graph: Graph, extractor: callable):
     """
     unsupported = UnsupportedOps(graph)
     for node, attrs in list(graph.nodes(data=True)):
-        # the 'OpOutput' operation is a virtual operation that is added after the output nodes
-        if 'op' in attrs and attrs['op'] == 'OpOutput':
+        # the 'Result' operation is a virtual operation that is added after the output nodes
+        if 'op' in attrs and attrs['op'] == 'Result':
             supported, new_attrs = True, {'in_attrs': list(), 'out_attrs': list()}
         else:
             try:
@@ -676,6 +680,18 @@ def get_node_id_with_ports(graph: Graph, name: str):
     return node_id, direction, port
 
 
+def get_new_placeholder_name(node_id: str, is_out_port: bool = False, port: int = 0):
+    """
+    Forms a name of new placeholder created by cutting a graph
+    :param node_id: a node name that is cut
+    :param is_out_port: it is True iff output port is cut
+    :param port: a port number
+    :return: a name of new placeholder created by cutting a graph
+    """
+    port_type = '_out' if is_out_port else ''
+    return '{}/placeholder{}_port_{}'.format(node_id, port_type, port)
+
+
 def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.ndarray], freeze_placeholder: dict):
     """
     Restructures user input cutting request. Splits ports out of node names. Transforms node names to node ids.
@@ -713,18 +729,24 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
     """
     _input_shapes = defaultdict(list)
     _freeze_placeholder = dict()
+    _freeze_new_placeholder = defaultdict(list)
+
     # freeze placeholder restructure
     # Replaces placeholder name with placeholder id. Raises if there is no placeholder with such ID
-    placeholders_ids = graph.get_nodes_with_attributes(op='Placeholder')
+    placeholders_ids = graph.get_nodes_with_attributes(op='Parameter')
     if freeze_placeholder is None:
         _freeze_placeholder = None
     else:
         for placeholder_name, value in freeze_placeholder.items():
-            placeholder_id = graph.get_node_id_by_name(placeholder_name)
-            if placeholder_id not in placeholders_ids:
-                raise Error(
-                    'There is no placeholder with name {}. Can not freeze it with value.'.format(placeholder_name))
-            _freeze_placeholder[placeholder_id] = value
+            placeholder_id, direction, port = get_node_id_with_ports(graph, placeholder_name)
+            if port is None and placeholder_id in placeholders_ids:
+                _freeze_placeholder[placeholder_id] = value
+            else:
+                # collect possible new placeholders that will be frozen with values
+                is_out_port = (direction == 'out')
+                new_placeholder_id = get_new_placeholder_name(placeholder_id, is_out_port, port)
+                _freeze_new_placeholder[placeholder_id].append(
+                    {'direction' : direction, 'port' : port, 'name' : placeholder_name, 'id' : new_placeholder_id, 'value' : value})
 
     # input user shapes restructure
     if input_user_shapes is None:
@@ -761,6 +783,27 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
             # Can not deduce which placeholder shape to override
             raise Error('No or multiple placeholders in the model, but only one shape is provided, cannot set it. ' +
                         refer_to_faq_msg(32))
+
+    # check that shape is specified for every new placeholder in _input_shapes
+    # and update _freeze_placeholder with new possible placeholders created by cutting a graph
+    for node_id in _freeze_new_placeholder:
+        new_phs = _freeze_new_placeholder[node_id]
+        if node_id not in _input_shapes:
+            raise Error(
+                'Shape is not specified for the placeholder with name {} through --input_shape option.'.format(new_phs[0]['name']))
+        _ins = _input_shapes[node_id] # list
+        for new_ph in new_phs:
+            name = new_ph['name']
+            direction = new_ph['direction']
+            port = new_ph['port']
+            placeholder_id = new_ph['id']
+            value = new_ph['value']
+            if any([_in['shape'] is not None and direction in _in and _in[direction] == port for _in in _ins]):
+                _freeze_placeholder[placeholder_id] = value
+            else:
+                raise Error(
+                    'Shape is not specified for the placeholder with name {} through --input_shape option.'.format(name))
+
     return _input_shapes, _freeze_placeholder
 
 
@@ -817,19 +860,21 @@ def add_output_ops(graph: Graph, user_defined_outputs: dict, inputs: dict = None
     # func sets all layers as outputs in case of empty user_defined_outputs list (it's impossible to reach by cli)
     assert not (isinstance(user_defined_outputs, list) and not len(user_defined_outputs))
 
-    # remove previously generated OpOutput if any
+    # remove previously generated Result if any
     graph.remove_nodes_from([node_name for node_name in graph.nodes() if
-                             'op' in graph.node[node_name] and graph.node[node_name]['op'] == 'OpOutput'])
+                             'op' in graph.node[node_name] and graph.node[node_name]['op'] == 'Result'])
 
     if user_defined_outputs is None:
-        inputs = graph.get_nodes_with_attributes(op='Placeholder') if inputs is None else list(inputs.keys())
+        inputs = graph.get_nodes_with_attributes(op='Parameter') if inputs is None else list(inputs.keys())
         input_reachable, dead_outputs, undead_outputs = set(), [], []
         for input in inputs:
-            dfs(graph=graph, node_name=input, visited=input_reachable)
+            graph.dfs(node_name=input, visited=input_reachable)
         for node_name in list(graph.nodes()):
             if len(list(graph.out_edges(node_name))) == 0:
                 if node_name in input_reachable:
-                    sinks.append(add_opoutput(graph, node_name, 0, False))
+                    out_ports_count = Node(graph, node_name).out_ports_count if Node(graph, node_name).has_valid('out_ports_count') else 1
+                    for i in range(out_ports_count):
+                        sinks.append(add_opoutput(graph, node_name, i, False))
                     undead_outputs.append(node_name)
                 else:
                     dead_outputs.append(node_name)
@@ -871,7 +916,7 @@ def set_is_input(graph: Graph, placeholders: list, is_input: bool):
 
 def check_input(graph: Graph, node_name: str):
     node = Node(graph, node_name)
-    if node['kind'] == 'op' and node['op'] == 'Placeholder' and not len(graph.in_edges(node_name)) and not node[
+    if node['kind'] == 'op' and node['op'] == 'Parameter' and not len(graph.in_edges(node_name)) and not node[
         'is_input']:
         raise Error("--input parameter was provided. Other inputs are needed for output computation. "
                     "Provide more inputs or choose another place to cut the net. " + refer_to_faq_msg(27))
@@ -883,13 +928,23 @@ def split_node_in_port(node_id: str):
         separator = ':'
         parts = node_id.split(separator)
         if len(parts) > 1:
-            node_name = separator.join(parts[1:])
-            try:
-                port = int(parts[0])
-                return node_name, port
-            except ValueError as err:
-                log.warning('Didn\'t recognize port:node format for "{}" because port is not an integer.'.format(
+            if parts[0].isdigit():
+                node_name = separator.join(parts[1:])
+                try:
+                    port = int(parts[0])
+                    return node_name, port
+                except ValueError as err:
+                    log.warning('Didn\'t recognize port:node format for "{}" because port is not an integer.'.format(
                     node_id))
+            else:
+                node_name = separator.join(parts[:-1])
+                try:
+                    port = int(parts[-1])
+                    return node_name, port
+                except ValueError as err:
+                    log.warning('Didn\'t recognize node:port format for "{}" because port is not an integer.'.format(
+                    node_id))
+
     return node_id, None
 
 
@@ -951,10 +1006,10 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False, 
     :return: id of new Input operation
     """
     # We import it here because Op imports add_attrs_props and update_ie_fields from this file
-    from mo.ops.input import Input
-    port_type = '_out' if is_out_port else ''
-    input_op = Input(graph, dict(shape=shape, initial_node_name=node_id,
-                                 name='{}/placeholder{}_port_{}'.format(node_id, port_type, port)))
+    from extensions.ops.parameter import Parameter
+    input_op = Parameter(graph, dict(shape=shape, initial_node_name=node_id,
+                                     name=get_new_placeholder_name(node_id, is_out_port, port)))
+
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],
                   'fw_tensor_debug_info': [(Node(graph, node_id).soft_get('name'), port)],
                   'data_attrs': ['fw_tensor_debug_info']}
@@ -1033,22 +1088,22 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
     This function add user defined input operations.
     For cutting without port:
     Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2]}} =>
-    Op_1,  New_input (op=Placeholder, shape=[1, 2]) -> Op_2 -> output
+    Op_1,  New_input (op=Parameter, shape=[1, 2]) -> Op_2 -> output
 
     For cutting with input port:
     Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2], 'in': 0}} =>
-    Op_1,  New_input (op=Placeholder, shape=[1, 2]) -> Op_2 -> output
+    Op_1,  New_input (op=Parameter, shape=[1, 2]) -> Op_2 -> output
 
     For cutting with output port:
     Op_1 -> Op_2 -> output, user_defined_inputs = {'Op_2': {'shape':[1, 2], 'out': 0}} =>
-    Op_1 -> Op_2, New_input (op=Placeholder, shape=[1, 2]) -> output
+    Op_1 -> Op_2, New_input (op=Parameter, shape=[1, 2]) -> output
 
     For case with before_infer=False data nodes are added to this schemes.
     """
     inputs = []
-    set_is_input(graph, graph.get_nodes_with_attributes(op='Placeholder'), False)
+    set_is_input(graph, graph.get_nodes_with_attributes(op='Parameter'), False)
     if user_defined_inputs is None:
-        inputs = graph.get_nodes_with_attributes(op='Placeholder')
+        inputs = graph.get_nodes_with_attributes(op='Parameter')
     else:
         # cutting the net by inputs
         assert isinstance(user_defined_inputs, dict)
@@ -1078,11 +1133,11 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                         raise Error('Input port index {} is out of number of available input ports for node "{}". ' +
                                     refer_to_faq_msg(29), port, node_id)
 
-                # specific Placeholder case
-                if smart_node.op == 'Placeholder':
+                # specific Parameter case
+                if smart_node.op == 'Parameter':
                     if port is not None:
                         raise Error(
-                            'Placeholder node "{}" doesn\'t have input port, but input port {} was provided. ' +
+                            'Parameter node "{}" doesn\'t have input port, but input port {} was provided. ' +
                             refer_to_faq_msg(28), node_id, port)
                     if shape is not None:
                         graph.node[node_id]['shape'] = shape
@@ -1116,7 +1171,7 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
     if len(inputs):
         set_is_input(graph, inputs, True)
         # Check if there are inputs that are not listed in user_defined_inputs and are needed to calculate outputs
-        outputs = graph.get_nodes_with_attributes(op='OpOutput')
+        outputs = graph.get_nodes_with_attributes(op='Result')
         visited = set()
         for output_name in outputs:
             reverse_dfs(graph, output_name, check_input, visited)
@@ -1127,10 +1182,11 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
 def remove_output_ops(graph: Graph):
     for node in list(graph.nodes()):
         node = Node(graph, node)
-        if node.has_valid('op') and node.op == 'OpOutput':
+        if node.has_valid('op') and node.op == 'Result':
             if len(node.in_nodes()) > 0:
                 assert (len(node.in_nodes()) == 1)
-            graph.remove_node(node.id)
+            if not graph.graph['cmd_params'].generate_experimental_IR_V10:
+                graph.remove_node(node.id)
 
 
 class FrontExtractorOp(object):

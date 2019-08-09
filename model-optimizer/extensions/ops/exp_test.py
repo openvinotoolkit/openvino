@@ -25,7 +25,7 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {'node_1': {'op': 'Identity', 'kind': 'op'},
                     'exp': {'op': 'Exp', 'kind': 'op'},
                     'node_3': {'op': 'Identity', 'kind': 'op'},
-                    'op_output': {'kind': 'op', 'op': 'OpOutput'}
+                    'op_output': {'kind': 'op', 'op': 'Result'}
                     }
 
 

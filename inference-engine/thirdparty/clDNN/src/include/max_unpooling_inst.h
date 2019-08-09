@@ -18,15 +18,16 @@
 #pragma once
 #include "api/CPP/max_unpooling.hpp"
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<max_unpooling> : public typed_program_node_base<max_unpooling>
-{
+struct typed_program_node<max_unpooling> : public typed_program_node_base<max_unpooling> {
     using parent = typed_program_node_base<max_unpooling>;
     typed_program_node(const std::shared_ptr<max_unpooling> prim, program_impl& prog);
+
 public:
     using parent::parent;
     program_node& input() const { return get_dependency(0); }
@@ -36,8 +37,7 @@ public:
 using max_unpooling_node = typed_program_node<max_unpooling>;
 
 template <>
-class typed_primitive_inst<max_unpooling> : public typed_primitive_inst_base<max_unpooling>
-{
+class typed_primitive_inst<max_unpooling> : public typed_primitive_inst_base<max_unpooling> {
     using parent = typed_primitive_inst_base<max_unpooling>;
 
 public:
@@ -48,4 +48,4 @@ public:
 
 using max_unpooling_inst = typed_primitive_inst<max_unpooling>;
 
-}
+}  // namespace cldnn

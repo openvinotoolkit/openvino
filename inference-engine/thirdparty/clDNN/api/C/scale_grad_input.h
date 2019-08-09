@@ -15,9 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef SCALE_GRAD_INPUT_H
-#define SCALE_GRAD_INPUT_H
-
+#pragma once
 #include "cldnn.h"
 /// @addtogroup c_api C API
 /// @{
@@ -44,5 +42,4 @@ CLDNN_DECLARE_PRIMITIVE_TYPE_ID(scale_grad_input);
 /// @}
 /// @}
 /// @}
-#endif /* SCALE_GRAD_INPUT_H */
 

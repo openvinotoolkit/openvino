@@ -16,11 +16,11 @@ if (NOT(IE_MAIN_SOURCE_DIR))
     endif()
 endif()
 
+# treating warnings as errors
 if (WIN32)
     if (TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") #treating warnings as errors
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX")
     endif ()
-
     if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267") #disable some warnings
     endif()
@@ -56,4 +56,8 @@ set_target_cpu_flags(${TARGET_NAME})
 
 if (IE_MAIN_SOURCE_DIR)
     export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
+
+    # developer package
+    export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 endif()
+

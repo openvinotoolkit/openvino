@@ -1,0 +1,12 @@
+[
+  {
+    "id": "TFYOLO",
+    "match_kind": "general",
+    "custom_attributes": {
+      "classes": 20,
+      "coords": 4,
+      "num": 2,
+      "do_softmax": 0
+    }
+  }
+]

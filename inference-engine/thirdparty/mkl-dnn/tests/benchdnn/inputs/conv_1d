@@ -1,4 +1,5 @@
 # 1D convolution
+g128ic128iw16oc128ow16kw3sw1pw1n"conv_dw"
 
 g1mb50ic3iw224oc64kw7sw1pw0n"conv1d:1"
 

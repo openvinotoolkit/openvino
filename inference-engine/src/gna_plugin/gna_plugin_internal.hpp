@@ -15,7 +15,7 @@ namespace GNAPluginNS {
 
 class GNAPluginInternal  : public InferenceEngine::InferencePluginInternal {
  public:
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core,
                                                 InferenceEngine::ICNNNetwork &network,
                                                 const std::map<std::string, std::string> &config) override {
         return std::make_shared<GNAExecutableNetwork>(network, config);
@@ -30,14 +30,20 @@ class GNAPluginInternal  : public InferenceEngine::InferencePluginInternal {
         return make_executable_network(std::make_shared<GNAExecutableNetwork>(modelFileName, config));
     }
 
+    std::string GetName() const noexcept override {
+        auto plg = std::make_shared<GNAPlugin>();
+        return plg->GetName();
+    }
+
     /**
-     * @depricated Use the version with config parameter
+     * @deprecated Use the version with config parameter
      */
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                       InferenceEngine::QueryNetworkResult& res) const override {
         auto plg = std::make_shared<GNAPlugin>();
         plg->QueryNetwork(network, {}, res);
     }
+
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                       const std::map<std::string, std::string>& config,
                       InferenceEngine::QueryNetworkResult& res) const override {
@@ -46,6 +52,17 @@ class GNAPluginInternal  : public InferenceEngine::InferencePluginInternal {
             plg->SetConfig(config);
         } catch (InferenceEngine::details::InferenceEngineException& e) {}
         plg->QueryNetwork(network, config, res);
+    }
+
+    InferenceEngine::Parameter GetMetric(const std::string& name,
+                                         const std::map<std::string, InferenceEngine::Parameter> & options) const override {
+        GNAPlugin statelessPlugin;
+        return statelessPlugin.GetMetric(name, options);
+    }
+
+    InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override {
+        GNAPlugin statelessPlugin;
+        return statelessPlugin.GetConfig(name, options);
     }
 };
 

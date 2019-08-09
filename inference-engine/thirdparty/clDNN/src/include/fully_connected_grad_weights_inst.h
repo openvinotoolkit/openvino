@@ -18,12 +18,11 @@
 #pragma once
 #include "api/CPP/fully_connected_grad_weights.hpp"
 #include "primitive_inst.h"
+#include <string>
 
-namespace cldnn
-{
+namespace cldnn {
 template <>
-struct typed_program_node<fully_connected_grad_weights> : public typed_program_node_base<fully_connected_grad_weights>
-{
+struct typed_program_node<fully_connected_grad_weights> : public typed_program_node_base<fully_connected_grad_weights> {
     using parent = typed_program_node_base<fully_connected_grad_weights>;
 
 public:
@@ -41,8 +40,8 @@ public:
 using fully_connected_grad_weights_node = typed_program_node<fully_connected_grad_weights>;
 
 template <>
-class typed_primitive_inst<fully_connected_grad_weights> : public typed_primitive_inst_base<fully_connected_grad_weights>
-{
+class typed_primitive_inst<fully_connected_grad_weights>
+    : public typed_primitive_inst_base<fully_connected_grad_weights> {
     using parent = typed_primitive_inst_base<fully_connected_grad_weights>;
 
 public:
@@ -62,4 +61,4 @@ public:
 
 using fully_connected_grad_weights_inst = typed_primitive_inst<fully_connected_grad_weights>;
 
-}
+}  // namespace cldnn

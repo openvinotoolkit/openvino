@@ -46,6 +46,13 @@ set(MKLDNN_LIBRARY_TYPE "SHARED" CACHE STRING
 option(WITH_EXAMPLE "builds examples"  ON)
 option(WITH_TEST "builds tests" ON)
 
+set(MKLDNN_INSTALL_MODE "DEFAULT" CACHE STRING
+    "specifies installation mode; supports DEFAULT or BUNDLE.
+
+    When BUNDLE option is set MKL-DNN will be installed as a bundle
+    which contains examples and benchdnn.
+    The BUNDLE option requires MKLDNN_USE_MKL be set to FULL:STATIC.")
+
 set(MKLDNN_THREADING "OMP" CACHE STRING
     "specifies threading type; supports OMP (default), OMP:COMP, OMP:INTEL, or TBB.
 
@@ -139,7 +146,7 @@ option(BENCHDNN_USE_RDPMC
 
 set(MKLDNN_USE_CLANG_SANITIZER "" CACHE STRING
     "instructs build system to use a Clang sanitizer. Possible values:
-    Address: enables MemorySanitizer
+    Address: enables AddressSanitizer
     Memory: enables MemorySanitizer
     MemoryWithOrigin: enables MemorySanitizer with origin tracking
     Undefined: enables UndefinedBehaviourSanitizer

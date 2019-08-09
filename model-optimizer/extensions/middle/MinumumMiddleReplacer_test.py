@@ -22,32 +22,42 @@ from extensions.middle.MinimumMiddleReplacer import MinimumMiddleReplacer
 from mo.utils.unittest.graph import build_graph, compare_graphs
 
 nodes_attributes = {
-    'placeholder_1': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
-    'placeholder_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'placeholder_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_1_data': {'kind': 'data', 'data_type': None, 'value': 3, 'shape': np.array([])},
 
-    'placeholder_2': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},
-    'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'placeholder_2': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_2_data': {'value': None, 'shape': np.array([5, 5]), 'kind': 'data', 'data_type': None},
+
     # minimum node:
     'minimum': {'type': 'Minimum', 'kind': 'op', 'op': 'Minimum'},
     # negates
-    'negate_1': {'type': 'Power', 'kind': 'op', 'op': 'Power', 'power': 1, 'scale': -1, 'shift': 0},
+    'const_1': {'kind': 'op', 'op': 'Const', 'value': np.array(-1)},
+    'const_1_d': {'kind': 'data', 'value': np.array(-1)},
+
+    'negate_1': {'type': 'Multiply', 'kind': 'op', 'op': 'Mul'},
     'negate_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
 
-    'negate_2': {'type': 'Power', 'kind': 'op', 'op': 'Power', 'power': 1, 'scale': -1, 'shift': 0},
+    'const_2': {'kind': 'op', 'op': 'Const', 'value': np.array(-1)},
+    'const_2_d': {'kind': 'data', 'value': np.array(-1)},
+
+    'negate_2': {'type': 'Multiply', 'kind': 'op', 'op': 'Mul'},
     'negate_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
 
-    'negate_output': {'type': 'Power', 'kind': 'op', 'op': 'Power', 'power': 1, 'scale': -1, 'shift': 0},
+    'const_3': {'kind': 'op', 'op': 'Const', 'value': np.array(-1)},
+    'const_3_d': {'kind': 'data', 'value': np.array(-1)},
+
+    'negate_output': {'type': 'Multiply', 'kind': 'op', 'op': 'Mul'},
     'negate_output_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
 
     # Maximum
-    'maximum': {'type': 'Eltwise', 'kind': 'op', 'op': 'Max'},
+    'maximum': {'type': 'Maximum', 'kind': 'op', 'op': 'Maximum'},
     'maximum_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # output
     'output_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
 }
 
 
-class MinumumMiddleReplacer_test(unittest.TestCase):
+class MinumumMiddleReplacerTest(unittest.TestCase):
     def test_1(self):
         graph = build_graph(nodes_attributes,
                             [('placeholder_1', 'placeholder_1_data'),
@@ -55,22 +65,25 @@ class MinumumMiddleReplacer_test(unittest.TestCase):
                              ('placeholder_1_data', 'minimum'),
                              ('placeholder_2_data', 'minimum'),
                              ('minimum', 'output_data')
-                             ],
-                            {'placeholder_1_data': {'value': 3, 'shape': np.array([])},
-                             'placeholder_2_data': {'value': None, 'shape': np.array([5, 5])},
-                             })
+                             ])
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_2', 'placeholder_2_data'),
                                  ('placeholder_1_data', 'negate_1'),
+                                 ('const_1', 'const_1_d'),
+                                 ('const_1_d', 'negate_1'),
                                  ('placeholder_2_data', 'negate_2'),
+                                 ('const_2', 'const_2_d'),
+                                 ('const_2_d', 'negate_2'),
                                  ('negate_1', 'negate_1_data'),
                                  ('negate_2', 'negate_2_data'),
                                  ('negate_1_data', 'maximum'),
                                  ('negate_2_data', 'maximum'),
                                  ('maximum', 'maximum_data'),
                                  ('maximum_data', 'negate_output'),
+                                 ('const_3', 'const_3_d'),
+                                 ('const_3_d', 'negate_output'),
                                  ('negate_output', 'negate_output_data')
                                  ])
 

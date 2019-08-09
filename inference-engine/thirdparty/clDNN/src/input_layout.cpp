@@ -20,39 +20,37 @@
 #include "memory_impl.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include <string>
+#include <memory>
+#include <algorithm>
 
-namespace cldnn
-{
-primitive_type_id input_layout_type_id()
-{
+namespace cldnn {
+primitive_type_id input_layout_type_id() {
     static primitive_type_base<input_layout> instance;
     return &instance;
 }
 
 input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program_impl& prog)
-    : parent(dprim, prog)
-{
+    : parent(dprim, prog) {
     can_share_buffer(false);
 }
 
-input_layout_inst::typed_primitive_inst(network_impl& network, input_layout_node const& node)
-    : parent(network, node)
-{
-    _has_valid_input = false; //by default input for 'input_layout' is invalid as long as user doesn't call set_data
+input_layout_inst::typed_primitive_inst(network_impl& network, input_layout_node const& node) : parent(network, node) {
+    _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
-void input_layout_inst::set_data(memory_impl& mem)
-{
+void input_layout_inst::set_data(memory_impl& mem) {
+    CLDNN_ERROR_LAYOUT_MISMATCH("input layout",
+                                "memory layout",
+                                mem.get_layout(),
+                                "output memory layout",
+                                node.get_output_layout(),
+                                "");
 
-    CLDNN_ERROR_LAYOUT_MISMATCH("input layout", "memory layout", mem.get_layout(), "output memory layout", node.get_output_layout(), "");
-
-    if (mem.is_allocated_by(get_network().get_engine()))
-    {
-        _output = &mem;
-    }
-    else
-    {
-        mem_lock<char> src(&mem);
+    if (mem.is_allocated_by(get_network().get_engine())) {
+        _output = (memory_impl::ptr) &mem;
+    } else {
+        mem_lock<char> src((memory_impl::ptr) &mem);
         mem_lock<char> dst(_output);
         std::copy(src.begin(), src.end(), dst.begin());
     }
@@ -61,8 +59,7 @@ void input_layout_inst::set_data(memory_impl& mem)
     _output_changed = true;
 }
 
-std::string input_layout_inst::to_string(input_layout_node const& node)
-{
+std::string input_layout_inst::to_string(input_layout_node const& node) {
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;
@@ -72,4 +69,4 @@ std::string input_layout_inst::to_string(input_layout_node const& node)
     return primitive_description.str();
 }
 
-}
+}  // namespace cldnn

@@ -10,6 +10,8 @@
 #include <map>
 #include <unordered_set>
 #include <utility>
+#include <algorithm>
+#include <tuple>
 
 #include <vpu/custom_layer.hpp>
 #include <vpu/utils/simple_math.hpp>
@@ -33,51 +35,26 @@ private:
     std::string _blob;
 };
 
-void printTo(std::ostream& os, const CustomLayer::Ptr& obj) {
-    os << obj->kernelAddress();
-}
-
-void printTo(DotLabel& lbl, const CustomLayer::Ptr& obj) {
-    DotLabel subLbl(lbl);
-    subLbl.appendPair("kernelAddress", obj->kernelAddress());
-}
-
 class CustomStage final : public StageNode {
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<CustomStage>(*this);
     }
 
-    DataMap<float> propagateScaleFactorsImpl(
-            const DataMap<float>&,
-            ScalePropagationStep) override {
-        DataMap<float> out;
-
-        for (const auto& inEdge : _inputEdges) {
-            out[inEdge->input()] = 1.0f;
-        }
-        for (const auto& outEdge : _outputEdges) {
-            out[outEdge->output()] = 1.0f;
-        }
-
-        return out;
-    }
-
-    DataMap<DimsOrder> propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl() const override {
         const auto& inputOrders = attrs().get<std::map<int, DimsOrder>>("inputOrders");
         const auto& outputOrders = attrs().get<std::map<int, DimsOrder>>("outputOrders");
 
-        DataMap<DimsOrder> out;
+        for (const auto& inEdge : _inputEdges) {
+            // last input is always OpenCL binary, so use it as is.
+            if (inEdge->portInd() == _inputEdges.size() - 1) {
+                break;
+            }
 
-        // last input is always OpenCL binary, so use it as is.
-        for (int i = 0; i < _inputEdges.size() - 1; i++) {
-            auto input = _inputEdges[i]->input();
-            IE_ASSERT(input != nullptr);
-
-            auto it = inputOrders.find(i);
+            auto it = inputOrders.find(inEdge->portInd());
             if (it != inputOrders.end()) {
                 auto requiredOrder = it->second;
-                out[input] = requiredOrder;
+                _orderInfo.setInput(inEdge, requiredOrder);
             }
         }
 
@@ -85,49 +62,40 @@ private:
             auto it = outputOrders.find(outEdge->portInd());
             if (it != outputOrders.end()) {
                 auto requiredOrder = it->second;
-                out[outEdge->output()] = requiredOrder;
+                _orderInfo.setOutput(outEdge, requiredOrder);
             }
         }
-
-        return out;
     }
 
-    DataMap<StridesRequirement> getDataStridesRequirementsImpl() const override {
-        DataMap<StridesRequirement> out;
+    void getDataStridesRequirementsImpl() const override {
+        for (const auto& inEdge : _inputEdges) {
+            // last input is always OpenCL binary, so use it as is.
+            if (inEdge->portInd() == _inputEdges.size() - 1) {
+                break;
+            }
 
-        // last input is always OpenCL binary, so use it as is.
-        for (int i = 0; i < _inputEdges.size() - 1; i++) {
-            auto input = _inputEdges[i]->input();
-            IE_ASSERT(input != nullptr);
-
-            out[input] = StridesRequirement::compact();
+            _stridesInfo.setInput(inEdge, StridesRequirement::compact());
         }
-
         for (const auto& outEdge : _outputEdges) {
-            out[outEdge->output()] = StridesRequirement::compact();
+            _stridesInfo.setOutput(outEdge, StridesRequirement::compact());
         }
-
-        return out;
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    DataMap<BatchSupport> getBatchSupportInfoImpl() const override {
-        DataMap<BatchSupport> out;
+    void getBatchSupportInfoImpl() const override {
+        for (const auto& inEdge : _inputEdges) {
+            // last input is always OpenCL binary, so use it as is.
+            if (inEdge->portInd() == _inputEdges.size() - 1) {
+                break;
+            }
 
-        // Last input is always OpenCL binary, so use it as is.
-        for (int i = 0; i < _inputEdges.size() - 1; i++) {
-            auto input = _inputEdges[i]->input();
-            IE_ASSERT(input != nullptr);
-
-            out[input] = BatchSupport::Split;
+            _batchInfo.setInput(inEdge, BatchSupport::Split);
         }
         for (const auto& outEdge : _outputEdges) {
-            out[outEdge->output()] = BatchSupport::Split;
+            _batchInfo.setOutput(outEdge, BatchSupport::Split);
         }
-
-        return out;
     }
 
     void finalCheckImpl() const override {
@@ -135,8 +103,9 @@ private:
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         const auto& customLayer = attrs().get<CustomLayer::Ptr>("customLayer");
-        const auto& gws = attrs().get<std::vector<int>>("gws");
-        const auto& lws = attrs().get<std::vector<int>>("lws");
+        const auto& gws = attrs().get<SmallVector<int, 3>>("gws");
+        const auto& lws = attrs().get<SmallVector<int, 3>>("lws");
+        const auto& ports = attrs().get<std::map<std::string, int>>("ports");
 
         //
         // GWG, LWG, Offs
@@ -154,10 +123,13 @@ private:
             serializer.append(static_cast<uint32_t>(0));
         }
 
+        serializer.append(static_cast<uint32_t>(customLayer->maxShaves()));
+
         //
         // Entry point
         //
-
+        IE_ASSERT(customLayer->stageNumInputs() >= 0);
+        serializer.append(static_cast<uint32_t>(customLayer->stageNumInputs()));
         serializer.append(static_cast<uint32_t>(customLayer->kernelAddress(lws[0])));
 
         //
@@ -188,31 +160,37 @@ private:
 
             switch (parameter.type) {
                 case CustomParamType::Input:
-                {
-                    serializer.append(static_cast<uint32_t>(0));
-                    serializer.append(static_cast<uint32_t>(parameter.portIndex));
-                    break;
-                }
                 case CustomParamType::Output:
-                {
-                    serializer.append(static_cast<uint32_t>((uint32_t)0));
-                    serializer.append(static_cast<uint32_t>(_inputEdges.size() + parameter.portIndex));
-                    break;
-                }
+                case CustomParamType::InputBuffer:
+                case CustomParamType::OutputBuffer:
                 case CustomParamType::Data:
                 {
-                    // TODO: handle data
+                    if (ports.find(kp) == ports.end()) {
+                        VPU_THROW_EXCEPTION
+                            << "Unable to bind parameter " << parameter.argName << " for "
+                            << _origLayer->type <<" layer. Name is: " << _origLayer->name;
+                    }
+                    int id = ports.find(kp)->second;
+                    serializer.append(static_cast<uint32_t>(0));
+                    serializer.append(static_cast<uint32_t>(id));
+
                     break;
                 }
                 case CustomParamType::Int:
                 case CustomParamType::Float:
                 {
                     if (_origLayer->params.find(parameter.irSource) != _origLayer->params.end()) {
+                        std::stringstream parameterStream(_origLayer->params[parameter.irSource]);
+                        std::string param;
+                        for (int i = 0; i <= parameter.portIndex; i++) {
+                            getline(parameterStream, param, ',');
+                        }
+
                         if (parameter.type == CustomParamType::Int) {
-                            serializer.append(static_cast<int32_t>(std::stoi(_origLayer->params[parameter.irSource]) ));
+                            serializer.append(static_cast<int32_t>(std::stoi(param)));
                             serializer.append(static_cast<int32_t>(-1));
                         } else {
-                            serializer.append(static_cast<float>(std::stof(_origLayer->params[parameter.irSource]) ));
+                            serializer.append(static_cast<float>(std::stof(param) ));
                             serializer.append(static_cast<int32_t>(-2));
                         }
                         break;
@@ -224,23 +202,23 @@ private:
 
                             ie::DataPtr origData;
                             if (blob == "I") {
-                                origData = _origLayer->insData[0].lock();
+                                origData = _origLayer->insData[parameter.portIndex].lock();
                             } else {
                                 origData = _origLayer->outData[0];
                             }
                             IE_ASSERT(origData != nullptr);
 
-                            auto dims = origData->dims;
+                            auto dims = origData->getDims();
 
                             const std::map<char, int> vars = {
-                                { 'b', 3 }, { 'B', 3 },
-                                { 'f', 2 }, { 'F', 2 },
-                                { 'y', 1 }, { 'Y', 1 },
-                                { 'x', 0 }, { 'X', 0 },
+                                { 'b', 0 }, { 'B', 0 },
+                                { 'f', 1 }, { 'F', 1 },
+                                { 'y', 2 }, { 'Y', 2 },
+                                { 'x', 3 }, { 'X', 3 },
                             };
 
                             if (vars.find(dim[0]) != vars.end()) {
-                                auto res = dims[vars.at(dim[0])];
+                                auto res = dims.at(vars.at(dim[0]));
 
                                 serializer.append(static_cast<uint32_t>(res));
                                 serializer.append(static_cast<int32_t>(-1));
@@ -251,11 +229,24 @@ private:
                             }
 
                             break;
+                        } else {
+                            try {
+                                if (parameter.type == CustomParamType::Int) {
+                                    serializer.append(static_cast<int32_t>(std::stoi(parameter.irSource)));
+                                    serializer.append(static_cast<int32_t>(-1));
+                                } else {
+                                    serializer.append(static_cast<float>(std::stof(parameter.irSource) ));
+                                    serializer.append(static_cast<int32_t>(-2));
+                                }
+                                break;
+                            }
+                            catch (const std::invalid_argument&) {
+                                VPU_THROW_EXCEPTION
+                                    << "Unable to deduce parameter " << parameter.argName << " for "
+                                    << _origLayer->type <<" layer. Name is: " << _origLayer->name
+                                    <<", parameter is: " << parameter.irSource;
+                            }
                         }
-
-                        VPU_THROW_EXCEPTION
-                            << "Unable to deduce parameter " << parameter.argName << " for "
-                            << _origLayer->type <<" layer. Name is: " << _origLayer->name;
                     }
                 }
                 default:
@@ -281,71 +272,12 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseCustom(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
-    IE_ASSERT(layer != nullptr);
-    IE_ASSERT(outputs.size() == 1);
-
-    auto customLayerIt = _customLayers.find(layer->type);
-    IE_ASSERT(customLayerIt != _customLayers.end());
-
-    auto customLayer = customLayerIt->second;
-
-    auto kernelBinaryDesc = DataDesc({customLayer->kernelBinary().length()});
-    kernelBinaryDesc.setType(DataType::U8);
-
-    auto kernelBinary = model->addConstData(
-        layer->name + "@kernelBinary",
-        kernelBinaryDesc,
-        std::make_shared<KernelBinaryContent>(customLayer->kernelBinary()));
-
-    auto allInputs = inputs;
-    allInputs.emplace_back(std::move(kernelBinary));
-
-    auto stage = model->addNewStage<CustomStage>(
-        layer->name,
-        StageType::Custom,
-        layer,
-        allInputs,
-        outputs);
-
-    stage->attrs().set("customLayer", customLayer);
-
-    auto dims = layer->outData[0]->getTensorDesc().getDims();
-    std::reverse(dims.begin(), dims.end());
-
+static void calcSizesFromParams(const DataDesc &desc, const SmallVector<std::string> &bufferSizeRules, SmallVector<int, 3> &sizes) {
     // assume output tensor is dimension source by default
-    auto batchDim = (dims.size() > 0) ? dims[0] : 1;
-    auto featureDim = (dims.size() > 1) ? dims[1] : 1;
-    auto yDim = (dims.size() > 2) ? dims[2] : 1;
-    auto xDim = (dims.size() > 3) ? dims[3] : 1;
-
-    int iidx = customLayer->inputDimSourceIndex();
-    if (iidx >= 0) {
-        IE_ASSERT(iidx < layer->insData.size());
-
-        auto origData = layer->insData[iidx].lock();
-        IE_ASSERT(origData != nullptr);
-
-        auto inputDims = origData->dims;
-
-        batchDim = featureDim = yDim = 0;
-        xDim = inputDims[0];
-
-        if (dims.size() > 1)
-            yDim = inputDims[1];
-        if (dims.size() > 2)
-            featureDim = inputDims[2];
-        if (dims.size() > 3)
-            batchDim = inputDims[3];
-    }
-
-    // evaluate work sizes rules
-    std::vector<int> gws;
-    std::vector<int> lws;
+    auto batchDim = desc.dim(Dim::N, 1);
+    auto featureDim = desc.dim(Dim::C, 1);
+    auto yDim = desc.dim(Dim::H, 1);
+    auto xDim = desc.dim(Dim::W, 1);
 
     const std::map<char, int> vars = {
         { 'b', batchDim },   { 'B', batchDim },
@@ -354,64 +286,195 @@ void FrontEnd::parseCustom(
         { 'x', xDim },       { 'X', xDim },
     };
 
-    for (const auto& rule : customLayer->globalSizeRules()) {
+    sizes.reserve(std::max<size_t>(bufferSizeRules.size(), 3));
+    for (const auto& rule : bufferSizeRules) {
         SimpleMathExpression expr;
         expr.setVariables(vars);
         expr.parse(rule);
-        gws.emplace_back(expr.evaluate());
+        sizes.emplace_back(expr.evaluate());
     }
-    while (gws.size() < 3) {
-        gws.emplace_back(1);
+    while (sizes.size() < 3) {
+        sizes.emplace_back(1);
     }
+}
 
-    for (const auto& rule : customLayer->localSizeRules()) {
-        SimpleMathExpression expr;
-        expr.setVariables(vars);
-        expr.parse(rule);
-        lws.emplace_back(expr.evaluate());
-    }
-    while (lws.size() < 3) {
-        lws.emplace_back(1);
-    }
+static CustomLayer::Ptr chooseSuitable(const std::vector<CustomLayer::Ptr>& customLayers,
+                                       const std::map<std::string, std::string>& layerParams) {
+    ie::details::CaselessEq<std::string> cmp;
 
-    stage->attrs().set("gws", gws);
-    stage->attrs().set("lws", lws);
-
-    std::map<int, DimsOrder> inputOrders;
-    std::map<int, DimsOrder> outputOrders;
-
-    std::map<std::string, CustomLayer::KernelParam> b2b;
-    for (const auto& kp : customLayer->bindings()) {
-        b2b[kp.argName] = kp;
-    }
-
-    const std::map<CustomDataFormat, DimsOrder> formats = {
-        { CustomDataFormat::BYXF, DimsOrder::NHWC },
-        { CustomDataFormat::BFYX, DimsOrder::NCHW }
-    };
-
-    for (const auto& kp : customLayer->parameters()) {
-        const auto& parameter = b2b[kp];
-
-        if (parameter.type == CustomParamType::Input) {
-            auto it = formats.find(parameter.format);
-            if (it != formats.end()) {
-                auto requiredOrder = it->second;
-                inputOrders[parameter.portIndex] = requiredOrder;
+    for (const auto& customLayer : customLayers) {
+        bool suitable = true;
+        for (const auto& whereParam : customLayer->whereParams()) {
+            if (layerParams.find(whereParam.first) == layerParams.end() ||
+                !cmp(layerParams.find(whereParam.first)->second, whereParam.second)) {
+                suitable = false;
             }
         }
-
-        if (parameter.type == CustomParamType::Output) {
-            auto it = formats.find(parameter.format);
-            if (it != formats.end()) {
-                auto requiredOrder = it->second;
-                outputOrders[parameter.portIndex] = requiredOrder;
-            }
+        if (suitable) {
+            return customLayer;
         }
     }
 
-    stage->attrs().set("inputOrders", inputOrders);
-    stage->attrs().set("outputOrders", outputOrders);
+    IE_ASSERT(false);
+    return CustomLayer::Ptr(nullptr);
+}
+
+void FrontEnd::parseCustom(
+        const Model::Ptr& model,
+        const ie::CNNLayerPtr& layer,
+        const DataVector& inputs,
+        const DataVector& outputs) {
+    IE_ASSERT(layer != nullptr);
+    IE_ASSERT(outputs.size() == 1);
+
+    std::vector<CustomLayer::Ptr> customLayersForType;
+    if (_customLayers.count(layer->type) > 0) {
+        customLayersForType.push_back(chooseSuitable(_customLayers.find(layer->type)->second, layer->params));
+    } else if (_customLayers.count(layer->type + "@stage_0") > 0) {
+        int stageNum = 0;
+        while (_customLayers.count(layer->type + "@stage_" + std::to_string(stageNum)) > 0) {
+            customLayersForType.push_back(chooseSuitable(_customLayers.find(layer->type + "@stage_" + std::to_string(stageNum))->second,
+                                                         layer->params));
+            stageNum++;
+        }
+    } else {
+        IE_ASSERT(false);
+    }
+
+    // Get all buffers, buffers must be unique associated by port index
+    std::map<int, Data> tempBuffsMap;
+    for (size_t stageNum = 0; stageNum < customLayersForType.size(); stageNum++) {
+        for (auto& param : customLayersForType[stageNum]->bindings()) {
+            if (param.type == CustomParamType::InputBuffer || param.type == CustomParamType::OutputBuffer) {
+                SmallVector<int, 3> sizes;
+                auto desc = (param.dimSource == CustomDimSource::Input) ? inputs[param.dimIdx]->desc() : outputs[param.dimIdx]->desc();
+                calcSizesFromParams(desc, param.bufferSizeRules, sizes);
+                auto buf = model->addNewData("custom_" + layer->type + "_buf", DataDesc({sizes[0], sizes[1], sizes[2], 1}));
+                if (tempBuffsMap.find(param.portIndex) == tempBuffsMap.end()) {
+                    tempBuffsMap[param.portIndex] = buf;
+                }
+            }
+        }
+    }
+
+    // Gather inputs and outputs for each stage for the layer
+    for (int stage_num = 0; stage_num < customLayersForType.size(); stage_num++) {
+        auto customLayer = customLayersForType[stage_num];
+
+        std::map<std::string, int> ports;
+
+        // Gather inputs
+        DataVector stageInputs;
+        for (auto& param : customLayer->bindings()) {
+            if (param.type == CustomParamType::Input) {
+                ports[param.argName] = stageInputs.size();
+                stageInputs.emplace_back(inputs[param.portIndex]);
+            } else if (param.type == CustomParamType::InputBuffer) {
+                ports[param.argName] = stageInputs.size();
+                stageInputs.emplace_back(tempBuffsMap[param.portIndex]);
+            }
+        }
+
+        // Gather data blobs
+        for (auto& param : customLayer->bindings()) {
+            if (param.type == CustomParamType::Data) {
+                auto blobIterator = layer->blobs.find(param.irSource);
+                if (blobIterator != layer->blobs.end()) {
+                    auto origBlob = blobIterator->second;
+                    auto customBlob = model->addConstData(
+                        layer->name + "@" + param.irSource,
+                        DataDesc({origBlob->size()}),
+                        ieBlobContent(origBlob));
+                    ports[param.argName] = stageInputs.size();
+                    stageInputs.emplace_back(std::move(customBlob));
+                }
+            }
+        }
+
+        customLayer->setStageNumInputs(stageInputs.size());
+
+        // Get kernel binary
+        auto kernelNode = kernelNodes.find(customLayer->kernelBinary());
+        if (kernelNode != kernelNodes.end()) {
+            stageInputs.emplace_back((kernelNode->second));
+        } else {
+            auto kernelBinaryDesc = DataDesc({customLayer->kernelBinary().length()});
+            kernelBinaryDesc.setType(DataType::U8);
+
+            auto kernelBinary = model->addConstData(
+                layer->type + "@kernelBinary",
+                kernelBinaryDesc,
+                std::make_shared<KernelBinaryContent>(customLayer->kernelBinary()));
+            stageInputs.emplace_back((kernelBinary));
+            kernelNodes[customLayer->kernelBinary()] = kernelBinary;
+        }
+
+        DataVector stageOutputs;
+        for (auto& param : customLayer->bindings()) {
+            if (param.type == CustomParamType::Output) {
+                ports[param.argName] = stageInputs.size() + stageOutputs.size();
+                stageOutputs.emplace_back(outputs[param.portIndex]);
+            } else if (param.type == CustomParamType::OutputBuffer) {
+                ports[param.argName] = stageInputs.size() + stageOutputs.size();
+                stageOutputs.emplace_back(tempBuffsMap[param.portIndex]);
+            }
+        }
+
+        auto stage = model->addNewStage<CustomStage>(
+            layer->name + ((customLayersForType.size() == 1) ? "" : "@stage_" + std::to_string(stage_num)),
+            StageType::Custom,
+            layer,
+            stageInputs,
+            stageOutputs);
+
+        stage->attrs().set("customLayer", customLayer);
+        stage->attrs().set("ports", ports);
+
+        SmallVector<int, 3> gws;
+        SmallVector<int, 3> lws;
+        auto dimSource = (customLayer->dimSource() == CustomDimSource::Input) ? inputs : outputs;
+        calcSizesFromParams(dimSource[customLayer->dimSourceIndex()]->desc(), customLayer->globalSizeRules(), gws);
+        calcSizesFromParams(dimSource[customLayer->dimSourceIndex()]->desc(), customLayer->localSizeRules(), lws);
+
+        stage->attrs().set("gws", gws);
+        stage->attrs().set("lws", lws);
+
+        std::map<int, DimsOrder> inputOrders;
+        std::map<int, DimsOrder> outputOrders;
+
+        std::map<std::string, CustomLayer::KernelParam> b2b;
+        for (const auto& kp : customLayer->bindings()) {
+            b2b[kp.argName] = kp;
+        }
+
+        const std::map<CustomDataFormat, DimsOrder> formats = {
+            { CustomDataFormat::BYXF, DimsOrder::NHWC },
+            { CustomDataFormat::BFYX, DimsOrder::NCHW }
+        };
+
+        for (const auto& kp : customLayer->parameters()) {
+            const auto& parameter = b2b[kp];
+
+            if (parameter.type == CustomParamType::Input) {
+                auto it = formats.find(parameter.format);
+                if (it != formats.end()) {
+                    auto requiredOrder = it->second;
+                    inputOrders[parameter.portIndex] = requiredOrder;
+                }
+            }
+
+            if (parameter.type == CustomParamType::Output) {
+                auto it = formats.find(parameter.format);
+                if (it != formats.end()) {
+                    auto requiredOrder = it->second;
+                    outputOrders[parameter.portIndex] = requiredOrder;
+                }
+            }
+        }
+
+        stage->attrs().set("inputOrders", std::move(inputOrders));
+        stage->attrs().set("outputOrders", std::move(outputOrders));
+    }
 }
 
 }  // namespace vpu

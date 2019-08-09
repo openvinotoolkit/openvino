@@ -19,6 +19,7 @@ using namespace GNATestIRs;
 TEST_F(PWLAproximationTest, forTanhOnRecursiveAlgoWithPrecisionThresholdIsSuccess) {
     assert_that().onInferModel(TanhActivationModel())
 	                            .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActTanh)
@@ -28,6 +29,7 @@ TEST_F(PWLAproximationTest, forTanhOnRecursiveAlgoWithPrecisionThresholdIsSucces
 TEST_F(PWLAproximationTest, forSigmoidOnRecursiveAlgoWithPrecisionThresholdIsSuccess) {
     assert_that().onInferModel(SigmoidActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActSigmoid)
@@ -37,6 +39,7 @@ TEST_F(PWLAproximationTest, forSigmoidOnRecursiveAlgoWithPrecisionThresholdIsSuc
 TEST_F(PWLAproximationTest, forReLUonRecursiveAlgoWithPrecisionThresholdIsSuccess) {
     assert_that().onInferModel(ReLUActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActRelu)
@@ -46,6 +49,7 @@ TEST_F(PWLAproximationTest, forReLUonRecursiveAlgoWithPrecisionThresholdIsSucces
 TEST_F(PWLAproximationTest, forLeakyReLUonRecursiveAlgoWithPrecisionThresholdIsSuccess) {
     assert_that().onInferModel(LeakyReLUActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActLeakyRelu)
@@ -55,6 +59,7 @@ TEST_F(PWLAproximationTest, forLeakyReLUonRecursiveAlgoWithPrecisionThresholdIsS
 TEST_F(PWLAproximationTest, DISABLED_forIdentityOnRecursiveAlgoWithPrecisionThresholdIsSuccess) {
     assert_that().onInferModel(IdentityActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActIdentity)
@@ -64,18 +69,17 @@ TEST_F(PWLAproximationTest, DISABLED_forIdentityOnRecursiveAlgoWithPrecisionThre
 TEST_F(PWLAproximationTest, forClampOnRecursiveAlgoWithPrecisionThresholdIsSuccess) {
     assert_that().onInferModel(ClampActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActKaldiLstmClipping)
                                 .pwl_quantization_precision_threshold(0.0001);
 }
 
-// Uniform Algorithm
-// Precision Threshold
-
 TEST_F(PWLAproximationTest, forTanhOnUniformAlgoWithPrecisionThresholdIsSuccess) {
     assert_that().onInferModel(TanhActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .withUniformPWLAlgo()
                                 .propagate_forward()
                                 .called_with()
@@ -86,6 +90,7 @@ TEST_F(PWLAproximationTest, forTanhOnUniformAlgoWithPrecisionThresholdIsSuccess)
 TEST_F(PWLAproximationTest, forSigmoidOnUniformAlgoWithPrecisionThresholdIsSuccess) {
     assert_that().onInferModel(SigmoidActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .withUniformPWLAlgo()
                                 .propagate_forward()
                                 .called_with()
@@ -96,6 +101,7 @@ TEST_F(PWLAproximationTest, forSigmoidOnUniformAlgoWithPrecisionThresholdIsSucce
 TEST_F(PWLAproximationTest, DISABLED_forIdentityOnUniformAlgoWithPrecisionThresholdIsSuccess) {
     assert_that().onInferModel(IdentityActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .withUniformPWLAlgo()
                                 .propagate_forward()
                                 .called_with()
@@ -106,6 +112,7 @@ TEST_F(PWLAproximationTest, DISABLED_forIdentityOnUniformAlgoWithPrecisionThresh
 TEST_F(PWLAproximationTest, forClampOnUniformAlgoWithPrecisionThresholdIsSuccess) {
     assert_that().onInferModel(ClampActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .withUniformPWLAlgo()
                                 .propagate_forward()
                                 .called_with()
@@ -113,12 +120,10 @@ TEST_F(PWLAproximationTest, forClampOnUniformAlgoWithPrecisionThresholdIsSuccess
                                 .pwl_quantization_precision_threshold(0.0001);
 }
 
-// Recursive Algorithm
-// Segment Threshold
-
 TEST_F(PWLAproximationTest, forSigmoidonRecursiveAlgoWithSegmentThresholdIsSuccess) {
     assert_that().onInferModel(SigmoidActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActSigmoid)
@@ -128,6 +133,7 @@ TEST_F(PWLAproximationTest, forSigmoidonRecursiveAlgoWithSegmentThresholdIsSucce
 TEST_F(PWLAproximationTest, forTanhonRecursiveAlgoWithSegmentThresholdIsSuccess) {
     assert_that().onInferModel(TanhActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActTanh)
@@ -137,6 +143,7 @@ TEST_F(PWLAproximationTest, forTanhonRecursiveAlgoWithSegmentThresholdIsSuccess)
 TEST_F(PWLAproximationTest, forReLUonRecursiveAlgoWithSegmentThresholdIsSuccess) {
     assert_that().onInferModel(ReLUActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActRelu)
@@ -146,6 +153,7 @@ TEST_F(PWLAproximationTest, forReLUonRecursiveAlgoWithSegmentThresholdIsSuccess)
 TEST_F(PWLAproximationTest, forLeakyReLUonRecursiveAlgoWithSegmentThresholdIsSuccess) {
     assert_that().onInferModel(LeakyReLUActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActLeakyRelu)
@@ -155,6 +163,7 @@ TEST_F(PWLAproximationTest, forLeakyReLUonRecursiveAlgoWithSegmentThresholdIsSuc
 TEST_F(PWLAproximationTest, DISABLED_forIdentityOnRecursiveAlgoWithSegmentThresholdIsSuccess) {
     assert_that().onInferModel(IdentityActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActIdentity)
@@ -164,18 +173,17 @@ TEST_F(PWLAproximationTest, DISABLED_forIdentityOnRecursiveAlgoWithSegmentThresh
 TEST_F(PWLAproximationTest, forClampOnRecursiveAlgoWithSegmentThresholdIsSuccess) {
     assert_that().onInferModel(ClampActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .propagate_forward()
                                 .called_with()
                                 .pwl_quantization_activation(DnnActivationType::kActKaldiLstmClipping)
                                 .pwl_quantization_segments_threshold(3);
 }
 
-// Uniform Algorithm
-// Segment Threshold
-
 TEST_F(PWLAproximationTest, forSigmoidonUniformAlgoWithSegmentThresholdIsSuccess) {
     assert_that().onInferModel(SigmoidActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .withUniformPWLAlgo()
                                 .propagate_forward()
                                 .called_with()
@@ -186,6 +194,7 @@ TEST_F(PWLAproximationTest, forSigmoidonUniformAlgoWithSegmentThresholdIsSuccess
 TEST_F(PWLAproximationTest, forTanhonUniformAlgoWithSegmentThresholdIsSuccess) {
     assert_that().onInferModel(TanhActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .withUniformPWLAlgo()
                                 .propagate_forward()
                                 .called_with()
@@ -196,6 +205,7 @@ TEST_F(PWLAproximationTest, forTanhonUniformAlgoWithSegmentThresholdIsSuccess) {
 TEST_F(PWLAproximationTest, DISABLED_forIdentityOnUniformAlgoWithSegmentThresholdIsSuccess) {
     assert_that().onInferModel(IdentityActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .withUniformPWLAlgo()
                                 .propagate_forward()
                                 .called_with()
@@ -206,6 +216,7 @@ TEST_F(PWLAproximationTest, DISABLED_forIdentityOnUniformAlgoWithSegmentThreshol
 TEST_F(PWLAproximationTest, forClampOnUniformAlgoWithSegmentThresholdIsSuccess) {
     assert_that().onInferModel(ClampActivationModel())
                                 .inNotCompactMode()
+                                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
                                 .withUniformPWLAlgo()
                                 .propagate_forward()
                                 .called_with()

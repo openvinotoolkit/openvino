@@ -17,10 +17,10 @@
 import onnx
 
 from extensions.front.onnx.upsample_ext import UpsampleFrontExtractor
-from mo.utils.unittest.graph import build_graph
 from mo.graph.graph import Node
 from mo.utils.error import Error
 from mo.utils.unittest.extractors import BaseExtractorsTestingClass
+from mo.utils.unittest.graph import build_graph
 
 
 class UpsampleONNXExtractorTest(BaseExtractorsTestingClass):
@@ -38,15 +38,13 @@ class UpsampleONNXExtractorTest(BaseExtractorsTestingClass):
             # test input ONNX attributes
             dict(
                 mode='nearest',
-                width_scale=2.0,
-                height_scale=2.0,
+                scales=[1., 1., 2., 2.],
             ),
             # reference output Node attributes
             dict(
-                type='Resample',
-                resample_type='caffe.ResampleParameter.NEAREST',
-                factor=2,
-                antialias=0,
+                width_scale=2.0,
+                height_scale=2.0,
+                mode='nearest',
             )
         )
 
@@ -72,33 +70,15 @@ class UpsampleONNXExtractorTest(BaseExtractorsTestingClass):
         with self.assertRaisesRegex(Error, '.*decoding Upsample.*supported modes.*'):
             out = self._extract(inp)
 
-    def test_unsupported_linear(self):
+    def test_invalid_scales(self):
         inp, ref = self._base_attrs()
-        inp['mode'] = 'linear'
-        with self.assertRaisesRegex(Error, '.*Only nearest is supported.*'):
+        inp['scales'] = [1.5, 1.5, 2.0, 2.0]
+        with self.assertRaisesRegex(Error, '.*Upsampling of batch and feature dimentions is not supported for node.*'):
             out = self._extract(inp)
 
-    def test_unsupported_scale(self):
+    def test_invalid_2D_scales(self):
         inp, ref = self._base_attrs()
         inp['scales'] = [2.0, 2.0]
-        with self.assertRaisesRegex(Error, '.*Only scale_width and scale_height are supported.*'):
-            out = self._extract(inp)
-
-    def test_missing_width_scale(self):
-        inp, ref = self._base_attrs()
-        del inp['width_scale']
-        with self.assertRaisesRegex(Error, '.*One/both of widths_scale.*and height_scale.*is not defined.*'):
-            out = self._extract(inp)
-
-    def test_missing_height_scale(self):
-        inp, ref = self._base_attrs()
-        del inp['height_scale']
-        with self.assertRaisesRegex(Error, '.*One/both of widths_scale.*and height_scale.*is not defined.*'):
-            out = self._extract(inp)
-
-    def test_different_scales(self):
-        inp, ref = self._base_attrs()
-        inp['height_scale'] = 2.0
-        inp['width_scale'] = 3.0
-        with self.assertRaisesRegex(Error, '.*different widths_scale.*and height_scale.*not supported.*'):
+        with self.assertRaisesRegex(Error,
+                                    '.*Upsample scales attribute is wrong for node.*. Only 4D scales are supported.'):
             out = self._extract(inp)

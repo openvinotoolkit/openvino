@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <tuple>
 #include <string>
+#include <unordered_map>
+#include <functional>
 
 // Careful reader, don't worry -- it is not the whole OpenCV,
 // it is just a single stand-alone component of it
@@ -14,9 +16,11 @@
 #include <opencv2/gapi/util/util.hpp>
 
 #include "ie_blob.h"
+#include "ie_compound_blob.h"
 #include "ie_input_info.hpp"
 #include "ie_preprocess_gapi.hpp"
 #include "ie_preprocess_gapi_kernels.hpp"
+#include "debug.h"
 
 #include "ie_parallel.hpp"
 
@@ -38,11 +42,11 @@ namespace G {
         }
     }
 
-    Desc decompose(Blob::Ptr &blob) {
-        const auto& ie_desc     = blob->getTensorDesc();
+    Desc decompose(const TensorDesc& ie_desc) {
         const auto& ie_blk_desc = ie_desc.getBlockingDesc();
         const auto& ie_dims     = ie_desc.getDims();
         const auto& ie_strides  = ie_blk_desc.getStrides();
+        const bool  nhwc_layout = ie_desc.getLayout() == NHWC;
 
         Dims d = {
             static_cast<int>(ie_dims[0]),
@@ -53,18 +57,22 @@ namespace G {
 
         Strides s = {
             static_cast<int>(ie_strides[0]),
-            static_cast<int>(blob->layout() == NHWC ? ie_strides[3] : ie_strides[1]),
-            static_cast<int>(blob->layout() == NHWC ? ie_strides[1] : ie_strides[2]),
-            static_cast<int>(blob->layout() == NHWC ? ie_strides[2] : ie_strides[3]),
+            static_cast<int>(nhwc_layout ? ie_strides[3] : ie_strides[1]),
+            static_cast<int>(nhwc_layout ? ie_strides[1] : ie_strides[2]),
+            static_cast<int>(nhwc_layout ? ie_strides[2] : ie_strides[3]),
         };
 
-        if (blob->layout() == NHWC) fix_strides_nhwc(d, s);
+        if (nhwc_layout) fix_strides_nhwc(d, s);
 
         return Desc{d, s};
     }
+
+    Desc decompose(const Blob::Ptr& blob) {
+        return decompose(blob->getTensorDesc());
+    }
 }  // namespace G
 
-inline int get_cv_depth(const InferenceEngine::TensorDesc &ie_desc) {
+inline int get_cv_depth(const TensorDesc &ie_desc) {
     switch (ie_desc.getPrecision()) {
     case Precision::U8:   return CV_8U;
     case Precision::FP32: return CV_32F;
@@ -72,11 +80,8 @@ inline int get_cv_depth(const InferenceEngine::TensorDesc &ie_desc) {
     }
 }
 
-std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(Blob::Ptr &blob, int batch_size) {
-    if (batch_size <= 0) {
-        return {};
-    }
-
+std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob,
+                                                          int batch_size) {
     const auto& ie_desc     = blob->getTensorDesc();
     const auto& ie_desc_blk = ie_desc.getBlockingDesc();
     const auto     desc     = G::decompose(blob);
@@ -90,16 +95,23 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(Blob::Ptr &blob, int b
     std::vector<std::vector<cv::gapi::own::Mat>> result(batch_size);
 
     uint8_t* blob_ptr = static_cast<uint8_t*>(blob->buffer());
+    if (blob_ptr == nullptr) {
+        THROW_IE_EXCEPTION << "Blob buffer is nullptr";
+    }
     blob_ptr += blob->element_size()*ie_desc_blk.getOffsetPadding();
 
     for (int i = 0; i < batch_size; ++i) {
         uint8_t* curr_data_ptr = blob_ptr + i * batch_offset;
 
         std::vector<cv::gapi::own::Mat> planes;
-        if (blob->layout() == NHWC) {
+        if (ie_desc.getLayout() == Layout::NHWC) {
             planes.emplace_back(planeSize.height, planeSize.width, CV_MAKETYPE(cv_depth, desc.d.C),
                 curr_data_ptr, stride);
         } else {  // NCHW
+            if (desc.d.C <= 0) {
+                THROW_IE_EXCEPTION << "Invalid number of channels in blob tensor descriptor, "
+                                      "expected >0, actual: " << desc.d.C;
+            }
             const auto planeType = CV_MAKETYPE(cv_depth, 1);
             for (size_t ch = 0; ch < desc.d.C; ch++) {
                 cv::gapi::own::Mat plane(planeSize.height, planeSize.width, planeType,
@@ -123,96 +135,396 @@ std::vector<cv::GMat> to_vec(std::tuple<Ts...> &&gmats) {
     return to_vec_impl(std::move(gmats), typename cv::detail::MkSeq<sizeof...(Ts)>::type());
 }
 
+// convert input to planar format
+std::vector<cv::GMat> split(const std::vector<cv::GMat>& inputs,
+                            int channels) {
+    if (inputs.empty()) {
+        return inputs;
+    }
+
+    std::vector<cv::GMat> planes;
+
+    switch (channels) {
+    case 1: planes = { inputs[0] };                       break;
+    case 2: planes = to_vec(gapi::Split2::on(inputs[0])); break;
+    case 3: planes = to_vec(gapi::Split3::on(inputs[0])); break;
+    case 4: planes = to_vec(gapi::Split4::on(inputs[0])); break;
+    default:
+        for (int chan = 0; chan < channels; chan++)
+            planes.emplace_back(gapi::ChanToPlane::on(inputs[0], chan));
+        break;
+    }
+
+    return planes;
+}
+
+// convert input to interleaved format
+std::vector<cv::GMat> merge(const std::vector<cv::GMat>& inputs,
+                            int channels) {
+    if (inputs.empty()) {
+        return inputs;
+    }
+
+    std::vector<cv::GMat> interleaved;
+
+    switch (channels) {
+    case 1: interleaved.emplace_back(inputs[0]); break;
+    case 2: interleaved.emplace_back(gapi::Merge2::on(inputs[0], inputs[1])); break;
+    case 3: interleaved.emplace_back(gapi::Merge3::on(inputs[0], inputs[1], inputs[2])); break;
+    case 4: interleaved.emplace_back(gapi::Merge4::on(inputs[0], inputs[1], inputs[2], inputs[3])); break;
+    default: THROW_IE_EXCEPTION << "output channels value " << channels
+                                << " is not supported for HWC [by G-API]."
+                                << " Expected range (inclusive): [1;4].";
+    }
+
+    return interleaved;
+}
+
+// validate input/output ColorFormat-related parameters
+void validateColorFormats(const G::Desc &in_desc,
+                          const G::Desc &out_desc,
+                          Layout in_layout,
+                          Layout out_layout,
+                          ColorFormat input_color_format,
+                          ColorFormat output_color_format) {
+    static const auto
+    verify_desc = [] (const G::Desc& desc, ColorFormat fmt, const std::string& desc_prefix) {
+        switch (fmt) {
+            case ColorFormat::RGB:
+            case ColorFormat::BGR: {
+                if (desc.d.C != 3) THROW_IE_EXCEPTION << desc_prefix << " tensor descriptor "
+                                                      << "has invalid number of channels "
+                                                      << desc.d.C << " for " << fmt
+                                                      << "color format";
+                break;
+            }
+            case ColorFormat::RGBX:
+            case ColorFormat::BGRX: {
+                if (desc.d.C != 4) THROW_IE_EXCEPTION << desc_prefix << " tensor descriptor "
+                                                      << "has invalid number of channels "
+                                                      << desc.d.C << " for " << fmt
+                                                      << "color format";
+                break;
+            }
+            case ColorFormat::NV12: {
+                if (desc.d.C != 2) THROW_IE_EXCEPTION << desc_prefix << " tensor descriptor "
+                                                      << "has invalid number of channels "
+                                                      << desc.d.C << " for " << fmt
+                                                      << " color format";
+                break;
+            }
+            default: break;
+        }
+    };
+
+    static const auto verify_layout = [] (Layout layout, const std::string& layout_prefix) {
+        if (layout != NHWC && layout != NCHW) {
+            THROW_IE_EXCEPTION << layout_prefix << " layout " << layout
+                               << " is not supported by pre-processing [by G-API]";
+        }
+    };
+
+    // verify inputs/outputs and throw on error
+
+    if (output_color_format == ColorFormat::RAW) {
+        THROW_IE_EXCEPTION << "Network's expected color format is unspecified";
+    }
+
+    if (output_color_format == ColorFormat::NV12) {
+        THROW_IE_EXCEPTION << "NV12 network's color format is not supported [by G-API]";
+    }
+
+    verify_layout(in_layout, "Input blob");
+    verify_layout(out_layout, "Network's blob");
+
+    if (input_color_format == ColorFormat::RAW) {
+        // verify input and output have the same number of channels
+        if (in_desc.d.C != out_desc.d.C) {
+            THROW_IE_EXCEPTION << "Input and network expected blobs have different number of "
+                               << "channels: expected " << out_desc.d.C << " channels but provided "
+                               << in_desc.d.C << " channels";
+        }
+        return;
+    }
+
+    // planar 4-channel input is not supported, user can easily pass 3 channels instead of 4
+    if (in_layout == NCHW
+        && (input_color_format == ColorFormat::RGBX || input_color_format == ColorFormat::BGRX)) {
+        THROW_IE_EXCEPTION << "Input blob with NCHW layout and BGRX/RGBX color format is "
+                           << "explicitly not supported, use NCHW + BGR/RGB color format "
+                           << "instead (3 image planes instead of 4)";
+    }
+
+    // verify input and output against their corresponding color format
+    verify_desc(in_desc, input_color_format, "Input blob");
+    verify_desc(out_desc, output_color_format, "Network's blob");
+}
+
+bool has_zeros(const SizeVector& vec) {
+    return std::any_of(vec.cbegin(), vec.cend(), [] (size_t e) { return e == 0; });
+}
+
+void validateTensorDesc(const TensorDesc& desc) {
+    auto supports_layout = [](Layout l) { return l == Layout::NCHW || l == Layout::NHWC; };
+    const auto layout = desc.getLayout();
+    const auto& dims = desc.getDims();
+    if (!supports_layout(layout)
+        || dims.size() != 4
+        || desc.getBlockingDesc().getStrides().size() != 4) {
+        THROW_IE_EXCEPTION << "Preprocess support NCHW/NHWC only";
+    }
+    if (has_zeros(dims)) {
+        THROW_IE_EXCEPTION << "Invalid input data dimensions: "
+                           << details::dumpVec(dims);
+    }
+}
+
+class PlanarColorConversions {
+    using GMats = std::vector<cv::GMat>;
+    using CvtFunction = std::function<GMats(const GMats&, Layout, Layout, ResizeAlgorithm)>;
+    struct Hash {
+        inline size_t operator()(const std::pair<ColorFormat, ColorFormat>& p) const {
+            return static_cast<size_t>((p.first << 16) ^ p.second);
+        }
+    };
+    std::unordered_map<std::pair<ColorFormat, ColorFormat>, CvtFunction, Hash> m_conversions;
+
+    // convert RGB -> BGR and BGR -> RGB
+    static std::vector<cv::GMat> reverse3(const std::vector<cv::GMat>& inputs,
+                                          Layout in_layout,
+                                          Layout out_layout,
+                                          ResizeAlgorithm algorithm) {
+        auto planes = inputs;
+        if (in_layout == NHWC) {
+            planes = split(inputs, 3);
+        }
+
+        // if there's no resize after color convert && output is planar, we have to copy input to
+        // output by doing actual G-API operation. otherwise, the graph will be empty (no
+        // operations)
+        if (algorithm == NO_RESIZE && in_layout == out_layout == NCHW) {
+            std::vector<cv::GMat> reversed(3);
+            reversed[0] = gapi::ChanToPlane::on(planes[2], 0);
+            reversed[1] = gapi::ChanToPlane::on(planes[1], 0);
+            reversed[2] = gapi::ChanToPlane::on(planes[0], 0);
+            return reversed;
+        }
+
+        std::reverse(planes.begin(), planes.end());
+        return planes;
+    }
+
+    // convert RGBX -> RGB and BGRX -> BGR
+    static std::vector<cv::GMat> dropLastChan(const std::vector<cv::GMat>& inputs,
+                                              Layout in_layout,
+                                              Layout out_layout,
+                                              ResizeAlgorithm /*algorithm*/) {
+        // Note: input is always interleaved, planar input is converted to RGB/BGR on the user side
+        auto planes = split(inputs, 4);
+        planes.pop_back();
+        return planes;
+    }
+
+    // convert RGBX -> BGR and BGRX -> RGB
+    static std::vector<cv::GMat> dropLastChanAndReverse(const std::vector<cv::GMat>& inputs,
+                                                        Layout in_layout,
+                                                        Layout out_layout,
+                                                        ResizeAlgorithm algorithm) {
+        auto planes = dropLastChan(inputs, in_layout, out_layout, algorithm);
+        std::reverse(planes.begin(), planes.end());
+        return planes;
+    }
+
+    static std::vector<cv::GMat> NV12toRGB(const std::vector<cv::GMat>& inputs,
+                                           Layout,
+                                           Layout,
+                                           ResizeAlgorithm) {
+        // in_layout is always NCHW
+        auto interleaved_rgb = gapi::NV12toRGB::on(inputs[0], inputs[1]);
+        return split({interleaved_rgb}, 3);
+    }
+
+    static std::vector<cv::GMat> NV12toBGR(const std::vector<cv::GMat>& inputs,
+                                           Layout in_layout,
+                                           Layout out_layout,
+                                           ResizeAlgorithm algorithm) {
+        auto planes = NV12toRGB(inputs, in_layout, out_layout, algorithm);
+        std::reverse(planes.begin(), planes.end());
+        return planes;
+    }
+
+public:
+    PlanarColorConversions() {
+        m_conversions = {
+            { {ColorFormat::RGB, ColorFormat::BGR}, reverse3 },
+            { {ColorFormat::BGR, ColorFormat::RGB}, reverse3 },
+            { {ColorFormat::RGBX, ColorFormat::RGB}, dropLastChan },
+            { {ColorFormat::BGRX, ColorFormat::BGR}, dropLastChan },
+            { {ColorFormat::RGBX, ColorFormat::BGR}, dropLastChanAndReverse },
+            { {ColorFormat::BGRX, ColorFormat::RGB}, dropLastChanAndReverse },
+            { {ColorFormat::NV12, ColorFormat::BGR}, NV12toBGR },
+            { {ColorFormat::NV12, ColorFormat::RGB}, NV12toRGB }
+        };
+    }
+
+    const CvtFunction& at(ColorFormat in_fmt, ColorFormat out_fmt) const {
+        auto cvtFunc = m_conversions.find(std::make_pair(in_fmt, out_fmt));
+        if (cvtFunc == m_conversions.cend()) {
+            THROW_IE_EXCEPTION << "Color conversion " << in_fmt << " -> " << out_fmt
+                               << " is not supported";
+        }
+        return cvtFunc->second;
+    }
+};
+
+// construct G-API graph pipeline to color convert input into output
+// Note: always returns planar output
+std::vector<cv::GMat>
+convertColorPlanar(const std::vector<cv::GMat>& inputs,
+                   const G::Desc& in_desc,
+                   Layout in_layout,
+                   Layout out_layout,
+                   ColorFormat input_color_format,
+                   ColorFormat output_color_format,
+                   ResizeAlgorithm algorithm) {
+    // do not perform color conversions if not requested (ColorFormat::RAW) or if input already has
+    // network's expected color format
+    if (input_color_format == ColorFormat::RAW || input_color_format == output_color_format) {
+        // convert input into planar form
+        if (in_layout == NHWC) {
+            return split(inputs, in_desc.d.C);
+        }
+        return inputs;
+    }
+
+    static PlanarColorConversions conversions;
+
+    const auto& convert = conversions.at(input_color_format, output_color_format);
+    auto planes = convert(inputs, in_layout, out_layout, algorithm);
+    if (planes.empty()) {
+        THROW_IE_EXCEPTION << "[G-API] internal error: failed to convert input data into planar "
+                           << "format";
+    }
+
+    return planes;
+}
+
 cv::GComputation buildGraph(const G::Desc &in_desc,
                             const G::Desc &out_desc,
-                            InferenceEngine::Layout in_layout,
-                            InferenceEngine::Layout out_layout,
-                            InferenceEngine::ResizeAlgorithm algorithm,
+                            Layout in_layout,
+                            Layout out_layout,
+                            ResizeAlgorithm algorithm,
+                            ColorFormat input_color_format,
+                            ColorFormat output_color_format,
                             int precision) {
-    if ((in_layout == NHWC) && (in_desc.d.C == 3) && (precision == CV_8U) && (algorithm == RESIZE_BILINEAR)) {
+    // perform basic validation to ensure our assumptions about input and output are correct
+    validateColorFormats(in_desc, out_desc, in_layout, out_layout, input_color_format,
+        output_color_format);
+
+    std::vector<cv::GMat> inputs;  // 1 element if NHWC, C elements if NCHW
+    if (in_layout == NHWC) {
+        inputs.resize(1);
+    } else if (in_layout == NCHW) {
+        inputs.resize(in_desc.d.C);
+    }
+
+    // specific pre-processing case:
+    // 1. Requires interleaved image of type CV_8UC3 (except for NV12 input)
+    // 2. Supports bilinear resize only
+    // 3. Supports NV12 -> RGB/BGR color transformations
+    const bool nv12_input = (input_color_format == ColorFormat::NV12);
+    const bool specific_nv12_input_handling = nv12_input
+        && (output_color_format == ColorFormat::RGB || output_color_format == ColorFormat::BGR);
+    const bool specific_case_of_preproc = ((in_layout == NHWC || specific_nv12_input_handling)
+                                        && (in_desc.d.C == 3 || specific_nv12_input_handling)
+                                        && (precision == CV_8U)
+                                        && (algorithm == RESIZE_BILINEAR)
+                                        && (input_color_format == ColorFormat::RAW
+                                            || input_color_format == output_color_format
+                                            || specific_nv12_input_handling));
+    if (specific_case_of_preproc) {
         const auto input_sz = cv::gapi::own::Size(in_desc.d.W, in_desc.d.H);
         const auto scale_sz = cv::gapi::own::Size(out_desc.d.W, out_desc.d.H);
-        std::vector<cv::GMat> inputs(1);
-        std::vector<cv::GMat> outputs;
 
-        if (out_layout == NHWC) {
-            outputs.resize(1);
-            auto planes = to_vec(gapi::ScalePlanes::on(inputs[0], precision, input_sz, scale_sz, cv::INTER_LINEAR));
-            outputs[0] = gapi::Merge3::on(planes[0], planes[1], planes[2]);
+        // convert color format to RGB in case of NV12 input
+        std::vector<cv::GMat> color_converted_input;
+        if (nv12_input) {
+            color_converted_input.emplace_back(gapi::NV12toRGB::on(inputs[0], inputs[1]));
         } else {
-            outputs = to_vec(gapi::ScalePlanes::on(inputs[0], precision, input_sz, scale_sz, cv::INTER_LINEAR));
+            color_converted_input = inputs;
+        }
+
+        auto planes = to_vec(gapi::ScalePlanes::on(
+            color_converted_input[0], precision, input_sz, scale_sz, cv::INTER_LINEAR));
+
+        // if color conversion is done, output is RGB. but if BGR is required, reverse the planes
+        if (nv12_input && output_color_format == ColorFormat::BGR) {
+            std::reverse(planes.begin(), planes.end());
+        }
+
+        std::vector<cv::GMat> outputs;
+        if (out_layout == NHWC) {
+            outputs.emplace_back(gapi::Merge3::on(planes[0], planes[1], planes[2]));
+        } else {
+            outputs = planes;
         }
         return cv::GComputation(inputs, outputs);
     }
 
-    std::vector<cv::GMat> inputs;  // 1 element if NHWC, C elements if NCHW
-    std::vector<cv::GMat> planes;
+    auto planes = convertColorPlanar(inputs, in_desc, in_layout, out_layout,
+        input_color_format, output_color_format, algorithm);
 
-    // Convert input blob to planar format, if it is not yet planar
-    if (in_layout == NHWC) {
-        // interleaved input blob needs to be decomposed into distinct planes
-        inputs.resize(1);
-        switch (in_desc.d.C) {
-        case 1: planes = { inputs[0] };                       break;
-        case 2: planes = to_vec(gapi::Split2::on(inputs[0])); break;
-        case 3: planes = to_vec(gapi::Split3::on(inputs[0])); break;
-        case 4: planes = to_vec(gapi::Split4::on(inputs[0])); break;
-        default:
-            for (int chan = 0; chan < in_desc.d.C; chan++)
-                planes.emplace_back(gapi::ChanToPlane::on(inputs[0], chan));
-            break;
-        }
-    } else if (in_layout == NCHW) {
-        // planar blob can be passed to resize as-is
-        inputs.resize(in_desc.d.C);
-        planes = inputs;
+    const int number_of_planes = static_cast<int>(planes.size());
+    if (number_of_planes != out_desc.d.C) {
+        THROW_IE_EXCEPTION << "[G-API] internal error: number of channels after color conversion "
+                           << "!= network's expected number of channels: "
+                           << number_of_planes << " != " << out_desc.d.C;
     }
 
-    // Resize every plane
-    std::vector<cv::GMat> out_planes;
-    const int interp_type = [](const ResizeAlgorithm &ar) {
-        switch (ar) {
-        case RESIZE_AREA:     return cv::INTER_AREA;
-        case RESIZE_BILINEAR: return cv::INTER_LINEAR;
-        default: THROW_IE_EXCEPTION << "Unsupported resize operation";
-        }
-    } (algorithm);
-    const auto input_sz  = cv::gapi::own::Size(in_desc.d.W, in_desc.d.H);
-    const auto scale_sz  = cv::gapi::own::Size(out_desc.d.W, out_desc.d.H);
-    const auto scale_fcn = std::bind(&gapi::ScalePlane::on,
-                                     std::placeholders::_1,
-                                     precision,
-                                     input_sz, scale_sz, interp_type);
-    std::transform(planes.begin(), planes.end(), std::back_inserter(out_planes), scale_fcn);
-
-    // Convert to expected layout, if required
-    std::vector<cv::GMat> outputs;  // 1 element if NHWC, C elements if NCHW
-    if (out_layout == NHWC) {
-        outputs.resize(1);
-        if      (out_desc.d.C == 1) outputs[0] = out_planes[0];
-        else if (out_desc.d.C == 2) outputs[0] = gapi::Merge2::on(out_planes[0], out_planes[1]);
-        else if (out_desc.d.C == 3) outputs[0] = gapi::Merge3::on(out_planes[0], out_planes[1], out_planes[2]);
-        else if (out_desc.d.C == 4) outputs[0] = gapi::Merge4::on(out_planes[0], out_planes[1], out_planes[2], out_planes[3]);
-        else    THROW_IE_EXCEPTION << "Output channels >4 are not supported for HWC [by G-API]";
-    } else {
+    std::vector<cv::GMat> outputs;
+    if (algorithm != NO_RESIZE) {
+        // resize every plane
+        std::vector<cv::GMat> out_planes;
+        out_planes.reserve(planes.size());
+        const int interp_type = [](const ResizeAlgorithm &ar) {
+            switch (ar) {
+            case RESIZE_AREA:     return cv::INTER_AREA;
+            case RESIZE_BILINEAR: return cv::INTER_LINEAR;
+            default: THROW_IE_EXCEPTION << "Unsupported resize operation";
+            }
+        } (algorithm);
+        const auto input_sz  = cv::gapi::own::Size(in_desc.d.W, in_desc.d.H);
+        const auto scale_sz  = cv::gapi::own::Size(out_desc.d.W, out_desc.d.H);
+        const auto scale_fcn = std::bind(&gapi::ScalePlane::on,
+                                        std::placeholders::_1,
+                                        precision,
+                                        input_sz, scale_sz, interp_type);
+        std::transform(planes.begin(), planes.end(), std::back_inserter(out_planes), scale_fcn);
         outputs = out_planes;
+    } else {
+        outputs = planes;
+    }
+
+    // convert to interleaved if NHWC is required as output
+    if (out_layout == NHWC) {
+        outputs = merge(outputs, out_desc.d.C);
     }
 
     return cv::GComputation(inputs, outputs);
 }
 }  // anonymous namespace
 
-InferenceEngine::PreprocEngine::PreprocEngine() : _lastComp(parallel_get_max_threads()) {}
+PreprocEngine::PreprocEngine() : _lastComp(parallel_get_max_threads()) {}
 
-InferenceEngine::PreprocEngine::Update InferenceEngine::PreprocEngine::needUpdate(const CallDesc &newCallOrig) const {
+PreprocEngine::Update PreprocEngine::needUpdate(const CallDesc &newCallOrig) const {
     // Given our knowledge about Fluid, full graph rebuild is required
     // if and only if:
     // 0. This is the first call ever
     // 1. precision has changed (affects kernel versions)
     // 2. layout has changed (affects graph topology)
     // 3. algorithm has changed (affects kernel version)
-    // 4. dimensions have changed from downscale to upscale or
-    // vice-versa if interpolation is AREA.
+    // 4. dimensions have changed from downscale to upscale or vice-versa if interpolation is AREA
+    // 5. color format has changed (affects graph topology)
     if (!_lastCall) {
         return Update::REBUILD;
     }
@@ -275,74 +587,81 @@ InferenceEngine::PreprocEngine::Update InferenceEngine::PreprocEngine::needUpdat
     return Update::NOTHING;
 }
 
-bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-        const ResizeAlgorithm &algorithm, bool omp_serial, int batch_size) {
+bool PreprocEngine::useGAPI() {
     static const bool NO_GAPI = [](const char *str) -> bool {
         std::string var(str ? str : "");
         return var == "N" || var == "NO" || var == "OFF" || var == "0";
     } (std::getenv("USE_GAPI"));
 
-    if (NO_GAPI)
-        return false;
+    return !NO_GAPI;
+}
 
-    const auto &in_desc_ie = inBlob->getTensorDesc();
-    const auto &out_desc_ie = outBlob->getTensorDesc();
-    auto supports_layout = [](Layout l) { return l == Layout::NCHW || l == Layout::NHWC; };
-    if (!supports_layout(inBlob->layout()) || !supports_layout(outBlob->layout())
-        || in_desc_ie.getDims().size() != 4 || out_desc_ie.getDims().size() != 4) {
-        THROW_IE_EXCEPTION << "Preprocess support NCHW/NHWC only";
+void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst) {
+    // Note: src blob is the ROI blob, dst blob is the network's input blob
+
+    // src is either a memory blob or an NV12 blob
+    const bool nv12_blob = src->is<NV12Blob>();
+    if (!src->is<MemoryBlob>() && !nv12_blob) {
+        THROW_IE_EXCEPTION  << "Unsupported input blob type: expected MemoryBlob or NV12Blob";
     }
 
-    const G::Desc
-        in_desc = G::decompose(inBlob),
-        out_desc = G::decompose(outBlob);
-
-    // according to the IE's current design, input blob batch size _must_ match networks's expected
-    // batch size, even if the actual processing batch size (set on infer request) is different.
-    if (in_desc.d.N != out_desc.d.N) {
-        THROW_IE_EXCEPTION  << "Input blob batch size is invalid: (input blob) "
-                            << in_desc.d.N << " != " << out_desc.d.N << " (expected by network)";
+    // dst is always a memory blob
+    if (!dst->is<MemoryBlob>()) {
+        THROW_IE_EXCEPTION  << "Unsupported network's input blob type: expected MemoryBlob";
     }
 
-    // sanity check batch_size
-    if (batch_size > in_desc.d.N || batch_size > out_desc.d.N) {
-        THROW_IE_EXCEPTION  << "Provided batch size is invaid: (provided)"
-                            << batch_size << " > " << out_desc.d.N << " (expected by network)";
+    const auto &src_dims = src->getTensorDesc().getDims();
+    const auto &dst_dims = dst->getTensorDesc().getDims();
+
+    // dimensions sizes must be equal if both blobs are memory blobs
+    if (!nv12_blob && src_dims.size() != dst_dims.size()) {
+        THROW_IE_EXCEPTION << "Preprocessing is not applicable. Source and destination blobs "
+                              "have different number of dimensions.";
+    }
+    if (dst_dims.size() != 4) {
+        THROW_IE_EXCEPTION << "Preprocessing is not applicable. Only 4D tensors are supported.";
     }
 
-    // CallDesc doesn't change within batch
-    CallDesc thisCall = CallDesc{ BlobDesc{ in_desc_ie.getPrecision(),
-                                            inBlob->layout(),
-                                            in_desc_ie.getDims() },
-                                  BlobDesc{ out_desc_ie.getPrecision(),
-                                            outBlob->layout(),
-                                            out_desc_ie.getDims() },
-                                  algorithm };
-    const Update update = needUpdate(thisCall);
+    // dimensions must not have values that are equal to 0
+    if (has_zeros(src_dims)) {
+        THROW_IE_EXCEPTION << "Invalid input data dimensions: " << details::dumpVec(src_dims);
+    }
 
-    Opt<cv::GComputation> _lastComputation;
-    if (Update::REBUILD == update || Update::RESHAPE == update) {
-        _lastCall = cv::util::make_optional(std::move(thisCall));
+    if (has_zeros(dst_dims)) {
+        THROW_IE_EXCEPTION << "Invalid network's input dimensions: " << details::dumpVec(dst_dims);
+    }
+}
 
-        if (Update::REBUILD == update) {
-            //  rebuild the graph
-            IE_PROFILING_AUTO_SCOPE_TASK(_perf_graph_building);
-            _lastComputation = cv::util::make_optional(buildGraph(in_desc,
-                                                                  out_desc,
-                                                                  inBlob->layout(),
-                                                                  outBlob->layout(),
-                                                                  algorithm,
-                                                                  get_cv_depth(in_desc_ie)));
+int PreprocEngine::getCorrectBatchSize(int batch, const Blob::Ptr& blob) {
+    if (batch == 0) {
+        THROW_IE_EXCEPTION << "Input pre-processing is called with invalid batch size " << batch;
+    }
+
+    if (blob->is<CompoundBlob>()) {
+        // batch size must always be 1 in compound blob case
+        if (batch > 1) {
+            THROW_IE_EXCEPTION  << "Provided input blob batch size " << batch
+                                << " is not supported in compound blob pre-processing";
         }
+        batch = 1;
+    } else if (batch < 0) {
+        // if batch size is unspecified, process the whole input blob
+        batch = static_cast<int>(blob->getTensorDesc().getDims()[0]);
     }
-    auto batched_input_plane_mats  = bind_to_blob(inBlob, batch_size);
-    auto batched_output_plane_mats = bind_to_blob(outBlob, batch_size);
+
+    return batch;
+}
+
+void PreprocEngine::executeGraph(Opt<cv::GComputation>& lastComputation,
+    const std::vector<std::vector<cv::gapi::own::Mat>>& batched_input_plane_mats,
+    std::vector<std::vector<cv::gapi::own::Mat>>& batched_output_plane_mats, int batch_size, bool omp_serial,
+    Update update) {
 
     const int thread_num =
-            #if IE_THREAD == IE_THREAD_OMP
-                omp_serial ? 1 :    // disable threading for OpenMP if was asked for
-            #endif
-                0;                  // use all available threads
+#if IE_THREAD == IE_THREAD_OMP
+        omp_serial ? 1 :    // disable threading for OpenMP if was asked for
+#endif
+        0;                  // use all available threads
 
     // to suppress unused warnings
     (void)(omp_serial);
@@ -353,7 +672,7 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
     // that an actual number of threads will be as assumed, so it
     // possible that all slices are processed by the same thread.
     //
-    parallel_nt_static(thread_num , [&, this](int slice_n, const int total_slices) {
+    parallel_nt_static(thread_num, [&, this](int slice_n, const int total_slices) {
         IE_PROFILING_AUTO_SCOPE_TASK(_perf_exec_tile);
 
         auto& compiled = _lastComp[slice_n];
@@ -368,7 +687,7 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
             const auto& output_plane_mats = batched_output_plane_mats[0];
 
             auto lines_per_thread = output_plane_mats[0].rows / total_slices;
-            const auto remainder = output_plane_mats[0].rows - total_slices * lines_per_thread;
+            const auto remainder = output_plane_mats[0].rows % total_slices;
 
             // remainder shows how many threads must calculate 1 additional row. now these additions
             // must also be addressed in rect's Y coordinate:
@@ -382,6 +701,8 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
                     remainder * (lines_per_thread + 1) + (slice_n - remainder) * lines_per_thread;
             }
 
+            if (lines_per_thread <= 0) return;  // no job for current thread
+
             auto roi = Rect{0, roi_y, output_plane_mats[0].cols, lines_per_thread};
             std::vector<Rect> rois(output_plane_mats.size(), roi);
 
@@ -389,7 +710,7 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
             // recompilations
             auto args = cv::compile_args(gapi::preprocKernels(), cv::GFluidOutputRois{std::move(rois)});
             if (Update::REBUILD == update) {
-                auto& computation = _lastComputation.value();
+                auto& computation = lastComputation.value();
                 compiled = computation.compile(descr_of(input_plane_mats), std::move(args));
             } else {
                 IE_ASSERT(compiled);
@@ -398,8 +719,8 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
         }
 
         for (int i = 0; i < batch_size; ++i) {
-            const std::vector<cv::gapi::own::Mat>& input_plane_mats = batched_input_plane_mats[i];
-            std::vector<cv::gapi::own::Mat>& output_plane_mats = batched_output_plane_mats[i];
+            const auto& input_plane_mats = batched_input_plane_mats[i];
+            auto& output_plane_mats = batched_output_plane_mats[i];
 
             cv::GRunArgs call_ins;
             cv::GRunArgsP call_outs;
@@ -410,7 +731,205 @@ bool InferenceEngine::PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob:
             compiled(std::move(call_ins), std::move(call_outs));
         }
     });
+}
+
+bool PreprocEngine::preprocessBlob(const MemoryBlob::Ptr &inBlob, MemoryBlob::Ptr &outBlob,
+    ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
+    int batch_size) {
+
+    const auto& in_desc_ie = inBlob->getTensorDesc();
+    const auto& out_desc_ie = outBlob->getTensorDesc();
+    validateTensorDesc(in_desc_ie);
+    validateTensorDesc(out_desc_ie);
+
+    const auto in_layout = in_desc_ie.getLayout();
+    const auto out_layout = out_desc_ie.getLayout();
+
+    const G::Desc
+        in_desc = G::decompose(in_desc_ie),
+        out_desc = G::decompose(out_desc_ie);
+
+    // according to the IE's current design, input blob batch size _must_ match networks's expected
+    // batch size, even if the actual processing batch size (set on infer request) is different.
+    if (in_desc.d.N != out_desc.d.N) {
+        THROW_IE_EXCEPTION  << "Input blob batch size is invalid: (input blob) "
+                            << in_desc.d.N << " != " << out_desc.d.N << " (expected by network)";
+    }
+
+    // sanity check batch_size
+    if (batch_size > out_desc.d.N) {
+        THROW_IE_EXCEPTION  << "Provided batch size is invaid: (provided)"
+                            << batch_size << " > " << out_desc.d.N << " (expected by network)";
+    }
+
+    // CallDesc doesn't change within batch
+    CallDesc thisCall = CallDesc{ BlobDesc{ in_desc_ie.getPrecision(),
+                                            in_layout,
+                                            in_desc_ie.getDims(),
+                                            in_fmt },
+                                  BlobDesc{ out_desc_ie.getPrecision(),
+                                            out_layout,
+                                            out_desc_ie.getDims(),
+                                            out_fmt },
+                                  algorithm };
+    const Update update = needUpdate(thisCall);
+
+    Opt<cv::GComputation> _lastComputation;
+    if (Update::REBUILD == update || Update::RESHAPE == update) {
+        _lastCall = cv::util::make_optional(std::move(thisCall));
+
+        if (Update::REBUILD == update) {
+            //  rebuild the graph
+            IE_PROFILING_AUTO_SCOPE_TASK(_perf_graph_building);
+            _lastComputation = cv::util::make_optional(
+                buildGraph(in_desc,
+                           out_desc,
+                           in_layout,
+                           out_layout,
+                           algorithm,
+                           in_fmt,
+                           out_fmt,
+                           get_cv_depth(in_desc_ie)));
+        }
+    }
+
+    auto batched_input_plane_mats  = bind_to_blob(inBlob, batch_size);
+    auto batched_output_plane_mats = bind_to_blob(outBlob, batch_size);
+
+    executeGraph(_lastComputation, batched_input_plane_mats, batched_output_plane_mats, batch_size,
+        omp_serial, update);
 
     return true;
+}
+
+bool PreprocEngine::preprocessBlob(const NV12Blob::Ptr &inBlob, MemoryBlob::Ptr &outBlob,
+    ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
+    int batch_size) {
+
+    const auto& y_blob = inBlob->y();
+    const auto& uv_blob = inBlob->uv();
+    if (!y_blob || !uv_blob) {
+        THROW_IE_EXCEPTION << "Invalid underlying blobs in NV12Blob";
+    }
+
+    const auto& in_desc_ie_y = y_blob->getTensorDesc();
+    const auto& out_desc_ie = outBlob->getTensorDesc();
+    validateTensorDesc(in_desc_ie_y);
+    validateTensorDesc(uv_blob->getTensorDesc());
+    validateTensorDesc(out_desc_ie);
+
+    const auto in_layout = Layout::NCHW;
+    const auto out_layout = out_desc_ie.getLayout();
+
+    // check batch via Y plane descriptor
+    const G::Desc
+        in_desc_y = G::decompose(in_desc_ie_y),
+        out_desc = G::decompose(out_desc_ie);
+
+    // according to the IE's current design, input blob batch size _must_ match networks's expected
+    // batch size, even if the actual processing batch size (set on infer request) is different.
+    if (in_desc_y.d.N != out_desc.d.N) {
+        THROW_IE_EXCEPTION  << "Input blob batch size is invalid: (input blob) "
+                            << in_desc_y.d.N << " != " << out_desc.d.N << " (expected by network)";
+    }
+
+    // sanity check batch size
+    if (batch_size > out_desc.d.N) {
+        THROW_IE_EXCEPTION  << "Provided batch size is invaid: (provided)"
+                            << batch_size << " > " << out_desc.d.N << " (expected by network)";
+    }
+
+    // use Y plane tensor descriptor's dims for tracking if update is needed. Y and UV planes are
+    // strictly bound to each other: if one is changed, the other must be changed as well. precision
+    // is always U8 and layout is always planar (NCHW)
+    CallDesc thisCall = CallDesc{ BlobDesc{ in_desc_ie_y.getPrecision(),
+                                            in_layout,
+                                            in_desc_ie_y.getDims(),
+                                            in_fmt },
+                                  BlobDesc{ out_desc_ie.getPrecision(),
+                                            out_layout,
+                                            out_desc_ie.getDims(),
+                                            out_fmt },
+                                  algorithm };
+    const Update update = needUpdate(thisCall);
+
+    Opt<cv::GComputation> _lastComputation;
+    if (Update::REBUILD == update || Update::RESHAPE == update) {
+        _lastCall = cv::util::make_optional(std::move(thisCall));
+
+        if (Update::REBUILD == update) {
+            //  rebuild the graph
+            IE_PROFILING_AUTO_SCOPE_TASK(_perf_graph_building);
+            // FIXME: what is a correct G::Desc to be passed?
+            auto nv12_desc = G::Desc{};
+            nv12_desc.d = in_desc_y.d;
+            nv12_desc.d.C = 2;
+            _lastComputation = cv::util::make_optional(
+                buildGraph(nv12_desc,
+                           out_desc,
+                           in_layout,
+                           out_layout,
+                           algorithm,
+                           in_fmt,
+                           out_fmt,
+                           CV_8U));
+        }
+    }
+
+    // convert Y and UV plane blobs to Mats _separately_
+    auto batched_y_plane_mats = bind_to_blob(y_blob, batch_size);
+    auto batched_uv_plane_mats = bind_to_blob(uv_blob, batch_size);
+
+    // combine corresponding Y and UV mats into 2-element vectors of (Y, UV) pairs
+    std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
+    for (size_t i = 0; i < batch_size; ++i) {
+        auto& input = batched_input_plane_mats[i];
+        input.emplace_back(std::move(batched_y_plane_mats[i][0]));
+        input.emplace_back(std::move(batched_uv_plane_mats[i][0]));
+    }
+
+    // process output blob as usual
+    auto batched_output_plane_mats = bind_to_blob(outBlob, batch_size);
+
+    executeGraph(_lastComputation, batched_input_plane_mats, batched_output_plane_mats, batch_size,
+        omp_serial, update);
+
+    return true;
+}
+
+bool PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+        const ResizeAlgorithm& algorithm, ColorFormat in_fmt, bool omp_serial, int batch_size) {
+    if (!useGAPI()) {
+        return false;
+    }
+
+    const auto out_fmt = ColorFormat::BGR;  // FIXME: get expected color format from network
+
+    // output is always a memory blob
+    auto outMemoryBlob = as<MemoryBlob>(outBlob);
+    if (!outMemoryBlob) {
+        THROW_IE_EXCEPTION  << "Unsupported network's input blob type: expected MemoryBlob";
+    }
+
+    // FIXME: refactor the code below. there must be a better way to handle the difference
+
+    // if input color format is not NV12, a MemoryBlob is expected. otherwise, NV12Blob is expected
+    if (in_fmt != ColorFormat::NV12) {
+        auto inMemoryBlob = as<MemoryBlob>(inBlob);
+        if (!inMemoryBlob) {
+            THROW_IE_EXCEPTION  << "Unsupported input blob for color format " << in_fmt
+                                << ": expected MemoryBlob";
+        }
+        return preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
+            batch_size);
+    } else {
+        auto inNV12Blob = as<NV12Blob>(inBlob);
+        if (!inNV12Blob) {
+            THROW_IE_EXCEPTION  << "Unsupported input blob for color format " << in_fmt
+                                << ": expected NV12Blob";
+        }
+        return preprocessBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
+            batch_size);
+    }
 }
 }  // namespace InferenceEngine

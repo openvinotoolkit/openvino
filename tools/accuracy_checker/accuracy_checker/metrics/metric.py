@@ -44,6 +44,8 @@ class Metric(ClassProvider):
     annotation_types = ()
     prediction_types = ()
 
+    _config_validator_type = BaseMetricConfig
+
     def __init__(self, config, dataset, name=None, state=None):
         self.config = config
         self.name = name
@@ -91,7 +93,9 @@ class Metric(ClassProvider):
         Validate that metric entry meets all configuration structure requirements.
         """
 
-        BaseMetricConfig(self.name, on_extra_argument=BaseMetricConfig.ERROR_ON_EXTRA_ARGUMENT).validate(self.config)
+        self._config_validator_type(
+            self.name, on_extra_argument=BaseMetricConfig.ERROR_ON_EXTRA_ARGUMENT
+        ).validate(self.config)
 
     def _update_state(self, fn, state_key, default_factory=None):
         iter_key = "{}_global_it".format(state_key)
@@ -107,7 +111,15 @@ class Metric(ClassProvider):
 
     def _resolve_representation_containers(self, annotation, prediction):
         def get_resolve_subject(representation, source=None):
-            if not isinstance(representation, ContainerRepresentation):
+            def is_container(representation):
+                if isinstance(representation, ContainerRepresentation):
+                    return True
+                representation_parents = type(representation).__bases__
+                representation_parents_names = [parent.__name__ for parent in representation_parents]
+
+                return ContainerRepresentation.__name__ in representation_parents_names
+
+            if not is_container(representation):
                 return representation
 
             if not source:

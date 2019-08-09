@@ -315,7 +315,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_p
     std::vector<float> expected_weights_vec = {
         2 - 89 * lr, 1 - 75 * lr, 1 - 72 * lr, 1 - 63 * lr
     };
-    
+
     std::vector<float> expected_bias_vec = {
         -50.0f * lr
     };
@@ -449,13 +449,13 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz1x1_in1x2x5x5_bfyx_stride2_p
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 1, 1 } });
     auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
 
-    set_values(input, { 
+    set_values(input, {
         8.f, 0.5f, 1.f, 2.f,
         6.f, 9.f, 3.f, 4.f,
         5.f, 6.f, 7.f, 8.f,
         9.f, 10.f, 11.f, 11.f
     });
-    set_values(input_grad, { 
+    set_values(input_grad, {
         0.5f, 0.6f, 0.7f, 0.9f, 1.f,
         0.7f, 0.8f, 0.8f, 1.7f, 1.8f,
         0.6f, 0.5f, 0.4f, 0.2f, 0.1f,
@@ -517,7 +517,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in32x1x2x2_yxfb_stride1)
     //  Stride : 1x1
     //
     //  Input grad:
-    // y0: x0: 0.5  0.6  0.7  0.9  1    1.1  0.7  0.9  0.1  1.9  0.6  0.5  0.4  0.1  0.1  1.7  0.5  0.4  0.5  0.6  0.7  0.8  0.8  1.7  1.8  1.2  2.1  0.5  0.2  0.9  0.5  0.6 
+    // y0: x0: 0.5  0.6  0.7  0.9  1    1.1  0.7  0.9  0.1  1.9  0.6  0.5  0.4  0.1  0.1  1.7  0.5  0.4  0.5  0.6  0.7  0.8  0.8  1.7  1.8  1.2  2.1  0.5  0.2  0.9  0.5  0.6
     // y0: x1: 0.7  0.8  0.8  1.7  1.8  1.2  2.1  0.5  0.2  0.9  0.4  0.1  0.1  1.7  0.5  0.4  0.5  0.6  0.7  0.9  1    1.1  0.7  0.9  0.1  1.9  0.1  1.5  0.6  2.1  0.4  0.3
     // y1: x0: 0.5  0.6  0.7  0.9  1    1.1  0.7  0.9  0.1  1.9  0.1  1.7  0.5  0.4  0.4  0.1  0.1  1.7  0.5  0.4  0.5  0.6  1.2  2.1  0.5  0.2  0.9  0.4  0.1  1.2  0.2  0.1
     // y1: x1: 0.7  0.8  0.8  1.7  1.8  1.2  2.1  0.9  0.1  1.9  0.1  1.7  0.5  0.6  0.7  0.9  1    1.1  0.7  0.9  0.1  0.1  1.7  0.5  0.4  1.7  0.5  0.4  0.5  0.6  0.0  0.7
@@ -626,7 +626,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz3x3_in2x1x3x3_bfyx_stride1_p
         0.5f, 0.6f, 0.7f, 0.9f, 1.f,  1.1f, 0.7f, 0.9f, 0.1f,
         0.7f, 0.8f, 0.8f, 1.7f, 1.8f, 1.2f, 2.1f, 0.5f, 0.2f
         });
-    set_values(input_grad, { 
+    set_values(input_grad, {
         0.4f, 0.1f, 0.1f, 1.7f, 0.5f, 0.4f, 0.5f, 0.6f, 0.7f,
         0.7f, 0.8f, 0.8f, 1.7f, 1.8f, 1.2f, 2.1f, 0.5f, 0.2f,
         0.1f, 1.7f, 0.5f, 0.4f, 0.4f, 0.1f, 0.1f, 1.7f, 0.5f,
@@ -655,12 +655,12 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz3x3_in2x1x3x3_bfyx_stride1_p
     auto biases_ptr = biases.pointer<float>();
 
     std::vector<float> expected_weights_vec = {
-        5.88f, 7.76f, 5.39f, 
-        8.28f, 8.27f, 6.1f, 
+        5.88f, 7.76f, 5.39f,
+        8.28f, 8.27f, 6.1f,
         5.58f, 7.14f, 4.59f,
 
-        6.93f, 11.42f, 8.63f, 
-        10.59f, 16.13f, 10.47f, 
+        6.93f, 11.42f, 8.63f,
+        10.59f, 16.13f, 10.47f,
         8.7f, 12.18f, 7.2f
     };
 
@@ -774,13 +774,13 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz7x7_in2x1x7x7_bfyx_stride1_p
     //  Stride : 1x1
     //
     //  Input grad:
-    // b0:f0: 0.1  0.2  0.3  0.4  0.5  0.6  0.7    b0:f1: 0.1  0.2  0.3  0.4  0.5  0.6  0.7  
-    // b0:f0: 0.7  0.6  0.5  0.4  0.3  0.2  0.1    b0:f1: 0.1  0.2  0.3  0.5  0.7  1.1  1.3  
-    // b0:f0: 0.1  0.7  0.2  0.6  0.3  0.5  0.4    b0:f1: 0.7  0.6  0.5  0.4  0.3  0.2  0.1  
-    // b0:f0: 0.3  0.4  0.5  0.6  0.7  0.8  0.9    b0:f1: 0.1  0.7  0.2  0.6  0.3  0.5  0.4  
-    // b0:f0: 0.9  0.8  0.7  0.6  0.5  0.4  0.3    b0:f1: 0.3  0.4  0.5  0.6  0.7  0.8  0.9  
-    // b0:f0: 0.3  0.9  0.4  0.8  0.5  0.7  0.6    b0:f1: 0.9  0.8  0.7  0.6  0.5  0.4  0.3  
-    // b0:f0: 0.1  0.2  0.3  0.5  0.7  1.1  1.3    b0:f1: 0.3  0.9  0.4  0.8  0.5  0.7  0.6  
+    // b0:f0: 0.1  0.2  0.3  0.4  0.5  0.6  0.7    b0:f1: 0.1  0.2  0.3  0.4  0.5  0.6  0.7
+    // b0:f0: 0.7  0.6  0.5  0.4  0.3  0.2  0.1    b0:f1: 0.1  0.2  0.3  0.5  0.7  1.1  1.3
+    // b0:f0: 0.1  0.7  0.2  0.6  0.3  0.5  0.4    b0:f1: 0.7  0.6  0.5  0.4  0.3  0.2  0.1
+    // b0:f0: 0.3  0.4  0.5  0.6  0.7  0.8  0.9    b0:f1: 0.1  0.7  0.2  0.6  0.3  0.5  0.4
+    // b0:f0: 0.9  0.8  0.7  0.6  0.5  0.4  0.3    b0:f1: 0.3  0.4  0.5  0.6  0.7  0.8  0.9
+    // b0:f0: 0.3  0.9  0.4  0.8  0.5  0.7  0.6    b0:f1: 0.9  0.8  0.7  0.6  0.5  0.4  0.3
+    // b0:f0: 0.1  0.2  0.3  0.5  0.7  1.1  1.3    b0:f1: 0.3  0.9  0.4  0.8  0.5  0.7  0.6
     //
     // b1:f0: 0.1  0.2  0.3  0.4  0.5  0.6  0.7    b1:f1: 0.1  0.2  0.3  0.4  0.5  0.6  0.7
     // b1:f0: 0.7  0.6  0.5  0.4  0.3  0.2  0.1    b1:f1: 0.3  0.4  0.5  0.6  0.7  0.8  0.9
@@ -920,13 +920,13 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz7x7_in2x1x7x7_bfyx_stride1_p
     //  Stride : 1x1
     //
     //  Input grad:
-    // b0:f0: 0.1  0.2  0.3  0.4  0.5  0.6  0.7    b0:f1: 0.1  0.2  0.3  0.4  0.5  0.6  0.7  
-    // b0:f0: 0.7  0.6  0.5  0.4  0.3  0.2  0.1    b0:f1: 0.1  0.2  0.3  0.5  0.7  1.1  1.3  
-    // b0:f0: 0.1  0.7  0.2  0.6  0.3  0.5  0.4    b0:f1: 0.7  0.6  0.5  0.4  0.3  0.2  0.1  
-    // b0:f0: 0.3  0.4  0.5  0.6  0.7  0.8  0.9    b0:f1: 0.1  0.7  0.2  0.6  0.3  0.5  0.4  
-    // b0:f0: 0.9  0.8  0.7  0.6  0.5  0.4  0.3    b0:f1: 0.3  0.4  0.5  0.6  0.7  0.8  0.9  
-    // b0:f0: 0.3  0.9  0.4  0.8  0.5  0.7  0.6    b0:f1: 0.9  0.8  0.7  0.6  0.5  0.4  0.3  
-    // b0:f0: 0.1  0.2  0.3  0.5  0.7  1.1  1.3    b0:f1: 0.3  0.9  0.4  0.8  0.5  0.7  0.6  
+    // b0:f0: 0.1  0.2  0.3  0.4  0.5  0.6  0.7    b0:f1: 0.1  0.2  0.3  0.4  0.5  0.6  0.7
+    // b0:f0: 0.7  0.6  0.5  0.4  0.3  0.2  0.1    b0:f1: 0.1  0.2  0.3  0.5  0.7  1.1  1.3
+    // b0:f0: 0.1  0.7  0.2  0.6  0.3  0.5  0.4    b0:f1: 0.7  0.6  0.5  0.4  0.3  0.2  0.1
+    // b0:f0: 0.3  0.4  0.5  0.6  0.7  0.8  0.9    b0:f1: 0.1  0.7  0.2  0.6  0.3  0.5  0.4
+    // b0:f0: 0.9  0.8  0.7  0.6  0.5  0.4  0.3    b0:f1: 0.3  0.4  0.5  0.6  0.7  0.8  0.9
+    // b0:f0: 0.3  0.9  0.4  0.8  0.5  0.7  0.6    b0:f1: 0.9  0.8  0.7  0.6  0.5  0.4  0.3
+    // b0:f0: 0.1  0.2  0.3  0.5  0.7  1.1  1.3    b0:f1: 0.3  0.9  0.4  0.8  0.5  0.7  0.6
     //
     // b1:f0: 0.1  0.2  0.3  0.4  0.5  0.6  0.7    b1:f1: 0.1  0.2  0.3  0.4  0.5  0.6  0.7
     // b1:f0: 0.7  0.6  0.5  0.4  0.3  0.2  0.1    b1:f1: 0.3  0.4  0.5  0.6  0.7  0.8  0.9
@@ -1074,7 +1074,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, ngraph_2d_1item_2iterations) {
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 5, 3 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
 
-   
+
     topology topology(
         input_layout("input_grad", input_grad.get_layout()),
         data("input", input),
@@ -1085,13 +1085,13 @@ TEST(convolution_grad_weights_f32_fw_gpu, ngraph_2d_1item_2iterations) {
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
     network network(engine, topology, bo);
-    
+
 
     // set values for first iteration
     set_values(input,
         { 0.671875f, 0.546875f, -0.5625f, -0.359375f, -0.09375f, 0.546875f, -0.546875f, 0.890625f, 0.828125f, -0.546875f, 1.f, -0.078125f, -0.890625f, 0.40625f, -0.359375f });
     set_values(input_grad,
-        {   1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 
+        {   1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
             0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f });
     network.set_input_data("input_grad", input_grad);
     std::vector<float> expected_weights_vec =
@@ -1105,7 +1105,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, ngraph_2d_1item_2iterations) {
         {   0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
             0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f });
     network.set_input_data("input_grad", input_grad);
-    expected_weights_vec = 
+    expected_weights_vec =
     {   0.f, 0.f, 0.f, 0.f,
         0.828125f, -0.546875f, 0.40625f, -0.359375f };
     outputs =  network.execute();

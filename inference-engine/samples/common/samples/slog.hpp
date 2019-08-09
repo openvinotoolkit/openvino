@@ -23,6 +23,15 @@ static constexpr LogStreamEndLine endl;
 
 
 /**
+ * @class LogStreamBoolAlpha
+ * @brief The LogStreamBoolAlpha class implements bool printing for a log stream
+ */
+class LogStreamBoolAlpha { };
+
+static constexpr LogStreamBoolAlpha boolalpha;
+
+
+/**
  * @class LogStream
  * @brief The LogStream class implements a stream for sample logging
  */
@@ -61,6 +70,12 @@ public:
         _new_line = true;
 
         (*_log_stream) << std::endl;
+        return *this;
+    }
+
+    // Specializing for LogStreamBoolAlpha to support slog::boolalpha
+    LogStream& operator<< (const LogStreamBoolAlpha &/*arg*/) {
+        (*_log_stream) << std::boolalpha;
         return *this;
     }
 };

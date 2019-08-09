@@ -14,13 +14,7 @@
  limitations under the License.
 """
 
-import unittest
-
-import numpy as np
 from extensions.front.tf.stop_gradient_ext import StopGradientExtractor
-from mo.utils.unittest.extractors import PB
-from generator import generator, generate
-
 
 from mo.utils.unittest.extractors import PB, BaseExtractorsTestingClass
 

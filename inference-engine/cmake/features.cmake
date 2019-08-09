@@ -1,5 +1,4 @@
 # Copyright (C) 2018-2019 Intel Corporation
-#
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,7 +7,6 @@ include (options)
 #this options are aimed to optimize build time on development system
 
 #backed targets
-
 ie_option (ENABLE_GNA "GNA support for inference engine" ON)
 
 ie_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON)
@@ -31,56 +29,36 @@ list (APPEND IE_OPTIONS GEMM)
 
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if (NOT THREADING STREQUAL "TBB"
+        AND NOT THREADING STREQUAL "TBB_AUTO"
         AND NOT THREADING STREQUAL "OMP"
         AND NOT THREADING STREQUAL "SEQ")
     set (THREADING "TBB")
-    message(STATUS "THREADING should be set to TBB, OMP or SEQ. Default option is " ${THREADING})
+    message(STATUS "THREADING should be set to TBB, TBB_AUTO, OMP or SEQ. Default option is " ${THREADING})
 endif()
 set(THREADING "${THREADING}" CACHE STRING "Threading" FORCE)
 list (APPEND IE_OPTIONS THREADING)
-
-# Enable postfixes for Debug/Release builds
-set (IE_DEBUG_POSTFIX_WIN "d")
-set (IE_RELEASE_POSTFIX_WIN "")
-set (IE_DEBUG_POSTFIX_LIN "")
-set (IE_RELEASE_POSTFIX_LIN "")
-set (IE_DEBUG_POSTFIX_MAC "d")
-set (IE_RELEASE_POSTFIX_MAC "")
-
-if (WIN32)
-    set (IE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX_WIN})
-    set (IE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX_WIN})
-elseif(APPLE)
-    set (IE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX_MAC})
-    set (IE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX_MAC})
-else()
-    set (IE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX_LIN})
-    set (IE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX_LIN})
-endif()
-set(IE_DEBUG_POSTFIX "${IE_DEBUG_POSTFIX}" CACHE STRING "Debug postfix" FORCE)
-list (APPEND IE_OPTIONS IE_DEBUG_POSTFIX)
-set(IE_RELEASE_POSTFIX "${IE_RELEASE_POSTFIX}" CACHE STRING "Release postfix" FORCE)
-list (APPEND IE_OPTIONS IE_RELEASE_POSTFIX)
 
 ie_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON)
 
 ie_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON)
 
-ie_option (ENABLE_MYX_PCIE "myriad plugin with support PCIE device" OFF)
-
 ie_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF)
 
 ie_option (ENABLE_TESTS "unit and functional tests" OFF)
 
-ie_option (ENABLE_GAPI_TESTS "unit tests for GAPI kernels" OFF)
+ie_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" OFF)
 
 ie_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF)
+
+ie_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF)
 
 ie_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON)
 
 ie_option (ENABLE_SAMPLES_CORE "console samples core library" ON)
 
 ie_option (ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" OFF)
+
+ie_option (ENABLE_FUZZING "instrument build for fuzzing" OFF)
 
 ie_option (COVERAGE "enable code coverage" OFF)
 
@@ -108,10 +86,28 @@ ie_option (ENABLE_DEBUG_SYMBOLS "generates symbols for debugging" OFF)
 
 ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
 
+ie_option (DEVELOPMENT_PLUGIN_MODE "Disabled build of all plugins" OFF)
+
 ie_option (TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ON)
 
-ie_option(ENABLE_CPPLINT "Enable cpplint checks during the build" OFF)
-ie_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF)
+ie_option (ENABLE_UNICODE_PATH_SUPPORT "Enable loading models from Unicode paths" ON)
+
+if (UNIX AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.3)
+    set(ENABLE_UNICODE_PATH_SUPPORT OFF)
+endif()
+
+if (UNIX AND NOT APPLE)
+    ie_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON)
+    ie_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF)
+else()
+    set(ENABLE_CPPLINT OFF)
+endif()
+
+if (UNIX AND NOT APPLE AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.10)
+    ie_option(ENABLE_CPPCHECK "Enable cppcheck during the build" ON)
+else()
+    set(ENABLE_CPPCHECK OFF)
+endif()
 
 #environment variables used
 

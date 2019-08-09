@@ -249,13 +249,13 @@ TEST_F(MKLDNNConstantPropagationTests, ConcatAfterConstLayers) {
     InferenceEngine::SizeVector dims_src1 = {1, 2, 10, 5};
 
     InferenceEngine::Blob::Ptr src1 =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src1);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, InferenceEngine::NCHW});
     src1->allocate();
 
     InferenceEngine::SizeVector dims_src2 = {1, 2, 5, 5};
 
     InferenceEngine::Blob::Ptr src2 =
-            InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src2);
+            InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, InferenceEngine::NCHW});
     src2->allocate();
 
     InferenceEngine::BlobMap srcs;
@@ -294,9 +294,9 @@ TEST_F(MKLDNNConstantPropagationTests, ConcatAfterConstLayers) {
     float *dst_ptr = output->buffer();
 
     int len1 = 1, len2 = 1, cycles;
-    for (int dim = 2; dim < output->dims().size(); dim++) {
-        len1 *= src1->dims()[dim];
-        len2 *= src2->dims()[dim];
+    for (int dim = 2; dim < output->getTensorDesc().getDims().size(); dim++) {
+        len1 *= src1->getTensorDesc().getDims()[dim];
+        len2 *= src2->getTensorDesc().getDims()[dim];
     }
     cycles = 2;
 

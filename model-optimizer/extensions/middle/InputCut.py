@@ -21,6 +21,7 @@ from mo.middle.replacement import MiddleReplacementPattern
 class MiddleInputCut(MiddleReplacementPattern):
     enabled = True
     force_clean_up = True
+    run_not_recursively = True
 
     def run_after(self):
         from extensions.middle.pass_separator import PreMiddleStart

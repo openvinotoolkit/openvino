@@ -97,18 +97,18 @@ class StridedSlice(Op):
     def infer(node: Node):
         tf_strided_slice_infer(node)
 
-        PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0', permute_masks),
-                                                       ('new_axis_mask', 'input:0', permute_masks),
-                                                       ('ellipsis_mask', 'input:0', permute_masks),
-                                                       ('begin_mask', 'input:0', permute_masks),
-                                                       ('end_mask', 'input:0', permute_masks),
-                                                       ])
+        if node.graph.graph['layout'] == 'NHWC':
+            PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0', permute_masks),
+                                                           ('new_axis_mask', 'input:0', permute_masks),
+                                                           ('ellipsis_mask', 'input:0', permute_masks),
+                                                           ('begin_mask', 'input:0', permute_masks),
+                                                           ('end_mask', 'input:0', permute_masks),
+                                                           ])
+            for i in range(1, len(node.in_nodes())):
+                if node.in_node(i).value is not None and node.in_node(i).shape[0] > 3:
+                    perm = PermuteAttrs.get_nhwc_to_nchw_permutation(len(node.in_node(0).shape))
+                    node.in_node(i).value = permute_array_with_ellipsis(node, perm, node.in_node(i).value, 0)
 
-        for i in range(1, len(node.in_nodes())):
-            if node.in_node(i).value is not None and node.in_node(i).shape[0] > 3:
-                perm = PermuteAttrs.get_nhwc_to_nchw_permutation(len(node.in_node(0).shape))
-                node.in_node(i).value = permute_array_with_ellipsis(node, perm, node.in_node(i).value, 0)
-
-        # due to permutation from nhwc to nchw we will extend all masks and inputs
-        idx = np.nonzero(node.ellipsis_mask)
-        node.ellipsis_mask[idx] = 0
+            # due to permutation from nhwc to nchw we will extend all masks and inputs
+            idx = np.nonzero(node.ellipsis_mask)
+            node.ellipsis_mask[idx] = 0

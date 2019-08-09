@@ -78,21 +78,21 @@ struct inner_product_fwd_pd_t: public primitive_desc_t {
     inline int ID() const
     { return ndims() == 5 ? input_pd()->desc()->dims[2] : 1; }
     inline int IH() const {
-        assert(ndims() == 4 || ndims() == 5);
-        return input_pd()->desc()->dims[ndims()-2];
+        assert(utils::one_of(ndims(), 3, 4, 5));
+        return ndims() == 3 ? 1 : input_pd()->desc()->dims[ndims()-2];
     }
     inline int IW() const {
-        assert(ndims() == 4 || ndims() == 5);
+        assert(utils::one_of(ndims(), 3, 4, 5));
         return input_pd()->desc()->dims[ndims()-1];
     }
     inline int KD() const
     { return ndims() == 5 ? desc_.weights_desc.dims[2] : 1; }
     inline int KH() const {
-        assert(ndims() == 4 || ndims() == 5);
-        return desc_.weights_desc.dims[ndims()-2];
+        assert(utils::one_of(ndims(), 3, 4, 5));
+        return ndims() == 3 ? 1 : desc_.weights_desc.dims[ndims()-2];
     }
     inline int KW() const {
-        assert(ndims() == 4 || ndims() == 5);
+        assert(utils::one_of(ndims(), 3, 4, 5));
         return desc_.weights_desc.dims[ndims()-1];
     }
 

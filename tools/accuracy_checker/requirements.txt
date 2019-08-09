@@ -1,6 +1,8 @@
- numpy
+numpy
+cython
 tqdm
 PyYAML
+yamlloader
 pillow
 scikit-learn
 scipy<=0.19

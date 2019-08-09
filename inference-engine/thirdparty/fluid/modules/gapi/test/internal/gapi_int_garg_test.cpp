@@ -2,10 +2,10 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018 Intel Corporation
 
 
-#include "test_precomp.hpp"
+#include "../test_precomp.hpp"
 
 namespace opencv_test {
 // Tests on T/Kind matching ////////////////////////////////////////////////////
@@ -31,6 +31,7 @@ using GArg_Test_Types = ::testing::Types
    <
   // G-API types
      Expected<cv::GMat,                 cv::detail::ArgKind::GMAT>
+   , Expected<cv::GMatP,                cv::detail::ArgKind::GMATP>
    , Expected<cv::GScalar,              cv::detail::ArgKind::GSCALAR>
    , Expected<cv::GArray<int>,          cv::detail::ArgKind::GARRAY>
    , Expected<cv::GArray<float>,        cv::detail::ArgKind::GARRAY>

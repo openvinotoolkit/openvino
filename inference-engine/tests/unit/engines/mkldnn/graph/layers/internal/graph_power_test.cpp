@@ -131,7 +131,7 @@ protected:
 
             InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -198,7 +198,8 @@ INSTANTIATE_TEST_CASE_P(
                                     ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().outConfs.at(0).desc.getLayout());
                                 }}},
                 power_test_params{{1, 1, 23, 23}, 3, 8, 2, 3 },
-                power_test_params{{1, 8, 23, 23}, 8, 2, 1, 3 }
+                power_test_params{{1, 8, 23, 23}, 8, 2, 1, 3 },
+                power_test_params{{1, 8, 23, 23}, 2, 2, 4, 3 }
         ));
 
 class MKLDNNGraphDynBatchPowerTests: public MKLDNNGraphPowerTests {
@@ -283,7 +284,7 @@ protected:
 
             InferenceEngine::SizeVector dims_src = {MB, p.in.c, p.in.h, p.in.w};
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP32, InferenceEngine::NCHW, dims_src);
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -346,5 +347,6 @@ INSTANTIATE_TEST_CASE_P(
                                     ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().outConfs.at(0).desc.getLayout());
                                 }}},
                 power_test_params{{1, 1, 23, 23}, 3, 8, 2, 3 },
-                power_test_params{{1, 8, 23, 23}, 8, 2, 1, 3 }
+                power_test_params{{1, 8, 23, 23}, 8, 2, 1, 3 },
+                power_test_params{{1, 8, 23, 23}, 2, 2, 4, 3 }
         ));

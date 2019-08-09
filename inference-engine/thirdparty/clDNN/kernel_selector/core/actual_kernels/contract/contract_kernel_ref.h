@@ -16,15 +16,12 @@
 
 #include "contract_kernel_base.h"
 
+namespace kernel_selector {
+class ContractKernelRef : public ContractKernelBase {
+public:
+    ContractKernelRef() : ContractKernelBase("contract_ref") {}
 
-namespace kernel_selector
-{
-    class ContractKernelRef : public ContractKernelBase
-    {
-    public:
-        ContractKernelRef() : ContractKernelBase("contract_ref") {}
-
-        KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-        ParamsKey GetSupportedKey() const override;
-    };
-}
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    ParamsKey GetSupportedKey() const override;
+};
+}  // namespace kernel_selector

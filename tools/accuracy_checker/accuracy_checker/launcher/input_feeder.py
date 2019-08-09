@@ -20,6 +20,7 @@ import numpy as np
 from ..config import ConfigError
 from ..utils import extract_image_representations
 
+
 class InputFeeder:
     def __init__(self, inputs_config, network_inputs, prepare_input_data=None):
         def fit_to_input(data, input_layer):
@@ -68,6 +69,18 @@ class InputFeeder:
             filled_inputs[input_layer] = input_batch
 
         return self._transform_batch(filled_inputs, extract_image_representations(data_representation_batch)[1])
+
+    def fill_inputs(self, data_representation_batch):
+        inputs = self.fill_non_constant_inputs(data_representation_batch)
+        for infer_inputs in inputs:
+            infer_inputs.update(self.const_inputs)
+        return inputs
+
+    def __call__(self, context, *args, **kwargs):
+        data_batch = context.data_batch
+        _, meta = extract_image_representations(data_batch)
+        context.input_blobs = self.fill_inputs(data_batch)
+        context.batch_meta = meta
 
     def _parse_inputs_config(self, inputs_entry):
         constant_inputs = {}
@@ -121,7 +134,7 @@ class InputFeeder:
             return grouped_data
 
         batch_size = len(meta)
-        if meta[0].get('multi_infer', False):
+        if meta[-1].get('multi_infer', False):
             num_splits = calculate_num_splits(batch_data, batch_size)
             infers_data = [{} for _ in range(num_splits)]
             for layer_name, layer_data in batch_data.items():

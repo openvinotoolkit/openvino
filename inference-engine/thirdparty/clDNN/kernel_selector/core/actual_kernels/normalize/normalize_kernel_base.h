@@ -1,5 +1,4 @@
-﻿/*
-// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,58 +11,53 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-*/
+
 
 #pragma once
 
 #include "common_kernel_base.h"
 #include "kernel_selector_params.h"
 
-namespace kernel_selector 
-{
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // normalize_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct normalize_params : public base_params
-    {
-        normalize_params() : base_params(KernelType::NORMALIZE) {}
+namespace kernel_selector {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// normalize_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct normalize_params : public base_params {
+    normalize_params() : base_params(KernelType::NORMALIZE) {}
 
-        NormalizeMode normMode = NormalizeMode::ACROSS_SPATIAL;
-        float         epsilon = 1e-10f;
-        DataTensor    scaleTable;
+    NormalizeMode normMode = NormalizeMode::ACROSS_SPATIAL;
+    float epsilon = 1e-10f;
+    DataTensor scaleTable;
 
-        virtual ParamsKey GetParamsKey() const
-        {
-            ParamsKey k = base_params::GetParamsKey();
+    virtual ParamsKey GetParamsKey() const {
+        ParamsKey k = base_params::GetParamsKey();
 
-            k.EnableNormalizeMode(normMode);
+        k.EnableNormalizeMode(normMode);
 
-            return k;
-        }
-    };
+        return k;
+    }
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // normalize_optional_params
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    struct normalize_optional_params : optional_params
-    {
-        normalize_optional_params() : optional_params(KernelType::NORMALIZE) {}
-    };
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// normalize_optional_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct normalize_optional_params : optional_params {
+    normalize_optional_params() : optional_params(KernelType::NORMALIZE) {}
+};
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // NormalizeKernelBase
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class NormalizeKernelBase : public common_kernel_base
-    {
-    public:
-        using common_kernel_base::common_kernel_base;
-        virtual ~NormalizeKernelBase() {}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// NormalizeKernelBase
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class NormalizeKernelBase : public common_kernel_base {
+public:
+    using common_kernel_base::common_kernel_base;
+    virtual ~NormalizeKernelBase() {}
 
-        using DispatchData = CommonDispatchData;
+    using DispatchData = CommonDispatchData;
 
-    protected:
-        JitConstants GetJitConstants(const normalize_params& params) const;
-        DispatchData SetDefault(const normalize_params& params) const;
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
-    };
-}
+protected:
+    JitConstants GetJitConstants(const normalize_params& params) const;
+    DispatchData SetDefault(const normalize_params& params) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+};
+}  // namespace kernel_selector

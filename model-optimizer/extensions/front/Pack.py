@@ -13,10 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
-from mo.ops.const import Const
 from mo.ops.expand_dims import ExpandDims
 
 
@@ -25,15 +25,15 @@ class Pack(FrontReplacementOp):
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
-        expand_dims_nodes = list()
-        expand_axis_node = Const(graph, dict(value=node.axis)).create_node([])
-        for ind, edge_attrs in node.in_edges().items():
-            expand_dims_nodes.append(ExpandDims(graph, dict(name=node.name + '/ExpandDims_')).
-                                     create_node([(node.in_node(ind), edge_attrs['out']), expand_axis_node]))
+        out_node = Concat(graph, {'axis': node.axis, 'in_ports_count': len(node.in_ports()),
+                                  'name': node.name + '/Concat_', }).create_node()
 
-        out_node = Concat(graph, dict(name=node.name + '/Concat_',
-                                      axis=node.axis,
-                                      in_ports_count=len(expand_dims_nodes))).create_node(expand_dims_nodes)
+        for ind in node.in_ports():
+            expand_dims_node = ExpandDims(graph, {'expand_axis': int64_array([node.axis]),
+                                                  'name': node.name + '/ExpandDims_'}).create_node()
+            node.in_port(ind).get_connection().set_destination(expand_dims_node.in_port(0))
+            expand_dims_node.out_port(0).connect(out_node.in_port(ind))
         # Replace edge from out port 0 of the matched node with a edge from node out_node.id with port 0.
         # The "explicit" version of the return value is: [(out_node.id, 0)])
         return [out_node.id]
+

@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2016-2018 Intel Corporation
+* Copyright 2016-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -30,14 +30,18 @@ namespace impl {
 namespace cpu {
 
 namespace jit_gemm_convolution_utils {
+template <typename data_type_t>
+void im2col_3d(const jit_gemm_conv_conf_t &jcp, const data_type_t *im,
+    data_type_t *col, int od);
 
-void im2col_3d(const jit_gemm_conv_conf_t &jcp, const float *im, float *col,
-        int od);
-void im2col(const jit_gemm_conv_conf_t &jcp, const float *__restrict im,
-       float *__restrict col, int hs, int hb, int ws, int wb);
+template <typename data_type_t>
+void im2col(const jit_gemm_conv_conf_t &jcp, const data_type_t *__restrict im,
+       data_type_t *__restrict col, int hs, int hb, int ws, int wb);
+
 template <typename T>
 void im2col_u8(const jit_gemm_conv_conf_t &jcp, const T *__restrict im,
-        uint8_t *__restrict col);
+        T* __restrict imtr, uint8_t *__restrict col,
+        int hs, int hb, int ws, int wb);
 
 void col2im_s32(const jit_gemm_conv_conf_t &jcp, const int32_t *__restrict col,
         int32_t *__restrict im);

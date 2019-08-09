@@ -88,50 +88,50 @@
 #else
 
 #define QUANTIZATION(idx) \
-    regC_uchar16.s0 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i][idx]) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));\
-    regC_uchar16.s1 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i][idx]) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));\
-    regC_uchar16.s2 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i][idx]) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));\
-    regC_uchar16.s3 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i][idx]) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));\
+    regC_uchar16.s0 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i][idx]) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));\
+    regC_uchar16.s1 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i][idx]) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));\
+    regC_uchar16.s2 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i][idx]) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));\
+    regC_uchar16.s3 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i][idx]) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));\
     \
-    regC_uchar16.s4 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i][idx+1]) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));\
-    regC_uchar16.s5 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i][idx+1]) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));\
-    regC_uchar16.s6 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i][idx+1]) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));\
-    regC_uchar16.s7 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i][idx+1]) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));\
+    regC_uchar16.s4 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i][idx+1]) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));\
+    regC_uchar16.s5 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i][idx+1]) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));\
+    regC_uchar16.s6 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i][idx+1]) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));\
+    regC_uchar16.s7 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i][idx+1]) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));\
     \
-    regC_uchar16.s8 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i][idx+2]) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));\
-    regC_uchar16.s9 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i][idx+2]) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));\
-    regC_uchar16.sa = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i][idx+2]) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));\
-    regC_uchar16.sb = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i][idx+2]) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));\
+    regC_uchar16.s8 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i][idx+2]) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));\
+    regC_uchar16.s9 = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i][idx+2]) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));\
+    regC_uchar16.sa = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i][idx+2]) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));\
+    regC_uchar16.sb = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i][idx+2]) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));\
     \
-    regC_uchar16.sc = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i][idx+3]) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), NL_M, NL_N));\
-    regC_uchar16.sd = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i][idx+3]) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), NL_M, NL_N));\
-    regC_uchar16.se = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i][idx+3]) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), NL_M, NL_N));\
-    regC_uchar16.sf = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i][idx+3]) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), NL_M, NL_N));\
+    regC_uchar16.sc = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[0 * 4 + i][idx+3]) * quant_f.s0 * I_QF + bias_f.s0) * calib_f.s0)), ACTIVATION_PARAMS));\
+    regC_uchar16.sd = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[1 * 4 + i][idx+3]) * quant_f.s1 * I_QF + bias_f.s1) * calib_f.s1)), ACTIVATION_PARAMS));\
+    regC_uchar16.se = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[2 * 4 + i][idx+3]) * quant_f.s2 * I_QF + bias_f.s2) * calib_f.s2)), ACTIVATION_PARAMS));\
+    regC_uchar16.sf = as_uchar(ACTIVATION( convert_char(round(( (float)(regC[3 * 4 + i][idx+3]) * quant_f.s3 * I_QF + bias_f.s3) * calib_f.s3)), ACTIVATION_PARAMS));\
     {\
         int16 sum;\
         for(uint s = 0; s <16; s++)\
         {\
             sum[s] = (int)as_char(regC_uchar16[s]) + (int)as_char(eltw_input_vals[s]);\
         }\
-        regC_uchar16.s0 = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.s0)  * eltw_calib_f.s0)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.s1 = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.s1)  * eltw_calib_f.s1)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.s2 = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.s2)  * eltw_calib_f.s2)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.s3 = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.s3)  * eltw_calib_f.s3)), NL_M_ELTW, NL_N_ELTW));\
+        regC_uchar16.s0 = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.s0)  * eltw_calib_f.s0)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.s1 = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.s1)  * eltw_calib_f.s1)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.s2 = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.s2)  * eltw_calib_f.s2)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.s3 = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.s3)  * eltw_calib_f.s3)), ACTIVATION_PARAMS_ELTW));\
         \
-        regC_uchar16.s4 = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.s4)  * eltw_calib_f.s0)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.s5 = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.s5)  * eltw_calib_f.s1)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.s6 = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.s6)  * eltw_calib_f.s2)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.s7 = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.s7)  * eltw_calib_f.s3)), NL_M_ELTW, NL_N_ELTW));\
+        regC_uchar16.s4 = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.s4)  * eltw_calib_f.s0)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.s5 = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.s5)  * eltw_calib_f.s1)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.s6 = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.s6)  * eltw_calib_f.s2)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.s7 = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.s7)  * eltw_calib_f.s3)), ACTIVATION_PARAMS_ELTW));\
         \
-        regC_uchar16.s8 = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.s8)  * eltw_calib_f.s0)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.s9 = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.s9)  * eltw_calib_f.s1)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.sa = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.sa)  * eltw_calib_f.s2)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.sb = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.sb)  * eltw_calib_f.s3)), NL_M_ELTW, NL_N_ELTW));\
+        regC_uchar16.s8 = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.s8)  * eltw_calib_f.s0)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.s9 = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.s9)  * eltw_calib_f.s1)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.sa = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.sa)  * eltw_calib_f.s2)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.sb = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.sb)  * eltw_calib_f.s3)), ACTIVATION_PARAMS_ELTW));\
         \
-        regC_uchar16.sc = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.sc)  * eltw_calib_f.s0)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.sd = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.sd)  * eltw_calib_f.s1)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.se = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.se)  * eltw_calib_f.s2)), NL_M_ELTW, NL_N_ELTW));\
-        regC_uchar16.sf = as_uchar(ACTIVATION_ELTW( convert_char((int)round( (float)(sum.sf)  * eltw_calib_f.s3)), NL_M_ELTW, NL_N_ELTW));\
+        regC_uchar16.sc = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.sc)  * eltw_calib_f.s0)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.sd = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.sd)  * eltw_calib_f.s1)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.se = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.se)  * eltw_calib_f.s2)), ACTIVATION_PARAMS_ELTW));\
+        regC_uchar16.sf = as_uchar(ACTIVATION_ELTW( convert_char_sat(round( (float)(sum.sf)  * eltw_calib_f.s3)), ACTIVATION_PARAMS_ELTW));\
     }
 #endif
 
@@ -246,8 +246,8 @@ inline void FUNC(mmad_32x32_int8)(  __local uint* l_tileA, const uint l_offsetTi
 
 /*
  *  \brief GEMM kernel to compute MxN matrix using SLM
- *  \param g_inA  - Input matrix 
- *  \param g_inB  - Input matrix 
+ *  \param g_inA  - Input matrix
+ *  \param g_inB  - Input matrix
  *  \param g_outC - Output matrix
  */
 
@@ -431,8 +431,8 @@ KERNEL(Kernel_GEMM_MMAD8_32x32SG_224x128WG_SLM_INT8_fused_eltwise)
     uchar16 regC_uchar16;
     uint offset_uc16 = 0;
 
-    const uint workgroup_id_x = get_group_id(0); 
-    uint feature_off = 32*(sub_group_id % (WG_TILE_N / 32)) + WG_TILE_N*workgroup_id_x; //=32*{0,1,2,3} + WG_TILE_N * workgroup_id_x 
+    const uint workgroup_id_x = get_group_id(0);
+    uint feature_off = 32*(sub_group_id % (WG_TILE_N / 32)) + WG_TILE_N*workgroup_id_x; //=32*{0,1,2,3} + WG_TILE_N * workgroup_id_x
     uint feature = get_sub_group_local_id()*4 + feature_off;
 
     float4 quant_f = vload4(0, quantizations + feature);

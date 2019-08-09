@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,7 @@
 #include "../C/softmax.h"
 #include "primitive.hpp"
 
-namespace cldnn
-{
+namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
 /// @addtogroup cpp_topology Network Topology
@@ -36,38 +35,31 @@ namespace cldnn
 ///   @li N : number of values to normalize
 ///   @li b : value after normalization
 ///   @li a : value before normalization
-struct softmax : public primitive_base<softmax, CLDNN_PRIMITIVE_DESC(softmax)>
-{
+struct softmax : public primitive_base<softmax, CLDNN_PRIMITIVE_DESC(softmax)> {
     CLDNN_DECLARE_PRIMITIVE(softmax)
 
     /// @brief Enum type to specify softmax's normalization scope (see #dimension).
-    enum dimension_t
-    {
+    enum dimension_t {
         normalize_f = cldnn_softmax_normalize_f,
         normalize_x = cldnn_softmax_normalize_x,
         normalize_y = cldnn_softmax_normalize_y,
+        normalize_z = cldnn_softmax_normalize_z,
         normalize_fyx = cldnn_softmax_normalize_fyx,
+        normalize_all = cldnn_softmax_normalize_all,
     };
 
     /// @brief Constructs softmax primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param dimension Defines a scope of normalization (see #dimension).
-    softmax(
-        const primitive_id& id,
-        const primitive_id& input,
-        const dimension_t dimension = normalize_fyx,
-        const padding& output_padding = padding()
-    )
-        :primitive_base(id, {input}, output_padding)
-        , dimension(dimension)
-    {}
+    softmax(const primitive_id& id,
+            const primitive_id& input,
+            const dimension_t dimension = normalize_fyx,
+            const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding), dimension(dimension) {}
 
     /// @brief Constructs a copy from C API @CLDNN_PRIMITIVE_DESC{softmax}
-    softmax(const dto* dto)
-        :primitive_base(dto)
-        , dimension(static_cast<dimension_t>(dto->dimension))
-    {}
+    softmax(const dto* dto) : primitive_base(dto), dimension(static_cast<dimension_t>(dto->dimension)) {}
 
     /// @brief Defines a scope of a single softmax normalization.
     /// @details
@@ -77,15 +69,13 @@ struct softmax : public primitive_base<softmax, CLDNN_PRIMITIVE_DESC(softmax)>
     /// - when set to @link softmax::dimension_t softmax::normalize_y @endlink each input column is normalized independently,
     /// - when set to @link softmax::dimension_t softmax::normalize_f @endlink each in-depth vector of input is normalized independently,
     /// - when set to @link softmax::dimension_t softmax::normalize_fyx @endlink each 3d image within input is normalized independently,
+    /// - when set to @link softmax::dimension_t softmax::normalize_bfyx @endlink everything is normalized,
     dimension_t dimension;
 
 private:
-    void update_dto(dto& dto) const override
-    {
-        dto.dimension = static_cast<cldnn_softmax_dimension>(dimension);
-    }
+    void update_dto(dto& dto) const override { dto.dimension = static_cast<cldnn_softmax_dimension>(dimension); }
 };
 /// @}
 /// @}
 /// @}
-}
+}  // namespace cldnn

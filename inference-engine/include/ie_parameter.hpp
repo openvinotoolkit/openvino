@@ -51,8 +51,9 @@ public:
      * @tparam U Identity type-transformation
      * @param parameter object
      */
-    template<class T>
-    Parameter(T&& parameter) {                                      // NOLINT
+    template<class T, typename = typename std::enable_if<!std::is_same<typename std::decay<T>::type, Parameter>::value>::type >
+    Parameter(T&& parameter) { // NOLINT
+        static_assert(!std::is_same<typename std::decay<T>::type, Parameter>::value, "To prevent recursion");
         ptr = new RealData<typename std::decay<T>::type>(std::forward<T>(parameter));
     }
 

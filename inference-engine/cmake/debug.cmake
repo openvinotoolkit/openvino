@@ -1,5 +1,4 @@
 # Copyright (C) 2018-2019 Intel Corporation
-#
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,7 +7,6 @@ function (debug_message)
         message(${ARGV})
     endif()
 endfunction()
-
 
 function(clean_message type)
   string (REPLACE ";" "" output_string "${ARGN}")
@@ -47,7 +45,12 @@ function (log_rpath_remove_top component component_remove_top lib lib_remove_top
 
 #  debug_message(STATUS "LIB-OUT=${lib_dir}")
 #  debug_message(STATUS "TOPLIB-OUT=${top_lib_dir}")
- 
+
+  if (WIN32)
+    string (TOLOWER "${top_lib_dir}" top_lib_dir)
+    string (TOLOWER "${lib_dir}" lib_dir)
+  endif()
+
   string (REPLACE "${top_lib_dir}" "" component_dir "${lib_dir}")
 
   set(RPATH_INFO "${component}=${component_dir}")
@@ -56,9 +59,7 @@ function (log_rpath_remove_top component component_remove_top lib lib_remove_top
 endfunction()
 
 function (log_rpath_from_dir component lib_dir)
-  if(NOT APPLE)
-    log_rpath_remove_top("${component}" TRUE "${lib_dir}" FALSE)
-  endif()
+  log_rpath_remove_top("${component}" TRUE "${lib_dir}" FALSE)
 endfunction()
 
 function (log_rpath component lib_path)

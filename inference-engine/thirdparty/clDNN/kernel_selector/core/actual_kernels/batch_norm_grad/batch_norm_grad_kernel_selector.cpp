@@ -19,13 +19,11 @@
 
 namespace kernel_selector {
 
-    batch_norm_grad_kernel_selector::batch_norm_grad_kernel_selector()
-    {
-        Attach<BatchNormGradKernelRef>();
-    }
-
-    KernelsData batch_norm_grad_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const
-    {
-        return GetNaiveBestKernel(params, options, KernelType::BATCH_NORM_GRAD);
-    }
+batch_norm_grad_kernel_selector::batch_norm_grad_kernel_selector() {
+    Attach<BatchNormGradKernelRef>();
 }
+
+KernelsData batch_norm_grad_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
+    return GetNaiveBestKernel(params, options, KernelType::BATCH_NORM_GRAD);
+}
+}  // namespace kernel_selector

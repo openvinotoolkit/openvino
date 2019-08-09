@@ -455,26 +455,26 @@ bool jit_avx2_conv_fwd_kernel_f32::post_ops_ok(
         jit_conv_conf_t &jcp, const primitive_attr_t &attr) {
     const auto &p = attr.post_ops_;
 
-    auto is_eltwise = [&](int idx) { return p.entry_[idx].is_eltwise(); };
-    auto is_depthwise = [&](int idx) { return p.entry_[idx].is_depthwise(); };
-    auto is_sum = [&](int idx) { return p.entry_[idx].is_sum(); };
-    auto is_dw_conv = [&](int idx) { return p.entry_[idx].is_dw_conv(); };
-    auto is_simple = [&](int idx) { return is_eltwise(idx) || is_depthwise(idx); };
+    int dw_conv_idx = p.find(primitive_kind::convolution);
+    bool with_dw_conv = dw_conv_idx != -1;
 
-    switch (p.len_) {
-        case 0: return true;
-        case 1: return is_simple(0) || is_sum(0) || is_dw_conv(0);
-        case 2: return (is_sum(0) && is_simple(1)) || (is_dw_conv(0) && is_eltwise(1)) ||
-                       (is_eltwise(0) && is_dw_conv(1)) || (is_dw_conv(0) && is_sum(1)) ||
-                       (is_simple(0) && is_simple(1));
-        case 3: return (is_eltwise(0) && is_dw_conv(1) && is_eltwise(2)) ||
-                       (is_dw_conv(0) && is_sum(1) && is_eltwise(2)) ||
-                       (is_sum(0) && is_simple(1) && is_simple(2));
-        case 4: return (is_eltwise(0) && is_dw_conv(1) && is_sum(2) && is_eltwise(3));
-        default: return false;
-    }
+    auto all_post_ops_supported = [&]() {
+        bool ok = true;
 
-    return false;
+        int end_idx = with_dw_conv ? dw_conv_idx : p.len_;
+        for (int i = 0; i < end_idx; i++) {
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise);
+        }
+        return ok;
+    };
+    auto contain = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind, 0, dw_conv_idx) != -1; };
+    auto position = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind, 0, dw_conv_idx); };
+    auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind, 0, dw_conv_idx); };
+
+    return all_post_ops_supported() &&
+           count(primitive_kind::sum) <= 1 &&
+           IMPLICATION(contain(primitive_kind::sum), position(primitive_kind::sum) == 0) &&
+           IMPLICATION(with_dw_conv, !contain(primitive_kind::sum));
 }
 
 status_t jit_avx2_conv_fwd_kernel_f32::init_conf(jit_conv_conf_t &jcp,
@@ -521,6 +521,10 @@ status_t jit_avx2_conv_fwd_kernel_f32::init_conf(jit_conv_conf_t &jcp,
     jcp.src_fmt = src_d.format();
     jcp.with_bias = cd.bias_desc.format != memory_format::undef;
 
+    jcp.src_dt = cd.src_desc.data_type;
+    jcp.bia_dt = jcp.with_bias ? cd.bias_desc.data_type : data_type::undef;
+    jcp.dst_dt = cd.dst_desc.data_type;
+
     if (!post_ops_ok(jcp, attr))
         return status::unimplemented;
 
@@ -533,6 +537,9 @@ status_t jit_avx2_conv_fwd_kernel_f32::init_conf(jit_conv_conf_t &jcp,
         jcp.dw_conv_ow = jcp.ow;
         jcp.oh = p.entry_[dw_conv_ind].dw_conv.in_h;
         jcp.ow = p.entry_[dw_conv_ind].dw_conv.in_w;
+
+        jcp.dw_conv_dst_dt = jcp.dst_dt;
+        jcp.dst_dt = p.entry_[dw_conv_ind].dw_conv.in_dt;
     }
 
     jcp.b_pad = (jcp.oh - 1) * jcp.stride_h + (jcp.kh - 1) * (jcp.dilate_h + 1)
@@ -557,10 +564,6 @@ status_t jit_avx2_conv_fwd_kernel_f32::init_conf(jit_conv_conf_t &jcp,
     }
 
     jcp.with_sum = p.find(primitive_kind::sum, 0, dw_conv_ind) != -1;
-
-    jcp.src_dt = cd.src_desc.data_type;
-    jcp.bia_dt = jcp.with_bias ? cd.bias_desc.data_type : data_type::undef;
-    jcp.dst_dt = cd.dst_desc.data_type;
 
     const int simd_w = 8;
     const bool flat = jcp.ic < simd_w;
@@ -1115,11 +1118,24 @@ status_t jit_avx2_conv_bwd_weights_kernel_f32::init_conf(jit_conv_conf_t &jcp,
 
     const int simd_w = 8;
 
+    jcp.b_pad = nstl::max(
+            0, (jcp.oh - 1) * jcp.stride_h + jcp.kh - jcp.ih - jcp.t_pad);
+    jcp.r_pad = nstl::max(
+            0, (jcp.ow - 1) * jcp.stride_w + jcp.kw - jcp.iw - jcp.l_pad);
+
     int back_pad = nstl::max(0, (jcp.od - 1) * jcp.stride_d + jcp.kd - jcp.id
         - jcp.f_pad);
     if (ndims == 5)
         if (jcp.f_pad != 0 || back_pad != 0)
             return status::unimplemented;
+
+    const int max_h_pad = ((jcp.kh - 1) * (jcp.dilate_h + 1) + 1);
+    const int max_w_pad = ((jcp.kw - 1) * (jcp.dilate_w + 1) + 1);
+    const bool boundaries_ok = true
+        && jcp.t_pad < max_h_pad && jcp.b_pad < max_h_pad
+        && jcp.l_pad < max_w_pad && jcp.r_pad < max_w_pad;
+    if (!boundaries_ok)
+        return status::unimplemented;
 
     bool ok_to_pad_channels = true
         && jcp.ngroups == 1;
@@ -1350,9 +1366,7 @@ inline void jit_avx2_conv_bwd_weights_kernel_f32::compute_oh_step_common(
     int inp_mul = one_of(jcp.src_fmt, ncw, nchw, ncdhw) ? 1 : jcp.ic_block;
     Label kd_loop;
 
-    const int r_pad
-        = nstl::max(0,
-                (jcp.ow - 1) * jcp.stride_w + jcp.kw - jcp.iw - jcp.l_pad);
+    const int r_pad = jcp.r_pad;
 
     int ur_w = nstl::min(jcp.ow, max_ur_w);
     int ur_w_trips = jcp.ow / ur_w;
@@ -1457,8 +1471,7 @@ inline void jit_avx2_conv_bwd_weights_kernel_f32::compute_oh_loop_common()
     const int stride_h = jcp.stride_h;
     const int inp_mult = one_of(jcp.src_fmt, ncw, nchw, ncdhw)
         ? 1 : jcp.ic_block;
-    int b_pad
-        = nstl::max(0, (jcp.oh - 1) * stride_h + jcp.kh - jcp.ih - t_pad);
+    int b_pad = jcp.b_pad;
 
     Label oh_tpad_loop, oh_loop, oh_loop_end;
 

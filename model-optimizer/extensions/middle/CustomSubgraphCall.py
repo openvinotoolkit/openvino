@@ -196,7 +196,7 @@ class CustomSubgraphCall(MiddleReplacementPattern):
 
         # if the data node was previously marked as output then we need to mark as output new reshaped data node
         is_out_node = False
-        if len(data_node.out_nodes()) == 1 and data_node.out_node().has('op') and data_node.out_node().op == 'OpOutput':
+        if len(data_node.out_nodes()) == 1 and data_node.out_node().has('op') and data_node.out_node().op == 'Result':
             is_out_node = True
             graph.remove_node(data_node.out_node().id)
 

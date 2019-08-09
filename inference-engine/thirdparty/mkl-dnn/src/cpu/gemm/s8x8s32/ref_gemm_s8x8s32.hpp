@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
+* Copyright 2018-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #ifndef REF_GEMM_S8X8S32_HPP
 #define REF_GEMM_S8X8S32_HPP
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "mkldnn_types.h"
 
@@ -35,5 +35,5 @@ mkldnn_status_t ref_gemm_s8x8s32(const char *transa, const char *transb,
 }
 }
 }
-#endif
+#endif // REF_GEMM_S8X8S32_HPP
 

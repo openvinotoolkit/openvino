@@ -27,6 +27,7 @@
 
 #ifdef USE_MKL
 #include "mkl_vml_functions.h"
+#include "mkl_vml_defines.h"
 #endif
 
 namespace mkldnn {
@@ -38,12 +39,16 @@ void ref_softmax_fwd_t<data_type>::execute_forward_dense() const {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto dst = reinterpret_cast<data_t *>(this->memory(0));
 
+    const int axis = pd()->desc()->softmax_axis;
+    const memory_desc_wrapper data_d(pd()->src_pd());
+    const size_t ou_stride = axis > 0
+        ? data_d.blocking_desc().strides[0][axis - 1] : 1u;
     int outer_size_ = utils::array_product(pd()->src_pd()->desc()->dims, pd()->desc()->softmax_axis);
 
     if (outer_size_ == 1) {
         for (int ou = 0; ou < outer_size_; ou++) {
-            const data_t *src_data = src + ou * channels_;
-            data_t *dst_data = dst + ou * channels_;
+            const data_t *src_data = src + ou * ou_stride;
+            data_t *dst_data = dst + ou * ou_stride;
             data_t scalar = 0;
 
             _max(channels_, src_data, &scalar);
@@ -54,8 +59,8 @@ void ref_softmax_fwd_t<data_type>::execute_forward_dense() const {
         }
     } else {
         parallel_nd(outer_size_, [&](int ou) {
-            const data_t *src_data = src + ou * channels_;
-            data_t *dst_data = dst + ou * channels_;
+            const data_t *src_data = src + ou * ou_stride;
+            data_t *dst_data = dst + ou * ou_stride;
             data_t scalar = 0;
 
             _max(channels_, src_data, &scalar);
@@ -176,7 +181,13 @@ template <impl::data_type_t data_type>
 void ref_softmax_fwd_t<data_type>::_exp_parallel(int n, const data_t *a, data_t *r) const {
 #ifdef USE_MKL
     if (data_type == data_type::f32) {
+// TODO: mklml for win doesn't contain vmsExp symbol
+// Remove this limitation once it's updated
+#ifndef _WIN32
+        vmsExp(n, a, r, VML_ERRMODE_NOERR);
+#else
         vsExp(n, a, r);
+#endif
         return;
     }
 #endif
@@ -234,19 +245,24 @@ void ref_softmax_bwd_t<data_type>::execute_backward_dense() const {
     auto diff_dst = reinterpret_cast<const data_t *>(this->input_memory(1));
     auto diff_src = reinterpret_cast<data_t *>(this->memory(0));
 
+    const int axis = pd()->desc()->softmax_axis;
+    const memory_desc_wrapper diff_d(pd()->diff_dst_pd());
+    const size_t ou_stride = axis > 0
+        ? diff_d.blocking_desc().strides[0][axis - 1] : 1u;
+
     parallel_nd(outer_size_, [&](int ou) {
         data_t sbr = 0;
-        size_t off = channels_*ou;
-        for (int c = 0; c < channels_; c++) {
+        size_t off = ou * ou_stride;
+        for (int c = 0; c < channels_; ++c) {
             size_t loff = off + c;
             data_t ldata = data[loff];
-            sbr += diff_dst[loff]*ldata;
+            sbr += diff_dst[loff] * ldata;
             diff_src[loff] = ldata;
         }
 
-        for(int c=0; c < channels_ ; ++c) {
-          size_t loff = off + c;
-          diff_src[loff] *= (diff_dst[loff] - sbr);
+        for(int c = 0; c < channels_; ++c) {
+            size_t loff = off + c;
+            diff_src[loff] *= (diff_dst[loff] - sbr);
         }
     });
 }

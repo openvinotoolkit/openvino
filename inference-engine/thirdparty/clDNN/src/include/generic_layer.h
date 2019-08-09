@@ -19,18 +19,17 @@
 
 #include "api/C/cldnn.h"
 
-namespace cldnn
-{
-    /// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.
-    /// @details Corresponding values are bitwise equal before/after reorder.
-    /// Also merged with subtraction layer, which can subtract values while doing reordering.
-    CLDNN_BEGIN_PRIMITIVE_DESC(generic_layer)
-        /// @brief Requested memory layout.
-    cldnn_layout output_layout;
-    const void* generic_params;
+namespace cldnn {
+/// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.
+/// @details Corresponding values are bitwise equal before/after reorder.
+/// Also merged with subtraction layer, which can subtract values while doing reordering.
+CLDNN_BEGIN_PRIMITIVE_DESC(generic_layer)
+/// @brief Requested memory layout.
+cldnn_layout output_layout;
+const void* generic_params;
 
-    CLDNN_END_PRIMITIVE_DESC(generic_layer)
+CLDNN_END_PRIMITIVE_DESC(generic_layer)
 
-    CLDNN_DECLARE_PRIMITIVE_TYPE_ID(generic_layer);
+CLDNN_DECLARE_PRIMITIVE_TYPE_ID(generic_layer);
 
-}
+}  // namespace cldnn

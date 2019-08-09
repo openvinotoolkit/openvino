@@ -7,7 +7,7 @@ Accuracy Checker supports following set of preprocessors:
 * `resize` - resizing the image to a new width and height.
   * `dst_width` and `dst_height` are destination width and height for image resizing respectively.
     You can also use `size` instead in case when destination sizes are equal for both dimensions.
-  * `use_pil` parameter specifies usage of Pillow library for resizing.
+  * `use_pillow` parameter specifies usage of Pillow library for resizing.
     Accuracy Checker uses OpenCV as default image reader.
   * `interpolation` specifies method that will be used.
     Possible values depend on image processing library:
@@ -17,6 +17,7 @@ Accuracy Checker supports following set of preprocessors:
     - `width` - rescale width.
     - `height` - rescale height.
     - `greater` - rescale greater from image sizes.
+    - `fit_to_window` - adaptive resize for fit image into window with fixed size [dst_height x dst_width]
 
 * `normalization` - changing the range of pixel intensity values.
   * `mean` values which will be subtracted from image channels.
@@ -32,6 +33,7 @@ Accuracy Checker supports following set of preprocessors:
   * `mode` specifies the axis for flipping (`vertical` or `horizontal`).
 * `crop` - central cropping for image.
   * `dst_width` and `dst_height` are destination width and height for image resizing respectively. You can also use `size` instead in case when destination sizes are equal.
+  * `use_pillow` parameter specifies usage of Pillow library for cropping.
 * `crop_rectangle` - cropping region of interest using coordinates given as annotation metadata.
 * `extend_around_rect` - scaling region of interest using annotation metadata.
   * `augmentation_param` is scale factor for augmentation.
@@ -44,6 +46,8 @@ Accuracy Checker supports following set of preprocessors:
   * `pad_value` - value for filling space around original image.
   * `dst_width` and `dst_height` are destination width and height for padded image respectively.
     You can also use `size` instead in case when destination sizes are equal for both dimensions.
+  * `pad_type` - padding space location. Supported: `center`, `left_top`, `right_bottom` (Default is `center`).
+  * `use_numpy` - allow to use numpy for padding instead default OpenCV.
 * `tiling` - image tiling.
   * `margin` - margin for tiled fragment of image.
   * `dst_width` and `dst_height` are destination width and height of tiled fragment respectively.

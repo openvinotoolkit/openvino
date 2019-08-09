@@ -18,24 +18,19 @@
 #pragma once
 #include "api/CPP/convolution_grad_weights.hpp"
 #include "primitive_inst.h"
+#include <string>
+#include <memory>
 
-namespace cldnn
-{
+namespace cldnn {
 
 template <>
-struct typed_program_node<convolution_grad_weights> : public typed_program_node_base<convolution_grad_weights>
-{
+struct typed_program_node<convolution_grad_weights> : public typed_program_node_base<convolution_grad_weights> {
     using parent = typed_program_node_base<convolution_grad_weights>;
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
-        : parent(prim, prog)
-        , split(this->get_primitive()->split())
-        , depthwise_sep_opt(false)
-    {
-    }
+        : parent(prim, prog), split(this->get_primitive()->split()), depthwise_sep_opt(false) {}
 
-    
     void set_split(int32_t node_split) { split = node_split; }
     int32_t get_split() const { return split; }
 
@@ -44,56 +39,47 @@ public:
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
 
-    program_node& weights(size_t idx = 0) const
-    {
+    program_node& weights(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= get_split())
             throw std::range_error("weights offset too big");
 
         return get_dependency(2 + idx);
     }
 
-    program_node& bias(size_t idx = 0) const
-    { 
+    program_node& bias(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= get_split())
             throw std::range_error("bias offset too big");
 
         return get_dependency(2 + this->get_split() + idx);
     }
 
-    program_node& prev_weights_grad(size_t idx = 0) const
-    {
+    program_node& prev_weights_grad(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= get_split())
             throw std::range_error("prev weights grad offset too big");
         return get_dependency(2 + (bias_term() ? 2 : 1) * get_split() + idx);
     }
 
-    program_node& prev_bias_grad(size_t idx = 0) const
-    {
+    program_node& prev_bias_grad(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= get_split())
             throw std::range_error("prev bias grad offset too big");
         return get_dependency(2 + 3 * get_split() + idx);
     }
 
-    bool use_momentum() const
-    {
+    bool use_momentum() const {
         if (get_primitive()->prev_weights_grad.size() != 0)
             return true;
         else
             return false;
     }
 
-    bool bias_term() const
-    {
+    bool bias_term() const {
         if (get_primitive()->bias.size() != 0)
             return true;
         else
             return false;
     }
 
-    bool output_grad_w() const
-    {
-        return get_primitive()->output_grad_w;
-    }
+    bool output_grad_w() const { return get_primitive()->output_grad_w; }
 
 private:
     int32_t split;
@@ -103,8 +89,7 @@ private:
 using convolution_grad_weights_node = typed_program_node<convolution_grad_weights>;
 
 template <>
-class typed_primitive_inst<convolution_grad_weights> : public typed_primitive_inst_base<convolution_grad_weights>
-{
+class typed_primitive_inst<convolution_grad_weights> : public typed_primitive_inst_base<convolution_grad_weights> {
     using parent = typed_primitive_inst_base<convolution_grad_weights>;
 
 public:
@@ -114,16 +99,14 @@ public:
 public:
     typed_primitive_inst(network_impl& network, convolution_grad_weights_node const& node);
 
-    memory_impl& weights_memory(size_t index) const
-    {
+    memory_impl& weights_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("weights offset too big");
 
         return dep_memory(2 + index);
     }
 
-    memory_impl& bias_memory(size_t index) const
-    {
+    memory_impl& bias_memory(size_t index) const {
         if (argument.bias.size() == 0 && static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("no bias data");
 
@@ -133,9 +116,8 @@ public:
         return dep_memory(2 + node.get_split() + index);
     }
 
-    memory_impl& prev_weights_grad(size_t index) const
-    {
-        if(argument.prev_weights_grad.size() == 0 && static_cast<int32_t>(index) >= node.get_split())
+    memory_impl& prev_weights_grad(size_t index) const {
+        if (argument.prev_weights_grad.size() == 0 && static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("no prev weights grad data");
 
         if (static_cast<int32_t>(index) >= node.get_split())
@@ -144,8 +126,7 @@ public:
         return dep_memory(2 + (bias_term() ? 2 : 1) * node.get_split() + index);
     }
 
-    memory_impl& prev_bias_grad(size_t index) const
-    {
+    memory_impl& prev_bias_grad(size_t index) const {
         if (argument.prev_bias_grad.size() == 0 && static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("no prev bias grad data");
 
@@ -155,28 +136,23 @@ public:
         return dep_memory(2 + 3 * node.get_split() + index);
     }
 
-    bool use_momentum() const
-    {
+    bool use_momentum() const {
         if (argument.prev_weights_grad.size() != 0)
             return true;
         else
             return false;
     }
 
-    bool bias_term() const
-    {
+    bool bias_term() const {
         if (argument.bias.size() != 0)
             return true;
         else
             return false;
     }
 
-    bool output_grad_w() const
-    {
-        return argument.output_grad_w;
-    }
+    bool output_grad_w() const { return argument.output_grad_w; }
 };
 
 using convolution_grad_weights_inst = typed_primitive_inst<convolution_grad_weights>;
 
-}
+}  // namespace cldnn
