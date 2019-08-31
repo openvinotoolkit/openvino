@@ -2433,6 +2433,7 @@ ncStatus_t ncGraphGetOption(struct ncGraphHandle_t * graphHandle,
     if (g->dev != NULL && class > g->dev->dev_attr.max_graph_opt_class) {
         mvLog(MVLOG_ERROR, "This device FW does not support NC_OPTION_CLASS%d",
               class);
+        GLOBAL_UNLOCK();
         return NC_UNAUTHORIZED;
     }
     GLOBAL_UNLOCK();
