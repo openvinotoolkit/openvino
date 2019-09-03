@@ -4,8 +4,8 @@
 
 #include "ext_list.hpp"
 #include "ext_base.hpp"
-#include "defs.h"
-#include "softmax.h"
+#include "common/defs.h"
+#include "common/softmax.h"
 #include <vector>
 #include <algorithm>
 #include <ie_parallel.hpp>
