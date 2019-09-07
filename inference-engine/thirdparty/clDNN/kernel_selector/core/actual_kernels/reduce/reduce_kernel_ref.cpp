@@ -88,7 +88,7 @@ JitConstants ReduceKernelRef::GetJitConstants(const reduce_params& params) const
         return res;
     };
 
-    auto getDimSizeNameByNum = [&](int dim) -> std::string {
+    auto getDimSizeNameByNum = [&](size_t dim) -> std::string {
         if (params.inputs[0].GetLayout() == DataLayout::bfwzyx) {
             switch (dim) {
                 case 0: return "BATCH_NUM";
