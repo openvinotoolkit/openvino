@@ -132,7 +132,7 @@ public:
     typedef __m128 vmask_type;
 #else
     typedef float vec_type_f;
-    typedef int vmask_type;
+    typedef float vmask_type;
 #endif
 
     struct cmpgt_ps {
@@ -140,7 +140,7 @@ public:
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
             return _mm_uni_cmpgt_ps(_Left, _Right);
 #else
-            return _Left > _Right ? _Left : _Right;
+            return _Right - _Left;
 #endif
         }
     };
@@ -150,7 +150,7 @@ public:
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
             return _mm_uni_cmpgt_ps(_Right, _Left);
 #else
-            return _Right > _Left ? _Right : _Left;
+            return _Left - _Right;
 #endif
         }
     };
