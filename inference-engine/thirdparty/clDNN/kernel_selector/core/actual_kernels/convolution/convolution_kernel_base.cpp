@@ -379,7 +379,7 @@ KernelsData ConvolutionKernelBase::GetKernelsDataForAutoTune(const Params& param
     return res;
 }
 
-JitConstants ConvolutionKernelBase::GetFusedPrimitivesJitConstants(const convolution_params& params,
+JitConstants ConvolutionKernelBase::GetFusedPrimitivesJitConstants(const convolution_params& /*params*/,
                                                                    const DispatchData& /*kd*/) const {
     JitConstants jit = {};
     return jit;
