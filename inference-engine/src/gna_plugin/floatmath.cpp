@@ -64,7 +64,7 @@ void CNNMaxPool(intel_dnn_component_t *component, intel_dnn_number_type_t number
                         ptr_outputs[m * num_columns + i] = 2147483647L;
                         num_saturate++;
                     } else if (sum < -2147483648.0) {
-                        ptr_outputs[m * num_columns + i] = -2147483648L;
+                        ptr_outputs[m * num_columns + i] = -2147483647L - 1L;
                         num_saturate++;
                     } else {
                         ptr_outputs[m * num_columns + i] = (int32_t) sum;
