@@ -223,7 +223,7 @@ void set_arguments(cl::Kernel& kernel,
 }
 }  // namespace
 
-event_impl::ptr kernel::run(int queue_id,
+event_impl::ptr kernel::run(uint16_t queue_id,
                             const kernel_selector::cl_kernel_data& kernel_data,
                             const std::vector<event_impl::ptr>& dependencies,
                             const kernel_arguments_data& args) const {

@@ -86,7 +86,7 @@ public:
         context()->set_output_event(stream_id, is_out_event);
     }
 
-    event_impl::ptr run(int queue_id,
+    event_impl::ptr run(uint16_t queue_id,
                         const kernel_selector::cl_kernel_data& kernel_data,
                         const std::vector<event_impl::ptr>& dependencies,
                         const kernel_arguments_data& args) const;
