@@ -624,7 +624,7 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
                 Engine::GetWeightsSharing(socket)->findOrCreate(string_hash, [&] () {
                     MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(engine));
                     _ptr->Create(intDescs[i]);
-                    MKLDNNMemory memory(engine);
+                    MKLDNNMemory memory(this->engine);
 
                     auto newDesc = MKLDNNMemoryDesc(internalBlob->getTensorDesc());
                     auto newFormat = newDesc.getFormat();
