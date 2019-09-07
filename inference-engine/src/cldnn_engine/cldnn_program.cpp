@@ -3225,7 +3225,7 @@ void Program::CreateTopKPrimitive(cldnn::topology& topology, InferenceEngine::CN
                 case 4: chosen_axis = cldnn::arg_max_min::axis_name::x; break;
             }
         } else {
-            if (-input_dims_num <= axis && axis <= -1)
+            if (input_dims_num >= -axis && axis <= -1)
                 axis += input_dims_num;
 
             switch (axis) {
@@ -3582,7 +3582,7 @@ void Program::CreateDeformableConvolutionPrimitive(cldnn::topology& topology, In
                                          cldnn::spatial(defConvLayer->_stride[X_AXIS], defConvLayer->_stride[Y_AXIS], 1));
     auto allPad = getPaddings(*defConvLayer);
     cldnn::tensor padding = cldnn::tensor(cldnn::batch(0), cldnn::feature(0),
-                                          cldnn::spatial(-allPad.begin[X_AXIS], -allPad.begin[Y_AXIS], 0));
+                                          cldnn::spatial(-static_cast<int32_t>(allPad.begin[X_AXIS]), -static_cast<int32_t>(allPad.begin[Y_AXIS]), 0));
     cldnn::tensor dilation = cldnn::tensor(cldnn::batch(1), cldnn::feature(1),
                                            cldnn::spatial(defConvLayer->_dilation[X_AXIS], defConvLayer->_dilation[Y_AXIS], 1));
 
