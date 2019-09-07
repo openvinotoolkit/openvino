@@ -260,13 +260,13 @@ public:
     void EnableDifferentTypes() { key.restrict.val.different_types = 1; }
     void EnableDifferentInputWeightsTypes() { key.restrict.val.different_input_weights_types = 1; }
     void EnableInputLayout(DataLayout l) { key.inputLayout |= (1 << l); }
-    void EnableAllInputLayout() { key.inputLayout = -1; }
+    void EnableAllInputLayout() { key.inputLayout = ~0U; }
     void EnableOutputLayout(DataLayout l) { key.outputLayout |= (1 << l); }
-    void EnableAllOutputLayout() { key.outputLayout = -1; }
+    void EnableAllOutputLayout() { key.outputLayout = ~0U; }
     void EnableInputWeightsLayout(WeightsLayout l) { key.weightsInputLayout |= ((uint64_t)1 << l); }
-    void EnableAllInputWeightsLayout() { key.weightsInputLayout = -1; }
+    void EnableAllInputWeightsLayout() { key.weightsInputLayout = ~0U; }
     void EnableOutputWeightsLayout(WeightsLayout l) { key.weightsOutputLayout |= ((uint64_t)1 << l); }
-    void EnableAllOutputWeightsLayout() { key.weightsOutputLayout = -1; }
+    void EnableAllOutputWeightsLayout() { key.weightsOutputLayout = ~0U; }
     void EnableTensorOffset() { key.restrict.val.offset = 1; }
     void EnableTensorPitches() { key.restrict.val.pitches = 1; }
     void EnableBatching() { key.restrict.val.batching = 1; }
