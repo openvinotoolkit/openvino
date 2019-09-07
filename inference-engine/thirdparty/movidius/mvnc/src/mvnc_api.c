@@ -749,7 +749,7 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         rc = XLinkConnect(handler);
     } else {                                        // USB
         // Find firmware and boot device with it
-        char mv_cmd_file_path[MAX_PATH_LENGTH] = {};
+        char mv_cmd_file_path[MAX_PATH_LENGTH] = {0};
 
         // If have firmware directory path as function input, use it
         if (customFirmwareDirectory && strnlen(customFirmwareDirectory, MAX_PATH_LENGTH) > 1) {
