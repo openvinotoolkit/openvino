@@ -27,12 +27,12 @@ namespace vpu {
 
 namespace {
 
-const StorageOrder64 ORDER_MASK = static_cast<StorageOrder64>(-1ull) >> (std::numeric_limits<StorageOrder64>::digits / 4 - MAX_DIMS_64);
+const StorageOrder64 ORDER_MASK = static_cast<StorageOrder64>(~0ull) >> (std::numeric_limits<StorageOrder64>::digits / 4 - MAX_DIMS_64);
 
 }  // namespace
 
 StorageOrder64 maskOrder(StorageOrder64 fullOrder, int size) {
-    StorageOrder64 mask = ~ORDER_MASK | ~(static_cast<StorageOrder64>(-1ull) << (size * 4));
+    StorageOrder64 mask = ~ORDER_MASK | ~(static_cast<StorageOrder64>(~0ull) << (size * 4));
     return fullOrder & mask;
 }
 
