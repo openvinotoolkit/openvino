@@ -77,8 +77,8 @@ KernelsData BatchNormKernelBase::GetCommonKernelsData(const Params& params,
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    int inputs_num = 1 + orgParams.batchNormParams.with_inv_var + 2 * orgParams.batchNormParams.with_scale_shift +
-                     2 * orgParams.batchNormParams.with_mean_var_out;
+    uint32_t inputs_num = 1 + orgParams.batchNormParams.with_inv_var + 2 * orgParams.batchNormParams.with_scale_shift +
+                          2 * orgParams.batchNormParams.with_mean_var_out;
     FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, "", false, false, inputs_num);
 
     kd.estimatedTime = estimatedTime;

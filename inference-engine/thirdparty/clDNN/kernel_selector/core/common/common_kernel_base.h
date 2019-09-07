@@ -64,9 +64,9 @@ protected:
                           const std::string& exe_mode = DEFAULT,
                           bool weights = false,
                           bool bias = false,
-                          int number_of_inputs = 1,
+                          uint32_t number_of_inputs = 1,
                           bool quantization = false,
                           bool calibration = false,
-                          int number_of_inputs_for_fused_prims = 0) const;
+                          uint32_t number_of_inputs_for_fused_prims = 0) const;
 };
 }  // namespace kernel_selector

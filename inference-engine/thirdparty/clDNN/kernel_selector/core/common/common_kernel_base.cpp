@@ -203,10 +203,10 @@ void common_kernel_base::FillCLKernelData(clKernelData& kernel,
                                           const std::string& exeMode,
                                           bool weights,
                                           bool bias,
-                                          int number_of_inputs,
+                                          uint32_t number_of_inputs,
                                           bool quantization,
                                           bool calibration,
-                                          int number_of_inputs_for_fused_prims) const {
+                                          uint32_t number_of_inputs_for_fused_prims) const {
     Check_RunInfoData(kernelMapName, runInfo);
     kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
     kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
