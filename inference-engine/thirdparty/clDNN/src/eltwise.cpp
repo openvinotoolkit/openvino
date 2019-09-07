@@ -265,14 +265,14 @@ eltwise_inst::typed_primitive_inst(network_impl& network, eltwise_node const& no
                               "");
 
         for (size_t i = 0; i < icf_size; ++i) {
-            auto icf_size = node.input_calibration_factors(i).get_output_layout().size;
-            auto input_size = node.input(i).get_output_layout().size;
+            auto icf_size_tensor = node.input_calibration_factors(i).get_output_layout().size;
+            auto input_size_tensor = node.input(i).get_output_layout().size;
 
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Input feature number",
-                                  input_size.feature[0],
+                                  input_size_tensor.feature[0],
                                   "Input calibration factors number",
-                                  icf_size.count(),
+                                  icf_size_tensor.count(),
                                   "");
         }
     }
