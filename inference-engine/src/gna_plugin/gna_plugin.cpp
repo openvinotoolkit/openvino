@@ -813,7 +813,7 @@ void GNAPlugin::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto layerInfo = LayerInfo(concatLayerInput->insData[it].lock()->getCreatorLayer().lock());
         if (layerInfo.isInput()) {
             connectInput(layer, &concatLayerInfo.gna_ptr,
-                                concatLayerInfo.reserved_size-inputLayer.offset, static_cast<int32_t>(-inputLayer.offset), idx);
+                                concatLayerInfo.reserved_size-inputLayer.offset, -static_cast<int32_t>(inputLayer.offset), idx);
         }
         ++idx;
     }
