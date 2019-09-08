@@ -39,7 +39,7 @@ include_directories(
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     if(WIN32)
-        set_source_files_properties(${SOURCES}
+        set_source_files_properties(${SOURCES} ${HEADERS}
             PROPERTIES COMPILE_FLAGS "/wd4996")
     endif()
 endif()
