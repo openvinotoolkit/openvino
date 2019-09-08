@@ -22,6 +22,15 @@ include_directories(
 
 add_definitions(-D_NO_MKL_)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    file(GLOB FILES_REQUIRED_BIGOBJ
+        ${CMAKE_CURRENT_SOURCE_DIR}/gna_plugin.cpp)
+    if(WIN32)
+        set_source_files_properties(${FILES_REQUIRED_BIGOBJ}
+            PROPERTIES COMPILE_FLAGS "/bigobj")
+    endif()
+endif()
+
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GNA"
               SOURCES ${SOURCES} ${HEADERS})
