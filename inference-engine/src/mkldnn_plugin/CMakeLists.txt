@@ -37,6 +37,13 @@ include_directories(
         ${CMAKE_BINARY_DIR}/include/
 )
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    if(WIN32)
+        set_source_files_properties(${SOURCES}
+            PROPERTIES COMPILE_FLAGS "/wd4996")
+    endif()
+endif()
+
 if (GEMM STREQUAL "MKL")
     log_rpath_from_dir(MKL "${MKL}/lib")
 endif()
