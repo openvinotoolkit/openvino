@@ -68,6 +68,13 @@ file (GLOB PUBLIC_HEADERS
 
 add_definitions(-DIMPLEMENT_INFERENCE_ENGINE_API)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    if(WIN32)
+        set_source_files_properties(${LIBRARY_SRC}
+            PROPERTIES COMPILE_FLAGS "/wd4996")
+    endif()
+endif()
+
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
