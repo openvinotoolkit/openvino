@@ -30,10 +30,11 @@ list (APPEND IE_OPTIONS GEMM)
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
 if (NOT THREADING STREQUAL "TBB"
         AND NOT THREADING STREQUAL "TBB_AUTO"
-        AND NOT THREADING STREQUAL "OMP"
+        AND NOT THREADING STREQUAL "OMP:INTEL"
+        AND NOT THREADING STREQUAL "OMP:COMP"
         AND NOT THREADING STREQUAL "SEQ")
-    set (THREADING "TBB")
-    message(STATUS "THREADING should be set to TBB, TBB_AUTO, OMP or SEQ. Default option is " ${THREADING})
+    set (THREADING "OMP:COMP")
+    message(STATUS "THREADING should be set to TBB, TBB_AUTO, OMP:INTEL/OMP:COMP or SEQ. Default option is " ${THREADING})
 endif()
 set(THREADING "${THREADING}" CACHE STRING "Threading" FORCE)
 list (APPEND IE_OPTIONS THREADING)

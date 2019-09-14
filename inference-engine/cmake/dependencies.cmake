@@ -63,47 +63,65 @@ debug_message(STATUS "mkl_ml=" ${MKLROOT})
 endif ()
 
 ## Intel OMP package
-if (THREADING STREQUAL "OMP")
-if (WIN32)
-    RESOLVE_DEPENDENCY(OMP
-            ARCHIVE_WIN "iomp.zip"
-            TARGET_PATH "${TEMP}/omp"
-            ENVIRONMENT "OMP"
-            VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-elseif(LINUX)
-    set(OMP "-fopenmp")
-else(APPLE)
-    RESOLVE_DEPENDENCY(OMP
-            ARCHIVE_MAC "iomp_20190130_mac.tgz"
-            TARGET_PATH "${TEMP}/omp"
-            ENVIRONMENT "OMP"
-            VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-endif()
-log_rpath_from_dir(OMP "${OMP}/lib")
-debug_message(STATUS "intel_omp=" ${OMP})
+if (THREADING STREQUAL "OMP:INTEL")
+    if (WIN32)
+        RESOLVE_DEPENDENCY(OMP
+                ARCHIVE_WIN "iomp.zip"
+                TARGET_PATH "${TEMP}/omp"
+                ENVIRONMENT "OMP"
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    elseif(LINUX)
+        RESOLVE_DEPENDENCY(OMP
+                ARCHIVE_WIN "iomp.zip"
+                TARGET_PATH "${TEMP}/omp"
+                ENVIRONMENT "OMP"
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    else(APPLE)
+        RESOLVE_DEPENDENCY(OMP
+                ARCHIVE_MAC "iomp_20190130_mac.tgz"
+                TARGET_PATH "${TEMP}/omp"
+                ENVIRONMENT "OMP"
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    endif()
+
+    log_rpath_from_dir(OMP "${OMP}/lib")
+    debug_message(STATUS "intel_omp=" ${OMP})
+
 endif ()
+
+if (THREADING STREQUAL OMP:COMP)
+    if (LINUX)
+        set(OMP "-fopenmp")
+    endif()
+
+    log_rpath_from_dir(OMP "${OMP}/lib")
+    debug_message(STATUS "omp=" ${OMP})
+
+endif()
+
+message("THREADING is ${THREADING}")
 
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-if (WIN32)
-    #TODO: add target_path to be platform specific as well, to avoid following if
-    RESOLVE_DEPENDENCY(TBB
-            ARCHIVE_WIN "tbb2019_20181010_win.zip" #TODO: windows zip archive created incorrectly using old name for folder
-            TARGET_PATH "${TEMP}/tbb"
-            ENVIRONMENT "TBBROOT"
-            VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-elseif(LINUX)
-    RESOLVE_DEPENDENCY(TBB
-            ARCHIVE_LIN "tbb2019_20181010_lin.tgz"
-            TARGET_PATH "${TEMP}/tbb"
-            ENVIRONMENT "TBBROOT")
-else(APPLE)
-    RESOLVE_DEPENDENCY(TBB
-            ARCHIVE_MAC "tbb2019_20190414_mac.tgz"
-            TARGET_PATH "${TEMP}/tbb"
-            ENVIRONMENT "TBBROOT"
-            VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-endif()
+    if (WIN32)
+        #TODO: add target_path to be platform specific as well, to avoid following if
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_WIN "tbb2019_20181010_win.zip" #TODO: windows zip archive created incorrectly using old name for folder
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    elseif(LINUX)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "tbb2019_20181010_lin.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT")
+    else(APPLE)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_MAC "tbb2019_20190414_mac.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    endif()
 log_rpath_from_dir(TBB "${TBB}/lib")
 debug_message(STATUS "tbb=" ${TBB})
 endif ()
