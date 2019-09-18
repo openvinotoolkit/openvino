@@ -72,8 +72,8 @@ topology create_topology(const layout& in_layout, const memory& conv1_weights_me
         pooling("pool1",
             "conv1",                // Input: "conv1"
             pooling_mode::max,      // Pooling mode: MAX
-            spatial(2,2),  // stride: 2
-            spatial(2,2)   // kernel_size: 2
+            tensor(spatial(2,2)),  // stride: 2
+            tensor(spatial(2,2))   // kernel_size: 2
         )
     );
 
@@ -85,7 +85,7 @@ topology create_topology(const layout& in_layout, const memory& conv1_weights_me
         // Input layout for conv2 weights. Data will passed by network::set_input_data()
         input_layout("conv2_weights", conv2_weights_layout),
         // Input layout for conv2 bias.
-        input_layout("conv2_bias", { data_type, format::bfyx, spatial(conv2_out_channels) }),
+        input_layout("conv2_bias", { data_type, format::bfyx, tensor(spatial(conv2_out_channels)) }),
         // Second convolution id: "conv2"
         convolution("conv2",
             "pool1",                // Input: "pool1"
@@ -96,8 +96,8 @@ topology create_topology(const layout& in_layout, const memory& conv1_weights_me
         pooling("pool2",
             "conv2",                // Input: "conv2"
             pooling_mode::max,      // Pooling mode: MAX
-            spatial(2, 2), // stride: 2
-            spatial(2, 2)  // kernel_size: 2
+            tensor(spatial(2, 2)), // stride: 2
+            tensor(spatial(2, 2))  // kernel_size: 2
         ),
         // Fully connected (inner product) primitive id "fc1"
         fully_connected("fc1",
@@ -183,7 +183,7 @@ int main_func()
     cldnn::engine engine;
 
     // Create memory for conv1 bias
-    layout conv1_bias_layout(data_type, format::bfyx, spatial(20));
+    layout conv1_bias_layout(data_type, format::bfyx, tensor(spatial(20)));
     // Memory allocation requires engine
     auto conv1_bias_mem = memory::allocate(engine, conv1_bias_layout);
     // The memory is allocated by library, so we do not need to care about buffer lifetime.
@@ -203,7 +203,9 @@ int main_func()
     // Build the network. Allow implicit data optimizations.
     // The "softmax" primitive is not used as an input for other primitives,
     // so we do not need to explicitly select it in build_options::outputs()
-    cldnn::network network(engine, topology, { build_option::optimize_data(true) });
+    build_options opts;
+    opts.set_option(build_option::optimize_data(true));
+    cldnn::network network(engine, topology, opts);
 
     // Set network data which was not known at topology creation.
     network.set_input_data("conv2_weights", load_mem(engine, "conv2_weights.data"));
