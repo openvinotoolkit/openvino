@@ -66,7 +66,7 @@ topology chapter_2(engine& engine)
     data fc_weights("fc_weights", weights_mem);
 
     // Biases are optional but we can use those in this example. Create 'data' in the same way:
-    auto bias_mem = memory::allocate(engine, { data_types::f32,format::bfyx,{ spatial(3) } }); // y, b and f will be set to ones by default
+    auto bias_mem = memory::allocate(engine, { data_types::f32,format::bfyx, tensor(spatial(3)) }); // y, b and f will be set to ones by default
     // Use function to fill data:
     set_values(bias_mem, { 0.0f, 1.0f, 0.5f });
     // Create data primitive.
