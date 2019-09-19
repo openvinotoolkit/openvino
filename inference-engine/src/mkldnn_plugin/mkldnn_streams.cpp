@@ -76,10 +76,11 @@ bool pin_thread_to_vacant_core(int thr_idx, int hyperthreads, int ncores, const 
     }
 
     // Find index of 'cpu_idx'-th bit that equals to 1
-    int mapped_idx = -1;
+    int mapped_idx = 0;
     while (cpu_idx >= 0) {
-        if (CPU_ISSET_S(++mapped_idx, size, proc_mask))
+        if (CPU_ISSET_S(mapped_idx, size, proc_mask))
             --cpu_idx;
+        mapped_idx++;
     }
 
     cpu_set_t *target_mask = CPU_ALLOC(ncores);
