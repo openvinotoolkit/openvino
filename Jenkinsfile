@@ -1,0 +1,3 @@
+#!groovy
+
+entrypoint(this)
