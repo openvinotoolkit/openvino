@@ -1,0 +1,4 @@
+[submodule "tests"]
+	path = tests
+	url = git@gitlab-icv.inn.intel.com:inference-engine/tests.git
+	branch = master

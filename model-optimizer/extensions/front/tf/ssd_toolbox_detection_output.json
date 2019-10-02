@@ -1,0 +1,28 @@
+[
+    {
+        "custom_attributes": {
+            "code_type": "caffe.PriorBoxParameter.CENTER_SIZE",
+            "confidence_threshold": 0.01,
+            "keep_top_k": 200,
+            "nms_threshold": 0.45,
+            "pad_mode": "caffe.ResizeParameter.CONSTANT",
+            "resize_mode": "caffe.ResizeParameter.WARP"
+        },
+        "id": "SSDToolboxDetectionOutput",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "SSD/concat_reshape_softmax/mbox_loc_final",
+                "SSD/concat_reshape_softmax/mbox_conf_final",
+                "SSD/fc7_priorbox"
+            ],
+            "start_points": [
+                "SSD/concat_reshape_softmax/mbox_loc_final",
+                "SSD/concat_reshape_softmax/mbox_conf_final",
+                "SSD/fc7_priorbox"
+            ]
+        },
+        "match_kind": "points"
+    }
+]

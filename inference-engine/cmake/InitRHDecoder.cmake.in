@@ -1,0 +1,32 @@
+# Copyright (C) 2018-2019 Intel Corporation
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+# module to locate RHDecoder libraries
+function (init_rh_decoder)
+    if (NOT IE_MAIN_SOURCE_DIR)
+        set(RH_Decoder ${IE_EXTERNAL_DIR}/@rh_decoder_version@)
+    endif()
+
+    set(RH_LIB_DIR libs/x64)
+    set(RH_LIB decoder_library)
+
+    if (WIN32)
+        set(RH_PLATFORM_DIR windows)
+    elseif (UNIX)
+        set(RH_PLATFORM_DIR linux)
+    else ()
+        message(FATAL_ERROR "RH Decoder not supported on this platform, only linux, and windows")
+    endif ()
+
+    find_library(RH_DECODER_LIBRARY
+            ${RH_LIB}
+            PATH ${RH_Decoder}/${RH_PLATFORM_DIR}/${RH_LIB_DIR}
+            NO_DEFAULT_PATH)
+
+    get_filename_component(cmake_style_path_to_rh "${RH_Decoder}/${RH_PLATFORM_DIR}/include" ABSOLUTE)
+
+    set(libRH_Decoder_INCLUDE_DIRS ${cmake_style_path_to_rh} PARENT_SCOPE)
+    set(libRH_Decoder_LIBRARIES  ${RH_DECODER_LIBRARY} PARENT_SCOPE)
+endfunction(init_rh_decoder)

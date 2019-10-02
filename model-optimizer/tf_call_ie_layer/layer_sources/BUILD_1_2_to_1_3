@@ -1,0 +1,20 @@
+cc_binary(
+    name = "libtensorflow_call_layer.so",
+    srcs = [
+            "extension.cpp",
+            "extension.h",
+            "tensorflow_layer.cpp",
+            "tensorflow_layer.h"],
+    copts = ["-Ithird_party/inference_engine/include"],
+    linkshared = 1,
+    deps = [
+        "//tensorflow/c:c_api",
+        "//tensorflow/cc:scope",
+        "//tensorflow/cc:cc_ops",
+        "//tensorflow/cc:client_session",
+        "//tensorflow/core:tensorflow",
+        "//third_party/inference_engine",
+    ],
+    visibility = ["//visibility:public"],
+)
+

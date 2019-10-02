@@ -1,0 +1,112 @@
+﻿// Copyright (c) 2016-2019 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+#include "fully_connected_kernel_bfyx_ref.h"
+#include "kernel_selector_utils.h"
+#include <vector>
+
+namespace kernel_selector {
+ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableInputWeightsType(WeightsType::F16);
+    k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableAllInputLayout();
+    k.EnableDifferentInputWeightsTypes();
+    k.EnableDifferentTypes();
+    k.EnableInputLayout(DataLayout::bf);
+    k.EnableOutputLayout(DataLayout::bf);
+    k.EnableOutputLayout(DataLayout::fb);
+    k.EnableBiasPerOutput();
+    k.EnableBiasPerFeature();
+    k.EnableNonBiasTerm();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBatching();
+    k.EnableInt8Quantization();
+    k.EnableOutputCalibration();
+    return k;
+}
+
+FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const fully_connected_params& params,
+                                                                          int) const {
+    auto runInfo = Parent::SetDefault(params);
+
+    std::vector<size_t> global = {params.output.Feature().v, params.output.Batch().v};
+    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global);
+
+    runInfo.gws0 = global[0];
+    runInfo.gws1 = global[1];
+    runInfo.gws2 = 1;
+
+    runInfo.lws0 = local[0];
+    runInfo.lws1 = local[1];
+    runInfo.lws2 = 1;
+
+    return runInfo;
+}
+
+JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
+    auto jit = Parent::GetJitConstants(params, kd);
+
+    if (params.int8_quantization) {
+        jit.Merge(MakeTypeJitConstants(Datatype::INT32, "ACCUMULATOR"));
+        jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACTIVATION"));
+        if (params.output.GetDType() == Datatype::INT8 || params.output.GetDType() == Datatype::UINT8) {
+            jit.AddConstant(MakeJitConstant("AFTER_CALIBRATION_ROUND(x)", "round(x)"));
+        } else {
+            jit.AddConstant(MakeJitConstant("AFTER_CALIBRATION_ROUND(x)", "(x)"));
+        }
+        if (params.bias.size() > 0 &&
+            (params.bias[0].GetDType() == Datatype::F32 || params.bias[0].GetDType() == Datatype::F16)) {
+            jit.AddConstant(MakeJitConstant("DONT_DEQUANTIZE_BIAS", "1"));
+        }
+    } else {
+        jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
+        jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACTIVATION"));
+        jit.AddConstant(MakeJitConstant("AFTER_CALIBRATION_ROUND(x)", "(x)"));
+    }
+
+    jit.Merge(MakeActivationJitConstants(params.activation, "_TYPED", true));
+
+    return jit;
+}
+
+KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params, const optional_params& options) const {
+    KernelsData res = {};
+    for (size_t i = 0; i < autoTuneOptions.size(); i++) {
+        KernelsData kd = GetTunedKernelsDataByIndex(
+            params,
+            options,
+            DataLayout::bfyx,
+            {WeightsLayout::oiyx, WeightsLayout::oyxi, WeightsLayout::iyxo, WeightsLayout::yxio},
+            DONT_USE_IF_HAVE_SOMETHING_ELSE,
+            static_cast<int>(i));
+        if (!kd.empty()) {
+            res.emplace_back(kd[0]);
+        }
+    }
+
+    return res;
+}
+}  // namespace kernel_selector

@@ -1,0 +1,76 @@
+<CustomLayer name="PriorBoxClustered" type="SimpleGPU" version="1">
+    <Kernel entry="prior_box_clustered">
+        <!-- Path should be relative to executable, so aligning with how it will really put in CI -->
+        <Source filename="prior_box_clustered.cl"/>
+        <Define name="min_size_" type="float" param="min_size" default="0.0"/>
+        <Define name="max_size_" type="float" param="max_size" default="0.0"/>
+        <Define name="aspect_ratio_" type="float" param="aspect_ratio" default="0.0"/>
+        <Define name="flip_" type="int" param="flip" default="1"/>
+        <Define name="clip_" type="int" param="clip" default="0"/>
+        <Define name="variance_" type="float[]" param="variance" default="0.1"/>
+        <Define name="img_size_" type="int" param="img_size" default="0"/>
+        <Define name="img_h_" type="int" param="img_h" default="0"/>
+        <Define name="img_w_" type="int" param="img_w" default="0"/>
+        <Define name="step_" type="float" param="step" default="0.0"/>
+        <Define name="step_w_" type="float" param="step_w" default="0.0"/>
+        <Define name="step_h_" type="float" param="step_h" default="0.0"/>
+        <Define name="offset_" type="float" param="offset" default="0.0"/>
+        <Define name="width_" type="float[]" param="width" default="0.0"/>
+        <Define name="height_" type="float[]" param="height" default="0.0"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0"  format="BFYX"/>
+        <Tensor arg-index="1" type="input" port-index="1"  format="BFYX"/>
+        <Tensor arg-index="2" type="output" port-index="0" format="BFYX"/>
+    </Buffers>
+
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes dim="input" global="Y,X"/>
+    <!-- define the global worksize. The formulas can use the values of the B,F,Y,X dimensions and contain the operators: +,-,/,*,% (all evaluated in integer arithmetics) Default value: global="B*F*Y*X,1,1"-->
+</CustomLayer>
+
+<CustomLayer name="Interp" type="SimpleGPU" version="1">
+    <Kernel entry="interp">
+        <Source filename="interp.cl"/>
+        <Define name="pad_beg_" type="int" param="pad_beg" default="0"/>
+        <Define name="pad_end_" type="int" param="pad_end" default="0"/>
+        <Define name="align_corners_" type="int" param="align_corners" default="1"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0"  format="BFYX"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
+    </Buffers>
+
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="Y,((X + 31)/32)*32" local="1,32"/>
+</CustomLayer>
+
+<CustomLayer name="GRN" type="SimpleGPU" version="1">
+    <Kernel entry="grn">
+        <Source filename="grn.cl"/>
+        <Define name="bias_" type="float" param="bias" default="1.0f"/>
+        <Define name="ACCUMULATOR_TYPE" default="float"/>
+      </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0"  format="BFYX"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
+    </Buffers>
+
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="B,Y"/>
+</CustomLayer>
+
+<CustomLayer name="CTCGreedyDecoder" type="SimpleGPU" version="1">
+    <Kernel entry="ctc_greedy_decoder">
+        <Source filename="ctc_greedy_decoder.cl"/>
+        <Define name="ctc_merge_repeated_" type="int" param="ctc_merge_repeated" default="1"/>
+      </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0"  format="BFYX"/>
+        <Tensor arg-index="1" type="input" port-index="1"  format="BFYX"/>
+        <Tensor arg-index="2" type="output" port-index="0" format="BFYX"/>
+    </Buffers>
+
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="1,1"/>
+</CustomLayer>

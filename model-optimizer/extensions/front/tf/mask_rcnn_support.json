@@ -1,0 +1,120 @@
+[
+     {
+        "custom_attributes": {
+        },
+        "id": "ObjectDetectionAPIPreprocessorReplacement",
+        "inputs": [
+            [
+                {
+                    "node": "map/Shape$",
+                    "port": 0
+                },
+                {
+                    "node": "map/TensorArrayUnstack/Shape$",
+                    "port": 0
+                },
+                {
+                    "node": "map/TensorArrayUnstack/TensorArrayScatter/TensorArrayScatterV3$",
+                    "port": 2
+                }
+            ]
+        ],
+        "instances": [
+            ".*Preprocessor/"
+        ],
+        "match_kind": "scope",
+        "outputs": [
+            {
+                "node": "sub$",
+                "port": 0
+            },
+            {
+                "node": "map/TensorArrayStack_1/TensorArrayGatherV3$",
+                "port": 0
+            }
+        ]
+    },
+    {
+        "custom_attributes": {
+            "clip_before_nms": true,
+            "clip_after_nms": false
+        },
+        "id": "ObjectDetectionAPIProposalReplacement",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "map/TensorArrayStack/TensorArrayGatherV3",
+                "map_1/TensorArrayStack/TensorArrayGatherV3",
+                "BatchMultiClassNonMaxSuppression/map/TensorArrayStack_4/TensorArrayGatherV3"
+            ],
+            "start_points": [
+                "FirstStageBoxPredictor/Reshape",
+                "FirstStageBoxPredictor/Reshape_1",
+                "GridAnchorGenerator/Identity",
+                "Shape"
+            ]
+        },
+        "match_kind": "points"
+    },
+    {
+       "custom_attributes": {
+            "clip_before_nms": true,
+            "clip_after_nms": false,
+            "coordinates_swap_method": "swap_weights"
+        },
+        "id": "ObjectDetectionAPIDetectionOutputReplacement",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "BatchMultiClassNonMaxSuppression_1/map/TensorArrayStack_2/TensorArrayGatherV3",
+                "BatchMultiClassNonMaxSuppression_1/map/TensorArrayStack/TensorArrayGatherV3"
+            ],
+            "start_points": [
+                "SecondStageBoxPredictor/Reshape",
+                "SecondStageBoxPredictor/Reshape_1",
+                "ExpandDims_7",
+                "ToFloat_6"
+            ]
+        },
+        "match_kind": "points"
+    },
+    {
+        "custom_attributes": {
+        },
+        "id": "ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "CropAndResize_1"
+            ],
+            "start_points": [
+                "CropAndResize_1"
+            ]
+        },
+        "match_kind": "points"
+    },
+    {
+       "custom_attributes": {
+        },
+        "id": "ObjectDetectionAPIMaskRCNNSigmoidReplacement",
+        "match_kind": "general"
+    },
+    {
+       "custom_attributes": {
+            "outputs": "SecondStageBoxPredictor_1/Conv_3/BiasAdd|SecondStageBoxPredictor_1/Conv_1/BiasAdd"
+        },
+        "id": "ObjectDetectionAPIOutputReplacement",
+        "match_kind": "general"
+    },
+    {
+        "custom_attributes":
+        {
+            "replacements": [["mul/y", "first_stage_max_proposals"]]
+        },
+        "id": "ObjectDetectionAPIConstValueOverride",
+        "match_kind": "general"
+    }
+]

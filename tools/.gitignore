@@ -1,0 +1,9 @@
+accuracy_checker
+accuracy_checker.log
+i8_normalized.dot
+openvino.tools.benchmark.log
+openvino.tools.calibration.log
+__pycache__/
+accuracy_checker.local/
+accuracy_checker.original/
+

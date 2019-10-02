@@ -1,0 +1,41 @@
+.idea
+.project
+.cproject
+.pydevproject
+.settings
+/bin/
+/gen/
+__pycache__
+*.swp
+/config.xml
+
+# Python-specific
+.env3
+*.pyc
+
+# Tests-specific
+.coverage
+htmlcov
+pylint_report.txt
+pylint_report_comments.txt
+
+# Documentation-generated
+docs/build
+docs/source/_static
+docs/source/_templates
+docs/source/generated/
+doc
+work_dir
+
+# Artifacts
+/*.bin
+/*.xml
+/*.json
+/*.so
+/*.txt
+/*.pb
+/*.pbtxt
+!CMakeLists.txt
+/*.mapping
+/*.dat
+/*.svg

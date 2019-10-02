@@ -1,0 +1,27 @@
+// Copyright (C) 2018-2019 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <random>
+#include <algorithm>
+
+#include "stub_inference_engine.hpp"
+
+using namespace InferenceEngine;
+using namespace std;
+
+void StubInferenceEngine::Infere(const Blob &input, Blob & output) {
+    unsigned int batchNumber = input.dims().size() > 3 ? input.dims()[3] : 1;
+    auto &outBlob = dynamic_cast<TBlob<float>&>(output);
+    outBlob.Resize({ 1000, batchNumber });
+    outBlob.allocate();
+    
+    //uniform distribution in 0-1 range
+    random_device rd;
+    mt19937 mersen(rd());
+    uniform_real_distribution<float> uniformDistribution(0 , 1);
+    generate(outBlob.data(), outBlob.data() + outBlob.size(), [&] () {
+        return uniformDistribution(mersen);
+    });
+}
+

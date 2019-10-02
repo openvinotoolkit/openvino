@@ -1,0 +1,396 @@
+# Copyright (c) 2016 Intel Corporation
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#      http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# =============================== Compiler options (abstract configuration) ============================
+
+if(CMAKE_C_COMPILER_ID MATCHES "^Intel$")
+  set(CMAKE_COMPILER_IS_INTEL ON)
+else()
+  set(CMAKE_COMPILER_IS_INTEL OFF)
+endif()
+
+if(MSVC)
+  if(CMAKE_COMPILER_IS_INTEL)
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "${CLDNN__MIN_COMPILER_VERSION__ICC}")
+      message(FATAL_ERROR "[clDNN] required version of Intel C++ compiler is ${CLDNN__MIN_COMPILER_VERSION__ICC}. Please update compiler.")
+    endif()
+  else()
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "${CLDNN__MIN_COMPILER_VERSION__MSVC}")
+      message(FATAL_ERROR "[clDNN] Minimum required version of Microsoft Visual C++ compiler is ${CLDNN__MIN_COMPILER_VERSION__MSVC}. Please update compiler.")
+    endif()
+  endif()
+  
+  intel_flag_register_settings(
+      CompilerOptions
+
+      GROUP NAME CallingConvention  "/G[drzv]"
+      GROUP NAME CompileAs          "/T[CP]"
+      GROUP NAME DebugInfoFormat    "/Z[7iI]"
+      GROUP NAME Exceptions         "/EHa" "/EHsc?"
+      GROUP NAME FaviorSizeSpeed    "/O[st]"
+      GROUP NAME Optimization       "/O[d12xist]"
+      GROUP NAME RuntimeLibrary     "/M[TD]d?"
+      GROUP NAME Rtti               "/GR-?"
+      GROUP NAME TreatWarnAsError   "/WX-?"
+      GROUP NAME DisableExtensions  "/Za"
+      GROUP NAME WarnLevels         "/W[0-4]"
+
+      ALIAS CallingConvCdecl           "/Gd"
+      ALIAS CallingConvFastcall        "/Gr"
+      ALIAS CallingConvStdcall         "/Gz"
+      ALIAS CallingConvVectorcall      "/Gv"
+      ALIAS CompileAsC                 "/TC"
+      ALIAS CompileAsCpp               "/TP"
+      ALIAS CompileAsDefault           CompileAs REMOVE_GROUP
+      ALIAS DebugInfoDisabled          DebugInfoFormat REMOVE_GROUP
+      ALIAS DebugInfoProgramDatabase   "/Zi"
+      ALIAS ExceptionsDisabled         Exceptions REMOVE_GROUP
+      ALIAS ExceptionsEnabled          "/EHsc"
+      ALIAS FaviorSize                 "/Os"
+      ALIAS FaviorSpeed                "/Ot"
+      ALIAS MultiProcessorCompilation  "/MP"
+      ALIAS OptimizeDisabled           "/Od"
+      ALIAS OptimizeSize               "/O2" "/Oi" "/Os"
+      ALIAS OptimizeSpeed              "/O2"
+      ALIAS OptimizeFull               "/Ox"
+      ALIAS RtMultiThreadedStatic      "/MT"
+      ALIAS RtMultiThreadedShared      "/MD"
+      ALIAS RtMultiThreadedStaticDebug "/MTd"
+      ALIAS RtMultiThreadedSharedDebug "/MDd"
+      ALIAS RttiDisabled               "/GR-"
+      ALIAS RttiEnabled                "/GR"
+      ALIAS TreatWarnAsErrorDisabled   "/WX-"
+      ALIAS TreatWarnAsErrorEnabled    "/WX"
+      ALIAS WarnLevel0                 "/W0"
+      ALIAS WarnLevel1                 "/W1"
+      ALIAS WarnLevel2                 "/W2"
+      ALIAS WarnLevel3                 "/W3"
+      ALIAS WarnLevel4                 "/W4"
+      ALIAS ExtensionsDisabled         "/Za"
+      ALIAS ExtensionsEnabled          DisableExtensions REMOVE_GROUP
+      ALIAS StandardCxx11
+      ALIAS StandardCxx14
+      ALIAS StandardC99
+      ALIAS StandardNone
+      ALIAS FastMath
+      ALIAS NoFastMath
+
+      ALIAS DeadCodeEliminate
+      ALIAS DeadCodePreserve
+      ALIAS StackProtector 
+    )
+elseif(CMAKE_COMPILER_IS_INTEL)
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "${CLDNN__MIN_COMPILER_VERSION__ICC}")
+    message(FATAL_ERROR "[clDNN] required version of Intel C++ compiler is 17.0. Please update compiler.")
+  endif()
+
+  intel_flag_register_settings(
+      CompilerOptions
+
+      GROUP NAME DebugInfoFormat    "-g[0-3]?"
+      GROUP NAME Exceptions         "-f(no-)?non-call-exceptions"
+      GROUP NAME Optimization       "-O[0-3sg]?"
+      GROUP NAME Rtti               "-f(no-)?rtti"
+      GROUP NAME TreatWarnAsError   "-Werror|-pedantic-errors"
+      GROUP NAME Standard           "-std=[^ ]+"
+      GROUP NAME WarnLevels         "-W(all|extra|pedantic)|-w|-pedantic"
+      GROUP NAME FastMathOpts       "-f(no-)?fast-math"
+
+      ALIAS CallingConvCdecl
+      ALIAS CallingConvFastcall
+      ALIAS CallingConvStdcall
+      ALIAS CallingConvVectorcall
+      ALIAS CompileAsC
+      ALIAS CompileAsCpp
+      ALIAS CompileAsDefault
+      ALIAS DebugInfoDisabled          "-g0"
+      ALIAS DebugInfoProgramDatabase   "-g"
+      ALIAS ExceptionsDisabled         "-fno-non-call-exceptions"
+      ALIAS ExceptionsEnabled          "-fnon-call-exceptions"
+      ALIAS FaviorSize                 "-Os"
+      ALIAS FaviorSpeed                "-O3"
+      ALIAS MultiProcessorCompilation
+      ALIAS OptimizeDisabled           "-O0"
+      ALIAS OptimizeSize               "-Os"
+      ALIAS OptimizeSpeed              "-O2"
+      ALIAS OptimizeFull               "-03"
+      ALIAS RtMultiThreadedStatic
+      ALIAS RtMultiThreadedShared
+      ALIAS RtMultiThreadedStaticDebug
+      ALIAS RtMultiThreadedSharedDebug
+      ALIAS RttiDisabled               "-fno-rtti"
+      ALIAS RttiEnabled                "-frtti"
+      ALIAS TreatWarnAsErrorDisabled   TreatWarnAsError REMOVE_GROUP
+      ALIAS TreatWarnAsErrorEnabled    "-Werror" "-pedantic-errors"
+      ALIAS WarnLevel0                 "-w"
+      ALIAS WarnLevel1                 WarnLevels REMOVE_GROUP
+      ALIAS WarnLevel2                 "-Wall"
+      ALIAS WarnLevel3                 "-Wall" "-pedantic"
+      ALIAS WarnLevel4                 "-Wall" "-Wextra" "-pedantic"
+      ALIAS ExtensionsDisabled
+      ALIAS ExtensionsEnabled
+      ALIAS StandardCxx11              "-std=c++11"
+      ALIAS StandardCxx14              "-std=c++14"
+      ALIAS StandardC99                "-std=c99"
+      ALIAS StandardNone               Standard REMOVE_GROUP
+      ALIAS FastMath                   
+      ALIAS NoFastMath                 FastMathOpts REMOVE_GROUP
+
+      ALIAS DeadCodeEliminate
+      ALIAS DeadCodePreserve
+      ALIAS StackProtector 
+    )
+
+  if(CLDNN__COMPILE_LINK_ALLOW_UNSAFE_SIZE_OPT)
+    intel_flag_register_settings(
+        CompilerOptions
+
+        GROUP NAME EmitDataSec "-fdata-sections"
+        GROUP NAME EmitFuncSec "-ffunction-sections"
+
+        ALIAS DeadCodeEliminate  "-fdata-sections" "-ffunction-sections"
+        ALIAS DeadCodePreserve   EmitDataSec EmitFuncSec REMOVE_GROUP
+      )
+  endif()
+elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "${CLDNN__MIN_COMPILER_VERSION__GCC}")
+    message(FATAL_ERROR "[clDNN] Minimum required version of GCC/G++ compiler is ${CLDNN__MIN_COMPILER_VERSION__GCC}. Please update compiler.")
+  endif()
+
+  intel_flag_register_settings(
+      CompilerOptions
+
+      GROUP NAME DebugInfoFormat    "-g[0-3]?"
+      GROUP NAME Exceptions         "-f(no-)?exceptions"
+      GROUP NAME Optimization       "-O[0-3sg]?"
+      GROUP NAME Rtti               "-f(no-)?rtti"
+      GROUP NAME TreatWarnAsError   "-Werror|-pedantic-errors"
+      GROUP NAME Standard           "-std=[^ ]+"
+      GROUP NAME WarnLevels         "-W(all|extra|pedantic)|-w|-pedantic"
+      GROUP NAME FastMathOpts       "-f(no-)?fast-math"
+
+      ALIAS CallingConvCdecl
+      ALIAS CallingConvFastcall
+      ALIAS CallingConvStdcall
+      ALIAS CallingConvVectorcall
+      ALIAS CompileAsC
+      ALIAS CompileAsCpp
+      ALIAS CompileAsDefault
+      ALIAS DebugInfoDisabled          "-g0"
+      ALIAS DebugInfoProgramDatabase   "-g"
+      ALIAS ExceptionsDisabled         "-fno-exceptions"
+      ALIAS ExceptionsEnabled          "-fexceptions"
+      ALIAS FaviorSize                 "-Os"
+      ALIAS FaviorSpeed                "-O3"
+      ALIAS MultiProcessorCompilation
+      ALIAS OptimizeDisabled           "-O0"
+      ALIAS OptimizeSize               "-Os"
+      ALIAS OptimizeSpeed              "-O2"
+      ALIAS OptimizeFull               "-03"
+      ALIAS RtMultiThreadedStatic
+      ALIAS RtMultiThreadedShared
+      ALIAS RtMultiThreadedStaticDebug
+      ALIAS RtMultiThreadedSharedDebug
+      ALIAS RttiDisabled               "-fno-rtti"
+      ALIAS RttiEnabled                "-frtti"
+      ALIAS TreatWarnAsErrorDisabled   TreatWarnAsError REMOVE_GROUP
+      ALIAS TreatWarnAsErrorEnabled    "-Werror" "-pedantic-errors"
+      ALIAS WarnLevel0                 "-w"
+      ALIAS WarnLevel1                 WarnLevels REMOVE_GROUP
+      ALIAS WarnLevel2                 "-Wall"
+      ALIAS WarnLevel3                 "-Wall" "-pedantic"
+      ALIAS WarnLevel4                 "-Wall" "-Wextra" "-pedantic"
+      ALIAS ExtensionsDisabled
+      ALIAS ExtensionsEnabled
+      ALIAS StandardCxx11              "-std=c++11"
+      ALIAS StandardCxx14              "-std=c++14"
+      ALIAS StandardC99                "-std=c99"
+      ALIAS StandardNone               Standard REMOVE_GROUP
+      ALIAS FastMath                   "-ffast-math"
+      ALIAS NoFastMath                 FastMathOpts REMOVE_GROUP
+
+      ALIAS DeadCodeEliminate
+      ALIAS DeadCodePreserve
+    )
+  
+  if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
+    intel_flag_register_settings(
+        CompilerOptions
+        ALIAS StackProtector "-fstack-protector"
+      )
+  else()
+    intel_flag_register_settings(
+        CompilerOptions
+        ALIAS StackProtector "-fstack-protector-strong"
+      )
+  endif()
+  
+  if(CLDNN__COMPILE_LINK_ALLOW_UNSAFE_SIZE_OPT)
+    intel_flag_register_settings(
+        CompilerOptions
+
+        GROUP NAME EmitDataSec "-fdata-sections"
+        GROUP NAME EmitFuncSec "-ffunction-sections"
+
+        ALIAS DeadCodeEliminate  "-fdata-sections" "-ffunction-sections"
+        ALIAS DeadCodePreserve   EmitDataSec EmitFuncSec REMOVE_GROUP
+      )
+  endif()
+elseif((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^Clang$"))
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "${CLDNN__MIN_COMPILER_VERSION__CLANG}")
+    message(FATAL_ERROR "[clDNN] Minimum required version of clang compiler is ${CLDNN__MIN_COMPILER_VERSION__CLANG}. Please update compiler.")
+  endif()
+
+  intel_flag_register_settings(
+      CompilerOptions
+
+      GROUP NAME DebugInfoFormat    "-g(dwardf-[2-4]?)?"
+      GROUP NAME Exceptions         "-f(no-)?exceptions"
+      GROUP NAME Optimization       "-O([0-4]?|fast|s|z)?"
+      GROUP NAME Rtti               "-f(no-)?rtti"
+      GROUP NAME TreatWarnAsError   "-Werror"
+      GROUP NAME Standard           "-std=[^ ]+"
+      GROUP NAME WarnLevels         "-W(all|extra|pedantic)|-w|-pedantic"
+      GROUP NAME FastMathOpts       "-f(no-)?fast-math"
+
+      ALIAS CallingConvCdecl
+      ALIAS CallingConvFastcall
+      ALIAS CallingConvStdcall
+      ALIAS CallingConvVectorcall
+      ALIAS CompileAsC
+      ALIAS CompileAsCpp
+      ALIAS CompileAsDefault
+      ALIAS DebugInfoDisabled          DebugInfoFormat REMOVE_GROUP
+      ALIAS DebugInfoProgramDatabase   "-g"
+      ALIAS ExceptionsDisabled         Exceptions REMOVE_GROUP
+      ALIAS ExceptionsEnabled          "-fexceptions"
+      ALIAS FaviorSize                 "-Os"
+      ALIAS FaviorSpeed                "-O4"
+      ALIAS MultiProcessorCompilation
+      ALIAS OptimizeDisabled           "-O0"
+      ALIAS OptimizeSize               "-Os"
+      ALIAS OptimizeSpeed              "-O2"
+      ALIAS OptimizeFull               "-04"
+      ALIAS RtMultiThreadedStatic
+      ALIAS RtMultiThreadedShared
+      ALIAS RtMultiThreadedStaticDebug
+      ALIAS RtMultiThreadedSharedDebug
+      ALIAS RttiDisabled               "-fno-rtti"
+      ALIAS RttiEnabled                Rtti REMOVE_GROUP
+      ALIAS TreatWarnAsErrorDisabled   TreatWarnAsError REMOVE_GROUP
+      ALIAS TreatWarnAsErrorEnabled    "-Werror"
+      ALIAS WarnLevel0                 "-w"
+      ALIAS WarnLevel1                 WarnLevels REMOVE_GROUP
+      ALIAS WarnLevel2                 "-Wall"
+      ALIAS WarnLevel3                 "-Wall" "-pedantic"
+      ALIAS WarnLevel4                 "-Wall" "-Wextra" "-pedantic"
+      ALIAS ExtensionsDisabled
+      ALIAS ExtensionsEnabled
+      ALIAS StandardCxx11              "-std=c++11"
+      ALIAS StandardCxx14              "-std=c++14"
+      ALIAS StandardC99                "-std=c99"
+      ALIAS StandardNone               Standard REMOVE_GROUP
+      ALIAS FastMath                   "-ffast-math"
+      ALIAS NoFastMath                 FastMathOpts REMOVE_GROUP
+
+      ALIAS DeadCodeEliminate
+      ALIAS DeadCodePreserve
+      ALIAS StackProtector 
+    )
+
+  if(CLDNN__COMPILE_LINK_ALLOW_UNSAFE_SIZE_OPT)
+    if(NOT APPLE)
+      intel_flag_register_settings(
+          CompilerOptions
+
+          GROUP NAME EmitDataSec "-fdata-sections"
+          GROUP NAME EmitFuncSec "-ffunction-sections"
+
+          ALIAS DeadCodeEliminate  "-fdata-sections" "-ffunction-sections"
+          ALIAS DeadCodePreserve   EmitDataSec EmitFuncSec REMOVE_GROUP
+        )
+    endif()
+  endif()
+else()
+  message(FATAL_ERROR "[clDNN] Unknown compiler. Please define support for it or use different compiler.")
+endif()
+
+# =============================== Linker options (abstract configuration) ==============================
+
+if(MSVC)
+  intel_flag_register_settings(
+      LinkerOptions
+
+      GROUP NAME DebugInfo         "/[dD][eE][bB][uU][gG]"
+      GROUP NAME DeadCode          "/[oO][pP][tT]:([nN][oO])?[rR][eE][fF]"
+      GROUP NAME IdenticalCodeData "/[oO][pP][tT]:([nN][oO])?[iI][cC][fF](=[0-9]+)?"
+      GROUP NAME Incremental       "/[iI][nN][cC][rR][eE][mM][eE][nN][tT][aA][lL](:[nN][oO])?"
+
+      ALIAS DebugInfoDisabled          DebugInfo REMOVE_GROUP
+      ALIAS DebugInfoProgramDatabase   "/DEBUG"
+      ALIAS DeadCodeEliminate          "/OPT:REF"
+      ALIAS DeadCodePreserve           "/OPT:NOREF"
+      ALIAS IdenticalCodeDataFold      "/OPT:ICF"
+      ALIAS IdenticalCodeDataNoFold    "/OPT:NOICF"
+      ALIAS IncrementalEnabled         "/INCREMENTAL"
+      ALIAS IncrementalDisabled        "/INCREMENTAL:NO"
+    )
+else()
+  intel_flag_register_settings(
+      LinkerOptions
+
+      ALIAS DebugInfoDisabled
+      ALIAS DebugInfoProgramDatabase
+      ALIAS DeadCodeEliminate
+      ALIAS DeadCodePreserve
+      ALIAS IdenticalCodeDataFold
+      ALIAS IdenticalCodeDataNoFold
+      ALIAS IncrementalEnabled
+      ALIAS IncrementalDisabled
+    )
+
+  if(CLDNN__COMPILE_LINK_ALLOW_UNSAFE_SIZE_OPT)
+    if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+      intel_flag_register_settings(
+          LinkerOptions
+
+          GROUP NAME GcSections "-Wl,--gc-sections"
+
+          ALIAS DeadCodeEliminate  "-Wl,--gc-sections"
+          ALIAS DeadCodePreserve   GcSections REMOVE_GROUP
+        )
+    elseif((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^Clang$"))
+      if(APPLE)
+        intel_flag_register_settings(
+            LinkerOptions
+
+            GROUP NAME DeadStrip "-Wl,-dead_strip"
+
+            ALIAS DeadCodeEliminate  "-Wl,-dead_strip"
+            ALIAS DeadCodePreserve   DeadStrip REMOVE_GROUP
+          )
+      else()
+        intel_flag_register_settings(
+            LinkerOptions
+
+            GROUP NAME GcSections "-Wl,--gc-sections"
+
+            ALIAS DeadCodeEliminate  "-Wl,--gc-sections"
+            ALIAS DeadCodePreserve   GcSections REMOVE_GROUP
+          )
+      endif()
+    endif()
+  endif()
+endif()
