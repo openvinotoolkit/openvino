@@ -13,6 +13,10 @@ find_package(OpenCV COMPONENTS imgcodecs)
 find_package(Threads REQUIRED)
 find_package(gflags REQUIRED PATHS "@InferenceEngine_BINARY_DIR@/samples/thirdparty/gflags")
 
+if(ENABLE_GNA)
+    set(GNA "@GNA@")
+endif()
+
 # Targets
 
 include("${CMAKE_CURRENT_LIST_DIR}/targets_developer.cmake")
