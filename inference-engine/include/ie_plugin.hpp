@@ -21,6 +21,10 @@
 #include <map>
 #include <set>
 
+/**
+ * @def INFERENCE_PLUGIN_API(type)
+ * @brief Defines Inference Engine Plugin API method
+ */
 
 #if defined(_WIN32)
     #ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
@@ -82,12 +86,14 @@ struct INFERENCE_ENGINE_API_CLASS(QueryNetworkResult) {
     /**
      * @brief A copy assignment operator
      * @param q A value to copy from
+     * @return A copied object
      */
     const QueryNetworkResult & operator= (const QueryNetworkResult & q);
 
     /**
      * @brief A move assignment operator
      * @param q A value to move from
+     * @return A moved object
      */
     QueryNetworkResult & operator= (QueryNetworkResult && q);
 
@@ -220,7 +226,8 @@ public:
      * @param res Reference to query network result
      */
     INFERENCE_ENGINE_DEPRECATED
-    virtual void QueryNetwork(const ICNNNetwork& /*network*/, QueryNetworkResult& res) const noexcept {
+    virtual void QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& res) const noexcept {
+        (void)network;
         res.rc = InferenceEngine::NOT_IMPLEMENTED;
     }
 
@@ -230,8 +237,10 @@ public:
      * @param config Map of pairs: (config parameter name, config parameter value)
      * @param res Reference to query network result
      */
-    virtual void QueryNetwork(const ICNNNetwork& /*network*/,
-                              const std::map<std::string, std::string> &/*config*/, QueryNetworkResult& res) const noexcept {
+    virtual void QueryNetwork(const ICNNNetwork& network,
+                              const std::map<std::string, std::string> & config, QueryNetworkResult& res) const noexcept {
+        (void)network;
+        (void)config;
         res.rc = InferenceEngine::NOT_IMPLEMENTED;
     }
 };

@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api_extension/CPP/fused_conv_bn_scale.hpp"
+#include "api_extension/fused_conv_bn_scale.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

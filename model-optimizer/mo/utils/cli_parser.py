@@ -210,13 +210,13 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                        'DEBUG', 'NOTSET'],
                               default='ERROR')
     common_group.add_argument('--input',
-                              help='Comma-separated list of input nodes names with shapes ' +
-                                   'and values for freezing. '+
-                                   'For example, use the following format to set input port <port1> ' +
-                                   'of the node <node_name1> with the shape <shape1> as an input node and ' +
-                                   'freeze output port <port2> of the node <node_name2> with the value <value2> ' +
-                                   'and the shape <shape2>: ' +
-                                   'port1:node_name1[shape1], node_name2:port2[shape2]->value2.')
+                              help='Quoted list of comma-separated input nodes names with shapes ' +
+                                   'and values for freezing. The shape and value are specified as space-separated lists. '+
+                                   'For example, use the following format to set input port 0 ' +
+                                   'of the node `node_name1` with the shape [3 4] as an input node and ' +
+                                   'freeze output port 1 of the node `node_name2` with the value [20 15] ' +
+                                   'and the shape [2]: ' +
+                                   '"0:node_name1[3 4],node_name2:1[2]->[20 15]".')
     common_group.add_argument('--output',
                               help='The name of the output operation of the model. ' +
                                    'For TensorFlow*, do not add :0 to this name.')
@@ -301,6 +301,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
                                    'This feature makes model reshapable in Inference Engine',
                               action='store_true', default=False)
+    common_group.add_argument('--steps',
+                              help='Enables model conversion steps display',
+                              action='store_true', default=False)
+
     return parser
 
 
@@ -369,7 +373,8 @@ def get_mxnet_cli_options():
 def get_kaldi_cli_options():
     d = {
         'counts': '- A file name with full path to the counts file',
-        'remove_output_softmax': '- Removes the SoftMax layer that is the output layer'
+        'remove_output_softmax': '- Removes the SoftMax layer that is the output layer',
+        'remove_memory': '- Removes the Memory layer and use additional inputs and outputs instead'
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
@@ -564,6 +569,11 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
     kaldi_group.add_argument("--remove_output_softmax",
                              help="Removes the SoftMax layer that is the output layer",
                              action='store_true')
+
+    kaldi_group.add_argument("--remove_memory",
+                             help="Removes the Memory layer and use additional inputs outputs instead",
+                             action='store_true',
+                             default=False)
     return parser
 
 

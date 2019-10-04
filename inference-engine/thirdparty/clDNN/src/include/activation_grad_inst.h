@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/activation_grad.hpp"
+#include "api/activation_grad.hpp"
 #include "primitive_inst.h"
 #include <string>
 

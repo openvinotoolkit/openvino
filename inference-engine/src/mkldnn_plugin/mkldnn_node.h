@@ -402,31 +402,28 @@ public:
             THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
         for (const auto& desc : descs) {
-            try {
-                mkldnn::primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
-                do {
-                    std::vector<InferenceEngine::TensorDesc> srcDescs;
-                    for (size_t i = 0; i < desc.inputNumbers(); i++)
-                        srcDescs.push_back(getSrcMemDesc(itpd, i));
+            auto itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
 
-                    std::vector<InferenceEngine::TensorDesc> dstDescs;
-                    for (size_t i = 0; i < desc.outputNumbers(); i++)
-                        dstDescs.push_back(getDstMemDesc(itpd, i));
+            while (itpd.is_not_end())  {
+                std::vector<InferenceEngine::TensorDesc> srcDescs;
+                for (size_t i = 0; i < desc.inputNumbers(); i++)
+                    srcDescs.push_back(getSrcMemDesc(itpd, i));
 
-                    impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+                std::vector<InferenceEngine::TensorDesc> dstDescs;
+                for (size_t i = 0; i < desc.outputNumbers(); i++)
+                    dstDescs.push_back(getDstMemDesc(itpd, i));
 
-                    if (impl_type == selected_pd->getImplementationType() &&
-                        descsEqual(srcDescs, selected_pd->getConfig().inConfs) &&
-                        descsEqual(dstDescs, selected_pd->getConfig().outConfs)) {
-                        prepareMemory(selected_pd, itpd);
-                        PD prim_desc = createPd<PD, D, FPD>(desc);
-                        itpd.getPrimitiveDescriptor(prim_desc);
-                        return prim_desc;
-                    }
-                } while (itpd.next());
-            } catch (std::exception& e) {
-                // it throw exception in case of no implementation found
-                continue;
+                impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+
+                if (impl_type == selected_pd->getImplementationType() &&
+                    descsEqual(srcDescs, selected_pd->getConfig().inConfs) &&
+                    descsEqual(dstDescs, selected_pd->getConfig().outConfs)) {
+                    prepareMemory(selected_pd, itpd);
+                    PD prim_desc = createPd<PD, D, FPD>(desc);
+                    itpd.getPrimitiveDescriptor(prim_desc);
+                    return prim_desc;
+                }
+                itpd++;
             }
         }
 
@@ -512,6 +509,13 @@ protected:
     int batchToProcess();
     int whichSocket() { return socket; }
 
+    // TODO: While CPU plugin has no ease way to clone graph object we use weight
+    //       caching in global Engine context to avoid tensor duplication. Just to
+    //       improve memory consumption in case of throughput streams when we have
+    //       duplicate of graph for single input ICNNNetwork.
+    //       Remove this flag when graph clone functionality will be added.
+    void enableWeightCaching(bool val) { weight_caching = val; }
+
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, bool weights);
 
     template<typename To>
@@ -537,6 +541,7 @@ private:
     Type type;
     int execIndex = -1;
     int socket;
+    bool weight_caching = false;
 
     std::string typeToStr(Type type);
 

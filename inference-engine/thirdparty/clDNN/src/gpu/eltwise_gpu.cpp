@@ -101,8 +101,6 @@ public:
         }
 
         const auto& primitive = arg.get_primitive();
-        if (primitive->with_activation)
-            convert_activation_func_params(primitive, ew_params.activation);
 
         ew_params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0),
                                          kernel_selector::eltwise_params::InputType::Buffer(1)},
@@ -215,45 +213,48 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<eltwise>::add(
-            {{std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i32, format::yxfb), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i64, format::yxfb), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i64, format::bfyx), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i32, format::byxf), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i64, format::byxf), eltwise_gpu::create},
-             // block f16
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16), eltwise_gpu::create},
-             // 3D
-             {std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i64, format::bfzyx), eltwise_gpu::create},
-             // MMAD
-             {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), eltwise_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), eltwise_gpu::create},
-             //
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), eltwise_gpu::create}});
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_eltwise_gpu::attach_eltwise_gpu() {
+    implementation_map<eltwise>::add(
+        {{std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i32, format::yxfb), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i64, format::yxfb), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i64, format::bfyx), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i32, format::byxf), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i64, format::byxf), eltwise_gpu::create},
+         // block f16
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16), eltwise_gpu::create},
+         // 3D
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i64, format::bfzyx), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx_f16), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx_f16), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i64, format::bfzyx_f16), eltwise_gpu::create},
+         // MMAD
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), eltwise_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), eltwise_gpu::create},
+         //
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), eltwise_gpu::create}});
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

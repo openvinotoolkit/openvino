@@ -71,19 +71,17 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = tile_gpu::create;
+namespace detail {
 
-        implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-        implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
-        implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_tile_gpu::attach_tile_gpu() {
+    auto val_fw = tile_gpu::create;
+
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

@@ -17,17 +17,17 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/convolution_grad_weights.hpp"
-#include "api/CPP/convolution.hpp"
-#include "api/CPP/convolution_grad_input.hpp"
-#include "api/CPP/reorder.hpp"
-#include <api/CPP/mutable_data.hpp>
-#include <api/CPP/data.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/convolution_grad_weights.hpp"
+#include "api/convolution.hpp"
+#include "api/convolution_grad_input.hpp"
+#include "api/reorder.hpp"
+#include <api/mutable_data.hpp>
+#include <api/data.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 
 using namespace cldnn;
@@ -68,7 +68,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_p
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 3, 3 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, { 8.f, 0.5f, 6.f, 9.f });
     set_values(input_grad, { 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.f, 1.7f, 1.8f });
@@ -144,7 +144,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in8x1x2x2_bfyx_stride2_p
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 3, 3 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, { 8.f, 0.5f, 6.f, 9.f, 8.f, 0.5f, 4.f, 7.f });
     set_values(input_grad, { 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.f, 1.7f, 1.8f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 1.f, 1.7f, 1.8f });
@@ -447,7 +447,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz1x1_in1x2x5x5_bfyx_stride2_p
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 5, 5 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 4 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 1, 1 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, {
         8.f, 0.5f, 1.f, 2.f,
@@ -620,7 +620,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz3x3_in2x1x3x3_bfyx_stride1_p
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 3 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 3, 3 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 3, 3 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, {
         0.5f, 0.6f, 0.7f, 0.9f, 1.f,  1.1f, 0.7f, 0.9f, 0.1f,
@@ -702,9 +702,9 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz3x3_in2x1x3x3_bfyx_stride1_p
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 3 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 3, 3 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 3, 3 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
     auto prev_weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 3, 3} });
-    auto prev_biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1} });
+    auto prev_biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1} });
 
     set_values(input, {
         0.5f, 0.6f, 0.7f, 0.9f, 1.f,  1.1f, 0.7f, 0.9f, 0.1f,
@@ -804,7 +804,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz7x7_in2x1x7x7_bfyx_stride1_p
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 7, 7 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 7, 7 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 7, 7 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, {
         0.5f, 0.6f, 0.7f, 0.9f, 0.2f, 0.1f, 0.7f,
@@ -950,9 +950,9 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz7x7_in2x1x7x7_bfyx_stride1_p
     auto input_grad = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 7, 7 } });
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 7, 7 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 7, 7 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
     auto prev_weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 7, 7 } });
-    auto prev_biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto prev_biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, {
         0.5f, 0.6f, 0.7f, 0.9f, 0.2f, 0.1f, 0.7f,
@@ -1074,7 +1074,6 @@ TEST(convolution_grad_weights_f32_fw_gpu, ngraph_2d_1item_2iterations) {
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 5, 3 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
 
-
     topology topology(
         input_layout("input_grad", input_grad.get_layout()),
         data("input", input),
@@ -1085,7 +1084,6 @@ TEST(convolution_grad_weights_f32_fw_gpu, ngraph_2d_1item_2iterations) {
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
     network network(engine, topology, bo);
-
 
     // set values for first iteration
     set_values(input,

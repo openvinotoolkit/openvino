@@ -27,8 +27,6 @@ enable_testing()
 
 add_subdirectory(helpers)
 
-disable_deprecated_warnings()
-
 if(ENABLE_TESTS)
   add_subdirectory(unit)
 endif()

@@ -25,6 +25,7 @@ namespace details {
 struct FormatParserCreator {
     using Ptr = std::shared_ptr<FormatParserCreator>;
     virtual std::shared_ptr<IFormatParser> create(size_t version) = 0;
+    virtual ~FormatParserCreator() = default;
 };
 
 struct V2FormatParserCreator : public FormatParserCreator {

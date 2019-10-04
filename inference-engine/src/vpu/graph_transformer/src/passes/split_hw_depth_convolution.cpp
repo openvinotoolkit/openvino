@@ -199,7 +199,7 @@ void PassImpl::run(const Model::Ptr& model) {
         // Multiple tiles processing
         //
 
-        model->disconnectStageDatas(stage);
+        model->disconnectStage(stage);
 
         DataVector subInputs(numTiles);
         DataVector subOutputs(numTiles);
@@ -237,8 +237,8 @@ void PassImpl::run(const Model::Ptr& model) {
             auto tileBiases = std::get<1>(constDatas);
 
             auto tileStage = model->duplicateStage(
-                stage->name() + postfix,
                 stage,
+                postfix,
                 {subInputs[tileInd], tileWeights, tileBiases},
                 {subOutputs[tileInd]});
 

@@ -16,6 +16,8 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
+
 
 def space_to_batch_infer(node):
     """
@@ -36,8 +38,9 @@ def space_to_batch_infer(node):
 
     pads = pad[:, 0] + input_shape[1:len(block_size)+1] + pad[:, 1]
 
-    output_shape = [input_shape[0] * np.prod(block_size), *[int(x) for x in (pads / block_size)], input_shape[-1]]
-    node.out_node().shape = np.array(output_shape)
+    node.out_node().shape = int64_array([input_shape[0] * np.prod(block_size),
+                                         *[int(x) for x in (pads / block_size)],
+                                         *input_shape[len(block_size) + 1:]])
 
 
 def batch_to_space_infer(node):
@@ -62,5 +65,4 @@ def batch_to_space_infer(node):
     sizes = pads - crop[:, 0] - crop[:, 1]
     batch = int(input_shape[0] / (np.prod(block_size)))
 
-    output_shape = [batch, *sizes, input_shape[-1]]
-    node.out_node().shape = np.array(output_shape)
+    node.out_node().shape = int64_array([batch, *sizes, *input_shape[len(block_size) + 1:]])

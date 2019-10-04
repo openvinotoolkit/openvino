@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm_dynamic_input_type_id() {
+primitive_type_id lstm_dynamic_input::type_id() {
     static primitive_type_base<lstm_dynamic_input> instance;
     return &instance;
 }

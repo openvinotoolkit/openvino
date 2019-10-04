@@ -25,6 +25,7 @@
 #include "error_handler.h"
 #include "kernel_selector_helper.h"
 #include "network_impl.h"
+#include "register_gpu.hpp"
 #include <vector>
 #include <list>
 #include <utility>
@@ -80,6 +81,13 @@ protected:
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back((memory_impl::cptr)&instance.input_memory(i));
+        }
+
+        if (instance.has_fused_primitives()) {
+            size_t count = instance.get_fused_mem_count();
+            for (size_t i = 0; i < count; i++) {
+                args.fused_op_inputs.push_back((memory_impl::cptr) &instance.fused_memory(i));
+            }
         }
 
         args.output = (memory_impl::cptr) &instance.output_memory();

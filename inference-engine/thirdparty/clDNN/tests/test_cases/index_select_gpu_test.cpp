@@ -18,12 +18,12 @@
 
 #include <gtest/gtest.h>
 
-#include <api/CPP/engine.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/index_select.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
+#include <api/engine.hpp>
+#include <api/input_layout.hpp>
+#include <api/index_select.hpp>
+#include <api/memory.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
 
 #include "test_utils/test_utils.h"
 
@@ -133,7 +133,6 @@ std::vector<float> generate_reference_bfyx(const std::vector<float>& input, cons
     }
 }
 
-
 std::vector<float> generate_reference_yxfb(const std::vector<float>& input, const std::vector<int32_t>& indices, index_select_axis_name axis, const cldnn::layout& input_lay)
 {
     auto memory_desc_inp = generic_test::get_linear_memory_desc(input_lay);
@@ -214,7 +213,6 @@ std::vector<float> generate_reference_yxfb(const std::vector<float>& input, cons
         break;
     }
 }
-
 
 TEST(index_select_gpu, basic_along_b_3_executes_bfyx)
 {
@@ -839,8 +837,6 @@ TEST(index_select_gpu, reverse_along_b_bfyx)
         8.f,  9.f, 10.f, 11.f,
         12.f, 13.f, 14.f, 15.f,
 
-
-
         16.f, 17.f, 18.f, 19.f,
         20.f, 21.f, 22.f, 23.f,
 
@@ -1039,7 +1035,6 @@ TEST(index_select_gpu, reverse_along_x_bfyx)
     }
 }
 
-
 TEST(index_select_gpu, reverse_along_y_yxfb)
 {
     const auto& engine = get_test_engine();
@@ -1051,8 +1046,6 @@ TEST(index_select_gpu, reverse_along_y_yxfb)
 
         8.f,  9.f, 10.f, 11.f,
         12.f, 13.f, 14.f, 15.f,
-
-
 
         16.f, 17.f, 18.f, 19.f,
         20.f, 21.f, 22.f, 23.f,
@@ -1067,8 +1060,6 @@ TEST(index_select_gpu, reverse_along_y_yxfb)
 
         24.f, 25.f, 26.f, 27.f,
         28.f, 29.f, 30.f, 31.f,
-
-
 
         0.f,  1.f,  2.f,  3.f,
         4.f,  5.f,  6.f,  7.f,
@@ -1252,7 +1243,6 @@ TEST(index_select_gpu, reverse_along_b_yxfb)
     }
 }
 
-
 TEST(index_select_gpu, reverse_along_yx_bfyx)
 {
     const auto& engine = get_test_engine();
@@ -1412,7 +1402,6 @@ TEST(index_select_gpu, reverse_along_bfyx_bfyx)
         79.f, 78.f, 77.f, 76.f,
         75.f, 74.f, 73.f, 72.f,
 
-
         71.f, 70.f, 69.f, 68.f,
         67.f, 66.f, 65.f, 64.f,
         63.f, 62.f, 61.f, 60.f,
@@ -1523,7 +1512,6 @@ TEST(index_select_gpu, reverse_along_bfx_yxfb)
         7.f,  6.f,  5.f,  4.f,
         3.f,  2.f,  1.f,  0.f,
 
-
         71.f, 70.f, 69.f, 68.f,
         67.f, 66.f, 65.f, 64.f,
         63.f, 62.f, 61.f, 60.f,
@@ -1535,7 +1523,6 @@ TEST(index_select_gpu, reverse_along_bfx_yxfb)
         47.f, 46.f, 45.f, 44.f,
         43.f, 42.f, 41.f, 40.f,
         39.f, 38.f, 37.f, 36.f,
-
 
         107.f, 106.f, 105.f, 104.f,
         103.f, 102.f, 101.f, 100.f,
@@ -1634,7 +1621,6 @@ TEST(index_select_gpu, reverse_along_bfyx_yxfb)
         79.f, 78.f, 77.f, 76.f,
         75.f, 74.f, 73.f, 72.f,
 
-
         71.f, 70.f, 69.f, 68.f,
         67.f, 66.f, 65.f, 64.f,
         63.f, 62.f, 61.f, 60.f,
@@ -1646,7 +1632,6 @@ TEST(index_select_gpu, reverse_along_bfyx_yxfb)
         47.f, 46.f, 45.f, 44.f,
         43.f, 42.f, 41.f, 40.f,
         39.f, 38.f, 37.f, 36.f,
-
 
         35.f, 34.f, 33.f, 32.f,
         31.f, 30.f, 29.f, 28.f,

@@ -21,37 +21,32 @@ protected:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override {
         if (step == ScalePropagationStep::Propagate) {
             auto inputScale = inputScales[0];
-            _scaleInfo.setOutput(_outputEdges[0], inputScale);
+            scaleInfo.setOutput(outputEdge(0), inputScale);
         } else {
             // Tile can only propagate scaling, not generate.
-            _scaleInfo.setInput(_inputEdges[0], 1.0f);
-            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
+            scaleInfo.setInput(inputEdge(0), 1.0f);
+            scaleInfo.setOutput(outputEdge(0), 1.0f);
         }
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
 
         auto inOrder = input->desc().dimsOrder();
         auto finalOrder = inOrder;
 
-        _orderInfo.setInput(_inputEdges[0], finalOrder);
-        _orderInfo.setOutput(_outputEdges[0], finalOrder);
+        orderInfo.setInput(inputEdge(0), finalOrder);
+        orderInfo.setOutput(outputEdge(0), finalOrder);
     }
 
-    void getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
     void finalizeDataLayoutImpl() override {
@@ -61,15 +56,13 @@ protected:
         return StageSHAVEsRequirements::OnlyOne;
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         auto axis = attrs().get<Dim>("axis");
         auto tiles = attrs().get<int>("tiles");
@@ -82,12 +75,8 @@ protected:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         input->serializeNewBuffer(serializer);
         output->serializeNewBuffer(serializer);

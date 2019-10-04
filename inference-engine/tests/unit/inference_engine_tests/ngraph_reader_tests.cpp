@@ -25,7 +25,7 @@ protected:
     void TearDown() override {}
     void SetUp() override {}
 
-    void compareICNNNetworks(const ICNNNetwork& newNetwork, const ICNNNetwork& oldNetwork) {
+    void compareICNNNetworks(ICNNNetwork::Ptr newNetwork, const CNNNetwork& oldNetwork) {
         auto compareParamVal = [](const std::string& val1, const std::string& val2) -> bool {
             std::vector<std::string> vals1, vals2;
             std::stringstream ss1(val1);
@@ -62,10 +62,10 @@ protected:
             return true;
         };
         std::vector<std::string> err_log;
-        CNNNetwork network((ICNNNetwork*)&newNetwork);
-        CNNNetwork refNetwork((ICNNNetwork*)&oldNetwork);
-        if (newNetwork.layerCount() != oldNetwork.layerCount())
-            THROW_IE_EXCEPTION << "ICNNNetworks have different numbers of layers! " + std::to_string(newNetwork.layerCount()) + " and " + std::to_string(oldNetwork.layerCount());
+        CNNNetwork network(newNetwork);
+        CNNNetwork refNetwork(oldNetwork);
+        if (newNetwork->layerCount() != oldNetwork.layerCount())
+            THROW_IE_EXCEPTION << "ICNNNetworks have different numbers of layers! " + std::to_string(newNetwork->layerCount()) + " and " + std::to_string(oldNetwork.layerCount());
         auto newIterator = network.begin();
         auto oldIterator = refNetwork.begin();
         for (; newIterator != network.end() && oldIterator != refNetwork.end(); newIterator++, oldIterator++) {
@@ -120,12 +120,10 @@ protected:
 
         InputsDataMap newInput;
         OutputsDataMap newOutput;
-        newNetwork.getInputsInfo(newInput);
-        newNetwork.getOutputsInfo(newOutput);
-        InputsDataMap oldInput;
-        OutputsDataMap oldOutput;
-        oldNetwork.getInputsInfo(oldInput);
-        oldNetwork.getOutputsInfo(oldOutput);
+        newNetwork->getInputsInfo(newInput);
+        newNetwork->getOutputsInfo(newOutput);
+        InputsDataMap oldInput = oldNetwork.getInputsInfo();
+        OutputsDataMap oldOutput = oldNetwork.getOutputsInfo();
 
         bool success = newInput.size() == oldInput.size();
         for (const auto& it : newInput) {
@@ -181,7 +179,7 @@ TEST_F(NGraphReaderTests, ReadScalarNetwork) {
     Blob::CPtr blob;
     auto nGraph = reader.read(model, blob);
     ICNNNetwork::Ptr network = convertFunctionToICNNNetwork(nGraph);
-    CNNNetwork cnetwork(network.get());
+    CNNNetwork cnetwork(network);
     cnetwork.begin();
 }
 
@@ -499,7 +497,7 @@ std::string modelV5 = R"V0G0N(
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, DISABLED_ReadProposalNetwork) {
@@ -661,7 +659,7 @@ std::string modelV5 = R"V0G0N(
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
@@ -906,7 +904,7 @@ std::string modelV5 = R"V0G0N(
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadSplitNetwork) {
@@ -1030,7 +1028,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, DISABLED_ReadDetectionOutputNetwork) {
@@ -1187,7 +1185,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadDetectionOutputNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadConcatNetwork) {
@@ -1322,7 +1320,7 @@ TEST_F(NGraphReaderTests, ReadConcatNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, DISABLED_ReadTopKNetwork) {
@@ -1431,7 +1429,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadTopKNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadMVNNetwork) {
@@ -1532,7 +1530,7 @@ TEST_F(NGraphReaderTests, ReadMVNNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadLrnNetwork) {
@@ -1633,7 +1631,7 @@ TEST_F(NGraphReaderTests, ReadLrnNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, DISABLED_ReadLrnNetwork2) {
@@ -1774,7 +1772,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadLrnNetwork2) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 
@@ -1876,7 +1874,7 @@ TEST_F(NGraphReaderTests, ReadClampNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadSigmoidNetwork) {
@@ -1975,7 +1973,7 @@ TEST_F(NGraphReaderTests, ReadSigmoidNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadPReLUNetwork) {
@@ -2098,7 +2096,7 @@ TEST_F(NGraphReaderTests, ReadPReLUNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadELUNetwork) {
@@ -2199,7 +2197,7 @@ TEST_F(NGraphReaderTests, ReadELUNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadShapeOfNetwork) {
@@ -2289,7 +2287,7 @@ TEST_F(NGraphReaderTests, ReadShapeOfNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadLeakyReLUNetwork) {
@@ -2390,7 +2388,7 @@ TEST_F(NGraphReaderTests, ReadLeakyReLUNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadTanhNetwork) {
@@ -2489,7 +2487,7 @@ TEST_F(NGraphReaderTests, ReadTanhNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadExpNetwork) {
@@ -2588,7 +2586,7 @@ TEST_F(NGraphReaderTests, ReadExpNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadReLUNetwork) {
@@ -2687,7 +2685,7 @@ TEST_F(NGraphReaderTests, ReadReLUNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadBroadcastNetwork) {
@@ -2855,7 +2853,7 @@ TEST_F(NGraphReaderTests, ReadSoftMaxNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadMaxPoolNetwork) {
@@ -2956,7 +2954,7 @@ TEST_F(NGraphReaderTests, ReadMaxPoolNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 TEST_F(NGraphReaderTests, ReadAvgPoolNetwork) {
     std::string model = R"V0G0N(
@@ -3056,7 +3054,7 @@ TEST_F(NGraphReaderTests, ReadAvgPoolNetwork) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 };
 
 TEST_F(NGraphReaderTests, ReadReLUNetworkWithoutTopologicalOrder) {
@@ -3155,7 +3153,7 @@ TEST_F(NGraphReaderTests, ReadReLUNetworkWithoutTopologicalOrder) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadTileNetwork) {
@@ -3276,7 +3274,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadTileNetwork2) {
@@ -3437,7 +3435,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork2) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadTransposeNetwork) {
@@ -3558,7 +3556,7 @@ TEST_F(NGraphReaderTests, ReadTransposeNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadReshapeNetwork) {
@@ -3684,7 +3682,7 @@ TEST_F(NGraphReaderTests, ReadReshapeNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadSqueeze) {
@@ -3812,7 +3810,7 @@ TEST_F(NGraphReaderTests, ReadSqueeze) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
@@ -3932,7 +3930,7 @@ TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadMatMulNetwork) {
@@ -4038,7 +4036,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadDeconvolution3DNetwork) {
@@ -4172,7 +4170,7 @@ TEST_F(NGraphReaderTests, ReadDeconvolution3DNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadDeconvolution2DNetwork) {
@@ -4297,7 +4295,7 @@ TEST_F(NGraphReaderTests, ReadDeconvolution2DNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadConvolutionNetwork) {
@@ -4422,7 +4420,7 @@ TEST_F(NGraphReaderTests, ReadConvolutionNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadMaximumNetwork) {
@@ -4565,7 +4563,7 @@ TEST_F(NGraphReaderTests, ReadMaximumNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadDivideNetwork) {
@@ -4708,7 +4706,7 @@ TEST_F(NGraphReaderTests, ReadDivideNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadPowNetwork) {
@@ -4851,7 +4849,7 @@ TEST_F(NGraphReaderTests, ReadPowNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadMultiplyNetwork) {
@@ -4994,7 +4992,7 @@ TEST_F(NGraphReaderTests, ReadMultiplyNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ReadAddNoBroadcastNetwork) {
@@ -5137,7 +5135,7 @@ TEST_F(NGraphReaderTests, ReadAddNoBroadcastNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, DISABLED_ReadAddNetwork) {
@@ -5276,7 +5274,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadAddNetwork) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvBiasFusion) {
@@ -5478,7 +5476,7 @@ TEST_F(NGraphReaderTests, ConvBiasFusion) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvBiasFusionFP16) {
@@ -5680,7 +5678,7 @@ TEST_F(NGraphReaderTests, ConvBiasFusionFP16) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, DISABLED_MatMulBiasFusion) {
@@ -5852,7 +5850,7 @@ TEST_F(NGraphReaderTests, DISABLED_MatMulBiasFusion) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, MatMulBiasFusionNoBroadcast) {
@@ -5987,7 +5985,7 @@ TEST_F(NGraphReaderTests, MatMulBiasFusionNoBroadcast) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertMulAddToScaleShift) {
@@ -6244,7 +6242,7 @@ TEST_F(NGraphReaderTests, ConvertMulAddToScaleShift) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertMulAddToPower) {
@@ -6508,7 +6506,7 @@ TEST_F(NGraphReaderTests, ConvertMulAddToPower) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertMulToPower) {
@@ -6687,7 +6685,7 @@ TEST_F(NGraphReaderTests, ConvertMulToPower) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertAddToPower) {
@@ -6866,7 +6864,7 @@ TEST_F(NGraphReaderTests, ConvertAddToPower) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertMulToScaleShift) {
@@ -7039,7 +7037,7 @@ TEST_F(NGraphReaderTests, ConvertMulToScaleShift) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertAddToScaleShift) {
@@ -7212,7 +7210,7 @@ TEST_F(NGraphReaderTests, ConvertAddToScaleShift) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertMulToEltwise) {
@@ -7398,7 +7396,7 @@ TEST_F(NGraphReaderTests, ConvertMulToEltwise) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertAddToEltwise) {
@@ -7584,7 +7582,7 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-    compareICNNNetworks(*network, net_reader.getNetwork());
+    compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertBroadcastToTiles1) {
@@ -7769,7 +7767,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles1) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-   compareICNNNetworks(*network, net_reader.getNetwork());
+   compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertBroadcastToTiles2) {
@@ -7967,7 +7965,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles2) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-   compareICNNNetworks(*network, net_reader.getNetwork());
+   compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, ConvertBroadcastToTiles3) {
@@ -8107,7 +8105,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles3) {
     net_reader.ReadNetwork(modelV5.data(), modelV5.length());
     net_reader.SetWeights(tWeights);
 
-   compareICNNNetworks(*network, net_reader.getNetwork());
+   compareICNNNetworks(network, net_reader.getNetwork());
 }
 
 TEST_F(NGraphReaderTests, DISABLED_ConvertMulAddToScaleShiftTest) {
@@ -8288,5 +8286,5 @@ TEST_F(NGraphReaderTests, DISABLED_ConvertMulAddToScaleShiftTest) {
    net_reader.ReadNetwork(modelV5.data(), modelV5.length());
    net_reader.SetWeights(tWeights);
 
-   compareICNNNetworks(*network, net_reader.getNetwork());
+   compareICNNNetworks(network, net_reader.getNetwork());
 }

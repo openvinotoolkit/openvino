@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <ie_layers.h>
 #include <ie_memcpy.h>
+#include "ie_precision.hpp"
 #include "ie_const_infer_impl.hpp"
 #include "ie_parallel.hpp"
 
@@ -26,11 +27,8 @@ public:
         CNNLayer layer(lp);
         layer.params = params;
 
-        src_data = inData[STRIDEDSLICE_DATA]->cbuffer().as<const float*>() +
-                   inData[STRIDEDSLICE_DATA]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-
         if (inData.size() > 4)
-            THROW_IE_EXCEPTION << " Incorrect number of input/output edges!";
+            THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect number of input edges!";
 
         src_dims = inData[STRIDEDSLICE_DATA]->getTensorDesc().getDims();
 
@@ -38,30 +36,33 @@ public:
         if (inData.size() > 1) {
             begin_dims = inData[STRIDEDSLICE_BEGIN]->getTensorDesc().getDims();
             if (inData[STRIDEDSLICE_BEGIN]->getTensorDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << " Incorrect 'begin' input precision. Only I32 is supported!";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect 'begin' input precision. Only I32 is supported! Current precision: " <<
+                                   inData[STRIDEDSLICE_BEGIN]->getTensorDesc().getPrecision();
             if (begin_dims.size() > 1)
-                THROW_IE_EXCEPTION << " Begin vector should be 1 dimension";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Begin vector should be 1 dimension, got: " << begin_dims.size() << " dimensions";
             bounds_size = begin_dims[0];
         }
 
         if (inData.size() > 2) {
             end_dims = inData[STRIDEDSLICE_END]->getTensorDesc().getDims();
             if (inData[STRIDEDSLICE_END]->getTensorDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << " Incorrect 'end' input precision. Only I32 is supported!";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect 'end' input precision. Only I32 is supported! Current precision: " <<
+                                   inData[STRIDEDSLICE_END]->getTensorDesc().getPrecision();
             if (end_dims.size() > 1)
-                THROW_IE_EXCEPTION << " End vector should be 1 dimension";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: End vector should be 1 dimension, got: " << end_dims.size() << " dimensions";
             if (begin_dims[0] != end_dims[0])
-                THROW_IE_EXCEPTION << " Begin vector size should be equal end vectror size";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Begin vector size should be equal end vector size";
         }
 
         if (inData.size() > 3) {
             stride_dims = inData[STRIDEDSLICE_STRIDE]->getTensorDesc().getDims();
             if (inData[STRIDEDSLICE_STRIDE]->getTensorDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << " Incorrect 'strides' input precision. Only I32 is supported!";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect 'strides' input precision. Only I32 is supported! Current precision: "
+                                   << inData[STRIDEDSLICE_STRIDE]->getTensorDesc().getPrecision();
             if (stride_dims.size() > 1)
-                THROW_IE_EXCEPTION << " End vector should be 1 dimension";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: End vector should be 1 dimension, got: " << stride_dims.size() << " dimensions";
             if (begin_dims[0] != stride_dims[0])
-                THROW_IE_EXCEPTION << " Stride vector size should be equal begin vectror size";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Stride vector size should be equal begin vector size";
         }
 
         std::string::size_type i;
@@ -209,19 +210,12 @@ public:
         return out_dims;
     }
 
-    void infer(std::vector<Blob::Ptr>& outData) {
-        dst_dims = outData[0]->getTensorDesc().getDims();
-        size_t range = out_dims.size() < dst_dims.size() ? out_dims.size() : dst_dims.size();
-        for (int i = 0; i < range; i++) {
-            if (out_dims[i] != dst_dims[i])
-                THROW_IE_EXCEPTION << "parameter mismatch";
-        }
-        dstStrides = outData[0]->getTensorDesc().getBlockingDesc().getStrides();
-        if (dst_dims.size() == 1 && dst_dims[0] == 1)
-            dstStrides.push_back(1);
-        if (outData.size() != 1)
-            THROW_IE_EXCEPTION << " Incorrect number of input/output edges!";
-        float* dst_data = outData[0]->cbuffer().as<float*>() +
+    template <class src_t, class dst_t>
+    void exec_strided_slice(const std::vector<Blob::CPtr>& inData, std::vector<Blob::Ptr>& outData) {
+        const src_t* src_data = inData[STRIDEDSLICE_DATA]->cbuffer().as<const src_t*>() +
+                          inData[STRIDEDSLICE_DATA]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+
+        dst_t* dst_data = outData[0]->cbuffer().as<dst_t*>() +
                           outData[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         if (src_dims.size() == max_dims && shrink_axis == 0 && stride_dms[stride_dms.size() - 1] == 1 &&
@@ -233,11 +227,43 @@ public:
             strided_slice(src_data, dst_data, our_dims);
     }
 
+    void infer(const std::vector<Blob::CPtr>& inData, std::vector<Blob::Ptr>& outData) {
+        dst_dims = outData[0]->getTensorDesc().getDims();
+        size_t range = out_dims.size() < dst_dims.size() ? out_dims.size() : dst_dims.size();
+        for (int i = 0; i < range; i++) {
+            if (out_dims[i] != dst_dims[i])
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: parameter mismatch";
+        }
+        dstStrides = outData[0]->getTensorDesc().getBlockingDesc().getStrides();
+        if (dst_dims.size() == 1 && dst_dims[0] == 1)
+            dstStrides.push_back(1);
+        if (outData.size() != 1)
+            THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect number of output edges!";
+
+        auto compare = getPrecisionMask(inData[0]->getTensorDesc().getPrecision(), outData[0]->getTensorDesc().getPrecision());
+        switch (compare) {
+            case getPrecisionMask(Precision::FP32, Precision::FP32):
+                exec_strided_slice<PrecisionTrait<Precision::FP32>::value_type, PrecisionTrait<Precision::FP32>::value_type>(inData, outData);
+                break;
+            case getPrecisionMask(Precision::I32, Precision::I32):
+                exec_strided_slice<PrecisionTrait<Precision::I32>::value_type, PrecisionTrait<Precision::I32>::value_type>(inData, outData);
+                break;
+            case getPrecisionMask(Precision::I32, Precision::I64):
+                exec_strided_slice<PrecisionTrait<Precision::I32>::value_type, PrecisionTrait<Precision::I64>::value_type>(inData, outData);
+                break;
+            default:
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Unsupported precision configuration:" <<
+                                   " input precision: " << inData[0]->getTensorDesc().getPrecision() <<
+                                   " output precision: " << outData[0]->getTensorDesc().getPrecision();
+        }
+    }
+
 private:
-    void strided_slice(const float* src_data, float* dst_data, std::vector<size_t>& dims) {
+    template <class src_t, class dst_t>
+    void strided_slice(const src_t* src_data, dst_t* dst_data, std::vector<size_t>& dims) {
         size_t i;
         int j;
-        size_t work_amount_dst = dstStrides[0] * dst_dims[0];
+        size_t work_amount_dst = (dstStrides.empty() && dst_dims.empty()) ? 1 : dstStrides[0] * dst_dims[0];
         SizeVector counters(max_dims, 0);
 
         for (size_t iwork = 0; iwork < work_amount_dst; ++iwork) {
@@ -259,7 +285,8 @@ private:
         }
     }
 
-    void strided_slice_vp(const float* src_data, float* dst_data) {
+    template <class src_t, class dst_t>
+    void strided_slice_vp(const src_t* src_data, dst_t* dst_data) {
         //  Vectorized copy
         size_t dims_size_1 = dst_dims.size() - 1;
         size_t dataLength = dst_dims[dims_size_1];
@@ -296,7 +323,8 @@ private:
         });
     }
 
-    void strided_slice_p(const float* src_data, float* dst_data) {
+    template <class src_t, class dst_t>
+    void strided_slice_p(const src_t* src_data, dst_t* dst_data) {
         size_t dims_size = dst_dims.size();
         size_t work_amount_dst = dstStrides[0] * dst_dims[0];
 
@@ -360,7 +388,6 @@ private:
 
     InferenceEngine::SizeVector out_dims;
     InferenceEngine::SizeVector our_dims;
-    const float* src_data;
 };
 
 /**
@@ -381,7 +408,7 @@ public:
         _validator->parseParams(&layer);
 
         StridedSliceHelper helper(inData, params);
-        helper.infer(outData);
+        helper.infer(inData, outData);
     }
 };
 

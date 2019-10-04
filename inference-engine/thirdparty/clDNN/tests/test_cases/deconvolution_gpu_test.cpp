@@ -17,17 +17,16 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/deconvolution.hpp"
-#include <api/CPP/data.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/deconvolution.hpp"
+#include <api/data.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 #include "test_utils/float16.h"
-#include "api/CPP/reorder.hpp"
-
+#include "api/reorder.hpp"
 
 using namespace cldnn;
 using namespace tests;
@@ -49,9 +48,9 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad) {
     //  2
     //
     //  Output:
-    //  -14    5     2.25 
-    //   18    0.75  7.25   
-    //   23    42.5  15.5   
+    //  -14    5     2.25
+    //   18    0.75  7.25
+    //   23    42.5  15.5
 
     const auto& engine = get_test_engine();
 
@@ -93,7 +92,6 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad) {
     }
 }
 
-
 TEST(deconvolution_f32_fw_gpu, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
     //  Filter : 2x2
     //  Input  : 2x2
@@ -108,12 +106,12 @@ TEST(deconvolution_f32_fw_gpu, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
     //   3.5 1.5
     //
     //  no bias
-    //  
+    //
     //
     //  Output:
-    //  -14    5     2.25 
-    //   18    0.75  7.25   
-    //   23    42.5  15.5   
+    //  -14    5     2.25
+    //   18    0.75  7.25
+    //   23    42.5  15.5
 
     const auto& engine = get_test_engine();
 
@@ -152,7 +150,6 @@ TEST(deconvolution_f32_fw_gpu, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
     }
 }
 
-
 TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Filter : 2x2
     //  Input  : 2x2
     //  Output : 3x3
@@ -169,9 +166,9 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Filt
     //  2
     //
     //  Output:
-    //  -14    5     2.25 
-    //   18    0.75  7.25   
-    //   23    42.5  15.5   
+    //  -14    5     2.25
+    //   18    0.75  7.25
+    //   23    42.5  15.5
 
     const auto& engine = get_test_engine();
 
@@ -231,7 +228,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_pad1) {
     //  2
     //
     //  Output:
-    //  0.75  
+    //  0.75
 
     const auto& engine = get_test_engine();
 
@@ -282,7 +279,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
     //  1
     //
     //  Output:
-    //  0.75  
+    //  0.75
 
     const auto& engine = get_test_engine();
 
@@ -471,8 +468,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
     //  1  5
     //
     //  Output:
-    //  f0: -3   4.5 
-    //  f0: 13   -17 
+    //  f0: -3   4.5
+    //  f0: 13   -17
     //  f1: 1    8.5
     //  f1: 17 - 13
 
@@ -480,7 +477,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 1, 2, 2 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
 
     set_values(input, { 8.f, 0.5f, 6.f, 9.f });
     set_values(weights, { -2.f, -2.f, 2.f, 2.f, 7.f, 7.f, -0.5f, -0.5f });
@@ -661,8 +658,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1_input_padd
     //  1  5
     //
     //  Output:
-    //  f0: -3   4.5 
-    //  f0: 13   -17 
+    //  f0: -3   4.5
+    //  f0: 13   -17
     //  f1: 1    8.5
     //  f1: 17 - 13
 
@@ -670,7 +667,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1_input_padd
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 1, 2, 2 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, { 8.f, 0.5f, 6.f, 9.f });
     set_values(weights, { -2.f, -2.f, 2.f, 2.f, 7.f, 7.f, -0.5f, -0.5f });
@@ -913,7 +910,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2)
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 2, 2 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, { 8.f, 0.5f, 6.f, 9.f, 1.f, 3.f, 2.f, 4.f });
     set_values(weights, {
@@ -955,11 +952,11 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2_
     //  Test for depthwise separable optimization, there are 16 weights and biases (split 16)
     //  data is similar as in basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2
 
-    const auto& engine = get_test_engine(); 
+    const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 16, 2, 2 } });
-    set_values(input, 
-    { 8.f, 0.5f, 6.f, 9.f, 1.f, 3.f, 2.f, 4.f, 
+    set_values(input,
+    { 8.f, 0.5f, 6.f, 9.f, 1.f, 3.f, 2.f, 4.f,
         8.f, 0.5f, 6.f, 9.f, 1.f, 3.f, 2.f, 4.f,
         8.f, 0.5f, 6.f, 9.f, 1.f, 3.f, 2.f, 4.f,
         8.f, 0.5f, 6.f, 9.f, 1.f, 3.f, 2.f, 4.f,
@@ -1056,11 +1053,11 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16
 
     std::vector<primitive_id> weights_vec;
     std::vector<primitive_id> bias_vec;
-    
-    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 16, 1, 2, 2 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 16, 1 } });
 
-    set_values(weights, 
+    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 16, 1, 2, 2 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 16, 1, 1 } });
+
+    set_values(weights,
         {
             -2.f, 2.f, 7.f, -0.5f,
             -4.f, 1.f, -9.f, -7.f,
@@ -1085,7 +1082,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16
         data("weights", weights),
         data("bias", biases)
     );
-   
+
     topology.add(deconvolution("deconv", "input", { "weights" }, { "bias" }, 16, { 1, 1, 2, 2 }, { 0, 0, -1, -1 }));
 
     network network(engine, topology);
@@ -1142,9 +1139,9 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2_
     for (uint32_t i = 0; i < 8; i++)
     {
         auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
-        auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+        auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
         auto weights2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
-        auto biases2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
+        auto biases2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
         set_values(weights, { -2.f, 2.f, 7.f, -0.5f, -2.f, 2.f, 7.f, -0.5f });
         set_values(biases, { 1.0f, 1.0f });
@@ -1221,10 +1218,10 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16
 
     std::vector<primitive_id> weights_vec;
     std::vector<primitive_id> bias_vec;
-    
+
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 32, 1, 2, 2 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 32, 1 } });
-    
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 32, 1, 1 } });
+
     set_values(weights,
         {
             -2.f, 2.f, 7.f, -0.5f, -2.f, 2.f, 7.f, -0.5f,
@@ -1288,7 +1285,6 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16
     }
 }
 
-
 TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_split2_ofm3) {
     //  Filter : 1x1
     //  Stride : 1x1
@@ -1318,7 +1314,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_split2_
     //  -1   2.5 2
     //
     //  Output:
-    //  -1.5  
+    //  -1.5
     //   8
     //   7.75
     //
@@ -1330,9 +1326,9 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_split2_
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 4, 1, 1 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 3, 2, 1, 1 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 3, 1, 1 } });
     auto weights2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 3, 2, 1, 1 } });
-    auto biases2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });
+    auto biases2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 3, 1, 1 } });
 
     set_values(input, {
         1.5f, 0.5f, 2.0f, -1.0f
@@ -1378,7 +1374,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_group2_
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 4, 1, 1 } });
     auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 6, 2, 1, 1 } });
-    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 6, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 6, 1, 1 } });
 
     set_values(input, {
         1.5f, 0.5f, 2.0f, -1.0f

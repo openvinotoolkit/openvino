@@ -11,7 +11,7 @@
 #include <ade/graph.hpp>
 #include <ade/passes/check_cycles.hpp>
 
-#include "opencv2/gapi/gcompoundkernel.hpp" // compound::backend()
+#include <opencv2/gapi/gcompoundkernel.hpp> // compound::backend()
 
 #include "compiler/gmodel.hpp"
 #include "compiler/passes/passes.hpp"
@@ -35,7 +35,7 @@ namespace
     // 1. Get GCompoundKernel implementation
     // 2. Create GCompoundContext
     // 3. Run GCompoundKernel with GCompoundContext
-    // 4. Build subgraph from imputs/outputs GCompoundKernel
+    // 4. Build subgraph from inputs/outputs GCompoundKernel
     // 5. Replace compound node to subgraph
 
     void expand(ade::Graph& g, ade::NodeHandle nh, const ImplInfo& impl_info)
@@ -101,8 +101,7 @@ namespace
 // This pass, given the kernel package, selects a kernel implementation
 // for every operation in the graph
 void cv::gimpl::passes::resolveKernels(ade::passes::PassContext   &ctx,
-                                       const gapi::GKernelPackage &kernels,
-                                       const gapi::GLookupOrder   &order)
+                                       const gapi::GKernelPackage &kernels)
 {
     std::unordered_set<cv::gapi::GBackend> active_backends;
 
@@ -114,8 +113,7 @@ void cv::gimpl::passes::resolveKernels(ade::passes::PassContext   &ctx,
             auto &op = gr.metadata(nh).get<Op>();
             cv::gapi::GBackend selected_backend;
             cv::GKernelImpl    selected_impl;
-            std::tie(selected_backend, selected_impl)
-                = kernels.lookup(op.k.name, order);
+            std::tie(selected_backend, selected_impl) = kernels.lookup(op.k.name);
 
             selected_backend.priv().unpackKernel(ctx.graph, nh, selected_impl);
             op.backend = selected_backend;

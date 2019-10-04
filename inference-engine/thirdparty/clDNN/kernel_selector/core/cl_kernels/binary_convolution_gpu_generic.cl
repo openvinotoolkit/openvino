@@ -17,17 +17,23 @@
 
 #define OC_BLOCK_SIZE 32
 
-#define GET_WEI(data, id) intel_sub_group_shuffle(data, id)
-
 #define ALIGNED_BLOCK_READ(ptr, byte_offset) as_uint(intel_sub_group_block_read((const __global uint*)(ptr) + (byte_offset)))
 #define ALIGNED_BLOCK_READ2(ptr, byte_offset) as_uint2(intel_sub_group_block_read2((const __global uint*)(ptr) + (byte_offset)))
+
+#if BINARY_PACKED_OUTPUT
+    #define BUFFER_TYPE UNIT_TYPE
+#else
+    #define BUFFER_TYPE OUTPUT_TYPE
+#endif
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 KERNEL(binary_convolution_generic)(const __global INPUT0_TYPE* input,
                                          __global OUTPUT_TYPE* output,
                                    const __global FILTER_TYPE* weights,
-                                   FUSED_OPS_DECLS
+#if HAS_FUSED_OPS_DECLS
+                                   FUSED_OPS_DECLS,
+#endif
                                    uint split_idx)
 {
     const int f_block = get_global_id(1);
@@ -143,31 +149,41 @@ KERNEL(binary_convolution_generic)(const __global INPUT0_TYPE* input,
 
 #endif
     // Load data for fused operations (scales, biases, quantization thresholds, etc)
+#if CUSTOM_FUSED_OPS
     FUSED_OPS_PREPARE_DATA;
+#endif
 
-    UNIT_TYPE dst[SUB_GROUP_SIZE*2];
+    BUFFER_TYPE dst[SUB_GROUP_SIZE*2];
 
     __attribute__((opencl_unroll_hint(SUB_GROUP_SIZE*2)))
     for (int i = 0; i < SUB_GROUP_SIZE*2; i++)
     {
 #if EXCLUDE_PAD
-        UNIT_TYPE res = TO_UNIT_TYPE(INPUT0_FEATURE_NUM*intel_sub_group_shuffle(real_ks, i%SUB_GROUP_SIZE) - 2*dst_buf[i]);
+        CONV_RESULT_TYPE res = TO_CONV_RESULT_TYPE(INPUT0_FEATURE_NUM*intel_sub_group_shuffle(real_ks, i%SUB_GROUP_SIZE) - 2*dst_buf[i]);
 #else
-        UNIT_TYPE res = TO_UNIT_TYPE(INPUT0_FEATURE_NUM*FILTER_SIZE_Y*FILTER_SIZE_X - 2*dst_buf[i]);
+        CONV_RESULT_TYPE res = TO_CONV_RESULT_TYPE(INPUT0_FEATURE_NUM*FILTER_SIZE_Y*FILTER_SIZE_X - 2*dst_buf[i]);
 #endif
+
+#if CUSTOM_FUSED_OPS
         DO_ELTWISE_FUSED_OPS;
         dst[i] = res;
+#elif HAS_FUSED_OPS
+        FUSED_OPS;
+        dst[i] = FINAL_NAME;
+#else
+        dst[i] = res;
+#endif
+
     }
 
 #if BINARY_PACKED_OUTPUT
     int packed_out[SUB_GROUP_SIZE];
-    for (int i = 0; i < SUB_GROUP_SIZE; i++)
-    {
-        int ch0 = dst[0*SUB_GROUP_SIZE + i] > quantize0_threshold.s0 ? (1 << lid) : 0;
-        int ch1 = dst[1*SUB_GROUP_SIZE + i] > quantize0_threshold.s1 ? (1 << (SUB_GROUP_SIZE + lid)) : 0;
-        int res = ch0 + ch1;
-        packed_out[i] = sub_group_reduce_add(res);
-    }
+
+#if CUSTOM_FUSED_OPS
+    DO_CHANNEL_PACK_OPS;
+#else
+    #error "BINARY_PACKED_OUTPUT should be true only if node has fused quantize with bin output"
+#endif
 
     bool in_x = (x + lid) < OUTPUT_SIZE_X;
     bool in_y = y < OUTPUT_SIZE_Y;

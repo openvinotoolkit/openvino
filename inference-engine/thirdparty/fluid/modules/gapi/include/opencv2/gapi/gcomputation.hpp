@@ -10,11 +10,11 @@
 
 #include <functional>
 
-#include "opencv2/gapi/util/util.hpp"
-#include "opencv2/gapi/gcommon.hpp"
-#include "opencv2/gapi/gproto.hpp"
-#include "opencv2/gapi/garg.hpp"
-#include "opencv2/gapi/gcompiled.hpp"
+#include <opencv2/gapi/util/util.hpp>
+#include <opencv2/gapi/gcommon.hpp>
+#include <opencv2/gapi/gproto.hpp>
+#include <opencv2/gapi/garg.hpp>
+#include <opencv2/gapi/gcompiled.hpp>
 
 namespace cv {
 
@@ -315,7 +315,7 @@ public:
      * inputs/outputs which were used to define this GComputation.
      */
     void apply(const std::vector<cv::Mat>& ins,         // Compatibility overload
-               const std::vector<cv::Mat>& outs,
+                     std::vector<cv::Mat>& outs,
                GCompileArgs &&args = {});
 #endif // !defined(GAPI_STANDALONE)
     // Various versions of compile(): //////////////////////////////////////////

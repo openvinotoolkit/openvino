@@ -30,18 +30,18 @@ public:
     virtual ~FullyConnectedKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
-        uint32_t unit_byte_size;
+        uint32_t unit_byte_size = 0;
         const char* chunk_type;
-        uint32_t chunk_byte_size;
-        uint32_t units_per_chunk;
-        uint32_t bytes_per_sg_read;
-        uint32_t units_per_sg_read;
-        uint32_t responses_per_sg_exec;
-        uint32_t in_chunk_prefetch_size;
-        uint32_t filter_chunk_prefetch_size;
+        uint32_t chunk_byte_size = 0;
+        uint32_t units_per_chunk = 0;
+        uint32_t bytes_per_sg_read = 0;
+        uint32_t units_per_sg_read = 0;
+        uint32_t responses_per_sg_exec = 0;
+        uint32_t in_chunk_prefetch_size = 0;
+        uint32_t filter_chunk_prefetch_size = 0;
 
-        uint32_t last_rg_size;
-        uint32_t rg_count;
+        uint32_t last_rg_size = 0;
+        uint32_t rg_count = 0;
     };
 
     std::string GetAutoTuneOptions(int autoTuneIndex) const;

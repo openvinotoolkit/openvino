@@ -80,25 +80,19 @@ bool supportedPaddingPool(const Stage& stage) {
         kernelStride, kernelStride,
         padLeft, padTop);
 
-    bool originalUnsupportedPad = (
-        (padRight  != padLeft && padRight  != padLeft + 1)       ||
-        (padBottom != padTop  && padBottom != padTop + 1)        ||
-        (padLeft   != 0       && padLeft   != (kernelSizeX / 2)) ||
-        (padRight  != 0       && padRight  != (kernelSizeX / 2)) ||
-        (padTop    != 0       && padTop    != (kernelSizeY / 2)) ||
-        (padBottom != 0       && padBottom != (kernelSizeY / 2)));
+    //
+    // HW unit supports pooling with even-sized kernel with such asymmetrical paddings.
+    // But it does not support inverted paddings.
+    // For odd-sized kernels supported paddings are symmetrical.
+    //
 
-    bool hwUnsupportedPad = (
-        (hwInitialPad.right  != hwInitialPad.left && hwInitialPad.right  != hwInitialPad.left + 1) ||
-        (hwInitialPad.bottom != hwInitialPad.top  && hwInitialPad.bottom != hwInitialPad.top + 1)  ||
-        (hwInitialPad.left   != 0                 && hwInitialPad.left   != (kernelSizeX / 2))     ||
-        (hwInitialPad.right  != 0                 && hwInitialPad.right  != (kernelSizeX / 2))     ||
-        (hwInitialPad.top    != 0                 && hwInitialPad.top    != (kernelSizeY / 2))     ||
-        (hwInitialPad.bottom != 0                 && hwInitialPad.bottom != (kernelSizeY / 2)));
+    bool isPadSupported =
+        (hwInitialPad.left   == 0 || hwInitialPad.left   == kernelSizeX / 2)       &&
+        (hwInitialPad.right  == 0 || hwInitialPad.right  == (kernelSizeX - 1) / 2) &&
+        (hwInitialPad.top    == 0 || hwInitialPad.top    == kernelSizeY / 2)       &&
+        (hwInitialPad.bottom == 0 || hwInitialPad.bottom == (kernelSizeY - 1) / 2);
 
-    return !originalUnsupportedPad &&
-           !hwUnsupportedPad       &&
-           !forcePaddingStage;
+    return isPadSupported && !forcePaddingStage;
 }
 
 bool supportedPaddingConv(const Stage& stage) {
@@ -111,15 +105,20 @@ bool supportedPaddingConv(const Stage& stage) {
     auto padTop      = stage->attrs().get<int>("padTop");
     auto padBottom   = stage->attrs().get<int>("padBottom");
 
-    bool kernelIsOdd = kernelSizeX % 2 == 1 && kernelSizeY % 2 == 1;
+    //
+    // HW unit supports convolution with even-sized kernel with such asymmetrical paddings.
+    // But it does not support inverted paddings.
+    // For odd-sized kernels supported paddings are symmetrical.
+    //
+
     bool paddingsAreZeros = padLeft == 0 && padTop == 0 && padRight == 0 && padBottom == 0;
     bool paddingsAreSupported =
-        padLeft   == (kernelSizeX - 1) / 2 &&
-        padTop    == (kernelSizeY - 1) / 2 &&
-        padRight  == kernelSizeX / 2 &&
-        padBottom == kernelSizeY / 2;
+        padLeft   == kernelSizeX / 2 &&
+        padTop    == kernelSizeY / 2 &&
+        padRight  == (kernelSizeX - 1) / 2 &&
+        padBottom == (kernelSizeY - 1) / 2;
 
-    return paddingsAreZeros || (kernelIsOdd && paddingsAreSupported);
+    return paddingsAreZeros || paddingsAreSupported;
 }
 
 void insertPaddingStageBefore(const Model::Ptr& model, StageBuilder::Ptr& stageBuilder, const Stage& origStage) {

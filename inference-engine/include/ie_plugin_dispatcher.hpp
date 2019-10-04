@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <cpp/ie_plugin_cpp.hpp>
+#include <multi-device/multi_device_config.hpp>
 
 namespace InferenceEngine {
 /**
@@ -35,6 +36,7 @@ public:
     /**
      * @deprecated Use InferenceEngine::Core to work with devices by name
      * @brief Loads a plugin from directories that is suitable for the device string
+     * @param deviceName A string value representing target device
      * @return A pointer to the plugin
      */
     INFERENCE_ENGINE_DEPRECATED
@@ -43,6 +45,7 @@ public:
     /**
      * @deprecated Use InferenceEngine::Core to work with devices by name
      * @brief Loads a plugin from directories that is suitable for the device
+     * @param device An instance of InferenceEngine::TargetDevice
      * @return A pointer to the plugin
      */
     INFERENCE_ENGINE_DEPRECATED

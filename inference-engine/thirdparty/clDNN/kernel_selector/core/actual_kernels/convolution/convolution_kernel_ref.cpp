@@ -42,6 +42,10 @@ ParamsKey ConvolutionKernel_Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfzyx_f16);
+    k.EnableOutputLayout(DataLayout::bfzyx_f16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDilation();
@@ -71,7 +75,7 @@ JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& pa
     // TODO: This gives both ACTIVATION and ACTIVATION_TYPED. Should we
     // factor that out into a virtual function to avoid creation of similar
     // yet distinct macros?
-    jit.Merge(MakeActivationJitConstants(params.activation, "_CONV_TYPED", true));
+    jit.Merge(MakeActivationJitConstants(params.activations, "_CONV_TYPED", true));
     // Needs to be done on host to get _MAX_VAL/_MIN_VAL/TO_TYPE macros
     // available (will be used in the activation).
     //
@@ -99,7 +103,8 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_Ref::SetDefault(const conv
     // Just set the correct value for a particular implementation here,
     // until the whole hierarchy is re-written.
     const auto& out = params.output;
-    std::vector<size_t> global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
+    std::vector<size_t> global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+
     auto local = GetOptimalLocalWorkGroupSizes(global);
 
     kd.gws0 = global[0];

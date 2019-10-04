@@ -21,7 +21,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lrn_type_id() {
+primitive_type_id lrn::type_id() {
     static primitive_type_base<lrn> instance;
     return &instance;
 }
@@ -39,7 +39,7 @@ std::string lrn_inst::to_string(lrn_node const& node) {
     auto k = desc->k;
     auto alpha = desc->alpha;
     auto beta = desc->beta;
-    auto norm_region = desc->norm_region == cldnn_lrn_norm_region::cldnn_lrn_norm_region_across_channel
+    auto norm_region = desc->norm_region == lrn_norm_region::lrn_norm_region_across_channel
                            ? "across channel"
                            : "within channel";
     auto& input = node.input();

@@ -59,8 +59,8 @@ void ref_conv(const TBlob<data_t> &src, const data_t *weights, const size_t weig
     size_t IH = src_dims[dims_size - 2];
     size_t IW = src_dims[dims_size - 1];
 
-    size_t OW = (IW + 2u * prm.pads_begin[X_AXIS] - prm.kernel[X_AXIS]) / prm.strides[X_AXIS] + 1u;
-    size_t OH = (IH + 2u * prm.pads_begin[Y_AXIS] - prm.kernel[Y_AXIS]) / prm.strides[Y_AXIS] + 1u;
+    size_t OW = (IW + prm.pads_end[X_AXIS] + prm.pads_begin[X_AXIS] - prm.kernel[X_AXIS]) / prm.strides[X_AXIS] + 1u;
+    size_t OH = (IH + prm.pads_end[Y_AXIS] + prm.pads_begin[Y_AXIS] - prm.kernel[Y_AXIS]) / prm.strides[Y_AXIS] + 1u;
     size_t OD = dims_size == 5 ? (ID + 2u * prm.pads_begin[Z_AXIS] - prm.kernel[Z_AXIS]) / prm.strides[Z_AXIS] + 1u : 1u;
     size_t OC = prm.out_c;
 
@@ -80,12 +80,12 @@ void ref_conv(const TBlob<data_t> &src, const data_t *weights, const size_t weig
     size_t SC2 = SC1 * OD;
     size_t SC3 = OC / GC;
     size_t SC4 = SC2 * SC3;
-    
+
     size_t IC1 = IH * IW;
     size_t IC2 = IC1 * ID;
     size_t IC3 = IC / GC;
     size_t IC4 = IC2 * IC3;
-    
+
     size_t KC1 = KH * KW;
     size_t KC2 = KC1 * KD;
     size_t KC3 = IC3 * KC2;
@@ -144,7 +144,7 @@ void ref_conv(const TBlob<data_t> &src, const data_t *weights, const size_t weig
 class MKLDNNGraphConvolutionTests: public TestsCommon,
                                    public WithParamInterface<conv_test_params> {
     std::string model_t_5D = R"V0G0N(
-<net name="Convolution_Only" version="3" precision="FP32" batch="1">
+<net name="Convolution_Only" version="4" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
             <output>
@@ -193,7 +193,7 @@ protected:
         int k_len = p.kernel.size();
         for (size_t i = 2; i < p.dims.size(); i++) {
             size_t inx = k_len - i + 1;
-            size_t dim = (p.dims[i] + 2lu * p.pads_begin[inx] - p.kernel[inx]) / p.strides[inx] + 1lu;
+            size_t dim = (p.dims[i] + p.pads_end[inx] + p.pads_begin[inx] - p.kernel[inx]) / p.strides[inx] + 1lu;
             s_dims += "\n                    <dim>";
             s_dims += std::to_string(dim) + "</dim>";
         }
@@ -347,9 +347,9 @@ INSTANTIATE_TEST_CASE_P(
         TestConvolution, MKLDNNGraphConvolutionTests,
         ::testing::Values(
         /*0*/   conv_test_params{{1, 9, 16, 32},
-                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 6, MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1 },
+                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "same_upper", 6, MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1 },
                 conv_test_params{{1, 9, 32, 16},
-                                 {2, 4}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit },
+                                 {2, 4}, {1, 1}, {1, 1}, {0, 2}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit },
                 conv_test_params{{1, 9, 32, 16},
                                  {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit },
                 conv_test_params{{1, 3, 40, 40},
@@ -392,13 +392,13 @@ INSTANTIATE_TEST_CASE_P(
                                  {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas },
                 conv_test_params{{1, 5, 15, 20, 20},
                                  {3, 3, 3}, {3, 2, 1}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas },
-                conv_test_params{{1, 5, 15, 20, 20},
-                                 {3, 3, 3}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas },
+                // conv_test_params{{1, 5, 15, 20, 20},
+                //                  {3, 3, 3}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas },
                 conv_test_params{{1, 16, 30, 30, 10},
                                  {5, 5, 5}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2}, 16, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas,
                                  {MKLDNNPlugin::impl_desc_type::gemm_blas} },
                 conv_test_params{{1, 4, 16, 16, 16},
-                                 {3, 3, 3}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, 8, 1, "same_upper", 2, MKLDNNPlugin::impl_desc_type::gemm_blas },
+                                 {3, 3, 3}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, 8, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas },
 #endif
         /*20*/  conv_test_params{{1, 16, 30, 30, 10},
                                  {5, 5, 5}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2}, 16, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit },
@@ -492,7 +492,7 @@ INSTANTIATE_TEST_CASE_P(
         TestDynBatchConvolution, MKLDNNGraphDynBatchConvolutionTests,
         ::testing::Values(
                 conv_test_params{{1, 8, 16, 32},
-                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 7, MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1,
+                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "same_upper", 7, MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1,
                                  {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd}},
                 conv_test_params{{1, 9, 32, 16},
                                  {2, 4}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit,

@@ -23,7 +23,7 @@ from mo.graph.graph import Node
 from mo.ops.clamp import Clamp
 from mo.ops.op import Op
 
-activation_ops = ['Sigmoid', 'Tanh', 'ReLU6', 'Exp', 'Elu', 'Not']
+activation_ops = ['Sigmoid', 'Tanh', 'ReLU6', 'Exp', 'Elu', 'Not', 'Floor']
 
 
 class Activation(Op):
@@ -78,6 +78,11 @@ class ReLU(Activation):
 class Erf(Activation):
     op = 'Erf'
     operation = None
+
+
+class Floor(Activation):
+    op = 'Floor'
+    operation = staticmethod(lambda x: np.floor(x))
 
 
 class Elu(Activation):

@@ -55,11 +55,13 @@ std::map<primitive_id, network_output> test_prepare_conv_eltw_fusing(bool eltw1,
     topology.add(convolution("conv2", { "input" }, { "weights2" }));
     if (eltw1)
     {
-        topology.add(eltwise("eltw1", "conv1", "conv2", cldnn::eltwise_mode::sum, true));
+        topology.add(eltwise("eltw1_no_relu", "conv1", "conv2", cldnn::eltwise_mode::sum));
+        topology.add(activation("eltw1", "eltw1_no_relu", activation_func::relu));
     }
     if (eltw2)
     {
-        topology.add(eltwise("eltw2", "conv2", "conv1", cldnn::eltwise_mode::sum, true));
+        topology.add(eltwise("eltw2_no_relu", "conv2", "conv1", cldnn::eltwise_mode::sum));
+        topology.add(activation("eltw2", "eltw2_no_relu", activation_func::relu));
     }
     if (eltw1 && eltw2)
     {
@@ -77,15 +79,15 @@ std::map<primitive_id, network_output> test_prepare_conv_eltw_fusing(bool eltw1,
     {
         topology.add(eltwise("eltw3", "conv1", "conv2", cldnn::eltwise_mode::sum));
     }
-    program_impl::ptr prog = api_cast(engine.get())->build_program(*api_cast(topology.get()), build_opt, false, true);
+    program_impl::ptr prog = engine.get()->build_program(*topology.get(), build_opt, false, true);
 
     layout_optimizer lo;
     program_impl_wrapper::apply_opt_pass<prepare_conv_eltw_fusing>(*prog, lo);
 
     program_impl_wrapper::run_graph_compilation(*prog);
     program_impl_wrapper::prepare_memory_dependencies(*prog);
-    cldnn::refcounted_obj_ptr<cldnn::network_impl> net = api_cast(engine.get())->allocate_network(*prog, 0);
-    network network = (cldnn::network) api_cast(net.get());
+    cldnn::refcounted_obj_ptr<cldnn::network_impl> net = engine.get()->allocate_network(*prog, 0);
+    network network = (cldnn::network) net.get();
     network.set_input_data("input", input);
 
     return network.execute();

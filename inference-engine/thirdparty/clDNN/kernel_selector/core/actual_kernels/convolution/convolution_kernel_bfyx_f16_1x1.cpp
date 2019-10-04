@@ -120,6 +120,13 @@ JitConstants ConvolutionKernel_bfyx_f16_1x1::GetJitConstants(const convolution_p
     auto jit = Parent::GetJitConstants(params, runInfo);
 
     auto blockWidth = runInfo.cldnnStyle.blockWidth;
+    if (params.fused_ops.size() > 0) {
+        FusedOpsConfiguration conf_vec = {"_VEC", {"b", "(f_block*16)", "y", "x"}, "dst", blockWidth, true, false, true, false };
+        FusedOpsConfiguration conf_scalar = {"_SCALAR", {"b", "(f_block*16)", "yi", "xi"}, "dst[i]", 1, true, false, true, false };
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
+        jit.Merge(MakeTypeJitConstants(Datatype::F32, "float"));
+        jit.Merge(MakeTypeJitConstants(Datatype::F16, "half"));
+    }
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("PADDED_INPUT", params.inputs[0].X().pad.Total() != 0));
@@ -134,86 +141,6 @@ JitConstants ConvolutionKernel_bfyx_f16_1x1::GetJitConstants(const convolution_p
     if (params.inputs[0].Feature().v % feature_block_size != 0) {
         jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 1));
     }
-
-    return jit;
-}
-
-JitConstants ConvolutionKernel_bfyx_f16_1x1::GetFusedPrimitivesJitConstants(const convolution_params& params,
-                                                                            const DispatchData& kd) const {
-    JitConstants jit = {};
-
-    size_t op_id = 0;
-    std::string input_decls = "";
-    std::string load_decls_vec = "";
-    std::string load_decls = "";
-    std::string eltwise_fused_ops_vec = "";
-    std::string eltwise_fused_ops = "";
-
-    auto make_jit_vector_type = [](std::string tensor_name, size_t vec_size) -> std::string {
-        if (vec_size == 0 || vec_size > 8)
-            throw std::invalid_argument("Invalid vector size in jit definitions");
-        if (vec_size > 1)
-            return "MAKE_VECTOR_TYPE(" + tensor_name + "_TYPE," + std::to_string(vec_size) + ")";
-        else
-            return tensor_name + "_TYPE";
-    };
-
-    auto make_jit_load = [](std::string tensor_name, std::string ptr_name, size_t vec_size) -> std::string {
-        if (vec_size == 0 || vec_size > 8)
-            throw std::invalid_argument("Invalid vector size in jit definitions");
-
-        std::string index_func_call_vec = tensor_name + "_GET_INDEX(b, f_block*16, y, x)";
-        std::string index_func_call = tensor_name + "_GET_INDEX(b, f_block*16, yi, xi)";
-        if (vec_size > 1)
-            return " UNIT_BLOCK_READ" + std::to_string(vec_size) + "(" + ptr_name + ", " + index_func_call_vec + ")";
-        else
-            return " UNIT_BLOCK_READ(" + ptr_name + ", " + index_func_call + ")";
-    };
-
-    for (auto& fused_dep : params.fused_ops) {
-        std::string op_type = "";
-        switch (fused_dep.type) {
-            case convolution_params::fused_operation_desc::Type::ELTWISE: {
-                op_type = "eltwise" + std::to_string(op_id);
-                eltwise_fused_ops_vec += "dst = (dst + " + op_type + "_data);";
-                eltwise_fused_ops += "dst[i] = (dst[i] + " + op_type + "_data);";
-                break;
-            }
-            default:
-                throw std::invalid_argument("Invalid fused op in convolution kernel: " + params.layerID);
-        }
-
-        for (size_t op_input_id = 0; op_input_id < fused_dep.tensors.size(); op_input_id++) {
-            std::string name = "FUSED_OP_" + std::to_string(op_id) + "_INPUT" + std::to_string(op_input_id);
-            std::string ptr_name = op_type + "_input" + std::to_string(op_input_id);
-
-            std::string var_name = op_type + "_data";
-            jit.AddConstant(MakeJitConstant(name, fused_dep.tensors[op_input_id]));
-            input_decls += "const __global " + toCLType(fused_dep.tensors[op_input_id].GetDType()) +
-                           "* " + ptr_name + ",";
-            load_decls_vec += make_jit_vector_type(name, kd.cldnnStyle.blockWidth) + " " + var_name + " = " +
-                              make_jit_load(name, ptr_name, kd.cldnnStyle.blockWidth) + ";";
-            load_decls += make_jit_vector_type(name, 1) + " " + var_name + " = " +
-                          make_jit_load(name, ptr_name, 1) + ";";
-        }
-
-        if (fused_dep.activation.function != ActivationFunction::NONE) {
-            std::string temp_op_type = op_type;
-            for (auto& ch : temp_op_type)
-                ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-            std::string suffix = "_" + temp_op_type;
-
-            jit.Merge(MakeActivationJitConstants(fused_dep.activation, suffix));
-            eltwise_fused_ops_vec += "dst = ACTIVATION"+suffix+"(dst, ACTIVATION_PARAMS"+suffix+");";
-            eltwise_fused_ops += "dst[i] = ACTIVATION"+suffix+"(dst[i], ACTIVATION_PARAMS"+suffix+");";
-        }
-        op_id++;
-    }
-    jit.AddConstant(MakeJitConstant("FUSED_OPS_DECLS", input_decls));
-    jit.AddConstant(MakeJitConstant("FUSED_OPS_LOAD_DATA_VEC", load_decls_vec));
-    jit.AddConstant(MakeJitConstant("FUSED_OPS_LOAD_DATA", load_decls));
-    jit.AddConstant(MakeJitConstant("DO_ELTWISE_FUSED_OPS_VEC", eltwise_fused_ops_vec));
-    jit.AddConstant(MakeJitConstant("DO_ELTWISE_FUSED_OPS", eltwise_fused_ops));
 
     return jit;
 }

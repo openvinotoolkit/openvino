@@ -16,15 +16,18 @@ private:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override;
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override;
 
-    void propagateDataOrderImpl() const override;
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override;
 
-    void getDataStridesRequirementsImpl() const override;
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override;
 
     void finalizeDataLayoutImpl() override;
 
-    void getBatchSupportInfoImpl() const override;
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override;
+
+    void initialCheckImpl() const override;
 
     void finalCheckImpl() const override;
 

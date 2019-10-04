@@ -260,7 +260,7 @@ This class stores main information about the layer and allow to modify some laye
 
 * `weights`- Dictionary with layer weights, biases or custom blobs if any
 * `params` - Layer specific parameters. Provides getter and setter interfaces to get and modify layer parameters.
-             Please note that some modifications can be ignored and\or overwriten by target plugin (e.g. modification of
+             Please note that some modifications can be ignored and/or overwriten by target plugin (e.g. modification of
              convolution kernel size will be reflected in layer parameters but finally the plugin will ignore it and will
              use initial kernel size)
 
@@ -280,9 +280,7 @@ layers affinity and output layers.
    * `init_from_buffer` - Defines the way of how `model` and `weights` attributes are interpreted. 
    If  `True`, attributes are interpreted as strings with paths to .xml and .bin files of IR. If `False`, they are 
    interpreted as Python `bytes` object with .xml and .bin files content.
-   * `ngrpah_compatibility` - Default value: `False`. If `IENetwork` initializes from 
-                              [experimental IR V7](./docs/OperationsSpecification-V7.md), set to `True`
-
+  
 * Usage examples:
     
    * Initializing `IENetwork` object from IR files:
@@ -506,7 +504,7 @@ This class is the main plugin interface and serves to initialize and configure t
     * Description: Loads extensions library to the plugin. Applicable only for a CPU device and a HETERO device with CPU  
     * Parameters:
         * `extension_path` - A full path to CPU extensions library    
-     * Return value: None
+    * Return value: None
     * Usage example:
 ```py
 >>> plugin = IEPlugin(device="CPU")

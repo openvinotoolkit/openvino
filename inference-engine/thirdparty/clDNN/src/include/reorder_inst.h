@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/reorder.hpp"
+#include "api/reorder.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

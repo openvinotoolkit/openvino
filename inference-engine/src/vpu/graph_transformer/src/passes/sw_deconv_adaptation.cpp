@@ -174,17 +174,15 @@ private:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>&,
-            ScalePropagationStep) override {
+            ScalePropagationStep,
+            StageDataInfo<float>&) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto weights = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
+        auto weights = inputEdge(1)->input();
+        auto output = outputEdge(0)->output();
 
         auto finalOrder = input->desc().dimsOrder();
         if (finalOrder.dimInd(Dim::C) == 1) {
@@ -194,22 +192,19 @@ private:
 
         if (_type == StageType::DepthDeconv) {
             if (finalOrder != input->desc().dimsOrder()) {
-                _orderInfo.setInput(_inputEdges[0], finalOrder);
+                orderInfo.setInput(inputEdge(0), finalOrder);
             }
-            _orderInfo.setOutput(_outputEdges[0], finalOrder);
+            orderInfo.setOutput(outputEdge(0), finalOrder);
         } else {
-            _orderInfo.setInput(_inputEdges[0], finalOrder.createMovedDim(Dim::C, 0));
-            _orderInfo.setOutput(_outputEdges[0], finalOrder.createMovedDim(Dim::C, 0));
+            orderInfo.setInput(inputEdge(0), finalOrder.createMovedDim(Dim::C, 0));
+            orderInfo.setOutput(outputEdge(0), finalOrder.createMovedDim(Dim::C, 0));
         }
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto weights = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        auto input = inputEdge(0)->input();
+        auto weights = inputEdge(1)->input();
+        auto output = outputEdge(0)->output();
 
         auto finalOrder = input->desc().dimsOrder();
         if (finalOrder.dimInd(Dim::C) == 1) {
@@ -220,22 +215,19 @@ private:
         if (_type == StageType::DepthDeconv) {
             if (finalOrder.dimInd(Dim::C) == 0) {
                 // HWC
-                _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
-                _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+                stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
+                stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
             }
         } else {
-            _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
-            _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+            stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
+            stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
         }
     }
 
     void finalizeDataLayoutImpl() override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto weights = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto weights = inputEdge(1)->input();
+        auto output = outputEdge(0)->output();
 
         auto kernelSizeX = attrs().get<int>("kernelSizeX");
         auto kernelSizeY = attrs().get<int>("kernelSizeY");
@@ -314,18 +306,18 @@ private:
 
         IE_ASSERT(swWeights != nullptr);
 
-        _model->replaceStageInput(_inputEdges[1], swWeights);
+        _model->replaceStageInput(inputEdge(1), swWeights);
     }
 
-    void getBatchSupportInfoImpl() const  override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
-        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
+        batchInfo.setInput(inputEdge(0), BatchSupport::Split);
+        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
     }
 
     void finalCheckImpl() const override {
+        assertInputsOutputsTypes(this,
+             {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}},
+             {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -349,20 +341,17 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto weights = _inputEdges[1]->input();
-        auto biases = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto weights = inputEdge(1)->input();
+        auto biases = inputEdge(2)->input();
+        auto output = outputEdge(0)->output();
 
         input->serializeOldBuffer(handle_from_this(), serializer);
         output->serializeOldBuffer(handle_from_this(), serializer);
         weights->serializeOldBuffer(handle_from_this(), serializer);
 
-        if (!_tempBufferEdges.empty()) {
-            _tempBufferEdges[0]->tempBuffer()->serializeOldBuffer(handle_from_this(), serializer);
+        if (numTempBuffers() == 1) {
+            tempBuffer(0)->serializeOldBuffer(handle_from_this(), serializer);
         }
 
         // TODO: remove this
@@ -404,7 +393,7 @@ void PassImpl::run(const Model::Ptr& model) {
         auto dilationY = stage->attrs().get<int>("dilationY");
         auto groupSize = stage->attrs().get<int>("groupSize");
 
-        model->disconnectStageDatas(stage);
+        model->disconnectStage(stage);
 
         if (groupSize == 0 ||
             (groupSize > input->desc().dim(Dim::C)) ||

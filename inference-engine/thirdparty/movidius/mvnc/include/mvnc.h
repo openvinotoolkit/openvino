@@ -135,6 +135,8 @@ typedef enum {
     NC_RO_DEVICE_ID = 2016,                     // returns device id
     NC_RO_DEVICE_PLATFORM = 2017,               // returns device platform (MyriadX, Myriad2)
     NC_RO_DEVICE_PROTOCOL = 2018,               // returns device protocol (USB, PCIe)
+    NC_RW_DEVICE_POWER_CONFIG = 2400,           // writes config for the power manager to device
+    NC_RW_DEVICE_POWER_CONFIG_RESET = 2401,     // resets power manager config on device
 } ncDeviceOption_t;
 
 typedef enum {

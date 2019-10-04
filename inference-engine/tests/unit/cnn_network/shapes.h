@@ -26,6 +26,8 @@ struct Maps{
 
     std::map<std::string, std::pair<int, int>> mapOfUnequalShapes {
             // Layer name, Correct num of input, Correct num of output
+            { "Convolution", {3, 1}},
+            { "Deconvolution", {3, 1}},
             { "Crop", {2, 1}},
             { "DetectionOutput", {3, 1}},
             { "Interp", {2, 1}}

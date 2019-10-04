@@ -6,6 +6,8 @@
 #include "graph_tools.hpp"
 #include "details/caseless.hpp"
 #include "ie_utils.hpp"
+#include "ie_plugin.hpp"
+#include "ie_ihetero_plugin.hpp"
 
 #include <ie_layers.h>
 
@@ -22,6 +24,47 @@
 
 using namespace InferenceEngine;
 using namespace details;
+
+IE_SUPPRESS_DEPRECATED_START
+
+IHeteroInferencePlugin::~IHeteroInferencePlugin() {
+}
+
+IHeteroDeviceLoader::~IHeteroDeviceLoader() {
+}
+
+QueryNetworkResult::QueryNetworkResult() : rc(OK) {
+}
+
+const QueryNetworkResult & QueryNetworkResult::operator= (const QueryNetworkResult & q) {
+    supportedLayers = q.supportedLayers;
+    supportedLayersMap = q.supportedLayersMap;
+    rc = q.rc;
+    resp = q.resp;
+
+    return *this;
+}
+
+QueryNetworkResult & QueryNetworkResult::operator= (QueryNetworkResult && q) {
+    supportedLayers = q.supportedLayers;
+    supportedLayersMap = q.supportedLayersMap;
+    rc = q.rc;
+    resp = q.resp;
+
+    return *this;
+}
+
+QueryNetworkResult::QueryNetworkResult(const QueryNetworkResult & instance) :
+    supportedLayers(instance.supportedLayers),
+    supportedLayersMap(instance.supportedLayersMap),
+    rc(instance.rc),
+    resp(instance.resp) {
+}
+
+QueryNetworkResult::~QueryNetworkResult() {
+}
+
+IE_SUPPRESS_DEPRECATED_END
 
 namespace {
 

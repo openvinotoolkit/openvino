@@ -50,6 +50,7 @@ public:
         _event = ev;
         _queue_stamp = q_stamp;
         _attached = true;
+        _set = false;
     }
 
     std::shared_ptr<gpu_toolkit> get_context() const { return _ctx; }
@@ -64,8 +65,8 @@ private:
 private:
     void wait_impl() override;
     bool is_set_impl() override;
-    bool add_event_handler_impl(cldnn_event_handler, void*) override;
-    bool get_profiling_info_impl(std::list<cldnn_profiling_interval>& info) override;
+    bool add_event_handler_impl(event_handler, void*) override;
+    bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
 
     friend struct base_events;
 
@@ -105,7 +106,7 @@ private:
     void wait_impl() override;
     bool is_set_impl() override;
 
-    bool get_profiling_info_impl(std::list<cldnn_profiling_interval>& info) override;
+    bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
 
     std::shared_ptr<gpu_toolkit> _ctx;
     std::vector<event_impl::ptr> _events;

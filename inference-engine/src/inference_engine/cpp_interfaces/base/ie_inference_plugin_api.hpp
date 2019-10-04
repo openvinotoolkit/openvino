@@ -13,6 +13,7 @@
 #include <map>
 #include <vector>
 #include <ie_parameter.hpp>
+#include <ie_api.h>
 
 namespace InferenceEngine {
 
@@ -70,7 +71,7 @@ public:
     virtual ~IInferencePluginAPI() = default;
 };
 
-class DeviceIDParser {
+class INFERENCE_ENGINE_API_CLASS(DeviceIDParser) {
     std::string deviceName;
     std::string deviceID;
 
@@ -81,6 +82,7 @@ public:
     std::string getDeviceName() const;
 
     static std::vector<std::string> getHeteroDevices(std::string fallbackDevice);
+    static std::vector<std::string> getMultiDevices(std::string devicesList);
 };
 
 }  // namespace InferenceEngine

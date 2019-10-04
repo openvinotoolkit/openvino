@@ -18,11 +18,12 @@ endif()
 file(GLOB MVNC_SOURCES "include/*" "src/*")
 file(GLOB WATCHDOG_SOURCES "../watchdog/*")
 
-# FIXME: WIN_PTHREAD also should be built as a library
 if(WIN32)
     file(GLOB USB_WIN_SOURCES "../USB_WIN/*")
     file(GLOB WIN_PTHREAD_SOURCES "../WinPthread/*")
     list(APPEND ${MVNC_SOURCES} ${USB_WIN_SOURCES} ${WIN_PTHREAD_SOURCES})
+else()
+    list(APPEND ${MVNC_SOURCES}  "../WinPthread/pthread_semaphore.c")
 endif()
 
 add_library(${TARGET_NAME} STATIC ${MVNC_SOURCES} ${WATCHDOG_SOURCES})
@@ -43,6 +44,7 @@ endif()
 if(UNIX)
     target_include_directories(${TARGET_NAME}
         PRIVATE
+            "../WinPthread"
             "${LIBUSB_INCLUDE_DIR}")
 endif()
 

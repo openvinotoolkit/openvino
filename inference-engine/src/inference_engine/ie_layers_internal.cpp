@@ -11,6 +11,7 @@
 #include <math.h>
 #include "ie_layers_internal.hpp"
 #include "layer_transform.hpp"
+#include <cmath>
 
 namespace InferenceEngine {
 
@@ -38,10 +39,10 @@ Paddings getPaddingsInternal(const Layer &layer) {
                 return {PropertyVector<unsigned>(layer._kernel.size(), 0u),
                         PropertyVector<unsigned>(layer._kernel.size(), 0u)};
             } else {
-                if (insData.size() != 1 && layer.type != "DeformableConvolution")
-                    THROW_IE_EXCEPTION << "number of inputs should be equal 1";
-                if (insData.size() != 2 && layer.type == "DeformableConvolution")
-                    THROW_IE_EXCEPTION << "number of inputs should be equal 2";
+                if ((insData.size() > 3 || insData.empty()) && layer.type != "DeformableConvolution")
+                    THROW_IE_EXCEPTION << "number of inputs should be in range [1, 3]";
+                if ((insData.size() > 4 || insData.empty()) && layer.type == "DeformableConvolution")
+                    THROW_IE_EXCEPTION << "number of inputs should be in range [2, 4]";
                 auto firstInput = insData[0].lock();
                 if (!firstInput)
                     THROW_IE_EXCEPTION << "input is empty";

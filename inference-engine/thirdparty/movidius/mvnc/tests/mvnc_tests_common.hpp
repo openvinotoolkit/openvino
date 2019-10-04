@@ -97,26 +97,19 @@ public:
      * @brief Get amount of all currently connected Myriad devices
      * @param[in] deviceProtocol Count only platform specific devices
      */
-    static int getAmountOfDevices(const ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL) {
-        int amount = 0;
-        deviceDesc_t deviceDesc = {};
-        deviceDesc_t in_deviceDesc = {};
-        in_deviceDesc.protocol = convertProtocolToXlink(deviceProtocol);
-        in_deviceDesc.platform = X_LINK_ANY_PLATFORM;
+    static int getAmountOfDevices(const ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL,
+                                  const ncDevicePlatform_t devicePlatform = NC_ANY_PLATFORM,
+                                  const XLinkDeviceState_t state = X_LINK_ANY_STATE) {
+        deviceDesc_t req_deviceDesc = {};
+        req_deviceDesc.protocol = convertProtocolToXlink(deviceProtocol);
+        req_deviceDesc.platform = convertPlatformToXlink(devicePlatform);
 
-        if(in_deviceDesc.protocol == X_LINK_USB_VSC) {
-            for (; amount < MAX_DEVICES; ++amount) {
-                if (XLinkFindDevice(amount, X_LINK_ANY_STATE, &in_deviceDesc, &deviceDesc))
-                    break;
-            }
-            return amount;
-        }
+        deviceDesc_t deviceDescArray[NC_MAX_DEVICES] = {};
+        unsigned int foundDevices = 0;
+        XLinkFindAllSuitableDevices(
+                state, req_deviceDesc, deviceDescArray, NC_MAX_DEVICES, &foundDevices);
 
-        if (XLinkFindDevice(amount, X_LINK_ANY_STATE, &in_deviceDesc, &deviceDesc) == X_LINK_SUCCESS) {
-            return ++amount;
-        }
-
-        return amount;
+        return foundDevices;
     }
 
     /**
@@ -161,25 +154,26 @@ public:
     /**
      * @brief Get list of all currently connected Myriad devices
      */
-    static std::vector<std::string> getDevicesList() {
-        std::vector < std::string > devName;
-        deviceDesc_t tempDeviceDesc = {};
-        deviceDesc_t in_deviceDesc = {};
-        in_deviceDesc.protocol = X_LINK_USB_VSC;
-        in_deviceDesc.platform = X_LINK_ANY_PLATFORM;
+    static std::vector<std::string> getDevicesList(
+            const ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL,
+            const ncDevicePlatform_t devicePlatform = NC_ANY_PLATFORM,
+            const XLinkDeviceState_t state = X_LINK_ANY_STATE) {
 
-        for (int i = 0; i < MAX_DEVICES; ++i) {
-            if (XLinkFindDevice(i, X_LINK_ANY_STATE, &in_deviceDesc, &tempDeviceDesc))
-                break;
-            devName.emplace_back(tempDeviceDesc.name);
+        deviceDesc_t req_deviceDesc = {};
+        req_deviceDesc.protocol = convertProtocolToXlink(deviceProtocol);
+        req_deviceDesc.platform = convertPlatformToXlink(devicePlatform);
+
+        deviceDesc_t deviceDescArray[NC_MAX_DEVICES] = {};
+        unsigned int foundDevices = 0;
+        XLinkFindAllSuitableDevices(
+                state, req_deviceDesc, deviceDescArray, NC_MAX_DEVICES, &foundDevices);
+
+        std::vector < std::string > devNames;
+        for (int i = 0; i < foundDevices; ++i) {
+            devNames.emplace_back(deviceDescArray[i].name);
         }
 
-        in_deviceDesc.protocol = X_LINK_PCIE;
-        /// PCIe don't use indexes and always return same device
-        if (XLinkFindDevice(0, X_LINK_ANY_STATE, &in_deviceDesc, &tempDeviceDesc) == 0)
-            devName.emplace_back(tempDeviceDesc.name);
-
-        return devName;
+        return devNames;
     }
 
     static bool isMyriadXUSBDevice(const std::string &deviceName) {
@@ -228,8 +222,8 @@ public:
     /**
     * @brief Check that device matches the specified protocol
     */
-    static bool isSamePlatformDevice(const std::string &deviceName,
-                                     const ncDevicePlatform_t expectedPlatform) {
+    static bool isSamePlatformUSBDevice(const std::string &deviceName,
+                                        const ncDevicePlatform_t expectedPlatform) {
         switch (expectedPlatform) {
             case NC_MYRIAD_2:  return isMyriad2USBDevice(deviceName);
             case NC_MYRIAD_X:  return isMyriadXUSBDevice(deviceName);
@@ -242,22 +236,19 @@ public:
     }
 
     static long getAmountOfMyriadXDevices() {
-        auto devName = getDevicesList();
-        return count_if(devName.begin(), devName.end(), isMyriadXUSBDevice);
+        return getAmountOfDevices(NC_ANY_PROTOCOL, NC_MYRIAD_X);
     }
 
     static long getAmountOfMyriad2Devices() {
-        auto devName = getDevicesList();
-        return count_if(devName.begin(), devName.end(), isMyriad2USBDevice);
+        return getAmountOfDevices(NC_ANY_PROTOCOL, NC_MYRIAD_2);
     }
 
-    static long getAmountOfBootedDevices() {
-        auto devName = getDevicesList();
-        return count_if(devName.begin(), devName.end(), isMyriadBootedUSBDevice);
+    static long getAmountOfBootedDevices(ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL) {
+        return getAmountOfDevices(deviceProtocol, NC_ANY_PLATFORM, X_LINK_BOOTED);
     }
 
-    static long getAmountOfNotBootedDevices() {
-        return (getAmountOfMyriadXDevices() + getAmountOfMyriad2Devices());
+    static long getAmountOfNotBootedDevices(ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL) {
+        return getAmountOfDevices(deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED);
     }
 
     static long getAmountOfPCIeDevices() {
@@ -276,7 +267,7 @@ public:
      */
     bool readBINFile(const std::string& fileName, std::vector<char>& buf) {
         std::ifstream file(fileName, std::ios_base::binary | std::ios_base::ate);
-        if (!file.is_open()) {
+        if (file.fail()) {
             std::cout << "Can't open file!" << std::endl;
             return false;
         }

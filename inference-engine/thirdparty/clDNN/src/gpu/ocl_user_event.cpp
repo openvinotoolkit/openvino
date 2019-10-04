@@ -30,11 +30,12 @@ void user_event::set_impl() {
     _attached = true;
 }
 
-bool user_event::get_profiling_info_impl(std::list<cldnn_profiling_interval>& info) {
+bool user_event::get_profiling_info_impl(std::list<cldnn::instrumentation::profiling_interval>& info) {
     if (_duration == nullptr) {
         return false;
     }
 
-    info.push_back({"duration", static_cast<uint64_t>(_duration->value().count())});
+    auto period = std::make_shared<instrumentation::profiling_period_basic>(_duration->value());
+    info.push_back({"duration", period });
     return true;
 }

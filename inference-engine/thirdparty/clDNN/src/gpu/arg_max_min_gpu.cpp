@@ -113,9 +113,9 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
+namespace detail {
+
+    attach_arg_max_min_gpu::attach_arg_max_min_gpu() {
         implementation_map<arg_max_min>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
                                              arg_max_min_gpu::create);
         implementation_map<arg_max_min>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
@@ -135,9 +135,7 @@ struct attach {
         implementation_map<arg_max_min>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb),
                                              arg_max_min_gpu::create);
     }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

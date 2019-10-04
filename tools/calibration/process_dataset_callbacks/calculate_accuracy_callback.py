@@ -35,7 +35,7 @@ class CalculateAccuracyCallback:
         exec_network: ie.ExecutableNetwork,
         collect_layers: set,
         configuration: CalibrationConfiguration,
-        statistics: dict,
+        per_layer_statistics: dict,
         normalizer,
         ignore_layer_names=None):
 
@@ -47,7 +47,7 @@ class CalculateAccuracyCallback:
             raise ValueError("configuration is not specified")
         if not collect_layers:
             raise ValueError("layers to collect is not specified")
-        if not statistics:
+        if not per_layer_statistics:
             raise ValueError("statistics is not specified")
         if not normalizer:
             raise ValueError("normalizer is not specified")
@@ -56,8 +56,7 @@ class CalculateAccuracyCallback:
         self._exec_network = exec_network
         self._collect_layers = collect_layers
         self._configuration = configuration
-        self._network_info = NetworkInfo(self._configuration.model)
-        self._statistics = statistics
+        self._per_layer_statistics = per_layer_statistics
         self._normalizer = normalizer
         self._ignore_layer_names = ignore_layer_names
 
@@ -81,11 +80,11 @@ class CalculateAccuracyCallback:
         accuracy_drop = []
         single_layer_network_names = [net.layer_name for net in self._single_layer_networks]
         for layer_name, accuracy_drop_of_this_layer in self._accuracy_drop_dict.items():
-            if layer_name in single_layer_network_names:
+            if layer_name in single_layer_network_names and accuracy_drop_of_this_layer.size != 0:
                 accuracy_drop.append(LayerAccuracyDropInfo(
                     layer_name=layer_name,
                     value=self.accuracy_drop_for_layer(accuracy_drop_of_this_layer),
-                    precision=self._network_info.get_layer(layer_name).precision))
+                    precision=self._network.layers[layer_name].precision))
 
         accuracy_drop.sort(key=lambda accuracy_drop: accuracy_drop.value, reverse=True)
         return accuracy_drop
@@ -135,6 +134,8 @@ class CalculateAccuracyCallback:
         accuracy_drop_list = np.array([])
 
         for raw_data in infer_raw_results:
+            if single_layer_network.input_layer_name not in raw_data:
+                continue
             input_layer_data = raw_data[single_layer_network.input_layer_name]
 
             if tuple(single_layer_network._network.inputs[single_layer_network.input_layer_name].shape) != input_layer_data.shape:
@@ -161,7 +162,7 @@ class CalculateAccuracyCallback:
 
     def set_single_layer_networks(self):
         assert self._configuration is not None, "Configuration should be set"
-        assert self._statistics is not None, "Statistics should be set"
+        assert self._per_layer_statistics is not None, "Statistics should be set"
 
         network_info = NetworkInfo(self._configuration.model)
 
@@ -195,7 +196,7 @@ class CalculateAccuracyCallback:
 
                     network_stats = {}
                     # TODO: initialize only neccessary statistic
-                    for layer_name, node_statistic in self._statistics.items():
+                    for layer_name, node_statistic in self._per_layer_statistics.items():
                         network_stats[layer_name] = ie.LayerStats(min=tuple(node_statistic.min_outputs),
                                                                   max=tuple(node_statistic.max_outputs))
                     layer_network.stats.update(network_stats)
@@ -226,7 +227,7 @@ class CalculateAccuracyCallback:
                     self._layers_to_return_to_fp32 = np.append(self._layers_to_return_to_fp32, layer)
                     index += 1
 
-    def callback(self, value, latency=None):
+    def callback(self, value, latency=None, **kwargs):
 
         collect_value = dict()
         for layer_name in value:

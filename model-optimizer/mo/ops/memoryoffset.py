@@ -43,33 +43,24 @@ class MemoryOffset(Op):
         # MemoryOffset is splitted in 2 parts to avoid cycle in graph
         # Calculate shape from shape of previous layer where possible
         # In other cases information about shapes from initial Kaldi model used
-        if len(node.in_nodes()) > 0:
+        if not node.in_port(0).disconnected():
             copy_shape_infer(node)
             pair_node = Node(node.graph, node.pair_name)
-            for out_node_name, params in pair_node.get_outputs():
-                out_node = Node(node.graph, out_node_name)
-                out_node.shape = node.out_node().shape
+            pair_node.out_port(0).data.set_shape(node.out_port(0).data.get_shape())
         else:
             pair_node = Node(node.graph, node.pair_name)
-            if pair_node.in_node().shape is not None:
-                for out_node_name, params in node.get_outputs():
-                    out_node = Node(node.graph, out_node_name)
-                    out_node.shape = pair_node.in_node().shape
+            if pair_node.in_port(0).data.get_shape() is not None:
+                node.out_port(0).data.set_shape(pair_node.in_port(0).data.get_shape())
                 copy_shape_infer(pair_node)
             elif pair_node.has_valid('element_size'):
                 # TODO Add here real batch
-                for out_node_name, params in node.get_outputs():
-                    out_node = Node(node.graph, out_node_name)
-                    out_node.shape = np.array([1, pair_node['element_size']])
-            elif pair_node.in_node().in_node().op == 'FullyConnected':
-                out_size = pair_node.in_node().in_node()['out-size']
-                for out_node_name, params in node.get_outputs():
-                    out_node = Node(node.graph, out_node_name)
-                    out_node.shape = np.array([1, out_size])
-            elif pair_node.in_node().in_node().op == 'Normalize':
-                    out_size = pair_node.in_node().in_node()['in_dim']
-                    for out_node_name, params in node.get_outputs():
-                        out_node = Node(node.graph, out_node_name)
-                        out_node.shape = np.array([1, out_size])
+                node.out_port(0).data.set_shape(np.array([1, pair_node['element_size']]))
+            elif pair_node.in_port(0).get_source().node.has_valid('out-size'):
+                out_size = pair_node.in_port(0).get_source().node['out-size']
+                node.out_port(0).data.set_shape(np.array([1, out_size]))
+            elif pair_node.in_port(0).get_source().node.has_valid('in_dim'):
+                    out_size = pair_node.in_port(0).get_source().node['in_dim']
+                    node.out_port(0).data.set_shape(np.array([1, out_size]))
             else:
-                raise Error("Can't calculate MemoryOffset shape for node {}. Possibly you need to add shape for it through --input_shape".format(node.id))
+                raise Error("Can't calculate MemoryOffset shape for node {}. ".format(node.id) +
+                            "Possibly you need to add shape for it through --input_shape")

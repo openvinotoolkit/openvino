@@ -12,4 +12,3 @@ std::vector<std::string> parseDevices(const std::string& device_string);
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device);
 std::map<std::string, uint32_t> parseValuePerDevice(const std::vector<std::string>& devices,
                                                     const std::string& values_string);
-uint32_t deviceDefaultRequestsNumber(const std::string& device);

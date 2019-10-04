@@ -4,17 +4,15 @@ Project structure:
 <pre>
     |-- root
         |-- extensions
-            |-- front/ - graph transformations during front phase
-            |-- middle/ - graph transformations during middle phase (after partial inference)
-            |-- end/  - graph transformations during back phase (before IR generation) 
-            |-- ops/ - Model Optimizer operation classes
+            |-- front/caffe
+                |-- CustomLayersMapping.xml.example - example of file for registering custom Caffe layers in 2017R3 public
+                manner
         |-- mo
             |-- back - Back-End logic: contains IR emitting logic
-            |-- front - Front-End logic: contains matching between Framework-specific layers and IR specific, 
-                        calculation of output shapes for each registered layer
+            |-- front - Front-End logic: contains matching between Framework-specific layers and IR specific, calculation
+            of output shapes for each registered layer
             |-- graph - Graph utilities to work with internal IR representation
             |-- middle - Graph transformations - optimizations of the model
-            |-- ops - Model Optimizer operation classes
             |-- pipeline - Sequence of steps required to create IR for each framework
             |-- utils - Utility functions
         |-- tf_call_ie_layer - Sources for TensorFlow fallback in Inference Engine during model inference
@@ -22,18 +20,25 @@ Project structure:
         |-- mo_caffe.py - Entry point particularly for Caffe
         |-- mo_mxnet.py - Entry point particularly for MXNet
         |-- mo_tf.py - Entry point particularly for TensorFlow
-
+        |-- ModelOptimizer - Entry point particularly for Caffe that contains same CLI as 2017R3 publicly released
+        Model Optimizer
 </pre>
 
 ## Prerequisites
 
 Model Optimizer requires:
 
-1. Python 3.4 or newer
+1. Python 3 or newer
+
+2. [Optional] Please read about use cases that require Caffe available on the machine (:doc:`caffe_dependency`).
+   Please follow the steps described (:doc:`caffe_build`).
 
 ## Installation instructions
 
-1. Go to the Model Optimizer folder
+1. Go to the Model Optimizer folder:
+<pre>
+    cd PATH_TO_INSTALL_DIR/deployment_tools/model_optimizer/model_optimizer_tensorflow
+</pre>
 
 2. Create virtual environment and activate it. This option is strongly recommended as it creates a Python sandbox and
    dependencies for Model Optimizer do not influence global Python configuration, installed libraries etc. At the same
@@ -41,9 +46,13 @@ Model Optimizer requires:
    step only if you do want to install all Model Optimizer dependencies globally:
 
     * Create environment:
-          <pre>virtualenv -p /usr/bin/python3.6 .env3 --system-site-packages</pre>
+        <pre>
+          virtualenv -p /usr/bin/python3.6 .env3 --system-site-packages
+        </pre>
     * Activate it:
-      <pre>. .env3/bin/activate</pre>
+      <pre>
+        . .env3/bin/activate
+      </pre>
 3. Install dependencies. If you want to convert models only from particular framework, you should use one of
    available <code>requirements_*.txt</code> files corresponding to the framework of choice. For example, for Caffe use
    <code>requirements_caffe.txt</code> and so on. When you decide to switch later to other frameworks, please install dependencies

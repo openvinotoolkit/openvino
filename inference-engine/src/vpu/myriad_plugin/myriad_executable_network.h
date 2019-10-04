@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <queue>
 #include <sstream>
 #include <fstream>
@@ -55,7 +56,7 @@ public:
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override {
         return std::make_shared<MyriadInferRequest>(_graphDesc, networkInputs, networkOutputs,
                                                     _inputInfo, _outputInfo,
-                                                    _stagesMetaData, _config, _log, _executor);
+                                                    _graphMetaData.stagesMeta, _config, _log, _executor);
     }
 
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override {
@@ -66,7 +67,7 @@ public:
 
         auto syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _networkInputs, _networkOutputs,
                                                                     _inputInfo, _outputInfo,
-                                                                    _stagesMetaData, _config, _log,
+                                                                    _graphMetaData.stagesMeta, _config, _log,
                                                                     _executor);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
@@ -90,6 +91,8 @@ public:
 
     void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
 
+    void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
+
     void GetMappedTopology(
             std::map<std::string, std::vector<InferenceEngine::PrimitiveInfo::Ptr>> &deployedTopology) override {
         THROW_IE_EXCEPTION << "GetMappedTopology is not implemented\n";
@@ -101,7 +104,7 @@ private:
     std::vector<char> _graphBlob;
     GraphDesc _graphDesc;
     DevicePtr _device;
-    std::vector<StageMetaInfo> _stagesMetaData;
+    GraphMetaInfo _graphMetaData;
     std::shared_ptr<MyriadConfig> _config;
     std::vector<std::string> _supportedMetrics;
 
@@ -126,6 +129,8 @@ private:
 
         return taskExecutor;
     }
+
+    InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraph(GraphMetaInfo& graphMetaInfo);
 };
 
 }  // namespace MyriadPlugin

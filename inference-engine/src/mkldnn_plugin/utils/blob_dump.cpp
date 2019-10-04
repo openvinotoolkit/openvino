@@ -37,7 +37,7 @@ struct IEB_HEADER {
 };
 
 static IEB_HEADER prepare_header(const TensorDesc& desc) {
-    IEB_HEADER header = {0};
+    IEB_HEADER header = {};
 
     header.magic[0] = IEB_MAGIC[0];
     header.magic[1] = IEB_MAGIC[1];

@@ -4,6 +4,7 @@
 
 #include <memory>
 #include "myriad_async_infer_request.h"
+#include <vpu/utils/profiling.hpp>
 
 using namespace vpu::MyriadPlugin;
 using namespace InferenceEngine;
@@ -21,6 +22,7 @@ MyriadAsyncInferRequest::MyriadAsyncInferRequest(MyriadInferRequest::Ptr request
 
 
 InferenceEngine::StagedTask::Ptr MyriadAsyncInferRequest::createAsyncRequestTask() {
+    VPU_PROFILE(createAsyncRequestTask);
     return std::make_shared<StagedTask>([this]() {
         auto asyncTaskCopy = _asyncTask;
         try {

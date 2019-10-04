@@ -1,8 +1,8 @@
 # Hello Query Device C++ Sample
 
-This topic demonstrates how to run the Hello Query Device sample application, which queries Inference Engine devices and prints their metrics and default configuration values. The sample shows how to use [Query Device API feature](./docs/IE_DG/QueryDeviceAPI.md).
+This topic demonstrates how to run the Hello Query Device sample application, which queries Inference Engine devices and prints their metrics and default configuration values. The sample shows how to use [Query Device API feature](./docs/IE_DG/InferenceEngine_QueryAPI.md).
 > **NOTE:** This topic describes usage of C++ implementation of the Query Device Sample. 
-> For the Python* implementation, refer to [Hello Query Device Python* Sample](./inference-engine/ie_brudges/python/sample/hello_query_device/README.md)
+> For the Python* implementation, refer to [Hello Query Device Python* Sample](./inference-engine/ie_bridges/python/sample/hello_query_device/README.md)
 ## Running
 
 To see quired information, run the following:

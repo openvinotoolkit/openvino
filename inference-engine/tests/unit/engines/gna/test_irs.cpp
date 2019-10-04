@@ -3509,7 +3509,7 @@ std::string AffineWithReluSigmoid() {
         </layer>
 
         <layer name="Eltwise_4" type="Eltwise" id="4" precision="FP32">
-			<data operation="sum" />
+			<data operation="mul" />
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -3776,6 +3776,8 @@ std::string LSTMCellOnlyModel() {
     </net>
     )V0G0N";
 };
+
+
 
 std::string TIModelWithLSTMCell1() {
     return R"V0G0N(
@@ -5764,6 +5766,2988 @@ std::string SplitToConcatThroughScaleShift() {
     )V0G0N";
     }
 
+std::string ConcatWithDiffScaleFactor() {
+        return R"V0G0N(
+<net Name="concatinationWithDiffScaleFactor" version="2" precision="FP32" batch="1">
+    <layers>
+        <layer name="input1" type="input" id="0" precision="FP32">
+            <output>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>20</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="Split" precision="FP32" type="Split">
+            <data axis="1" />
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>20</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="identity_activation" id="2" type="Activation" precision="FP32">
+            <data type="sigmoid" />
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="tanh_activation" id="3" type="Activation" precision="FP32">
+            <data type="tanh" />
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="concat" precision="FP32" type="Concat">
+            <input>
+                <port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+            </input>
+            <output>
+                <port id="2">
+					<dim>1</dim>
+					<dim>20</dim>
+				</port>
+			</output>
+		</layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+        <edge from-layer="1" from-port="2" to-layer="3" to-port="0" />
+        <edge from-layer="2" from-port="1" to-layer="4" to-port="0" />
+        <edge from-layer="3" from-port="1" to-layer="4" to-port="1" />
+    </edges>
+</net>
+)V0G0N";
+    }
 
+    std::string SplitToConcatWith2InputsNotAlignedNoFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>20</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>20</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>20</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith2By50InputsNotAlignedNoFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>50</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>50</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>50</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>50</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith2By50InputsNotAlignedNoFCWithInCopyWithOutCopy  () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="input_copy" id="4" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>100</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>100</dim>
+                    </port>
+                </output>
+        </layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>50</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>50</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>50</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>50</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="output_copy" id="3" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>100</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>100</dim>
+                    </port>
+                </output>
+        </layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+
+        <edge from-layer="4" from-port="1" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+
+        <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith2By64InputsAlignedNoFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith2By64InputsAlignedNoFCWithOutCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="output_copy" id="3" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>128</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>128</dim>
+                    </port>
+                </output>
+        </layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+
+        <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith2InputsAlignedNoFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+    </layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith2InputsAlignedNoFCWithInCopyWithOutCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="input_copy" id="4" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>64</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>64</dim>
+                    </port>
+                </output>
+        </layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="output_copy" id="3" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>64</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>64</dim>
+                    </port>
+                </output>
+        </layer>
+    </layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+
+        <edge from-layer="4" from-port="1" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+
+        <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith2InputsNotAlignedWithFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>20</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>20</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>20</dim>
+				</port>
+			</output>
+		</layer>
+        <layer id="3" name="fc" precision="FP32" type="FullyConnected">
+			<data out-size="10"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>20</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="840"/>
+				<biases offset="800" size="40"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+
+    <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith2InputsAlignedWithFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+        <layer id="3" name="fc" precision="FP32" type="FullyConnected">
+			<data out-size="32"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="8324"/>
+				<biases offset="8196" size="128"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+
+        <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith2InputsAlignedWithFCWithInCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="input_copy" id="4" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>64</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>64</dim>
+                    </port>
+                </output>
+        </layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</output>
+		</layer>
+        <layer id="3" name="fc" precision="FP32" type="FullyConnected">
+			<data out-size="32"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="8324"/>
+				<biases offset="8196" size="128"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+
+        <edge from-layer="4" from-port="1" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+
+        <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+std::string SplitToConcatWith3InputsNotAlignedNoFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_3_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>30</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>30</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>30</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+
+	</edges>
+</net>
+        )V0G0N";
+}
+
+std::string SplitToConcatWith3InputsNotAlignedWithFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_3_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>30</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>30</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>30</dim>
+				</port>
+			</output>
+		</layer>
+        <layer id="3" name="fc" precision="FP32" type="FullyConnected">
+			<data out-size="10"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>30</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="1240"/>
+				<biases offset="1200" size="40"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+
+        <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith3InputsAlignedNoFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_3_inputs_align" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith3InputsAlignedNoFCWithInCopyWithOutCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_3_inputs_align" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="input_copy" id="4" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>96</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>96</dim>
+                    </port>
+                </output>
+        </layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="output_copy" id="3" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>96</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>96</dim>
+                    </port>
+                </output>
+        </layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+
+        <edge from-layer="4" from-port="1" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+
+        <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+
+	</edges>
+</net>
+        )V0G0N";
+}
+
+    std::string SplitToConcatWith3InputsAlignedWithFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_3_inputs_align" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</output>
+		</layer>
+        <layer id="3" name="fc" precision="FP32" type="FullyConnected">
+			<data out-size="10"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="12416"/>
+				<biases offset="12288" size="128"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+
+        <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith3InputsAlignedWithFCWithInCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_3_inputs_align" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="input_copy" id="4" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>96</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>96</dim>
+                    </port>
+                </output>
+        </layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</output>
+		</layer>
+        <layer id="3" name="fc" precision="FP32" type="FullyConnected">
+			<data out-size="10"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>96</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="12416"/>
+				<biases offset="12288" size="128"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+
+        <edge from-layer="4" from-port="1" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+
+        <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith4InputsNotAlignedNoFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_4_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>40</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>40</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+                <port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+                <port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5">
+					<dim>1</dim>
+					<dim>40</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+        <edge from-layer="1" from-port="4" to-layer="2" to-port="4"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith4InputsNotAlignedNoFCWithOutCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_4_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>40</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>40</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+                <port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+                <port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5">
+					<dim>1</dim>
+					<dim>40</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="output_copy" id="3" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>40</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>40</dim>
+                    </port>
+                </output>
+        </layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+        <edge from-layer="1" from-port="4" to-layer="2" to-port="4"/>
+
+        <edge from-layer="2" from-port="5" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith10InputsNotAlignedNoFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_10_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="11">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+		<edge from-layer="1" from-port="4" to-layer="2" to-port="4"/>
+		<edge from-layer="1" from-port="5" to-layer="2" to-port="5"/>
+		<edge from-layer="1" from-port="6" to-layer="2" to-port="6"/>
+		<edge from-layer="1" from-port="7" to-layer="2" to-port="7"/>
+		<edge from-layer="1" from-port="8" to-layer="2" to-port="8"/>
+		<edge from-layer="1" from-port="9" to-layer="2" to-port="9"/>
+		<edge from-layer="1" from-port="10" to-layer="2" to-port="10"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith10InputsNotAlignedNoFCWithOutCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_10_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="11">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="output_copy" id="3" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>100</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>100</dim>
+                    </port>
+                </output>
+        </layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+		<edge from-layer="1" from-port="4" to-layer="2" to-port="4"/>
+		<edge from-layer="1" from-port="5" to-layer="2" to-port="5"/>
+		<edge from-layer="1" from-port="6" to-layer="2" to-port="6"/>
+		<edge from-layer="1" from-port="7" to-layer="2" to-port="7"/>
+		<edge from-layer="1" from-port="8" to-layer="2" to-port="8"/>
+		<edge from-layer="1" from-port="9" to-layer="2" to-port="9"/>
+		<edge from-layer="1" from-port="10" to-layer="2" to-port="10"/>
+
+        <edge from-layer="2" from-port="11" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith10By1InputsNotAlignedNoFCWithOutCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_10_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="11">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="output_copy" id="3" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>10</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>10</dim>
+                    </port>
+                </output>
+        </layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+		<edge from-layer="1" from-port="4" to-layer="2" to-port="4"/>
+		<edge from-layer="1" from-port="5" to-layer="2" to-port="5"/>
+		<edge from-layer="1" from-port="6" to-layer="2" to-port="6"/>
+		<edge from-layer="1" from-port="7" to-layer="2" to-port="7"/>
+		<edge from-layer="1" from-port="8" to-layer="2" to-port="8"/>
+		<edge from-layer="1" from-port="9" to-layer="2" to-port="9"/>
+		<edge from-layer="1" from-port="10" to-layer="2" to-port="10"/>
+
+        <edge from-layer="2" from-port="11" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith10InputsAlignedNoFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_10_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="11">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+		<edge from-layer="1" from-port="4" to-layer="2" to-port="4"/>
+		<edge from-layer="1" from-port="5" to-layer="2" to-port="5"/>
+		<edge from-layer="1" from-port="6" to-layer="2" to-port="6"/>
+		<edge from-layer="1" from-port="7" to-layer="2" to-port="7"/>
+		<edge from-layer="1" from-port="8" to-layer="2" to-port="8"/>
+		<edge from-layer="1" from-port="9" to-layer="2" to-port="9"/>
+		<edge from-layer="1" from-port="10" to-layer="2" to-port="10"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith10InputsAlignedNoFCWithInCopyWithOutCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_10_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="input_copy" id="4" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>320</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>320</dim>
+                    </port>
+                </output>
+        </layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="11">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="output_copy" id="3" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>320</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>320</dim>
+                    </port>
+                </output>
+        </layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+
+        <edge from-layer="4" from-port="1" to-layer="1" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+		<edge from-layer="1" from-port="4" to-layer="2" to-port="4"/>
+		<edge from-layer="1" from-port="5" to-layer="2" to-port="5"/>
+		<edge from-layer="1" from-port="6" to-layer="2" to-port="6"/>
+		<edge from-layer="1" from-port="7" to-layer="2" to-port="7"/>
+		<edge from-layer="1" from-port="8" to-layer="2" to-port="8"/>
+		<edge from-layer="1" from-port="9" to-layer="2" to-port="9"/>
+		<edge from-layer="1" from-port="10" to-layer="2" to-port="10"/>
+
+        <edge from-layer="2" from-port="11" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith10InputsNotAlignedWithFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_10_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="11">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+        <layer id="3" name="fc" precision="FP32" type="FullyConnected">
+			<data out-size="10"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="4040"/>
+				<biases offset="4000" size="40"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+		<edge from-layer="1" from-port="4" to-layer="2" to-port="4"/>
+		<edge from-layer="1" from-port="5" to-layer="2" to-port="5"/>
+		<edge from-layer="1" from-port="6" to-layer="2" to-port="6"/>
+		<edge from-layer="1" from-port="7" to-layer="2" to-port="7"/>
+		<edge from-layer="1" from-port="8" to-layer="2" to-port="8"/>
+		<edge from-layer="1" from-port="9" to-layer="2" to-port="9"/>
+		<edge from-layer="1" from-port="10" to-layer="2" to-port="10"/>
+
+        <edge from-layer="2" from-port="11" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith10InputsAlignedWithFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_10_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="11">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</output>
+		</layer>
+       <layer id="3" name="fc" precision="FP32" type="FullyConnected">
+			<data out-size="32"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="41088"/>
+				<biases offset="40960" size="128"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+		<edge from-layer="1" from-port="4" to-layer="2" to-port="4"/>
+		<edge from-layer="1" from-port="5" to-layer="2" to-port="5"/>
+		<edge from-layer="1" from-port="6" to-layer="2" to-port="6"/>
+		<edge from-layer="1" from-port="7" to-layer="2" to-port="7"/>
+		<edge from-layer="1" from-port="8" to-layer="2" to-port="8"/>
+		<edge from-layer="1" from-port="9" to-layer="2" to-port="9"/>
+		<edge from-layer="1" from-port="10" to-layer="2" to-port="10"/>
+
+        <edge from-layer="2" from-port="11" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith10InputsAlignedWithFCWithInCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_10_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="input_copy" id="4" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>320</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>320</dim>
+                    </port>
+                </output>
+        </layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="5">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="6">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="7">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="8">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="9">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+				<port id="10">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="11">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</output>
+		</layer>
+       <layer id="3" name="fc" precision="FP32" type="FullyConnected">
+			<data out-size="32"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>320</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="41088"/>
+				<biases offset="40960" size="128"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+
+        <edge from-layer="4" from-port="1" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+		<edge from-layer="1" from-port="4" to-layer="2" to-port="4"/>
+		<edge from-layer="1" from-port="5" to-layer="2" to-port="5"/>
+		<edge from-layer="1" from-port="6" to-layer="2" to-port="6"/>
+		<edge from-layer="1" from-port="7" to-layer="2" to-port="7"/>
+		<edge from-layer="1" from-port="8" to-layer="2" to-port="8"/>
+		<edge from-layer="1" from-port="9" to-layer="2" to-port="9"/>
+		<edge from-layer="1" from-port="10" to-layer="2" to-port="10"/>
+
+        <edge from-layer="2" from-port="11" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith3By512InputsWithOutCopy () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_3_inputs_align" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1536</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1536</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>512</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>512</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>512</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>512</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>512</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>512</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1536</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="output_copy" id="3" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>1536</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>1536</dim>
+                    </port>
+                </output>
+        </layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+		<edge from-layer="1" from-port="3" to-layer="2" to-port="3"/>
+
+        <edge from-layer="2" from-port="4" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string ReshapeConvolutionLessThan48Filters() {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="frozen_model" version="4">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>800</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="conv1d_1/convolution/ExpandDims" precision="FP32" type="Reshape">
+			<data dim="1,4,1,200"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>800</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>1</dim>
+					<dim>200</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="conv1d_1/convolution/Conv1D" precision="FP32" type="Convolution">
+			<data auto_pad="valid" dilations="1,1" group="1" kernel="1,2" output="16" pads_begin="0,0" pads_end="0,0" strides="1,2"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>1</dim>
+					<dim>200</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2">
+					<dim>1</dim>
+					<dim>16</dim>
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="512"/>
+			</blobs>
+		</layer>
+		<layer id="3" name="conv1d_1/convolution/RevertDims" precision="FP32" type="Reshape">
+			<data dim="1,1600"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>16</dim>
+					<dim>1</dim>
+					<dim>100</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1600</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="output_copy" id="4" type="Copy" precision="FP32">
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>1600</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>1600</dim>
+                    </port>
+                </output>
+            	</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+		<edge from-layer="3" from-port="1" to-layer="4" to-port="0"/>
+	</edges>
+</net>
+    )V0G0N";
+    }
 
 }  // namespace GNATestIRs

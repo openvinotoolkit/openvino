@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 2.8.11)
+cmake_minimum_required (VERSION 2.8.12)
 
 project(Samples)
 
@@ -150,8 +150,6 @@ macro(ie_add_sample)
         if(NOT OpenCV_FOUND)
             message(WARNING "OPENCV is disabled or not found, " ${IE_SAMPLE_NAME} " skipped")
             return()
-        else()
-            add_definitions(-DUSE_OPENCV)
         endif()
     endif()
 
@@ -164,6 +162,9 @@ macro(ie_add_sample)
 
     # Create executable file from sources
     add_executable(${IE_SAMPLE_NAME} ${IE_SAMPLE_SOURCES} ${IE_SAMPLES_HEADERS})
+    if(IE_SAMPLE_OPENCV_DEPENDENCIES)
+        target_compile_definitions(${IE_SAMPLE_NAME} PRIVATE USE_OPENCV)
+    endif()
 
     if(WIN32)
         set_target_properties(${IE_SAMPLE_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_SAMPLE_NAME})
@@ -176,7 +177,6 @@ macro(ie_add_sample)
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${InferenceEngine_LIBRARIES}
                                                     ${IE_SAMPLE_DEPENDENCIES} IE::ie_cpu_extension gflags)
-
     if(UNIX)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE pthread)
     endif()
@@ -195,12 +195,12 @@ endmacro()
 
 # use this flag if you need to throw custom message in case if the IE package is not found.
 if (IE_NOT_FOUND_MESSAGE)
-    find_package(InferenceEngine 2.0 QUIET)
+    find_package(InferenceEngine 2.1 QUIET)
     if (NOT(InferenceEngine_FOUND))
         message(FATAL_ERROR ${IE_NOT_FOUND_MESSAGE})
     endif()
 else()
-    find_package(InferenceEngine 2.0 REQUIRED)
+    find_package(InferenceEngine 2.1 REQUIRED)
 endif()
 
 # collect all samples subdirectories
