@@ -18,7 +18,7 @@ from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.ops.squeeze import Squeeze
 
-
+print("FUCK")
 class ArgMaxSqueeze(FrontReplacementSubgraph):
     """
         In some frameworks ArgMax operation has keepdims attribute that indicates whether to stay a dimension along
