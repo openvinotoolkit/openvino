@@ -10,7 +10,7 @@ namespace InferenceEngine {
 namespace Metrics {
 
 template <typename T>
-class MetricType;
+struct MetricType;
 
 #define DECLARE_METRIC_KEY_IMPL(name, ...)          \
     struct name { };                                \

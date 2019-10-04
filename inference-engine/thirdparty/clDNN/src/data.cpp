@@ -25,7 +25,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id data_type_id() {
+primitive_type_id data::type_id() {
     static primitive_type_base<data> instance;
     return &instance;
 }
@@ -45,7 +45,7 @@ memory_impl::ptr attach_or_copy_data(network_impl& network, memory_impl& mem) {
 }  // namespace
 
 data_node::typed_program_node(const std::shared_ptr<data> dprim, program_impl& prog)
-    : parent(dprim, prog), mem(api_cast(dprim->mem.get())) {
+    : parent(dprim, prog), mem(dprim->mem.get()) {
     constant = true;
     can_share_buffer(false);
     recalc_output_layout(false);

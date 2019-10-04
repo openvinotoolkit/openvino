@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -40,22 +40,23 @@ class RemoveUselessCropsPattern(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         crop_node = match['crop']
-        in_crop_node = crop_node.in_node(0)
+        crop_node_parent_port = crop_node.in_port(0).get_source()
         concat_node = match['concat']
-        data = match['data']
 
-        if len(data.out_nodes()) != 1:
+        if len(crop_node.out_port(0).get_destinations()) != 1:
             return
 
-        outs = in_crop_node.out_nodes()
+        outs = crop_node_parent_port.get_destinations()
         offsets_dims = list([])
         crop_list = list([])
         axis = crop_node['axis']
-        for out in outs:
+        for in_port in outs:
+            out = in_port.node
             if out['op'] == 'Crop' and out['axis'] == axis and \
-               len(out.out_node().out_nodes()) == 1 and out.out_node().out_node(0).id == concat_node.id:
+               len(out.out_port(0).get_destinations()) == 1 and \
+               out.out_port(0).get_destination().node == concat_node:
                 offsets_dims.append((out['offset'], out['dim']))
-                crop_list.append(out.id)
+                crop_list.append(out)
 
         offsets_dims.sort(key=lambda off_dim: off_dim[0])
         size = 0
@@ -64,21 +65,24 @@ class RemoveUselessCropsPattern(MiddleReplacementPattern):
                 return
             size = size + off_d[1]
 
-        if size != in_crop_node.shape[axis]:
+        if size != crop_node_parent_port.data.get_shape()[axis]:
             return
 
         remove_concat = True
-        for inp, attrs in concat_node.get_inputs():
-            in_node_id, a = Node(graph, inp).get_inputs()[0]
-            if in_node_id not in crop_list:
-                remove_concat = False
-            else:
-                Node(graph, in_node_id).out_port(0).disconnect()
+        free_port = None
+        for inp in concat_node.in_ports():
+            if not concat_node.in_port(inp).disconnected():
+                in_node = concat_node.in_port(inp).get_source().node
+                if in_node not in crop_list:
+                    remove_concat = False
+                else:
+                    in_node.out_port(0).disconnect()
+                    free_port = inp
 
         if remove_concat:
-            for crop in crop_list:
-                Node(graph, crop).in_port(0).disconnect()
-
-            concat_out = concat_node.out_node(0).out_node(0)
-            concat_out.in_port(0).disconnect()
-            in_crop_node.in_node(0).out_port(0).connect(concat_out.in_port(0))
+            concat_outs = concat_node.out_port(0).get_destinations()
+            for out in concat_outs:
+                out.disconnect()
+                crop_node_parent_port.connect(out)
+        else:
+            crop_node_parent_port.connect(concat_node.in_port(free_port))

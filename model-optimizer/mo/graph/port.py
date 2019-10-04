@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 from copy import deepcopy
 
 from mo.front.common.partial_infer.utils import int64_array
@@ -107,7 +108,8 @@ class Port:
                 assert self.node.in_node(self.idx, control_flow=self.control_flow).value is None
                 self.node.in_node(self.idx, control_flow=self.control_flow).shape = int64_array(shape)
             else:
-                assert self.node.out_node(self.idx, control_flow=self.control_flow).value is None
+                data_node = self.node.out_node(self.idx, control_flow=self.control_flow)
+                assert data_node.value is None or np.array_equal(data_node.shape, int64_array(shape))
                 self.node.out_node(self.idx, control_flow=self.control_flow).shape = int64_array(shape)
 
     def _get_value(self):

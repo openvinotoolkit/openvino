@@ -53,29 +53,26 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<select>::add(
-            {{std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), select_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), select_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), select_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), select_gpu::create},
+namespace detail {
 
-             {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), select_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), select_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), select_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), select_gpu::create},
+attach_select_gpu::attach_select_gpu() {
+    implementation_map<select>::add(
+        {{std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), select_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), select_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), select_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), select_gpu::create},
 
-             {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), select_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), select_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), select_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), select_gpu::create}});
-    }
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), select_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), select_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), select_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), select_gpu::create},
 
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), select_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), select_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), select_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), select_gpu::create}});
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

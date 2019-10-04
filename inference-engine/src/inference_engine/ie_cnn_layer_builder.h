@@ -72,6 +72,7 @@ static InferenceEngine::Builder::ConverterRegister _reg_converter_##__type(#__ty
 
 class INodeConverter {
 public:
+    virtual ~INodeConverter() = default;
     virtual CNNLayer::Ptr createLayer(const std::shared_ptr<ngraph::Node>& layer, const Precision &precision) const = 0;
     virtual bool canCreate(const std::shared_ptr<ngraph::Node>& node) const = 0;
 
@@ -97,6 +98,7 @@ public:
 class BaseConverter {
 public:
     explicit BaseConverter(const std::string& type): type(type) {}
+    virtual ~BaseConverter() = default;
 
     virtual CNNLayer::Ptr createLayer(const std::shared_ptr<const ILayer>& layer, Precision precision) = 0;
     virtual bool canCreate(const std::string& nodeType) const = 0;

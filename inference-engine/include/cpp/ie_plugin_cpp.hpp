@@ -34,6 +34,7 @@ public:
 
     /**
      * @brief Constructs a plugin instance from the given pointer.
+     * @param pointer Initialized Plugin pointer
      */
     explicit InferencePlugin(const InferenceEnginePluginPtr &pointer) : actual(pointer) {}
 
@@ -53,6 +54,7 @@ public:
     /**
      * @deprecated Use InferencePlugin::LoadNetwork(ICNNNetwork &, const std::map<std::string, std::string> &)
      * @brief Wraps original method IInferencePlugin::LoadNetwork(ICNNNetwork &, ResponseDesc *)
+     * @param network A network object to load
      */
     INFERENCE_ENGINE_DEPRECATED
     void LoadNetwork(ICNNNetwork &network) {
@@ -64,6 +66,9 @@ public:
     /**
      * @brief Wraps original method
      * IInferencePlugin::LoadNetwork(IExecutableNetwork::Ptr&, ICNNNetwork&, const std::map<std::string, std::string> &, ResponseDesc*).
+     * @param network A network object to load
+     * @param config A map of configuration options
+     * @return Created Executable Network object
      */
     ExecutableNetwork LoadNetwork(ICNNNetwork &network, const std::map<std::string, std::string> &config) {
         IExecutableNetwork::Ptr ret;
@@ -74,6 +79,9 @@ public:
     /**
      * @brief Wraps original method
      * IInferencePlugin::LoadNetwork(IExecutableNetwork::Ptr&, ICNNNetwork&, const std::map<std::string, std::string> &, ResponseDesc*).
+     * @param network A network object to load
+     * @param config A map of configuration options
+     * @return Created Executable Network object
      */
     ExecutableNetwork LoadNetwork(CNNNetwork network, const std::map<std::string, std::string> &config) {
         IExecutableNetwork::Ptr ret;
@@ -85,6 +93,8 @@ public:
     /**
      * @deprecated Use IExecutableNetwork to create IInferRequest.
      * @brief Wraps original method IInferencePlugin::Infer(const BlobMap&, BlobMap&, ResponseDesc *)
+     * @param input A map of input blobs accessed by input names
+     * @param result A map of output blobs accessed by output names
      */
     INFERENCE_ENGINE_DEPRECATED
     void Infer(const BlobMap &input, BlobMap &result) {
@@ -96,6 +106,7 @@ public:
     /**
      * @deprecated Use IInferRequest to get performance counters
      * @brief Wraps original method IInferencePlugin::GetPerformanceCounts
+     * @return Map of layers names to profiling information for that layers
      */
     INFERENCE_ENGINE_DEPRECATED
     std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const {
@@ -109,6 +120,7 @@ public:
     /**
      * @brief Wraps original method
      * IInferencePlugin::AddExtension
+     * @param extension Pointer to loaded Extension
      */
     void AddExtension(InferenceEngine::IExtensionPtr extension) {
         CALL_STATUS_FNC(AddExtension, extension);
@@ -117,6 +129,7 @@ public:
     /**
      * @brief Wraps original method
      * IInferencePlugin::SetConfig
+     * @param config A configuration map
      */
     void SetConfig(const std::map<std::string, std::string> &config) {
         CALL_STATUS_FNC(SetConfig, config);
@@ -125,7 +138,10 @@ public:
     /**
      * @brief Wraps original method
      * IInferencePlugin::ImportNetwork
-    */
+     * @param modelFileName A path to the imported network
+     * @param config A configuration map
+     * @return Created Executable Network object
+     */
     ExecutableNetwork ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) {
         IExecutableNetwork::Ptr ret;
         CALL_STATUS_FNC(ImportNetwork, ret, modelFileName, config);
@@ -136,6 +152,8 @@ public:
      * @deprecated Use InferencePlugin::QueryNetwork(const ICNNNetwork &, const std::map<std::string, std::string> &, QueryNetworkResult &) const
      * @brief Wraps original method
      * IInferencePlugin::QueryNetwork(const ICNNNetwork&, QueryNetworkResult& ) const
+     * @param network A network object to query
+     * @param res Query results
      */
     INFERENCE_ENGINE_DEPRECATED
     void QueryNetwork(const ICNNNetwork &network, QueryNetworkResult &res) const {
@@ -145,6 +163,9 @@ public:
     /**
      * @brief Wraps original method
      * IInferencePlugin::QueryNetwork(const ICNNNetwork&, const std::map<std::string, std::string> &, QueryNetworkResult&) const
+     * @param network A network object to query
+     * @param config A configuration map
+     * @param res Query results
      */
     void QueryNetwork(const ICNNNetwork &network, const std::map<std::string, std::string> &config, QueryNetworkResult &res) const {
         actual->QueryNetwork(network, config, res);
@@ -153,7 +174,7 @@ public:
 
     /**
      * @brief Converts InferenceEngine to InferenceEnginePluginPtr pointer
-     * @brief Returns wrapped object
+     * @return Wrapped object
      */
     operator InferenceEngine::InferenceEnginePluginPtr() {
         return actual;
@@ -162,7 +183,7 @@ public:
     /**
      * @deprecated Deprecated since HeteroPluginPtr is deprecated
      * @brief Converts InferenceEngine to HeteroPluginPtr pointer
-     * @return wrapped Hetero object if underlined object is HeteroPlugin instance, nullptr otherwise
+     * @return Wrapped Hetero object if underlined object is HeteroPlugin instance, nullptr otherwise
      */
     IE_SUPPRESS_DEPRECATED_START
     operator InferenceEngine::HeteroPluginPtr() {

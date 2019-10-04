@@ -524,9 +524,7 @@ TEST_F(V2FormatParserTest, parsesNumberOfLayersCorrectly) {
     string content = MAKE_ALEXNET_FOR_MEAN_TESTS_V2();
 
     ASSERT_NO_FATAL_FAILURE(assertParseSucceed(content));
-    IE_SUPPRESS_DEPRECATED_START
-    CNNNetwork network(net.get());
-    IE_SUPPRESS_DEPRECATED_END
+    CNNNetwork network(net);
     ASSERT_EQ(network.layerCount(), LAYER_COUNT);
 }
 

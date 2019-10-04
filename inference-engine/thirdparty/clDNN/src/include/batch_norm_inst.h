@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/batch_norm.hpp"
+#include "api/batch_norm.hpp"
 #include "primitive_inst.h"
 #include "mutable_data_inst.h"
 #include <string>

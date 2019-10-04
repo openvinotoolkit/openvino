@@ -30,7 +30,7 @@ class GraphTestsBase : public ::testing::Test {
     std::vector<CNNLayerPtr> layers;
     std::vector<std::vector<DataPtr>> datas;
 
-    MockICNNNetwork mockNet;
+    std::shared_ptr<MockICNNNetwork> mockNet;
     InferenceEngine::CNNNetwork wrap;
 
     /**
@@ -63,7 +63,7 @@ class GraphTestsBase : public ::testing::Test {
     }
 
     CNNLayerPtr layerByName(std::string name) {
-        auto sorted = InferenceEngine::details::CNNNetSortTopologically(mockNet);
+        auto sorted = InferenceEngine::details::CNNNetSortTopologically(*mockNet);
 
         auto i = std::find_if(sorted.begin(), sorted.end(), [&](CNNLayerPtr l){
             return l->name == name;
@@ -232,9 +232,8 @@ class GraphTestsBase : public ::testing::Test {
      */
     int _batchSize = 1;
     void SetUp() override {
-        IE_SUPPRESS_DEPRECATED_START
-        wrap = InferenceEngine::CNNNetwork(&mockNet);
-        IE_SUPPRESS_DEPRECATED_END
+       mockNet = std::make_shared<MockICNNNetwork>();
+       wrap = InferenceEngine::CNNNetwork(std::dynamic_pointer_cast<ICNNNetwork>(mockNet));
 
         datas.resize(10);
         for (int i = 0; i < 10; i++) {

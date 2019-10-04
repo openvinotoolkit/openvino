@@ -35,6 +35,16 @@ InferencePlugin PluginDispatcher::getPluginByDevice(const std::string& deviceNam
             InferenceEngine::ResponseDesc response;
             ptr->SetConfig({{"TARGET_FALLBACK", deviceName.substr(7, deviceName.length() - 7)}}, &response);
         }
+    } else if (deviceName.find("MULTI:") == 0) {
+        // MULTI found: everything after ':' to the options of the multi-device plugin
+        ptr = getSuitablePlugin(InferenceEngine::TargetDeviceInfo::fromStr("MULTI"));
+        if (ptr) {
+            InferenceEngine::ResponseDesc response;
+            if (deviceName.length() < 6)
+                THROW_IE_EXCEPTION << "Missing devices priorities for the multi-device case";
+            ptr->SetConfig({{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+                                    deviceName.substr(6, deviceName.length() - 6)}}, &response);
+        }
     } else {
         ptr = getSuitablePlugin(InferenceEngine::TargetDeviceInfo::fromStr(deviceName));
     }

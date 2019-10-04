@@ -121,7 +121,8 @@ else()
         elseif (APPLE)
             set_target_properties(IE::inference_engine PROPERTIES
                     IMPORTED_LOCATION_RELEASE "${IE_RELEASE_LIBRARY}"
-                    INTERFACE_INCLUDE_DIRECTORIES "${IE_INCLUDE_DIR}")
+                    INTERFACE_INCLUDE_DIRECTORIES "${IE_INCLUDE_DIR}"
+                    INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
 
             # Debug binaries are optional
             find_library(IE_DEBUG_LIBRARY inference_engine@IE_DEBUG_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
@@ -137,7 +138,8 @@ else()
             # Only Release binaries are distributed for Linux systems
             set_target_properties(IE::inference_engine PROPERTIES
                     IMPORTED_LOCATION "${IE_RELEASE_LIBRARY}"
-                    INTERFACE_INCLUDE_DIRECTORIES "${IE_INCLUDE_DIR}")
+                    INTERFACE_INCLUDE_DIRECTORIES "${IE_INCLUDE_DIR}"
+                    INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
             target_link_libraries(IE::inference_engine INTERFACE ${CMAKE_DL_LIBS})
         endif()
 

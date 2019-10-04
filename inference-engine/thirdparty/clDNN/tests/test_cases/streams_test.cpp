@@ -15,11 +15,11 @@
 */
 
 #include <gtest/gtest.h>
-#include <api/CPP/tensor.hpp>
-#include <api/CPP/engine.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/data.hpp>
+#include <api/tensor.hpp>
+#include <api/engine.hpp>
+#include <api/memory.hpp>
+#include <api/input_layout.hpp>
+#include <api/data.hpp>
 #include "test_utils/test_utils.h"
 
 using namespace cldnn;
@@ -40,7 +40,6 @@ static engine _engine(engine_configuration(false,
 
 TEST(gpu_streams, can_allocate_memory_for_stream)
 {
-
 
     ASSERT_NO_THROW(memory::allocate(_engine, layout(data_types::f32, format::bfyx, {1, 2, 3, 4})));
     ASSERT_NO_THROW(memory::allocate(_engine, layout(data_types::f32, format::bfyx, {1, 2, 3, 4}), 0));
@@ -69,7 +68,7 @@ TEST(gpu_streams, can_create_networks_for_stream)
 
     topology topology(
             input_layout("input", input.get_layout()),
-            activation("relu", "input", activation_relu_negative_slope, cldnn_activation_additional_params{ 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+            activation("relu", "input", activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(_engine, topology, build_options(), 1);
 
     ASSERT_ANY_THROW(cldnn::network network(_engine, topology, build_options(), 2));
@@ -95,7 +94,6 @@ TEST(gpu_streams, can_create_networks_for_stream)
     EXPECT_EQ(x_size, 5);
     EXPECT_EQ(f_size, 1);
     EXPECT_EQ(b_size, 1);
-
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
         EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);

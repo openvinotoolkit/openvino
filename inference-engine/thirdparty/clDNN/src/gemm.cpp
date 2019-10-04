@@ -24,7 +24,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id gemm_type_id() {
+primitive_type_id gemm::type_id() {
     static primitive_type_base<gemm> instance;
     return &instance;
 }

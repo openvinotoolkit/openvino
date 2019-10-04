@@ -63,27 +63,25 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = batch_norm_grad_gpu::create;
+namespace detail {
 
-        implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                                 val_fw);
-        implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                                 val_fw);
-        implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                                 val_fw);
-        implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                                 val_fw);
-        implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                                 val_fw);
-        implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                                 val_fw);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_batch_norm_grad_gpu::attach_batch_norm_grad_gpu() {
+    auto val_fw = batch_norm_grad_gpu::create;
+
+    implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                                val_fw);
+    implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                                val_fw);
+    implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                                val_fw);
+    implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                                val_fw);
+    implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+                                                val_fw);
+    implementation_map<batch_norm_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                                val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

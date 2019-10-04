@@ -114,7 +114,6 @@ void FrontEnd::addPreProcessStages(const Model::Ptr& model) {
         if (preProcess.getMeanVariant() != ie::NONE) {
             auto input = getVpuData(ieData);
             IE_ASSERT(input != nullptr);
-            IE_ASSERT(input->desc().type() == DataType::FP16);
 
             int numOfChannel = preProcess.getNumberOfChannels();
 

@@ -22,7 +22,7 @@
 #include <set>
 
 namespace cldnn {
-primitive_type_id contract_type_id() {
+primitive_type_id contract::type_id() {
     static primitive_type_base<contract> instance;
     return &instance;
 }

@@ -10,6 +10,7 @@
 #include <sys/timeb.h>
 #include <errno.h>
 #include <assert.h>
+#include <string.h>
 
 #include "XLinkPlatform.h"
 #include "usb_boot.h"
@@ -89,6 +90,26 @@ extern void initialize_usb_boot();
 #define OPEN_DEV_ERROR_MESSAGE_LENGTH 128
 #endif
 
+static char* XLinkPlatformErrorToStr(const xLinkPlatformErrorCode_t errorCode) {
+    switch (errorCode) {
+        case X_LINK_PLATFORM_SUCCESS: return "X_LINK_PLATFORM_SUCCESS";
+        case X_LINK_PLATFORM_DEVICE_NOT_FOUND: return "X_LINK_PLATFORM_DEVICE_NOT_FOUND";
+        case X_LINK_PLATFORM_ERROR: return "X_LINK_PLATFORM_ERROR";
+        case X_LINK_PLATFORM_TIMEOUT: return "X_LINK_PLATFORM_TIMEOUT";
+        case X_LINK_PLATFORM_DRIVER_NOT_LOADED: return "X_LINK_PLATFORM_DRIVER_NOT_LOADED";
+        default: return "";
+    }
+}
+
+static char* pciePlatformStateToStr(const pciePlatformState_t platformState) {
+    switch (platformState) {
+        case PCIE_PLATFORM_ANY_STATE: return "PCIE_PLATFORM_ANY_STATE";
+        case PCIE_PLATFORM_BOOTED: return "PCIE_PLATFORM_BOOTED";
+        case PCIE_PLATFORM_UNBOOTED: return "PCIE_PLATFORM_UNBOOTED";
+        default: return "";
+    }
+}
+
 static xLinkPlatformErrorCode_t parseUsbBootError(usbBootError_t rc) {
     switch (rc) {
         case USB_BOOT_SUCCESS:
@@ -102,13 +123,31 @@ static xLinkPlatformErrorCode_t parseUsbBootError(usbBootError_t rc) {
     }
 }
 
+static xLinkPlatformErrorCode_t parsePCIeHostError(pcieHostError_t rc) {
+    switch (rc) {
+        case PCIE_HOST_SUCCESS:
+            return X_LINK_PLATFORM_SUCCESS;
+        case PCIE_HOST_DEVICE_NOT_FOUND:
+            return X_LINK_PLATFORM_DEVICE_NOT_FOUND;
+        case PCIE_HOST_ERROR:
+            return X_LINK_PLATFORM_ERROR;
+        case PCIE_HOST_TIMEOUT:
+            return X_LINK_PLATFORM_TIMEOUT;
+        case PCIE_HOST_DRIVER_NOT_LOADED:
+            return X_LINK_PLATFORM_DRIVER_NOT_LOADED;
+        default:
+            return X_LINK_PLATFORM_ERROR;
+    }
+}
+
 static int usb_write(libusb_device_handle *f, const void *data, size_t size, unsigned int timeout)
 {
+    const int chunk_size = DEFAULT_CHUNKSZ;
     while(size > 0)
     {
         int bt, ss = size;
-        if(ss > 1024*1024*5)
-            ss = 1024*1024*5;
+        if(ss > chunk_size)
+            ss = chunk_size;
 #if (defined(_WIN32) || defined(_WIN64) )
         int rc = usb_bulk_write(f, USB_ENDPOINT_OUT, (unsigned char *)data, ss, &bt, timeout);
 #else
@@ -125,11 +164,12 @@ static int usb_write(libusb_device_handle *f, const void *data, size_t size, uns
 
 static int usb_read(libusb_device_handle *f, void *data, size_t size, unsigned int timeout)
 {
+    const int chunk_size = DEFAULT_CHUNKSZ;
     while(size > 0)
     {
         int bt, ss = size;
-        if(ss > 1024*1024*5)
-            ss = 1024*1024*5;
+        if(ss > chunk_size)
+            ss = chunk_size;
 #if (defined(_WIN32) || defined(_WIN64))
         int rc = usb_bulk_read(f, USB_ENDPOINT_IN, (unsigned char *)data, ss, &bt, timeout);
 #else
@@ -170,9 +210,9 @@ libusb_device_handle *usblink_open(const char *path)
 
 #if (!defined(_WIN32) && !defined(_WIN64))
         uint16_t  bcdusb = -1;
-        rc = usb_find_device_with_bcd(0, (char *)path, size, (void **)&dev, DEFAULT_OPENVID, DEFAULT_OPENPID, &bcdusb, 0);
+        rc = usb_find_device_with_bcd(0, (char *)path, size, (void **)&dev, DEFAULT_OPENVID, DEFAULT_OPENPID, &bcdusb);
 #else
-		rc = usb_find_device(0, (char *)path, size, (void **)&dev, DEFAULT_OPENVID, DEFAULT_OPENPID, 0);
+        rc = usb_find_device(0, (char *)path, size, (void **)&dev, DEFAULT_OPENVID, DEFAULT_OPENPID);
 #endif
         if(rc == USB_BOOT_SUCCESS)
             break;
@@ -181,7 +221,7 @@ libusb_device_handle *usblink_open(const char *path)
     if (rc == USB_BOOT_TIMEOUT || rc == USB_BOOT_DEVICE_NOT_FOUND) // Timeout
         return 0;
 #if (defined(_WIN32) || defined(_WIN64) )
-	h = usb_open_device(dev, NULL, 0, stderr, OPEN_DEV_ERROR_MESSAGE_LENGTH);
+    h = usb_open_device(dev, NULL, 0, stderr, OPEN_DEV_ERROR_MESSAGE_LENGTH);
 	int libusb_rc = ((h != NULL) ? (0) : (-1));
 	if (libusb_rc < 0)
 	{
@@ -267,7 +307,7 @@ int USBLinkWrite(void* fd, void* data, int size, unsigned int timeout)
     return rc;
 }
 
- int USBLinkRead(void* fd, void* data, int size, unsigned int timeout)
+int USBLinkRead(void* fd, void* data, int size, unsigned int timeout)
 {
     int rc = 0;
 #ifndef USE_USB_VSC
@@ -290,7 +330,7 @@ int USBLinkWrite(void* fd, void* data, int size, unsigned int timeout)
 
         while(toRead > 0)
         {
-            rc = read(usbFdRead, &((char*)gl_protocoldata)[nread], toRead);
+            rc = read(usbFdRead, &((char*)data)[nread], toRead);
             if ( rc < 0)
             {
                 return -2;
@@ -336,7 +376,7 @@ int USBLinkPlatformResetRemote(void* fd)
 
 int UsbLinkPlatformConnect(const char* devPathRead, const char* devPathWrite, void** fd)
 {
-    #if (!defined(USE_USB_VSC))
+#if (!defined(USE_USB_VSC))
 #ifdef USE_LINK_JTAG
     struct sockaddr_in serv_addr;
     usbFdWrite = socket(AF_INET, SOCK_STREAM, 0);
@@ -361,7 +401,7 @@ int UsbLinkPlatformConnect(const char* devPathRead, const char* devPathWrite, vo
     usbFdRead= open(devPathRead, O_RDWR);
     if(usbFdRead < 0)
     {
-        return -1;
+        return X_LINK_PLATFORM_DEVICE_NOT_FOUND;
     }
     // set tty to raw mode
     struct termios  tty;
@@ -369,8 +409,9 @@ int UsbLinkPlatformConnect(const char* devPathRead, const char* devPathWrite, vo
     int rc;
     rc = tcgetattr(usbFdRead, &tty);
     if (rc < 0) {
+        close(usbFdRead);
         usbFdRead = -1;
-        return -2;
+        return X_LINK_PLATFORM_ERROR;
     }
 
     spd = B115200;
@@ -381,21 +422,25 @@ int UsbLinkPlatformConnect(const char* devPathRead, const char* devPathWrite, vo
 
     rc = tcsetattr(usbFdRead, TCSANOW, &tty);
     if (rc < 0) {
+        close(usbFdRead);
         usbFdRead = -1;
-        return -2;
+        return X_LINK_PLATFORM_ERROR;
     }
 
     usbFdWrite= open(devPathWrite, O_RDWR);
     if(usbFdWrite < 0)
     {
+        close(usbFdRead);
         usbFdWrite = -1;
-        return -2;
+        return X_LINK_PLATFORM_ERROR;
     }
     // set tty to raw mode
     rc = tcgetattr(usbFdWrite, &tty);
     if (rc < 0) {
+        close(usbFdRead);
+        close(usbFdWrite);
         usbFdWrite = -1;
-        return -2;
+        return X_LINK_PLATFORM_ERROR;
     }
 
     spd = B115200;
@@ -406,8 +451,10 @@ int UsbLinkPlatformConnect(const char* devPathRead, const char* devPathWrite, vo
 
     rc = tcsetattr(usbFdWrite, TCSANOW, &tty);
     if (rc < 0) {
+        close(usbFdRead);
+        close(usbFdWrite);
         usbFdWrite = -1;
-        return -2;
+        return X_LINK_PLATFORM_ERROR;
     }
     return 0;
 #endif  /*USE_LINK_JTAG*/
@@ -415,8 +462,8 @@ int UsbLinkPlatformConnect(const char* devPathRead, const char* devPathWrite, vo
     *fd = usblink_open(devPathWrite);
     if (*fd == 0)
     {
-       /* could fail due to port name change */
-       return -1;
+        /* could fail due to port name change */
+        return -1;
     }
 
     if(*fd)
@@ -465,7 +512,7 @@ static int pcie_host_write(void *f,
                            unsigned int timeout)
 {
 #if (defined(_WIN32) || defined(_WIN64))
-#define CHUNK_SIZE_BYTES (5ULL * 1024ULL * 1024ULL)
+    #define CHUNK_SIZE_BYTES (5ULL * 1024ULL * 1024ULL)
 
     while (size)
     {
@@ -573,13 +620,24 @@ static int pcie_host_open(UNUSED const char* devPathRead,
 
 static int pcie_host_close(void *f)
 {
-#if (!defined(_WIN32) && !defined(_WIN64))
+    int rc;
     /**  For PCIe device reset is called on host side  */
-    pcie_reset_device(*(int*)f);
+#if (defined(_WIN32) && defined(_WIN64))
+    rc = pcie_reset_device((HANDLE)f);
+#else
+    rc = pcie_reset_device(*(int*)f);
 #endif
-
-    pcie_close(f);
-    return 0;
+    if (rc) {
+        mvLog(MVLOG_ERROR, "Device resetting failed with error %d", rc);
+        pciePlatformState_t state = PCIE_PLATFORM_ANY_STATE;
+        pcie_get_device_state(f, &state);
+        mvLog(MVLOG_INFO, "Device state is %s", pciePlatformStateToStr(state));
+    }
+    rc = pcie_close(f);
+    if (rc) {
+        mvLog(MVLOG_ERROR, "Device closing failed with error %d", rc);
+    }
+    return rc;
 }
 
 /*############################### FUNCTION ARRAYS #################################*/
@@ -619,7 +677,7 @@ int XLinkRead(xLinkDeviceHandle_t* deviceHandle, void* data, int size, unsigned 
 int XLinkPlatformCloseRemote(xLinkDeviceHandle_t* deviceHandle)
 {
     if(deviceHandle->protocol == X_LINK_ANY_PROTOCOL ||
-        deviceHandle->protocol == X_LINK_NMB_OF_PROTOCOLS) {
+       deviceHandle->protocol == X_LINK_NMB_OF_PROTOCOLS) {
         perror("No method for closing handler with protocol value equals to X_LINK_ANY_PROTOCOL and X_LINK_NMB_OF_PROTOCOLS\n");
         return X_LINK_PLATFORM_ERROR;
     }
@@ -634,72 +692,187 @@ void XLinkPlatformInit()
 #endif
 }
 
-static int getDeviceName(int index, XLinkDeviceState_t state, deviceDesc_t* out_deviceDesc,
-    XLinkProtocol_t protocol, XLinkPlatform_t platform, int searchByName)
-{
-    if (index < 0) {
-        perror("Incorrect index value\n");
-        return X_LINK_PLATFORM_ERROR;
+pciePlatformState_t XLinkStateToPciePlatformState(const XLinkDeviceState_t state);
+
+static xLinkPlatformErrorCode_t getUSBDeviceName(int index,
+                                                 XLinkDeviceState_t state,
+                                                 const deviceDesc_t in_deviceRequirements,
+                                                 deviceDesc_t* out_foundDevice) {
+    ASSERT_X_LINK_PLATFORM(index >= 0);
+    ASSERT_X_LINK_PLATFORM(out_foundDevice);
+
+    int vid = AUTO_VID;
+    int pid = AUTO_PID;
+
+    char name[XLINK_MAX_NAME_SIZE] = {};
+
+    int searchByName = 0;
+    if (strlen(in_deviceRequirements.name) > 0) {
+        searchByName = 1;
+        mv_strcpy(name, XLINK_MAX_NAME_SIZE, in_deviceRequirements.name);
     }
 
-    if(protocol == X_LINK_ANY_PROTOCOL ||
-       protocol == X_LINK_USB_VSC) {
-        // At the moment there is no situation where you may need a non standard vid
-        int vid = AUTO_VID;
-
-        int pid = AUTO_PID;
-        if(state == X_LINK_UNBOOTED) {
-            pid = XLinkPlatformToPid(platform);
-            if(searchByName) {
-                pid = get_pid_by_name(out_deviceDesc->name);
-            }
-        } else if(state == X_LINK_BOOTED) {
-            pid = DEFAULT_OPENPID;
+    // Set PID
+    if (state == X_LINK_BOOTED) {
+        if (in_deviceRequirements.platform != X_LINK_ANY_PLATFORM) {
+            mvLog(MVLOG_WARN, "Search specific platform for booted device unavailable");
+            return X_LINK_PLATFORM_ERROR;
         }
+        pid = DEFAULT_OPENPID;
+    } else {
+        if (searchByName) {
+            pid = get_pid_by_name(in_deviceRequirements.name);
+        } else {
+            pid = XLinkPlatformToPid(in_deviceRequirements.platform, state);
+        }
+    }
 
 #if (!defined(_WIN32) && !defined(_WIN64))
-        uint16_t  bcdusb = -1;
-        usbBootError_t rc = usb_find_device_with_bcd(index, out_deviceDesc->name, XLINK_MAX_NAME_SIZE, 0, vid, pid, &bcdusb, searchByName);
+    uint16_t  bcdusb = -1;
+    usbBootError_t rc = usb_find_device_with_bcd(
+        index, name, XLINK_MAX_NAME_SIZE, 0, vid, pid, &bcdusb);
 #else
-        usbBootError_t rc = usb_find_device(index, out_deviceDesc->name, XLINK_MAX_NAME_SIZE, 0, vid, pid, searchByName);
+    usbBootError_t rc = usb_find_device(
+                index, name, XLINK_MAX_NAME_SIZE, 0, vid, pid);
 #endif
-
-        xLinkPlatformErrorCode_t xLinkRc = parseUsbBootError(rc);
-        if(xLinkRc == X_LINK_PLATFORM_SUCCESS)
-        {
-            out_deviceDesc->protocol = X_LINK_USB_VSC;
-            out_deviceDesc->platform = XLinkPlatformPidToPlatform(
-                                               get_pid_by_name(out_deviceDesc->name));
-            return xLinkRc;
-        }
+    xLinkPlatformErrorCode_t xLinkRc = parseUsbBootError(rc);
+    if(xLinkRc == X_LINK_PLATFORM_SUCCESS)
+    {
+        mv_strcpy(out_foundDevice->name, XLINK_MAX_NAME_SIZE, name);
+        out_foundDevice->protocol = X_LINK_USB_VSC;
+        out_foundDevice->platform = XLinkPlatformPidToPlatform(get_pid_by_name(name));
     }
-
-    if((protocol == X_LINK_ANY_PROTOCOL ||
-        protocol == X_LINK_PCIE) && !searchByName) {
-        out_deviceDesc->protocol = X_LINK_PCIE;
-        out_deviceDesc->platform = platform;
-
-        // #-18686
-        return pcie_find_device_port(0, out_deviceDesc->name, XLINK_MAX_NAME_SIZE);
-    }
-
-    memset(out_deviceDesc, 0, sizeof(deviceDesc_t));
-    return X_LINK_PLATFORM_DEVICE_NOT_FOUND;
+    return xLinkRc;
 }
 
-int XLinkPlatformFindDeviceName(int index,
-    XLinkDeviceState_t state,
-    deviceDesc_t* in_deviceRequirements,
-    deviceDesc_t* out_foundDevice)
-{
-    if(strnlen(in_deviceRequirements->name, XLINK_MAX_NAME_SIZE)) {
-        mv_strcpy(out_foundDevice->name, XLINK_MAX_NAME_SIZE, in_deviceRequirements->name);
+static xLinkPlatformErrorCode_t getPCIeDeviceName(int index,
+                                                  XLinkDeviceState_t state,
+                                                  const deviceDesc_t in_deviceRequirements,
+                                                  deviceDesc_t* out_foundDevice) {
+    ASSERT_X_LINK_PLATFORM(index >= 0);
+    ASSERT_X_LINK_PLATFORM(out_foundDevice);
+    ASSERT_X_LINK_PLATFORM(in_deviceRequirements.platform != X_LINK_MYRIAD_2);
 
-        return getDeviceName(index, state, out_foundDevice, in_deviceRequirements->protocol, in_deviceRequirements->platform, 1);
+    char name[XLINK_MAX_NAME_SIZE] = {};
+
+    if (strlen(in_deviceRequirements.name) > 0) {
+        mv_strcpy(name, XLINK_MAX_NAME_SIZE, in_deviceRequirements.name);
     }
 
-    memset(out_foundDevice->name, 0, XLINK_MAX_NAME_SIZE);
-    return getDeviceName(index, state, out_foundDevice, in_deviceRequirements->protocol, in_deviceRequirements->platform, 0);
+    pcieHostError_t rc = pcie_find_device_port(
+        index, name, XLINK_MAX_NAME_SIZE, XLinkStateToPciePlatformState(state));
+
+    xLinkPlatformErrorCode_t xLinkRc = parsePCIeHostError(rc);
+    if(xLinkRc == X_LINK_PLATFORM_SUCCESS)
+    {
+        mv_strcpy(out_foundDevice->name, XLINK_MAX_NAME_SIZE, name);
+        out_foundDevice->protocol = X_LINK_PCIE;
+        out_foundDevice->platform = X_LINK_MYRIAD_X;
+    }
+    return xLinkRc;
+}
+
+xLinkPlatformErrorCode_t XLinkPlatformFindDeviceName(XLinkDeviceState_t state,
+                                                     const deviceDesc_t in_deviceRequirements,
+                                                     deviceDesc_t* out_foundDevice) {
+    memset(out_foundDevice, 0, sizeof(deviceDesc_t));
+    xLinkPlatformErrorCode_t USB_rc;
+    xLinkPlatformErrorCode_t PCIe_rc;
+
+    switch (in_deviceRequirements.protocol){
+        case X_LINK_USB_CDC:
+        case X_LINK_USB_VSC:
+            return getUSBDeviceName(0, state, in_deviceRequirements, out_foundDevice);
+
+        case X_LINK_PCIE:
+            return getPCIeDeviceName(0, state, in_deviceRequirements, out_foundDevice);
+
+        case X_LINK_ANY_PROTOCOL:
+            USB_rc = getUSBDeviceName(0, state, in_deviceRequirements, out_foundDevice);
+            if (USB_rc == X_LINK_PLATFORM_SUCCESS) {      // Found USB device, return it
+                return X_LINK_PLATFORM_SUCCESS;
+            }
+            if (USB_rc != X_LINK_PLATFORM_DEVICE_NOT_FOUND) {   // Issue happen, log it
+                mvLog(MVLOG_DEBUG, "USB find device failed with rc: %s",
+                      XLinkPlatformErrorToStr(USB_rc));
+            }
+
+            // Try to find PCIe device
+            memset(out_foundDevice, 0, sizeof(deviceDesc_t));
+            PCIe_rc = getPCIeDeviceName(0, state, in_deviceRequirements, out_foundDevice);
+            if (PCIe_rc == X_LINK_PLATFORM_SUCCESS) {     // Found PCIe device, return it
+                return X_LINK_PLATFORM_SUCCESS;
+            }
+            if (PCIe_rc != X_LINK_PLATFORM_DEVICE_NOT_FOUND) {   // Issue happen, log it
+                mvLog(MVLOG_DEBUG, "PCIe find device failed with rc: %s",
+                      XLinkPlatformErrorToStr(PCIe_rc));
+            }
+            return X_LINK_PLATFORM_DEVICE_NOT_FOUND;
+
+        default:
+            mvLog(MVLOG_WARN, "Unknown protocol");
+            return X_LINK_PLATFORM_DEVICE_NOT_FOUND;
+    }
+}
+
+xLinkPlatformErrorCode_t XLinkPlatformFindArrayOfDevicesNames(
+    XLinkDeviceState_t state,
+    const deviceDesc_t in_deviceRequirements,
+    deviceDesc_t* out_foundDevice,
+    const unsigned int devicesArraySize,
+    unsigned int *out_amountOfFoundDevices) {
+
+    memset(out_foundDevice, 0, sizeof(deviceDesc_t) * devicesArraySize);
+
+    unsigned int usb_index = 0;
+    unsigned int pcie_index = 0;
+    unsigned int both_protocol_index = 0;
+
+    // TODO Handle possible errors
+    switch (in_deviceRequirements.protocol){
+        case X_LINK_USB_CDC:
+        case X_LINK_USB_VSC:
+            while(getUSBDeviceName(
+                usb_index, state, in_deviceRequirements, &out_foundDevice[usb_index]) ==
+                  X_LINK_PLATFORM_SUCCESS) {
+                ++usb_index;
+            }
+
+            *out_amountOfFoundDevices = usb_index;
+            return X_LINK_PLATFORM_SUCCESS;
+
+        case X_LINK_PCIE:
+            while(getPCIeDeviceName(
+                pcie_index, state, in_deviceRequirements, &out_foundDevice[pcie_index]) ==
+                  X_LINK_PLATFORM_SUCCESS) {
+                ++pcie_index;
+            }
+
+            *out_amountOfFoundDevices = pcie_index;
+            return X_LINK_PLATFORM_SUCCESS;
+
+        case X_LINK_ANY_PROTOCOL:
+            while(getUSBDeviceName(
+                usb_index, state, in_deviceRequirements,
+                &out_foundDevice[both_protocol_index]) ==
+                  X_LINK_PLATFORM_SUCCESS) {
+                ++usb_index;
+                ++both_protocol_index;
+            }
+            while(getPCIeDeviceName(
+                pcie_index, state, in_deviceRequirements,
+                &out_foundDevice[both_protocol_index]) ==
+                  X_LINK_PLATFORM_SUCCESS) {
+                ++pcie_index;
+                ++both_protocol_index;
+            }
+            *out_amountOfFoundDevices = both_protocol_index;
+            return X_LINK_PLATFORM_SUCCESS;
+
+        default:
+            mvLog(MVLOG_WARN, "Unknown protocol");
+            return X_LINK_PLATFORM_DEVICE_NOT_FOUND;
+    }
 }
 
 int XLinkPlatformIsDescriptionValid(deviceDesc_t *in_deviceDesc) {
@@ -713,7 +886,7 @@ int XLinkPlatformIsDescriptionValid(deviceDesc_t *in_deviceDesc) {
 
     if(in_deviceDesc->platform != X_LINK_ANY_PLATFORM) {
         int namePid = get_pid_by_name(in_deviceDesc->name);
-        int platformPid = XLinkPlatformToPid(in_deviceDesc->platform);
+        int platformPid = XLinkPlatformToPid(in_deviceDesc->platform, X_LINK_UNBOOTED);
 
         return namePid == platformPid;
     }
@@ -721,12 +894,24 @@ int XLinkPlatformIsDescriptionValid(deviceDesc_t *in_deviceDesc) {
     return 1;
 }
 
-int XLinkPlatformToPid(const XLinkPlatform_t platform) {
-    switch (platform) {
-        case X_LINK_MYRIAD_2: return DEFAULT_UNBOOTPID_2150;
-        case X_LINK_MYRIAD_X: return DEFAULT_UNBOOTPID_2485;
-        default:       return AUTO_UNBOOTED_PID;
+int XLinkPlatformToPid(const XLinkPlatform_t platform, const XLinkDeviceState_t state) {
+    if (state == X_LINK_UNBOOTED) {
+        switch (platform) {
+            case X_LINK_MYRIAD_2:  return DEFAULT_UNBOOTPID_2150;
+            case X_LINK_MYRIAD_X:  return DEFAULT_UNBOOTPID_2485;
+            default:               return AUTO_UNBOOTED_PID;
+        }
+    } else if (state == X_LINK_BOOTED) {
+        return DEFAULT_OPENPID;
+    } else if (state == X_LINK_ANY_STATE) {
+        switch (platform) {
+            case X_LINK_MYRIAD_2:  return DEFAULT_UNBOOTPID_2150;
+            case X_LINK_MYRIAD_X:  return DEFAULT_UNBOOTPID_2485;
+            default:               return AUTO_PID;
+        }
     }
+
+    return AUTO_PID;
 }
 
 XLinkPlatform_t XLinkPlatformPidToPlatform(const int pid) {
@@ -737,6 +922,25 @@ XLinkPlatform_t XLinkPlatformPidToPlatform(const int pid) {
     }
 }
 
+XLinkDeviceState_t XLinkPlatformPidToState(const int pid) {
+    switch (pid) {
+        case DEFAULT_OPENPID: return X_LINK_BOOTED;
+        case AUTO_PID: return X_LINK_ANY_STATE;
+        default:       return X_LINK_UNBOOTED;
+    }
+}
+
+pciePlatformState_t XLinkStateToPciePlatformState(const XLinkDeviceState_t state) {
+    switch (state) {
+        case X_LINK_ANY_STATE:  return PCIE_PLATFORM_ANY_STATE;
+        case X_LINK_BOOTED:     return PCIE_PLATFORM_BOOTED;
+        case X_LINK_UNBOOTED:   return PCIE_PLATFORM_UNBOOTED;
+        default:
+            return PCIE_PLATFORM_ANY_STATE;
+    }
+}
+
+#if (!defined(_WIN32) && !defined(_WIN64))
 int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
 {
     int rc = 0;
@@ -775,7 +979,7 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
     fclose(file);
 
     if (deviceDesc->protocol == X_LINK_PCIE) {
-        // FIXME Temporary open fd to boot device and then close it. But it can cause some problem
+        // Temporary open fd to boot device and then close it
         int* pcieFd = NULL;
         rc = pcie_init(deviceDesc->name, (void**)&pcieFd);
         if (rc) {
@@ -809,3 +1013,72 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
         return -1;
     }
 }
+#else
+int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
+{
+    int rc = 0;
+    FILE *file;
+    long file_size;
+
+    void *image_buffer;
+
+    if (deviceDesc->protocol == X_LINK_PCIE) {
+        // FIXME Temporary open fd to boot device and then close it. But it can cause some problem
+        int* pcieFd = NULL;
+
+        rc = pcie_init(deviceDesc->name, (void**)&pcieFd);
+        if (rc) {
+            printf("pcie_init failed with %s \n",deviceDesc->name);
+            return rc;
+        }
+        rc = pcie_boot_device(pcieFd);
+        pcie_close(pcieFd); // Will not check result for now
+        return rc;
+    } else if (deviceDesc->protocol == X_LINK_USB_VSC) {
+        /* Open the mvcmd file */
+        file = fopen(binaryPath, "rb");
+        if(file == NULL) {
+            printf("fw file open  failed with %s \n",binaryPath);
+            if(usb_loglevel)
+                perror(binaryPath);
+            return -7;
+        }
+        fseek(file, 0, SEEK_END);
+        file_size = ftell(file);
+        rewind(file);
+        if(file_size <= 0 || !(image_buffer = (char*)malloc(file_size)))
+        {
+            if(usb_loglevel)
+                perror("buffer");
+            fclose(file);
+            return -3;
+        }
+        if(fread(image_buffer, 1, file_size, file) != file_size)
+        {
+            if(usb_loglevel)
+                perror(binaryPath);
+            fclose(file);
+            free(image_buffer);
+            return -7;
+        }
+        fclose(file);
+
+        char subaddr[28+2];
+        // This will be the string to search for in /sys/dev/char links
+        int chars_to_write = snprintf(subaddr, 28, "-%s:", deviceDesc->name);
+        if(chars_to_write >= 28) {
+            printf("Path to your boot util is too long for the char array here!\n");
+        }
+        // Boot it
+        rc = usb_boot(deviceDesc->name, image_buffer, file_size);
+
+        if(!rc && usb_loglevel > 1) {
+            fprintf(stderr, "Boot successful, device address %s\n", deviceDesc->name);
+        }
+        return rc;
+    } else {
+        printf("Selected protocol not supported\n");
+        return -1;
+    }
+}
+#endif

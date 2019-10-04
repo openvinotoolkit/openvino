@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/concatenation.hpp"
+#include "api/concatenation.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

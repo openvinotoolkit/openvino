@@ -52,18 +52,16 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = depth_to_space_gpu::create;
-        implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                                val_fw);
-        implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                                val_fw);
-    }
-    ~attach() = default;
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_depth_to_space_gpu::attach_depth_to_space_gpu() {
+    auto val_fw = depth_to_space_gpu::create;
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                            val_fw);
+    implementation_map<depth_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                            val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

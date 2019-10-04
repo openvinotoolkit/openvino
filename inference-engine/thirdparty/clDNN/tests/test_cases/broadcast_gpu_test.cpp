@@ -15,18 +15,17 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
 
-#include <api/CPP/engine.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/broadcast.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
+#include <api/engine.hpp>
+#include <api/input_layout.hpp>
+#include <api/memory.hpp>
+#include <api/broadcast.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
 
 #include "test_utils/test_utils.h"
 #include "test_utils/uniform_quantized_real_distribution.hpp"
 
 #include <cstddef>
-
 
 using namespace cldnn;
 using namespace ::tests;
@@ -1014,7 +1013,6 @@ TEST(broadcast_gpu_uint8_t, bfyx_2_to_2x3x4x5_w_b_axes_1_2_3) {
                                         2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
     start_broadcast_test<uint8_t>(data_types::u8, {2, 3, 4, 5}, {2}, {1, 2, 3}, golden_data);
 }
-
 
 TEST(broadcast_gpu, basic_error_wrong_b_axes_size) {
 

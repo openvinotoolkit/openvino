@@ -40,7 +40,7 @@ struct lrn_gpu : typed_primitive_gpu_impl<lrn> {
         lrn_params.k = primitive->k;
         lrn_params.localSize = primitive->size;
         lrn_params.divMode = kernel_selector::kernel_divider_mode::FIXED;
-        lrn_params.normMode = primitive->norm_region == cldnn_lrn_norm_region_within_channel
+        lrn_params.normMode = primitive->norm_region == lrn_norm_region_within_channel
                                   ? kernel_selector::lrn_mode::WITHIN_CHANNEL
                                   : kernel_selector::lrn_mode::ACROSS_CHANNEL;
 
@@ -58,25 +58,23 @@ struct lrn_gpu : typed_primitive_gpu_impl<lrn> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                     lrn_gpu::create);
-        implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                     lrn_gpu::create);
-        implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                     lrn_gpu::create);
-        implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                     lrn_gpu::create);
-        implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                     lrn_gpu::create);
-        implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                     lrn_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_lrn_gpu::attach_lrn_gpu() {
+    implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                 lrn_gpu::create);
+    implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                 lrn_gpu::create);
+    implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                 lrn_gpu::create);
+    implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                 lrn_gpu::create);
+    implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+                                 lrn_gpu::create);
+    implementation_map<lrn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                 lrn_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

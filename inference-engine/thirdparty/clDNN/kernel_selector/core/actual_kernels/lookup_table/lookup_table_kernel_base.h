@@ -27,7 +27,7 @@ struct lookup_table_params : public base_params {
     lookup_table_params() : base_params(KernelType::LOOKUP_TABLE) {}
 
     LookUpTableAxis lookUpTableAxis = LookUpTableAxis::XYF;
-    uint32_t numberOfValues;
+    uint32_t numberOfValues = 0;
     DataTensor inputIndices;
 
     virtual ParamsKey GetParamsKey() const {

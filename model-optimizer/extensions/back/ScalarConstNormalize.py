@@ -27,6 +27,9 @@ from mo.ops.reshape import Reshape
 
 
 # Temporary nGraph workaround. TODO: REMOVE
+from mo.ops.unsqueeze import Unsqueeze
+
+
 class ScalarNormalize(BackReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
@@ -73,6 +76,7 @@ class ScalarNormalizeForSpecificOps(BackReplacementPattern):
                  'Unsqueeze': [1],
                  'Squeeze': [1],
                  'Eltwise': [1],
+                 'Range': [0, 1, 2],
                  }
         for node in graph.get_op_nodes():
             if node.has_and_set('type') and node.type in rules:
@@ -83,6 +87,36 @@ class ScalarNormalizeForSpecificOps(BackReplacementPattern):
                                 src_node.value.ndim == 0:
                             log.info('Converting constant node "{}" from 0D to 1D'.format(src_node.soft_get('name')))
                             reshape = create_op_node_with_second_input(graph, Reshape, int64_array([1]),
+                                                                       {'name': src_node.id + '/Dims'})
+                            src_node.out_port(0).get_connection().set_source(reshape.out_port(0))
+                            src_node.out_port(0).connect(reshape.in_port(0))
+                            reshape.infer(reshape)
+        graph.strict_mode = True
+
+
+class RangeInputNormalize(BackReplacementPattern):
+    enabled = True
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
+    force_clean_up = True
+
+    def run_after(self):
+        return [ScalarNormalizeForSpecificOps]
+
+    def find_and_replace_pattern(self, graph: Graph):
+        graph.strict_mode = False
+        # key is the type of the operation. The value is list of ports to convert from 0D to 1D
+        rules = {
+                 'Range': [0, 1, 2],
+                 }
+        for node in graph.get_op_nodes():
+            if node.has_and_set('type') and node.type in rules:
+                for port in rules[node.type]:
+                    if port in node.in_ports() and not node.in_port(port).disconnected():
+                        src_node = node.in_port(port).get_connection().get_source().node
+                        shape = node.in_port(port).data.get_shape()
+                        assert shape is not None
+                        if shape is not None and shape.size == 0:
+                            reshape = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]),
                                                                        {'name': src_node.id + '/Dims'})
                             src_node.out_port(0).get_connection().set_source(reshape.out_port(0))
                             src_node.out_port(0).connect(reshape.in_port(0))

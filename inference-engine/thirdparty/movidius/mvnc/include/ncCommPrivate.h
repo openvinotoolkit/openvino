@@ -155,12 +155,19 @@ typedef enum {
     CLASS3_SET_LOG_LEVEL_XLINK,
 } deviceOptionClass3;
 
+typedef enum {
+    CLASS4_SET_POWER_CONFIG = 0,
+    CLASS4_GET_POWER_CONFIG,
+    CLASS4_RESET_POWER_CONFIG,
+} deviceOptionClass4;
+
 typedef struct {
     union {
         deviceOptionClass0 c0;
         deviceOptionClass1 c1;
         deviceOptionClass2 c2;
         deviceOptionClass3 c3;
+        deviceOptionClass4 c4;
     } type;
     uint32_t optionClass;
     uint32_t data;

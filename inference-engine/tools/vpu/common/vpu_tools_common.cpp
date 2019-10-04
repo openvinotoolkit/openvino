@@ -31,7 +31,7 @@
 #include <limits>
 
 #include "vpu_tools_common.hpp"
-#include "vpu/utils/string.hpp"
+#include <vpu/utils/string.hpp>
 #include "samples/common.hpp"
 
 #include "precision_utils.h"

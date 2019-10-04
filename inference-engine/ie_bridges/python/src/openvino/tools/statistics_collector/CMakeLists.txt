@@ -23,7 +23,13 @@ endif()
 cython_add_module (${TARGET_NAME} ${SOURCE})
 
 set_target_properties (${TARGET_NAME} PROPERTIES CXX_STANDARD 11 LINKER_LANGUAGE CXX)
-target_link_libraries (${TARGET_NAME} PRIVATE statistics_collector_s)
+target_link_libraries (${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+
+if(TARGET IE::statistics_collector_s)
+	target_link_libraries(${TARGET_NAME} PRIVATE IE::statistics_collector_s)
+else()
+	target_link_libraries(${TARGET_NAME} PRIVATE statistics_collector_s)
+endif()
 
 # perform copy
 ADD_CUSTOM_COMMAND (TARGET ${TARGET_NAME}

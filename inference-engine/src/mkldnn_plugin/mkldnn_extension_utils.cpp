@@ -90,6 +90,8 @@ InferenceEngine::TensorDesc MKLDNNExtensionUtils::getUninitTensorDesc(const Infe
 bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2) {
     if (desc1.getDims() != desc2.getDims() || desc1.getPrecision() != desc2.getPrecision())
         return false;
+    if (desc1.getLayout() == InferenceEngine::Layout::SCALAR && desc2.getLayout() == InferenceEngine::Layout::SCALAR)
+        return true;
     if (desc1.getLayout() == InferenceEngine::Layout::ANY || desc2.getLayout() == InferenceEngine::Layout::ANY)
         return true;
     bool batch1 = desc1.getDims()[0] == 1;

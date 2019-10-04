@@ -81,6 +81,12 @@ void ref_reduce(
     InferenceEngine::SizeVector dstStrides = dst.getTensorDesc().getBlockingDesc().getStrides();
     InferenceEngine::SizeVector skip_dims;
 
+    if (!dst_dims.size())
+        dst_dims = InferenceEngine::SizeVector(1, 1);
+
+    if (!dstStrides.size())
+        dstStrides = InferenceEngine::SizeVector(1, 1);
+
     if (axes_for_reduction.size() == 0)
         FAIL() << " Index vector should be 1 dimension";
 
@@ -283,7 +289,7 @@ class MKLDNNCPUExtReduceTests : public TestsCommon, public WithParamInterface<re
     std::string getModel(reduce_test_params p) {
         std::string model = model_t;
         std::string in_shape;
-        std::string out_shape;
+        std::string out_shape = "";
 
         for (size_t i = 0; i < p.in_shape.size(); i++) {
             in_shape += "<dim>";
@@ -293,13 +299,9 @@ class MKLDNNCPUExtReduceTests : public TestsCommon, public WithParamInterface<re
         REPLACE_WITH_NUM(model, "_DIM_SIZE_", p.axes_for_reduction.size());
         REPLACE_WITH_STR(model, "_REDUCE_TYPE_", p.reduce_type);
         REPLACE_WITH_NUM(model, "_KEEP_DIMS_", p.keep_dims);
-        if (p.out_shape.size()) {
-            for (size_t i = 0; i < p.out_shape.size(); i++) {
-                out_shape += "<dim>";
-                out_shape += std::to_string(p.out_shape[i]) + "</dim>\n";
-            }
-        } else {
-            out_shape = "<dim>1</dim>\n";
+        for (size_t i = 0; i < p.out_shape.size(); i++) {
+            out_shape += "<dim>";
+            out_shape += std::to_string(p.out_shape[i]) + "</dim>\n";
         }
         REPLACE_WITH_STR(model, "_OUT_", out_shape);
 

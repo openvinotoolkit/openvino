@@ -164,31 +164,29 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<convolution_grad_weights>::add(
-            std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-            convolution_grad_weights_gpu::create);
-        implementation_map<convolution_grad_weights>::add(
-            std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-            convolution_grad_weights_gpu::create);
-        implementation_map<convolution_grad_weights>::add(
-            std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-            convolution_grad_weights_gpu::create);
-        implementation_map<convolution_grad_weights>::add(
-            std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-            convolution_grad_weights_gpu::create);
-        implementation_map<convolution_grad_weights>::add(
-            std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-            convolution_grad_weights_gpu::create);
-        implementation_map<convolution_grad_weights>::add(
-            std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-            convolution_grad_weights_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_convolution_grad_weights_gpu::attach_convolution_grad_weights_gpu() {
+    implementation_map<convolution_grad_weights>::add(
+        std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+        convolution_grad_weights_gpu::create);
+    implementation_map<convolution_grad_weights>::add(
+        std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+        convolution_grad_weights_gpu::create);
+    implementation_map<convolution_grad_weights>::add(
+        std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+        convolution_grad_weights_gpu::create);
+    implementation_map<convolution_grad_weights>::add(
+        std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+        convolution_grad_weights_gpu::create);
+    implementation_map<convolution_grad_weights>::add(
+        std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+        convolution_grad_weights_gpu::create);
+    implementation_map<convolution_grad_weights>::add(
+        std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+        convolution_grad_weights_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

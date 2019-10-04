@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id detection_output_type_id() {
+primitive_type_id detection_output::type_id() {
     static primitive_type_base<detection_output> instance;
     return &instance;
 }
@@ -205,7 +205,7 @@ detection_output_inst::typed_primitive_inst(network_impl& network, detection_out
 
 /************************ Detection Output keep_top_k part ************************/
 
-primitive_type_id detection_output_sort_type_id() {
+primitive_type_id detection_output_sort::type_id() {
     static primitive_type_base<detection_output_sort> instance;
     return &instance;
 }

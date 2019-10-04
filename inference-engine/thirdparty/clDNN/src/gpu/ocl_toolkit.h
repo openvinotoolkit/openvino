@@ -29,6 +29,7 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 namespace cldnn {
 typedef cl::vector<cl::vector<unsigned char>> kernels_binaries_vector;
@@ -40,7 +41,7 @@ typedef CL_API_ENTRY cl_command_queue(CL_API_CALL* pfn_clCreateCommandQueueWithP
     const cl_queue_properties* properties,
     cl_int* errcodeRet);
 
-class ocl_error : public error {
+class ocl_error : public std::runtime_error {
 public:
     explicit ocl_error(cl::Error const& err);
 };

@@ -15,7 +15,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <api/CPP/contract.hpp>
+#include <api/contract.hpp>
 
 #include "primitive_inst.h"
 #include <string>

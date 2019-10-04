@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/data.hpp"
+#include "api/data.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

@@ -39,9 +39,9 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #endif
 )
 {
-#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_BFZYX
+#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_BFZYX || OUTPUT_LAYOUT_BFZYX_F16
     const uint x    = (uint)get_global_id(0);
-#if  INPUT0_SIZE_Z == 1
+#if  OUTPUT_DIMS < 5
     const uint y    = (uint)get_global_id(1);
     const uint z = 0;
 #else
@@ -91,7 +91,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #endif
 
     const uint batch_and_feature_offset = GET_DATA_INDEX(INPUT0, b, f, 0, 0);
-#if  INPUT0_SIZE_Z != 1  // 3D
+#if  OUTPUT_DIMS == 5  // 3D
     for(uint k = 0; k < POOL_SIZE_Z; k++)
     {
         int input_offset_z = offset_z + k;
@@ -111,20 +111,24 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
                 bool zero = input_offset_x >= INPUT0_SIZE_X || input_offset_x < 0;
                 if(!zero)
                 {
-#if  INPUT0_SIZE_Z == 1
+#if  OUTPUT_DIMS < 5
                     const uint input_idx = batch_and_feature_offset + input_offset_y*INPUT0_Y_PITCH + input_offset_x*INPUT0_X_PITCH;
 #else
+  #if OUTPUT_LAYOUT_BFZYX_F16
+                    const uint input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, input_offset_z, input_offset_y, input_offset_x);
+  #else
                     const uint input_idx = batch_and_feature_offset + input_offset_z*INPUT0_Z_PITCH + input_offset_y*INPUT0_Y_PITCH + input_offset_x*INPUT0_X_PITCH;
+  #endif
 #endif
 
 #if MAX_WITH_ARGMAX_POOLING
                     if(input[input_idx] > result)
                     {
-#if  INPUT0_SIZE_Z == 1
+#if  OUTPUT_DIMS < 5
                         const uint input_idx_bfyx_no_padding = input_offset_x + INPUT0_SIZE_X * (input_offset_y + INPUT0_SIZE_Y * (f + INPUT0_FEATURE_NUM * b));
 #else
                         const uint input_idx_bfyx_no_padding = input_offset_x + INPUT0_SIZE_X * (input_offset_y + INPUT0_SIZE_Y *
-                                                               (input_offset_z + INPUT0_SIZE_Z * (f + INPUT0_FEATURE_NUM * b));
+                                                               (input_offset_z + INPUT0_SIZE_Z * (f + INPUT0_FEATURE_NUM * b)));
 #endif
                         arg_max_idx = input_idx_bfyx_no_padding;
                     }
@@ -138,7 +142,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
             }
         }
     }
-#if  INPUT0_SIZE_Z != 1 // 3D
+#if  OUTPUT_DIMS == 5 // 3D
         }
     }
 #endif
@@ -155,21 +159,21 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #endif
 #endif
 #else
-#if  INPUT0_SIZE_Z != 1  // 3D
+#if  OUTPUT_DIMS == 5  // 3D
     uint input_idx = GET_DATA_INDEX_5D(INPUT0, b, f, offset_z, offset_y, offset_x);
 #else
     uint input_idx = GET_DATA_INDEX(INPUT0, b, f, offset_y, offset_x);
 #endif
 
 #if MAX_WITH_ARGMAX_POOLING
-#if  INPUT0_SIZE_Z == 1
+#if  OUTPUT_DIMS < 5
     uint input_idx_bfyx_no_padding = offset_x + INPUT0_SIZE_X * (offset_y + INPUT0_SIZE_Y * (f + INPUT0_FEATURE_NUM * b));
 #else
     uint input_idx_bfyx_no_padding = offset_x + INPUT0_SIZE_X * (offset_y + INPUT0_SIZE_Y * (offset_z + INPUT0_SIZE_Z *(f + INPUT0_FEATURE_NUM * b)));
 #endif
 #endif
 
-#if  INPUT0_SIZE_Z != 1  // 3D
+#if  OUTPUT_DIMS == 5  // 3D
     for(uint k = 0; k < POOL_SIZE_Z; k++)
     {
 #endif
@@ -194,7 +198,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
         input_idx_bfyx_no_padding += (INPUT0_SIZE_X - POOL_SIZE_X);
 #endif
     }
-#if  INPUT0_SIZE_Z != 1  // 3D
+#if  OUTPUT_DIMS == 5  // 3D
         input_idx += (INPUT0_Z_PITCH - POOL_SIZE_Y*INPUT0_Y_PITCH);
 #if MAX_WITH_ARGMAX_POOLING
         input_idx_bfyx_no_padding += (INPUT0_SIZE_Y - POOL_SIZE_Y);
@@ -215,7 +219,11 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
     #endif
 #endif
 
+#if OUTPUT_LAYOUT_BFZYX_F16
+    const uint output_pos = GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
+#else
     const uint output_pos = GET_DATA_INDEX_5D(OUTPUT, b, f, z, y, x);
+#endif
     output[output_pos] = ACTIVATION(TO_UNIT_TYPE(result), ACTIVATION_PARAMS);
 
 #if MAX_WITH_ARGMAX_POOLING

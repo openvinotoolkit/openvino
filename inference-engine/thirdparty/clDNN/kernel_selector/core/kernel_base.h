@@ -21,6 +21,7 @@
 #include "jitter.h"
 #include "primitive_db.h"
 #include <string>
+#include <vector>
 
 namespace kernel_selector {
 using primitive_db = kernel_selector::gpu::cache::primitive_db;
@@ -52,6 +53,8 @@ protected:
     static size_t UniqeID() { return counter++; }  // TODO: use interlocked
     virtual Datatype GetUnitType(const base_params& params) const;
     JitConstants MakeBaseParamsJitConstants(const base_params& params) const;
+    virtual JitConstants MakeFusedOpsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;
+    virtual JitConstants MakeFusedOpsDeclsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;
 
 private:
     static size_t counter;

@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/lstm_dynamic.hpp"
+#include "api/lstm_dynamic.hpp"
 #include "primitive_inst.h"
 #include "error_handler.h"
 #include <string>

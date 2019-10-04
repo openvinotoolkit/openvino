@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id fully_connected_grad_input_type_id() {
+primitive_type_id fully_connected_grad_input::type_id() {
     static primitive_type_base<fully_connected_grad_input> instance;
     return &instance;
 }

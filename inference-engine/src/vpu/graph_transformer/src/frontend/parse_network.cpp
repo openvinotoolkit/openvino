@@ -97,26 +97,11 @@ void IeNetworkParser::checkNetwork(const ie::CNNNetwork& network) {
     for (const auto& netInput : networkInputs) {
         auto inputInfo = netInput.second;
         IE_ASSERT(inputInfo != nullptr);
-
-        auto inputPrecision = inputInfo->getPrecision();
-
-        if (inputPrecision != ie::Precision::U8 &&
-            inputPrecision != ie::Precision::FP16 &&
-            inputPrecision != ie::Precision::FP32) {
-            THROW_IE_EXCEPTION << "[PARAMETER_MISMATCH] Unsupported input precision: " << inputPrecision.name() << "!";
-        }
     }
 
     for (const auto& netOutput : networkOutputs) {
         auto outputData = netOutput.second;
         IE_ASSERT(outputData != nullptr);
-
-        auto outputPrecision = outputData->getPrecision();
-
-        if (outputPrecision != ie::Precision::FP16 &&
-            outputPrecision != ie::Precision::FP32) {
-            THROW_IE_EXCEPTION << "[PARAMETER_MISMATCH] Unsupported output precision: " << outputPrecision.name() << "!";
-        }
     }
 }
 

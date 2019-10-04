@@ -19,7 +19,7 @@ import struct
 import unittest
 
 from mo.front.kaldi.loader.loader import load_topology_map, load_components
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.utils.unittest.graph import build_graph, compare_graphs
 
 
@@ -33,15 +33,15 @@ class TestKaldiModelsLoading(unittest.TestCase):
                    "component-node name=tdnn1.batchnorm component=tdnn1.batchnorm input=tdnn1.relu \n\n"
         graph = Graph(name="test_graph_component_map_loading_sequence")
 
-        test_top_map, input_shape, input_name = load_topology_map(io.BytesIO(bytes(test_map, 'ascii')), graph)
+        test_top_map = load_topology_map(io.BytesIO(bytes(test_map, 'ascii')), graph)
 
         ref_map = {b"lda": ["lda"],
                    b"tdnn1.affine": ["tdnn1.affine"],
                    b"tdnn1.relu": ["tdnn1.relu"],
                    b"tdnn1.batchnorm": ["tdnn1.batchnorm"]}
         self.assertEqual(test_top_map, ref_map)
-        self.assertListEqual(list(input_shape), [1, 16])
-        self.assertEquals(input_name, "input")
+        self.assertTrue("input" in graph.nodes())
+        self.assertListEqual(list(Node(graph, 'input')['shape']), [1, 16])
 
         ref_graph = build_graph({'input': {'shape': np.array([1, 16]), 'kind': 'op', 'op': 'Parameter'},
                                  'lda': {'kind': 'op'},
@@ -70,15 +70,15 @@ class TestKaldiModelsLoading(unittest.TestCase):
                    "\n"
         graph = Graph(name="test_graph_component_map_loading_swap")
 
-        test_top_map, input_shape, input_name = load_topology_map(io.BytesIO(bytes(test_map, 'ascii')), graph)
+        test_top_map = load_topology_map(io.BytesIO(bytes(test_map, 'ascii')), graph)
 
         ref_map = {b"lda": ["lda"],
                    b"tdnn1.affine": ["tdnn1.affine"],
                    b"tdnn1.relu": ["tdnn1.relu"],
                    b"tdnn1.batchnorm": ["tdnn1.batchnorm"]}
         self.assertEqual(test_top_map, ref_map)
-        self.assertListEqual(list(input_shape), [1, 16])
-        self.assertEquals(input_name, "input")
+        self.assertTrue("input" in graph.nodes())
+        self.assertListEqual(list(Node(graph, 'input')['shape']), [1, 16])
 
         ref_graph = build_graph({'input': {'shape': np.array([1, 16]), 'kind': 'op', 'op': 'Parameter'},
                                  'lda': {'kind': 'op'},
@@ -104,14 +104,14 @@ class TestKaldiModelsLoading(unittest.TestCase):
                    "\n"
         graph = Graph(name="test_graph_component_map_loading_append")
 
-        test_top_map, input_shape, input_name = load_topology_map(io.BytesIO(bytes(test_map, 'ascii')), graph)
+        test_top_map= load_topology_map(io.BytesIO(bytes(test_map, 'ascii')), graph)
 
         ref_map = {b"lda": ["lda"],
                    b"tdnn1.affine": ["tdnn1.affine"],
                    b"tdnn1.relu": ["tdnn1.relu"]}
         self.assertEqual(test_top_map, ref_map)
-        self.assertListEqual(list(input_shape), [1, 16])
-        self.assertEqual(input_name, "input")
+        self.assertTrue("input" in graph.nodes())
+        self.assertListEqual(list(Node(graph, 'input')['shape']), [1, 16])
 
         ref_graph = build_graph({'input': {'shape': np.array([1, 16]), 'kind': 'op', 'op': 'Parameter'},
                                  'lda': {'kind': 'op'},
@@ -143,14 +143,14 @@ class TestKaldiModelsLoading(unittest.TestCase):
                    "\n"
         graph = Graph(name="test_graph_component_map_loading_offset")
 
-        test_top_map, input_shape, input_name = load_topology_map(io.BytesIO(bytes(test_map, 'ascii')), graph)
+        test_top_map= load_topology_map(io.BytesIO(bytes(test_map, 'ascii')), graph)
 
         ref_map = {b"lda": ["lda"],
                    b"tdnn1.affine": ["tdnn1.affine"],
                    b"tdnn1.relu": ["tdnn1.relu"]}
         self.assertEqual(test_top_map, ref_map)
-        self.assertListEqual(list(input_shape), [1, 16])
-        self.assertEqual(input_name, "input")
+        self.assertTrue("input" in graph.nodes())
+        self.assertListEqual(list(Node(graph, 'input')['shape']), [1, 16])
 
         ref_graph = build_graph({'input': {'shape': np.array([1, 16]), 'kind': 'op', 'op': 'Parameter'},
                                  'lda': {'kind': 'op'},

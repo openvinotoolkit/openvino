@@ -25,6 +25,7 @@
 #include "scale_inst.h"
 #include "tensor_type.h"
 #include <memory>
+#include <stdexcept>
 
 /*
 This pass checks if data formats (layouts) of output/input in hidden layers match.
@@ -41,12 +42,11 @@ void add_required_reorders::add_reorder(program_impl& p, program_node* node, pro
     // ToDo: add a method to program_impl class which adds an intermediate node given a node and its user
     auto it = std::find(usr->get_dependencies().begin(), usr->get_dependencies().end(), node);
     if (it == usr->get_dependencies().end()) {
-        throw error("Inconcistency in topology description: user of a node is not present among its dependecies.",
-                    CLDNN_ERROR);
+        throw std::runtime_error("Inconcistency in topology description: user of a node is not present among its dependecies.");
     }
     auto idx = it - usr->get_dependencies().begin();
     if (idx < 0 || (size_t)idx >= usr->get_dependencies().size()) {
-        throw error("Internal Error: container index out of range exception.", CLDNN_ERROR);
+        throw std::runtime_error("Internal Error: container index out of range exception.");
     }
     p.add_intermediate(new_reorder_node, *usr, idx);
 }
@@ -81,9 +81,8 @@ void add_required_reorders::run(program_impl& p) {
                     correct_layout_selected = true;
                     break;
                 } else {
-                    throw error("Internal Error: no layout format available for " + usr->id() + " comaptible with " +
-                                    node->id(),
-                                CLDNN_ERROR);
+                    throw std::runtime_error("Internal Error: no layout format available for " + usr->id() + " comaptible with " +
+                                    node->id());
                 }
             }
         }
@@ -110,9 +109,8 @@ void add_required_reorders::run(program_impl& p) {
             }
 
             if (!correct_layout_selected) {
-                throw error("Internal Error: no implementation for " + usr->id() +
-                                " kernel which satisfies output format dependecies.",
-                            CLDNN_ERROR);
+                throw std::runtime_error("Internal Error: no implementation for " + usr->id() +
+                                " kernel which satisfies output format dependecies.");
             }
         }
 

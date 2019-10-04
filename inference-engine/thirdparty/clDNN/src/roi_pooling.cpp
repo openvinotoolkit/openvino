@@ -21,7 +21,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id roi_pooling_type_id() {
+primitive_type_id roi_pooling::type_id() {
     static primitive_type_base<roi_pooling> instance;
     return &instance;
 }

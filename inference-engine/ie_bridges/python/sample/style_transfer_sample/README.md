@@ -19,7 +19,7 @@ The command yields the following usage message:
 ```
 usage: style_transfer_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
                                 [-l CPU_EXTENSION] [-d DEVICE] 
-                                [-nt NUMBER_TOP] [-ni NUMBER_ITER]
+                                [-nt NUMBER_TOP]
                                 [--mean_val_r MEAN_VAL_R]
                                 [--mean_val_g MEAN_VAL_G]
                                 [--mean_val_b MEAN_VAL_B]

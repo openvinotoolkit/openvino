@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/index_select.hpp"
+#include "api/index_select.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

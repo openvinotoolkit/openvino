@@ -19,13 +19,13 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <algorithm>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/activation_grad.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
-#include <api/CPP/data.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/activation_grad.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include <api/data.hpp>
 #include "test_utils/test_utils.h"
 #include "test_utils/float16.h"
 
@@ -60,13 +60,13 @@ TEST(activation_grad_f16_fw_gpu, basic_bfyx_all_functions)
         FLOAT16(32.0f), FLOAT16(-32.0f), FLOAT16(32.0f), FLOAT16(52.0f), FLOAT16(12.0f),
         FLOAT16(12.0f), FLOAT16(12.0f), FLOAT16(12.0f), FLOAT16(-12.0f), FLOAT16(12.0f) });
 
-    std::vector<cldnn_activation_grad_func> funcs = {
-        activation_grad_none,
-        activation_grad_relu,
-        activation_grad_relu_negative_slope,
+    std::vector<activation_grad_func> funcs = {
+        activation_grad_func::none,
+        activation_grad_func::relu,
+        activation_grad_func::relu_negative_slope,
     };
 
-    cldnn_activation_additional_params params = { 0.5f, 2.5f };
+    activation_additional_params params = { 0.5f, 2.5f };
     set_values(input_params, { FLOAT16(params.a), FLOAT16(params.b) });
 
     for (uint8_t i = 0; i < 2; i++)
@@ -114,13 +114,13 @@ TEST(activation_grad_f16_fw_gpu, basic_bfyx_all_functions)
             {
                 switch (func)
                 {
-                case activation_grad_none:
+                case activation_grad_func::none:
                     EXPECT_FLOAT_EQ(float16_to_float32(input_grad_ptr[i]), float16_to_float32(output_ptr[i]));
                     break;
-                case activation_grad_relu:
+                case activation_grad_func::relu:
                     EXPECT_FLOAT_EQ(float16_to_float32(input_grad_ptr[i]) * (float16_to_float32(input_ptr[i]) > 0), float16_to_float32(output_ptr[i]));
                     break;
-                case activation_grad_relu_negative_slope:
+                case activation_grad_func::relu_negative_slope:
                     EXPECT_FLOAT_EQ(float16_to_float32(input_grad_ptr[i]) * ((float16_to_float32(input_ptr[i]) > 0) + params.a * (float16_to_float32(input_ptr[i]) <= 0)), float16_to_float32(output_ptr[i]));
                     break;
                 default:
@@ -159,13 +159,13 @@ TEST(activation_grad_f32_fw_gpu, basic_bfyx_all_functions)
         32.0f, -32.0f, 32.0f, 52.0f, 12.0f,
         12.0f, 12.0f, 12.0f, -12.0f, 12.0f });
 
-    std::vector<cldnn_activation_grad_func> funcs = {
-        activation_grad_none,
-        activation_grad_relu,
-        activation_grad_relu_negative_slope,
+    std::vector<activation_grad_func> funcs = {
+        activation_grad_func::none,
+        activation_grad_func::relu,
+        activation_grad_func::relu_negative_slope,
     };
 
-    cldnn_activation_additional_params params = { 0.5f, 2.5f };
+    activation_additional_params params = { 0.5f, 2.5f };
     set_values(input_params, { params.a, params.b });
 
     for (uint8_t i = 0; i < 2; i++)
@@ -213,13 +213,13 @@ TEST(activation_grad_f32_fw_gpu, basic_bfyx_all_functions)
             {
                 switch (func)
                 {
-                case activation_grad_none:
+                case activation_grad_func::none:
                     EXPECT_FLOAT_EQ(input_grad_ptr[i], output_ptr[i]);
                     break;
-                case activation_grad_relu:
+                case activation_grad_func::relu:
                     EXPECT_FLOAT_EQ(input_grad_ptr[i] * (input_ptr[i] > 0), output_ptr[i]);
                     break;
-                case activation_grad_relu_negative_slope:
+                case activation_grad_func::relu_negative_slope:
                     EXPECT_FLOAT_EQ(input_grad_ptr[i] * ((input_ptr[i] > 0) + params.a * (input_ptr[i] <= 0)), output_ptr[i]);
                     break;
                 default:

@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/batch_norm_grad.hpp"
+#include "api/batch_norm_grad.hpp"
 #include "primitive_inst.h"
 #include <string>
 

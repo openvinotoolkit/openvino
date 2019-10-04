@@ -15,9 +15,9 @@
 */
 #pragma once
 #include <string>
-#include "api/CPP/tensor.hpp"
-#include "api/CPP/layout.hpp"
-#include "api/CPP/primitive.hpp"
+#include "api/tensor.hpp"
+#include "api/layout.hpp"
+#include "api/primitive.hpp"
 #include <memory>
 
 namespace cldnn {
@@ -93,6 +93,8 @@ inline std::string fmt_to_str(format fmt) {
             return "bfwzyx";
         case format::fs_b_yx_fsv32:
             return "fs_b_yx_fsv32";
+        case format::bfzyx_f16:
+            return "bfzyx_f16";
 
         case format::winograd_2x3_s1_weights:
             return "winograd_2x3_s1_weights";
@@ -134,7 +136,10 @@ inline std::string fmt_to_str(format fmt) {
             return "os_is_y_x8_osv8_isv4";
         case format::os_is_yx_osv32_isv32p:
             return "os_is_yx_osv32_isv32p";
-
+        case format::o_i_zyx_i16_o16:
+            return "o_i_zyx_i16_o16";
+        case format::i_o_zyx_o16_i16:
+            return "i_o_zyx_o16_i16";
         default:
             return "unknown (" + std::to_string(fmt.value) + ")";
     }

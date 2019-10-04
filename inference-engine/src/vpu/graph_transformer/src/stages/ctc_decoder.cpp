@@ -18,54 +18,42 @@ private:
         return std::make_shared<CTCDecoderStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         auto cInd = input->desc().dimsOrder().dimInd(Dim::C);
-        _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, cInd));
+        orderInfo.setOutput(outputEdge(0), output->desc().dimsOrder().createMovedDim(Dim::C, cInd));
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
-        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
+        stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
-        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
+        batchInfo.setInput(inputEdge(0), BatchSupport::Split);
+        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
         return StageSHAVEsRequirements::OnlyOne;
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
-
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
+        auto input0 = inputEdge(0)->input();
+        auto input1 = inputEdge(1)->input();
+        auto output = outputEdge(0)->output();
 
         input0->serializeOldBuffer(handle_from_this(), serializer);
         input1->serializeOldBuffer(handle_from_this(), serializer);

@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <iostream>
+#include <cstdio>
+#include <sstream>
 #include <iomanip>
 
 /**
@@ -12,12 +13,15 @@
  * @brief A ConsoleProgress class provides functionality for printing progress dynamics
  */
 class ConsoleProgress {
-    static const int DEFAULT_DETALIZATION = 20;
+    static const size_t DEFAULT_DETALIZATION = 20;
+    static const size_t DEFAULT_PERCENT_TO_UPDATE_PROGRESS = 1;
 
     size_t total;
-    size_t current = 0;
+    size_t cur_progress = 0;
+    size_t prev_progress = 0;
     bool stream_output;
     size_t detalization;
+    size_t percent_to_update;
 
 public:
     /**
@@ -25,18 +29,19 @@ public:
     * @param _total - maximum value that is correspondent to 100%
     * @param _detalization - number of symbols(.) to use to represent progress
     */
-    explicit ConsoleProgress(size_t _total, bool _stream_output = false, size_t _detalization = DEFAULT_DETALIZATION) :
-            total(_total), detalization(_detalization) {
+    explicit ConsoleProgress(size_t _total,
+                             bool _stream_output = false,
+                             size_t _percent_to_update = DEFAULT_PERCENT_TO_UPDATE_PROGRESS,
+                             size_t _detalization = DEFAULT_DETALIZATION) :
+            total(_total), detalization(_detalization), percent_to_update(_percent_to_update) {
         stream_output = _stream_output;
         if (total == 0) {
             total = 1;
         }
-        std::cout << std::unitbuf;
     }
 
     /**
      * @brief Shows progress with current data. Progress is shown from the beginning of the current line.
-     * @return
      */
     void showProgress() const {
         std::stringstream strm;
@@ -45,28 +50,34 @@ public:
         }
         strm << "Progress: [";
         size_t i = 0;
-        for (; i < detalization * current / total; i++) {
+        for (; i < detalization * cur_progress / total; i++) {
             strm << ".";
         }
         for (; i < detalization; i++) {
             strm << " ";
         }
-        strm << "] " << std::fixed << std::setprecision(2) << 100 * static_cast<float>(current) / total << "% done";
+        strm << "] " << std::setw(3) << 100 * cur_progress / total << "% done";
         if (stream_output) {
-            std::cout << strm.str() << std::endl;
-        } else {
-            std::cout << strm.str() << std::flush;
+            strm << std::endl;
         }
+        std::fputs(strm.str().c_str(), stdout);
+        std::fflush(stdout);
     }
 
     /**
      * @brief Updates current value and progressbar
-     * @param newProgress - new value to represent
      */
-    void updateProgress(size_t newProgress) {
-        current = newProgress;
-        if (current > total) current = total;
-        showProgress();
+    void updateProgress() {
+        if (cur_progress > total) cur_progress = total;
+        size_t prev_percent = 100 * prev_progress / total;
+        size_t cur_percent = 100 * cur_progress / total;
+
+        if (prev_progress == 0 ||
+            cur_progress == total ||
+            prev_percent + percent_to_update <= cur_percent) {
+            showProgress();
+            prev_progress = cur_progress;
+        }
     }
 
     /**
@@ -74,10 +85,11 @@ public:
      * @param add - value to add
      */
     void addProgress(int add) {
-        if (add < 0 && -add > static_cast<int>(current)) {
-            add = -static_cast<int>(current);
+        if (add < 0 && -add > static_cast<int>(cur_progress)) {
+            add = -static_cast<int>(cur_progress);
         }
-        updateProgress(current + add);
+        cur_progress += add;
+        updateProgress();
     }
 
     /**
@@ -85,6 +97,9 @@ public:
      * @return
      */
     void finish() {
-        std::cerr << std::nounitbuf << "\n";
+        std::stringstream strm;
+        strm << std::endl;
+        std::fputs(strm.str().c_str(), stdout);
+        std::fflush(stdout);
     }
 };

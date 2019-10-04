@@ -184,8 +184,7 @@ std::tuple<int, int, int, int, int, int, int, int>
         int inputSize,
         int kernelSize, int kernelStride,
         int padBefore, int padAfter,
-        int outputStartIndex, int outputEndIndex,
-        bool alignInputTile) {
+        int outputStartIndex, int outputEndIndex) {
     // Negative value encodes the padding
     int inputStartIndex = outputStartIndex * kernelStride - padBefore;
     int inputEndIndex = (outputEndIndex - 1) * kernelStride + kernelSize - padBefore;
@@ -210,14 +209,6 @@ std::tuple<int, int, int, int, int, int, int, int>
         inputLinesBefore = inputStartIndex;
         while (inputLinesBefore >= kernelStride) {
             inputLinesBefore -= kernelStride;
-        }
-
-        if (alignInputTile) {
-            const int reqAlignment = 8;
-            while ((inputLinesBefore < inputStartIndex) &&
-                   (inputStartIndex - inputLinesBefore) % reqAlignment != 0) {
-                ++inputLinesBefore;
-            }
         }
 
         // Compute the junkOutputBefore
@@ -266,14 +257,13 @@ int maximizeOutput(
         int kernelSize, int kernelStride,
         int padBefore, int padAfter,
         int outputStartIndex, int outputEndIndex,
-        bool alignInputTile,
         bool useCeil) {
     int outputSize = calcOutputSize(inputSize, kernelSize, kernelStride, padBefore, padAfter, useCeil);
 
     int _ = 0;
     int junkOutputBefore = 0, junkOutputAfter = 0;
     std::tie(_, _, _, _, _, _, junkOutputBefore, junkOutputAfter) =
-        inputTileForOutputTile(inputSize, kernelSize, kernelStride, padBefore, padAfter, outputStartIndex, outputEndIndex, alignInputTile);
+        inputTileForOutputTile(inputSize, kernelSize, kernelStride, padBefore, padAfter, outputStartIndex, outputEndIndex);
 
     int totalOutputSlice = junkOutputBefore + (outputEndIndex - outputStartIndex) + junkOutputAfter;
 
@@ -286,7 +276,7 @@ int maximizeOutput(
         extraLines -= 1;
 
         std::tie(_, _, _, _, _, _, junkOutputBefore, junkOutputAfter) =
-            inputTileForOutputTile(inputSize, kernelSize, kernelStride, padBefore, padAfter, outputStartIndex, outputEndIndex + extraLines, alignInputTile);
+            inputTileForOutputTile(inputSize, kernelSize, kernelStride, padBefore, padAfter, outputStartIndex, outputEndIndex + extraLines);
 
         totalOutputSlice = junkOutputBefore + (outputEndIndex + extraLines - outputStartIndex) + junkOutputAfter;
     }
@@ -301,7 +291,6 @@ SmallVector<HwPlaneTileInfo> splitIntoPlaneTiles(
         int kernelSize, int kernelStride,
         int padBefore, int padAfter,
         int maxOutputSize,
-        bool alignInputTile,
         bool useCeil) {
     IE_ASSERT(inputSize > 0);
     IE_ASSERT(outputSize > 0);
@@ -320,7 +309,6 @@ SmallVector<HwPlaneTileInfo> splitIntoPlaneTiles(
             kernelSize, kernelStride,
             padBefore, padAfter,
             outputStartIndex, outputEndIndex,
-            alignInputTile,
             useCeil);
         if (newOutputEndIndex <= outputStartIndex) {
             return SmallVector<HwPlaneTileInfo>();
@@ -333,7 +321,7 @@ SmallVector<HwPlaneTileInfo> splitIntoPlaneTiles(
                  inputLinesBefore, inputLinesAfter,
                  outputStartIndex, outputEndIndex,
                  junkOutputBefore, junkOutputAfter) =
-            inputTileForOutputTile(inputSize, kernelSize, kernelStride, padBefore, padAfter, outputStartIndex, newOutputEndIndex, alignInputTile);
+            inputTileForOutputTile(inputSize, kernelSize, kernelStride, padBefore, padAfter, outputStartIndex, newOutputEndIndex);
 
         IE_ASSERT(inputStartIndex >= 0);
         IE_ASSERT(inputEndIndex >= 0);
@@ -376,63 +364,125 @@ SmallVector<HwPlaneTileInfo> splitIntoPlaneTiles(
 }
 
 //
-// HW Convolution tiling over output channels.
+// Check HW-unit memory restrictions for tile.
 //
 
 namespace {
 
-// Returns (status, cost).
-std::tuple<bool, int> checkHwConvMode(
-        int inTileWidth, int inTileHeight, int inTileChannels,
-        int outTileChannels,
-        int kernelSizeX, int kernelSizeY,
-        int kernelStride,
-        HwOpMode mode) {
-    if (inTileWidth > CNN_MAX_INPUT_WIDTH ||
-        inTileHeight > CNN_MAX_INPUT_HEIGHT ||
-        inTileChannels > CNN_MAX_INPUT_CHANNELS ||
-        outTileChannels > CNN_MAX_OUTPUT_CHANNELS) {
-        return std::make_tuple(false, 0);
-    }
+bool checkDimensions(int inTileWidth, int inTileHeight, int inTileChannels, int outTileChannels) {
+    return inTileWidth     <= CNN_MAX_INPUT_WIDTH    &&
+           inTileHeight    <= CNN_MAX_INPUT_HEIGHT   &&
+           inTileChannels  <= CNN_MAX_INPUT_CHANNELS &&
+           outTileChannels <= CNN_MAX_OUTPUT_CHANNELS;
+}
 
-    auto noOfBlocks = 1 << static_cast<int>(mode);
-    if (noOfBlocks > inTileChannels) {
-        return std::make_tuple(false, 0);
-    }
-
-    auto inChansPerBlock = inTileChannels / noOfBlocks;
-    if (inChansPerBlock > CNN_MAX_CHANNELS_PER_BLOCK) {
-        return std::make_tuple(false, 0);
-    }
-
+bool checkCoeffPerBlockConv(int kernelSizeX, int kernelSizeY, int noOfBlocks) {
     auto coeffPerWord = CNN_COEFF_PER_WORD_VALUES[static_cast<int32_t>(CNN_COEFF_TYPE)];
     auto coeffSetSize = kernelSizeX * kernelSizeY;
-    auto coeffLPB = (inChansPerBlock * coeffSetSize + coeffPerWord - 1) / coeffPerWord;
-    if (coeffLPB > CNN_MAX_COEFF_PER_BLOCK) {
-        return std::make_tuple(false, 0);
+    auto coeffLPB = divUp(noOfBlocks * coeffSetSize, coeffPerWord);
+
+    return coeffLPB <= CNN_MAX_COEFF_PER_BLOCK;
+}
+
+bool checkLinesPerChanRestrictions(
+        int inTileWidth, int inTileHeight,
+        int kernelSizeY, int kernelStride,
+        int noOfBlocks, int chansPerBlock) {
+    const int bytesPerPixel = CNN_BYTES_PER_PIXEL[static_cast<int32_t>(CNN_DATA_TYPE)];
+    const int bytesPerLine  = alignVal(inTileWidth * bytesPerPixel, CMX_DATA_BYTE_WIDTH);
+
+    const int linesPerChan = std::min(CNN_MAX_BYTES / (noOfBlocks * chansPerBlock * bytesPerLine), inTileHeight);
+    const int minLines     = std::min(kernelSizeY + kernelStride + 2 + ((inTileWidth <= 8) ? 1 : 0), inTileHeight);
+
+    return minLines <= linesPerChan;
+}
+
+bool checkLinesPerChanRestrictionsPool(
+        int inTileWidth, int inTileHeight,
+        int kernelSizeY,
+        HwOpMode mode) {
+    const int sizeOfBlock = CNN_MAX_BYTES >> static_cast<int>(mode);
+    const int bytesPerPixel = CNN_BYTES_PER_PIXEL[static_cast<int32_t>(CNN_DATA_TYPE)];
+    const int pixelsPerCMXLine = CMX_DATA_BYTE_WIDTH / bytesPerPixel;
+
+    const int localLineStride = (inTileWidth + (pixelsPerCMXLine - 1)) / pixelsPerCMXLine;
+
+    const int chanPerBlock = 1;
+    const int availableBytesPerChan = sizeOfBlock / chanPerBlock;
+    const int bytesPerLine = localLineStride * pixelsPerCMXLine * bytesPerPixel;
+
+    const int linesPerChan = std::min(availableBytesPerChan / bytesPerLine, inTileHeight);
+
+    return linesPerChan >= kernelSizeY;
+}
+
+bool checkHWRestrictions(
+        int inTileWidth, int inTileHeight,
+        int inTileChannels, int outTileChannels,
+        int kernelSizeX, int kernelSizeY,
+        int kernelStride,
+        HwOpMode mode, HwOpType type) {
+    const int chansPerBlock = 1 << static_cast<int>(mode);
+    int noOfBlocks    = divUp(inTileChannels, chansPerBlock);
+
+    bool result = true;
+
+    result &= checkDimensions(inTileWidth, inTileHeight, inTileChannels, outTileChannels);
+
+    if (type == HwOpType::POOL) {
+        // The number of blocks is 1 because the HW-unit does not use data from other blocks
+        // for calculating pooling. These blocks are loaded into CMX memory one by one.
+        noOfBlocks = 1;
+
+        // TODO: verify the code on firmware side.
+        result &= checkLinesPerChanRestrictionsPool(
+            inTileWidth, inTileHeight,
+            kernelSizeY,
+            mode);
+    } else {
+        result &= checkCoeffPerBlockConv(
+            kernelSizeX, kernelSizeY,
+            noOfBlocks);
     }
 
-    auto bytesPerPixel = CNN_BYTES_PER_PIXEL[static_cast<int32_t>(CNN_DATA_TYPE)];
-    auto pixelsPerCMXLine = 128 / (bytesPerPixel * 8);
-    auto localLineStride = (inTileWidth + (pixelsPerCMXLine - 1)) / pixelsPerCMXLine;
-    auto bytesPerLine = localLineStride * pixelsPerCMXLine * bytesPerPixel;
-    auto sizeOfBlock = CNN_MAX_BYTES >> static_cast<int>(mode);
-    auto chanPerBlock = inTileChannels / noOfBlocks;
-    if (chanPerBlock == 0) {
-        return std::make_tuple(false, 0);
-    }
+    result &= checkLinesPerChanRestrictions(
+        inTileWidth, inTileHeight,
+        kernelSizeY, kernelStride,
+        noOfBlocks, chansPerBlock);
 
-    auto availableBytesPerChan = sizeOfBlock / chanPerBlock;
-    auto linesPerChan = std::min(availableBytesPerChan / bytesPerLine, inTileHeight);
-    auto minLines = std::min(kernelSizeY / 1 + (kernelStride + 1) + 1 + ((inTileWidth <= 8) ? 1 : 0), inTileHeight);
-    if (minLines > linesPerChan) {
-        return std::make_tuple(false, 0);
-    }
-
-    return std::make_tuple(true, (inTileChannels / noOfBlocks) * kernelSizeX * kernelSizeY + CNN_MODES_COST[static_cast<int32_t>(mode)]);
+    return result;
 }
 
 }  // namespace
+
+bool checkPoolingHWRestrictions(
+        int inTileWidth, int inTileHeight,
+        int inTileChannels, int outTileChannels,
+        int kernelSizeX, int kernelSizeY,
+        int kernelStride) {
+    return checkHWRestrictions(inTileWidth, inTileHeight,
+                               inTileChannels, outTileChannels,
+                               kernelSizeX, kernelSizeY,
+                               kernelStride,
+                               HwOpMode::MODE_16_16, HwOpType::POOL);
+}
+
+bool checkConvHWRestrictions(
+        int inTileWidth, int inTileHeight,
+        int inTileChannels, int outTileChannels,
+        int kernelSizeX, int kernelSizeY,
+        int kernelStride,
+        HwOpMode mode) {
+    return checkHWRestrictions(inTileWidth, inTileHeight,
+                               inTileChannels, outTileChannels,
+                               kernelSizeX, kernelSizeY,
+                               kernelStride,
+                               mode, HwOpType::CONV);
+}
+
+//
+// HW Convolution tiling over output channels.
+//
 
 HwConvTileInfo splitHwConvIntoOutChannelsTiles(
         int inTileWidth, int inTileHeight, int inTileChannels,
@@ -452,25 +502,24 @@ HwConvTileInfo splitHwConvIntoOutChannelsTiles(
     Solution bestSol;
 
     for (auto mode : CNN_MODES) {
-        auto ramBlocks = 1 << static_cast<int>(mode);
+        // inChansPerBlock * outChansPerBlock = 256
+        auto inChansPerBlock  = 1 << static_cast<int>(mode);
+        auto outChansPerBlock = 256 / inChansPerBlock;
 
-        auto extendedInputDimC = alignVal(inTileChannels, ramBlocks);
+        auto extendedInputDimC = alignVal(inTileChannels, inChansPerBlock);
         auto extendedOutputDimC = alignVal(outTileChannels, 8);
 
-        auto outChansPerDescr = std::min(256 / ramBlocks, extendedOutputDimC);
+        auto outChansPerDescr = std::min(outChansPerBlock, extendedOutputDimC);
 
-        bool valid = false;
-        int descCost = 0;
-        std::tie(valid, descCost) = checkHwConvMode(
-            inTileWidth, inTileHeight, extendedInputDimC,
-            outChansPerDescr,
-            kernelSizeX, kernelSizeY,
-            kernelStride,
-            mode);
-
+        bool valid = checkConvHWRestrictions(
+            inTileWidth, inTileHeight, inTileChannels, outChansPerDescr,
+            kernelSizeX, kernelSizeY, kernelStride, mode);
         if (!valid) {
             continue;
         }
+
+        int descCost = (extendedInputDimC / inChansPerBlock) * kernelSizeX * kernelSizeY +
+            CNN_MODES_COST[static_cast<int32_t>(mode)];
 
         auto numDescr = divUp(outTileChannels, outChansPerDescr);
         auto remOutChans = outTileChannels - (numDescr - 1) * outChansPerDescr;

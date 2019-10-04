@@ -40,20 +40,18 @@ protected:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override {
         if (step == ScalePropagationStep::Propagate) {
             auto inputScale = inputScales[0];
 
-            _scaleInfo.setInput(_inputEdges[1], inputScale);
-            _scaleInfo.setOutput(_outputEdges[0], inputScale);
+            scaleInfo.setInput(inputEdge(1), inputScale);
+            scaleInfo.setOutput(outputEdge(0), inputScale);
         } else {
             // Bias can only propagate scaling, not generate.
-            _scaleInfo.setInput(_inputEdges[0], 1.0f);
-            _scaleInfo.setInput(_inputEdges[1], 1.0f);
-            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
+            scaleInfo.setInput(inputEdge(0), 1.0f);
+            scaleInfo.setInput(inputEdge(1), 1.0f);
+            scaleInfo.setOutput(outputEdge(0), 1.0f);
         }
     }
 

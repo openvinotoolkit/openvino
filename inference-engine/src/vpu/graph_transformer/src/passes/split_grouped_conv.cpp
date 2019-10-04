@@ -88,7 +88,7 @@ void PassImpl::run(const Model::Ptr& model) {
             continue;
         }
 
-        model->disconnectStageDatas(stage);
+        model->disconnectStage(stage);
 
         auto inGroupDimC = input->desc().dim(Dim::C) / groupSize;
         auto outGroupDimC = output->desc().dim(Dim::C) / groupSize;
@@ -191,8 +191,8 @@ void PassImpl::run(const Model::Ptr& model) {
             // subConvStage
 
             auto subConvStage = model->duplicateStage(
-                stage->name() + postfix,
                 stage,
+                postfix,
                 {subInputs[groupInd], subWeights, subBiases},
                 {subOutputs[groupInd]});
 
