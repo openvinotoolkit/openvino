@@ -17,6 +17,7 @@
 #include "kernel_selector_common.h"
 #include <sstream>
 #include <string>
+#include "jitter.h"
 
 namespace kernel_selector {
 
@@ -526,7 +527,13 @@ std::string base_activation_params::to_string() const {
 std::string base_params::to_string() const {
     std::stringstream s;
     s << Params::to_string() << "_";
-    s << activation.to_string() << "_";
+    // TODO: here should be loop through all fused Activations but it affects on result hash, which used by autoTune
+    // option, that why only first Activation is used
+    if (activations.size() >= 1)
+        s << activations[0].to_string() << "_";
+    if (activations.empty()) {
+        s << "m" << 0.f << "_n" << 0.f << "_" << toString(ActivationFunction::NONE) << "_";
+    }
 
     for (auto input : inputs) {
         s << toString(input) << "_";
@@ -535,4 +542,243 @@ std::string base_params::to_string() const {
 
     return s.str();
 }
+
+
+std::string base_params::fused_operation_desc::GetTypeStr() const {
+    switch (type) {
+        case Type::ELTWISE: return "eltwise";
+        case Type::SCALE: return "scale";
+        case Type::QUANTIZE: return "quantize";
+        case Type::ACTIVATION: return "activation";
+        case Type::UNDEFINED: return "";
+        default: return "";
+    }
+}
+
+JitConstants base_params::fused_operation_desc::MakeFusedTensorJitConstants(const FusedOpsConfiguration& /*conf*/) const {
+    JitConstants jit{};
+    for (size_t op_input_id = 0; op_input_id < tensors.size(); op_input_id++) {
+        std::string name = GetInputTensorName(op_input_id);
+        jit.AddConstant(MakeJitConstant(name, tensors[op_input_id]));
+    }
+    jit.AddConstant(MakeJitConstant(GetOutputTensorName(), output_tensor));
+    return jit;
+}
+
+JitConstants base_params::fused_operation_desc::MakeInputDeclsJitConstants(const FusedOpsConfiguration& /*conf*/) const {
+    JitConstants jit = {};
+
+    std::string input_decls = "";
+    for (size_t op_input_id = 0; op_input_id < tensors.size(); op_input_id++) {
+        std::string ptr_name = GetInputPtrName(op_input_id);
+        input_decls += "\\\n\tconst __global " + toCLType(tensors[op_input_id].GetDType()) +
+                       "* " + ptr_name + (op_input_id == tensors.size() - 1 ? "" : ",");
+    }
+
+    jit.AddConstant(MakeJitConstant("FUSED_OP"+std::to_string(op_id)+"_DECLS", input_decls));
+    return jit;
+}
+
+JitConstants base_params::fused_operation_desc::MakeLoadJitConstants(const FusedOpsConfiguration& conf) const {
+    JitConstants jit = {};
+
+    auto vec_size = conf.vec_size;
+    auto idx = conf.bfyx_idx_order;
+
+    std::string load_decls = "";
+    static int i = 0;
+    bool reuse_index = type == Type::QUANTIZE;
+    std::string reused_idx = "reused_idx_" + std::to_string(i++);
+    if (reuse_index) {
+        load_decls += "\\\n\tint " + reused_idx + " = " +  GetIdx(0, idx_desc{idx}, conf.safe_load) + ";";
+    }
+
+    for (size_t op_input_id = 0; op_input_id < tensors.size(); op_input_id++) {
+        if (type == Type::QUANTIZE && tensors.size() > 4 &&(op_input_id == 2 || op_input_id == 3))
+            continue;
+        load_decls += "\\\n\t" + GetInputTypeName(op_input_id, vec_size) + " " + GetInputVarName(op_input_id) + " = " +
+                      GetJitLoad(conf, op_input_id, reuse_index, reused_idx) + ";";
+    }
+    jit.AddConstant(MakeJitConstant("FUSED_OP"+std::to_string(op_id)+"_LOAD" + conf.suffix, load_decls));
+
+    return jit;
+}
+
+JitConstants base_params::fused_operation_desc::MakeOpJitConstants(const FusedOpsConfiguration& conf,
+                                                                   std::string in_var, std::string& out_var) const {
+    JitConstants jit = {};
+
+    std::string op_decls = "";
+    auto typed_activation = conf.typed_activation;
+    auto vec_size = conf.vec_size;
+    auto idx = conf.bfyx_idx_order;
+
+    out_var = GetOutputVarName(in_var);
+    switch (type) {
+        case Type::SCALE:
+            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + GetInputVarName(0) + " * " + in_var + ";";
+            if (tensors.size() > 1)
+                op_decls += "\\\n\t" + out_var + " += " + GetInputVarName(1) + ";";
+            break;
+        case Type::ELTWISE:
+            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(GetInputVarName(0), vec_size) +
+                        " + " + ConvertToOutputType(in_var, vec_size) + ";";
+            break;
+        case Type::QUANTIZE:
+            op_decls += "\\\n\t" + in_var + " = min(max(" + GetInputVarName(0) + ", " + in_var + "), " + GetInputVarName(1)+");";
+            op_decls += "\\\n\t" + in_var + " = round(" + in_var + "*" + GetInputVarName(4) + " + " + GetInputVarName(5) + ");";
+            op_decls += "\\\n\t" + in_var + " = " + in_var + "*" + GetInputVarName(6) + " + " + GetInputVarName(7) + ";";
+            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputTypeSat(in_var, vec_size) +";";
+            break;
+        case Type::ACTIVATION:
+            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + in_var + ";";
+            // Do nothing since activation call will be added later
+            break;
+        default: break;
+    }
+
+    if (activation.function != ActivationFunction::NONE) {
+        auto suffix = "_FUSED_OP"+std::to_string(op_id) + conf.suffix;
+        if (tensors.size() == 1) {
+            jit.Merge(JitConstants{MakeJitConstant("NL_M" + suffix, GetInputVarName(0)),
+                                   MakeJitConstant("NL_N" + suffix, activation.n)});
+        } else {
+            jit.Merge(JitConstants{MakeJitConstant("NL_M" + suffix, activation.m),
+                                   MakeJitConstant("NL_N" + suffix, activation.n)});
+        }
+        // Disable type casts in activation, since current jit generator for activation don't respect vector size of parameters.
+        // So conversion is explicitly done in params declaration
+        jit.Merge(MakeActivationJitConstants(activation.function, suffix, false, true));
+        if (typed_activation) {
+            std::string params = ConvertToOutputType("NL_M" + suffix, vec_size) + ","+ ConvertToOutputType("NL_N" + suffix, vec_size);
+            op_decls += "\\\n\t" + out_var + " = ACTIVATION_FUNC" + suffix + "(" + out_var + ", " + params + ");";
+        } else {
+            op_decls += "\\\n\t" + out_var + " = ACTIVATION" + suffix + "(" + out_var + ", ACTIVATION_PARAMS" + suffix + ");";
+        }
+    }
+
+    jit.AddConstant(MakeJitConstant("FUSED_OP"+std::to_string(op_id)+"_ACTION" + conf.suffix, op_decls));
+
+    return jit;
+}
+
+std::string base_params::fused_operation_desc::GetInputTensorName(size_t input_id) const {
+    return "FUSED_OP_" + std::to_string(op_id) + "_INPUT" + std::to_string(input_id);
+}
+
+std::string base_params::fused_operation_desc::GetOutputTensorName() const {
+    return "FUSED_OP_" + std::to_string(op_id) + "_OUTPUT";
+}
+
+std::string base_params::fused_operation_desc::GetInputTypeName(size_t input_id, size_t vec_size) const {
+    if (vec_size == 0 || vec_size > 8)
+        throw std::invalid_argument("Invalid vector size in jit definitions: " + std::to_string(vec_size));
+    std::string scalar_type = GetInputTensorName(input_id) + "_TYPE";
+    if (vec_size > 1)
+        return "MAKE_VECTOR_TYPE(" + scalar_type + "," + std::to_string(vec_size) + ")";
+    else
+        return scalar_type;
+}
+
+std::string base_params::fused_operation_desc::GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const {
+    std::string idx_order = "";
+    if (tensors[input_id].Batch().v == 1) {
+        idx.b = "0";
+    }
+    if (tensors[input_id].Feature().v == 1) {
+        idx.f = "0";
+    }
+    if (tensors[input_id].Y().v == 1) {
+        idx.y = "0";
+    }
+    if (tensors[input_id].X().v == 1) {
+        idx.x = "0";
+    }
+    if (idx.dims == 4) {
+        idx_order = idx.b + "," + idx.f + "," + idx.y + "," + idx.x;
+    } else if (idx.dims == 5) {
+        idx_order = idx.b + "," + idx.f + "," + idx.z + "," + idx.y + "," + idx.x;
+    }
+
+    if (should_be_safe)
+        return GetInputTensorName(input_id) + "_GET_INDEX_SAFE(" + idx_order +")";
+    else
+        return GetInputTensorName(input_id) + "_GET_INDEX(" + idx_order +")";
+}
+
+std::string base_params::fused_operation_desc::GetJitLoad(const FusedOpsConfiguration& conf, size_t input_id,
+                                                          bool reuse_index, std::string reused_idx) const {
+    auto vec_size = 1;
+    // TODO: Need to check input tensors here to make sure that they have the same layout as output
+    if (type == Type::ELTWISE) {
+        vec_size = conf.vec_size;
+    }
+
+    auto aligned = conf.aligned_load;
+    auto idx = conf.bfyx_idx_order;
+    if (vec_size == 0 || vec_size > 8)
+        throw std::invalid_argument("Invalid vector size in jit definitions: " + std::to_string(vec_size));
+
+    std::string index_func_call_vec = reuse_index ? reused_idx : GetIdx(input_id, idx_desc{idx}, conf.safe_load);
+    std::string index_func_call = reuse_index ? reused_idx : GetIdx(input_id, idx_desc{idx}, conf.safe_load);
+    if (conf.simple_offset) {
+        std::string offset = conf.bfyx_idx_order[0];
+        if (conf.safe_load)
+            offset = "(" + offset + " % " + std::to_string(tensors[input_id].LogicalSize()) + ")";
+        if (vec_size > 1)
+            return "((const __global " + toCLType(tensors[input_id].GetDType()) + std::to_string(vec_size) + "*)(" +
+                   GetInputPtrName(input_id) + " + " + offset + "))[0]";
+        else
+            return GetInputPtrName(input_id) + "[" + offset + "]";
+    } else {
+        if (aligned) {
+            if (vec_size > 1)
+                return " UNIT_BLOCK_READ" + std::to_string(vec_size) + "(" + GetInputPtrName(input_id) + ", " + index_func_call_vec + ")";
+            else
+                return " UNIT_BLOCK_READ(" + GetInputPtrName(input_id) + ", " + index_func_call + ")";
+        } else {
+            if (vec_size > 1)
+                return "((const __global " + toCLType(tensors[input_id].GetDType()) + std::to_string(vec_size) + "*)(" +
+                       GetInputPtrName(input_id) + " + " + index_func_call_vec + "))[0]";
+            else
+                return GetInputPtrName(input_id) + "[" + index_func_call + "]";
+        }
+    }
+}
+
+std::string base_params::fused_operation_desc::GetInputPtrName(size_t input_id) const {
+    return GetTypeStr() + std::to_string(op_id) + "_input" + std::to_string(input_id);
+}
+
+std::string base_params::fused_operation_desc::GetInputVarName(size_t input_id) const {
+    return GetTypeStr() + std::to_string(op_id) + "_data" + std::to_string(input_id);
+}
+
+std::string base_params::fused_operation_desc::GetOutputVarName(std::string input_var) const {
+    static int i = 0;
+    std::replace(input_var.begin(), input_var.end(), '[', '_');
+    std::replace(input_var.begin(), input_var.end(), ']', '_');
+    std::replace(input_var.begin(), input_var.end(), ' ', '_');
+    return input_var + "_" + std::to_string(i++);
+}
+
+std::string base_params::fused_operation_desc::GetOutputType(size_t vec_size) const {
+    if (vec_size > 1)
+        return toCLType(output_tensor.GetDType()) + std::to_string(vec_size);
+    else
+        return toCLType(output_tensor.GetDType());
+}
+
+std::string base_params::fused_operation_desc::ConvertToOutputType(std::string var, size_t vec_size) const {
+    return "convert_" + GetOutputType(vec_size) + "(" + var + ")";
+}
+
+std::string base_params::fused_operation_desc::ConvertToOutputTypeSat(std::string var, size_t vec_size) const {
+    if (output_tensor.GetDType() == Datatype::F32 || output_tensor.GetDType() == Datatype::F16)
+        return "convert_" + GetOutputType(vec_size) + "(" + var + ")";
+    else
+        return "convert_" + GetOutputType(vec_size) + "_sat(" + var + ")";
+}
+
+
 }  // namespace kernel_selector

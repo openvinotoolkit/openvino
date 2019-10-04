@@ -40,7 +40,8 @@ const void* CalculatedDataContent::getRaw() const {
 }
 
 size_t CalculatedDataContent::getTempBufSize(const SmallVector<DataContent::Ptr, 2>&) const {
-    return _desc.totalDimSize() * _desc.elemSize();
+    return checked_cast<size_t>(_desc.totalDimSize()) *
+           checked_cast<size_t>(_desc.elemSize());
 }
 
 namespace {
@@ -51,35 +52,61 @@ public:
 
 protected:
     const void* getRaw() const override {
-        IE_ASSERT(_desc.type() == DataType::FP16);
-
-        if (_blobFp16 == nullptr) {
-            _blobFp16 = getBlobFP16(_blob);
-            _blob.reset();
-        }
-
-        if (_repeat == 1) {
-            return _blobFp16->cbuffer();
-        } else {
-            if (_temp.empty()) {
-                VPU_PROFILE(IeBlobContent);
-
-                IE_ASSERT(_desc.totalDimSize() % _repeat == 0);
-
-                auto origNumElems = _desc.totalDimSize() / _repeat;
-                IE_ASSERT(origNumElems <= _blobFp16->size());
-
-                auto origPtr = _blobFp16->cbuffer().as<const fp16_t*>();
-                IE_ASSERT(origPtr != nullptr);
-
-                _temp.resize(_desc.totalDimSize());
-
-                ie::parallel_for(_repeat, [this, origPtr, origNumElems](int i) {
-                    std::copy_n(origPtr, origNumElems, _temp.data() + i * origNumElems);
-                });
+        if (_desc.type() == DataType::FP16) {
+            if (_blobFp16 == nullptr) {
+                _blobFp16 = getBlobFP16(_blob);
+                _blob.reset();
             }
 
-            return _temp.data();
+            if (_repeat == 1) {
+                return _blobFp16->cbuffer();
+            } else {
+                if (_tempFp16.empty()) {
+                    VPU_PROFILE(IeBlobContent);
+
+                    IE_ASSERT(_desc.totalDimSize() % _repeat == 0);
+
+                    auto origNumElems = _desc.totalDimSize() / _repeat;
+                    IE_ASSERT(checked_cast<size_t>(origNumElems) <= _blobFp16->size());
+
+                    auto origPtr = _blobFp16->cbuffer().as<const fp16_t*>();
+                    IE_ASSERT(origPtr != nullptr);
+
+                    _tempFp16.resize(checked_cast<size_t>(_desc.totalDimSize()));
+
+                    ie::parallel_for(_repeat, [this, origPtr, origNumElems](int i) {
+                        std::copy_n(origPtr, origNumElems, _tempFp16.data() + i * origNumElems);
+                    });
+                }
+
+                return _tempFp16.data();
+            }
+        } else if (_desc.type() == DataType::S32) {
+            if (_repeat == 1) {
+                return _blob->cbuffer();
+            } else {
+                if (_tempS32.empty()) {
+                    VPU_PROFILE(IeBlobContent);
+
+                    IE_ASSERT(_desc.totalDimSize() % _repeat == 0);
+
+                    auto origNumElems = _desc.totalDimSize() / _repeat;
+                    IE_ASSERT(checked_cast<size_t>(origNumElems) <= _blob->size());
+
+                    auto origPtr = _blob->cbuffer().as<const int32_t*>();
+                    IE_ASSERT(origPtr != nullptr);
+
+                    _tempS32.resize(checked_cast<size_t>(_desc.totalDimSize()));
+
+                    ie::parallel_for(_repeat, [this, origPtr, origNumElems](int i) {
+                        std::copy_n(origPtr, origNumElems, _tempS32.data() + i * origNumElems);
+                    });
+                }
+
+                return _tempS32.data();
+            }
+        } else {
+            VPU_THROW_EXCEPTION << "Unsupported data type " << _desc.type();
         }
     }
 
@@ -88,7 +115,8 @@ private:
     int _repeat = 0;
 
     mutable ie::Blob::Ptr _blobFp16;
-    mutable std::vector<fp16_t> _temp;
+    mutable std::vector<fp16_t> _tempFp16;
+    mutable std::vector<int32_t> _tempS32;
 };
 
 }  // namespace
@@ -110,12 +138,12 @@ public:
 protected:
     size_t getTempBufSize(const SmallVector<DataContent::Ptr, 2>& baseContents) const override {
         if (baseContents.empty()) {
-            return _count * sizeof(fp16_t);
+            return checked_cast<size_t>(_count) * sizeof(fp16_t);
         } else {
             IE_ASSERT(baseContents.size() == 1);
             IE_ASSERT(_desc.totalDimSize() % _count == 0);
 
-            return _desc.totalDimSize() * sizeof(fp16_t);
+            return checked_cast<size_t>(_desc.totalDimSize()) * sizeof(fp16_t);
         }
     }
 
@@ -265,21 +293,26 @@ void DataNode::updateRequiredStrides(const StridesRequirement& newReqs) {
     auto prevReqs = _requiredStrides;
 
     StridesRequirement mergedReqs;
-    for (int i = 0; i < _desc.numDims(); ++i) {
-        auto prevReq = prevReqs.get(i);
-        auto newReq = newReqs.get(i);
+    const auto& fixedRequirements = prevReqs.fixedStrides().empty() ? newReqs : prevReqs;
+    if (!fixedRequirements.fixedStrides().empty()) {
+        mergedReqs = fixedRequirements;
+    } else {
+        for (int i = 0; i < _desc.numDims(); ++i) {
+            auto prevReq = prevReqs.get(i);
+            auto newReq = newReqs.get(i);
 
-        if (prevReq == DimStride::Any &&
-            newReq == DimStride::Any) {
-            continue;
-        }
+            if (prevReq == DimStride::Any &&
+                newReq == DimStride::Any) {
+                continue;
+            }
 
-        // In case if both requirements are defined, use `prevReq`.
-        // We'll check that both requirements are satisfied at the end.
-        if (prevReq != DimStride::Any) {
-            mergedReqs.add(i, prevReq);
-        } else {
-            mergedReqs.add(i, newReq);
+            // In case if both requirements are defined, use `prevReq`.
+            // We'll check that both requirements are satisfied at the end.
+            if (prevReq != DimStride::Any) {
+                mergedReqs.add(i, prevReq);
+            } else {
+                mergedReqs.add(i, newReq);
+            }
         }
     }
 
@@ -345,8 +378,8 @@ void DataNode::serializeNewBuffer(
         auto origOrder = _desc.dimsOrder();
         auto origPerm = origOrder.toPermutation();
 
-        int origPermInd = 0;
-        for (int i = 0; i < newPerm.size(); i++) {
+        size_t origPermInd = 0;
+        for (size_t i = 0; i < newPerm.size(); i++) {
             auto d = newPerm[i];
 
             if (origPermInd < origPerm.size() && origPerm[origPermInd] == d) {
@@ -383,7 +416,7 @@ void rebaseOrderToOne(DimsOrder& ord, DimValues& dims, DimValues& strides) {
     DimValues newDims;
     DimValues newStrides;
 
-    for (int i = 0; i < perm.size(); ++i) {
+    for (size_t i = 0; i < perm.size(); ++i) {
         auto oldDim = perm[i];
         auto newDim = static_cast<Dim>(static_cast<int>(oldDim) - minDim);
 
@@ -403,7 +436,7 @@ void DataNode::serializeOldBuffer(
         const Stage& stage,
         BlobSerializer& serializer,
         DimsOrder newOrder,
-        const EnumMap<Dim, SmallVector<Dim, MAX_DIMS_64>>& dimsReloc) {
+        const EnumMap<Dim, DimVector>& dimsReloc) {
     const int OLD_FORMAT_NUM_DIMS = 3;
 
     auto newDims = _desc.dims();
@@ -435,7 +468,7 @@ void DataNode::serializeOldBuffer(
         EnumSet<Dim> usedOrigDims;
         int prevOrigDimInd = -1;
 
-        for (int i = 0; i < newPerm.size(); ++i) {
+        for (size_t i = 0; i < newPerm.size(); ++i) {
             auto newDim = newPerm[i];
 
             int newDimVal = 1;
@@ -451,7 +484,7 @@ void DataNode::serializeOldBuffer(
                 auto origDimsToReloc = it->second;
                 IE_ASSERT(!origDimsToReloc.empty());
 
-                for (int j = 0; j < origDimsToReloc.size(); ++j) {
+                for (size_t j = 0; j < origDimsToReloc.size(); ++j) {
                     auto origDim = origDimsToReloc[j];
                     auto origDimInd = origIndeces[origDim];
 
@@ -462,7 +495,7 @@ void DataNode::serializeOldBuffer(
                     usedOrigDims.insert(origDim);
 
                     if (j > 0 && origDims[origDim] > 1) {
-                        IE_ASSERT(checkStride(origStrides, _desc, origDimInd, DimStride::Compact));
+                        IE_ASSERT(checkStride(origStrides, _desc, origDimInd, StridesRequirement::compact()));
                     }
 
                     newDimVal *= origDims[origDim];
@@ -498,7 +531,7 @@ void DataNode::serializeOldBuffer(
     IE_ASSERT(maxDimDigit >= 0);
 
     if (newPerm.size() < OLD_FORMAT_NUM_DIMS) {
-        for (int i = newPerm.size(); i < OLD_FORMAT_NUM_DIMS; i++) {
+        for (size_t i = newPerm.size(); i < OLD_FORMAT_NUM_DIMS; i++) {
             auto lastDim = newPerm.back();
             auto newLastDim = static_cast<Dim>(++maxDimDigit);
 
@@ -512,7 +545,7 @@ void DataNode::serializeOldBuffer(
     }
 
     if (newPerm.size() > OLD_FORMAT_NUM_DIMS) {
-        for (int i = OLD_FORMAT_NUM_DIMS; i < newPerm.size(); i++) {
+        for (size_t i = OLD_FORMAT_NUM_DIMS; i < newPerm.size(); i++) {
             IE_ASSERT(newDims[newPerm[i]] == 1);
             newDims.erase(newPerm[i]);
             newStrides.erase(newPerm[i]);

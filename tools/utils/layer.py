@@ -25,7 +25,6 @@ class Layer:
     def __init__(self, data: dict):
         self._id = int(data['id'])
         self._name = data['name']
-        self._precision = data['precision']
         self._type = data['type']
 
         self._input_ports = Layer.__init_ports(data, 'input')
@@ -65,10 +64,6 @@ class Layer:
     @property
     def name(self) -> str:
         return self._name
-
-    @property
-    def precision(self) -> str:
-        return self._precision
 
     @property
     def type(self) -> str:

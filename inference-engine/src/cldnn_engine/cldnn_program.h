@@ -22,16 +22,16 @@
 #include "cldnn_custom_layer.h"
 #include "cldnn_config.h"
 
-#include <CPP/engine.hpp>
-#include <CPP/memory.hpp>
-#include <CPP/topology.hpp>
-#include <CPP/primitive.hpp>
-#include <CPP/softmax.hpp>
-#include <CPP/upsampling.hpp>
-#include <CPP/pooling.hpp>
-#include <CPP/eltwise.hpp>
-#include <CPP/concatenation.hpp>
-#include <CPP/detection_output.hpp>
+#include <api/engine.hpp>
+#include <api/memory.hpp>
+#include <api/topology.hpp>
+#include <api/primitive.hpp>
+#include <api/softmax.hpp>
+#include <api/upsampling.hpp>
+#include <api/pooling.hpp>
+#include <api/eltwise.hpp>
+#include <api/concatenation.hpp>
+#include <api/detection_output.hpp>
 
 #ifndef NDEBUG
 #include <iostream>
@@ -88,6 +88,7 @@ struct PerfCounter {
     uint64_t cpu_uSec;
     uint32_t num;
     std::string layerType;
+    std::string parentPrimitive;
 
 public:
     PerfCounter() : realTime_uSec(0), cpu_uSec(0), num(0),
@@ -122,6 +123,11 @@ public:
     const std::map<std::string, cldnn::layout>& getInputLayouts() const { return inputLayouts; }
     int GetMaxBatchSizeForSingleProgram();
 
+    void addPrimitiveToProfiler(cldnn::primitive_id id, const InferenceEngine::CNNLayerPtr &layer,
+                                cldnn::primitive_id customOutputId = "");
+
+    void addInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
+                                     const InferenceEngine::CNNLayerPtr &layer);
 
     // internal types
     enum LayerType {
@@ -206,6 +212,8 @@ public:
         Tan,
         Gemm,
         OneHot,
+        Convert,
+        GatherTree,
         NO_TYPE
     };
     using GenericBlobMap = std::map<cldnn::primitive_id, cldnn::primitive_id>;
@@ -223,7 +231,8 @@ private:
                          const std::string& layerType,
                          bool isCPU = false,
                          InferenceEngine::InferenceEngineProfileInfo::LayerStatus status
-                         = InferenceEngine::InferenceEngineProfileInfo::EXECUTED);
+                         = InferenceEngine::InferenceEngineProfileInfo::EXECUTED,
+                         std::string parentId = "");
 
     static const cldnn::primitive_id m_preProcessTag;
     static const cldnn::primitive_id m_weightsTag;
@@ -357,6 +366,8 @@ private:
     void CreateGemmPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateReducePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateOneHotPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateGatherTreePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateConvertPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
 };
 
 }  // namespace CLDNNPlugin

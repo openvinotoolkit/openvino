@@ -91,13 +91,13 @@ class NetworkInfo:
 
         pass
 
-    def get_layer_names(self, layer_types: List[str]) -> List[str]:
-        skipped = []
+    def get_layer_names_by_types(self, layer_types: List[str]) -> List[str]:
+        layer_names = []
         if layer_types:
             for layer in self._layer_by_name.values():
                 if layer.type in layer_types:
-                    skipped.append(layer.name)
-        return skipped
+                    layer_names.append(layer.name)
+        return layer_names
 
     @property
     def layers(self) -> int:

@@ -25,9 +25,12 @@ class BasicError(Exception):
     """
 
     def __str__(self):
+        cause = ""
+        if self.__cause__:
+            cause = self.__cause__.__str__() + '\n'
         if len(self.args) <= 1:
-            return Exception.__str__(self)
-        return self.args[0].format(*self.args[1:])  # pylint: disable=unsubscriptable-object
+            return cause + Exception.__str__(self)
+        return cause + self.args[0].format(*self.args[1:])  # pylint: disable=unsubscriptable-object
 
 
 class FrameworkError(BasicError):

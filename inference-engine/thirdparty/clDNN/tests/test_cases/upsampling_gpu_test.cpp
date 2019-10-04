@@ -16,15 +16,15 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/upsampling.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/upsampling.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include <api/CPP/reorder.hpp>
-#include <api/CPP/data.hpp>
+#include <api/reorder.hpp>
+#include <api/data.hpp>
 
 using namespace cldnn;
 using namespace tests;
@@ -45,11 +45,11 @@ TEST(upsampling_gpu, basic_in2x3x2x2_nearest) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 3, 2 } });
 
-    uint32_t scale = 2;
+    auto output_size = tensor(batch(2), feature(2), spatial(6, 4));
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(upsampling("upsampling", "input", scale, 0.0f, upsampling_sample_type::nearest));
+    topology.add(upsampling("upsampling", "input", output_size, 0.0f, upsampling_sample_type::nearest));
 
     set_values(input, {
         1.f, 2.f, -10.f,
@@ -116,11 +116,11 @@ TEST(upsampling_gpu, basic_in2x3x2x2_bilinear) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
 
-    uint32_t scale = 2;
+    auto output_size = tensor(batch(1), feature(1), spatial(4, 4));
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(upsampling("upsampling", "input", scale, 1.0f, upsampling_sample_type::bilinear));
+    topology.add(upsampling("upsampling", "input", output_size, 1.0f, upsampling_sample_type::bilinear));
 
     set_values(input, {
         1.f, 2.f,
@@ -148,6 +148,106 @@ TEST(upsampling_gpu, basic_in2x3x2x2_bilinear) {
         for (int l = 0; l < 4; ++l) { //X
             auto linear_id = l + k * 4;
             EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
+        }
+    }
+}
+
+TEST(upsampling_gpu, nearest_asymmetric) {
+    //  Input  : 1x1x2x2
+    //  Output : 1x1x5x4
+    //  Sample Type: Nearest
+
+    //  Input:
+    //  f0: b0:  1    2
+    //  f0: b0:  3    4
+    //
+
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+
+    auto output_size = tensor(batch(1), feature(1), spatial(5, 4));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(upsampling("upsampling", "input", output_size, 1.0f, upsampling_sample_type::nearest));
+
+    set_values(input, {
+        1.f, 2.f,
+        3.f, 4.f,
+    });
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("upsampling").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    EXPECT_EQ(output.get_layout().get_linear_size(), (size_t)20);
+
+    float answers[20] = {
+        1.f, 1.f, 1.f, 2.f, 2.f,
+        1.f, 1.f, 1.f, 2.f, 2.f,
+        3.f, 3.f, 3.f, 4.f, 4.f,
+        3.f, 3.f, 3.f, 4.f, 4.f,
+    };
+
+    for (int k = 0; k < 4; ++k) { //Y
+        for (int l = 0; l < 5; ++l) { //X
+            auto linear_id = l + k * 5;
+            EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
+        }
+    }
+}
+
+TEST(upsampling_gpu, bilinear_asymmetric) {
+    //  Input  : 1x1x2x2
+    //  Output : 1x1x5x4
+    //  Sample Type: Nearest
+
+    //  Input:
+    //  f0: b0:  1    2
+    //  f0: b0:  3    4
+    //
+
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
+
+    auto output_size = tensor(batch(1), feature(1), spatial(6, 4));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(upsampling("upsampling", "input", output_size, 1.0f, upsampling_sample_type::bilinear));
+
+    set_values(input, {
+        1.f, 2.f,
+        3.f, 4.f,
+               });
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("upsampling").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    EXPECT_EQ(output.get_layout().get_linear_size(), (size_t)24);
+
+    float answers[24] = {
+        0.5f, 0.75f, 1.f, 1.25f, 1.5f, 1.f,
+        1.f, 1.5f, 1.83f, 2.17f, 2.5f, 1.67f,
+        1.67f, 2.5f, 2.83f, 3.17f, 3.5f, 2.33f,
+        1.5f, 2.25f, 2.5f, 2.75f, 3.f, 2.f,
+    };
+
+    for (int k = 0; k < 4; ++k) { //Y
+        for (int l = 0; l < 6; ++l) { //X
+            auto linear_id = l + k * 6;
+            EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 5e-03F) << l << " " << k;
         }
     }
 }

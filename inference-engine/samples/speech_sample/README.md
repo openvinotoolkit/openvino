@@ -48,17 +48,15 @@ will be removed in GNA hardware version 3 and higher.
 #### Execution Modes
 
 Several execution modes are supported via the `-d` flag.  If the device
-is set to `CPU` and the GNA plugin is selected, the GNA device is
-emulated in fast-but-not-bit-exact mode.  If the device is set to
-`GNA_AUTO`, then the GNA hardware is used if available and the driver is
-installed.  Otherwise, the GNA device is emulated in
-fast-but-not-bit-exact mode.  If the device is set to `GNA_HW`, then the
-GNA hardware is used if available and the driver is installed.
+is set to `CPU` mode, then all calculation will be performed  on CPU device
+using CPU Plugin.  If the device is set to `GNA_AUTO`, then the GNA hardware is
+used if available and the driver is installed.  Otherwise, the GNA device is 
+emulated in fast-but-not-bit-exact mode.  If the device is set to `GNA_HW`,
+then the GNA hardware is used if available and the driver is installed.
 Otherwise, an error will occur.  If the device is set to `GNA_SW`, the
 GNA device is emulated in fast-but-not-bit-exact mode.  Finally, if
 the device is set to `GNA_SW_EXACT`, the GNA device is emulated in
 bit-exact mode.
-`GNA_SW_FP32` mode is used for calculation on CPU device using GNA Plugin.
 
 #### Loading and Saving Models
 
@@ -94,7 +92,7 @@ Options:
     -m "<path>"             Required. Path to an .xml file with a trained model (required if -rg is missing).
     -o "<path>"             Optional. Output file name (default name is "scores.ark").
     -l "<absolute_path>"    Required for CPU custom layers. Absolute path to a shared library with the kernel implementations.
-    -d "<device>"           Optional. Specify a target device to infer on. CPU, GPU, GNA_AUTO, GNA_HW, GNA_SW, GNA_SW_EXACT, GNA_SW_FP32 and HETERO with combination of GNA
+    -d "<device>"           Optional. Specify a target device to infer on. CPU, GPU, GNA_AUTO, GNA_HW, GNA_SW, GNA_SW_EXACT and HETERO with combination of GNA
      as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown below. The sample will look for a suitable plugin for device specified.
     -p                      Optional. Plugin name. For example, GPU. If this parameter is set, the sample will look for this plugin only
     -pc                     Optional. Enables performance report

@@ -18,9 +18,9 @@ import os
 import tempfile
 import ntpath
 
-from ..accuracy_checker.accuracy_checker.config import ConfigReader
-from ..accuracy_checker.accuracy_checker.launcher.dlsdk_launcher import DLSDKLauncher
-from ..accuracy_checker.accuracy_checker.launcher.model_conversion import FrameworkParameters
+from accuracy_checker.config import ConfigReader
+from accuracy_checker.launcher.dlsdk_launcher import DLSDKLauncher
+from accuracy_checker.launcher.model_conversion import FrameworkParameters
 
 from ..network import Network
 from ..utils.path import Path

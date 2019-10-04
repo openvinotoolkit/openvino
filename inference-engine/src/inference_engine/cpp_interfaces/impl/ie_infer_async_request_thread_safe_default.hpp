@@ -101,13 +101,13 @@ public:
     void waitAllAsyncTasks() {
         try {
             while (!_listAsyncTasks.empty()) {
-                _listAsyncTasks.remove_if([this](StagedTask::Ptr task) -> bool {
+                _listAsyncTasks.remove_if([](StagedTask::Ptr task) -> bool {
                     auto sts = task->getStatus();
                     return !task->isOnWait() && (Task::Status::TS_DONE == sts || Task::Status::TS_ERROR == sts ||
                                                  Task::Status::TS_INITIAL == sts);
                 });
                 auto findIter = std::find_if(_listAsyncTasks.begin(), _listAsyncTasks.end(),
-                                             [this](StagedTask::Ptr task) { return !task->isOnWait(); });
+                                             [](StagedTask::Ptr task) { return !task->isOnWait(); });
                 if (findIter != _listAsyncTasks.end()) {
                     try {
                         (*findIter)->wait(-1);

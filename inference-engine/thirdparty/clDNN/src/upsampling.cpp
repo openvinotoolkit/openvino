@@ -21,7 +21,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id upsampling_type_id() {
+primitive_type_id upsampling::type_id() {
     static primitive_type_base<upsampling> instance;
     return &instance;
 }
@@ -31,14 +31,13 @@ layout upsampling_inst::calc_output_layout(upsampling_node const& node) {
            "Output data type forcing is not supported for upsampling_node!");
     auto desc = node.get_primitive();
     auto input_layout = node.input().get_output_layout();
-    auto scale = desc->scale;
 
-    auto result_sizes = tensor(input_layout.size.batch[0],
-                               input_layout.size.feature[0],
-                               static_cast<size_t>(input_layout.size.spatial[0] * scale),
-                               static_cast<size_t>(input_layout.size.spatial[1] * scale));
+    auto result_sizes = desc->output_size;
+
+    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input batch size", input_layout.size.batch[0], "output batch size", result_sizes.batch[0], "");
+    CLDNN_ERROR_NOT_EQUAL(node.id(), "Input feature size", input_layout.size.feature[0], "output feature size", result_sizes.feature[0], "");
+
     auto result = layout({input_layout.data_type, input_layout.format, result_sizes});
-
     return result;
 }
 
@@ -62,7 +61,7 @@ std::string upsampling_inst::to_string(upsampling_node const& node) {
 
     primitive_description << "id: " << desc->id << ", type: upsampling"
                           << "\n\tinput_1: " << input_1.id() << ", count: " << input_1.get_output_layout().count()
-                          << ",  size: " << input_1.get_output_layout().size << "\n\tscale: " << desc->scale
+                          << ",  size: " << input_1.get_output_layout().size
                           << "\n\tnum_filter: " << desc->num_filter << "\n\tsample_type: " << str_type
                           << "\n\twith activation: " << activation << ", slope: " << desc->activation_negative_slope
                           << "\n\toutput padding lower size: " << desc->output_padding.lower_size()

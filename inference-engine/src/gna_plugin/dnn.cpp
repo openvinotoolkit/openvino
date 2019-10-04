@@ -1661,7 +1661,6 @@ void AmIntelDnn::WriteDnnText(const char *filename, intel_dnn_number_type_t numb
                                 out_wfile << std::setprecision(12)
                                          << ptr_weight[row * num_filter_coefficients + col] << "\n";
                             }
-                            out_wfile << "\n";
                         }
 #endif
                     } else {

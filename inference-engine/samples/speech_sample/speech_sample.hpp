@@ -23,7 +23,7 @@ static const char plugin_message[] = "Plugin name. For example MKLDNNPlugin. If 
                                      "the sample will look for this plugin only";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] = "Specify a target device to infer on. CPU, GPU, GNA_AUTO, GNA_HW, GNA_SW, GNA_SW_FP32 "
+static const char target_device_message[] = "Specify a target device to infer on. CPU, GPU, GNA_AUTO, GNA_HW, GNA_SW, "
                                             "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
                                             " as a secondary (e.g. HETERO:GNA,CPU) are supported. The list of available devices is shown below. "
                                             "The sample will look for a suitable plugin for device specified.";

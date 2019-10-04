@@ -15,7 +15,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <api/CPP/broadcast.hpp>
+#include <api/broadcast.hpp>
 
 #include "primitive_inst.h"
 #include <string>

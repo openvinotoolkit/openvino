@@ -100,19 +100,17 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = lstm_dynamic_timeloop_gpu::create;
+namespace detail {
 
-        implementation_map<lstm_dynamic_timeloop>::add({
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
-        });
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_lstm_dynamic_timeloop_gpu::attach_lstm_dynamic_timeloop_gpu() {
+    auto val_fw = lstm_dynamic_timeloop_gpu::create;
+
+    implementation_map<lstm_dynamic_timeloop>::add({
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
+    });
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

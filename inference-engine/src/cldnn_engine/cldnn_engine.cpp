@@ -11,6 +11,7 @@
 #include <iostream>
 #include <cmath>
 #include <tuple>
+#include <cctype>
 
 #include "ie_metric_helpers.hpp"
 #include <debug.h>
@@ -132,7 +133,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
         plugin = make_ie_compatible_plugin(
-                {2, 0,
+                {2, 1,
                  CI_BUILD_NUMBER,
                  "clDNNPlugin"}, std::make_shared<clDNNEngine>());
         return OK;
@@ -233,6 +234,23 @@ Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::st
     return result;
 }
 
+auto StringRightTrim = [](std::string string, std::string substring, bool case_sensitive = true) {
+    auto ret_str = string;
+    if (!case_sensitive) {
+        std::transform(string.begin(), string.end(), string.begin(), ::tolower);
+        std::transform(substring.begin(), substring.end(), substring.begin(), ::tolower);
+    }
+    auto erase_position = string.rfind(substring);
+    if (erase_position != std::string::npos) {
+        // if space exists before substring remove it also
+        if (std::isspace(string.at(erase_position - 1))) {
+            erase_position--;
+        }
+        return ret_str.substr(0, erase_position);
+    }
+    return ret_str;
+};
+
 Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
@@ -250,7 +268,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         std::vector<std::string> availableDevices = { "" };
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, std::string(engine_info.ocl_device_name));
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, StringRightTrim(engine_info.dev_name, "NEO", false));
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto opt : _impl->m_config.key_config_map)

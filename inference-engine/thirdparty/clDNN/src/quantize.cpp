@@ -24,7 +24,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id quantize_type_id() {
+primitive_type_id quantize::type_id() {
     static primitive_type_base<quantize> instance;
     return &instance;
 }
@@ -33,16 +33,16 @@ layout quantize_inst::calc_output_layout(quantize_node const& node) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
-    auto input_format = input_layout.format;
+    auto output_format = input_layout.format;
+    auto out_dt = input_layout.data_type;
+    if (node.get_primitive()->output_data_type)
+        out_dt = *node.get_primitive()->output_data_type;
 
-    bool is_packed_binarization = desc->levels == 2 &&
-                                  node.get_users().size() == 1 &&
-                                  node.get_users().front()->is_type<binary_convolution>();
+    if (out_dt == data_types::bin) {
+        output_format = format::b_fs_yx_32fp;
+    }
 
-    if (is_packed_binarization)
-        return layout{data_types::bin, format::b_fs_yx_32fp, input_layout.size};
-    else
-        return layout{input_layout.data_type, input_format, input_layout.size};
+    return layout{out_dt, output_format, input_layout.size};
 }
 
 std::string quantize_inst::to_string(quantize_node const& node) {

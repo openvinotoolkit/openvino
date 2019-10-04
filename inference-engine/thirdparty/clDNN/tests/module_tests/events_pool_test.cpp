@@ -14,13 +14,11 @@
 // limitations under the License.
 */
 
-
-
 #include <gtest/gtest.h>
-#include "api/CPP/engine.hpp"
+#include "api/engine.hpp"
 #include "test_utils/test_utils.h"
-#include "api/CPP/input_layout.hpp"
-#include "api/CPP/network.hpp"
+#include "api/input_layout.hpp"
+#include "api/network.hpp"
 
 using namespace tests;
 using namespace cldnn;
@@ -37,12 +35,12 @@ TEST(events_pool, DISABLED_basic_test)
 
     topology topology;
     topology.add(input_layout("input", { data_types::f32, format::bfyx,{ tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num))}}));
-    topology.add(activation("relu", "input", activation_relu));
-    topology.add(activation("relu1", "relu", activation_relu));
-    topology.add(activation("relu2", "relu1", activation_relu));
-    topology.add(activation("relu3", "relu2", activation_relu));
-    topology.add(activation("relu4", "relu3", activation_relu));
-    topology.add(activation("relu5", "relu4", activation_relu));
+    topology.add(activation("relu", "input", activation_func::relu));
+    topology.add(activation("relu1", "relu", activation_func::relu));
+    topology.add(activation("relu2", "relu1", activation_func::relu));
+    topology.add(activation("relu3", "relu2", activation_func::relu));
+    topology.add(activation("relu4", "relu3", activation_func::relu));
+    topology.add(activation("relu5", "relu4", activation_func::relu));
 
     build_options bo;
     bo.set_option(build_option::optimize_data(true));

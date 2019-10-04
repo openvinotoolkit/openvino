@@ -72,7 +72,6 @@ const std::map<ie::EltwiseLayer::eOperation, std::function<StageType(ie::Eltwise
         MAP_ELEMENTS(Logical_XOR,   moreThanOneInput),
         MAP_ELEMENTS(Pow,           onlyTwoInputs),
         MAP_ELEMENTS(Floor_mod,     onlyTwoInputs),
-        MAP_ELEMENTS(Select,        onlyThreeInputs),
 };
 
 class EltwiseStage final : public StageNode {
@@ -83,17 +82,15 @@ private:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto output = _outputEdges[0]->output();
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override {
+        auto output = outputEdge(0)->output();
 
         if (_type != StageType::Prod &&
             step == ScalePropagationStep::Propagate) {
             // Keep the largest input scale factor.
             auto maxScale = std::numeric_limits<float>::lowest();
-            for (const auto& inEdge : _inputEdges) {
+            for (const auto& inEdge : inputEdges()) {
                 if (inEdge->input()->usage() == DataUsage::Fake) {
                     continue;
                 }
@@ -101,7 +98,7 @@ private:
                 maxScale = std::max(maxScale, inputScales[inEdge->portInd()]);
             }
 
-            for (const auto& inEdge : _inputEdges) {
+            for (const auto& inEdge : inputEdges()) {
                 if (inEdge->input()->usage() == DataUsage::Fake) {
                     continue;
                 }
@@ -109,29 +106,26 @@ private:
                 auto curScale = inputScales[inEdge->portInd()];
 
                 if (!isFloatEqual(curScale, maxScale)) {
-                    _scaleInfo.setInput(inEdge, maxScale / curScale);
+                    scaleInfo.setInput(inEdge, maxScale / curScale);
                 }
             }
 
-            _scaleInfo.setOutput(_outputEdges[0], maxScale);
+            scaleInfo.setOutput(outputEdge(0), maxScale);
         } else {
             // Eltwise can only propagate scaling for Sum and Max cases.
-            for (const auto& inEdge : _inputEdges) {
-                _scaleInfo.setInput(inEdge, 1.0f);
+            for (const auto& inEdge : inputEdges()) {
+                scaleInfo.setInput(inEdge, 1.0f);
             }
 
-            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
+            scaleInfo.setOutput(outputEdge(0), 1.0f);
         }
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto input2 = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input0 = inputEdge(0)->input();
+        auto input1 = inputEdge(1)->input();
+        auto input2 = inputEdge(2)->input();
+        auto output = outputEdge(0)->output();
 
         auto in0Desc = input0->desc();
         auto in1Desc = input1->desc();
@@ -159,26 +153,27 @@ private:
             finalOrder = outDesc.dimsOrder();
         }
 
-        _orderInfo.setInput(_inputEdges[0], finalOrder.numDims() == in0Desc.numDims() ? finalOrder : in0Desc.dimsOrder());
-        _orderInfo.setInput(_inputEdges[1], finalOrder.numDims() == in1Desc.numDims() ? finalOrder : in1Desc.dimsOrder());
-        _orderInfo.setInput(_inputEdges[2], finalOrder.numDims() == in2Desc.numDims() ? finalOrder : in2Desc.dimsOrder());
-        _orderInfo.setOutput(_outputEdges[0], finalOrder);
+        orderInfo.setInput(inputEdge(0), finalOrder.numDims() == in0Desc.numDims() ? finalOrder : in0Desc.dimsOrder());
+        orderInfo.setInput(inputEdge(1), finalOrder.numDims() == in1Desc.numDims() ? finalOrder : in1Desc.dimsOrder());
+        orderInfo.setInput(inputEdge(2), finalOrder.numDims() == in2Desc.numDims() ? finalOrder : in2Desc.dimsOrder());
+        orderInfo.setOutput(outputEdge(0), finalOrder);
     }
 
-    void getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
         return StageSHAVEsRequirements::CanBeLimited;
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -198,14 +193,10 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
-
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto input2 = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
+        auto input0 = inputEdge(0)->input();
+        auto input1 = inputEdge(1)->input();
+        auto input2 = inputEdge(2)->input();
+        auto output = outputEdge(0)->output();
 
         input0->serializeNewBuffer(serializer, output->desc().dimsOrder());
         output->serializeNewBuffer(serializer);
@@ -255,7 +246,7 @@ void FrontEnd::parseEltwise(
     auto output = outputs[0];
 
     auto tempOutput = output;
-    if ((stageType != StageType::Select) && (inputs.size() > 2)) {
+    if (inputs.size() > 2) {
         tempOutput = model->duplicateData(
             output,
             formatString("@temp@1/%d", inputs.size() - 2));
@@ -269,10 +260,7 @@ void FrontEnd::parseEltwise(
     else
         tempInputs[1] = inputs[1];
 
-    if (stageType == StageType::Select)
-        tempInputs[2] = inputs[2];
-    else
-        tempInputs[2] = model->addFakeData();
+    tempInputs[2] = model->addFakeData();
 
     auto stage = model->addNewStage<EltwiseStage>(
         layer->name,
@@ -298,33 +286,51 @@ void FrontEnd::parseEltwise(
     stage->attrs().set<float>("min_value", 0.0f);
     stage->attrs().set<float>("max_value", 1.0f);
 
-    if (stageType != StageType::Select) {
-        tempInputs[0] = tempOutput;
-        for (int ind = 2; ind < inputs.size(); ++ind) {
-            tempInputs[1] = inputs[ind];
+    tempInputs[0] = tempOutput;
+    for (int ind = 2; ind < inputs.size(); ++ind) {
+        tempInputs[1] = inputs[ind];
 
-            if (ind + 1 == inputs.size()) {
-                tempOutput = output;
-            } else {
-                tempOutput = model->duplicateData(
-                    output,
-                    formatString("@temp@%d/%d", ind, inputs.size() - 2));
-            }
-
-            stage = model->addNewStage<EltwiseStage>(
-                layer->name + "@" + std::to_string(ind - 1),
-                stageType,
-                layer,
-                tempInputs,
-                {tempOutput});
-
-            if (layer->coeff.size() > ind) {
-                stage->attrs().set<float>("coeff2", layer->coeff[ind]);
-            }
-
-            tempInputs[0] = tempOutput;
+        if (ind + 1 == inputs.size()) {
+            tempOutput = output;
+        } else {
+            tempOutput = model->duplicateData(
+                output,
+                formatString("@temp@%d/%d", ind, inputs.size() - 2));
         }
+
+        stage = model->addNewStage<EltwiseStage>(
+            layer->name + "@" + std::to_string(ind - 1),
+            stageType,
+            layer,
+            tempInputs,
+            {tempOutput});
+
+        if (layer->coeff.size() > ind) {
+            stage->attrs().set<float>("coeff2", layer->coeff[ind]);
+        }
+
+        tempInputs[0] = tempOutput;
     }
+}
+
+void FrontEnd::parseSelect(
+        const Model::Ptr& model,
+        const ie::CNNLayerPtr& _layer,
+        const DataVector& inputs,
+        const DataVector& outputs) {
+    auto layer = std::dynamic_pointer_cast<ie::SelectLayer>(_layer);
+    IE_ASSERT(layer != nullptr);
+
+    if (inputs.size() != 3) {
+        VPU_THROW_EXCEPTION << "Select supports only three inputs";
+    }
+
+    auto stage = model->addNewStage<EltwiseStage>(
+        layer->name,
+        StageType::Select,
+        layer,
+        inputs,
+        outputs);
 }
 
 Stage StageBuilder::addSumStage(

@@ -16,6 +16,7 @@
 from extensions.back.CreateConstNodes import CreateConstNodesReplacement
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils.error import Error, FrameworkError
+from mo.utils.logger import log_step
 from mo.utils.utils import refer_to_faq_msg
 
 try:
@@ -50,6 +51,7 @@ from extensions.middle.EltwiseInputNormalization import EltwiseInputNormalize
 
 
 def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, output_dir: str):
+    log_step(argv.steps, 'LOAD')
     meta_info = get_meta_info(argv)
 
     try:
@@ -88,7 +90,9 @@ def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, o
     extract_node_attrs(graph, mxnet_op_extractor)
 
     # --------------------------------- LOAD END ------------------------------------------------------
+    log_step(argv.steps, 'FRONT')
     class_registration.apply_replacements(graph, class_registration.ClassType.FRONT_REPLACER)
+    log_step(argv.steps, 'MIDDLE')
     class_registration.apply_replacements(graph, class_registration.ClassType.MIDDLE_REPLACER)
 
     fuse_pad(graph)
@@ -142,6 +146,7 @@ def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, o
     permute_op_nodes_attrs(graph)
 
     graph_clean_up(graph)
+    log_step(argv.steps, 'BACK')
     class_registration.apply_replacements(graph, class_registration.ClassType.BACK_REPLACER)
 
     for_graph_and_each_sub_graph_recursively(graph, remove_const_ops)
@@ -149,6 +154,7 @@ def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, o
 
     for_graph_and_each_sub_graph_recursively(graph, remove_output_ops)
 
+    log_step(argv.steps, 'EMIT')
     prepare_emit_ir(graph=graph, data_type=argv.data_type, output_dir=output_dir, output_model_name=output_model_name,
                     meta_info=meta_info)
     return 0

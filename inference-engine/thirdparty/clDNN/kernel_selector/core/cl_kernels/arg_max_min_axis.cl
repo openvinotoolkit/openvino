@@ -47,7 +47,7 @@
 KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
                                   ,__global OUTPUT_TYPE* output
 #ifdef SECOND_OUTPUT_EXIST
-                                  ,__global OUTPUT_TYPE* second_output
+                                  ,__global INPUT1_TYPE* second_output
 #endif
                             )
 {
@@ -166,15 +166,15 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
         indices[AXIS] = out_position;
 #endif
 #ifdef TOP_K_ORDER
-    output[GET_DATA_INDEX_5D(OUTPUT, indices[0], indices[1], indices[2], indices[3], indices[4])] = result[top_k].value;
+    output[GET_DATA_INDEX_5D(OUTPUT, indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].value);
 #else
-    output[GET_DATA_INDEX_5D(OUTPUT, indices[0], indices[1], indices[2], indices[3], indices[4])] = result[top_k].index;
+    output[GET_DATA_INDEX_5D(OUTPUT, indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].index);
 #endif
 #ifdef SECOND_OUTPUT_EXIST
 #ifdef TOP_K_ORDER
-    second_output[GET_DATA_INDEX_5D(OUTPUT, indices[0], indices[1], indices[2], indices[3], indices[4])] = result[top_k].index;
+    second_output[GET_DATA_INDEX_5D(OUTPUT, indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].index);
 #else
-    second_output[GET_DATA_INDEX_5D(OUTPUT, indices[0], indices[1], indices[2], indices[3], indices[4])] = result[top_k].value;
+    second_output[GET_DATA_INDEX_5D(OUTPUT, indices[0], indices[1], indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].value);
 #endif
 #endif
     }

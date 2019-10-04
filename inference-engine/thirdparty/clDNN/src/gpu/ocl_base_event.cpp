@@ -33,6 +33,13 @@ bool is_event_profiled(const cl::Event& event) {
     }
     return false;
 }
+
+instrumentation::profiling_interval get_profiling_interval(const char* name, cl_ulong start,  cl_ulong end) {
+    auto diff = std::chrono::nanoseconds(end - start);
+    auto period = std::make_shared<instrumentation::profiling_period_basic>(diff);
+    return { name, period };
+}
+
 }  // namespace
 
 void CL_CALLBACK base_event::ocl_event_completion_callback(cl_event, cl_int, void* me) {
@@ -66,7 +73,7 @@ bool base_event::is_set_impl() {
     return true;
 }
 
-bool base_event::add_event_handler_impl(cldnn_event_handler, void*) {
+bool base_event::add_event_handler_impl(event_handler, void*) {
     set_ocl_callback();
     return true;
 }
@@ -77,7 +84,7 @@ static const std::vector<profiling_period_ocl_start_stop> profiling_periods{
     {"executing", CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END},
 };
 
-bool base_event::get_profiling_info_impl(std::list<cldnn_profiling_interval>& info) {
+bool base_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
     if (!is_event_profiled(_event))
         return true;
 
@@ -88,7 +95,7 @@ bool base_event::get_profiling_info_impl(std::list<cldnn_profiling_interval>& in
         _event.getProfilingInfo(period.start, &start);
         _event.getProfilingInfo(period.stop, &end);
 
-        info.push_back({period.name, end - start});
+        info.push_back(get_profiling_interval(period.name, start, end));
     }
 
     return true;
@@ -113,7 +120,7 @@ bool base_events::is_set_impl() {
     return true;
 }
 
-bool base_events::get_profiling_info_impl(std::list<cldnn_profiling_interval>& info) {
+bool base_events::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
     cl_ulong min_queue = CL_ULONG_MAX;
     cl_ulong min_sub = CL_ULONG_MAX;
     cl_ulong min_start = CL_ULONG_MAX;
@@ -145,9 +152,9 @@ bool base_events::get_profiling_info_impl(std::list<cldnn_profiling_interval>& i
         execution_time += curr_end - curr_start;
     }
 
-    info.push_back({profiling_periods[0].name, min_sub - min_queue});
-    info.push_back({profiling_periods[1].name, min_start - min_sub});
-    info.push_back({profiling_periods[2].name, execution_time});
+    info.push_back(get_profiling_interval(profiling_periods[0].name, min_sub, min_queue));
+    info.push_back(get_profiling_interval(profiling_periods[1].name, min_start, min_sub));
+    info.push_back(get_profiling_interval(profiling_periods[2].name, 0, execution_time));
 
     return true;
 }

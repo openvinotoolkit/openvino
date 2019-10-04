@@ -163,7 +163,13 @@ status_t mkldnn_memory_get_data_handle(const primitive_t *memory,
 status_t mkldnn_memory_set_data_handle(primitive_t *memory, void *handle) {
     if (any_null(memory) || memory->kind() != primitive_kind::memory)
         return invalid_arguments;
-    return memory->set_data_handle(handle);
+    return memory->set_data_handle(handle, true);
+}
+
+status_t mkldnn_memory_set_data_handle_no_pads_proc(primitive_t *memory, void *handle) {
+    if (any_null(memory) || memory->kind() != primitive_kind::memory)
+        return invalid_arguments;
+    return memory->set_data_handle(handle, false);
 }
 
 status_t mkldnn_concat_primitive_desc_create_v2(primitive_desc_t **concat_pd,

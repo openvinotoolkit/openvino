@@ -162,14 +162,13 @@ private:
     void run(program_impl& p) override;
 };
 
-class prepare_binarization : public base_pass {
+class prepare_quantization : public base_pass {
 public:
-    prepare_binarization() : base_pass("prepare_binarization") {}
+    prepare_quantization() : base_pass("prepare_quantization") {}
 
 private:
     void run(program_impl& p) override;
-    void prepare_packed_quantize(program_impl& p, program_node& node);
-    void prepare_fusing(program_impl& p, program_node& node);
+    void prepare_packed_quantize(program_impl& p);
 };
 
 class prepare_conv_eltw_fusing : public base_pass {
@@ -220,21 +219,23 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void fuse_skip_layers(program_impl& p, program_node* node);
-    void fuse_conv_bn_scale(program_impl& p, program_node* node);
+    void fuse_reorders(program_impl& p);
+    void fuse_activations(program_impl& p);
+    void fuse_skip_layers(program_impl& p);
+    void fuse_simple_primitives(program_impl &p);
     layout_optimizer& _lo;
 };
 
 class pre_optimize_bias : public base_pass {
 public:
-    explicit pre_optimize_bias(layout_optimizer& lo_ref);
+    explicit pre_optimize_bias(reorder_factory& rf_ref);
 
 private:
     void run(program_impl& p) override;
-    virtual void run(program_impl& p, layout_optimizer& lo);
+    virtual void run(program_impl& p, reorder_factory& rf);
     template <typename T>
-    void optimize_bias(T& node, layout_optimizer& lo, program_impl& p);
-    layout_optimizer& _lo;
+    void optimize_bias(T& node, reorder_factory& rf, program_impl& p);
+    reorder_factory& _rf;
 };
 
 class prepare_padding : public base_pass {
@@ -258,14 +259,26 @@ private:
 
 class post_optimize_weights : public base_pass {
 public:
-    explicit post_optimize_weights(layout_optimizer& lo_ref);
+    explicit post_optimize_weights(reorder_factory& rf_ref);
 
 private:
+    struct weights_bias_offset {
+        size_t weights_offset;
+        size_t bias_offset;
+
+        // When using this ctor weights offset is added to the bias_offset
+        weights_bias_offset(const size_t w_offset, const size_t b_offset)
+            : weights_offset(w_offset)
+            , bias_offset(weights_offset + b_offset)
+        {}
+    };
+
     void run(program_impl& p) override;
-    virtual void run(program_impl& p, layout_optimizer& lo);
-    template <typename T>
-    void optimize_weights(T& node, layout_optimizer& lo, program_impl& p);
-    layout_optimizer& _lo;
+    template<typename T>
+    weights_bias_offset get_weights_bias_offset(const T& node);
+    template<typename T>
+    void optimize_weights(T& node, program_impl& p);
+    reorder_factory& _rf;
 };
 
 class propagate_constants : public base_pass {
@@ -288,21 +301,24 @@ private:
 
 class remove_redundant_reorders : public base_pass {
 public:
-    explicit remove_redundant_reorders(bool bfyx_to_bfyx_f16_opt = false);
+    explicit remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing = false, bool update_implementations = false);
     void run(program_impl& p) override;
 
 private:
-    bool bfyx_to_bfyx_f16_opt;
+    layout_optimizer& lo;
+    bool enable_reorder_fusing;
+    bool update_implementations;
 };
 
 class reorder_inputs : public base_pass {
 public:
-    explicit reorder_inputs(layout_optimizer& lo_ref);
+    reorder_inputs(layout_optimizer& lo_ref, reorder_factory& rf_ref);
 
 private:
     void run(program_impl& p) override;
-    virtual void run(program_impl& p, layout_optimizer& lo);
+    virtual void run(program_impl& p, layout_optimizer& lo, reorder_factory& rf);
     layout_optimizer& _lo;
+    reorder_factory& _rf;
 };
 
 class trim_to_outputs : public base_pass {

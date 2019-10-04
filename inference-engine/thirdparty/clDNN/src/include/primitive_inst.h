@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "api/CPP/primitive.hpp"
-#include "api/CPP/concatenation.hpp"
+#include "api/primitive.hpp"
+#include "api/concatenation.hpp"
 
 #include "event_impl.h"
 #include "memory_impl.h"
@@ -86,7 +86,7 @@ public:
 
     memory_impl& dep_memory(size_t index) const { return dependencies().at(index)->output_memory(); }
     memory_impl& output_memory() const { return *_output; }
-    size_t inputs_memory_count() const { return _node.get_primitive()->input.size(); }
+    size_t inputs_memory_count() const { return _node.get_primitive()->input_size(); }
     primitive_type_id type() const { return _node.type(); }
     primitive_id id() const { return _node.id(); }
     primitive_id org_id() const { return _node.get_org_primitive_id(); }
@@ -114,6 +114,14 @@ public:
     void reset_output_change() { _output_changed = false; }
 
     void build_deps();
+
+    memory_impl& fused_memory(size_t dep_id) const {
+        return dep_memory(get_fused_mem_offset() + dep_id);
+    }
+
+    bool has_fused_primitives() const { return !_node.get_fused_primitives().empty(); }
+    size_t get_fused_mem_count() const { return _node.get_fused_inputs_count(); }
+    size_t get_fused_mem_offset() const { return _node.get_fused_primitives()[0].dep_start_idx; }
 
 protected:
     primitive_inst(network_impl& network, program_node const& node, bool allocate_memory);

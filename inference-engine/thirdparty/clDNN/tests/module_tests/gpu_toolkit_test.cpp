@@ -15,15 +15,13 @@
 */
 
 #include <gtest/gtest.h>
-#include "api/CPP/engine.hpp"
+#include "api/engine.hpp"
 #include "test_utils/test_utils.h"
-#include "api/CPP/network.hpp"
-#include "api/CPP/topology.hpp"
-#include "api/CPP/input_layout.hpp"
-#include "api/CPP/activation.hpp"
-#include "api/C/input_layout.h"
-#include "api/C/activation.h"
-#include "api/C/cldnn.h"
+#include "api/network.hpp"
+#include "api/topology.hpp"
+#include "api/input_layout.hpp"
+#include "api/activation.hpp"
+#include "api/cldnn.hpp"
 
 #include "test_utils.h"
 
@@ -123,7 +121,7 @@ TEST(gpu_engine, user_context)
     auto input_mem = cldnn::memory::allocate(engine, inp_lay);
     tests::set_values<float>(input_mem, { 1.0f, 2.0f, 3.0f, 4.0f });
     auto inp = input_layout("input", inp_lay);
-    auto activ = activation("this_needs_queue", "input", cldnn_activation_func::activation_abs);
+    auto activ = activation("this_needs_queue", "input", activation_func::abs);
     topo.add(inp, activ);
     network net(engine, topo);
 

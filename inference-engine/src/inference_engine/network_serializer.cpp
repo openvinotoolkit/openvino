@@ -121,11 +121,12 @@ void NetworkSerializer::serialize(
             }
         }
         if (!node->outData.empty()) {
-            pugi::xml_node input = layer.append_child("output");
+            pugi::xml_node output = layer.append_child("output");
             for (size_t oport = 0; oport < node->outData.size(); oport++) {
-                pugi::xml_node port = input.append_child("port");
+                pugi::xml_node port = output.append_child("port");
 
                 port.append_attribute("id").set_value(node->insData.size() + oport);
+                port.append_attribute("precision").set_value(node->outData[oport]->getPrecision().name());
 
                 for (const auto dim : node->outData[oport]->getDims()) {
                     port.append_child("dim").text().set(dim);

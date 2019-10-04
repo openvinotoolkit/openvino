@@ -649,6 +649,9 @@ mkldnn_status_t MKLDNN_API mkldnn_memory_get_data_handle(
 mkldnn_status_t MKLDNN_API mkldnn_memory_set_data_handle(
         mkldnn_primitive_t memory, void *handle);
 
+mkldnn_status_t MKLDNN_API mkldnn_memory_set_data_handle_no_pads_proc(
+        mkldnn_primitive_t memory, void *handle);
+
 /** @} */
 
 /** @addtogroup c_api_reorder Reorder

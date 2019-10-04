@@ -61,9 +61,9 @@ struct cpu_memory_t: public cpu_primitive_t {
         *handle = static_cast<void *>(data_);
         return success;
     }
-    virtual mkldnn::impl::status_t set_data_handle(void *handle) {
+    virtual mkldnn::impl::status_t set_data_handle(void *handle, bool pads_zeroing) {
         data_ = static_cast<char *>(handle);
-        return zero_pad();
+        return pads_zeroing ? zero_pad() : success;
     }
 
     virtual char *memory(size_t output_index = 0) const

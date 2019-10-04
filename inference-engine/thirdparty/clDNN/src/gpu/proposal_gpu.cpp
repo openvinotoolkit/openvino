@@ -21,6 +21,7 @@
 #include "engine_impl.h"
 #include "math_utils.h"
 #include "error_handler.h"
+#include "register_gpu.hpp"
 
 #include <algorithm>
 #include <string>
@@ -52,8 +53,6 @@ inline bool hasSingleBatchOutput(const program_node& node) {
 
 struct roi_t {
     float x0, y0, x1, y1;
-
-    inline float area() const { return std::max(0.f, y1 - y0 + 1.f) * std::max(0.f, x1 - x0 + 1.f); }
 };
 
 struct delta_t {
@@ -420,18 +419,15 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<proposal>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                          proposal_gpu::create);
-        implementation_map<proposal>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                          proposal_gpu::create);
-    }
+namespace detail {
 
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_proposal_gpu::attach_proposal_gpu() {
+    implementation_map<proposal>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                      proposal_gpu::create);
+    implementation_map<proposal>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                      proposal_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

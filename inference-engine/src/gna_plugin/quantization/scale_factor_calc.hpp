@@ -287,7 +287,19 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         }
 
         if (!sourceQuantParams) {
-            THROW_GNA_EXCEPTION << "Concat quantization for this case need to be implemented!!! \n";
+            auto in0LayerInfo = LayerInfo(in0);
+            auto in1LayerInfo = LayerInfo(in1);
+            if (in0LayerInfo.isActivation()) {
+                quantParams0->_weights_quant = quantParams1->_dst_quant;
+                quantParams0->_dst_quant = quantParams1->_dst_quant;
+                sourceQuantParams = quantParams1;
+            } else if (in1LayerInfo.isActivation()) {
+                quantParams1->_weights_quant = quantParams0->_dst_quant;
+                quantParams1->_dst_quant = quantParams0->_dst_quant;
+                sourceQuantParams = quantParams0;
+            } else {
+                THROW_GNA_EXCEPTION << "Concat quantization for this case need to be implemented!!! \n";
+            }
         }
 
         if (!fp32eq(quantParams0->_dst_quant.scale, quantParams1->_dst_quant.scale) && concatIdxToUpdate == -1) {
@@ -368,6 +380,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             InferenceEngine::getInjectedData<QuantizedLayerParams>(*InferenceEngine::CNNNetPrevLayer(wl).get());
 
         auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
+        quant->_src_quant.scale = quantDataForInputLayer->_dst_quant.scale;
         // TODO: pass 8 bits somehow
         if (quant->_weights_quant.scale == 1.0f) {
             size_t scaleRange = 0;
@@ -380,6 +393,14 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             }
             quant->_weights_quant.scale =
                 ScaleFactorForQuantization(wl->_weights->buffer().as<float *>(), scaleRange, wl->_weights->size());
+
+            if (wl->_biases) {
+                quant->_bias_quant.scale = ScaleFactorForQuantization(wl->_biases->buffer().as<float *>(),
+                                                                      MAX_VAL_4B_BIAS,
+                                                                      wl->_biases->size());
+                quant->_bias_quant.scale = std::min(quant->_weights_quant.scale * quant->_src_quant.scale, quant->_bias_quant.scale);
+                quant->_weights_quant.scale = quant->_bias_quant.scale / quant->_src_quant.scale;
+            }
 
             // TODO: findout why ???
             if (weightsSize == 1) {
@@ -397,8 +418,6 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             quant->_weights_quant.scale /= weights_reducer;
         }
 
-
-        quant->_src_quant.scale = quantDataForInputLayer->_dst_quant.scale;
 
         double tmp_dst_quant_scale = quant->_weights_quant.scale * quantDataForInputLayer->_dst_quant.scale;
 

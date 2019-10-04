@@ -18,6 +18,7 @@ import os
 import tempfile
 import shutil
 import ntpath
+from pathlib import Path as std_path
 
 import openvino.inference_engine as ie
 from .utils.path import Path
@@ -44,6 +45,29 @@ class Network:
         finally:
             if tmp_model_dir:
                 shutil.rmtree(tmp_model_dir)
+
+    @staticmethod
+    def serialize_tmp_model(model_path: str, statistics = None, quantization_levels: dict = None):
+        try:
+            with Network(model_path) as network:
+                if statistics:
+                    network.set_statistics(statistics)
+                if quantization_levels:
+                    network.set_quantization_levels(quantization_levels)
+
+                tmp_model_dir = tempfile.mkdtemp(".model")
+                tmp_model_path = os.path.join(tmp_model_dir, ntpath.basename(model_path))
+                network.serialize(tmp_model_path)
+            return tmp_model_path
+        except:
+            print('Could not serialize temporary IR')
+            raise
+
+    @staticmethod
+    def rm_tmp_location(file_path):
+        if file_path:
+            pdir = std_path(file_path).parent
+            shutil.rmtree(str(pdir))
 
     def __init__(self, model_path: str, weights_path: str=None):
         if model_path is None:

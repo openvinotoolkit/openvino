@@ -45,7 +45,8 @@ void PassSet::run(const Model::Ptr& model) const {
 
         auto startTime = std::chrono::high_resolution_clock::now();
 
-        model->cleanUpDatas();
+        model->cleanUp();
+
         p.first->run(model);
 
         auto endTime = std::chrono::high_resolution_clock::now();
@@ -58,7 +59,7 @@ void PassSet::run(const Model::Ptr& model) const {
         ++passInd;
     }
 
-    model->cleanUpDatas();
+    model->cleanUp();
 }
 
 //
@@ -82,6 +83,9 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     _dumpInd = 0;
     ADD_DUMP_PASS("initial");
+    ADD_PASS(addCopyForOutputsInsideNetwork);
+
+    ADD_PASS(initialCheck);
 
     //
     // To overcome fp16 limitations
@@ -104,6 +108,9 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     //
     // Model common adaptation
     //
+
+    ADD_PASS(removeUnusedStagesOutputs);
+    ADD_DUMP_PASS("removeUnusedStagesOutputs");
 
     ADD_PASS(splitGroupedConv);
     ADD_DUMP_PASS("splitGroupedConv");
@@ -146,6 +153,13 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(adjustDataBatch);
     ADD_DUMP_PASS("adjustDataBatch");
+
+    //
+    // Replace StridedSlice to other stages
+    //
+
+    ADD_PASS(stridedSlice);
+    ADD_DUMP_PASS("stridedSlice");
 
     //
     // HW stages tiling

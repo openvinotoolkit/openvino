@@ -173,15 +173,17 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
         return {config, impl, fmt};
     };
 
-    supportedPrimitiveDescriptors.push_back(same(memory::nhwc, ref_any));
-
     if (isPackedStore()) {
-        primitive_desc_iterator itpd = descs[0].createPrimitiveDescriptorIterator(getEngine());
-        do {
+        auto itpd = descs[0].createPrimitiveDescriptorIterator(getEngine());
+        while (itpd.is_not_end()) {
             impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
             supportedPrimitiveDescriptors.push_back(same(memory::nhwc, impl_type));
-        } while (itpd.next());
+            itpd++;
+        }
     }
+
+    // Ref implementation. Not from MKLDNN.
+    supportedPrimitiveDescriptors.push_back(same(memory::nhwc, ref_any));
 }
 
 void MKLDNNQuantizeNode::createPrimitive() {

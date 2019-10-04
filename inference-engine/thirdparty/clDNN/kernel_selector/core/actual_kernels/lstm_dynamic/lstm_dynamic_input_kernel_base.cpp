@@ -23,33 +23,13 @@ namespace kernel_selector {
 JitConstants LSTM_DynamicInputKernelBase::GetJitConstants(const lstm_dynamic_input_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    const auto& out = params.output;
-    size_t hidden_size = out.X().v / 4;
-
-    // [1] Certainties
-    jit.AddConstants({
-        // IE default: fizo
-        MakeJitConstant("GEMM_OFFSET_I", 1 * hidden_size),
-        MakeJitConstant("GEMM_OFFSET_O", 3 * hidden_size),
-        MakeJitConstant("GEMM_OFFSET_F", 0 * hidden_size),
-        MakeJitConstant("GEMM_OFFSET_Z", 2 * hidden_size),
-    });
-
     jit.AddConstants({MakeJitConstant("WEIGHTS", params.weights),
                       MakeJitConstant("DYN_LENGTH", params.inputs.at(1)),
-                      MakeJitConstant("HIDDEN_SIZE", hidden_size),
                       MakeJitConstant("MAX_SEQUENCE_LENGTH", params.inputs.at(0).Feature().v)});
 
     // [2] Optionals
-    if (params.has_hidden) {
-        const auto& hidden = params.hidden;
-        jit.AddConstants({
-            MakeJitConstant("INIT_HIDDEN_TERM", true),
-            MakeJitConstant("INIT_HIDDEN", hidden),
-        });
-    }
-    if (params.has_bias) {
-        jit.AddConstants({MakeJitConstant("BIAS", params.bias), MakeJitConstant("BIAS_TERM", true)});
+    if (!params.bias.empty()) {
+        jit.AddConstants({MakeJitConstant("BIAS", params.bias[0]), MakeJitConstant("BIAS_TERM", true)});
     }
 
     return jit;
@@ -76,6 +56,16 @@ LSTM_DynamicInputKernelBase::DispatchData LSTM_DynamicInputKernelBase::SetDefaul
     return kd;
 }
 
+void kernel_selector::LSTM_DynamicInputKernelBase::SetKernelArguments(const lstm_dynamic_input_params& params, clKernelData& kernel) const {
+    kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 0 });
+    kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
+    kernel.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
+    kernel.arguments.push_back({ ArgumentDescriptor::Types::WEIGHTS, 0 });
+    if (!params.bias.empty()) {
+        kernel.arguments.push_back({ ArgumentDescriptor::Types::BIAS, 0 });
+    }
+}
+
 KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& params,
                                                               const optional_params& options,
                                                               float estimated_time) const {
@@ -95,17 +85,7 @@ KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& para
     auto& kernel = k_data.kernels[0];
     kernel.workGroups.global = {run_info.gws0, run_info.gws1, run_info.gws2};
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
-    uint32_t input_idx = 0;
-    kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, input_idx++});
-    kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, input_idx++});
-    kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-    kernel.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS, 0});
-    if (orgParams.has_hidden) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::HIDDEN, 0});
-    }
-    if (orgParams.has_bias) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
-    }
+    SetKernelArguments(orgParams, kernel);
 
     k_data.estimatedTime = estimated_time;
     return {k_data};

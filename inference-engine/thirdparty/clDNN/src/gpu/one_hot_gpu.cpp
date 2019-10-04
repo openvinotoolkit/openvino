@@ -56,29 +56,25 @@ struct one_hot_gpu : typed_primitive_gpu_impl<one_hot> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = one_hot_gpu::create;
+namespace detail {
 
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfzyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
-        implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
-    }
-    ~attach() = default;
-};
+attach_one_hot_gpu::attach_one_hot_gpu() {
+    auto val_fw = one_hot_gpu::create;
 
-attach attach_impl;
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfzyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<one_hot>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+}
 
-}  // namespace
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

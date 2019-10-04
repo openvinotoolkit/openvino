@@ -13,48 +13,28 @@
 #include <memory>
 #include <utility>
 
-#include "details/caseless.hpp"
-
-#include "ie_metric_helpers.hpp"
 #include "mkldnn_graph.h"
+#include "mkldnn_graph_dumper.h"
 #include "mkldnn_graph_optimizer.h"
-#include <debug.h>
-#include <nodes/mkldnn_input_node.h>
-#include <nodes/mkldnn_reorder_node.h>
-#include <nodes/mkldnn_depthwise_node.h>
-#include <nodes/mkldnn_conv_node.h>
-
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_extension_mngr.h"
-#include "mkldnn/omp_manager.h"
+#include "mkldnn_memory_solver.hpp"
+#include <nodes/mkldnn_input_node.h>
+#include <nodes/mkldnn_reorder_node.h>
+
+#include <debug.h>
 #include <graph_tools.hpp>
-#include <cpp_interfaces/ie_executor_manager.hpp>
-#include "ie_algorithm.hpp"
-#include "memory_solver.hpp"
-#include "mkldnn_infer_request.h"
-#include "mkldnn_async_infer_request.h"
+#include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
-#include <ie_util_internal.hpp>
 #include <net_pass.h>
 #include <details/ie_cnn_network_tools.h>
-
-#include <mkldnn_graph_dumper.h>
-
-#include <data_stats.h>
-#include "cnn_network_int8_normalizer.hpp"
-#include "ie_memcpy.h"
-
-#include "precision_utils.h"
-#include <ie_plugin_config.hpp>
+#include <ie_memcpy.h>
 
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
 #include "../../thirdparty/mkl-dnn/src/cpu/xbyak/xbyak_util.h"
 
-#include "cnn_network_stats_impl.hpp"
-
 #include "utils/blob_dump.h"
-#include "mkldnn_plugin.h"
 
 /*****************************************************
  * Debug capability
@@ -328,7 +308,11 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
         inputNodes[input.first] = layer2node[inputLayer];
 
         // Loading mean images
-        MKLDNNDims outDims(inputNodes[input.first]->getChildEdgeAt(0)->getDims());
+        MKLDNNDims outDims;
+        if (!inputNodes[input.first]->getChildEdgeAt(0)->getDims().ndims())
+            outDims = MKLDNNDims(InferenceEngine::SizeVector(1, 1));
+        else
+            outDims = MKLDNNDims(inputNodes[input.first]->getChildEdgeAt(0)->getDims());
         if (inputs.find(input.first) != inputs.end()) {
             InputInfo::Ptr ii = inputs[input.first];
             if (ii && ii->getPreProcess().getNumberOfChannels()) {
@@ -629,6 +613,13 @@ void MKLDNNGraph::AllocateWithReuse() {
                 // !! Fallback to individual memory allocation !!
                 // if you like to check infer without reuse just call this function without arguments.
                 edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
+
+                // TODO: WA for some test (like strided_slice_test) which use tensors with
+                //       shapes {0}. And it is implisitly converted into {1} tensor.
+                //       Zeroing of input data allow pass tests.
+                if (edge->getParent()->type == Input)
+                    edge->getMemoryPtr()->FillZero();
+
                 count++;
             }
         }
@@ -652,8 +643,11 @@ void MKLDNNGraph::Allocate() {
     for (auto& edge : graphEdges) edge->validate();
 }
 
-void MKLDNNGraph::CreatePrimitives() {
+void MKLDNNGraph::CreatePrimitives() { IE_PROFILING_AUTO_SCOPE(MKLDNNGraph::CreatePrimitives)
+    bool weights_caching = config.throughputStreams != 1;
     for (auto& node : graphNodes) {
+        // disable caching if graph was created only once
+        node->enableWeightCaching(weights_caching);
         node->createPrimitive();
     }
 }
@@ -1079,203 +1073,4 @@ void MKLDNNGraph::do_after(const std::string &dir, const MKLDNNNodePtr &node) {
 
 InferenceEngine::ICNNNetwork::Ptr MKLDNNGraph::dump() const {
     return dump_graph_as_ie_net(*this);
-}
-
-bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &network) const {
-    InputsDataMap inputs;
-    network.getInputsInfo(inputs);
-
-    CNNLayerSet inputLayers;
-    std::unordered_set<CNNLayer *> allLayers;
-
-    if (inputs.empty())
-        return false;
-
-    auto & secondLayers = inputs.begin()->second->getInputData()->getInputTo();
-    if (secondLayers.empty())
-        return false;
-
-    bool check_result = true;
-    details::UnorderedDFS(allLayers, secondLayers.begin()->second, [&](CNNLayerPtr layer) {
-        auto type = TypeFromName(layer->type);
-        // This is WA for Tile layer
-        auto tileLayer = dynamic_cast<TileLayer *>(layer.get());
-        if (tileLayer && tileLayer->axis)
-            return;
-
-        if (type != Input &&
-            type != Output &&
-            type != Convolution &&
-            type != Deconvolution &&
-            type != Activation &&
-            type != Depthwise &&
-            type != Lrn &&
-            type != Pooling &&
-            type != FullyConnected &&
-            type != Gemm &&
-            type != SoftMax &&
-            type != Split &&
-            type != Concatenation &&
-            type != Power &&
-            type != Eltwise &&
-            type != Crop &&
-            type != BatchNormalization &&
-            type != Copy) {
-            check_result = false;
-        }
-    }, false);
-
-    return check_result;
-}
-
-InferenceEngine::InferRequestInternal::Ptr
-MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                          InferenceEngine::OutputsDataMap networkOutputs) {
-    if (graphs.size() > 1)  // streams uses special requests that are not connected to graphs
-        return std::make_shared<MKLDNNGraphlessInferRequest>(networkInputs, networkOutputs);
-    else
-        return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs);
-}
-
-MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network,
-                                     const Config &cfg,
-                                     const MKLDNNExtensionManager::Ptr& extMgr) : extensionManager(extMgr) {
-    ICNNNetworkStats* pstats = nullptr;
-    StatusCode s = network.getStats(&pstats, nullptr);
-    // we are cloning network if we have statistics and we can transform network.
-    auto clonedNetwork = cloneNet(network);
-
-    if (Precision::FP16 == network.getPrecision()) {
-        clonedNetwork->setPrecision(Precision::FP32);
-    }
-    details::CNNNetworkIterator itLayer(reinterpret_cast<ICNNNetwork *>(clonedNetwork.get()));
-    while (itLayer != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *itLayer;
-        convertLayerFP16toFP32(layer);
-        itLayer++;
-    }
-
-    if (s == StatusCode::OK && pstats && !pstats->isEmpty()) {
-        CNNNetworkInt8Normalizer cnnorm;
-        cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
-    }
-
-    MKLDNNGraph::ApplyUnrollPasses(*clonedNetwork);
-
-    if (cfg.batchLimit > 1) {
-        // check topology for applicability
-        if (!CanProcessDynBatch(*clonedNetwork)) {
-            THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
-        }
-    }
-    // check whether any (affinity-related) envs are set and if user requested thread binding
-    const bool bPinningRequested = !check_env_variables() && cfg.useThreadBinding;
-    // general #threads logic
-    const int env_threads = parallel_get_env_threads();
-    const int sockets = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
-    // use logical cores only for single-socket targets in throughput mode
-    const int hw_cores = cfg.throughputStreams > 1 && sockets == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
-
-    const int threads = cfg.threadsNum ? cfg.threadsNum : (env_threads ? env_threads : hw_cores);
-    const int threads_per_stream = std::max(1, threads/cfg.throughputStreams);
-
-    // graph(s) initialization in taskExecutor threads (streams), in parallel (in case of streams)
-    std::vector<Task::Ptr> tasks;
-    const int workers_per_socket = std::max(1, static_cast<int>(std::ceil(static_cast<float>(cfg.throughputStreams)/sockets)));
-    for (int n = 0; n < cfg.throughputStreams; n++) {
-        MKLDNNGraph::Ptr _graph = std::make_shared<MKLDNNGraph>();
-        graphs.push_back(_graph);
-        auto task = std::make_shared<InferenceEngine::Task>([=, &cfg, &network]() {
-            _graph->CreateArena(threads_per_stream);
-
-            if (bPinningRequested) {
-                _graph->CreateObserver(n, threads_per_stream);
-            }
-
-            _graph->setConfig(cfg);
-            int socket = n / workers_per_socket;
-            _graph->CreateGraph(*clonedNetwork, extensionManager, socket);
-            if (cfg.throughputStreams > 1)  // for streams, each worker thread has it's own graph
-                MKLDNNPlugin::MultiWorkerTaskExecutor::ptrContext.ptrGraph = _graph;
-        });
-        tasks.push_back(task);
-    }
-
-    if (cfg.throughputStreams > 1) {
-        // special executor with as many threads as requested #streams, each with it's own initialization task
-        _taskExecutor = std::make_shared<MultiWorkerTaskExecutor>(tasks);
-    } else {
-        if (cfg.exclusiveAsyncRequests) {
-            // special case when all InferRequests are muxed into a single queue
-            ExecutorManager *executorManager = ExecutorManager::getInstance();
-            _taskExecutor = executorManager->getExecutor("CPU");
-        }
-        _taskExecutor->startTask(tasks[0]);
-        Task::Status sts = tasks[0]->wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-    }
-    for (auto t : tasks)
-        t->checkException();
-}
-
-void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
-    for (auto g : graphs)
-        g->setProperty(properties);
-}
-
-void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) {
-    auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncRequestImpl = std::make_shared<MKLDNNAsyncInferRequest>(syncRequestImpl, _taskExecutor,
-                                                                      _taskSynchronizer, _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase<MKLDNNAsyncInferRequest>(asyncRequestImpl),
-                       [](IInferRequest *p) { p->Release(); });
-
-    asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);
-
-    if (graphs.size() == 1) {  // single-stream (legacy/hetero) case - single graph for all requests
-        auto mkldnnSyncRequest = dynamic_cast<MKLDNNInferRequest *>(syncRequestImpl.get());
-        if (!mkldnnSyncRequest)
-            THROW_IE_EXCEPTION << " Cannot get mkldnn sync request.";
-        mkldnnSyncRequest->SetGraph(graphs[0]);
-    }
-}
-
-void MKLDNNExecNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
-    graphPtr = graphs[0]->dump();
-}
-
-void MKLDNNExecNetwork::GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const {
-    Config engConfig = graphs[0]->getProperty();
-    auto option = engConfig._config.find(name);
-    if (option != engConfig._config.end()) {
-        result = option->second;
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
-    }
-}
-
-void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
-    if (name == METRIC_KEY(NETWORK_NAME)) {
-        result = IE_SET_METRIC(NETWORK_NAME, graphs[0]->dump()->getName());
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        std::vector<std::string> metrics;
-        metrics.push_back(METRIC_KEY(NETWORK_NAME));
-        metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
-        metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        result = IE_SET_METRIC(SUPPORTED_METRICS, metrics);
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        std::vector<std::string> configKeys;
-        for (auto && key : graphs[0]->getProperty()._config) {
-            configKeys.push_back(key.first);
-        }
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = graphs[0]->getProperty();
-        auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
-        IE_ASSERT(option != engConfig._config.end());
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(std::stoi(option->second)));
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
-    }
 }

@@ -70,16 +70,16 @@ public:
 
         if (reorder_params.mode != kernel_selector::mean_subtruct_mode::NONE) {
             switch (arg.get_primitive()->mean_mode) {
-                case cldnn_reorder_mean_mode::mean_none:
+                case reorder_mean_mode::none:
                     reorder_params.mean_op = kernel_selector::mean_op::NONE;
                     break;
-                case cldnn_reorder_mean_mode::mean_mul:
+                case reorder_mean_mode::mul:
                     reorder_params.mean_op = kernel_selector::mean_op::MUL;
                     break;
-                case cldnn_reorder_mean_mode::mean_subtract:
+                case reorder_mean_mode::subtract:
                     reorder_params.mean_op = kernel_selector::mean_op::SUB;
                     break;
-                case cldnn_reorder_mean_mode::mean_div:
+                case reorder_mean_mode::div:
                     reorder_params.mean_op = kernel_selector::mean_op::DIV;
                     break;
                 default:
@@ -109,14 +109,12 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() { implementation_map<reorder>::add({{engine_types::ocl, reorder_gpu::create}}); }
-    ~attach() {}
-};
+namespace detail {
 
-attach attach_impl;
+attach_reorder_gpu::attach_reorder_gpu() {
+    implementation_map<reorder>::add({{engine_types::ocl, reorder_gpu::create}});
+}
 
-}  // namespace
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

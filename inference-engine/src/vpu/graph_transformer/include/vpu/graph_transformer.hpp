@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include <string>
+#include <map>
 #include <vector>
 #include <memory>
 #include <unordered_map>
@@ -44,7 +45,9 @@ VPU_DECLARE_ENUM(ExecutionMode,
 VPU_DECLARE_ENUM(ComputeLayout,
     AUTO,
     NCHW,
-    NHWC
+    NHWC,
+    NCDHW,
+    NDHWC
 )
 
 struct CompilationConfig final {
@@ -73,8 +76,6 @@ struct CompilationConfig final {
 
     bool detectBatch = true;
 
-    bool allowFP32Models = false;
-
     std::string hwWhiteList;
     std::string hwBlackList;
 
@@ -96,6 +97,7 @@ struct CompilationConfig final {
     float inputBias = 0.0f;
 
     bool hwDilation = false;
+    std::map<std::string, std::vector<int>> ioStrides;
 };
 
 
@@ -122,7 +124,7 @@ struct CompiledGraph final {
 
     int networkBatch = 0;
 
-    std::vector<StageMetaInfo> stagesMeta;
+    GraphMetaInfo graphMeta;
     int numActiveStages = 0;
 
     DataInfo inputInfo;

@@ -25,26 +25,28 @@ reduce_map = {
     'ReduceSum': np.sum,
     'ReduceProd': np.prod,
     'ReduceMax': np.max,
+    'ReduceMin': np.min,
     'ReduceMean': np.mean,
     'ReduceAnd': np.all,
 }
 
 
 def reduce_infer(node: Node):
-    in_ports = node.in_ports()
-    assert len(in_ports) == 2 and 0 in in_ports and 1 in in_ports, \
+    connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
+    assert len(connected_in_ports) == 2, \
         "{} node `{}` should have 2 input ports, where 0-input is data input and 1-input represent " \
         "`reduction_indices`".format(node.op, node.id)
 
-    axis = node.in_port(1).data.get_value()
-
     in_data = node.in_port(0).data
     in_shape = in_data.get_shape()
-    assert in_shape is not None, "Can not infer {} node `{}`: shape of 0-input unknown".format(node.op, node.id)
+    axis = node.in_port(1).data.get_value()
 
-    # The default axis == None is to reduce over all the dimensions of the input tensor
-    if axis is None:
+    # If the axis is None then reduce over all the dimensions of the input tensor
+    if axis.size == 1 and axis.item() is None:
         axis = int64_array(list(range(len(in_shape))))
+        node.in_port(1).data.set_value(axis)
+
+    assert in_shape is not None, "Can not infer {} node `{}`: shape of 0-input unknown".format(node.op, node.id)
 
     axis = axis.copy()
     if axis.size == 1:
@@ -99,6 +101,11 @@ class ReduceSum(ReduceOp):
 
 class ReduceProd(ReduceOp):
     op = 'ReduceProd'
+    enabled = True
+
+
+class ReduceMin(ReduceOp):
+    op = 'ReduceMin'
     enabled = True
 
 

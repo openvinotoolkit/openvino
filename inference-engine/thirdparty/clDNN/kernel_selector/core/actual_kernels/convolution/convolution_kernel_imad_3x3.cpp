@@ -102,7 +102,7 @@ JitConstants ConvolutionKernel_imad_3x3::GetJitConstants(const convolution_param
     auto mem_consts = Parent::GetJitConstants(params, kd);
 
     auto activation_constants =
-        MakeActivationJitConstants(params.activation, "_CONV");
+        MakeActivationJitConstants(params.activations, "_CONV");
     mem_consts.Merge(activation_constants);
 
     const auto& input = params.inputs[0];

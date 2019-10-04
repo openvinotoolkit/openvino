@@ -24,7 +24,7 @@
 #include <list>
 
 namespace cldnn {
-primitive_type_id concatenation_type_id() {
+primitive_type_id concatenation::type_id() {
     static primitive_type_base<concatenation> instance;
     return &instance;
 }

@@ -7,8 +7,8 @@
 #include <unordered_set>
 
 #include "ie_metric_helpers.hpp"
-#include <CPP/cldnn_defs.h>
-#include <CPP/data.hpp>
+#include <api/cldnn.hpp>
+#include <api/data.hpp>
 #include <chrono>
 #include <cmath>
 #include <algorithm>

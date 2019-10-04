@@ -21,7 +21,7 @@
 #include "kernel_selector_helper.h"
 #include "fully_connected_grad_input/fully_connected_grad_input_kernel_selector.h"
 #include "fully_connected_grad_input/fully_connected_grad_input_kernel_base.h"
-#include "api/CPP/fully_connected_grad_input.hpp"
+#include "api/fully_connected_grad_input.hpp"
 
 namespace cldnn {
 namespace gpu {
@@ -66,23 +66,21 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = fully_connected_grad_input_gpu::create;
+namespace detail {
 
-        implementation_map<fully_connected_grad_input>::add({
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw},
-        });
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_fully_connected_grad_input_gpu::attach_fully_connected_grad_input_gpu() {
+    auto val_fw = fully_connected_grad_input_gpu::create;
+
+    implementation_map<fully_connected_grad_input>::add({
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw},
+    });
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

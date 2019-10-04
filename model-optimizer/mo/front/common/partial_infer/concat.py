@@ -67,7 +67,7 @@ def concat_infer(node):
     if any(v is None for v in values):
         return
 
-    node.out_node(0).value = np.concatenate(values, axis=node.axis)
+    node.out_node(0).value = np.array(np.concatenate(values, axis=node.axis), dtype=values[0].dtype)
     node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)
 
 

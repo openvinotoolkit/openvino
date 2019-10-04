@@ -6,6 +6,7 @@
 /// @file
 /// @brief     Application configuration Leon header
 ///
+
 #ifndef _XLINK_H
 #define _XLINK_H
 #include "XLinkPublicDefines.h"
@@ -43,11 +44,19 @@ XLinkError_t XLinkGetAvailableStreams(linkId_t id);
 
 /**
  * @brief Return Myriad device description which meets the requirements
- * @param index a set of parameters that the device must comply with
- * @param index Return device on index from suitable devices list
  */
-XLinkError_t XLinkFindDevice(int index, XLinkDeviceState_t state,
-    deviceDesc_t* in_deviceRequirements, deviceDesc_t* out_foundDevice);
+XLinkError_t XLinkFindFirstSuitableDevice(XLinkDeviceState_t state,
+                                          const deviceDesc_t in_deviceRequirements,
+                                          deviceDesc_t *out_foundDevice);
+
+/**
+ * @brief Return Myriad device description which meets the requirements
+ */
+XLinkError_t XLinkFindAllSuitableDevices(XLinkDeviceState_t state,
+                                         const deviceDesc_t in_deviceRequirements,
+                                         deviceDesc_t *out_foundDevicesPtr,
+                                         const unsigned int devicesArraySize,
+                                         unsigned int *out_amountOfFoundDevices);
 
 // Send a package to initiate the writing of data to a remote stream
 // Note that the actual size of the written data is ALIGN_UP(size, 64)
@@ -72,7 +81,7 @@ XLinkError_t XLinkReleaseData(streamId_t streamId);
 XLinkError_t XLinkGetFillLevel(streamId_t streamId, int isRemote, int* fillLevel);
 
 // Boot the remote (This is intended as an interface to boot the Myriad from PC)
-XLinkError_t XLinkBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath);
+XLinkError_t XLinkBoot(deviceDesc_t* deviceDesc, const char* binaryPath);
 
 // Reset the remote
 XLinkError_t XLinkResetRemote(linkId_t id);
@@ -86,6 +95,21 @@ XLinkError_t XLinkProfStop();
 XLinkError_t XLinkProfPrint();
 
 XLinkError_t XLinkWriteGraphData(streamId_t streamId, const uint8_t* buffer, int size);
+
+// ------------------------------------
+// Deprecated API. Begin.
+// ------------------------------------
+
+XLinkError_t XLinkGetDeviceName(int index, char* name, int nameSize);
+XLinkError_t XLinkGetDeviceNameExtended(int index, char* name, int nameSize, int pid);
+
+XLinkError_t XLinkBootRemote(const char* deviceName, const char* binaryPath);
+
+XLinkError_t XLinkDisconnect(linkId_t id);
+
+// ------------------------------------
+// Deprecated API. End.
+// ------------------------------------
 
 #ifdef __cplusplus
 }

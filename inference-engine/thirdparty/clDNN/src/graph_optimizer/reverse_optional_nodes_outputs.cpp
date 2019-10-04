@@ -24,7 +24,6 @@
 
 using namespace cldnn;
 
-
 /*
     Pass made for nodes, which has optional outputs (and had to reverse connections so
     the processing order was valid).

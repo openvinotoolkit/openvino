@@ -18,7 +18,8 @@
 #include <set>
 #include <array>
 
-#include "api/CPP/primitive.hpp"
+#include "api/primitive.hpp"
+#include "api/activation.hpp"
 #include "internal_primitive.h"
 
 #include "meta_utils.h"
@@ -32,6 +33,7 @@ namespace cldnn {
 struct program_impl;
 class reorder_inputs;
 class graph_initializations;
+class prepare_quantization;
 
 template <class T>
 struct typed_program_node;
@@ -41,6 +43,16 @@ struct internal_primitive_type_base;
 
 class json_composite;
 class xml_composite;
+
+
+struct fused_primitive_desc {
+    std::shared_ptr<const primitive> prim;
+    size_t dep_start_idx;
+    std::vector<primitive_id> deps;
+    activation_func activation;
+    activation_additional_params activation_params;
+    layout output_layout = layout(data_types::f32, format::bfyx, tensor());
+};
 
 /*
     Base class for all primitives which wraps API class and extends it to be used
@@ -58,7 +70,7 @@ struct program_node {
     friend class compile_graph;                     // to be removed when possible
     friend class graph_initializations;             // to be removed when possible
     friend class prepare_primitive_fusing;          // to be removed when possible
-    friend class prepare_binarization;              // to be removed when possible
+    friend class prepare_quantization;              // to be removed when possible
     friend class prepare_conv_eltw_fusing;          // to be removed when possible
     friend class prepare_conv_eltw_read_write_opt;  // to be removed when possible
     friend class propagate_constants;               // to be removed when possible
@@ -153,7 +165,7 @@ public:
 
     // sets cached output layout to an arbitrary value, invalidates users if new layout differs from previous one and @p
     // invalidate_users_if_changed is set to true returns whether output layout has changed
-    bool set_output_layout(layout new_layout, bool invalidate_users_if_changed = true);
+    bool set_output_layout(layout& new_layout, bool invalidate_users_if_changed = true);
 
     // forces recalculation of cached output layout, invalidates users if new layout is different than previous one and
     // @p invalidate_users_if_changed is set to true returns whether output layout has changed
@@ -182,16 +194,31 @@ public:
     bool is_marked(uint8_t val) const { return user_mark == val; }
     uint8_t get_user_mark() const { return user_mark; }
 
-    void set_fused_activation(cldnn_activation_func activation_func,
-                              cldnn_activation_additional_params additional_params) {
-        fused_activation.activation_func = activation_func;
-        fused_activation.additional_params = additional_params;
+    void add_fused_activation(activation_func activation_func,
+                              activation_additional_params additional_params) {
+        fused_activations.emplace_back(activation_func, additional_params);
     }
 
-    cldnn_activation_func get_fused_activation_func() const { return fused_activation.activation_func; }
+    std::vector<activation_func> get_fused_activations_funcs() const {
+        std::vector<activation_func> funcs;
+        std::transform(fused_activations.begin(),
+                       fused_activations.end(),
+                       std::back_inserter(funcs),
+                       [](fused_activation_params const& p) { return p.func; });
+        return funcs;
+    }
 
-    cldnn_activation_additional_params get_fused_activation_params() const {
-        return fused_activation.additional_params;
+    std::vector<activation_additional_params> get_fused_activations_params() const {
+        std::vector<activation_additional_params> params;
+        std::transform(fused_activations.begin(),
+                       fused_activations.end(),
+                       std::back_inserter(params),
+                       [](fused_activation_params const& p) { return p.params; });
+        return params;
+    }
+
+    void copy_fused_activation(const program_node& rhs) {
+        fused_activations = rhs.fused_activations;
     }
 
     // check/set if the node can be optimized out (removed from the network)
@@ -257,6 +284,33 @@ public:
         return reused_memory_color;
     }
 
+    virtual void add_fused_primitive(fused_primitive_desc& desc) {
+        fused_prims.push_back(desc);
+    }
+
+    virtual void add_fused_primitives(std::vector<fused_primitive_desc> descs) {
+        fused_prims.insert(fused_prims.end(), descs.begin(), descs.end());
+    }
+
+    const std::vector<fused_primitive_desc>& get_fused_primitives() const { return fused_prims; }
+
+    size_t get_fused_inputs_count() const {
+        size_t count = 0;
+        for (auto& fp : get_fused_primitives()) {
+            count += fp.deps.size();
+        }
+        return count;
+    }
+
+    bool has_fused_primitives() const { return !get_fused_primitives().empty(); }
+
+    layout get_fused_output_layout() const {
+        auto fused_prims = get_fused_primitives();
+        if (fused_prims.empty())
+            return layout(data_types::f32, format::bfyx, tensor());
+        return fused_prims.back().output_layout;
+    }
+
 protected:
     std::shared_ptr<primitive> desc;
     program_impl& myprog;
@@ -279,7 +333,7 @@ protected:
     uint8_t user_mark = 0;
     bool optimized = false;
     bool share_buffer = true;
-    std::array<bool, CLDNN_TENSOR_DIM_MAX> _support_padding_in_axis = {};  // zero-initialization
+    std::array<bool, tensor_dim_max> _support_padding_in_axis = {};  // zero-initialization
 
     mutable bool has_reused_memory = false;
     mutable uint32_t reused_memory_color = 0;
@@ -287,12 +341,18 @@ protected:
     const primitive_id org_id;
 
     struct fused_activation_params {
-        cldnn_activation_func activation_func = activation_none;
-        cldnn_activation_additional_params additional_params = {0.0f, 0.0f};
+        activation_func func = activation_func::none;
+        activation_additional_params params = {0.0f, 0.0f};
+
+        fused_activation_params() {}
+
+        fused_activation_params(activation_func _func, activation_additional_params _params) :
+                func(_func),
+                params(_params) {}
     };
 
-    fused_activation_params fused_activation;
-
+    std::vector<fused_activation_params> fused_activations;
+    std::vector<fused_primitive_desc> fused_prims;
     void invalidate_users() const;
 };
 
@@ -303,6 +363,7 @@ struct api_typed_program_node_base : public program_node {
                   "PType should name a non-const, non-volatile type derived from cldnn::primitive but not from "
                   "cldnn::internal_primitive");
     friend class cldnn::graph_initializations;
+    friend class cldnn::prepare_quantization;
     friend struct cldnn::program_impl;
     friend class cldnn::reorder_inputs;
 

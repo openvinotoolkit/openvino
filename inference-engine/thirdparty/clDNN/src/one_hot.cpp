@@ -21,12 +21,12 @@
 #include <vector>
 
 namespace cldnn {
-primitive_type_id one_hot_type_id() {
+primitive_type_id one_hot::type_id() {
     static primitive_type_base<one_hot> instance;
     return &instance;
 }
 
-static bool is_output_bfzyx(layout input, int32_t axis) {
+static bool is_output_bfzyx(const layout& input, int32_t axis) {
     if (input.format == format::bfzyx)
         return true;
     if (axis == 4)
