@@ -82,9 +82,6 @@ void propagate_constants::run(program_impl& p) {
         auto mem_impl = cout.second;
 
         memory api_memory = memory(mem_impl.detach());
-        // c-cpp converter does not retain since normally it is done inside API-impl layer (cldnn.cpp) so we need to do
-        // it manually
-        cout.second->add_ref();
 
         auto const_data =
             std::make_shared<data>("_cldnn_const_prop_" + id_to_replace, api_memory /* <<< REMOVE ME WHEN POSSIBLE */);

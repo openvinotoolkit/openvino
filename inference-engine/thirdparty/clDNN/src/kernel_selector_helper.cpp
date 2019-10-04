@@ -558,7 +558,9 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     params.engineInfo.driverVersion = engine_info.driver_version;
     params.engineInfo.hostVersion = to_host_version(cldnn::get_version());
 
-    const auto& impl_forcing = program.get_options().get<build_option_type::force_implementations>()->forcing;
+    auto impl_forcing_bo = program.get_options().get<build_option_type::force_implementations>();
+    const auto& impl_forcing = impl_forcing_bo->forcing;
+
     if (impl_forcing.count(node.id()) != 0) {
         params.forceImplementation = impl_forcing.at(node.id()).kernel_name;
     }

@@ -93,7 +93,7 @@ public:
 
 private:
     int id;
-    std::shared_ptr<gpu_toolkit> _context;
+    std::weak_ptr<gpu_toolkit> _context;
     cl::CommandQueue _command_queue;
     std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};

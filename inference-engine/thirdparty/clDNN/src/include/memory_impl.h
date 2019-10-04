@@ -25,10 +25,10 @@ namespace cldnn {
 
 struct memory_impl : refcounted_obj<memory_impl> {
     memory_impl(const engine_impl::ptr& engine, const layout& layout, uint16_t stream_id, bool reused = false)
-        : _engine(engine), _layout(layout), _stream_id(stream_id), _reused(reused), _bytes_count(_layout.bytes_count()) {}
+        : _engine(engine.get()), _layout(layout), _stream_id(stream_id), _reused(reused), _bytes_count(_layout.bytes_count()) {}
 
     virtual ~memory_impl() {
-        if (_engine != (engine_impl::ptr) nullptr && !_reused) {
+        if (_engine != nullptr && !_reused) {
             _engine->get_memory_pool().subtract_memory_used(_bytes_count);
         }
     }
@@ -36,13 +36,13 @@ struct memory_impl : refcounted_obj<memory_impl> {
     virtual void unlock() = 0;
     virtual void fill(unsigned char pattern, event_impl::ptr ev) = 0;
     size_t size() const { return _bytes_count; }
-    virtual bool is_allocated_by(const engine_impl& engine) const { return &engine == _engine.get(); }
-    const refcounted_obj_ptr<engine_impl>& get_engine() const { return _engine; }
+    virtual bool is_allocated_by(const engine_impl& engine) const { return &engine == _engine; }
+    refcounted_obj_ptr<engine_impl> get_engine() const { return engine_impl::ptr(_engine); }
     const layout& get_layout() const { return _layout; }
     uint16_t get_stream_id() const { return _stream_id; }
 
 protected:
-    const engine_impl::ptr _engine;
+    engine_impl *const _engine;
     const layout _layout;
     uint16_t _stream_id;
 

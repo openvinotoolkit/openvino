@@ -55,10 +55,10 @@ memory_impl::ptr memory_pool::alloc_memory(const layout& layout, uint16_t stream
 
     try {
         if (layout.format.is_image_2d()) {
-            memory_impl::ptr mem_impl {new gpu::gpu_image2d(_engine, layout, stream_id), false};
+            memory_impl::ptr mem_impl {new gpu::gpu_image2d(engine_impl::ptr(_engine), layout, stream_id), false};
             return mem_impl;
         } else {
-            memory_impl::ptr mem_impl { new gpu::gpu_buffer(_engine, layout, stream_id), false };
+            memory_impl::ptr mem_impl { new gpu::gpu_buffer(engine_impl::ptr(_engine), layout, stream_id), false };
             return mem_impl;
         }
     } catch (const cl::Error& clErr) {
@@ -116,8 +116,6 @@ memory_impl::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
     {
         _non_padded_pool.emplace(layout.bytes_count(),
                                  memory_record({{id, network_id, stream_id}}, mem, network_id, stream_id));
-        // we don't want to store any resources with no parents so memory pool has to store weak pointer of _engine.
-        _engine->release();
     }
     return mem;
 }
@@ -143,15 +141,11 @@ memory_impl::ptr memory_pool::get_from_padded_pool(const layout& layout,
         auto mem = alloc_memory(layout, stream_id);
         first_level_cache->second.emplace_back(
             memory_record({{id, network_id, stream_id}}, mem, network_id, stream_id));
-        // we don't want to store any resources with no parents so memory pool has to store weak pointer of _engine.
-        _engine->release();
         return mem;
     }
     auto mem = alloc_memory(layout, stream_id);
     std::list<memory_record> list = {memory_record({{id, network_id, stream_id}}, mem, network_id, stream_id)};
     _padded_pool.emplace(layout, std::move(list));
-    // we don't want to store any resources with no parents so memory pool has to store weak pointer of _engine.
-    _engine->release();
     return mem;
 }
 
@@ -180,8 +174,6 @@ memory_impl::ptr memory_pool::get_from_across_networks_pool(const layout& layout
     {
         _no_reusable_pool.emplace(layout.bytes_count(),
                                   memory_record({{id, network_id, stream_id}}, mem, network_id, stream_id));
-        // we don't want to store any resources with no parents so memory pool has to store weak pointer of _engine.
-        _engine->release();
     }
     return mem;
 }
@@ -216,8 +208,6 @@ memory_impl::ptr memory_pool::get_memory(const layout& layout,
 void memory_pool::clear_pool() { _non_padded_pool.clear(); }
 
 memory_pool::memory_pool(engine_impl& engine) : _engine(&engine), _temp_memory_used(0), _max_peak_memory_used(0) {
-    _engine->release();  // since engine is refcount object and there is circular dependency until context will be moved
-                         // to memory pool we need to detach engine while destroying memory pool
 }
 
 void memory_pool::dump_memory_pool(const program_impl& program, std::string& path, std::string& dep) {

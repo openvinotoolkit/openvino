@@ -54,6 +54,8 @@ MultiWorkerTaskExecutor::MultiWorkerTaskExecutor(const std::vector<InferenceEngi
                 if (isQueueEmpty)  // notify dtor, that all tasks were completed
                     _queueCondVar.notify_all();
             }
+            // WA as destroying last cl::Context in thread exit causes deadlock
+            MultiWorkerTaskExecutor::ptrContext.ptrGraph = nullptr;
         });
     }
     while (_initCount != init_tasks.size()) {
