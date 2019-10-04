@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api_extension/CPP/lstm_dynamic_timeloop.hpp"
+#include "api_extension/lstm_dynamic_timeloop.hpp"
 #include "primitive_inst.h"
 #include "error_handler.h"
 #include <memory>

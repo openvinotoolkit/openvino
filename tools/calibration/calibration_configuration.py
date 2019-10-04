@@ -158,7 +158,7 @@ class CalibrationConfigurationHelper:
             ignore_layer_types_from_file = [line.strip() for line in ignore_layer_types_file.readlines()]
             ignore_layer_types.extend(ignore_layer_types_from_file)
 
-        ignore_layer_names = NetworkInfo(configuration.model).get_layer_names(layer_types=ignore_layer_types)
+        ignore_layer_names = NetworkInfo(configuration.model).get_layer_names_by_types(layer_types=ignore_layer_types)
 
         if configuration.ignore_layer_names_path:
             ignore_layer_names_file = open(configuration.ignore_layer_names_path, 'r')

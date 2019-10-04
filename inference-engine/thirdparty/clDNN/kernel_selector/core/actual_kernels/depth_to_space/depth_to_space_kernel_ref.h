@@ -23,7 +23,7 @@ namespace kernel_selector {
 // depth_to_space_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct depth_to_space_params : public base_params {
-    depth_to_space_params() : base_params(KernelType::DEPTH_TO_SPACE) {}
+    depth_to_space_params() : base_params(KernelType::DEPTH_TO_SPACE), block_size(0) {}
 
     size_t block_size;
 

@@ -150,22 +150,22 @@ public:
     }
 };
 
-namespace {
+namespace detail {
 
-struct attach {
-    attach() {
-        implementation_map<deformable_conv>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+attach_deformable_conv_gpu::attach_deformable_conv_gpu() {
+    implementation_map<deformable_conv>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
                                              deformable_conv_gpu::create);
-        implementation_map<deformable_conv>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+    implementation_map<deformable_conv>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
                                              deformable_conv_gpu::create);
-        implementation_map<deformable_interp>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                             deformable_interp_gpu::create);
-        implementation_map<deformable_interp>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                             deformable_interp_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+}
+
+attach_deformable_interp_gpu::attach_deformable_interp_gpu() {
+    implementation_map<deformable_interp>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                               deformable_interp_gpu::create);
+    implementation_map<deformable_interp>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                               deformable_interp_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

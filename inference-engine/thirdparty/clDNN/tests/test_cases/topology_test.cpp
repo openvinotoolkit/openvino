@@ -1,22 +1,22 @@
 #include <gtest/gtest.h>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 #include <include/topology_impl.h>
 #include <iostream>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/lrn.hpp>
-#include <api/CPP/convolution.hpp>
-#include <api/CPP/fully_connected.hpp>
-#include <api/CPP/pooling.hpp>
-#include <api/CPP/data.hpp>
-#include <api/CPP/reorder.hpp>
-#include <api/CPP/scale.hpp>
-#include <api/CPP/eltwise.hpp>
-#include <api/CPP/softmax.hpp>
-#include <api/CPP/activation.hpp>
-#include <api/CPP/concatenation.hpp>
+#include "api/memory.hpp"
+#include <api/lrn.hpp>
+#include <api/convolution.hpp>
+#include <api/fully_connected.hpp>
+#include <api/pooling.hpp>
+#include <api/data.hpp>
+#include <api/reorder.hpp>
+#include <api/scale.hpp>
+#include <api/eltwise.hpp>
+#include <api/softmax.hpp>
+#include <api/activation.hpp>
+#include <api/concatenation.hpp>
 #include <deque>
 #include <set>
 
@@ -167,7 +167,7 @@ protected:
                 float k = 1.0f;
                 float alpha = 0.0001f;
                 float beta = 0.75f;
-                cldnn_lrn_norm_region norm_type = cldnn_lrn_norm_region_across_channel;
+                cldnn::lrn_norm_region norm_type = cldnn::lrn_norm_region_across_channel;
                 topology.add(cldnn::lrn(id, input_id, size, k, alpha, beta, norm_type));
                 return true;
             }
@@ -240,7 +240,7 @@ protected:
                 // todo: randomize params
                 cldnn::primitive_id input_id = topology_generator::CreateLayerId();
                 input_layouts.push_back({ input_id, output_layout });
-                topology.add(cldnn::activation(id, input_id, activation_relu));
+                topology.add(cldnn::activation(id, input_id, cldnn::activation_func::relu));
                 return true;
             }
         };

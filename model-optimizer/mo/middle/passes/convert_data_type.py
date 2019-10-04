@@ -41,6 +41,13 @@ def data_type_str_to_precision(data_type_str: str):
     return SUPPORTED_DATA_TYPES[data_type_str][1] if data_type_str in SUPPORTED_DATA_TYPES else None
 
 
+def np_data_type_to_precision(np_data_type):
+    for np_t, precision in SUPPORTED_DATA_TYPES.values():
+        if np_t == np_data_type:
+            return precision
+    raise Error('Data type "{}" is not supported'.format(np_data_type))
+
+
 def convert_blob(graph: Graph, node: Node, data_type: type, force_precision: str):
     out_edges = graph.out_edges(node.node, data=True)
 

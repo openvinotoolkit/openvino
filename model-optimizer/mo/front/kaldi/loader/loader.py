@@ -81,8 +81,9 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     for i in range(nnet_count):
         read_token_value(file_descr, b'<NestedNnet>')
         collect_until_token(file_descr, b'<Nnet>')
-        g, shape = load_kalid_nnet1_model(file_descr, 'Nested_net_{}'.format(i))
+        g = load_kalid_nnet1_model(file_descr, 'Nested_net_{}'.format(i))
         input_nodes = [n for n in graph.nodes(data=True) if n[1]['op'] == 'Parameter']
+        shape = input_nodes[0][1]['shape']
         if i != nnet_count - 1:
             slices_points.append(shape[1])
         g.remove_node(input_nodes[0][0])
@@ -157,7 +158,6 @@ def load_kalid_nnet1_model(file_descr, name):
 
     prev_layer_id = 'Parameter'
     graph.add_node(prev_layer_id, name=prev_layer_id, kind='op', op='Parameter', parameters=None)
-    input_shape = np.array([])
 
     while True:
         component_type = find_next_component(file_descr)
@@ -185,13 +185,13 @@ def load_kalid_nnet1_model(file_descr, name):
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
             prev_node['shape'] = np.array([1, layer_i], dtype=np.int64)
-            input_shape = np.array([1, layer_i], dtype=np.int64)
+
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0)
         prev_layer_id = layer_id
         log.debug('{} (type is {}) was loaded'.format(prev_layer_id, component_type))
-    return graph, input_shape
+    return graph
 
 
 def load_kalid_nnet2_model(file_descr, nnet_name):
@@ -203,38 +203,35 @@ def load_kalid_nnet2_model(file_descr, nnet_name):
 
     all_components = load_components(file_descr, graph)
 
-    input_shape = np.array([])
-
     for layer_id in all_components:
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
             parameters = Node(graph, layer_id).parameters
             input_dim = read_token_value(parameters, b'<InputDim>')
             prev_node['shape'] = np.array([1, input_dim], dtype=np.int64)
-            input_shape = np.array([1, input_dim], dtype=np.int64)
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0)
         prev_layer_id = layer_id
         log.debug('{} and {} were connected'.format(prev_layer_id, layer_id))
-    return graph, input_shape
+    return graph
 
 
 def load_kaldi_nnet3_model(file_descr, nnet_name):
     graph = Graph(name=nnet_name)
     file_descr.read(1)
-    component_layer_map, input_shape, input_name = load_topology_map(file_descr, graph)
+    component_layer_map = load_topology_map(file_descr, graph)
     # add information for shape calculation for MemoryOffset
     # shape calculation for MemoryOffset can't be done through shape of previous layer because
     # it is separated in 2 parts to remove cycle from graph
-    node = Node(graph, input_name)
-    for o_n_name, params in node.get_outputs():
-        o_n = Node(graph, o_n_name)
-        if o_n['op'] == 'MemoryOffset':
-            o_n['parameters']['element_size'] = input_shape[1]
+    for node in graph.get_op_nodes(**{'op': 'Parameter'}):
+        for o_n_name, params in node.get_outputs():
+            o_n = Node(graph, o_n_name)
+            if o_n['op'] == 'MemoryOffset':
+                o_n['parameters']['element_size'] = node['shape'][1]
 
     load_components(file_descr, graph, component_layer_map)
-    return graph, input_shape
+    return graph
 
 
 def load_components(file_descr, graph, component_layer_map=None):
@@ -308,18 +305,15 @@ def load_topology_map(file_descr, graph):
     not_finished = True
     component_layer_map = {}
     layer_node_map = {}
-    input_shape = np.array([], dtype=np.int64)
-    input_name = ""
     while not_finished:
-        not_finished, input_shape, input_name = read_node(file_descr, graph, component_layer_map, layer_node_map,
-                                                          input_shape, input_name)
-    return component_layer_map, input_shape, input_name
+        not_finished = read_node(file_descr, graph, component_layer_map, layer_node_map)
+    return component_layer_map
 
 
-def read_node(file_descr, graph, component_layer_map, layer_node_map, input_shape, input_name):
+def read_node(file_descr, graph, component_layer_map, layer_node_map):
     s = file_descr.readline()
     if s == b'\n':
-        return False, input_shape, input_name
+        return False
     tokens = s.split(b' ')
     if tokens[0] == b'input-node':
         in_name = s[s.find(b'name=')+len(b'name='):].split(b' ')[0]
@@ -332,9 +326,6 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map, input_shap
         else:
             Node(graph, in_name)['op'] = 'Parameter'
             Node(graph, in_name)['shape'] = in_shape
-
-        input_shape = in_shape
-        input_name = in_name
     elif tokens[0] == b'component-node':
         layer_name = s[s.find(b'name=')+len(b'name='):].split(b' ')[0]
         layer_name = str(layer_name).strip('b').replace('\'', "")
@@ -430,7 +421,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map, input_shap
                 o_n['parameters']['element_size'] = dim
     else:
         raise Error("Unsupported node specifier {}".format(tokens[0]))
-    return True, input_shape, input_name
+    return True
 
 
 def parse_input_for_node(string, graph, component_layer_map):
@@ -536,11 +527,5 @@ def parse_specifier(string, graph, layer_node_map):
             node['parameters']['has_default'] = True
         return node_id
     elif spec == b'ReplaceIndex':
-        spec_name = graph.unique_id(prefix='ReplaceIndex_')
-        graph.add_node(spec_name,
-                       parameters=dict(),
-                       op='ReplaceIndex',
-                       kind='op')
         node = parse_specifier(args[0], graph, layer_node_map)
-        graph.add_edge(node, spec_name, **create_edge_attrs(node, spec_name))
-        return spec_name
+        return node

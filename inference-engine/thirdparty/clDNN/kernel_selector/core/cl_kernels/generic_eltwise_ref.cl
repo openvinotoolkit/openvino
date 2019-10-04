@@ -16,22 +16,12 @@
 
 #include "include/include_all.cl"
 
-#if defined(INPUT_STRIDED) && OUTPUT_DIMS == 5
-    #define GET_INDEX(prefix, num, idx_order) \
-                CAT(CAT(prefix, num), _OFFSET) + \
-                ((d1 * CAT(CAT(prefix, num), _STRIDE_X)) % CAT(CAT(prefix, num), _SIZE_X))*CAT(CAT(prefix, num), _X_PITCH) +\
-                ((d2 * CAT(CAT(prefix, num), _STRIDE_Y)) % CAT(CAT(prefix, num), _SIZE_Y))*CAT(CAT(prefix, num), _Y_PITCH) +\
-                ((d3 * CAT(CAT(prefix, num), _STRIDE_Z)) % CAT(CAT(prefix, num), _SIZE_Z))*CAT(CAT(prefix, num), _Z_PITCH) +\
-                (d4 % CAT(CAT(prefix, num), _FEATURE_NUM))*CAT(CAT(prefix, num), _FEATURE_PITCH) + \
-                (d5 % CAT(CAT(prefix, num), _BATCH_NUM  ))*CAT(CAT(prefix, num), _BATCH_PITCH)
+#if ELTWISE_LAYOUT_BASED || QUANTIZATION_TERM || ELTWISE_BROADCAST
+    #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_SAFE)(idx_order)
+#elif ELTWISE_NO_PITCH_SAME_DIMS
+    #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _OFFSET) + idx_order
 #else
-    #if ELTWISE_LAYOUT_BASED || QUANTIZATION_TERM || ELTWISE_BROADCAST
-        #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_SAFE)(idx_order)
-    #elif ELTWISE_NO_PITCH_SAME_DIMS
-        #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _OFFSET) + idx_order
-    #else
-        #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
-    #endif
+    #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #endif
 
 KERNEL(eltwise)(

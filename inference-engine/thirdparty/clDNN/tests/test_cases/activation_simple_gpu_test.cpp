@@ -19,20 +19,19 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <algorithm>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/activation.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
-#include <api/CPP/data.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/activation.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include <api/data.hpp>
 #include "test_utils/test_utils.h"
 #include "test_utils/float16.h"
-#include "api/CPP/reorder.hpp"
+#include "api/reorder.hpp"
 
 using namespace cldnn;
 using namespace tests;
-
 
 TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     //  Input:
@@ -63,7 +62,7 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
 
     topology topology(
         input_layout("input", input.get_layout()),
-        activation("not", "input", activation_not));
+        activation("not", "input", activation_func::negation));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -107,7 +106,7 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
 
     topology topology(
             input_layout("input", input.get_layout()),
-            activation("not", "input", activation_erf));
+            activation("not", "input", activation_func::erf));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -144,7 +143,7 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
-    cldnn_activation_additional_params params = { 1.0f, 0.5f };
+    activation_additional_params params = { 1.0f, 0.5f };
     set_values(input,
                { 1.0f, 0.0f, -3.0f, 4.0f, 5.0f,
                  0.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -153,7 +152,7 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
 
     topology topology(
             input_layout("input", input.get_layout()),
-            activation("not", "input", activation_hard_sigmoid, params));
+            activation("not", "input", activation_func::hard_sigmoid, params));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -199,7 +198,7 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
 
     topology topology(
             input_layout("input", input.get_layout()),
-            activation("not", "input", activation_reciprocal));
+            activation("not", "input", activation_func::reciprocal));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -237,7 +236,7 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
-    cldnn_activation_additional_params params = { 1.0f, 0.5f };
+    activation_additional_params params = { 1.0f, 0.5f };
     set_values(input,
                { 1.0f, 0.3f, -3.0f, 4.0f, 5.0f,
                  21.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -246,7 +245,7 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
 
     topology topology(
             input_layout("input", input.get_layout()),
-            activation("not", "input", activation_selu, params));
+            activation("not", "input", activation_func::selu, params));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -293,7 +292,7 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
 
     topology topology(
             input_layout("input", input.get_layout()),
-            activation("not", "input", activation_softplus));
+            activation("not", "input", activation_func::softplus));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -339,7 +338,7 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
 
     topology topology(
             input_layout("input", input.get_layout()),
-            activation("not", "input", activation_softsign));
+            activation("not", "input", activation_func::softsign));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -367,7 +366,6 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     }
 }
 
-
 TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
     //  Input:
     //  1 0 -3  4  5
@@ -386,7 +384,7 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
 
     topology topology(
             input_layout("input", input.get_layout()),
-            activation("not", "input", activation_sign));
+            activation("not", "input", activation_func::sign));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -424,7 +422,7 @@ TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
 
     topology topology(
         input_layout("input", input.get_layout()),
-        activation("pow", "input", activation_pow, { 2.0f }));
+        activation("pow", "input", activation_func::pow, { 2.0f, 0.0f }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -460,7 +458,7 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
 
     topology topology(
         input_layout("input", input.get_layout()),
-        activation("pow", "input", activation_pow, { FLOAT16(3.0f) }));
+        activation("pow", "input", activation_func::pow, { FLOAT16(3.0f), FLOAT16(0.0f) }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -496,7 +494,7 @@ TEST(activation_f16_fw_gpu, linear_basic_yxfb) {
 
     topology topology(
         input_layout("input", input.get_layout()),
-        activation("linear", "input", activation_linear, {FLOAT16(3.0f), FLOAT16(2.0f)}));
+        activation("linear", "input", activation_func::linear, {FLOAT16(3.0f), FLOAT16(2.0f)}));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -553,7 +551,7 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
 
     topology topology(
         input_layout("input", input.get_layout()),
-        activation("relu", "input", activation_relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -629,7 +627,7 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
 
     topology topology(
         input_layout("input", input.get_layout()),
-        activation("relu", "input", activation_relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
+        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -657,7 +655,7 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
     }
 }
 
-TEST(activation_f32_fw_gpu, basic_yxfb_all_functions) 
+TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
 {
     //  Input:
     //  1 -2 -3  4  5
@@ -671,39 +669,39 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 5, 4 } });
-    auto input_params = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 1 } });
+    auto input_params = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 2, 1, 1 } });
     set_values(input,
     { 0.0f, -2.0f, -3.0f, 4.0f, 5.0f,
         2.0f, 2.0f, 3.0f, 4.0f, -6.0f,
         3.0f, -3.0f, 3.0f, 5.0f, 1.0f,
         1.0f, 1.0f, 1.0f, -1.0f, 1.0f });
 
-    std::vector<cldnn_activation_func> funcs = {
-        activation_none,
-        activation_logistic,
-        activation_hyperbolic_tan,
-        activation_relu,
-        activation_relu_negative_slope,
-        activation_clamp,
-        activation_softrelu,
-        activation_abs,
-        activation_linear,
-        activation_square,
-        activation_sqrt,
-        activation_elu,
-        activation_sin,
-        activation_sinh,
-        activation_cos,
-        activation_cosh,
-        activation_exp,
-        activation_not,
-        activation_log2,
-        activation_tan,
-        activation_negative,
-        activation_abs
+    std::vector<activation_func> funcs = {
+        activation_func::none,
+        activation_func::logistic,
+        activation_func::hyperbolic_tan,
+        activation_func::relu,
+        activation_func::relu_negative_slope,
+        activation_func::clamp,
+        activation_func::softrelu,
+        activation_func::abs,
+        activation_func::linear,
+        activation_func::square,
+        activation_func::sqrt,
+        activation_func::elu,
+        activation_func::sin,
+        activation_func::sinh,
+        activation_func::cos,
+        activation_func::cosh,
+        activation_func::exp,
+        activation_func::negation,
+        activation_func::log2,
+        activation_func::tan,
+        activation_func::negative,
+        activation_func::abs
     };
 
-    cldnn_activation_additional_params params = { 0.5f, 2.5f };
+    activation_additional_params params = { 0.5f, 2.5f };
     set_values(input_params, { params.a, params.b });
 
     for (uint8_t i = 0 ; i < 2 ; i++)
@@ -747,71 +745,71 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
             {
                 switch (func)
                 {
-                case activation_none:
+                case activation_func::none:
                     EXPECT_FLOAT_EQ(input_ptr[i], output_ptr[i]);
                     break;
-                case activation_logistic:
+                case activation_func::logistic:
                     EXPECT_FLOAT_EQ(1.f / (1.f + std::exp((float)-input_ptr[i])), output_ptr[i]);
                     break;
-                case activation_hyperbolic_tan:
+                case activation_func::hyperbolic_tan:
                     EXPECT_FLOAT_EQ(std::tanh((float)input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_relu:
+                case activation_func::relu:
                     EXPECT_FLOAT_EQ(std::fmax((float)input_ptr[i], 0.f), output_ptr[i]);
                     break;
-                case activation_clamp:
+                case activation_func::clamp:
                     EXPECT_FLOAT_EQ(std::fmin((float)std::fmax((float)input_ptr[i], params.a), params.b), output_ptr[i]);
                     break;
-                case activation_softrelu:
+                case activation_func::softrelu:
                     EXPECT_FLOAT_EQ(std::log(1.f + std::exp((float)input_ptr[i])), output_ptr[i]);
                     break;
-                case activation_abs:
+                case activation_func::abs:
                     EXPECT_FLOAT_EQ(std::fabs(input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_linear:
+                case activation_func::linear:
                     EXPECT_FLOAT_EQ((params.a*input_ptr[i] + params.b), output_ptr[i]);
                     break;
-                case activation_square:
+                case activation_func::square:
                     EXPECT_FLOAT_EQ((input_ptr[i] * input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_sqrt:
+                case activation_func::sqrt:
                     if (input_ptr[i] >= 0)
                     {
                         EXPECT_FLOAT_EQ(std::sqrt((float)input_ptr[i]), output_ptr[i]);
                     }
                     break;
-                case activation_elu:
+                case activation_func::elu:
                     EXPECT_FLOAT_EQ(std::fmax((float)input_ptr[i], 0.0f) +
                                     params.a*(std::exp(std::fmin((float)input_ptr[i], 0.0f)) - 1), output_ptr[i]);
                     break;
-                case activation_sin:
+                case activation_func::sin:
                     EXPECT_FLOAT_EQ(std::sin((float)input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_sinh:
+                case activation_func::sinh:
                     EXPECT_FLOAT_EQ(std::sinh((float)input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_cos:
+                case activation_func::cos:
                     EXPECT_FLOAT_EQ(std::cos((float)input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_cosh:
+                case activation_func::cosh:
                     EXPECT_FLOAT_EQ(std::cosh((float)input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_exp:
+                case activation_func::exp:
                     EXPECT_FLOAT_EQ(std::exp((float)input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_not:
+                case activation_func::negation:
                     EXPECT_FLOAT_EQ((float)(!input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_log2:
+                case activation_func::log2:
                     if (input_ptr[i] > 0) //logarithm exist only for positive real values
                     {
                         EXPECT_FLOAT_EQ(std::log2((float)input_ptr[i]), output_ptr[i]);
                     }
                     break;
-                case activation_tan:
+                case activation_func::tan:
                     EXPECT_FLOAT_EQ(std::tan((float)input_ptr[i]), output_ptr[i]);
                     break;
-                case activation_negative:
+                case activation_func::negative:
                     EXPECT_FLOAT_EQ(-((float)input_ptr[i]), output_ptr[i]);
                     break;
                 default:
@@ -829,15 +827,15 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 4 } });
     set_values(input, { 0.12f, 0.56f, 0.45f, 0.789f, 0.546f, 0.999f, 0.7899f, 0.6677f});
 
-    std::vector<cldnn_activation_func> funcs = {
-        activation_asin,
-        activation_acos,
-        activation_log,
-        activation_log2,
-        activation_atan,
-        activation_asin,
-        activation_asinh,
-        activation_atanh
+    std::vector<activation_func> funcs = {
+        activation_func::asin,
+        activation_func::acos,
+        activation_func::log,
+        activation_func::log2,
+        activation_func::atan,
+        activation_func::asin,
+        activation_func::asinh,
+        activation_func::atanh
     };
 
     for (auto func : funcs)
@@ -870,28 +868,28 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
         {
             switch (func)
             {
-            case activation_asin:
+            case activation_func::asin:
                 EXPECT_FLOAT_EQ(std::asin((float)input_ptr[i]), output_ptr[i]);
                 break;
-            case activation_acos:
+            case activation_func::acos:
                 EXPECT_FLOAT_EQ(std::acos((float)input_ptr[i]), output_ptr[i]);
                 break;
-            case activation_log:
+            case activation_func::log:
                 EXPECT_FLOAT_EQ(std::log((float)input_ptr[i]), output_ptr[i]);
                 break;
-            case activation_log2:
+            case activation_func::log2:
                 EXPECT_FLOAT_EQ(std::log2((float)input_ptr[i]), output_ptr[i]);
                 break;
-            case activation_atan:
+            case activation_func::atan:
                 EXPECT_FLOAT_EQ(std::atan((float)input_ptr[i]), output_ptr[i]);
                 break;
-            case activation_asinh:
+            case activation_func::asinh:
                 EXPECT_FLOAT_EQ(std::asinh((float)input_ptr[i]), output_ptr[i]);
                 break;
-            case activation_acosh:
+            case activation_func::acosh:
                 EXPECT_FLOAT_EQ(std::acosh((float)input_ptr[i]), output_ptr[i]);
                 break;
-            case activation_atanh:
+            case activation_func::atanh:
                 EXPECT_FLOAT_EQ(std::atanh((float)input_ptr[i]), output_ptr[i]);
                 break;
             default:
@@ -930,7 +928,7 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
     topology topology(
             input_layout("input", input.get_layout()),
             reorder("reorder", "input", input.get_layout().with_padding(padding{{0, 0, 2, 1}, 0})),
-            activation("relu", "reorder", activation_acosh, {0.5f, 0.f}, padding{{0, 0, 0, 0}, 0}));
+            activation("relu", "reorder", activation_func::acosh, {0.5f, 0.f}, padding{{0, 0, 0, 0}, 0}));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -996,7 +994,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     topology topology(
         input_layout("input", input.get_layout()),
         reorder("reorder", "input", input.get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
-        activation("relu", "reorder", activation_relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1083,7 +1081,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
     topology topology(
         input_layout("input", input.get_layout()),
         reorder("reorder", "input", input.get_layout().with_padding(padding{ { 0, 0, 2, 1, 0 }, 0 })),
-        activation("relu", "reorder", activation_relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
+        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1156,7 +1154,7 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
 
     topology topology(
         input_layout("input", input.get_layout()),
-        activation("relu", "input", activation_relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 3, 3 }, 0 }));
+        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 3, 3 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1190,9 +1188,9 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 4 } });
     set_values(input, { 0.01f, 0.99f, -0.01f, -0.99f, 1.1f, 1.0f, 0.0f, -1.1f });
 
-    std::vector<cldnn_activation_func> funcs = {
-        activation_floor,
-        activation_ceil
+    std::vector<activation_func> funcs = {
+        activation_func::floor,
+        activation_func::ceil
     };
 
     for (auto func : funcs)
@@ -1225,10 +1223,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
         {
             switch (func)
             {
-            case activation_floor:
+            case activation_func::floor:
                 EXPECT_FLOAT_EQ(std::floor((float)input_ptr[i]), output_ptr[i]);
                 break;
-            case activation_ceil:
+            case activation_func::ceil:
                 EXPECT_FLOAT_EQ(std::ceil((float)input_ptr[i]), output_ptr[i]);
                 break;
             default:
@@ -1252,10 +1250,10 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
     set_values(input, input_vec);
 
     // functions valid for int8 type input
-    std::vector<cldnn_activation_func> funcs = {
-        activation_none,
-        activation_negative,
-        activation_not
+    std::vector<activation_func> funcs = {
+        activation_func::none,
+        activation_func::negative,
+        activation_func::negation
     };
 
     for (auto func : funcs)
@@ -1280,13 +1278,13 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
         {
             switch (func)
             {
-            case activation_none:
+            case activation_func::none:
                 EXPECT_EQ((int8_t)input_ptr[i], output_ptr[i]);
                 break;
-            case activation_negative:
+            case activation_func::negative:
                 EXPECT_EQ(-((int8_t)input_ptr[i]), output_ptr[i]);
                 break;
-            case activation_not:
+            case activation_func::negation:
                 EXPECT_EQ(!((int8_t)input_ptr[i]), output_ptr[i]);
                 break;
             default:

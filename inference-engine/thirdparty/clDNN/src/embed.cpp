@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id embed_type_id() {
+primitive_type_id embed::type_id() {
     static primitive_type_base<embed> instance;
     return &instance;
 }

@@ -88,8 +88,9 @@ struct mkldnn_primitive: public mkldnn::impl::c_compatible {
         return mkldnn::impl::status::invalid_arguments;
     }
     /** sets data handle. Applicable for memory primitives only. */
-    virtual mkldnn::impl::status_t set_data_handle(void *handle) {
+    virtual mkldnn::impl::status_t set_data_handle(void *handle, bool pads_zeroing) {
         UNUSED(handle);
+        UNUSED(pads_zeroing);
         assert(this->kind() == mkldnn::impl::primitive_kind::memory);
         return mkldnn::impl::status::invalid_arguments;
     }

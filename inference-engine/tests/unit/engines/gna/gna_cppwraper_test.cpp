@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef _WIN32
+#if !defined _WIN32 || !defined(__INTEL_COMPILER)
 #include <mm_malloc.h>
 #endif
 #include "gna_api_wrapper.hpp"

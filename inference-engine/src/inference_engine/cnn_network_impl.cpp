@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "graph_tools.hpp"
 #include <vector>
+#include <math.h>
 #include "network_serializer.h"
 
 using namespace std;
@@ -248,12 +249,16 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
         }
 
+        std::string constType = "Const";
         for (auto layer : _data) {
             SizeVector dims = layer.second->getDims();
             // Calculates original size for batch = 1
-            size_t diff = dims.at(0) / originalBatchSize;
-            dims.at(0) = size * diff;
-            layer.second->setDims(dims);
+            CNNLayerPtr layerT = layer.second->getCreatorLayer().lock();
+            if (!layerT || !equal(layerT->type, constType)) {
+                float diff = static_cast<float>(dims.at(0)) / static_cast<float>(originalBatchSize);
+                dims.at(0) = static_cast<size_t>(std::ceil(size * diff));
+                layer.second->setDims(dims);
+            }
         }
         return OK;
     } catch (const InferenceEngineException& e) {

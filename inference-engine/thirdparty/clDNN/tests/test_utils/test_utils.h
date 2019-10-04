@@ -18,28 +18,29 @@
 
 #pragma once
 
-#include "api/CPP/memory.hpp"
-#include "api/CPP/tensor.hpp"
-#include "api/CPP/program.hpp"
-#include "api/CPP/network.hpp"
+#include "api/memory.hpp"
+#include "api/tensor.hpp"
+#include "api/program.hpp"
+#include "api/network.hpp"
 #include <iostream>
 #include <limits>
 #include <random>
 #include <algorithm>
+#include <memory>
 #include <gtest/gtest.h>
-#include <api/CPP/primitive.hpp>
+#include <api/primitive.hpp>
 #include "float16.h"
 #include "random_gen.h"
-#include "api/CPP/concatenation.hpp"
-#include "api/CPP/lrn.hpp"
-#include "api/CPP/roi_pooling.hpp"
-#include "api/CPP/scale.hpp"
-#include "api/CPP/softmax.hpp"
-#include "api/CPP/reorder.hpp"
-#include "api/CPP/normalize.hpp"
-#include "api/CPP/convolution.hpp"
-#include "api/CPP/activation.hpp"
-#include "api/CPP/pooling.hpp"
+#include "api/concatenation.hpp"
+#include "api/lrn.hpp"
+#include "api/roi_pooling.hpp"
+#include "api/scale.hpp"
+#include "api/softmax.hpp"
+#include "api/reorder.hpp"
+#include "api/normalize.hpp"
+#include "api/convolution.hpp"
+#include "api/activation.hpp"
+#include "api/pooling.hpp"
 
 #include <chrono>
 
@@ -214,7 +215,6 @@ void set_values_per_batch_and_feature(const cldnn::memory& mem, std::vector<T> a
         }
     }
 
-
 }
 
 template<typename T>
@@ -228,7 +228,6 @@ void set_random_values(const cldnn::memory& mem, bool sign = false, unsigned sig
         *it = rnd_generators::gen_number<T>(gen, significand_bit, sign, false, scale);
     }
 }
-
 
 // Tries to construct a network, checking if an expected error appears
 inline void check_exception_massage(const cldnn::engine& engine, cldnn::topology& topology, std::string msg_to_find)
@@ -246,7 +245,6 @@ inline void check_exception_massage(const cldnn::engine& engine, cldnn::topology
         }
     }
 }
-
 
 // Checks equality of floats.
 // For values less than absoulte_error_limit, absolute error will be counted
@@ -305,7 +303,6 @@ inline bool floating_point_equal(float x, float y, int max_ulps_diff = 4) {
     }
 }
 
-
 class test_params 
 {
 public:
@@ -358,7 +355,7 @@ private:
     const std::string name_str = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 };
 
-class generic_test : public ::testing::TestWithParam<std::tuple<test_params*, cldnn::primitive*>>
+class generic_test : public ::testing::TestWithParam<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>
 {
 
 public:
@@ -384,7 +381,7 @@ public:
     virtual cldnn::tensor get_expected_output_tensor();
 
     struct custom_param_name_functor {
-            std::string operator()(const ::testing::TestParamInfo<std::tuple<test_params*, cldnn::primitive*>>& info) {
+            std::string operator()(const ::testing::TestParamInfo<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>& info) {
                     return std::to_string(info.index);
             }
     };
@@ -393,7 +390,7 @@ protected:
     const cldnn::engine& engine = get_test_engine();
     test_params* generic_params;
     test_dump test_info;
-    cldnn::primitive* layer_params;
+    std::shared_ptr<cldnn::primitive> layer_params;
     int max_ulps_diff_allowed; //Max number of ulps allowed between 2 values when comparing the output buffer and the reference buffer.
     bool random_values; // if set memory buffers will be filled with random values
     bool dump_graphs; // if set tests will dump graphs to file   
@@ -414,7 +411,7 @@ protected:
 // When a test assertion such as EXPECT_EQ fails, Google-Test prints the argument values to help with debugging.
 // It does this using a user - extensible value printer.
 // This function will be used to print the test params in case of an error.
-inline void PrintTupleTo(const std::tuple<tests::test_params*, cldnn::primitive*>& t, ::std::ostream* os)
+inline void PrintTupleTo(const std::tuple<tests::test_params*, std::shared_ptr<cldnn::primitive>>& t, ::std::ostream* os)
 {
     std::stringstream str;
 
@@ -431,13 +428,13 @@ inline void PrintTupleTo(const std::tuple<tests::test_params*, cldnn::primitive*
 
     if (primitive->type == cldnn::concatenation::type_id())
     {
-        auto dc = static_cast<cldnn::concatenation*>(primitive);
+        auto dc = std::static_pointer_cast<cldnn::concatenation>(primitive);
         (void)dc;
     }
     else if(primitive->type == cldnn::lrn::type_id())
     {
-        auto lrn = static_cast<cldnn::lrn *>(primitive);
-        std::string norm_region = (lrn->norm_region == cldnn_lrn_norm_region_across_channel) ? "across channel" : "within channel";
+        auto lrn = std::static_pointer_cast<cldnn::lrn >(primitive);
+        std::string norm_region = (lrn->norm_region == cldnn::lrn_norm_region_across_channel) ? "across channel" : "within channel";
         str << "Norm region: " << norm_region
             << " Size: " << lrn->size
             << " Alpha: " << lrn->alpha
@@ -446,7 +443,7 @@ inline void PrintTupleTo(const std::tuple<tests::test_params*, cldnn::primitive*
     }
     else if(primitive->type == cldnn::roi_pooling::type_id())
     {
-        auto p = static_cast<cldnn::roi_pooling *>(primitive);
+        auto p = std::static_pointer_cast<cldnn::roi_pooling >(primitive);
         str << "Pooling mode: " << (p->mode == cldnn::pooling_mode::max ? "MAX" : "AVG")
             << " Pooled width: " << p->pooled_width
             << " Pooled height: " << p->pooled_height
@@ -457,41 +454,40 @@ inline void PrintTupleTo(const std::tuple<tests::test_params*, cldnn::primitive*
     }
     else if(primitive->type == cldnn::scale::type_id())
     {
-        auto s = static_cast<cldnn::scale *>(primitive);
+        auto s = std::static_pointer_cast<cldnn::scale >(primitive);
         (void)s;
     }
     else if(primitive->type == cldnn::softmax::type_id())
     {
-        auto sm = static_cast<cldnn::softmax *>(primitive);
+        auto sm = std::static_pointer_cast<cldnn::softmax >(primitive);
         (void)sm;
     }
     else if (primitive->type == cldnn::reorder::type_id())
     {
-        auto reorder = static_cast<cldnn::reorder*>(primitive);
+        auto reorder = std::static_pointer_cast<cldnn::reorder>(primitive);
         str << "Output data type: " << cldnn::data_type_traits::name(*reorder->output_data_type) << " Mean: " << reorder->mean << "Subtract per feature: " << "TODO" /*std::vector<float> subtract_per_feature*/;
     }
     else if (primitive->type == cldnn::normalize::type_id())
     {
-        auto normalize = static_cast<cldnn::normalize*>(primitive);
+        auto normalize = std::static_pointer_cast<cldnn::normalize>(primitive);
         std::string norm_region = normalize->across_spatial ? "across_spatial" : "within_spatial";
         str << "Norm region: " << norm_region << " Epsilon: " << normalize->epsilon << " Scale input id: " << normalize->scale_input;
     }
     else if (primitive->type == cldnn::convolution::type_id()) 
     {
-        auto convolution = static_cast<cldnn::convolution*>(primitive);
+        auto convolution = std::static_pointer_cast<cldnn::convolution>(primitive);
         str << "Stride x: " << convolution->stride.spatial[0] << " Stride y: " << convolution->stride.spatial[1]
             << " Dilation x: " << convolution->dilation.spatial[0] << " Dilation y: " << convolution->dilation.spatial[1]
-            << " Input offset x: " << convolution->input_offset.spatial[0] << " Input offset y: " << convolution->input_offset.spatial[1]
-            << " Activation: " << convolution->with_activation << " Activation slope: " << convolution->activation_negative_slope;
+            << " Input offset x: " << convolution->input_offset.spatial[0] << " Input offset y: " << convolution->input_offset.spatial[1];
     }
     else if (primitive->type == cldnn::activation::type_id())
     {
-        auto activation = static_cast<cldnn::activation*>(primitive);
+        auto activation = std::static_pointer_cast<cldnn::activation>(primitive);
         str << "Negative slope: " << activation->additional_params.a << " Negative slope input id: " << activation->additional_params_input;
     }
     else if (primitive->type == cldnn::pooling::type_id())
     {
-        auto pooling = static_cast<cldnn::pooling*>(primitive);
+        auto pooling = std::static_pointer_cast<cldnn::pooling>(primitive);
         std::string pooling_mode = (pooling->mode == cldnn::pooling_mode::max) ? "max" : "average";
         str << "Pooling mode: " << pooling_mode
             << " Input offset x: " << pooling->input_offset.spatial[0] << " Input offset y: " << pooling->input_offset.spatial[1]

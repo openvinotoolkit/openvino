@@ -11,13 +11,15 @@
 #define _XLINKPRIVATEDEFINES_H
 
 #ifdef _XLINK_ENABLE_PRIVATE_INCLUDE_
-
-#include <stdint.h>
-#if (defined(_WIN32) || defined(_WIN64))
-#include "win_semaphore.h"
-#else
-#include <semaphore.h>
-#endif
+# if (defined(_WIN32) || defined(_WIN64))
+#  include "win_semaphore.h"
+# else
+#  ifdef __APPLE__
+#   include "pthread_semaphore.h"
+#  else
+#   include <semaphore.h>
+# endif
+# endif
 #include <XLinkPublicDefines.h>
 
 #ifdef __cplusplus
@@ -25,51 +27,10 @@ extern "C"
 {
 #endif
 
-#ifdef USE_USB_VSC
 #define HEADER_SIZE (64-12 -8)
-#else
-#define HEADER_SIZE (64-12 -8)
-#endif
 
 #define MAXIMUM_SEMAPHORES 32
 #define __CACHE_LINE_SIZE 64
-
-#ifdef NDEBUG  // Release configuration
-    #ifndef __PC__
-        #define ASSERT_X_LINK(x)   if(!(x)) { exit(EXIT_FAILURE); }
-        #define ASSERT_X_LINK_R(x, r) ASSERT_X_LINK(x)
-    #else
-        #define ASSERT_X_LINK(x)   if(!(x)) { return X_LINK_ERROR; }
-        #define ASSERT_X_LINK_R(x, r)   if(!(x)) { return r; }
-    #endif
-#else   // Debug configuration
-    #ifndef __PC__
-        #define ASSERT_X_LINK(x)   if(!(x)) { fprintf(stderr, "%s:%d:\n Assertion Failed: %s\n", __FILE__, __LINE__, #x); exit(EXIT_FAILURE); }
-        #define ASSERT_X_LINK_R(x, r) ASSERT_X_LINK(x)
-    #else
-        #define ASSERT_X_LINK(x)   if(!(x)) { fprintf(stderr, "%s:%d:\n Assertion Failed: %s\n", __FILE__, __LINE__, #x); return X_LINK_ERROR; }
-        #define ASSERT_X_LINK_R(x, r)   if(!(x)) { fprintf(stderr, "%s:%d:\n Assertion Failed: %s\n", __FILE__, __LINE__, #x); return r; }
-    #endif
-#endif //  NDEBUG
-
-#ifndef CHECK_MUTEX_SUCCESS
-#define CHECK_MUTEX_SUCCESS(call)  {                                \
-    int error;                                                      \
-    if ((error = (call))) {                                         \
-      mvLog(MVLOG_ERROR, "%s failed with error: %d", #call, error); \
-    }                                                               \
-}
-#endif  // CHECK_MUTEX_SUCCESS
-
-#ifndef CHECK_MUTEX_SUCCESS_RC
-#define CHECK_MUTEX_SUCCESS_RC(call, rc)  {                         \
-    int error;                                                      \
-    if ((error = (call))) {                                         \
-      mvLog(MVLOG_ERROR, "%s failed with error: %d", #call, error); \
-      return rc;                                                    \
-    }                                                               \
-}
-#endif  // CHECK_MUTEX_SUCCESS_RC
 
 typedef int32_t eventId_t;
 
@@ -80,7 +41,7 @@ typedef enum {
     XLINK_NOT_INIT,
     XLINK_UP,
     XLINK_DOWN,
-} xLinkState_t;
+}xLinkState_t;
 
 /**
  * @brief Device description
@@ -114,7 +75,7 @@ typedef struct{
     uint32_t closeStreamInitiated;
 
     sem_t sem;
-} streamDesc_t;
+}streamDesc_t;
 
 /**
  * @brief XLink primitive for each device
@@ -126,13 +87,18 @@ typedef struct xLinkDesc_t {
     xLinkState_t peerState;
     xLinkDeviceHandle_t deviceHandle;
     linkId_t id;
+
+    //Deprecated fields. Begin.
+    int hostClosedFD;
+    //Deprecated fields. End.
+
 } xLinkDesc_t;
 
 
 //events which are coming from remote
 typedef enum
 {
-    /*USB-PCIE related events*/
+    /*USB-X_LINK_PCIE related events*/
     XLINK_WRITE_REQ,
     XLINK_READ_REQ,
     XLINK_READ_REL_REQ,
@@ -151,7 +117,7 @@ typedef enum
     XLINK_RESET_RESP,
     XLINK_RESP_LAST,
 
-    /*IPC related events*/
+    /*X_LINK_IPC related events*/
     IPC_WRITE_REQ,
     IPC_READ_REQ,
     IPC_CREATE_STREAM_REQ,
@@ -169,9 +135,15 @@ typedef enum
     EVENT_REMOTE,
 } xLinkEventOrigin_t;
 
-#define MAX_EVENTS 64
+#ifdef __PC__
 #define MAX_LINKS 32
+#else
+#define MAX_LINKS 1
+#endif
+
+#define MAX_EVENTS 64
 #define MAX_SCHEDULERS MAX_LINKS
+#define XLINK_MAX_DEVICES MAX_LINKS
 
 typedef struct xLinkEventHeader_t{
     eventId_t           id;
@@ -201,7 +173,6 @@ typedef struct xLinkEvent_t {
 }xLinkEvent_t;
 
 int XLinkWaitSem(sem_t* sem);
-
 int XLinkWaitSemUserMode(sem_t* sem, unsigned int timeout);
 
 const char* XLinkErrorToStr(XLinkError_t rc);

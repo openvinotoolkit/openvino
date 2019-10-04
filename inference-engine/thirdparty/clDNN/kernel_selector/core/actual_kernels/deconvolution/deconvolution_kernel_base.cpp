@@ -39,6 +39,29 @@ std::string deconvolution_params::to_string() const {
     return s.str();
 }
 
+bool DeconvolutionKernelBase::Validate(const Params& p, const optional_params& o) const {
+    if (p.GetType() != KernelType::DECONVOLUTION || o.GetType() != KernelType::DECONVOLUTION) {
+        return false;
+    }
+
+    const deconvolution_params& params = static_cast<const deconvolution_params&>(p);
+    const deconvolution_optional_params& optParams = static_cast<const deconvolution_optional_params&>(o);
+
+    bool bSupportedWeightsLayout = false;
+
+    for (WeightsLayout l : GetSupportedWeightLayouts(params)) {
+        bSupportedWeightsLayout |= params.weights.GetLayout() == l;
+    }
+
+    const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
+
+    if (!bWeightsOK) {
+        return false;
+    }
+
+    return true;
+}
+
 JitConstants DeconvolutionKernelBase::GetJitConstants(const deconvolution_params& dp) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(dp);
     const auto& padding = dp.padding;
@@ -86,21 +109,16 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernelBase::SetDefault(const 
 KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::DECONVOLUTION);
 
+    if (!Validate(params, options)) {
+        return{};
+    }
+
     const deconvolution_params& orgParams = static_cast<const deconvolution_params&>(params);
-
-    const std::vector<WeightsLayout> weightsLayouts = {
-        WeightsLayout::oiyx,
-        WeightsLayout::iyxo,
-        WeightsLayout::yxio,
-        WeightsLayout::oyxi,
-        WeightsLayout::oizyx,
-    };
-
     DispatchData runInfo = SetDefault(orgParams);
     KernelData kd = KernelData::Default<deconvolution_params>(params);
     deconvolution_params& newParams = *static_cast<deconvolution_params*>(kd.params.get());
 
-    bool succeed = UpdateWeightsParams(newParams, options, weightsLayouts, kd.weightsReorderParams);
+    bool succeed = UpdateWeightsParams(newParams, options, GetSupportedWeightLayouts(newParams), kd.weightsReorderParams);
 
     if (!succeed) {
         return {};

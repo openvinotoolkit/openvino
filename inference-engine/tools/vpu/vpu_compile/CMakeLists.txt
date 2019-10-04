@@ -43,7 +43,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     gflags
 )
 
-add_dependencies(${TARGET_NAME} myriadPlugin vpu_copy_firmware)
+add_dependencies(${TARGET_NAME} myriadPlugin)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
     COMPILE_PDB_NAME

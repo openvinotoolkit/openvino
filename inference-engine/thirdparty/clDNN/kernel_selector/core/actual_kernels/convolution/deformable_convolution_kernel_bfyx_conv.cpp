@@ -69,7 +69,7 @@ DeformableConvolutionKernel_bfyx_conv::DispatchData DeformableConvolutionKernel_
 }
 
 JitConstants DeformableConvolutionKernel_bfyx_conv::GetJitConstants(const convolution_params& params,
-                                                                    const DispatchData& kd) const {
+                                                                    const DispatchData& /*kd*/) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", 16));
     jit.AddConstant(MakeJitConstant("INPUT_CHANNELS", params.inputs[0].Feature().v / params.weights.X().v / params.weights.Y().v));

@@ -68,23 +68,19 @@ struct contract_gpu : typed_primitive_gpu_impl<contract> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = contract_gpu::create;
+namespace detail {
 
-        implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-        implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
-        implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
-        implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
-        implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfyx), val_fw);
-    }
-    ~attach() = default;
-};
+attach_contract_gpu::attach_contract_gpu() {
+    auto val_fw = contract_gpu::create;
 
-attach attach_impl;
+    implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+    implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
+    implementation_map<contract>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfyx), val_fw);
+}
 
-}  // namespace
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

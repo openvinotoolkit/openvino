@@ -26,10 +26,12 @@ ParamsKey PoolingKernelGPURef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfzyx_f16);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::byxf);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfzyx_f16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();

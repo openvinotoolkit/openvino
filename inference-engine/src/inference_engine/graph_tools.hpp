@@ -702,9 +702,6 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork &input, const Copier &cp) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
     // setting base args
-    IE_SUPPRESS_DEPRECATED_START
-    net->setTargetDevice(input.getTargetDevice());
-    IE_SUPPRESS_DEPRECATED_END
     net->setPrecision(input.getPrecision());
 
     char name[1024];

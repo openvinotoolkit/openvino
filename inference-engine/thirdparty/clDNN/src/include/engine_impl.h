@@ -16,8 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/memory.hpp"
-#include "api_impl.h"
+#include "api/memory.hpp"
 #include "event_impl.h"
 #include "refcounted_obj.h"
 #include "implementation_map.h"
@@ -53,14 +52,14 @@ public:
     explicit engine_impl(const engine_configuration& conf);
     ~engine_impl();
     engine_types type() const { return engine_types::ocl; }
-    refcounted_obj_ptr<memory_impl> allocate_memory(layout layout, uint16_t stream_id);
-    refcounted_obj_ptr<memory_impl> allocate_memory(layout layout,
+    refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout, uint16_t stream_id);
+    refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout,
                                                     primitive_id,
                                                     uint32_t,
                                                     std::set<primitive_id>,
                                                     uint16_t stream_id,
                                                     bool reusable = true);
-    refcounted_obj_ptr<memory_impl> reinterpret_buffer(const memory_impl& memory, layout new_layout);
+    refcounted_obj_ptr<memory_impl> reinterpret_buffer(const memory_impl& memory, const layout& new_layout);
     bool is_the_same_buffer(const memory_impl& mem1, const memory_impl& mem2);
 
     refcounted_obj_ptr<event_impl> create_user_event(uint16_t stream_id, bool set = false);
@@ -134,5 +133,3 @@ private:
     memory_pool _memory_pool;
 };
 }  // namespace cldnn
-
-API_CAST(::cldnn_engine, cldnn::engine_impl)

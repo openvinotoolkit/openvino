@@ -17,7 +17,9 @@
 KERNEL(binary_convolution_ref)(const __global INPUT0_TYPE* input,
                                      __global OUTPUT_TYPE* output,
                                const __global FILTER_TYPE* weights,
-                               FUSED_OPS_DECLS
+#if HAS_FUSED_OPS_DECLS
+                               FUSED_OPS_DECLS,
+#endif
                                uint split_idx)
 {
     const int b  = get_global_id(0);
@@ -110,7 +112,10 @@ KERNEL(binary_convolution_ref)(const __global INPUT0_TYPE* input,
     UNIT_TYPE res = TO_OUTPUT_TYPE(INPUT0_FEATURE_NUM*FILTER_SIZE_X*FILTER_SIZE_Y - 2*res_popcnt);
 #endif
 
-    DO_ELTWISE_FUSED_OPS;
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    res = FINAL_NAME;
+#endif
 
     output[output_index] = res;
 }

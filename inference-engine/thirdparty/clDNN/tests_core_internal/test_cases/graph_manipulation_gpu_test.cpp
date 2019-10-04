@@ -19,7 +19,6 @@
 #include <gtest/gtest.h>
 
 #include "program_impl.h"
-#include "api_impl.h"
 #include "topology_impl.h"
 #include "engine_impl.h"
 #include "memory_impl.h"
@@ -62,9 +61,9 @@ TEST(basic, test1) {
     topology.add(concatenation("concat", { "reorder1", "weights2" }, concatenation::along_x));
     topology.add(convolution("conv2", { "reorder2" }, { "concat" }));
 
-    program_impl::ptr prog = api_cast(engine.get())->build_program(*api_cast(topology.get()), build_opt, false);
-    cldnn::refcounted_obj_ptr<cldnn::network_impl> net = api_cast(engine.get())->allocate_network(*prog, 0);
-    network network = (cldnn::network) api_cast(net.get());
+    program_impl::ptr prog = engine.get()->build_program(*topology.get(), build_opt, false);
+    cldnn::refcounted_obj_ptr<cldnn::network_impl> net = engine.get()->allocate_network(*prog, 0);
+    network network = (cldnn::network) net.get();
 
     network.set_input_data("input", input);
 
@@ -109,14 +108,14 @@ TEST(add_intermediate_gpu, test1)
     topology.add(cldnn::convolution("conv1b", { "input" }, { "weights" }));
     topology.add(cldnn::convolution("conv2a", { "conv1a" }, { "weights2" }));
     auto new_reorder = std::make_shared<reorder>("reorder","nothing", input.get_layout());
-    program_impl::ptr prog = api_cast(engine.get())->build_program(*api_cast(topology.get()), build_opt, false, true);
+    program_impl::ptr prog = engine.get()->build_program(*topology.get(), build_opt, false, true);
     prog->add_intermediate(new_reorder, prog->get_node("conv1a"), 0);
     prog->dump_program("custom_dump", true);
 
     program_impl_wrapper::run_graph_compilation(*prog);
 
-    cldnn::refcounted_obj_ptr<cldnn::network_impl> net = api_cast(engine.get())->allocate_network(*prog, 0);
-    network network = (cldnn::network) api_cast(net.get());
+    cldnn::refcounted_obj_ptr<cldnn::network_impl> net = engine.get()->allocate_network(*prog, 0);
+    network network = (cldnn::network) net.get();
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -170,7 +169,7 @@ TEST(add_intermediate_gpu, test2)
     w_vec.push_back("weights");
     auto new_conv = std::make_shared<convolution>("conv1a", "input", w_vec);
     auto weights_node = std::make_shared<data>("weights", weights);
-    program_impl::ptr prog = api_cast(engine.get())->build_program(*api_cast(topology.get()), build_opt, false, true);
+    program_impl::ptr prog = engine.get()->build_program(*topology.get(), build_opt, false, true);
 
     prog->add_intermediate(new_conv, prog->get_node("conv2a"), 0, true, true);
     program_impl_wrapper::add_connection(*prog, prog->get_or_create(weights_node), prog->get_or_create(new_conv));
@@ -178,8 +177,8 @@ TEST(add_intermediate_gpu, test2)
 
     program_impl_wrapper::run_graph_compilation(*prog);
 
-    cldnn::refcounted_obj_ptr<cldnn::network_impl> net = api_cast(engine.get())->allocate_network(*prog, 0);
-    network network = (cldnn::network) api_cast(net.get());
+    cldnn::refcounted_obj_ptr<cldnn::network_impl> net = engine.get()->allocate_network(*prog, 0);
+    network network = (cldnn::network) net.get();
     network.set_input_data("input", input);
     auto outputs = network.execute();
 

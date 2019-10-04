@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,12 +22,77 @@
 #include "gpu/ocl_toolkit.h"
 #include "gpu/memory_gpu.h"
 #include "gpu/ocl_user_event.h"
+#include "gpu/register_gpu.hpp"
 #include <string>
 #include <vector>
 #include <memory>
 #include <set>
+#include <stdexcept>
 
 namespace cldnn {
+
+engine::engine(engine_types type, uint32_t engine_num, const engine_configuration& configuration)
+    : _impl(new engine_impl(configuration)) {
+    if (type != engine_types::ocl)
+        throw std::invalid_argument("Invalid engine type, should be ocl.");
+
+    if (engine_num > 0)
+        throw std::invalid_argument("Invalid engine index, should be 0.");
+}
+
+uint32_t engine::engine_count(engine_types type) {
+    if (type == engine_types::ocl) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+void engine::release_pending_memory(uint16_t stream_id) const {
+    _impl->release_pending_memory(stream_id);
+}
+
+engine_info engine::get_info() const {
+    auto info = _impl->get_engine_info();
+
+    return { info.cores_count,
+             info.core_frequency,
+             info.max_work_group_size,
+             info.max_local_mem_size,
+             info.max_global_mem_size,
+             info.max_alloc_mem_size,
+             info.max_image2d_width,
+             info.max_image2d_height,
+             info.supports_fp16,
+             info.supports_fp16_denorms,
+             info.supports_subgroups_short,
+             info.supports_image,
+             info.supports_imad,
+             info.supports_immad,
+             info.dev_name,
+             info.driver_version
+    };
+}
+
+uint64_t engine::get_max_used_device_memory_size() const {
+    return _impl->get_max_used_device_memory();
+}
+
+uint64_t engine::get_temp_used_device_memory_size() const {
+    return _impl->get_used_device_memory();
+}
+
+engine_types engine::get_type() const {
+    return _impl->type();
+}
+
+void engine::retain() {
+    _impl->add_ref();
+}
+void engine::release() {
+    _impl->release();
+}
+
 using gpu_toolkit_config = gpu::configuration;
 
 gpu_toolkit_config convert_configuration(const engine_configuration conf) {
@@ -40,8 +105,8 @@ gpu_toolkit_config convert_configuration(const engine_configuration conf) {
     result.host_out_of_order = true;  // TODO: enable when barriers in driver will be fixed
     result.log = conf.engine_log;
     result.ocl_sources_dumps_dir = conf.sources_dumps_dir;
-    result.priority_mode = static_cast<cldnn_priority_mode_type>(conf.priority_mode);
-    result.throttle_mode = static_cast<cldnn_throttle_mode_type>(conf.throttle_mode);
+    result.priority_mode = conf.priority_mode;
+    result.throttle_mode = conf.throttle_mode;
     result.queues_num = conf.n_streams;
     result.user_context = static_cast<cl::Context*>(conf.context);
     result.tuning_cache_path = conf.tuning_cache_path;
@@ -49,7 +114,9 @@ gpu_toolkit_config convert_configuration(const engine_configuration conf) {
 }
 
 engine_impl::engine_impl(const engine_configuration& conf)
-    : _configuration(conf), _context(gpu_toolkit::create(convert_configuration(conf))), _memory_pool(*this) {}
+    : _configuration(conf), _context(gpu_toolkit::create(convert_configuration(conf))), _memory_pool(*this) {
+    gpu::register_implementations_gpu();
+}
 
 engine_impl::~engine_impl() {
     /*
@@ -59,7 +126,7 @@ engine_impl::~engine_impl() {
     for (uint16_t s = 0; s < _configuration.n_streams; s++) _context->release_events_pool(s);
 }
 
-memory_impl::ptr engine_impl::allocate_memory(layout layout, uint16_t stream_id) {
+memory_impl::ptr engine_impl::allocate_memory(const layout& layout, uint16_t stream_id) {
     if (stream_id >= this->configuration().n_streams)
         throw std::invalid_argument("Unable to allocate memory object with stream_id=" + std::to_string(stream_id) +
                                     " (available streams num is " + std::to_string(this->configuration().n_streams));
@@ -67,7 +134,7 @@ memory_impl::ptr engine_impl::allocate_memory(layout layout, uint16_t stream_id)
     return _memory_pool.get_memory(layout, stream_id);
 }
 
-memory_impl::ptr engine_impl::allocate_memory(layout layout,
+memory_impl::ptr engine_impl::allocate_memory(const layout& layout,
                                               primitive_id id,
                                               uint32_t network_id,
                                               std::set<primitive_id> dependencies,
@@ -78,15 +145,15 @@ memory_impl::ptr engine_impl::allocate_memory(layout layout,
     return _memory_pool.get_memory(layout, stream_id);
 }
 
-memory_impl::ptr engine_impl::reinterpret_buffer(const memory_impl& memory, layout new_layout) {
+memory_impl::ptr engine_impl::reinterpret_buffer(const memory_impl& memory, const layout& new_layout) {
     if (memory.get_engine() != (const refcounted_obj_ptr<engine_impl>) this)
-        throw error("trying to reinterpret buffer allocated by a different engine", CLDNN_ERROR);
+        throw std::runtime_error("trying to reinterpret buffer allocated by a different engine");
 
     if (new_layout.format.is_image() && !memory.get_layout().format.is_image())
-        throw error("trying to reinterpret non-image buffer as image", CLDNN_ERROR);
+        throw std::runtime_error("trying to reinterpret non-image buffer as image");
 
     if (!new_layout.format.is_image() && memory.get_layout().format.is_image())
-        throw error("trying to reinterpret image buffer as non-image buffer", CLDNN_ERROR);
+        throw std::runtime_error("trying to reinterpret image buffer as non-image buffer");
 
     try {
         if (new_layout.format.is_image_2d()) {

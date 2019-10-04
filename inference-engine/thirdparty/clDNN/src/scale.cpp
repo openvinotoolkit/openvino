@@ -21,7 +21,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id scale_type_id() {
+primitive_type_id scale::type_id() {
     static primitive_type_base<scale> instance;
     return &instance;
 }

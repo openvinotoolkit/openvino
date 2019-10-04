@@ -123,19 +123,15 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<roi_pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                             roi_pooling_gpu::create);
-        implementation_map<roi_pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                             roi_pooling_gpu::create);
-    }
+namespace detail {
 
-    ~attach() {}
-};
+attach_roi_pooling_gpu::attach_roi_pooling_gpu() {
+    implementation_map<roi_pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                         roi_pooling_gpu::create);
+    implementation_map<roi_pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                         roi_pooling_gpu::create);
+}
 
-attach attach_impl;
-}  // namespace
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id convolution_grad_weights_type_id() {
+primitive_type_id convolution_grad_weights::type_id() {
     static primitive_type_base<convolution_grad_weights> instance;
     return &instance;
 }
@@ -156,7 +156,7 @@ convolution_grad_weights_inst::typed_primitive_inst(network_impl& network, convo
                                   "Bias feature[0]",
                                   bias_inst.size.feature[0],
                                   "dimension size",
-                                  1,
+                                  input_grad_inst.size.feature[0] / split,
                                   "Feature[0] of bias should be 1. Bias isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[1]",
@@ -169,7 +169,7 @@ convolution_grad_weights_inst::typed_primitive_inst(network_impl& network, convo
                                   "Bias spatial[0]",
                                   bias_inst.size.spatial[0],
                                   "input_grad feature size / split",
-                                  input_grad_inst.size.feature[0] / split,
+                                  1,
                                   "Biases/output feature maps number does not match.");
         }
         CLDNN_ERROR_NOT_EQUAL(node.id(),

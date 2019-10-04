@@ -4,7 +4,6 @@
 
 ///
 /// @file
-///
 /// @brief     Application configuration Leon header
 ///
 

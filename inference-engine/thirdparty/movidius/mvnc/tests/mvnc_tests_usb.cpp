@@ -14,8 +14,9 @@ public:
 protected:
     ~MvncOpenUSBDevice() override = default;
     void SetUp() override {
+        ncDeviceResetAll();
         MvncTestsCommon::SetUp();
-        available_devices = getAmountOfNotBootedDevices();
+        available_devices = getAmountOfNotBootedDevices(NC_USB);
         ASSERT_TRUE(available_devices > 0);
     }
 };
@@ -201,8 +202,6 @@ protected:
         available_myriadX = getAmountOfMyriadXDevices();
         available_myriad2 = getAmountOfMyriad2Devices();
 
-        ASSERT_TRUE(available_myriadX > 0);
-        ASSERT_TRUE(available_myriad2 > 0);
         devicePlatform = GetParam();
     }
 };
@@ -211,6 +210,9 @@ protected:
 * @brief Open specified device and close it
 */
 TEST_P(MvncDevicePlatform, OpenAndClose) {
+    if (available_myriad2 == 0 || available_myriadX == 0)
+        GTEST_SKIP();
+
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_USB;
@@ -222,7 +224,7 @@ TEST_P(MvncDevicePlatform, OpenAndClose) {
     unsigned int size = MAX_DEV_NAME;
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle, NC_RO_DEVICE_NAME, deviceName, &size));
 
-    EXPECT_TRUE(isSamePlatformDevice(deviceName, devicePlatform));
+    EXPECT_TRUE(isSamePlatformUSBDevice(deviceName, devicePlatform));
 
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
 

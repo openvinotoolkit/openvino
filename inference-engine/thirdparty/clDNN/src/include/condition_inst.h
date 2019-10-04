@@ -15,7 +15,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <api/CPP/condition.hpp>
+#include <api/condition.hpp>
 
 #include "network_impl.h"
 #include "primitive_inst.h"
@@ -49,7 +49,7 @@ private:
         void add_or_change_input_layout(const program_node& node) {
             auto layout = node.get_dependency(0).get_output_layout();
             auto input_id = node.as<condition>().result_id();
-            if (_program == (program_impl::ptr) nullptr) {  // if first run, create input_layout
+            if (_topology.get_primitives().count(input_id) == 0) {
                 _topology.add(std::make_shared<input_layout>(input_id, layout));
                 for (auto& prim : _topology.get_primitives()) {
                     for (auto& inp : prim.second->input) {
@@ -68,8 +68,8 @@ public:
 
     typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
         : parent(prim, prog),
-          _branch_true(*api_cast(this->get_primitive()->topology_true.get())),
-          _branch_false(*api_cast(this->get_primitive()->topology_false.get())) {}
+          _branch_true(*this->get_primitive()->topology_true.get()),
+          _branch_false(*this->get_primitive()->topology_false.get()) {}
 
     program_node& input() const { return get_dependency(0); }
     program_node& compare() const { return get_dependency(1); }

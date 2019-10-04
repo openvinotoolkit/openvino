@@ -31,6 +31,8 @@ ParamsKey MVNKernelRef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfzyx_f16);
+    k.EnableOutputLayout(DataLayout::bfzyx_f16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();

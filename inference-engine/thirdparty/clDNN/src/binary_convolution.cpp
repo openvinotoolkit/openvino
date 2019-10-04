@@ -16,6 +16,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "binary_convolution_inst.h"
+#include "convolution_inst.h"
+#include "reorder_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
 #include "error_handler.h"
@@ -23,7 +25,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id binary_convolution_type_id() {
+primitive_type_id binary_convolution::type_id() {
     static primitive_type_base<binary_convolution> instance;
     return &instance;
 }
@@ -31,8 +33,27 @@ primitive_type_id binary_convolution_type_id() {
 layout binary_convolution_inst::calc_output_layout(binary_convolution_node const& node) {
     auto desc = node.get_primitive();
 
-    auto odt = *node.get_primitive()->output_data_type;
-    return {odt, format::bfyx, desc->output_size};
+    auto output_type = *node.get_primitive()->output_data_type;
+    auto output_size = desc->output_size;
+    auto layout = cldnn::layout{output_type, format::bfyx, output_size};
+    if (node.has_fused_primitives()) {
+        layout = node.get_fused_output_layout();
+    }
+
+    auto users = node.get_users();
+    if (users.size() == 1 && users.front()->is_type<convolution>()) {
+        auto conv_split = users.front()->as<convolution>().get_split();
+        auto conv_groups = (int32_t)users.front()->as<convolution>().get_groups();
+
+        bool next_is_dw = ((conv_split > 1 && conv_split == output_size.feature[0]) ||
+                           (conv_groups > 1 && conv_groups == output_size.feature[0]));
+
+        if ((layout.data_type == data_types::f16 || layout.data_type == data_types::f32) && next_is_dw) {
+            layout.format = cldnn::format::bfyx_f16;
+        }
+    }
+
+    return layout;
 }
 
 std::string binary_convolution_inst::to_string(binary_convolution_node const& node) {

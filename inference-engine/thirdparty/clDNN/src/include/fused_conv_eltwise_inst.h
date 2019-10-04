@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api_extension/CPP/fused_conv_eltwise.hpp"
+#include "api_extension/fused_conv_eltwise.hpp"
 #include "primitive_inst.h"
 
 #include <memory>
@@ -39,9 +39,9 @@ public:
         if (get_primitive()->eltw.with_activation) {
             auto slope = get_primitive()->eltw.activation_negative_slope;
             if (slope == 0.f) {
-                this->set_fused_activation(activation_relu, {});
+                this->add_fused_activation(activation_func::relu, {});
             } else {
-                this->set_fused_activation(activation_relu_negative_slope, { slope, 0.f });
+                this->add_fused_activation(activation_func::relu_negative_slope, { slope, 0.f });
             }
         }
     }

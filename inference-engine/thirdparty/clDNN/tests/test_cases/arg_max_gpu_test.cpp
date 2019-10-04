@@ -16,22 +16,18 @@
 */
 
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/arg_max_min.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
-#include <api/CPP/mutable_data.hpp>
-#include <api/CPP/data.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/arg_max_min.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include <api/mutable_data.hpp>
+#include <api/data.hpp>
 #include "test_utils/test_utils.h"
 
 using namespace cldnn;
-using namespace std;
 using namespace tests;
-
-
-
 
 template <typename Tin, typename Tout>
 void generic_arg_max_test_xyf(int input_b, int input_f, int input_y, int input_x, arg_max_min::out_type mode, bool expect_throw = false)
@@ -98,7 +94,7 @@ TEST(arg_max_gpu_batch_one, base) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
         //y0x0 y0x1 y1x0 y1x1
         /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
         /*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
@@ -176,7 +172,7 @@ TEST(arg_max_gpu_top_k, base) {
 	topology.add(input_layout("input", input.get_layout()));
 	topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k));
 
-	vector<float> input_vec = {
+	std::vector<float> input_vec = {
 		//y0x0 y0x1 y1x0 y1x1
 		/*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
 		/*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
@@ -260,7 +256,7 @@ TEST(arg_max_gpu_min_top_k, base) {
 	topology.add(input_layout("input", input.get_layout()));
 	topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k));
 
-	vector<float> input_vec = {
+	std::vector<float> input_vec = {
 		        //f0b0 f0b1 f1b0 f1b1
 		/*x0y0*/0.1f, -0.1f, 0.9f,  1.5f,
 		/*x0y1*/0.2f, 0.2f,  -10.f, 5.2f,
@@ -342,7 +338,7 @@ TEST(arg_max_gpu_min_axis_batch, base) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
         //y0x0 y0x1 y1x0 y1x1
         /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
         /*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
@@ -431,7 +427,7 @@ TEST(arg_max_gpu_min_axis_batch, i32) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, padding(), data_types::i32));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
         //y0x0 y0x1 y1x0 y1x1
         /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
         /*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
@@ -476,7 +472,7 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::min, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, padding(), data_types::i32));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1
             /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
             /*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
@@ -520,7 +516,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, padding(), data_types::f32));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
             0.1f, -0.1f,
             0.9f,  1.5f,
             0.2f, 0.2f,
@@ -530,7 +526,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
             -10.f, 5.2f,
             0.2f, 0.2f,
             -10.f, 4.2f,
-
 
             3.f,  0.5f,
             7.f,   10.f,
@@ -543,7 +538,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
             8.f,   8.2f
     };
 
-    vector<float> ref_vec = {
+    std::vector<float> ref_vec = {
             1.f, 1.f,
             1.f, 1.f,
             1.f, 1.f,
@@ -587,7 +582,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, padding(), data_types::f32));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
             0.1f, -0.1f,
             0.9f,  1.5f,
             0.2f, 0.2f,
@@ -597,7 +592,6 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
             -10.f, 5.2f,
             0.2f, 0.2f,
             -10.f, 4.2f,
-
 
             3.f,  0.5f,
             7.f,   10.f,
@@ -610,7 +604,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
             8.f,   8.2f
     };
 
-    vector<float> ref_vec = {
+    std::vector<float> ref_vec = {
             0.f, 1.f,
             0.f, 1.f,
             0.f, 1.f,
@@ -654,7 +648,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, padding(), data_types::f32));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
             0.1f, -0.1f,
             0.9f,  1.5f,
             0.2f, 0.2f,
@@ -664,7 +658,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
             -10.f, 5.2f,
             0.2f, 0.2f,
             -10.f, 4.2f,
-
 
             3.f,  0.5f,
             7.f,   10.f,
@@ -677,7 +670,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
             8.f,   8.2f
     };
 
-    vector<float> ref_vec = {
+    std::vector<float> ref_vec = {
             1.f, 1.f,
             1.f, 1.f,
             1.f, 1.f,
@@ -687,7 +680,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
             0.f, 0.f,
             1.f, 1.f,
             1.f, 1.f,
-
 
             0.f, 0.f,
             0.f, 0.f,
@@ -736,7 +728,7 @@ TEST(top_k_layer_tests, second_output) {
     topology.add(mutable_data("second_output", second_output));
     topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, arg_max_min::min, top_k, arg_max_min::batch));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1
             /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
             /*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
@@ -788,7 +780,7 @@ TEST(top_k_layer_tests, second_output2) {
     topology.add(mutable_data("second_output", second_output));
     topology.add(arg_max_min("arg_max", { "input", "const", "second_output" }, arg_max_min::max, top_k, arg_max_min::batch, arg_max_min::sort_by_values, false, padding(), data_types::f32));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
             0.1f, -0.1f,
             0.9f,  1.5f,
             0.2f, 0.2f,
@@ -798,7 +790,6 @@ TEST(top_k_layer_tests, second_output2) {
             -10.f, 5.2f,
             0.2f, 0.2f,
             -10.f, 4.2f,
-
 
             3.f,  0.5f,
             7.f,   10.f,
@@ -811,7 +802,7 @@ TEST(top_k_layer_tests, second_output2) {
             8.f,   8.2f
     };
 
-    vector<float> ref_vec = {
+    std::vector<float> ref_vec = {
             0.f, 1.f,
             0.f, 1.f,
             0.f, 1.f,
@@ -823,7 +814,7 @@ TEST(top_k_layer_tests, second_output2) {
             0.f, 1.f
     };
 
-    vector<float> second_ref_vec = {
+    std::vector<float> second_ref_vec = {
             0.1f,
             1.5f,
             0.2f,
@@ -833,7 +824,6 @@ TEST(top_k_layer_tests, second_output2) {
             5.2f,
             0.2f,
             4.2f,
-
 
             3.f,
             10.f,
@@ -882,7 +872,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_values, false, padding(), data_types::f32));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
             0.1f, -0.1f,
             0.9f,  1.5f,
             0.2f, 0.2f,
@@ -892,7 +882,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
             -10.f, 5.2f,
             0.2f, 0.2f,
             -10.f, 4.2f,
-
 
             3.f,  0.5f,
             7.f,   10.f,
@@ -905,7 +894,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
             8.f,   8.2f
     };
 
-    vector<float> ref_vec = {
+    std::vector<float> ref_vec = {
             1.f, 1.f,
             1.f, 1.f,
             1.f, 1.f,
@@ -915,7 +904,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
             0.f, 0.f,
             1.f, 1.f,
             1.f, 1.f,
-
 
             0.f, 0.f,
             0.f, 0.f,
@@ -951,7 +939,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
     }
 }
 
-
 TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     const auto& engine = get_test_engine();
@@ -961,7 +948,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(arg_max_min("arg_max", { "input" }, arg_max_min::max, top_k, arg_max_min::y, arg_max_min::sort_by_indices, false, padding(), data_types::f32));
 
-    vector<float> input_vec = {
+    std::vector<float> input_vec = {
             0.1f, -0.1f,
             0.9f,  1.5f,
             0.2f, 0.2f,
@@ -971,7 +958,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
             -10.f, 5.2f,
             0.2f, 0.2f,
             -10.f, 4.2f,
-
 
             3.f,  0.5f,
             7.f,   10.f,
@@ -984,7 +970,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
             8.f,   8.2f
     };
 
-    vector<float> ref_vec = {
+    std::vector<float> ref_vec = {
             0.f, 0.f,
             0.f, 0.f,
             0.f, 0.f,
@@ -994,7 +980,6 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
             0.f, 0.f,
             0.f, 0.f,
             0.f, 0.f,
-
 
             1.f, 1.f,
             1.f, 1.f,

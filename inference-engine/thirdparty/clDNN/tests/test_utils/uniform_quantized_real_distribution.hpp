@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #pragma once
 
 #include <algorithm>
@@ -30,7 +29,6 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
-
 
 namespace cldnn { namespace tests { namespace distributions {
 
@@ -115,7 +113,6 @@ private:
             std::numeric_limits<DataType>::has_signaling_NaN) +
         static_cast<std::size_t>(std::numeric_limits<DataType>::has_denorm != std::float_denorm_style::denorm_absent);
 
-
 public:
     /// @brief Estimated size of representation in bits.
     static constexpr std::size_t value = round_up_to_multiply(
@@ -133,7 +130,6 @@ struct estimate_repr_size_helper2_<DataType, false, true>
         std::numeric_limits<DataType>::digits, CHAR_BIT);
 };
 
-
 template <typename DataType,
           bool IsArithmetic = std::is_arithmetic<DataType>::value>
 struct estimate_repr_size_helper1_
@@ -147,7 +143,6 @@ struct estimate_repr_size_helper1_
 template <typename DataType>
 struct estimate_repr_size_helper1_<DataType, true>
     : estimate_repr_size_helper2_<DataType> {};
-
 
 /// @brief Estimates size in bits (rounded to byte) of representation of specified DataType.
 ///
@@ -220,7 +215,6 @@ public:
         _stream_ios.fill(_old_fill);
     }
 
-
     // ----------------------------------------------------------------------------------------------------------------
     // Data members.
     // ----------------------------------------------------------------------------------------------------------------
@@ -231,7 +225,6 @@ private:
     precision_type    _old_precision;
     char_type         _old_fill;
 };
-
 
 /// @brief Creates guard that saves / restores upon destruction format state of stream.
 ///
@@ -335,7 +328,6 @@ private:
         /// @brief Number of parts needed to store representation of data_type.
         static constexpr auto data_repr_parts_count = data_type_mask::data_repr_parts_count;
 
-
         // ------------------------------------------------------------------------------------------------------------
         // data_parts: Constructors, special functions, destructors.
         // ------------------------------------------------------------------------------------------------------------
@@ -345,7 +337,6 @@ private:
         // ReSharper disable once CppNonExplicitConvertingConstructor
         constexpr data_parts(data_parts_zero_mark)
             : parts{} {}
-
 
         // ------------------------------------------------------------------------------------------------------------
         // data_parts: Properties, Accessors.
@@ -377,7 +368,6 @@ private:
             (little_endian ? parts[data_repr_parts_count - 1U - index] : parts[index]) = val;
         }
 
-
         /// @brief Gets part by index (ordered from low-to-high mask bits).
         ///
         /// @param index Index of the part (@c 0-based). Must be lower than data_repr_parts_count.
@@ -404,7 +394,6 @@ private:
         {
             (little_endian ? parts[index] : parts[data_repr_parts_count - 1U - index]) = val;
         }
-
 
         // ------------------------------------------------------------------------------------------------------------
         // data_parts: Functions.
@@ -441,7 +430,6 @@ private:
 
             return *this;
         }
-
 
         // ------------------------------------------------------------------------------------------------------------
         // data_parts: Operators.
@@ -559,7 +547,6 @@ private:
             return *this;
         }
 
-
         // ------------------------------------------------------------------------------------------------------------
         // data_parts: EqualityComparable implementation.
         // ------------------------------------------------------------------------------------------------------------
@@ -587,14 +574,12 @@ private:
             return !(lhs == rhs);
         }
 
-
         // ------------------------------------------------------------------------------------------------------------
         // data_parts: Data members.
         // ------------------------------------------------------------------------------------------------------------
         /// @brief Parts of a mask.
         part_type parts[data_repr_parts_count];
     };
-
 
 public:
     /// @brief Marker type that allows to select correct candidate constructor (that creates mask by position
@@ -603,7 +588,6 @@ public:
     /// @brief Marker used to select correct overload constructor that specifies position (instead of possible
     ///        integral value of data type).
     static constexpr create_by_pos_mark create_by_pos{}; // "{}": WA for clang 3.6-3.9
-
 
 private:
     // ----------------------------------------------------------------------------------------------------------------
@@ -801,7 +785,6 @@ public:
         return *this;
     }
 
-
     /// @brief Serialize to stream.
     ///
     /// @tparam CharType   Stream character type.
@@ -921,7 +904,6 @@ public:
         return is;
     }
 
-
     // ----------------------------------------------------------------------------------------------------------------
     // EqualityComparable implementation.
     // ----------------------------------------------------------------------------------------------------------------
@@ -944,7 +926,6 @@ public:
         return !(lhs == rhs);
     }
 
-
     // ----------------------------------------------------------------------------------------------------------------
     // Data members.
     // ----------------------------------------------------------------------------------------------------------------
@@ -956,10 +937,8 @@ private:
     #pragma warning(pop)
 #endif
 
-
 } // namespace detail
 /// @endcond
-
 
 /// @brief Uniform real distribution that generates values in range <tt>[a; b]</tt>.
 ///
@@ -1021,7 +1000,6 @@ public:
     static constexpr unsigned significand_max_bits = ((std::numeric_limits<result_type>::digits - 1) > 0) ?
                                                        std::numeric_limits<result_type>::digits - 1 : 0;
 
-
     /// @brief Type of parameters used by distribution.
     ///
     /// @details The type meets @a CopyConstructible, @a CopyAssignable, @a MoveConstructable, @a MoveAssignable,
@@ -1033,7 +1011,6 @@ public:
         // ------------------------------------------------------------------------------------------------------------
         /// @brief Type of distribution for which current parameters are used.
         using distribution_type = uniform_quantized_real_distribution;
-
 
         // ------------------------------------------------------------------------------------------------------------
         // param_type: Constructors, special functions, destructors.
@@ -1089,7 +1066,6 @@ public:
             : param_type(result_zero, result_one, significand_rand_bits)
         {}
 
-
         // ------------------------------------------------------------------------------------------------------------
         // param_type: Properties, Accessors.
         // ------------------------------------------------------------------------------------------------------------
@@ -1140,7 +1116,6 @@ public:
             return !(lhs == rhs);
         }
 
-
         // ------------------------------------------------------------------------------------------------------------
         // param_type: Data members.
         // ------------------------------------------------------------------------------------------------------------
@@ -1169,7 +1144,6 @@ private:
         /// @brief Type of parameter set swapped and restored by current guard.
         using param_type        = typename distribution_type::param_type;
 
-
         // ------------------------------------------------------------------------------------------------------------
         // param_swap_guard: Constructors, special functions, destructors.
         // ------------------------------------------------------------------------------------------------------------
@@ -1197,7 +1171,6 @@ private:
             _distibution.param(_old_param);
         }
 
-
         // ------------------------------------------------------------------------------------------------------------
         // param_swap_guard: Data members.
         // ------------------------------------------------------------------------------------------------------------
@@ -1222,7 +1195,6 @@ private:
     {
         return param_swap_guard<Distribution>(distribution, new_param);
     }
-
 
     // ----------------------------------------------------------------------------------------------------------------
     // Helper functions.
@@ -1252,7 +1224,6 @@ private:
 
         return underlying_dist_type(result_one, upper_bound).param();
     }
-
 
     // ----------------------------------------------------------------------------------------------------------------
     // Constructors, special functions, destructors.
@@ -1320,7 +1291,6 @@ public:
           _base_distribution(create_underlying_dist_param(_mask))
     {}
 
-
     // ----------------------------------------------------------------------------------------------------------------
     // State and generators.
     // ----------------------------------------------------------------------------------------------------------------
@@ -1364,7 +1334,6 @@ public:
 
         return (*this)(generator);
     }
-
 
     // ----------------------------------------------------------------------------------------------------------------
     // Properties, Accessors.
@@ -1428,7 +1397,6 @@ public:
     {
         return _param.significand_rand_bits();
     }
-
 
     // ----------------------------------------------------------------------------------------------------------------
     // Operators.
@@ -1503,7 +1471,6 @@ public:
         // Although the serialized members are named, the order must be preserved.
         auto guard = detail::create_format_guard(is);
 
-
         mask_type param_helper_a, param_helper_b, param_helper_m;
         unsigned param_helper_srb;
         underlying_dist_type param_helper_bd;
@@ -1535,18 +1502,15 @@ public:
         rhs.skip_to_char(is, '}');
         rhs.skip_to_char(is, '}');
 
-
         if (mask != param_helper_m)
             is.setstate(std::ios::failbit);
         if (!is) { return is; }
-
 
         rhs._param             = param;
         rhs._mask              = mask;
         rhs._base_distribution = param_helper_bd;
         return is;
     }
-
 
     // ----------------------------------------------------------------------------------------------------------------
     // EqualityComparable implementation.
@@ -1572,7 +1536,6 @@ public:
     {
         return !(lhs == rhs);
     }
-
 
     // ----------------------------------------------------------------------------------------------------------------
     // Data members.

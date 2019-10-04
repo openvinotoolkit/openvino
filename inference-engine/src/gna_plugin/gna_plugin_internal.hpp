@@ -35,6 +35,10 @@ class GNAPluginInternal  : public InferenceEngine::InferencePluginInternal {
         return plg->GetName();
     }
 
+    InferenceEngine::ICNNNetwork&  RemoveConstLayers(InferenceEngine::ICNNNetwork &network) override {
+        return network;
+    }
+
     /**
      * @deprecated Use the version with config parameter
      */

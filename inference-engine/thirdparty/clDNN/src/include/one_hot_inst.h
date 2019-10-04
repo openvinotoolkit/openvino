@@ -15,7 +15,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <api/CPP/one_hot.hpp>
+#include <api/one_hot.hpp>
 
 #include "primitive_inst.h"
 #include <string>

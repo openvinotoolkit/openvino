@@ -77,9 +77,15 @@ ie::details::caseless_map<std::string, parser_t> g_parsers = {
     {"LSTMSequence",       &FrontEnd::parseRNN},
     {"GEMM",               &FrontEnd::parseGEMM},
     {"Log",                &FrontEnd::parseLog},
+    {"Exp",                &FrontEnd::parseExp},
     {"ReverseSequence",    &FrontEnd::parseReverseSequence},
     {"Gather",             &FrontEnd::parseGather},
     {"ReduceAnd",          &FrontEnd::parseReduce},
+    {"Floor",              &FrontEnd::parseFloor},
+    {"TopK",               &FrontEnd::parseTopK},
+    {"ReduceMin",          &FrontEnd::parseReduce},
+    {"StridedSlice",       &FrontEnd::parseStridedSlice},
+    {"Select",             &FrontEnd::parseSelect},
 };
 
 std::atomic<int> g_counter(0);
@@ -211,7 +217,7 @@ Model::Ptr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
 
     eliminatePriorBoxData(model);
 
-    model->cleanUpDatas();
+    model->cleanUp();
 
     return model;
 }
@@ -368,7 +374,6 @@ void FrontEnd::getInputAndOutputData(
 
         inputs[i] = getVpuData(layerInput);
         IE_ASSERT(inputs[i] != nullptr);
-        IE_ASSERT(inputs[i]->desc().type() == DataType::FP16);
     }
 
     outputs.resize(layer->outData.size());
@@ -377,11 +382,13 @@ void FrontEnd::getInputAndOutputData(
         IE_ASSERT(layerOutput != nullptr);
 
         if (auto data = getVpuData(layerOutput)) {
-            IE_ASSERT(data->desc().type() == DataType::FP16);
             outputs[i] = data;
         } else {
             DataDesc dataDesc(layerOutput->getTensorDesc());
-            dataDesc.setType(DataType::FP16);
+            if (dataDesc.type() == DataType::FP32) {
+                // To infer the same FP32 models on different devices (CPU, GPU, VPU and so on)
+                dataDesc.setType(DataType::FP16);
+            }
 
             outputs[i] = model->addNewData(
                 layerOutput->getName(),

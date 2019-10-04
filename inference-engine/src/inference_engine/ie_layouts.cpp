@@ -67,15 +67,16 @@ TensorDesc::TensorDesc(const Precision& precision, Layout layout): blockingDesc(
 
 TensorDesc::TensorDesc(const Precision &precision, SizeVector dims, const BlockingDesc &blockDesc)
         : dims(dims), blockingDesc(blockDesc), precision(precision)  {
+    if (dims.size() == 0 || blockingDesc.getBlockDims().size() == 0) {
+        layout = Layout::SCALAR;
+        return;
+    }
     if (dims.size() != *std::max_element(blockDesc.getOrder().begin(), blockDesc.getOrder().end()) + 1)
         THROW_IE_EXCEPTION << "Cannot create TensorDesc! Blocked dims are inconsistent with original dims.";
 
     layout = Layout::BLOCKED;
     if (dims.size() == blockingDesc.getBlockDims().size()) {
         switch (dims.size()) {
-            case 0:
-                layout = Layout::SCALAR;
-                break;
             case 1:
                 layout = Layout::C;
                 break;
@@ -123,7 +124,6 @@ TensorDesc::TensorDesc() {
 }
 
 void TensorDesc::setDims(const SizeVector &dims) {
-    this->dims = dims;
     if (layout == Layout::BLOCKED) {
         auto newDims = blockingDesc.getBlockDims();
         auto newOrder = blockingDesc.getOrder();
@@ -135,8 +135,12 @@ void TensorDesc::setDims(const SizeVector &dims) {
         }
         blockingDesc = BlockingDesc(newDims, newOrder);
     } else {
+        if (layout == Layout::SCALAR && (dims.size() > 1 || (dims.size() == 1 && dims[0] != 1)))
+            THROW_IE_EXCEPTION << "Cannot set dimensions for SCALAR layout!";
         blockingDesc = BlockingDesc(dims, layout);
     }
+    if (layout != Layout::SCALAR)
+        this->dims = dims;
 }
 
 bool TensorDesc::operator==(const TensorDesc &rhs) const {
@@ -172,6 +176,9 @@ Layout TensorDesc::getLayoutByDims(SizeVector dims) {
 size_t TensorDesc::offset(const SizeVector& v) const {
     if (layout == Layout::ANY)
         THROW_IE_EXCEPTION << "Cannot calculate offset for any format!";
+
+    if (layout == Layout::SCALAR)
+        return blockingDesc.getOffsetPadding();
 
     SizeVector off_v = v;
     const SizeVector& blockedDims = blockingDesc.getBlockDims();
@@ -298,7 +305,7 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout): offsetPadding
         case Layout::NDHWC:
             checkDims(dims.size(), 5);
             l_order = {0, 2, 3, 4, 1};
-            l_dims = dims;
+            l_dims = {dims[0], dims[2], dims[3], dims[4], dims[1]};
             break;
         case Layout::CHW:
             checkDims(dims.size(), 3);
@@ -308,7 +315,7 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout): offsetPadding
         case Layout::CN:
             checkDims(dims.size(), 2);
             l_order = {1, 0};
-            l_dims = {dims[1], dims[2]};
+            l_dims = {dims[1], dims[0]};
             break;
         case Layout::NC:
         case Layout::HW:
@@ -358,3 +365,4 @@ bool BlockingDesc::operator==(const BlockingDesc &rhs) const {
 bool BlockingDesc::operator!=(const BlockingDesc &rhs) const {
     return !(*this == rhs);
 }
+

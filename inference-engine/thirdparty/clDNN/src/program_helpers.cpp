@@ -26,7 +26,7 @@ namespace cldnn {
 // helper function for merging the weights/biases buffers on cpu side for depthwise separable convolution optimization
 void program_helpers::merge_buffers(engine_impl& engine,
                                     program_node& node,
-                                    layout target_layout,
+                                    const layout& target_layout,
                                     size_t begin_offset,
                                     size_t end_offset) {
     memory_impl::ptr data_to_allocate = engine.allocate_memory(target_layout, 0);
@@ -87,17 +87,19 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         (l1.format == format::fs_b_yx_fsv32 && l2.format != format::fs_b_yx_fsv32) ||
         (l2.format == format::fs_b_yx_fsv32 && l1.format != format::fs_b_yx_fsv32) ||
         (l1.format == format::bfyx_f16 && l2.format != format::bfyx_f16) ||
-        (l2.format == format::bfyx_f16 && l1.format != format::bfyx_f16))
+        (l2.format == format::bfyx_f16 && l1.format != format::bfyx_f16) ||
+        (l1.format == format::bfzyx_f16 && l2.format != format::bfzyx_f16) ||
+        (l2.format == format::bfzyx_f16 && l1.format != format::bfzyx_f16))
         return {false, false};
 
     auto l1_pitch = l1.get_pitches();
     auto l2_pitch = l2.get_pitches();
 
     // ignore pitches which will never be used (for dims with size == 1)
-    for (size_t i = 0; i < CLDNN_TENSOR_DIM_MAX; ++i)
+    for (size_t i = 0; i < tensor_dim_max; ++i)
         if (l1.size.raw[i] == 1)
             l1_pitch.raw[i] = 0;
-    for (size_t i = 0; i < CLDNN_TENSOR_DIM_MAX; ++i)
+    for (size_t i = 0; i < tensor_dim_max; ++i)
         if (l2.size.raw[i] == 1)
             l2_pitch.raw[i] = 0;
 

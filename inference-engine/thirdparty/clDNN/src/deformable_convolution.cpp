@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id deformable_conv_type_id() {
+primitive_type_id deformable_conv::type_id() {
     static primitive_type_base<deformable_conv> instance;
     return &instance;
 }
@@ -69,8 +69,7 @@ std::string deformable_conv_inst::to_string(deformable_conv_node const& node) {
 deformable_conv_inst::typed_primitive_inst(network_impl& network, deformable_conv_node const& node) : parent(network, node) {
 }
 
-
-primitive_type_id deformable_interp_type_id() {
+primitive_type_id deformable_interp::type_id() {
     static primitive_type_base<deformable_interp> instance;
     return &instance;
 }

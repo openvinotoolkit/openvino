@@ -66,6 +66,8 @@ bool MKLDNNEltwiseNode::isWithBroadcast() {
             if (inDims.size() < outDims.size())
                 withBroadcast = true;
         }
+        if (inDims.size() == 0 && outDims.size())
+            withBroadcast = true;
     }
 
     return withBroadcast;
@@ -235,7 +237,7 @@ void MKLDNNEltwiseNode::dims_calc(int *dims, const MKLDNNDims &edge_dims) {
     for (int i = 0; i < ndims; i++) {
         dims[4 - i] = edge_dims[ndims - 1 - i];
     }
-    if (!(broadcast && edge_dims[0] == getChildEdgeAt(0)->getDims()[0]))
+    if (edge_dims.ndims() && !(broadcast && edge_dims[0] == getChildEdgeAt(0)->getDims()[0]))
         dims[batch_dim] = std::min(dims[batch_dim], batchToProcess());
 }
 
