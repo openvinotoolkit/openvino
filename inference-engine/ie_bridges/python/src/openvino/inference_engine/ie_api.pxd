@@ -3,7 +3,7 @@ from .ie_api_impl_defs cimport Blob, TensorDesc
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libcpp.memory cimport unique_ptr
+from libcpp.memory cimport unique_ptr, shared_ptr
 
 cdef class BlobBuffer:
     cdef Blob.Ptr ptr
@@ -62,3 +62,6 @@ cdef class LayersStatsMap(dict):
 cdef class IECore:
     cdef C.IECore impl
     cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config = ?, int num_requests = ?)
+
+cdef class DataPtr:
+    cdef shared_ptr[C.Data] _ptr

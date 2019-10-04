@@ -14,15 +14,18 @@
  limitations under the License.
 """
 
+import argparse
 import logging as log
+import networkx as nx
 import os
 from operator import itemgetter
 
-import networkx as nx
-
+from extensions.back.RemoveUselessConvert import RemoveUselessConvert
 from mo.back.ie_ir_ver_2.emitter import port_renumber, serialize_constants, generate_ie_ir, serialize_mean_image
 from mo.graph.graph import Node, Graph
 from mo.middle.passes import tensor_names, convert_data_type
+from mo.middle.passes.infer import type_infer
+
 from mo.utils.error import Error
 
 
@@ -89,7 +92,7 @@ def get_sorted_outputs(graph: Graph):
 
 
 def collect_sub_graphs(graph: Graph):
-    ''' Go over all nodes and sub_graphs in the graph recursively; returns all found sub-graphs. '''
+    """ Go over all nodes and sub_graphs in the graph recursively; returns all found sub-graphs. """
     result = []
     for node in graph.nodes():
         node = Node(graph, node)
@@ -101,11 +104,11 @@ def collect_sub_graphs(graph: Graph):
 
 
 def relabel_nodes_inplace_safe(graph: Graph, new_labels: dict):
-    ''' Safely relabels graph in-place without graph copy.
+    """ Safely relabels graph in-place without graph copy.
         
-        Safity in this place means that it is guarantied that
-        there won't be collisions during relabiling process.
-    '''
+        Safety in this place means that it is guarantied that
+        there won't be collisions during relabeling process.
+    """
     # Relabel nodes in two stages
     intermediate_map = {node: graph.unique_id('__relabel__{}__'.format(str(i))) for i, node in enumerate(graph.nodes())}
     final_map = {dst: new_labels[src] for src, dst in intermediate_map.items()}
@@ -116,15 +119,30 @@ def relabel_nodes_inplace_safe(graph: Graph, new_labels: dict):
 
 
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
-                    mean_data: [list, None] = None, input_names: list = [], meta_info: dict = dict()):
+                    mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None):
+    if input_names is None:
+        input_names = []
+    if meta_info is None:
+        meta_info = {}
     graph.strict_mode = False
+
+    # convert Parameter data types
+    convert_data_type.convert_parameters_data_type(graph, data_type)
+    # convert blobs (usually weights and biases)
+    for sub_graph in [graph] + collect_sub_graphs(graph):
+        convert_data_type.convert_blobs(sub_graph, data_type)
+
+    # do not run the type inference in sub-graphs. It will be called automatically as part of the type inference of
+    # the TensorIterator nodes
+    type_infer(graph)
+    RemoveUselessConvert().find_and_replace_pattern(graph)
+
     for sub_graph in [graph] + collect_sub_graphs(graph):
         op_order, data_order = determined_sort(get_sorted_outputs(sub_graph))
         mapping = {v: u for u, v in enumerate(op_order)}
         mapping.update({v: u for u, v in enumerate(data_order, start=len(sub_graph))})
         relabel_nodes_inplace_safe(sub_graph, mapping)
         port_renumber(sub_graph)
-        convert_data_type.convert(sub_graph, data_type)
 
     tensor_names.propagate_op_name_to_tensor(graph)
 
@@ -143,3 +161,18 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
                    mean_size=mean_size,
                    meta_info=meta_info)
     tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}.mapping'.format(output_model_name)))
+
+
+def get_ir_version(argv: argparse.Namespace):
+    """
+    Determine IR version based on command line arguments and the default version.
+    :param argv: the parsed command line arguments
+    :return: the IR version
+    """
+    if argv.generate_experimental_IR_V10:
+        version = 10
+    elif argv.generate_deprecated_IR_V2:
+        version = 2
+    else:
+        version = 7
+    return version

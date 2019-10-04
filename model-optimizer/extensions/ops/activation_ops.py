@@ -130,4 +130,13 @@ class Not(Activation):
     op = 'Not'
     enabled = False
 
+    def __init__(self, graph: Graph, attrs: dict):
+        not_attrs = {'type_infer': self.type_infer}
+        not_attrs.update(attrs)
+        super().__init__(graph, not_attrs)
+
     operation = staticmethod(lambda x: not x)
+
+    @staticmethod
+    def type_infer(node: Node):
+        node.out_port(0).set_data_type(np.bool)

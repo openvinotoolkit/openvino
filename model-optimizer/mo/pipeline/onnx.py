@@ -44,7 +44,7 @@ from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
 from mo.middle.passes.shape import reverse_input_channels, merge_nodes_permutations, permute_data_nodes_attrs, \
     permute_op_nodes_attrs
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-from mo.pipeline.common import prepare_emit_ir
+from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.utils import class_registration
 from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
@@ -75,12 +75,7 @@ def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: st
         graph.graph['cmd_params'] = argv
         graph.graph['fw'] = 'onnx'
         graph.graph['feature_dim'] = 1 if graph.graph['layout'] == 'NCHW' else 3
-
-        if graph.graph['cmd_params'].generate_experimental_IR_V10:
-            version = 10
-        else:
-            version = 6
-        graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else version
+        graph.graph['ir_version'] = get_ir_version(argv)
 
     except Exception as e:
         raise Error(

@@ -182,6 +182,14 @@ class IREngine(object):
         layer_attrs.update({'ports': {}, 'kind': 'op'})
 
         inputs_counter = 0
+        precision_map = {
+            'FP32': (4, np.float32),
+            'FP16': (2, np.float16),
+            'I64': (8, np.int64),
+            'I32': (4, np.int32),
+            'I8': (1, np.int8),
+            'U8': (1, np.uint8),
+        }
 
         for attr in layer:
             if attr.tag == 'data':
@@ -199,15 +207,9 @@ class IREngine(object):
                     layer_attrs['ports'].update({port_id: output_shape})
             elif attr.tag == 'blobs':
                 in_port = inputs_counter
-                precision = layer.attrib['precision']
-                precision_map = {
-                    'FP32': (4, np.float32),
-                    'FP16': (2, np.float16),
-                    'I64': (8, np.int64),
-                    'I32': (4, np.int32),
-                }
-                type_size, dtype = precision_map[precision]
                 for blob_attr in attr:
+                    precision = blob_attr.attrib['precision']
+                    type_size, dtype = precision_map[precision]
                     layer_attrs.update({blob_attr.tag: (int(blob_attr.attrib['offset']),
                                                         int(blob_attr.attrib['size']) // type_size,
                                                         in_port,

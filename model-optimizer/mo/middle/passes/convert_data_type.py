@@ -25,11 +25,13 @@ SUPPORTED_DATA_TYPES = {
     'float': (np.float32, 'FP32'),
     'half': (np.float16, 'FP16'),
     'FP32': (np.float32, 'FP32'),
+    'FP64': (np.float64, 'FP64'),
     'FP16': (np.float16, 'FP16'),
     'I32': (np.int32, 'I32'),
-    'uint8': (np.uint8, 'UI8'),
+    'uint8': (np.uint8, 'U8'),
     'int32': (np.int32, 'I32'),
     'int64': (np.int64, 'I64'),
+    'bool': (np.bool, 'I32'),
 }
 
 
@@ -54,9 +56,9 @@ def convert_blob(graph: Graph, node: Node, data_type: type, force_precision: str
     # if the data.value is used as binary weights
     if any('bin' in d for _, __, d in out_edges):
         blob = node.value
-        if blob.dtype != data_type:
+        if blob.dtype != data_type and (blob.dtype in [np.float32, np.float64] or force_precision is not None):
             # check that forcing precision to int data types does not lead to rounding
-            if force_precision is not None and force_precision in ('int32', 'int64'):
+            if force_precision is not None and force_precision in ('int32', 'int64', 'uint8'):
                 if not np.array_equal(blob, blob.astype(dtype=data_type, casting="unsafe")):
                     raise Error('The conversion of blob with value "{}" to data_type "{}" results in rounding'
                                 ''.format(blob, force_precision))
@@ -82,21 +84,41 @@ def convert_blob(graph: Graph, node: Node, data_type: type, force_precision: str
                      refer_to_faq_msg(77)).format(
                         zero_match_count, blob.size, consumers, data_type))
             node.value = new_blob
+            # for the constant node need to propagate the converted value to the node output because there is a fake
+            # input data for the 'Const' nodes being generated in the CreateConstNodesReplacement
+            if len(node.out_nodes()) == 1 and node.out_node(0).op == 'Const':
+                const_node = node.out_node(0)
+                const_node.value = new_blob
+                const_node.infer(const_node)
+                const_node.type_infer(const_node)
 
 
-def convert(graph: Graph, data_type_str: str):
-    for node_name, node_attrs in graph.nodes(data=True):
-        node = Node(graph, node_name)
+def convert_parameters_data_type(graph: Graph, data_type_str: str):
+    inputs = graph.get_op_nodes(op='Parameter')
+    data_type = data_type_str_to_np(data_type_str)
+    for input in inputs:
+        if not input.has_valid('data_type') or input.data_type == np.float32:
+            input['data_type'] = data_type
+            input.out_port(0).set_data_type(data_type, True)
+        else:
+            log.info('Do not change data type for node {}'.format(input.soft_get('name')))
+
+
+def convert_blobs(graph: Graph, data_type_str: str):
+    for node in graph.get_data_nodes():
         # if the data type is forcibly set then use it
         force_precision = None
         if node.has_valid('force_precision'):
-            real_data_type_str = node_attrs['force_precision']
+            real_data_type_str = node.force_precision
             force_precision = real_data_type_str
         else:
             real_data_type_str = data_type_str
-        node_attrs['precision'] = data_type_str_to_precision(real_data_type_str)
-        if node.kind == 'data' and node.value is not None:
+        if node.value is not None:
             try:
-                convert_blob(graph, node, data_type_str_to_np(real_data_type_str), force_precision)
+                # convert all I64 to I32 since plugins don't support I64:
+                if node.value.dtype == np.int64 and force_precision is None:
+                    convert_blob(graph, node, np.int32, 'int32')
+                else:
+                    convert_blob(graph, node, data_type_str_to_np(real_data_type_str), force_precision)
             except Exception as e:
                 raise Error('Coudn\'t convert blob {}, details: {}', node.soft_get('name'), e) from e

@@ -242,6 +242,12 @@ void FrontEnd::parseSplit(
 
         _stageBuilder->addSplitStage(model, layer->name, layer, axis, input, onlyUsedOutputs);
     }
+
+    for (const auto& output : outputs) {
+        if (output->origData()->getInputTo().empty()) {
+            model->removeUnusedData(output);
+        }
+    }
 }
 
 Stage StageBuilder::addSplitStage(

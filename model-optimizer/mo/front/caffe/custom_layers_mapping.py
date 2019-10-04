@@ -121,7 +121,7 @@ def proto_extractor(pb, model_pb, mapping, disable_omitting_optional, enable_fla
     attrs = {
         'IE': [(
             'layer',
-            [('id', lambda node: node.id), 'name', 'precision', 'type'],
+            [('id', lambda node: node.id), 'name', 'type'],
             [
                 ('data', keys, []),
                 '@ports',

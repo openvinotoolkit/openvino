@@ -41,12 +41,6 @@ class ReshapeMutation(BackReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         reshape = match['reshape']
-        # TODO: WA for Caffe Alibaba model
-        if reshape.has_and_set('reinterp_shape') or reshape.soft_get('type') == 'Reshape':
-            if graph.graph['cmd_params'].generate_experimental_IR_V10:
-                reshape['force_precision_in_ports'] = {1: 'int64'}
-            else:
-                reshape['force_precision_in_ports'] = {1: 'int32'}
 
 
 class FlattenMutation(BackReplacementPattern):
@@ -78,14 +72,11 @@ class FlattenMutation(BackReplacementPattern):
                                     'name': flatten.id + '/DimData'})
         flatten.add_input_port(1, skip_if_exist=True)
         graph.add_edge(const_id, flatten.id, **{'in': 1})
-        flatten['force_precision_in_ports'] = {1: 'int64'}
 
         # TODO workaround for nGraph only!!!
         flatten.in_node(1)['value'] = flatten.out_node(0)['shape']
 
         Reshape.update_node_stat(flatten)
-
-        flatten['force_precision_in_ports'] = {1: 'int64'}
 
 
 class DisableReshapeMutationInTensorIterator(BackReplacementPattern):

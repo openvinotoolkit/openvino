@@ -111,7 +111,8 @@ endif()
 
 # Properties->C/C++->General->Additional Include Directories
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
-                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                  "${IE_MAIN_SOURCE_DIR}/src/dumper")
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src")
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ngraph/src")

@@ -157,13 +157,12 @@ class CustomSubgraphCall(MiddleReplacementPattern):
 
         # reshape shape data node
         reshape_shape_data_node_name = graph.unique_id("Reshape_shape_")
-        graph.add_node(reshape_shape_data_node_name, kind='data', precision="FP32", name=reshape_shape_data_node_name,
-                       value=new_shape, shape=[1])
+        graph.add_node(reshape_shape_data_node_name, kind='data', name=reshape_shape_data_node_name, value=new_shape,
+                       shape=[1])
 
         # reshape operation node
         reshape_node_name = graph.unique_id("Reshape_")
-        graph.add_node(reshape_node_name, kind='op', precision="FP32", type='Reshape', name=reshape_node_name,
-                       op='Reshape',
+        graph.add_node(reshape_node_name, kind='op', type='Reshape', name=reshape_node_name, op='Reshape',
                        data_type=data_node['data_type'])
         update_ie_fields(graph.node[reshape_node_name])
 
@@ -172,8 +171,8 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         if data_node['value'] is not None:
             reshaped_value = np.reshape(data_node['value'], new_shape)
         reshaped_data_node_name = graph.unique_id("reshaped_data_")
-        graph.add_node(reshaped_data_node_name, kind='data', precision="FP32", name=reshaped_data_node_name,
-                       shape=new_shape, value=reshaped_value, nchw_layout=True)
+        graph.add_node(reshaped_data_node_name, kind='data', name=reshaped_data_node_name, shape=new_shape,
+                       value=reshaped_value, nchw_layout=True)
 
         graph.add_edges_from([
             (data_node_name, reshape_node_name, {'in': 0}),
@@ -212,14 +211,13 @@ class CustomSubgraphCall(MiddleReplacementPattern):
 
         # reshape operation node
         reshape_node_name = graph.unique_id("Reshape_")
-        graph.add_node(reshape_node_name, kind='op', precision="FP32", type='Reshape', name=reshape_node_name,
-                       op='Reshape',
+        graph.add_node(reshape_node_name, kind='op', type='Reshape', name=reshape_node_name, op='Reshape',
                        data_type=data_node['data_type'])
         update_ie_fields(graph.node[reshape_node_name])
 
         # reshape shape data node
         reshape_shape_data_node_name = graph.unique_id("Reshape_shape_")
-        graph.add_node(reshape_shape_data_node_name, kind='data', precision="FP32", name=reshape_shape_data_node_name,
+        graph.add_node(reshape_shape_data_node_name, kind='data', name=reshape_shape_data_node_name,
                        value=np.array(data_node['shape']), shape=[1])
 
         # reshaped data node
@@ -227,7 +225,7 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         if data_node['value'] is not None:
             reshaped_value = np.array(data_node['value'])
         reshaped_data_node_name = graph.unique_id("reshaped_data_")
-        graph.add_node(reshaped_data_node_name, kind='data', precision="FP32", name=reshaped_data_node_name,
+        graph.add_node(reshaped_data_node_name, kind='data', name=reshaped_data_node_name,
                        shape=np.array(data_node['shape']), value=reshaped_value, nchw_layout=True)
 
         if is_out_node:

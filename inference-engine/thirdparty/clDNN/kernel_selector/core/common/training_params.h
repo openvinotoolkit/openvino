@@ -27,8 +27,8 @@ struct training_params : public weight_bias_params {
     explicit training_params(KernelType kt) : weight_bias_params(kt) {}
 
     bool use_momentum = false;
-    float weights_decay = 0.0;
-    float momentum_factor = 0.0;
+    float weights_decay;
+    float momentum_factor;
 
     ParamsKey GetParamsKey() const override;
 };

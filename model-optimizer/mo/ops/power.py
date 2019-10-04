@@ -13,11 +13,13 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging as log
+import numpy as np
+
 from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.graph.graph import Graph, Node
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.op import Op
-import numpy as np
-import logging as log
 
 
 class Power(Op):
@@ -32,6 +34,7 @@ class Power(Op):
             'scale': 1,
             'shift': 0,
             'infer': __class__.infer,
+            'type_infer': self.type_infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
@@ -63,3 +66,7 @@ class Power(Op):
             node.graph.remove_edge(node.in_node(1).id, node.id)
 
         eltwise_infer(node, lambda a: np.power(a * node.scale + node.shift, node.power))
+
+    @staticmethod
+    def type_infer(node: Node):
+        node.out_port(0).set_data_type(data_type_str_to_np(node.graph.graph['cmd_params'].data_type))

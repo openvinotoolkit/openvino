@@ -13,6 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+import logging as log
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
@@ -30,7 +32,7 @@ class NonMaxSuppression(Op):
             'center_point_box': 0,
             'in_ports_count': 5,
             'out_ports_count': 1,
-            'force_precision_in_ports': {2: 'int32'},
+            'type_infer': self.type_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -48,8 +50,19 @@ class NonMaxSuppression(Op):
         assert len(boxes_shape) == 3, 'Length of tensors with boxes must be equal to 3'
         assert len(scores_shape) == 3, 'Length of tensors with scores must be equal to 3'
 
+        max_output_boxes_per_class = node.in_port(2).data.get_value()
+        if max_output_boxes_per_class is None:
+            log.info('Set default "max_output_boxes_per_class" for node {} to number of boxes'.format(node.name))
+            max_output_boxes_per_class = boxes_shape[1]
+
         num_classes = scores_shape[1]
         num_input_boxes = boxes_shape[1]
         assert scores_shape[2] == num_input_boxes, 'Number of boxes mismatch'
 
-        node.out_port(0).data.set_shape(int64_array([num_input_boxes * num_classes, 3]))
+        max_number_of_boxes = min(num_input_boxes, boxes_shape[0] * max_output_boxes_per_class * num_classes)
+        node.out_port(0).data.set_shape(int64_array([max_number_of_boxes, 3]))
+
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(np.int64 if node.graph.graph['cmd_params'].generate_experimental_IR_V10 else
+                                       np.int32)

@@ -639,17 +639,15 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
                         impl.copy(extPerfEntry.exec_type, impl.length());
                     }
 
-                    pi.type_id.copy(extPerfEntry.layer_type, 256);
+                    strncpy(extPerfEntry.layer_type, pi.type_id.c_str(), 256);
                     extPerfEntry.execution_index = i++;
                     extPerfEntry.status = InferenceEngineProfileInfo::LayerStatus::EXECUTED;
                     extPerfEntry.cpu_uSec = cpuTime;
                     extPerfEntry.realTime_uSec = deviceTime;
 
                     if (pi.type_id == "input_layout") {
-                        const std::string input_string = "Input";
-                        const std::string undef_string = "undef";
-                        input_string.copy(extPerfEntry.layer_type, 256);
-                        undef_string.copy(extPerfEntry.exec_type, 256);
+                        strncpy(extPerfEntry.layer_type, "Input", 256);
+                        strncpy(extPerfEntry.exec_type, "undef", 256);
                     }
                 }
             }

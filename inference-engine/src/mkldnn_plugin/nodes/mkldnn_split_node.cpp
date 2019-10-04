@@ -57,9 +57,6 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].desc = MKLDNNMemoryDesc(srcDims, inputDataType, memory::format::any);
     config.outConfs.resize(outDims.size());
 
-    if (srcDims.ndims() < 2)
-        THROW_IE_EXCEPTION << "Split " << getName() << " isn't supported 1d blobs";
-
     std::vector<memory::format> outFormats;
 
     auto axis_size = 0;

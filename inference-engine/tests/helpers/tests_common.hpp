@@ -27,14 +27,6 @@
 # include "Psapi.h"
 #endif
 
-template <class T>
-inline std::string to_string_c_locale(T value) {
-    std::stringstream val_stream;
-    val_stream.imbue(std::locale("C"));
-    val_stream << value;
-    return val_stream.str();
-}
-
 class BaseTestCreator {
 protected:
     std::string _type;
@@ -377,17 +369,17 @@ public:
     }
 
     std::string replace(std::string& str, const std::string& from, const int& to) {
-        replace(str, from, to_string_c_locale(to));
+        replace(str, from, std::to_string(to));
         return str;
     }
 
     std::string replace(std::string& str, const std::string& from, const size_t& to) {
-        replace(str, from, to_string_c_locale(to));
+        replace(str, from, std::to_string(to));
         return str;
     }
 
     std::string replace(std::string& str, const std::string& from, const float& to) {
-        replace(str, from, to_string_c_locale(to));
+        replace(str, from, std::to_string(to));
         return str;
     }
     // trim from both ends (in place)

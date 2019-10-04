@@ -85,7 +85,6 @@ class ReduceOp(Op):
             'infer': reduce_infer,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'force_precision_in_ports': {1: 'int32'},
         }, attrs)
 
     def supported_attrs(self):

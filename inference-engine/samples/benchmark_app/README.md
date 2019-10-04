@@ -1,18 +1,21 @@
-# Benchmark C++ Tool
+# Benchmark C++ Application
 
-This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices. Performance can be measured for two inference modes: synchronous (latency-oriented) and asynchronous (throughput-oriented).
+This topic demonstrates how to use the Benchmark Application to estimate deep learning inference performance on
+supported devices. Performance can be measured for two inference modes: synchronous (latency-oriented) and asynchronous (throughput-oriented).
 
-> **NOTE:** This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](./inference-engine/tools/benchmark_tool/README.md).
+> **NOTE:** This topic describes usage of C++ implementation of the Benchmark Application. For the Python* implementation, refer to [Benchmark Application (Python*)](./inference-engine/tools/benchmark_tool/README.md).
 
 
 ## How It Works
 
-Upon start-up, the application reads command-line parameters and loads a network and images/binary files to the Inference Engine plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend on the mode defined with the `-api` command-line parameter.
+Upon start-up, the application reads command-line parameters and loads a network and images/binary files to the Inference Engine
+plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend
+on the mode defined with the `-api` command-line parameter.
 
-> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 If you run the application in the synchronous mode, it creates one infer request and executes the `Infer` method.
-If you run the application in the asynchronous mode, it creates as many infer requests as specified in the `-nireq` command-line parameter and executes the `StartAsync` method for each of them. If `-nireq` is not set, the application will use the default value for specified device.
+If you run the application in the asynchronous mode, it creates as many infer requests as specified in the `-nireq` command-line parameter and executes the `StartAsync` method for each of them. If `-nireq` is not set, the demo will use the default value for specified device.
 
 A number of execution steps is defined by one of the following parameters:
 * Number of iterations specified with the `-niter` command-line argument
@@ -42,19 +45,17 @@ The application also saves executable graph information serialized to a XML file
 `-exec_graph_path` parameter.
 
 
-## Run the Tool
+## Running
 Notice that the benchmark_app usually produces optimal performance for any device out of the box.
 
-**So in most cases you don't need to play the app options explicitly and the plain device name is enough**, for example, for CPU:
-```sh
-./benchmark_app -m <model> -i <input> -d CPU
+**So in most cases you don't need to play the app options explicitly and the plain device name is enough**, e.g.:
+```
+$benchmark_app -m <model> -i <input> -d CPU
 ```
 
 But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](./docs/IE_DG/Intro_to_Performance.md).
 
 As explained in the  [Introduction to Performance Topics](./docs/IE_DG/Intro_to_Performance.md) section, for all devices, including new [MULTI device](./docs/IE_DG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
-Also if latency of the CPU inference on the multi-socket machines is of concern, please refer to the same
-[Introduction to Performance Topics](./docs/IE_DG/Intro_to_Performance.md) document.
 
 Running the application with the `-h` option yields the following usage message:
 ```
@@ -108,74 +109,48 @@ If a model has only image input(s), please a provide folder with images or a pat
 If a model has some specific input(s) (not images), please prepare a binary file(s), which is filled with data of appropriate precision and provide a path to them as input.
 If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-To run the tool, you can use public or Intel's pre-trained models. To download the models, use the OpenVINO [Model Downloader](./tools/downloader/README.md) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To download the pre-trained models, use the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
-> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the demo with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
-## Examples of Running the Tool
+For example, to perform inference on CPU in the synchronous mode and get estimated performance metrics for AlexNet model,
+run the following command:
 
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or FPGA devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.  
+```sh
+./benchmark_app -i <path_to_image>/inputImage.bmp -m <path_to_model>/alexnet_fp32.xml -d CPU -api sync
+```
 
-> **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
+For the asynchronous mode:
+```sh
+./benchmark_app -i <path_to_image>/inputImage.bmp -m <path_to_model>/alexnet_fp32.xml -d CPU -api async
+```
 
-1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
-   ```sh
-   cd <INSTAL_DIR>/deployment_tools/open_model_zoo/tools/downloader
-   ```
-   ```sh
-   python3 downloader.py --name googlenet-v1 -o <models_dir>
-   ```
-2. Convert the model to the Inference Engine IR format. Go to the Model Optimizer directory and run the `mo.py` script with specifying the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
-   ```sh
-   cd <INSTALL_DIR>/deployment_tools/model_optimizer
-   ```
-   ```sh
-   python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
-   ```     
-3. Run the tool with specifying the `<INSTALL_DIR>/deployment_tools/demo/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and FPGA devices:
-   
-   * On CPU:
-   ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
-   ```
-   * On FPGA:
-   ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d HETERO:FPGA,CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
-   ```
+## Demo Output
 
 The application outputs the number of executed iterations, total duration of execution, latency and throughput.
-Additionally, if you set the `-report_type` parameter, the application outputs statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
+Additionally, if you set the `-report_type` parameter, the application outputs statistics report.
+If you set the `-pc` parameter, the application outputs performance counters.
+If you set `-exec_graph_path`, the application reports executable graph information serialized.
 
-Below are fragments of sample output for CPU and FPGA devices: 
+```
+[Step 8/9] Measuring performance (Start inference asyncronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
+Progress: [....................] 100.00% done
 
-* For CPU:
-   ```
-   [Step 8/9] Measuring performance (Start inference asyncronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
-   Progress: [....................] 100.00% done
+[Step 9/9] Dumping statistics report
+[ INFO ] Statistics collecting was not requested. No reports are dumped.
+Progress: [....................] 100.00% done
 
-   [Step 9/9] Dumping statistics report
-   [ INFO ] Statistics collecting was not requested. No reports are dumped.
-   Progress: [....................] 100.00% done
+Count:      4612 iterations
+Duration:   60110.04 ms
+Latency:    50.99 ms
+Throughput: 76.73 FPS
 
-   Count:      4612 iterations
-   Duration:   60110.04 ms
-   Latency:    50.99 ms
-   Throughput: 76.73 FPS
-   ```
+```
 
-* For FPGA:
-   ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests using 4 streams for CPU, limits: 120000 ms duration)
-   Progress: [....................] 100% done
+All measurements including per-layer PM counters are reported in milliseconds.
 
-   [Step 11/11] Dumping statistics report
-   Count:      102515 iterations
-   Duration:   120007.38 ms
-   Latency:    5.84 ms
-   Throughput: 854.24 FP
-   ```
 
 ## See Also
 * [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
 * [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](./tools/downloader/README.md)
+* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)

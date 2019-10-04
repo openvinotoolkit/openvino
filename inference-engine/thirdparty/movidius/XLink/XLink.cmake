@@ -30,7 +30,11 @@ set(XLINK_SOURCES
         ${MV_COMMON_BASE}/XLink/pc/XLinkPlatform.c
         ${MV_COMMON_BASE}/XLink/pc/usb_boot.c
         ${MV_COMMON_BASE}/XLink/pc/pcie_host.c
-        ${MV_COMMON_BASE}/XLink/shared/XLink.c
+        ${MV_COMMON_BASE}/XLink/shared/XLinkDeprecated.c
+        ${MV_COMMON_BASE}/XLink/shared/XLinkPrivateFields.c
+        ${MV_COMMON_BASE}/XLink/shared/XLinkDispatcherImpl.c
+        ${MV_COMMON_BASE}/XLink/shared/XLinkDevice.c
+        ${MV_COMMON_BASE}/XLink/shared/XLinkStream.c
         ${MV_COMMON_BASE}/XLink/shared/XLinkDispatcher.c
         ${MV_COMMON_BASE}/shared/src/mvStringUtils.c
         )

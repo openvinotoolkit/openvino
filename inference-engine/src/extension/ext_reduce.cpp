@@ -31,8 +31,9 @@ public:
             if (idx_dims.size() > 1)
                 THROW_IE_EXCEPTION << layer->name << " Index vector should be 1 dimension";
 
-            if (layer->insData[REDUCE_DATA].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only FP32 is supported!";
+            if (layer->insData[REDUCE_DATA].lock()->getTensorDesc().getPrecision() != Precision::FP32 &&
+                layer->insData[REDUCE_DATA].lock()->getTensorDesc().getPrecision() != Precision::I32)
+                THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only FP32 or I32 are supported!";
 
             if (layer->insData[REDUCE_INDEXES].lock()->getTensorDesc().getPrecision() != Precision::I32)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect 'axes_to_reduction' input precision. Only I32 is supported!";
@@ -125,109 +126,38 @@ public:
             }
         }
 
-        const float *src_data = inputs[REDUCE_DATA]->cbuffer().as<float *>() +
-            inputs[REDUCE_DATA]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        float* dst_data = outputs[0]->cbuffer().as<float *>() +
-            outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-
         size_t work_amount_dst;
         if (!dst_dims.size())
             work_amount_dst = 1;
         else
             work_amount_dst = outputs[0]->getTensorDesc().getBlockingDesc().getStrides()[0] * dst_dims[0];
 
-        switch (reduceMode) {
-        case Reduce::And:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, 1.0f,
-                   [](float x, float y)->float { return x && y; },
-                   [](float x, float y)->float { return x && y; });
-            break;
-        case Reduce::L1:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, 0.0f,
-                [](float old, float y)->float { return old + (std::abs)(y); },
-                [](float x, float y)->float { return x + y; });
-            break;
-        case Reduce::L2:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, 0.0f,
-                [](float old, float y)->float { return old + y * y;},
-                [](float x, float y)->float { return x + y; });
-
-            parallel_for(work_amount_dst, [&](size_t i) {
-                dst_data[i] = sqrt(dst_data[i]);
-            });
-            break;
-        case Reduce::LogSum:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, 0.0f,
-                [](float x, float y)->float { return x + y; },
-                [](float x, float y)->float { return x + y; });
-
-            parallel_for(work_amount_dst, [&](size_t i) {
-                dst_data[i] = logf(dst_data[i]);
-            });
-            break;
-        case Reduce::LogSumExp:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, 0.0f,
-                [](float old, float y)->float { return old + expf(y); },
-                [](float x, float y)->float { return x + y; });
-
-            parallel_for(work_amount_dst, [&](size_t i) {
-                dst_data[i] = logf(dst_data[i]);
-            });
-            break;
-        case Reduce::Max:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, FLT_MIN,
-                [](float x, float y)->float { return x > y ? x : y; },
-                [](float x, float y)->float { return x > y ? x : y; });
-            break;
-        case Reduce::Mean:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, 0.0f,
-                [](float x, float y)->float { return x + y; },
-                [](float x, float y)->float { return x + y; });
-
-            parallel_for(work_amount_dst, [&](size_t i) {
-                dst_data[i] /= static_cast<float>(reduced_dims_work_amount);
-            });
-            break;
-        case Reduce::Min:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, FLT_MAX,
-                [](float x, float y)->float { return x < y ? x : y; },
-                [](float x, float y)->float { return x < y ? x : y; });
-            break;
-        case Reduce::Or:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, 0.0f,
-                   [](float x, float y)->float { return x || y; },
-                   [](float x, float y)->float { return x || y; });
-            break;
-        case Reduce::Prod:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, 1.0f,
-                [](float x, float y)->float { return x * y; },
-                [](float x, float y)->float { return x * y; });
-            break;
-        case Reduce::Sum:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, 0.0f,
-                [](float x, float y)->float { return x + y; },
-                [](float x, float y)->float { return x + y; });
-            break;
-        case Reduce::SumSquare:
-            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, 0.0f,
-                [](float old, float y)->float { return old + y * y; },
-                [](float x, float y)->float { return x + y; });
-            break;
-        default:
-            if (resp) {
-                std::string errorMsg = "Incorrect Reduce layer type";
-                errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-            }
-            return GENERAL_ERROR;
+        auto compare = getPrecisionMask(inputs[REDUCE_DATA]->getTensorDesc().getPrecision(), outputs[0]->getTensorDesc().getPrecision());
+        switch (compare) {
+            case getPrecisionMask(Precision::FP32, Precision::FP32):
+                return reduce_type<float , float>(inputs, outputs, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims);
+            case getPrecisionMask(Precision::I32, Precision::I64):
+                return reduce_type<int32_t , int64_t>(inputs, outputs, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims);
+            case getPrecisionMask(Precision::I32, Precision::FP32):
+                return reduce_type<int32_t , float>(inputs, outputs, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims);
+            case getPrecisionMask(Precision::I32, Precision::I32):
+                return reduce_type<int32_t , int32_t>(inputs, outputs, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims);
+            default:
+                if (resp) {
+                    std::string errorMsg = "Incorrect Reduce layer type";
+                    errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+                }
+                return GENERAL_ERROR;
         }
-        return OK;
     }
 
 private:
-    template <typename F1, typename F2>
-    void reduce(const float *src_data, float* dst_data, size_t work_amount_dst, size_t reduced_dims_work_amount,
-        SizeVector axes_for_reduction, SizeVector dst_dims, float init_value, F1 func1, F2 func2);
-
+    template <typename src_d, typename dst_t, typename F1, typename F2>
+    void reduce(const src_d *src_data, dst_t* dst_data, size_t work_amount_dst, size_t reduced_dims_work_amount,
+        SizeVector axes_for_reduction, SizeVector dst_dims, dst_t init_value, F1 func1, F2 func2);
+    template <typename src_d, typename dst_t>
+    StatusCode reduce_type(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, size_t work_amount_dst, size_t reduced_dims_work_amount,
+                SizeVector axes_for_reduction, SizeVector dst_dims);
     enum class Reduce { And, L1, L2, LogSum, LogSumExp, Max, Mean, Min, Or, Prod, Sum, SumSquare };
 
     const size_t REDUCE_DATA = 0;
@@ -240,15 +170,114 @@ private:
     SizeVector srcStrides;
 };
 
-template <typename F1, typename F2>
+template <typename src_d, typename dst_t>
+StatusCode ReduceImpl::reduce_type(
+        std::vector<Blob::Ptr>& inputs,
+        std::vector<Blob::Ptr>& outputs,
+        size_t       work_amount_dst,
+        size_t       reduced_dims_work_amount,
+        SizeVector   axes_for_reduction,
+        SizeVector   our_dims
+) {
+    const src_d *src_data = inputs[REDUCE_DATA]->cbuffer().as<src_d *>() +
+                            inputs[REDUCE_DATA]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    dst_t* dst_data = outputs[0]->cbuffer().as<dst_t *>() +
+                      outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+
+    switch (reduceMode) {
+        case Reduce::And:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, static_cast<dst_t>(1),
+                   [](dst_t x, src_d y)->dst_t { return x && y; },
+                   [](dst_t x, src_d y)->dst_t { return x && y; });
+            break;
+        case Reduce::L1:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, static_cast<dst_t>(0),
+                   [](dst_t old, src_d y)->dst_t { return old + (std::abs)(y); },
+                   [](dst_t x, src_d y)->dst_t { return x + y; });
+            break;
+        case Reduce::L2:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, static_cast<dst_t>(0),
+                   [](dst_t old, src_d y)->dst_t { return old + y * y;},
+                   [](dst_t x, src_d y)->dst_t { return x + y; });
+
+            parallel_for(work_amount_dst, [&](size_t i) {
+                dst_data[i] = sqrt(dst_data[i]);
+            });
+            break;
+        case Reduce::LogSum:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, static_cast<dst_t>(0),
+                   [](dst_t x, src_d y)->dst_t { return x + y; },
+                   [](dst_t x, src_d y)->dst_t { return x + y; });
+
+            parallel_for(work_amount_dst, [&](size_t i) {
+                dst_data[i] = logf(dst_data[i]);
+            });
+            break;
+        case Reduce::LogSumExp:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, static_cast<dst_t>(0),
+                   [](dst_t old, src_d y)->dst_t { return old + expf(y); },
+                   [](dst_t x, src_d y)->dst_t { return x + y; });
+
+            parallel_for(work_amount_dst, [&](size_t i) {
+                dst_data[i] = logf(dst_data[i]);
+            });
+            break;
+        case Reduce::Max:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims,
+                                 (std::numeric_limits<dst_t>::min)(),
+                   [](dst_t x, src_d y)->dst_t { return x > y ? x : y; },
+                   [](dst_t x, src_d y)->dst_t { return x > y ? x : y; });
+            break;
+        case Reduce::Mean:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, static_cast<dst_t>(0),
+                   [](dst_t x, src_d y)->dst_t { return x + y; },
+                   [](dst_t x, src_d y)->dst_t { return x + y; });
+
+            parallel_for(work_amount_dst, [&](size_t i) {
+                dst_data[i] /= static_cast<dst_t>(reduced_dims_work_amount);
+            });
+            break;
+        case Reduce::Min:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims,
+                                 (std::numeric_limits<dst_t>::max)(),
+                   [](dst_t x, src_d y)->dst_t { return x < y ? x : y; },
+                   [](dst_t x, src_d y)->dst_t { return x < y ? x : y; });
+            break;
+        case Reduce::Or:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, static_cast<dst_t>(0),
+                   [](dst_t x, src_d y)->dst_t { return x || y; },
+                   [](dst_t x, src_d y)->dst_t { return x || y; });
+            break;
+        case Reduce::Prod:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, static_cast<dst_t>(1),
+                   [](dst_t x, src_d y)->dst_t { return x * y; },
+                   [](dst_t x, src_d y)->dst_t { return x * y; });
+            break;
+        case Reduce::Sum:
+            reduce(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, static_cast<dst_t>(0),
+                   [](dst_t x, src_d y)->dst_t { return x + y; },
+                   [](dst_t x, src_d y)->dst_t { return x + y; });
+            break;
+        case Reduce::SumSquare:
+            reduce<src_d, dst_t>(src_data, dst_data, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims, static_cast<dst_t>(0),
+                   [](dst_t old, src_d y)->dst_t { return old + y * y; },
+                   [](dst_t x, src_d y)->dst_t { return x + y; });
+            break;
+        default:
+            return GENERAL_ERROR;
+    }
+    return OK;
+}
+
+template <typename src_d, typename dst_t, typename F1, typename F2>
 void ReduceImpl::reduce(
-    const float *src_data,
-    float       *dst_data,
+    const src_d *src_data,
+    dst_t       *dst_data,
     size_t       work_amount_dst,
     size_t       reduced_dims_work_amount,
     SizeVector   axes_for_reduction,
     SizeVector   dst_dims,
-    float        init_value,
+    dst_t        init_value,
     F1           func1,
     F2           func2
 ) {
@@ -264,7 +293,7 @@ void ReduceImpl::reduce(
                 i /= dst_dims[j];
             }
             for (size_t src_idx, dst_idx = start; dst_idx < end; ++dst_idx) {
-                float reduce_prod = init_value;
+                dst_t reduce_prod = init_value;
                 bool update_idx = true;
                 SizeVector src_counters = dst_counters;
                 for (i = 0; i < reduced_dims_work_amount; ++i) {
@@ -297,7 +326,7 @@ void ReduceImpl::reduce(
             }
         });
     } else {
-        std::vector<float> reduce_prod((nthr * work_amount_dst), init_value);
+        std::vector<dst_t> reduce_prod((nthr * work_amount_dst), init_value);
         if (work_amount_dst == 1) {
             parallel_nt(nthr, [&](const int ithr, const int nthr) {
                 size_t i, start = 0, end = 0;

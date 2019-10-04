@@ -115,6 +115,30 @@ void BufferWrapper::insert(size_t index, float value) {
     }
 }
 
+void CompareCommonExact(const InferenceEngine::Blob::Ptr &actual,
+                        const InferenceEngine::Blob::Ptr &expected) {
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(expected, nullptr);
+    const int32_t* res_ptr = actual->cbuffer().as<const int32_t*>();
+    const int32_t* ref_ptr = expected->cbuffer().as<const int32_t*>();
+    bool differ = false;
+    size_t actualFirstErrIdx = 0;
+    size_t expectedFirstErrIdx = 0;
+    std::function<void(size_t, size_t)> exactErrorUpdater = [&](size_t actualIdx, size_t expectedIdx) {
+        auto actual = res_ptr[actualIdx];
+        auto expected = ref_ptr[expectedIdx];
+        if ((actual != expected) && !differ) {
+            actualFirstErrIdx = actualIdx;
+            expectedFirstErrIdx = expectedIdx;
+            differ = true;
+        }
+    };
+    CompareCommon(actual, expected, exactErrorUpdater);
+    ASSERT_EQ(differ, false)
+        << "expectedFirstErrIdx = " << expectedFirstErrIdx
+        << " actualFirstErrIdx = " << actualFirstErrIdx;
+}
+
 void CompareCommonAbsolute(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance) {
     ASSERT_NE(actual, nullptr);
     ASSERT_NE(expected, nullptr);
@@ -134,7 +158,7 @@ void CompareCommonAbsolute(const Blob::Ptr& actual, const Blob::Ptr& expected, f
             expectedMaxErrId = expectedIdx;
         }
     };
-    CompareCommon(actual, expected, tolerance, absoluteErrorUpdater);
+    CompareCommon(actual, expected, absoluteErrorUpdater);
 
     ASSERT_NEAR(ref_ptr[expectedMaxErrId], res_ptr[actualMaxErrId], tolerance)
                         << "expectedMaxErrId = " << expectedMaxErrId
@@ -161,7 +185,7 @@ void CompareCommonRelative(const Blob::Ptr& actual, const Blob::Ptr& expected, f
             expectedMaxErrId = expectedIdx;
         }
     };
-    CompareCommon(actual, expected, tolerance, relatedErrorUpdater);
+    CompareCommon(actual, expected, relatedErrorUpdater);
 
     float abs_threshold = fabsf(ref_ptr[expectedMaxErrId]) * tolerance;
     ASSERT_NEAR(ref_ptr[expectedMaxErrId], res_ptr[actualMaxErrId], abs_threshold)
@@ -169,7 +193,7 @@ void CompareCommonRelative(const Blob::Ptr& actual, const Blob::Ptr& expected, f
                         << " actualMaxErrId = " << actualMaxErrId;
 }
 
-void CompareCommon(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance,
+void CompareCommon(const Blob::Ptr& actual, const Blob::Ptr& expected,
                    const std::function<void(size_t, size_t)>& errorUpdater) {
     ASSERT_NE(actual, nullptr);
     ASSERT_NE(expected, nullptr);

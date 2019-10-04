@@ -178,10 +178,15 @@ int main(int argc, char *argv[]) {
         showUsage();
         return ex.exitCode();
     } catch (const UserExceptions& ex) {
-        slog::err << "Input problems: \n" << ex.what() << slog::endl;
-        showUsage();
-        if (!ex.list().empty())
+        if (ex.list().size() == 1) {
+            slog::err << "Input problem: " << ex.what() << slog::endl;
+            showUsage();
             return ex.list().begin()->exitCode();
+        } else {
+            slog::err << "Input problems: \n" << ex.what() << slog::endl;
+            showUsage();
+            return ex.list().begin()->exitCode();
+        }
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
         return 1;

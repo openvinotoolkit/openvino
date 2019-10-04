@@ -13,9 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from mo.graph.graph import Node, dict_includes, Graph
+from mo.ops.const import Const
 from mo.ops.op import Op
+from mo.ops.result import Result
 from mo.utils.error import Error
 
 
@@ -24,7 +27,6 @@ class TensorIterator(Op):
     '''
 
     op = 'TensorIterator'
-
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
@@ -35,10 +37,10 @@ class TensorIterator(Op):
             'back_edges': [], # a list of dicts with such attrs as from_layer, from_port, etc.
             'body': None,   # an Graph object with a body sub-graph
             'sub_graphs': ['body'],  # built-in attribute with all sub-graphg
-            'infer': __class__.infer
+            'infer': self.infer,
+            'type_infer': self.ti_type_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
-
 
     def substitute_ie_attrs(self, new_attrs: dict):
         """
@@ -67,7 +69,7 @@ class TensorIterator(Op):
         new_attrs.update({
             'IE': [(
                 'layer',
-                [('id', lambda node: node.node), 'name', 'precision', 'type'],
+                [('id', lambda node: node.node), 'name', 'type'],
                 [
                     ('data', self.backend_attrs() + self.default_backend_attrs, []),
                     '@ports',
@@ -88,20 +90,17 @@ class TensorIterator(Op):
         assert bool('in' in attrs) != bool('out' in attrs)
         return attrs['in' if 'in' in attrs else 'out']
 
-
     @staticmethod
     def find_internal_layer_id(graph: Graph, virtual_id):
         internal_nodes = list(filter(lambda d: dict_includes(d[1], {'internal_layer_id': virtual_id}), graph.nodes(data=True)))
         assert len(internal_nodes) == 1, 'Nodes: {}, virtual_id: {}'.format(internal_nodes, virtual_id)
         return  internal_nodes[0][0]
 
-
     @staticmethod
     def find_internal_layer_and_port(graph: Graph, virtual_layer_id, virtual_port_id):
         internal_layer_id = __class__.find_internal_layer_id(graph, virtual_layer_id)
         internal_port_id = __class__.find_port_id(Node(graph, internal_layer_id), virtual_port_id, 'internal_port_id')
         return internal_layer_id, internal_port_id
-
 
     @staticmethod
     def generate_port_map(node: Node, src_port_map):
@@ -120,7 +119,6 @@ class TensorIterator(Op):
             result_list.append(result)
         return result_list
 
-
     @staticmethod
     def generate_back_edges(node: Node):
         ''' Extract back_edges attributes from node and node.body attributes. '''
@@ -135,12 +133,46 @@ class TensorIterator(Op):
             result_list.append(result)
         return result_list
 
-
     @staticmethod
     def infer(node: Node):
         return
         raise Error('TensorIterator.infer is not implemented. '
             'Do not insert TensorIterator before middle-end in Model Optimizer')
+
+    @staticmethod
+    def ti_type_infer(node):
+        from mo.middle.passes.infer import type_infer
+        ti_graph = node.body
+
+        # create fake const node to make type inference work correctly for all TI input nodes
+        fake_input_const_nodes = []
+        for port_map in __class__.generate_port_map(node, node.input_port_map):
+            internal_input_data = Node(ti_graph, port_map['internal_layer_id']).in_node(port_map['internal_port_id'])
+            if len(internal_input_data.in_nodes()) == 0:
+                input_producer_port = node.in_port(port_map['external_port_id']).get_connection().get_source()
+                input_type = input_producer_port.get_data_type()
+                const_node = Const(ti_graph, {'name': 'fake_const_',
+                                              'value': np.ones([1], dtype=input_type)}).create_node()
+                fake_input_const_nodes.append(const_node)
+                ti_graph.create_edge(const_node, internal_input_data)
+
+        # create const Op node for constant data nodes inside the TI
+        for data_node in ti_graph.get_data_nodes(has_value=True):
+            if len(data_node.in_nodes()) == 0:
+                const_node = Const(ti_graph, {'name': 'const_', 'value': data_node.value}).create_node()
+                fake_input_const_nodes.append(const_node)
+                ti_graph.create_edge(const_node, data_node)
+
+        type_infer(ti_graph)
+
+        # propagate data types to the TI output ports
+        output_port_map = __class__.generate_port_map(node, node.output_port_map)
+        for port_map in output_port_map:
+            internal_output_port = Node(ti_graph, port_map['internal_layer_id']).out_port(port_map['internal_port_id'])
+            ti_output_port = node.out_port(port_map['external_port_id'])
+            ti_output_port.set_data_type(internal_output_port.get_data_type())
+
+        ti_graph.remove_nodes_from([node.id for node in fake_input_const_nodes])
 
 
 # Some utils for TI

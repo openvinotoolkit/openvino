@@ -47,7 +47,7 @@ void ref_eltwise(const std::vector<InferenceEngine::TBlob<data_t>> &src, Inferen
         std::istringstream stream(prm.scales);
         std::string str;
         while (getline(stream, str, ',')) {
-            float val = InferenceEngine::CNNLayer::ie_parse_float(str);
+            float val = std::stof(str);
             scales.push_back(val);
         }
     } else {
@@ -344,7 +344,7 @@ protected:
 
         std::string scale;
         if (!p.scales.empty()) {
-            scale = std::string("coeff=\"") + to_string_c_locale(p.scales) + std::string("\"");
+            scale = std::string("coeff=\"") + p.scales + std::string("\"");
         }
         REPLACE_WITH_STR(model, "_OP_", op);
         REPLACE_WITH_STR(model, "_COEFF_", scale);
@@ -617,7 +617,7 @@ protected:
 
         std::string scale;
         if (!p.scales.empty()) {
-            scale = std::string("coeff=\"") + to_string_c_locale(p.scales) + std::string("\"");
+            scale = std::string("coeff=\"") + p.scales + std::string("\"");
         }
         REPLACE_WITH_STR(model, "_OP_", op);
         REPLACE_WITH_STR(model, "_COEFF_", scale);

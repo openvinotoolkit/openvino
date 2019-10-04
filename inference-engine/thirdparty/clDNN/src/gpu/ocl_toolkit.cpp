@@ -204,13 +204,9 @@ void gpu_toolkit::set_output_event(uint16_t queue_id, bool out_event) {
 std::ofstream& gpu_toolkit::open_log() {
     if (!_logger->_log_file.is_open()) {
         _logger->_log_file.open(_configuration.log, std::ios::out | std::ios::trunc);
-        if (!_logger->_log_file.good()) {
-            _logger->_log_file.close();
+        if (!_logger->_log_file.good())
             throw std::runtime_error("Could not initialize ocl_toolkit log file");
-        }
-
         if (!_logger->_log_file.is_open()) {
-            _logger->_log_file.close();
             throw std::runtime_error("Could not open ocl_toolkit log file '" + _configuration.log + "' for writing");
         }
     }

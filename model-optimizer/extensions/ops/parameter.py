@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.front.common.partial_infer.elemental import single_output_infer
 from mo.graph.graph import Graph
 from mo.ops.op import Op
@@ -30,5 +32,11 @@ class Parameter(Op):
             'infer': lambda node: single_output_infer(node, lambda n: n.shape),
             'is_input': True,
             'out_ports_count': 1,
+            'data_type': np.float32,
+            'type_infer': self.type_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
+
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(node.data_type)

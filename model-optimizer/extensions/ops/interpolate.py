@@ -35,7 +35,6 @@ class Interpolate(Op):
             'pads_end': 0,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'force_precision_in_ports': {1:'int64'},
             'infer': __class__.infer,
         }
         super().__init__(graph, mandatory_props, attrs)

@@ -23,6 +23,7 @@ endif()
 #apple specific
 if (APPLE)
     set(ENABLE_GNA OFF)
+    set(ENABLE_ROCKHOPER OFF)
     set(ENABLE_CLDNN OFF)
 endif()
 

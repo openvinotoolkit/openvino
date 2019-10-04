@@ -14,8 +14,11 @@
  limitations under the License.
 """
 
-from mo.front.extractor import FrontExtractorOp
+import numpy as np
+
 from extensions.ops.one_hot import OneHot
+from mo.front.extractor import FrontExtractorOp
+from mo.front.tf.extractors.utils import tf_dtype_extractor
 
 
 class OneHotFrontExtractor(FrontExtractorOp):
@@ -24,5 +27,6 @@ class OneHotFrontExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
-        OneHot.update_node_stat(node, {'axis': node.pb.attr['axis'].i})
+        OneHot.update_node_stat(node, {'axis': node.pb.attr['axis'].i,
+                                       'data_type': tf_dtype_extractor(node.pb.attr["T"].type, np.float32)})
         return __class__.enabled

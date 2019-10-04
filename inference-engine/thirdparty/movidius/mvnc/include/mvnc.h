@@ -52,7 +52,6 @@ typedef enum {
                             //major.minor.hotfix.rc
     NC_RW_COMMON_TIMEOUT_MSEC = 2,
     NC_RW_DEVICE_OPEN_TIMEOUT_MSEC = 3,
-    NC_RW_ALLOC_GRAPH_TIMEOUT_MSEC = 4,
     NC_RW_RESET_ALL = 9000,     // resetAll on initialize
 } ncGlobalOption_t;
 

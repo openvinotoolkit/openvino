@@ -103,9 +103,9 @@ class ConvertSlice(MiddleReplacementPattern):
 
             ss_steps[axis] = steps[i]
 
-        begin_node = Const(graph, {'value': ss_begin, 'force_precision': 'I32'}).create_node()
-        end_node = Const(graph, {'value': ss_end, 'force_precision': 'I32'}).create_node()
-        strides_node = Const(graph, {'value': ss_steps, 'force_precision': 'I32'}).create_node()
+        begin_node = Const(graph, {'value': ss_begin}).create_node()
+        end_node = Const(graph, {'value': ss_end}).create_node()
+        strides_node = Const(graph, {'value': ss_steps}).create_node()
 
         ss = StridedSlice(graph, dict(new_axis_mask=np.zeros(len(output_shape), dtype=np.int32),
                                       shrink_axis_mask=np.zeros(len(output_shape), dtype=np.int32),
@@ -168,8 +168,8 @@ class ConvertSlice(MiddleReplacementPattern):
             convert_negative_indices(ss_begin, input.shape)
             convert_negative_indices(ss_end, input.shape)
 
-            begin_node = Const(graph, {'value': ss_begin, 'force_precision': 'I32'}).create_node_with_data()
-            end_node = Const(graph, {'value': ss_end, 'force_precision': 'I32'}).create_node_with_data()
+            begin_node = Const(graph, {'value': ss_begin}).create_node_with_data()
+            end_node = Const(graph, {'value': ss_end}).create_node_with_data()
 
             ss.create_node_with_data(inputs=[input, begin_node, end_node], data_nodes=[output_data])
             # Remove unnecessary edges from and to to Slice vertex

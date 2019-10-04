@@ -32,7 +32,6 @@ def common_kaldi_fields(node: Node) -> dict:
         'op': layer_type,
         # generic code relies on op; it should be overridden by specific op extractor
         'infer': None,
-        'precision': 'FP32'
     }
 
 

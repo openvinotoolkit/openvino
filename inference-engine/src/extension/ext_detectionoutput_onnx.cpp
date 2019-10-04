@@ -97,10 +97,10 @@ void refine_boxes(const float* boxes, const float* deltas, const float* weights,
             float y1_new = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
 
             // adjust new corner locations to be within the image region,
-            x0_new = std::max<float>(0.0f, std::min<float>(x0_new, img_W - coordinates_offset));
-            y0_new = std::max<float>(0.0f, std::min<float>(y0_new, img_H - coordinates_offset));
-            x1_new = std::max<float>(0.0f, std::min<float>(x1_new, img_W - coordinates_offset));
-            y1_new = std::max<float>(0.0f, std::min<float>(y1_new, img_H - coordinates_offset));
+            x0_new = std::max<float>(0.0f, x0_new);
+            y0_new = std::max<float>(0.0f, y0_new);
+            x1_new = std::max<float>(0.0f, x1_new);
+            y1_new = std::max<float>(0.0f, y1_new);
 
             // recompute new width & height
             const float box_w = x1_new - x0_new + coordinates_offset;
@@ -268,7 +268,7 @@ public:
 
         auto* output_boxes = outputs[OUTPUT_BOXES]->buffer().as<float *>();
         auto* output_scores = outputs[OUTPUT_SCORES]->buffer().as<float *>();
-        auto* output_classes = outputs[OUTPUT_CLASSES]->buffer().as<float *>();
+        auto* output_classes = outputs[OUTPUT_CLASSES]->buffer().as<int32_t *>();
 
         const float img_H = im_info[0];
         const float img_W = im_info[1];
@@ -334,9 +334,9 @@ public:
         }
 
         // Fill outputs.
-        memset(output_boxes, 0, max_detections_per_image_ * 4 * sizeof(float));
-        memset(output_scores, 0, max_detections_per_image_ * sizeof(float));
-        memset(output_classes, 0, max_detections_per_image_ * sizeof(float));
+        memset(output_boxes, 0, max_detections_per_image_ * 4 * sizeof(output_boxes[0]));
+        memset(output_scores, 0, max_detections_per_image_ * sizeof(output_scores[0]));
+        memset(output_classes, 0, max_detections_per_image_ * sizeof(output_classes[0]));
 
         int i = 0;
         for (const auto & detection : conf_index_class_map) {
@@ -348,7 +348,7 @@ public:
             output_boxes[4 * i + 2] = refined_boxes[refined_box_idx({cls, idx, 2})];
             output_boxes[4 * i + 3] = refined_boxes[refined_box_idx({cls, idx, 3})];
             output_scores[i] = score;
-            output_classes[i] = static_cast<float>(cls);
+            output_classes[i] = cls;
             ++i;
         }
 

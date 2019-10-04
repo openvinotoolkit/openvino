@@ -55,8 +55,6 @@ ie_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" OFF)
 
 ie_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF)
 
-ie_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF)
-
 ie_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON)
 
 ie_option (ENABLE_SAMPLES_CORE "console samples core library" ON)
@@ -67,8 +65,6 @@ ie_option (ENABLE_FUZZING "instrument build for fuzzing" OFF)
 
 ie_option (COVERAGE "enable code coverage" OFF)
 
-ie_option (ENABLE_STRESS_UNIT_TESTS "stress unit tests" OFF)
-
 ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
 
 ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
@@ -78,6 +74,8 @@ ie_option (ENABLE_ALTERNATIVE_TEMP "in case of dependency conflict, to avoid mod
 ie_option (ENABLE_SEGMENTATION_TESTS "segmentation tests" ON)
 
 ie_option (ENABLE_OBJECT_DETECTION_TESTS "object detection tests" ON)
+
+ie_option (ENABLE_DUMP "enables mode for dumping per layer information" OFF)
 
 ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 
@@ -119,7 +117,7 @@ else()
 endif()
 
 if (UNIX AND NOT APPLE AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.10)
-    ie_option(ENABLE_CPPCHECK "Enable cppcheck during the build" ON)
+    ie_option(ENABLE_CPPCHECK "Enable cppcheck during the build" OFF)
 else()
     set(ENABLE_CPPCHECK OFF)
 endif()

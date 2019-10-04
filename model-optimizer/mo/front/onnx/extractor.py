@@ -44,9 +44,8 @@ def common_onnx_fields(node: Node):
     return {
         'kind': 'op',
         'name': node.id,
-    # no reliable name for an onnx node, name can be empty, so we use that surrogate built as ID in the loaader
+         # no reliable name for an onnx node, name can be empty, so we use that surrogate built as ID in the loader
         'op': node.op if node.has_valid('op') else node.pb.op_type,
-        'precision': 'FP32'  # TODO use real precision derived from the model
     }
 
 

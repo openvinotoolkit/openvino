@@ -511,13 +511,9 @@ void prepare_conv_eltw_fusing::run(program_impl& p) {
     }
 
     // fuse conv + eltwise after activations
-    auto conv_itr = conv_nodes.begin();
-    while (conv_itr != conv_nodes.end()) {
-        auto node_itr = conv_itr++;
-
-        if (node_itr == conv_nodes.end())
-            break;
-
+    itr = conv_nodes.begin();
+    while (itr != conv_nodes.end()) {
+        auto node_itr = itr++;
         auto& node = (*node_itr);
 
         fuse_conv_eltwise(p, node);

@@ -1491,6 +1491,7 @@ void Program::CreateBatchNormalizationPrimitive(cldnn::topology& topology, Infer
     auto scalePrim = cldnn::scale(bnLayerName, inputPrimitives[0], weightID, biasID);
 
     topology.add(scalePrim);
+    return;
 #else
     cldnn::tensor blobTensor(0);
     const auto bnDims = bnLayer->outData[0]->getTensorDesc().getDims();

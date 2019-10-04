@@ -115,5 +115,3 @@ class CropToStridedSlice(BackReplacementPattern):
 
         node.in_port(0).disconnect()
         node.out_port(0).get_connection().set_source(ss.out_port(0))
-
-        ss['force_precision_in_ports'] = {1: 'int64', 2: 'int64', 3: 'int64'}

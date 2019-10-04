@@ -173,23 +173,43 @@ private:
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
+        const auto& operation = type();
+        const auto& dataType = input(0)->desc().type();
+
+        auto supportedDataTypes = EnumSet<DataType>{DataType::FP16};
+        if (operation == StageType::Sum) {
+            supportedDataTypes.insert(DataType::S32);
+        }
+        IE_ASSERT(supportedDataTypes.find(dataType) != supportedDataTypes.end());
+
+        assertInputsOutputsTypes(this, {{dataType}, {dataType}, {dataType}}, {{dataType}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto coeff1 = attrs().getOrDefault<float>("coeff1", 1.0f);
-        auto coeff2 = attrs().getOrDefault<float>("coeff2", 1.0f);
-        auto postOperation = attrs().getOrDefault<StageType>("postOperation", StageType::Empty);
-        auto negativeSlope = attrs().getOrDefault<float>("negativeSlope", 0.0f);
-        auto min_value = attrs().getOrDefault<float>("min_value", 0.0f);
-        auto max_value = attrs().getOrDefault<float>("max_value", 1.0f);
+        const auto& type = input(0)->desc().type();
 
-        serializer.append(static_cast<float>(coeff1));
-        serializer.append(static_cast<float>(coeff2));
+        if (type == DataType::FP16) {
+            serializer.append(attrs().getOrDefault<float>("coeff1", 1.0f));
+            serializer.append(attrs().getOrDefault<float>("coeff2", 1.0f));
+        } else if (type == DataType::S32) {
+            serializer.append(attrs().getOrDefault<std::int32_t>("coeff1", 1));
+            serializer.append(attrs().getOrDefault<std::int32_t>("coeff2", 1));
+        } else {
+             THROW_IE_EXCEPTION << type << " isn't supported";
+        }
+
+        auto postOperation = attrs().getOrDefault<StageType>("postOperation", StageType::Empty);
         serializer.append(static_cast<int>(postOperation));
-        serializer.append(static_cast<float>(negativeSlope));
-        serializer.append(static_cast<float>(min_value));
-        serializer.append(static_cast<float>(max_value));
+
+        if (type == DataType::FP16) {
+            serializer.append(attrs().getOrDefault<float>("negativeSlope", 0.0f));
+            serializer.append(attrs().getOrDefault<float>("min_value", 0.0f));
+            serializer.append(attrs().getOrDefault<float>("max_value", 1.0f));
+        } else {
+            serializer.append(attrs().getOrDefault<std::int32_t>("negativeSlope", 0));
+            serializer.append(attrs().getOrDefault<std::int32_t>("min_value", 0));
+            serializer.append(attrs().getOrDefault<std::int32_t>("max_value", 1));
+        }
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -218,14 +238,14 @@ void FrontEnd::parseEltwise(
     IE_ASSERT(outputs.size() == 1);
 
     auto stageType = StageType::None;
-    auto subCoefficient = 1.0f;
+    auto subCoefficient = 1;
 
     if (layer->_operation == ie::EltwiseLayer::eOperation::Sub) {
         if (inputs.size() != 2) {
             VPU_THROW_EXCEPTION << "Eltwise operation: " << layer->_operation << " with multiple inputs is not supported";
         }
         stageType = StageType::Sum;
-        subCoefficient = -1.f;
+        subCoefficient = -1;
     } else if (layer->_operation == ie::EltwiseLayer::eOperation::Mean) {
         if (inputs.size() != 2) {
             VPU_THROW_EXCEPTION << "Eltwise operation: " << layer->_operation << " with multiple inputs is not supported";
@@ -269,22 +289,32 @@ void FrontEnd::parseEltwise(
         tempInputs,
         {tempOutput});
 
+    const auto& type = inputs.front()->desc().type();
+    IE_ASSERT(type == DataType::FP16 || type == DataType::S32);
+
     if (layer->_operation == ie::EltwiseLayer::eOperation::Mean) {
+        // Mean supports only FP16
+        IE_ASSERT(type == DataType::FP16);
         stage->attrs().set<float>("coeff1",  0.5);
         stage->attrs().set<float>("coeff2",  0.5);
     } else {
         if (layer->coeff.size() > 0) {
-            stage->attrs().set<float>("coeff1", layer->coeff[0]);
+            if (type == DataType::FP16) {
+                stage->attrs().set<float>("coeff1", layer->coeff[0]);
+            } else {
+                stage->attrs().set<std::int32_t>("coeff1", layer->coeff[0]);
+            }
         }
-        if (layer->coeff.size() > 1 || subCoefficient != 1.0f) {
-            stage->attrs().set<float>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1.0f));
+        if (layer->coeff.size() > 1 || subCoefficient != 1) {
+            if (type == DataType::FP16) {
+                stage->attrs().set<float>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1.0f));
+            } else {
+                stage->attrs().set<std::int32_t>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1));
+            }
         }
     }
 
     stage->attrs().set<StageType>("postOperation", StageType::Empty);
-    stage->attrs().set<float>("negativeSlope", 0.0f);
-    stage->attrs().set<float>("min_value", 0.0f);
-    stage->attrs().set<float>("max_value", 1.0f);
 
     tempInputs[0] = tempOutput;
     for (int ind = 2; ind < inputs.size(); ++ind) {

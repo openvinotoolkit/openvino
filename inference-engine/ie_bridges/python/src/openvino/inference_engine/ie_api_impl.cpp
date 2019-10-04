@@ -396,6 +396,9 @@ void InferenceEnginePython::IENetLayer::setParams(const std::map<std::string, st
     layer_ptr->params = params_map;
 }
 
+std::vector<InferenceEngine::DataPtr> InferenceEnginePython::IENetLayer::getOutData() {
+    return layer_ptr->outData;
+}
 std::map<std::string, InferenceEngine::Blob::Ptr> InferenceEnginePython::IENetLayer::getWeights() {
     auto w_layer = std::dynamic_pointer_cast<InferenceEngine::WeightableLayer>(layer_ptr);
     // IF current layer is weightable gather weights and biases from casted WeightableLayer and all other blobs

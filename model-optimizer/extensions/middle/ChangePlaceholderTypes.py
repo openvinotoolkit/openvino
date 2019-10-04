@@ -15,6 +15,7 @@
 """
 
 import logging as log
+import numpy as np
 
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.fusing.helpers import get_next_operation
@@ -38,6 +39,7 @@ class ChangePlaceholderTypes(MiddleReplacementPattern):
     @staticmethod
     def change_node_type(node: Node, new_type: type):
         node.graph.node[node.id]['pb'].attr['dtype'].type = new_type
+        node.data_type = np.float32
 
     @staticmethod
     def is_node_casts_to_float(node: Node):
@@ -72,7 +74,7 @@ class ChangePlaceholderTypes(MiddleReplacementPattern):
         for node_name, node_attrs in list(graph.nodes(data=True)):
             node = Node(graph, node_name)
             pb = node_attrs.get('pb')
-            if pb is not None and pb.op == 'Parameter' and pb.attr['dtype'].type != tf_types.DT_FLOAT:
+            if pb is not None and pb.op == 'Placeholder' and pb.attr['dtype'].type != tf_types.DT_FLOAT:
                 log.info('Placeholder "{}" has type that is different from DT_FLOAT'.format(node_name))
                 next_ops = get_next_operation(node)
                 # check that all output nodes are nodes of type 'ToFloat'

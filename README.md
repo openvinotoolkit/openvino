@@ -2,9 +2,10 @@
 [![Stable release](https://img.shields.io/badge/version-2019.R3-green.svg)](https://github.com/opencv/dldt/releases/tag/2019_R3)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 
-This toolkit allows developers to deploy pre-trained deep learning models through a high-level C++ Inference Engine API integrated with application logic. 
+This toolkit allows developers to deploy pre-trained deep learning models through a high-level C++ Inference Engine API integrated with application logic.
 
-This open source version includes two components, namely Model Optimizer and Inference Engine, as well as CPU, GPU and heterogeneous plugins to accelerate deep learning inferencing on Intel(R) CPUs and Intel(R) Processor Graphics. It supports pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo/) along with 100+ open source and public models in popular formats such as Caffe*, Tensorflow*, MXNet* and ONNX*. 
+This open source version includes two components, namely Model Optimizer and Inference Engine, as well as CPU, GPU and heterogeneous plugins to accelerate deep learning inferencing on Intel(R) CPUs and Intel(R) Processor Graphics. It supports pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo/) along with 100+ open source and public models in popular formats such as Caffe*, Tensorflow*, MXNet* and ONNX*.
+For int8 workflow primer, please see INT8_WORKFLOW.md.
 
 ## Repository components:
 * [Inference Engine](https://software.intel.com/en-us/articles/OpenVINO-InferEngine)
@@ -35,7 +36,7 @@ Deep Learning Deployment Toolkit is licensed under Apache License, Version 2.0. 
 ## Support
 Please report questions, issues and suggestions using:
 * [\#openvino](https://stackoverflow.com/search?q=%23openvino) tag on StackOverflow*
-* [GitHub* Issues](https://github.com/opencv/dldt/issues) 
+* [GitHub* Issues](https://github.com/opencv/dldt/issues)
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
 
 ---

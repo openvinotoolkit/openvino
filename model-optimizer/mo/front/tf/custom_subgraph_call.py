@@ -208,7 +208,6 @@ def set_tf_custom_call_node_attrs(node_attrs: dict):
     node_attrs['pbs'] = dict()
     node_attrs['type'] = 'TFCustomSubgraphCall'
     node_attrs['op'] = 'TFCustomSubgraphCall'
-    node_attrs['precision'] = 'FP32'  # TODO use real precision derived from the model
     node_attrs['infer'] = tf_subgraph_infer
     node_attrs['kind'] = 'op'
 

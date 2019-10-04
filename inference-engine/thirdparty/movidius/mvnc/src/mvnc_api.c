@@ -2596,22 +2596,6 @@ ncStatus_t ncGlobalSetOption(ncGlobalOption_t option, const void *data,
         mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
         return NC_INVALID_PARAMETERS;
     }
-    switch (option) {
-        case NC_RW_LOG_LEVEL:
-        case NC_RW_RESET_ALL:
-        case NC_RW_COMMON_TIMEOUT_MSEC:
-        case NC_RW_DEVICE_OPEN_TIMEOUT_MSEC:
-        case NC_RW_ALLOC_GRAPH_TIMEOUT_MSEC: {
-            if (dataLength < sizeof(int)) {
-                mvLog(MVLOG_ERROR, "The dataLength is smaller that required %zu",
-                      sizeof(int));
-                return NC_INVALID_PARAMETERS;
-            }
-            break;
-        }
-        default:
-            break;
-    }
 
     switch (option) {
     case NC_RW_LOG_LEVEL:
@@ -2647,15 +2631,6 @@ ncStatus_t ncGlobalSetOption(ncGlobalOption_t option, const void *data,
         XLinkError_t rc = XLinkSetDeviceOpenTimeOutMsec(gTimeout);
         if (rc) {
             mvLog(MVLOG_ERROR, "Set global open device timeout failed, rc = %s\n", XLinkErrorToStr(rc));
-            return NC_INVALID_PARAMETERS;
-        }
-        break;
-    }
-    case NC_RW_ALLOC_GRAPH_TIMEOUT_MSEC: {
-        int gTimeout = *(int *) data;
-        XLinkError_t rc = XLinkSetAllocateGraphTimeOutMsec(gTimeout);
-        if (rc) {
-            mvLog(MVLOG_ERROR, "Set global allocate graph timeout failed, rc = %s\n", XLinkErrorToStr(rc));
             return NC_INVALID_PARAMETERS;
         }
         break;

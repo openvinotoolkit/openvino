@@ -42,7 +42,6 @@ class Op(object):
             self.ir_version = None
 
         self.attrs = {
-            'precision': "FP32",
             'kind': 'op'
         }
         self.default_backend_attrs = []
@@ -75,6 +74,7 @@ class Op(object):
         backend_attrs_mapping = {
             None: self.backend_attrs,
             10: self.backend_attrs,
+            7: self.backend_attrs,
             6: self.backend_attrs,
             5: self.backend_attrs,
             4: self.backend_attrs,
@@ -88,7 +88,7 @@ class Op(object):
         new_attrs.update({
             'IE': [(
                 'layer',
-                [('id', lambda node: node.node), 'name', 'precision', 'type'],
+                [('id', lambda node: node.node), 'name', 'type'],
                 [
                     ('data', backend_attrs_mapping[self.ir_version]() + self.default_backend_attrs, []),
                     '@ports',
@@ -170,7 +170,7 @@ class Op(object):
         # so there is no choice.
         new_op_node = self.add_node(attrs)
 
-        # TODO Preserve debug infor
+        # TODO Preserve debug information
         inputs_with_edge_attrs = []
         for i, inp in enumerate(inputs):
             if inp is None:
@@ -179,7 +179,8 @@ class Op(object):
             if edge_attrs is not None and i < len(edge_attrs):
                 edge_attr.update(edge_attrs[i])
             inputs_with_edge_attrs.append((inp.id, new_op_node.id, edge_attr))
-        
+            new_op_node.add_input_port(i, skip_if_exist=True)
+
         self.graph.add_edges_from(inputs_with_edge_attrs)
         
         # TODO: Extend to the case when multiple output ports
@@ -188,8 +189,7 @@ class Op(object):
         if data_nodes is None:
             data_node = self.graph.unique_id()
             self.graph.add_node(data_node, **add_attrs_props(
-                dict(kind='data', precision="FP32", name=data_node, value=None, shape=None, data_type=None,
-                     infer=None)))
+                dict(kind='data', name=data_node, value=None, shape=None, data_type=None, infer=None)))
             data_nodes = [Node(self.graph, data_node)]
         else:
             if type(data_nodes) not in [list, np.ndarray]:
@@ -232,10 +232,9 @@ class Op(object):
             attrs = {}
 
         data_node = graph.unique_id(op_node.id)
-        defaul_attrs = dict(kind='data', precision="FP32", name=data_node, value=None, shape=None, data_type=None,
-                            infer=None)
-        defaul_attrs.update(attrs)
-        graph.add_node(data_node, **add_attrs_props(defaul_attrs))
+        default_attrs = dict(kind='data', name=data_node, value=None, shape=None, data_type=None, infer=None)
+        default_attrs.update(attrs)
+        graph.add_node(data_node, **add_attrs_props(default_attrs))
         data_node = Node(graph, data_node)
         if edge_attrs is not None:
             graph.add_edges_from([(op_node.id, data_node.id, {'out': out_port, **edge_attrs})])
@@ -249,21 +248,21 @@ class Op(object):
             attrs = {}
 
         data_node = graph.unique_id(name)
-        defaul_attrs = dict(kind='data', precision="FP32", name=data_node, value=None, shape=None, data_type=None,
-                            infer=None)
-        defaul_attrs.update(attrs)
-        graph.add_node(data_node, **add_attrs_props(defaul_attrs))
+        default_attrs = dict(kind='data', name=data_node, value=None, shape=None, data_type=None, infer=None)
+        default_attrs.update(attrs)
+        graph.add_node(data_node, **add_attrs_props(default_attrs))
         data_node = Node(graph, data_node)
         return data_node
 
     @staticmethod
-    def create_input_data_node(graph: Graph, name: str, value: np.array, attrs: dict = {}):
+    def create_input_data_node(graph: Graph, name: str, value: np.array, attrs: dict = None):
+        if attrs is None:
+            attrs = {}
         data_node = graph.unique_id(name)
-        defaul_attrs = dict(kind='data', precision="FP32", name=data_node, value=np.array(value),
-                            shape=np.array(value.shape),
-                            data_type=None, infer=None)
-        defaul_attrs.update(attrs)
-        graph.add_node(data_node, **add_attrs_props(defaul_attrs))
+        default_attrs = dict(kind='data', name=data_node, value=np.array(value), shape=np.array(value.shape),
+                             data_type=None, infer=None)
+        default_attrs.update(attrs)
+        graph.add_node(data_node, **add_attrs_props(default_attrs))
         return Node(graph, data_node)
 
     @staticmethod
@@ -275,10 +274,9 @@ class Op(object):
             edge_attrs = {}
 
         data_node = graph.unique_id(op_node.id)
-        defaul_attrs = dict(kind='data', precision="FP32", name=data_node, value=None, shape=None, data_type=None,
-                            infer=None)
-        defaul_attrs.update(attrs)
-        graph.add_node(data_node, **add_attrs_props(defaul_attrs))
+        default_attrs = dict(kind='data', name=data_node, value=None, shape=None, data_type=None, infer=None)
+        default_attrs.update(attrs)
+        graph.add_node(data_node, **add_attrs_props(default_attrs))
         data_node = Node(graph, data_node)
         op_node.add_input_port(edge_attrs['in'], skip_if_exist=True)
         graph.add_edges_from([(data_node.id, op_node.id, edge_attrs)])

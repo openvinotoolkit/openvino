@@ -139,16 +139,6 @@ public:
             return res;
         }
     }
-    /**
-      * @brief serialize float with c_locale formating
-      * used for default values serializing
-      */
-    static std::string ie_serialize_float(float value) {
-        std::stringstream val_stream;
-        val_stream.imbue(std::locale("C"));
-        val_stream << value;
-        return val_stream.str();
-    }
 
     /**
      * @brief Gets float value for the given parameter
@@ -157,7 +147,7 @@ public:
      * @return float value
      */
     float GetParamAsFloat(const char* param, float def) const {
-        std::string val = GetParamAsString(param, ie_serialize_float(def).c_str());
+        std::string val = GetParamAsString(param, std::to_string(def).c_str());
         try {
             return ie_parse_float(val);
         } catch (...) {

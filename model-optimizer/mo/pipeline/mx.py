@@ -41,7 +41,7 @@ from mo.middle.passes.fusing.resnet_optimization import stride_optimization
 from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
 from mo.middle.passes.shape import reverse_input_channels, merge_nodes_permutations, permute_data_nodes_attrs, \
     permute_op_nodes_attrs
-from mo.pipeline.common import prepare_emit_ir
+from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.front.mxnet.nd_to_params import save_params_file
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
 from mo.front.mxnet.extractor import mxnet_op_extractors
@@ -80,12 +80,7 @@ def driver(argv: argparse.Namespace, input_model: str, output_model_name: str, o
     graph.graph['cmd_params'] = argv
     graph.graph['fw'] = 'mxnet'
     graph.graph['feature_dim'] = 1 if graph.graph['layout'] == 'NCHW' else 3
-
-    if graph.graph['cmd_params'].generate_experimental_IR_V10:
-        version = 10
-    else:
-        version = 6
-    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else version
+    graph.graph['ir_version'] = get_ir_version(argv)
 
     extract_node_attrs(graph, mxnet_op_extractor)
 

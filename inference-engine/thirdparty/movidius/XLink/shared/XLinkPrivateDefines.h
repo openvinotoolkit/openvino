@@ -172,10 +172,13 @@ typedef struct xLinkEvent_t {
     void* data;
 }xLinkEvent_t;
 
-int XLinkWaitSem(sem_t* sem);
-int XLinkWaitSemUserMode(sem_t* sem, unsigned int timeout);
-
-const char* XLinkErrorToStr(XLinkError_t rc);
+#define XLINK_INIT_EVENT(event, in_streamId, in_type, in_size, in_data, in_deviceHandle) do { \
+    (event).header.streamId = (in_streamId); \
+    (event).header.type = (in_type); \
+    (event).header.size = (in_size); \
+    (event).data = (in_data); \
+    (event).deviceHandle = (in_deviceHandle); \
+} while(0)
 
 #ifdef __cplusplus
 }

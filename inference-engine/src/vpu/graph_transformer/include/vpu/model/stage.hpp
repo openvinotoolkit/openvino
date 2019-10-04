@@ -141,6 +141,9 @@ VPU_DECLARE_ENUM(StageType,
     Floor = 102,
     TopK = 104,
     ReduceMin = 105,
+    ExpDetectionOutput = 106,  // ExperimentalDetectronDetectionOutput
+    NonMaxSuppression = 107,
+    ROIFeatureExtractor = 108,
 )
 
 //

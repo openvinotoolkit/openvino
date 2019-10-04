@@ -165,16 +165,16 @@ protected:
 
         string P1, P2;
         if (p.alg == eltwise_relu) {
-            P1 = string("negative_slope=\"") + to_string_c_locale(p.alpha) + string("\"");
-            P2 = string("beta=\"") + to_string_c_locale(p.beta) + string("\"");
+            P1 = string("negative_slope=\"") + to_string(p.alpha) + string("\"");
+            P2 = string("beta=\"") + to_string(p.beta) + string("\"");
         } else if (p.alg == eltwise_bounded_relu) {
-            P1 = string("n=\"") + to_string_c_locale(p.alpha) + string("\"");
-            P2 = string("beta=\"") + to_string_c_locale(p.beta) + string("\"");
+            P1 = string("n=\"") + to_string(p.alpha) + string("\"");
+            P2 = string("beta=\"") + to_string(p.beta) + string("\"");
         } else if (p.alg == eltwise_tanh) {
             P1 = string("type=\"tanh\"");
         } else {
-            P1 = string("alpha=\"") + to_string_c_locale(p.alpha) + string("\"");
-            P2 = string("beta=\"") + to_string_c_locale(p.beta) + string("\"");
+            P1 = string("alpha=\"") + to_string(p.alpha) + string("\"");
+            P2 = string("beta=\"") + to_string(p.beta) + string("\"");
         }
         REPLACE_WITH_STR(model, "_P1_", P1);
         REPLACE_WITH_STR(model, "_P2_", P2);

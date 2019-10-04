@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging as log
 import numpy as np
 
 from mo.graph.graph import Node, Graph
@@ -33,6 +34,8 @@ class OneHot(Op):
             'off_value': None,
             'out_ports_count': 1,
             'in_ports_count': 4,
+            'data_type': None,
+            'type_infer': self.type_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -56,8 +59,16 @@ class OneHot(Op):
         assert off_value is not None and off_value.ndim == 0, assert_msg.format('off_value', '3', node.name, off_value)
 
         depth = depth.item(0)
-        on_value = np.float(on_value.item(0))
-        off_value = np.float(off_value.item(0))
+
+        if on_value.dtype in [np.int64, np.bool]:
+            log.warning('Converting on_value and off_value to int32')
+            on_value = np.int32(on_value.item(0))
+            off_value = np.int32(off_value.item(0))
+            node.data_type = np.int32
+        else:
+            node.data_type = on_value.dtype
+            on_value = on_value.item(0)
+            off_value = off_value.item(0)
 
         assert node.has_valid('axis')
         axis = node['axis']
@@ -93,3 +104,7 @@ class OneHot(Op):
         node.in_port(1).disconnect()
         node.in_port(2).disconnect()
         node.in_port(3).disconnect()
+
+    @staticmethod
+    def type_infer(node: Node):
+        node.out_port(0).set_data_type(node.data_type)

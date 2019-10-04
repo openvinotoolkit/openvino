@@ -152,6 +152,9 @@ public:
     operator Precision::ePrecision  () const noexcept {
         return precisionInfo.value;
     }
+    constexpr uint8_t getPrecVal() const noexcept {
+        return precisionInfo.value;
+    }
 
     /** @brief Getter of precision name */
     const char *name() const noexcept {

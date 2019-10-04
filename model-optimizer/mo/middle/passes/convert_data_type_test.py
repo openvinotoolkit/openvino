@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.convert_data_type import convert
+from mo.middle.passes.convert_data_type import convert_blobs
 from mo.utils.error import Error
 from mo.utils.unittest.graph import build_graph
 
@@ -33,7 +33,7 @@ class TestConvertBlob(unittest.TestCase):
                             [('data_node', 'op_node', {'bin': 1})],
                             {'data_node': {'value': np.array([4.0, 3.0, 2.0, 1.0], dtype=np.float64)}})
 
-        convert(graph, "FP32")
+        convert_blobs(graph, "FP32")
         result_value = graph.node['data_node']['value']
         self.assertTrue(result_value.dtype == np.float32)
         self.assertListEqual(list(result_value), [4, 3, 2, 1])
@@ -43,7 +43,7 @@ class TestConvertBlob(unittest.TestCase):
                             [('data_node', 'op_node', {'bin': 1})],
                             {'data_node': {'value': np.array([4.0, 3.0, 2.0, 1.0], dtype=np.float64)}})
 
-        convert(graph, "FP16")
+        convert_blobs(graph, "FP16")
         result_value = graph.node['data_node']['value']
         self.assertTrue(result_value.dtype == np.float16)
         self.assertListEqual(list(result_value), [4, 3, 2, 1])
@@ -53,7 +53,7 @@ class TestConvertBlob(unittest.TestCase):
                             [('data_node', 'op_node', {'bin': 1})],
                             {'data_node': {'value': np.array([4.0, 3.0, 2.0, 1e10], dtype=np.float64)}})
 
-        convert(graph, "FP16")
+        convert_blobs(graph, "FP16")
         result_value = graph.node['data_node']['value']
         self.assertTrue(result_value.dtype == np.float16)
         self.assertListEqual(list(result_value), [4, 3, 2, np.inf])
@@ -64,7 +64,7 @@ class TestConvertBlob(unittest.TestCase):
                             {'data_node': {'force_precision': 'int32',
                                            'value': np.array([4.0, 3.0, 2.0, 1.0], dtype=np.float64)}})
 
-        convert(graph, "FP32")
+        convert_blobs(graph, "FP32")
         result_value = graph.node['data_node']['value']
         self.assertTrue(result_value.dtype == np.int32)
         self.assertListEqual(list(result_value), [4, 3, 2, 1])
@@ -76,4 +76,4 @@ class TestConvertBlob(unittest.TestCase):
                                            'value': np.array([4.0, 3.0, 2.0, 1.1], dtype=np.float64)}})
 
         with self.assertRaisesRegex(Error, '.*results in rounding.*'):
-            convert(graph, "FP32")
+            convert_blobs(graph, "FP32")

@@ -28,19 +28,23 @@
 #include <time.h>
 
 #ifndef _GNU_SOURCE
-#define _GNU_SOURCE // fix for warning: implicit declaration of function ‘pthread_getname_np’
+#define _GNU_SOURCE
 #endif
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if (defined (WINNT) || defined(_WIN32) || defined(_WIN64) )
 #include "win_pthread.h"
 #else
+#ifndef __shave__	// SHAVE does not support threads
 #include <pthread.h>
+#endif
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+#ifndef __shave__	// SHAVE does not support threads
 extern int pthread_getname_np (pthread_t , char *, size_t);
+#endif
 #ifdef __cplusplus
 }
 #endif
@@ -50,7 +54,7 @@ extern int pthread_getname_np (pthread_t , char *, size_t);
 #include <rtems/bspIo.h>
 #endif
 
- // Windows-only
+// Windows-only
 #if (defined (WINNT) || defined(_WIN32) || defined(_WIN64) )
 #define __attribute__(x)
 #define FUNCATTR_WEAK static
@@ -65,10 +69,10 @@ extern int pthread_getname_np (pthread_t , char *, size_t);
 #define _MVLOGLEVEL(UNIT_NAME)  mvLogLevel_ ## UNIT_NAME
 #define  MVLOGLEVEL(UNIT_NAME) _MVLOGLEVEL(UNIT_NAME)
 
-#define STR(x) _STR(x)
-#define _STR(x)  #x
+#define MVLOG_STR(x) _MVLOG_STR(x)
+#define _MVLOG_STR(x)  #x
 
-#define UNIT_NAME_STR STR(MVLOG_UNIT_NAME)
+#define UNIT_NAME_STR MVLOG_STR(MVLOG_UNIT_NAME)
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -100,7 +104,7 @@ extern int pthread_getname_np (pthread_t , char *, size_t);
 #endif
 
 #ifndef MVLOG_MAXIMUM_THREAD_NAME_SIZE
-#define MVLOG_MAXIMUM_THREAD_NAME_SIZE 20
+#define MVLOG_MAXIMUM_THREAD_NAME_SIZE 16
 #endif
 
 typedef enum mvLog_t{
@@ -112,27 +116,37 @@ typedef enum mvLog_t{
     MVLOG_LAST,
 } mvLog_t;
 
+#ifdef __shave__
+__attribute__((section(".laststage")))
+#endif
 static const char mvLogHeader[MVLOG_LAST][30] =
-{
-    MVLOG_DEBUG_COLOR "D:",
-    MVLOG_INFO_COLOR  "I:",
-    MVLOG_WARN_COLOR  "W:",
-    MVLOG_ERROR_COLOR "E:",
-    MVLOG_FATAL_COLOR "F:"
-};
+    {
+        MVLOG_DEBUG_COLOR "D:",
+        MVLOG_INFO_COLOR  "I:",
+        MVLOG_WARN_COLOR  "W:",
+        MVLOG_ERROR_COLOR "E:",
+        MVLOG_FATAL_COLOR "F:"
+    };
 
-FUNCATTR_WEAK unsigned int __attribute__ ((weak)) MVLOGLEVEL(MVLOG_UNIT_NAME) = MVLOG_LAST; // not set by default
+// #ifdef __shave__
+// __attribute__((section(".laststage")))
+// #endif
+FUNCATTR_WEAK unsigned int __attribute__ ((weak)) MVLOGLEVEL(MVLOG_UNIT_NAME) = MVLOG_INFO;
 
-FUNCATTR_WEAK unsigned int __attribute__ ((weak)) MVLOGLEVEL(default) = MVLOG_WARN;
+// #ifdef __shave__
+// __attribute__((section(".laststage")))
+// #endif
+FUNCATTR_WEAK unsigned int __attribute__ ((weak)) MVLOGLEVEL(default) = MVLOG_INFO;
 
+#ifdef __shave__
+__attribute__((section(".laststage")))
+#endif
 static int __attribute__ ((unused))
 logprintf(enum mvLog_t lvl, const char * func, const int line,
-                     const char * format, ...)
+          const char * format, ...)
 {
-    if((MVLOGLEVEL(MVLOG_UNIT_NAME) == MVLOG_LAST && lvl < MVLOGLEVEL(default)))
-        return 0;
-
-    if((MVLOGLEVEL(MVLOG_UNIT_NAME) < MVLOG_LAST && lvl < MVLOGLEVEL(MVLOG_UNIT_NAME)))
+    if(lvl < MVLOGLEVEL(MVLOG_UNIT_NAME) &&
+       lvl < MVLOGLEVEL(default))
         return 0;
 
     const char headerFormat[] = "%s [%s] [%10" PRId64 "] [%s] %s:%d\t";
@@ -148,16 +162,27 @@ logprintf(enum mvLog_t lvl, const char * func, const int line,
     va_list args;
     va_start (args, format);
 
-    char threadName[20] = {0};
+    char threadName[MVLOG_MAXIMUM_THREAD_NAME_SIZE] = {0};
+#if defined MA2450 || defined __shave__
+    snprintf(threadName, sizeof(threadName), "ThreadName_N/A");
+#else
     pthread_getname_np(pthread_self(), threadName, sizeof(threadName));
+#endif
 
 #ifdef __RTEMS__
     if(!rtems_interrupt_is_in_progress())
     {
 #endif
-        fprintf(stdout, headerFormat, mvLogHeader[lvl], UNIT_NAME_STR, timestamp, threadName, func, line);
-        vfprintf(stdout, format, args);
-        fprintf(stdout, "%s\n", ANSI_COLOR_RESET);
+#if defined __sparc__ || defined __PC__
+    fprintf(stdout, headerFormat, mvLogHeader[lvl], UNIT_NAME_STR, timestamp, threadName, func, line);
+    vfprintf(stdout, format, args);
+    fprintf(stdout, "%s\n", ANSI_COLOR_RESET);
+#elif defined __shave__
+    printf(headerFormat, mvLogHeader[lvl], UNIT_NAME_STR, timestamp, threadName, func, line);
+        printf(format, args);
+        printf("%s\n", ANSI_COLOR_RESET);
+
+#endif
 #ifdef __RTEMS__
     }
     else
@@ -177,6 +202,7 @@ logprintf(enum mvLog_t lvl, const char * func, const int line,
 // Set log level for the current unit. Note that the level must be smaller than the global default
 #define mvLogLevelSet(lvl) if(lvl < MVLOG_LAST){ MVLOGLEVEL(MVLOG_UNIT_NAME) = lvl; }
 // Set the global log level. Can be used to prevent modules from hiding messages (enable all of them with a single change)
+// This should be an application setting, not a per module one
 #define mvLogDefaultLevelSet(lvl) if(lvl < MVLOG_LAST){ MVLOGLEVEL(default) = lvl; }
 
 #endif

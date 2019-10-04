@@ -19,6 +19,7 @@ from defusedxml.minidom import parseString
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from mo.graph.graph import *
+from mo.middle.passes.convert_data_type import data_type_str_to_precision, np_data_type_to_precision
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
@@ -65,6 +66,7 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
             if blob_hash in bin_hashes and np.array_equal(blob, bin_hashes[blob_hash]['blob']):
                 graph.node[node.node]['offset'] = bin_hashes[blob_hash]['offset']
                 graph.node[node.node]['size'] = bin_hashes[blob_hash]['size']
+                graph.node[node.node]['blob_precision'] = np_data_type_to_precision(blob.dtype)
                 if graph.graph['cmd_params'].generate_experimental_IR_V10:
                     update_offset_size_in_const_node(node)
             else:
@@ -74,6 +76,7 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
 
                 graph.node[node.node]['offset'] = start
                 graph.node[node.node]['size'] = end - start
+                graph.node[node.node]['blob_precision'] = np_data_type_to_precision(blob.dtype)
 
                 bin_hashes[blob_hash] = {'offset': graph.node[node.node]['offset'],
                                          'size': graph.node[node.node]['size'], 'blob': blob}
@@ -148,6 +151,7 @@ def xml_ports(node: Node, element: Element, edges: Element):
                 edge.set('from-port', str(out_attrs['out']))
                 edge.set('to-layer', str(node.node))
                 edge.set('to-port', str(d['in']))
+                # port.set('precision', np_data_type_to_precision(node['_in_port_precision'][d['in']]))
 
     # output ports
     outputs = None
@@ -157,9 +161,13 @@ def xml_ports(node: Node, element: Element, edges: Element):
                 outputs = SubElement(element, 'output')
             port = SubElement(outputs, 'port')
             port.set('id', str(d['out']))
-            assert node.graph.node[v][
-                       'shape'] is not None, 'Output shape is not calculated properly for node {}'.format(
-                node.id)
+            port_id = d['out'] - len(node.in_nodes())
+            data_type = node.out_port(port_id).get_data_type()
+            assert data_type is not None, 'The precision is not defined for the output port {} of node {}' \
+                                          ''.format(port_id, node.soft_get('name'))
+            port.set('precision', np_data_type_to_precision(data_type))
+            assert node.graph.node[v]['shape'] is not None, 'Output shape is not calculated properly for node {}' \
+                                                            ''.format(node.id)
             xml_shape(node.graph.node[v]['shape'], port)
 
 
@@ -173,13 +181,14 @@ def xml_consts(graph: Graph, node: Node, element: Element):
             try:
                 const.set('offset', str(graph.node[u]['offset']))
                 const.set('size', str(graph.node[u]['size']))
+                const.set('precision', graph.node[u]['blob_precision'])
             except Exception as e:
-                raise Error('Unable to access binary attributes ("offset" and/or "size") '
-                    'for blobs for node {}. Details: {}'.format(node.soft_get('name'), e))
+                raise Error('Unable to access binary attributes ("offset" and/or "size") for blobs for node {}. '
+                            'Details: {}'.format(node.soft_get('name'), e))
 
 
 def soft_get(node, attr):
-    ''' If node has soft_get callable member, returns node.soft_get(attr), else return <SUB-ELEMENT> '''
+    """ If node has soft_get callable member, returns node.soft_get(attr), else return <SUB-ELEMENT> """
     return node.soft_get(attr) if hasattr(node, 'soft_get') and callable(node.soft_get) else '<SUB-ELEMENT>'
 
 
@@ -237,7 +246,7 @@ def serialize_meta_list(graph, node, schema, element, edges, unsupported):
 
 def serialize_node_attributes(
         graph: Graph,  # the current network graph
-        node,   # dictionry-like object that should be serialized
+        node,   # dictionary-like object that should be serialized
         schema: list,
         parent_element: Element,
         edges: Element,
@@ -267,8 +276,8 @@ def serialize_node_attributes(
                     serialize_element(graph, node, s, parent_element, edges, unsupported)
     except Exception as e:
         raise Error(
-            'Error while emitting attributes for layer {} (id = {}). '
-            'It usually means that there is unsupported pattern around this node or unsupported combination of attributes.',
+            'Error while emitting attributes for layer {} (id = {}). It usually means that there is unsupported '
+            'pattern around this node or unsupported combination of attributes.',
             soft_get(node, 'name'),
             node.id
         ) from e
@@ -381,6 +390,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     net.set('name', graph.name)
     net.set('version', str((graph.graph['ir_version'])))
     net.set('batch', '1')  # TODO substitute real batches here (is it a number or is it an index?)
+    net.set('precision', data_type_str_to_precision(graph.graph['cmd_params'].data_type))
 
     if mean_size or mean_offset:
         create_pre_process_block_for_image(net, input_names, mean_offset, mean_size)

@@ -16,6 +16,14 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         SizeVector& getDims()
         const Precision& getPrecision() const
 
+    cdef cppclass Data:
+        const Precision getPrecision() const
+        void setPrecision(const Precision& precision) const
+        const SizeVector getDims()
+        const string& getName() const
+        const Layout getLayout() const
+        const bool isInitialized() const
+
     cdef cppclass Blob:
         ctypedef shared_ptr[Blob] Ptr
         const TensorDesc& getTensorDesc() const
@@ -23,6 +31,8 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
 
     cdef cppclass Precision:
         const char*name() const
+        @staticmethod
+        const Precision FromStr(const string& str)
 
     cdef struct apiVersion:
         int minor
@@ -33,7 +43,11 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const char *description
         apiVersion apiVersion
 
+    cdef enum Layout:
+        pass
+
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
+
     cdef cppclass IENetLayer:
         string name
         string type
@@ -48,6 +62,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void setParams(const map[string, string] & params_map) except +
         map[string, Blob.Ptr] getWeights() except +
         void setPrecision(string precision) except +
+        vector[shared_ptr[Data]] getOutData() except +
 
     cdef cppclass InputInfo:
         vector[size_t] dims

@@ -375,7 +375,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         expected_tensor = current_layout.size;
         expected_format = cldnn::format::bfzyx;
     } else if ((_optimization_attributes.bfyx_f16_network &&
-                convolution_bfyx_f16_opt(node.get_dependency(0).get_output_layout(), output_or_weights_layout, prim)) ||
+                convolution_bfyx_f16_opt(current_layout, output_or_weights_layout, prim)) ||
                 node.get_dependency(0).get_output_layout().format == format::bfyx_f16) {
         expected_tensor = current_layout.size;
         expected_format = cldnn::format::bfyx_f16;

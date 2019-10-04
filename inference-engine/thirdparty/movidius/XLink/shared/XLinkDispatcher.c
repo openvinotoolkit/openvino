@@ -31,7 +31,7 @@
 #include "XLinkDispatcher.h"
 #include "XLinkPrivateDefines.h"
 #include "XLink.h"
-#include "XLink_tool.h"
+#include "XLinkTool.h"
 
 #define MVLOG_UNIT_NAME xLink
 #include "mvLog.h"
@@ -89,15 +89,13 @@ typedef struct {
     localSem_t eventSemaphores[MAXIMUM_SEMAPHORES];
 } xLinkSchedulerState_t;
 
-extern char* TypeToStr(int type);
-
 #if (defined(_WIN32) || defined(_WIN64))
 static void* __cdecl eventSchedulerRun(void* ctx);
 #else
 static void* eventSchedulerRun(void*);
 #endif
 //These will be common for all, Initialized only once
-struct dispatcherControlFunctions* glControlFunc;
+DispatcherControlFunctions* glControlFunc;
 int numSchedulers;
 xLinkSchedulerState_t schedulerState[MAX_SCHEDULERS];
 sem_t addSchedulerSem;
@@ -118,11 +116,6 @@ static int unrefSem(sem_t* sem,  xLinkSchedulerState_t* curr) {
     while (temp < curr->eventSemaphores + MAXIMUM_SEMAPHORES) {
         if (&temp->sem == sem) {
             temp->refs--;
-            if (temp->refs == 0) {
-                curr->semaphores--;
-                ASSERT_X_LINK(sem_destroy(&temp->sem) != -1);
-                temp->refs = -1;
-            }
             return 1;
         }
         temp++;
@@ -136,7 +129,7 @@ static sem_t* getCurrentSem(pthread_t threadId, xLinkSchedulerState_t* curr, int
 
     localSem_t* sem = curr->eventSemaphores;
     while (sem < curr->eventSemaphores + MAXIMUM_SEMAPHORES) {
-        if (pthread_t_compare(sem->threadId, threadId) && sem->refs > 0) {
+        if (pthread_t_compare(sem->threadId, threadId) && sem->refs >= 0) {
             sem->refs += inc_ref;
             return &sem->sem;
         }
@@ -149,36 +142,51 @@ static sem_t* createSem(xLinkSchedulerState_t* curr)
 {
     ASSERT_X_LINK_R(curr != NULL, NULL);
 
-
     sem_t* sem = getCurrentSem(pthread_self(), curr, 0);
-    if (sem) // it already exists, error
+    if (sem) {// it already exists, error
         return NULL;
-    else
-    {
-        if (curr->semaphores < MAXIMUM_SEMAPHORES) {
-            localSem_t* temp = curr->eventSemaphores;
-            while (temp < curr->eventSemaphores + MAXIMUM_SEMAPHORES) {
-                if (temp->refs < 0) {
+    }
+
+    if (curr->semaphores <= MAXIMUM_SEMAPHORES) {
+        localSem_t* temp = curr->eventSemaphores;
+
+        while (temp < curr->eventSemaphores + MAXIMUM_SEMAPHORES) {
+            if (temp->refs < 0 || curr->semaphores == MAXIMUM_SEMAPHORES) {
+                if (curr->semaphores == MAXIMUM_SEMAPHORES && !temp->refs) {
+                    ASSERT_X_LINK(sem_destroy(&temp->sem) != -1);
+                    curr->semaphores --;
+                    temp->refs = -1;
+#if (defined(_WIN32) || defined(_WIN64))
+                    memset(&temp->threadId, 0, sizeof(temp->threadId));
+#else
+                    temp->threadId = 0;
+#endif
+                }
+
+                if (temp->refs == -1) {
                     sem = &temp->sem;
-                    if (temp->refs == -1) {
-                        if (sem_init(sem, 0, 0))
-                            perror("Can't create semaphore\n");
+                    if (sem_init(sem, 0, 0)){
+                        mvLog(MVLOG_ERROR, "Error: Can't create semaphore\n");
+                        return NULL;
                     }
                     curr->semaphores++;
                     temp->refs = 1;
                     temp->threadId = pthread_self();
-
                     break;
                 }
-                temp++;
             }
-            if (!sem)
-                return NULL;
+            temp++;
         }
-        else
-            return NULL;
-        return sem;
+        if (!sem) {
+            return NULL; //shouldn't happen
+        }
     }
+    else {
+        mvLog(MVLOG_ERROR, "Error: cached semaphores %d exceeds the MAXIMUM_SEMAPHORES %d", curr->semaphores, MAXIMUM_SEMAPHORES);
+        return NULL;
+    }
+
+    return sem;
 }
 
 #if (defined(_WIN32) || defined(_WIN64))
@@ -382,11 +390,8 @@ static xLinkEvent_t* addNextQueueElemToProc(xLinkSchedulerState_t* curr,
     }
     mvLog(MVLOG_DEBUG, "Received event %s %d", TypeToStr(event->header.type), o);
     ev = &eventP->packet;
-    if (eventP->sem) {
-        if ((XLinkError_t)unrefSem(eventP->sem,  curr) == X_LINK_ERROR) {
-            mvLog(MVLOG_WARN, "Failed to unref sem");
-        }
-    }
+
+    (void)curr;
     eventP->sem = sem;
     eventP->packet = *event;
     eventP->origin = o;
@@ -406,7 +411,7 @@ static xLinkEventPriv_t* dispatcherGetNextEvent(xLinkSchedulerState_t* curr)
 {
     ASSERT_X_LINK_R(curr != NULL, NULL);
 
-    if (XLinkWaitSem(&curr->notifyDispatcherSem)) {
+    if (sem_wait(&curr->notifyDispatcherSem)) {
         mvLog(MVLOG_ERROR,"can't post semaphore\n");
     }
 
@@ -464,10 +469,10 @@ static int dispatcherReset(xLinkSchedulerState_t* curr)
 {
     ASSERT_X_LINK(curr != NULL);
 #ifdef __PC__
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&reset_mutex), 1);
+    XLINK_RET_IF_RC(pthread_mutex_lock(&reset_mutex), 1);
 
     if(!isAvailableScheduler(curr)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&reset_mutex));
+        XLINK_CHECK_CALL(pthread_mutex_unlock(&reset_mutex));
         return 1;
     }
 #endif
@@ -498,7 +503,7 @@ static int dispatcherReset(xLinkSchedulerState_t* curr)
 
 #ifdef __PC__
     closeDeviceFdAndResetScheduler(curr);
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&reset_mutex));
+    XLINK_CHECK_CALL(pthread_mutex_unlock(&reset_mutex));
 #else
     glControlFunc->closeDeviceFd(&curr->deviceHandle);
     curr->schedulerId = -1;
@@ -706,6 +711,7 @@ static xLinkSchedulerState_t* findCorrespondingScheduler(void* xLinkFD)
 
     return NULL;
 }
+
 ///////////////// External Interface //////////////////////////
 /*Adds a new event with parameters and returns event id*/
 xLinkEvent_t* dispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event)
@@ -717,7 +723,7 @@ xLinkEvent_t* dispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event)
         return NULL;
     }
     mvLog(MVLOG_DEBUG, "Receiving event %s %d\n", TypeToStr(event->header.type), origin);
-    if (XLinkWaitSem(&curr->addEventSem)) {
+    if (sem_wait(&curr->addEventSem)) {
         mvLog(MVLOG_ERROR,"can't wait semaphore\n");
         return NULL;
     }
@@ -753,7 +759,8 @@ xLinkEvent_t* dispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event)
     return ev;
 }
 
-int dispatcherWaitEventComplete(xLinkDeviceHandle_t* deviceHandle, unsigned int timeout)
+
+int dispatcherWaitEventComplete(xLinkDeviceHandle_t* deviceHandle)
 {
     xLinkSchedulerState_t* curr = findCorrespondingScheduler(deviceHandle->xLinkFD);
     ASSERT_X_LINK(curr != NULL);
@@ -762,11 +769,9 @@ int dispatcherWaitEventComplete(xLinkDeviceHandle_t* deviceHandle, unsigned int 
     if (id == NULL) {
         return -1;
     }
-#ifndef __PC__
-    (void)timeout;
-    return XLinkWaitSem(id);
-#else
-    int rc = XLinkWaitSemUserMode(id, timeout);
+
+    int rc = sem_wait(id);
+#ifdef __PC__
     if (rc) {
         xLinkEvent_t event = {0};
         event.header.type = XLINK_RESET_REQ;
@@ -774,13 +779,17 @@ int dispatcherWaitEventComplete(xLinkDeviceHandle_t* deviceHandle, unsigned int 
         mvLog(MVLOG_ERROR,"waiting is timeout, sending reset remote event");
         dispatcherAddEvent(EVENT_LOCAL, &event);
         id = getCurrentSem(pthread_self(), curr, 0);
-        if (id == NULL || XLinkWaitSemUserMode(id, timeout)) {
+        if (id == NULL || sem_wait(id)) {
             dispatcherReset(curr);
         }
     }
+#endif
+
+    if ((XLinkError_t)unrefSem(id, curr) == X_LINK_ERROR) {
+        mvLog(MVLOG_WARN, "Failed to unref sem");
+    }
 
     return rc;
-#endif
 }
 
 int dispatcherUnblockEvent(eventId_t id, xLinkEventType_t type, streamId_t stream, void* xLinkFD)
@@ -905,7 +914,7 @@ int dispatcherStart(xLinkDeviceHandle_t* deviceHandle)
     }
 #endif
 
-    XLinkWaitSem(&addSchedulerSem);
+    sem_wait(&addSchedulerSem);
     mvLog(MVLOG_DEBUG,"%s() starting a new thread - schedulerId %d \n", __func__, idx);
     int sc = pthread_create(&schedulerState[idx].xLinkThreadId,
                             &attr,
@@ -942,7 +951,7 @@ int dispatcherStart(xLinkDeviceHandle_t* deviceHandle)
     return 0;
 }
 
-int dispatcherInitialize(struct dispatcherControlFunctions* controlFunc) {
+int dispatcherInitialize(DispatcherControlFunctions* controlFunc) {
     // create thread which will communicate with the pc
 
     int i;
@@ -978,16 +987,42 @@ int dispatcherClean(void* xLinkFD)
     xLinkSchedulerState_t* curr = findCorrespondingScheduler(xLinkFD);
     ASSERT_X_LINK(curr != NULL);
 
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&reset_mutex), 1);
+    XLINK_RET_IF_RC(pthread_mutex_lock(&reset_mutex), 1);
     if(!isAvailableScheduler(curr)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&reset_mutex));
+        XLINK_CHECK_CALL(pthread_mutex_unlock(&reset_mutex));
         return 1;
     }
     mvLog(MVLOG_INFO, "Start Clean Dispatcher...");
     closeDeviceFdAndResetScheduler(curr);
     mvLog(MVLOG_INFO, "Clean Dispatcher Successfully...");
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&reset_mutex));
+    XLINK_CHECK_CALL(pthread_mutex_unlock(&reset_mutex));
     return 0;
+}
+
+char* TypeToStr(int type)
+{
+    switch(type)
+    {
+        case XLINK_WRITE_REQ:     return "XLINK_WRITE_REQ";
+        case XLINK_READ_REQ:      return "XLINK_READ_REQ";
+        case XLINK_READ_REL_REQ:  return "XLINK_READ_REL_REQ";
+        case XLINK_CREATE_STREAM_REQ:return "XLINK_CREATE_STREAM_REQ";
+        case XLINK_CLOSE_STREAM_REQ: return "XLINK_CLOSE_STREAM_REQ";
+        case XLINK_PING_REQ:         return "XLINK_PING_REQ";
+        case XLINK_RESET_REQ:        return "XLINK_RESET_REQ";
+        case XLINK_REQUEST_LAST:     return "XLINK_REQUEST_LAST";
+        case XLINK_WRITE_RESP:   return "XLINK_WRITE_RESP";
+        case XLINK_READ_RESP:     return "XLINK_READ_RESP";
+        case XLINK_READ_REL_RESP: return "XLINK_READ_REL_RESP";
+        case XLINK_CREATE_STREAM_RESP: return "XLINK_CREATE_STREAM_RESP";
+        case XLINK_CLOSE_STREAM_RESP:  return "XLINK_CLOSE_STREAM_RESP";
+        case XLINK_PING_RESP:  return "XLINK_PING_RESP";
+        case XLINK_RESET_RESP: return "XLINK_RESET_RESP";
+        case XLINK_RESP_LAST:  return "XLINK_RESP_LAST";
+        default:
+            break;
+    }
+    return "";
 }
 
 /* end of file */

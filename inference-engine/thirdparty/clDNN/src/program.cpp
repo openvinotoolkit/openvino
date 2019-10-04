@@ -1041,12 +1041,16 @@ void program_impl::dump_program(const char* stage,
                                 bool with_full_info,
                                 std::function<bool(program_node const&)> const& filter) const {
     std::string path = get_dir_path(options);
-    if (path.empty() || !with_full_info) {
+    if (path.empty()) {
         return;
     }
 
     std::ofstream graph(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".graph");
     dump_graph_init(graph, *this, filter);
+
+    if (!with_full_info) {
+        return;
+    }
 
     graph.open(path + "cldnn_program_" + std::to_string(prog_id) + "_" + stage + ".info");
     dump_graph_info(graph, *this, filter);

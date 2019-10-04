@@ -93,7 +93,6 @@ void AutoTuner::StoreKernel(const std::string& cacheFilePath,
     std::ofstream cachedKernelsFile(cacheFilePath);
     rapidjson::StringBuffer buffer(0, 1024);
     rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-    writer.SetFormatOptions(rapidjson::PrettyFormatOptions::kFormatSingleLineArray);
     onlineCache->Accept(writer);
     auto temp = buffer.GetString();
     cachedKernelsFile << temp;

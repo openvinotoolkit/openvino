@@ -104,13 +104,8 @@ def tf_strided_slice_infer(node):
     for attr in ('shrink_axis_mask', 'new_axis_mask', 'ellipsis_mask', 'begin_mask', 'end_mask'):
         node[attr] = np.array(node[attr], dtype=np.int32)
 
-    node.out_node().value = np.array(value) if node.in_node(0).value is not None else None
+    node.out_node().value = value.copy() if node.in_node(0).value is not None else None
     node.out_node().shape = np.array(value.shape, dtype=np.int64)
-
-    # change precision to I32 for begin, end, stride inputs
-    for i in range(1, len(node.in_nodes())):
-        inp = node.in_node(i)
-        inp["force_precision"] = "I32"
 
 
 def convert_negative_indices(indices: np.array, shape: np.array):

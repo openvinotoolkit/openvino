@@ -66,7 +66,8 @@ protected:
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
+        const auto& type = input(0)->desc().type();
+        assertInputsOutputsTypes(this, {{type}}, {{type}});
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {

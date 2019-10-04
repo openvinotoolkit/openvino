@@ -28,7 +28,8 @@ typedef enum{
     X_LINK_DEVICE_NOT_FOUND,
     X_LINK_TIMEOUT,
     X_LINK_ERROR,
-    X_LINK_OUT_OF_MEMORY
+    X_LINK_OUT_OF_MEMORY,
+    X_LINK_NOT_IMPLEMENTED
 } XLinkError_t;
 
 typedef enum{
@@ -103,6 +104,7 @@ typedef struct
     XLinkProtocol_t protocol;
 } XLinkHandler_t;
 
+const char* XLinkErrorToStr(XLinkError_t rc);
 
 //Deprecated defines. Begin.
 

@@ -76,7 +76,6 @@ class ResampleOp(Op):
                 return
             out_height = dst_shape[0]
             out_width = dst_shape[1]
-            node.graph.remove_edge(node.in_node(1).id, node.id)
         else:
             if len(node.in_nodes()) == 1:
                 if node.has('width') and node.has('height'):

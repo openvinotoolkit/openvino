@@ -1,0 +1,38 @@
+models:
+  - name: MobileNet_v1_1.0_224
+    launchers:
+      - framework: dlsdk
+        device: CPU
+        tf_model: <PATH_TO_MODEL>/mobilenet_v1_1.0_224.pb
+        adapter: classification
+        mo_params:
+          data_type: FP16
+          input_shape: (1, 224, 224, 3)
+        cpu_extensions: AUTO
+    datasets:
+      - name: ImageNet2012_bkgr
+        data_source: 
+        annotation: <PATH_TO_AC_ANNOTATIONS>/imagenet.pickle
+        dataset_meta: <PATH_TO_AC_ANNOTATIONS>/imagenet.json
+        annotation_conversion:
+          converter: imagenet
+          annotation_file: <PATH_TO_IMAGENET_IMAGES>/ILSVRC2012_val.txt
+          labels_file: <PATH_TO_IMAGENET_IMAGES>/synset_words.txt
+          has_background: True
+        subsample_size: 2000
+        preprocessing:
+          - type: bgr_to_rgb
+          - type: resize
+            size: 256
+          - type: crop
+            size: 224
+          - type: normalization
+            mean: (127.5, 127.5, 127.5)
+            std: 127.5
+        metrics:
+          - name: accuracy @ top1
+            type: accuracy
+            top_k: 1
+          - name: accuracy @ top5
+            type: accuracy
+            top_k: 5

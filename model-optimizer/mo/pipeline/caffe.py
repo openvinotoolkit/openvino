@@ -36,7 +36,8 @@ from mo.middle.passes.fusing.resnet_optimization import stride_optimization
 from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
 from mo.middle.passes.shape import reverse_input_channels, merge_nodes_permutations, permute_data_nodes_attrs, \
     permute_op_nodes_attrs
-from mo.pipeline.common import prepare_emit_ir
+from mo.front.extractor import extract_node_attrs
+from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.utils import class_registration
 from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
@@ -77,11 +78,9 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     graph.graph['layout'] = 'NCHW'
     graph.graph['cmd_params'] = argv
     graph.graph['fw'] = 'caffe'
-    if graph.graph['cmd_params'].generate_experimental_IR_V10:
-        version = 10
-    else:
-        version = 6
-    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else version
+    graph.graph['original_shapes'] = original_shapes
+    graph.graph['caffe_pb2'] = caffe_pb2
+    graph.graph['ir_version'] = get_ir_version(argv)
 
     custom_layers_map = custom_layers_mapping.load_layers_xml(custom_layers_mapping_path)
     custom_layers_mapping.update_extractors(

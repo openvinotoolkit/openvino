@@ -80,6 +80,9 @@ def eltwise_infer(node, op=None, **kwargs):
                 output_shape[ei] = -1
     node.out_node().shape = output_shape
 
+    if node.has_and_set('stop_value_propagation'):
+        return
+
     if op is None or any([v is None for v in values]):
         return
 

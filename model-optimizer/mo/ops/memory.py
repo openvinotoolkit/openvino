@@ -16,6 +16,7 @@
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.op import Op
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
@@ -35,6 +36,7 @@ class Memory(Op):
             'infer': Memory.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
+            'type_infer': __class__.type_infer,
         }, attrs)
 
     def supported_attrs(self):
@@ -62,3 +64,10 @@ class Memory(Op):
             raise Error('Model Optimizer is unable to calculate output shape of Memory node {}. ' +
                         refer_to_faq_msg(88),
                         node.id)
+
+    @staticmethod
+    def type_infer(node: Node):
+        out_precision = node.graph.graph['cmd_params'].data_type
+        if node.has_valid('force_precision'):
+            out_precision = node.force_precision
+        node.out_port(0).set_data_type(data_type_str_to_np(out_precision))

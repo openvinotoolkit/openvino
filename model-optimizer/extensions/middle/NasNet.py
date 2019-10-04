@@ -110,7 +110,7 @@ class NasNet(MiddleReplacementPattern):
 
         graph.add_node(conv_node,
                        **add_attrs_props(
-                           dict(kind='op', precision="FP32", type='Convolution', name=conv_node, op='Conv2D',
+                           dict(kind='op', type='Convolution', name=conv_node, op='Conv2D',
                                 stride=np.array([1, 1, 1, 1]), dilation=np.array([1, 1, 1, 1]),
                                 group=input.shape[3], bias_addable=True, bias_term=False,
                                 spatial_dims=np.array([1, 2]),
@@ -120,7 +120,7 @@ class NasNet(MiddleReplacementPattern):
                                 in_ports_count=3, out_ports_count=1)))
 
         graph.add_node(conv_weights_node, **add_attrs_props(
-            dict(kind='data', precision="FP32", name=conv_weights_node, value=np.array(conv_weights),
+            dict(kind='data', name=conv_weights_node, value=np.array(conv_weights),
                  shape=np.array(conv_weights.shape),
                  data_type=input.data_type, infer=None,
                  spatial_dims=np.array([0, 1]),
@@ -128,8 +128,7 @@ class NasNet(MiddleReplacementPattern):
                  output_channel_dim=3,
                  dims_number=4, can_be_bias=True)))
         graph.add_node(conv_output, **add_attrs_props(
-            dict(kind='data', precision="FP32", name=conv_output, value=None, shape=output_shape,
-                 data_type=input.data_type)))
+            dict(kind='data', name=conv_output, value=None, shape=output_shape, data_type=input.data_type)))
 
         # StridedSlice -> Crop
         crop_cls = Op.get_op_class_by_name('Crop')

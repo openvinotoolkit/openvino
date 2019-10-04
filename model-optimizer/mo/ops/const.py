@@ -16,8 +16,9 @@
 
 import numpy as np
 
-from mo.ops.op import Op
 from mo.front.common.partial_infer.const import tf_const_infer
+from mo.middle.passes.convert_data_type import data_type_str_to_np
+from mo.ops.op import Op
 
 
 class Const(Op):
@@ -35,13 +36,22 @@ class Const(Op):
             'shape': None,
             'data_type': None,
             'out_ports_count': 1,
+            'type_infer': self.type_infer,
         }, attrs)
         if not isinstance(self.attrs['value'], np.ndarray):
             self.attrs['value'] = np.array(self.attrs['value'])
         self.attrs['shape'] = np.array(self.attrs['value'].shape, dtype=np.int64)
+        self.attrs['data_type'] = self.attrs['value'].dtype
 
     def supported_attrs(self):
         return [
             'offset',
             'size'
         ]
+
+    @staticmethod
+    def type_infer(node):
+        if node.has_valid('force_precision'):
+            node.out_port(0).set_data_type(data_type_str_to_np(node.force_precision), override=True)
+        else:
+            node.out_port(0).set_data_type(node.value.dtype, override=True)

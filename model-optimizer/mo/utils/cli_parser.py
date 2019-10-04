@@ -210,13 +210,13 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                        'DEBUG', 'NOTSET'],
                               default='ERROR')
     common_group.add_argument('--input',
-                              help='Quoted list of comma-separated input nodes names with shapes ' +
-                                   'and values for freezing. The shape and value are specified as space-separated lists. '+
-                                   'For example, use the following format to set input port 0 ' +
-                                   'of the node `node_name1` with the shape [3 4] as an input node and ' +
-                                   'freeze output port 1 of the node `node_name2` with the value [20 15] ' +
-                                   'and the shape [2]: ' +
-                                   '"0:node_name1[3 4],node_name2:1[2]->[20 15]".')
+                              help='Comma-separated list of input nodes names with shapes ' +
+                                   'and values for freezing. '+
+                                   'For example, use the following format to set input port <port1> ' +
+                                   'of the node <node_name1> with the shape <shape1> as an input node and ' +
+                                   'freeze output port <port2> of the node <node_name2> with the value <value2> ' +
+                                   'and the shape <shape2>: ' +
+                                   'port1:node_name1[shape1], node_name2:port2[shape2]->value2.')
     common_group.add_argument('--output',
                               help='The name of the output operation of the model. ' +
                                    'For TensorFlow*, do not add :0 to this name.')
@@ -236,6 +236,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'The exact meaning and order ' +
                                    'of channels depend on how the original model was trained.',
                               default=())
+    common_group.add_argument('--tensorflow_use_custom_operations_config',
+                              help='Use the configuration file with custom operation description.',
+                              action=CanonicalizePathCheckExistenceAction)
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
                               help='Data type for all intermediate tensors and weights. ' +
@@ -326,6 +329,7 @@ def get_common_cli_options(model_name):
     d['disable_gfusing'] = ['- Enable grouped convolutions fusing', lambda x: not x]
     d['move_to_preprocess'] = '- Move mean values to preprocess section'
     d['reverse_input_channels'] = '- Reverse input channels'
+    d['tensorflow_use_custom_operations_config'] = '- Use the config file'
     return d
 
 
@@ -485,9 +489,6 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     tf_group.add_argument('--tensorflow_custom_operations_config_update',
                           help='TensorFlow*: update the configuration file with node name patterns with input/output '
                                'nodes information.',
-                          action=CanonicalizePathCheckExistenceAction)
-    tf_group.add_argument('--tensorflow_use_custom_operations_config',
-                          help='TensorFlow*: use the configuration file with custom operation description.',
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_object_detection_api_pipeline_config',
                           help='TensorFlow*: path to the pipeline configuration file used to generate model created '

@@ -47,7 +47,7 @@ from mo.middle.passes.conv import convert_matmul_to_fully_connected
 from mo.middle.passes.eliminate import graph_clean_up, remove_const_ops
 from mo.middle.passes.infer import partial_infer
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-from mo.pipeline.common import prepare_emit_ir
+from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.utils import class_registration
 from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
@@ -132,12 +132,7 @@ def driver(argv, input_model, output_model_name, output_dir):
     graph.check_empty_graph('load_kaldi_nnet_model')
     graph.graph['cmd_params'] = argv
     graph.graph['fw'] = 'kaldi'
-
-    if graph.graph['cmd_params'].generate_experimental_IR_V10:
-        version = 10
-    else:
-        version = 6
-    graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else version
+    graph.graph['ir_version'] = get_ir_version(argv)
 
     update_extractors_with_extensions(kaldi_type_extractors)
     extract_node_attrs(graph, lambda node: kaldi_extractor(node))

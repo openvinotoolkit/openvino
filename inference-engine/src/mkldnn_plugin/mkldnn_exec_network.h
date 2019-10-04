@@ -29,7 +29,7 @@ public:
     MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network, const Config &cfg,
                       const MKLDNNExtensionManager::Ptr& extMgr);
 
-    virtual ~MKLDNNExecNetwork() {
+    ~MKLDNNExecNetwork() {
         graphs.clear();
         extensionManager.reset();
     }

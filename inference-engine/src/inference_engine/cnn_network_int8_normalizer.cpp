@@ -224,6 +224,24 @@ CNNLayer::Ptr CNNStatisticHelper::getLatestInFuse(CNNLayer::Ptr layer) const {
 void CNNStatisticHelper::NormalizeStatistic() {
     StatsMap newMap;
 
+    // In case when we have statistics in negative range when min clamped value is 0,
+    // we are changing statistics here to non negative. This is not fully correct behaviour since
+    // it can extend range and affect accuracy, but this approach works quite well
+    std::vector<CNNLayerPtr> sortedLayersRC = CNNNetSortTopologically(network_);
+    for (auto l : sortedLayersRC) {
+        if (CNNNetworkInt8Normalizer::isReLULikeClamp(l)) {
+            if (l->outData.size() == 1) {
+                size_t outputChannels = l->outData[0]->getTensorDesc().getDims()[1];
+                auto oldStat = internalNodesStats_.find(l->name);
+                if ((oldStat != internalNodesStats_.end()) && outputChannels > 1) {
+                    for (size_t q = 0; q < oldStat->second->_minOutputs.size(); q++) {
+                        oldStat->second->_minOutputs[q] = 0.f;
+                    }
+                }
+            }
+        }
+    }
+
     float dummy = 0.0f;
 
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network_);
@@ -380,7 +398,8 @@ void CNNStatisticHelper::NormalizeStatistic() {
 
 
             if (l->outData.size() == 1) {
-                size_t outputChannels = l->outData[0]->getTensorDesc().getDims()[1];
+                size_t ch_indx = l->outData[0]->getTensorDesc().getDims().size() > 1 ? 1 : 0;
+                size_t outputChannels = l->outData[0]->getTensorDesc().getDims()[ch_indx];
                 auto oldStat = internalNodesStats_.find(l->name);
                 if ((oldStat != internalNodesStats_.end()) && outputChannels > 1 && oldStat->second->_minOutputs.size() == 1) {
                     auto min = oldStat->second->_minOutputs[0];
@@ -926,14 +945,80 @@ void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr
         size_t outChannelSize = weights->getTensorDesc().getDims().back() / W_CO / group;
 
         // Calculating weights normalization scale factor (w-scale)
-        float *weight_convolution;
-        size_t co;
-        for (co = 0, weight_convolution = &newWeights[0]; co < outputChannels; co++, weight_convolution += outChannelSize) {
-            float max = FLT_MIN;
-            DataStats::GetDataAbsMax(weight_convolution, outChannelSize, max);
 
-            float scaler = static_cast<float>(statHelper.getMaxSignValue())/ max;
-            weightScalers.push_back(scaler);
+        std::set<double> individualsG;
+        size_t co;
+        float *weight_convolution;
+        bool bwquantized = false;
+        double symQuant = 0.f;
+
+        for (co = 0, weight_convolution = &newWeights[0]; co < outputChannels; co++, weight_convolution += outChannelSize) {
+            for (size_t i = 0; i < outChannelSize; i++) {
+                individualsG.insert(static_cast<double>(weight_convolution[i]));
+            }
+        }
+        // If we have 256 quantums for all filters in convolution, it can be already int8 quantized weights
+        // We can support symmetric quantization
+        // Below conditions verify if weights are symmetric quantized around 0, what are min/max borders
+        // These parameters are required to repeat exactly the same quantum as model was trained
+        // The algorithm of restoring min/max parameters has couple assumptions which might not work for 100%
+        // cases. We want to explicitly define them. We assume that
+        // 1. All convolutions have 1st quantum either from positive or negative side. See how we calculate symQuant
+        // 2. If quantization is not symmetric, there should be quant on one of the side which demonstrate this
+        if (individualsG.size() < 256) {
+            // going over weights and verify that weights stay on quant positions
+            std::set<double> intervals;
+            double prev = 0.f;
+            for (auto it = individualsG.begin(); it != individualsG.end(); it++) {
+                if (prev) {
+                  intervals.insert(*it - prev);
+                }
+                prev = *it;
+            }
+            symQuant = *(intervals.begin());
+            std::set<double> divs;
+            prev = 0.f;
+            for (auto it = individualsG.begin(); it != individualsG.end(); it++) {
+                if (prev) {
+                    divs.insert((*it - prev)/ symQuant);
+                }
+                prev = *it;
+            }
+
+            bwquantized = true;
+            for (auto it3 = divs.begin(); it3 != divs.end(); it3++) {
+                if (fabs(round(*it3) - *it3) > 0.001) {
+                    bwquantized = false;
+                }
+            }
+
+            // we want to make sure that quantization is symmetric. this way we are looking for the
+            // value in weights matching to the quant (positive or negative
+            if (bwquantized) {
+                // take the minimal and maximum values on calculated symQuant and compare with data from individuals
+                double minCalc = symQuant * -128.0f;
+                double maxCalc = symQuant * 128.0f;
+                for (auto it = individualsG.begin(); it != individualsG.end(); it++) {
+                    if (*it < minCalc || *it > maxCalc) {
+                        bwquantized = false;
+                    }
+                }
+            }
+        }
+        if (bwquantized && symQuant != 0.0f) {
+            float max = symQuant * 127.0f;
+            for (co = 0, weight_convolution = &newWeights[0]; co < outputChannels; co++, weight_convolution += outChannelSize) {
+                float scaler = static_cast<float>(statHelper.getMaxSignValue())/ max;
+                weightScalers.push_back(scaler);
+            }
+        } else {
+            for (co = 0, weight_convolution = &newWeights[0]; co < outputChannels; co++, weight_convolution += outChannelSize) {
+                float max = FLT_MIN;
+                DataStats::GetDataAbsMax(weight_convolution, outChannelSize, max);
+
+                float scaler = static_cast<float>(statHelper.getMaxSignValue())/ max;
+                weightScalers.push_back(scaler);
+            }
         }
 
         std::shared_ptr<Data> wScaleData = std::shared_ptr<Data>(new Data("w-scale", { outputChannels }, Precision::FP32, Layout::C));

@@ -35,9 +35,7 @@ public:
      * @brief Move constructor
      * @param parameter Parameter object
      */
-    Parameter(Parameter &&parameter) noexcept {
-        std::swap(ptr, parameter.ptr);
-    }
+    Parameter(Parameter &&parameter) noexcept: ptr(std::move(parameter.ptr)) {}
 
     /**
      * @brief Copy constructor

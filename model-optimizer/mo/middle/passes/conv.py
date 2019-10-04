@@ -23,7 +23,6 @@ from mo.front.common.partial_infer.utils import assign_dims_to_weights
 from mo.front.extractor import add_attrs_props
 from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Node, Graph
-from mo.graph.port import Port
 from mo.middle.passes.fusing.helpers import get_value_id, get_tensor_id, get_tensor_in_port, get_value_in_port
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.const import Const
@@ -190,8 +189,8 @@ def muladd_to_scaleshift_action(graph: Graph, match: dict):
 
     op_node = graph.unique_id(mul.name + '/Fused{}_'.format(op_name))
 
-    graph.add_node(op_node, **add_attrs_props(dict(kind='op', precision="FP32", type=op_name, name=op_node,
-                                                   op=op_name, data_type=input.data_type)))
+    graph.add_node(op_node, **add_attrs_props(dict(kind='op', type=op_name, name=op_node, op=op_name,
+                                                   data_type=input.data_type)))
     scsh = Node(graph, op_node)
     scsh.add_input_port(0)
     scsh.add_input_port(1)
@@ -199,6 +198,7 @@ def muladd_to_scaleshift_action(graph: Graph, match: dict):
     scsh.add_output_port(0)
 
     update_ie_fields(graph.node[op_node])
+
     graph.add_edges_from([
         (input.node, op_node, {'in': 0}),
         (weights.node, op_node, {'in': 1, 'bin': 'weights'}),
@@ -285,7 +285,8 @@ def convert_add_or_mul_to_scaleshift(graph: Graph):
 
             tensor_port, value_port = get_tensor_in_port(node), get_value_in_port(node)
 
-            if tensor_port is not None and not tensor_port.disconnected() and value_port is not None and node.soft_get('can_be_scaleshift') is not False:
+            if tensor_port is not None and not tensor_port.disconnected() and value_port is not None and \
+                    node.soft_get('can_be_scaleshift') is not False:
                 original_value = value_port.data.get_value()
                 if original_value.size == 1:
                     continue

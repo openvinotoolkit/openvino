@@ -10,6 +10,7 @@
 #include "ie_blob_proxy.hpp"
 #include <fstream>
 #include <sstream>
+#include "ie_dump_plugin.hpp"
 #include "ie_icnn_network_stats.hpp"
 
 using namespace InferenceEngine;
@@ -485,6 +486,16 @@ Blob::Ptr FormatParser::GetBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, c
 }
 
 void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
+#ifdef DEBUG_DUMP
+    char netname[1024] = {};
+    _network->getName(netname, sizeof(netname));
+    std::string netname_s = netname;
+    std::string dumpDir = dumper->GetDumpDir(netname_s);
+
+    std::ofstream weights_data_file(dumpDir + "blob0.txt"/*weights*/);
+    std::ofstream biases_data_file(dumpDir + "blob1.txt"/*biases*/);
+#endif
+
     for (auto& kvp : _network->allLayers()) {
         auto fit = layersParseInfo.find(kvp.second->name);
         // todo: may check that earlier - while parsing...
@@ -508,10 +519,12 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
                     pWL->_weights = GetBlobFromSegment(weights, lprms.blobs["weights"]);
                 }
                 pWL->blobs["weights"] = pWL->_weights;
+                DUMP_BLOB(pWL->_weights, weights_data_file);
             }
             if (lprms.blobs.find("biases") != lprms.blobs.end()) {
                 pWL->_biases  = GetBlobFromSegment(weights, lprms.blobs["biases"]);
                 pWL->blobs["biases"] = pWL->_biases;
+                DUMP_BLOB(pWL->_biases, biases_data_file);
             }
         }
         auto pGL = kvp.second.get();

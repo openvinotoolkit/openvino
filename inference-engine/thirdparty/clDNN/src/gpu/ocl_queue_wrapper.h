@@ -59,20 +59,6 @@ public:
           _last_barrier_ev(other._last_barrier_ev),
           _output_event(other._output_event) {}
 
-    gpu_queue& operator=(gpu_queue&& other) {
-        if (this != &other) {
-            id = other.id;
-            _context = std::move(other._context);
-            _command_queue = std::move(other._command_queue);
-            _queue_counter = std::move(other._queue_counter.load());
-            _last_barrier = std::move(other._last_barrier.load());
-            _events_pool = std::move(std::move(other._events_pool));
-            _last_barrier_ev = std::move(other._last_barrier_ev);
-            _output_event = std::move(other._output_event);
-        }
-        return *this;
-    }
-
     ~gpu_queue() = default;
 
     void sync_events(std::vector<event_impl::ptr> const& deps);

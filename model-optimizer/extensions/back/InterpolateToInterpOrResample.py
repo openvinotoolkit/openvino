@@ -13,12 +13,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.back.ShapeOfToShape import ShapeOfToShape
 from extensions.ops.interp import InterpOp
 from extensions.ops.resample import ResampleOp
 from extensions.ops.resize_factor_utils import factor_update
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
+from mo.ops.shape import Shape
+from mo.utils.shape import node_to_get_batch_value, node_to_get_features_dimension_value, \
+    new_shape_node_from_shape_nodes
 
 
 class InterpolateToInterpOrResample(BackReplacementPattern):
@@ -33,6 +36,9 @@ class InterpolateToInterpOrResample(BackReplacementPattern):
         'area': 'caffe.ResampleParameter.AREA',
     }
 
+    def run_before(self):
+        return [ShapeOfToShape]
+
     @staticmethod
     def pattern():
         return dict(
@@ -43,6 +49,9 @@ class InterpolateToInterpOrResample(BackReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         node = match['interpolate']
+
+        assert 1 in node.in_ports() and not node.in_port(1).disconnected() and \
+               node.in_port(1).data.get_value() is not None, 'Interpolate node {} is corrupted: no 1-port input found'
 
         # common
         mode = node.mode
@@ -84,7 +93,20 @@ class InterpolateToInterpOrResample(BackReplacementPattern):
             assert node.pads_begin == 0 and node.pads_end == 0
             update_attrs['resample_type'] = InterpolateToInterpOrResample.type_map[mode]
             ResampleOp.update_node_stat(node, update_attrs)
-            node.in_port(1).disconnect()
+
+            if not graph.graph['cmd_params'].keep_shape_ops or graph.graph['fw'] != 'tf':
+                node.in_port(1).disconnect()
+            else:
+                # we avoid making resample non-reshapable for tf version
+                shape = Shape(graph, {}).create_node()
+                node.in_port(0).get_source().connect(shape.in_port(0))
+
+                batch = node_to_get_batch_value(shape)
+                features = node_to_get_features_dimension_value(shape)
+                full_shape = new_shape_node_from_shape_nodes([batch, features, node.in_port(1).get_source().node])
+                node.in_port(1).get_connection().set_source(full_shape.out_port(0))
+                full_shape['override_output_shape'] = True
+
         elif mode == 'linear':
             update_attrs.update({
                 'pad_beg': node.pads_begin,
@@ -93,4 +115,3 @@ class InterpolateToInterpOrResample(BackReplacementPattern):
             })
             InterpOp.update_node_stat(node, update_attrs)
             node.in_port(1).disconnect()
-        node['force_precision_in_ports'] = None

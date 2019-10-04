@@ -19,9 +19,12 @@ import numpy as np
 from extensions.back.ReshapeMutation import ReshapeMutation
 from extensions.back.EltwiseBroadcast import EltwiseBroadcast
 from mo.back.replacement import BackReplacementPattern
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
+from mo.ops.squeeze import Squeeze
+from mo.ops.unsqueeze import Unsqueeze
 
 
 class TileReshaper(BackReplacementPattern):
@@ -58,35 +61,36 @@ class TileReshaper(BackReplacementPattern):
         New behaviour:
             Reshape [1,1,101,1] -> Tile -> [1,16,101,1] -> Reshape [1,16,101]
         """
-        tile = match['tile']
+        node = match['tile']
+        name = node.soft_get('name', node.id)
 
-        assert len(tile.out_nodes()) == 1, "Tile operation {} should have 1 output data node".format(tile.id)
-        out_data = tile.out_node()
-
-        assert out_data.has_valid('shape'), 'Output shape is undefined for {} in back phase'.format(tile.id)
-        out_shape = out_data.shape
-
+        out_shape = node.out_port(0).data.get_shape()
+        assert out_shape is not None, 'Output shape is undefined for {} in back phase'.format(name)
         if out_shape.size != 3:
             return
 
-        assert len(tile.in_nodes()) == 1, "Tile operation {} should have 1 input data node".format(tile.id)
-        inp_data = tile.in_node()
+        inp_shape = node.in_port(0).data.get_shape()
+        assert inp_shape is not None, 'Input shape is undefined for {} in back phase'.format(name)
 
-        assert inp_data.has_valid('shape'), 'Input shape is undefined for {} in back phase'.format(tile.id)
-        inp_shape = inp_data.shape
-        new_inp_shape = np.append(inp_shape, [1])
+        unsqueeze_dim = Const(graph, {'name': name + '/3D_Tile_Unsqueeze_dim', 'value': int64_array([3])}).create_node()
+        unsqueeze = Unsqueeze(graph, {'name': name + '/3D_Tile_Unsqueeze'}).create_node()
+        unsqueeze_dim.out_port(0).connect(unsqueeze.in_port(1))
 
-        reshape = Reshape(graph, {'name': tile.name + '/reshape'}).create_node()
-        reshape_dim = Const(graph, {'value': new_inp_shape, 'name': reshape.id + '/Dim'}).create_node()
-        tile.in_port(0).get_connection().insert_node(reshape)
-        reshape.in_port(1).connect(reshape_dim.out_port(0))
+        squeeze_dim = Const(graph, {'name': name + '/3D_Tile_Squeeze_dim', 'value': int64_array([3])}).create_node()
+        squeeze = Squeeze(graph, {'name': name + '/3D_Tile_Squeeze'}).create_node()
+        squeeze_dim.out_port(0).connect(squeeze.in_port(1))
 
-        reshape_back = Reshape(graph, {'name': tile.name + '/reshape_back'}).create_node()
-        reshape_back_dim = Const(graph, {'value': out_shape, 'name': reshape.id + '/Dim'}).create_node()
-        tile.out_port(0).get_connection().insert_node(reshape_back)
-        reshape_back.in_port(1).connect(reshape_back_dim.out_port(0))
+        source = node.in_port(0).get_source()
+        node.in_port(0).get_connection().set_source(unsqueeze.out_port(0))
+        unsqueeze.in_port(0).connect(source)
+
+        node.out_port(0).get_connection().set_source(squeeze.out_port(0))
+        node.out_port(0).connect(squeeze.in_port(0))
 
         # run shape inference manually for several nodes to override shapes of the model nodes which changed behaviour
-        reshape_dim.infer(reshape_dim)
-        reshape.infer(reshape)
-        tile.infer(tile)
+        unsqueeze_dim.infer(unsqueeze_dim)
+        unsqueeze.infer(unsqueeze)
+        node.infer(node)
+        squeeze_dim.infer(squeeze_dim)
+        squeeze.infer(squeeze)
+

@@ -11,7 +11,6 @@
 #include <xml_net_builder.hpp>
 #include <xml_helper.hpp>
 #include <common_layers_params.hpp>
-#include <tests_common.hpp>
 
 #ifndef USE_BOOST_RE
 
@@ -25,13 +24,13 @@
 #define FIND_STR(SRC, PATTERN) boost::regex_search(SRC, boost::regex(PATTERN))
 #endif
 
-#define REPLACE_WITH_NUM(SRC, PATTERN, NUM) REPLACE_WITH_STR(SRC, PATTERN, to_string_c_locale(NUM))
+#define REPLACE_WITH_NUM(SRC, PATTERN, NUM) REPLACE_WITH_STR(SRC, PATTERN, std::to_string(NUM))
 #define REPLACE_WITH_NUM_VECTOR(SRC, PATTERN, NUMS) \
 	{ std::string result; \
         if (NUMS.size() > 0) { \
-            result += to_string_c_locale(NUMS[0]); \
+            result += std::to_string(NUMS[0]); \
             for (int i = 1; i < NUMS.size(); i++) { \
-                    result += "," + to_string_c_locale(NUMS[i]); \
+                    result += "," + std::to_string(NUMS[i]); \
             } \
         } \
 	REPLACE_WITH_STR(SRC, PATTERN, result); }
@@ -39,9 +38,9 @@
 	{ std::string result; \
         auto nums_size = NUMS.size(); \
         if (nums_size > 0) { \
-            result += to_string_c_locale(NUMS[nums_size - 1]); \
+            result += std::to_string(NUMS[nums_size - 1]); \
             for (int i = 2; i <= nums_size; i++) { \
-                    result += "," + to_string_c_locale(NUMS[nums_size - i]); \
+                    result += "," + std::to_string(NUMS[nums_size - i]); \
             } \
         } \
 	REPLACE_WITH_STR(SRC, PATTERN, result); }
@@ -136,8 +135,10 @@ public:
 
 void CompareCommon(const InferenceEngine::Blob::Ptr &actual,
                    const InferenceEngine::Blob::Ptr &expected,
-                   float tolerance,
                    const std::function<void(size_t, size_t)> &errorUpdater);
+
+void CompareCommonExact(const InferenceEngine::Blob::Ptr &actual,
+                        const InferenceEngine::Blob::Ptr &expected);
 
 void CompareCommonAbsolute(const InferenceEngine::Blob::Ptr &actual,
                            const InferenceEngine::Blob::Ptr &expected,

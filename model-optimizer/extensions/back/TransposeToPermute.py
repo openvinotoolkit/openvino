@@ -42,5 +42,4 @@ class TransposeToPermute(BackReplacementPattern):
         order = node.in_port(1).data.get_value()
         assert order is not None
         Permute.update_node_stat(node=node, attrs={'order': order.copy()})
-        node['force_precision_in_ports'] = None
         node.in_port(1).disconnect()

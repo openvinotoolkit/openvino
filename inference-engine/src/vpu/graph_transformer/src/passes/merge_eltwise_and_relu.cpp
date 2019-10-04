@@ -52,6 +52,16 @@ void PassImpl::run(const Model::Ptr& model) {
             continue;
         }
 
+        const bool allInputsAreFP16 = std::all_of(eltwiseStage->inputs().begin(), eltwiseStage->inputs().end(),
+            [](const Data& data) { return data->desc().type() == DataType::FP16; });
+
+        const bool allOutputsAreFP16 = std::all_of(eltwiseStage->outputs().begin(), eltwiseStage->outputs().end(),
+            [](const Data& data) { return data->desc().type() == DataType::FP16; });
+
+        if (!allInputsAreFP16 || !allOutputsAreFP16) {
+            continue;
+        }
+
         if (auto reluStage = getNextStage(eltwiseStage, {StageType::Relu, StageType::LeakyRelu, StageType::Clamp})) {
             auto reluInput = reluStage->input(0);
             auto reluOutput = reluStage->output(0);

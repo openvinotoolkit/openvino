@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.graph.graph import Graph
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
@@ -28,10 +30,10 @@ class TopK(Op):
             'type': __class__.op,
             'op': __class__.op,
             'infer': self.infer,
+            'type_infer': self.type_infer,
             'axis': None,
-            'mode': None,
+            'mode': 'max',
             'sort': 'none',
-            'force_precision_in_ports': {1: 'int32'},
             'in_ports_count': 3,
             'out_ports_count': 2,
         }, attrs)
@@ -67,3 +69,9 @@ class TopK(Op):
         if node.in_port(0).data.get_value() is not None:
             # TODO implement value propagation
             pass
+
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(node.in_port(0).get_data_type())
+        node.out_port(1).set_data_type(np.int64 if node.graph.graph['cmd_params'].generate_experimental_IR_V10 else
+                                       np.int32)

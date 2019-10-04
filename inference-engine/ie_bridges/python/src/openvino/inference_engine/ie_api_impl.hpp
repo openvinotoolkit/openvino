@@ -46,6 +46,7 @@ struct IENetLayer {
     std::map<std::string, InferenceEngine::Blob::Ptr> getWeights();
 
     void setPrecision(std::string precision);
+    std::vector<InferenceEngine::DataPtr> getOutData();
 };
 
 struct InputInfo {

@@ -40,7 +40,7 @@ class TensorflowOperationPatterns(FrontReplacementPattern):
     graph_condition = [lambda graph: graph.graph['cmd_params'].tensorflow_operation_patterns is not None]
 
     def run_before(self):
-        from extensions.front.tf.tensorflow_use_custom_operations_config import TensorflowUseCustomOperationsConfig
+        from extensions.front.tensorflow_use_custom_operations_config import TensorflowUseCustomOperationsConfig
         return [TensorflowUseCustomOperationsConfig]
 
     def run_after(self):

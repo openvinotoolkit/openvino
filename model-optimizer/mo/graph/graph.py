@@ -52,7 +52,6 @@ class Node:
         attrs[k] = v
 
     def __getattr__(self, k):
-        # hope it raises AttributeError if k is not in the dict
         return self.graph.node[self.node][k]
 
     def __getitem__(self, k):
@@ -725,7 +724,10 @@ class Graph(nx.MultiDiGraph):
                                                   for key in attrs_to_print if key in node_attrs])
             if node_attrs.get('type', '') == 'Const':
                 if 'value' not in attrs_to_print and 'value' in node_attrs:
-                    label += '\\nvalue=\\"' + ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
+                    if node_attrs['value'] is not None:
+                        label += '\\nvalue=\\"' + ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
+                    else:
+                        label += '\\nvalue=None'
             return label
 
         def _dump_nodes_attrs():
@@ -777,7 +779,7 @@ class Graph(nx.MultiDiGraph):
         string += _dump_edges_attrs()
 
         string += '}'
-        log.debug(string)
+#        log.debug(string)
         log.debug("---- GRAPHVIZ OUTPUT ENDS ----")
 
         if save_to_svg:

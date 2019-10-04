@@ -43,15 +43,17 @@ class PriorboxMutation(BackReplacementPattern):
         node = match['pb']
         assert len(node.in_ports()) == 2
 
-        begin = Const(graph, {'value': np.array([2])}).create_node()
-        end = Const(graph, {'value': np.array([4])}).create_node()
-        stride = Const(graph, {'value': np.array([1])}).create_node()
+        begin = Const(graph, {'value': np.array([2], dtype=np.int32)}).create_node()
+        end = Const(graph, {'value': np.array([4], dtype=np.int32)}).create_node()
+        stride = Const(graph, {'value': np.array([1], dtype=np.int32)}).create_node()
 
         shape_0 = Shape(graph, {'name': node.name + '/0_port', 'stop_value_propagation': True}).create_node()
-        ss_0 = StridedSlice(graph, {'name': node.name + '/ss_0_port', 'begin_mask': np.array([1]),
-                                    'end_mask': np.array([0]), 'new_axis_mask': np.array([0]),
-                                    'shrink_axis_mask': np.array([0]),
-                                    'ellipsis_mask': np.array([0])}).create_node()
+        ss_0 = StridedSlice(graph, {'name': node.name + '/ss_0_port',
+                                    'begin_mask': np.array([1], dtype=np.int32),
+                                    'end_mask': np.array([0], dtype=np.int32),
+                                    'new_axis_mask': np.array([0], dtype=np.int32),
+                                    'shrink_axis_mask': np.array([0], dtype=np.int32),
+                                    'ellipsis_mask': np.array([0], dtype=np.int32)}).create_node()
 
         shape_0.out_port(0).connect(ss_0.in_port(0))
         begin.out_port(0).connect(ss_0.in_port(1))
@@ -64,10 +66,12 @@ class PriorboxMutation(BackReplacementPattern):
         ss_0.out_port(0).connect(node.in_port(0))
 
         shape_1 = Shape(graph, {'name': node.name + '/1_port', 'stop_value_propagation': True}).create_node()
-        ss_1 = StridedSlice(graph, {'name': node.name + '/ss_1_port', 'begin_mask': np.array([1]),
-                                    'end_mask': np.array([0]), 'new_axis_mask': np.array([0]),
-                                    'shrink_axis_mask': np.array([0]),
-                                    'ellipsis_mask': np.array([0])}).create_node()
+        ss_1 = StridedSlice(graph, {'name': node.name + '/ss_1_port',
+                                    'begin_mask': np.array([1], dtype=np.int32),
+                                    'end_mask': np.array([0], dtype=np.int32),
+                                    'new_axis_mask': np.array([0], dtype=np.int32),
+                                    'shrink_axis_mask': np.array([0], dtype=np.int32),
+                                    'ellipsis_mask': np.array([0], dtype=np.int32)}).create_node()
 
         shape_1.out_port(0).connect(ss_1.in_port(0))
         begin.out_port(0).connect(ss_1.in_port(1))
@@ -78,7 +82,3 @@ class PriorboxMutation(BackReplacementPattern):
         node.in_port(1).disconnect()
         source.connect(shape_1.in_port(0))
         ss_1.out_port(0).connect(node.in_port(1))
-
-        ss_0['force_precision_in_ports'] = {1: 'int64', 2: 'int64', 3: 'int64'}
-        ss_1['force_precision_in_ports'] = {1: 'int64', 2: 'int64', 3: 'int64'}
-

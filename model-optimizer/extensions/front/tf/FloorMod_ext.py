@@ -18,7 +18,7 @@ from mo.front.extractor import FrontExtractorOp
 from mo.ops.eltwise import Eltwise
 
 
-class EltwiseFrontExtractor(FrontExtractorOp):
+class FloorModFrontExtractor(FrontExtractorOp):
     op = 'FloorMod'
     enabled = True
 
@@ -26,6 +26,5 @@ class EltwiseFrontExtractor(FrontExtractorOp):
     def extract(node):
         Eltwise.update_node_stat(node, {
             'operation': 'floor_mod',
-            'force_precision': 'I32',
         })
         return __class__.enabled

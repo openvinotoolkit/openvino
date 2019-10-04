@@ -3777,8 +3777,6 @@ std::string LSTMCellOnlyModel() {
     )V0G0N";
 };
 
-
-
 std::string TIModelWithLSTMCell1() {
     return R"V0G0N(
 <?xml version="1.0" ?>

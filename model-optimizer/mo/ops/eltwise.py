@@ -30,7 +30,6 @@ class Eltwise(Op):
             'mul': ('Mul', lambda a, b: a * b),
             'max': ('Max', lambda a, b: np.maximum(a, b)),
             'pow': ('Pow', lambda a, b: np.power(a, b)),
-            'greater_equal': ('GreaterEqual', lambda a, b: a >= b),
             'less': ('Less', lambda a, b: a < b),
             'less_equal': ('LessEqual', lambda a, b: a <= b),
             'greater': ('Greater', lambda a, b: a > b),

@@ -541,7 +541,7 @@ private:
     Type type;
     int execIndex = -1;
     int socket;
-    bool weight_caching = false;
+    bool weight_caching;
 
     std::string typeToStr(Type type);
 

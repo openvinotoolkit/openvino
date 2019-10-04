@@ -47,8 +47,8 @@ from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
 from mo.middle.passes.shape import reverse_input_channels, apply_nhwc_to_nchw_permutation, \
     permute_data_nodes_attrs, permute_op_nodes_attrs, merge_nodes_permutations, permute_input_data
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-from mo.pipeline.common import prepare_emit_ir
-from mo.utils import class_registration, tensorboard
+from mo.pipeline.common import prepare_emit_ir, get_ir_version
+from mo.utils import class_registration, tensorboard_util
 from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
 from mo.utils.logger import log_step
@@ -95,7 +95,7 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
     log.debug("Number of nodes in graph_def: {}".format(len(graph_def.node)))  # pylint: disable=no-member
 
     if argv.tensorboard_logdir:
-        tensorboard.dump_for_tensorboard(graph_def, argv.tensorboard_logdir)
+        tensorboard_util.dump_for_tensorboard(graph_def, argv.tensorboard_logdir)
 
     update_extractors_with_extensions(tf_op_extractors)
 
@@ -107,12 +107,7 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
         graph.graph['layout'] = 'NCHW' if argv.disable_nhwc_to_nchw else 'NHWC'
         graph.graph['cmd_params'] = argv
         graph.graph['fw'] = 'tf'
-
-        if graph.graph['cmd_params'].generate_experimental_IR_V10:
-            version = 10
-        else:
-            version = 6
-        graph.graph['ir_version'] = 2 if argv.generate_deprecated_IR_V2 else version
+        graph.graph['ir_version'] = get_ir_version(argv)
 
         graph.graph['variables_values'] = variables_values
         del variables_values

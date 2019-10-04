@@ -91,7 +91,6 @@ def common_tf_fields(node: Node):
         'kind': 'op',
         'name': node.pb.name,
         'op': node.pb.op,
-        'precision': 'FP32'  # TODO use real precision derived from the model
     }
 
 

@@ -15,7 +15,6 @@
 """
 
 import logging as log
-
 import numpy as np
 
 from extensions.ops.elementwise import Mul, Add, Pow
@@ -26,9 +25,6 @@ from mo.middle.pattern_match import check_node_usages_out_of_match
 from mo.ops.const import Const
 from mo.ops.eltwise import Eltwise
 from mo.ops.power import Power
-
-simple_eltwise_ops = ['Pow', 'Add', 'Multiply', 'Maximum', 'LogicalAnd', 'LogicalOr', 'Less', 'LessEqual',
-                      'Greater', 'GreaterEqual', 'Equal', 'NotEqual']
 
 op_to_operation_map = {
     'Pow': 'pow',
@@ -52,7 +48,7 @@ class SimpleEltwiseToEltwiseOp(BackReplacementPattern):
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('op', {'type': lambda t: t in simple_eltwise_ops})],
+            nodes=[('op', {'type': lambda t: t in op_to_operation_map.keys()})],
             edges=[],
         )
 
@@ -145,6 +141,9 @@ class EltwisesWithScalarInputToPower(BackReplacementPattern):
         op = match['op']
         op_type = op.type
 
+        if op.has_and_set('stop_value_propagation'):
+            return
+
         const_port, tensor_port = get_value_in_port(op), get_tensor_in_port(op)
         if const_port is None or tensor_port is None:
             return
@@ -164,6 +163,7 @@ class EltwisesWithScalarInputToPower(BackReplacementPattern):
         elif op_type == 'Pow':
             delete_node = value == 1
             Power.update_node_stat(op, {'power': value})
+        op.type_infer = Power.type_infer
 
         const_port.disconnect()
         if tensor_port.idx != 0:

@@ -15,11 +15,9 @@
 """
 import numpy as np
 
+from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from extensions.ops.elementwise import Mul
-from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class ScaleInput(MiddleReplacementPattern):
@@ -49,23 +47,4 @@ class ScaleInput(MiddleReplacementPattern):
             return
         assert (len(match['placeholder'].out_nodes()))
 
-        tinput = match['placeholder']
-        if not tinput.has_valid('shape'):
-            raise Error("Node {} has not valid shape attribute".format(tinput.id))
-
-        input_shape = tinput.shape
-        toutput = match['data']
-
-        # Create Mul node
-        value = np.array([1 / scale])
-
-        # Disconnect input with data node
-        graph.remove_edge(tinput.id, toutput.id)
-
-        # Create Mul node
-        mul_node = Mul(graph, dict(name="Mul1_"))
-        mul_data = Op.create_input_data_node(graph, "data_mul_scale_", np.array(value))
-        Op.expand_node_shape(mul_data, len(input_shape) - 2 if graph.graph['layout'] == 'NCHW' else 0)
-        mul_input = Op.create_data_node(graph, tinput, {'shape': toutput.shape})
-
-        mul_node.create_node_with_data(inputs=[mul_input, mul_data], data_nodes=toutput)
+        AddMeanScaleValues.apply_scale(graph, match['placeholder'], {'scale': np.array([scale])})

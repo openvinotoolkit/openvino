@@ -83,7 +83,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 ENVIRONMENT "TBBROOT")
     else(APPLE)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "tbb2019_20190414_v1_mac.tgz"
+                ARCHIVE_MAC "tbb2019_20190414_mac.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
@@ -154,6 +154,26 @@ if (ENABLE_GNA)
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*")
     endif()
     debug_message(STATUS "gna=" ${GNA})
+endif()
+
+if (ENABLE_ROCKHOPER)
+    set(rh_decoder_version "Rockhopper_1.0.0.682")
+
+    set(INCLUDE_RH_DECODER "include(\"\$\{IE_ROOT_DIR\}/share/ie_rh_decoder.cmake\")")
+
+    RESOLVE_DEPENDENCY(RH_Decoder
+            ARCHIVE_UNIFIED "${rh_decoder_version}.zip"
+            TARGET_PATH "${TEMP}/${rh_decoder_version}"
+            VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*")
+
+    configure_file(
+            "${PROJECT_SOURCE_DIR}/cmake/InitRHDecoder.cmake.in"
+            "${CMAKE_BINARY_DIR}/share/ie_rh_decoder.cmake"
+            @ONLY)
+
+    list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/share)
+    # for inference engine in tree build - lets include this finder
+    include(ie_rh_decoder)
 endif()
 
 configure_file(

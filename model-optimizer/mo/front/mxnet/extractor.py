@@ -56,7 +56,6 @@ def common_mxnet_fields(node: Node):
         'type': node['symbol_dict']['op'],
         'op': node['symbol_dict']['op'],
         'infer': None,
-        'precision': 'FP32'
     }
 
 

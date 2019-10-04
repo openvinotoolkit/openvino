@@ -125,6 +125,9 @@ public:
     void parseFloor(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseTopK(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseSelect(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseExpDetectionOutput(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseNonMaxSuppression(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseROIFeatureExtractor(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
 
     //
     // Special layers

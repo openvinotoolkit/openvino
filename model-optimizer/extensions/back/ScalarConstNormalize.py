@@ -77,6 +77,7 @@ class ScalarNormalizeForSpecificOps(BackReplacementPattern):
                  'Squeeze': [1],
                  'Eltwise': [1],
                  'Range': [0, 1, 2],
+                 'FakeQuantize': [1, 2, 3, 4]
                  }
         for node in graph.get_op_nodes():
             if node.has_and_set('type') and node.type in rules:

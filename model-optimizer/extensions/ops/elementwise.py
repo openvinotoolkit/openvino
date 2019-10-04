@@ -14,13 +14,13 @@
  limitations under the License.
 """
 
+import logging as log
 import numpy as np
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
 from mo.graph.graph import Graph
 from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class Elementwise(Op):
@@ -40,6 +40,7 @@ class Elementwise(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
             'is_eltwise': True,
+            'stop_value_propagation': False
         }, attrs)
 
     @staticmethod
@@ -47,8 +48,8 @@ class Elementwise(Op):
         in_type_0 = node.in_port(0).get_data_type()
         in_type_1 = node.in_port(1).get_data_type()
         if in_type_0 != in_type_1:
-            raise Error('Elementwise operation {} has inputs of different data types: {} and {}'.format(
-                        node.soft_get('name'), in_type_0, in_type_1))
+            log.error('Elementwise operation {} has inputs of different data types: {} and {}'.format(
+                      node.soft_get('name'), in_type_0, in_type_1))
         node.out_port(0).set_data_type(in_type_0)
 
 
@@ -116,12 +117,20 @@ class Greater(Elementwise):
     op_type = 'Greater'
     operation = staticmethod(lambda a, b: a > b)
 
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(np.bool)
+
 
 class GreaterEqual(Elementwise):
     enabled = False
     op = 'GreaterEqual'
     op_type = 'GreaterEqual'
     operation = staticmethod(lambda a, b: a >= b)
+
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(np.bool)
 
 
 class Less(Elementwise):
@@ -130,12 +139,20 @@ class Less(Elementwise):
     op_type = 'Less'
     operation = staticmethod(lambda a, b: a < b)
 
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(np.bool)
+
 
 class LessEqual(Elementwise):
     enabled = False
     op = 'LessEqual'
     op_type = 'LessEqual'
     operation = staticmethod(lambda a, b: a <= b)
+
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(np.bool)
 
 
 class Equal(Elementwise):
@@ -144,12 +161,20 @@ class Equal(Elementwise):
     op_type = 'Equal'
     operation = staticmethod(lambda a, b: a == b)
 
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(np.bool)
+
 
 class NotEqual(Elementwise):
     enabled = False
     op = 'NotEqual'
     op_type = 'NotEqual'
     operation = staticmethod(lambda a, b: a != b)
+
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(np.bool)
 
 
 class Maximum(Elementwise):
@@ -185,3 +210,10 @@ class LogicalAnd(Elementwise):
     op = 'LogicalAnd'
     op_type = 'LogicalAnd'
     operation = staticmethod(lambda a, b: bool(a) and bool(b))
+
+
+class FloorMod(Elementwise):
+    enabled = False
+    op = 'FloorMod'
+    op_type = 'FloorMod'
+    operation = staticmethod(lambda a, b: a % b)

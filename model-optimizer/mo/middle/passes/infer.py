@@ -15,7 +15,6 @@
 """
 
 import logging as log
-
 import networkx as nx
 import numpy as np
 
@@ -283,5 +282,48 @@ def update_fully_connected_shapes(graph: Graph):
         if not should_infer:
             break
 
-    if graph.graph['cmd_params'].generate_experimental_IR_V10:
-        return
+
+def type_infer(graph: Graph):
+    nodes = list(nx.topological_sort(graph))
+    for n in nodes:
+        node = Node(graph, n)
+        if node.kind == 'op':
+            node_name = node.soft_get('name')
+            node_type_infer(node)
+            log.debug('Type infer for node {}: {}'.format(node_name,
+                                                          [port.get_data_type() for port in node.out_ports().values()]))
+            """
+            Save the precision of input ports in the nodes. It is not possible to get the precision after the port
+            re-numbering because the port precision is defined for output port only and for input port it is determined
+            with the output port producing data to the input port. When output port id is changed it is not possible to
+            determine input port precision.
+            """
+            for out_port in node.out_ports().values():
+                for dest_port in out_port.get_destinations():
+                    if not dest_port.node.has_valid('_in_port_precision'):
+                        dest_port.node['_in_port_precision'] = {}
+                    dest_port.node['_in_port_precision'][dest_port.idx] = out_port.get_data_type()
+
+
+def node_type_infer(node):
+    if node.has_valid('type_infer'):
+        node.type_infer(node)
+    elif node.has_valid('data_type'):
+        node.out_port(0).set_data_type(node.data_type)
+    else:
+        copy_type_infer(node)
+
+
+def copy_type_infer(node):
+    for out_port in node.out_ports().values():
+        connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
+        if len(connected_in_ports) != 0:
+            data_type = connected_in_ports[0].get_data_type()
+            if data_type is not None:
+                out_port.set_data_type(data_type)
+            else:
+                src_node = connected_in_ports[0].get_connection().get_source().node
+                node_type_infer(src_node)
+                out_port.set_data_type(connected_in_ports[0].get_data_type())
+        else:
+            raise Error('No input ports of node {} to determine data type'.format(node.soft_get('name')))

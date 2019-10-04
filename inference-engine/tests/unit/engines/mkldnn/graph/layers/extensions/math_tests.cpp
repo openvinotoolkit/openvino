@@ -194,17 +194,17 @@ class MKLDNNCPUExtMathTests: public TestsCommon, public WithParamInterface<math_
         REPLACE_WITH_STR(model, "_MATH_FUNCTION_", p.math_function);
 
         if (p.alpha.size()) {
-            alpha = "alpha=\"" + to_string_c_locale(p.alpha[0]) + "\"";
+            alpha = "alpha=\"" + std::to_string(p.alpha[0]) + "\"";
         }
         REPLACE_WITH_STR(model, "_ALPHA_", alpha);
 
         if (p.beta.size()) {
-            beta = "beta=\"" + to_string_c_locale(p.beta[0]) + "\"";
+            beta = "beta=\"" + std::to_string(p.beta[0]) + "\"";
         }
         REPLACE_WITH_STR(model, "_BETA_", beta);
 
         if (p.gamma.size()) {
-            gamma = "gamma=\"" + to_string_c_locale(p.gamma[0]) + "\"";
+            gamma = "gamma=\"" + std::to_string(p.gamma[0]) + "\"";
         }
         REPLACE_WITH_STR(model, "_GAMMA_", gamma);
         return model;

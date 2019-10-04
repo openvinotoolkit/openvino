@@ -73,11 +73,12 @@ protected:
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
-        return StageSHAVEsRequirements::NotNeeded;
+        return StageSHAVEsRequirements::OnlyOne;
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
+        const auto& srcType = input(0)->desc().type();
+        assertInputsOutputsTypes(this, {{srcType}, {DataType::FP16, DataType::S32}}, {{srcType}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {

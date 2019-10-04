@@ -148,6 +148,7 @@ else()
 
         set(IE_EXTERNAL_DIR "${IE_ROOT_DIR}/external")
         include("${IE_ROOT_DIR}/share/ie_parallel.cmake")
+        @INCLUDE_RH_DECODER@
 
         add_subdirectory(${IE_SRC_DIR}/extension EXCLUDE_FROM_ALL ie_cpu_extension)
         add_library(IE::ie_cpu_extension ALIAS ie_cpu_extension)

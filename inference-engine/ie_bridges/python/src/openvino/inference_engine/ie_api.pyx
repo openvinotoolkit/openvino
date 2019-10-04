@@ -6,7 +6,7 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libcpp.map cimport map
-from libcpp.memory cimport unique_ptr
+from libcpp.memory cimport unique_ptr, shared_ptr
 from libc.stdlib cimport malloc, free
 from libc.stdint cimport int64_t, uint8_t
 from libc.string cimport memcpy, strcpy
@@ -43,7 +43,9 @@ cdef c_map_to_dict(map[string, string] c_map):
 
 supported_precisions = ["FP32", "FP16", "Q78", "I32", "I16", "I8", "U32", "U16", "U8"]
 
-supported_layouts = ["NCHW", "NHWC", "OIHW", "C", "CHW", "HW", "NC", "CN", "BLOCKED", "NCDHW"]
+supported_layouts = {0: "ANY", 1: "NCHW", 2: "NHWC", 3: "NCDHW", 4: "NDHWC", 64: "OIHW", 95: "SCALAR", 96: "C",
+                     128: "CHW", 192: "HW", 193: "NC", 194: "CN", 200: "BLOCKED"}
+
 known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO', 'HDDL', 'MULTI']
 
 ctypedef enum StatusCode:
@@ -64,7 +66,7 @@ ctypedef enum StatusCode:
 def get_version():
     return C.get_version().decode()
 
-cdef  class IECore:
+cdef class IECore:
     def __cinit__(self, xml_config_file: str = ""):
         self.impl = C.IECore(xml_config_file.encode())
 
@@ -123,7 +125,6 @@ cdef  class IECore:
     def get_config(self, device_name: str, config_name: str):
         return self.impl.getConfig(device_name.encode(), config_name.encode())
 
-
     @property
     def available_devices(self):
         cdef vector[string] c_devices = self.impl.getAvailableDevices()
@@ -131,6 +132,31 @@ cdef  class IECore:
 
     # TODO: Add import network functionality
     # TODO: Extend API for query config and attributes when it will be merged in C++ API
+
+cdef class DataPtr:
+    @property
+    def name(self):
+        return deref(self._ptr).getName().decode()
+    @property
+    def precision(self):
+        return deref(self._ptr).getPrecision().name().decode()
+    @precision.setter
+    def precision(self, precision):
+        if precision not in supported_precisions:
+            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
+                                                                                                 supported_precisions))
+        deref(self._ptr).setPrecision(C.Precision.FromStr(precision.encode()))
+
+    @property
+    def dims(self):
+        return deref(self._ptr).getDims()
+    @property
+    def layout(self):
+        return supported_layouts[deref(self._ptr).getLayout()]
+
+    @property
+    def initialized(self):
+        return deref(self._ptr).isInitialized()
 
 cdef class IENetLayer:
     @property
@@ -141,6 +167,10 @@ cdef class IENetLayer:
         return self.impl.type.decode()
     @property
     def precision(self):
+        warnings.filterwarnings("always", category=DeprecationWarning)
+        warnings.warn("precision property of IENetLayer is deprecated. "
+                      "Please use precision property of DataPtr instead",
+                      DeprecationWarning)
         return self.impl.precision.decode()
     @property
     def affinity(self):
@@ -176,6 +206,10 @@ cdef class IENetLayer:
         return [int(i) for i in string_shape.split(' ')]
     @property
     def layout(self):
+        warnings.filterwarnings("always", category=DeprecationWarning)
+        warnings.warn("layout property of IENetLayer is deprecated. "
+                      "Please use layout property of DataPtr instead",
+                      DeprecationWarning)
         return self.impl.layout.decode()
     @affinity.setter
     def affinity(self, target_affinity):
@@ -187,6 +221,16 @@ cdef class IENetLayer:
     @precision.setter
     def precision(self, precision: str):
         self.impl.setPrecision(precision.upper().encode())
+
+    @property
+    def out_data(self):
+        cdef vector[shared_ptr[C.Data]] out_data = self.impl.getOutData()
+        data = []
+        cdef DataPtr data_ptr = DataPtr()
+        for d in out_data:
+            data_ptr._ptr = d
+            data.append(data_ptr)
+        return data
 
 cdef class InputInfo:
     @property
@@ -207,9 +251,9 @@ cdef class InputInfo:
         self.impl.setPrecision(precision.encode())
     @layout.setter
     def layout(self, layout):
-        if layout.upper() not in supported_layouts:
+        if layout.upper() not in supported_layouts.values():
             raise AttributeError(
-                "Unsupported layout {}! List of supported layouts: {}".format(layout, supported_layouts))
+                "Unsupported layout {}! List of supported layouts: {}".format(layout, supported_layouts.values()))
         self.impl.setLayout(layout.encode())
 
 cdef class OutputInfo:
@@ -296,7 +340,7 @@ cdef class InferRequest:
         self._py_callback = py_callback
         self._py_data = py_data
         self._py_callback_used = True
-        deref(self.impl).setCyCallback(<cb_type>self.user_callback, <void *>self)
+        deref(self.impl).setCyCallback(<cb_type> self.user_callback, <void *> self)
 
     cpdef BlobBuffer _get_blob_buffer(self, const string & blob_name):
         cdef BlobBuffer buffer = BlobBuffer()
@@ -393,15 +437,15 @@ cdef class LayersStatsMap(dict):
         self.net_impl.setStats(c_stats_map)
 
 cdef class IENetwork:
-    def __cinit__(self, model: [str, bytes] ="", weights: [str, bytes] ="", init_from_buffer: bool=False,
+    def __cinit__(self, model: [str, bytes] = "", weights: [str, bytes] = "", init_from_buffer: bool = False,
                   ngraph_compatibility: bool = False):
-        cdef char* xml_buffer = <char*>malloc(len(model))
-        cdef uint8_t* bin_buffer = <uint8_t *>malloc(len(weights))
+        cdef char*xml_buffer = <char*> malloc(len(model))
+        cdef uint8_t*bin_buffer = <uint8_t *> malloc(len(weights))
         cdef string model_
         cdef string weights_
         if init_from_buffer:
             strcpy(xml_buffer, model)
-            memcpy(bin_buffer, <uint8_t *>weights, len(weights))
+            memcpy(bin_buffer, <uint8_t *> weights, len(weights))
             self.impl = C.IENetwork()
             self.impl.load_from_buffer(xml_buffer, len(model), bin_buffer, len(weights))
         else:
@@ -482,7 +526,7 @@ cdef class IENetwork:
 
     @classmethod
     def from_ir(cls, model: str, weights: str):
-        warnings.filterwarnings("always",category=DeprecationWarning)
+        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("from_ir() method of IENetwork is deprecated. "
                       "Please use IENetwork class constructor to create valid IENetwork instance",
                       DeprecationWarning)
@@ -549,7 +593,7 @@ cdef class IEPlugin:
         cdef map[string, string] c_config
         if num_requests < 0:
             raise ValueError("Incorrect number of requests specified: {}. Expected positive integer number "
-                               "or zero for auto detection".format(num_requests))
+                             "or zero for auto detection".format(num_requests))
         if config:
             for k, v in config.items():
                 c_config[to_std_string(k)] = to_std_string(v)

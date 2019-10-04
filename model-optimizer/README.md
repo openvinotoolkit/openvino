@@ -3,6 +3,12 @@
 Project structure:
 <pre>
     |-- root
+        |-- docs
+            |-- Model_Optimizer_Developer_Guide - md files of documentation for the Model Optimizer
+                |-- img
+                |-- prepare_model
+                    |-- convert_model
+                    |-- customize_model_optimizer
         |-- extensions
             |-- front/caffe
                 |-- CustomLayersMapping.xml.example - example of file for registering custom Caffe layers in 2017R3 public
@@ -61,6 +67,22 @@ Model Optimizer requires:
     pip3 install -r requirements.txt
     </pre>
 
+4. [OPTIONAL] If you use Windows OS, most probably you get python version of `protobuf` library. It is known to be rather slow,
+   and you can use a boosted version of library by building the .egg file (Python package format) yourself,
+   using instructions below (section 'How to boost Caffe model loading') for the target OS and Python, or install it
+   with the pre-built .egg (it is built for Python 3.4, 3.5, 3.6, 3.7):
+    <pre>
+        python3 -m easy_install protobuf-3.6.1-py3.6-win-amd64.egg
+    </pre>
+
+   It overrides the protobuf python package installed by the previous command.
+
+   Set environment variable to enable boost in protobuf performance:
+    <pre>
+        set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
+    </pre>
+
+
 ## Command-Line Interface (CLI)
 
 The following short examples are framework-dependent. Please read the complete help
@@ -78,10 +100,6 @@ There are several scripts that convert a model:
 3. <code>mo_mxnet.py</code> -- dedicated script for MXNet models conversion
 
 4. <code>mo_tf.py</code> -- dedicated script for TensorFlow models conversion
-
-5. <code>mo_onnx.py</code> -- dedicated script for ONNX models conversion
-
-6. <code>mo_kaldi.py</code> -- dedicated script for Kaldi models conversion
 
 <code>mo.py</code> can deduce original framework where input model was trained by an extension of
 the model file. Or <code>--framework</code> option can be used for this purpose if model files
@@ -121,18 +139,8 @@ dedicated entry point <code>mo_mxnet.py</code>:
 
 > **NOTE**: for TensorFlow* all Placeholder ops are represented as Input layers in the final IR.
 
-### Convert ONNX* model
-
-The Model Optimizer assumes that you have an ONNX model that was directly downloaded from a public repository or converted from any framework that supports exporting to the ONNX format.
-
-Use the mo_onnx.py script to simply convert a model with the path to the input model .onnx file:
-
-<pre>
-    python3 mo_onnx.py --input_model model-file.onnx
-</pre>
-
-Input channels re-ordering, scaling, subtraction of mean values and other preprocessing features
-are not applied by default. To pass necessary values to Model Optimizer, please run <code>mo.py</code>
+Input channels re-ordering, scaling, subtraction of mean values and other precprocessing features
+are not applied by default. To pass necessary values to Model Optmizer, please run <code>mo.py</code>
 (or <code>mo_tf.py</code>, <code>mo_caffe.py</code>, <code>mo_mxnet.py</code>) with <code>--help</code> and
 examine all available options.
 
@@ -143,6 +151,9 @@ The whole workflow and more documentation on the structure of IR are documented 
 of Inference Engine. Note that sections about running Model Optimizer refer to the old version
 of the tool and can not be applied to the current version of Model Optimizer.
 
+
+## Setup development environment
+
 ### How to run unit-tests
 
 1. Run tests with:
@@ -150,5 +161,30 @@ of the tool and can not be applied to the current version of Model Optimizer.
     python -m unittest discover -p "*_test.py" [-s PATH_TO_DIR]
 </pre>
 
----
-\* Other names and brands may be claimed as the property of others.
+### How to capture unit-tests coverage
+
+1. Run tests with:
+<pre>
+    coverage run -m unittest discover -p "*_test.py" [-s PATH_TO_DIR]
+</pre>
+
+2. Build html report:
+<pre>
+    coverage html
+</pre>
+
+### How to run code linting
+
+1. Run the following command:
+<pre>
+    pylint mo/ mo.py
+</pre>
+
+### How to check requirements dependencies 
+
+1. Run the following command:
+<pre>
+    safety check -r requirements_file
+</pre>
+
+> **NOTE**: here <code>requirements_file</code> is one of the following: <code>requirements.txt</code>, <code>requirements_caffe.txt</code>, <code>requirements_tf.txt</code>, <code>requirements_mxnet.txt</code>, <code>requirements_dev.txt</code>.

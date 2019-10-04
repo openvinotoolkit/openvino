@@ -635,9 +635,9 @@ static CNNLayerPtr _pwr(std::string name, Precision prc, SizeVector dims, float 
     res->power = 1.0;
     res->scale = scale;
     res->offset = shift;
-    res->params["power"] = CNNLayer::ie_serialize_float(res->power);
-    res->params["scale"] = CNNLayer::ie_serialize_float(res->scale);
-    res->params["shift"] = CNNLayer::ie_serialize_float(res->offset);
+    res->params["power"] = std::to_string(res->power);
+    res->params["scale"] = std::to_string(res->scale);
+    res->params["shift"] = std::to_string(res->offset);
 
     res->insData.resize(1);
     res->outData.resize(1);
@@ -747,8 +747,8 @@ static void _link_with_clip(CNNLayerPtr src, CNNLayerPtr dst, const float clip_v
         auto clip_prc = dst->precision;
         auto clip_shape = src->outData[src_port]->getTensorDesc().getDims();
         auto clip = _act(clip_name, clip_prc, clip_shape, "clamp");
-        clip->params["min"] = CNNLayer::ie_serialize_float(-clip_val);
-        clip->params["max"] = CNNLayer::ie_serialize_float(clip_val);
+        clip->params["min"] = std::to_string(-clip_val);
+        clip->params["max"] = std::to_string(clip_val);
 
         _link(src, clip, src_port, 0);
         _link(clip, dst, 0, dst_port);
