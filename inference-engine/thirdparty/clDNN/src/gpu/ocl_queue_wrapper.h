@@ -90,6 +90,7 @@ public:
     void reset_events();
     event_impl::ptr create_user_event(bool set);
     void release_events_pool();
+    std::shared_ptr<gpu_toolkit> context() { return _context.lock(); }
 
 private:
     int id;
