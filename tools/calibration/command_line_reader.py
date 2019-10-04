@@ -18,7 +18,7 @@ import pathlib
 from functools import partial
 from argparse import ArgumentParser
 
-from ..accuracy_checker.accuracy_checker.utils import get_path
+from accuracy_checker.utils import get_path
 from ..utils.path import Path
 
 class CommandLineReader:

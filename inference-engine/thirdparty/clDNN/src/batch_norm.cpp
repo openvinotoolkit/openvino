@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id batch_norm_type_id() {
+primitive_type_id batch_norm::type_id() {
     static primitive_type_base<batch_norm> instance;
     return &instance;
 }

@@ -19,62 +19,54 @@ private:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() >= 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override {
         if (step == ScalePropagationStep::Propagate) {
             auto inputScale = inputScales[0];
-            _scaleInfo.setOutput(_outputEdges[0], inputScale);
+            scaleInfo.setOutput(outputEdge(0), inputScale);
         } else {
             // Crop can only propagate scaling, not generate.
 
-            for (const auto& inEdge : _inputEdges) {
-                _scaleInfo.setInput(inEdge, 1.0f);
+            for (const auto& inEdge : inputEdges()) {
+                scaleInfo.setInput(inEdge, 1.0f);
             }
-            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
+            scaleInfo.setOutput(outputEdge(0), 1.0f);
         }
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() >= 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
 
         auto inOrder = input->desc().dimsOrder();
 
         // HWC only
-        _orderInfo.setInput(_inputEdges[0], inOrder.createMovedDim(Dim::C, 0));
-        _orderInfo.setOutput(_outputEdges[0], inOrder.createMovedDim(Dim::C, 0));
+        orderInfo.setInput(inputEdge(0), inOrder.createMovedDim(Dim::C, 0));
+        orderInfo.setOutput(outputEdge(0), inOrder.createMovedDim(Dim::C, 0));
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() >= 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
-        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
+        stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
-        IE_ASSERT(_inputEdges.size() >= 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        for (const auto& inEdge : _inputEdges) {
-            _batchInfo.setInput(inEdge, BatchSupport::Split);
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
+        for (const auto& inEdge : inputEdges()) {
+            batchInfo.setInput(inEdge, BatchSupport::Split);
         }
-        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
+        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
         return StageSHAVEsRequirements::NotNeeded;
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        IE_ASSERT(numInputs() == 1 || numInputs() == 2);
+        IE_ASSERT(numOutputs() == 1);
+        assertAllInputsOutputsTypes(this, DataType::FP16, DataType::FP16);
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -86,12 +78,8 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() >= 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         input->serializeOldBuffer(handle_from_this(), serializer);
         output->serializeOldBuffer(handle_from_this(), serializer);
@@ -122,12 +110,6 @@ void FrontEnd::parseCrop(
         VPU_THROW_EXCEPTION
             << "Layer " << layer->name << " [" << layer->type
             << "] has invalid axis value. Expected: 0 <= axis < 4, Actual: " << cropAxis;
-    }
-
-    if (cropAxis == 0) {
-        VPU_THROW_EXCEPTION
-            << "Layer " << layer->name << " [" << layer->type
-            << "] Can't crop batch channel";
     }
 
     auto stage = model->addNewStage<CropStage>(

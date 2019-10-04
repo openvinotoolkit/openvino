@@ -678,7 +678,7 @@ public:
         if (_handle != nullptr) {
             getAllocator()->free(_handle);
         }
-        _handle = getAllocator()->alloc(byteSize());
+        _handle = getAllocator()->alloc(size() * sizeof(T));
     }
 
     /**
@@ -779,10 +779,7 @@ protected:
      * @brief Frees handler and cleans up the stored data.
      */
     virtual bool free() {
-        bool bCanRelease = true;
-        if (_handle == nullptr) return bCanRelease;
-
-        bCanRelease = getAllocator()->free(_handle);
+        bool bCanRelease = getAllocator()->free(_handle);
         _handle = nullptr;
         return bCanRelease;
     }

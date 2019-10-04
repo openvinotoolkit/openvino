@@ -20,7 +20,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id pyramid_roi_align_type_id() {
+primitive_type_id pyramid_roi_align::type_id() {
     static primitive_type_base<pyramid_roi_align> instance;
     return &instance;
 }

@@ -26,6 +26,10 @@ def multi_box_detection_infer(node: Node):
     conf_shape = node.in_node(1).shape
     prior_boxes_shape = node.in_node(2).shape
 
+    if loc_shape is None or conf_shape is None or prior_boxes_shape is None:
+        log.warning('Shapes for the Detection Output are not defined')
+        return
+
     prior_size = 4
     if node.has('normalized') and not node.normalized:
         prior_size = 5
@@ -41,10 +45,6 @@ def multi_box_detection_infer(node: Node):
     num_loc_classes = node.num_classes
     if node.has_and_set('share_location') and node.share_location:
         num_loc_classes = 1
-
-    if loc_shape is None or conf_shape is None or prior_boxes_shape is None:
-        log.warning('Shapes for the Detection Output are not defined')
-        return
 
     if num_priors * num_loc_classes * 4 != loc_shape[-1]:
         log.warning('Locations and prior boxes shapes mismatch: "{}" vs "{}"'.format(loc_shape, prior_boxes_shape))

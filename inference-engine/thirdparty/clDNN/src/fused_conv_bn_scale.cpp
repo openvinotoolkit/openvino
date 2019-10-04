@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id fused_conv_bn_scale_type_id() {
+primitive_type_id fused_conv_bn_scale::type_id() {
     static primitive_type_base<fused_conv_bn_scale> instance;
     return &instance;
 }
@@ -119,7 +119,6 @@ std::string fused_conv_bn_scale_inst::to_string(fused_conv_bn_scale_node const& 
     auto strd = desc->stride;
     auto split = node.get_split();
     auto node_info = node.desc_to_json();
-    auto activation = desc->with_activation ? " true" : "false";
 
     std::stringstream primitive_description;
 
@@ -127,8 +126,6 @@ std::string fused_conv_bn_scale_inst::to_string(fused_conv_bn_scale_node const& 
     fuse_info.add("stride", strd.to_string());
     fuse_info.add("input offset", desc->input_offset.to_string());
     fuse_info.add("split", split);
-    fuse_info.add("with activation", activation);
-    fuse_info.add("slope", desc->activation_negative_slope);
 
     node_info->add("fused_conv_bn_scale info", fuse_info);
     node_info->dump(primitive_description);
@@ -172,8 +169,8 @@ fused_conv_bn_scale_inst::typed_primitive_inst(network_impl& network, fused_conv
                                   "Bias feature[0]",
                                   bias_inst.size.feature[0],
                                   "expected size of feature",
-                                  1,
-                                  "Biases isn't 1D vector.");
+                                  output_size.feature[0] / split,
+                                  "Bias/fm mismtach");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[1]",
                                   bias_inst.size.spatial[1],
@@ -184,9 +181,9 @@ fused_conv_bn_scale_inst::typed_primitive_inst(network_impl& network, fused_conv
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[0]",
                                   bias_inst.size.spatial[0],
-                                  "expected feature map number",
-                                  output_size.feature[0] / split,
-                                  "Bias/fm mismtach");
+                                  "expected size of spatial[0]",
+                                  1,
+                                  "Biases isn't 1D vector.");
         }
 
         auto input_offset = argument.input_offset;

@@ -20,7 +20,7 @@ python3 classification_sample.py -h
 The command yields the following usage message:
 ```
 usage: classification_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
-                                [-l CPU_EXTENSION] [-pp PLUGIN_DIR]
+                                [-l CPU_EXTENSION]
                                 [-d DEVICE] [--labels LABELS] [-nt NUMBER_TOP]
 
 Options:
@@ -34,8 +34,6 @@ Options:
                         Optional. Required for CPU custom layers. MKLDNN (CPU)-targeted custom layers.
                         Absolute path to a shared library with the kernels
                         implementations.
-  -pp PLUGIN_DIR, --plugin_dir PLUGIN_DIR
-                        Optional. Path to a plugin folder
   -d DEVICE, --device DEVICE
                         Optional. Specify the target device to infer on; CPU,
                         GPU, FPGA, HDDL or MYRIAD is acceptable. The sample

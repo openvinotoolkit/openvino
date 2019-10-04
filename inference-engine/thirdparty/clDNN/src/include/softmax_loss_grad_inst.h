@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/softmax_loss_grad.hpp"
+#include "api/softmax_loss_grad.hpp"
 #include "primitive_inst.h"
 #include <string>
 

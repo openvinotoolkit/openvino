@@ -16,7 +16,7 @@
 import logging as log
 
 from extensions.ops.elementwise import Add, Mul, Sub, Div, Maximum, Minimum, Pow, LogicalAnd, LogicalOr, Equal, \
-    GreaterEqual, Greater, Less, LessEqual, NotEqual
+    GreaterEqual, Greater, Less, LessEqual, NotEqual, BiasAdd
 from mo.front.extractor import FrontExtractorOp
 from mo.front.tf.extractors.utils import tf_dtype_extractor
 from mo.ops.eltwise_n import EltwiseNAdd
@@ -25,6 +25,16 @@ from mo.ops.power import Power
 
 class AddExtractor(FrontExtractorOp):
     op = 'Add'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Add.update_node_stat(node, {'data_type': tf_dtype_extractor(node.pb.attr["T"].type)})
+        return __class__.enabled
+
+
+class AddV2Extractor(FrontExtractorOp):
+    op = 'AddV2'
     enabled = True
 
     @staticmethod
@@ -49,13 +59,9 @@ class BiasAddExtractor(FrontExtractorOp):
 
     @staticmethod
     def extract(node):
-        data_format = node.pb.attr['data_format'].s.decode("utf-8")
-        if data_format == "NHWC":
-            Add.update_node_stat(node, {'data_type': tf_dtype_extractor(node.pb.attr["T"].type)})
-            return __class__.enabled
-        else:
-            log.error('BiasAdd operation has unsupported `data_format`={}'.format(data_format))
-            return False
+        BiasAdd.update_node_stat(node, {'data_type': tf_dtype_extractor(node.pb.attr["T"].type),
+                                        'data_format': node.pb.attr["data_format"].s.decode()})
+        return __class__.enabled
 
 
 class MulExtractor(FrontExtractorOp):

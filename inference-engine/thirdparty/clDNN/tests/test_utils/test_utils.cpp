@@ -16,13 +16,13 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/CPP/memory.hpp"
-#include <api/CPP/primitive.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/data.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/primitive.hpp>
+#include <api/input_layout.hpp>
+#include <api/data.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils.h"
 #include "float16.h"
 #include "instrumentation.h"
@@ -45,7 +45,7 @@ namespace tests
             generic_params->network_build_options.set_option(cldnn::build_option::graph_dumps_dir(DUMP_DIRECTORY));
         }
         topology topology;               
-        topology.add(*layer_params);
+        topology.add_primitive(layer_params);
 
         std::vector<memory> input_mems;
         std::vector<std::string> input_layouts_names = {};

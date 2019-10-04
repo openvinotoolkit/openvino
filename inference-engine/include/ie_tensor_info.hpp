@@ -15,12 +15,22 @@
 
 namespace InferenceEngine {
 
+/**
+* @struct TensorInfo
+* @brief This structure describes tensor information
+*/
 struct TensorInfo {
+    /**
+    * @brief A shared pointer to the TensorInfo object
+    */
     using Ptr = std::shared_ptr<TensorInfo>;
 
-    // memory layout BFYX, BXYF (enum)
-    // size
-    // precision
+    /**
+    * @brief A map of extra info:
+    * - memory layout BFYX, BXYF (enum)
+    * - size
+    * - precision
+    */
     std::map<std::string, std::string> extraInfo;
 };
 

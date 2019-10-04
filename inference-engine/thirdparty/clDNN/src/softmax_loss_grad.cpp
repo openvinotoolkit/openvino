@@ -20,7 +20,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id softmax_loss_grad_type_id() {
+primitive_type_id softmax_loss_grad::type_id() {
     static primitive_type_base<softmax_loss_grad> instance;
     return &instance;
 }

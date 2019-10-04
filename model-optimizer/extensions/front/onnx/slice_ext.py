@@ -15,10 +15,7 @@
 """
 
 import numpy as np
-import logging as log
 
-from mo.ops.op import Op
-from mo.graph.graph import Node
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.ops.slice import Slice
@@ -38,6 +35,7 @@ class SliceFrontExtractor(FrontExtractorOp):
             'axis': axis if len(axis) != 0 else None,
             'start': start if len(start) != 0 else None,
             'end': end if len(end) != 0 else None,
+            'format': 'onnx'
         }
 
         # update the attributes of the node

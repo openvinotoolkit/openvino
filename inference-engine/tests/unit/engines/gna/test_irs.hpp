@@ -67,4 +67,39 @@ std::string InputSplitConcatReshapeModelUnaligned();
 std::string LSTMCellOnlyModelUnaligned();
 std::string SplitToConcatThroughScaleShift();
 std::string PowerWithScaleFactor1();
+std::string ConcatWithDiffScaleFactor();
+
+std::string SplitToConcatWith2InputsNotAlignedNoFC();
+std::string SplitToConcatWith2InputsAlignedNoFC();
+std::string SplitToConcatWith2InputsAlignedNoFCWithInCopyWithOutCopy();
+std::string SplitToConcatWith2InputsNotAlignedWithFC();
+std::string SplitToConcatWith2InputsAlignedWithFC();
+std::string SplitToConcatWith2InputsAlignedWithFCWithInCopy();
+
+std::string SplitToConcatWith3InputsNotAlignedNoFC();
+std::string SplitToConcatWith3InputsAlignedNoFC();
+std::string SplitToConcatWith3InputsAlignedNoFCWithInCopyWithOutCopy();
+std::string SplitToConcatWith3InputsNotAlignedWithFC();
+std::string SplitToConcatWith3InputsAlignedWithFC();
+std::string SplitToConcatWith3InputsAlignedWithFCWithInCopy();
+
+std::string SplitToConcatWith4InputsNotAlignedNoFC();
+std::string SplitToConcatWith4InputsNotAlignedNoFCWithOutCopy();
+
+std::string SplitToConcatWith10InputsNotAlignedNoFC();
+std::string SplitToConcatWith10InputsNotAlignedNoFCWithOutCopy();
+std::string SplitToConcatWith10InputsAlignedNoFC();
+std::string SplitToConcatWith10InputsAlignedNoFCWithInCopyWithOutCopy();
+std::string SplitToConcatWith10InputsNotAlignedWithFC();
+std::string SplitToConcatWith10InputsAlignedWithFC();
+std::string SplitToConcatWith10InputsAlignedWithFCWithInCopy();
+
+std::string SplitToConcatWith10By1InputsNotAlignedNoFCWithOutCopy();
+std::string SplitToConcatWith2By50InputsNotAlignedNoFC();
+std::string SplitToConcatWith2By50InputsNotAlignedNoFCWithInCopyWithOutCopy();
+std::string SplitToConcatWith2By64InputsAlignedNoFC();
+std::string SplitToConcatWith2By64InputsAlignedNoFCWithOutCopy();
+std::string SplitToConcatWith3By512InputsWithOutCopy();
+
+std::string ReshapeConvolutionLessThan48Filters();
 }  // namespace GNATestIRs

@@ -4,14 +4,15 @@
 
 #pragma once
 
-#include "mkldnn_graph.h"
+#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include "mkldnn_exec_network.h"
+
 #include <string>
 #include <map>
 #include <unordered_map>
 #include <memory>
 #include <functional>
 #include <vector>
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 
 namespace MKLDNNPlugin {
 

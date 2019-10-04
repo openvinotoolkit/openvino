@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/fully_connected_grad_weights.hpp"
+#include "api/fully_connected_grad_weights.hpp"
 #include "primitive_inst.h"
 #include <string>
 

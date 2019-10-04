@@ -3,6 +3,8 @@
 This topic demonstrates how to run the Object Detection sample application, which does inference using object detection
 networks like SSD-VGG on Intel® Processors and Intel® HD Graphics.
 
+> **NOTE:** This topic describes usage of C++ implementation of the Object Detection Sample SSD. For the Python* implementation, refer to [Object Detection Python* Sample SSD](./inference-engine/ie_bridges/python/sample/object_detection_sample_ssd/README.md).
+
 ## How It Works
 
 Upon the start-up the sample application reads command line parameters and loads a network and an image to the Inference

@@ -89,6 +89,7 @@ class StridedSlice(Op):
 
         def convert(attr):
             return lambda node: array_to_str(node, attr)
+
         for a in list(['new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask', 'begin_mask', 'end_mask']):
             al.append((a, convert(a)))
         return al
@@ -97,7 +98,7 @@ class StridedSlice(Op):
     def infer(node: Node):
         tf_strided_slice_infer(node)
 
-        if node.graph.graph['layout'] == 'NHWC':
+        if node.graph.graph['layout'] == 'NHWC' and node.out_port(0).data.get_value() is None:
             PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0', permute_masks),
                                                            ('new_axis_mask', 'input:0', permute_masks),
                                                            ('ellipsis_mask', 'input:0', permute_masks),

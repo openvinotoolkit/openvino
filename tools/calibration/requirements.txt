@@ -5,7 +5,7 @@ pillow
 progress
 py-cpuinfo<=4.0
 pyyaml
-scipy<=0.19
+scipy<1.2
 shapely
 sklearn
 tqdm

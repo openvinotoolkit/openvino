@@ -118,9 +118,13 @@ public:
     void parseRNN(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseGEMM(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseLog(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseExp(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseReverseSequence(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseGather(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseReduce(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseFloor(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseTopK(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseSelect(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
 
     //
     // Special layers
@@ -131,6 +135,7 @@ public:
     void parseReshape(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseConcat(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseSplit(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseStridedSlice(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
 
 //
 // Utility
@@ -162,6 +167,8 @@ private:
 
     ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> _customLayers;
     ie::details::caseless_map<std::string, vpu::Data> kernelNodes;
+    std::unordered_map<ie::Blob::Ptr, vpu::Data> lstmWeights;
+    std::unordered_map<ie::Blob::Ptr, vpu::Data> lstmBiases;
     vpu::IeNetworkParser _ieNetworkParser;
 };
 

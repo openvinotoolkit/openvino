@@ -14,6 +14,7 @@
 
 
 #include "fully_connected_kernel_fb_io_b8_f8.h"
+#include <algorithm>
 
 namespace kernel_selector {
 ParamsKey FullyConnected_fb_io_b8_f8::GetSupportedKey() const {
@@ -31,6 +32,18 @@ ParamsKey FullyConnected_fb_io_b8_f8::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableSubGroup();
     return k;
+}
+
+size_t FullyConnected_fb_io_b8_f8::GetBatchesPerWorkItem(const fully_connected_params& params) const {
+    auto batch_size = params.output.Batch().v;
+
+    if (batch_size % 32 == 0)
+        return std::min(batch_size, static_cast<size_t>(32U));
+
+    if (batch_size % 16 == 0)
+        return std::min(batch_size, static_cast<size_t>(16U));
+
+    return std::min(batch_size, static_cast<size_t>(8U));
 }
 
 FullyConnected_fb_io_b8_f8::DispatchData FullyConnected_fb_io_b8_f8::SetDefault(const fully_connected_params& arg,

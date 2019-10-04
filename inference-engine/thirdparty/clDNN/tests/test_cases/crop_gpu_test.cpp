@@ -16,12 +16,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/crop.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/crop.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 
 using namespace cldnn;
@@ -80,6 +80,53 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all) {
     auto output = outputs.at("crop").get_memory();
     auto output_ptr = output.pointer<float>();
 
+    for (int b = 0; b < crop_batch_num; ++b) { //B
+        for (int f = 0; f < crop_feature_num; ++f) { //F
+            for (int y = 0; y < crop_y_size; ++y) { //Y
+                for (int x = 0; x < crop_x_size; ++x) { //X
+                    int linear_id = b + batch_num * (f + feature_num * (x + x_size * y));
+                    int output_linear_id = b + crop_batch_num * (f + crop_feature_num * (x + crop_x_size * y));
+                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                }
+            }
+        }
+    }
+}
+
+TEST(crop_gpu, basic_in2x2x2x3_crop_all) {
+    const auto& engine = get_test_engine();
+
+    auto batch_num = 2;
+    auto feature_num = 2;
+    auto x_size = 3;
+    auto y_size = 2;
+
+    auto crop_batch_num = batch_num - 1;
+    auto crop_feature_num = feature_num - 1;
+    auto crop_x_size = x_size - 1;
+    auto crop_y_size = y_size - 1;
+
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ batch_num, feature_num, x_size, y_size } });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(crop("crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
+
+    std::vector<float> input_vec;
+    for (int i = 0; i < batch_num * feature_num * y_size * x_size; i++)
+        input_vec.push_back(i);
+    set_values(input, input_vec);
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("crop").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    printf("Results:\n");
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int y = 0; y < crop_y_size; ++y) { //Y
@@ -662,11 +709,11 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(activation("relu", "input", activation_relu));
+    topology.add(activation("relu", "input", activation_func::relu));
     topology.add(crop("crop1", "relu", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }));
     topology.add(crop("crop2", "relu", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }));
-    topology.add(activation("relu1", "crop1", activation_relu));
-    topology.add(activation("relu2", "crop2", activation_relu));
+    topology.add(activation("relu1", "crop1", activation_func::relu));
+    topology.add(activation("relu2", "crop2", activation_func::relu));
 
     std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
     std::vector<float> out1 = { 0.f, 2.f,0.f };

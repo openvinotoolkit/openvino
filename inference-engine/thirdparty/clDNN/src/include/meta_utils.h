@@ -16,7 +16,7 @@
 #pragma once
 
 #include <type_traits>
-#include "api/CPP/meta_utils.hpp"
+#include "api/meta_utils.hpp"
 #include "internal_primitive.h"
 
 namespace cldnn {

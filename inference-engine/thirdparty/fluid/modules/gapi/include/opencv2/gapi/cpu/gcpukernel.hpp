@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GCPUKERNEL_HPP
@@ -19,6 +19,7 @@
 #include <opencv2/gapi/garg.hpp>
 #include <opencv2/gapi/own/convert.hpp> //to_ocv
 #include <opencv2/gapi/util/compiler_hints.hpp> //suppress_unused_warning
+#include <opencv2/gapi/util/util.hpp>
 
 // FIXME: namespace scheme for backends?
 namespace cv {
@@ -43,13 +44,12 @@ namespace cpu
      * stack. Every backend is hardware-oriented and thus can run its
      * kernels efficiently on the target platform.
      *
-     * Backends are usually "back boxes" for G-API users -- on the API
+     * Backends are usually "black boxes" for G-API users -- on the API
      * side, all backends are represented as different objects of the
-     * same class cv::gapi::GBackend. User can manipulate with backends
-     * mainly by specifying which kernels to use or where to look up
-     * for kernels first.
+     * same class cv::gapi::GBackend.
+     * User can manipulate with backends by specifying which kernels to use.
      *
-     * @sa @ref gapi_hld, cv::gapi::lookup_order()
+     * @sa @ref gapi_hld
      */
 
     /**
@@ -259,7 +259,8 @@ struct OCVCallHelper<Impl, std::tuple<Ins...>, std::tuple<Outs...> >
 } // namespace detail
 
 template<class Impl, class K>
-class GCPUKernelImpl: public detail::OCVCallHelper<Impl, typename K::InArgs, typename K::OutArgs>
+class GCPUKernelImpl: public cv::detail::OCVCallHelper<Impl, typename K::InArgs, typename K::OutArgs>,
+                      public cv::detail::KernelTag
 {
     using P = detail::OCVCallHelper<Impl, typename K::InArgs, typename K::OutArgs>;
 

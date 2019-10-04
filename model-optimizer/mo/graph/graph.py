@@ -145,6 +145,12 @@ class Node:
         else:
             return self.has_valid('_out_ports') and idx in self.out_ports(control_flow=control_flow)
 
+    def is_in_port_connected(self, idx, control_flow=False):
+        return self.has_port('in', idx, control_flow) and not self.in_port(idx, control_flow).disconnected()
+
+    def is_out_port_connected(self, idx, control_flow=False):
+        return self.has_port('out', idx, control_flow) and not self.out_port(idx, control_flow).disconnected()
+
     def attrs(self):
         return self.graph.node[self.node]
 
@@ -240,8 +246,8 @@ class Node:
         return sorted([x for x in self.get_outputs(control_flow=control_flow) if 'out' in x[1]],
                       key=lambda x: x[1]['out'])
 
-    def soft_get(self, k):
-        return self[k] if self.has_valid(k) else '<UNKNOWN>'
+    def soft_get(self, k, default='<UNKNOWN>'):
+        return self[k] if self.has_valid(k) else default
 
     def edges(self, attrs: dict = None):
         """ Get a single edge with specified set of attributes.
@@ -911,7 +917,8 @@ def dict_includes_compare_attrs(attr, attr_probe):
     if callable(attr_probe) and not isinstance(attr_probe, type):
         return attr_probe(attr)
     else:
-        return attr == attr_probe
+        res = (attr == attr_probe)
+        return res if isinstance(res, bool) else all(res)
 
 
 def dict_includes(big: dict, sub_dict: dict, skip_attr_names=[]):

@@ -21,6 +21,7 @@ endif()
 target_include_directories(${TARGET_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
 target_include_directories(${TARGET_NAME}
     SYSTEM PUBLIC
         "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src"
@@ -28,7 +29,7 @@ target_include_directories(${TARGET_NAME}
         "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
         "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include")
 
-target_link_libraries(${TARGET_NAME} PUBLIC pugixml)
+target_link_libraries(${TARGET_NAME} PUBLIC pugixml vpu_common_lib)
 
 if(WIN32)
     target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
@@ -52,6 +53,8 @@ if (WIN32)
     target_include_directories(${TARGET_NAME}_test_static SYSTEM PUBLIC ${target_includes})
 
     set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
+
+    target_link_libraries(${TARGET_NAME}_test_static PUBLIC vpu_common_lib)
 else()
     add_library(${TARGET_NAME}_test_static ALIAS ${TARGET_NAME})
 endif()

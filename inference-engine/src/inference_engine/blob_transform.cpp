@@ -158,6 +158,92 @@ static inline void blob_copy_4d(Blob::Ptr src, Blob::Ptr dst) {
     }
 }
 
+template <InferenceEngine::Precision::ePrecision PRC>
+static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
+    using data_t = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+
+    const auto &src_blk_desc = src->getTensorDesc().getBlockingDesc();
+    const auto &dst_blk_desc = dst->getTensorDesc().getBlockingDesc();
+
+    data_t *src_ptr = src->buffer().as<data_t*>() + src_blk_desc.getOffsetPadding();
+    data_t *dst_ptr = dst->buffer().as<data_t*>() + dst_blk_desc.getOffsetPadding();
+
+    SizeVector dims = src->getTensorDesc().getDims();  // == dst's dims
+
+    const size_t N = dims[0];
+    const size_t C = dims[1];
+    const size_t D = dims[2];
+    const size_t H = dims[3];
+    const size_t W = dims[4];
+
+    const Layout src_l = src->getTensorDesc().getLayout();
+    const auto &src_strides = src_blk_desc.getStrides();
+    const auto N_src_stride = src_strides[0];
+    const auto C_src_stride = src_l == NDHWC ? src_strides[4] : src_strides[1];
+    const auto D_src_stride = src_l == NDHWC ? src_strides[1] : src_strides[2];
+    const auto H_src_stride = src_l == NDHWC ? src_strides[2] : src_strides[3];
+    const auto W_src_stride = src_l == NDHWC ? src_strides[3] : src_strides[4];
+
+    const Layout dst_l = dst->getTensorDesc().getLayout();
+    const auto &dst_strides = dst_blk_desc.getStrides();
+    const auto N_dst_stride = dst_strides[0];
+    const auto C_dst_stride = dst_l == NDHWC ? dst_strides[4] : dst_strides[1];
+    const auto D_dst_stride = dst_l == NDHWC ? dst_strides[1] : dst_strides[2];
+    const auto H_dst_stride = dst_l == NDHWC ? dst_strides[2] : dst_strides[3];
+    const auto W_dst_stride = dst_l == NDHWC ? dst_strides[3] : dst_strides[4];
+
+    if (src_l != dst_l) {
+        for (int n = 0; n < N; n++) {
+            for (int c = 0; c < C; c++) {
+                for (int d = 0; d < D; d++) {
+                    for (int h = 0; h < H; h++) {
+                        for (int w = 0; w < W; w++) {
+                            dst_ptr[n * N_dst_stride +
+                                    c * C_dst_stride +
+                                    d * D_dst_stride +
+                                    h * H_dst_stride +
+                                    w * W_dst_stride]
+                                =
+                            src_ptr[n * N_src_stride +
+                                    c * C_src_stride +
+                                    d * D_src_stride +
+                                    h * H_src_stride +
+                                    w * W_src_stride];
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        for (int i = 0; i < N*C*D*H*W; i++) {
+            dst_ptr[i] = src_ptr[i];
+        }
+    }
+}
+
+static inline void blob_copy_5d(Blob::Ptr src, Blob::Ptr dst) {
+    switch (src->getTensorDesc().getPrecision()) {
+        case Precision::FP32:
+        case Precision::I32:
+            blob_copy_5d_t<Precision::FP32>(src, dst);
+            break;
+
+        case Precision::FP16:
+        case Precision::U16:
+        case Precision::I16:
+            blob_copy_5d_t<Precision::U16>(src, dst);
+            break;
+
+        case Precision::U8:
+        case Precision::I8:
+            blob_copy_5d_t<Precision::U8>(src, dst);
+            break;
+
+        default:
+            THROW_IE_EXCEPTION << "Unsupported blob transformation for precision " << src->getTensorDesc().getPrecision();
+    }
+}
+
 void blob_copy(Blob::Ptr src, Blob::Ptr dst) {
     if (src->buffer() == nullptr)
         THROW_IE_EXCEPTION << "Cannot copy blob data. Source is not allocated.";
@@ -174,8 +260,10 @@ void blob_copy(Blob::Ptr src, Blob::Ptr dst) {
 
     if (src->getTensorDesc().getDims().size() == 4)
         blob_copy_4d(src, dst);
+    else if (src->getTensorDesc().getDims().size() == 5)
+        blob_copy_5d(src, dst);
     else
-        THROW_IE_EXCEPTION << "Unimplemented blob transformation. Only 4d supported.";
+        THROW_IE_EXCEPTION << "Unimplemented blob transformation. Only 4d or 5d supported.";
 }
 
 }  // namespace InferenceEngine

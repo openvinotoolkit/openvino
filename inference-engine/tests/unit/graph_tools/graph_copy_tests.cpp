@@ -38,18 +38,17 @@ protected:
         CONNECT(3, 5);
         CONNECT(5, 2);
 
-        EXPECT_CALL(mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap &maps) {
+        EXPECT_CALL(*mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap &maps) {
             prepareInputs(maps, 12);
         })));
 
-        EXPECT_CALL(mockNet, getOutputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](OutputsDataMap &maps) {
+        EXPECT_CALL(*mockNet, getOutputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](OutputsDataMap &maps) {
             prepareOutputs(maps);
         })));
 
-        EXPECT_CALL(mockNet, getTargetDevice()).WillRepeatedly(Return(TargetDevice::eCPU));
-        EXPECT_CALL(mockNet, getPrecision()).WillRepeatedly(Return(Precision::FP16));
-        EXPECT_CALL(mockNet, getBatchSize()).WillRepeatedly(Return(12));
-        EXPECT_CALL(mockNet, getName(_, _)).WillRepeatedly(Invoke([](char *pName, size_t len) {
+        EXPECT_CALL(*mockNet, getPrecision()).WillRepeatedly(Return(Precision::FP16));
+        EXPECT_CALL(*mockNet, getBatchSize()).WillRepeatedly(Return(12));
+        EXPECT_CALL(*mockNet, getName(_, _)).WillRepeatedly(Invoke([](char *pName, size_t len) {
             memcpy(pName, "nm", 3);
         }));
 
@@ -60,12 +59,10 @@ protected:
 };
 
 TEST_F(GraphCopyTests, copyNetworkPreserveBasicParams) {
-
-    auto clone = CNNNetCopy<MockCopier>(mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
 
     //network was copied not just assigned
-    ASSERT_NE(clone.get(), &mockNet);
-    ASSERT_EQ(clone->getTargetDevice(), TargetDevice::eCPU);
+    ASSERT_NE(clone.get(), mockNet.get());
     ASSERT_EQ(clone->getPrecision(), Precision::FP16);
 
     char name[20];
@@ -74,41 +71,38 @@ TEST_F(GraphCopyTests, copyNetworkPreserveBasicParams) {
 }
 
 TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {
-    auto clone = CNNNetCopy<MockCopier>(mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
     ASSERT_EQ(clone->getBatchSize(), 12);
 }
 
 
 TEST_F(GraphCopyTests, canPreserveInputs) {
-    auto clone = CNNNetCopy<MockCopier>(mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
 
     InputsDataMap inputs, inputsTarget;
     InputsDataMap heads, headsTarget;
 
     clone->getInputsInfo(inputs);
-    mockNet.getInputsInfo(inputsTarget);
+    mockNet->getInputsInfo(inputsTarget);
     ASSERT_INPUTS_INFO_EQ(inputs, inputsTarget);
 }
 
 TEST_F(GraphCopyTests, canPreserveOutputs) {
 
-    auto clone = CNNNetCopy<MockCopier>(mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
 
     OutputsDataMap outTarget, outSource;
     clone->getOutputsInfo(outTarget);
-    mockNet.getOutputsInfo(outSource);
+    mockNet->getOutputsInfo(outSource);
 
     ASSERT_OUTPUTS_INFO_EQ(outSource, outTarget);
 }
 
 TEST_F(GraphCopyTests, canPreserveAttributes) {
-    auto clone = CNNNetCopy<MockCopier>(mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
     ADD_ATTR(1, "id", "r-1-2-3");
     ADD_ATTR(2, "id", "r-1-2-3");
-
-    IE_SUPPRESS_DEPRECATED_START
-    CNNNetwork cloned (clone.get());
-    IE_SUPPRESS_DEPRECATED_END
+    CNNNetwork cloned (clone);
     auto idMemOutput = cloned.getLayerByName("1")->GetParamAsString("id");
     auto idMemInput  = cloned.getLayerByName("2")->GetParamAsString("id");
 
@@ -117,7 +111,7 @@ TEST_F(GraphCopyTests, canPreserveAttributes) {
 }
 
 TEST_F(GraphCopyTests, canPreserveGetData) {
-    auto clone = CNNNetCopy<MockCopier>(mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
 
     ASSERT_NE(clone->getData("1"), nullptr);
     ASSERT_NE(clone->getData("2"), nullptr);
@@ -127,7 +121,7 @@ TEST_F(GraphCopyTests, canPreserveGetData) {
 }
 
 TEST_F(GraphCopyTests, canPreserveTopology) {
-    auto iclone = CNNNetCopy<MockCopier>(mockNet, mc);
+    auto iclone = CNNNetCopy<MockCopier>(*mockNet, mc);
     auto clone = CNNNetwork(iclone);
 
     ASSERT_EQ(clone.layerCount(), 5);
@@ -159,7 +153,7 @@ using FP32_2_FP32 = GNAPluginNS::details::QuantPair<_FP32_2_FP32 , _FP32_2_FP32 
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
 
-    auto iclone = ModelQuantizer<FP32_2_FP32>().quantize(mockNet, std::vector<float >({1.0f, 1.0f}));
+    auto iclone = ModelQuantizer<FP32_2_FP32>().quantize(*mockNet, std::vector<float >({1.0f, 1.0f}));
     auto clone = CNNNetwork(iclone);
 
     CNNNetBFS(clone.getLayerByName("1"), [&](CNNLayerPtr layer) {
@@ -224,9 +218,7 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithClampLayer) {
     struct EmptyStruct {};
     auto visitor = [&](CNNLayerPtr lp) { return injectData<EmptyStruct>(lp); };
     auto copied_net_ptr = CNNNetCopy(network, visitor);
-    IE_SUPPRESS_DEPRECATED_START
-    auto copied_net = CNNNetwork(copied_net_ptr.get());
-    IE_SUPPRESS_DEPRECATED_END
+    auto copied_net = CNNNetwork(copied_net_ptr);
 
     //check that Clamp layer was properly copied
     auto layer = std::dynamic_pointer_cast<ClampLayer>(copied_net.getLayerByName("ClampLayer"));
@@ -294,9 +286,7 @@ TEST(CNNSpecificGraphCopyTests, copyPreprocess) {
     struct EmptyStruct {};
     auto visitor = [&](CNNLayerPtr lp) { return injectData<EmptyStruct>(lp); };
     auto copied_net_ptr = CNNNetCopy(network, visitor);
-    IE_SUPPRESS_DEPRECATED_START
-    auto copied_net = CNNNetwork(copied_net_ptr.get());
-    IE_SUPPRESS_DEPRECATED_END
+    auto copied_net = CNNNetwork(copied_net_ptr);
 
     //check that pre process Info existed in copied network
     auto &pp = copied_net.getInputsInfo().begin()->second->getPreProcess();
@@ -359,9 +349,7 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithDeconvolution) {
     struct EmptyStruct {};
     auto visitor = [&](CNNLayerPtr lp) { return injectData<EmptyStruct>(lp); };
     auto copied_net_ptr = CNNNetCopy(network, visitor);
-    IE_SUPPRESS_DEPRECATED_START
-    auto copied_net = CNNNetwork(copied_net_ptr.get());
-    IE_SUPPRESS_DEPRECATED_END
+    auto copied_net = CNNNetwork(copied_net_ptr);
 
     // check that Clamp layer was properly copied
     auto layer = std::dynamic_pointer_cast<DeconvolutionLayer>(copied_net.getLayerByName("upsample_merged"));

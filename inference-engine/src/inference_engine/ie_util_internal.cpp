@@ -149,6 +149,7 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
     static const fptr cloners[] = {
         &layerCloneImpl<SelectLayer               >,
         &layerCloneImpl<BatchNormalizationLayer   >,
+        &layerCloneImpl<TopKLayer                 >,
         &layerCloneImpl<PowerLayer                >,
         &layerCloneImpl<ScaleShiftLayer           >,
         &layerCloneImpl<PReLULayer                >,
@@ -163,6 +164,7 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
         &layerCloneImpl<ShuffleChannelsLayer      >,
         &layerCloneImpl<DepthToSpaceLayer         >,
         &layerCloneImpl<SpaceToDepthLayer         >,
+        &layerCloneImpl<SparseFillEmptyRowsLayer  >,
         &layerCloneImpl<ReverseSequenceLayer      >,
         &layerCloneImpl<RangeLayer                >,
         &layerCloneImpl<FillLayer                 >,
@@ -184,12 +186,17 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
         &layerCloneImpl<ConvolutionLayer          >,
         &layerCloneImpl<TensorIterator            >,
         &layerCloneImpl<RNNSequenceLayer          >,
-        &layerCloneImpl<RNNCellBase               >,
+        &layerCloneImpl<LSTMCell                  >,
+        &layerCloneImpl<GRUCell                   >,
+        &layerCloneImpl<RNNCell                   >,
         &layerCloneImpl<QuantizeLayer             >,
         &layerCloneImpl<BinaryConvolutionLayer    >,
         &layerCloneImpl<WeightableLayer           >,
         &layerCloneImpl<OneHotLayer               >,
-        &layerCloneImpl<CNNLayer                  >
+        &layerCloneImpl<CNNLayer                  >,
+        &layerCloneImpl<UniqueLayer               >,
+        &layerCloneImpl<NonMaxSuppressionLayer    >,
+        &layerCloneImpl<ScatterLayer              >
     };
     for (auto cloner : cloners) {
         auto cloned = cloner(&source);
@@ -611,8 +618,6 @@ struct NodePrinter {
                     operation = "Pow";
                 else if (eltwise->_operation == EltwiseLayer::Mean)
                     operation = "Mean";
-                else if (eltwise->_operation == EltwiseLayer::Select)
-                    operation = "Select";
 
                 printed_properties.emplace_back("operation", operation);
             }

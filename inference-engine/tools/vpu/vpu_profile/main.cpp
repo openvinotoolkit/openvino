@@ -43,7 +43,7 @@ static constexpr char model_message[]       = "Path to xml model.";
 static constexpr char inputs_dir_message[]  = "Path to folder with images, only bitmap(.bmp) supported. Default: \".\".";
 static constexpr char config_message[]      = "Path to the configuration file. Default value: \"config\".";
 static constexpr char iterations_message[]  = "Specifies number of iterations. Default value: 16.";
-static constexpr char plugin_message[]      = "Specifies plugin. Supported values: myriad.\n"
+static constexpr char plugin_message[]      = "Specifies plugin. Supported values: myriad, hddl.\n"
     "\t            \t         \tDefault value: \"myriad\".";
 static constexpr char report_message[]      = "Specifies report type. Supported values: per_layer, per_stage.\n"
     "\t            \t         \tOverrides value in configuration file if provided. Default value: \"per_stage\"";

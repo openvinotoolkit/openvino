@@ -70,7 +70,7 @@ namespace cldnn {
 namespace gpu {
 
 ocl_error::ocl_error(cl::Error const& err)
-    : error(err.what() + std::string(", error code: ") + std::to_string(err.err())) {}
+    : std::runtime_error(err.what() + std::string(", error code: ") + std::to_string(err.err())) {}
 
 std::shared_ptr<gpu_toolkit> gpu_toolkit::create(const configuration& cfg) {
     struct make_shared_wa : public gpu_toolkit {
@@ -204,9 +204,13 @@ void gpu_toolkit::set_output_event(uint16_t queue_id, bool out_event) {
 std::ofstream& gpu_toolkit::open_log() {
     if (!_logger->_log_file.is_open()) {
         _logger->_log_file.open(_configuration.log, std::ios::out | std::ios::trunc);
-        if (!_logger->_log_file.good())
+        if (!_logger->_log_file.good()) {
+            _logger->_log_file.close();
             throw std::runtime_error("Could not initialize ocl_toolkit log file");
+        }
+
         if (!_logger->_log_file.is_open()) {
+            _logger->_log_file.close();
             throw std::runtime_error("Could not open ocl_toolkit log file '" + _configuration.log + "' for writing");
         }
     }

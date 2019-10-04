@@ -16,16 +16,16 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/pooling.hpp"
-#include "api/CPP/mutable_data.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/pooling.hpp"
+#include "api/mutable_data.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include "api/CPP/reorder.hpp"
-#include <api/CPP/data.hpp>
+#include "api/reorder.hpp"
+#include <api/data.hpp>
 #include "test_utils/float16.h"
 
 using namespace cldnn;
@@ -1100,7 +1100,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax) {
     //  f0: b0:  4    4   b1:   15    13
     //  f1: b0:  10  11   b1:   21    23
 
-
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
@@ -1178,7 +1177,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2x1_max_with_argmax) {
     //  f0: b0:  4    4   b1:   15    13
     //  f1: b0:  10  11   b1:   21    23
 
-
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 2, 2, 3, 2, 1 } });
@@ -1238,7 +1236,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2x1_max_with_argmax) {
     }
 }
 
-
 TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_input_padding) {
     //  Input  : 2x2x3x2
     //  Argmax : 2x2x2x1
@@ -1258,7 +1255,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_input_padding) {
     //  Argmax:
     //  f0: b0:  4    4   b1:   15    13
     //  f1: b0:  10  11   b1:   21    23
-
 
     const auto& engine = get_test_engine();
 
@@ -1338,7 +1334,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_output_padding) {
     //  Argmax:
     //  f0: b0:  4    4   b1:   15    13
     //  f1: b0:  10  11   b1:   21    23
-
 
     const auto& engine = get_test_engine();
 
@@ -1428,7 +1423,6 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2_max_with_argmax_with_output_size) {
     //  Argmax:
     //  f0: b0:  4    4   b1:   15    13
     //  f1: b0:  10  11   b1:   21    23
-
 
     const auto& engine = get_test_engine();
 
@@ -2006,8 +2000,6 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
     //  [0,    1, -0.5,  0,  0]
     //  [0,    0,    0,  0,  0]
 
-
-
         tensor input_tensor(1, 1, 3, 3);
         auto input_prim = memory::allocate(engine, { data_types::f16, format::bfyx, input_tensor });
 
@@ -2024,7 +2016,6 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
             FLOAT16(1.00f), FLOAT16(-1.00f), FLOAT16(-1.00f),
             FLOAT16(-1.00f), FLOAT16(-1.00f), FLOAT16(-0.50f)
             });
-
 
         network.set_input_data("input_prim", input_prim);
 
@@ -2214,11 +2205,7 @@ public:
         {
             delete generic_params;
         }
-
-        for (auto layer_params : all_layer_params)
-        {
-            delete layer_params;
-        }
+        all_layer_params.clear();
     }
 
     static tensor generate_input_offset(int x, int y, const tensor& window_size)
@@ -2226,7 +2213,7 @@ public:
         return tensor(0, 0, -std::min(x, window_size.spatial[0] - 1), -std::min(y, window_size.spatial[1] - 1));
     }
 
-    static std::vector<cldnn::primitive*> generate_specific_test_params()
+    static std::vector<std::shared_ptr<cldnn::primitive>> generate_specific_test_params()
     {
         std::vector<pooling_mode> pooling_modes = { pooling_mode::max, pooling_mode::average, pooling_mode::average_no_padding };
 
@@ -2241,23 +2228,23 @@ public:
                 for (auto stride : strides)
                 {
                     // No padding
-                    all_layer_params.push_back(new pooling("pooling", "input0", pooling_mode, size, stride));
-                    all_layer_params.push_back(new pooling("pooling", "input0", pooling_mode, size, stride, generate_input_offset(4, 3, size)));
+                    all_layer_params.emplace_back(new pooling("pooling", "input0", pooling_mode, size, stride));
+                    all_layer_params.emplace_back(new pooling("pooling", "input0", pooling_mode, size, stride, generate_input_offset(4, 3, size)));
 
                     // Input padding
-                    all_layer_params.push_back(new pooling("pooling", "reorder0", pooling_mode, size, stride));
+                    all_layer_params.emplace_back(new pooling("pooling", "reorder0", pooling_mode, size, stride));
 
                     // Output padding
-                    all_layer_params.push_back(new pooling("pooling", "input0", pooling_mode, size, stride, generate_input_offset(2, 3, size), { { 0, 0, 1, 5 },{ 0, 0, 19, 4 } }));
+                    all_layer_params.emplace_back(new pooling("pooling", "input0", pooling_mode, size, stride, generate_input_offset(2, 3, size), { { 0, 0, 1, 5 },{ 0, 0, 19, 4 } }));
 
                     // Input + output padding
-                    all_layer_params.push_back(new pooling("pooling", "reorder0", pooling_mode, size, stride, generate_input_offset(2, 3, size), { { 0, 0, 2, 1 },{ 0, 0, 3, 4 } }));
+                    all_layer_params.emplace_back(new pooling("pooling", "reorder0", pooling_mode, size, stride, generate_input_offset(2, 3, size), { { 0, 0, 2, 1 },{ 0, 0, 3, 4 } }));
                 }
             }
         }
 
         // This case tests the pooling_gpu_bfyx_average_opt kernel.
-        all_layer_params.push_back(new pooling("pooling", "input0", pooling_mode::average, tensor(1, 1, 3, 3), tensor(1, 1, 1, 1), generate_input_offset(1, 1, tensor(1, 1, 3, 3))));
+        all_layer_params.emplace_back(new pooling("pooling", "input0", pooling_mode::average, tensor(1, 1, 3, 3), tensor(1, 1, 1, 1), generate_input_offset(1, 1, tensor(1, 1, 3, 3))));
 
         return all_layer_params;
     }
@@ -2301,7 +2288,7 @@ public:
 
     virtual cldnn::tensor get_expected_output_tensor()
     {
-        const cldnn::pooling* pooling = (cldnn::pooling*)layer_params;
+        auto pooling = std::static_pointer_cast<cldnn::pooling>(layer_params);
 
         int batch = generic_params->input_layouts[0].size.batch[0];
         int feature = generic_params->input_layouts[0].size.feature[0];
@@ -2336,14 +2323,12 @@ public:
     template<typename Type>
     memory generate_reference_typed(const std::vector<cldnn::memory>& inputs)
     {
-        const cldnn::pooling* pooling = (cldnn::pooling*)layer_params;
+        auto pooling = std::static_pointer_cast<cldnn::pooling>(layer_params);
 
         int batch = inputs[0].get_layout().size.batch[0];
         int feature = inputs[0].get_layout().size.feature[0];
         int height = inputs[0].get_layout().size.spatial[1];
         int width = inputs[0].get_layout().size.spatial[0];
-
-
 
         cldnn::pooling_mode pooling_mode = pooling->mode;
 
@@ -2518,11 +2503,11 @@ public:
 private:
 
     static std::vector<tests::test_params*> all_generic_params;
-    static std::vector<cldnn::primitive*> all_layer_params;
+    static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 
 };
 
-std::vector<cldnn::primitive*> pooling_test::all_layer_params = {};
+std::vector<std::shared_ptr<cldnn::primitive>> pooling_test::all_layer_params = {};
 std::vector<tests::test_params*> pooling_test::all_generic_params = {};
 
 TEST_P(pooling_test, POOLING)

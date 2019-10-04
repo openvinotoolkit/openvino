@@ -107,25 +107,23 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                              lookup_table_gpu::create);
-        implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                              lookup_table_gpu::create);
-        implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb),
-                                              lookup_table_gpu::create);
-        implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                              lookup_table_gpu::create);
-        implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                              lookup_table_gpu::create);
-        implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
-                                              lookup_table_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_lookup_table_gpu::attach_lookup_table_gpu() {
+    implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                          lookup_table_gpu::create);
+    implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                          lookup_table_gpu::create);
+    implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb),
+                                          lookup_table_gpu::create);
+    implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                          lookup_table_gpu::create);
+    implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                          lookup_table_gpu::create);
+    implementation_map<lookup_table>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
+                                          lookup_table_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

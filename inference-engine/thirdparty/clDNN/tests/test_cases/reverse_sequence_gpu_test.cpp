@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
 
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/reverse_sequence.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
+#include <api/input_layout.hpp>
+#include <api/memory.hpp>
+#include <api/reverse_sequence.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
 
 #include <cstddef>
 #include <tests/test_utils/test_utils.h>

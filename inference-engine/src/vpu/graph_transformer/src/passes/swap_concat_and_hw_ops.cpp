@@ -106,7 +106,7 @@ void PassImpl::run(const Model::Ptr& model) {
         for (const auto& nextStage : nextStages) {
             auto nextOutput = nextStage->output(0);
 
-            model->disconnectStageDatas(nextStage);
+            model->disconnectStage(nextStage);
 
             DataVector newOutputs;
             newOutputs.reserve(lastInputs.size());
@@ -124,8 +124,8 @@ void PassImpl::run(const Model::Ptr& model) {
                     newDesc);
 
                 model->duplicateStage(
-                    nextStage->name() + postfix,
                     nextStage,
+                    postfix,
                     {curInput},
                     {newOutput});
 

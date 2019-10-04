@@ -138,7 +138,7 @@ void PassImpl::run(const Model::Ptr& model) {
             if (isOK) {
                 output = nextPostOpStage->output(0);
 
-                model->disconnectStageDatas(nextPostOpStage);
+                model->disconnectStage(nextPostOpStage);
 
                 model->replaceStageOutput(stage->outputEdge(0), output);
 
@@ -175,7 +175,7 @@ void PassImpl::run(const Model::Ptr& model) {
                 if (auto nextPoolStage = getNextPoolStage(stage, output)) {
                     output = nextPoolStage->output(0);
 
-                    model->disconnectStageDatas(nextPoolStage);
+                    model->disconnectStage(nextPoolStage);
 
                     model->replaceStageOutput(stage->outputEdge(0), output);
 

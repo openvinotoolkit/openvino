@@ -15,7 +15,6 @@
 
 #include <ie_layouts.h>
 
-#include <vpu/model/base.hpp>
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/io.hpp>
 #include <vpu/utils/dot_io.hpp>
@@ -44,30 +43,12 @@ namespace ie = InferenceEngine;
 VPU_DECLARE_ENUM(DataType,
     FP16 = 0,
     U8 = 1,
-//     S32 = 2,  // TODO: remove from MvTensor
+    S32 = 2,
     FP32 = 3,
     I8 = 4
 )
 
-//
-// Dim
-//
-
-//
-// Named dimensions for better readability.
-//
-
-VPU_DECLARE_ENUM(Dim,
-    Invalid = -1,
-    W = 0,
-    H = 1,
-    C = 2,
-    N = 3,
-    _5 = 4,
-    _6 = 5,
-    _7 = 6,
-    _8 = 7
-)
+DataType fromIEPrecision(const InferenceEngine::Precision& precision);
 
 //
 // StorageOrder
@@ -84,6 +65,30 @@ using StorageOrder32 = uint32_t;
 const int MAX_DIMS_64 = std::numeric_limits<StorageOrder64>::digits / 4 - 1;
 
 const int MAX_DIMS_32 = std::numeric_limits<StorageOrder32>::digits / 4;
+
+//
+// Dim
+//
+
+//
+// Named dimensions for better readability.
+//
+
+VPU_DECLARE_ENUM(Dim,
+    Invalid = -1,
+    W = 0,
+    H = 1,
+    C = 2,
+    N = 3,
+    D = 4
+)
+
+// TODO: identify casts like static_cast<int>(Dim),
+//       and replace all with calling this function
+// JIRA: #21163
+int dimToIeInd(vpu::Dim const& dim, int numDims);
+
+using DimVector = SmallVector<Dim, MAX_DIMS_64>;
 
 //
 // DimValues
@@ -252,29 +257,29 @@ public:
         auto ind = static_cast<int32_t>(d);
         IE_ASSERT(ind >= 0 && ind < MAX_DIMS_64);
 
-        return _flags[ind];
+        return _flags[static_cast<size_t>(ind)];
     }
 
     const T& operator[](Dim d) const {
         auto ind = static_cast<int32_t>(d);
         IE_ASSERT(ind >= 0 && ind < MAX_DIMS_64);
-        IE_ASSERT(_flags[ind]);
+        IE_ASSERT(_flags[static_cast<size_t>(ind)]);
 
-        return _values[ind].second;
+        return _values[static_cast<size_t>(ind)].second;
     }
     const T& get(Dim d, const T& def) const {
         auto ind = static_cast<int32_t>(d);
         IE_ASSERT(ind >= 0 && ind < MAX_DIMS_64);
 
-        return _flags[ind] ? _values[ind].second : def;
+        return _flags[static_cast<size_t>(ind)] ? _values[static_cast<size_t>(ind)].second : def;
     }
 
     void set(Dim d, const T& val) {
         auto ind = static_cast<int32_t>(d);
         IE_ASSERT(ind >= 0 && ind < MAX_DIMS_64);
 
-        if (!_flags[ind]) {
-            _flags[ind] = true;
+        if (!_flags[static_cast<size_t>(ind)]) {
+            _flags[static_cast<size_t>(ind)] = true;
             ++_size;
         }
 
@@ -352,6 +357,12 @@ private:
 };
 
 template <typename T>
+std::ostream& operator<<(std::ostream& o, const DimValues_<T>& dimValues) {
+    dimValues.printTo(o);
+    return o;
+}
+
+template <typename T>
 void printTo(std::ostream& os, const DimValues_<T>& dims) {
     dims.printTo(os);
 }
@@ -378,6 +389,8 @@ public:
     static DimsOrder NCHW;
     static DimsOrder NHWC;
     static DimsOrder NHCW;
+    static DimsOrder NCDHW;
+    static DimsOrder NDHWC;
 
     //
     // Constructor
@@ -386,7 +399,8 @@ public:
     DimsOrder() = default;
     static DimsOrder fromCode(StorageOrder64 code);
     static DimsOrder fromNumDims(int numDims);
-    static DimsOrder fromPermutation(const SmallVector<Dim, MAX_DIMS_64>& perm);
+    static DimsOrder fromPermutation(const DimVector& perm);
+    static DimsOrder fromLayout(ie::Layout const& layout);
 
     //
     // Accessors
@@ -518,6 +532,12 @@ public:
 
     void reorder(DimsOrder dimsOrder);
 
+    //
+    // Export
+    //
+
+    ie::TensorDesc toTensorDesc() const;
+
 private:
     DataType _type = DataType::FP16;
     DimsOrder _dimsOrder;
@@ -534,7 +554,8 @@ void printTo(DotLabel& lbl, const DataDesc& desc);
 VPU_DECLARE_ENUM(DimStride,
     Any,
     Compact,
-    Aligned
+    Aligned,
+    Fixed
 )
 
 const int STRIDE_ALIGNMENT = 16;
@@ -553,22 +574,23 @@ public:
 
     static StridesRequirement empty() { return StridesRequirement().add(0, DimStride::Any); }
     static StridesRequirement compact();
+    static StridesRequirement fixed(const std::vector<int>& strides, const DataDesc& desc);
 
     StridesRequirement& add(int index, DimStride stride) {
         IE_ASSERT(index >= 0 && index < MAX_DIMS_64);
-        _map[index] = stride;
+        _map[static_cast<size_t>(index)] = stride;
         return *this;
     }
 
     StridesRequirement& remove(int index) {
         IE_ASSERT(index >= 0 && index < MAX_DIMS_64);
-        _map[index] = DimStride::Any;
+        _map[static_cast<size_t>(index)] = DimStride::Any;
         return *this;
     }
 
     DimStride get(int index) const {
         IE_ASSERT(index >= 0 && index < MAX_DIMS_64);
-        return _map[index];
+        return _map[static_cast<size_t>(index)];
     }
 
     bool operator==(const StridesRequirement& other) const {
@@ -578,8 +600,13 @@ public:
         return (_map != other._map);
     }
 
+    const DimValues& fixedStrides() const { return _fixedStrides; }
+
+    int getFixedStride(Dim d) const { return _fixedStrides[d]; }
+
 private:
     std::array<DimStride, MAX_DIMS_64> _map{{DimStride::Any}};
+    DimValues _fixedStrides;
 };
 
 void printTo(std::ostream& os, const StridesRequirement& reqs);
@@ -591,7 +618,7 @@ bool checkStride(
         const DimValues& strides,
         const DataDesc& desc,
         int ind,
-        DimStride req);
+        const StridesRequirement& req);
 bool checkStrides(
         const DataDesc& desc,
         const DimValues& strides,

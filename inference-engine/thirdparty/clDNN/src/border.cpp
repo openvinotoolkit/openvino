@@ -21,7 +21,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id border_type_id() {
+primitive_type_id border::type_id() {
     static primitive_type_base<border> instance;
     return &instance;
 }
@@ -33,12 +33,21 @@ layout border_inst::calc_output_layout(border_node const& node) {
     auto desc = node.get_primitive();
 
     auto&& new_size = input_layout.size;
-    new_size += desc->left_top_sizes.sub({0, 0, 0, 0});
-    new_size += desc->right_bottom_sizes.sub({0, 0, 0, 0});
+    new_size += desc->left_top_sizes.sub(tensor(0));
+    new_size += desc->right_bottom_sizes.sub(tensor(0));
 
-    return {input_layout.data_type,
-            input_layout.format,
-            {new_size.batch[0], new_size.feature[0], new_size.spatial[0], new_size.spatial[1]}};
+    auto ret_data_t = input_layout.data_type;
+    auto ret_format = input_layout.format;
+
+    if (ret_format == format::bfwzyx) {
+        return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
+            spatial(new_size.spatial[0], new_size.spatial[1], new_size.spatial[2], new_size.spatial[3])) };
+    } else if (ret_format == format::bfzyx) {
+        return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
+            spatial(new_size.spatial[0], new_size.spatial[1], new_size.spatial[2])) };
+    }
+    return layout{ ret_data_t, ret_format, tensor(batch(new_size.batch[0]), feature(new_size.feature[0]),
+        spatial(new_size.spatial[0], new_size.spatial[1])) };
 }
 
 std::string border_inst::to_string(border_node const& node) {
@@ -50,6 +59,9 @@ std::string border_inst::to_string(border_node const& node) {
 
     const char* border_type_str = "unknown";
     switch (desc->type) {
+        case border_type::zero:
+            border_type_str = "zero";
+            break;
         case border_type::constant:
             border_type_str = "constant";
             break;
@@ -61,6 +73,9 @@ std::string border_inst::to_string(border_node const& node) {
             break;
         case border_type::mirror_101:
             border_type_str = "mirror-101";
+            break;
+        default:
+            border_type_str = "unknown";
             break;
     }
 
@@ -85,8 +100,8 @@ border_inst::typed_primitive_inst(network_impl& network, border_node const& node
     const auto input_format = input_layout.format;
     const auto& input_sizes = input_layout.size;
 
-    auto lt_sizes = argument.left_top_sizes.sub({0, 0, 0, 0});
-    auto rb_sizes = argument.right_bottom_sizes.sub({0, 0, 0, 0});
+    auto lt_sizes = argument.left_top_sizes.sub(tensor(0));
+    auto rb_sizes = argument.right_bottom_sizes.sub(tensor(0));
     auto b_type = argument.type;
 
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
@@ -95,9 +110,11 @@ border_inst::typed_primitive_inst(network_impl& network, border_node const& node
                                   "supported border primitive input formats",
                                   format::bfyx,
                                   format::yxfb,
-                                  format::byxf);
+                                  format::byxf,
+                                  format::bfzyx,
+                                  format::bfwzyx);
 
-    tensor null_tensor { 0, 0, 0, 0 };
+    tensor null_tensor = tensor(0);
 
     // Check if sizes of border are in proper range.
     CLDNN_ERROR_TENSOR_SIZES_LESS_THAN(node.id(),

@@ -90,7 +90,11 @@ class Crop(Op):
             if len(node.crop_begin) != len(node.axis) or len(node.crop_end) != len(node.axis):
                 log.error('number of crop_begin/crop_end should match number of axis')
                 return
-            output_shape[node.axis] = output_shape[node.axis] - node.crop_begin - node.crop_end
+            if type(node.axis) in [list, tuple]:
+                for i in range(len(node.axis)):
+                    output_shape[node.axis[i]] = output_shape[node.axis[i]] - node.crop_begin[i] - node.crop_end[i]
+            else:
+                output_shape[node.axis] = output_shape[node.axis] - node.crop_begin - node.crop_end
         else:
             log.error('Crop node {} should have either dim or crop_begin and crop_end attributes'.format(node.name))
             return
